@@ -1,0 +1,1 @@
+E_RATE_LIMIT: family auth — bounded identity, upload, or HTTP admission is full. Retry later; see the personas and assets cards.

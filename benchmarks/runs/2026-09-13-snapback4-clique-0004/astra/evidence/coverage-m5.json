@@ -1,0 +1,29 @@
+{
+  "milestone": "m5",
+  "assertions": {
+    "m5-a04": {
+      "test": "m5/m5-a04",
+      "status": "pass"
+    },
+    "m5-a05": {
+      "test": "m5/m5-a05",
+      "status": "pass"
+    },
+    "m5-a08": {
+      "test": "m5/m5-a08",
+      "status": "pass"
+    },
+    "m5-a09": {
+      "test": "m5/m5-a09",
+      "status": "pass"
+    },
+    "m5-a10": {
+      "test": "m5/m5-a10",
+      "status": "pass"
+    },
+    "m5-a11": {
+      "test": "m5/m5-a11",
+      "status": "pass"
+    }
+  }
+}

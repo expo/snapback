@@ -1,0 +1,13 @@
+{
+  "start": 1789333537500,
+  "actor": "u0049",
+  "conversation": "g0001",
+  "method": "Real UI send/render and authoritative acknowledgement on isolated final corpus copy",
+  "warmups": 3,
+  "n": 20,
+  "p50": 193.3529579999995,
+  "p95": 231.9720840000009,
+  "ackP95": 535.4290829999991,
+  "pass": true,
+  "end": 1789333571003
+}

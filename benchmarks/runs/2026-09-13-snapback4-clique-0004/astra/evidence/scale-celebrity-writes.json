@@ -1,0 +1,26 @@
+{
+  "at": 1789333490155,
+  "sourceSnapshot": "verified final corpus",
+  "baseline": "u0001",
+  "baselineFollowers": 5,
+  "celebrity": "u0900",
+  "celebrityFollowers": 900,
+  "probes": [
+    {
+      "actor": "u0001",
+      "n": 20,
+      "warmups": 3,
+      "p50": 2.0661669999999503,
+      "p95": 2.653291000000081
+    },
+    {
+      "actor": "u0900",
+      "n": 20,
+      "warmups": 3,
+      "p50": 1.928625000000011,
+      "p95": 3.961250000000291
+    }
+  ],
+  "ratio": 1.4929572368806021,
+  "pass": true
+}

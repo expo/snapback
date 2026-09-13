@@ -1,0 +1,11 @@
+{
+  "bootstrapStart": 1789329847,
+  "start": 1789329848,
+  "status": "failed",
+  "capSeconds": 14400,
+  "excludedProbeMs": 14181,
+  "error": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('sm-feed-tab-following') to be visible\u001b[22m\n\n    at browserProbes (/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/scripts/scale-browser-probes.mjs:2:598)\n    at async probes (/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/scripts/scale-verify.mjs:20:526)\n    at async checkpoint (/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/scripts/run-scale.mjs:3:393)\n    at async replay (/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/scripts/replay.mjs:10:71)\n    at async file:///Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/scripts/run-scale.mjs:4:366",
+  "end": 1789332545,
+  "wall": 2697,
+  "replayWall": 2682.819
+}

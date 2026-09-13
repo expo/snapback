@@ -1,0 +1,51 @@
+{
+  "milestone": "m6",
+  "pass": true,
+  "results": [
+    {
+      "id": "m6-a13",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "checkedActions": 50,
+        "verbs": 13,
+        "actualStateVerified": true
+      }
+    },
+    {
+      "id": "m6-a10",
+      "pass": true,
+      "detail": {
+        "standaloneDirectory": "evidence/custom-client-clean-1789330340254",
+        "pass": true
+      }
+    },
+    {
+      "id": "m6-a11",
+      "pass": true,
+      "detail": {
+        "standaloneDirectory": "evidence/custom-client-clean-1789330340254",
+        "pass": true
+      }
+    },
+    {
+      "id": "m6-a08",
+      "pass": true,
+      "detail": {
+        "count": 2,
+        "previewLength": 80,
+        "photo": true
+      }
+    },
+    {
+      "id": "m6-a09",
+      "pass": true,
+      "detail": {
+        "count": 2,
+        "previewLength": 80,
+        "photo": true
+      }
+    }
+  ],
+  "at": 1789330376899
+}

@@ -1,7 +1,8 @@
 # Clique on Snapback 4 — full brief, three builder models
 
-**Status: running.** Astra medium's continuous builder started at
-`2026-09-13T18:30:36Z` (PID `56884`); Grok and Muse remain queued.
+**Status: running.** Astra medium completed its continuous build at
+`2026-09-13T21:10:50Z` in 9,614.013 seconds of driver wall time. Grok 4.6 xhigh
+started its cold build at `2026-09-13T21:12:03Z` (PID `61926`); Muse remains queued.
 All three lanes are frozen to published `snapback4@0.2.6` and
 `snapback4-expo@0.2.1`. `REGISTRY_RECEIPTS.json` confirms that registry integrity
 matches the exact qualified tarballs, including the platform binary.
@@ -10,7 +11,7 @@ The repairs landed at `342c53d306d7484cd64e820ee27a151e02eb4b0b`.
 The publisher reran the full suite in 30 seconds: 236 Rust, 9 fixture and
 89 client passes, zero failures and one declared ignored test. Its installed
 consumer checks passed. `release-qualification.json` retains the package,
-binary and raw-log digests. The builder reports M1–M4 green; independent grading has not started.
+binary and raw-log digests. Astra reports all seven continuous milestones green; independent grading has not started.
 
 ## Frozen run
 
@@ -38,13 +39,29 @@ grader behavior across runs.
 
 ## Results
 
-Astra reports M1–M4 green and is building M5. These are builder outcomes; the
-independent grade remains pending. Grok, Muse, scoring and M7 have not started.
+[Astra's continuous build](./astra/README.md) is complete: M1–M6 and M8 are builder-green, and all
+167,157 scale actions settled with local invariants and entity totals passing.
+Its replay clock was 3,481.181 seconds after 87.819 seconds of recorded probe
+exclusions (raw scale wall: 3,569 seconds). Registration honored the published
+30-attempts-per-minute auth limit. The first 50% browser startup timed out;
+after an application counter correction, the same-store replay resumed on the
+original clock. Full-corpus cold startup later passed in 21.446 seconds.
+
+Two strict performance predicates failed (Insights and Trending midpoint
+curves). The implementation changed after the 10% checkpoint, so these are
+diagnostic measurements, not a qualified uniform-code curve. Grok is building
+M1; Muse, holistic scores, independent grades and fresh M7 sessions remain pending.
+
+The [pending-shape audit](./m6-pending-shape-audit.md) separates the builder's
+attribution from the documented raw-row metadata boundary. The
+[replica startup audit](./replica-startup-audit.md) confirms the old quadratic
+JavaScript implementation is gone and explains why whole-browser startup
+timing does not identify a new device-apply defect.
 
 | Lane | M1 | M2 | M3 | M4 | M5 | M6 | M8 | Continuous wall | Holistic score | Independent 119 | Comparable 101 subtotal | Fresh M7 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Astra medium | builder green | builder green | builder green | builder green | running | pending | pending | running | pending | pending | pending | pending |
-| Grok 4.6 xhigh | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending |
+| Astra medium | builder green | builder green | builder green | builder green | builder green | builder green | builder green | 9,614.013 s | pending | pending | pending | pending |
+| Grok 4.6 xhigh | running | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending |
 | Muse Spark 1.3 xhigh | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending |
 
 The Astra M4 builder reproduced a new [video prediction defect](../../../issues/20260913-snapback4-video-id-only-prediction-refuses.md): passing the documented asset `{ id }` fails locally when the mutation reads `.duration`. Passing the complete upload response let it continue. This is a received builder reproduction; independent grading is pending, and the published pins remain unchanged.

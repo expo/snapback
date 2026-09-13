@@ -1,0 +1,276 @@
+{
+  "valid": false,
+  "reason": "Driver custody and independent grading are not supplied in the allowed lane. This is a pending join record, not a claimed schema-valid scored run. No unavailable metric is invented to satisfy schema.",
+  "errors": [
+    {
+      "instancePath": "/socialMessenger",
+      "schemaPath": "#/allOf/1/then/required",
+      "keyword": "required",
+      "params": {
+        "missingProperty": "orientation"
+      },
+      "message": "must have required property 'orientation'"
+    },
+    {
+      "instancePath": "/socialMessenger",
+      "schemaPath": "#/allOf/1/if",
+      "keyword": "if",
+      "params": {
+        "failingKeyword": "then"
+      },
+      "message": "must match \"then\" schema"
+    },
+    {
+      "instancePath": "/socialMessenger/milestones/M1/authoring/terminalAt",
+      "schemaPath": "#/allOf/0/then/properties/authoring/properties/terminalAt/type",
+      "keyword": "type",
+      "params": {
+        "type": "string"
+      },
+      "message": "must be string"
+    },
+    {
+      "instancePath": "/socialMessenger/milestones/M1/authoring/terminalSequence",
+      "schemaPath": "#/allOf/0/then/properties/authoring/properties/terminalSequence/type",
+      "keyword": "type",
+      "params": {
+        "type": "integer"
+      },
+      "message": "must be integer"
+    },
+    {
+      "instancePath": "/socialMessenger/milestones/M1",
+      "schemaPath": "#/allOf/0/if",
+      "keyword": "if",
+      "params": {
+        "failingKeyword": "then"
+      },
+      "message": "must match \"then\" schema"
+    },
+    {
+      "instancePath": "/socialMessenger/milestones/M2/authoring/terminalAt",
+      "schemaPath": "#/allOf/0/then/properties/authoring/properties/terminalAt/type",
+      "keyword": "type",
+      "params": {
+        "type": "string"
+      },
+      "message": "must be string"
+    },
+    {
+      "instancePath": "/socialMessenger/milestones/M2/authoring/terminalSequence",
+      "schemaPath": "#/allOf/0/then/properties/authoring/properties/terminalSequence/type",
+      "keyword": "type",
+      "params": {
+        "type": "integer"
+      },
+      "message": "must be integer"
+    },
+    {
+      "instancePath": "/socialMessenger/milestones/M2",
+      "schemaPath": "#/allOf/0/if",
+      "keyword": "if",
+      "params": {
+        "failingKeyword": "then"
+      },
+      "message": "must match \"then\" schema"
+    },
+    {
+      "instancePath": "/socialMessenger/milestones/M3/authoring/terminalAt",
+      "schemaPath": "#/allOf/0/then/properties/authoring/properties/terminalAt/type",
+      "keyword": "type",
+      "params": {
+        "type": "string"
+      },
+      "message": "must be string"
+    },
+    {
+      "instancePath": "/socialMessenger/milestones/M3/authoring/terminalSequence",
+      "schemaPath": "#/allOf/0/then/properties/authoring/properties/terminalSequence/type",
+      "keyword": "type",
+      "params": {
+        "type": "integer"
+      },
+      "message": "must be integer"
+    },
+    {
+      "instancePath": "/socialMessenger/milestones/M3",
+      "schemaPath": "#/allOf/0/if",
+      "keyword": "if",
+      "params": {
+        "failingKeyword": "then"
+      },
+      "message": "must match \"then\" schema"
+    },
+    {
+      "instancePath": "/socialMessenger/milestones/M4/authoring/terminalAt",
+      "schemaPath": "#/allOf/0/then/properties/authoring/properties/terminalAt/type",
+      "keyword": "type",
+      "params": {
+        "type": "string"
+      },
+      "message": "must be string"
+    },
+    {
+      "instancePath": "/socialMessenger/milestones/M4/authoring/terminalSequence",
+      "schemaPath": "#/allOf/0/then/properties/authoring/properties/terminalSequence/type",
+      "keyword": "type",
+      "params": {
+        "type": "integer"
+      },
+      "message": "must be integer"
+    },
+    {
+      "instancePath": "/socialMessenger/milestones/M4",
+      "schemaPath": "#/allOf/0/if",
+      "keyword": "if",
+      "params": {
+        "failingKeyword": "then"
+      },
+      "message": "must match \"then\" schema"
+    },
+    {
+      "instancePath": "/socialMessenger/milestones/M5/authoring/terminalAt",
+      "schemaPath": "#/allOf/0/then/properties/authoring/properties/terminalAt/type",
+      "keyword": "type",
+      "params": {
+        "type": "string"
+      },
+      "message": "must be string"
+    },
+    {
+      "instancePath": "/socialMessenger/milestones/M5/authoring/terminalSequence",
+      "schemaPath": "#/allOf/0/then/properties/authoring/properties/terminalSequence/type",
+      "keyword": "type",
+      "params": {
+        "type": "integer"
+      },
+      "message": "must be integer"
+    },
+    {
+      "instancePath": "/socialMessenger/milestones/M5",
+      "schemaPath": "#/allOf/0/if",
+      "keyword": "if",
+      "params": {
+        "failingKeyword": "then"
+      },
+      "message": "must match \"then\" schema"
+    },
+    {
+      "instancePath": "/socialMessenger/milestones/M6/authoring/terminalAt",
+      "schemaPath": "#/allOf/0/then/properties/authoring/properties/terminalAt/type",
+      "keyword": "type",
+      "params": {
+        "type": "string"
+      },
+      "message": "must be string"
+    },
+    {
+      "instancePath": "/socialMessenger/milestones/M6/authoring/terminalSequence",
+      "schemaPath": "#/allOf/0/then/properties/authoring/properties/terminalSequence/type",
+      "keyword": "type",
+      "params": {
+        "type": "integer"
+      },
+      "message": "must be integer"
+    },
+    {
+      "instancePath": "/socialMessenger/milestones/M6",
+      "schemaPath": "#/allOf/0/if",
+      "keyword": "if",
+      "params": {
+        "failingKeyword": "then"
+      },
+      "message": "must match \"then\" schema"
+    },
+    {
+      "instancePath": "/socialMessenger/milestones/M8/authoring/terminalAt",
+      "schemaPath": "#/allOf/0/then/properties/authoring/properties/terminalAt/type",
+      "keyword": "type",
+      "params": {
+        "type": "string"
+      },
+      "message": "must be string"
+    },
+    {
+      "instancePath": "/socialMessenger/milestones/M8/authoring/terminalSequence",
+      "schemaPath": "#/allOf/0/then/properties/authoring/properties/terminalSequence/type",
+      "keyword": "type",
+      "params": {
+        "type": "integer"
+      },
+      "message": "must be integer"
+    },
+    {
+      "instancePath": "/socialMessenger/milestones/M8",
+      "schemaPath": "#/allOf/0/if",
+      "keyword": "if",
+      "params": {
+        "failingKeyword": "then"
+      },
+      "message": "must match \"then\" schema"
+    },
+    {
+      "instancePath": "/socialMessenger/meteringProvenance",
+      "schemaPath": "#/properties/meteringProvenance/required",
+      "keyword": "required",
+      "params": {
+        "missingProperty": "driver"
+      },
+      "message": "must have required property 'driver'"
+    },
+    {
+      "instancePath": "/socialMessenger/meteringProvenance",
+      "schemaPath": "#/properties/meteringProvenance/required",
+      "keyword": "required",
+      "params": {
+        "missingProperty": "manifestSha256"
+      },
+      "message": "must have required property 'manifestSha256'"
+    },
+    {
+      "instancePath": "/socialMessenger/meteringProvenance",
+      "schemaPath": "#/properties/meteringProvenance/required",
+      "keyword": "required",
+      "params": {
+        "missingProperty": "clockCorrelation"
+      },
+      "message": "must have required property 'clockCorrelation'"
+    },
+    {
+      "instancePath": "/socialMessenger/meteringProvenance",
+      "schemaPath": "#/properties/meteringProvenance/required",
+      "keyword": "required",
+      "params": {
+        "missingProperty": "receipts"
+      },
+      "message": "must have required property 'receipts'"
+    },
+    {
+      "instancePath": "/socialMessenger/meteringProvenance",
+      "schemaPath": "#/properties/meteringProvenance/required",
+      "keyword": "required",
+      "params": {
+        "missingProperty": "boundaries"
+      },
+      "message": "must have required property 'boundaries'"
+    },
+    {
+      "instancePath": "/socialMessenger/meteringProvenance",
+      "schemaPath": "#/properties/meteringProvenance/required",
+      "keyword": "required",
+      "params": {
+        "missingProperty": "firstProductEdit"
+      },
+      "message": "must have required property 'firstProductEdit'"
+    },
+    {
+      "instancePath": "/socialMessenger/clocks/grading/sessions",
+      "schemaPath": "#/properties/clocks/properties/grading/properties/sessions/minItems",
+      "keyword": "minItems",
+      "params": {
+        "limit": 1
+      },
+      "message": "must NOT have fewer than 1 items"
+    }
+  ]
+}

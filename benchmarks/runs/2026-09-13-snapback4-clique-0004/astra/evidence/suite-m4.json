@@ -1,0 +1,31 @@
+{
+  "milestone": "m4",
+  "pass": true,
+  "results": [
+    {
+      "id": "m4-a01",
+      "pass": true
+    },
+    {
+      "id": "m4-a03",
+      "pass": true
+    },
+    {
+      "id": "m4-a06",
+      "pass": true
+    },
+    {
+      "id": "m4-a07",
+      "pass": true
+    },
+    {
+      "id": "m4-a09",
+      "pass": true
+    },
+    {
+      "test": "asset-revocation-and-authority",
+      "pass": true
+    }
+  ],
+  "at": 1789326674929
+}
