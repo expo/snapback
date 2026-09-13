@@ -33,6 +33,13 @@ pub struct Tx<'a> {
     catalog: &'a BTreeMap<String, i64>,
 }
 
+fn scan_sql(dir: Dir) -> &'static str {
+    match dir {
+        Dir::Asc => "SELECT r.data, i.k FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k ASC LIMIT ?5",
+        Dir::Desc => "SELECT r.data, i.k FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k DESC LIMIT ?5",
+    }
+}
+
 impl Store {
     pub fn open(path: &Path) -> Result<Self, RuntimeError> {
         let conn = Connection::open(path)?;
@@ -55,6 +62,11 @@ impl Store {
     }
 
     fn prepare(mut conn: Connection, assets_dir: PathBuf) -> Result<Self, RuntimeError> {
+        // Our fixed indexed SQL should reuse its plan when keys or limits
+        // change. Set this before caching statements: an existing VDBE
+        // retains its parameter-expiry mask even after automatic reprepare.
+        // @ref LLP 3000#7-decisions-during-execution — reuse SQLite plans across bound inputs
+        conn.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_ENABLE_QPSG, true)?;
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
              CREATE TABLE IF NOT EXISTS _catalog (name TEXT PRIMARY KEY, num INTEGER NOT NULL UNIQUE);
@@ -246,11 +258,7 @@ impl<'a> Tx<'a> {
     fn scan_keys(&self, table: &str, index_name: &str, lo: &[u8], hi: &[u8], dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         let t = self.num(table)?;
         let ti = self.num(&format!("{table}.{index_name}"))?;
-        let sql = match dir {
-            Dir::Asc => "SELECT r.data, i.k FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k ASC LIMIT ?5",
-            Dir::Desc => "SELECT r.data, i.k FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k DESC LIMIT ?5",
-        };
-        let mut statement = self.tx.prepare_cached(sql)?;
+        let mut statement = self.tx.prepare_cached(scan_sql(dir))?;
         let rows = statement.query_map(params![t, ti, lo, hi, limit as i64], |row| Ok((row.get::<_, String>(0)?, row.get::<_, Vec<u8>>(1)?)))?;
         rows.map(|row| {
             let (data, k) = row?;
@@ -458,6 +466,64 @@ mod tests {
         tx.delete("m", table, &row("m5", "a", 5)).unwrap();
         assert_eq!(tx.count_prefix("m", "byConvAt", &[Value::Id("a".into())], 100).unwrap(), 5);
         assert_eq!(tx.get("m", "m5").unwrap(), None);
+    }
+
+    #[test]
+    fn cached_scan_plans_rebind_and_still_refresh_after_schema_changes() {
+        use rusqlite::StatementStatus::{RePrepare, Run};
+        let path = std::env::temp_dir().join(format!("snapback4-plans-{}-{:x}", std::process::id(), crate::ids::seed()));
+        std::fs::create_dir(&path).unwrap();
+        for mut store in [Store::memory().unwrap(), Store::open(&path.join("store.sqlite")).unwrap()] {
+            let schema = schema();
+            store.install(&schema).unwrap();
+            let table = &schema.tables["m"];
+            let tx = store.transaction().unwrap();
+            for n in 0..10 {
+                tx.put("m", table, &row(&format!("m{n}"), if n % 2 == 0 { "a" } else { "b" }, n), None).unwrap();
+            }
+            let bounds = Bounds { gte: Some(Value::Int(2)), lt: Some(Value::Int(9)), ..Bounds::default() };
+            for dir in [Dir::Asc, Dir::Desc] {
+                tx.scan("m", "byConvAt", &[Value::Id("a".into())], &Bounds::default(), dir, 1).unwrap();
+                {
+                    let statement = tx.conn().prepare_cached(scan_sql(dir)).unwrap();
+                    statement.reset_status(RePrepare);
+                    statement.reset_status(Run);
+                }
+                for group in ["a", "b", "missing"] {
+                    for limit in [0, 1, 3, 100] {
+                        let mut numbers: Vec<_> = (2..9).filter(|n| group == if n % 2 == 0 { "a" } else { "b" }).collect();
+                        if dir == Dir::Desc { numbers.reverse(); }
+                        let expected: Vec<_> = numbers.into_iter().take(limit).map(|n| {
+                            let id = format!("m{n}");
+                            let row = row(&id, group, n);
+                            let key = crate::rows::index_key(&table.indexes["byConvAt"], &row, &id);
+                            (row, key)
+                        }).collect();
+                        assert_eq!(tx.scan("m", "byConvAt", &[Value::Id(group.into())], &bounds, dir, limit).unwrap(), expected);
+                    }
+                }
+                let statement = tx.conn().prepare_cached(scan_sql(dir)).unwrap();
+                assert_eq!(statement.get_status(Run), 12);
+                assert_eq!(statement.get_status(RePrepare), 0, "rebinding an indexed scan must reuse its plan");
+            }
+            // Plan reuse must still read changes in this transaction.
+            tx.put("m", table, &row("m5", "a", 5), Some(&row("m5", "b", 5))).unwrap();
+            tx.delete("m", table, &row("m6", "a", 6)).unwrap();
+            let read = || tx.scan("m", "byConvAt", &[Value::Id("a".into())], &bounds, Dir::Asc, 100).unwrap();
+            let changed = read();
+            let ids: Vec<_> = changed.iter().map(|(r, _)| r.field("id").unwrap().as_str().unwrap()).collect();
+            assert_eq!(ids, ["m2", "m4", "m5", "m8"]);
+            assert_eq!(tx.conn().prepare_cached(scan_sql(Dir::Asc)).unwrap().get_status(RePrepare), 0);
+            // QPSG must not suppress invalidation when SQLite's schema changes.
+            tx.conn().execute_batch("CREATE TABLE _plan_change (value INTEGER)").unwrap();
+            assert_eq!(read(), changed);
+            let refreshed = tx.conn().prepare_cached(scan_sql(Dir::Asc)).unwrap().get_status(RePrepare);
+            assert!(refreshed > 0);
+            assert_eq!(read(), changed);
+            assert_eq!(tx.conn().prepare_cached(scan_sql(Dir::Asc)).unwrap().get_status(RePrepare), refreshed);
+            tx.rollback().unwrap();
+        }
+        std::fs::remove_dir_all(path).unwrap();
     }
 }
 
