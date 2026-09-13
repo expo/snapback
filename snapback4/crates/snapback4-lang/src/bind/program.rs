@@ -689,6 +689,33 @@ impl<'a> Binder<'a> {
                 }
                 Ok((Expr::Builtin { builtin: Builtin::Count, args: vec![e] }, Ty::Int))
             }
+            "sum" if args.len() == 2 => {
+                // `sum(page, .x)`: the rows' field, summed — a loop that
+                // pushes each projection, then the sum of the list.
+                let (source, source_ty) = self.expr(&args[0], out)?;
+                let (domain, item_ty) = match (&source, &source_ty) {
+                    (Expr::Scan(scan), Ty::Page(table, _)) => (LoopDomain::Page(scan.clone()), Ty::Row(table.clone())),
+                    (_, Ty::Collection(item, max)) | (_, Ty::List(item, max)) => (LoopDomain::DerivedArray { value: source.clone(), max: *max, bound_source: "sum".into() }, item.as_ref().clone()),
+                    (_, other) => return Err(type_error(args[0].site(), format!("sum takes a page or a bounded list, got {}", other.name()), "sum(t[prefix] first 50 by index, .amount)")),
+                };
+                let list = self.temp("sum");
+                let item = self.temp("row");
+                out.push(Stmt::Let { name: list.clone(), value: Expr::Array(Vec::new()) });
+                let mut body = Vec::new();
+                self.push_scope();
+                self.declare(&item, item_ty.clone());
+                let saved = self.focal.replace((item.clone(), item_ty));
+                let projected = self.expr(&args[1], &mut body);
+                self.focal = saved;
+                self.pop_scope();
+                let (projection, projection_ty) = projected?;
+                if !projection_ty.is_numeric() {
+                    return Err(type_error(args[1].site(), format!("sum adds numbers; .{} is {}", print::expression(&args[1]).trim_start_matches('.'), projection_ty.name()), if projection_ty.required().is_numeric() { format!("{} ?? 0", print::expression(&args[1])) } else { "name a numeric field: sum(page, .amount)".into() }));
+                }
+                body.push(Stmt::Push { target: list.clone(), value: projection });
+                out.push(Stmt::For { binding: item, domain, body });
+                Ok((Expr::Builtin { builtin: Builtin::Sum, args: vec![ir::var(&list)] }, projection_ty))
+            }
             "sum" => {
                 arity(1, "sum(list)")?;
                 let (e, t) = self.expr(&args[0], out)?;

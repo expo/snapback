@@ -251,6 +251,20 @@ fn jobs_and_schedules_are_checked() {
     assert_eq!((ok.schema.schedules[0].every_ms, ok.schema.schedules[0].offset_ms), (86_400_000, 8 * 3_600_000));
 }
 
+/// M8: `sum(page, .x)` as the README spells it, on both hosts' IR; a bare
+/// `return` is `return null`.
+#[test]
+fn sum_over_a_page_and_a_bare_return() {
+    let with = CHAT.replace("mutation edit(", "query joined():\n  return sum(memberships[viewer] first 50 by byPrincipalConversation, .joinedAt)\n\nquery nothing():\n  require exists memberships['c1', viewer] else NOT_MEMBER\n  return\n\nmutation edit(");
+    let mut engine = chat_engine_from(&with, &["dev:alice", "dev:bob", "dev:carol"]);
+    let read = engine.query("joined", Context::new("dev:bob", BTreeMap::new()).at(1_000)).unwrap();
+    assert_eq!(read.data, Value::Int(1), "{read:?}");
+    let read = engine.query("nothing", Context::new("dev:bob", BTreeMap::new()).at(1_000)).unwrap();
+    assert_eq!(read.data, Value::Null);
+    let bad = snapback4_lang::compile(&[("schema.q".to_owned(), CHAT.replace("mutation edit(", "query names():\n  return sum(memberships[viewer] first 50 by byPrincipalConversation, .role)\n\nmutation edit("))]);
+    assert_eq!(bad.diagnostics.iter().map(|d| d.code.as_str()).collect::<Vec<_>>(), vec!["E_QUARRY_TYPE"]);
+}
+
 /// M7: adding an optional column with its own constraint is additive; the
 /// day-two classifier said Narrowing for a constraint no existing row meets.
 #[test]

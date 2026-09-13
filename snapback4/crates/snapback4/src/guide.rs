@@ -82,8 +82,9 @@ Writes: insert t {..} [if absent], update t[key] {..} [if cond],
 upsert t[key] {..}, delete t[key]. A final write is the implicit return.
 Statements: `x = expr`, `require cond else CODE`, `if:`/`else:`,
 `for x in page:`, `return`, `emit effect payload`. Values: viewer, now,
-new (an id), count(), sum(), slice(), min(), max(), tokens(), a ?? b,
-a if cond else b (the arm not taken is never evaluated; `x != null` narrows x).
+new (an id), count(page), sum(page, .x), sum(list), slice(), min(), max(), tokens(),
+a ?? b, a if cond else b (the arm not taken is never evaluated; `x != null` narrows x).
+No `/`: (quotient, remainder) = divmod(a, b) binds both, so no remainder goes unread.
 
 Personas: `use personas alice, bob`; run as one with `--as alice`.
 More: `snapback4 guide <keyword>` — rules, sync, writes, reads, shapes,

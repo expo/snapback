@@ -775,6 +775,10 @@ impl Parser {
             "require" => return self.parse_require(),
             "return" => {
                 let site = self.take("return")?.site;
+                if self.at_kind(Kind::Newline) {
+                    self.newline()?;
+                    return Ok(Stmt::Return { value: Expr::Literal { value: Literal::Null, site: site.clone() }, site });
+                }
                 let value = self.expression(0, &["<newline>"])?;
                 if !matches!(value, Expr::Merge(_)) {
                     self.newline()?;

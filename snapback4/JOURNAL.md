@@ -1076,3 +1076,16 @@ taken never evaluated (lowered to a temporary assigned in one arm of an
 the taken arm; the card and the README say the true line,
 `expiresAt: now + ttl if ttl != null else null` with `ttl: int ?`, and
 the expiry test sends through exactly it. Published `snapback4@0.1.3`.
+
+## 2026-09-12 — from the full-brief lane's M8: three more words the README owed; 0.1.4
+
+The lane's M8 line, a knowledge gap attributed to the package: the
+README's `sum(page, .x)` was refused (the binder knew only `sum(list)`,
+and nothing in Quarry made a list of numbers from a page); a bare
+`return` was refused; and division was found only through its
+diagnostic. Now `sum(page, .x)` is real — a loop pushing each row's field
+into a list, then the sum, the same IR on both hosts, `E_QUARRY_TYPE`
+with `?? 0` as the rewrite for an optional field — a bare `return` is
+`return null`, and the README says there is no `/`: `(quotient,
+remainder) = divmod(a, b)` binds both so no remainder goes unread.
+Published `snapback4@0.1.4`.

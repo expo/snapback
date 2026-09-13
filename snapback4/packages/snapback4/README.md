@@ -176,9 +176,12 @@ columns.
   immutables and text formats; any refusal rolls the whole mutation back.
 - **Statements:** `x = expr`, `require cond else CODE`, `if:` / `else:`,
   `for x in page:`, `return`. Values: `viewer`, `now`, `new` (an id),
-  `count(page)`, `sum(page, .x)`, `slice`, `min`, `max`, `a ?? b`,
-  `a if cond else b` (the arm not taken is never evaluated; `x != null`
-  as the condition narrows `x` in the taken arm).
+  `count(page)`, `sum(page, .x)` (a field over a page or list; `sum(list)`
+  over numbers), `slice`, `min`, `max`, `a ?? b`, `a if cond else b`
+  (the arm not taken is never evaluated; `x != null` as the condition
+  narrows `x` in the taken arm). There is no `/`: `(quotient, remainder)
+  = divmod(a, b)` binds both at once, so a remainder is never dropped
+  unread. A bare `return` returns null.
   `=` and `!=` are total (null equals null); `<` and friends need
   present operands — narrow with `if x != null:` or `x ! else CODE`.
 - **Refusals** a program raises with `require .. else CODE` reach the
