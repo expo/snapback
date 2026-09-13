@@ -415,6 +415,13 @@ tests, with zero failed stages and no JavaScript skips. The suite took
 took 209.2 seconds. The installed-package typecheck and query/write/offline
 checks passed.
 
+The separately invoked ignored native-job ceiling/rollback test subsequently
+passed on this 0.2.1 source under the Linux production profile: one passed,
+zero failed or ignored, seven filtered out, in 14.41 s after compilation.
+It attempts 9,000 writes, verifies the 8,192-write ceiling parks the job with
+`E_BOUND`, and verifies that the chunk's writes roll back. This supplements
+the publication suite; it does not change that suite's recorded skip count.
+
 The published Darwin executable is 7,101,584 B, SHA-256
 `b892c68d95e08f1d49ee9112406180cad4e3fdffbcc734600d211ba6df035703`.
 The client tarball is 362,126 B and the platform tarball 3,397,409 B. Both
@@ -492,8 +499,8 @@ expiry forced one hour into the past solely for the untimed refusal check;
 timed calls use ordinary Auth-issued access tokens.
 
 These smoke timings are excluded from comparative conclusions. The appended
-records are labelled `experiment: private-catalog-smoke`. This extension
-does not yet establish a private-read or write performance win. Writes use
+records are labelled `experiment: private-catalog-smoke`; the formal
+comparison follows below. Writes use
 each backend's defaults: Snapback serves with SQLite WAL/NORMAL, Postgres
 reports `fsync=on`, `synchronous_commit=on`, `full_page_writes=on` and logged
 tables, and this pinned Convex binary's effective synchronous setting is not
@@ -520,6 +527,82 @@ The original event labels called these graceful; the metric records correct
 that description while preserving the original labels. Shutdown completion
 and possible Docker escalation were not recorded. No machine-crash or
 power-loss fault was injected.
+
+## Authenticated 0.2.1 comparison, trials 18–20
+
+Nine formal runs completed at 10:02–10:16 UTC, with 1,000 timed requests in
+each of eleven cases: **99,000 timed calls**, all assertions passing. Each
+run begins with a restored or reimported revision-zero seed and empty
+operation receipts. The runner checks both owners' complete partitions and
+the outsider's empty partition before and after, including the ownership,
+credential and replay checks described above. Every initial normalized
+100,000-row hash is `fdf373afc5317df2b7c44cd4c169e424dd3da5bf7acf614cfc1ef598dc113057`;
+every final hash is `716baad65f9d951002da54f92241a73830848e4b7e2161914048356917bd0548`.
+The expected final state has 2,062 changed rows and 2,072 increments,
+including warmup writes and untimed correctness operations.
+
+Snapback serves the qualified 0.2.1 Linux production artifact above
+(`98d1fad6…`, 7,622,208 B), archived source
+`6f4004a9f0e235c25e22f23d8339101365bd6ffa`, with runtime identical to landed
+`87dcac33c12d97a6269aaa84ac4605284914d11d`. Each run verifies the actual
+recorded process's executable digest. Main's later 0.2.2 publication is not
+the measured artifact. The private instrument SHA-256 is
+`20c765d02776f5e107ff4af2e863359b15a8590c85e4fd3671220dcebeab9888`;
+its private generator and runner are unchanged from the reviewed extension.
+The whole-file hash changed when main removed unrelated TypeScript replica
+measurements. The same VM, Node runtime and pinned competitor images apply.
+
+Backend order rotates: Snapback/Convex/Supabase, then
+Convex/Supabase/Snapback, then Supabase/Snapback/Convex. No builds overlap
+timing. All cases use 30 sequential warmups except first-category pages,
+which warm all 200 owner/category keys. Each backend retains its native
+caches. Connection-pool expansion is timed; throughput includes the
+closed-loop runner's response validation and scheduling. Ordinary Supabase
+Auth logins refresh before each run, with at least thirty minutes remaining
+on measured credentials. Reset, issuance and deployment work are untimed.
+The nine records in `snapback4/metrics/storage.jsonl` use
+`workload: private-catalog`, `experiment: private-catalog-formal` and
+`trial: 18–20`; annotations add reset/order/provenance metadata without
+changing any raw measurements. An initial setup attempt stopped on an
+incorrect provenance path before any timed output; the corrected helper
+restored the pristine seed before these runs.
+
+Medians of three per-run percentiles and client-observed throughput;
+latencies are milliseconds. Fresh writes are **default-mode acknowledgement
+latency**, with the durability differences recorded above.
+
+| Case | Snapback p50 / p95 / RPS | Convex p50 / p95 / RPS | Supabase p50 / p95 / RPS |
+|---|---:|---:|---:|
+| Repeated owned point | 2.824 / 4.782 / 322.5 | 3.519 / 6.213 / 257.0 | 4.779 / 7.726 / 196.6 |
+| Distinct owned point, C1 | 2.982 / 5.128 / 300.5 | 8.593 / 15.020 / 103.8 | 4.422 / 5.270 / 222.3 |
+| Distinct owned point, C8 | 3.356 / 5.142 / 2103.7 | 21.480 / 40.780 / 341.6 | 7.910 / 16.012 / 893.5 |
+| Distinct owned point, C32 | 17.780 / 51.176 / 1292.4 | 77.779 / 120.191 / 389.8 | 28.794 / 56.781 / 1008.9 |
+| Distinct missing point | 3.729 / 7.632 / 234.2 | 7.353 / 11.770 / 126.0 | 4.162 / 5.424 / 234.8 |
+| Repeated owned 50-row page, C1 | 3.413 / 6.579 / 242.5 | 3.322 / 6.642 / 239.0 | 4.924 / 6.266 / 192.1 |
+| Repeated owned 50-row page, C8 | 7.414 / 17.042 / 923.2 | 5.198 / 13.430 / 1211.1 | 9.985 / 17.785 / 733.9 |
+| Repeated owned continuation | 3.941 / 6.823 / 208.5 | 3.560 / 6.288 / 239.9 | 5.503 / 14.060 / 132.4 |
+| Repeated successful replay | 3.014 / 5.177 / 306.6 | 7.619 / 11.866 / 122.5 | 4.440 / 5.733 / 219.3 |
+| Fresh atomic increment, C1 | 3.157 / 5.433 / 277.3 | 17.065 / 28.279 / 51.5 | 5.540 / 11.618 / 152.3 |
+| Fresh atomic increment, C8 | 4.437 / 10.288 / 1392.3 | 75.716 / 126.804 / 100.3 | 9.579 / 16.535 / 732.8 |
+
+Snapback has lower aggregate p50 than Supabase in all eleven cases and
+lower p95 in nine. Supabase has lower p95 on distinct missing points and
+first-category pages at C1. Against Convex, Snapback has lower aggregate
+p50 in eight cases and lower p95 in nine. Convex retains lower p50 on all
+three category/continuation cases, and lower p95 on category C8 and
+continuation. Its category-C8 throughput is 1,211.1 versus Snapback's
+923.2 requests/s. These remain measured targets.
+
+Per-run variation is substantial: Snapback point-C32 p95 is
+51.176/167.710/50.325 ms, and category-C8 p50 is 7.414/9.176/5.274 ms;
+Convex category-C8 p50 is 9.685/4.483/5.198 ms. Maximum samples are
+341.306 ms (Snapback), 849.608 ms (Convex) and 161.765 ms (Supabase).
+The aggregate rankings do not mean every individual run or tail wins, and
+three trials do not establish statistical significance. This comparison
+adds real ownership and replay-safe writes to the local catalog evidence;
+it does not establish hosted/SDK performance, matched power-loss durability,
+or a universal platform win. The earlier restart proof is separate and
+used the recorded 0.1.16 artifact; no restart is claimed for these timed runs.
 
 ## Simulator observation follow-up
 
@@ -554,7 +637,7 @@ Darwin result is not a timing claim for that combined candidate.
 
 The integrated measurements include main's newer SQLite dependency.
 Cached category reads remain a concrete optimization target. Broader coverage
-still includes private authorization, writes with matched durability, feeds,
+still includes membership-based authorization, writes with matched durability, feeds,
 joins, counts, realtime fanout, reconnect/offline, search, files, scheduled jobs,
 SDK/UI costs, and hosted network conditions. This catalog does not stand in
 for those workloads.
