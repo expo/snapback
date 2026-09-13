@@ -73,6 +73,26 @@ interface Queued {
 
 const PAGE = 4000;
 
+async function requireSyncProtocol(core: NativeCore): Promise<void> {
+  try {
+    // A JavaScript update can run inside an older Expo development build.
+    // Probe without sending or changing an outbox entry, even when offline.
+    const reply = await core.call({ op: "sync_state" });
+    const denied = reply?.denied as Refusal | undefined;
+    if (denied && typeof denied.code === "string" && denied.code !== "E_OP") throw new Error(`createNativeClient: ${denied.code}: native startup failed: ${denied.message}`);
+    const state = reply?.ok as Record<string, unknown> | undefined;
+    const uint = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+    if (denied || !state || !uint(state.watermark) || !uint(state.generation) || !uint(state.send_revision) || !Array.isArray(state.pending_ids) || state.pending_ids.length > 256 || !state.pending_ids.every((id) => typeof id === "string" && id.length > 0)) {
+      throw new Error("createNativeClient: E_NATIVE_VERSION: the native module lacks the required sync receipt protocol. Update snapback4-expo or your native runtime and rebuild the app's native binary with the matching Snapback 4 device core; reloading JavaScript does not update the native module.");
+    }
+  } catch (error) {
+    // No client, follower or retry owns this handle yet. Await its release
+    // and preserve the startup diagnostic if close itself also fails.
+    try { await core.close(); } catch {}
+    throw error;
+  }
+}
+
 export async function createNativeClient(options: NativeOptions): Promise<NativeClient> {
   const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
   const base = options.url.replace(/\/$/, "");
@@ -124,6 +144,7 @@ export async function createNativeClient(options: NativeOptions): Promise<Native
   }
   const active = new Set<Promise<unknown>>();
   const core = await options.native.open(storePath, backend);
+  await requireSyncProtocol(core);
   if (backend) generation = Number(backend.generation ?? 0);
   else {
     const state = await call({ op: "state" });

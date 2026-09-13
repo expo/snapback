@@ -624,6 +624,67 @@ test("native process failures reject opening and pending calls instead of leavin
   await assert.rejects(core.call({ op: "state" }), /closed|exited/);
 });
 
+test("native compatibility rejects old and malformed protocols before online or offline startup", async () => {
+  const valid = { watermark: 0, generation: 1, pending_ids: [], send_revision: 0 };
+  const replies = [
+    { denied: { code: "E_OP", family: "op", message: "unknown op sync_state" } },
+    null, {}, { ok: {} }, { ok: { ...valid, send_revision: undefined } },
+    { ok: { ...valid, watermark: -1 } }, { ok: { ...valid, generation: 0.5 } },
+    { ok: { ...valid, send_revision: Number.MAX_SAFE_INTEGER + 1 } },
+    { ok: { ...valid, pending_ids: [1] } }, { ok: { ...valid, pending_ids: [""] } },
+    { ok: { ...valid, pending_ids: Array.from({ length: 257 }, (_, n) => String(n)) } },
+  ];
+  for (const offline of [false, true]) for (const reply of replies) {
+    const calls = [], requests = [];
+    let closed = 0;
+    await assert.rejects(createNativeClient({
+      url: "http://incompatible.invalid", persona: "alice", dataDir: "unused",
+      fetch: async (input) => {
+        requests.push(new URL(input).pathname);
+        if (offline) throw new TypeError("offline");
+        return Response.json({ generation: 1, schema: { tables: {} }, programs: [] });
+      },
+      native: { open: async () => ({ call: async (request) => { calls.push(request.op); return reply; }, close: async () => { await sleep(0); closed++; } }) },
+    }), /E_NATIVE_VERSION:.*Update snapback4-expo.*rebuild.*native binary/);
+    assert.equal(closed, 1, "startup waits for the incompatible core to close");
+    assert.deepEqual(calls, ["sync_state"], "no follower, query, admission or retry starts");
+    assert.deepEqual(requests, ["/schema"]);
+  }
+});
+
+test("native compatibility closes the core and preserves operational startup errors", async () => {
+  for (const failure of [{ denied: { code: "E_STORE", family: "store", message: "database is locked" } }, new Error("native connection closed")]) {
+    let closed = 0;
+    await assert.rejects(createNativeClient({
+      url: "http://native-error.invalid", persona: "alice", dataDir: "unused",
+      fetch: async () => { throw new TypeError("offline"); },
+      native: { open: async () => ({
+        call: async () => { if (failure instanceof Error) throw failure; return failure; },
+        close: async () => { closed++; throw new Error("close also failed"); },
+      }) },
+    }), failure instanceof Error ? /native connection closed/ : /E_STORE:.*database is locked/);
+    assert.equal(closed, 1);
+  }
+});
+
+test("native compatibility accepts the current core online and on an offline reopen", { timeout: 12_000 }, async (t) => {
+  const f = await fixture(t), calls = [];
+  const wrapNative = (core) => ({
+    call: async (request) => { calls.push(request.op); return core.call(request); },
+    close: () => core.close(),
+  });
+  const online = await f.open("native", { wrapNative });
+  assert.equal(calls[0], "sync_state");
+  const initial = await online.query(thread, args);
+  assert.equal(initial.data.length, 2); assert.equal(initial.fresh, true);
+  await online.close();
+  calls.length = 0;
+  const offline = await f.open("native", { wrapNative, fetch: async () => { throw new TypeError("offline"); } });
+  assert.equal(calls[0], "sync_state");
+  const restored = await offline.query(thread, args);
+  assert.equal(restored.data.length, 2); assert.equal(restored.fresh, false);
+});
+
 test("online serialization failures retain the minted id without scheduling network retries", async () => {
   let requests = 0;
   const client = createClient({ url: "http://invalid", persona: "alice", fetch: async () => { requests++; throw Error("should not send"); } });
