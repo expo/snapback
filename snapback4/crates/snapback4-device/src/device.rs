@@ -114,6 +114,7 @@ pub struct Predicted {
 
 const WATERMARK: &str = "device:watermark";
 const GENERATION: &str = "device:generation";
+const ACQUIRED: &str = "device:acquired-generation";
 const BACKEND: &str = "device:backend";
 const SEND_REVISION: &str = "device:send_revision";
 const SUBMISSION: &str = "device:submission";
@@ -180,6 +181,18 @@ fn meta_u64<T: DeviceTx>(tx: &T, key: &str) -> Result<u64, RuntimeError> {
     tx.meta(key)?.map(|s| s.parse::<u64>().map_err(|_| RuntimeError::Store(format!("invalid device metadata {key}")))).transpose().map(|n| n.unwrap_or(0))
 }
 
+// @ref LLP 3000.008.001#4-read-and-write-outcomes — unacquired facts cannot justify a value or a predicted refusal.
+fn require_acquired<T: DeviceTx>(tx: &T, schema: &Schema, program: &Program) -> Result<(), RuntimeError> {
+    let generation = tx.meta(GENERATION)?;
+    if generation.is_some() && tx.meta(ACQUIRED)? == generation { return Ok(()); }
+    // Constants need no partition, and online-only reads retain their own
+    // unknown-coverage behavior. Native reads have opaque dependencies.
+    let synced = |name: &str| schema.tables.get(name).is_some_and(|table| table.sync.is_some());
+    if !program.native && !snapback4_core::ir::read_sites(program).iter().any(|site| synced(&site.table))
+        && !snapback4_core::ir::write_tables(program).iter().any(|(table, _)| synced(table)) { return Ok(()); }
+    Err(RuntimeError::Prediction("this generation's partition has not completed acquisition; reconnect to acquire it".into()))
+}
+
 fn encoded<T: Serialize>(value: &T) -> Result<String, RuntimeError> {
     serde_json::to_string(value).map_err(|e| RuntimeError::Store(e.to_string()))
 }
@@ -221,11 +234,15 @@ impl<S: DeviceStore> Device<S> {
         };
         let held = store.meta(GENERATION)?.and_then(|g| g.parse::<u64>().ok()).unwrap_or(0);
         let reset = held != 0 && held != backend.generation;
-        let keep_images = reset && store.meta(BACKEND)?.and_then(|text| serde_json::from_str::<Backend>(&text).ok())
+        let previous = store.meta(BACKEND)?.and_then(|text| serde_json::from_str::<Backend>(&text).ok());
+        let keep_images = reset && previous.as_ref()
             .is_some_and(|old| snapback4_core::successor::keeps_literal_default_images(&old.schema, &backend.schema));
+        let keep_acquired = keep_images && previous.as_ref().is_some_and(|old| old.schema.tables.len() == backend.schema.tables.len())
+            && store.meta(ACQUIRED)? == Some(held.to_string());
         let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string())]);
         if reset {
             metadata.insert(WATERMARK.to_owned(), "0".into());
+            metadata.insert(ACQUIRED.to_owned(), if keep_acquired { backend.generation.to_string() } else { String::new() });
             invalidate_native(&mut metadata);
             metadata.insert(history::GROUPS.to_owned(), "{}".into());
             metadata.insert(history::STAGED_GROUPS.to_owned(), "{}".into());
@@ -306,9 +323,14 @@ impl<S: DeviceStore> Device<S> {
     pub fn adopt(&mut self, backend: Backend) -> Result<(), RuntimeError> {
         let reset = backend.generation != self.generation;
         let keep_images = snapback4_core::successor::keeps_literal_default_images(&self.schema, &backend.schema);
+        // @ref LLP 3000.007#18.3 — literal-default-only evolution keeps already acquired images readable.
+        // The image predicate permits added tables; those require acquisition.
+        let keep_acquired = keep_images && self.schema.tables.len() == backend.schema.tables.len()
+            && self.store.meta(ACQUIRED)? == Some(self.generation.to_string());
         let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string())]);
         if reset {
             metadata.insert(WATERMARK.to_owned(), "0".into());
+            metadata.insert(ACQUIRED.to_owned(), if keep_acquired { backend.generation.to_string() } else { String::new() });
             invalidate_native(&mut metadata);
             metadata.insert(history::GROUPS.to_owned(), "{}".into());
             metadata.insert(history::STAGED_GROUPS.to_owned(), "{}".into());
@@ -370,6 +392,7 @@ impl<S: DeviceStore> Device<S> {
         tx.base_clear()?;
         tx.staged_clear()?;
         tx.set_meta(WATERMARK, "0")?;
+        tx.delete_meta(&[ACQUIRED])?;
         tx.delete_meta(&[history::GROUPS])?;
         tx.delete_meta(&SNAPSHOT_KEYS)?;
         tx.commit()?;
@@ -496,6 +519,11 @@ impl<S: DeviceStore> Device<S> {
         if !replacing { history::events(&tx, &self.schema, &page.events, &page.joined, false)?; }
         touched.extend(page.joined.keys().cloned());
         tx.set_meta(WATERMARK, &page.watermark.to_string())?;
+        // @ref LLP 3000.008.001#2-three-facts-to-distinguish — schema availability is not acquisition.
+        // A staged snapshot reaches here only after catch-up publishes its
+        // confirmed rows. Commit readiness with those rows, even at seq zero;
+        // a later interrupted refresh retains the prior acquired partition.
+        if !page.more { tx.set_meta(ACQUIRED, &self.generation.to_string())?; }
         for (id, seq) in &page.acknowledged {
             if *seq > page.watermark {
                 return Err(RuntimeError::Input("acknowledgement is beyond the applied watermark".into()));
@@ -528,6 +556,10 @@ impl<S: DeviceStore> Device<S> {
             let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
             let context = Context::new(viewer, typed_args(&program, args)?).at(now);
             let tx = self.store.read_transaction()?;
+            if let Err(error) = require_acquired(&tx, &self.schema, &program) {
+                unknown = matches!(&error, RuntimeError::Prediction(_));
+                return Err(error.refusal());
+            }
             let reading = history::Reading { tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, retained: std::cell::Cell::new(false) };
             let (result, coverage, history_only) = if program.native {
                 // A native read over the rows held (LLP 3000.005 §9); without
@@ -557,6 +589,7 @@ impl<S: DeviceStore> Device<S> {
     pub fn predict(&mut self, name: &str, viewer: &str, args: &serde_json::Value, now: i64, new_ids: Vec<String>, entropy: u64) -> Result<Predicted, RuntimeError> {
         let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
         let tx = self.store.transaction()?;
+        require_acquired(&tx, &self.schema, &program)?;
         let context = Context::new(viewer, media::inputs(&tx, &program, viewer, args)?).at(now).with_ids(new_ids).with_entropy(entropy.max(1));
         let predicting = Predicting { tx: &tx, written: RefCell::new(Vec::new()) };
         match local::predict(&predicting, &self.schema, &program, context, Ceilings::default()) {

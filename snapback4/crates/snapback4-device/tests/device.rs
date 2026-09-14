@@ -988,7 +988,10 @@ fn the_device_follows_the_server_and_answers_locally() {
         moved.generation += 1;
         let mut fresh = host.open("bob", Some(moved)).unwrap();
         assert_eq!(state(&mut *fresh), (0, backend.generation + 1), "{label}");
-        assert!(rows(&query(&mut *fresh, "inbox", "dev:bob", serde_json::json!({}), 3_000)).is_empty(), "{label}: a new generation starts empty");
+        let unacquired = query(&mut *fresh, "inbox", "dev:bob", serde_json::json!({}), 3_000);
+        assert_eq!(unacquired["denied"]["code"], "E_PREDICT", "{label}: a new generation has not acquired its partition");
+        assert_eq!(unacquired["unknown"], true);
+        assert!(unacquired.get("data").is_none());
         fresh.close();
     });
 }
@@ -1330,6 +1333,7 @@ fn upload_receipts_predict_id_only_image_and_video_on_both_stores() {
         mp4.resize(60, 0); mp4[20..24].copy_from_slice(&40u32.to_be_bytes()); mp4[28..32].copy_from_slice(&32u32.to_be_bytes());
         mp4[48..52].copy_from_slice(&1000u32.to_be_bytes()); mp4[52..56].copy_from_slice(&1000u32.to_be_bytes());
         let mut device = host.open("uploads", Some(backend)).unwrap();
+        for (n, page) in snapshot_pages(&mut engine, "dev:alice", 10).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
         for (op, bytes) in [("photo", png.as_slice()), ("clip", mp4.as_slice())] {
             let asset = engine.store_asset("dev:alice", bytes, 1).unwrap();
             let facts = snapback4_core::wire::to_json(&asset.column_value());

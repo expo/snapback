@@ -42,6 +42,9 @@ pub(super) fn enqueue<T: DeviceTx>(tx: &T, entry: &Queued) -> Result<(), Runtime
 }
 
 pub(super) fn run<T: DeviceTx>(tx: &T, schema: &Schema, program: &Program, entry: &Queued) -> Result<(Vec<String>, Vec<String>), RuntimeError> {
+    // Missing acquisition is missing evidence, never an authored refusal.
+    // Admission already handles E_PREDICT by durably queueing without a row.
+    require_acquired(tx, schema, program)?;
     // Replay mints past the admitted ids only to discover it needs more (and
     // is then withdrawn): its entropy comes from the entry, never the clock.
     let entropy = entry.id.bytes().fold(entry.seq.wrapping_mul(0x9E37_79B9_7F4A_7C15), |acc, byte| (acc ^ u64::from(byte)).wrapping_mul(0x100_0000_01B3));
