@@ -5,7 +5,7 @@
 //! conformance only; it makes no TypeScript interpreter or replica claim.
 
 use snapback4_core::{Context, Engine, Program, Schema, Value, WriteState};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
 #[derive(serde::Deserialize)]
@@ -416,63 +416,65 @@ fn legacy_asset_ids(kind: &snapback4_core::schema::ColumnType, value: &mut Value
 
 /// Snapback 2's `fresh` means the receipt authorizes local execution, not
 /// that a bounded page contains every remaining row. The card's `complete`
-/// is false when an outer non-cursor page hit its limit. A nested preview
-/// and a merge's lane-discovery bound do not truncate the outer page. The
+/// is false when an outer page hit its limit without a returned cursor owner.
+/// A nested preview and a merge's lane-discovery bound do not truncate the outer page. The
 /// recorded trace is the oracle; no actual result changes the expectation.
 fn expected_card_state(expected: &Expected, program: &Program) -> LocalState {
-    if expected.local_state == LocalState::Fresh && outer_page_limit(&program.body, expected) {
+    // @ref LLP 3000.007#19.2 — the golden limit of an unowned auxiliary page is incomplete even when the returned page has a cursor.
+    let owners = snapback4_core::engine::returned_page_sites(program);
+    if expected.local_state == LocalState::Fresh && outer_page_limit(&program.body, expected, &owners) {
         LocalState::Partial
     } else {
         expected.local_state
     }
 }
 
-fn outer_page_limit(body: &[snapback4_core::ir::Stmt], expected: &Expected) -> bool {
+fn outer_page_limit(body: &[snapback4_core::ir::Stmt], expected: &Expected, owners: &BTreeSet<String>) -> bool {
     use snapback4_core::ir::{LoopDomain, Stmt};
     body.iter().any(|stmt| match stmt {
-        Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) | Stmt::Emit { payload: value, .. } => expression_page_limit(value, expected),
-        Stmt::If { condition, then_body, else_body } => expression_page_limit(condition, expected) || outer_page_limit(then_body, expected) || outer_page_limit(else_body, expected),
+        Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) | Stmt::Emit { payload: value, .. } => expression_page_limit(value, expected, owners),
+        Stmt::If { condition, then_body, else_body } => expression_page_limit(condition, expected, owners) || outer_page_limit(then_body, expected, owners) || outer_page_limit(else_body, expected, owners),
         Stmt::For { domain, body, .. } => match domain {
-            LoopDomain::Page(scan) => scan_limit(scan, expected),
-            LoopDomain::Recurse(recurse) => expression_page_limit(&recurse.seed, expected),
-            LoopDomain::DerivedArray { value, .. } => expression_page_limit(value, expected) || outer_page_limit(body, expected),
-            LoopDomain::ExpressionRange { start, end_exclusive } => expression_page_limit(start, expected) || expression_page_limit(end_exclusive, expected) || outer_page_limit(body, expected),
-            LoopDomain::LiteralRange { .. } | LoopDomain::ArgList { .. } => outer_page_limit(body, expected),
+            LoopDomain::Page(scan) => scan_limit(scan, expected, owners.contains(&scan.site), owners),
+            LoopDomain::Recurse(recurse) => expression_page_limit(&recurse.seed, expected, owners),
+            LoopDomain::DerivedArray { value, .. } => expression_page_limit(value, expected, owners) || outer_page_limit(body, expected, owners),
+            LoopDomain::ExpressionRange { start, end_exclusive } => expression_page_limit(start, expected, owners) || expression_page_limit(end_exclusive, expected, owners) || outer_page_limit(body, expected, owners),
+            LoopDomain::LiteralRange { .. } | LoopDomain::ArgList { .. } => outer_page_limit(body, expected, owners),
         },
-        Stmt::Require { condition, .. } | Stmt::Check { condition, .. } => expression_page_limit(condition, expected),
-        Stmt::InsertIfAbsent { row, .. } | Stmt::Insert { row, .. } => expression_page_limit(row, expected),
-        Stmt::Update { key, patch, .. } => expression_page_limit(key, expected) || expression_page_limit(patch, expected),
-        Stmt::Upsert { key, row, .. } => expression_page_limit(key, expected) || expression_page_limit(row, expected),
-        Stmt::WriteTarget { target, patch, condition, .. } => target.key.iter().any(|key| expression_page_limit(key, expected)) || expression_page_limit(patch, expected)
-            || condition.as_ref().is_some_and(|c| outer_page_limit(&c.setup, expected) || expression_page_limit(&c.value, expected)),
-        Stmt::Delete { key, .. } => expression_page_limit(key, expected),
+        Stmt::Require { condition, .. } | Stmt::Check { condition, .. } => expression_page_limit(condition, expected, owners),
+        Stmt::InsertIfAbsent { row, .. } | Stmt::Insert { row, .. } => expression_page_limit(row, expected, owners),
+        Stmt::Update { key, patch, .. } => expression_page_limit(key, expected, owners) || expression_page_limit(patch, expected, owners),
+        Stmt::Upsert { key, row, .. } => expression_page_limit(key, expected, owners) || expression_page_limit(row, expected, owners),
+        Stmt::WriteTarget { target, patch, condition, .. } => target.key.iter().any(|key| expression_page_limit(key, expected, owners)) || expression_page_limit(patch, expected, owners)
+            || condition.as_ref().is_some_and(|c| outer_page_limit(&c.setup, expected, owners) || expression_page_limit(&c.value, expected, owners)),
+        Stmt::Delete { key, .. } => expression_page_limit(key, expected, owners),
         Stmt::Break | Stmt::Continue => false,
     })
 }
 
-fn scan_limit(scan: &snapback4_core::ir::Scan, expected: &Expected) -> bool {
-    (!scan.opaque_cursor && expected.range_stops.get(&scan.site).is_some_and(|stops| stops.iter().any(|stop| stop == "limit")))
-        || scan.prefix.iter().filter_map(|key| key.scalar()).any(|value| expression_page_limit(value, expected))
-        || [scan.after.as_deref(), scan.before.as_deref()].into_iter().flatten().any(|value| expression_page_limit(value, expected))
-        || scan.range.as_ref().is_some_and(|range| [range.gt.as_deref(), range.gte.as_deref(), range.lt.as_deref(), range.lte.as_deref()].into_iter().flatten().any(|value| expression_page_limit(value, expected)))
-        || scan.filter.as_ref().is_some_and(|value| expression_page_limit(value, expected))
+fn scan_limit(scan: &snapback4_core::ir::Scan, expected: &Expected, owned: bool, owners: &BTreeSet<String>) -> bool {
+    ((!scan.opaque_cursor || !owned) && expected.range_stops.get(&scan.site).is_some_and(|stops| stops.iter().any(|stop| stop == "limit")))
+        || scan.prefix.iter().filter_map(|key| key.scalar()).any(|value| expression_page_limit(value, expected, owners))
+        || [scan.after.as_deref(), scan.before.as_deref()].into_iter().flatten().any(|value| expression_page_limit(value, expected, owners))
+        || scan.range.as_ref().is_some_and(|range| [range.gt.as_deref(), range.gte.as_deref(), range.lt.as_deref(), range.lte.as_deref()].into_iter().flatten().any(|value| expression_page_limit(value, expected, owners)))
+        || scan.filter.as_ref().is_some_and(|value| expression_page_limit(value, expected, owners))
 }
 
-fn expression_page_limit(expr: &snapback4_core::ir::Expr, expected: &Expected) -> bool {
+fn expression_page_limit(expr: &snapback4_core::ir::Expr, expected: &Expected, owners: &BTreeSet<String>) -> bool {
     use snapback4_core::ir::Expr;
     match expr {
         Expr::Literal(_) | Expr::Variable(_) | Expr::Input(_) => false,
-        Expr::Field { base, .. } | Expr::Unary { value: base, .. } => expression_page_limit(base, expected),
-        Expr::Array(values) | Expr::Builtin { args: values, .. } => values.iter().any(|value| expression_page_limit(value, expected)),
-        Expr::Object(fields) => fields.values().any(|value| expression_page_limit(value, expected)),
-        Expr::Shape { base, fields } => expression_page_limit(base, expected) || fields.values().any(|value| expression_page_limit(value, expected)),
-        Expr::Block { body, value } => outer_page_limit(body, expected) || expression_page_limit(value, expected),
-        Expr::Binary { left, right, .. } => expression_page_limit(left, expected) || expression_page_limit(right, expected),
-        Expr::Get(read) | Expr::Exists(read) => read.key.iter().any(|value| expression_page_limit(value, expected)),
-        Expr::Scan(scan) => scan_limit(scan, expected),
+        Expr::Field { base, .. } | Expr::Unary { value: base, .. } => expression_page_limit(base, expected, owners),
+        Expr::Array(values) | Expr::Builtin { args: values, .. } => values.iter().any(|value| expression_page_limit(value, expected, owners)),
+        Expr::Object(fields) => fields.values().any(|value| expression_page_limit(value, expected, owners)),
+        Expr::Shape { base, fields } => expression_page_limit(base, expected, owners) || fields.values().any(|value| expression_page_limit(value, expected, owners)),
+        Expr::Block { body, value } => outer_page_limit(body, expected, owners) || expression_page_limit(value, expected, owners),
+        Expr::Binary { left, right, .. } => expression_page_limit(left, expected, owners) || expression_page_limit(right, expected, owners),
+        Expr::Get(read) | Expr::Exists(read) => read.key.iter().any(|value| expression_page_limit(value, expected, owners)),
+        Expr::Scan(scan) => scan_limit(scan, expected, owners.contains(&scan.site), owners),
         // Lane stops describe the emitted union's cut; source stops describe
         // the bounded set of lanes the author explicitly selected.
-        Expr::Merge(merge) => merge.lanes.iter().any(|lane| outer_page_limit(&lane.setup, expected) || scan_limit(&lane.scan, expected)),
+        Expr::Merge(merge) => merge.lanes.iter().any(|lane| outer_page_limit(&lane.setup, expected, owners) || scan_limit(&lane.scan, expected, owners.contains(&merge.site), owners)),
     }
 }
 

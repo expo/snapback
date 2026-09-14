@@ -5736,3 +5736,369 @@ No implementation work from N1 is deferred. The lead still needs the
 outside-sandbox acceptance rerun; the baseline host log race and repository
 caps overflow remain outside N1. No runtime or other lane file was changed
 to hide either failure. The ticket is closed with the final 22-case count.
+
+
+## 2026-09-14 — R1g: lost pages, exactly; equality controls (LLP 3000.007 §19.2–§19.3)
+
+Base: `fde9623145bfbaba4c1062e64b756a1e7bdb252e`. Read both blind reviews,
+`gpt.md` and `grok.md` in the lead's `snapback-next-review` directory, before
+changing runtime code. The lane reproduces the short interrupted page, the
+owned page masking its lost sibling, and the exhausted exact-bound scalar.
+The equality findings are coverage gaps: both controls pass on the base, so
+neither the lexer, parser nor fixer implementation changes.
+
+The page plan now retains each early-exiting loop's source page, including
+aliases, alongside the returned page's owner. Execution records a loss only
+when that loop actually breaks or returns with rows still in its iterator;
+a helper's nested loop exit does not exit the enclosing collector. Every
+recorded page is checked independently: `next` without its own returned owner
+is lost, including an auxiliary page, and an interrupted collector cannot
+claim exhaustion just because its scan was short. `filled` is gone. An
+exhausted scalar needs no cursor owner, whether it consumed 4 rows or exactly
+5. Server, local device, native query and retained-history classification
+continue to use the common loss predicate; native reads carry their guest
+continuation rather than opaque Quarry pages and keep their existing behaviour.
+No meter ceiling, serialized value/IR form or effect-id path changed.
+
+| Finding | Reproduced at the base? Test and red output | Fix | Green |
+| --- | --- | --- | --- |
+| Interrupted short page claims complete | Yes: `interrupted_2`, `interrupted_3`, `interrupted_4`; `test interrupted_2 ... FAILED`; both device stores fail the same cases | Record actual collector interruption with remaining rows | All 7 populations on server, SQLite and memory pass; only the 1-row case is complete |
+| An owned page masks a lost sibling | Yes: `owned_page_cannot_mask_lost_sibling ... FAILED`; device short and continuing sibling cases fail | Check every page against its own owner | Owned field retains its cursor; the query stays incomplete for the lost field |
+| Fully consumed exact-5 scalar claims incomplete | Yes: `test exhausted_scalar_is_complete ... FAILED`, plus both device stores | Remove `filled` as evidence of loss | 5-row scalar complete; 6-row scalar incomplete with no cursor |
+| Auxiliary continuation masked by returned page | Yes: `test auxiliary_lost_page_is_incomplete ... FAILED`, plus both stores | Same per-page predicate | Returned data and cursor preserved, completeness false |
+| Retained marker conceals an independent lost page | Yes: `0 passed; 2 failed` in the two-store collector regression | Existing retained classifier receives the corrected common predicate | Lost collector is not retained-only; exhausted scalar remains retained-only under the horizon |
+| Returning helper actually inside merge setup | No defect reproduced: `returning_helper_inside_merge_setup_keeps_page` passes on all 3 hosts at base | Tests only; helper computes lane keys inside setup | 12 distinct rows in pages 5, 5, 2 |
+| Complete page with returning helper; `returnedFromLoop` | Both controls already pass at base | Kept unchanged behaviour | Exact-5 helper page complete; program return yields 1 row, no cursor, incomplete over 12 rows |
+| `!==` and mixed `==` plus independent syntax error | No defect reproduced after calibrating the test's expected diagnostic location and independent syntax input | Tests only | `!==` lexes as `!=` then `=` and is not repaired; only `==` changes in the mixed source |
+
+The first equality test draft expected column 13 rather than the actual 14
+for `!==`. Its independent `return )` also produced a lexer diagnostic as well
+as a parser diagnostic; the final fixture uses `return :` to isolate one
+independent syntax error. Those were test-authoring corrections, not product
+regressions. The retained-history positive control initially asserted complete;
+the existing acquired-horizon policy deliberately remains incomplete on
+exhaustion, with `unknown=false, retained=true`. That expectation was corrected
+without changing the horizon implementation.
+
+Targeted commands run from `snapback4/`; all summaries below are verbatim.
+The base page run preceded every runtime edit:
+
+`cargo test -p snapback4-sim -p snapback4-device --test helper_pages --no-fail-fast -- --nocapture`
+
+Base (device, then simulator):
+
+```text
+test result: FAILED. 32 passed; 14 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+test result: FAILED. 15 passed; 6 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+```
+
+After (device, then simulator):
+
+```text
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+```
+
+`cargo test -p snapback4-device --test retained_history interrupted_collector -- --nocapture`
+
+Base:
+
+```text
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.03s
+```
+
+`cargo test -p snapback4-device --test native_reads --test retained_history --no-fail-fast -- --nocapture`
+
+After (native reads, then retained history):
+
+```text
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.15s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+```
+
+`cargo test -p snapback4-lang --test repairs --test guide --no-fail-fast -- --nocapture`
+
+Base, after the test-authoring corrections (guide, then repairs):
+
+```text
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.54s
+```
+
+After (guide, then repairs):
+
+```text
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s
+```
+
+`cargo test -p snapback4 --test fix -- --nocapture`
+
+Base, after the test-authoring corrections:
+
+```text
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.13s
+```
+
+After:
+
+```text
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.28s
+```
+
+The first complete suite exposed one expected semantic change in the copied
+corpus: `conditional-auxiliary-page-is-not-result` expected receipt freshness
+to mean a complete answer despite losing the auxiliary page's continuation.
+Its failure was:
+
+```text
+  FAIL conditional-auxiliary-page-is-not-result: expected card state Fresh (corpus Fresh), got Partial
+```
+
+The necessary out-of-brief file is `crates/snapback4-core/tests/corpus.rs`:
+its existing trace-to-card adapter now combines the golden `rangeStops` with
+returned-page provenance when interpreting completeness, while preserving the
+nested-preview and merge-discovery controls. No case in `snapback4/corpus/`
+was edited or excluded; all 211 supported cases execute, and the same 82 legacy
+exclusions remain. No other out-of-scope file was touched.
+
+`cargo test -p snapback4-core --test corpus -- --nocapture`
+
+```text
+corpus (Rust server only; no TypeScript/replica conformance claim): 211 passed, 82 skipped, 0 failed
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.01s
+```
+
+From the repository root, with the required Node 24 runtime:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+```
+
+First full run, before the corpus adapter correction (554 Rust passed,
+1 failed, 1 ignored; the failed corpus expectation above and Chromium):
+
+```text
+-- ok: cargo build (5 s)
+-- ok: wasm build (13 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (1 s)
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.64s
+test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.19s
+corpus (Rust server only; no TypeScript/replica conformance claim): 210 passed, 82 skipped, 1 failed
+test result: FAILED. 15 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.14s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.60s
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.66s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.45s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.36s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.75s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.87s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.04s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+-- FAIL: cargo test (94 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+-- ok: fixture wrapper tests (8 s)
+ℹ tests 137
+ℹ pass 136
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+-- FAIL: client tests (42 s)
+== 2 failure(s) in 114 s
+```
+
+Final full run (555 Rust passed, 0 failed, 1 ignored; fixtures 9/9;
+client 136 passed, 1 failed):
+
+```text
+-- ok: cargo build (0 s)
+-- ok: wasm build (1 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (1 s)
+-- ok: chat app check (0 s)
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.08s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.44s
+test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.37s
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.07s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.57s
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.40s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.16s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.29s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.03s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.22s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 4.96s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 23.10s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.68s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+-- ok: cargo test (64 s)
+-- ok: chat app typecheck (0 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+-- ok: fixture wrapper tests (6 s)
+ℹ tests 137
+ℹ pass 136
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+-- FAIL: client tests (40 s)
+== 1 failure(s) in 68 s
+```
+
+The sole final red is `React hooks and reference-app lifetimes`, Chromium
+`SIGABRT` during browser launch inside the sandbox, the environment artifact
+named in the lane brief. Its isolated retry, from `snapback4/`, was:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+node --test packages/snapback4/test/react.test.mjs
+```
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+```
+
+No failure is claimed base-proven pre-existing: the Chromium retry used this
+lane's build. The lead's outside-sandbox browser rerun remains necessary for
+an entirely green blocking suite. Lifecycle and all other client tests passed;
+there was no en-masse timeout requiring a concurrency-2 retry. Implementation
+and all requested test cases are complete; no commit, push, tag or publication
+was performed.
+
+Measurements: interrupted populations 1, 2, 3, 4, 5, 6, 12 each return 1 row and
+0 cursors on all three hosts; completeness is true only at population 1. Scalar
+population 5 returns 5, complete true, 0 cursors; population 6 returns 5,
+complete false, 0 cursors. The new merge-setup witness returns 12 unique rows in
+3 pages (5 + 5 + 2), complete throughout. The owned-and-lost 6-row case returns
+5 owned rows and 1 lost-collector row, with 1 owned cursor and complete false.
+All 11 changed code files are below 1,500 lines; the largest is the guide at
+1,420. The first wasm rebuild measured 1,604,529 B raw and 445,577 B gzip; this
+is a build observation, not a before/after performance claim. Learned: scan
+lookahead answers whether storage continues, while executed collector flow
+answers whether materialized rows were consumed; neither the take bound nor
+one sibling's ownership can substitute for the other fact.
+
+Exact diagnostic observations (unchanged by this lane). Before and after
+`--fix`, `query q():` followed by `return 1 !== 2` produces:
+
+```text
+schema.q:2:14 — E_QUARRY_SYNTAX: expected expression, got "="
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+schema.q:1:1 — E_QUARRY_SYNTAX: query q has an empty body
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+```
+
+For `query q():`, `yes = 1 == 1`, `return :`, before `--fix`:
+
+```text
+schema.q:2:11 — E_QUARRY_SYNTAX: equality is = in Quarry
+  rewrite: = — check --fix applies it
+  guide: language
+schema.q:3:10 — E_QUARRY_SYNTAX: expected expression, got ":"
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+```
+
+After the byte-exact `==` → `=` repair (still exits 1):
+
+```text
+schema.q:3:10 — E_QUARRY_SYNTAX: expected expression, got ":"
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+```
+
+Final repository checks:
+
+`./ref-check --verbose`
+
+```text
+ref-check: ok — 474 LLP docs, 8847 refs in 22822 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` exits 0. All 11 changed code files were counted: zero
+over 1,500 lines, maximum 1,420. The final diff contains only the 13 intended
+files; the corpus cases and lane R1p's named files are unchanged.
