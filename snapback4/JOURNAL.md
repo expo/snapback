@@ -7013,3 +7013,16 @@ per-child session) merges after it and takes 0.2.15 / snapback4-expo 0.2.6,
 published only after 0.2.14 is on npm. 0.2.14 is that program's qualified
 commit, not main after this merge.
 
+## 2026-09-14 — integration with main's acquisition gate (lead, LLP 3000.007 §19)
+
+Merging `origin/main` brought `4bb2ff958` (a device refuses to predict until
+its generation's partition finishes acquisition). Three R1p presence tests
+predicted on a freshly opened device and went red with `E_PREDICT: this
+generation's partition has not completed acquisition`; they now apply the
+viewer's snapshot pages first, as main's own device tests do (device presence
+tests 7 passed; 0 failed). Main's `c87954e45` had bounded the chat worker
+fixture to a 1 s lease and poll because a killed worker's orphaned claim could
+lease new work; with `dev`'s per-child session (`0380b3ae6`) the fixture runs
+the reference worker's production defaults again (worker tests 5 of 5, three
+runs), so the test guards the fix instead of hiding the race.
+
