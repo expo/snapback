@@ -804,14 +804,7 @@ fn handle(mut request: Request, shared: &Shared) {
             if let Some((id, outcome)) = replay {
                 // A resend of an applied write: its recorded outcome, before the
                 // current generation gets to judge its shape.
-                let body = match outcome.state {
-                    WriteState::Sent { seq, result } => {
-                        json!({ "state": "sent", "id": id, "seq": seq, "result": wire::to_json(&result), "replayed": true })
-                    }
-                    WriteState::Failed { why, current } => {
-                        json!({ "state": "failed", "id": id, "why": refusal_json(&why), "current": current.map(|c| wire::to_json(&c)), "replayed": true })
-                    }
-                };
+                let body = outcome.reply(Some(id));
                 respond(request, 200, body);
                 return;
             }
@@ -893,14 +886,7 @@ fn handle(mut request: Request, shared: &Shared) {
                             *lock(&shared.seq) = *seq;
                             shared.committed.notify_all();
                         }
-                        let body = match outcome.state {
-                            WriteState::Sent { seq, result } => {
-                                json!({ "state": "sent", "id": id, "seq": seq, "result": wire::to_json(&result) })
-                            }
-                            WriteState::Failed { why, current } => {
-                                json!({ "state": "failed", "id": id, "why": refusal_json(&why), "current": current.map(|c| wire::to_json(&c)) })
-                            }
-                        };
+                        let body = outcome.reply(id.as_deref());
                         respond(request, 200, body);
                     }
                     Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "state": "failed", "id": id, "why": refusal_json(&refusal) })) }

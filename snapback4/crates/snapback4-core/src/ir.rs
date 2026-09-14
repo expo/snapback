@@ -113,11 +113,20 @@ pub enum Stmt {
     Insert { table: String, row: Expr },
     Update { table: String, key: Expr, patch: Expr },
     Upsert { table: String, key: Expr, row: Expr },
+    /// Target lookup and the old image stay inside the engine. Only a read-filtered result is bound.
+    WriteTarget { target: Read, patch: Expr, upsert: bool, condition: Option<WriteCondition>, result: Option<String> },
     Delete { table: String, key: Expr },
     Emit { effect: String, payload: Expr },
     Return(Expr),
     Break,
     Continue,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WriteCondition {
+    pub old: String,
+    pub setup: Vec<Stmt>,
+    pub value: Expr,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -431,6 +440,12 @@ fn stmts_read_sites(stmts: &[Stmt], out: &mut Vec<ReadSite>) {
                 expr_read_sites(key, out);
                 expr_read_sites(row, out);
             }
+            Stmt::WriteTarget { target, patch, condition, .. } => {
+                out.push(ReadSite { site: target.site.clone(), table: target.table.clone(), index: target.index.clone(), kind: "write target", take: 1 });
+                for key in &target.key { expr_read_sites(key, out); }
+                expr_read_sites(patch, out);
+                if let Some(condition) = condition { stmts_read_sites(&condition.setup, out); expr_read_sites(&condition.value, out); }
+            }
             Stmt::Delete { key, .. } => expr_read_sites(key, out),
             Stmt::Break | Stmt::Continue => {}
         }
@@ -525,6 +540,11 @@ fn stmts_scans<'a>(stmts: &'a [Stmt], out: &mut Vec<&'a Scan>) {
                 expr_scans(key, out);
                 expr_scans(row, out);
             }
+            Stmt::WriteTarget { target, patch, condition, .. } => {
+                for key in &target.key { expr_scans(key, out); }
+                expr_scans(patch, out);
+                if let Some(condition) = condition { stmts_scans(&condition.setup, out); expr_scans(&condition.value, out); }
+            }
             Stmt::Delete { key, .. } => expr_scans(key, out),
             Stmt::Break | Stmt::Continue => {}
         }
@@ -592,6 +612,7 @@ fn stmts_write_tables(stmts: &[Stmt], out: &mut Vec<(String, &'static str)>) {
             Stmt::Insert { table, .. } | Stmt::InsertIfAbsent { table, .. } => out.push((table.clone(), "insert")),
             Stmt::Update { table, .. } => out.push((table.clone(), "update")),
             Stmt::Upsert { table, .. } => out.push((table.clone(), "upsert")),
+            Stmt::WriteTarget { target, upsert, .. } => out.push((target.table.clone(), if *upsert { "upsert" } else { "update" })),
             Stmt::Delete { table, .. } => out.push((table.clone(), "delete")),
             Stmt::If { then_body, else_body, .. } => {
                 stmts_write_tables(then_body, out);

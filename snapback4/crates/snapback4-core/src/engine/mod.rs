@@ -20,6 +20,8 @@ pub mod rules;
 pub mod runner;
 pub mod validate;
 pub mod write;
+mod write_target;
+mod receipt;
 
 #[cfg(feature = "sqlite")]
 use crate::assets::{self, Asset, AssetKind, asset_id};
@@ -689,8 +691,7 @@ impl Engine {
         let Some(outcome) = self.store.applied_outcome(viewer, op)? else {
             return Ok(None);
         };
-        let mut outcome: MutationOutcome = serde_json::from_str(&outcome).map_err(|e| RuntimeError::Store(e.to_string()))?;
-        outcome.replayed = true;
+        let outcome = MutationOutcome::from_receipt(&outcome)?;
         Ok(Some(outcome))
     }
 
@@ -732,8 +733,7 @@ impl Engine {
             && let Some((_, outcome)) = tx.applied(&context.viewer, op)?
         {
             // Applied between the check above and this transaction.
-            let mut outcome: MutationOutcome = serde_json::from_str(&outcome).map_err(|e| RuntimeError::Store(e.to_string()))?;
-            outcome.replayed = true;
+            let outcome = MutationOutcome::from_receipt(&outcome)?;
             tx.rollback()?;
             return Ok(outcome);
         }
@@ -810,7 +810,7 @@ impl Engine {
                 WriteState::Sent { seq, .. } => *seq,
                 WriteState::Failed { .. } => tx.next_seq()? - 1,
             };
-            tx.record_applied(&viewer, op, seq, &serde_json::to_string(&outcome).map_err(|e| RuntimeError::Store(e.to_string()))?)?;
+            tx.record_applied(&viewer, op, seq, &serde_json::to_string(&outcome.reply(Some(op))).map_err(|e| RuntimeError::Store(e.to_string()))?)?;
         }
         tx.commit()?;
         Ok(outcome)

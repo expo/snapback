@@ -35,7 +35,7 @@ mutation put(email: text <=254):
 fn hidden_unique_and_id_collisions_have_only_a_generic_rule_refusal() {
     let mut e = engine(ACCOUNTS);
     e.seed([("accounts".into(), object([("id", id("hidden")), ("email", Value::String("secret@example.com".into())), ("owner", id("alice"))]))]).unwrap();
-    for (n, op, email, new_id) in [(0, "add", "secret@example.com", "new0"), (1, "quiet", "secret@example.com", "new1"), (2, "put", "secret@example.com", "new2"), (3, "add", "fresh@example.com", "hidden")] {
+    for (n, op, email, new_id) in [(0, "add", "secret@example.com", "new0"), (1, "quiet", "secret@example.com", "new1"), (3, "add", "fresh@example.com", "hidden")] {
         let result = e.mutate(op, Some(&n.to_string()), Context::new("bob", args(email)).with_ids([new_id.into()])).unwrap();
         let WriteState::Failed { why, .. } = result.state else { panic!("hidden collision succeeded") };
         assert_eq!(why.code, "E_RULE");
@@ -45,6 +45,22 @@ fn hidden_unique_and_id_collisions_have_only_a_generic_rule_refusal() {
     assert!(matches!(public.state, WriteState::Failed { why, .. } if why.code == "E_CONSTRAINT"));
     let quiet = e.mutate("quiet", None, Context::new("alice", args("secret@example.com"))).unwrap();
     assert!(matches!(quiet.state, WriteState::Sent { result: Value::Null, .. }));
+}
+
+#[test]
+fn hidden_put_uses_update_authority_and_old_owner_can_deny_it() {
+    for (source, expected) in [(ACCOUNTS.to_owned(), "sent"), (ACCOUNTS.replace("update <- .owner = viewer", "update (old, next) <- old.owner = viewer and next.owner = viewer"), "NOT_FOUND")] {
+        let mut e = engine(&source);
+        e.seed([("accounts".into(), object([("id", id("hidden")), ("email", Value::String("secret@example.com".into())), ("owner", id("alice"))]))]).unwrap();
+        let result = e.mutate("put", Some("put"), Context::new("bob", args("secret@example.com"))).unwrap();
+        match result.state {
+            WriteState::Sent { result, .. } => { assert_eq!(expected, "sent"); assert_eq!(result.field("owner"), Ok(&id("bob"))); }
+            WriteState::Failed { why, current } => { assert_eq!(why.code, expected); assert!(current.is_none()); }
+        }
+        let row = &e.store().rows("accounts").unwrap()[0];
+        assert_eq!(row.field("id"), Ok(&id("hidden")));
+        assert_eq!(row.field("owner"), Ok(&id(if expected == "sent" { "bob" } else { "alice" })));
+    }
 }
 
 #[test]

@@ -250,6 +250,11 @@ impl<'a> Runner<'a> {
                     self.upsert(table, &key, row)?;
                     Flow::Next
                 }
+                Stmt::WriteTarget { target, patch, upsert, condition, result } => {
+                    let value = self.write_target(target, patch, *upsert, condition.as_ref(), result.is_some())?;
+                    if let Some(name) = result { self.meter.heap(value.heap_bytes())?; self.bind(name, value); }
+                    Flow::Next
+                }
                 Stmt::Delete { table, key } => {
                     let key = self.expr(key)?;
                     self.delete(table, key.as_str()?)?;

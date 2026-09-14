@@ -633,70 +633,30 @@ impl<'a> Binder<'a> {
                 out.push(Stmt::Insert { table: table.clone(), row: ir::var(&tmp) });
                 Ok(valued.then(|| (ir::var(&tmp), row_ty)))
             }
-            WriteOp::Update => {
+            WriteOp::Update | WriteOp::Upsert => {
+                // @ref LLP 3000.007#8 — item 7: target resolution and conditional old images belong to the engine.
                 let key = self.write_key(info, keys, site, out)?;
-                let current = self.temp("current");
-                if condition.is_some() || key.alternate {
-                    out.push(Stmt::Let { name: current.clone(), value: Expr::Get(Read { site: self.site(), table: table.clone(), index: key.index.clone(), key: key.key.clone(), provenance: KeyProvenance::Shape }) });
-                    if key.alternate {
-                        out.push(Stmt::Require { condition: Expr::Binary { op: BinaryOp::Ne, left: Box::new(ir::var(&current)), right: Box::new(Expr::Literal(Value::Null)) }, code: "NOT_FOUND".into(), site: Some(site.to_string()) });
-                    }
+                let upsert = *op == WriteOp::Upsert;
+                if upsert && fields.iter().any(|f| f.name == "id") {
+                    return Err(unknown(site, "upsert cannot spell id; the key names the row", "remove id from the patch; the key names the row"));
                 }
-                let id_expr = if key.alternate { ir::field(ir::var(&current), "id") } else { key.key[0].clone() };
-                let (patch, _) = self.write_row(info, fields, Some(&current), site, out)?;
-                if let Some(condition) = condition {
-                    let prior = self.focal.replace((current.clone(), Ty::Row(table.clone()).optional()));
-                    let mut check_out = Vec::new();
-                    let bound = self.expr(condition, &mut check_out);
+                let (patch, _) = self.write_row(info, fields, Some("patch"), site, out)?;
+                let condition = if let Some(condition) = condition {
+                    let old = self.temp("condition");
+                    let prior = self.focal.replace((old.clone(), Ty::Row(table.clone())));
+                    let mut setup = Vec::new();
+                    let bound = self.expr(condition, &mut setup);
                     self.focal = prior;
-                    let (check, check_ty) = bound?;
-                    if !check_ty.is_bool() {
-                        return Err(type_error(condition.site(), format!("update's condition must be bool, got {}", check_ty.name()), "update t[key] { body } if .body = expected"));
+                    let (value, ty) = bound?;
+                    if !ty.is_bool() {
+                        return Err(type_error(condition.site(), format!("update's condition must be bool, got {}", ty.name()), "update t[key] { body } if .body = expected"));
                     }
-                    out.extend(check_out);
-                    out.push(Stmt::Check { condition: check, current: Read { site: self.site(), table: table.clone(), index: key.index.clone(), key: key.key.clone(), provenance: KeyProvenance::Shape } });
-                }
-                out.push(Stmt::Update { table: table.clone(), key: id_expr.clone(), patch });
-                if !valued {
-                    return Ok(None);
-                }
-                let result = self.temp("updated");
-                out.push(Stmt::Let { name: result.clone(), value: Expr::Get(Read { site: self.site(), table: table.clone(), index: "byId".into(), key: vec![id_expr], provenance: KeyProvenance::Computed }) });
-                Ok(Some((ir::var(&result), Ty::Row(table.clone()).optional())))
-            }
-            WriteOp::Upsert => {
-                let key = self.write_key(info, keys, site, out)?;
-                let id_var = self.temp("id");
-                if key.alternate {
-                    let current = self.temp("current");
-                    out.push(Stmt::Let { name: current.clone(), value: Expr::Get(Read { site: self.site(), table: table.clone(), index: key.index.clone(), key: key.key.clone(), provenance: KeyProvenance::Shape }) });
-                    out.push(Stmt::Let { name: id_var.clone(), value: Expr::Input(Input::NewId) });
-                    out.push(Stmt::If { condition: Expr::Binary { op: BinaryOp::Ne, left: Box::new(ir::var(&current)), right: Box::new(Expr::Literal(Value::Null)) }, then_body: vec![Stmt::Assign { name: id_var.clone(), value: ir::field(ir::var(&current), "id") }], else_body: Vec::new() });
-                } else {
-                    out.push(Stmt::Let { name: id_var.clone(), value: key.key[0].clone() });
-                }
-                if fields.iter().any(|f| f.name == "id") {
-                    return Err(unknown(site, "upsert cannot spell id; the key names the row", print::expression(&A::Write { op: *op, table: table.clone(), keys: keys.clone(), fields: fields.iter().filter(|f| f.name != "id").cloned().collect(), if_absent: false, condition: None, site: site.clone() })));
-                }
-                let mut with_key = fields.clone();
-                for (column, key_expr) in key.named.iter() {
-                    if !with_key.iter().any(|f| &f.name == column) {
-                        with_key.push(ObjectField { name: column.clone(), value: Some(key_expr.clone()), site: site.clone() });
-                    }
-                }
-                let (patch, _) = self.write_row(info, &with_key, Some("patch"), site, out)?;
-                let Expr::Object(mut fields) = patch else { unreachable!("a typed patch is an object") };
-                fields.insert("id".into(), ir::var(&id_var));
-                let row = Expr::Object(fields);
-                let tmp = self.temp("upserted");
-                out.push(Stmt::Const { name: tmp.clone(), value: row });
-                out.push(Stmt::Upsert { table: table.clone(), key: ir::var(&id_var), row: ir::var(&tmp) });
-                if !valued {
-                    return Ok(None);
-                }
-                let result = self.temp("written");
-                out.push(Stmt::Let { name: result.clone(), value: Expr::Get(Read { site: self.site(), table: table.clone(), index: "byId".into(), key: vec![ir::var(&id_var)], provenance: KeyProvenance::Computed }) });
-                Ok(Some((ir::var(&result), Ty::Row(table.clone()).optional())))
+                    Some(ir::WriteCondition { old, setup, value })
+                } else { None };
+                let result = valued.then(|| self.temp("written"));
+                let target = Read { site: site.to_string(), table: table.clone(), index: key.index, key: key.key, provenance: KeyProvenance::Shape };
+                out.push(Stmt::WriteTarget { target, patch, upsert, condition, result: result.clone() });
+                Ok(result.map(|name| (ir::var(&name), Ty::Row(table.clone()).optional())))
             }
             WriteOp::Delete => {
                 let key = self.write_key(info, keys, site, out)?;
@@ -728,19 +688,18 @@ impl<'a> Binder<'a> {
                 out.extend(row_setup);
                 let id = self.temp("key");
                 out.push(Stmt::Let { name: id.clone(), value: ir::field(e, "id") });
-                return Ok(WriteKey { index: "byId".into(), key: vec![ir::var(&id)], alternate: false, named: Vec::new() });
+                return Ok(WriteKey { index: "byId".into(), key: vec![ir::var(&id)], alternate: false });
             }
         }
         let read = ReadExpr { table: info.decl.name.clone(), keys: keys.to_vec(), index: None, range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() };
         let (bound, index) = self.select_index(info, &read, ReadMode::Point, out)?;
-        let named: Vec<(String, A)> = keys.iter().enumerate().map(|(position, part)| (part.column.clone().unwrap_or_else(|| index.columns[position].clone()), part.value.clone())).collect();
         let key = self.order_keys(info, &index, bound)?;
         if index.name == "byId" {
             let id = self.temp("key");
             out.push(Stmt::Let { name: id.clone(), value: key[0].clone() });
-            return Ok(WriteKey { index: "byId".into(), key: vec![ir::var(&id)], alternate: false, named: Vec::new() });
+            return Ok(WriteKey { index: "byId".into(), key: vec![ir::var(&id)], alternate: false });
         }
-        Ok(WriteKey { index: index.name, key, alternate: true, named })
+        Ok(WriteKey { index: index.name, key, alternate: true })
     }
 
     fn write_row(&mut self, info: &'a TableInfo, fields: &[ObjectField], current: Option<&str>, site: &Site, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
@@ -857,7 +816,6 @@ struct WriteKey {
     index: String,
     key: Vec<Expr>,
     alternate: bool,
-    named: Vec<(String, A)>,
 }
 
 fn literal_int(expr: &A) -> Option<i64> {

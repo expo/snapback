@@ -301,6 +301,12 @@ query search(roomId: rooms, q: text <=100, c: cursor ?):
 query online(p: principal):
   return connected[p]                 -- how many connections the principal holds open on the server; `exists connected[p]` tests (guide presence)
 
+mutation pagePass(roomId: rooms): server
+  n = 0
+  for row in messages[roomId] first 10 by byRoomTime:
+    n = n + 1
+  return n
+
 mutation createRoom(name: text 1..80, kind: enum('open', 'closed'), tags: [text <=20] <=8):
   room = insert rooms { id: new, name, ownerId: viewer, kind, tags }   -- `new` mints an id; omit `id` and one is minted anyway
   insert members { roomId: room.id, principal: viewer, role: 'admin', joinedAt: now }
@@ -501,10 +507,27 @@ by the key or extra tests must be pinned for one verdict to serve a whole page. 
 compare with `=` and `!=` alone: a rule that varies with time is not an
 audience a partition can hold (use `expire`). A read rule that is exactly
 `exists t[.a, .b, viewer]`, `.col = viewer` or `public` can be synced (guide
-sync). A collision on a hidden unique key or id returns the ordinary E_RULE
-write refusal, including insert-if-absent and upsert; only a readable
-collision may disclose the key or make insert-if-absent return null. The
-system principal consults no rules, so `system` is never a rule word."##,
+sync). The system principal consults no rules, so `system` is never a rule word.
+
+For update/upsert, "readable" means the read rule admits the old row in the
+pre-write state, before the patch or any of its effects. The engine resolves
+id and unique-key targets privately; the update rule judges old and next.
+
+| Target before the write | Refusal details |
+| --- | --- |
+| Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_CONSTRAINT`; `E_INPUT` |
+| Unreadable or absent | `NOT_FOUND` for rule denial, failed `if`, immutable mismatch, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |
+
+A hidden collision on ordinary insert or `insert ... if absent` stays
+`E_RULE`; a readable collision names its index (if-absent returns null).
+An update colliding with a different hidden row returns `NOT_FOUND`, even
+when its target is readable: target authority does not authorize that row.
+Use `upsert counters[recipient] { count: 1 }` under an `update` rule to
+write another principal's row. Success discloses the admitted row's existence
+and the rule/condition predicates. It grants no extra stream or snapshot row.
+A readable maintain over a hidden source is a declared read channel: its
+delta can disclose the old contribution. `N_MAINTAIN_DELTA` notes potentially
+wider update authority under a separately readable maintain."##,
         "sync" => r##"# Sync: the viewer's partition is the unit of sync
 
 ```quarry
@@ -810,8 +833,28 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
 Defaults fill missing insert columns on the writing host, including the insert
 branch of `upsert`; updates and existing-row upserts never reapply defaults.
 `upsert` inserts or patches: on an existing row, unnamed columns keep their
-values; on an absent row, a missing required column refuses `E_INPUT`, naming
-the column. An explicit null clears an optional column.
+values. An incomplete insert patch answers `NOT_FOUND`. An explicit null
+clears an optional column. Unchanged asset facts are preserved; the update
+rule runs before asset diagnostics. Conditional `if` sees old only inside
+the engine; neither old nor the merged image is a program binding.
+
+For update/upsert, "readable" means the read rule admits the old row in the
+pre-write state, before the patch or any of its effects. The engine resolves
+id and unique-key targets privately; the update rule judges old and next.
+
+| Target before the write | Refusal details |
+| --- | --- |
+| Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_CONSTRAINT`; `E_INPUT` |
+| Unreadable or absent | `NOT_FOUND` for rule denial, failed `if`, immutable mismatch, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |
+
+A hidden collision on ordinary insert or `insert ... if absent` stays
+`E_RULE`; a readable collision names its index (if-absent returns null).
+An update colliding with a different hidden row returns `NOT_FOUND`, even
+when its target is readable: target authority does not authorize that row.
+Use `upsert counters[recipient] { count: 1 }` under an `update` rule to
+write another principal's row. Success discloses the admitted row's existence
+and the rule/condition predicates. It grants no extra stream or snapshot row.
+
 
 The table names are the language card's. A final write is the implicit
 return; bind one to use its row (`row = insert ..`). Writes check the rule,
@@ -819,7 +862,14 @@ then unique indexes, caps, immutable columns, text formats and `after
 insert` postconditions; any refusal rolls the whole mutation back, and a
 maintained aggregate is written through its source rows. Every written row
 fans out to its partitions (guide sync). A mutation applies at most once
-per client-minted id. A reference column checks the id's shape, not that
+per client-minted id and principal. Valued updates/upserts and conflict
+`current` are ordinary read-rule gets (null or withheld when hidden), evaluated
+at the read's state; a write that grants read authority may return its row.
+The recorded body is exactly the initial `/m` reply. Retries return only
+execution identity (`sent`/`failed`, `seq`/`why`, `replayed`), withholding
+historical `result` and `current`, including scalar results after a lost reply.
+A device write-target miss, by id or unique key with any horizon, queues
+without a predicted row; it still sends `/m`. A reference column checks the id's shape, not that
 its target exists: when a mutation needs a visible target, guard first —
 `require exists prompts[promptId] else PROMPT_NOT_FOUND` — a metered point
 read that is false for an absent or hidden row; deleting a target neither
@@ -836,6 +886,13 @@ mutation programWrites(roomId: rooms, title: text 1..80):     -- reads and write
   require room.ownerId = viewer else NOT_OWNER
   update rooms[room] { name: title }                           -- a final write is the implicit return
 ```
+
+A mutation with `predicts: "never"` (a server site or `: server`) may pass
+over a bounded page whose read rule is uniform over its prefix, without a
+complete schema-capped group. A predicting mutation keeps that requirement;
+non-uniform prefixes, merges and unknown origins keep `E_STRUCTURAL_FANOUT`.
+The pass is atomic and still aborts above 1,024 rows written. `check --cost`
+prints "a pass over the first N rows of <prefix>; examined ceiling <n>".
 
 The table names are the language card's; a `job` is `chunk row in
 t[prefix] first N by index:` sweeps (guide jobs), or `native`: the app's
@@ -1089,7 +1146,7 @@ table votes:
   by byPrincipal: principal, id
   read <- .principal = viewer
   insert <- .principal = viewer
-  update <- .principal = viewer
+  update (old, next) <- old.principal = viewer and next.principal = viewer
   sync to .principal last 1000 by byPrincipal
 
 maintain postScore: sum votes of direction by postId
@@ -1435,6 +1492,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_SQL_INTERNAL", "developer SQL reads only generated application-table views. Raw r/i, internal tables and SQLite metadata are refused; guide personas."),
     ("N_NOW_SERVER", "a query now reads a server-only site; why names it and the rewrite. See guide residency."),
     ("N_NOT_PREDICTABLE", "a mutation lost eligibility, or gained a horizon site that may queue without a row; the note names which. See guide residency."),
+    ("N_MAINTAIN_DELTA", "a readable maintain over a source with potentially wider update authority declares a delta read channel; restrict the maintain read rule or the source update rule if that delta is private."),
     ("N_MAINTAIN_SYNCED", "a maintain inherits public sync or a group audience with unbounded recipients or multiple values per group; online only opts out. test --residency measures its rows."),
     ("E_INPUT", "family input — an argument or a row value does not fit its declared type, or an HTTP request exceeds its body bound (sync: 256 KiB, HTTP 413). The message names the field; fix the value or the declaration. A table reference validates the id's shape, not the target's existence: the string \"null\" is an id, while JSON null needs an optional type; `require exists t[id] else CODE` checks for a visible target (guide writes)."),
     ("E_TYPE", "family input — a value has the wrong type for its position at run time (a Quarry program that binds cannot raise it; a seed or a wire argument can); the message names both types."),
@@ -1443,7 +1501,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_FIELD", "family input — a field was read from a value that has none (a null row's column, a missing object field). Narrow the row first: `row ! else NOT_FOUND`."),
     ("E_SCHEMA", "family schema — the schema or the store is inconsistent. `snapback4 check` names the line."),
     ("E_SCHEMA_CONSTRAINT", "family schema — a declaration the compiler binds but the core refuses: a cap or an expire without its index, a maintain target without its unique group index, a sync whose aggregate would reveal rows its audience may not read. The message names the declaration; guide indexes."),
-    ("E_STRUCTURAL_FANOUT", "family schema — a mutation loops over a page that is not one complete schema-capped group (no `cap` over the pinned prefix, a `first N` under the cap, a cursor, a non-uniform read rule, or a merge). Pin a capped group with a literal bound at least its cap, or move the pass to a job's chunk."),
+    ("E_STRUCTURAL_FANOUT", "family schema — prediction needs a complete schema-capped group; a never-predicting mutation may pass a bounded uniform page. Non-uniform prefixes, merges and unknown origins are refused in either class. Pin the read-rule fields and a capped group, use : server for a bounded uniform pass, or move a sweep to a job chunk."),
     ("E_UNBOUND_SCAN", "family schema — a compiled program scans a table or index the schema no longer has. Recompile: `snapback4 check` after the schema change."),
     ("E_RULE", "family auth — a table's insert, update or delete rule did not admit this viewer, or a unique key collided with a row you cannot read; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count. Reads never raise it: a hidden row is null. Read the rule with `snapback4 why <table>`."),
     ("E_AUTH", "family auth — no principal, a session that is not live, or the wrong kind at a door: send `x-snapback-persona` in development or a bearer token (a persona is refused off loopback and under `serve`); claiming effects and minting sessions take a service token (`snapback4 token --service <name>`), never a user's (guide services)."),

@@ -739,7 +739,7 @@ fn an_emit_is_claimed_and_settled_by_a_worker() {
 fn a_service_is_admitted_by_its_name_and_a_device_defers_presence() {
     let mut engine = effects_engine();
     let stranger = engine.mutate("rank", Some("r1"), Context::new("dev:alice", args(&[("postId", id("p1")), ("score", Value::Int(3))])).at(1_000)).unwrap();
-    assert!(matches!(&stranger.state, WriteState::Failed { why, .. } if why.code == "E_RULE"), "{:?}", stranger.state);
+    assert!(matches!(&stranger.state, WriteState::Failed { why, .. } if why.code == "NOT_FOUND"), "{:?}", stranger.state);
     let ranked = engine.mutate("rank", Some("r2"), Context::new("service:ranker", args(&[("postId", id("p1")), ("score", Value::Int(3))])).at(1_000)).unwrap();
     assert!(matches!(ranked.state, WriteState::Sent { .. }), "{:?}", ranked.state);
     assert_eq!(engine.store().rows("rankings").unwrap().len(), 1);
@@ -824,7 +824,7 @@ table votes:
   by byPrincipal: principal, id
   read <- .principal = viewer
   insert <- .principal = viewer
-  update <- .principal = viewer
+  update (old, next) <- old.principal = viewer and next.principal = viewer
   sync to .principal last 1000 by byPrincipal
 
 maintain postScore: sum votes of direction by postId
@@ -929,7 +929,7 @@ fn a_ranked_feed_is_scored_by_a_job_and_composed_on_the_device() {
     // The viewer's signals move on the device alone; the ranker's lift is its seat's to write.
     engine.mutate("markSeen", Some("seen1"), Context::new("dev:bob", args(&[("postId", id("post2"))])).at(201).with_ids(["seen1".to_owned()])).unwrap();
     let refused = engine.mutate("setAffinity", Some("aff0"), Context::new("dev:bob", args(&[("readerId", id("dev:bob")), ("postId", id("post3")), ("score", Value::Int(9))])).at(202).with_ids(["aff0".to_owned()])).unwrap();
-    assert!(matches!(&refused.state, WriteState::Failed { why, .. } if why.code == "E_RULE"), "{:?}", refused.state);
+    assert!(matches!(&refused.state, WriteState::Failed { why, .. } if why.code == "NOT_FOUND"), "{:?}", refused.state);
     let lifted = engine.mutate("setAffinity", Some("aff1"), Context::new("service:ranker", args(&[("readerId", id("dev:bob")), ("postId", id("post3")), ("score", Value::Int(9))])).at(203).with_ids(["aff1".to_owned()])).unwrap();
     assert!(matches!(lifted.state, WriteState::Sent { .. }), "{:?}", lifted.state);
     let page = home(&mut engine, "dev:bob");

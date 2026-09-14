@@ -575,6 +575,7 @@ impl<S: DeviceStore> Device<S> {
                 Err(RuntimeError::Prediction(_)) => {
                     tx.rollback_to("admit")?;
                     entry.predictable = false;
+                    entry.predicted.clear();
                 }
                 Err(error) => return Err(error),
             }

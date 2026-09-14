@@ -69,14 +69,15 @@ impl Parser {
             if kind == ProgramKind::Mutation {
                 return Err(Diagnostic::new(&native.site, "E_NATIVE", format!("only a job or a query can be native; a mutation runs in the interpreter so a device can predict it and the server can replay it"), format!("job {name}(): native  -- or: query {name}(): native")).guide("native"));
             }
-            return Ok(ProgramDecl { kind, name, args, prelude: Vec::new(), body: Vec::new(), native: true, site: kind_token.site });
+            return Ok(ProgramDecl { server: false, kind, name, args, prelude: Vec::new(), body: Vec::new(), native: true, site: kind_token.site });
         }
+        let server = kind == ProgramKind::Mutation && self.maybe("server");
         self.newline()?;
         let (prelude, body) = if kind == ProgramKind::Job { self.parse_chunks()? } else { (Vec::new(), self.parse_block()?) };
         if body.is_empty() {
             return Err(syntax(&kind_token.site, format!("{} {name} has an empty body", kind_token.value)));
         }
-        Ok(ProgramDecl { kind, name, args, prelude, body, native: false, site: kind_token.site })
+        Ok(ProgramDecl { server, kind, name, args, prelude, body, native: false, site: kind_token.site })
     }
 
     pub(super) fn parse_chunks(&mut self) -> Fallible<(Vec<Stmt>, Vec<Stmt>)> {

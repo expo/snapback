@@ -30,21 +30,8 @@ impl Runner<'_> {
 
     fn insert_mode(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
         self.refuse_engine_owned(table_name)?;
-        // @ref LLP 3000.007#5.4 — omitted defaults use the clock and viewer of the host running the insert.
-        let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
-        let row = if table.defaults.keys().any(|name| row.as_object().is_ok_and(|fields| !fields.contains_key(name))) {
-            let mut fields = row.as_object()?.clone();
-            for (name, default) in &table.defaults {
-                if !fields.contains_key(name) {
-                    let value = default.value(self.context.now.ok_or_else(|| RuntimeError::Input("write clock is not pinned".into()))?, &self.context.viewer);
-                    fields.insert(name.clone(), value);
-                }
-            }
-            let row = Value::Row(fields.into());
-            self.meter.heap(row.heap_bytes())?;
-            row
-        } else { row };
-        let row = self.with_asset_facts(table_name, row)?;
+        let row = self.with_defaults(table_name, row)?;
+        let row = self.with_asset_facts(table_name, row, None)?;
         validate_row(self.schema, table_name, &row)?;
         if !self.check_rule(table_name, Effect::Insert, None, &row)? {
             return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Insert });
@@ -84,8 +71,9 @@ impl Runner<'_> {
         }
         let id = key.as_str()?;
         let Some(old) = self.fetch(table_name, id)? else {
-            return Err(RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".to_owned() });
+            return Err(self.write_miss(table_name, "byId", &[key.clone()]));
         };
+        if self.device && self.schema.tables[table_name].sync.is_none() { return Err(self.write_miss(table_name, "byId", &[key.clone()])); }
         let mut new = old.as_object()?.clone();
         for (name, value) in patch.as_object()? {
             new.insert(name.clone(), value.clone());
@@ -108,16 +96,42 @@ impl Runner<'_> {
                 self.meter.heap(row.heap_bytes())?;
                 self.replace(table_name, old, row)
             }
-            None => self.insert(table_name, row),
+            None if self.device => Err(self.write_miss(table_name, "byId", &[key.clone()])),
+            None => self.insert_upsert(table_name, row),
+        }
+    }
+
+    pub(super) fn insert_upsert(&mut self, table_name: &str, row: Value) -> Result<(), RuntimeError> {
+        // Defaults fill first, so a patch that leaves a defaulted column out is a complete row here.
+        let row = self.with_defaults(table_name, row)?;
+        // An absent target has no pre-write read authority, including an incomplete insert patch.
+        // Establish completeness before asset lookup can disclose a supplied asset's status.
+        if let Err(error) = validate_row(self.schema, table_name, &row) {
+            return Err(if matches!(error, RuntimeError::Input(_)) { self.no_write_target() } else { error });
+        }
+        match self.insert(table_name, row) {
+            Err(RuntimeError::Input(_) | RuntimeError::Rule { .. }) => Err(self.no_write_target()),
+            result => result,
         }
     }
 
     fn replace(&mut self, table_name: &str, old: Value, new: Value) -> Result<(), RuntimeError> {
-        let new = self.with_asset_facts(table_name, new)?;
-        validate_row(self.schema, table_name, &new)?;
-        if !self.check_rule(table_name, Effect::Update, Some(&old), &new)? {
-            return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Update });
+        let readable = self.check_rule(table_name, Effect::Read, None, &old)?;
+        self.authorize_update(table_name, &old, &new, readable)?;
+        self.replace_authorized(table_name, old, new, readable)
+    }
+
+    // @ref LLP 3000.007#8 — item 7: pre-write read authority controls details; update authority precedes asset diagnostics.
+    pub(super) fn authorize_update(&mut self, table: &str, old: &Value, new: &Value, readable: bool) -> Result<(), RuntimeError> {
+        if !self.check_rule(table, Effect::Update, Some(old), new)? {
+            return Err(if readable { RuntimeError::Rule { table: table.into(), effect: Effect::Update } } else { self.no_write_target() });
         }
+        Ok(())
+    }
+
+    pub(super) fn replace_authorized(&mut self, table_name: &str, old: Value, new: Value, readable: bool) -> Result<(), RuntimeError> {
+        let new = self.with_asset_facts(table_name, new, Some(&old))?;
+        if let Err(error) = validate_row(self.schema, table_name, &new) { return Err(if readable { error } else { self.no_write_target() }); }
         self.check_constraints(table_name, Some(&old), &new, Effect::Update)?;
         let table = self.schema.table(table_name).expect("validated").clone();
         let entries = self.tx.put(table_name, &table, &new, Some(&old))?;
@@ -150,13 +164,34 @@ impl Runner<'_> {
         self.row_changed(table_name, Some(old), None, Origin::Source)
     }
 
+    /// A column with a declared default takes it when the written row leaves
+    /// it out, before validation and before the asset facts, so the row the
+    /// rules and the constraints see is the complete one.
+    // @ref LLP 3000.007#5.4 — omitted defaults use the clock and viewer of the host running the insert.
+    fn with_defaults(&mut self, table_name: &str, row: Value) -> Result<Value, RuntimeError> {
+        let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
+        if !table.defaults.keys().any(|name| row.as_object().is_ok_and(|fields| !fields.contains_key(name))) {
+            return Ok(row);
+        }
+        let mut fields = row.as_object()?.clone();
+        for (name, default) in &table.defaults {
+            if !fields.contains_key(name) {
+                let value = default.value(self.context.now.ok_or_else(|| RuntimeError::Input("write clock is not pinned".into()))?, &self.context.viewer);
+                fields.insert(name.clone(), value);
+            }
+        }
+        let row = Value::Row(fields.into());
+        self.meter.heap(row.heap_bytes())?;
+        Ok(row)
+    }
+
     /// An `image`/`video` column names an upload by id; the row carries the
     /// facts the server established about it (type, bytes, dimensions,
     /// duration), never the client's word for them. The upload must be the
     /// writer's own and of the column's kind and size. The system principal
     /// may name an asset that was never uploaded: a fixture's placeholder,
     /// metadata only, never served.
-    fn with_asset_facts(&mut self, table_name: &str, row: Value) -> Result<Value, RuntimeError> {
+    fn with_asset_facts(&mut self, table_name: &str, row: Value, old: Option<&Value>) -> Result<Value, RuntimeError> {
         if !self.tx.holds_assets() {
             // A device: the row keeps the asset value as sent; the server
             // establishes the facts when the write arrives.
@@ -173,6 +208,12 @@ impl Runner<'_> {
                 ColumnType::Video { max } => (AssetKind::Video, *max),
                 _ => continue,
             };
+            // Unchanged placements already carry engine-established facts, even for another uploader.
+            if let Some(before) = old.and_then(|row| row.field(column).ok())
+                && asset_id(Some(before)).is_some() && asset_id(Some(before)) == asset_id(fields.get(column)) {
+                fields.insert(column.clone(), before.clone());
+                continue;
+            }
             let Some(id) = asset_id(fields.get(column)).map(str::to_owned) else { continue };
             let Some(asset) = self.tx.asset(&id)? else {
                 if self.context.is_system() {
@@ -232,7 +273,7 @@ impl Runner<'_> {
     }
 
     /// Programs never write a maintained target; the engine does.
-    fn refuse_engine_owned(&self, table: &str) -> Result<(), RuntimeError> {
+    pub(super) fn refuse_engine_owned(&self, table: &str) -> Result<(), RuntimeError> {
         if self.schema.maintain_for(table).is_some() {
             return Err(RuntimeError::Schema(format!("{table} is a maintained aggregate; write its source rows instead")));
         }
@@ -242,6 +283,7 @@ impl Runner<'_> {
     fn check_constraints(&mut self, table_name: &str, old: Option<&Value>, new: &Value, effect: Effect) -> Result<(), RuntimeError> {
         let table = self.schema.table(table_name).expect("validated").clone();
         let id = new.field("id")?.as_str()?.to_owned();
+        let readable = match old { Some(old) if effect == Effect::Update => self.check_rule(table_name, Effect::Read, None, old)?, _ => true };
         if effect != Effect::Delete {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
                 let key = index_values(index, new);
@@ -251,8 +293,12 @@ impl Runner<'_> {
                 if let Some(existing) = self.live_lookup(table_name, name, index, &key)?
                     && existing.field("id")?.as_str()? != id
                 {
-                    self.visible_collision(table_name, &existing, effect)?;
-                    return Err(RuntimeError::Constraint(format!("{table_name} already has a row where {} = {}", index.columns().join(", "), key.iter().map(describe).collect::<Vec<_>>().join(", "))));
+                    if effect == Effect::Update && !readable { return Err(self.no_write_target()); }
+                    match self.visible_collision(table_name, &existing, effect) {
+                        Err(RuntimeError::Rule { .. }) if effect == Effect::Update => return Err(self.no_write_target()),
+                        result => result?,
+                    }
+                    return Err(RuntimeError::Constraint(format!("{table_name}.{name} already has a row where {} = {}", index.columns().join(", "), key.iter().map(describe).collect::<Vec<_>>().join(", "))));
                 }
             }
         }
@@ -274,7 +320,7 @@ impl Runner<'_> {
                         materialize_optional_fields(&mut new_image, &table);
                         for field in fields {
                             if old_image.field(field).ok() != new_image.field(field).ok() {
-                                return Err(RuntimeError::Constraint(format!("{table_name}.{field} is immutable")));
+                                return Err(if readable { RuntimeError::Constraint(format!("{table_name}.{field} is immutable")) } else { self.no_write_target() });
                             }
                         }
                     }

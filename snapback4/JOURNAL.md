@@ -3310,3 +3310,146 @@ Permission tightening must preserve descriptor ownership, and a native signal
 needs its own diagnostic path; a panic hook alone would not have explained this
 crash. The original report could be attributed from the OS receipt before any
 engine change was necessary.
+
+## 2026-09-13 — Lane W: private write authority and uniform server page passes
+
+Implemented LLP 3000.007 §8 item 7 and §5.9 as revised by §15, against
+base `2bc7b01a204ddece01a7f03512ab20067fcb7fd9`. The implementation is
+uncommitted for the lead and the required second blind review. No publication
+or compatibility transition was attempted. Below, simulator test names refer
+to `crates/snapback4-sim/tests/write_authority.rs` unless another path is given.
+
+- (a) `crates/snapback4-lang/src/bind/program.rs` lowers id/unique update and
+  upsert to `Stmt::WriteTarget`; `crates/snapback4-core/src/engine/write_target.rs`
+  resolves the complete unique key privately and checks the update rule over
+  engine old/next images. `s05_upsert_on_a_hidden_row_succeeds_when_the_update_rule_admits_and_returns_no_row`
+  proves hidden success; `w1_not_found_and_e_rule_are_one_word_on_an_unreadable_row`
+  exercises both id and unique addressing. The key-once/helper regression
+  proves one key evaluation and isolated condition bindings.
+- (b) `engine/write_target.rs` and `engine/write.rs` define readability at the
+  pre-write read authority. `w1_not_found_and_e_rule_are_one_word_on_an_unreadable_row`,
+  `w1_e_conflict_current_is_withheld_and_the_code_does_not_tell_hidden_from_absent`,
+  `w1_an_immutable_mismatch_on_a_hidden_row_is_not_a_searchable_constraint`, and
+  `w1_incomplete_patch_upsert_does_not_tell_hidden_deny_from_absent` compare
+  complete replies, durable retries, state, effects, snapshots and streams.
+  The incomplete case includes a supplied foreign asset: completeness is
+  established before asset diagnostics. Readable controls retain detailed
+  errors. The historical test name
+  `s05_upsert_on_a_hidden_row_is_e_rule_when_the_update_rule_refuses` is kept,
+  but its assertion is `NOT_FOUND`, as the revised contract requires.
+- (c) `engine/write_target.rs` re-reads valued update/upsert results; conditions
+  run after update authorization in an isolated engine scope whose locals are
+  restored, with writes refused even inside nested expression setup. Condition
+  helper loops still undergo structural admission. `engine/write.rs` preserves
+  unchanged asset facts and checks update authority before assets.
+  `w1_the_merged_image_is_not_in_result_current_or_the_program`,
+  `wa3_hidden_patch_preserves_foreign_asset_without_disclosing_id`, and
+  `a_unique_upsert_evaluates_its_key_once_and_conditions_keep_helper_bindings_private`
+  prove these paths. `w1_the_writers_stream_and_snapshot_do_not_gain_the_row`
+  proves that hidden success does not extend the writer's partition.
+- (d) `crates/snapback4-core/src/engine/receipt.rs`, `engine/mod.rs`, and only
+  the `/m` arms of `crates/snapback4/src/serve.rs` share one reply serializer:
+  `_ops` records the exact original body, without meters/tables/events.
+  Every replay omits result/current, including scalars, and keeps execution
+  identity. `w1_replayed_ops_returns_the_withheld_body`,
+  `wa5_hidden_write_replay_returns_only_sanitized_receipt`, and
+  `wa5_revoked_result_and_conflict_current_are_not_retrievable` cover hidden
+  content, revoked authority, dropped originals and principal-scoped ids.
+  `packages/snapback4/test/write-authority.test.mjs` exercises the actual HTTP
+  replies too. The replay ticket was resolved and moved into `issues/closed/`.
+- (e) `engine/write_target.rs`, `engine/write.rs`, and
+  `crates/snapback4-device/src/device.rs` queue every unheld update/upsert
+  target with the existing site/key-specific `unknown_fact` word. Admission
+  clears stale predictions. `crates/snapback4-device/tests/write_authority.rs`'s
+  `w1_a_device_queues_without_a_row_and_does_not_predict_not_found_or_insert`
+  compares both stores: 4 operations × 2 horizon policies × 2 hidden/absent
+  worlds × 2 stores = 32 scenarios, each with reopen and no pending row.
+  A held target still predicts, one positive per store. The separate server
+  page-pass test queues even a held target across reopen on both stores.
+  The package HTTP/client test proves an offline queued upsert still sends
+  `/m` and settles through an empty writer stream.
+- (f) `engine/write.rs` retains S05 insert and if-absent refusals and collapses
+  an update's secondary hidden clash without transferring target authority.
+  `s05_insert_and_insert_if_absent_on_a_hidden_unique_clash_stay_e_rule`,
+  `s05_a_readable_clash_still_names_the_index`,
+  `wa2_secondary_hidden_collision_does_not_borrow_target_authority`, and
+  `wa2_retained_composite_key_never_enters_refusal` cover this split.
+  `tests/security.rs` now has an admitted/denied hidden `put` pair,
+  `hidden_put_uses_update_authority_and_old_owner_can_deny_it`.
+- (g) `crates/snapback4-lang/src/bind/residency.rs` emits `N_MAINTAIN_DELTA`,
+  registered in `guide::CODES`, for potentially wider source update authority
+  beneath a readable maintain. It uses sufficient implication proofs and
+  says "may disclose" when implication cannot be proved, not a satisfiability
+  claim. `a_readable_maintain_notes_the_declared_hidden_delta_channel` holds
+  the initial readable sum at 30 in both worlds, then observes 23 versus 11
+  after removing hidden contributions 7 versus 19. A denied update has no note.
+- (h) The engine delete implementation and binder delete lowering are
+  unchanged. The retained delete/rule/cascade coverage in the existing
+  security, reviews, review_corrections and workspace suites remains green.
+
+For §5.9, `engine/admission.rs` retains uniformity and rejects merge/unknown
+origins, while removing complete-group/cap requirements for `predicts: never`.
+`bind/mod.rs` computes the operation class before admission; the AST and one
+parser dispatch recognize `: server`. The language card both compiles and runs
+that marker. `m3_a_non_predicting_pass_over_a_hidden_prefix_does_not_abort_when_a_query_would_not`
+refuses non-uniform passes at admission, including loops in private helpers.
+Uniform hidden prefixes with 0, 100 and 10,000 hidden rows each return 0 and
+write 0 rows; the readable-prefix test returns and writes 3 with either 0 or
+10,000 hidden rows, agreeing with the query. Inferred never prediction is
+also covered. `p2_a_predicting_mutation_still_refuses_e_structural_fanout`
+retains the predicting requirement and a positive capped control.
+`p2_rows_written_still_aborts_at_1024` commits 1,024 writes, then refuses the
+1,025th attempted write with 0 committed changes. `p2_the_pass_is_atomic`
+rolls back rows, maintains, effects and partition events together; its positive
+control commits 2 rows and 2 effects. The existing
+`h1_a_non_uniform_scan_is_capped_whatever_the_meter_found` remains green.
+`crates/snapback4/src/verbs.rs` prints the tested line:
+`a pass over the first 10 rows of counters[owner] by byOwner; examined ceiling 8192`.
+
+The README §2 and rules/writes/programs cards state the authority table, S05
+split, upsert idiom, private old image, replay policy and uniform page pass.
+The feeds card and its Clique fixture now guard both old and next vote owner;
+otherwise their readable maintain legitimately attracts the new note. Existing
+pending-metadata fixtures now seed a held vote before testing prediction.
+The only change in `crates/snapback4-core/tests/corpus.rs` teaches its exhaustive
+walker the added statement; no existing `corpus/` case, read loop, value
+serialization or ceiling was changed. No L2 read binding or X action route
+was edited. Largest changed Rust file: `guide.rs`, 1,490 lines; this journal
+was already over the source limit and has only this required append.
+
+Verification: targeted simulator suites passed 93 tests (17 Clique, 32 review
+corrections, 11 reviews, 10 security, 23 write authority); language/frontend
+passed 34 (8 guide, 26 frontend); device/native/write-authority passed 29
+(22/5/2); the targeted package and lifecycle run passed 49. Final full suite
+on isolated Linux passed 297 Rust tests (1 declared ignore), 9 fixture tests,
+and 112 client tests, including browser/wasm coverage: `== 0 failure(s) in 55 s`.
+Its input archive SHA-256 was
+`c46d79094f7e6be062340571380a535c44e2873e25523654e3e467b0fee6edb3`;
+it contains the final code, tests, README and guide plus the unchanged
+social-messenger fixture dependency. This append and ticket disposition are
+subsequent documentation only. Linux used Node 24.13.1, Bun 1.3.14; local JS
+used the requested Node 24.18.0 prefix. The final Linux wasm measured
+1,465,805 B raw / 414,296 B gzip; local final build measured
+1,466,057 B raw / 414,387 B gzip. No size improvement is claimed.
+
+The completed local full suite before the last asset/helper hardening passed
+297 Rust and 9 fixture tests and 102 client tests, with Chromium aborting
+before the React test could start: `== 1 failure(s) in 93 s`. The same isolated
+Chromium SIGABRT/EPERM launch failure was verified against an archived exact
+base `2bc7b01a204ddece01a7f03512ab20067fcb7fd9`. The additional local final
+rerun stalled launching new native executables (even `snapback4 --help`
+timed out after 8 s); it and the additional language rerun were interrupted,
+exit 130. No assertion failure or base-precedence claim is made for that
+startup stall. The final Linux full suite covers the final semantic changes.
+Logs: `/private/tmp/lane-w-sim-final2.log`, `lane-w-lang-final.log`,
+`lane-w-device-final.log`, `lane-w-client1.log`, `lane-w-suite-final.log`,
+`lane-w-suite-final2.log`, `lane-w-base-react.log`, and
+`lane-w-suite-remote-final.log` in the same directory.
+
+Learned: old-image authority must be a write operation in the engine, not a
+read-filtered temporary in lowering. Completeness checks can themselves reveal
+which upsert branch ran unless they precede asset lookup and share the refusal
+word. A durable execution receipt must not confer permanent historical read
+authority. This implements the declared channels, not constant time or general
+noninterference: cap/postcondition outcomes, near-ceiling budget aborts, timing,
+and the explicitly noted maintain delta retain the RFC's stated limitations.
