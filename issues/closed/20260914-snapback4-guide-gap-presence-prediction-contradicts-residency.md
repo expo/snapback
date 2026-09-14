@@ -1,6 +1,6 @@
 # Snapback 4 guide-gap: presence promises prediction but residency queues without a row
 
-Status: Open
+Status: Resolved (2026-09-14)
 Priority: P3
 Date: 2026-09-14
 Systems: presence guide, residency classification, predictable message sends
@@ -88,3 +88,29 @@ service-only dispatcher. This is one of that lane's two Snapback-attributed
 loops, so either the card or the classification should change before the
 next calibration.
 
+## Resolution — 2026-09-14, lane N1
+
+Implemented the author's option C in LLP 3000.007 §19.1. The binder follows
+presence-derived values through expressions, assignments, branches and loop
+back edges. Only emitted payloads and conditions choosing emit-only arms
+preserve eligibility; write, refusal, result, read-key and other control-flow
+uses retain a server site naming the use and a mutation-specific rewrite.
+Query and job classification and runtime presence semantics are unchanged.
+
+The effects card and README now declare the synced audience and message
+horizon their offline recipe needs; the card's membership insert rule uses
+an existing membership grant. Both `send` and the language card's `sendBrief`
+are eligible. `check --residency`, `why` and generated API documentation say
+that the server decides notifications at commit; the residency JSON gains
+`connected_effects_only` without removing existing fields. The cards also
+retain unconditional emit plus a service mutation for dispatch-time presence.
+
+The regression tests were red on base
+`ce15819ad71bd24c9d1b9ec228c083330dee3a31` and green with the fix. Both SQLite
+and memory devices admit the offline message and match the server's row
+for zero, one and two connected recipients (six comparisons); the server
+emits two, one and zero notifications respectively. Twenty-two negative
+programs remain ineligible with specific reasons. The existing query-side
+assertions remain. The dated N1 journal entry records commands, counts and
+verbatim before/after residency output. The two builders' historical
+observations and frozen instruments above remain intact.

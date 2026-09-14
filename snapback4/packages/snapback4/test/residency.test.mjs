@@ -151,6 +151,30 @@ test("connected is server-run even with no ordinary tables and preserves its ans
   assert.ok(!f.deviceReads.includes("presence"));
 });
 
+test("presence effects residency is additive in check, why and generated artifacts", (t) => {
+  const directory = project(t);
+  const path = join(directory, "snapback/schema.q");
+  const effects = `${schema}\neffect notify\nmutation send():\n  insert notes { owner: viewer, text: 'hi', at: now }\n  if not exists connected[viewer]:\n    emit notify { target: viewer }\n`;
+  writeFileSync(path, effects);
+  const run = (...args) => { const result = spawnSync(binary, args, { cwd: directory, encoding: "utf8" }); assert.equal(result.status, 0, result.stdout + result.stderr); return result.stdout; };
+  const explanation = "connected: decides effects only — the server decides who is notified at commit";
+  const checked = run("check", "--residency");
+  assert.match(checked, /send: predicts: eligible/);
+  assert.ok(checked.includes(explanation));
+  assert.ok(run("why", "send").includes(explanation));
+  const facts = JSON.parse(readFileSync(join(directory, "snapback/generated/residency.json"), "utf8"));
+  assert.equal(facts.send.connected_effects_only, true);
+  assert.equal(facts.presence.runs, "server");
+  for (const key of ["predicts", "sites", "requires"]) assert.ok(key in facts.send);
+  const api = readFileSync(join(directory, "snapback/generated/api.ts"), "utf8");
+  assert.ok(api.includes(explanation));
+  assert.match(api, /name: "send", predicts: "eligible"/);
+  writeFileSync(path, effects.replace("  if not exists connected[viewer]:\n    emit notify { target: viewer }", "  require exists connected[viewer] else X"));
+  assert.match(run("check"), /N_NOT_PREDICTABLE[\s\S]*decides a require X/);
+  writeFileSync(path, effects);
+  assert.doesNotMatch(run("check"), /N_NOT_PREDICTABLE|N_NOW_SERVER/);
+});
+
 test("check sidecar, why and test residency print facts, changes and measured cold rows", { timeout: 15000 }, async (t) => {
   const directory = project(t);
   const run = (...args) => { const result = spawnSync(binary, args, { cwd: directory, encoding: "utf8" }); assert.equal(result.status, 0, result.stdout + result.stderr); return result.stdout; };

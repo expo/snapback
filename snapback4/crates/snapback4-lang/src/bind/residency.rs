@@ -4,6 +4,7 @@ use crate::diag::Diagnostic;
 use snapback4_core::ir::{self, Expr, LoopDomain, Program, ProgramKind, Stmt};
 use snapback4_core::schema::{Audience, Execution, ResidencySite, RuleExpr, Schema, SiteClass};
 use std::collections::{BTreeMap, BTreeSet};
+mod presence;
 
 pub fn execution(schema: &Schema, program: &Program) -> Execution {
     let mut fact = Execution::default();
@@ -22,7 +23,10 @@ pub fn execution(schema: &Schema, program: &Program) -> Execution {
         }
     }
     let mut requires = BTreeSet::new();
-    inspect(&program.body, &mut requires, &mut fact.sites);
+    let mut presence_sites = Vec::new();
+    inspect(&program.body, &mut requires, &mut presence_sites);
+    if program.kind == ProgramKind::Mutation { presence::inspect(program, &mut fact); }
+    else { fact.sites.extend(presence_sites); }
     fact.requires = requires.into_iter().collect();
     if program.native {
         fact.sites.push(ResidencySite { site: program.name.clone(), table: "native".into(), index: program.name.clone(), kind: "native".into(), class: SiteClass::Server, reason: "native read needs the app's module; held on a device with the module".into(), rewrite: "install the app's native module on this device".into() });
@@ -217,9 +221,12 @@ pub fn table_line(schema: &Schema, name: &str) -> String {
 pub fn operation_lines(name: &str, fact: &Execution) -> String {
     let word = match (fact.runs.as_deref(), fact.predicts.as_deref()) { (Some(runs), _) => format!("runs: {runs}"), (_, Some("eligible")) => "predicts: eligible".into(), _ => "predicts: never; queued without a row".into() };
     let mut lines = vec![format!("  {name}: {word}")];
+    if fact.connected_effects_only { lines.push(format!("    {CONNECTED_EFFECTS}")); }
     for site in &fact.sites {
         lines.push(format!("    {:?}: {} (site {}){}", site.class, site.reason, site.site, if site.class == SiteClass::Horizon { if fact.predicts.as_deref() == Some("eligible") { "; may queue without a row past the horizon" } else { "; server past the horizon" } } else { "" }));
         if site.class != SiteClass::Held { lines.push(format!("      rewrite: {}", site.rewrite)); }
     }
     lines.join("\n")
 }
+
+pub const CONNECTED_EFFECTS: &str = "connected: decides effects only — the server decides who is notified at commit";

@@ -108,12 +108,18 @@ impl Binder<'_> {
                 if !self.catalog.effects.contains_key(effect) {
                     return Err(unknown(site, format!("unknown effect {effect}"), format!("declare `effect {effect}` at the top level; a worker with a service token claims what is emitted (guide effects)")));
                 }
-                let (expr, _) = self.expr(payload, out)?;
+                // Keep expression setup inside the payload: residency must distinguish
+                // computing an emitted value from statements controlled by presence.
+                let mut setup = Vec::new();
+                let (expr, _) = self.expr(payload, &mut setup)?;
+                let expr = if setup.is_empty() { expr } else if self.kind == ProgramKind::Mutation { Expr::Block { body: setup, value: Box::new(expr) } } else { out.extend(setup); expr };
                 out.push(Stmt::Emit { effect: effect.clone(), payload: expr });
                 Ok(())
             }
             S::If { condition, then_body, else_body, site: _ } => {
-                let (expr, ty) = self.expr(condition, out)?;
+                let mut setup = Vec::new();
+                let (expr, ty) = self.expr(condition, &mut setup)?;
+                let expr = if setup.is_empty() { expr } else if self.kind == ProgramKind::Mutation { Expr::Block { body: setup, value: Box::new(expr) } } else { out.extend(setup); expr };
                 if !ty.is_bool() {
                     return Err(type_error(condition.site(), format!("if needs a bool condition, got {}", ty.name()), "compare the value: `if x != null:`"));
                 }

@@ -49,7 +49,8 @@ pub fn typescript(bound: &Bound) -> String {
             let fact = &bound.schema.operations[&program.program.name];
             let horizon = fact.sites.iter().filter(|site| site.class == snapback4_core::schema::SiteClass::Horizon).map(|site| format!("{} by {} ({})", site.table, site.index, site.site)).collect::<Vec<_>>().join(", ");
             let word = fact.runs.as_ref().map(|word| format!("runs: {word}")).or_else(|| fact.predicts.as_ref().map(|word| format!("predicts: {word}"))).unwrap_or_default();
-            let comment = format!("Arguments: {}. Result: {}. {word}. Horizon sites: {}. Require codes: {}.", args_ts(&program.args), ty_ts(&program.result), if horizon.is_empty() { "none" } else { &horizon }, if fact.requires.is_empty() { "none".into() } else { fact.requires.join(", ") });
+            let mut comment = format!("Arguments: {}. Result: {}. {word}. Horizon sites: {}. Require codes: {}.", args_ts(&program.args), ty_ts(&program.result), if horizon.is_empty() { "none" } else { &horizon }, if fact.requires.is_empty() { "none".into() } else { fact.requires.join(", ") });
+            if fact.connected_effects_only { comment.push_str(&format!(" {}.", crate::bind::residency::CONNECTED_EFFECTS)); }
             out.push_str(&format!("{indent}/** {} */\n", comment.replace("*/", "* /")));
             out.push_str(&format!("{indent}{}: {kind}<{}, {}>;\n", property(short), args_ts(&program.args), ty_ts(&program.result)));
         }
