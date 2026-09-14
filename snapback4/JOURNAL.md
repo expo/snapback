@@ -6356,3 +6356,104 @@ ref-check: ok — 474 LLP docs, 8849 refs in 22825 files, 0 errors, 0 unchecked
 No implementation work is deferred; the remaining external verification is
 Chromium outside this sandbox. The inherited root caps overflow remains
 untouched. The final working tree contains only the 19 intended lane files.
+
+## 2026-09-14 — Lane S: Developer ID publication and fresh-copy launch measurement
+
+Built LLP 3000.007 §20.8 on base
+`56cdedba6a8ff343c8d297b246b7431824ef0241`. The publisher signs the
+production darwin binary before hashing or packing, with hardened runtime
+and a secure timestamp, verifies it strictly, and records the authority
+and team id with the signed digest. The installed-consumer proof still
+checks those exact bytes. An explicit `SNAPBACK4_SIGN_IDENTITY` selects
+the signer; otherwise discovery requires exactly one Developer ID
+Application identity. Signing, verification or identity failures refuse
+the publish, including a dry run.
+
+With `SNAPBACK4_NOTARY_PROFILE`, the publisher submits a zip to notarytool,
+requires `Accepted` and records the submission id; refusals name the log
+id when Apple returned one. A bare binary cannot be stapled. Without a
+profile, the explicit output is
+`publish: snapback4 <version> is signed but NOT notarized (set SNAPBACK4_NOTARY_PROFILE)`
+and the metrics record `notarized: false`. This signs only the packaged
+darwin CLI, not ordinary builds, JavaScript or the Expo xcframework. The
+publication instructions live in the workspace README; no language card
+or compiler diagnostic changed.
+
+`scripts/measure-launch.mjs <binary> --n 20 --load 2` prepares ad-hoc and
+Developer ID copies, then times `--version` on a fresh file per sample,
+alternating order. It reports samples and nearest-rank p50/p95/max in
+milliseconds, with copying/signing outside the timer. Load workers start
+before samples and are stopped after success or failure; each launch has
+a configurable 60,000 ms timeout. Fresh inodes avoid reusing one assessed
+file, but do not establish that every macOS assessment cache is cold.
+
+The publisher regression ran against the unchanged base script before
+implementation: `node --test packages/snapback4/test/publish-signing.test.mjs`
+reported `ℹ tests 14`, `ℹ pass 2`, `ℹ fail 12` (546.286958 ms). The same
+14 cases passed after implementation (`ℹ pass 14`, `ℹ fail 0`, 472.115708
+ms). The expanded final command, from `snapback4/` with Node 24 on PATH,
+was `node --test packages/snapback4/test/publish-signing.test.mjs packages/snapback4/test/measure-launch.test.mjs`:
+`ℹ tests 21`, `ℹ pass 21`, `ℹ fail 0`, 619.66125 ms. Tests run the real
+publisher in disposable package trees with mocked external tools, including
+positive signed packing and installed proof, accepted notarization,
+refusals and tampered installed bytes. The launch test observes six unique
+paths/inodes for three samples per variant and validates JSON percentiles
+with synthetic clock values; another test starts/stops one real CPU worker
+without signing. These synthetic samples are not launch-latency evidence.
+
+`bash snapback4/scripts/test.sh`, with the pinned Node 24 PATH, reported:
+
+```text
+-- ok: cargo test (120 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (11 s)
+ℹ tests 155
+ℹ pass 154
+ℹ fail 1
+-- FAIL: client tests (45 s)
+== 1 failure(s) in 149 s
+```
+
+Rust totals across its summary lines were 567 passed, 0 failed and 1
+ignored. The sole client failure was Chromium `SIGABRT` in
+`react.test.mjs`. The isolated rerun
+`node --test packages/snapback4/test/react.test.mjs` also reported
+`ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1` (505.920375 ms). This matches the
+lane brief's named sandbox artifact; no exact-base reproduction was run,
+so this entry makes no independently verified pre-existing-failure claim.
+The suite began before three additional test cases were added; the
+expanded 21-case targeted run above includes them. Retained logs are
+`/private/tmp/lane-S-signing-before.log`, `lane-S-signing-after.log`,
+`lane-S-targeted-final.log`, `lane-S-suite.log` and `lane-S-react-alone.log`
+in the same directory.
+
+The actual `node scripts/publish.mjs --dry-run`, from `snapback4/` with
+Node 24 on PATH, ran the complete suite again with the publication SQLite
+build flags and the expanded tests. Its client summary was `ℹ tests 158`,
+`ℹ pass 157`, `ℹ fail 1`; it ended `== 1 failure(s) in 126 s` and
+`publish: the suite is red; snapback4@0.2.12 is not published`. The only
+failure was the React/Chromium sandbox abort. This refused at the suite
+gate, before the production build or signing step; no suite bypass was
+added. `/private/tmp/lane-S-publish-dry-run.log` retains the complete run.
+Real signing attempts: 0; notarization submissions: 0; real comparative
+launch samples: 0. p50/p95/max for real binaries remain unmeasured, for
+the lead's outside-sandbox signing/measurement run. No claim is made that
+Developer ID signing fixes the observed `_dyld_start` delay.
+
+The root `./ref-check --verbose` reported:
+
+```text
+ref-check: ok — 474 LLP docs, 8853 refs in 22829 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passed. Seven intended files changed; no out-of-scope
+files, language diagnostics, serialized forms, meter ceilings or existing
+corpus cases changed. Nothing was committed, pushed, tagged or published.
+The implementation lesson is that signing changes the artifact digest,
+so it belongs before packing and the installed proof; codesign's authority
+and team display must be read from stderr, even on success. The remaining
+acceptance work is external qualification, not an unsigned fallback.
+
+**Lead's outside-sandbox measurements (2026-09-14).** `node scripts/publish.mjs --dry-run` ran end to end: the suite had no failure in 105 s; the production binary was built and signed with `Developer ID Application: Charles Cheever (UD2ZVW5WU5)`; the publish printed "signed but NOT notarized"; and the installed-consumer proof passed on the signed bytes (sha256 `5f087f29…`). I then measured launch latency with `node scripts/measure-launch.mjs` on the published `snapback4-darwin-arm64@0.2.12` binary. It ran 30 fresh copies per variant, with 8 load workers on top of a host load of about 16. **Ad-hoc signing:** p50 280 ms, p95 1,174 ms, max 1,678 ms. **Developer ID signing:** p50 293 ms, p95 2,197 ms, max 2,937 ms. Signing does not reduce first-launch assessment latency, and the difference is within noise. It is kept for authenticity (ruling 22), and it is not a fix for the `_dyld_start` stall in `issues/20260914-snapback4-lifecycle-tests-time-out-under-host-load.md`.
