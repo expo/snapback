@@ -62,3 +62,5 @@ or source-access audit was performed during this curation.
 The [static outcome audit](../../grok-m7-outcome-audit.md) verifies exact suite/choreography linkage and records the narrower snapshot evidence: no retained post-persona payloads, no asset-byte checks, and no explicit message type field in the export. M1/M2 are the previously green milestone subset; the additional reported suite reruns do not change inherited milestone failures.
 
 The [source audit](../../grok-m7-source-delta-audit.md) finds two material app defects despite passing receipts: the conversation-wide 200-vote query can hide later polls, and native users cannot open the composer. It confirms the real backfill and vote semantics, but records incomplete new test mappings and inherited weak regressions. The received green is qualified by these findings.
+
+The [expiry attribution addendum](../../m7-expiry-attribution-addendum.md) corrects the earlier sweep-lag explanation. Both sum and count queries recompute over logically live rows before physical cleanup; the immutable builder reports and original Astra source audit retain their received wording.

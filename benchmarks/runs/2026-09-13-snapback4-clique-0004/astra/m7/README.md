@@ -61,3 +61,5 @@ records the boundary used to avoid inspecting or reproducing unrelated process
 arguments from the builder's admitted global process diagnostic.
 
 The [source-delta audit](../../astra-m7-source-delta-audit.md) compares all 263 final source files with the 261-file pre-M7 inventory, verifies the release lineage and unchanged original suites/pins, and records the supplied-kit blank-option behavior separately from the new duplicate-question integration defect.
+
+The [expiry attribution addendum](../../m7-expiry-attribution-addendum.md) corrects the earlier sweep-lag explanation. Both sum and count queries recompute over logically live rows before physical cleanup; the immutable builder reports and original Astra source audit retain their received wording.

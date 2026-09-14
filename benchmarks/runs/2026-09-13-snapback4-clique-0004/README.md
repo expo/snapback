@@ -250,6 +250,12 @@ reruns preserve inherited weak mappings. Grok's received green is therefore
 qualified by these app defects and coverage gaps. Muse's final M7 phase started at
 `2026-09-14T08:54:00Z`, with a single 14,400-second cap.
 
+The [expiry attribution addendum](./m7-expiry-attribution-addendum.md)
+corrects the builder reports and the original Astra source audit: both sum
+and count queries exclude expired source rows before physical cleanup, and
+observed queries use the expiry deadline to schedule a rerun. The asserted
+fixed sweep delay was an incorrect explanation, not a measured product delay.
+
 The frozen packet has two M7 methodology limitations. Its brief calls for a
 pre-session snapshot, while its supplied prompt instructs the fresh builder to
 seed and capture one before making changes. Astra followed that prompt,
