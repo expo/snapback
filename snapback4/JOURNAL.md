@@ -6740,3 +6740,26 @@ it remains a successful positive case:
 ```json
 {"code":"E_BOUND","family":"bound","message":"steps reached the ceiling 28","site":"probe:7:then:1:then:2","rewrite":"move the loop into a job with `chunk`, or read a maintained aggregate instead of counting rows","guide":"bounds"}
 ```
+
+## 2026-09-14 — §19.2 third review round: a direct return and the fail-safe filter (lead)
+
+GPT's round-3 re-check of `4c1e825bc` found A, B and C repaired and two new
+completeness defects from R2g's returned-collector filter. D (High): a loop
+that returns straight from its body (`return [i]`) registered no collector
+because the backward flow only recorded writes, so four rows read one row,
+no cursor, `complete: true`. E (Medium): a scan site re-executed after its
+earlier interrupted output was discarded keeps the earlier loss, so a whole
+re-collected page reads `complete: false`.
+
+Fix for D in `engine/page_collectors.rs`: `Stmt::Return` adds every enclosing
+loop to the returned set, and the planner (`engine/pages.rs`) drops a
+registration only for a loop the analysis visited and proved auxiliary
+(`Flow { returned, visited }`); loops it never reached stay registered.
+Regression `directReturn` at 4/1/0 rows on the server and both device stores:
+`direct_return_4` red without the change (42 passed; 1 failed), green with it
+(43 passed; 0 failed). The generated shapes gained `return result` in place of
+`break` at depths 1 and 2; the oracle counts a page that never executes after
+the return as unread, not lost: 896 generated cases pass. E is accepted as
+conservative (§19.2): it errs toward `complete: false` only, and removing it
+needs per-value provenance. This closes the three-round limit for §19.
+

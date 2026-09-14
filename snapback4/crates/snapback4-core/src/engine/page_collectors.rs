@@ -8,21 +8,31 @@ use std::collections::BTreeSet;
 type Names = BTreeSet<(String, Vec<String>)>;
 type Paths = BTreeSet<String>;
 
-// @ref LLP 3000.007#19.2 — an auxiliary traversal cannot interrupt the intact returned page; only writes that flow to a result count.
-pub(super) fn returned_collectors(program: &Program) -> Paths {
-    let mut collectors = Paths::new();
-    live_body(&program.body, &program.name, Names::new(), &Names::new(), &Names::new(), &[], &mut collectors);
-    collectors
+// `visited` lets the planner keep every loop this analysis never reached:
+// a registration is only dropped when the flow proves the loop auxiliary.
+#[derive(Default)]
+pub(super) struct Flow {
+    pub returned: Paths,
+    pub visited: Paths,
 }
 
-fn live_body(body: &[Stmt], prefix: &str, mut live: Names, on_break: &Names, on_continue: &Names, loops: &[String], collectors: &mut Paths) -> (Names, bool) {
+// @ref LLP 3000.007#19.2 — an auxiliary traversal cannot interrupt the intact returned page; only writes that flow to a result count.
+pub(super) fn returned_collectors(program: &Program) -> Flow {
+    let mut flow = Flow::default();
+    live_body(&program.body, &program.name, Names::new(), &Names::new(), &Names::new(), &[], &mut flow);
+    flow
+}
+
+fn live_body(body: &[Stmt], prefix: &str, mut live: Names, on_break: &Names, on_continue: &Names, loops: &[String], flow: &mut Flow) -> (Names, bool) {
     let mut relevant = false;
     for (index, statement) in body.iter().enumerate().rev() {
         let path = format!("{prefix}:{}", index + 1);
         match statement {
             Stmt::Return(value) => {
+                // A return exits every enclosing loop with the result, so each is a collector.
                 live.clear();
                 names(value, &mut live);
+                flow.returned.extend(loops.iter().cloned());
                 relevant = true;
             }
             Stmt::Const { name, value } | Stmt::Let { name, value } | Stmt::Assign { name, value } => {
@@ -30,22 +40,23 @@ fn live_body(body: &[Stmt], prefix: &str, mut live: Names, on_break: &Names, on_
                 if !demanded.is_empty() {
                     live.retain(|(variable, _)| variable != name);
                     for fields in demanded { selected_names(value, &fields, &mut live); }
-                    collectors.extend(loops.iter().cloned());
+                    flow.returned.extend(loops.iter().cloned());
                     relevant = true;
                 }
             }
             Stmt::Push { target, value } if live.iter().any(|(name, _)| name == target) => {
                 names(value, &mut live);
-                collectors.extend(loops.iter().cloned());
+                flow.returned.extend(loops.iter().cloned());
                 relevant = true;
             }
             Stmt::If { condition, then_body, else_body } => {
-                let (yes, yes_relevant) = live_body(then_body, &format!("{path}:then"), live.clone(), on_break, on_continue, loops, collectors);
-                let (no, no_relevant) = live_body(else_body, &format!("{path}:else"), live, on_break, on_continue, loops, collectors);
+                let (yes, yes_relevant) = live_body(then_body, &format!("{path}:then"), live.clone(), on_break, on_continue, loops, flow);
+                let (no, no_relevant) = live_body(else_body, &format!("{path}:else"), live, on_break, on_continue, loops, flow);
                 live = yes.union(&no).cloned().collect();
                 if yes_relevant || no_relevant { names(condition, &mut live); relevant = true; }
             }
             Stmt::For { binding, domain, body } => {
+                flow.visited.insert(path.clone());
                 let after = live.clone();
                 let mut nested = loops.to_vec();
                 nested.push(path.clone());
@@ -54,7 +65,7 @@ fn live_body(body: &[Stmt], prefix: &str, mut live: Names, on_break: &Names, on_
                 // A growing field path widens to the whole variable so even
                 // serialized IR that repeatedly follows a field terminates.
                 loop {
-                    let (mut before, used) = live_body(body, &path, live.clone(), &after, &live, &nested, collectors);
+                    let (mut before, used) = live_body(body, &path, live.clone(), &after, &live, &nested, flow);
                     before.retain(|(name, _)| name != binding);
                     before.extend(after.iter().cloned());
                     loop_relevant |= used;
@@ -124,7 +135,7 @@ fn selected_names(value: &Expr, selected: &[String], live: &mut Names) {
             for lane in &merge.lanes {
                 let mut local = Names::new();
                 scan_names(&lane.scan, &mut local);
-                let (mut local, _) = live_body(&lane.setup, "", local, &Names::new(), &Names::new(), &[], &mut Paths::new());
+                let (mut local, _) = live_body(&lane.setup, "", local, &Names::new(), &Names::new(), &[], &mut Flow::default());
                 if let Some(source) = &lane.source { local.retain(|(name, _)| name != &lane.binding); scan_names(source, &mut local); }
                 live.extend(local);
             }
@@ -132,7 +143,7 @@ fn selected_names(value: &Expr, selected: &[String], live: &mut Names) {
         Expr::Block { body, value } => {
             let mut local = Names::new();
             selected_names(value, selected, &mut local);
-            let (local, _) = live_body(body, "", local, &Names::new(), &Names::new(), &[], &mut Paths::new());
+            let (local, _) = live_body(body, "", local, &Names::new(), &Names::new(), &[], &mut Flow::default());
             live.extend(local);
         }
         Expr::Literal(_) | Expr::Input(_) => {}

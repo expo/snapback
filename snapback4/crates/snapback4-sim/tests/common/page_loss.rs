@@ -84,6 +84,11 @@ query auxiliaryField(c: cursor ?):
   alias = wrapped
   return alias.rows
 
+query directReturn(c: cursor ?):
+  for i in items[] after c last 5 by byN:
+    return [i]
+  return []
+
 query repeatedCount(c: cursor ?):
   result = 0
   for scope in range(0, 2):
@@ -103,7 +108,7 @@ pub fn check(name: &str, scopes: [usize; 2], read: QueryOutcome) {
     let count = scopes.iter().sum::<usize>();
     let (len, next, complete) = match name {
         "interruptedTwice" => (scopes.iter().filter(|n| **n > 0).count(), false, scopes.iter().all(|n| *n <= 1)),
-        "differentResult" => (usize::from(count > 0), false, count <= 1),
+        "differentResult" | "directReturn" => (usize::from(count > 0), false, count <= 1),
         "wholeAndDifferent" => {
             assert_eq!(read.data.field("rows").unwrap().as_array().unwrap().len(), count.min(5));
             (usize::from(count > 0), count > 5, count <= 1)
@@ -124,12 +129,12 @@ pub fn check(name: &str, scopes: [usize; 2], read: QueryOutcome) {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct Shape { pub depth: usize, pub breaks: bool, pub auxiliary: bool }
+pub struct Shape { pub depth: usize, pub breaks: bool, pub auxiliary: bool, pub returns: bool }
 
 pub fn shapes() -> Vec<Shape> {
     (0..=2).flat_map(|depth| [false, true].into_iter().flat_map(move |breaks| {
-        [false, true].into_iter().map(move |auxiliary| Shape { depth, breaks, auxiliary })
-    })).collect()
+        [false, true].into_iter().flat_map(move |auxiliary| [false, true].into_iter().map(move |returns| Shape { depth, breaks, auxiliary, returns }))
+    })).filter(|shape| !shape.returns || (shape.breaks && !shape.auxiliary && shape.depth > 0)).collect()
 }
 
 pub fn generated(shape: Shape) -> String {
@@ -148,7 +153,8 @@ pub fn generated(shape: Shape) -> String {
         "items[scope] after c last 5 by byScopeN"
     } else { "items[] after c last 5 by byN" };
     source.push_str(&format!("{indent}for i in {domain}:\n{indent}  result = result + [i]\n"));
-    if shape.breaks { source.push_str(&format!("{indent}  break\n")); }
+    // A return exits every enclosing loop with the rows collected so far.
+    if shape.breaks { source.push_str(&format!("{indent}  {}\n", if shape.returns { "return result" } else { "break" })); }
     source.push_str(if shape.auxiliary { "  return rows\n" } else { "  return result\n" });
     source
 }
@@ -166,8 +172,12 @@ pub fn oracle(shape: Shape, scopes: [usize; 2], read: QueryOutcome) {
     let owns = shape.depth == 0 || shape.auxiliary || (shape.depth == 1 && !shape.breaks);
     let mut expected = Vec::new();
     let mut missing = BTreeSet::new();
+    let mut returned = false;
     for page in &pages {
+        // A page after the return never executes: its rows were never read, so none is lost.
+        if returned { continue; }
         let emitted = if shape.depth > 0 && !shape.auxiliary && shape.breaks { 1 } else { 5 };
+        returned |= shape.returns && !page.is_empty();
         expected.extend(page.iter().take(emitted).map(|row| row.field("id").unwrap().as_str().unwrap().to_owned()));
         for (n, row) in page.iter().enumerate() {
             let reached = n < emitted;
