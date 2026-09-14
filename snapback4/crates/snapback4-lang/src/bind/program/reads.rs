@@ -79,6 +79,14 @@ impl Binder<'_> {
             self.notes.push(Diagnostic::new(site, "N_SEEK", "a `where` on the next index column is a seek; write it in the key", print::read_expr(&read)).guide("reads"));
             return Ok((read, None));
         }
+        // @ref LLP 3000.007#20.3 — an unscoped filter can spend the whole page meter on unrelated authors.
+        if self.kind == ProgramKind::Query && read.keys.is_empty() && read.seeks.is_empty() && read.matching.is_none()
+            && has_focal(&predicate) && !pins_leading_column(&predicate, index.columns.first().map(String::as_str))
+        {
+            self.notes.push(Diagnostic::new(predicate.site(), "N_SPARSE_FILTER",
+                format!("{} by {}: this unscoped `where` pins no index prefix; sparse matches can exhaust the row meter and return short `complete: false` pages", read.table, index.name),
+                "pin a leading index key, or use the Following recipe in `snapback4 guide feeds` for followed authors, own posts and reposts").guide("feeds"));
+        }
         let prior = self.focal.replace(("$filter".into(), Ty::Row(read.table.clone())));
         let kind = std::mem::replace(&mut self.kind, ProgramKind::Query);
         let mut body = Vec::new();
@@ -92,6 +100,16 @@ impl Binder<'_> {
         // @ref LLP 3000.007#5.6 — predicate setup, including lazy reads, runs afresh for each rule-visible row.
         let value = if body.is_empty() { value } else { Expr::Block { body, value: Box::new(value) } };
         Ok((read, Some(Box::new(value))))
+    }
+}
+
+fn pins_leading_column(expr: &A, column: Option<&str>) -> bool {
+    let focal_column = |value: &A| matches!(value, A::Member { base, name, .. } if matches!(base.as_ref(), A::Focal { .. }) && Some(name.as_str()) == column);
+    match expr {
+        A::Binary { op, left, right, .. } if op == "and" => pins_leading_column(left, column) || pins_leading_column(right, column),
+        A::Binary { op, left, right, .. } if op == "or" => pins_leading_column(left, column) && pins_leading_column(right, column),
+        A::Binary { op, left, right, .. } if op == "=" => (focal_column(left) && !has_focal(right)) || (focal_column(right) && !has_focal(left)),
+        _ => false,
     }
 }
 

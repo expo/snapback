@@ -7,6 +7,7 @@ mod language;
 mod membership;
 mod search_merge;
 mod presence;
+mod following;
 
 use common::*;
 use snapback4_core::engine::WriteState;

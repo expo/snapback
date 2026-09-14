@@ -720,8 +720,9 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                     }
                 }
                 Constraint::Cap { by, max } => {
-                    if by.is_empty() || *max == 0 {
-                        issue(&mut issues, cpath.clone(), "cap needs at least one column and a positive maximum".into());
+                    // @ref LLP 3000.007#20.3 — an empty group is the whole table, under the existing cap enforcement.
+                    if *max == 0 {
+                        issue(&mut issues, cpath.clone(), "cap needs a positive maximum".into());
                     }
                     for column in by {
                         if !table.columns.contains_key(column) {

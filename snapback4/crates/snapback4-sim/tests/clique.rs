@@ -2,6 +2,8 @@
 //! each as the case they hit, against the fix (benchmarks/runs/2026-09-12-
 //! snapback4-clique-0002).
 
+mod following;
+
 use snapback4_core::engine::{Context, Engine, WriteState};
 use snapback4_core::partition::holdings;
 use snapback4_core::value::Value;
@@ -369,38 +371,26 @@ fn feed() -> String {
     snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").expect("the feeds card")).remove(0)
 }
 
-/// The `feeds` card, compiled and run: the near followers' entries are
-/// written by the mutation, the far ones by the job, once each; a
-/// follower's device holds its own entries; the feed is one local page.
+/// The card's small-account write reaches all five followers and its author.
 #[test]
 fn a_feed_fans_out_on_write() {
     let bound = snapback4_lang::compile(&[("schema.q".to_owned(), feed())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-    assert!(bound.notes.is_empty(), "the card compiles with no notes: {:?}", bound.notes);
-    let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
-    // 250 followers of alice: bucket 0 is the complete schema-capped
-    // immediate audience; the job covers every bucket, up to the full cap.
-    engine.seed((0..250).map(|n| ("follows".to_owned(), snapback4_core::value::object([("id", id(&format!("f{n:03}"))), ("followerId", id(&format!("dev:u{n:03}"))), ("followedId", id("dev:alice")), ("bucket", Value::Int(n / 200))])))).unwrap();
-    let over_cap = engine.seed([("follows".to_owned(), snapback4_core::value::object([("id", id("overflow")), ("followerId", id("dev:extra")), ("followedId", id("dev:alice")), ("bucket", Value::Int(0))]))]).unwrap_err();
-    assert_eq!(over_cap.code(), "E_CONSTRAINT");
-    assert_eq!(engine.store().rows("follows").unwrap().len(), 250);
-    let posted = engine.mutate("createPost", Some("p1"), Context::new("dev:alice", args(&[("body", Value::String("hello".into()))])).at(1_000).with_ids(["post1".to_owned()])).unwrap();
+    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.mutate("register", None, Context::new("dev:alice", BTreeMap::new()).at(1)).unwrap();
+    for n in 0..5 {
+        let follow = engine.mutate("follow", None, Context::new(format!("dev:u{n}"), args(&[("authorId", id("dev:alice"))])).at(2)).unwrap();
+        assert!(matches!(follow.state, WriteState::Sent { .. }), "{:?}", follow.state);
+    }
+    let posted = engine.mutate("createPost", Some("p1"), Context::new("dev:alice", args(&[("postId", id("post1")), ("body", Value::String("hello".into()))])).at(1_000)).unwrap();
     assert!(matches!(posted.state, WriteState::Sent { .. }), "{:?}", posted.state);
-    assert_eq!(engine.store().rows("feed").unwrap().len(), 201, "the author and the near 200");
-    assert_eq!(engine.store().rows("fanouts").unwrap().len(), 1);
-    let run = engine.run_job("fanOut", BTreeMap::new(), 2_000).unwrap();
-    assert_eq!(run.state, snapback4_core::JobState::Done, "{run:?}");
-    assert_eq!(engine.store().rows("feed").unwrap().len(), 251, "the far 50, none twice");
-    assert_eq!(engine.store().rows("fanouts").unwrap().len(), 0);
-    // A far follower's device holds exactly its own entry; the feed is one page.
-    let (events, _) = engine.snapshot("dev:u249").unwrap();
+    assert_eq!(engine.store().rows("feed").unwrap().len(), 6);
+    let (events, _) = engine.snapshot("dev:u4").unwrap();
     assert_eq!(holdings(&events)["feed"].len(), 1);
-    let read = engine.query("following", Context::new("dev:u249", BTreeMap::new()).at(3_000)).unwrap();
+    let read = engine.query("following", Context::new("dev:u4", BTreeMap::new()).at(3_000)).unwrap();
     assert!(read.complete);
-    assert_eq!(read.data.as_array().unwrap()[0].field("post").unwrap().field("body").unwrap(), &Value::String("hello".into()));
-    // The schedule fires the job from the server's clock.
-    engine.fire_schedules(60_000).unwrap();
-    assert_eq!(engine.fire_schedules(120_000).unwrap(), vec!["fanOutEveryMinute".to_owned()]);
+    assert_eq!(read.data.as_array().unwrap()[0].field("body").unwrap(), &Value::String("hello".into()));
 }
 
 const SEARCH: &str = r#"
@@ -770,9 +760,10 @@ fn a_feed_read_costs_the_same_at_five_and_five_hundred_follows() {
     // wide follows 500 authors, narrow follows 5; every author has posted 20 times.
     let mut rows = Vec::new();
     for a in 0..500 {
-        rows.push(("follows".to_owned(), snapback4_core::value::object([("id", id(&format!("fw{a:03}"))), ("followerId", id("dev:wide")), ("followedId", id(&format!("dev:a{a:03}"))), ("bucket", Value::Int(0))])));
+        rows.push(("authors".to_owned(), snapback4_core::value::object([("id", id(&format!("author{a}"))), ("principal", id(&format!("dev:a{a:03}"))), ("shared", Value::Bool(false))])));
+        rows.push(("follows".to_owned(), snapback4_core::value::object([("id", id(&format!("fw{a:03}"))), ("followerId", id("dev:wide")), ("followedId", id(&format!("dev:a{a:03}")))])));
         if a < 5 {
-            rows.push(("follows".to_owned(), snapback4_core::value::object([("id", id(&format!("fn{a:03}"))), ("followerId", id("dev:narrow")), ("followedId", id(&format!("dev:a{a:03}"))), ("bucket", Value::Int(0))])));
+            rows.push(("follows".to_owned(), snapback4_core::value::object([("id", id(&format!("fn{a:03}"))), ("followerId", id("dev:narrow")), ("followedId", id(&format!("dev:a{a:03}")))])));
         }
     }
     engine.seed(rows).unwrap();
@@ -780,7 +771,7 @@ fn a_feed_read_costs_the_same_at_five_and_five_hundred_follows() {
     for a in 0..500 {
         for k in 0..20 {
             n += 1;
-            let posted = engine.mutate("createPost", Some(&format!("p{n}")), Context::new(&format!("dev:a{a:03}"), args(&[("body", Value::String(format!("post {k} by {a}")))])).at(1_000 + n).with_ids([format!("post{n}")])).unwrap();
+            let posted = engine.mutate("createPost", Some(&format!("p{n}")), Context::new(&format!("dev:a{a:03}"), args(&[("postId", id(&format!("post{n}"))), ("body", Value::String(format!("post {k} by {a}")))])).at(1_000 + n).with_ids([format!("post{n}")])).unwrap();
             assert!(matches!(posted.state, WriteState::Sent { .. }), "{:?}", posted.state);
         }
     }
@@ -795,11 +786,11 @@ fn a_feed_read_costs_the_same_at_five_and_five_hundred_follows() {
     // The newest post first, whoever wrote it; the wide reader's page is
     // from many authors, the narrow reader's from five.
     let authors = |read: &snapback4_core::QueryOutcome| read.data.as_array().unwrap().iter().map(|e| e.field("authorId").unwrap().as_str().unwrap().to_owned()).collect::<std::collections::BTreeSet<_>>();
-    assert_eq!(wide.data.as_array().unwrap()[0].field("post").unwrap().field("body").unwrap(), &Value::String("post 19 by 499".into()));
+    assert_eq!(wide.data.as_array().unwrap()[0].field("body").unwrap(), &Value::String("post 19 by 499".into()));
     assert!(authors(&narrow).len() <= 5 && authors(&narrow).iter().all(|a| a < &"dev:a005".to_owned()), "{:?}", authors(&narrow));
-    // Each reader's device holds exactly its own feed, bounded by the horizon.
+    // Each reader's device holds its complete, schema-capped private feed.
     let (events, _) = engine.snapshot("dev:wide").unwrap();
-    assert_eq!(holdings(&events)["feed"].len(), 200, "the horizon: the newest 200 of 10,000 entries");
+    assert_eq!(holdings(&events)["feed"].len(), 10_000, "all 10,000 entries fit the declared private cap");
     let (events, _) = engine.snapshot("dev:narrow").unwrap();
     assert_eq!(holdings(&events)["feed"].len(), 100);
 }

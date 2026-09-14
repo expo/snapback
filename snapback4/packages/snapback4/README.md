@@ -774,93 +774,187 @@ aggregate row counts. It uses the real partition snapshot, respecting
 horizons. Facts and measurements are labelled; byte counts exclude transport
 framing and are not extrapolated.
 
-### Feeds: fan out on write, read one page
+### Feeds: complete Following on the device
 
-A feed can merge the followed accounts' ordered lanes. Uniform lanes with
-seekable indexes read one head each, then advance only the winning lanes;
-lane discovery, rule probes, lookahead and expired rows still consume the
-meter (`N_WIDE_MERGE` describes the work). For frequent reads over many
-accounts, move that work to writes: write each reader's entry when the post
-is made, sync the entries to the reader, and read one page:
+`snapback4 guide feeds` carries the complete Following recipe: private
+inboxes for small accounts, one public projection for celebrity posts,
+follow-time backfill, atomic unfollow purge, own posts and attributed
+reposts, and a cursor query that runs on the device. On the 51st follower,
+future events switch to broadcast; older events retain their delivery mode.
+The card lists its schema caps and measured cold-sync tradeoff. A named
+merge lane reads a second table with the same columns and plain index;
+each table keeps its own rule and sync. `cap N` without `by` caps the whole
+table. `N_SPARSE_FILTER` points here when a global timeline filter can spend
+the page meter on unrelated authors.
 
 ```quarry
-use identity
-use personas alice, bob
-
-table posts:
-  authorId: principal
-  body: text <=500
-  at: time
-  by byAuthorTime: authorId, at, id
-  public 'posts are public'
-  insert <- .authorId = viewer
+table authors:
+  principal: principal
+  shared: bool default false
+  unique byPrincipal: principal
+  public 'delivery mode is public'
+  insert <- .principal = viewer
+  update <- allow
+  online only
 
 table follows:
   followerId: principal
   followedId: principal
-  bucket: int                     -- assigned by the app; bucket 0 receives immediate delivery
   unique byPair: followerId, followedId
   by byFollowed: followedId, followerId
-  by byFollowedBucket: followedId, bucket, followerId
+  cap 1000 by followerId
   cap 1000 by followedId
-  cap 200 by followedId, bucket
-  public 'follows are public'
+  public 'the follow graph is public'
   insert <- .followerId = viewer
   delete <- .followerId = viewer
+  online only
 
-table feed:                       -- one row per reader per post
+table pulls:
   readerId: principal
-  postId: posts
   authorId: principal
-  at: time
-  unique byReaderPost: readerId, postId
-  by byReaderTime: readerId, at, id
+  unique byReaderAuthor: readerId, authorId
+  cap 32 by readerId
   read <- .readerId = viewer
-  insert <- .authorId = viewer
-  sync to .readerId last 200 by byReaderTime
+  insert <- allow
+  delete <- .readerId = viewer
+  sync
 
-table fanouts:                    -- the work still to do: a post's readers outside bucket 0
-  postId: posts
+table posts:                       -- originals and attributed reposts, one source event each
+  actorId: principal
   authorId: principal
+  postId: id
+  repost: bool
+  body: text <=500
   at: time
-  read <- deny
-  insert <- .authorId = viewer
+  shared: bool
+  unique byActorPost: actorId, postId, repost
+  by byActorTime: actorId, at, id
+  by byTime: at, id
+  cap 1000 by actorId
+  immutable actorId, authorId, postId, repost, at, shared
+  public 'original posts and attributed reposts are public'
+  insert <- .actorId = viewer
+  online only
 
-mutation createPost(body: text <=500):
-  p = insert posts { authorId: viewer, body, at: now }
-  insert feed { readerId: viewer, postId: p.id, authorId: viewer, at: now }
-  for f in follows[viewer, 0] first 200 by byFollowedBucket:
-    insert feed { readerId: f.followerId, postId: p.id, authorId: viewer, at: now }
-  insert fanouts { postId: p.id, authorId: viewer, at: now }
+table feed:                        -- private inbox, with rendered columns
+  readerId: principal
+  eventId: posts
+  actorId: principal
+  authorId: principal
+  postId: id
+  repost: bool
+  body: text <=500
+  at: time
+  unique byReaderEvent: readerId, eventId
+  unique byReaderTime: readerId, at, eventId
+  by byReaderActor: readerId, actorId, id
+  by byTime: at, eventId
+  immutable readerId, eventId, actorId, at
+  cap 1000 by readerId, actorId
+  cap 50000 by readerId
+  read <- .readerId = viewer
+  insert <- .actorId = viewer or .readerId = viewer
+  delete <- .readerId = viewer
+  sync
+
+table broadcast:                   -- public celebrity events, stored once
+  readerId: principal
+  eventId: posts
+  actorId: principal
+  authorId: principal
+  postId: id
+  repost: bool
+  body: text <=500
+  at: time
+  unique byReaderEvent: readerId, eventId
+  unique byReaderTime: readerId, at, eventId
+  by byReaderActor: readerId, actorId, id
+  by byTime: at, eventId
+  immutable readerId, eventId, actorId, at
+  cap 32000
+  public 'celebrity posts and reposts are public'
+  insert <- .actorId = viewer
+  sync public
+
+fn copy(p: posts, readerId: principal, shared: bool):
+  if shared:
+    insert broadcast { readerId, eventId: p.id, actorId: p.actorId, authorId: p.authorId, postId: p.postId, repost: p.repost, body: p.body, at: p.at } if absent
+  else:
+    insert feed { readerId, eventId: p.id, actorId: p.actorId, authorId: p.authorId, postId: p.postId, repost: p.repost, body: p.body, at: p.at } if absent
+  return null
+
+mutation register():
+  insert authors { principal: viewer } if absent
+
+mutation follow(authorId: principal):
+  require authorId != viewer else CANNOT_FOLLOW_SELF
+  a = authors[authorId] ! else AUTHOR_NOT_FOUND
+  if exists follows[followerId = viewer, followedId = authorId]:
+    return null
+  insert follows { followerId: viewer, followedId: authorId }
+  if not a.shared:
+    near = follows[authorId] first 51 by byFollowed
+    if count(near) > 50:
+      update authors[authorId] { shared: true }
+      insert pulls { readerId: authorId, authorId } if absent
+      for f in follows[authorId] first 51 by byFollowed:
+        insert pulls { readerId: f.followerId, authorId } if absent
+  if authors[authorId].shared = true:
+    insert pulls { readerId: viewer, authorId } if absent
+  for p in posts[authorId] last 200 by byActorTime:
+    if not p.shared:
+      copy(p, viewer, false)
+
+mutation unfollow(authorId: principal):
+  if not exists follows[followerId = viewer, followedId = authorId]:
+    return null
+  for e in feed[viewer, authorId] first 1000 by byReaderActor:
+    delete feed[e.id]
+  if exists pulls[viewer, authorId]:
+    delete pulls[viewer, authorId]
+  delete follows[followerId = viewer, followedId = authorId]
+
+fn deliver(p: posts):
+  if p.shared:
+    copy(p, viewer, true)
+  else:
+    copy(p, viewer, false)
+    for f in follows[viewer] first 50 by byFollowed:
+      copy(p, f.followerId, false)
+  return null
+
+mutation createPost(postId: id, body: text <=500):
+  a = authors[viewer] ! else AUTHOR_NOT_FOUND
+  p = insert posts { id: postId, postId, actorId: viewer, authorId: viewer, repost: false, body, at: now, shared: a.shared }
+  deliver(p)
   return { id: p.id }
 
-job fanOut():
-  chunk w in fanouts first 5 by byId:
-    for f in follows[w.authorId] first 1000 by byFollowed:
-      insert feed { readerId: f.followerId, postId: w.postId, authorId: w.authorId, at: w.at } if absent
-    delete fanouts[w.id]
-schedule fanOutEveryMinute every 1m: fanOut
+mutation repost(postId: posts):
+  original = posts[postId] ! else POST_NOT_FOUND
+  require not original.repost else ORIGINAL_REQUIRED
+  if exists posts[viewer, original.postId, true]:
+    return null
+  a = authors[viewer] ! else AUTHOR_NOT_FOUND
+  p = insert posts { postId: original.postId, actorId: viewer, authorId: original.authorId, repost: true, body: original.body, at: now, shared: a.shared }
+  deliver(p)
+  return { id: p.id }
 
 query following(c: cursor ?):
-  return feed[viewer] after c last 20 by byReaderTime { *, post: posts[.postId] }
+  return merge feed after c last 20 by byReaderTime:
+    [viewer]
+    broadcast[p.authorId] for p in pulls[viewer] first 32 by byReaderAuthor
 ```
 
-The app assigns followers to buckets of at most 200. The mutation covers
-all of bucket 0, a complete schema-capped group; a first-200 slice of a
-larger group is refused. The job covers the whole account, capped at
-1,000 followers, with `if absent` making its pass idempotent over what the
-mutation wrote. Larger audiences use a separate lane their readers merge
-on read. The entries sync to each reader; `following` joins `posts`, an
-online-only table here, so it answers on the server — carry the columns
-the reader renders on the entry itself to answer on the device. At 500
-follows the reader's page examines the rows it examines at 5: one prefix
-of the reader's own lane. A ranked feed for a community keeps one shared
-candidate set instead: a job on a schedule scores the pool from maintains
-into a public `ranked` table every device holds, the viewer's own signals
-(`seen`, votes, a ranker's `affinity`) sync to the viewer, and the device
-composes the two; the external ranker writes its per-reader word through a
-service seat (`insert <- viewer = 'service:ranker'`). The whole card, both
-shapes: `snapback4 guide feeds`. The card also shows `trending()`: seek the trailing day up to the 8,192-row examined ceiling, read `likeCounts` from a maintain, then `sort` and `slice` the top ten. A day past the ceiling is `complete: false`, so the top ten is of an incomplete set; use the maintained `ranked` recipe when the day outgrows that ceiling.
+The caps are explicit: 1,000 follows and source events per account,
+50,000 private entries per reader, 32 pulled authors per reader and
+32,000 public broadcast entries. Follow backfills the last 200 source
+events; caps refuse writes atomically when reached. The full recipe and
+its measured tradeoffs are on the feeds card.
+
+The feeds card also retains the ranked-feed and Trending recipes: a job
+scores the shared pool into `ranked`, and the device composes it with the
+reader's own signals. Trending over a day that exceeds the examined-row
+ceiling is incomplete; use the maintained ranking when that set grows.
 
 ## 4. The client
 

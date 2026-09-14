@@ -707,6 +707,16 @@ impl Runner<'_> {
                 // Each lane reads one row past the page, so a lane that alone
                 // fills the page still shows there is more to continue on.
                 let mut lane_scan = lane.scan.clone();
+                // @ref LLP 3000.007#20.3 — validate the common cursor above, then translate its descriptor for each same-shaped table.
+                if lane_scan.table != first.scan.table && lane_scan.opaque_cursor
+                    && let Some(after) = lane_scan.after.as_deref()
+                    && let Value::String(token) = self.expr(after)?
+                {
+                    let mut position = crate::cursor::decode_cursor(self.schema, &token).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
+                    position.table = lane_scan.table.clone();
+                    let token = crate::cursor::encode_cursor(self.schema, &position).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
+                    lane_scan.after = Some(Box::new(Expr::Literal(Value::String(token))));
+                }
                 lane_scan.take = Bound::Literal(take as u32 + 1);
                 let (rows, _) = self.scan_with_words(&lane_scan, word)?;
                 self.page_depth = outer_depth;

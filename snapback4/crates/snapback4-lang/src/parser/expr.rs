@@ -361,7 +361,8 @@ impl Parser {
                 break;
             }
             let lane_site = self.peek().site.clone();
-            let read = self.parse_read(&table, &lane_site)?;
+            let lane_table = if self.at("[") { None } else { Some(self.word()?.value) };
+            let read = self.parse_read(lane_table.as_deref().unwrap_or(&table), &lane_site)?;
             if !read.seeks.is_empty() { return Err(syntax(&lane_site, "a merge lane takes a pinned prefix; use a bounded page for a seek")); }
             let keys = read.keys;
             let columns = if keys.iter().any(|key| key.column.is_some()) { Some(keys.iter().map(|key| key.column.clone()).collect()) } else { None };
@@ -377,7 +378,7 @@ impl Parser {
                 }
             }
             self.newline()?;
-            lanes.push(MergeLane { prefix, columns, loop_, site: lane_site });
+            lanes.push(MergeLane { table: lane_table, prefix, columns, loop_, site: lane_site });
         }
         self.take_kind(Kind::Dedent)?;
         if lanes.is_empty() {
