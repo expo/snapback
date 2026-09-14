@@ -54,8 +54,31 @@ pub fn file(path: &Path, new: bool) -> io::Result<File> {
 
 pub fn existing_file(path: &Path) -> io::Result<()> {
     match fs::symlink_metadata(path) {
-        Ok(_) => file(path, false).map(drop),
+        Ok(meta) => {
+            if !meta.is_file() || meta.file_type().is_symlink() {
+                return Err(io::Error::other("private data file must be a regular file"));
+            }
+            #[cfg(unix)]
+            { fs::set_permissions(path, fs::Permissions::from_mode(0o600)) }
+            #[cfg(not(unix))]
+            { Err(io::Error::other("owner-only storage ACLs are not implemented on this host")) }
+        }
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e),
+    }
+}
+
+// @ref LLP 3000.007#8 — item 12: closing a raw descriptor drops the process's SQLite locks, including the WAL dead-man lock.
+// Tighten existing files by path, without open/close. Another SQLite opener
+// may otherwise truncate shared memory still mapped by this process (SIGBUS).
+pub fn database_file(path: &Path) -> io::Result<()> {
+    match fs::symlink_metadata(path) {
+        Ok(_) => existing_file(path),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => match file(path, true) {
+            Ok(_) => Ok(()),
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => existing_file(path),
+            Err(e) => Err(e),
+        },
         Err(e) => Err(e),
     }
 }

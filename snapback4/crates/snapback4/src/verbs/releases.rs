@@ -142,25 +142,23 @@ pub fn rollback(options: &Options) -> i32 {
     })())
 }
 
-pub fn serve_release(options: &Options) -> i32 {
-    report("serve", (|| {
-        let bind = release_bind(options)?;
-        let dir = directory(options)?;
-        snapback4_core::private_fs::directory(&dir).map_err(|e| e.to_string())?;
-        let _deployment = deployment_lock(&dir)?;
-        let current = current(&dir)?.ok_or("no current release; deploy first")?;
-        let release = Project { root: dir.join("releases").join(current.to_string()) };
-        snapback4_core::private_fs::directory(&release.data_dir()).map_err(|e| e.to_string())?;
-        let link = release.store_path();
-        if !link.exists() {
-            #[cfg(unix)]
-            std::os::unix::fs::symlink(std::fs::canonicalize(&dir).map_err(|e| e.to_string())?.join("store.sqlite"), &link).map_err(|e| e.to_string())?;
-            #[cfg(not(unix))]
-            return Err("serving shared releases requires a filesystem supporting symbolic links".into());
-        }
-        let port = options.flags.get("port").and_then(|p| p.parse().ok()).unwrap_or(4400);
-        crate::serve::serve(release, port, crate::serve::Mode::Release { expected: current }, &bind.to_string())
-    })())
+pub fn serve_release(options: &Options) -> Result<(), String> {
+    let bind = release_bind(options)?;
+    let dir = directory(options)?;
+    snapback4_core::private_fs::directory(&dir).map_err(|e| e.to_string())?;
+    let _deployment = deployment_lock(&dir)?;
+    let current = current(&dir)?.ok_or("no current release; deploy first")?;
+    let release = Project { root: dir.join("releases").join(current.to_string()) };
+    snapback4_core::private_fs::directory(&release.data_dir()).map_err(|e| e.to_string())?;
+    let link = release.store_path();
+    if !link.exists() {
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(std::fs::canonicalize(&dir).map_err(|e| e.to_string())?.join("store.sqlite"), &link).map_err(|e| e.to_string())?;
+        #[cfg(not(unix))]
+        return Err("serving shared releases requires a filesystem supporting symbolic links".into());
+    }
+    let port = options.flags.get("port").and_then(|p| p.parse().ok()).unwrap_or(4400);
+    crate::serve::serve(release, port, crate::serve::Mode::Release { expected: current }, &bind.to_string())
 }
 
 fn release_bind(options: &Options) -> Result<std::net::IpAddr, String> {

@@ -651,7 +651,9 @@ impl Drop for ReleaseGate {
 #[test]
 fn password_work_is_bounded_and_does_not_hold_the_query_engine() {
     for route in ["/auth/signup", "/auth/login"] {
-        let host = Host::new(true);
+        let host = Host::new(false);
+        let guest = body(&host.request("POST", "/auth/guest", "", "{}"));
+        let headers = format!("Authorization: Bearer {}\r\n", guest["session"]["token"].as_str().unwrap());
         if route == "/auth/login" {
             for n in 0..2 {
                 let payload = format!(
@@ -682,8 +684,9 @@ fn password_work_is_bounded_and_does_not_hold_the_query_engine() {
         );
         assert_eq!(status(&third), 429);
         assert_eq!(body(&third)["denied"]["code"], "E_RATE_LIMIT");
-        let query = host.request("POST", "/q/who", "x-snapback-persona: alice\r\n", "{}");
-        assert_eq!(body(&query)["data"], "dev:alice");
+        assert_eq!(body(&third)["denied"]["retryable"], true);
+        let query = host.request("POST", "/q/who", &headers, "{}");
+        assert_eq!(body(&query)["data"], guest["session"]["principal"]);
         assert_eq!(
             gate.entered.load(Ordering::Acquire),
             2,
@@ -697,6 +700,37 @@ fn password_work_is_bounded_and_does_not_hold_the_query_engine() {
                 "{response}"
             );
         }
+    }
+}
+
+#[test]
+fn dev_loopback_admits_eight_simultaneous_sign_ins_within_host_capacity() {
+    let host = Host::new(true);
+    let payload = r#"{"email":"parallel@example.com","password":"correct horse battery staple"}"#;
+    let signup = body(&host.request("POST", "/auth/signup", "", payload));
+    assert!(signup["session"]["token"].is_string(), "{signup}");
+    let gate = Arc::new(WorkGate::default());
+    let _release_on_panic = ReleaseGate(gate.clone());
+    let hook = gate.clone();
+    *host.shared.auth_work.lock().unwrap() = Some(Arc::new(move || hook.park()));
+    // Smaller hosts must still respect their physical limit; this host runs
+    // eight at once whenever available_parallelism supplies at least eight.
+    let concurrent = thread::available_parallelism().map(|n| n.get().clamp(2, 8)).unwrap_or(2);
+    let jobs: Vec<_> = (0..concurrent).map(|_| {
+        let address = host.address;
+        thread::spawn(move || exchange(address, &format!("POST /auth/login HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{payload}", payload.len())))
+    }).collect();
+    wait_until(|| gate.entered.load(Ordering::Acquire) == concurrent);
+    let query = host.request("POST", "/q/who", "x-snapback-persona: alice\r\n", "{}");
+    assert_eq!(body(&query)["data"], "dev:alice");
+    gate.release();
+    for job in jobs {
+        let response = job.join().unwrap();
+        let result = body(&response);
+        assert_eq!(status(&response), 200, "{response}");
+        assert!(result["session"]["token"].is_string(), "{response}");
+        assert_eq!(result["session"]["principal"], signup["session"]["principal"]);
+        assert!(result.get("denied").is_none(), "{response}");
     }
 }
 

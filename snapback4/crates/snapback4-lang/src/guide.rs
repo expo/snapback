@@ -1363,7 +1363,18 @@ input, schema, auth, rule (your `require` codes), constraint, bound, op,
 asset, action, prediction, generation, store; the client adds link (the server is
 unreachable) and client (the client itself refused, as after `close()`).
 `snapback4 why <CODE>` explains one. Reads never raise a rule refusal: a
-hidden row is null, and a page omits it."##,
+hidden row is null, and a page omits it.
+
+`dev` and `serve` also report process events on stderr: SNAPBACK4_EXIT
+(a returned startup/listener error or normal stop), SNAPBACK4_PANIC (any
+thread, with its name, location and abort/unwind action), SNAPBACK4_SIGNAL
+(signal name and number), and SNAPBACK4_THREAD_EXIT (watcher/maintenance
+stopped; an unexpected stop ends the server). Each is one line with verb,
+generation and reason; generation 0 means this process has not served yet.
+INT, TERM and HUP report immediately; with an application worker they clean
+it up and exit 128 + signal. Otherwise, and for fatal signals, the process
+terminates immediately with its OS signal status. SIGKILL,
+power loss and an unwritable stderr cannot report from inside the process."##,
         "personas" => r##"# Personas
 
 `use personas alice, bob` declares a development cast. `snapback4 run send
@@ -1383,12 +1394,15 @@ socket peer.
 `GET /auth/config` is the small public advertisement for guest/password
 support. Catalog, schema, generated API, native module and changes require a
 live principal. Signup accepts 8–1,024 password bytes and login at most 1,024;
-password hashing is limited to two concurrent slots outside the engine mutex.
+password hashing runs in bounded concurrent slots outside the engine mutex.
 Under `serve`, guest, login and signup share 30 attempts per socket peer per
 minute, while login and signup also share 10 per normalized email per minute
-(E_RATE_LIMIT). Under `dev`, loopback peers have neither minute counter; startup
-prints this once. The two Argon2 slots and connection/worker caps still bound
-concurrent work. Non-loopback peers retain the counters. Unknown emails perform the same Argon2 verification work.
+(E_RATE_LIMIT). Under `dev`, loopback peers have neither minute counter; their
+Argon2 slots equal the host's available cores, capped at 16 and never below 2.
+Startup prints the slot count and the lifted counters once. `serve` and
+non-loopback peers keep two slots and the minute counters; full slots refuse
+with retryable E_RATE_LIMIT. Connection/worker caps remain. Unknown emails
+perform the same Argon2 verification work.
 
 Ordinary guest and password sessions last seven days. `refreshSession`
 atomically exchanges a live token; `logoutAll` revokes every session for the
@@ -1409,6 +1423,10 @@ refused. The default limit is 200, with a notice when more rows exist."##,
 /// Every refusal code `why` explains, with its family. A program's own
 /// `require` codes are the author's and are explained by the program.
 pub const CODES: &[(&str, &str)] = &[
+    ("SNAPBACK4_EXIT", "the dev/serve loop returned; status, generation and the startup/listener error or normal-stop reason are on stderr. Generation 0 means it has not served yet. guide refusals."),
+    ("SNAPBACK4_PANIC", "a Rust panic on any host thread; stderr names the thread, serving generation, reason, source location and abort/unwind action. guide refusals."),
+    ("SNAPBACK4_SIGNAL", "the host received a signal; stderr names it, its number and the serving generation. INT/TERM/HUP allow worker cleanup; fatal signals retain their OS status. guide refusals."),
+    ("SNAPBACK4_THREAD_EXIT", "the watcher or maintenance thread stopped; stderr names the thread, serving generation and reason. An unexpected stop ends dev/serve instead of silently losing background work. guide refusals."),
     ("E_ACTION_PENDING", "family action, retryable — the request is durable but the handler has not settled within the wait; repeat client.act with the same id (guide actions)."),
     ("E_ACTION_UNKNOWN", "family action — no declared action or recorded request is available under this name and id for this viewer (guide actions)."),
     ("E_ACTION_LEASE", "family action — this claim expired or no longer owns the request; settle with the current claim's session.token in x-snapback-action-lease (guide actions)."),

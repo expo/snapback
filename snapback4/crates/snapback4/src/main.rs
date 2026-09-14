@@ -9,6 +9,7 @@ mod native;
 mod project;
 mod serve;
 mod dev_worker;
+mod lifecycle;
 mod verbs;
 
 use snapback4_lang::guide;
@@ -51,7 +52,7 @@ fn main() -> ExitCode {
         "init" => verbs::init(&options),
         "deploy" => verbs::deploy(&options),
         "rollback" => verbs::rollback(&options),
-        "serve" => verbs::serve_release(&options),
+        "serve" => lifecycle::run("serve", || verbs::serve_release(&options)),
         "check" => verbs::check(&options),
         "types" => verbs::types(&options),
         "run" => verbs::run(&options),
@@ -78,20 +79,13 @@ fn main() -> ExitCode {
             }
             0
         }
-        "dev" => {
+        "dev" => lifecycle::run("dev", || {
             let Some(project) = std::env::current_dir().ok().and_then(|dir| project::Project::locate(&dir)) else {
-                eprintln!("no snapback/schema.q here or above; run `snapback4 init` to start one");
-                return ExitCode::from(2);
+                return Err("no snapback/schema.q here or above; run `snapback4 init` to start one".into());
             };
             let port: u16 = options.flags.get("port").and_then(|p| p.parse().ok()).unwrap_or(4400);
-            match serve::serve(project, port, serve::Mode::Dev { watch: !options.flags.contains_key("no-watch"), fresh: options.flags.contains_key("fresh") }, "127.0.0.1") {
-                Ok(()) => 0,
-                Err(error) => {
-                    eprintln!("dev: {error}");
-                    1
-                }
-            }
-        }
+            serve::serve(project, port, serve::Mode::Dev { watch: !options.flags.contains_key("no-watch"), fresh: options.flags.contains_key("fresh") }, "127.0.0.1")
+        }),
         other => {
             eprintln!("unknown verb {other}\n{HELP}");
             2

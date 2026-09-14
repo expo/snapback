@@ -153,6 +153,7 @@ pub enum Mode {
 }
 
 pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), String> {
+    let source_stamp = project.sources_stamp();
     let bound = project.compile().map_err(|e| e.to_string())?;
     if !bound.diagnostics.is_empty() {
         for diagnostic in &bound.diagnostics {
@@ -189,27 +190,32 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     let server = Arc::new(server);
     let address = server.server_addr();
     let mut worker = if dev { crate::dev_worker::DevWorker::start(&project, shared.clone(), format!("http://{address}"))? } else { None };
+    crate::lifecycle::generation(generation);
     // The listening URL is the whole of stdout; lifecycle and worker logs use stderr.
     println!("http://{address}");
     match &generated {
         Some(generated) => eprintln!("snapback4 dev: http://{address}  (schema: snapback/, types: {})", generated.display()),
         None => eprintln!("snapback4 serve: http://{address}  (release {}, generation {generation}, tokens only)", project.root.display()),
     }
+    let mut background = Vec::new();
     if let Mode::Dev { watch: true, .. } = mode {
         let shared = shared.clone();
         let project = Project { root: project.root.clone() };
-        std::thread::spawn(move || watch_sources(project, shared));
+        background.push(("watcher", crate::lifecycle::background("watcher", move || watch_sources(project, shared, source_stamp))?));
     }
     {
         let shared = shared.clone();
-        std::thread::spawn(move || maintain(shared));
+        background.push(("maintenance", crate::lifecycle::background("maintenance", move || maintain(shared))?));
     }
-    if dev { eprintln!("snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots and connection/worker caps still apply"); }
+    if dev { eprintln!("snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: {} on this host; connection/worker caps still apply", shared.auth.kdf_slots(true)); }
     // @ref LLP 3000#7-decisions-during-execution — bound HTTP admission while reserving short requests
     let admission = Arc::new(RequestAdmission::default());
     loop {
+        if crate::lifecycle::stopping() { return Ok(()); }
+        for (name, thread) in &background {
+            if thread.is_finished() { return Err(format!("{name} thread stopped")); }
+        }
         if let Some(worker) = &mut worker {
-            if worker.stopping() { return Ok(()); }
             worker.tick();
         }
         if let Some(request) = server.recv_timeout(Duration::from_millis(100)).map_err(|error| format!("HTTP listener stopped: {error}"))? {
@@ -241,7 +247,9 @@ fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmissi
     let path = request.url().split('?').next().unwrap_or("");
     let waiter = is_waiter(request.method(), path);
     let Some(permit) = admission.acquire(waiter) else { request.abort(); return; };
-    std::thread::spawn(move || { let _permit = permit; handle(request, &shared); });
+    if let Err(error) = std::thread::Builder::new().name("request".into()).spawn(move || { let _permit = permit; handle(request, &shared); }) {
+        eprintln!("snapback4: cannot start request thread: {error}");
+    }
 }
 
 fn is_waiter(method: &Method, path: &str) -> bool {
@@ -249,10 +257,10 @@ fn is_waiter(method: &Method, path: &str) -> bool {
         || (method == &Method::Post && (path == "/effects/claim" || path == "/actions/claim" || path.starts_with("/a/")))
 }
 
-fn watch_sources(project: Project, shared: Arc<Shared>) {
-    let mut stamp = project.sources_stamp();
+fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: u128) {
     loop {
         std::thread::sleep(Duration::from_millis(400));
+        if crate::lifecycle::stopping() { return; }
         let now = project.sources_stamp();
         if now == stamp {
             continue;
@@ -281,6 +289,7 @@ fn watch_sources(project: Project, shared: Arc<Shared>) {
                 let mut engine = lock(&shared.engine);
                 match engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())) {
                     Ok(next) => {
+                        crate::lifecycle::generation(next);
                         if let Some(built) = &rebuilt {
                             match crate::native::install(&mut engine, &project) {
                                 Ok(installed) => {
@@ -332,6 +341,7 @@ fn maintain(shared: Arc<Shared>) {
     let mut tick: u64 = 0;
     loop {
         std::thread::sleep(Duration::from_secs(1));
+        if crate::lifecycle::stopping() { return; }
         tick += 1;
         let now = snapback4_core::now_ms();
         let swept = lock(&shared.engine).sweep_expired(now, 2_000);
@@ -349,7 +359,7 @@ fn maintain(shared: Arc<Shared>) {
             Err(error) => eprintln!("snapback4: schedules failed: {error}"),
         }
         let mut budget = 500;
-        while budget > 0 {
+        while budget > 0 && !crate::lifecycle::stopping() {
             budget -= 1;
             let ran = lock(&shared.engine).run_job_chunk(snapback4_core::now_ms());
             match ran {

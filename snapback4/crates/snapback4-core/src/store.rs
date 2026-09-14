@@ -53,7 +53,7 @@ impl Store {
         // SQLite's Unix VFS copies the database mode when creating WAL,
         // journal and shared-memory files. Set it before opening SQLite;
         // chmod only after preparation would leave a disclosure window.
-        crate::private_fs::file(&real, false).map_err(io)?;
+        crate::private_fs::database_file(&real).map_err(io)?;
         for suffix in ["-wal", "-shm", "-journal"] {
             crate::private_fs::existing_file(&PathBuf::from(format!("{}{suffix}", real.display())))
                 .map_err(io)?;

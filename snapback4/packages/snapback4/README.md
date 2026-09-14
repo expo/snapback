@@ -969,7 +969,10 @@ an explicit web opt-in when persistence across reloads is worth making the
 bearer readable to every script on the page. Ordinary guest and password
 sessions last seven days. Signup passwords are 8–1,024 UTF-8 bytes and login
 passwords at most 1,024; attempts and concurrent Argon2 work are bounded by the
-host. The schema opts in with `use identity` (guests and password accounts),
+host. On loopback, `dev` allows as many concurrent Argon2 slots as the host's
+available cores, capped at 16 and never below 2; `serve` keeps two slots.
+Full slots refuse with retryable `E_RATE_LIMIT`.
+The schema opts in with `use identity` (guests and password accounts),
 `use identity guests` or `use identity password`; without it the `/auth`
 routes refuse with `E_AUTH`. `snapback4 dev` also admits personas;
 `snapback4 serve` (a release) admits tokens only.
@@ -1073,11 +1076,23 @@ PNG and `asset` is always denied.
   (`E_GENERATION`). Personas (`use personas ..`) sign requests from the
   same machine with the `x-snapback-persona: alice` header (the client's
   `persona: "alice"`), acting as `dev:alice`. For loopback identity requests, `dev` removes the
-  per-peer and per-email minute counters and prints that fact once at startup.
-  The two Argon2 slots and connection/worker caps remain; `serve` keeps the
+  per-peer and per-email minute counters and prints that fact and the host's
+  Argon2 slot count once at startup: available cores, capped at 16, minimum 2.
+  Connection/worker caps remain; `serve` keeps two Argon2 slots and the
   30-per-peer and 10-per-email limits.
   `dev` and `serve` print only the listening URL and one newline on stdout;
   startup explanations, lifecycle messages and supervised worker logs go to stderr.
+  Process exits carry a one-line stderr diagnostic with the verb, serving
+  generation and reason: `SNAPBACK4_EXIT` for returned errors/stops,
+  `SNAPBACK4_PANIC` for panics on any thread (including abort builds),
+  `SNAPBACK4_SIGNAL` for signals, and `SNAPBACK4_THREAD_EXIT` if the watcher
+  or maintenance thread stops. An unexpected background stop ends the server.
+  Generation `0` means this process has not served yet. `SIGINT`, `SIGTERM`
+  and `SIGHUP` report immediately; with an application worker they clean it
+  up and exit `128 + signal`. Otherwise, and for fatal signals such as
+  `SIGBUS`, termination is immediate with the OS signal status.
+  `SIGKILL`, power loss and an unwritable stderr cannot be reported
+  from inside the process. `snapback4 why SNAPBACK4_SIGNAL` explains the code.
 - **`POST /seed`** (dev only, same machine) takes `[{ "table": "t",
   "row": { "id": "..", .. } }, ..]`, writes the rows as the system
   principal in one commit (rules bypassed; validation, constraints,
