@@ -151,12 +151,31 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
     let release = Project { root: dir.join("releases").join(current.to_string()) };
     snapback4_core::private_fs::directory(&release.data_dir()).map_err(|e| e.to_string())?;
     let link = release.store_path();
-    if !link.exists() {
-        #[cfg(unix)]
-        std::os::unix::fs::symlink(std::fs::canonicalize(&dir).map_err(|e| e.to_string())?.join("store.sqlite"), &link).map_err(|e| e.to_string())?;
-        #[cfg(not(unix))]
-        return Err("serving shared releases requires a filesystem supporting symbolic links".into());
+    // @ref LLP 3000.008.004#4-operational-completeness-on-the-supported-target — a copied release must attach its own restored database and assets.
+    // This generated link belongs to the selected release. Reconcile legacy
+    // absolute links while holding the deployment lock, including dangling
+    // ones; never follow or overwrite an unexpected regular store file.
+    #[cfg(unix)]
+    {
+        let target = Path::new("../../../store.sqlite");
+        match std::fs::symlink_metadata(&link) {
+            Ok(metadata) => {
+                if !metadata.file_type().is_symlink() {
+                    return Err(format!("release store path must be a symbolic link: {}", link.display()));
+                }
+                if std::fs::read_link(&link).map_err(|e| e.to_string())? != target {
+                    std::fs::remove_file(&link).map_err(|e| e.to_string())?;
+                    std::os::unix::fs::symlink(target, &link).map_err(|e| e.to_string())?;
+                }
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                std::os::unix::fs::symlink(target, &link).map_err(|e| e.to_string())?;
+            }
+            Err(error) => return Err(error.to_string()),
+        }
     }
+    #[cfg(not(unix))]
+    return Err("serving shared releases requires a filesystem supporting symbolic links".into());
     let port = options.flags.get("port").and_then(|p| p.parse().ok()).unwrap_or(4400);
     crate::serve::serve(release, port, crate::serve::Mode::Release { expected: current }, &bind.to_string())
 }

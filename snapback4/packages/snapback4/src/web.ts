@@ -41,6 +41,7 @@ export interface WebDeviceOptions {
 }
 
 let ready: Promise<unknown> | null = null;
+let runtime: { identity: string | WebAssembly.Module; initialized: unknown } | undefined;
 
 /** The opener `createLocalClient` takes on the web. */
 export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
@@ -48,11 +49,14 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
   return {
     async open(name, backend) {
       ready ??= cachedWasm(options.wasm ?? new URL("./wasm/snapback4_device_bg.wasm", import.meta.url), persist)
-        .then((module_or_path) => init({ module_or_path: module_or_path as never }))
         .catch((error) => { ready = null; throw error; });
       await ready;
       const store = await claim(name);
-      let device: WebDevice;
+      let device: WebDevice | undefined;
+      let chain: Promise<unknown> = Promise.resolve();
+      let closing: Promise<void> | undefined;
+      // Committed outbox entries, mirrored from persisted changes, so a page
+      // being hidden can send what IndexedDB already holds.
       const committed = new Map<string, { seq: number; id: string; op: string; args: unknown; new_ids: string[]; sent_seq?: number | null }>();
       const remember = (changes: Change[]) => {
         for (const change of changes) if (change.s === "o") {
@@ -60,46 +64,50 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           else committed.set(change.k, JSON.parse(change.v));
         }
       };
-      try {
-        const saved = await persist.load(store.name);
-        device = new WebDevice(backend ? JSON.stringify(backend) : null, JSON.stringify(saved));
-        remember(saved);
-      } catch (error) {
-        await store.release();
-        throw new Error(refusalText(error));
-      }
-      let chain: Promise<unknown> = Promise.resolve();
-      let failed: { error: unknown } | undefined;
-      let closed = false;
+      const discard = (): void => {
+        const previous = device;
+        device = undefined;
+        previous?.free();
+      };
       const settle = async (): Promise<void> => {
-        const changes = JSON.parse(device.drain()) as Change[];
+        const changes = JSON.parse(device!.drain()) as Change[];
         if (changes.length) {
-          try { await persist.save(store.name, changes); }
-          catch (error) { failed = { error }; throw error; }
+          await persist.save(store.name, changes);
           remember(changes);
         }
       };
-      try {
+      const restore = async (backend?: BackendJson | null): Promise<void> => {
+        const saved = await persist.load(store.name);
+        device = new WebDevice(backend ? JSON.stringify(backend) : null, JSON.stringify(saved));
+        committed.clear();
+        remember(saved);
         await settle();
-        await adoptOrphans(device, name, store.name, persist, settle);
-      } catch (error) { device.free(); await store.release(); throw error; }
+      };
+      try {
+        await restore(backend);
+        await adoptOrphans(device!, name, store.name, persist, settle);
+      } catch (error) {
+        try { discard(); } finally { await store.release(); }
+        throw new Error(refusalText(error));
+      }
       const suspendListeners = new Set<() => void>();
       const core: DeviceCore = {
         onSuspend(flush) {
           if (typeof window === "undefined" || typeof document === "undefined") return () => {};
           const page = window, doc = document;
           const beginSend = () => {
-            if (failed || closed) return false;
+            if (closing || !device) return false;
             // Invalidate any sync already in flight, including a bfcache page's
             // snapshot. The synchronous VM call precedes each wave of sends;
             // its metadata is persisted in order behind any current IDB save.
             const started = JSON.parse(device.call(JSON.stringify({ op: "begin_send" })));
             if (started.denied) return false;
-            chain = chain.then(settle).catch(error => { failed = { error }; });
+            // A failed save discards the device like a failed call; the next call reopens it.
+            chain = chain.then(async () => { if (device) await settle(); }).catch(() => discard());
             return true;
           };
           const suspend = () => {
-            if (failed || closed) return;
+            if (closing || !device) return;
             const entries: PendingSend[] = [...committed.values()].filter(e => e.sent_seq == null).sort((a, b) => a.seq - b.seq)
               .map(e => ({ id: e.id, op: e.op, args: e.args, newIds: e.new_ids }));
             if (entries.length) flush(entries, beginSend);
@@ -121,21 +129,29 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           async remove(id) { await persist.save(`snapback4-media:${store.name}`, [{ s: "a", k: id, v: null }]); },
         },
         call(request) {
+          if (closing) return Promise.reject(new Error("the device is closed"));
           const answer = chain.then(async () => {
-            if (failed) throw failed.error;
-            const reply = JSON.parse(device.call(JSON.stringify(request))) as Record<string, unknown>;
-            await settle();
-            return reply;
+            try {
+              // @ref LLP 3000.008.004#3 — publish only after persistence;
+              // a failed call discards its uncommitted memory. Reopen lazily
+              // on the kept backend, with no store copy on successful calls.
+              if (!device) await restore();
+              const reply = JSON.parse(device!.call(JSON.stringify(request))) as Record<string, unknown>;
+              await settle();
+              return reply;
+            } catch (error) {
+              discard();
+              throw error;
+            }
           });
           chain = answer.catch(() => undefined);
           return answer;
         },
-        async close() {
-          closed = true;
+        close() {
           for (const stop of suspendListeners) stop();
-          await chain;
-          device.free();
-          await store.release();
+          return closing ??= chain.then(async () => {
+            try { discard(); } finally { await store.release(); }
+          });
         },
       };
       return core;
@@ -144,9 +160,9 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
 }
 
 // @ref LLP 3000.007#8 — a cold offline open owns its wasm bytes, keyed by SHA-256
-async function cachedWasm(source: WasmSource | Promise<WasmSource>, persist: Persistence): Promise<BufferSource | WebAssembly.Module> {
+async function cachedWasm(source: WasmSource | Promise<WasmSource>, persist: Persistence): Promise<unknown> {
   const resolved = await source;
-  if (resolved instanceof WebAssembly.Module) return resolved;
+  if (resolved instanceof WebAssembly.Module) return initializeWasm(resolved, resolved);
   const isUrl = typeof resolved === "string" || resolved instanceof URL;
   const url = isUrl ? String(resolved) : null;
   const name = "snapback4-wasm";
@@ -156,18 +172,44 @@ async function cachedWasm(source: WasmSource | Promise<WasmSource>, persist: Per
   const digest = async (bytes: Uint8Array) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes as BufferSource)), (b) => b.toString(16).padStart(2, "0")).join("");
   if (hex) {
     const bytes = Uint8Array.from(hex.match(/../g) ?? [], (b) => parseInt(b, 16));
-    if (await digest(bytes) === pointer) return bytes;
+    if (pointer && await digest(bytes) === pointer) {
+      try { return await initializeWasm(bytes, pointer); } catch {
+        // A cache from an interrupted/older installer may be unusable even
+        // when its content hash matches. An online fetch can repair it.
+      }
+    }
   }
   const fetched = isUrl ? await fetch(resolved as string | URL) : resolved;
   if (fetched instanceof Response && !fetched.ok) throw new Error(`wasm: HTTP ${fetched.status}`);
   const bytes = fetched instanceof Response ? new Uint8Array(await fetched.arrayBuffer())
     : ArrayBuffer.isView(fetched) ? new Uint8Array(fetched.buffer, fetched.byteOffset, fetched.byteLength) : new Uint8Array(fetched as ArrayBuffer);
   const hash = await digest(bytes);
+  // Initialization must succeed before these bytes become the offline entry.
+  // The content and URL pointer are then installed in one atomic host save.
+  const initialized = await initializeWasm(bytes, hash);
   await persist.save(name, [
     { s: "sha256", k: hash, v: Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("") },
     ...(url ? [{ s: "url", k: url, v: hash }] : []),
   ]);
-  return bytes;
+  return initialized;
+}
+
+async function initializeWasm(source: BufferSource | WebAssembly.Module, identity: string | WebAssembly.Module): Promise<unknown> {
+  // wasm-bindgen retains the initialized instance even if the later cache
+  // save fails. Its shortcut cannot validate another module's linking: only
+  // the exact initialized content may retry installation in this realm.
+  if (runtime) {
+    if (runtime.identity !== identity) throw new Error("wasm: a different runtime is already initialized; reload before installing different runtime bytes");
+    return runtime.initialized;
+  }
+  const module = source instanceof WebAssembly.Module ? source : await WebAssembly.compile(source);
+  const exports = new Map(WebAssembly.Module.exports(module).map(e => [e.name, e.kind]));
+  if (exports.get("memory") !== "memory" || ["webdevice_new", "webdevice_call", "webdevice_drain", "__wbg_webdevice_free"].some(name => exports.get(name) !== "function")) {
+    throw new Error("wasm: the module does not export the Snapback device runtime; use the wasm shipped with this package");
+  }
+  const initialized = await init({ module_or_path: module });
+  runtime = { identity, initialized };
+  return initialized;
 }
 
 function refusalText(error: unknown): string {
@@ -206,20 +248,21 @@ async function claim(name: string): Promise<Claim> {
 
 /** Hold a lock until released; null when another holder has it. */
 function hold(locks: LockManager, name: string): Promise<(() => Promise<void>) | null> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     let release!: () => void;
     const done = new Promise<void>((r) => (release = r));
-    void locks.request(name, { ifAvailable: true }, async (lock) => {
+    const requested = locks.request(name, { ifAvailable: true }, async (lock) => {
       if (!lock) {
         resolve(null);
         return;
       }
       resolve(async () => {
         release();
-        await done;
+        await requested;
       });
       await done;
     });
+    void requested.catch(reject);
   });
 }
 

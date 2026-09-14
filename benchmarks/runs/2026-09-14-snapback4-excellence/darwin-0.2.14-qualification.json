@@ -1,0 +1,89 @@
+{
+  "head": "ec4480d24579dd94a3d4766111fbf3763f1d4af3",
+  "cwd": "/Users/ccheever/projects/snapback-worktrees/sb4-excellence-replay/snapback4",
+  "command": [
+    "node",
+    "scripts/publish.mjs",
+    "--dry-run"
+  ],
+  "node": "v24.18.0",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "jobs": "4",
+  "sqlite": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+  "nofile": 4096,
+  "startedAt": "2026-09-14T23:14:09Z",
+  "pid": 13013,
+  "exitCode": 0,
+  "elapsedSeconds": 216.01,
+  "finishedAt": "2026-09-14T23:17:45Z",
+  "log": "/tmp/sb4-excellence-local-publish-0.2.14-dry-run.log",
+  "sourceProof": {
+    "head": "ec4480d24579dd94a3d4766111fbf3763f1d4af3",
+    "previousQualified": "320a137a2334a48d4d5942c34f1bdddc9598fc71",
+    "borrowedSyncMergedFrom": "7c25d6839",
+    "nativeSourcePaths": [
+      "snapback4/crates/snapback4-device/src",
+      "snapback4/crates/snapback4-core/src",
+      "snapback4/crates/snapback4-lang/src"
+    ],
+    "nativeSourceChangedFiles": [],
+    "nativeSourceCargoPkgVersionMatches": [],
+    "expoVersion": "0.2.5",
+    "readmeSha256": "09136266ea23da0df83e702ec5d043633dbb3327ca8aca040fc20e39a256729f",
+    "quarryBlocksUnchanged": true
+  },
+  "canonicalSuiteSeconds": 110,
+  "canonicalSuiteFailures": 0,
+  "clientTests": 166,
+  "clientSkips": 0,
+  "installedConsumer": "passed",
+  "artifacts": [
+    {
+      "path": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-vVGMKE/snapback4-0.2.14.tgz",
+      "bytes": 530247,
+      "sha256": "af67bb58b3a937381f2e4eb4c1e3cc95e7b5eb4f0c7a2d45c2a06929b9f4b661",
+      "boundMembers": [
+        {
+          "path": "package/README.md",
+          "bytes": 93059,
+          "sha256": "09136266ea23da0df83e702ec5d043633dbb3327ca8aca040fc20e39a256729f"
+        }
+      ]
+    },
+    {
+      "path": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-vVGMKE/snapback4-darwin-arm64-0.2.14.tgz",
+      "bytes": 3871935,
+      "sha256": "ec418a31871977b8f660d365e905d29d35fb7d667c8de22498710008b7462935",
+      "boundMembers": [
+        {
+          "path": "package/snapback4",
+          "bytes": 7893760,
+          "sha256": "80aae5c9bbb0cbe51a5c164766b87927299ea03178a6aa6fe4ac17261cc7f156"
+        }
+      ]
+    }
+  ],
+  "logSha256": "ff871bb057c97c87959837556b3449c0f71df8fa030f59abd95137d7b4448049",
+  "publishReceipt": {
+    "at": "2026-09-14T23:17:45.969Z",
+    "version": "0.2.14",
+    "tarballBytes": 530247,
+    "platformTarballBytes": 3871935,
+    "files": 37,
+    "binaryBytes": 7893760,
+    "binarySha256": "80aae5c9bbb0cbe51a5c164766b87927299ea03178a6aa6fe4ac17261cc7f156",
+    "binaryVersion": "snapback4 0.2.14",
+    "binaryProfile": "production",
+    "sqliteBuildFlags": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "cargoProfile": {
+      "opt_level": "3",
+      "debuginfo": 0,
+      "debug_assertions": false,
+      "overflow_checks": false,
+      "test": false
+    },
+    "platform": "darwin-arm64",
+    "publish_s": 215.9,
+    "dry": true
+  }
+}

@@ -2468,3 +2468,363 @@ setting after restart. Readback and graceful restart do not establish
 power-loss behavior or the official Convex binary's effective writer policy.
 The subsequent 100,000-row sensitivity experiment needs its own complete
 execution and analysis; this record makes no latency claim.
+
+### Reader reuse on Office ARM Linux: membership comparison, trials 201–203
+
+Nine serial runs on Office M1 Max / ARM Linux Colima (4 CPUs, 12 GiB)
+completed at 2026-09-14 18:41:39 UTC. Orders were Snapback/Convex/Supabase,
+Convex/Supabase/Snapback, then Supabase/Snapback/Convex. Snapback is qualified
+source `beed6a51e1592360a746099de585a049df3808d7` (0.2.10), retained binary
+`9d1ccf5e…`, with the packaged SQLite flag and MEMSTATUS enabled. Clients use
+Node 24.21.0 / Undici 7.29.1 and the original membership instrument
+`36f4026b…`. This is a source-built comparison, not an isolated reader-reuse
+A/B or a measurement of the current published release.
+
+All 175,500 timed case calls passed (39 cases × 500 samples × nine runs),
+with 10,530 excluded warmups. The 243 complete walks / 50,265 traversal
+pages are untimed. Required auth, owner/outsider, cursor, leave and
+same-session regrant checks pass. The 36 complete physical proof records
+match 501 groups, 100,000 messages and 186→185→186 memberships. All 18
+client processes exit zero; three owned Snapback servers stop with SIGTERM.
+The original outer launcher and zero exit marker were also collected.
+
+Counts below are Snapback wins out of 39 medians of three per-run
+statistics. They are not pooled request percentiles or all paired wins.
+
+| Comparator | Lower p50 | Lower p95 | Lower p99 | Lower maximum | Higher requests/s |
+|---|---:|---:|---:|---:|---:|
+| Convex | 11 | 8 | 12 | 10 | 8 |
+| Supabase | 39 | 39 | 35 | 32 | 39 |
+
+Against Convex, p50 wins break down into 8/9 point cases, 3/12 thread cases
+and 0/18 feed cases. The concurrent feed gap remains substantial. Example
+medians below are Snapback / Convex / Supabase, in milliseconds except rate.
+
+| Case | p50 | p95 | Requests/s |
+|---|---:|---:|---:|
+| Five-group rotating point, C1 | 1.014 / 8.689 / 5.059 | — | 882.3 / 101.3 / 159.4 |
+| 150-group rotating feed, C8 | 23.327 / 3.847 / 48.635 | 49.232 / 7.931 / 93.980 | 310.9 / 1742.9 / 153.3 |
+
+All losses remain in the records. Against Supabase, four median p99 and
+seven maximum comparisons are worse; matched rounds also contain two p50,
+eleven p95 and three rate losses. Against Convex, the 117 paired case
+comparisons favor Snapback in 32 p50, 39 p95 and 34 rate values. No ties occur.
+
+Prepared walks visit the timed pages, automatic backend query caches remain
+enabled, and OS residency is unmeasured. Snapback restores a fresh app and
+process each run; Convex/Supabase retain their processes and message/group
+tables. Memberships reset before every run. Convex's regrant performs the
+labelled full 186-row reset; Snapback/Supabase restore the missing row.
+Historical Convex source pins do not prove exact deployed module bytes.
+The independent audit checks the producer's normalized proof records against
+the fixture; it does not reconstruct the remote databases or inspect the
+21 private logs, 12 snapshot ZIPs and six reset JSONLs. These limits preclude
+a universal, hosted/WAN, cold-cache, write, realtime or matched-durability claim.
+
+The nine appended records preserve each original annotated record and its
+raw main object. Public transfer `5af43c96…` covers 164 JSON files; original
+outer receipt transfer is `d963c72a…`. Independent summary `f73c947f…`, review
+`ef9fd089…` and reconciliation `378a61c1…` agree on all 1,755 shared raw
+statistics, 585 medians and 1,560 shared contrasts. The independent result
+also retains elapsed statistics and all three backend pairings. Two
+preserved analysis refusals corrected historical-witness provenance and
+the reset-file inventory; no raw statistic or workload changed. Original
+failed producer attempts and excluded smokes remain separate.
+
+### Actual serving-writer NORMAL/FULL sensitivity: native Linux, trials 301–303
+
+Six serial native loopback runs on Ubuntu 24.04 / AMD EPYC 9454 completed
+at 2026-09-14 18:40:02 UTC. They compare the same qualified 0.2.12 source
+`206650f29b26fa14456d49f33b9e8839b6ac005e` plus the reviewed host diagnostic,
+binary `10557d0f…`. The serving writer itself reports WAL/NORMAL or WAL/FULL;
+the expiration-fixture connection is separately labelled and is not used
+to infer that setting. Node 24.21.0, the packaged SQLite flag, MEMSTATUS,
+query limits and all other captured writer settings are unchanged.
+
+Orders are NORMAL/FULL, FULL/NORMAL, NORMAL/FULL. All 39,000 timed HTTP
+requests, 4,380 excluded warmups and 3,000 timed write/read pairs pass.
+There are 36 additional untimed phase reads and 12 expired-session refusals.
+All 18 complete physical proofs match the expected 100,000-row state.
+Six actual same-app restarts use the original credentials; all 12 server
+processes stop with SIGTERM. Restart checks verify the full state and
+historical replays, not a fresh write after restart. Forty-eight readbacks
+prove phases 0–3 of each serving writer used the selected setting.
+
+Entries below are NORMAL → FULL medians of three per-run statistics.
+Latency is milliseconds; rate is requests/s except the write/read row,
+which is pairs/s. Component percentiles are retained separately and never
+summed.
+
+| Case | p50 | p95 | Rate |
+|---|---:|---:|---:|
+| Fresh write, C1 | 0.667 → 0.794 | 0.843 → 1.085 | 1398.9 → 1253.6 |
+| Fresh write, C8 | 1.823 → 2.311 | 3.596 → 4.364 | 3767.5 → 3216.1 |
+| Write then read, C1 | 1.921 → 2.133 | 2.365 → 2.789 | 492.7 → 433.3 |
+| Rotating point, C32 | 5.779 → 5.433 | 18.067 → 25.852 | 4164.4 → 3984.5 |
+
+FULL fresh-write throughput falls in every pair at both C1 and C8; median
+rate decreases are 10.39% and 14.64%. Write/read pair rate falls 12.06%, with
+p50/p95/p99 and rate worse in every pair. Across all 12 cases, FULL improves
+six p50, three p95, six p99, five maximum and three rate medians. All other
+medians are worse, with no ties. The full record retains all per-run and
+tail losses, including the C32 point-read p95 increase above.
+
+The 18 resource snapshots are untimed point observations, not peak-memory
+or allocation measurements. After-workload RSS medians are 40,916 KiB
+NORMAL and 40,856 KiB FULL, with mixed paired changes. Three pairs on one
+prepared host do not isolate fsync cost or eliminate cache/order/load
+effects. Graceful restart success does not prove power-loss durability;
+this experiment establishes neither a Convex policy match nor a policy
+adoption, release qualification or comparator win.
+
+The six appended main records retain the separately labelled restart,
+state, resource, auth and actual-writer evidence. Public transfer
+`275896cb…` contains 133 JSON files; completion is `d7076409…`, independent
+summary `4ea9fb24…`, review `0cfa574c…`, reconciliation `12d7c70b…`.
+Root and independent calculations agree on all 486 raw statistics, 162
+medians, 81 median and 243 paired contrasts, and 18 resource medians.
+Earlier source refusal, failed V2 smoke and successful excluded smokes are
+preserved. The local/remote exit timestamps differ by 30.5 ms in reverse
+order; zero exit and within-host chronology agree, without a synchronized
+clock assumption.
+
+### Query CPU and wall time: instrumented 0.2.10 membership reads
+
+A diagnostic on Office M1 Max / ARM Linux Colima (four CPUs, 12 GiB)
+completed at 2026-09-14 20:25:45 UTC. It used source `beed6a51e…` with a
+host-only stage/thread-CPU observer, binary `a68b11a2…`, Node 24.21.0 and
+the packaged SQLite option with MEMSTATUS enabled. Production compilation
+and 49 CLI tests passed. All 18,432 timed HTTP calls, 2,160 excluded warmups,
+72 case/round blocks and 2,304 selected traces validated. Selection rotates
+one in eight calls across three rounds; each case has 32 traces per round.
+The 48-trace passing smoke remains separate. Before/after whole-fixture,
+ordinary-session, outsider and invalid/expired-auth proofs passed; all owned
+processes exited. Of the formal selected readers, 2,303 were reused and one
+was constructed.
+
+The following combines 96 selected observations per row across three rounds.
+Means and nearest-rank p95 describe the instrumented `reader.query` interval;
+ratios divide sums, not medians. Server wall runs from dispatch observation
+through handler completion. All 24 combined cases and 72 separate case/round
+summaries remain in the diagnostic ledger record.
+
+| 150-group query | Mean CPU ms | Mean wall ms | Query wall p95 ms | CPU / query wall | Query / server wall |
+|---|---:|---:|---:|---:|---:|
+| First page, C1 | 4.719 | 4.735 | 6.956 | 99.65% | 89.08% |
+| Rotating page, C1 | 6.180 | 6.212 | 9.339 | 99.49% | 91.52% |
+| First page, C8 | 5.898 | 10.557 | 23.680 | 55.87% | 78.89% |
+| Rotating page, C8 | 7.817 | 16.154 | 32.373 | 48.39% | 85.45% |
+
+For the two C8 feed rows, waits for the outer auth/reader engine mutexes
+average 0.154/0.173 ms. Query wall minus thread CPU averages 4.659/8.337 ms.
+That signed residual cannot identify an internal lock, scheduler, I/O or
+specific core function. The null-cursor first page is already CPU-intensive
+at C1. The observer runs in-process and its cost is not calibrated away;
+there is no uninstrumented speedup or new comparator conclusion here.
+
+The earlier V3 formal attempt remains a **failed capture**: its HTTP load
+finished, but only 421 of 2,304 required traces were collected and no after
+verifier ran. Its traces are excluded. A host-only logging correction
+preformats each line before taking the stderr lock; the successful V4 run
+uses that reviewed correction. This diagnoses the observer, not product
+latency. One `write_all` call is not a one-syscall guarantee.
+
+Current core/language source at `206650f29…` and `886afe026…` is identical,
+but differs materially from the measured `beed6a51e…`. Schema-derived rule
+dependencies, prefix-verdict work and lookup materialization execute for
+this fixture in the newer core. These numbers must not be relabelled as
+0.2.12/current-release performance. The [feed follow-up](../../../issues/20260914-snapback4-membership-feed-query-cost.md)
+requires a scoped current-source measurement before selecting a core change.
+The old final cursor-encoding deletion remains unadopted.
+
+The formal transfer (`eba60c90…`) retains 22 original public files, 4,674,220
+bytes, under the ignored ship run's `membership-stages-0210-v4-formal-public/`.
+Independent summary `81055afd…`, evidence review `19a4b5b7…` and reconciliation
+`0eee78c1…` bind this result. The two calculators agree on 23,040 shared event
+values and 2,304 shared group statistics; their p50 conventions differ
+(arithmetic median versus nearest rank), and each was checked against its
+own definition. No failed or smoke sample contributes to formal statistics.
+
+### Query CPU and wall time: instrumented 0.2.12 membership reads
+
+The same Office ARM Linux host completed the fixed `206650f29` (0.2.12)
+diagnostic at 2026-09-14 21:55:52 UTC. The retained production binary is
+`4a380ffd…`, with the packaged SQLite option and MEMSTATUS enabled. Its
+700-file archive has one host-only observer override; all 71 CLI tests,
+production compilation and version checks passed. A separate unmodified
+0.2.12 build also passed those checks; it was not timed here.
+
+All 18,432 HTTP calls, 2,160 excluded warmups, 72 case/round blocks and
+2,304 selected traces passed. The original full before/after verifiers,
+three physical fixture proofs and ordinary-session/outsider/auth checks
+passed; all four owned process groups were absent at completion. There
+were 2,303 reused selected readers and one construction. The successful
+384-call smoke and every historical run remain outside these statistics.
+
+Each row combines 96 selected observations across three rounds. Query
+wall brackets `reader.query`; thread CPU is read on that same worker.
+Ratios divide summed intervals, and p95 uses nearest rank.
+
+| 150-group query | Mean CPU ms | Mean wall ms | Query wall p95 ms | CPU / query wall | Query / server wall |
+|---|---:|---:|---:|---:|---:|
+| First page, C1 | 4.399 | 4.410 | 5.073 | 99.75% | 91.05% |
+| Rotating page, C1 | 5.550 | 5.568 | 6.467 | 99.67% | 92.09% |
+| First page, C8 | 5.585 | 11.138 | 22.781 | 50.14% | 84.72% |
+| Rotating page, C8 | 9.384 | 17.293 | 33.239 | 54.26% | 82.53% |
+
+Query execution remains the main wide-feed cost on this source. At C8,
+first/rotating feed query wall is 84.7%/82.5% of server dispatch-to-handler
+wall. Signed query wall minus thread CPU averages 5.553/7.909 ms; it is
+not attributed to an internal lock, I/O or scheduler. The sum of the five
+outer host mutex waits averages 0.301/0.117 ms, including program and
+reader-pool locks as well as engine locks. At C1 the query interval is
+about 99.7% thread CPU. Nested internal query costs still need decomposition.
+
+The root and independent calculations agree on 23,040 shared per-event
+values and 2,304 shared summary values. Their p50 conventions remain
+explicit: root arithmetic median versus independent nearest rank; the
+432 checked common p50s are each valid under their own definition. This
+is an instrumented diagnostic, not a cross-version speedup, fresh competitor
+comparison or measurement of the published binary. The historical setup
+source in the identity supplies fixture provenance, not the serving code.
+
+The diagnostic ledger retains all 22 original public objects (4,674,403
+bytes), all 72 case/round and 24 combined summaries, and build receipts.
+Bindings: formal transfer `0fffccfc…`, independent summary `1b626d34…`,
+review `f748ffad…`, reconciliation `e5deff38…`, qualification `dff38735…`.
+The [core-owner follow-up](../../../issues/20260914-snapback4-membership-feed-query-cost.md)
+now advances from current-source qualification to internal cost decomposition.
+
+
+### Borrowed sync replies: native x86 Linux A/B on fixed 0.2.12
+
+Six serial native loopback runs completed at 2026-09-14 22:16:04 UTC on
+Ubuntu 24.04 / AMD EPYC 9454, using Node 24.21.0 / Undici 7.29.1. Both
+binaries use source `206650f29b26fa14456d49f33b9e8839b6ac005e`, Rust 1.97.0,
+the production profile, the packaged SQLite flag and MEMSTATUS enabled.
+Baseline `265a81d3…` is 9,904,632 B; candidate `d07291d3…` is 9,909,944 B.
+The only candidate source delta is the two host serialization/test files:
+snapshot and stream responses serialize their owned original event values
+without building a second JSON tree. The existing encoder drops the reply
+before socket I/O. Readers, core, auth, transactions and ceilings are unchanged.
+
+Production builds and the complete CLI groups passed: 71 baseline and 73
+candidate tests, including both new exact-byte tests. The unchanged HTTP
+bounds suite passed 9/9 for each binary, including oversize sync refusal and
+slow-reader engine access. A separate ordinary-auth comparison passed all
+32 normalized response pairs (64 wire captures), covering snapshots,
+continuations, stream-from-zero, edits, deletes, leave and same-session
+regrant, held/joined groups, acknowledgements and watermarks. Actual cursors
+were followed within each run; cross-run comparison normalizes principal
+roles and nonnull cursor presence only. The later formal run repeats those
+checks and independently reconstructs the large reference response bytes.
+
+Orders are B/C, C/B, B/C, with reversed case order in the middle pair. Each
+run uses fresh ordinary guests and two groups containing 8,192 bulk messages
+each, plus the ordinary-auth fixture: final owner/reader views contain
+16,462/8,231 rows, and the outsider sees none. Complete owner, reader,
+outsider and stream walks run before and after timing. Across six runs,
+all **9,600 timed calls**, 960 excluded warmups, 192 ordinary wire captures,
+48 full walks and 144 reconstructed page hashes pass. Every timed response
+matches its fully checked reference bytes. All six clients exit zero and
+all recorded server groups stop cleanly; there is no restart experiment.
+
+Each case has 200 timed requests after 20 sequential warmups. Values below
+are medians of three per-run nearest-rank statistics, baseline → candidate;
+latencies are milliseconds, rates are requests/s. A stream requested at
+4,000 returns **3,584 events** because this fixture preserves commit groups.
+
+| Case | p50 | p95 | p99 | Maximum | Requests/s |
+|---|---:|---:|---:|---:|---:|
+| First snapshot, 64 events, C1 | 2.076 → 1.626 | 3.131 → 2.439 | 3.438 → 2.838 | 5.189 → 4.246 | 438.5 → 563.4 |
+| First snapshot, 64 events, C8 | 5.909 → 5.199 | 11.399 → 9.496 | 17.806 → 13.199 | 18.490 → 20.308 | 1227.8 → 1449.3 |
+| First snapshot, 4,000 events, C1 | 38.832 → 25.873 | 45.992 → 28.541 | 48.128 → 30.339 | 49.265 → 34.502 | 22.9 → 35.0 |
+| First snapshot, 4,000 events, C8 | 59.138 → 59.100 | 97.443 → 82.141 | 139.416 → 107.150 | 175.828 → 117.107 | 117.7 → 122.7 |
+| Next snapshot, 4,000 events, C1 | 39.697 → 30.360 | 43.323 → 33.312 | 44.188 → 34.348 | 46.752 → 34.832 | 22.1 → 27.8 |
+| Next snapshot, 4,000 events, C8 | 59.143 → 57.550 | 83.175 → 76.015 | 101.894 → 97.084 | 116.738 → 112.464 | 125.0 → 126.3 |
+| Stream requested 4,000, C1 | 58.198 → 49.924 | 61.260 → 53.038 | 63.038 → 54.315 | 65.568 → 55.649 | 15.8 → 18.2 |
+| Stream requested 4,000, C8 | 67.047 → 63.226 | 129.251 → 121.378 | 163.665 → 180.840 | 176.624 → 194.659 | 102.0 → 111.4 |
+
+All eight case-median p50/p95 values and rates improve; p99 improves in
+seven and maximum in six. At C1, p50 falls 21.7% for 64 events, 33.4% for
+the first 4,000, 23.5% for the next 4,000 and 14.2% for stream. The C8
+4,000-event first-page p50 is effectively flat (-0.065%). All median losses
+are explicit: small-snapshot C8 maximum +9.83%, stream C8 p99 +10.49% and
+maximum +10.21%. Across 24 same-trial cases, losses for p50/p95/p99/maximum/
+elapsed/rate are 1/1/3/4/1/1, with no ties. The
+[concurrent-tail follow-up](../../../issues/20260914-snapback4-sync-concurrent-tail-latency.md)
+keeps those targets open. Adoption is for the measured warm gains and
+unchanged response semantics, not a uniform tail-latency claim.
+
+Timers include HTTP, text collection and JSON parsing. Hash oracles run
+after each latency timer but remain inside whole-case rates, and may delay
+overlapping C8 callbacks. Complete walks prepare the fixture before timing;
+sequential warmups do not establish eight warmed connections. There is no
+cold-cache, CPU/allocation attribution, peak-memory, device acquisition,
+realtime, comparator or power-loss durability claim. Source-built A/B
+measurements remain separate from later integration/publication qualification.
+
+The storage ledger's `sync-wire-0212-perf-v2-formal` row preserves all 223
+formal public files (1,317,264 B), raw vectors, all 48 median and 144 paired
+contrasts, both build completions and the complete bounds/ordinary-auth
+public evidence. Transfer `cc03b514…`, complete `87a06e53…`, independent
+summary `b0c99e32…` and review `aa0b1d09…` bind the results. Reconciliation
+`08196368…` checks 288 shared raw values, 80 medians, 40 median changes and
+360 paired values against frozen root summary `8dac6364…`. Private logs,
+sessions and databases remain on the benchmark host.
+
+The V1 smoke failed before any timed case because its small-page reference
+omitted the request body. V2 corrects that shape only; the failed run is
+retained and excluded. The 256-call V2 smoke is admission evidence only.
+The original independent formal calculator also failed before numeric work
+on a smoke-only outer-launcher field. Its separately versioned correction
+validates the formal input receipt and bootstrap; all statistic/oracle
+functions are unchanged. Both attempts and the correction are retained.
+
+
+### Published 0.2.13 — borrowed sync serialization
+
+The unchanged publisher completed on the prepared M4 Pro at **2026-09-14
+23:10:55 UTC**, publishing `snapback4` and `snapback4-darwin-arm64` **0.2.13**
+from committed source `d81381a98f56478f8e5d776f0d1b36d234145112`. The
+700-file source archive is SHA-256 `40081bdccd36a0b35300ac39568b0790c1ff561385e3c27a1a478638010a490b`.
+The later pushed checkpoint `ec15bba44` adds incoming benchmark documentation;
+runtime, package, scripts, vendor and fixture source remain identical.
+
+The full suite passed **474 Rust, 146 reported client and 9 fixture tests**,
+with zero failures and one existing ignored Rust test. Its wall time was
+**130 s**, above the existing 60-second budget. Cargo tests took 127 s,
+client tests 38 s and fixture tests 6 s; stages overlap and are not summed.
+Node 24.21.0, Rust 1.97.0, four Cargo build jobs, one Rust test thread and
+the packaged `-USQLITE_ENABLE_MEMORY_MANAGEMENT` setting were retained.
+Preparation compiled tests but did not execute them; these counts come
+from the actual publication run. This is no matched warm-loop comparison.
+
+The production build and installed-package proof passed. The installed
+CLI reports `snapback4 0.2.13` and matches the **7,893,696-byte** packed
+production binary, SHA-256 `096b464f9a9afb3e0ec8b6ad64b0dd29558897b60fba65c2c0847aa97e4963e8`.
+The TypeScript consumer compiles; its mock client asserts query readiness,
+freshness and three rows, an online write sent and an offline write pending.
+Its inherited log says `complete+fresh`, but it does not separately assert
+the query's complete flag. Publication took **235.5 s**. Both supervised
+process groups were absent at completion, the temporary credential was
+removed, and all 700 source files were rechecked with only the one expected
+publication-metric append. No cleanup failure or scoped process remained.
+
+Both public registry archives were verified by **23:14:28 UTC** against
+the tested tarballs, their registry SHA-512/SHA-1 values, and the packed
+binary. The client is **526,218 B**, SHA-256 `1dfa3256525624731d0db1641ae56efb200d39612e1552347ae826fc33c7df90`;
+the platform archive is **3,868,663 B**, SHA-256 `5df79c0e5696cab551acd5a44880e643a426471cdecff80fb9df888d5e6435b2`.
+The client pins its optional platform dependency to 0.2.13. The initial
+platform metadata request returned 404 while the client archive verified;
+that observation is retained separately. Only read-only visibility checks
+followed, with no repeated publication.
+
+The original publisher row is appended unchanged to `snapback4/metrics/publish.jsonl`.
+The ignored run retains `sync-wire-0213-publication-public/` (nine original
+public files), `sync-wire-0213-registry-verification.json` and
+`sync-wire-0213-publication-qualification.json`. Publisher log SHA-256 is
+`d3fae29b9bc32679f2176b399acf370a03e4d547367b65cc7cdcb6c12132db4a`.
+This is release and correctness evidence; the preceding native sync
+measurements retain their original 0.2.12 A/B source and binary identities.
+No new latency, hosted, competitor, device or durability result follows.

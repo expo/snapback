@@ -560,6 +560,61 @@ impl io::Write for JsonBuffer {
     fn flush(&mut self) -> io::Result<()> { Ok(()) }
 }
 
+// @ref LLP 3000#7-decisions-during-execution — encode borrowed plain values without a second JSON tree
+#[derive(serde::Serialize)]
+struct SyncEvent<'a> {
+    data: Option<wire::Plain<'a>>,
+    id: &'a str,
+    kind: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    seq: Option<u64>,
+    table: &'a str,
+}
+
+// Own the reply so `respond` drops its rows after encoding, before socket I/O.
+enum SyncEvents {
+    Snapshot(Vec<snapback4_core::partition::Event>),
+    Stream(Vec<snapback4_core::store::LogEvent>),
+}
+
+impl serde::Serialize for SyncEvents {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Self::Snapshot(events) => serializer.collect_seq(events.iter().map(|event| SyncEvent {
+                data: event.data.as_ref().map(wire::Plain), id: &event.id,
+                kind: event.kind.word(), seq: None, table: &event.table,
+            })),
+            Self::Stream(events) => serializer.collect_seq(events.iter().map(|event| SyncEvent {
+                data: event.data.as_ref().map(wire::Plain), id: &event.id,
+                kind: &event.kind, seq: Some(event.seq), table: &event.table,
+            })),
+        }
+    }
+}
+
+#[derive(serde::Serialize)]
+struct SnapshotReply {
+    acknowledged: BTreeMap<String, u64>,
+    events: SyncEvents,
+    generation: u64,
+    held: Option<wire::HeldGroups>,
+    more: bool,
+    next: Option<String>,
+    snapshot: bool,
+    watermark: u64,
+}
+
+#[derive(serde::Serialize)]
+struct StreamReply {
+    acknowledged: BTreeMap<String, u64>,
+    events: SyncEvents,
+    generation: u64,
+    joined: wire::HeldGroups,
+    more: bool,
+    snapshot: bool,
+    watermark: u64,
+}
+
 pub(crate) fn respond(request: Request, status: u16, body: impl serde::Serialize) {
     respond_with_cors(request, status, body, true)
 }
@@ -972,8 +1027,10 @@ fn handle(mut request: Request, shared: &Shared) {
                 };
                 match outcome {
                     Ok((events, watermark, next, held, acknowledged)) => {
-                        let events: Vec<Json> = events.into_iter().map(|e| json!({ "table": e.table, "kind": e.kind.word(), "id": e.id, "data": e.data.as_ref().map(wire::to_json) })).collect();
-                        respond(request, 200, json!({ "snapshot": true, "held": held, "events": events, "watermark": watermark, "more": next.is_some(), "next": next, "generation": generation, "acknowledged": acknowledged }));
+                        respond(request, 200, SnapshotReply {
+                            acknowledged, events: SyncEvents::Snapshot(events), generation,
+                            held, more: next.is_some(), next, snapshot: true, watermark,
+                        });
                     }
                     Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else if refusal.code == "E_INPUT" { 400 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
                 }
@@ -993,8 +1050,10 @@ fn handle(mut request: Request, shared: &Shared) {
                 };
                 match outcome {
                     Ok((page, acknowledged)) => {
-                        let events: Vec<Json> = page.events.into_iter().map(|e| json!({ "seq": e.seq, "table": e.table, "kind": e.kind, "id": e.id, "data": e.data.as_ref().map(wire::to_json) })).collect();
-                        respond(request, 200, json!({ "snapshot": false, "joined": page.joined, "events": events, "watermark": page.watermark, "more": page.more, "generation": generation, "acknowledged": acknowledged }));
+                        respond(request, 200, StreamReply {
+                            acknowledged, events: SyncEvents::Stream(page.events), generation,
+                            joined: page.joined, more: page.more, snapshot: false, watermark: page.watermark,
+                        });
                     }
                     Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
                 }

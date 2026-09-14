@@ -107,7 +107,164 @@ try {
     return { rowsInIdbBeforeOpen: rows, reopenMs: +reopened.toFixed(1), landed: thread.data.some(row => row.body === "queued while offline" && !row.pending) };
   }, api);
   Object.assign(out, { second });
+  // Real transaction aborts: neither rejected admission nor failed orphan
+  // adoption may change the recovered replica or strand its Web Lock.
+  out.durability = await page.evaluate(async api => {
+    const persist = window.indexedDbPersistence();
+    const backend = await fetch(`${api}/schema`, { headers: { "x-snapback-persona": "bob" } }).then(r => r.json());
+    const opener = window.webDevice();
+    const name = "witness-abort";
+    let abort = null, freed = 0;
+    const put = IDBObjectStore.prototype.put, free = window.WebDevice.prototype.free;
+    IDBObjectStore.prototype.put = function (value, ...args) {
+      const request = put.call(this, value, ...args);
+      if (abort?.(this.transaction.db.name, value)) { abort = null; this.transaction.abort(); }
+      return request;
+    };
+    window.WebDevice.prototype.free = function () { freed++; return free.call(this); };
+    const unlocked = async store => !(await navigator.locks.query()).held.some(lock => lock.name === store);
+    const attempt = async run => { try { await run(); return false; } catch { return true; } };
+    const queued = async core => (await core.call({ op: "queued" })).ok.map(entry => entry.id);
+    let core;
+    try {
+      core = await opener.open(name, backend);
+      const entry = id => ({ id, seq: 1, op: "send", args: { conversationId: "c1", body: id } });
+      await core.call({ op: "enqueue", entry: entry("acknowledged") });
+      abort = store => store === name;
+      const admissionRejected = await attempt(() => core.call({ op: "enqueue", entry: { ...entry("aborted"), seq: 2 } }));
+      const liveQueued = await queued(core);
+      await core.close(); core = await opener.open(name);
+      const reopenedQueued = await queued(core);
+      await core.close(); core = null;
+      const failedOpenName = "witness-failed-open", freeBefore = freed;
+      abort = store => store === failedOpenName;
+      const initialRejected = await attempt(() => opener.open(failedOpenName, backend));
+      const initialFreed = freed - freeBefore, initialUnlocked = await unlocked(failedOpenName);
+      const base = "witness-adoption", orphan = `${base}:tab-orphan`;
+      core = await opener.open(orphan, backend);
+      await core.call({ op: "enqueue", entry: entry("orphan-write") });
+      await core.close(); core = null;
+      abort = (store, value) => store === base && value.s === "o";
+      const adoptionRejected = await attempt(() => opener.open(base, backend));
+      const orphanKept = (await persist.others(orphan)).includes(orphan);
+      const adoptionUnlocked = await unlocked(base) && await unlocked(orphan);
+      core = await opener.open(base, backend);
+      const adopted = await queued(core);
+      const orphanRemoved = !(await persist.others(orphan)).includes(orphan);
+      return { admissionRejected, liveQueued, reopenedQueued, initialRejected, initialFreed, initialUnlocked, adoptionRejected, orphanKept, adoptionUnlocked, adopted, orphanRemoved };
+    } finally {
+      await core?.close();
+      IDBObjectStore.prototype.put = put; window.WebDevice.prototype.free = free;
+    }
+  }, api);
+  // Each install runs in a new realm; the module-level ready promise must
+  // not turn a failed-runtime test into a no-op. The app shell stays served.
+  out.runtimePending = await page.evaluate(async api => {
+    const fetchBefore = window.fetch;
+    window.fetch = () => Promise.reject(new TypeError("offline before runtime install"));
+    let client;
+    try {
+      client = await window.createLocalClient({ url: api, persona: "bob", waitSeconds: 1 });
+      return (await client.mutate({ kind: "mutation", name: "send" }, { conversationId: "c1", body: "queued through runtime failures" })).state;
+    } finally { await client?.close(); window.fetch = fetchBefore; }
+  }, api);
+  out.runtime = [];
+  for (const failure of ["invalid-download", "incompatible-download", "aborted-install"]) {
+    await witness.reload();
+    out.runtime.push(await page.evaluate(async ({ api, failure }) => {
+      const persist = window.indexedDbPersistence();
+      const before = await persist.load("snapback4-wasm");
+      const pointer = before.find(c => c.s === "url");
+      const kept = before.find(c => c.s === "sha256" && c.k === pointer.v);
+      const bytes = Uint8Array.from(kept.v.match(/../g), value => parseInt(value, 16));
+      const url = new URL(`/${failure}.wasm`, location.href).href;
+      const fetchBefore = window.fetch, putBefore = IDBObjectStore.prototype.put;
+      let fetched = 0, rejected = false;
+      window.fetch = input => {
+        if (String(input) === url) {
+          fetched++;
+          const body = failure === "invalid-download" ? new Uint8Array([1, 2, 3]) : failure === "incompatible-download" ? new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0]) : bytes;
+          return Promise.resolve(new Response(body));
+        }
+        return fetchBefore(input);
+      };
+      if (failure === "aborted-install") IDBObjectStore.prototype.put = function (value, ...args) {
+        const request = putBefore.call(this, value, ...args);
+        if (this.transaction.db.name === "snapback4-wasm") this.transaction.abort();
+        return request;
+      };
+      try { await window.webDevice({ wasm: url }).open("runtime-install", {}); }
+      catch { rejected = true; }
+      finally { window.fetch = fetchBefore; IDBObjectStore.prototype.put = putBefore; }
+      const after = await persist.load("snapback4-wasm");
+      return { failure, fetched, rejected, cacheUnchanged: JSON.stringify(before) === JSON.stringify(after) };
+    }, { api, failure }));
+    await witness.reload();
+    const recovered = await page.evaluate(async api => {
+      const fetchBefore = window.fetch;
+      window.fetch = () => Promise.reject(new TypeError("offline after interrupted install"));
+      let client;
+      try {
+        client = await window.createLocalClient({ url: api, persona: "bob", waitSeconds: 1 });
+        const read = await client.query({ kind: "query", name: "thread" }, { conversationId: "c1" });
+        return read.data?.some(row => row.body === "queued through runtime failures" && row.pending === true) && read.data.some(row => row.body === "queued while offline" && !row.pending) && client.link() === "offline";
+      } finally { await client?.close(); window.fetch = fetchBefore; }
+    }, api);
+    out.runtime.at(-1).offlineRecovered = recovered;
+  }
+  // A failed cache save leaves wasm-bindgen initialized. A retry must not
+  // install different bytes using that earlier module's successful init.
+  await witness.reload();
+  out.runtimeRetry = await page.evaluate(async api => {
+    const persist = window.indexedDbPersistence();
+    const before = await persist.load("snapback4-wasm");
+    const pointer = before.find(c => c.s === "url");
+    const bytes = Uint8Array.from(before.find(c => c.s === "sha256" && c.k === pointer.v).v.match(/../g), value => parseInt(value, 16));
+    const originalModule = await WebAssembly.compile(bytes);
+    const imported = WebAssembly.Module.imports(originalModule).find(item => item.kind === "function");
+    const needle = new TextEncoder().encode(imported.name), incompatible = bytes.slice();
+    const offset = incompatible.findIndex((_, at) => needle.every((byte, n) => incompatible[at + n] === byte));
+    if (offset < 0) throw new Error("could not locate Wasm import");
+    incompatible[offset] ^= 1; // same length, valid UTF-8, now an unavailable import
+    const incompatibleModule = await WebAssembly.compile(incompatible);
+    const sameExports = JSON.stringify(WebAssembly.Module.exports(originalModule)) === JSON.stringify(WebAssembly.Module.exports(incompatibleModule));
+    const changedImport = WebAssembly.Module.imports(incompatibleModule).some(item => item.name !== imported.name && item.name === String.fromCharCode(needle[0] ^ 1) + imported.name.slice(1));
+    const firstUrl = new URL("/retry-first.wasm", location.href).href;
+    const secondUrl = new URL("/retry-incompatible.wasm", location.href).href;
+    const backend = await fetch(`${api}/schema`, { headers: { "x-snapback-persona": "bob" } }).then(r => r.json());
+    const realFetch = window.fetch;
+    let firstError, secondError, core;
+    window.fetch = input => String(input) === firstUrl ? Promise.resolve(new Response(bytes)) : String(input) === secondUrl ? Promise.resolve(new Response(incompatible)) : realFetch(input);
+    try {
+      try { await window.webDevice({ wasm: firstUrl, persist: { ...persist, async save(name, changes) { if (name === "snapback4-wasm") throw new Error("injected runtime cache save failure"); await persist.save(name, changes); } } }).open("runtime-retry", backend); }
+      catch (error) { firstError = String(error); }
+      try { core = await window.webDevice({ wasm: secondUrl }).open("runtime-retry", backend); }
+      catch (error) { secondError = String(error); }
+      await core?.close(); core = undefined;
+      const cacheUnchanged = JSON.stringify(before) === JSON.stringify(await persist.load("snapback4-wasm"));
+      // Retrying the original content should remain usable without a reload.
+      core = await window.webDevice({ wasm: firstUrl }).open("runtime-retry", backend);
+      const sameContentRecovered = !!(await core.call({ op: "state" })).ok;
+      return { sameExports, changedImport, firstError, secondError, cacheUnchanged, sameContentRecovered };
+    } finally { await core?.close(); window.fetch = realFetch; }
+  }, api);
+  await witness.reload();
+  Object.assign(out.runtimeRetry, await page.evaluate(async () => {
+    const realFetch = window.fetch;
+    let core, offlineFetches = 0, offlineSameContentRecovered = false;
+    window.fetch = () => { offlineFetches++; return Promise.reject(new TypeError("offline after runtime retry")); };
+    try {
+      core = await window.webDevice({ wasm: new URL("/retry-first.wasm", location.href) }).open("runtime-retry");
+      offlineSameContentRecovered = !!(await core.call({ op: "state" })).ok;
+    } catch { /* reported below */ }
+    finally { await core?.close(); window.fetch = realFetch; }
+    return { offlineFetches, offlineSameContentRecovered };
+  }));
   out.ok = first.threadRows === 50 && first.threadComplete && first.next && first.count === 300 && first.write === "pending" && first.pendingLocally && !first.localFresh && first.refused === "NOT_MEMBER" && second.rowsInIdbBeforeOpen > 300 && second.landed && out.offline.wasmFetches === 0 && out.offline.width === 1 && out.offline.height === 1 && out.offline.bytes === 68 && out.offline.once === "E_OFFLINE" && out.offline.link === "offline" && out.pageErrors.length === 0;
+  const d = out.durability;
+  out.ok &&= d.admissionRejected && d.liveQueued.join() === "acknowledged" && d.reopenedQueued.join() === "acknowledged" && d.initialRejected && d.initialFreed === 1 && d.initialUnlocked && d.adoptionRejected && d.orphanKept && d.adoptionUnlocked && d.adopted.join() === "orphan-write" && d.orphanRemoved && out.runtimePending === "pending" && out.runtime.every(r => r.fetched === 1 && r.rejected && r.cacheUnchanged && r.offlineRecovered);
+  const retry = out.runtimeRetry;
+  out.ok &&= !!(retry.sameExports && retry.changedImport && retry.firstError?.includes("injected runtime cache save failure") && retry.secondError?.includes("reload") && retry.cacheUnchanged && retry.sameContentRecovered && retry.offlineSameContentRecovered && retry.offlineFetches === 0);
 } finally {
   await witness.close();
 }

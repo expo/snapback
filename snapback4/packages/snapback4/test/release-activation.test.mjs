@@ -4,12 +4,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+import { createLocalClient } from "../dist/local.js";
+import { processDevice } from "../dist/native.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
@@ -70,7 +72,7 @@ async function serve(deployment, inspect) {
     assert.equal((await anonymous.json()).denied?.code, "E_AUTH");
     const signedIn = await (await fetch(url + "/auth/guest", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json();
     assert.ok(signedIn.session?.token, JSON.stringify(signedIn));
-    await inspect(url, { authorization: `Bearer ${signedIn.session.token}` });
+    await inspect(url, { authorization: `Bearer ${signedIn.session.token}` }, signedIn.session);
   } finally {
     if (child.exitCode == null && child.signalCode == null) child.kill("SIGTERM");
     await exited;
@@ -265,4 +267,173 @@ test("run says when a job ignores --as and executes as the system", (t) => {
   const result = invoke("run", "sweep", "--as", "alice");
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stderr, /--as is ignored.*system/);
+});
+
+// @ref LLP 3000.008.004#4-operational-completeness-on-the-supported-target — a stopped full-release copy is a new, isolated recovery boundary.
+test("stopped full-release restore preserves its recovery point and stays separate from the original", { timeout: 20000 }, async (t) => {
+  const { app, deployment, schema, invoke, run } = fixture(t);
+  const recoverySource = `use identity guests
+effect notify
+table items:
+  body: text <=100
+  photo: image <=10000000 ?
+  read <- allow
+  insert <- allow
+  sync public
+mutation add(body: text <=100, photo: image <=10000000 ?):
+  item = insert items {body, photo}
+  emit notify {id: item.id}
+  return item
+query q():
+  return items first 100 by byId
+job checkpoint():
+  chunk item in items first 1 by byId:
+    require false else RECOVERY_STOP
+schedule checkpointDaily every 1d: checkpoint
+`;
+  writeFileSync(schema, recoverySource);
+  run("deploy", deployment);
+  const database = join(deployment, "store.sqlite");
+  const recoveryState = (directory) => {
+    const db = new DatabaseSync(join(directory, "store.sqlite"), { readOnly: true });
+    try {
+      return { ...state(join(directory, "store.sqlite")), durable: Object.fromEntries([
+        "_principals", "_sessions", "_credentials", "_ops", "_outbox", "_jobs", "_assets", "_commits", "_log",
+      ].map((table) => [table, db.prepare(`SELECT * FROM ${table} ORDER BY 1, 2, 3`).all()])) };
+    } finally { db.close(); }
+  };
+  const post = async (url, headers, path, body) => {
+    const response = await fetch(url + path, { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(2000) });
+    assert.equal(response.status, 200);
+    return response.json();
+  };
+  // Advance only the fixture's persisted schedule clock so the real scheduler
+  // produces a parked job promptly; no synthetic job/effect/dedup rows.
+  let db = new DatabaseSync(database);
+  db.prepare("INSERT INTO _meta(key, value) VALUES ('schedule:checkpointDaily', '0')").run();
+  db.close();
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1cAAAAASUVORK5CYII=", "base64");
+  let asset, session, originalHeaders, committed;
+  await serve(deployment, async (url, headers, signedIn) => {
+    session = signedIn; originalHeaders = headers;
+    const uploaded = await (await fetch(url + "/assets", { method: "POST", headers, body: png })).json();
+    assert.ok(uploaded.asset?.id);
+    asset = uploaded.asset.id;
+    committed = await post(url, headers, "/m/add", { id: "before-backup", args: { body: "at backup", photo: { id: asset } } });
+    assert.equal(committed.state, "sent");
+    const deadline = Date.now() + 4000;
+    while (!recoveryState(deployment).durable._jobs.some((job) => job.state === "parked") && Date.now() < deadline) await delay(25);
+    assert.equal(recoveryState(deployment).durable._jobs[0]?.state, "parked");
+  }); // Owned server (including its scheduler) has exited before any copy.
+  // Hold the fixture clock beyond this experiment, so restored startup cannot
+  // schedule another job. External effect workers are never launched.
+  db = new DatabaseSync(database);
+  db.prepare("UPDATE _meta SET value = ? WHERE key = 'schedule:checkpointDaily'").run(String(Date.now() + 86400000));
+  db.close();
+  const before = recoveryState(deployment);
+  assert.equal(before.durable._outbox.length, 1);
+  assert.equal(before.durable._outbox[0].state, "queued");
+  assert.equal(before.durable._ops.length, 1);
+  assert.ok(before.durable._sessions.length > 0);
+  assert.equal(before.durable._assets.length, 1);
+  // Model a legacy deployment, including its absolute generated store link.
+  const storeLink = join("releases", "1", ".snapback4", "store.sqlite");
+  assert.equal(readlinkSync(join(deployment, storeLink)), "../../../store.sqlite", "new release links are relocatable");
+  rmSync(join(deployment, storeLink));
+  symlinkSync(database, join(deployment, storeLink));
+  const backup = join(dirname(app), "backup"), restored = join(dirname(app), "restored");
+  const copy = (from, to) => {
+    assert.equal(existsSync(to), false, "copy into a new directory, never merge a restore");
+    const copied = spawnSync("cp", ["-a", from, to], { encoding: "utf8", timeout: 4000 });
+    assert.equal(copied.error, undefined);
+    assert.equal(copied.status, 0, copied.stderr);
+  };
+  copy(deployment, backup);
+  copy(backup, restored);
+  assert.deepEqual(recoveryState(restored), before, "auth, dedup, jobs, effects and generation travel with the stopped database");
+  for (const path of ["current", "releases.jsonl", "releases/1/snapback/schema.q", `assets/${asset}`]) {
+    assert.deepEqual(readFileSync(join(restored, path)), readFileSync(join(backup, path)));
+  }
+  // The original remains present and acquires data beyond the recovery point.
+  await serve(deployment, async (url) => {
+    assert.equal((await post(url, originalHeaders, "/m/add", { id: "after-backup", args: { body: "original only" } })).state, "sent");
+  });
+  const originalAfter = recoveryState(deployment);
+  assert.equal(originalAfter.rows.length, 2);
+  await serve(restored, async (url) => {
+    const rows = await post(url, originalHeaders, "/q/q", { args: {} });
+    assert.deepEqual(rows.data.map((row) => row.body), ["at backup"], "copied release must not attach the original database through its legacy symlink");
+    assert.equal(readlinkSync(join(restored, storeLink)), "../../../store.sqlite");
+    const bytes = await fetch(`${url}/assets/${asset}`, { headers: originalHeaders });
+    assert.equal(bytes.status, 200);
+    assert.deepEqual(Buffer.from(await bytes.arrayBuffer()), png);
+    const replay = await post(url, originalHeaders, "/m/add", { id: "before-backup", args: { body: "at backup", photo: { id: asset } } });
+    assert.equal(replay.state, "sent");
+    assert.equal(replay.replayed, true);
+    assert.equal(replay.seq, committed.seq);
+    assert.equal(recoveryState(restored).durable._outbox.length, 1, "known pre-backup replay emits nothing again");
+    assert.equal(recoveryState(restored).durable._ops.some((op) => op.id === "after-backup"), false, "post-backup dedup evidence is absent, not an exactly-once continuation promise");
+    // A fresh real process device acquires this recovery point: no old
+    // watermarks or pending outbox are attached to the restored endpoint.
+    const deviceDir = join(dirname(app), "fresh-restored-device"); mkdirSync(deviceDir);
+    const client = await createLocalClient({ url, session, waitSeconds: 1,
+      device: processDevice({ binary, dir: deviceDir,
+        spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }),
+        writeFile: async (path, text) => writeFileSync(path, text) }),
+    });
+    try {
+      await client.sync();
+      const local = await client.query({ kind: "query", name: "q" }, {});
+      assert.equal(local.complete, true);
+      assert.deepEqual(local.data.map((row) => row.body), ["at backup"]);
+    } finally { await client.close(); }
+  });
+  assert.deepEqual(recoveryState(deployment), originalAfter, "restored serving and authentication must not touch the original");
+  const restoredBeforeActivation = recoveryState(restored);
+  assert.deepEqual(restoredBeforeActivation.durable._jobs, before.durable._jobs);
+  assert.deepEqual(restoredBeforeActivation.durable._outbox, before.durable._outbox);
+  assert.deepEqual(recoveryState(backup), before, "the backup itself is never served or modified");
+  // Reuse the existing activation verbs at the recovered location: widening
+  // is permitted; a destructive candidate refuses; rollback changes source,
+  // while rows written after the backup remain rows of the recovered store.
+  writeFileSync(schema, recoverySource.replaceAll("text <=100", "text <=200"));
+  run("deploy", restored);
+  await serve(restored, async (url) => {
+    assert.equal((await post(url, originalHeaders, "/m/add", { id: "restored-new", args: { body: "restored only" } })).state, "sent");
+  });
+  const beforeRefusal = recoveryState(restored);
+  writeFileSync(schema, "use identity guests\nquery q():\n  return 0\n");
+  const refused = invoke("deploy", restored);
+  assert.equal(refused.status, 1);
+  assert.match(refused.stderr, /loses data/);
+  assert.deepEqual(recoveryState(restored), beforeRefusal);
+  run("rollback", restored);
+  assert.equal(state(join(restored, "store.sqlite")).metadata.release, "1");
+  assert.equal(state(join(restored, "store.sqlite")).metadata.generation, "3");
+  await serve(restored, async (url) => {
+    const rows = await post(url, originalHeaders, "/q/q", { args: {} });
+    assert.deepEqual(rows.data.map((row) => row.body).sort(), ["at backup", "restored only"]);
+  });
+  assert.deepEqual(recoveryState(deployment), originalAfter);
+  t.diagnostic(`recovery point: release ${before.metadata.release}, generation ${before.metadata.generation}, sequence ${committed.seq}; post-backup original writes excluded; queued effects never delivered`);
+});
+
+test("release serving repairs dangling legacy links and refuses an unexpected regular store file", { timeout: 10000 }, async (t) => {
+  const { deployment, invoke, run } = fixture(t);
+  run("deploy", deployment);
+  await serve(deployment, async () => {});
+  const link = join(deployment, "releases/1/.snapback4/store.sqlite");
+  rmSync(link);
+  symlinkSync(join(deployment, "missing-original/store.sqlite"), link);
+  await serve(deployment, async () => {});
+  assert.equal(readlinkSync(link), "../../../store.sqlite");
+  rmSync(link);
+  writeFileSync(link, "unexpected owned file");
+  const before = state(join(deployment, "store.sqlite"));
+  const refused = invoke("serve", deployment, "--port", "0", "--bind", "127.0.0.1");
+  assert.equal(refused.error, undefined);
+  assert.equal(refused.status, 1);
+  assert.match(refused.stderr, /release store path must be a symbolic link/);
+  assert.equal(readFileSync(link, "utf8"), "unexpected owned file");
+  assert.deepEqual(state(join(deployment, "store.sqlite")), before);
 });

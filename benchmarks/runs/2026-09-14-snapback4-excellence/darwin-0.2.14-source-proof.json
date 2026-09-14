@@ -1,0 +1,15 @@
+{
+  "head": "ec4480d24579dd94a3d4766111fbf3763f1d4af3",
+  "previousQualified": "320a137a2334a48d4d5942c34f1bdddc9598fc71",
+  "borrowedSyncMergedFrom": "7c25d6839",
+  "nativeSourcePaths": [
+    "snapback4/crates/snapback4-device/src",
+    "snapback4/crates/snapback4-core/src",
+    "snapback4/crates/snapback4-lang/src"
+  ],
+  "nativeSourceChangedFiles": [],
+  "nativeSourceCargoPkgVersionMatches": [],
+  "expoVersion": "0.2.5",
+  "readmeSha256": "09136266ea23da0df83e702ec5d043633dbb3327ca8aca040fc20e39a256729f",
+  "quarryBlocksUnchanged": true
+}

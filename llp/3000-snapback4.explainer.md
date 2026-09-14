@@ -6,7 +6,7 @@
 **Systems:** Everything under `snapback4/` once it exists; the bakeoff protocol shared with Snapback 3 (LLP 2000) and Snapback 2 (LLP 1000)
 **Author:** Charlie Cheever / Claude Fable 5.1
 **Date:** 2026-09-12
-**Revised:** 2026-09-14 (§7: bounded HTTP query reader reuse and signal-stack diagnostics); 2026-09-13 (§7: ruling 15 — LLP 3000.007 §8.7 and §5.9 as revised are built); 2026-09-13 (§7: LLP 3000.007 accepted as ruled — every §14 question; the blind review of write authority commissioned; `sql` a fifth verb); 2026-09-13 (§7: the first ruling on LLP 3000.007 — the SDK media cache lands with the language); 2026-09-13 (§7: LLP 3000.007 rev 2 — pushed further after the Grok and Muse lanes; LLP 3000.006 absorbed and superseded); 2026-09-13 (§7: relaxed Quarry and explicit residency proposed in LLP 3000.007); 2026-09-13 (§7: explicit data residency and server execution proposed in LLP 3000.006); 2026-09-13 (§7: qualified packaged SQLite page-cache policy); 2026-09-13 (ticket repair qualification: logical device expiry and generation-bound native cache); 2026-09-13 (§7: SQLite plan reuse across bound inputs); 2026-09-13 (§7 and §9: security boundary and remediation); 2026-09-13 (§7: the device-side twin — native reads, LLP 3000.005 §9); 2026-09-13 (search, effects, services, presence, the ranked feed: §7, §8); 2026-09-13 (§7: production compiler trade); 2026-09-13 (§7: native jobs — the app's Rust in the data plane, hosted as wasm, metered like a job; §8: LLP 3000.005); 2026-09-13 (§7: the guide is compiled); 2026-09-13 (§7: explicit reference-ID semantics; remaining open-ticket corrections); 2026-09-13 (§7: borrowed query serialization, shared chat observations and HTTP worker reservation); 2026-09-13 (§9: implementation of the review corrections); 2026-09-12 (§9: architecture review and 37 correction tickets); 2026-09-13 (§7: feeds — the serving half is the substrate's, the model half is the app's; LLP 3000.004); 2026-09-13 (§7: one interpreter hosted two ways, the wasm measurement, ordered merge heads and measured performance work); 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
+**Revised:** 2026-09-14 (§7: .008 panel and delegated residual program); 2026-09-14 (§7: borrowed sync replies, bounded HTTP query reader reuse and signal-stack diagnostics); 2026-09-13 (§7: ruling 15 — LLP 3000.007 §8.7 and §5.9 as revised are built); 2026-09-13 (§7: LLP 3000.007 accepted as ruled — every §14 question; the blind review of write authority commissioned; `sql` a fifth verb); 2026-09-13 (§7: the first ruling on LLP 3000.007 — the SDK media cache lands with the language); 2026-09-13 (§7: LLP 3000.007 rev 2 — pushed further after the Grok and Muse lanes; LLP 3000.006 absorbed and superseded); 2026-09-13 (§7: relaxed Quarry and explicit residency proposed in LLP 3000.007); 2026-09-13 (§7: explicit data residency and server execution proposed in LLP 3000.006); 2026-09-13 (§7: qualified packaged SQLite page-cache policy); 2026-09-13 (ticket repair qualification: logical device expiry and generation-bound native cache); 2026-09-13 (§7: SQLite plan reuse across bound inputs); 2026-09-13 (§7 and §9: security boundary and remediation); 2026-09-13 (§7: the device-side twin — native reads, LLP 3000.005 §9); 2026-09-13 (search, effects, services, presence, the ranked feed: §7, §8); 2026-09-13 (§7: production compiler trade); 2026-09-13 (§7: native jobs — the app's Rust in the data plane, hosted as wasm, metered like a job; §8: LLP 3000.005); 2026-09-13 (§7: the guide is compiled); 2026-09-13 (§7: explicit reference-ID semantics; remaining open-ticket corrections); 2026-09-13 (§7: borrowed query serialization, shared chat observations and HTTP worker reservation); 2026-09-13 (§9: implementation of the review corrections); 2026-09-12 (§9: architecture review and 37 correction tickets); 2026-09-13 (§7: feeds — the serving half is the substrate's, the model half is the app's; LLP 3000.004); 2026-09-13 (§7: one interpreter hosted two ways, the wasm measurement, ordered merge heads and measured performance work); 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
 **Related:** [LLP 2000](./2000-snapback3.rfc.md) (Snapback 3, the sibling candidate), [LLP 2000.000](./2000.000-keep-the-core-flip-two-substrates.rfc.md) (the design brief this corpus builds), [LLP 1000](./1000-snapback2.explainer.md) (Snapback 2, the incumbent and the control), LLP 0000, LLP 0329, LLP 0329.014.004, LLP 0329.016, LLP 1001, LLP 1002, LLP 1012, LLP 1016, LLP 1019, LLP 1020, [LLP 1023](./1023-clique-builder-jump.rfc.md), [LLP 3000.004](./3000.004-feeds-and-the-interview-reference-app.rfc.md) (feeds; Interview as the second reference application), [LLP 3000.005](./3000.005-native-jobs.rfc.md) (native jobs), [LLP 3000.006](./3000.006-explicit-data-residency-and-server-execution.rfc.md) (explicit online-only data, execution classification and synced projections), [LLP 3000.007](./3000.007-relaxed-quarry-and-explicit-residency.rfc.md) (relaxed Quarry and explicit residency: the language's constraints re-derived under the meter), `rules/RULES.md`, `rules/NOT-DOING.md`, [`benchmarks/protocol.md`](../benchmarks/protocol.md), [`benchmarks/briefs/social-messenger.md`](../benchmarks/briefs/social-messenger.md), [`benchmarks/briefs/messaging-day2-evolution.md`](../benchmarks/briefs/messaging-day2-evolution.md)
 
 ## Summary
@@ -498,6 +498,20 @@ time-ordered 128-bit form.
   Neither change stores query or authorization results. The catalog evidence
   separates isolated encoding cost from end-to-end HTTP latency.
 
+- **2026-09-14 — borrow plain values while encoding sync replies.**
+  Snapshot and stream replies own their original events and serialize the
+  existing plain values directly, avoiding a second JSON map/array tree.
+  The response encoder drops those owned rows after encoding and before
+  socket I/O, including on a bounded encoding refusal. The 16 MiB writer,
+  event order, explicit nulls, sequence omission on snapshots, held/joined
+  groups, acknowledgements, generation, watermark and cursors retain their
+  existing wire forms. Authentication, reader construction and transaction
+  boundaries are unchanged. Full-byte tests and ordinary-auth HTTP checks
+  cover the response forms. The
+  [comparison record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
+  records the warm sync gains and concurrent tail regressions; this does
+  not establish an allocation-free path or device acquisition performance.
+
 - **2026-09-13 — chat checks share one observation of an event boundary.**
   The four fixed chat invariants do not mutate their hosts. They share one
   fresh diagnostic snapshot per invocation, in the original failure order,
@@ -949,6 +963,37 @@ time-ordered 128-bit form.
   restricted to a uniformly decided plain prefix. The dated ruling
   preserves the earlier review history and changes no implementation.
   SQL reads still await §10.3's full-cell finding.
+
+- **2026-09-14 — holistic product excellence, documentation commissioned.**
+  The author asked for an LLP and one sub-LLP for each of five gaps identified
+  in a review of the current code and retained application evidence: ordinary
+  Quarry programming, understandable and efficient data placement, the client
+  experience, whole-application performance, and dependable composition and
+  broader usefulness. [LLP 3000.008](./3000.008-holistic-product-excellence.rfc.md)
+  records the assessment and coordinates those five proposals. It extends
+  LLPs 3000.006 and 3000.007 by reference rather than replacing their detailed
+  designs, and carries the unresolved questions from the earlier research
+  children without reopening repaired defects. The request authorizes this
+  document family; its proposed product changes remain Draft. The bakeoff,
+  runtime contracts, scope exclusions and promotion decision are unchanged.
+
+
+- **2026-09-14 — LLP 3000.008 reviewed and its residual implementation
+  delegated (author: "sanity check these RFCs with a panel of the usual
+  suspects (incl yourself) and then execute on/implement the ones that are
+  directionally right. use astra to code").** Four independent reviews
+  (Astra, Grok, Muse, Claude) and the author's critical pass returned ready
+  with changes. The [disposition](./3000.008-holistic-product-excellence.rfc.md#8-panel-disposition-and-authorized-program)
+  reconciles already shipped .007 work and selects truthful replay outcomes,
+  reproduction-led acquisition/browser persistence repairs, bounded ranking
+  verification, one browser measurement and a disposable stopped-server
+  recovery procedure. A successful replay still withholds historical values;
+  the client now represents that execution-only receipt. The panel and
+  disjoint Astra coding lanes are explicit exceptions for this program;
+  they do not establish a standing panel or relax the scope fence. The
+  separately owned .007 §19 corrections keep their owner. No second
+  application, SQL read surface, backup command, seamless restore of old
+  device outboxes, new gate or promotion is commissioned.
 
 ## 8. Implementation map
 

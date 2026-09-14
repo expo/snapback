@@ -26,7 +26,15 @@ impl Listener {
         match self {
             Self::Tcp(l) => l
                 .accept()
-                .map(|(conn, addr)| (Connection::from(conn), Some(addr))),
+                .map(|(conn, addr)| {
+                    // A response may flush its headers before its body. Nagle
+                    // buffering otherwise waits for the peer's delayed ACK,
+                    // adding a round of socket delay to each sync receipt.
+                    if let Err(error) = conn.set_nodelay(true) {
+                        log::warn!("Cannot disable TCP Nagle buffering: {}", error);
+                    }
+                    (Connection::from(conn), Some(addr))
+                }),
             #[cfg(unix)]
             Self::Unix(l) => l.accept().map(|(conn, _)| (Connection::from(conn), None)),
         }

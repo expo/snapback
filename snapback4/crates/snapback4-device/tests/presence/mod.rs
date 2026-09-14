@@ -57,6 +57,8 @@ fn r1p_effect_ids_do_not_displace_rows_or_replay_ids_on_both_stores() {
             engine.set_presence(Some(std::sync::Arc::new(Online(vec!["bob".into(); count]))));
             let label = host.label();
             let mut device = host.open(&format!("r1p-ids-{count}"), Some(backend)).unwrap();
+            // A device predicts only after acquiring its generation's partition.
+            for (n, page) in snapshot_pages(&mut engine, "alice", 10).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
             let predicted = ok(device.call(serde_json::json!({"op":"predict", "name":"probe", "viewer":"alice", "args":{"p":"bob"}, "now":1, "newIds":["A","B","C","D","E"]})));
             ok(device.call(serde_json::json!({"op":"withdraw", "predicted":predicted["predicted"]})));
             let admitted = ok(device.call(serde_json::json!({"op":"admit", "entry":Queued { id:"write".into(), seq:1, op:"probe".into(), args:serde_json::json!({"p":"bob"}), new_ids:vec!["A".into(), "B".into()], predicted:vec![], viewer:"alice".into(), now:1, predictable:true, sent_seq:None, observed_seq:None }})));
@@ -102,6 +104,8 @@ fn r1p_presence_division_never_predicts_rolled_back_rows_on_both_stores() {
             engine.set_presence(Some(std::sync::Arc::new(Online(vec!["bob".into(); count]))));
             let label = host.label();
             let mut device = host.open(&format!("r1p-div-{count}"), Some(backend)).unwrap();
+            // A device predicts only after acquiring its generation's partition.
+            for (n, page) in snapshot_pages(&mut engine, "alice", 10).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
             let predicted = ok(device.call(serde_json::json!({"op":"predict", "name":"probe", "viewer":"alice", "args":{"p":"bob"}, "now":1, "newIds":["A"]})));
             let sent = engine.mutate("probe", Some("write"), context("alice", &[("p", id("bob"))]).at(1).with_ids(["A".into()])).unwrap();
             println!("{label} division connected={count}: device={predicted}, server={:?}", sent.state);
@@ -187,6 +191,8 @@ fn r1p_counterfactual_refinement_queues_and_separate_data_guard_predicts() {
             let (mut engine, backend) = compile(&format!("{NOTES}\nmutation probe(p: principal, text: text <=20 ?):\n  insert notes {{ n: 1 }}\n{guard}\n"));
             let label = host.label();
             let mut device = host.open(&format!("r1p-refinement-{separate}"), Some(backend)).unwrap();
+            // A device predicts only after acquiring its generation's partition.
+            for (n, page) in snapshot_pages(&mut engine, "alice", 10).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
             let prediction = ok(device.call(serde_json::json!({"op":"predict", "name":"probe", "viewer":"alice", "args":{"p":"bob","text":null}, "now":1, "newIds":["A"]})));
             if separate { assert!(prediction.get("denied").is_none(), "{prediction}"); }
             else if prediction["denied"]["code"] != "E_PREDICT" { mismatches.borrow_mut().push(format!("{label}: {prediction}")); }
@@ -207,6 +213,8 @@ fn r1p_unconditional_payload_new_and_effect_only_commits_have_separate_ids() {
         let (mut engine, backend) = compile(&source);
         let label = host.label();
         let mut device = host.open("r1p-new", Some(backend)).unwrap();
+        // A device predicts only after acquiring its generation's partition.
+        for (n, page) in snapshot_pages(&mut engine, "alice", 10).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
         let ids = ["E0", "A", "E1", "B", "E2"];
         let prediction = ok(device.call(serde_json::json!({"op":"predict", "name":"probe", "viewer":"alice", "args":{}, "now":1, "newIds":ids})));
         let sent = engine.mutate("probe", Some("write"), context("alice", &[]).at(1).with_ids(ids.map(str::to_owned))).unwrap();

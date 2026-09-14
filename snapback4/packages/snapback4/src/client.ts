@@ -295,7 +295,9 @@ export function createClient(options: ClientOptions): Client {
     if (((json.why ?? json.denied) as Refusal | undefined)?.retryable) return false;
     if (json.state === "sent") {
       const at = Number(json.seq ?? 0);
-      const outcome = { state: "sent", id: entry.id, seq: at, ...(json.replayed === true ? { replayed: true } as const : { result: json.result }) } as const;
+      const outcome = json.replayed === true
+        ? { state: "sent", id: entry.id, seq: at, replayed: true } as const
+        : { state: "sent", id: entry.id, seq: at, result: json.result } as const;
       entry.resolve(outcome);
       emitWrite(outcome);
       for (const watch of watches.values()) void refresh(watch);

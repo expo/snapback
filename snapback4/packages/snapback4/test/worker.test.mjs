@@ -342,9 +342,13 @@ test("actions are denied offline on both tiers without entering the device queue
 test("chat's real TypeScript invite worker is supervised by dev, restarts and stops with it", { timeout: 20_000 }, async t => {
   const reference = readFileSync(join(root, "apps/chat/snapback/worker.ts"), "utf8");
   const source = readFileSync(join(root, "apps/chat/snapback/schema.q"), "utf8");
+  // The reference worker keeps its production 60 s lease / 25 s poll: dev
+  // closes a killed child's own session, so its orphaned claim poll fails
+  // reauthentication instead of leasing the next request to nobody.
+  const worker = reference;
   // Exercise the actual reference after one intentional crash; only this
   // fixture's worker PID is ever signalled by the test.
-  const f = await actionFixture(t, { source, worker: { text: reference } });
+  const f = await actionFixture(t, { source, worker: { text: worker } });
   const client = createClient({ url: f.url, persona: "alice" }); f.clients.push(client);
   const result = await client.act(action("invite"), { email: "friend@example.com" });
   assert.equal(result.state, "done", JSON.stringify(result) + f.log());

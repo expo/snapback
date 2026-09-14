@@ -155,7 +155,8 @@ export function usePage<A extends { c?: Cursor | null }, R extends readonly unkn
   return { items: snapshot.items, hasMore: snapshot.hasMore, read: snapshot.read, loadMore: pages.loadMore };
 }
 
-/** A write. `run` never throws; `last` is the most recent outcome. */
+/** A write. `run` never throws; `last` is the most recent outcome, including
+ * queued settlement. A sent replay has `replayed: true` and no result. */
 export function useMutation<A, R>(op: Mutation<A, R>) {
   const client = useClient();
   const [last, setLast] = useState<Write<R> | undefined>(undefined);

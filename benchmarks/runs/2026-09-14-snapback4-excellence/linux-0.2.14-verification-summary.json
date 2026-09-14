@@ -1,0 +1,675 @@
+{
+  "purpose": "0.2.14 affected requalification after borrowed HTTP response encoding changed",
+  "host": "EPYC 100.65.137.99",
+  "toolchain": {
+    "node": "24.13.1",
+    "bun": "1.3.14",
+    "rust": "1.97.0",
+    "chrome": "151.0.7922.34"
+  },
+  "candidateCommit": "a0ee114aa007968e69f513369bad0fc539784739",
+  "verificationCommit": "7e1f938be686fa4b62eba1e03e505147c3a46c39",
+  "candidateAndVerificationTree": "97c5da19777727b54fd331390fa5c6e96c893c7c",
+  "treeEquality": "Full tracked trees exactly equal before testing; verification merge preserves prior fixture and measurement commits",
+  "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+  "rust": {
+    "command": "cargo test -p snapback4 --no-fail-fast --quiet",
+    "passed": 73,
+    "failed": 0,
+    "ignored": 0,
+    "unitTests": 32,
+    "elapsedSeconds": 11.79,
+    "log": "/tmp/sb4-excellence-014-cli-tests.log"
+  },
+  "node": {
+    "command": "node --test packages/snapback4/test/transport-http.test.mjs packages/snapback4/test/acquisition.test.mjs",
+    "passed": 12,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "elapsedMs": 40837.587325,
+    "native256Ms": 4977.096828,
+    "wasm256Ms": 3456.581267,
+    "log": "/tmp/sb4-excellence-014-affected-node.log"
+  },
+  "package": {
+    "wasmBuild": "passed",
+    "typecheck": "passed",
+    "build": "passed",
+    "wasmRawBytes": 1606342,
+    "wasmGzipBytes": 446114,
+    "log": "/tmp/sb4-excellence-014-package-build.log"
+  },
+  "limits": "Affected checks only; no second full Linux suite. Earlier e589 full suite116s remains above existing60s budget; one explicitly ignored Rust test remains recorded. Earlier0.2.13 browser measurements retain their original identities.",
+  "identities": {
+    "sourceCommit": "7e1f938be686fa4b62eba1e03e505147c3a46c39",
+    "sourceTree": "97c5da19777727b54fd331390fa5c6e96c893c7c",
+    "candidateCommit": "a0ee114aa007968e69f513369bad0fc539784739",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "profile": "production",
+    "artifacts": {
+      "target/production/snapback4": {
+        "bytes": 9915128,
+        "sha256": "cdba4fefcc97ec3072b67f4c879e452bca1cf853d4dd0571aea38a63f172a17f"
+      },
+      "target/debug/snapback4": {
+        "bytes": 157675312,
+        "sha256": "4c7476cee6242c3f14897f1a006bb18649952d269b5b14dea247e4afcc6662f4"
+      },
+      "packages/snapback4/src/wasm/snapback4_device_bg.wasm": {
+        "bytes": 1606342,
+        "sha256": "b1ad3f232d7b6f0aa7cb69a74620da69fe1e2db7963c76b3a753a187f3d53ede"
+      },
+      "packages/snapback4/dist/wasm/snapback4_device_bg.wasm": {
+        "bytes": 1606342,
+        "sha256": "b1ad3f232d7b6f0aa7cb69a74620da69fe1e2db7963c76b3a753a187f3d53ede"
+      },
+      "crates/snapback4/src/serve.rs": {
+        "bytes": 65904,
+        "sha256": "7ef77cb9610e8b364f9332685126f5bee1ca7557d7b9e712a99185d44e3f9e4d"
+      },
+      "crates/snapback4/src/serve_tests.rs": {
+        "bytes": 41281,
+        "sha256": "580baa874bdcbb57f922282c6a01ff1fc7f2f3c3682aa33852c954763f130a84"
+      },
+      "Cargo.lock": {
+        "bytes": 18732,
+        "sha256": "2f6fb2d4923678324c8f03cbc9ec3c424dc95410965fd22dc2f1dd02672c1aff"
+      },
+      "Cargo.toml": {
+        "bytes": 834,
+        "sha256": "2bef5910237f023ac903b04492a712d1866076c2cb6c3368877c7836c029306f"
+      },
+      "packages/snapback4/package.json": {
+        "bytes": 2046,
+        "sha256": "69f4bbb12925c18f7ed4c54948f40f40723da1925e539ecae44e8814f5f93263"
+      }
+    }
+  },
+  "productionBuild": {
+    "profile": "production",
+    "elapsedSeconds": 128.32,
+    "peakRssKb": 980896,
+    "exitCode": 0,
+    "log": "/tmp/sb4-excellence-014-production-build.log",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT"
+  },
+  "idb": {
+    "log": "/tmp/sb4-excellence-014-idb.log",
+    "record": "/tmp/sb4-excellence-014-idb.jsonl",
+    "result": {
+      "witness": "chromium-indexeddb",
+      "chromium": "system chrome",
+      "pageErrors": [],
+      "first": {
+        "syncMs": 347.6,
+        "threadRows": 50,
+        "threadComplete": true,
+        "next": true,
+        "count": 300,
+        "write": "pending",
+        "pendingLocally": true,
+        "localFresh": false,
+        "refused": "NOT_MEMBER"
+      },
+      "offline": {
+        "openMs": 380.6,
+        "wasmFetches": 0,
+        "fetches": 2,
+        "width": 1,
+        "height": 1,
+        "bytes": 68,
+        "once": "E_OFFLINE",
+        "link": "offline"
+      },
+      "second": {
+        "rowsInIdbBeforeOpen": 307,
+        "reopenMs": 299.6,
+        "landed": true
+      },
+      "durability": {
+        "admissionRejected": true,
+        "liveQueued": [
+          "acknowledged"
+        ],
+        "reopenedQueued": [
+          "acknowledged"
+        ],
+        "initialRejected": true,
+        "initialFreed": 1,
+        "initialUnlocked": true,
+        "adoptionRejected": true,
+        "orphanKept": true,
+        "adoptionUnlocked": true,
+        "adopted": [
+          "orphan-write"
+        ],
+        "orphanRemoved": true
+      },
+      "runtimePending": "pending",
+      "runtime": [
+        {
+          "failure": "invalid-download",
+          "fetched": 1,
+          "rejected": true,
+          "cacheUnchanged": true,
+          "offlineRecovered": true
+        },
+        {
+          "failure": "incompatible-download",
+          "fetched": 1,
+          "rejected": true,
+          "cacheUnchanged": true,
+          "offlineRecovered": true
+        },
+        {
+          "failure": "aborted-install",
+          "fetched": 1,
+          "rejected": true,
+          "cacheUnchanged": true,
+          "offlineRecovered": true
+        }
+      ],
+      "runtimeRetry": {
+        "sameExports": true,
+        "changedImport": true,
+        "firstError": "Error: injected runtime cache save failure",
+        "secondError": "Error: wasm: a different runtime is already initialized; reload before installing different runtime bytes",
+        "cacheUnchanged": true,
+        "sameContentRecovered": true,
+        "offlineFetches": 0,
+        "offlineSameContentRecovered": true
+      },
+      "ok": true
+    }
+  },
+  "scale": {
+    "log": "/tmp/sb4-excellence-014-scale.log",
+    "record": "/tmp/sb4-excellence-014-scale.jsonl",
+    "result": {
+      "at": "2026-09-14T23:20:33.250Z",
+      "witness": "chromium-scale",
+      "measurement": "cold constructor acquisition then useful queries; fresh-realm offline reopen",
+      "sourceCommit": "7e1f938be686fa4b62eba1e03e505147c3a46c39",
+      "sourceArtifacts": {
+        "bun.lock": {
+          "bytes": 130117,
+          "sha256": "f52e2dc67a0aff3c1b3cbb73d24f44a3ba6a11e819813ff653aa8694ab1da698"
+        },
+        "witness/scale.mjs": {
+          "bytes": 9087,
+          "sha256": "18cd8347fe9fb689644aedd09a417e4061aa98de8d0c1e0627404c85184f7674"
+        },
+        "witness/lib.mjs": {
+          "bytes": 8014,
+          "sha256": "acbbfb88a9f784b4038462d144bdcae687077a6d7472629dbe70577c0310b38f"
+        },
+        "apps/chat/snapback/schema.q": {
+          "bytes": 4377,
+          "sha256": "baaf90e46b53448f76adac3e003a52047fe004a16515e40c27d4292fa8d27bf4"
+        },
+        "packages/snapback4/src/contract.ts": {
+          "bytes": 7055,
+          "sha256": "5e41bfb1dff6142dea31c2d41bb43bd8784a32bdb54e428c3658070bffe58a20"
+        },
+        "packages/snapback4/src/local.ts": {
+          "bytes": 45131,
+          "sha256": "6bd2005a3c1f9a8bf85b67a881210dcd54233a5901800f088c3696587465eb82"
+        },
+        "packages/snapback4/src/web.ts": {
+          "bytes": 14421,
+          "sha256": "c404bebc165187f57cb183680560b0917ffb7ae8c5c30d22aca4f4851ec44ce3"
+        }
+      },
+      "binary": {
+        "path": "/home/ccheever/projects/sb4-excellence-20260914-verify/snapback4/target/production/snapback4",
+        "bytes": 9915128,
+        "sha256": "cdba4fefcc97ec3072b67f4c879e452bca1cf853d4dd0571aea38a63f172a17f"
+      },
+      "wasm": {
+        "bytes": 1606342,
+        "sha256": "b1ad3f232d7b6f0aa7cb69a74620da69fe1e2db7963c76b3a753a187f3d53ede"
+      },
+      "host": {
+        "platform": "linux",
+        "arch": "x64",
+        "cpu": "AMD EPYC 9454 48-Core Processor",
+        "node": "v24.13.1"
+      },
+      "packageVersion": "0.2.14",
+      "groups": 40,
+      "messages": 500,
+      "members": 10,
+      "finalGroup": "c039",
+      "seed": {
+        "rows": 20440,
+        "bytes": 4484271,
+        "sha256": "1ee933f8aa4e62e25d78dcf0b16e251caff5e7891dd733838c6c5156056e7204"
+      },
+      "limits": "browser client/replica only; app shell served for each realm; no app auth/render, native, power-loss, external workers or full-hub 2x-floor claim",
+      "requiredReplica": {
+        "conversations": 40,
+        "memberships": 400,
+        "messages": 20000,
+        "messageCounts": 40
+      },
+      "heapMeasurement": "CDP JSHeapUsedSize snapshots without forced GC; not peak memory; wasm linear memory not separately measured",
+      "pageErrors": [],
+      "ok": true,
+      "chromium": "system chrome",
+      "browserVersion": "151.0.7922.34",
+      "seeded": 20440,
+      "seedMs": 869.5,
+      "heapMbBefore": 1.7,
+      "first": {
+        "openAndAcquireMs": 11265.200000047684,
+        "firstUsefulMs": 11278.099999904633,
+        "firstQueryMs": 12.899999856948853,
+        "requiredQueriesMs": 20.200000047683716,
+        "onlineQueryRequests": 0,
+        "sync": {
+          "pages": 7,
+          "snapshotPages": 6,
+          "bytes": 5204479,
+          "events": 20480,
+          "snapshotEvents": 20480,
+          "tables": {
+            "conversations": 40,
+            "memberships": 400,
+            "messageCounts": 40,
+            "messages": 20000
+          },
+          "caughtUp": true
+        },
+        "first": {
+          "rows": 50,
+          "complete": true,
+          "fresh": true,
+          "next": true,
+          "dataSha256": "2b7f7a5140131157465d39462765e2f065a2917d0bfc325f6e7fea2da1eaed3f",
+          "ids": [
+            "c000-msg00499",
+            "c000-msg00498",
+            "c000-msg00497",
+            "c000-msg00496",
+            "c000-msg00495",
+            "c000-msg00494",
+            "c000-msg00493",
+            "c000-msg00492",
+            "c000-msg00491",
+            "c000-msg00490",
+            "c000-msg00489",
+            "c000-msg00488",
+            "c000-msg00487",
+            "c000-msg00486",
+            "c000-msg00485",
+            "c000-msg00484",
+            "c000-msg00483",
+            "c000-msg00482",
+            "c000-msg00481",
+            "c000-msg00480",
+            "c000-msg00479",
+            "c000-msg00478",
+            "c000-msg00477",
+            "c000-msg00476",
+            "c000-msg00475",
+            "c000-msg00474",
+            "c000-msg00473",
+            "c000-msg00472",
+            "c000-msg00471",
+            "c000-msg00470",
+            "c000-msg00469",
+            "c000-msg00468",
+            "c000-msg00467",
+            "c000-msg00466",
+            "c000-msg00465",
+            "c000-msg00464",
+            "c000-msg00463",
+            "c000-msg00462",
+            "c000-msg00461",
+            "c000-msg00460",
+            "c000-msg00459",
+            "c000-msg00458",
+            "c000-msg00457",
+            "c000-msg00456",
+            "c000-msg00455",
+            "c000-msg00454",
+            "c000-msg00453",
+            "c000-msg00452",
+            "c000-msg00451",
+            "c000-msg00450"
+          ]
+        },
+        "last": {
+          "rows": 50,
+          "complete": true,
+          "fresh": true,
+          "next": true,
+          "dataSha256": "1a908ae4352fc78ec0c3b87aaf9871795bae98a485751f83658f2e098bb41c26",
+          "ids": [
+            "c039-msg00499",
+            "c039-msg00498",
+            "c039-msg00497",
+            "c039-msg00496",
+            "c039-msg00495",
+            "c039-msg00494",
+            "c039-msg00493",
+            "c039-msg00492",
+            "c039-msg00491",
+            "c039-msg00490",
+            "c039-msg00489",
+            "c039-msg00488",
+            "c039-msg00487",
+            "c039-msg00486",
+            "c039-msg00485",
+            "c039-msg00484",
+            "c039-msg00483",
+            "c039-msg00482",
+            "c039-msg00481",
+            "c039-msg00480",
+            "c039-msg00479",
+            "c039-msg00478",
+            "c039-msg00477",
+            "c039-msg00476",
+            "c039-msg00475",
+            "c039-msg00474",
+            "c039-msg00473",
+            "c039-msg00472",
+            "c039-msg00471",
+            "c039-msg00470",
+            "c039-msg00469",
+            "c039-msg00468",
+            "c039-msg00467",
+            "c039-msg00466",
+            "c039-msg00465",
+            "c039-msg00464",
+            "c039-msg00463",
+            "c039-msg00462",
+            "c039-msg00461",
+            "c039-msg00460",
+            "c039-msg00459",
+            "c039-msg00458",
+            "c039-msg00457",
+            "c039-msg00456",
+            "c039-msg00455",
+            "c039-msg00454",
+            "c039-msg00453",
+            "c039-msg00452",
+            "c039-msg00451",
+            "c039-msg00450"
+          ]
+        },
+        "inbox": {
+          "rows": 40,
+          "complete": true,
+          "fresh": true,
+          "next": false,
+          "dataSha256": "f58545d3ec9a7823fbfb58da1ecdfce54ddcd3fc087666b5c561dc9b7d7430e7",
+          "ids": [
+            "c000",
+            "c001",
+            "c002",
+            "c003",
+            "c004",
+            "c005",
+            "c006",
+            "c007",
+            "c008",
+            "c009",
+            "c010",
+            "c011",
+            "c012",
+            "c013",
+            "c014",
+            "c015",
+            "c016",
+            "c017",
+            "c018",
+            "c019",
+            "c020",
+            "c021",
+            "c022",
+            "c023",
+            "c024",
+            "c025",
+            "c026",
+            "c027",
+            "c028",
+            "c029",
+            "c030",
+            "c031",
+            "c032",
+            "c033",
+            "c034",
+            "c035",
+            "c036",
+            "c037",
+            "c038",
+            "c039"
+          ]
+        },
+        "link": "online"
+      },
+      "heapMbAfter": 11.2,
+      "offline": {
+        "blockedApiRequests": 2,
+        "wasmRequests": 0,
+        "appShell": "served into a new JS realm; backend and wasm network blocked"
+      },
+      "second": {
+        "reopenMs": 674.9000000953674,
+        "requiredQueriesMs": 3.200000047683716,
+        "first": {
+          "rows": 50,
+          "complete": true,
+          "fresh": false,
+          "next": true,
+          "dataSha256": "2b7f7a5140131157465d39462765e2f065a2917d0bfc325f6e7fea2da1eaed3f",
+          "ids": [
+            "c000-msg00499",
+            "c000-msg00498",
+            "c000-msg00497",
+            "c000-msg00496",
+            "c000-msg00495",
+            "c000-msg00494",
+            "c000-msg00493",
+            "c000-msg00492",
+            "c000-msg00491",
+            "c000-msg00490",
+            "c000-msg00489",
+            "c000-msg00488",
+            "c000-msg00487",
+            "c000-msg00486",
+            "c000-msg00485",
+            "c000-msg00484",
+            "c000-msg00483",
+            "c000-msg00482",
+            "c000-msg00481",
+            "c000-msg00480",
+            "c000-msg00479",
+            "c000-msg00478",
+            "c000-msg00477",
+            "c000-msg00476",
+            "c000-msg00475",
+            "c000-msg00474",
+            "c000-msg00473",
+            "c000-msg00472",
+            "c000-msg00471",
+            "c000-msg00470",
+            "c000-msg00469",
+            "c000-msg00468",
+            "c000-msg00467",
+            "c000-msg00466",
+            "c000-msg00465",
+            "c000-msg00464",
+            "c000-msg00463",
+            "c000-msg00462",
+            "c000-msg00461",
+            "c000-msg00460",
+            "c000-msg00459",
+            "c000-msg00458",
+            "c000-msg00457",
+            "c000-msg00456",
+            "c000-msg00455",
+            "c000-msg00454",
+            "c000-msg00453",
+            "c000-msg00452",
+            "c000-msg00451",
+            "c000-msg00450"
+          ]
+        },
+        "last": {
+          "rows": 50,
+          "complete": true,
+          "fresh": false,
+          "next": true,
+          "dataSha256": "1a908ae4352fc78ec0c3b87aaf9871795bae98a485751f83658f2e098bb41c26",
+          "ids": [
+            "c039-msg00499",
+            "c039-msg00498",
+            "c039-msg00497",
+            "c039-msg00496",
+            "c039-msg00495",
+            "c039-msg00494",
+            "c039-msg00493",
+            "c039-msg00492",
+            "c039-msg00491",
+            "c039-msg00490",
+            "c039-msg00489",
+            "c039-msg00488",
+            "c039-msg00487",
+            "c039-msg00486",
+            "c039-msg00485",
+            "c039-msg00484",
+            "c039-msg00483",
+            "c039-msg00482",
+            "c039-msg00481",
+            "c039-msg00480",
+            "c039-msg00479",
+            "c039-msg00478",
+            "c039-msg00477",
+            "c039-msg00476",
+            "c039-msg00475",
+            "c039-msg00474",
+            "c039-msg00473",
+            "c039-msg00472",
+            "c039-msg00471",
+            "c039-msg00470",
+            "c039-msg00469",
+            "c039-msg00468",
+            "c039-msg00467",
+            "c039-msg00466",
+            "c039-msg00465",
+            "c039-msg00464",
+            "c039-msg00463",
+            "c039-msg00462",
+            "c039-msg00461",
+            "c039-msg00460",
+            "c039-msg00459",
+            "c039-msg00458",
+            "c039-msg00457",
+            "c039-msg00456",
+            "c039-msg00455",
+            "c039-msg00454",
+            "c039-msg00453",
+            "c039-msg00452",
+            "c039-msg00451",
+            "c039-msg00450"
+          ]
+        },
+        "inbox": {
+          "rows": 40,
+          "complete": true,
+          "fresh": false,
+          "next": false,
+          "dataSha256": "f58545d3ec9a7823fbfb58da1ecdfce54ddcd3fc087666b5c561dc9b7d7430e7",
+          "ids": [
+            "c000",
+            "c001",
+            "c002",
+            "c003",
+            "c004",
+            "c005",
+            "c006",
+            "c007",
+            "c008",
+            "c009",
+            "c010",
+            "c011",
+            "c012",
+            "c013",
+            "c014",
+            "c015",
+            "c016",
+            "c017",
+            "c018",
+            "c019",
+            "c020",
+            "c021",
+            "c022",
+            "c023",
+            "c024",
+            "c025",
+            "c026",
+            "c027",
+            "c028",
+            "c029",
+            "c030",
+            "c031",
+            "c032",
+            "c033",
+            "c034",
+            "c035",
+            "c036",
+            "c037",
+            "c038",
+            "c039"
+          ]
+        },
+        "link": "offline"
+      },
+      "heapMbAfterOfflineReopen": 54.9
+    }
+  },
+  "finalTrackedDelta": {
+    "snapback4/metrics/witness.jsonl": {
+      "addedLines": 1,
+      "deletedLines": 0
+    }
+  },
+  "finalSourceEquality": "git diff --exit-code a0ee114aa -- . :(exclude)snapback4/metrics/witness.jsonl passed after both witnesses",
+  "logs": {
+    "/tmp/sb4-excellence-014-affected-node.log": {
+      "bytes": 11141,
+      "sha256": "c052c26c89ce8cb06fcf6d448375e0da87c94e4c9ec2fd5b6b181162622d412c"
+    },
+    "/tmp/sb4-excellence-014-cli-tests.log": {
+      "bytes": 945,
+      "sha256": "a61f588610c32f379cd0f86dace4d4f17a57c2809ea85fa613f08f3afed71ef3"
+    },
+    "/tmp/sb4-excellence-014-debug-build.log": {
+      "bytes": 913,
+      "sha256": "658852d6e455d9e6dcbb7aa5c02e5f28d00582d8381915f4793e7294e4801c9e"
+    },
+    "/tmp/sb4-excellence-014-idb.log": {
+      "bytes": 1811,
+      "sha256": "9077c8e8922600e4151889f15a568800f4c5d4ecb509c6e88479868cc6f37d0e"
+    },
+    "/tmp/sb4-excellence-014-package-build.log": {
+      "bytes": 233,
+      "sha256": "2f091963190f323dc2a3db9583cd553861d201f375f82960070720eb308994df"
+    },
+    "/tmp/sb4-excellence-014-production-build.log": {
+      "bytes": 907,
+      "sha256": "982e174645d2645af0e7f9684ff806600dc261c2ed2a380de31b14079f80c361"
+    },
+    "/tmp/sb4-excellence-014-scale.log": {
+      "bytes": 7874,
+      "sha256": "61cea37a332bf2a456a781ea3c4536f69ac1d90c53fe57216d01598b2701bc87"
+    },
+    "/tmp/sb4-excellence-014-wasm-build.log": {
+      "bytes": 34,
+      "sha256": "28b401ad8f9e09daa950a9b9d36783b3b8d3e673e84680c1f80277755dcd0628"
+    }
+  }
+}
