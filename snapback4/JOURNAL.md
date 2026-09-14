@@ -3789,3 +3789,7 @@ final run above fixes those introduced failures. A supplemental Linux run
 on a **669-file, 0-mismatch** snapshot was interrupted after
 client cleanup stalled and is not counted as passing evidence. No claim
 that those supplemental failures predate this lane is made.
+
+## 2026-09-14 — the 0.2.9 calibration scored; the catch-up program opens (LLP 3000.007 §18)
+
+The Astra calibration on 0.2.9 scored 85 overall and behind the September 5 Convex and Supabase cells on setup_and_docs (78), data_modeling (88) and queries_and_live (74). The scorer's notes charge four things the published surface did: `processDevice()` named without a signature, retained history lost under a horizon on removal, an unscoped authorized search that is never complete on the server, and a defaulted column that refused adoption while `check` stayed green; the rest is learning cost. LLP 3000.007 §18 records the five decisions and their lanes: a merge of matching lanes over the viewer's groups (CU1), retained history kept whatever the horizon (CU2), the Node device's directory argument and a README example check (CU3), literal defaults materialized wherever absent and `check` reading the dev store (CU4), four more mechanical rewrites with the Trending recipe (CU5). The 0.2.10 three-model cell keeps running unchanged; the pin after these landings is 0.2.11.
