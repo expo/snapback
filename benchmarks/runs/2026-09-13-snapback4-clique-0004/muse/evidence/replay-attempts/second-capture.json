@@ -1,0 +1,19 @@
+{
+  "observedAt": "2026-09-14T04:08:53.473474+00:00",
+  "source": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/muse-snapback4/coverage/scale-replay.json",
+  "sourceBytes": 403,
+  "sha256": "d92e298790eea3564e776baad9883ca499a198f8e5bfddddbc755080c2e64164",
+  "qualification": "Reduced locally generated36809-action corpus, not frozen167157-action scale. All action ok claims are distinct from invariant verification, whose report is absent at observation. Settled metric is retained without interpretation.",
+  "summary": {
+    "startEpoch": 1789357952,
+    "endEpoch": 1789358659,
+    "wallMs": 707770,
+    "actions": 36809,
+    "ok": 36809,
+    "settled": 0,
+    "failed": 0,
+    "uploads": 4326
+  },
+  "localCorpusObservedSha256": "927c5d003c948fb5defe184ebf5f58dc80b3d8100df0c30afef85ebfc538bc48",
+  "corpusHashLimit": "Current local file hash at capture time; it differs from the earlier provisional audit hash and does not establish the input hash at this replay start. Re-audit the final local corpus after builder exit."
+}

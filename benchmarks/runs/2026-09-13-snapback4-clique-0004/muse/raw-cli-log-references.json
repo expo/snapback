@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "clique-builder-raw-log-references.v1",
+  "capturedAt": "2026-09-14T05:43:07.002153Z",
+  "lane": "muse-snapback4",
+  "logs": [
+    {
+      "stream": "stdout",
+      "packetRelativePath": "logs/muse-snapback4.ndjson",
+      "sha256": "ed2ac5bbccb18abb8a55bcddb07ec786b483ad20b8da6e79a725f051e6fc9692",
+      "bytes": 23756249,
+      "copiedIntoSnapshot": false
+    },
+    {
+      "stream": "stderr",
+      "packetRelativePath": "logs/muse-snapback4.stderr.log",
+      "sha256": "bc8ad6b28a2cdb247b0a306cc288b23898ee11bbf03fdea25aa3ef2eb116b3af",
+      "bytes": 494,
+      "copiedIntoSnapshot": false
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "schemaVersion": "clique-builder-retained-artifacts.v1",
+  "recordedAt": "2026-09-14T05:52:44.413309Z",
+  "lane": "muse-snapback4",
+  "packetRoot": "/Users/ccheever/clique-sb4-20260913-full-3models",
+  "artifacts": [
+    {
+      "kind": "raw-cli-stdout",
+      "path": "logs/muse-snapback4.ndjson",
+      "bytes": 23756249,
+      "sha256": "ed2ac5bbccb18abb8a55bcddb07ec786b483ad20b8da6e79a725f051e6fc9692",
+      "repositoryDisposition": "external"
+    },
+    {
+      "kind": "raw-cli-stderr",
+      "path": "logs/muse-snapback4.stderr.log",
+      "bytes": 494,
+      "sha256": "bc8ad6b28a2cdb247b0a306cc288b23898ee11bbf03fdea25aa3ef2eb116b3af",
+      "repositoryDisposition": "external"
+    },
+    {
+      "kind": "hand-authored-source-snapshot",
+      "path": "snapshots/muse-continuous/source-snapshot.tar.gz",
+      "bytes": 3479123,
+      "fileCount": 195,
+      "sha256": "446d1072677631db4de474326d0e2864340c7d0d2dbc6378df88dfac1fc7451c",
+      "repositoryDisposition": "external"
+    },
+    {
+      "kind": "ios-hermes-bytecode",
+      "path": "snapshots/muse-continuous/native-artifacts/entry-d0e6db042514d967203b0330f6580997.hbc",
+      "sourceLaneRelativePath": "app-host/clique/dist-ios/_expo/static/js/ios/entry-d0e6db042514d967203b0330f6580997.hbc",
+      "bytes": 2788000,
+      "sha256": "930026f767d40177a7e04b2030ff3d1baff98c6791c5eee8136a0c8ee78d8639",
+      "repositoryDisposition": "external"
+    },
+    {
+      "kind": "final-reduced-scale-log",
+      "path": "observed-milestones/muse-final-scale-choreography-audit/scale.log",
+      "bytes": 2653997,
+      "lineCount": 36806,
+      "actionCount": 36804,
+      "sha256": "9680fdc1fc2165ee69f94f478aa996fa0cbd027d67cd2b3fd4491c646f38356b",
+      "repositoryDisposition": "external"
+    },
+    {
+      "kind": "frozen-full-scale-log",
+      "path": "instrument/fixtures/scale.log",
+      "bytes": 13014016,
+      "lineCount": 167159,
+      "actionCount": 167157,
+      "sha256": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9",
+      "repositoryDisposition": "external-not-run"
+    }
+  ],
+  "captureHelpers": [
+    {
+      "path": "snapshots/muse-continuous/capture-provenance/capture-builder-base-bdb0acbe.py",
+      "sha256": "bdb0acbeef445664e300a5b75b0e27c7d1fbd87db50d5f79901c75b5f608ab5c"
+    },
+    {
+      "path": "snapshots/muse-continuous/capture-provenance/capture-muse-interrupted.py",
+      "sha256": "d17632ffc4528d9893081b301dfbf8b63ea208b99288610090ebed6022b60271"
+    }
+  ],
+  "omissions": [
+    {
+      "category": "credentials-and-runtime-state",
+      "paths": [
+        "lanes/muse-snapback4/.replay-passwords.json",
+        "lanes/muse-snapback4/.replay-tokens.json",
+        "lanes/muse-snapback4/.worker-token.json",
+        "lanes/muse-snapback4/.snapback4/"
+      ],
+      "reason": "Credential and runtime-state files are excluded from source capture and repository evidence; their contents and hashes are not recorded here."
+    },
+    {
+      "category": "raw-cli-logs",
+      "reason": "Raw CLI streams remain external because they may contain private model bodies and are represented only by byte count and SHA-256."
+    },
+    {
+      "category": "source-and-generated-artifacts",
+      "reason": "The compressed source snapshot, Hermes bytecode, generated exports/build output, and final scale log remain external because of size and artifact-custody policy."
+    }
+  ],
+  "limits": [
+    "No hash is claimed for generated web exports because no independent retained-artifact receipt binds them.",
+    "External artifact hashes prove byte identity and custody; they do not by themselves prove execution or correctness."
+  ]
+}

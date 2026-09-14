@@ -1,0 +1,35 @@
+{
+  "observedAt": "2026-09-14T05:30:59.859819+00:00",
+  "basis": "Two public run.terminal.completed events; teardown only, no lane-file change.",
+  "modelPid": 26465,
+  "actions": [
+    {
+      "pid": 2651,
+      "parentPid": 2629,
+      "comm": "node",
+      "cwd": "p2651\nfcwd\nn/Users/ccheever/clique-sb4-20260913-full-3models/lanes/muse-snapback4\n",
+      "signal": "SIGTERM"
+    },
+    {
+      "pid": 5333,
+      "parentPid": 5332,
+      "comm": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/muse-snapback4/node_modules/snapback4-darwin-arm64/snapback4",
+      "cwd": "p5333\nfcwd\nn/private/tmp/qtest\n",
+      "signal": "SIGTERM"
+    },
+    {
+      "pid": 28867,
+      "parentPid": 28706,
+      "comm": "node",
+      "cwd": "p28867\nfcwd\nn/Users/ccheever/clique-sb4-20260913-full-3models/lanes/muse-snapback4/app-host/clique\n",
+      "signal": "SIGTERM"
+    },
+    {
+      "pid": 96584,
+      "parentPid": 96583,
+      "comm": "./node_modules/snapback4-darwin-arm64/snapback4",
+      "cwd": "p96584\nfcwd\nn/Users/ccheever/clique-sb4-20260913-full-3models/lanes/muse-snapback4\n",
+      "signal": "SIGTERM"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+ "log": "scale.log",
+ "url": "http://127.0.0.1:49302",
+ "startEpoch": 1789359831,
+ "endEpoch": 1789360544,
+ "wallMs": 713065,
+ "actions": 36804,
+ "ok": 36804,
+ "settled": 0,
+ "failed": 0,
+ "uploads": 4328,
+ "errors": [],
+ "checkpoints": [
+  {
+   "marker": "# checkpoint 10%",
+   "actions": 3680,
+   "tMs": 616350
+  },
+  {
+   "marker": "# checkpoint 50%",
+   "actions": 18402,
+   "tMs": 660974
+  }
+ ]
+}

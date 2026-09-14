@@ -1,0 +1,10 @@
+{
+  "source": "scores/grok/raw.out",
+  "sha256": "a1208d1244722e38f4fcaaade48d3339850bcc62c6cf835cb12db0aa87fbe8a3",
+  "matchingFencedScores": 1,
+  "scorerIdentityValid": true,
+  "nonBooleanIntegerScores": true,
+  "categories": 13,
+  "overall": 70,
+  "qualification": "Received own-family narrative score; independent assertion grade pending."
+}

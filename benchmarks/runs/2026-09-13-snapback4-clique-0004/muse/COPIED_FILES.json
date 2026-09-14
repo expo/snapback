@@ -1,0 +1,288 @@
+{
+  "schemaVersion": "clique-builder-copied-files.v1",
+  "createdAt": "2026-09-14T05:52:44.413309Z",
+  "lane": "muse-snapback4",
+  "sourceRoots": {
+    "snapshot": "/Users/ccheever/clique-sb4-20260913-full-3models/snapshots/muse-continuous",
+    "lane": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/muse-snapback4",
+    "observedMilestones": "/Users/ccheever/clique-sb4-20260913-full-3models/observed-milestones"
+  },
+  "copiedFileCount": 34,
+  "copiedBytes": 238874,
+  "hashAlgorithm": "sha256",
+  "copyVerification": "Each digest was computed from source bytes; destination bytes and digest were checked after exclusive creation.",
+  "files": [
+    {
+      "category": "builder-report",
+      "sourceRoot": "snapshot",
+      "sourceRelativePath": "final-report.md",
+      "destination": "final-report.md",
+      "sha256": "db5252070d4fcd3d4df8788a12fdbcd378a02cf85243cdbcf40456cf18d24feb",
+      "bytes": 10613
+    },
+    {
+      "category": "builder-report",
+      "sourceRoot": "snapshot",
+      "sourceRelativePath": "essay.md",
+      "destination": "essay.md",
+      "sha256": "f3f9f9d24a4b58cc184356469bf0d2667a56d571319582a6bef89162372f5960",
+      "bytes": 9594
+    },
+    {
+      "category": "builder-report",
+      "sourceRoot": "snapshot",
+      "sourceRelativePath": "run-log.md",
+      "destination": "run-log.md",
+      "sha256": "dc70e336326688850eecf711158dc4e70d88163f5b65d49722ad6d1ed80914ef",
+      "bytes": 5799
+    },
+    {
+      "category": "lifecycle",
+      "sourceRoot": "snapshot",
+      "sourceRelativePath": "muse-snapback4.start.json",
+      "destination": "muse-snapback4.start.json",
+      "sha256": "980b3c552a2e5ed5840493c694634091cff559a42fbec867705c033b5aa70b22",
+      "bytes": 1113
+    },
+    {
+      "category": "lifecycle",
+      "sourceRoot": "snapshot",
+      "sourceRelativePath": "muse-snapback4.end.json",
+      "destination": "muse-snapback4.end.json",
+      "sha256": "b1e1aba56798930e8118481d692355855c1cb4e6349c1f170be0cff64d142b28",
+      "bytes": 367
+    },
+    {
+      "category": "custody",
+      "sourceRoot": "snapshot",
+      "sourceRelativePath": "raw-cli-log-references.json",
+      "destination": "raw-cli-log-references.json",
+      "sha256": "3ef2024b5ba871781b57b370e7be1612ce0c21aa1292372a5a68c200177bd2c1",
+      "bytes": 632
+    },
+    {
+      "category": "custody",
+      "sourceRoot": "snapshot",
+      "sourceRelativePath": "snapshot-manifest.json",
+      "destination": "snapshot-manifest.json",
+      "sha256": "b21980770054a865c85080ee5cda679c872b8d9809f063ad7166f6a2f07be1c1",
+      "bytes": 51355
+    },
+    {
+      "category": "source-custody",
+      "sourceRoot": "snapshot",
+      "sourceRelativePath": "source-inventory.sha256",
+      "destination": "source-inventory.sha256",
+      "sha256": "2058d8259365e280fefb4d45e25275441078b75f15d1a43f7ac04c954ed0b950",
+      "bytes": 18916
+    },
+    {
+      "category": "package-custody",
+      "sourceRoot": "snapshot",
+      "sourceRelativePath": "package-pin-verification.json",
+      "destination": "package-pin-verification.json",
+      "sha256": "226ad3f5281ee097e3925f530d02a2c98c65f175e4a3fc5e4e9761d8333b2cae",
+      "bytes": 1124
+    },
+    {
+      "category": "native-custody",
+      "sourceRoot": "snapshot",
+      "sourceRelativePath": "native-artifacts/native-artifacts.json",
+      "destination": "native-artifacts.json",
+      "sha256": "c7314d9681cd7301ae23a792e713efe3179f20d59a4b43ce261c7f37f653ae3f",
+      "bytes": 602
+    },
+    {
+      "category": "qualification",
+      "sourceRoot": "snapshot",
+      "sourceRelativePath": "qualifications/muse-background-loop-interruption.json",
+      "destination": "qualifications/muse-background-loop-interruption.json",
+      "sha256": "5443afd335811bbbec64dd61d9f55b34448a840305abe9c4234de87ed92c2405",
+      "bytes": 991
+    },
+    {
+      "category": "qualification",
+      "sourceRoot": "snapshot",
+      "sourceRelativePath": "qualifications/muse-capture-final-preflight.json",
+      "destination": "qualifications/muse-capture-final-preflight.json",
+      "sha256": "86a542db4ca4f233ebef712315abc08da5791ad283263e668b0b6391745aa6eb",
+      "bytes": 3964
+    },
+    {
+      "category": "qualification",
+      "sourceRoot": "snapshot",
+      "sourceRelativePath": "qualifications/muse-finished-builder-source-access-audit.json",
+      "destination": "qualifications/muse-finished-builder-source-access-audit.json",
+      "sha256": "dab2d41fa32d33f6a234604084c3d1c59b50634652017ee71c804b97ca8ec52f",
+      "bytes": 40146
+    },
+    {
+      "category": "qualification",
+      "sourceRoot": "snapshot",
+      "sourceRelativePath": "qualifications/muse-post-terminal-lifecycle-audit.json",
+      "destination": "qualifications/muse-post-terminal-lifecycle-audit.json",
+      "sha256": "02ebb7fcb2c9fc3ff8bc696d70e73cbe378cb1afc5220e235452c32ac6793cd9",
+      "bytes": 19808
+    },
+    {
+      "category": "qualification",
+      "sourceRoot": "snapshot",
+      "sourceRelativePath": "qualifications/muse-post-terminal-server-cleanup.json",
+      "destination": "qualifications/muse-post-terminal-server-cleanup.json",
+      "sha256": "fa8ab195a2c3b562c0981e4afcb7f765620698db2855f205a1de3cbc3327168f",
+      "bytes": 1140
+    },
+    {
+      "category": "qualification",
+      "sourceRoot": "snapshot",
+      "sourceRelativePath": "qualifications/muse-runlog-clock-observation.json",
+      "destination": "qualifications/muse-runlog-clock-observation.json",
+      "sha256": "525bd49bfb53b11f598d76a05433a226c48c1b2696b1ed0ec99efa6c330588ad",
+      "bytes": 1198
+    },
+    {
+      "category": "coverage",
+      "sourceRoot": "lane",
+      "sourceRelativePath": "coverage/sample-50.json",
+      "destination": "evidence/coverage/sample-50.json",
+      "sha256": "a931a493ef509833e69bc2a82e274e2d5228630474bf4bd34fe3536b90e2a27a",
+      "bytes": 216
+    },
+    {
+      "category": "coverage",
+      "sourceRoot": "lane",
+      "sourceRelativePath": "coverage/scale-replay.json",
+      "destination": "evidence/coverage/scale-replay.json",
+      "sha256": "be204c94990f42feb37489d04f46b3842b9c410b72d87e9b08dfc35b50cbc59d",
+      "bytes": 403
+    },
+    {
+      "category": "coverage",
+      "sourceRoot": "lane",
+      "sourceRelativePath": "coverage/scale-verify.json",
+      "destination": "evidence/coverage/scale-verify.json",
+      "sha256": "20d6c8e331824b47493df8e0b809a4c375d5d8219a689e6af6d56984088a451a",
+      "bytes": 7104
+    },
+    {
+      "category": "coverage",
+      "sourceRoot": "lane",
+      "sourceRelativePath": "coverage/seed-m1.json",
+      "destination": "evidence/coverage/seed-m1.json",
+      "sha256": "91387ba91d63b451c8343d2166724569405cbe8641ab9d503df8a58d89496a34",
+      "bytes": 215
+    },
+    {
+      "category": "coverage",
+      "sourceRoot": "lane",
+      "sourceRelativePath": "coverage/seed-m2.json",
+      "destination": "evidence/coverage/seed-m2.json",
+      "sha256": "0399b831233b31134f55773dda4a9f7a5ece5d1621c84f9633ec67b81744f1d4",
+      "bytes": 217
+    },
+    {
+      "category": "coverage",
+      "sourceRoot": "lane",
+      "sourceRelativePath": "coverage/seed-m3.json",
+      "destination": "evidence/coverage/seed-m3.json",
+      "sha256": "6ee0640f27ae486e7681f3106e55e751c52047b9ddcb1bb562673501b09e3234",
+      "bytes": 215
+    },
+    {
+      "category": "qualification",
+      "sourceRoot": "observedMilestones",
+      "sourceRelativePath": "muse-final-scale-choreography-audit/audit.json",
+      "destination": "qualifications/final-scale-choreography-audit.json",
+      "sha256": "e0ca93a8e0a8d9e8f59616c421b97fa071b006cfc67749bc08477338cbf1da7b",
+      "bytes": 37377
+    },
+    {
+      "category": "replay-custody",
+      "sourceRoot": "observedMilestones",
+      "sourceRelativePath": "muse-scale-startup-observations.json",
+      "destination": "evidence/scale-startup-observations.json",
+      "sha256": "ae503e6b06727b5119feceaa4f700181b7db51be39b14fce8c7a1df3bfdb4cb9",
+      "bytes": 1840
+    },
+    {
+      "category": "replay-custody",
+      "sourceRoot": "observedMilestones",
+      "sourceRelativePath": "muse-reduced-scale-first/capture.json",
+      "destination": "evidence/replay-attempts/first-capture.json",
+      "sha256": "f6ff3290021344a8254aa5823d14e67b0e4dcde0f6948e40853245f770ec125e",
+      "bytes": 639
+    },
+    {
+      "category": "replay-custody",
+      "sourceRoot": "observedMilestones",
+      "sourceRelativePath": "muse-reduced-scale-first/scale-replay.json",
+      "destination": "evidence/replay-attempts/first-replay.json",
+      "sha256": "4d4f5f1e2523ca40ad6d7ed9a88f22066537d4ed7b1a5daa23c8999f40291a80",
+      "bytes": 4161
+    },
+    {
+      "category": "replay-custody",
+      "sourceRoot": "observedMilestones",
+      "sourceRelativePath": "muse-reduced-scale-second/capture.json",
+      "destination": "evidence/replay-attempts/second-capture.json",
+      "sha256": "ea7f9bb6e327d4c43653a690632c8f141a4ab2ea5f457046c38744379d5b5a27",
+      "bytes": 1042
+    },
+    {
+      "category": "replay-custody",
+      "sourceRoot": "observedMilestones",
+      "sourceRelativePath": "muse-reduced-scale-second/scale-replay.json",
+      "destination": "evidence/replay-attempts/second-replay.json",
+      "sha256": "d92e298790eea3564e776baad9883ca499a198f8e5bfddddbc755080c2e64164",
+      "bytes": 403
+    },
+    {
+      "category": "replay-custody",
+      "sourceRoot": "observedMilestones",
+      "sourceRelativePath": "muse-reduced-scale-third/capture.json",
+      "destination": "evidence/replay-attempts/third-capture.json",
+      "sha256": "03e9d4f6f49ff21937565be100925375aefa979c3c93b57bcf8a020c32a83be2",
+      "bytes": 1299
+    },
+    {
+      "category": "replay-custody",
+      "sourceRoot": "observedMilestones",
+      "sourceRelativePath": "muse-reduced-scale-third/scale-replay.json",
+      "destination": "evidence/replay-attempts/third-replay.json",
+      "sha256": "47547dc1c653a79a541f9b273cb90ee90582bd38ee07416e893969a24644e548",
+      "bytes": 403
+    },
+    {
+      "category": "replay-custody",
+      "sourceRoot": "observedMilestones",
+      "sourceRelativePath": "muse-reduced-scale-third/scale-verify.json",
+      "destination": "evidence/replay-attempts/third-verify.json",
+      "sha256": "d26f4410ff55ce03aa0ee7140dabf1f72953c048ef783f58b2ffef08d7a18c42",
+      "bytes": 7105
+    },
+    {
+      "category": "replay-custody",
+      "sourceRoot": "observedMilestones",
+      "sourceRelativePath": "muse-reduced-scale-fourth/capture.json",
+      "destination": "evidence/replay-attempts/fourth-capture.json",
+      "sha256": "dc34202fabe7a61c36949298894e047dee51dacaf1bea02c85ef0aa378b5d4bc",
+      "bytes": 1366
+    },
+    {
+      "category": "replay-custody",
+      "sourceRoot": "observedMilestones",
+      "sourceRelativePath": "muse-reduced-scale-fourth/scale-replay.json",
+      "destination": "evidence/replay-attempts/fourth-replay.json",
+      "sha256": "be204c94990f42feb37489d04f46b3842b9c410b72d87e9b08dfc35b50cbc59d",
+      "bytes": 403
+    },
+    {
+      "category": "replay-custody",
+      "sourceRoot": "observedMilestones",
+      "sourceRelativePath": "muse-reduced-scale-fourth/scale-verify.json",
+      "destination": "evidence/replay-attempts/fourth-verify.json",
+      "sha256": "20d6c8e331824b47493df8e0b809a4c375d5d8219a689e6af6d56984088a451a",
+      "bytes": 7104
+    }
+  ]
+}

@@ -1,0 +1,148 @@
+{
+  "capturedAt": "2026-09-14T05:52:51.903091+00:00",
+  "copies": [
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/scores/all.json",
+      "copy": "all.json",
+      "bytes": 15801,
+      "sha256": "c4ca5b3c0c2b899adfa1c7ec8e7533e74a2f19e08c1431c366bdad20d6d3e9d8",
+      "verbatim": true
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/scores/summary.md",
+      "copy": "summary.md",
+      "bytes": 2018,
+      "sha256": "0ecde14adcaa7860d35da8310b44ee1e4803e136081b74a7a6c3294f291f5903",
+      "verbatim": true
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/scores/astra/FINAL.md",
+      "copy": "astra-final.md",
+      "bytes": 5642,
+      "sha256": "658d06bf548702057800d2d49d790d64f89f82722030a4cf24db1eda2bfa7f0a",
+      "verbatim": true
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/scores/astra/validation.json",
+      "copy": "astra-validation.json",
+      "bytes": 439,
+      "sha256": "34799c24c02168b1fe2a9b81279d69d90ab3f237e7b5d4c035ee1583b325b0ab",
+      "verbatim": true
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/scores/grok/validation.json",
+      "copy": "grok-validation.json",
+      "bytes": 346,
+      "sha256": "43c38f9868891cb10b5e3883edd118c03f0affc7305c1c248e34e86471679936",
+      "verbatim": true
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/scores/muse/FINAL.md",
+      "copy": "muse-final.md",
+      "bytes": 3786,
+      "sha256": "aef0c7872bdb469dbe5787fac85a302bfbee93a1c7aceb638ba9d21f18a0babd",
+      "verbatim": true
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/scores/muse/FINAL.provenance.json",
+      "copy": "muse-final-provenance.json",
+      "bytes": 2542,
+      "sha256": "2b5aea334720b126ef2945a2ff35e8b62b607275df93002c2a6591d281cf888f",
+      "verbatim": true
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/observed-milestones/muse-score-exit130-override.start.json",
+      "copy": "muse-score-override.start.json",
+      "bytes": 2289,
+      "sha256": "90b07bcb2974af44524f6d8a2b33a08230cc91cc9cfd0a9fac581566bb0266bc",
+      "verbatim": true
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/observed-milestones/muse-score-exit130-override.end.json",
+      "copy": "muse-score-override.end.json",
+      "bytes": 2454,
+      "sha256": "f0bce911eb2912dff47e5aa9a498a5890862e6fcb0dfc66740ff591deff39f63",
+      "verbatim": true
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/logs/astra-snapback4.score.start.json",
+      "copy": "astra-score.start.json",
+      "bytes": 1003,
+      "sha256": "7c3de8c7c4728726effe502eab928e42b0d55918a8ad4f212ea8c1fbe24a26c9",
+      "verbatim": true
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/logs/astra-snapback4.score.end.json",
+      "copy": "astra-score.end.json",
+      "bytes": 346,
+      "sha256": "8821bc547290bc493abeda6a2910e92d4e4d5a587a85b4b83327d57f41a1ccdc",
+      "verbatim": true
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/logs/grok-snapback4.score.start.json",
+      "copy": "grok-score.start.json",
+      "bytes": 1034,
+      "sha256": "50f0ba9e893af4007cdb9cdb5b118495cbb44829f0053638daf04d70cc70ac18",
+      "verbatim": true
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/logs/grok-snapback4.score.end.json",
+      "copy": "grok-score.end.json",
+      "bytes": 342,
+      "sha256": "ca6fbd9e5981e643c2d5b1e060b8d8f94937303f0a034b3cf7feae6333d6f635",
+      "verbatim": true
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/logs/muse-snapback4.score.start.json",
+      "copy": "muse-score.start.json",
+      "bytes": 1062,
+      "sha256": "398f5d118ba9afa381a1cf7657d5f1f73bbfedcca7e3e31700a5afd08fdc5d68",
+      "verbatim": true
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/logs/muse-snapback4.score.end.json",
+      "copy": "muse-score.end.json",
+      "bytes": 342,
+      "sha256": "75bffa6901c9dd8d67296c3585acce90c0301bada2bfafe66771943445fbd309",
+      "verbatim": true
+    }
+  ],
+  "rawTranscripts": [
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/scores/astra/raw.out",
+      "bytes": 5643,
+      "sha256": "f43d80ca60a722258bbdc4124acc2102b81404a9230480d02867771b1438e3b5",
+      "retainedExternalOnly": true
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/scores/astra/raw.err",
+      "bytes": 212265,
+      "sha256": "106ad1e5dba0a50324a9c17f803e0c9395ec51d683c2f3014d2fe409fbc289f2",
+      "retainedExternalOnly": true
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/scores/grok/raw.out",
+      "bytes": 5093,
+      "sha256": "a1208d1244722e38f4fcaaade48d3339850bcc62c6cf835cb12db0aa87fbe8a3",
+      "retainedExternalOnly": true
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/scores/grok/raw.err",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "retainedExternalOnly": true
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/scores/muse/raw.out",
+      "bytes": 444996,
+      "sha256": "767be9fb7fc2e9795e520ba530065065b9c46926cb7a1d30a0086b74ef020ff6",
+      "retainedExternalOnly": true
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/scores/muse/raw.err",
+      "bytes": 435,
+      "sha256": "e866c2e17540b8bb9cda22e88af55944a2139e11b02deb0bc5a7aa39b61655e4",
+      "retainedExternalOnly": true
+    }
+  ]
+}

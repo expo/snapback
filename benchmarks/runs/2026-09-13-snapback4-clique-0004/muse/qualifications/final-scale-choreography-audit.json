@@ -1,0 +1,887 @@
+{
+  "schemaVersion": 1,
+  "auditedAt": "2026-09-14T05:44:14.983477Z",
+  "status": "final-post-builder-exit",
+  "scope": {
+    "purpose": "Final read-only Muse reduced-corpus and copied-choreography evidence audit.",
+    "constraints": [
+      "No lane, prompt, instrument, frozen fixture, grader, or existing receipt was modified.",
+      "No process was launched or contacted.",
+      "Only external observed-milestones artifacts were created.",
+      "Private model bodies and reasoning were not inspected or retained."
+    ],
+    "excluded": "Host-owned capture/pins/native/full-source-access audit and root-owned orchestration continuation."
+  },
+  "builderTermination": {
+    "startReceipt": {
+      "path": "logs/muse-snapback4.start.json",
+      "bytes": 1113,
+      "lineCount": 36,
+      "sha256": "980b3c552a2e5ed5840493c694634091cff559a42fbec867705c033b5aa70b22"
+    },
+    "endReceipt": {
+      "path": "logs/muse-snapback4.end.json",
+      "bytes": 367,
+      "lineCount": 11,
+      "sha256": "b1e1aba56798930e8118481d692355855c1cb4e6349c1f170be0cff64d142b28"
+    },
+    "startedAt": "2026-09-14T00:40:41Z",
+    "endedAt": "2026-09-14T05:34:59Z",
+    "wallSeconds": 17657.686,
+    "exitCode": 130,
+    "interruptionReceipt": {
+      "path": "observed-milestones/muse-background-loop-interruption.json",
+      "bytes": 991,
+      "lineCount": 27,
+      "sha256": "5443afd335811bbbec64dd61d9f55b34448a840305abe9c4234de87ed92c2405"
+    },
+    "verdict": "Builder ended by SIGINT with actual exit 130 after repeated public terminal answers and runtime continuation turns. This audit does not convert that termination into a successful builder exit."
+  },
+  "preservedPriorEvidence": {
+    "provisionalReceiptsUnchanged": [
+      {
+        "path": "observed-milestones/muse-provisional-scale-corpus-audit.json",
+        "bytes": 15774,
+        "lineCount": 427,
+        "sha256": "4f376044400bc88684600c60032bcab62a5a631fabeec7e45f39a840fbae6490"
+      },
+      {
+        "path": "observed-milestones/choreography-copy-audit.json",
+        "bytes": 13050,
+        "lineCount": 301,
+        "sha256": "e40c495ccbb638db719428978fac441e99a4b8276aaae316e80d7b6339bff2b3"
+      }
+    ],
+    "fourReplayCaptureTreesUnchanged": {
+      "first": [
+        {
+          "path": "observed-milestones/muse-reduced-scale-first/capture.json",
+          "bytes": 639,
+          "lineCount": 17,
+          "sha256": "f6ff3290021344a8254aa5823d14e67b0e4dcde0f6948e40853245f770ec125e"
+        },
+        {
+          "path": "observed-milestones/muse-reduced-scale-first/scale-replay.json",
+          "bytes": 4161,
+          "lineCount": 66,
+          "sha256": "4d4f5f1e2523ca40ad6d7ed9a88f22066537d4ed7b1a5daa23c8999f40291a80"
+        }
+      ],
+      "second": [
+        {
+          "path": "observed-milestones/muse-reduced-scale-second/capture.json",
+          "bytes": 1042,
+          "lineCount": 19,
+          "sha256": "ea7f9bb6e327d4c43653a690632c8f141a4ab2ea5f457046c38744379d5b5a27"
+        },
+        {
+          "path": "observed-milestones/muse-reduced-scale-second/scale-replay.json",
+          "bytes": 403,
+          "lineCount": 25,
+          "sha256": "d92e298790eea3564e776baad9883ca499a198f8e5bfddddbc755080c2e64164"
+        }
+      ],
+      "third": [
+        {
+          "path": "observed-milestones/muse-reduced-scale-third/capture.json",
+          "bytes": 1299,
+          "lineCount": 35,
+          "sha256": "03e9d4f6f49ff21937565be100925375aefa979c3c93b57bcf8a020c32a83be2"
+        },
+        {
+          "path": "observed-milestones/muse-reduced-scale-third/scale-replay.json",
+          "bytes": 403,
+          "lineCount": 25,
+          "sha256": "47547dc1c653a79a541f9b273cb90ee90582bd38ee07416e893969a24644e548"
+        },
+        {
+          "path": "observed-milestones/muse-reduced-scale-third/scale-verify.json",
+          "bytes": 7105,
+          "lineCount": 446,
+          "sha256": "d26f4410ff55ce03aa0ee7140dabf1f72953c048ef783f58b2ffef08d7a18c42"
+        }
+      ],
+      "fourth": [
+        {
+          "path": "observed-milestones/muse-reduced-scale-fourth/capture.json",
+          "bytes": 1366,
+          "lineCount": 38,
+          "sha256": "dc34202fabe7a61c36949298894e047dee51dacaf1bea02c85ef0aa378b5d4bc"
+        },
+        {
+          "path": "observed-milestones/muse-reduced-scale-fourth/scale-replay.json",
+          "bytes": 403,
+          "lineCount": 25,
+          "sha256": "be204c94990f42feb37489d04f46b3842b9c410b72d87e9b08dfc35b50cbc59d"
+        },
+        {
+          "path": "observed-milestones/muse-reduced-scale-fourth/scale-verify.json",
+          "bytes": 7104,
+          "lineCount": 446,
+          "sha256": "20d6c8e331824b47493df8e0b809a4c375d5d8219a689e6af6d56984088a451a"
+        },
+        {
+          "path": "observed-milestones/muse-reduced-scale-fourth/scale.log",
+          "bytes": 2653997,
+          "lineCount": 36806,
+          "sha256": "9680fdc1fc2165ee69f94f478aa996fa0cbd027d67cd2b3fd4491c646f38356b"
+        }
+      ]
+    },
+    "note": "The files above were read and hashed only. The final scale copy below is a new independent preservation artifact."
+  },
+  "finalLocalScale": {
+    "sourceAtStableBuilderExit": {
+      "path": "lanes/muse-snapback4/scale.log",
+      "bytes": 2653997,
+      "lineCount": 36806,
+      "sha256": "9680fdc1fc2165ee69f94f478aa996fa0cbd027d67cd2b3fd4491c646f38356b",
+      "actionCount": 36804,
+      "checkpointCommentCount": 2,
+      "checkpointComments": [
+        {
+          "line": 3681,
+          "sha256": "e0f424eb1981b8217bd87d776b3ee854e3dc8998bbd118a2a7161d20fc9214a6"
+        },
+        {
+          "line": 18404,
+          "sha256": "2ddfe80d58bfaece48a31b67eb910a7294d20d2d18ca258d63c917b0014b4381"
+        }
+      ],
+      "parseErrorCount": 0,
+      "firstActionTimestamp": "2026-02-01T00:00:00Z",
+      "lastActionTimestamp": "2026-02-01T10:13:23Z",
+      "distinctActorTokenCount": 300,
+      "registeredActorCount": 300,
+      "verbCounts": {
+        "dm-create": 72,
+        "follow": 2307,
+        "group-create": 43,
+        "like": 9300,
+        "member-add": 132,
+        "post": 6000,
+        "profile-set": 300,
+        "react": 2200,
+        "register": 300,
+        "reply": 2500,
+        "repost": 1650,
+        "send": 10764,
+        "send-media": 1236
+      }
+    },
+    "independentPreservedCopy": {
+      "path": "observed-milestones/muse-final-scale-choreography-audit/scale.log",
+      "bytes": 2653997,
+      "lineCount": 36806,
+      "sha256": "9680fdc1fc2165ee69f94f478aa996fa0cbd027d67cd2b3fd4491c646f38356b",
+      "actionCount": 36804,
+      "checkpointCommentCount": 2,
+      "checkpointComments": [
+        {
+          "line": 3681,
+          "sha256": "e0f424eb1981b8217bd87d776b3ee854e3dc8998bbd118a2a7161d20fc9214a6"
+        },
+        {
+          "line": 18404,
+          "sha256": "2ddfe80d58bfaece48a31b67eb910a7294d20d2d18ca258d63c917b0014b4381"
+        }
+      ],
+      "parseErrorCount": 0,
+      "firstActionTimestamp": "2026-02-01T00:00:00Z",
+      "lastActionTimestamp": "2026-02-01T10:13:23Z",
+      "distinctActorTokenCount": 300,
+      "registeredActorCount": 300,
+      "verbCounts": {
+        "dm-create": 72,
+        "follow": 2307,
+        "group-create": 43,
+        "like": 9300,
+        "member-add": 132,
+        "post": 6000,
+        "profile-set": 300,
+        "react": 2200,
+        "register": 300,
+        "reply": 2500,
+        "repost": 1650,
+        "send": 10764,
+        "send-media": 1236
+      }
+    },
+    "copyByteIdenticalToStableSource": true,
+    "differenceFromProvisionalSnapshot": {
+      "provisionalObservedAt": "2026-09-14T03:49:27.869384Z",
+      "provisional": {
+        "bytes": 2654251,
+        "lineCount": 36811,
+        "actionCount": 36809,
+        "sha256": "4a3f9dcfbf6c836934618ed25b0223a027ab2618bf474f2d6f844f09d369d3e9",
+        "verbCounts": {
+          "dm-create": 72,
+          "follow": 2311,
+          "group-create": 43,
+          "like": 9300,
+          "member-add": 133,
+          "post": 6000,
+          "profile-set": 300,
+          "react": 2200,
+          "register": 300,
+          "reply": 2500,
+          "repost": 1650,
+          "send": 10771,
+          "send-media": 1229
+        }
+      },
+      "finalByteDelta": -254,
+      "finalLineDelta": -5,
+      "finalActionDelta": -5,
+      "verbCountDeltaFinalMinusProvisional": {
+        "dm-create": 0,
+        "follow": -4,
+        "group-create": 0,
+        "like": 0,
+        "member-add": -1,
+        "post": 0,
+        "profile-set": 0,
+        "react": 0,
+        "register": 0,
+        "reply": 0,
+        "repost": 0,
+        "send": -7,
+        "send-media": 7
+      },
+      "identityChanged": true
+    },
+    "intermediateInputObservation": {
+      "observedAt": "2026-09-14T04:08:53.473474+00:00",
+      "sha256": "927c5d003c948fb5defe184ebf5f58dc80b3d8100df0c30afef85ebfc538bc48",
+      "bytes": 2654050,
+      "lineCount": 36807,
+      "source": "orchestrator observation retained partly in observed-milestones/muse-reduced-scale-second/capture.json",
+      "limit": "The old bytes were not independently retained, so action and verb counts are null rather than inferred.",
+      "actionCount": null,
+      "verbCounts": null
+    },
+    "pipelineFileChangesSinceProvisionalSnapshot": [
+      {
+        "path": "lanes/muse-snapback4/scripts/gen-scale-log.mjs",
+        "final": {
+          "bytes": 12769,
+          "lineCount": 267,
+          "sha256": "9ddcebd738b618b5bca3be052735e350b62738fd7f875a1eec7e75c86d374a28"
+        },
+        "provisionalSnapshot": {
+          "bytes": 12655,
+          "lineCount": 266,
+          "sha256": "2958bc7988f6aafc97021fced0a4015d091605f2f333dab51084fd7e182a0a02"
+        },
+        "changed": true,
+        "byteDelta": 114,
+        "lineDelta": 1
+      },
+      {
+        "path": "lanes/muse-snapback4/scripts/scale-run.mjs",
+        "final": {
+          "bytes": 2436,
+          "lineCount": 53,
+          "sha256": "36011f1c11943e7e1300910d2b4b8594b48c9f409b7cfb41ee23346148b6dc7e"
+        },
+        "provisionalSnapshot": {
+          "bytes": 2436,
+          "lineCount": 53,
+          "sha256": "36011f1c11943e7e1300910d2b4b8594b48c9f409b7cfb41ee23346148b6dc7e"
+        },
+        "changed": false,
+        "byteDelta": 0,
+        "lineDelta": 0
+      },
+      {
+        "path": "lanes/muse-snapback4/scripts/replay.mjs",
+        "final": {
+          "bytes": 21741,
+          "lineCount": 540,
+          "sha256": "e6b0ae030bfc7a57a3171bd35ebe2a2d543ca99788927f8361342c048f312852"
+        },
+        "provisionalSnapshot": {
+          "bytes": 20720,
+          "lineCount": 517,
+          "sha256": "110df08438bc328874dca9ae85d977a693843d093ab5bdc5416568abdc8eb182"
+        },
+        "changed": true,
+        "byteDelta": 1021,
+        "lineDelta": 23
+      },
+      {
+        "path": "lanes/muse-snapback4/scripts/verify-replay.mjs",
+        "final": {
+          "bytes": 14926,
+          "lineCount": 311,
+          "sha256": "49bc64168fa7b4712e684f343a674c621221f93ac899ae598ac5137bef43844f"
+        },
+        "provisionalSnapshot": {
+          "bytes": 14587,
+          "lineCount": 303,
+          "sha256": "4829a8d72e98b50fbe0f3f1df6227f6ba92a0cd9f92d3142e34e3c1f366a6ecc"
+        },
+        "changed": true,
+        "byteDelta": 339,
+        "lineDelta": 8
+      },
+      {
+        "path": "lanes/muse-snapback4/scripts/seed.mjs",
+        "final": {
+          "bytes": 3014,
+          "lineCount": 80,
+          "sha256": "9994a1979432fcba807725bcccbe10f01be59284da734a45a14629829f5a7eed"
+        },
+        "provisionalSnapshot": {
+          "bytes": 3014,
+          "lineCount": 80,
+          "sha256": "9994a1979432fcba807725bcccbe10f01be59284da734a45a14629829f5a7eed"
+        },
+        "changed": false,
+        "byteDelta": 0,
+        "lineDelta": 0
+      }
+    ]
+  },
+  "frozenFullScale": {
+    "path": "instrument/fixtures/scale.log",
+    "bytes": 13014016,
+    "lineCount": 167159,
+    "sha256": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9",
+    "actionCount": 167157,
+    "checkpointCommentCount": 2,
+    "checkpointComments": [
+      {
+        "line": 24778,
+        "sha256": "e0f424eb1981b8217bd87d776b3ee854e3dc8998bbd118a2a7161d20fc9214a6"
+      },
+      {
+        "line": 88059,
+        "sha256": "2ddfe80d58bfaece48a31b67eb910a7294d20d2d18ca258d63c917b0014b4381"
+      }
+    ],
+    "parseErrorCount": 0,
+    "firstActionTimestamp": "2026-01-01T00:00:00Z",
+    "lastActionTimestamp": "2026-01-02T22:25:56Z",
+    "distinctActorTokenCount": 1000,
+    "registeredActorCount": 1000,
+    "verbCounts": {
+      "dm-create": 900,
+      "follow": 5909,
+      "group-create": 100,
+      "like": 5000,
+      "member-add": 48,
+      "post": 48200,
+      "profile-set": 1000,
+      "react": 2000,
+      "register": 1000,
+      "reply": 2000,
+      "repost": 1000,
+      "send": 99090,
+      "send-media": 910
+    },
+    "combinedInvariantManifest": {
+      "path": "instrument/fixtures/invariant-manifest-combined.json",
+      "bytes": 234703,
+      "lineCount": 10751,
+      "sha256": "b8bd6b67db63c212cae622334850fdb758637bf44ec716544487f6cb41194f98"
+    }
+  },
+  "replayHistory": {
+    "preReplayDriverFailures": {
+      "count": 4,
+      "receipt": {
+        "path": "observed-milestones/muse-scale-startup-observations.json",
+        "bytes": 1840,
+        "lineCount": 44,
+        "sha256": "ae503e6b06727b5119feceaa4f700181b7db51be39b14fce8c7a1df3bfdb4cb9"
+      },
+      "qualification": "Four earlier scale-driver launches failed before producing the four preserved replay reports. Their shell wrapper exit 0 values are not replay success."
+    },
+    "replayProducingAttempts": [
+      {
+        "ordinal": 1,
+        "captureName": "first",
+        "captureObservedAt": "2026-09-14T03:58:34.242696+00:00",
+        "captureManifest": {
+          "path": "observed-milestones/muse-reduced-scale-first/capture.json",
+          "bytes": 639,
+          "lineCount": 17,
+          "sha256": "f6ff3290021344a8254aa5823d14e67b0e4dcde0f6948e40853245f770ec125e"
+        },
+        "replayArtifact": {
+          "path": "observed-milestones/muse-reduced-scale-first/scale-replay.json",
+          "bytes": 4161,
+          "lineCount": 66,
+          "sha256": "4d4f5f1e2523ca40ad6d7ed9a88f22066537d4ed7b1a5daa23c8999f40291a80"
+        },
+        "publicDriverInvocation": {
+          "ndjsonLine": 21276,
+          "rawEventLineSha256IncludingTerminator": "d552c90417aa7b20ff32fdb85c9f45571e147fdf5d641410a7ca1531bf5b7bb1",
+          "taskId": "01a09dfb-ac4e-7b32-ac84-8beb5965474a",
+          "normalizedArguments": {
+            "driver": "scripts/scale-run.mjs",
+            "port": "49302",
+            "log": "scale.log"
+          },
+          "regeneratesLogImmediatelyBeforeDriver": false,
+          "preflightChecksReplaySyntax": true,
+          "preflightChecksVerifierSyntax": false
+        },
+        "replayClock": {
+          "scope": "scripts/replay.mjs action-stream loop only; excludes scale server startup, starter m1-m3 seeding, and post-replay verification.",
+          "startEpoch": 1789356914,
+          "endEpoch": 1789357616,
+          "wallMs": 702092
+        },
+        "replayCounts": {
+          "actions": 36809,
+          "ok": 33696,
+          "settled": 0,
+          "failed": 3113,
+          "uploads": 2047
+        },
+        "checkpointClocks": [
+          {
+            "marker": "# checkpoint 10%",
+            "actions": 3680,
+            "tMs": 615144
+          },
+          {
+            "marker": "# checkpoint 50%",
+            "actions": 18404,
+            "tMs": 656034
+          }
+        ],
+        "verifier": null,
+        "corpusBinding": {
+          "exactStartHash": null,
+          "evidence": "The provisional 36,809-action hash was observed after this replay ended and before replay attempt 2. It matches the report action count but is not a start-bound hash for attempt 1."
+        },
+        "outcome": "Replay red: 3,113 failed actions; no preserved verifier report."
+      },
+      {
+        "ordinal": 2,
+        "captureName": "second",
+        "captureObservedAt": "2026-09-14T04:08:53.473474+00:00",
+        "captureManifest": {
+          "path": "observed-milestones/muse-reduced-scale-second/capture.json",
+          "bytes": 1042,
+          "lineCount": 19,
+          "sha256": "ea7f9bb6e327d4c43653a690632c8f141a4ab2ea5f457046c38744379d5b5a27"
+        },
+        "replayArtifact": {
+          "path": "observed-milestones/muse-reduced-scale-second/scale-replay.json",
+          "bytes": 403,
+          "lineCount": 25,
+          "sha256": "d92e298790eea3564e776baad9883ca499a198f8e5bfddddbc755080c2e64164"
+        },
+        "publicDriverInvocation": {
+          "ndjsonLine": 22031,
+          "rawEventLineSha256IncludingTerminator": "6d4c8b130bc9f47290ec31086bf80e6819d1dfa06ac530d65cbd0f83132f9b59",
+          "taskId": "01a09e0b-8006-7283-bba3-d820bfa4d0de",
+          "normalizedArguments": {
+            "driver": "scripts/scale-run.mjs",
+            "port": "49302",
+            "log": "scale.log"
+          },
+          "regeneratesLogImmediatelyBeforeDriver": false,
+          "preflightChecksReplaySyntax": false,
+          "preflightChecksVerifierSyntax": false
+        },
+        "replayClock": {
+          "scope": "scripts/replay.mjs action-stream loop only; excludes scale server startup, starter m1-m3 seeding, and post-replay verification.",
+          "startEpoch": 1789357952,
+          "endEpoch": 1789358659,
+          "wallMs": 707770
+        },
+        "replayCounts": {
+          "actions": 36809,
+          "ok": 36809,
+          "settled": 0,
+          "failed": 0,
+          "uploads": 4326
+        },
+        "checkpointClocks": [
+          {
+            "marker": "# checkpoint 10%",
+            "actions": 3680,
+            "tMs": 614812
+          },
+          {
+            "marker": "# checkpoint 50%",
+            "actions": 18404,
+            "tMs": 658056
+          }
+        ],
+        "verifier": null,
+        "corpusBinding": {
+          "exactStartHash": null,
+          "evidence": "The capture occurred after replay attempt 3 had already started; its current-file hash 927c5d... belongs to that later observation, not to attempt 2 start. Attempt 2 processed 36,809 actions, but its exact input bytes were not preserved."
+        },
+        "outcome": "Action replay green at 36,809/36,809; no preserved verifier report, so no full local pipeline qualification."
+      },
+      {
+        "ordinal": 3,
+        "captureName": "third",
+        "captureObservedAt": "2026-09-14T04:24:12.325267+00:00",
+        "captureManifest": {
+          "path": "observed-milestones/muse-reduced-scale-third/capture.json",
+          "bytes": 1299,
+          "lineCount": 35,
+          "sha256": "03e9d4f6f49ff21937565be100925375aefa979c3c93b57bcf8a020c32a83be2"
+        },
+        "replayArtifact": {
+          "path": "observed-milestones/muse-reduced-scale-third/scale-replay.json",
+          "bytes": 403,
+          "lineCount": 25,
+          "sha256": "47547dc1c653a79a541f9b273cb90ee90582bd38ee07416e893969a24644e548"
+        },
+        "publicDriverInvocation": {
+          "ndjsonLine": 22492,
+          "rawEventLineSha256IncludingTerminator": "66b65a9488c88864cdeed91f8dc30ac0308318191873371a5acf997b7e2f87a1",
+          "taskId": "01a09e1a-3190-7e90-bb72-04897f2b25a6",
+          "normalizedArguments": {
+            "driver": "scripts/scale-run.mjs",
+            "port": "49302",
+            "log": "scale.log"
+          },
+          "regeneratesLogImmediatelyBeforeDriver": true,
+          "preflightChecksReplaySyntax": false,
+          "preflightChecksVerifierSyntax": true
+        },
+        "replayClock": {
+          "scope": "scripts/replay.mjs action-stream loop only; excludes scale server startup, starter m1-m3 seeding, and post-replay verification.",
+          "startEpoch": 1789358914,
+          "endEpoch": 1789359631,
+          "wallMs": 716790
+        },
+        "replayCounts": {
+          "actions": 36805,
+          "ok": 36805,
+          "settled": 0,
+          "failed": 0,
+          "uploads": 4328
+        },
+        "checkpointClocks": [
+          {
+            "marker": "# checkpoint 10%",
+            "actions": 3680,
+            "tMs": 615643
+          },
+          {
+            "marker": "# checkpoint 50%",
+            "actions": 18402,
+            "tMs": 661907
+          }
+        ],
+        "verifier": {
+          "artifact": {
+            "path": "observed-milestones/muse-reduced-scale-third/scale-verify.json",
+            "bytes": 7105,
+            "lineCount": 446,
+            "sha256": "d26f4410ff55ce03aa0ee7140dabf1f72953c048ef783f58b2ffef08d7a18c42"
+          },
+          "checks": 88,
+          "passed": 87,
+          "failed": 1,
+          "failedIds": [
+            "celeb-follower-is-5"
+          ]
+        },
+        "corpusBinding": {
+          "exactStartHash": null,
+          "evidence": "The driver command regenerated scale.log before attempt 3. The later capture occurred after attempt 4 began and therefore observed attempt 4 corpus bytes, not an attempt-3 start hash."
+        },
+        "outcome": "Action replay green at 36,805/36,805; local verifier red at 87/88."
+      },
+      {
+        "ordinal": 4,
+        "captureName": "fourth",
+        "captureObservedAt": "2026-09-14T04:39:42.854713+00:00",
+        "captureManifest": {
+          "path": "observed-milestones/muse-reduced-scale-fourth/capture.json",
+          "bytes": 1366,
+          "lineCount": 38,
+          "sha256": "dc34202fabe7a61c36949298894e047dee51dacaf1bea02c85ef0aa378b5d4bc"
+        },
+        "replayArtifact": {
+          "path": "observed-milestones/muse-reduced-scale-fourth/scale-replay.json",
+          "bytes": 403,
+          "lineCount": 25,
+          "sha256": "be204c94990f42feb37489d04f46b3842b9c410b72d87e9b08dfc35b50cbc59d"
+        },
+        "publicDriverInvocation": {
+          "ndjsonLine": 22699,
+          "rawEventLineSha256IncludingTerminator": "537d2268a2f934ac434626c0175cceb6d5d7d8f2470d465a9f5d455c38d0243b",
+          "taskId": "01a09e28-2ec7-7260-806b-94008a3b234a",
+          "normalizedArguments": {
+            "driver": "scripts/scale-run.mjs",
+            "port": "49302",
+            "log": "scale.log"
+          },
+          "regeneratesLogImmediatelyBeforeDriver": true,
+          "preflightChecksReplaySyntax": false,
+          "preflightChecksVerifierSyntax": false
+        },
+        "replayClock": {
+          "scope": "scripts/replay.mjs action-stream loop only; excludes scale server startup, starter m1-m3 seeding, and post-replay verification.",
+          "startEpoch": 1789359831,
+          "endEpoch": 1789360544,
+          "wallMs": 713065
+        },
+        "replayCounts": {
+          "actions": 36804,
+          "ok": 36804,
+          "settled": 0,
+          "failed": 0,
+          "uploads": 4328
+        },
+        "checkpointClocks": [
+          {
+            "marker": "# checkpoint 10%",
+            "actions": 3680,
+            "tMs": 616350
+          },
+          {
+            "marker": "# checkpoint 50%",
+            "actions": 18402,
+            "tMs": 660974
+          }
+        ],
+        "verifier": {
+          "artifact": {
+            "path": "observed-milestones/muse-reduced-scale-fourth/scale-verify.json",
+            "bytes": 7104,
+            "lineCount": 446,
+            "sha256": "20d6c8e331824b47493df8e0b809a4c375d5d8219a689e6af6d56984088a451a"
+          },
+          "checks": 88,
+          "passed": 88,
+          "failed": 0,
+          "failedIds": []
+        },
+        "corpusBinding": {
+          "exactStartHash": null,
+          "bestAvailableEvidence": "The driver command regenerated scale.log before attempt 4; hash 9680fd... was observed during attempt 4 and remained identical after it ended and at builder exit. This is strong identity evidence but no atomic replay-start receipt exists.",
+          "duringAndAfterObservedSha256": "9680fdc1fc2165ee69f94f478aa996fa0cbd027d67cd2b3fd4491c646f38356b",
+          "independentlyPreservedFinalCopy": {
+            "path": "observed-milestones/muse-final-scale-choreography-audit/scale.log",
+            "bytes": 2653997,
+            "lineCount": 36806,
+            "sha256": "9680fdc1fc2165ee69f94f478aa996fa0cbd027d67cd2b3fd4491c646f38356b"
+          }
+        },
+        "outcome": "Reduced local pipeline green: action replay 36,804/36,804 and its local verifier 88/88."
+      }
+    ],
+    "inputSequence": [
+      "Attempt 1 processed 36,809 actions; provisional hash 4a3f9d... was observed after it ended.",
+      "Attempt 2 processed 36,809 actions without regeneration in its public wrapper; its exact start bytes were not independently captured.",
+      "Attempt 3 regenerated the local log and processed 36,805 actions. Hash 927c5d... was observed shortly after this attempt started, but the old bytes were not retained.",
+      "Attempt 4 regenerated again and processed 36,804 actions. Hash 9680fd... was observed during the attempt, after it ended, at builder exit, and in two independent external copies."
+    ],
+    "overallVerdict": "Only replay attempt 4 has both action replay and its selected-log verifier green. It qualifies the reduced 36,804-action local corpus, subject to the stated non-atomic start-hash limit. No attempt qualifies the frozen 167,157-action corpus."
+  },
+  "clockScopes": {
+    "builderLifecycle": {
+      "source": "logs/muse-snapback4.start.json + logs/muse-snapback4.end.json",
+      "startEpoch": 1789346441,
+      "endEpoch": 1789364099,
+      "wallSeconds": 17657.686,
+      "includes": "Entire Muse wrapper/model lifecycle through SIGINT."
+    },
+    "replayReports": "Each report startEpoch/endEpoch/wallMs covers only the replay action-stream loop (replay.mjs:512-534), not server startup, m1-m3 seed, verifier, or model work.",
+    "driverTotalClaim": {
+      "source": "lanes/muse-snapback4/final-report.md:140-143",
+      "claimedSeconds": 837.6,
+      "qualification": "Builder narrative only; the four preserved replay JSON files contain action-loop wallMs, not this driver-total value."
+    },
+    "runLogClockCaveat": {
+      "path": "observed-milestones/muse-runlog-clock-observation.json",
+      "bytes": 1198,
+      "lineCount": 27,
+      "sha256": "525bd49bfb53b11f598d76a05433a226c48c1b2696b1ed0ec99efa6c330588ad"
+    },
+    "captureTiming": "Capture timestamps are observation times. Captures 1-3 occurred during the following replay attempt; capture 4 occurred after attempt 4. They must not be silently treated as atomic start receipts for the report copied beside them."
+  },
+  "copiedChoreography": {
+    "frozenSource": {
+      "path": "instrument/choreography",
+      "fileCount": 16,
+      "manifest": {
+        "README.md": "c724e6b432ee8d2420f1e64b91f7412f2406671f9ad1e888dd28af6df5dc7847",
+        "RUNBOOK.md": "7b68c0c6a335774ac5e101ef0415058c66ac12aaa683772346f112f99e3b8a1d",
+        "VERSION": "3836e222461383c23dcbe54d1d58e07ccf621ea86a32bbdf49874f6dde998b95",
+        "choreography.mjs": "cc600295f80d40b89910a1bf01eb3c7d8b9c24625c9741035ca3844f80418fcc",
+        "control-lane.mjs": "937f38b09a15d510576e18b20dba78274e2fd57900dd4753cc766f1ff06057b9",
+        "package.json": "a2cda3361f89e28b1b805ce4fa12a8414938126b495b6b2817d12c102969309c",
+        "receipts-format.md": "1c247f0d7dc0edc84f2138bde37b1be39c01b3d3fe1247da1fbc0efef3e32b4d",
+        "receipts.schema.json": "5970f62483fa58358bc2cc08692a74925112de300a696eac61aa54853e9a1c39",
+        "self-test.mjs": "6bf78419ad72a8efd40dc9125d5ec1dac753018ad79d9d4e68374e5379f32703",
+        "setup-identity.mjs": "7d2b582aa2a2fc94602b76c9e732120e83be57b3c978df392937ca178cc8bf93",
+        "setup-identity.schema.json": "bbc54559dc14fe2bb0b2f0a4a74ddaf10a2a5b16f36ebbc2346a00238f32058b",
+        "simulator.md": "a89a7af573e0d3716b78207a7b159e9e056a8d83405553f49e868d29ae4cca3f",
+        "startup.test.mjs": "3ab86c94b0358e339bdda097049d7ea8aed107bcf536b414305fa23d2fc60e36",
+        "w9-coterie-browser.mjs": "0bb80fcfb1a0587b588f5c7d4b56b91a90d2e1088bfc44243d9ede4497ab8d89",
+        "w9-host-preflight.mjs": "4d8b8d0105892f899e7f3a171d0215788984880b8f2e2e4e33a5f7846668913a",
+        "w9-native-host.mjs": "1afdf0852a7469352609be725fbdb977da177d5b4f4eb81b33874db4894db924"
+      }
+    },
+    "laneCopies": {
+      "choreo-src": {
+        "path": "lanes/muse-snapback4/choreo-src",
+        "matchingFrozenFiles": 16,
+        "missing": [],
+        "modified": [],
+        "extra": [],
+        "allFrozenFilesByteIdentical": true,
+        "expectedFileCount": 16,
+        "matchingManifest": {
+          "README.md": "c724e6b432ee8d2420f1e64b91f7412f2406671f9ad1e888dd28af6df5dc7847",
+          "RUNBOOK.md": "7b68c0c6a335774ac5e101ef0415058c66ac12aaa683772346f112f99e3b8a1d",
+          "VERSION": "3836e222461383c23dcbe54d1d58e07ccf621ea86a32bbdf49874f6dde998b95",
+          "choreography.mjs": "cc600295f80d40b89910a1bf01eb3c7d8b9c24625c9741035ca3844f80418fcc",
+          "control-lane.mjs": "937f38b09a15d510576e18b20dba78274e2fd57900dd4753cc766f1ff06057b9",
+          "package.json": "a2cda3361f89e28b1b805ce4fa12a8414938126b495b6b2817d12c102969309c",
+          "receipts-format.md": "1c247f0d7dc0edc84f2138bde37b1be39c01b3d3fe1247da1fbc0efef3e32b4d",
+          "receipts.schema.json": "5970f62483fa58358bc2cc08692a74925112de300a696eac61aa54853e9a1c39",
+          "self-test.mjs": "6bf78419ad72a8efd40dc9125d5ec1dac753018ad79d9d4e68374e5379f32703",
+          "setup-identity.mjs": "7d2b582aa2a2fc94602b76c9e732120e83be57b3c978df392937ca178cc8bf93",
+          "setup-identity.schema.json": "bbc54559dc14fe2bb0b2f0a4a74ddaf10a2a5b16f36ebbc2346a00238f32058b",
+          "simulator.md": "a89a7af573e0d3716b78207a7b159e9e056a8d83405553f49e868d29ae4cca3f",
+          "startup.test.mjs": "3ab86c94b0358e339bdda097049d7ea8aed107bcf536b414305fa23d2fc60e36",
+          "w9-coterie-browser.mjs": "0bb80fcfb1a0587b588f5c7d4b56b91a90d2e1088bfc44243d9ede4497ab8d89",
+          "w9-host-preflight.mjs": "4d8b8d0105892f899e7f3a171d0215788984880b8f2e2e4e33a5f7846668913a",
+          "w9-native-host.mjs": "1afdf0852a7469352609be725fbdb977da177d5b4f4eb81b33874db4894db924"
+        }
+      },
+      "choreo": {
+        "path": "lanes/muse-snapback4/choreo",
+        "matchingFrozenFiles": 16,
+        "missing": [],
+        "modified": [],
+        "extra": [
+          "package-lock.json"
+        ],
+        "allFrozenFilesByteIdentical": true,
+        "expectedFileCount": 16,
+        "matchingManifest": {
+          "README.md": "c724e6b432ee8d2420f1e64b91f7412f2406671f9ad1e888dd28af6df5dc7847",
+          "RUNBOOK.md": "7b68c0c6a335774ac5e101ef0415058c66ac12aaa683772346f112f99e3b8a1d",
+          "VERSION": "3836e222461383c23dcbe54d1d58e07ccf621ea86a32bbdf49874f6dde998b95",
+          "choreography.mjs": "cc600295f80d40b89910a1bf01eb3c7d8b9c24625c9741035ca3844f80418fcc",
+          "control-lane.mjs": "937f38b09a15d510576e18b20dba78274e2fd57900dd4753cc766f1ff06057b9",
+          "package.json": "a2cda3361f89e28b1b805ce4fa12a8414938126b495b6b2817d12c102969309c",
+          "receipts-format.md": "1c247f0d7dc0edc84f2138bde37b1be39c01b3d3fe1247da1fbc0efef3e32b4d",
+          "receipts.schema.json": "5970f62483fa58358bc2cc08692a74925112de300a696eac61aa54853e9a1c39",
+          "self-test.mjs": "6bf78419ad72a8efd40dc9125d5ec1dac753018ad79d9d4e68374e5379f32703",
+          "setup-identity.mjs": "7d2b582aa2a2fc94602b76c9e732120e83be57b3c978df392937ca178cc8bf93",
+          "setup-identity.schema.json": "bbc54559dc14fe2bb0b2f0a4a74ddaf10a2a5b16f36ebbc2346a00238f32058b",
+          "simulator.md": "a89a7af573e0d3716b78207a7b159e9e056a8d83405553f49e868d29ae4cca3f",
+          "startup.test.mjs": "3ab86c94b0358e339bdda097049d7ea8aed107bcf536b414305fa23d2fc60e36",
+          "w9-coterie-browser.mjs": "0bb80fcfb1a0587b588f5c7d4b56b91a90d2e1088bfc44243d9ede4497ab8d89",
+          "w9-host-preflight.mjs": "4d8b8d0105892f899e7f3a171d0215788984880b8f2e2e4e33a5f7846668913a",
+          "w9-native-host.mjs": "1afdf0852a7469352609be725fbdb977da177d5b4f4eb81b33874db4894db924"
+        }
+      }
+    },
+    "publicCopyAndProbeEvents": {
+      "copyInstrumentToChoreoSrc": {
+        "ndjsonLine": 301,
+        "rawEventLineSha256IncludingTerminator": "1318d592471ae1b7593d94745c198322836149a3bb139b86d5bbea89594ca7bd",
+        "taskId": "01a09d5c-8d40-7333-91c5-78c476a5ca06"
+      },
+      "copyChoreoSrcToRunnableChoreo": {
+        "ndjsonLine": 4742,
+        "rawEventLineSha256IncludingTerminator": "3927ff88763bc22297fa2d2b94c834b63720c331809d8b73975e04df6e6c9375",
+        "taskId": "01a09d7c-2241-7092-8fa2-53e49fdd7d10"
+      },
+      "onlyDirectChoreographyEntrypointProbe": {
+        "ndjsonLine": 14413,
+        "rawEventLineSha256IncludingTerminator": "1ef9f495387af8fff5ffcb0a51cf54f7354d42b039ac16cd4e7f4d3987ef7a18",
+        "taskId": "01a09dc1-cb7c-7ba0-839a-bfd9466f6709",
+        "normalizedInvocation": "node choreo/choreography.mjs --help"
+      }
+    },
+    "executionEvidence": {
+      "laneReceiptsFileCount": 0,
+      "nonDependencyJsonlFileCount": 0,
+      "directEntrypointInvocationsObserved": 1,
+      "onlyInvocationWasHelpProbe": true,
+      "selfTestInvocationsObserved": 0,
+      "startupTestInvocationsObserved": 0,
+      "controlLaneInvocationsObserved": 0,
+      "w9InvocationsObserved": 0,
+      "builderReportClaim": {
+        "file": {
+          "path": "lanes/muse-snapback4/final-report.md",
+          "bytes": 10613,
+          "lineCount": 196,
+          "sha256": "db5252070d4fcd3d4df8788a12fdbcd378a02cf85243cdbcf40456cf18d24feb"
+        },
+        "lines104To106": {
+          "lines": "104-106",
+          "sha256IncludingLineTerminators": "732ddbf97a3a51665ee901ba6035642371c823782884687e64afaf997b0ea1e9"
+        },
+        "claim": "Instrument choreography harness not executed."
+      }
+    },
+    "verdict": "Both lane copy trees contain all 16 frozen choreography files byte-for-byte unchanged. The runnable copy adds only package-lock.json plus installed node_modules. No choreography result receipt exists, and the only direct entrypoint invocation was --help; copied assertions were not executed.",
+    "provisionalReconciliation": "The earlier choreography-copy-audit.json correctly recorded Muse as absent at its observation time. Final files were copied later; this receipt preserves the earlier observation and records the stable final state."
+  },
+  "frozenLogAvailabilityAndSelection": {
+    "builderNarrative": {
+      "file": {
+        "path": "lanes/muse-snapback4/final-report.md",
+        "bytes": 10613,
+        "lineCount": 196,
+        "sha256": "db5252070d4fcd3d4df8788a12fdbcd378a02cf85243cdbcf40456cf18d24feb"
+      },
+      "reducedEnvelopeLines178To188": {
+        "lines": "178-188",
+        "sha256IncludingLineTerminators": "54edb945f961a43d03e216766cb72b398056fe232ece231bed8afead8fe10005"
+      },
+      "claims": [
+        "The scale envelope is reduced and full-envelope behavior is projected, not measured.",
+        "The real fixture-pack scale log was not present in-lane."
+      ]
+    },
+    "filesystemEvidence": {
+      "laneInstrumentPath": "lanes/muse-snapback4/instrument",
+      "isSymlink": true,
+      "symlinkTarget": "/Users/ccheever/clique-sb4-20260913-full-3models/instrument",
+      "symlinkBirthEpoch": 1789315317,
+      "builderStartedEpoch": 1789346441,
+      "symlinkPredatesBuilderStart": true,
+      "frozenLogViaLaneSymlink": {
+        "path": "lanes/muse-snapback4/instrument/fixtures/scale.log",
+        "bytes": 13014016,
+        "lineCount": 167159,
+        "sha256": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9"
+      },
+      "directFrozenLog": {
+        "path": "instrument/fixtures/scale.log",
+        "bytes": 13014016,
+        "lineCount": 167159,
+        "sha256": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9"
+      },
+      "sameBytes": true
+    },
+    "selectionEvidence": {
+      "allEightPublicScaleDriverInvocationsSelected": "--log scale.log",
+      "frozenSymlinkPathSelectedByAnyPublicScaleDriverInvocation": false,
+      "scaleRunDriverPath": "lanes/muse-snapback4/scripts/scale-run.mjs",
+      "verifierBehavior": "The verifier derives expected state from the selected --log plus starter logs; it does not implicitly bind the frozen combined invariant manifest."
+    },
+    "auditFinding": "The report accurately discloses that the measured envelope was reduced, but the literal claim that the frozen log was not present in-lane is contradicted by the pre-existing lane/instrument symlink and its readable instrument/fixtures/scale.log. The operational fact remains that no observed scale driver selected that frozen path, so the frozen corpus was not replayed or qualified.",
+    "narrativeHandling": "The builder report was not edited. Its claim and the contrary filesystem evidence are retained separately."
+  },
+  "finalQualification": {
+    "reducedLocalCorpus": "Attempt 4: replay 36,804/36,804 and verifier 88/88 green; final local corpus SHA-256 9680fdc1..., with non-atomic start identity caveat.",
+    "frozenFullCorpus": "Not run and not qualified. Frozen corpus SHA-256 b26bf1ae..., 167,157 actions.",
+    "choreography": "Frozen choreography copied byte-identically but not executed; no choreography outcome can be claimed.",
+    "builderProcess": "Exit 130 after orchestrator SIGINT; no fabricated successful process exit."
+  }
+}

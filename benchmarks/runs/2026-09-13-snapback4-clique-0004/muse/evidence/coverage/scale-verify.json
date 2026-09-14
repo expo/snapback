@@ -1,0 +1,446 @@
+{
+ "url": "http://127.0.0.1:49302",
+ "log": "scale.log",
+ "checks": [
+  {
+   "id": "celeb-followers",
+   "ok": true,
+   "detail": "got=270 want=270"
+  },
+  {
+   "id": "celeb-posts",
+   "ok": true,
+   "detail": "got=72 want=72"
+  },
+  {
+   "id": "celeb-follower-following",
+   "ok": true,
+   "detail": "got=5 want=5"
+  },
+  {
+   "id": "celeb-follower-is-5",
+   "ok": true,
+   "detail": "want=5 got=5"
+  },
+  {
+   "id": "probe-following",
+   "ok": true,
+   "detail": "got=150 want=150"
+  },
+  {
+   "id": "probe-conversations",
+   "ok": true,
+   "detail": "got=30 want=30"
+  },
+  {
+   "id": "busy-count",
+   "ok": true,
+   "detail": "got=3000 want=3000"
+  },
+  {
+   "id": "busy-roster",
+   "ok": true,
+   "detail": "got=15 want=15"
+  },
+  {
+   "id": "chat-count-g-018",
+   "ok": true,
+   "detail": "got=65 want=65"
+  },
+  {
+   "id": "chat-count-dm-002",
+   "ok": true,
+   "detail": "got=77 want=77"
+  },
+  {
+   "id": "chat-count-dm-020",
+   "ok": true,
+   "detail": "got=74 want=74"
+  },
+  {
+   "id": "chat-count-dm-012",
+   "ok": true,
+   "detail": "got=72 want=72"
+  },
+  {
+   "id": "chat-count-g-012",
+   "ok": true,
+   "detail": "got=93 want=93"
+  },
+  {
+   "id": "chat-count-dm-042",
+   "ok": true,
+   "detail": "got=87 want=87"
+  },
+  {
+   "id": "chat-count-dm-027",
+   "ok": true,
+   "detail": "got=83 want=83"
+  },
+  {
+   "id": "chat-count-dm-probe-00",
+   "ok": true,
+   "detail": "got=92 want=92"
+  },
+  {
+   "id": "chat-count-g-010",
+   "ok": true,
+   "detail": "got=90 want=90"
+  },
+  {
+   "id": "chat-count-dm-probe-04",
+   "ok": true,
+   "detail": "got=89 want=89"
+  },
+  {
+   "id": "user-u208",
+   "ok": true,
+   "detail": "f=2/2 g=6/6 p=25/25"
+  },
+  {
+   "id": "user-u253",
+   "ok": true,
+   "detail": "f=7/7 g=7/7 p=15/15"
+  },
+  {
+   "id": "user-u034",
+   "ok": true,
+   "detail": "f=5/5 g=6/6 p=20/20"
+  },
+  {
+   "id": "user-u203",
+   "ok": true,
+   "detail": "f=6/6 g=7/7 p=17/17"
+  },
+  {
+   "id": "user-u162",
+   "ok": true,
+   "detail": "f=4/4 g=7/7 p=17/17"
+  },
+  {
+   "id": "user-u277",
+   "ok": true,
+   "detail": "f=7/7 g=7/7 p=20/20"
+  },
+  {
+   "id": "user-u153",
+   "ok": true,
+   "detail": "f=1/1 g=7/7 p=21/21"
+  },
+  {
+   "id": "user-u018",
+   "ok": true,
+   "detail": "f=4/4 g=7/7 p=20/20"
+  },
+  {
+   "id": "user-u275",
+   "ok": true,
+   "detail": "f=7/7 g=6/6 p=22/22"
+  },
+  {
+   "id": "user-u217",
+   "ok": true,
+   "detail": "f=1/1 g=7/7 p=21/21"
+  },
+  {
+   "id": "search-u294",
+   "ok": true,
+   "detail": "found"
+  },
+  {
+   "id": "search-u030",
+   "ok": true,
+   "detail": "found"
+  },
+  {
+   "id": "search-u104",
+   "ok": true,
+   "detail": "found"
+  },
+  {
+   "id": "search-u006",
+   "ok": true,
+   "detail": "found"
+  },
+  {
+   "id": "search-u233",
+   "ok": true,
+   "detail": "found"
+  },
+  {
+   "id": "search-u171",
+   "ok": true,
+   "detail": "found"
+  },
+  {
+   "id": "search-u187",
+   "ok": true,
+   "detail": "found"
+  },
+  {
+   "id": "search-u216",
+   "ok": true,
+   "detail": "found"
+  },
+  {
+   "id": "search-grace",
+   "ok": true,
+   "detail": "found"
+  },
+  {
+   "id": "search-u159",
+   "ok": true,
+   "detail": "found"
+  },
+  {
+   "id": "post-p-00139",
+   "ok": true,
+   "detail": "l=1/1 r=0/0 replies=1/1"
+  },
+  {
+   "id": "post-p-01630",
+   "ok": true,
+   "detail": "l=1/1 r=0/0 replies=0/0"
+  },
+  {
+   "id": "post-p-04006",
+   "ok": true,
+   "detail": "l=3/3 r=0/0 replies=0/0"
+  },
+  {
+   "id": "post-p-02730",
+   "ok": true,
+   "detail": "l=1/1 r=0/0 replies=0/0"
+  },
+  {
+   "id": "post-p-00476",
+   "ok": true,
+   "detail": "l=0/0 r=0/0 replies=0/0"
+  },
+  {
+   "id": "post-p-00351",
+   "ok": true,
+   "detail": "l=1/1 r=0/0 replies=0/0"
+  },
+  {
+   "id": "post-p-03923",
+   "ok": true,
+   "detail": "l=3/3 r=1/1 replies=0/0"
+  },
+  {
+   "id": "post-p-02273",
+   "ok": true,
+   "detail": "l=1/1 r=0/0 replies=0/0"
+  },
+  {
+   "id": "post-p-04040",
+   "ok": true,
+   "detail": "l=2/2 r=0/0 replies=0/0"
+  },
+  {
+   "id": "post-p-02593",
+   "ok": true,
+   "detail": "l=3/3 r=0/0 replies=0/0"
+  },
+  {
+   "id": "edge-u150-u095",
+   "ok": true,
+   "detail": "present"
+  },
+  {
+   "id": "edge-u056-u034",
+   "ok": true,
+   "detail": "present"
+  },
+  {
+   "id": "edge-u226-u188",
+   "ok": true,
+   "detail": "present"
+  },
+  {
+   "id": "edge-u051-u119",
+   "ok": true,
+   "detail": "present"
+  },
+  {
+   "id": "edge-u271-u036",
+   "ok": true,
+   "detail": "present"
+  },
+  {
+   "id": "edge-u190-u206",
+   "ok": true,
+   "detail": "present"
+  },
+  {
+   "id": "edge-u002-u071",
+   "ok": true,
+   "detail": "present"
+  },
+  {
+   "id": "edge-u094-u222",
+   "ok": true,
+   "detail": "present"
+  },
+  {
+   "id": "edge-u048-u089",
+   "ok": true,
+   "detail": "present"
+  },
+  {
+   "id": "edge-u294-u260",
+   "ok": true,
+   "detail": "present"
+  },
+  {
+   "id": "edge-u218-u159",
+   "ok": true,
+   "detail": "present"
+  },
+  {
+   "id": "edge-u084-u000",
+   "ok": true,
+   "detail": "present"
+  },
+  {
+   "id": "edge-u001-u003",
+   "ok": true,
+   "detail": "present"
+  },
+  {
+   "id": "edge-u113-u233",
+   "ok": true,
+   "detail": "present"
+  },
+  {
+   "id": "edge-u245-u051",
+   "ok": true,
+   "detail": "present"
+  },
+  {
+   "id": "edge-u298-u028",
+   "ok": true,
+   "detail": "present"
+  },
+  {
+   "id": "edge-u077-u048",
+   "ok": true,
+   "detail": "present"
+  },
+  {
+   "id": "edge-u105-u000",
+   "ok": true,
+   "detail": "present"
+  },
+  {
+   "id": "edge-u084-u298",
+   "ok": true,
+   "detail": "present"
+  },
+  {
+   "id": "edge-u223-u000",
+   "ok": true,
+   "detail": "present"
+  },
+  {
+   "id": "cleared-u222-u186",
+   "ok": true,
+   "detail": "absent"
+  },
+  {
+   "id": "cleared-u110-u146",
+   "ok": true,
+   "detail": "absent"
+  },
+  {
+   "id": "cleared-u084-u078",
+   "ok": true,
+   "detail": "absent"
+  },
+  {
+   "id": "cleared-u260-u282",
+   "ok": true,
+   "detail": "absent"
+  },
+  {
+   "id": "cleared-u172-u283",
+   "ok": true,
+   "detail": "absent"
+  },
+  {
+   "id": "react-m-03702",
+   "ok": true,
+   "detail": "emoji=👍/🎉 by=false"
+  },
+  {
+   "id": "react-m-11472",
+   "ok": true,
+   "detail": "emoji=👍/👍 by=true"
+  },
+  {
+   "id": "react-m-09144",
+   "ok": true,
+   "detail": "emoji=❤️/❤️ by=true"
+  },
+  {
+   "id": "react-m-06909",
+   "ok": true,
+   "detail": "emoji=👍/👍 by=true"
+  },
+  {
+   "id": "react-m-08249",
+   "ok": true,
+   "detail": "emoji=❤️/❤️ by=true"
+  },
+  {
+   "id": "quote-m-07207",
+   "ok": true,
+   "detail": "quote=m-06023/m-06023"
+  },
+  {
+   "id": "quote-m-08141",
+   "ok": true,
+   "detail": "quote=m-07047/m-07047"
+  },
+  {
+   "id": "quote-m-09434",
+   "ok": true,
+   "detail": "quote=m-07918/m-07918"
+  },
+  {
+   "id": "quote-m-09685",
+   "ok": true,
+   "detail": "quote=m-03955/m-03955"
+  },
+  {
+   "id": "quote-m-06571",
+   "ok": true,
+   "detail": "quote=m-04042/m-04042"
+  },
+  {
+   "id": "roster-g-003",
+   "ok": true,
+   "detail": "got=6 want=6"
+  },
+  {
+   "id": "roster-g-009",
+   "ok": true,
+   "detail": "got=3 want=3"
+  },
+  {
+   "id": "roster-g-probe-08",
+   "ok": true,
+   "detail": "got=3 want=3"
+  },
+  {
+   "id": "roster-g-021",
+   "ok": true,
+   "detail": "got=7 want=7"
+  },
+  {
+   "id": "roster-g-006",
+   "ok": true,
+   "detail": "got=7 want=7"
+  }
+ ]
+}

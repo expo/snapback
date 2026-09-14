@@ -76,6 +76,21 @@ This ticket records the builder's reproduction. No independent Snapback test or
 benchmark grade has been run for this report, and the active benchmark lane,
 instrument, prompt, and package pins were not changed.
 
+## Second builder corroboration
+
+The Muse lane on the same published pins later exhibited the same signature:
+its upload response contained `duration=5000`, but the id-only video send
+reported `E_FIELD` before any `/m/sendVideo` request appeared in a complete
+POST trace. Its application workaround retains the uploaded duration in the
+clip argument. The [public-evidence audit](../benchmarks/runs/2026-09-13-snapback4-clique-0004/muse-m4-compact-video-provisional-attribution.md)
+retains event and source hashes, including the failed interception excluded
+from attribution and the truncated duration-hint response.
+
+This is a second builder trace, not an independent auditor reproduction or
+benchmark grade. The audit covers a fixed prefix of the then-active log and
+does not certify the subsequent acceptance rerun. It corroborates the existing
+issue without changing the benchmark's instrument, prompts, or package pins.
+
 ## Acceptance
 
 - After a successful upload, an image/video mutation receiving the documented

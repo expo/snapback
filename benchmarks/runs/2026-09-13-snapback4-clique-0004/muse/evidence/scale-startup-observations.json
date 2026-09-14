@@ -1,0 +1,44 @@
+{
+  "observedAt": "2026-09-14T03:37:42.498654+00:00",
+  "source": "/Users/ccheever/clique-sb4-20260913-full-3models/logs/muse-snapback4.ndjson",
+  "method": "Public tool.bash result descriptions and SCALE RUN FAILED lines only; shell exit0 is not replay success. No private model content or raw command values copied. Event line hashes exclude line terminator.",
+  "timingLimit": "These observations do not establish replay start epochs. Preserve builder clocks, all attempts and wrapper total separately; no inferred successful replay.",
+  "attempts": [
+    {
+      "line": 20978,
+      "eventSha256": "35b75e94ff8d4ac04a0b0240b0de69fef8a452be93b87aa80b04b15a180e29b2",
+      "description": "Run full scale pipeline on fresh backend",
+      "shellExit": 0,
+      "failureMessages": [
+        "SCALE RUN FAILED: server never came up on 49302:"
+      ]
+    },
+    {
+      "line": 21031,
+      "eventSha256": "fc241fc7e903542c3ec0ce4d12e85d49943f73edbc1f5376862a8b8345df1101",
+      "description": "Run full scale pipeline, second attempt",
+      "shellExit": 0,
+      "failureMessages": [
+        "SCALE RUN FAILED: server never came up on 49302:"
+      ]
+    },
+    {
+      "line": 21104,
+      "eventSha256": "eb4f066eac3d9e06d4699a110cf840a98602715ac93bc6d7de94234fcf45ff06",
+      "description": "Run full scale pipeline, third attempt",
+      "shellExit": 0,
+      "failureMessages": [
+        "SCALE RUN FAILED: server never came up on 49302:"
+      ]
+    },
+    {
+      "line": 21182,
+      "eventSha256": "7c42c6b7413f7d838ff113e2406127b456af130f845a3fd07acf36df8fc56ecf",
+      "description": "Run full scale pipeline, fourth attempt",
+      "shellExit": 0,
+      "failureMessages": [
+        "SCALE RUN FAILED: Command failed: node scripts/seed.mjs --segment m1 --config shortened --url http://127.0.0.1:49302"
+      ]
+    }
+  ]
+}

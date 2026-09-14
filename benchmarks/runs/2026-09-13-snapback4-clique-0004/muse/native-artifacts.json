@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "clique-builder-native-artifacts.v1",
+  "capturedAt": "2026-09-14T05:43:07.002153Z",
+  "lane": "muse-snapback4",
+  "artifacts": [
+    {
+      "file": "entry-d0e6db042514d967203b0330f6580997.hbc",
+      "sha256": "930026f767d40177a7e04b2030ff3d1baff98c6791c5eee8136a0c8ee78d8639",
+      "bytes": 2788000,
+      "sourceLaneRelativePath": "app-host/clique/dist-ios/_expo/static/js/ios/entry-d0e6db042514d967203b0330f6580997.hbc",
+      "kind": "Expo iOS Hermes bytecode export"
+    }
+  ],
+  "sourceArchiveDisposition": "excluded from source-snapshot.tar.gz and retained separately"
+}

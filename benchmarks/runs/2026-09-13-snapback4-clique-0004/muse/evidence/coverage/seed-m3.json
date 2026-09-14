@@ -1,0 +1,13 @@
+{
+ "log": "starter-m3.log",
+ "url": "http://127.0.0.1:49300",
+ "startEpoch": 1789362360,
+ "endEpoch": 1789362360,
+ "wallMs": 38,
+ "actions": 18,
+ "ok": 18,
+ "settled": 0,
+ "failed": 0,
+ "uploads": 0,
+ "errors": []
+}

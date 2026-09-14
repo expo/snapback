@@ -3,8 +3,13 @@
 **Status: running.** Astra medium completed its continuous build at
 `2026-09-13T21:10:50Z` in 9,614.013 seconds of driver wall time. Grok 4.6 xhigh
 finished at `2026-09-14T00:40:23Z` after 12,499.350 seconds with incomplete
-milestone coverage. Muse started its cold build at `2026-09-14T00:40:41Z`
-(PID `26465`).
+milestone coverage. Muse delivered its builder report, then its runtime kept
+submitting empty follow-up turns for background terminals. The orchestrator
+interrupted that loop at `2026-09-14T05:34:59Z`; the actual exit code is **130**
+and driver wall time is 17,657.686 seconds, including the continuation tail.
+[Holistic scores](./holistic/README.md) are complete: Astra 84, Grok 70, Muse 80
+(mean 78). Astra's independent grade is active; the other grades and fresh M7
+runs remain pending.
 All three lanes are frozen to published `snapback4@0.2.6` and
 `snapback4-expo@0.2.1`. `REGISTRY_RECEIPTS.json` confirms that registry integrity
 matches the exact qualified tarballs, including the platform binary.
@@ -43,8 +48,10 @@ grader behavior across runs.
 
 The [public-tool source-access audit](./source-access-audit.json) found five
 Grok calls targeting installed package implementation, and no such call among
-Astra's 393 inspected command starts. A separate [active-run observation](./muse-source-access-observation.json)
-records Muse reading installed `dist/auth.js`. These exceed the requested
+Astra's 393 inspected command starts. The final [Muse audit](./muse/qualifications/muse-finished-builder-source-access-audit.json)
+records 23 implementation-targeting commands (21 exited zero, two exited one).
+The earlier [active-run observation](./muse-source-access-observation.json) is
+retained as a historical prefix. These accesses exceed the requested
 documentation and generated-API discovery path. The audit inspects public
 command/path arguments, not private reasoning or every possible indirect read;
 no repository-checkout path appeared in the inspected arguments. These access
@@ -73,19 +80,21 @@ wall, although the prompt provides four hours per milestone and a separate
 scale clock. This early stop is retained as an execution limitation, not an
 exhausted benchmark allowance.
 
-Muse's [running-build observations](./muse-progress-observations.json) record
-passing acceptance-suite claims for M1–M6 and M8, plus one verified Hermes
-export after M8. Choreography and separate milestone-boundary exports remain
-unqualified. Its first two local replays each report 36,809 actions, versus the
-frozen 167,157; the first had 3,113 action failures and the second reported zero,
-with invariant verification still unresolved. The [provisional corpus audit](./muse-provisional-scale-corpus-audit.json)
-records the smaller input and missing named full-scale fixtures. Muse has since
-changed that local log and started a third reduced replay, so final input and
-outcome audits remain pending. These attempts do not qualify the frozen full
-scale replay. A [clock observation](./muse-runlog-clock-observation.json) also
-records three handwritten log epochs ahead of observer wall time; driver and
-receipt clocks remain separate. Holistic scores, independent grades and fresh
-M7 sessions remain pending.
+Muse reports its acceptance suites green after corrections, but did not run
+the frozen choreography. Its four reduced replay attempts changed the generated
+input: the first had 3,113 action failures; the second settled all actions but
+verification failed to complete; the third passed 87/88 local verifier checks;
+the fourth reports 36,804/36,804 actions and 88/88 checks. These are a reduced
+corpus and local verifier, not the frozen 167,157-action scale qualification.
+The [provisional corpus audit](./muse-provisional-scale-corpus-audit.json) and
+[running-build observations](./muse-progress-observations.json) are retained as
+historical observations. The [final Muse archive](./muse/README.md) now retains
+source, corpus, native, and teardown qualifications, including the available
+frozen log that the builder did not select and the copied choreography it did
+not execute. A [clock observation](./muse-runlog-clock-observation.json)
+records handwritten epochs ahead of observer wall time. Receipt clocks,
+builder-written times, and driver time including the runtime continuation loop
+remain separate. Independent grades and fresh M7 sessions remain pending.
 
 The separate [Grok client attribution audit](./grok-client-attribution-audit.md)
 identifies mutation return values as a documented client limitation. Static
@@ -96,15 +105,26 @@ The [pending-shape audit](./m6-pending-shape-audit.md) separates the builder's
 attribution from the documented raw-row metadata boundary. The
 [replica startup audit](./replica-startup-audit.md) confirms the old quadratic
 JavaScript implementation is gone and explains why whole-browser startup
-timing does not identify a new device-apply defect.
+timing does not identify a new device-apply defect. The observed server exits
+are tracked in the [existing dev-server follow-up](../../../issues/20260913-snapback4-dev-exits-without-diagnostic-during-schema-change.md);
+that ticket retains the builder evidence with attribution still unresolved.
 
 | Lane | M1 | M2 | M3 | M4 | M5 | M6 | M8 | Continuous wall | Holistic score | Independent 119 | Comparable 101 subtotal | Fresh M7 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Astra medium | builder green | builder green | builder green | builder green | builder green | builder green | builder green | 9,614.013 s | pending | pending | pending | pending |
-| Grok 4.6 xhigh | web green | web green | capability failure | blocked; partial API suite | blocked; partial API suite | blocked; scale incomplete | blocked; partial API suite | 12,499.350 s | pending | pending | pending | pending |
-| Muse Spark 1.3 xhigh | suite green; full pending | suite green; full pending | suite green; full pending | suite green; full pending | suite green; full pending | suite green; full pending | suite green; full pending | running | pending | pending | pending | pending |
+| Astra medium | builder green | builder green | builder green | builder green | builder green | builder green | builder green | 9,614.013 s | 84 | pending | pending | pending |
+| Grok 4.6 xhigh | web green | web green | capability failure | blocked; partial API suite | blocked; partial API suite | blocked; scale incomplete | blocked; partial API suite | 12,499.350 s | 70 | pending | pending | pending |
+| Muse Spark 1.3 xhigh | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | 17,657.686 s; includes interrupted runtime continuation | 80 | pending | pending | pending |
+
+The [holistic scorers](./holistic/summary.md) use their own builders' narratives, so their diagnoses are
+not independent technical findings. Astra charged pending metadata loss that
+the [pending-shape audit](./m6-pending-shape-audit.md) identifies as a documented
+raw-row boundary. Grok charged Hermes failure that the
+[client attribution audit](./grok-client-attribution-audit.md) traces statically
+to its Expo/Babel mismatch. Received scores remain verbatim.
 
 The Astra M4 builder reproduced a new [video prediction defect](../../../issues/20260913-snapback4-video-id-only-prediction-refuses.md): passing the documented asset `{ id }` fails locally when the mutation reads `.duration`. Passing the complete upload response let it continue. This is a received builder reproduction; independent grading is pending, and the published pins remain unchanged.
+
+Muse later supplied a [second compact-video trace](./muse-m4-compact-video-provisional-attribution.md) with the same local `E_FIELD`, authoritative upload duration, and absence of a mutation HTTP request. This corroborates the existing issue; it is not an independent auditor reproduction or grade.
 
 The frozen assertion manifest contains 119 unique IDs: 101 for M1–M7 and 18
 for M8. The frozen report schema accepts the 101-ID set, so each independent
@@ -162,17 +182,26 @@ python3 scripts/run_phase.py builder grok
 python3 scripts/run_phase.py builder muse
 python3 scripts/run_phase.py score astra
 python3 scripts/run_phase.py score grok
-python3 scripts/run_phase.py score muse
+python3 observed-milestones/helpers/muse_post_interruption_phase.py score
 python3 observed-milestones/helpers/capture-muse-score-final.py .
 python3 scripts/aggregate_scores.py
 python3 scripts/run_phase.py grade astra
 python3 scripts/run_phase.py grade grok
-python3 scripts/run_phase.py grade muse
+python3 observed-milestones/helpers/muse_post_interruption_phase.py grade
 python3 scripts/summarize_grades.py
 python3 scripts/run_phase.py m7 astra
 python3 scripts/run_phase.py m7 grok
-python3 scripts/run_phase.py m7 muse
+python3 observed-milestones/helpers/muse_post_interruption_phase.py m7
 ```
+
+Muse's post-builder phases use the external helper shown above. It qualifies
+only this exact builder's exit-130 record, completed public terminal answers,
+automatic empty-turn continuation, interruption receipt, and fixed package
+pins by hash. Its generated runner differs from the frozen runner by one
+builder-completion predicate; downstream exit checks, prompts, models, commands,
+and lifecycle output remain unchanged. The original runner and actual builder
+exit record are retained unchanged. This is an orchestration exception, not a
+successful builder-process exit or a benchmark pass.
 
 The packet's foreground runner records command, PID, start, exit, end, wall
 time, stdout, and stderr for every phase. Those retained lifecycle records,

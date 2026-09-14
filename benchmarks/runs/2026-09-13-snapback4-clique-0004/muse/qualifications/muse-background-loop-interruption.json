@@ -1,0 +1,27 @@
+{
+  "observedAt": "2026-09-14T05:34:58.083422+00:00",
+  "action": "SIGINT to foreground wrapper PID26454, which forwards to recorded Muse PID26465",
+  "reason": "Builder public terminal completed repeatedly; managed background-terminal runtime submits empty continuation turns and restarts servers. No documented graceful completion option.",
+  "logPrefixBytes": 23756249,
+  "logPrefixSha256": "ed2ac5bbccb18abb8a55bcddb07ec786b483ad20b8da6e79a725f051e6fc9692",
+  "completedPublicTerminals": [
+    {
+      "sequence": 25168,
+      "sha256": "f3642b97dc122b90370e90804aae6519f5852941e3e57650e72b80813b5cf71c"
+    },
+    {
+      "sequence": 25330,
+      "sha256": "64395fdff8a37f79c0483cc91959c3d43ab6cefd0265a419b2ae7d8e65ac2092"
+    },
+    {
+      "sequence": 25611,
+      "sha256": "b8db29b5693b33ae3ba34d2d335f8c70656f1959870e8d9d690e99e58be50e20"
+    }
+  ],
+  "backgroundContinuationSequences": [
+    25169,
+    25331
+  ],
+  "actualExitPending": true,
+  "noSuccessCodeFabricated": true
+}

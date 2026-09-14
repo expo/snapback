@@ -1,0 +1,11 @@
+{
+  "lane": "muse-snapback4",
+  "phase": "score",
+  "pid": 62909,
+  "endedAt": "2026-09-14T05:46:12Z",
+  "endedEpoch": 1789364772,
+  "wallSeconds": 41.708,
+  "exitCode": 0,
+  "stdout": "/Users/ccheever/clique-sb4-20260913-full-3models/scores/muse/raw.out",
+  "stderr": "/Users/ccheever/clique-sb4-20260913-full-3models/scores/muse/raw.err"
+}

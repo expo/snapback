@@ -1,0 +1,38 @@
+{
+  "observedAt": "2026-09-14T04:39:42.854713+00:00",
+  "files": {
+    "scale-replay.json": {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/muse-snapback4/coverage/scale-replay.json",
+      "bytes": 403,
+      "sha256": "be204c94990f42feb37489d04f46b3842b9c410b72d87e9b08dfc35b50cbc59d",
+      "summary": {
+        "startEpoch": 1789359831,
+        "endEpoch": 1789360544,
+        "wallMs": 713065,
+        "actions": 36804,
+        "ok": 36804,
+        "settled": 0,
+        "failed": 0,
+        "uploads": 4328
+      }
+    },
+    "scale-verify.json": {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/muse-snapback4/coverage/scale-verify.json",
+      "bytes": 7104,
+      "sha256": "20d6c8e331824b47493df8e0b809a4c375d5d8219a689e6af6d56984088a451a",
+      "summary": {
+        "checks": 88,
+        "passed": 88,
+        "failed": 0
+      }
+    }
+  },
+  "currentLocalCorpus": {
+    "path": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/muse-snapback4/scale.log",
+    "bytes": 2653997,
+    "lines": 36806,
+    "sha256": "9680fdc1fc2165ee69f94f478aa996fa0cbd027d67cd2b3fd4491c646f38356b",
+    "copiedAs": "scale.log"
+  },
+  "qualification": "Local reduced-corpus replay and verifier. Current input bytes preserved at observation; not independently bound to start. Not frozen167157-action qualification."
+}

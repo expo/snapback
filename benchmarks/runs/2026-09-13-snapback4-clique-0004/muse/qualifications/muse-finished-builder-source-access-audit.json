@@ -1,0 +1,827 @@
+{
+  "schemaVersion": "clique.muse.finished-builder-source-access-audit.v1",
+  "observedAt": "2026-09-14T05:40:47.464013Z",
+  "status": "complete against final retained builder log",
+  "purpose": "orchestration fairness/source-access qualification; not an independent assertion grade",
+  "builderCompletion": {
+    "actualExitCode": 130,
+    "endReceipt": "logs/muse-snapback4.end.json",
+    "endReceiptSha256": "b1e1aba56798930e8118481d692355855c1cb4e6349c1f170be0cff64d142b28",
+    "interruptionReceipt": "observed-milestones/muse-background-loop-interruption.json",
+    "interruptionReceiptSha256": "5443afd335811bbbec64dd61d9f55b34448a840305abe9c4234de87ed92c2405",
+    "qualification": "The wrapper was interrupted after repeated public terminal completion and automatic empty background-terminal continuations; this audit does not relabel exit 130 as success."
+  },
+  "scope": {
+    "log": "logs/muse-snapback4.ndjson",
+    "bytes": 23756249,
+    "lineCount": 25611,
+    "sha256": "ed2ac5bbccb18abb8a55bcddb07ec786b483ad20b8da6e79a725f051e6fc9692",
+    "prompt": {
+      "path": "prompts/muse-snapback4.md",
+      "sha256": "96769c83bffbbca8c61ca47ac3af00dc6e138bb91b42dd2e6554d194fffdaeaa",
+      "governingLines": [
+        3,
+        4,
+        5,
+        6,
+        8
+      ]
+    },
+    "ruleApplied": "No Snapback/Exact checkout or Snapback source anywhere; enumerated discovery surfaces are installed README, served guide/keyword cards, why diagnostics, and generated snapback/generated/api.ts."
+  },
+  "method": {
+    "structuredPublicBashCommandCount": 691,
+    "parsed": "task.lifecycle.proposed task_kind plus task.lifecycle.output JSON command, description, terminal_status and exit_code for tool.bash tasks",
+    "excluded": [
+      "task.lifecycle.output JSON output bodies",
+      "tool.result text",
+      "run.output.delta text",
+      "model.meta.response bodies",
+      "thought/reasoning",
+      "terminal final text",
+      "user prompts",
+      "native tool.read_file/search output chunks"
+    ],
+    "nativeToolArgumentLimitation": "The retained lifecycle records identify native tool.read_file/search task kinds but expose no separate structured argument field; their output chunks were not inspected. This audit is complete for the 691 structured public bash command arguments available in the final log.",
+    "lineHashes": "lineSha256 covers exact NDJSON line bytes including terminator; lineContentSha256 covers the same event without CR/LF.",
+    "secretHandling": "No raw command, command output, credential value, or private model content is copied."
+  },
+  "result": {
+    "verdict": "prohibited installed-package implementation/source access observed",
+    "implementationTargetingEventCount": 23,
+    "successfulCommandEventCount": 21,
+    "failedButTargetedCommandEventCount": 2,
+    "repositoryCheckoutCommandArgumentMatchCount": 0,
+    "explicitDirectImplementationFiles": [
+      "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/assets.js",
+      "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/auth.js",
+      "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/backend.js",
+      "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/client.js",
+      "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/local.js",
+      "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/react.js",
+      "$MUSE_LANE/app-host/clique/node_modules/snapback4-expo/client.js",
+      "$MUSE_LANE/app-host/clique/node_modules/snapback4-expo/src/index.ts"
+    ],
+    "additionalImplementationScopes": [
+      "$MUSE_LANE/node_modules/snapback4/dist",
+      "$MUSE_LANE/app-host/clique/node_modules/snapback4-expo/dist",
+      "$MUSE_LANE/app-host/clique/node_modules/snapback4-expo/dist/*.js",
+      "$MUSE_LANE/app-host/clique/node_modules/snapback4-expo/*.js",
+      "$MUSE_LANE/app-host/clique/node_modules/snapback4-expo/src/*.ts"
+    ],
+    "events": [
+      {
+        "line": 8893,
+        "lineSha256": "7e138a9b24075a4a16f0e275e79b926f37c7739bff7b1cd53ab3e90876e24887",
+        "lineContentSha256": "22b7a458f48608aed5ec859f52ff726ff5fa8712513b258b19132291659f2715",
+        "eventType": "task.lifecycle.output",
+        "taskKind": "tool.bash",
+        "taskId": "01a09d91-fdd7-7ff3-8bd6-c8f3af4c38de",
+        "description": "Inspect local client session restore code",
+        "commandTerminalStatus": "completed",
+        "commandExitCode": 0,
+        "classification": "mixed compiled-JavaScript and public-declaration content search",
+        "paths": [
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/local*.js",
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/*.d.ts"
+        ],
+        "certainty": "high that the public command targeted these implementation/source paths; tool output was not inspected",
+        "successfulCommand": true
+      },
+      {
+        "line": 8919,
+        "lineSha256": "a856abcb8a89ce3271e27bd5f1fd6a63ee3351a28d6a937abf0595dc876924da",
+        "lineContentSha256": "930c32faf661045028819c53e99049bfe3749a12edd7fa9d7fb4216157624ca9",
+        "eventType": "task.lifecycle.output",
+        "taskKind": "tool.bash",
+        "taskId": "01a09d92-060a-7ae2-b56b-c175899b94e8",
+        "description": "Read local client session bootstrap",
+        "commandTerminalStatus": "completed",
+        "commandExitCode": 0,
+        "classification": "compiled JavaScript content read",
+        "paths": [
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/local.js"
+        ],
+        "certainty": "high that the public command targeted these implementation/source paths; tool output was not inspected",
+        "successfulCommand": true
+      },
+      {
+        "line": 8940,
+        "lineSha256": "42ed4e06e15d6114bb7fe6e170cd5720d2573b8400701fcd032a4b1c9f77c496",
+        "lineContentSha256": "e9abc3beac529da597157870a672858936d4af089ed238e79d92a667e19eb2ae",
+        "eventType": "task.lifecycle.output",
+        "taskKind": "tool.bash",
+        "taskId": "01a09d92-2717-7f22-af11-8907ac8b4b62",
+        "description": "Read session store key functions",
+        "commandTerminalStatus": "failed",
+        "commandExitCode": 1,
+        "classification": "compiled JavaScript content search/read",
+        "paths": [
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/auth.js",
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/local.js"
+        ],
+        "certainty": "high that the public command targeted these implementation/source paths; tool output was not inspected",
+        "successfulCommand": false
+      },
+      {
+        "line": 8965,
+        "lineSha256": "ef80f2ff639da949d0bfef42bfbbba8ca069e42157b1533ac88851d105d51f66",
+        "lineContentSha256": "dbc3d8a4cb9f585d0a6afcf987b663136c31761af55f93a07cc91c5992cc3a7c",
+        "eventType": "task.lifecycle.output",
+        "taskKind": "tool.bash",
+        "taskId": "01a09d92-2c07-7572-98ca-35c890abe3c3",
+        "description": "Read auth session store implementation",
+        "commandTerminalStatus": "completed",
+        "commandExitCode": 0,
+        "classification": "compiled JavaScript content read",
+        "paths": [
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/auth.js"
+        ],
+        "certainty": "high that the public command targeted these implementation/source paths; tool output was not inspected",
+        "successfulCommand": true
+      },
+      {
+        "line": 9706,
+        "lineSha256": "c182715b343e645e3e0d85c85f0ca9aa1ca927f2fe2e6665de2118c9c90a6660",
+        "lineContentSha256": "8fdc15b57d49ad2d9e0212f3c587263a6e5a57b5b7f58060467d54ba9fe876ba",
+        "eventType": "task.lifecycle.output",
+        "taskKind": "tool.bash",
+        "taskId": "01a09d96-e06a-7b52-aa08-fb39210d24fe",
+        "description": "Read session shape validator",
+        "commandTerminalStatus": "completed",
+        "commandExitCode": 0,
+        "classification": "compiled JavaScript content search/read",
+        "paths": [
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/auth.js"
+        ],
+        "certainty": "high that the public command targeted these implementation/source paths; tool output was not inspected",
+        "successfulCommand": true
+      },
+      {
+        "line": 9731,
+        "lineSha256": "3e1db7e5a848fea33d5cfe84d9edaab972bc60a75cbb50eeebd1b1dfd29715eb",
+        "lineContentSha256": "4fb8cea9411bce686dbe9c53eb5f67e3d5be1cd97069273cdd331ed137129b3f",
+        "eventType": "task.lifecycle.output",
+        "taskKind": "tool.bash",
+        "taskId": "01a09d96-e5e7-7893-9c7f-73e26f7d78f6",
+        "description": "Read isSession definition",
+        "commandTerminalStatus": "completed",
+        "commandExitCode": 0,
+        "classification": "compiled JavaScript content read",
+        "paths": [
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/auth.js"
+        ],
+        "certainty": "high that the public command targeted these implementation/source paths; tool output was not inspected",
+        "successfulCommand": true
+      },
+      {
+        "line": 12994,
+        "lineSha256": "84e0cca647874a210772e85efc060db4a8863e68d78f9603f1e8c76d03106968",
+        "lineContentSha256": "033dfa75d34da25992fad9fa018bd9005a75652c806706efc55b209e3b9a9eda",
+        "eventType": "task.lifecycle.output",
+        "taskKind": "tool.bash",
+        "taskId": "01a09dac-6a80-7343-8037-ada97b67998e",
+        "description": "Find asset serve route",
+        "commandTerminalStatus": "completed",
+        "commandExitCode": 0,
+        "classification": "compiled JavaScript content search",
+        "paths": [
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/backend.js"
+        ],
+        "certainty": "high that the public command targeted these implementation/source paths; tool output was not inspected",
+        "successfulCommand": true
+      },
+      {
+        "line": 13025,
+        "lineSha256": "cb376ba1e73f6d50a8cbd4f4fb6a5bb70ec1a1ca99fcd2022a24a26096d64538",
+        "lineContentSha256": "3293ce23f1873fece18d63010aa01a84f18e59c786e77e22df1c940899eb28d3",
+        "eventType": "task.lifecycle.output",
+        "taskKind": "tool.bash",
+        "taskId": "01a09dac-71f1-7bf3-b150-471011e8ae7a",
+        "description": "Locate asset API in client",
+        "commandTerminalStatus": "completed",
+        "commandExitCode": 0,
+        "classification": "compiled JavaScript glob content search",
+        "paths": [
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/*.js",
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/client.js"
+        ],
+        "certainty": "high that the public command targeted these implementation/source paths; tool output was not inspected",
+        "successfulCommand": true
+      },
+      {
+        "line": 13046,
+        "lineSha256": "8367cec7e9f906e0b28b734e0397519615d8100c2eb3969f6280d408a76383f9",
+        "lineContentSha256": "a7bcaf4121e782ca14c80d89f229ddceddad105927301edabb021cbee8fea0a7",
+        "eventType": "task.lifecycle.output",
+        "taskKind": "tool.bash",
+        "taskId": "01a09dac-7c62-7b02-bea6-890dc74ac7f4",
+        "description": "Read asset fetch URL",
+        "commandTerminalStatus": "completed",
+        "commandExitCode": 0,
+        "classification": "compiled JavaScript content search",
+        "paths": [
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/assets.js"
+        ],
+        "certainty": "high that the public command targeted these implementation/source paths; tool output was not inspected",
+        "successfulCommand": true
+      },
+      {
+        "line": 14285,
+        "lineSha256": "b0f6c6d1c36e8e601807f68678c684632b9e4f75675c166f60d48adaff314bdb",
+        "lineContentSha256": "1cf9c49befc4ac798d8dbb54231c3c0f297599790333c476f461f329ee8a5591",
+        "eventType": "task.lifecycle.output",
+        "taskKind": "tool.bash",
+        "taskId": "01a09dc1-2232-7b00-8d8d-79cf7fe5d590",
+        "description": "Read useAsset caching behavior",
+        "commandTerminalStatus": "completed",
+        "commandExitCode": 0,
+        "classification": "compiled JavaScript content search/read",
+        "paths": [
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/react.js"
+        ],
+        "certainty": "high that the public command targeted these implementation/source paths; tool output was not inspected",
+        "successfulCommand": true
+      },
+      {
+        "line": 14312,
+        "lineSha256": "a500980cf39a212d339cd915410d57f666660e7e7182ae95078b2c0e4a0da3ed",
+        "lineContentSha256": "5c150ec2903d238b2fbda45c70d37c32fd524e04d109a2d24d40fc7d1d42442a",
+        "eventType": "task.lifecycle.output",
+        "taskKind": "tool.bash",
+        "taskId": "01a09dc1-2fbb-77f3-bb32-cacd7a28f851",
+        "description": "Read client asset offline path",
+        "commandTerminalStatus": "completed",
+        "commandExitCode": 0,
+        "classification": "compiled JavaScript content read",
+        "paths": [
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/assets.js",
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/local.js"
+        ],
+        "certainty": "high that the public command targeted these implementation/source paths; tool output was not inspected",
+        "successfulCommand": true
+      },
+      {
+        "line": 14337,
+        "lineSha256": "0a092367bfbdfb6d551f9d3a6ffbe8851b00e4ccf8436f8c027bd658c25acadf",
+        "lineContentSha256": "fafd32d09d07da7cc96e61f882f421bc2dd1adf43f1bf2bd50d8f56e9daa2826",
+        "eventType": "task.lifecycle.output",
+        "taskKind": "tool.bash",
+        "taskId": "01a09dc1-40bf-7282-ba23-be06f2d8cbf6",
+        "description": "Read local client asset method",
+        "commandTerminalStatus": "completed",
+        "commandExitCode": 0,
+        "classification": "compiled JavaScript content search/read",
+        "paths": [
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/local.js"
+        ],
+        "certainty": "high that the public command targeted these implementation/source paths; tool output was not inspected",
+        "successfulCommand": true
+      },
+      {
+        "line": 16357,
+        "lineSha256": "4665e644ce5e156fb9b3a6f67dedf080602f3c055d4a5ace8c1c4fd4df27c719",
+        "lineContentSha256": "83c3fa513c9faf798f2fc21c87335a2b1c75ff9ffa11f369567e934b3151f851",
+        "eventType": "task.lifecycle.output",
+        "taskKind": "tool.bash",
+        "taskId": "01a09dd2-d39d-7820-aac8-ab9dd6a05c2a",
+        "description": "Read mutate offline behavior",
+        "commandTerminalStatus": "completed",
+        "commandExitCode": 0,
+        "classification": "compiled JavaScript content search/read",
+        "paths": [
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/local.js"
+        ],
+        "certainty": "high that the public command targeted these implementation/source paths; tool output was not inspected",
+        "successfulCommand": true
+      },
+      {
+        "line": 16609,
+        "lineSha256": "947b0a815d76e1fd2ae58e6bcc6f74ad52c3a55da0a15ccc795b476c3358b68a",
+        "lineContentSha256": "a0a860a9ebdbf578120a0fa80ee1f9f375cec5df6d7ab283bf1b2747c8d210e7",
+        "eventType": "task.lifecycle.output",
+        "taskKind": "tool.bash",
+        "taskId": "01a09dd5-9344-7831-b786-538ccd594afd",
+        "description": "Check pending row marking",
+        "commandTerminalStatus": "completed",
+        "commandExitCode": 0,
+        "classification": "compiled JavaScript content search",
+        "paths": [
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/local.js"
+        ],
+        "certainty": "high that the public command targeted these implementation/source paths; tool output was not inspected",
+        "successfulCommand": true
+      },
+      {
+        "line": 16634,
+        "lineSha256": "859710f586dc0e20d4a4635bb5aa91e98ac3cbfec7c391ba6199c9a133ab6ba1",
+        "lineContentSha256": "e5ca84d1e07630f666bd608849d526e7bcec73a6fedae85fcc0c9ad9b77ce7f4",
+        "eventType": "task.lifecycle.output",
+        "taskKind": "tool.bash",
+        "taskId": "01a09dd5-cdc7-7f22-9522-50680a591b5e",
+        "description": "Find outbox visibility APIs",
+        "commandTerminalStatus": "failed",
+        "commandExitCode": 1,
+        "classification": "mixed compiled-JavaScript and public-declaration content search",
+        "paths": [
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/local.js",
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/local.d.ts"
+        ],
+        "certainty": "high that the public command targeted these implementation/source paths; tool output was not inspected",
+        "successfulCommand": false
+      },
+      {
+        "line": 16659,
+        "lineSha256": "d6c6279155cba93f66e4d1f89d8922a12edb1d7faa0ea2abbb4992d850f6e2c3",
+        "lineContentSha256": "85719f8d6670c8c0451df96e1d5f030b1d8a7b7d7564ac655ca0924b2312f058",
+        "eventType": "task.lifecycle.output",
+        "taskKind": "tool.bash",
+        "taskId": "01a09dd5-dcee-7cc3-aa67-76968d425fd1",
+        "description": "Read outbox implementation",
+        "commandTerminalStatus": "completed",
+        "commandExitCode": 0,
+        "classification": "compiled JavaScript content read",
+        "paths": [
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4/dist/local.js"
+        ],
+        "certainty": "high that the public command targeted these implementation/source paths; tool output was not inspected",
+        "successfulCommand": true
+      },
+      {
+        "line": 23516,
+        "lineSha256": "9fd0a9b3625d950f6262d6cd72472fb049ccd901b03d812bc17c1ebc7a29c7c1",
+        "lineContentSha256": "d98d601d0892dbdd59229f28dc80f0ce5afd7ceb078d344d47bd86709f96b017",
+        "eventType": "task.lifecycle.output",
+        "taskKind": "tool.bash",
+        "taskId": "01a09e47-cc6d-7f81-b906-e7b1e259fb88",
+        "description": "Locate EFIELD validation source",
+        "commandTerminalStatus": "completed",
+        "commandExitCode": 0,
+        "classification": "recursive installed implementation-directory content search",
+        "paths": [
+          "$MUSE_LANE/node_modules/snapback4/dist",
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4-expo/dist"
+        ],
+        "certainty": "high that the public command targeted these implementation/source paths; tool output was not inspected",
+        "successfulCommand": true
+      },
+      {
+        "line": 23649,
+        "lineSha256": "5d0c4b056d5792cb0c4c9c52139d98396713f830312091a0e1698d0228367421",
+        "lineContentSha256": "5bf1c1a1e488d57b509cfe670d4bfbb4dd9621fb8873c7d64c99147f84d662c1",
+        "eventType": "task.lifecycle.output",
+        "taskKind": "tool.bash",
+        "taskId": "01a09e48-db12-74c0-8799-582e33ffda71",
+        "description": "Inspect client library layout",
+        "commandTerminalStatus": "completed",
+        "commandExitCode": 0,
+        "classification": "compiled JavaScript glob content search",
+        "paths": [
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4-expo/dist/*.js"
+        ],
+        "certainty": "high that the public command targeted these implementation/source paths; tool output was not inspected",
+        "successfulCommand": true
+      },
+      {
+        "line": 23675,
+        "lineSha256": "1c4bc27ab9722ccb2172b8cee62f4281d1bfd831578afe36eb42e664d9b520ac",
+        "lineContentSha256": "cb6d7c22f18b272a29f0d299c324d4540e63a3b11a4ca83694c9f361b05bca81",
+        "eventType": "task.lifecycle.output",
+        "taskKind": "tool.bash",
+        "taskId": "01a09e48-e6f5-75c3-9049-0fd1e660e319",
+        "description": "Search client source for validation",
+        "commandTerminalStatus": "completed",
+        "commandExitCode": 0,
+        "classification": "published TypeScript source glob content search",
+        "paths": [
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4-expo/src/*.ts",
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4-expo/src/client.*"
+        ],
+        "certainty": "high that the public command targeted these implementation/source paths; tool output was not inspected",
+        "successfulCommand": true
+      },
+      {
+        "line": 23696,
+        "lineSha256": "4a9b192d3b8d76969536cabf9b92d12422b05e4e21f730453248c12a4fce666c",
+        "lineContentSha256": "d39f5fcb2b6a1489379e59a0c5b4dde67ae89f85e2660f79c62b6e3a7d2af61e",
+        "eventType": "task.lifecycle.output",
+        "taskKind": "tool.bash",
+        "taskId": "01a09e48-f07c-7303-82c6-dfb765c4bc4d",
+        "description": "Search built client for duration handling",
+        "commandTerminalStatus": "completed",
+        "commandExitCode": 0,
+        "classification": "compiled JavaScript glob content search",
+        "paths": [
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4-expo/*.js",
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4-expo/client.js",
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4-expo/react.js"
+        ],
+        "certainty": "high that the public command targeted these implementation/source paths; tool output was not inspected",
+        "successfulCommand": true
+      },
+      {
+        "line": 23742,
+        "lineSha256": "74bb22fab0cfcc170e5955e9f39791f8c1a66953b8987803b8da69e45dcb43bb",
+        "lineContentSha256": "693a136854a2491aadbadda22f50eeb9b5f63a8f082292717d059909cfe89ad1",
+        "eventType": "task.lifecycle.output",
+        "taskKind": "tool.bash",
+        "taskId": "01a09e49-769f-7670-84fe-06386f90597a",
+        "description": "Read client upload implementation",
+        "commandTerminalStatus": "completed",
+        "commandExitCode": 0,
+        "classification": "compiled JavaScript content search/read",
+        "paths": [
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4-expo/client.js"
+        ],
+        "certainty": "high that the public command targeted these implementation/source paths; tool output was not inspected",
+        "successfulCommand": true
+      },
+      {
+        "line": 23790,
+        "lineSha256": "2ca56f255c5a2b387db168552e25bb0548839b7910c62646a2f15a463de12c44",
+        "lineContentSha256": "22592bf45344e61a2619a76ccda494067cce6cd0f25128d46571dd3018cec77e",
+        "eventType": "task.lifecycle.output",
+        "taskKind": "tool.bash",
+        "taskId": "01a09e49-8d28-76e2-880e-838b835e32d9",
+        "description": "Find upload in expo client source",
+        "commandTerminalStatus": "completed",
+        "commandExitCode": 0,
+        "classification": "published TypeScript source glob content search",
+        "paths": [
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4-expo/src/*.ts"
+        ],
+        "certainty": "high that the public command targeted these implementation/source paths; tool output was not inspected",
+        "successfulCommand": true
+      },
+      {
+        "line": 23811,
+        "lineSha256": "6bffbf6369d94a814abbb17c7a6adf30ed86409eb94cf6eed986cfef73200860",
+        "lineContentSha256": "25ead18f72c67372735bd020db6bb3b461f4df8deb57c1e14fe065e6e8937cf8",
+        "eventType": "task.lifecycle.output",
+        "taskKind": "tool.bash",
+        "taskId": "01a09e49-9f92-7593-a7e8-facf740418dc",
+        "description": "Trace expo client re-exports",
+        "commandTerminalStatus": "completed",
+        "commandExitCode": 0,
+        "classification": "published TypeScript source content search",
+        "paths": [
+          "$MUSE_LANE/app-host/clique/node_modules/snapback4-expo/src/index.ts"
+        ],
+        "certainty": "high that the public command targeted these implementation/source paths; tool output was not inspected",
+        "successfulCommand": true
+      }
+    ]
+  },
+  "boundaryDispositions": {
+    "publicDeclarationOnlyCalls": {
+      "classification": "declaration-only .d.ts access recorded separately from JS/TS implementation access; prompt explicitly names generated api.ts rather than installed declarations",
+      "events": [
+        {
+          "line": 2746,
+          "lineSha256": "653a52cfd553dea133ca301629d59a2379f6a847faaa7b6f0518978f52da929f",
+          "lineContentSha256": "3cb1d6fe556b0e8a51d5204bc12a8d439cb782e9022df67602266363d45f7ff1",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09d73-c245-7692-85b5-e3fc5b55374e",
+          "description": "Read react bindings types",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        },
+        {
+          "line": 5204,
+          "lineSha256": "fb74b84c7589345ba7df31e4367d65b5f812593c30d1f0751d60fdb23b3e721f",
+          "lineContentSha256": "659b768302087f10c4e0061dc197b49e9c5a97f093abd04c744d9d6be50ce72a",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09d7f-d215-7e33-8dc1-93374c58e071",
+          "description": "Inspect webDevice options and wasm asset",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        },
+        {
+          "line": 5225,
+          "lineSha256": "6aa87d286ec285d06ccb21e30bc51d5f2cebcc30d8053b3851179cf0f0f6e96e",
+          "lineContentSha256": "96994703474c8a5400bce268e23047d7cb3162d3ca87820d0576759cff5d00c5",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09d7f-e65e-7f61-bc77-82533b3e1317",
+          "description": "Find platformAsset helper",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        }
+      ]
+    },
+    "packageReadmeCalls": {
+      "classification": "enumerated published documentation surface",
+      "events": [
+        {
+          "line": 326,
+          "lineSha256": "28bc398861405b0364f91461c18c0658363b77923febb0d3f4979dd5992c64c2",
+          "lineContentSha256": "837349e9c7a13d6d1cd5f31597d69ca0f243e9c4bcc88ed93433aa53491a8b5b",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09d5c-96bb-7a12-ad7f-999323c57757",
+          "description": "Inspect installed snapback4 package",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        },
+        {
+          "line": 8815,
+          "lineSha256": "5c733f8f34989b3684383eb43a6ecca3e74f6ecbf75bb1db90ed42ee6758b379",
+          "lineContentSha256": "8e3e35b99b68114d72e201b543f67d62885756d6a8a103c8bb26ed1e1bffd017",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09d91-aec1-7d31-81b8-6835be2b11fb",
+          "description": "Find snapback4 session docs",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        },
+        {
+          "line": 8837,
+          "lineSha256": "800154394c9d011bbf60f4a2b3afed3aa661dacb855bc33fdff7eac5ca858b41",
+          "lineContentSha256": "4e6e0d7e46f32a82aa4485b6646f22e05f35b0e2c33d4d2fbcb75c7f909d8e41",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09d91-b44d-79a1-8a3b-08088b96a02e",
+          "description": "Read client session semantics docs",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        },
+        {
+          "line": 10655,
+          "lineSha256": "fb1a22d721828151489bb2838137531913950f5c8b0ebe8d8c14a3f70253077a",
+          "lineContentSha256": "3fb9af6cacc82b9777ef269b933609e1cf6292b6e14fe48fc9d7eef712e8884f",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09d9c-41c0-7670-85ee-9ec378d07533",
+          "description": "Search docs for mutation loop delete support",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        },
+        {
+          "line": 10680,
+          "lineSha256": "afa26c7671523246ed311cf40483b60b02cba4bdedd11f90aa34ad89f88a7f48",
+          "lineContentSha256": "1e58cee6f8402ca86a14da4f92a3637bdf2798eb934e57f3d912808c5d2c95f5",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09d9c-6bd3-7db0-9122-f9b1a5047390",
+          "description": "Read mutation and job statement rules",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        },
+        {
+          "line": 10787,
+          "lineSha256": "a1b3afba4b7b40c84b74dc3b2a698df23df958e422696bd4ae1b109e41910a1a",
+          "lineContentSha256": "6fa5712c642cb68476ddb14c7eba582b66adba4001b9a16f24fad84a76d24e05",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09d9d-c3f4-7eb3-bfd6-40f820d2a5df",
+          "description": "Read job chunk syntax and setFollow tail",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        },
+        {
+          "line": 15200,
+          "lineSha256": "e732222682532ecba575a67c8b2ac3144b75fd5082581221a6136bfe95f906e9",
+          "lineContentSha256": "4f24ba5d0cd0d234fe90a66a696ff02c6fca0f1813092e1f863450f0a40f6708",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09dc8-1954-7e62-9b12-994b6326b088",
+          "description": "Find sync documentation",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        },
+        {
+          "line": 15231,
+          "lineSha256": "2a8a708c6d79a48c3b445668719e54f0ff28ba22e8d95fbe93dfe3ac58354984",
+          "lineContentSha256": "a1f815add55d55554dc9936ec4240622431c6d510fbe4bf2639b5b69eed745cb",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09dc8-2482-7571-bfc5-bc0598940d66",
+          "description": "Read sync model docs",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        },
+        {
+          "line": 17467,
+          "lineSha256": "7641d71808e532d83e2a0b4191ac5fd49a3a24f8c7e480632de5ea5fc43998c4",
+          "lineContentSha256": "d9c96465d5467b44d7027b952bf23c1747dfd3b7cf812070962e3b734e448574",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09dd9-ff15-7ac3-9de0-8ea395ed06e5",
+          "description": "Learn connected system table semantics",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        },
+        {
+          "line": 17489,
+          "lineSha256": "45a336ea08578517b712548a87c18ef8af66102a6ca2e152287d850d856aad7f",
+          "lineContentSha256": "2765e0f8b9f879620abdb3e83435d5ea4caa8d8e35c3850e0f63bcd04363aa88",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09dda-0803-7f92-9bf3-ef7fae501280",
+          "description": "Read presence and effect claiming docs",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        }
+      ]
+    },
+    "generatedApiCalls": {
+      "classification": "enumerated generated type surface; includes reads and copying into the app",
+      "events": [
+        {
+          "line": 1679,
+          "lineSha256": "c88683ef714bdc280ac6c6184d1dfdc7f9e07f764ad906ef295850c1659ae48b",
+          "lineContentSha256": "801258d6896a150d1115174945bb7da87a8ae1a4f20defb34e685ad8053b44dc",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09d6d-622c-74c0-a2e0-7d4e31fa89ee",
+          "description": "Inspect api.ts and copy fixtures",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        },
+        {
+          "line": 2771,
+          "lineSha256": "d068c93ddddc73b0831ee8e286f1e3f5a165f9cd4259940a8dafa3e1fb13c70c",
+          "lineContentSha256": "00f5ab543382ef68d9b8f3c067b288d0459ac58862789c03bef9fdf01df7e0ee",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09d73-ec89-7cf2-bf90-b70206795c52",
+          "description": "Vendor api and kit into app",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        },
+        {
+          "line": 3022,
+          "lineSha256": "79c9bca61c96dcf7387085110620f36c547e8e20811139a3ea24f7edac0e7d3d",
+          "lineContentSha256": "7e44f4a39151d61b279f380865d524ec3ec01ee6bdb4ffac3bf78854ecf5037b",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09d74-dcab-7b22-8142-5f5c8a735d46",
+          "description": "Recompile and sync api into app",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        },
+        {
+          "line": 3102,
+          "lineSha256": "f74c62c69ac222e046e01223e092154c579c0c0af0532bab119bab9c0cd466e7",
+          "lineContentSha256": "f7d46ce0fa96c6b29cb6745f94052f31083b0db7042a7dcf493a521208cc7bbb",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09d75-5020-7df3-80c2-5f48ec0a8e68",
+          "description": "Compile and sync api",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        },
+        {
+          "line": 3433,
+          "lineSha256": "2925098e94ffea3f8bbbfc38e1108fc9c4bae8c9f0fd4c06fc3cd33b1c21113f",
+          "lineContentSha256": "9ae09b8586d4037fb8d330212b4e24e47c3d01e7041242ecbd2d8727768dcbeb",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09d76-89c0-7810-97b1-12c9ca4edf98",
+          "description": "Compile and sync api",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        },
+        {
+          "line": 3659,
+          "lineSha256": "c1e97655e26e50e82a38aeb56ee9948e29527536431aa7c5cb496f57f7056a03",
+          "lineContentSha256": "07d14524a3b65f22a2bc3c5d659ad108ce2c0c70bd1b0a0f1580d87c4f3576d2",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09d77-b719-77f3-8f21-9167dd56038c",
+          "description": "Sync api, check remaining kit IDs",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        },
+        {
+          "line": 4087,
+          "lineSha256": "d2f7dcdec3ce13479d35a83ba813f76f44ab46b3a491d6e19f6a5ca8a1441037",
+          "lineContentSha256": "4598a3ea1d5b1158357cab8342b35d12ecd7e588b22af807fdfb166967a325f7",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09d79-c4f3-7ed0-a024-0d0d3bdd235e",
+          "description": "Compile and sync api",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        },
+        {
+          "line": 4167,
+          "lineSha256": "fead2639b2fd88e2016f7e2b6d040ba6ccc4891f11fe133fd1e5b93832e639fc",
+          "lineContentSha256": "5e470fdfc6743fac9235b4bf869d48ca0afa9bc564796784af82c0f49e6484ee",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09d7a-1ef0-75e0-9756-470c0ac2714f",
+          "description": "Compile and sync",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        },
+        {
+          "line": 20101,
+          "lineSha256": "dfdf23ca93814055fae2e0c4b167939a4b3011c727a33a1de19efe806a1cf787",
+          "lineContentSha256": "d387e27da7762d025b9ed7289811d22333cb8da81fd7138320dd3785cf780363",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09df5-0706-7761-8e4c-bc0db2e59072",
+          "description": "List generated API operations",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        },
+        {
+          "line": 20126,
+          "lineSha256": "bb7d0b6c264f4e9a95fd61d8eefeca499ce6981bd021eb8d2e78d276ac12f01b",
+          "lineContentSha256": "ee61536ce4eee6a94073ea4e074cf6c3c4bd10892c3e4d538b0cc27345d5861a",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09df5-0e46-7eb3-a46c-a68475ddef94",
+          "description": "Inspect generated API surface",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        }
+      ]
+    },
+    "runtimeExecutionOrExportIntrospection": {
+      "classification": "package execution/import/export use, not file-content inspection",
+      "events": [
+        {
+          "line": 1972,
+          "lineSha256": "02aa26b99e87de2f42be801f420b0f889627f342825f9353aad19b11fb874f83",
+          "lineContentSha256": "1432ab3e8aa52e849c372fd6488cb70409e6924cafd306f41723860bef9af08a",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09d6f-30d0-7ff3-8d2d-f3fe5fad91f2",
+          "description": "Run minimal test server foreground",
+          "commandTerminalStatus": null,
+          "commandExitCode": null
+        },
+        {
+          "line": 2643,
+          "lineSha256": "d871a1f0cc324c57a381f0d402e49e103a52f43e986eec35185adaacac6a40bf",
+          "lineContentSha256": "916b71b56c3d307babafe2a78b93b0c59742a50155374fcfd8c0eb5d8d5b69a1",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09d73-8145-71e3-b7e5-7458d1c9254c",
+          "description": "List snapback client exports",
+          "commandTerminalStatus": "failed",
+          "commandExitCode": 1
+        },
+        {
+          "line": 2715,
+          "lineSha256": "127178dd6748ee314d1be2ae13bd220de34a23d33a732ee913aaf0d4d5b442d5",
+          "lineContentSha256": "4e46062ca5b002b5b894e7b7348b3ec3e407634405ddf1656fa28d20c0bd0d20",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09d73-ac52-7a92-a24b-d2800c78e82e",
+          "description": "Verify ESM exports load",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        },
+        {
+          "line": 6641,
+          "lineSha256": "e40d57fd77c223fa5f11bfece7aa46a4f109619ffe495cf2d65a70f941b98c72",
+          "lineContentSha256": "b95aa2cfd312ae75b8815bfc46a8bc55b7f5c1bbd2bdcdb8386e4acf0fd88fca",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09d86-63f5-7c23-b242-f1154ff57aaa",
+          "description": "Check worker and token APIs",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        },
+        {
+          "line": 6663,
+          "lineSha256": "0ba930e356ca34d417f8441a3482bae891155164979d15415438c3f128dd8d16",
+          "lineContentSha256": "f36834ade2ff770166c8d50e353dd4ae2321d303470879e5fc41564829ecc8e3",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09d86-7404-7b03-ab0f-0af14fd98cc4",
+          "description": "Read runWorker signature",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        }
+      ]
+    },
+    "runtimeWasmCopy": {
+      "classification": "runtime asset use, not source inspection",
+      "events": [
+        {
+          "line": 5250,
+          "lineSha256": "f06d8d9d3a61c09aef6255c42e16e773dcfb32734383e622c01a93fa806dffb5",
+          "lineContentSha256": "8e1277c7fc2bfd577dbc4b60170f32f90ce892fbf66a6e829cfb952f31de4bd9",
+          "eventType": "task.lifecycle.output",
+          "taskKind": "tool.bash",
+          "taskId": "01a09d80-06c4-71c1-a93e-0d7ff71cf239",
+          "description": "Vendor wasm and configure metro",
+          "commandTerminalStatus": "completed",
+          "commandExitCode": 0
+        }
+      ]
+    },
+    "partialHistoricalReceipt": {
+      "path": "observed-milestones/muse-published-surface-access.json",
+      "sha256": "ee843c58438a711b3eb3dd4661c4c48d12f4fc924de749c13e0344355afaa9b8",
+      "qualification": "Captured one early auth.js event during the active run; superseded for final event totals by this receipt."
+    }
+  },
+  "comparisonNote": "Carry the source-access qualification with Muse builder results. Do not feed it to builders, scorers, or graders and do not alter independent assertion scores with it."
+}

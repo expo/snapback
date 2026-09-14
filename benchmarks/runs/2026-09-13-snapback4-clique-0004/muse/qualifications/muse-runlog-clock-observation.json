@@ -1,0 +1,27 @@
+{
+  "observedAt": "2026-09-14T04:12:20.165513+00:00",
+  "observedEpoch": 1789359140.165513,
+  "source": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/muse-snapback4/run-log.md",
+  "sourceSha256AtObservation": "5a13c1e3e9adbed2f625f651098aa6eecf9e662ff939f52627b8f64a4c6e8747",
+  "futureDatedLines": [
+    {
+      "line": 43,
+      "loggedEpoch": 1789360100,
+      "aheadOfObservationSeconds": 959.834,
+      "lineSha256": "103922a67f5e61a533b0b89e9414f82dc03c765fce3609dc0330ab30712eb42b"
+    },
+    {
+      "line": 44,
+      "loggedEpoch": 1789360100,
+      "aheadOfObservationSeconds": 959.834,
+      "lineSha256": "c170334ad9d570975353d3ffbf6f3f14ae7f0afdc5221ed50b8661ff50369542"
+    },
+    {
+      "line": 45,
+      "loggedEpoch": 1789360100,
+      "aheadOfObservationSeconds": 959.834,
+      "lineSha256": "1b35c0769809ffe3a4a5059bf0d2605797d23c5471876bd5ae6d75733149d928"
+    }
+  ],
+  "qualification": "Public run-log timestamps exceeding observer wall clock by more than five minutes are not independently qualified timing. Preserve wrapper lifecycle and actual receipt clocks separately. This observation does not infer when corrections occurred or inspect private reasoning."
+}

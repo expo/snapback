@@ -1,0 +1,17 @@
+{
+  "observedAt": "2026-09-14T03:58:34.242696+00:00",
+  "source": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/muse-snapback4/coverage/scale-replay.json",
+  "sourceBytes": 4161,
+  "sha256": "4d4f5f1e2523ca40ad6d7ed9a88f22066537d4ed7b1a5daa23c8999f40291a80",
+  "qualification": "Reduced locally generated36809-action corpus, not frozen167157-action scale. Copied before retry may replace source. No independently inferred clock.",
+  "summary": {
+    "startEpoch": 1789356914,
+    "endEpoch": 1789357616,
+    "wallMs": 702092,
+    "actions": 36809,
+    "ok": 33696,
+    "settled": 0,
+    "failed": 3113,
+    "uploads": 2047
+  }
+}

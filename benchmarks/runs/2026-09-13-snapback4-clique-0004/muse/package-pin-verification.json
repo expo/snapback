@@ -1,0 +1,44 @@
+{
+  "expected": {
+    "snapback4": "0.2.6",
+    "snapback4-expo": "0.2.1"
+  },
+  "startReceipt": {
+    "snapback4": "0.2.6",
+    "snapback4-expo": "0.2.1"
+  },
+  "installed": {
+    "rootSnapback4": "0.2.6",
+    "appSnapback4": "0.2.6",
+    "appSnapback4Expo": "0.2.1"
+  },
+  "rootManifestDeclared": {
+    "snapback4": "^0.2.6"
+  },
+  "rootLock": {
+    "declared": {
+      "snapback4": "^0.2.6"
+    },
+    "resolved": {
+      "snapback4": "0.2.6"
+    },
+    "lockfileVersion": 3
+  },
+  "appManifestDeclared": {
+    "snapback4": "^0.2.6",
+    "snapback4-expo": "^0.2.1"
+  },
+  "appLock": {
+    "declared": {
+      "snapback4": "^0.2.6",
+      "snapback4-expo": "^0.2.1"
+    },
+    "resolved": {
+      "snapback4": "0.2.6",
+      "snapback4-expo": "0.2.1"
+    },
+    "lockfileVersion": 3
+  },
+  "resolvedVerdict": "installed packages and lockfiles resolve exactly to snapback4 0.2.6 and snapback4-expo 0.2.1",
+  "declarationQualification": "npm wrote caret dependency ranges in package.json; lockfiles and installed package metadata, rather than the manifest ranges alone, freeze this captured run to the required versions."
+}

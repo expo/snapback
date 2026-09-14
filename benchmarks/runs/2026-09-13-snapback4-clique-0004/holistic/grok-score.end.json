@@ -1,0 +1,11 @@
+{
+  "lane": "grok-snapback4",
+  "phase": "score",
+  "pid": 7510,
+  "endedAt": "2026-09-14T05:44:13Z",
+  "endedEpoch": 1789364653,
+  "wallSeconds": 295.123,
+  "exitCode": 0,
+  "stdout": "/Users/ccheever/clique-sb4-20260913-full-3models/scores/grok/raw.out",
+  "stderr": "/Users/ccheever/clique-sb4-20260913-full-3models/scores/grok/raw.err"
+}

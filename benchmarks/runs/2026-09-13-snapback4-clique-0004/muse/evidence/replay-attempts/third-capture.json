@@ -1,0 +1,35 @@
+{
+  "observedAt": "2026-09-14T04:24:12.325267+00:00",
+  "source": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/muse-snapback4/coverage/scale-replay.json",
+  "sourceBytes": 403,
+  "sha256": "47547dc1c653a79a541f9b273cb90ee90582bd38ee07416e893969a24644e548",
+  "localCorpusObserved": {
+    "bytes": 2653997,
+    "lines": 36806,
+    "sha256": "9680fdc1fc2165ee69f94f478aa996fa0cbd027d67cd2b3fd4491c646f38356b"
+  },
+  "qualification": "Current local input hash is an observation, not independently bound to replay-start bytes. Reduced local corpus cannot qualify frozen167157 actions. Action outcomes are separate from invariant verification.",
+  "summary": {
+    "startEpoch": 1789358914,
+    "endEpoch": 1789359631,
+    "wallMs": 716790,
+    "actions": 36805,
+    "ok": 36805,
+    "settled": 0,
+    "failed": 0,
+    "uploads": 4328
+  },
+  "verifierObservation": {
+    "source": "lanes/muse-snapback4/coverage/scale-verify.json",
+    "bytes": 7105,
+    "sha256": "d26f4410ff55ce03aa0ee7140dabf1f72953c048ef783f58b2ffef08d7a18c42",
+    "checks": 88,
+    "passed": 87,
+    "failed": 1,
+    "failedCheck": {
+      "id": "celeb-follower-is-5",
+      "detail": "want=5 got=4"
+    },
+    "qualification": "Local verifier against reduced corpus; not frozen invariant manifest qualification."
+  }
+}

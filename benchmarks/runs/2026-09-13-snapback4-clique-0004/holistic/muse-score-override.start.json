@@ -1,0 +1,60 @@
+{
+  "invocation": [
+    "/Users/ccheever/clique-sb4-20260913-full-3models/observed-milestones/helpers/muse_post_interruption_phase.py",
+    "score"
+  ],
+  "pid": 62884,
+  "plan": {
+    "dryRun": false,
+    "effectiveRunnerArgv": [
+      "/Users/ccheever/clique-sb4-20260913-full-3models/scripts/run_phase.py",
+      "score",
+      "muse"
+    ],
+    "frozenRunnerSha256": "a3b3658347f61ee57b9cf13a557fafe4edb9baf385fa59d29e620a1802247b69",
+    "patchSidecarSha256": "1760a5ad1d0fb2e9941ebcce9539dd11cd182d1f14df573153459e7739f9a749",
+    "patchedRunnerSha256": "6c98247006a3a0dc033b54a3c36eb441396cac1b08258e47e60c7d46a6240ff3",
+    "phase": "score",
+    "qualification": {
+      "builder": {
+        "endSha256": "b1e1aba56798930e8118481d692355855c1cb4e6349c1f170be0cff64d142b28",
+        "exitCode": 130,
+        "pid": 26465,
+        "startSha256": "980b3c552a2e5ed5840493c694634091cff559a42fbec867705c033b5aa70b22"
+      },
+      "builderLog": {
+        "bytes": 23756249,
+        "lines": 25611,
+        "sha256": "ed2ac5bbccb18abb8a55bcddb07ec786b483ad20b8da6e79a725f051e6fc9692"
+      },
+      "completedPublicTerminals": [
+        {
+          "lineSha256": "f3642b97dc122b90370e90804aae6519f5852941e3e57650e72b80813b5cf71c",
+          "runId": "16863742-fcfb-407f-bd72-5cdcd415164d",
+          "sequence": 25168
+        },
+        {
+          "lineSha256": "64395fdff8a37f79c0483cc91959c3d43ab6cefd0265a419b2ae7d8e65ac2092",
+          "runId": "01a09e61-ccda-7c02-a0f7-0372944ae258",
+          "sequence": 25330
+        },
+        {
+          "lineSha256": "b8db29b5693b33ae3ba34d2d335f8c70656f1959870e8d9d690e99e58be50e20",
+          "runId": "01a09e65-b215-7ec0-a97c-e6405b84079b",
+          "sequence": 25611
+        }
+      ],
+      "interventionReceiptSha256": "5443afd335811bbbec64dd61d9f55b34448a840305abe9c4234de87ed92c2405",
+      "publishedPins": {
+        "snapback4": "0.2.6",
+        "snapback4-expo": "0.2.1"
+      },
+      "qualificationToken": "32bf357335552a559bd49978c732ee2869569a6594f0cdf5bf711b451833f05e",
+      "qualified": true,
+      "terminalAuditSha256": "02ebb7fcb2c9fc3ff8bc696d70e73cbe378cb1afc5220e235452c32ac6793cd9"
+    },
+    "wave": "muse"
+  },
+  "schemaVersion": "clique-muse-exit130-postphase.v1",
+  "startedAt": "2026-09-14T05:45:30.671068Z"
+}

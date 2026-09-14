@@ -1,0 +1,96 @@
+{
+  "schemaVersion": "clique-builder-capture-preflight.v2",
+  "observedAt": "2026-09-14T05:32:53.735161Z",
+  "status": "ready-after-builder-exit; capture not run",
+  "lane": "muse-snapback4",
+  "laneStateAtRequest": "driver still active; this receipt is filename/metadata preflight only and does not authorize capture",
+  "helper": {
+    "path": "/tmp/sb4-36-capture-builder.py",
+    "sha256": "bdb0acbeef445664e300a5b75b0e27c7d1fbd87db50d5f79901c75b5f608ab5c",
+    "modifiedByThisAudit": false
+  },
+  "historicalPreflight": {
+    "path": "observed-milestones/muse-capture-preflight.json",
+    "sha256": "d9e27b9fa40c5702430b978648daa39bd0ad09cdd0d242377dbe29d1c4db6d01",
+    "status": "preserved; superseded for final capture by this latest-helper check"
+  },
+  "method": {
+    "laneInspection": "Directory entries, filenames, and the separately retained Hermes file stat only. No lane file contents, credential values, runtime databases, builder command/output, or private model text were read for this preflight.",
+    "mutation": "No lane, helper, snapshot, prompt, instrument, or repository mutation.",
+    "plainFilenameCountsWithinUnprunedTree": {
+      "wouldInclude": 195,
+      "excludedFilesEncountered": 12
+    }
+  },
+  "observedExclusions": [
+    {
+      "path": ".replay-passwords.json",
+      "helperDisposition": "excluded",
+      "reason": "credential or secret filename marker"
+    },
+    {
+      "path": ".replay-tokens.json",
+      "helperDisposition": "excluded",
+      "reason": "credential token filename"
+    },
+    {
+      "path": ".snapback4",
+      "helperDisposition": "excluded",
+      "reason": "excluded directory name"
+    },
+    {
+      "path": ".worker-token.json",
+      "helperDisposition": "excluded",
+      "reason": "credential token filename"
+    },
+    {
+      "path": "app-host/clique/.claude",
+      "helperDisposition": "excluded",
+      "reason": "excluded directory name"
+    },
+    {
+      "path": "app-host/clique/.expo",
+      "helperDisposition": "excluded",
+      "reason": "excluded directory name"
+    },
+    {
+      "path": "app-host/clique/.git",
+      "helperDisposition": "excluded",
+      "reason": "excluded directory name"
+    },
+    {
+      "path": "app-host/clique/dist-ios",
+      "helperDisposition": "excluded",
+      "reason": "excluded directory name"
+    }
+  ],
+  "credentialFilenameVerdict": "The latest helper excludes every credential/cache filename candidate observed in this bounded scan, including password/passwd markers and agent-tool state directories.",
+  "generatedIosDisposition": {
+    "path": "app-host/clique/dist-ios",
+    "sourceArchive": "excluded recursively by the latest helper",
+    "reason": "generated native export"
+  },
+  "hermesBundleToRetainSeparately": {
+    "laneRelativePath": "app-host/clique/dist-ios/_expo/static/js/ios/entry-d0e6db042514d967203b0330f6580997.hbc",
+    "observedFileType": "plain regular file",
+    "observedBytes": 2788000,
+    "expectedSha256FromOrchestrator": "930026f767d40177a7e04b2030ff3d1baff98c6791c5eee8136a0c8ee78d8639",
+    "sha256Verification": "not performed in this filename-only preflight",
+    "requiredDisposition": "copy and SHA-verify separately after confirmed builder exit 0; do not place inside source-snapshot.tar.gz"
+  },
+  "nonCredentialFilenameCollisions": [
+    {
+      "path": "app-host/clique/src/assetCache.ts",
+      "classification": "application/UI source filename; not treated as a credential from filename alone"
+    },
+    {
+      "path": "app-host/clique/ui-kit/src/tokens.ts",
+      "classification": "application/UI source filename; not treated as a credential from filename alone"
+    },
+    {
+      "path": "ui-kit/src/tokens.ts",
+      "classification": "application/UI source filename; not treated as a credential from filename alone"
+    }
+  ],
+  "verdict": "Preflight passes against the latest helper. Do not run capture until the driver has actually exited and its end receipt reports exitCode 0."
+}
