@@ -471,6 +471,7 @@ version = "0.2.12"
 dependencies = [
  "serde",
  "serde_json",
+ "sha2",
  "snapback4-core",
 ]
 
