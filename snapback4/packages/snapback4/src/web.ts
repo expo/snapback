@@ -40,6 +40,7 @@ export interface WebDeviceOptions {
 }
 
 let ready: Promise<unknown> | null = null;
+let runtime: { identity: string | WebAssembly.Module; initialized: unknown } | undefined;
 
 /** The opener `createLocalClient` takes on the web. */
 export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
@@ -112,7 +113,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
 // @ref LLP 3000.007#8 — a cold offline open owns its wasm bytes, keyed by SHA-256
 async function cachedWasm(source: WasmSource | Promise<WasmSource>, persist: Persistence): Promise<unknown> {
   const resolved = await source;
-  if (resolved instanceof WebAssembly.Module) return initializeWasm(resolved);
+  if (resolved instanceof WebAssembly.Module) return initializeWasm(resolved, resolved);
   const isUrl = typeof resolved === "string" || resolved instanceof URL;
   const url = isUrl ? String(resolved) : null;
   const name = "snapback4-wasm";
@@ -122,8 +123,8 @@ async function cachedWasm(source: WasmSource | Promise<WasmSource>, persist: Per
   const digest = async (bytes: Uint8Array) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes as BufferSource)), (b) => b.toString(16).padStart(2, "0")).join("");
   if (hex) {
     const bytes = Uint8Array.from(hex.match(/../g) ?? [], (b) => parseInt(b, 16));
-    if (await digest(bytes) === pointer) {
-      try { return await initializeWasm(bytes); } catch {
+    if (pointer && await digest(bytes) === pointer) {
+      try { return await initializeWasm(bytes, pointer); } catch {
         // A cache from an interrupted/older installer may be unusable even
         // when its content hash matches. An online fetch can repair it.
       }
@@ -136,7 +137,7 @@ async function cachedWasm(source: WasmSource | Promise<WasmSource>, persist: Per
   const hash = await digest(bytes);
   // Initialization must succeed before these bytes become the offline entry.
   // The content and URL pointer are then installed in one atomic host save.
-  const initialized = await initializeWasm(bytes);
+  const initialized = await initializeWasm(bytes, hash);
   await persist.save(name, [
     { s: "sha256", k: hash, v: Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("") },
     ...(url ? [{ s: "url", k: url, v: hash }] : []),
@@ -144,15 +145,22 @@ async function cachedWasm(source: WasmSource | Promise<WasmSource>, persist: Per
   return initialized;
 }
 
-async function initializeWasm(source: BufferSource | WebAssembly.Module): Promise<unknown> {
-  // Compile independently of wasm-bindgen's realm-wide initialized shortcut:
-  // a previous cache-save failure must not let a retry install invalid bytes.
+async function initializeWasm(source: BufferSource | WebAssembly.Module, identity: string | WebAssembly.Module): Promise<unknown> {
+  // wasm-bindgen retains the initialized instance even if the later cache
+  // save fails. Its shortcut cannot validate another module's linking: only
+  // the exact initialized content may retry installation in this realm.
+  if (runtime) {
+    if (runtime.identity !== identity) throw new Error("wasm: a different runtime is already initialized; reload before installing different runtime bytes");
+    return runtime.initialized;
+  }
   const module = source instanceof WebAssembly.Module ? source : await WebAssembly.compile(source);
   const exports = new Map(WebAssembly.Module.exports(module).map(e => [e.name, e.kind]));
   if (exports.get("memory") !== "memory" || ["webdevice_new", "webdevice_call", "webdevice_drain", "__wbg_webdevice_free"].some(name => exports.get(name) !== "function")) {
     throw new Error("wasm: the module does not export the Snapback device runtime; use the wasm shipped with this package");
   }
-  return init({ module_or_path: module });
+  const initialized = await init({ module_or_path: module });
+  runtime = { identity, initialized };
+  return initialized;
 }
 
 function refusalText(error: unknown): string {

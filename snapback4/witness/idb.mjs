@@ -212,9 +212,59 @@ try {
     }, api);
     out.runtime.at(-1).offlineRecovered = recovered;
   }
+  // A failed cache save leaves wasm-bindgen initialized. A retry must not
+  // install different bytes using that earlier module's successful init.
+  await witness.reload();
+  out.runtimeRetry = await page.evaluate(async api => {
+    const persist = window.indexedDbPersistence();
+    const before = await persist.load("snapback4-wasm");
+    const pointer = before.find(c => c.s === "url");
+    const bytes = Uint8Array.from(before.find(c => c.s === "sha256" && c.k === pointer.v).v.match(/../g), value => parseInt(value, 16));
+    const originalModule = await WebAssembly.compile(bytes);
+    const imported = WebAssembly.Module.imports(originalModule).find(item => item.kind === "function");
+    const needle = new TextEncoder().encode(imported.name), incompatible = bytes.slice();
+    const offset = incompatible.findIndex((_, at) => needle.every((byte, n) => incompatible[at + n] === byte));
+    if (offset < 0) throw new Error("could not locate Wasm import");
+    incompatible[offset] ^= 1; // same length, valid UTF-8, now an unavailable import
+    const incompatibleModule = await WebAssembly.compile(incompatible);
+    const sameExports = JSON.stringify(WebAssembly.Module.exports(originalModule)) === JSON.stringify(WebAssembly.Module.exports(incompatibleModule));
+    const changedImport = WebAssembly.Module.imports(incompatibleModule).some(item => item.name !== imported.name && item.name === String.fromCharCode(needle[0] ^ 1) + imported.name.slice(1));
+    const firstUrl = new URL("/retry-first.wasm", location.href).href;
+    const secondUrl = new URL("/retry-incompatible.wasm", location.href).href;
+    const backend = await fetch(`${api}/schema`, { headers: { "x-snapback-persona": "bob" } }).then(r => r.json());
+    const realFetch = window.fetch;
+    let firstError, secondError, core;
+    window.fetch = input => String(input) === firstUrl ? Promise.resolve(new Response(bytes)) : String(input) === secondUrl ? Promise.resolve(new Response(incompatible)) : realFetch(input);
+    try {
+      try { await window.webDevice({ wasm: firstUrl, persist: { ...persist, async save(name, changes) { if (name === "snapback4-wasm") throw new Error("injected runtime cache save failure"); await persist.save(name, changes); } } }).open("runtime-retry", backend); }
+      catch (error) { firstError = String(error); }
+      try { core = await window.webDevice({ wasm: secondUrl }).open("runtime-retry", backend); }
+      catch (error) { secondError = String(error); }
+      await core?.close(); core = undefined;
+      const cacheUnchanged = JSON.stringify(before) === JSON.stringify(await persist.load("snapback4-wasm"));
+      // Retrying the original content should remain usable without a reload.
+      core = await window.webDevice({ wasm: firstUrl }).open("runtime-retry", backend);
+      const sameContentRecovered = !!(await core.call({ op: "state" })).ok;
+      return { sameExports, changedImport, firstError, secondError, cacheUnchanged, sameContentRecovered };
+    } finally { await core?.close(); window.fetch = realFetch; }
+  }, api);
+  await witness.reload();
+  Object.assign(out.runtimeRetry, await page.evaluate(async () => {
+    const realFetch = window.fetch;
+    let core, offlineFetches = 0, offlineSameContentRecovered = false;
+    window.fetch = () => { offlineFetches++; return Promise.reject(new TypeError("offline after runtime retry")); };
+    try {
+      core = await window.webDevice({ wasm: new URL("/retry-first.wasm", location.href) }).open("runtime-retry");
+      offlineSameContentRecovered = !!(await core.call({ op: "state" })).ok;
+    } catch { /* reported below */ }
+    finally { await core?.close(); window.fetch = realFetch; }
+    return { offlineFetches, offlineSameContentRecovered };
+  }));
   out.ok = first.threadRows === 50 && first.threadComplete && first.next && first.count === 300 && first.write === "pending" && first.pendingLocally && !first.localFresh && first.refused === "NOT_MEMBER" && second.rowsInIdbBeforeOpen > 300 && second.landed && out.offline.wasmFetches === 0 && out.offline.width === 1 && out.offline.height === 1 && out.offline.bytes === 68 && out.offline.once === "E_OFFLINE" && out.offline.link === "offline" && out.pageErrors.length === 0;
   const d = out.durability;
   out.ok &&= d.admissionRejected && d.liveQueued.join() === "acknowledged" && d.reopenedQueued.join() === "acknowledged" && d.initialRejected && d.initialFreed === 1 && d.initialUnlocked && d.adoptionRejected && d.orphanKept && d.adoptionUnlocked && d.adopted.join() === "orphan-write" && d.orphanRemoved && out.runtimePending === "pending" && out.runtime.every(r => r.fetched === 1 && r.rejected && r.cacheUnchanged && r.offlineRecovered);
+  const retry = out.runtimeRetry;
+  out.ok &&= !!(retry.sameExports && retry.changedImport && retry.firstError?.includes("injected runtime cache save failure") && retry.secondError?.includes("reload") && retry.cacheUnchanged && retry.sameContentRecovered && retry.offlineSameContentRecovered && retry.offlineFetches === 0);
 } finally {
   await witness.close();
 }
