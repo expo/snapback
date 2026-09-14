@@ -12,7 +12,8 @@ and driver wall time is 17,657.686 seconds, including the continuation tail.
 across 119 assertions. Grok's received grade is 70 pass / 18 fail / 31 not-run.
 Muse's received grade is 94 pass / 16 fail / 8 not-run / 1 not-applicable.
 [All three baseline grades](./grades/summary.md) are complete and structurally
-validated. Astra's fresh M7 is active; Grok and Muse M7 remain pending.
+validated. Astra's fresh M7 completed with a builder green result in 1,345.403
+seconds; its evidence audit is underway. Grok M7 is active; Muse M7 remains pending.
 All three lanes are frozen to published `snapback4@0.2.6` and
 `snapback4-expo@0.2.1`. `REGISTRY_RECEIPTS.json` confirms that registry integrity
 matches the exact qualified tarballs, including the platform binary.
@@ -115,8 +116,8 @@ that ticket retains the builder evidence with attribution still unresolved.
 
 | Lane | M1 | M2 | M3 | M4 | M5 | M6 | M8 | Continuous wall | Holistic score | Independent 119 | Comparable 101 subtotal | Fresh M7 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Astra medium | builder green | builder green | builder green | builder green | builder green | builder green | builder green | 9,614.013 s | 84 | 100 pass / 10 fail / 9 not-run | 84 pass / 8 fail / 9 not-run | active |
-| Grok 4.6 xhigh | web green | web green | capability failure | blocked; partial API suite | blocked; partial API suite | blocked; scale incomplete | blocked; partial API suite | 12,499.350 s | 70 | 70 pass / 18 fail / 31 not-run | 60 pass / 17 fail / 24 not-run | pending |
+| Astra medium | builder green | builder green | builder green | builder green | builder green | builder green | builder green | 9,614.013 s | 84 | 100 pass / 10 fail / 9 not-run | 84 pass / 8 fail / 9 not-run | builder green; 1,345.403 s; audit pending |
+| Grok 4.6 xhigh | web green | web green | capability failure | blocked; partial API suite | blocked; partial API suite | blocked; scale incomplete | blocked; partial API suite | 12,499.350 s | 70 | 70 pass / 18 fail / 31 not-run | 60 pass / 17 fail / 24 not-run | active |
 | Muse Spark 1.3 xhigh | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | 17,657.686 s; includes interrupted runtime continuation | 80 | 94 pass / 16 fail / 8 not-run / 1 not-applicable | 79 pass / 13 fail / 8 not-run / 1 not-applicable | pending |
 
 Astra's grade passed the frozen schema and exact 101+18 assertion partition.
@@ -146,7 +147,7 @@ stale follower count to 0.2.6 discarding server changed-table invalidations when
 the device receives no matching row. Later main commit `047862694` repairs this
 class and adds a regression; this benchmark does not measure that fix. The
 grader also observed delayed offline indication despite 1 ms local search.
-That separate [link-detection follow-up](../../../issues/20260913-snapback4-offline-link-detection-can-lag-during-held-poll.md)
+That separate [link-detection follow-up](../../../issues/closed/20260913-snapback4-offline-link-detection-can-lag-during-held-poll.md)
 retains the three samples and the inferred long-poll mechanism.
 
 Grok's independent grader exited zero after 2,793.393 seconds. Its structurally
@@ -164,11 +165,20 @@ used the original choreography receipts and separate web/API probes; it did
 not rerun the choreography harness.
 
 The [Grok client attribution audit](./grok-grade-client-attribution.md) separates
-application defects from one concrete [pending-sync transport mismatch](../../../issues/20260914-snapback4-sync-pending-query-exceeds-request-line-limit.md):
+application defects from one concrete [pending-sync transport mismatch](../../../issues/closed/20260914-snapback4-sync-pending-query-exceeds-request-line-limit.md):
 256 ordinary pending IDs produce a 9,011-byte request line, exceeding the
 host's 8,192-byte limit. The app's repeated receipt writes amplify the trigger.
 The retained failed URL is truncated, so its exact size and the parser response
 remain unproven; the supported-state mismatch follows from pinned code.
+
+Later main commit `21ece4c694` closes both the pending-request mismatch and
+held-poll link-detection defect. It moves `/sync` to bounded POST JSON and adds
+change-feed heartbeats with a silence watchdog. A bounded source review found
+no material correctness issue. Owner-recorded HTTP, wasm and native tests
+cover the triggering cases; the browser/IndexedDB witness did not launch
+(Chromium SIGABRT), and Hermes buffering was simulated. Client and host must
+upgrade together because GET `/sync` was removed. These later fixes are outside
+the frozen 0.2.6 run and receive no retroactive benchmark credit.
 
 The received Grok report says scale replay was never attempted. The continuous
 builder archive instead retains a short real attempt that stopped without
@@ -197,9 +207,12 @@ slots; the app discards structured retryability and the harness does not retry.
 The TTL unit conversion, recent-pool Trending, and unreconciled digest counts
 are application logic defects. These qualifications do not change the grade.
 
-Astra's fresh M7 started at `2026-09-14T07:58:39Z` with the same Astra medium
-model and a single 14,400-second cap. The baseline grades above precede this
-schema-evolution work; M7 evidence and outcome will be retained separately.
+Astra's fresh M7 ran from `2026-09-14T07:58:39Z` to `2026-09-14T08:21:04Z`
+with Astra medium and exited zero after 1,345.403 seconds, within its single
+14,400-second cap. It reports green acceptance, choreography, eight-persona
+snapshot preservation, and all seven prior suites. Its evidence audit is
+underway; the baseline grade above remains unchanged. Grok's fresh M7 started
+at `2026-09-14T08:26:02Z` with its own single four-hour cap.
 
 The [holistic scorers](./holistic/summary.md) use their own builders' narratives, so their diagnoses are
 not independent technical findings. Astra charged pending metadata loss that
