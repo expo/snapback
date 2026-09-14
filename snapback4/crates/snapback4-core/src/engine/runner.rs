@@ -4,11 +4,12 @@
 use super::Context;
 use crate::error::{MeterKind, RuntimeError};
 use crate::ir::*;
-use crate::meter::Meter;
+use crate::meter::{Cut, Meter};
 use crate::partition::Event;
 use crate::schema::Schema;
 use crate::rows::Rows;
 use crate::value::{Value, ValueError, canonical_json, object};
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
@@ -75,12 +76,13 @@ pub struct Runner<'a> {
     pub(crate) device: bool,
     /// The device touched an online-only table or a horizon: `complete: false`.
     pub(crate) beyond_horizon: bool,
+    pub(crate) missing_fact: Option<String>,
     /// While a search page runs: the words columns and the terms after the
     /// first, which every row of the page must also carry.
     pub(crate) word_filter: Option<(Vec<String>, Vec<String>)>,
     /// The program read `connected[p]` where no registry answers (a
-    /// device): a query's result is not `complete`; a prediction stands,
-    /// the server deciding when the write arrives.
+    /// device): a query's result is not `complete`; the compiled execution
+    /// fact excludes a mutation with this site from prediction.
     pub(crate) presence_unknown: bool,
     /// The sequence this run will commit as (a query reads at `seq`).
     #[allow(dead_code)]
@@ -118,6 +120,7 @@ impl<'a> Runner<'a> {
             page_overflow: false,
             device: false,
             beyond_horizon: false,
+            missing_fact: None,
             word_filter: None,
             presence_unknown: false,
             seq,
@@ -127,9 +130,22 @@ impl<'a> Runner<'a> {
 
     pub fn run(&mut self, program: &Program) -> Result<Value, RuntimeError> {
         self.page_plan = super::pages::plan(program);
-        match self.statements(&program.body, &program.name)? {
-            Flow::Return(value) => Ok(value),
-            _ => Ok(Value::Null),
+        // @ref LLP 3000.007#5.0 — charge allocations before admitting the relaxed forms.
+        // A heap cut cannot invent a partial scalar/shape or a continuation.
+        // Unwind immediately; both query hosts publish null, incomplete, with
+        // the private capped_at recorded by Meter::heap (LLP 3000 §7).
+        let result = (|| {
+            for value in self.context.args.values() { self.meter.heap(value.clone_heap_bytes())?; }
+            self.statements(&program.body, &program.name)
+        })();
+        match result {
+            Ok(Flow::Return(value)) => Ok(value),
+            Ok(_) => Ok(Value::Null),
+            Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, .. }) if self.meter.cut == Cut::Cap => {
+                self.page = None;
+                Ok(Value::Null)
+            }
+            Err(error) => Err(error),
         }
     }
 
@@ -142,6 +158,7 @@ impl<'a> Runner<'a> {
             let flow = match statement {
                 Stmt::Const { name, value } => {
                     let value = self.expr(value)?;
+                    self.meter.heap(value.heap_bytes())?;
                     self.bind(name, value);
                     self.consts.insert(name.clone());
                     Flow::Next
@@ -151,12 +168,13 @@ impl<'a> Runner<'a> {
                         return Err(RuntimeError::Input(format!("cannot assign to const binding {name}")));
                     }
                     let value = self.expr(value)?;
+                    self.meter.heap(value.heap_bytes())?;
                     self.bind(name, value);
                     Flow::Next
                 }
                 Stmt::Push { target, value } => {
                     let value = self.expr(value)?;
-                    self.meter.heap(value.heap_bytes() + 16)?;
+                    self.meter.heap(value.heap_bytes() + std::mem::size_of::<Value>() as u64)?;
                     match self.env.get_mut(target) {
                         Some(Value::Array(values)) => values.push(value),
                         Some(other) => return Err(ValueError::Type { expected: "array", actual: other.kind() }.into()),
@@ -264,17 +282,27 @@ impl<'a> Runner<'a> {
 
     fn domain(&mut self, domain: &LoopDomain) -> Result<Vec<Value>, RuntimeError> {
         match domain {
-            LoopDomain::Page(scan) => self.scan(scan),
-            LoopDomain::LiteralRange { start, end_exclusive } => (*start..*end_exclusive).map(|value| Value::int(value as i128)).collect::<Result<Vec<_>, _>>().map_err(Into::into),
+            LoopDomain::Page(scan) => {
+                let values = self.scan(scan)?;
+                self.meter.heap(values.capacity() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Value::heap_bytes).sum::<u64>())?;
+                Ok(values)
+            }
+            LoopDomain::LiteralRange { start, end_exclusive } => {
+                let count = end_exclusive.saturating_sub(*start).max(0) as u64;
+                self.meter.heap(count.saturating_mul(std::mem::size_of::<Value>() as u64))?;
+                (*start..*end_exclusive).map(|value| Value::int(value as i128)).collect::<Result<Vec<_>, _>>().map_err(Into::into)
+            }
             LoopDomain::ArgList { name, max } => {
-                let values = self.env.get(name).ok_or_else(|| RuntimeError::Input(format!("missing arg {name}")))?.as_array()?.to_vec();
+                let value = self.env.get(name).ok_or_else(|| RuntimeError::Input(format!("missing arg {name}")))?;
+                self.meter.heap(value.clone_heap_bytes())?;
+                let values = value.as_array()?.to_vec();
                 if values.len() > *max as usize {
                     return Err(RuntimeError::Fanout);
                 }
                 Ok(values)
             }
             LoopDomain::DerivedArray { value, max, .. } => {
-                let values = self.expr(value)?.as_array()?.to_vec();
+                let values = into_array(self.expr(value)?)?;
                 if values.len() > *max as usize {
                     return Err(RuntimeError::Fanout);
                 }
@@ -298,7 +326,9 @@ impl<'a> Runner<'a> {
             if row == Value::Null {
                 continue;
             }
-            let next = row.field(&recurse.next_field)?.clone();
+            let next = row.field(&recurse.next_field)?;
+            self.meter.heap(next.clone_heap_bytes() + row.heap_bytes() + std::mem::size_of::<Value>() as u64)?;
+            let next = next.clone();
             rows.push(row);
             match next {
                 Value::Null => {}
@@ -319,25 +349,45 @@ impl<'a> Runner<'a> {
     pub(super) fn expr(&mut self, expression: &Expr) -> Result<Value, RuntimeError> {
         self.meter.step(1)?;
         match expression {
-            Expr::Literal(value) => Ok(value.clone()),
-            Expr::Variable(name) => self.env.get(name).cloned().ok_or_else(|| RuntimeError::Input(format!("unknown variable {name}"))),
+            Expr::Literal(value) => {
+                self.meter.heap(value.clone_heap_bytes())?;
+                Ok(value.clone())
+            }
+            Expr::Variable(name) => {
+                let value = self.env.get(name).ok_or_else(|| RuntimeError::Input(format!("unknown variable {name}")))?;
+                self.meter.heap(value.clone_heap_bytes())?;
+                Ok(value.clone())
+            }
             Expr::Input(input) => self.input(*input),
             Expr::Field { base, name } => {
+                if let Some((base, steps)) = borrowed(&self.env, base)? {
+                    self.meter.step(steps)?;
+                    if *base == Value::Null { return Ok(Value::Null); }
+                    let value = base.field(name)?;
+                    self.meter.heap(value.clone_heap_bytes())?;
+                    return Ok(value.clone());
+                }
                 let base = self.expr(base)?;
                 match base {
                     Value::Null => Ok(Value::Null),
-                    other => Ok(other.field(name)?.clone()),
+                    other => {
+                        let value = other.field(name)?;
+                        self.meter.heap(value.clone_heap_bytes())?;
+                        Ok(value.clone())
+                    }
                 }
             }
             Expr::Array(values) => {
                 let values = values.iter().map(|value| self.expr(value)).collect::<Result<Vec<_>, _>>()?;
-                self.meter.heap(values.len() as u64 * 16)?;
-                Ok(Value::Array(values))
+                let value = Value::Array(values);
+                self.meter.heap(value.heap_bytes())?;
+                Ok(value)
             }
             Expr::Object(values) => {
                 let fields = values.iter().map(|(key, value)| Ok((key.clone(), self.expr(value)?))).collect::<Result<BTreeMap<_, _>, RuntimeError>>()?;
-                self.meter.heap(fields.len() as u64 * 32)?;
-                Ok(Value::Row(fields.into()))
+                let value = Value::Row(fields.into());
+                self.meter.heap(value.heap_bytes())?;
+                Ok(value)
             }
             Expr::Binary { op, left, right } => {
                 let left = self.expr(left)?;
@@ -361,10 +411,22 @@ impl<'a> Runner<'a> {
                 if args.len() != builtin.arity() {
                     return Err(RuntimeError::Input(format!("builtin {builtin:?} takes {} arguments, received {}", builtin.arity(), args.len())));
                 }
+                // Inspect a held value without allocating a copy just to count
+                // it. Reads that need ownership still charge every actual clone.
+                if matches!(builtin, Builtin::Len | Builtin::Count | Builtin::CountCapped | Builtin::Sum) {
+                    if let Some((value, steps)) = borrowed(&self.env, &args[0])? {
+                        self.meter.step(steps)?;
+                        return scalar_builtin(builtin, value);
+                    }
+                }
                 let args = args.iter().map(|value| self.expr(value)).collect::<Result<Vec<_>, _>>()?;
                 self.builtin(builtin, args)
             }
-            Expr::Get(read) => self.get(read),
+            Expr::Get(read) => {
+                let value = self.get(read)?;
+                self.meter.heap(value.heap_bytes())?;
+                Ok(value)
+            }
             Expr::Exists(read) => Ok(Value::Bool(self.get(read)? != Value::Null)),
             Expr::Scan(scan) => {
                 let values = self.scan(scan)?;
@@ -381,27 +443,43 @@ impl<'a> Runner<'a> {
 
     pub(super) fn input(&mut self, input: Input) -> Result<Value, RuntimeError> {
         match input {
-            Input::Viewer => Ok(Value::Id(self.context.viewer.clone())),
+            Input::Viewer => {
+                self.meter.heap(self.context.viewer.len() as u64)?;
+                Ok(Value::Id(self.context.viewer.clone()))
+            }
             Input::Now => self.context.now.map(Value::Int).ok_or_else(|| RuntimeError::Input("now is not pinned in a query".to_owned())),
             Input::NewId => {
                 let id = self.context.mint()?;
-                crate::value::validate_identities(&Value::Id(id.clone()))?;
-                Ok(Value::Id(id))
+                let value = Value::Id(id);
+                crate::value::validate_identities(&value)?;
+                self.meter.heap(value.heap_bytes())?;
+                Ok(value)
             }
             Input::ReadTime => self.context.read_time.map(Value::Int).ok_or_else(|| RuntimeError::Input("readTime is not pinned".to_owned())),
         }
     }
 
     fn builtin(&mut self, builtin: &Builtin, mut args: Vec<Value>) -> Result<Value, RuntimeError> {
-        match builtin {
-            Builtin::Len => {
-                let len = match &args[0] {
-                    Value::String(text) | Value::Id(text) => text.chars().count(),
-                    Value::Array(values) => values.len(),
-                    Value::Row(values) | Value::Map(values) => values.len(),
-                    other => return Err(ValueError::Type { expected: "string, array, or map", actual: other.kind() }.into()),
-                };
-                Value::int(len as i128).map_err(Into::into)
+        let result: Result<Value, RuntimeError> = match builtin {
+            Builtin::Len | Builtin::Count | Builtin::CountCapped | Builtin::Sum => scalar_builtin(builtin, &args[0]),
+            Builtin::Lower | Builtin::Trim => {
+                let text = args[0].as_str()?;
+                let value = Value::String(if matches!(builtin, Builtin::Lower) { text.to_lowercase() } else { text.trim().to_owned() });
+                // @ref LLP 3000.007#5.3 — the small text library charges every new result to the heap meter.
+                self.meter.heap(value.heap_bytes())?;
+                Ok(value)
+            }
+            Builtin::Join => {
+                let values = args[0].as_array()?;
+                let sep = args[1].as_str()?;
+                let mut text = String::new();
+                for (index, value) in values.iter().enumerate() {
+                    if index > 0 { text.push_str(sep); }
+                    text.push_str(value.as_str()?);
+                }
+                let value = Value::String(text);
+                self.meter.heap(value.heap_bytes())?;
+                Ok(value)
             }
             Builtin::Slice => {
                 let value = args.remove(0);
@@ -418,7 +496,14 @@ impl<'a> Runner<'a> {
                 let left = args.remove(0);
                 let right = args.remove(0);
                 match (left, right) {
-                    (left @ Value::String(_), right) | (left, right @ Value::String(_)) => Ok(Value::String(format!("{}{}", concat_text(&left), concat_text(&right)))),
+                    (left @ Value::String(_), right) | (left, right @ Value::String(_)) => {
+                        let left = concat_text(&left);
+                        let right = concat_text(&right);
+                        for text in [&left, &right] {
+                            if let Cow::Owned(text) = text { self.meter.heap(text.capacity() as u64)?; }
+                        }
+                        Ok(Value::String(format!("{left}{right}")))
+                    }
                     (Value::Id(left), Value::Id(right)) => Ok(Value::Id(canonical_json(&[Value::Id(left), Value::Id(right)]))),
                     (Value::Array(mut left), Value::Array(right)) => {
                         left.extend(right);
@@ -442,7 +527,7 @@ impl<'a> Runner<'a> {
                 Ok(object([("quotient", Value::Int(numerator.div_euclid(denominator))), ("remainder", Value::Int(numerator.rem_euclid(denominator))), ("sink", Value::String(remainder_sink.clone()))]))
             }
             Builtin::Sort { keys } => {
-                let mut values = args.remove(0).as_array()?.to_vec();
+                let mut values = into_array(args.remove(0))?;
                 for value in &values {
                     for key in keys {
                         value.field(&key.field)?;
@@ -463,21 +548,23 @@ impl<'a> Runner<'a> {
                 Ok(Value::Array(values))
             }
             Builtin::MentionTokens => {
-                let text = args.remove(0).as_str()?.to_owned();
+                let text = args[0].as_str()?;
                 let mut seen = BTreeSet::new();
-                Ok(Value::Array(
-                    text.split(is_mention_whitespace)
-                        .filter_map(|word| word.strip_prefix('@'))
-                        .map(|word| word.trim_matches(|c: char| !c.is_alphanumeric() && c != '_'))
-                        .filter(|word| !word.is_empty())
-                        .filter(|word| seen.insert((*word).to_owned()))
-                        .map(|word| Value::String(word.to_owned()))
-                        .collect(),
-                ))
+                let mut tokens = Vec::new();
+                for word in text.split(is_mention_whitespace).filter_map(|word| word.strip_prefix('@')) {
+                    let word = word.trim_matches(|c: char| !c.is_alphanumeric() && c != '_');
+                    if !word.is_empty() && !seen.contains(word) {
+                        self.meter.heap(80)?; // Deduplication tree entry, borrowing the input text.
+                        seen.insert(word);
+                        tokens.push(Value::String(word.to_owned()));
+                    }
+                }
+                Ok(Value::Array(tokens))
             }
             Builtin::DeterministicShare => {
                 let amount = args.remove(0).as_int()?;
-                let mut recipients = args.remove(0).as_array()?.to_vec();
+                let mut recipients = into_array(args.remove(0))?;
+                self.meter.heap(recipients.capacity() as u64 * std::mem::size_of::<Value>() as u64 + recipients.iter().map(Value::heap_bytes).sum::<u64>())?;
                 let recipient = args.remove(0);
                 recipients.sort_by(Value::total_cmp);
                 if recipients.is_empty() {
@@ -511,12 +598,12 @@ impl<'a> Runner<'a> {
                     }
                 }
             }
-            Builtin::Count | Builtin::CountCapped => Value::int(args.remove(0).as_array()?.len() as i128).map_err(Into::into),
-            Builtin::Sum => {
-                let sum = args.remove(0).as_array()?.iter().try_fold(0_i128, |sum, value| value.as_int().map(|value| sum + value as i128))?;
-                Value::int(sum).map_err(Into::into)
-            }
+        };
+        let value = result?;
+        if matches!(builtin, Builtin::Concat | Builtin::Slice | Builtin::Sort { .. } | Builtin::MentionTokens | Builtin::Divmod { .. }) {
+            self.meter.heap(value.heap_bytes())?;
         }
+        Ok(value)
     }
 
     /// Charge the bytes a result will occupy on the wire.
@@ -573,12 +660,48 @@ fn is_mention_whitespace(character: char) -> bool {
     character.is_whitespace() || matches!(character, ',' | ';' | '(' | ')' | '[' | ']' | '{' | '}' | '<' | '>' | '"' | '\'')
 }
 
-fn concat_text(value: &Value) -> String {
+fn concat_text(value: &Value) -> Cow<'_, str> {
     match value {
-        Value::String(text) | Value::Id(text) => text.clone(),
-        Value::Int(int) => int.to_string(),
-        Value::Bool(bool) => bool.to_string(),
-        Value::Null => String::new(),
-        other => canonical_json(other),
+        Value::String(text) | Value::Id(text) => Cow::Borrowed(text),
+        Value::Int(int) => Cow::Owned(int.to_string()),
+        Value::Bool(value) => Cow::Borrowed(if *value { "true" } else { "false" }),
+        Value::Null => Cow::Borrowed(""),
+        other => Cow::Owned(canonical_json(other)),
     }
+}
+
+fn into_array(value: Value) -> Result<Vec<Value>, RuntimeError> {
+    match value {
+        Value::Array(values) => Ok(values),
+        other => Err(ValueError::Type { expected: "array", actual: other.kind() }.into()),
+    }
+}
+
+/// Only side-effect-free leaves can be borrowed; storage/input evaluation
+/// remains in expr, and visiting a borrowed leaf costs the same steps.
+fn borrowed<'a>(env: &'a BTreeMap<String, Value>, expr: &'a Expr) -> Result<Option<(&'a Value, u64)>, RuntimeError> {
+    match expr {
+        Expr::Literal(value) => Ok(Some((value, 1))),
+        Expr::Variable(name) => env.get(name).map(|value| Some((value, 1))).ok_or_else(|| RuntimeError::Input(format!("unknown variable {name}"))),
+        Expr::Field { base, name } => match borrowed(env, base)? {
+            Some((value, steps)) => Ok(Some((if *value == Value::Null { value } else { value.field(name)? }, steps + 1))),
+            None => Ok(None),
+        },
+        _ => Ok(None),
+    }
+}
+
+fn scalar_builtin(builtin: &Builtin, value: &Value) -> Result<Value, RuntimeError> {
+    let count = match builtin {
+        Builtin::Len => match value {
+            Value::String(text) | Value::Id(text) => text.chars().count(),
+            Value::Array(values) => values.len(),
+            Value::Row(values) | Value::Map(values) => values.len(),
+            other => return Err(ValueError::Type { expected: "string, array, or map", actual: other.kind() }.into()),
+        },
+        Builtin::Count | Builtin::CountCapped => value.as_array()?.len(),
+        Builtin::Sum => return Value::int(value.as_array()?.iter().try_fold(0_i128, |sum, value| value.as_int().map(|value| sum + value as i128))?).map_err(Into::into),
+        _ => unreachable!("only scalar inspectors borrow their argument"),
+    };
+    Value::int(count as i128).map_err(Into::into)
 }

@@ -21,6 +21,7 @@ export interface Change {
 /** Where a host keeps what the device changed, by store name. */
 export interface Persistence {
   load(name: string): Promise<Change[]>;
+  read?(name: string, store: string, key: string): Promise<string | null>;
   /** One batch, all or nothing, in order. */
   save(name: string, changes: Change[]): Promise<void>;
   /** The stores held whose names begin with `prefix`. */
@@ -45,7 +46,9 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
   const persist = options.persist ?? indexedDbPersistence();
   return {
     async open(name, backend) {
-      ready ??= init({ module_or_path: (options.wasm ?? new URL("./wasm/snapback4_device_bg.wasm", import.meta.url)) as never });
+      ready ??= cachedWasm(options.wasm ?? new URL("./wasm/snapback4_device_bg.wasm", import.meta.url), persist)
+        .then((module_or_path) => init({ module_or_path: module_or_path as never }))
+        .catch((error) => { ready = null; throw error; });
       await ready;
       const store = await claim(name);
       let device: WebDevice;
@@ -63,6 +66,11 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       await settle();
       await adoptOrphans(device, name, store.name, persist, settle);
       const core: DeviceCore = {
+        media: {
+          async read(id) { return persist.read ? persist.read(`snapback4-media:${store.name}`, "a", id) : (await persist.load(`snapback4-media:${store.name}`)).find((c) => c.k === id)?.v ?? null; },
+          async write(id, hex) { await persist.save(`snapback4-media:${store.name}`, [{ s: "a", k: id, v: hex }]); },
+          async remove(id) { await persist.save(`snapback4-media:${store.name}`, [{ s: "a", k: id, v: null }]); },
+        },
         call(request) {
           const answer = chain.then(async () => {
             const reply = JSON.parse(device.call(JSON.stringify(request))) as Record<string, unknown>;
@@ -81,6 +89,33 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       return core;
     },
   };
+}
+
+// @ref LLP 3000.007#8 — a cold offline open owns its wasm bytes, keyed by SHA-256
+async function cachedWasm(source: WasmSource | Promise<WasmSource>, persist: Persistence): Promise<BufferSource | WebAssembly.Module> {
+  const resolved = await source;
+  if (resolved instanceof WebAssembly.Module) return resolved;
+  const isUrl = typeof resolved === "string" || resolved instanceof URL;
+  const url = isUrl ? String(resolved) : null;
+  const name = "snapback4-wasm";
+  const saved = url ? await persist.load(name) : [];
+  const pointer = saved.find((c) => c.s === "url" && c.k === url)?.v;
+  const hex = pointer && saved.find((c) => c.s === "sha256" && c.k === pointer)?.v;
+  const digest = async (bytes: Uint8Array) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes as BufferSource)), (b) => b.toString(16).padStart(2, "0")).join("");
+  if (hex) {
+    const bytes = Uint8Array.from(hex.match(/../g) ?? [], (b) => parseInt(b, 16));
+    if (await digest(bytes) === pointer) return bytes;
+  }
+  const fetched = isUrl ? await fetch(resolved as string | URL) : resolved;
+  if (fetched instanceof Response && !fetched.ok) throw new Error(`wasm: HTTP ${fetched.status}`);
+  const bytes = fetched instanceof Response ? new Uint8Array(await fetched.arrayBuffer())
+    : ArrayBuffer.isView(fetched) ? new Uint8Array(fetched.buffer, fetched.byteOffset, fetched.byteLength) : new Uint8Array(fetched as ArrayBuffer);
+  const hash = await digest(bytes);
+  await persist.save(name, [
+    { s: "sha256", k: hash, v: Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("") },
+    ...(url ? [{ s: "url", k: url, v: hash }] : []),
+  ]);
+  return bytes;
 }
 
 function refusalText(error: unknown): string {
@@ -179,6 +214,15 @@ export function indexedDbPersistence(): Persistence {
     tx.onabort = () => reject(tx.error);
   });
   return {
+    async read(name, store, key) {
+      const db = await open(name);
+      try {
+        const tx = db.transaction("changes", "readonly");
+        const request = tx.objectStore("changes").get([store, key]);
+        await done(tx);
+        return (request.result as Change | undefined)?.v ?? null;
+      } finally { db.close(); }
+    },
     async load(name) {
       const db = await open(name);
       try {
@@ -225,6 +269,7 @@ export function memoryPersistence(): Persistence & { readonly stores: Map<string
   const stores = new Map<string, Map<string, Change>>();
   return {
     stores,
+    async read(name, store, key) { return stores.get(name)?.get(`${store} ${key}`)?.v ?? null; },
     async load(name) {
       return [...(stores.get(name)?.values() ?? [])];
     },

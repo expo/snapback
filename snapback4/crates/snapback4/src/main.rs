@@ -15,8 +15,8 @@ use std::process::ExitCode;
 
 const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on every device
 
-  init [dir]                       start a project: snapback/schema.q
-  check [--cost] [--json]          compile snapback/*.q; write snapback/generated/api.ts; build snapback/native if there is one
+  init [dir] [--online|--expo]      start local-first, online-only, or with the Expo client
+  check [--cost|--residency|--fix|--json]          compile snapback/*.q; write snapback/generated/api.ts; build snapback/native if there is one
   types                            compile and write snapback/generated/api.ts
   dev [--port N] [--no-watch] [--fresh]  serve on 127.0.0.1:4400, re-adopting on every save; --fresh: a store in memory
   deploy <dir> [--allow-destructive]  a release: the compiled backend into <dir>/releases/N, current → N
@@ -24,10 +24,11 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   serve <dir> [--port N] [--bind IP]  serve HTTP on 127.0.0.1:4400 behind a TLS proxy; tokens only
     --i-understand-cleartext         required for a non-loopback bind; see README proxy contract
   run <op> [json] --as <persona>   run one operation against the local store (a job runs whole, as the system)
-  test [--fixture dir] [--as p]    load a fixture, run every query, print the meters
+  test [--fixture dir] [--as p] [--residency]    load a fixture, run every query, print the meters
   why <E_CODE | op | table>        explain a refusal, an operation's cost, or a table's rules
   guide [keyword]                  the language card, or one keyword card (guide lists them)
   data <table> [--limit N]         inspect stored rows as an administrator (bypasses read rules)
+  sql <SELECT> [--release dir] [--limit N] [--json]  read-only inspection of your store (not rule-filtered)
   token --service <name> [--days N] [--release <dir>]  a bearer token for a service principal (a worker's seat), printed once
   doctor                           say what is and is not in place
   device <store.sqlite> [backend.json]  the native module over stdin/stdout: one JSON request per line, one answer per line
@@ -56,6 +57,7 @@ fn main() -> ExitCode {
         "test" => verbs::test(&options),
         "why" => verbs::why(&options),
         "data" => verbs::data(&options),
+        "sql" => verbs::sql(&options),
         "token" => verbs::token(&options),
         "doctor" => verbs::doctor(&options),
         "device" => verbs::device(&options),
@@ -201,7 +203,7 @@ mod tests {
 
     #[test]
     fn help_names_every_dispatched_verb() {
-        for verb in ["init", "check", "types", "dev", "deploy", "rollback", "serve", "run", "test", "why", "guide", "data", "token", "doctor", "device"] {
+        for verb in ["init", "check", "types", "dev", "deploy", "rollback", "serve", "run", "test", "why", "guide", "data", "sql", "token", "doctor", "device"] {
             assert!(super::HELP.lines().any(|line| line.trim_start().starts_with(verb)), "HELP omits {verb}");
         }
     }

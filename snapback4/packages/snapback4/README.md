@@ -38,6 +38,15 @@ resolvers, no migrations to write, no subscriptions to manage: a table's
 `sync` line says which devices hold its rows, and the client's reads run
 over what the device holds.
 
+**Two ways to run.** `snapback4 init` starts local-first: declare `sync`
+and open `createLocalClient` so the device holds its partition and works
+offline. `snapback4 init --online` writes a schema with no `sync` lines
+and a `src/client.ts` on `createClient`. Its queries run on the server and
+stay live through `/changes`, with no replica. Both tiers use the same
+rules, meter, identity, assets and jobs. Add `sync` and open a local-first
+client when the app needs offline data. `init --expo` adds the phone
+starter, selecting the native tier when available and online in Expo Go.
+
 ## 2. Quarry
 
 Comments start with `--`. Blocks indent with two spaces. A file holds
@@ -186,11 +195,16 @@ its source rows.
 `shape card = { id, name, owner: .ownerId }` names a shape; `row card` and
 `page card` use it, and `{ ...card, extra: 1 }` spreads its fields into
 another. `fn isBrief(ttl: int ?): ttl != null` is a helper expression and
-`proc stamp(roomId: rooms):` a helper block (a mutation's statements),
+`fn stamp(roomId: rooms):` a helper block ending in `return expr` or a bare `return`,
 each expanded where it is called (`isBrief(ttl)`; `stamp(r.id)` as a
-statement), at most eight levels deep.
+statement or expression), at most eight levels deep. A helper can write only
+when its caller can; a query's diagnostic names the write at the call site.
 
 ### Queries, mutations and jobs
+
+A job may put a read-only prelude before its first `chunk`. It runs again
+at the start of every chunk, with its bindings visible there and its work
+charged to that chunk's meter. Writes belong inside a chunk.
 
 - **Arguments** are typed like columns; `c: cursor ?` is an opaque page
   cursor. An omitted optional argument reads as null.
@@ -216,25 +230,30 @@ statement), at most eight levels deep.
   unless given as `id: new` or an id you hold), `insert t { .. } if
   absent` (null on a unique clash), `update t[key] { patch }` (`if .col =
   expected` makes it conditional, refusing `E_CONFLICT` with the current
-  row; `NOT_FOUND` when the row is missing), `upsert t[key] { fields }`,
+  row; `NOT_FOUND` when the row is missing), `upsert t[key] { fields }`
+  (insert or patch: omitted columns keep their values on an existing row;
+  an absent row with a missing required column refuses `E_INPUT` naming it),
   `delete t[key]`; the key is an id, a row you hold, or a full unique key.
   A final write is the implicit return; bind it to use it (`row = insert
   ..`). Writes check the rule, unique indexes, caps, immutables, text
   formats and `after insert`; any refusal rolls the whole mutation back.
-- **Statements:** `x = expr` (a local binds once; there is no
-  reassignment), `(q, r) = divmod(a, b)`, `(lo, hi) = sorted(a, b)`,
-  `require cond else CODE`, `if:` / `else:` (no `else if`: nest), `for x
+- **Statements:** `x = expr` binds or reassigns a local with a compatible type;
+  reassignment resets refinements, and arguments cannot be shadowed. `(q, r) = divmod(a, b)`, `(lo, hi) = sorted(a, b)`,
+  `xs = []` then `xs = xs + [value]` appends under the heap meter;
+  `for x in xs:` iterates the accumulated list.
+  `require cond else CODE`, `if:` / `else if:` / `else:`, `for x
   in domain:` over a page, a bounded list, `range(a, b)` (integer
-  literals) or `tokens(text)`, `break`, `return [value]`, a `proc` call,
+  literals) or `tokens(text)`, `break`, `continue`, `return [value]`, a `fn` call,
   `emit effect { payload }` (Effects, below), and a write. Values: `viewer`, `now`, `new` (an id, mutations only),
-  `count(page | list)`, `sum(page, .x)`, `sum(list)`, `min(a, b)`, `max(a,
+  `count(text | page | list)` (characters or items), `lower(text)`,
+  `trim(text)`, `join(list, separator)`, `sum(page, .x)`, `sum(list)`, `min(a, b)`, `max(a,
   b)`, `slice(text | list, start, end)`, `sort(list, 'col', '-col')`,
   `tokens(text)` (the @mentions, at most 64), `share(amount, list,
   member)`, `a ?? b`, `a if cond else b` (the arm not taken is never
   evaluated; `x != null` as the condition narrows `x` in the taken arm).
-  There is no `/` or `%`: `divmod` binds both parts at once, so a
-  remainder is never dropped unread. There is no string concatenation:
-  store the parts, the client formats. A bare `return` returns null.
+  `/` and `%` give the Euclidean quotient and remainder of ints or times;
+  zero refuses `E_DIV_ZERO`. `divmod` binds both parts at once. Text `+` concatenates present texts;
+  interpolation and formatting stay in the client. A bare `return` returns null.
   `=` and `!=` are total (null equals null); `<` and friends need present
   operands — narrow with `if x != null:` or `x ! else CODE`. `not` binds
   tightest: `a != b`, not `not a = b`.
@@ -510,7 +529,15 @@ index entries, 8,192 probes, 1,000,000 steps, 16 MiB heap, 1 MiB output,
 and write 8,192). A query past a ceiling returns what it found with
 `complete: false`; a mutation aborts with `E_BOUND` naming the ceiling
 and the site. `snapback4 check --cost` prints each site's structural
-class; `snapback4 test` prints the numbers on your data.
+class; `snapback4 test` prints the numbers, including heap bytes, on your data.
+
+Heap is a cumulative allocation and binding budget: constructed values,
+concatenation and other allocating builtins, local bindings, and owned
+copies count. Inspecting a held value's length or sum borrows it; row and
+map clones share their immutable image. A heap cut stops a query immediately
+with `data: null`, `complete: false`, and no continuation, since an interrupted
+scalar or shape has no valid partial answer. Its meter and cut site remain
+internal; a mutation rolls back with `E_BOUND` as above.
 
 A page whose read rule the prefix does not decide (the rule reads a
 column the scan does not pin) is never `complete`: the device cannot tell
@@ -524,6 +551,7 @@ partition holds exactly what the viewer may read. `check` says so
 ## 3. Sync: the viewer's partition is the unit of sync
 
 ```text
+sync [last N by index]                           audience inferred from the read rule
 sync public [last N by index]                    everyone holds the same rows
 sync to .col [last N by index]                   each row reaches the principal in .col
 sync to t[.a, .b] [by .col] [last N by index]    each row reaches every principal with a
@@ -531,6 +559,7 @@ sync to t[.a, .b] [by .col] [last N by index]    each row reaches every principa
                                                  the recipient column when t has several
 ```
 
+`sync` infers the audience from the read rule; an explicit `to` must agree.
 The read rule must be exactly the audience — `public`, `.col = viewer` or
 `exists t[.a, .b, viewer]` — so a device never holds a row it may not read,
 and never misses one it may. A second disjunct or an extra conjunct is a
@@ -553,6 +582,27 @@ the newest N per group stay on the device, the rest are online and a
 local read past them says `complete: false`). A snapshot arrives in pages
 of 2,000 events, each staged in its own transaction and published
 together with the last, so a device never shows half a snapshot.
+
+`online only` optionally documents a table with no sync. On a `maintain`,
+it opts out of inherited sync. `N_MAINTAIN_SYNCED` calls out public inherited
+aggregates and group audiences with unbounded recipients or multiple values per group.
+
+`check --residency` lists every table's residency, inferred and inherited
+audiences, and each operation's `runs: device | server` or
+`predicts: eligible | never`. Read sites are `held`, `horizon` or `server`.
+A horizon site stays eligible but may queue without a row past the horizon;
+`E_PREDICT` names the table, index and key. `why <op>` names the reason and
+rewrite; `why <table>` includes the rule used for inference. The generated
+`api.ts` documents arguments, results, these words, horizon sites and
+`require` codes. `check` compares with `snapback/generated/residency.json`;
+`dev` compares with its served generation. `N_NOW_SERVER` and
+`N_NOT_PREDICTABLE` name changed sites, including added horizon risks.
+
+`test --residency --fixture dir [--as persona]` prints measured cold rows and
+compact JSON row bytes per synced table and persona, plus totals and
+aggregate row counts. It uses the real partition snapshot, respecting
+horizons. Facts and measurements are labelled; byte counts exclude transport
+framing and are not extrapolated.
 
 ### Feeds: fan out on write, read one page
 
@@ -644,6 +694,13 @@ shapes: `snapback4 guide feeds`.
 
 ## 4. The client
 
+The local client routes queries using the compiled `runs` word. An observed
+server-run query refreshes when a commit touches its tables. Offline, it
+returns the last server answer for that watch with `fresh: false` and
+`since`, kept only in memory for the client's lifetime, or `denied: E_OFFLINE`
+(`family: link`, `retryable: true`) when there is no answer. It never uses an
+empty device page as a server answer.
+
 ```ts
 import { createLocalClient } from "snapback4/local";   // the local-first tier
 import { webDevice } from "snapback4/web";             // the device on the web
@@ -710,7 +767,7 @@ type Read<T> =
   | { data: T; complete: boolean; fresh: boolean; since?: number; next?: Cursor | null }
   | { loading: true }
   | { denied: Refusal };
-type Write = { state: "pending"; id } | { state: "sent"; id; seq } | { state: "failed"; id; why: Refusal };
+type Write<R> = { state: "pending"; id } | { state: "sent"; id; seq; result: R } | { state: "failed"; id; why: Refusal };
 type Refusal = { code: string; family: string; message: string; site?: string; rewrite?: string; guide?: string; rule?: string; retryable?: boolean };
 type Link = "online" | "offline" | "signed-out";
 ```
@@ -738,6 +795,16 @@ the same id, and `useMutation.last` follows it. `family` is `input`, `schema`, `
 engine, and `link` or `client` from the client itself. `isReady`,
 `isLoading`, `isDenied` narrow a `Read`.
 
+The `sent` outcome carries the server's typed `result`, including reused ids
+and shaped objects. A queued write's eventual `onWrite` event carries that same
+terminal result; `useMutation.last` follows it. Pending writes have no predicted
+result: their predicted rows carry `pending`.
+
+`webDevice()` stores wasm bytes by SHA-256 digest in IndexedDB and opens from
+them without a network fetch on reload. It also persists the compiled backend
+with the device rows, so a device that opened and synced online can reopen
+offline. Custom wasm URLs should identify immutable module versions.
+
 ### React
 
 ```tsx
@@ -746,7 +813,7 @@ import { SnapbackProvider, useClient, useQuery, usePage, useMutation, useLink, u
 <SnapbackProvider client={client}>...</SnapbackProvider>
 const inbox = useQuery(api.inbox, {});                              // Read<...>
 const { items, hasMore, loadMore, read } = usePage(api.thread, { conversationId });
-const send = useMutation(api.send);   // send.run(args) → Write; send.last (the latest Write); send.inFlight
+const send = useMutation(api.send);   // await send.run(args) → Write<R>; sent.result is the server answer; send.last carries it
 const link = useLink();               // "online" | "offline" | "signed-out"
 const viewer = useViewer();           // the principal, or null
 const session = useSession();         // the local client's session, null once it ended
@@ -767,6 +834,28 @@ if (uploaded.ok) await client.mutate(api.sendPhoto, { conversationId, photo: { i
 const photo = useAsset(message.photo?.id);             // { status: "empty" | "loading" | "ready" | "denied", ... }
 ```
 
+The local-first client can retain ordinary viewed images and videos:
+
+```ts
+const client = await createLocalClient({
+  url, session, device: webDevice(),
+  assets: { keep: "viewed", maxBytes: 64 * 1024 * 1024 },
+});
+```
+
+`keep: "none"` is the default and purges previously retained media on open.
+`keep: "viewed"` retains successfully fetched ordinary assets, evicting the
+least recently used to stay within `maxBytes` of payload bytes. Storage belongs
+to this server, principal and device: IndexedDB on the web, files in Documents
+with the Expo opener, and device metadata with the process opener. `client.asset`
+and `useAsset` use retained bytes offline and revalidate every online fetch.
+A home row leaving its partition, being deleted or cleared, or expiring purges
+its bytes (including offline expiry); sign-out purges them too. Stream changes
+are checked before sync completes, and reopening checks lifetimes before reads.
+A `once` response never enters storage. This cache does not change the server's
+`private, no-store` responses. `assetSource` supplies a network URI; use
+`client.asset` or `useAsset` to use SDK retention, including native file URIs.
+
 Passing `null` or `undefined` to `useAsset` returns `{ status: "empty" }`
 without fetching. A client-side fetch or blob-URL failure returns a typed
 `denied` state.
@@ -780,7 +869,10 @@ nonzero dimensions, at most 16,384 pixels per side and 40 million pixels
 total; video must have a positive duration of at most one hour
 (`E_ASSET_BOUNDS`). It then places
 `{ id }` in the mutation. Inside the mutation the argument already
-carries the facts the server established, and the row carries them.
+carries the facts the server established, and the row carries them. The local
+client keeps its upload receipt, so `{ id }` also predicts after an offline
+reopen. Missing receipts queue the write without prediction; argument-supplied
+facts never substitute for a receipt.
 Every fact key is present; `width` and `height` are null for video,
 `duration` for images. Bind `duration = clip.duration`, then `require
 duration != null else DURATION_UNKNOWN` before `require duration <=
@@ -865,6 +957,17 @@ PNG and `asset` is always denied.
 
 ## 5. Development
 
+- **`snapback4 init [dir] [--online|--expo]`** starts a project without
+  overwriting existing files. The default writes the local-first todo
+  schema and `.gitignore`; `--online` adds an online client, package.json
+  and README. `--expo` copies the chat starter with its backend, screens,
+  secure session store and native/online tier selection. Its toolchain
+  matches the reference app: Expo **57.0.22**, React Native **0.86.3**,
+  React **19.2.3**, expo-sqlite **57.0.3**, babel-preset-expo **57.0.11**.
+  Keep Expo and its Babel preset on the same major; a mismatch can leave
+  private fields in the bundle that Hermes cannot compile. The generated
+  README gives the install and run commands.
+
 - **`snapback4 dev [--port N] [--no-watch] [--fresh]`** serves
   `snapback/*.q` on `127.0.0.1:4400`, recompiling and re-adopting on
   every save (the watcher polls every 400 ms; a save with problems keeps
@@ -875,7 +978,10 @@ PNG and `asset` is always denied.
   every adoption, and refuses a store that belongs to a deployment
   (`E_GENERATION`). Personas (`use personas ..`) sign requests from the
   same machine with the `x-snapback-persona: alice` header (the client's
-  `persona: "alice"`), acting as `dev:alice`.
+  `persona: "alice"`), acting as `dev:alice`. For loopback identity requests, `dev` removes the
+  per-peer and per-email minute counters and prints that fact once at startup.
+  The two Argon2 slots and connection/worker caps remain; `serve` keeps the
+  30-per-peer and 10-per-email limits.
 - **`POST /seed`** (dev only, same machine) takes `[{ "table": "t",
   "row": { "id": "..", .. } }, ..]`, writes the rows as the system
   principal in one commit (rules bypassed; validation, constraints,
@@ -885,7 +991,7 @@ PNG and `asset` is always denied.
   prints the result, the meter and, for a mutation, the partition events;
   a job runs whole as the system (`--as` is ignored) and prints its run.
   Exit 1 on a refusal or a parked job, 2 on an engine error.
-- **`snapback4 test [--fixture dir] [--as persona]`** loads a fixture
+- **`snapback4 test [--residency] [--fixture dir] [--as persona]`** loads a fixture
   (one `<table>.jsonl` per table; a file for an unknown table is
   skipped) into a fresh store in memory (without a fixture, the project's
   dev store), runs every query as each persona with arguments derived
@@ -897,10 +1003,33 @@ PNG and `asset` is always denied.
   argument cannot be derived). A query's own `require` refusing a
   derived argument (the persona is not in that group) is reported, not
   counted as a failure; run it with your arguments to see its meters.
-- **`snapback4 check [--cost] [--json]`** compiles, writes
+- **`snapback4 check [--cost|--residency|--fix|--json]`** compiles, writes
   `snapback/generated/api.ts` (`Rows`, `Ops`, `api`), and prints every
   diagnostic with its site and rewrite; `--cost` adds each site's
-  structural class. **`snapback4 types`** writes `api.ts` alone.
+  structural class, and `--residency` names where operations run.
+  `--fix` applies only diagnostics explicitly marked `mechanical`: an
+  ambiguous key's `by`, a cursor index's missing `id`, and exact canonical
+  spelling rewrites. It prints one `fix:` line per change to stderr,
+  recompiles, and reports the remaining diagnostics normally (`--json`
+  remains one JSON result on stdout). Unmarked design suggestions are
+  left for the author. **`snapback4 types`** writes `api.ts` alone.
+- **`snapback4 sql "<SELECT …>" [--release dir] [--limit N] [--json]`**
+  inspects the developer's own store, **never rule-filtered**. It opens
+  `.snapback4/store.sqlite` read-only alongside `dev`, or a deployment's
+  store with `--release`; no schema adoption and no writer lock. Temporary
+  views expose each application table's `id` and columns from the active
+  compiled schema. Scalar tags are unwrapped; compound values remain
+  canonical tagged JSON. Only one `SELECT` or `WITH … SELECT` is allowed:
+  writes refuse `E_SQL_READ_ONLY`, and internal tables (including raw
+  `r`/`i` and SQLite metadata) refuse `E_SQL_INTERNAL`. The result is bounded
+  to 200 rows by default and says when more exist. `--json` returns
+  `columns`, positional `rows` (retaining every selected column), `limit`,
+  `more`, `ruleFiltered: false`, and the same inspection header. For example:
+  `snapback4 sql "SELECT conversationId, count(*) FROM messages GROUP BY conversationId"`.
+- **`snapback4 device <store.sqlite> [backend.json]`** runs the native
+  device over stdin/stdout, one JSON request and answer per line.
+- **`snapback4 --help`** lists every verb and its flags; `deploy`,
+  `rollback` and `serve` are described in §6.
 - **`snapback4 token --service <name> [--days N] [--release <dir>]`**
   mints a service's bearer token into the project's store (or a
   deployment's) and prints it once.
@@ -911,7 +1040,7 @@ PNG and `asset` is always denied.
   store, its size, schedules and their last boundary, the last job runs,
   the effects by state and the failed ones;
   **`guide [keyword]`** prints the language card or one card: language,
-  types, indexes, rules, sync, expire, assets, reads, shapes, writes,
+  types, indexes, rules, sync, residency, expire, assets, reads, shapes, writes,
   programs, jobs, native, feeds, search, effects, services, presence,
   bounds, refusals, personas (`guide <E_CODE>` explains a code);
   **`--version`** prints the binary's version, which equals the
@@ -1019,7 +1148,10 @@ const client = nativeAvailable()
   : createClient({ url, session: await kept() });   // Expo Go
 ```
 
-`snapback4/react` works unchanged.
+`snapback4/react` works unchanged. Pass `assets: { keep: "viewed", maxBytes }`
+to retain ordinary media through `nativeDevice` in the application's Documents
+directory. The module supplies file storage; the client package imports no Expo
+API. Rebuild the native app to include these methods before enabling retention.
 
 ### The native module
 

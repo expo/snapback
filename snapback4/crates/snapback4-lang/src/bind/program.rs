@@ -34,18 +34,22 @@ pub struct Binder<'a> {
     temps: u32,
     sites: u32,
     returns: Vec<Ty>,
-    /// Depth of fn/proc expansion, to bound recursion.
+    /// Depth of helper expansion, to bound recursion.
     depth: u32,
     /// Enclosing `for` and `chunk` bodies: where `break` may stand.
     loops: u32,
+    in_prelude: bool,
 }
 
 /// Source names are lexical; the IR's flat environment needs a distinct
 /// runtime name for each declaration and each helper expansion.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 struct Binding {
     runtime: String,
     ty: Ty,
+    declared: Ty,
+    parameter: bool,
+    revision: u32,
 }
 
 const MAX_EXPANSION_DEPTH: u32 = 8;
@@ -53,7 +57,7 @@ const MENTION_MAX: u32 = 64;
 
 impl<'a> Binder<'a> {
     pub fn bind(catalog: &'a Catalog, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>) -> Option<BoundProgram> {
-        let mut binder = Binder { catalog, name: decl.name.clone(), kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0 };
+        let mut binder = Binder { catalog, name: decl.name.clone(), kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false };
         let mut args = BTreeMap::new();
         let mut arg_types = Vec::new();
         for arg in &decl.args {
@@ -68,7 +72,7 @@ impl<'a> Binder<'a> {
                 return None;
             }
             let ty = Ty::from_scalar(&arg.type_);
-            binder.scopes[0].insert(arg.name.clone(), Binding { runtime: arg.name.clone(), ty: ty.clone() });
+            binder.scopes[0].insert(arg.name.clone(), Binding { runtime: arg.name.clone(), ty: ty.clone(), declared: ty.clone(), parameter: true, revision: 0 });
             args.insert(arg.name.clone(), scalar_to_arg(&arg.type_));
             arg_types.push((arg.name.clone(), ty));
         }
@@ -85,7 +89,25 @@ impl<'a> Binder<'a> {
         let mut body = Vec::new();
         let mut failed = false;
         let count = decl.body.len();
+        let arguments = binder.scopes.clone();
         for (index, statement) in decl.body.iter().enumerate() {
+            if decl.kind == ProgramKind::Job {
+                binder.scopes = arguments.clone();
+                binder.push_scope();
+                binder.in_prelude = true;
+                let mut prelude = Vec::new();
+                for statement in &decl.prelude {
+                    if let Err(diagnostic) = binder.statement(statement, &mut prelude, false) {
+                        diagnostics.push(diagnostic);
+                        return None;
+                    }
+                }
+                binder.in_prelude = false;
+                if !prelude.is_empty() {
+                    // @ref LLP 3000.007#5.2 — each sweep carries its prelude as setup in the existing serialized statement vocabulary.
+                    body.push(Stmt::If { condition: Expr::Literal(Value::Bool(true)), then_body: prelude, else_body: Vec::new() });
+                }
+            }
             match binder.statement(statement, &mut body, index + 1 == count) {
                 Ok(()) => {
                     // Binding a chunk prefix may hoist setup statements. The
@@ -146,7 +168,7 @@ impl<'a> Binder<'a> {
 
     fn declare(&mut self, name: &str, ty: Ty) -> String {
         let runtime = if name.starts_with('$') { name.to_owned() } else { self.temp(name) };
-        self.scopes.last_mut().expect("a scope").insert(name.to_owned(), Binding { runtime: runtime.clone(), ty });
+        self.scopes.last_mut().expect("a scope").insert(name.to_owned(), Binding { runtime: runtime.clone(), declared: ty.clone(), ty, parameter: false, revision: 0 });
         runtime
     }
 
@@ -580,8 +602,11 @@ impl<'a> Binder<'a> {
     /// image, an update's or upsert's re-read row, null for a delete).
     fn write(&mut self, expr: &A, out: &mut Vec<Stmt>, valued: bool) -> Fallible<Option<(Expr, Ty)>> {
         let A::Write { op, table, keys, fields, if_absent, condition, site } = expr else { unreachable!() };
+        if self.in_prelude {
+            return Err(placement(site, "a write belongs to a chunk", format!("move {} {table} into the chunk body", op.word())));
+        }
         if self.kind == ProgramKind::Query {
-            return Err(Diagnostic::new(site, "E_QUARRY_PLACEMENT", format!("queries cannot {}", op.word()), "move the write into a mutation").guide("programs"));
+            return Err(Diagnostic::new(site, "E_QUARRY_PLACEMENT", format!("queries cannot {} {table}", op.word()), "move the write into a mutation").guide("programs"));
         }
         let info = self.table(table, site)?;
         if info.maintained.is_some() {
@@ -651,7 +676,10 @@ impl<'a> Binder<'a> {
                         with_key.push(ObjectField { name: column.clone(), value: Some(key_expr.clone()), site: site.clone() });
                     }
                 }
-                let (row, _) = self.write_row_with_id(info, &with_key, ir::var(&id_var), site, out)?;
+                let (patch, _) = self.write_row(info, &with_key, Some("patch"), site, out)?;
+                let Expr::Object(mut fields) = patch else { unreachable!("a typed patch is an object") };
+                fields.insert("id".into(), ir::var(&id_var));
+                let row = Expr::Object(fields);
                 let tmp = self.temp("upserted");
                 out.push(Stmt::Const { name: tmp.clone(), value: row });
                 out.push(Stmt::Upsert { table: table.clone(), key: ir::var(&id_var), row: ir::var(&tmp) });
@@ -731,12 +759,14 @@ impl<'a> Binder<'a> {
                     let mut setup = Vec::new();
                     let (e, t) = self.field_value(field, &expected, &mut setup)?;
                     self.sequence_setup(exprs.iter_mut().map(|(_, e)| e), setup, out);
-                    if !t.assignable_to(&expected) {
+                    if !t.writable_to(&expected) {
                         return Err(type_error(&field.site, format!("{}.{} is {}; got {}", info.decl.name, field.name, expected.name(), t.name()), format!("write {} into {}", expected.name(), field.name)));
                     }
                     let e = if expr::allocates(&e) { self.snapshot(e, out) } else { e };
                     exprs.push((field.name.clone(), e));
-                    types.insert(field.name.clone(), t);
+                    if types.insert(field.name.clone(), t).is_some() {
+                        return Err(unknown(&field.site, format!("field {} is written twice", field.name), "keep one"));
+                    }
                 }
                 Ok((Expr::Object(exprs.into_iter().collect()), Ty::Object(types)))
             }
@@ -755,7 +785,7 @@ impl<'a> Binder<'a> {
             let mut setup = Vec::new();
             let (e, t) = self.field_value(field, &expected, &mut setup)?;
             self.sequence_setup(exprs.iter_mut().map(|(_, e)| e), setup, out);
-            if !t.assignable_to(&expected) {
+            if !t.writable_to(&expected) {
                 return Err(type_error(&field.site, format!("{}.{} is {}; got {}", info.decl.name, field.name, expected.name(), t.name()), format!("write {} into {}", expected.name(), field.name)));
             }
             let e = if expr::allocates(&e) { self.snapshot(e, out) } else { e };

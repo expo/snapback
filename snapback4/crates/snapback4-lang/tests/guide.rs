@@ -109,6 +109,12 @@ fn the_language_card_compiles_and_runs() {
     // digest: divmod, sorted, min, max, slice, sort, a helper with null.
     let digest = engine.query("digest", Context::new(alice, args(&[("roomId", id("r1"))])).at(2_200)).unwrap().data;
     assert_eq!(digest.field("total").unwrap(), &Value::Int(2));
+    assert_eq!(digest.field("counter").unwrap(), &Value::Int(2));
+    assert_eq!(digest.field("offsets").unwrap(), &Value::Array(vec![Value::Int(0), Value::Int(1)]));
+    assert_eq!(digest.field("label").unwrap(), &text("digest: room / messages"));
+    assert_eq!(digest.field("labelSize").unwrap(), &Value::Int(23));
+    assert_eq!(digest.field("doubled").unwrap(), &Value::Int(4));
+    assert_eq!((digest.field("quotient").unwrap(), digest.field("remainder").unwrap()), (&Value::Int(0), &Value::Int(2)));
     assert_eq!((digest.field("weeks").unwrap(), digest.field("days").unwrap()), (&Value::Int(0), &Value::Int(2)));
     assert_eq!((digest.field("lo").unwrap(), digest.field("hi").unwrap()), (&Value::Int(0), &Value::Int(2)));
     assert_eq!((digest.field("smaller").unwrap(), digest.field("larger").unwrap()), (&Value::Int(0), &Value::Int(2)));
@@ -153,14 +159,14 @@ fn the_language_card_compiles_and_runs() {
     // leave: a named full unique key; NOT_FOUND the second time.
     assert_eq!(sent(&engine.mutate("leave", Some("v1"), Context::new(bob, args(&[("roomId", id("r1"))])).at(3_900)).unwrap()), &Value::Null);
     assert_eq!(failed(&engine.mutate("leave", Some("v2"), Context::new(bob, args(&[("roomId", id("r1"))])).at(3_950)).unwrap()), "NOT_FOUND");
-    // nightly: chunks, `break` on the first room past the period, a proc call, `range`.
+    // nightly: chunks, `break` on the first room past the period, a helper call, `range`.
     let later = engine.mutate("createRoom", Some("c2"), Context::new(alice, args(&[("name", text("Later")), ("kind", text("closed")), ("tags", Value::Array(vec![]))])).at(6_000).with_ids(["r2".to_owned(), "m4".to_owned()])).unwrap();
     assert_eq!(sent(&later).field("id").unwrap(), &id("r2"));
     let run = engine.run_job("nightly", args(&[("periodStart", Value::Int(0)), ("periodEnd", Value::Int(5_000))]), 7_000).unwrap();
     assert_eq!(run.state, JobState::Done, "{run:?}");
     let rooms = engine.store().rows("rooms").unwrap();
     let created_at = |name: &str| rooms.iter().find(|r| r.field("name").unwrap() == &text(name)).unwrap().field("createdAt").unwrap().as_int().unwrap();
-    assert_eq!(created_at("General"), 7_000, "stamped by the proc");
+    assert_eq!(created_at("General"), 7_000, "stamped by the helper");
     assert_eq!(created_at("Later"), 6_000, "`break` ended the sweep before it");
     assert!(engine.store().rows("posts").unwrap().iter().all(|p| p.field("score").unwrap() == &Value::Int(1)), "range(0, 2) added 0 then 1 to a score read once");
     // everyNight: the schedule fires from its next boundary, once.
@@ -372,4 +378,5 @@ fn the_cards_state_the_engines_numbers_and_families() {
 #[test]
 fn the_template_compiles_clean() {
     clean("the init template", guide::TEMPLATE);
+    clean("the online init template", guide::TEMPLATE_ONLINE);
 }

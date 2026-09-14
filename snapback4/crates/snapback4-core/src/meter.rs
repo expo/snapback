@@ -174,10 +174,10 @@ impl Meter {
     }
 
     pub fn heap(&mut self, bytes: u64) -> Result<(), RuntimeError> {
-        let slot = &mut self.used.heap_bytes;
-        *slot = slot.saturating_add(bytes);
-        if *slot > self.ceilings.heap_bytes {
-            return Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, actual: *slot, ceiling: self.ceilings.heap_bytes, site: self.site.clone() });
+        // Heap exhaustion must unwind allocation, even for a capped read.
+        // Runner turns that unwind into an incomplete, unavailable result.
+        if !self.charge(MeterKind::HeapBytes, bytes)? {
+            return Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, actual: self.used.heap_bytes, ceiling: self.ceilings.heap_bytes, site: self.site.clone() });
         }
         Ok(())
     }

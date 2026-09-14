@@ -39,6 +39,18 @@ pub enum Ty {
 }
 
 impl Ty {
+    /// A reassigned allocation is bounded by the heap meter, not its first literal's length.
+    pub(crate) fn rebound(self) -> Ty {
+        match self {
+            Ty::Text(_) => Ty::Text(u32::MAX),
+            Ty::List(item, _) => Ty::List(Box::new(item.rebound()), u32::MAX),
+            Ty::Collection(item, _) => Ty::Collection(Box::new(item.rebound()), u32::MAX),
+            Ty::Object(fields) => Ty::Object(fields.into_iter().map(|(name, ty)| (name, ty.rebound())).collect()),
+            Ty::Optional(inner) => inner.rebound().optional(),
+            other => other,
+        }
+    }
+
     pub fn optional(self) -> Ty {
         match self {
             Ty::Optional(_) | Ty::Null | Ty::Unknown => self,
@@ -159,9 +171,22 @@ impl Ty {
             (Ty::Int, Ty::Time) | (Ty::Time, Ty::Int) => true,
             (Ty::Int, Ty::Decimal(_)) | (Ty::Int, Ty::Money(..)) => true,
             (Ty::List(a, am), Ty::List(b, bm)) => a.assignable_to(b) && am <= bm,
+            (Ty::Object(a), Ty::Object(b)) => a.len() == b.len() && a.iter().all(|(name, ty)| b.get(name).is_some_and(|target| ty.assignable_to(target))),
             (Ty::Enum(a), Ty::Enum(b)) => a.iter().all(|v| b.contains(v)),
             (Ty::Unknown, _) | (_, Ty::Unknown) | (_, Ty::Json) => true,
             _ => false,
+        }
+    }
+
+    /// A heap-bound allocation can be written; the row validator checks its
+    /// actual length. It cannot claim a smaller bound inside an inline helper.
+    pub(crate) fn writable_to(&self, expected: &Ty) -> bool {
+        match (self, expected) {
+            (Ty::Optional(a), Ty::Optional(b)) => a.writable_to(b),
+            (a, Ty::Optional(b)) => a.writable_to(b) || *a == Ty::Null,
+            (Ty::Text(u32::MAX), Ty::Text(_)) => true,
+            (Ty::List(a, am), Ty::List(b, bm)) => a.writable_to(b) && (*am == u32::MAX || am <= bm),
+            _ => self.assignable_to(expected),
         }
     }
 
@@ -199,6 +224,7 @@ impl Ty {
                 Ty::Object(fields)
             }
             (Ty::Collection(a, am), Ty::Collection(b, bm)) => Ty::Collection(Box::new(a.join(b)), *am.max(bm)),
+            (Ty::List(a, am), Ty::List(b, bm)) => Ty::List(Box::new(a.join(b)), *am.max(bm)),
             (Ty::Page(t, am), Ty::Page(u, bm)) if t == u => Ty::Page(t.clone(), *am.max(bm)),
             _ => Ty::Unknown,
         }

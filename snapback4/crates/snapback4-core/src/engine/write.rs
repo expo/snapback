@@ -81,13 +81,19 @@ impl Runner<'_> {
 
     pub(super) fn upsert(&mut self, table_name: &str, key: &Value, row: Value) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name)?;
-        validate_row(self.schema, table_name, &row)?;
         let id = key.as_str()?;
         if row.field("id")?.as_str()? != id {
             return Err(RuntimeError::Input(format!("{table_name} upsert row id must equal its key")));
         }
         match self.fetch(table_name, id)? {
-            Some(old) => self.replace(table_name, old, row),
+            Some(old) => {
+                // @ref LLP 3000.007#5.4 — an existing row receives a patch; omitted columns keep their values.
+                let mut fields = old.as_object()?.clone();
+                fields.extend(row.as_object()?.iter().map(|(name, value)| (name.clone(), value.clone())));
+                let row = Value::Row(fields.into());
+                self.meter.heap(row.heap_bytes())?;
+                self.replace(table_name, old, row)
+            }
             None => self.insert(table_name, row),
         }
     }
@@ -341,7 +347,7 @@ impl Runner<'_> {
                     Some(row) => self.live_aggregate(target, row)?,
                     None => None,
                 };
-                if self.device && (definition.sync.is_none() || (found.is_none() && definition.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.beyond_horizon = true; }
+                if self.device && (definition.sync.is_none() || (found.is_none() && definition.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.unknown_fact(target, index, &key, "after insert"); }
                 if found.is_none() {
                     return Err(RuntimeError::Constraint(format!("inserting into {table_name} requires a matching row in {target} by the end of the mutation")));
                 }

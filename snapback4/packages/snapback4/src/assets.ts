@@ -30,7 +30,7 @@ export function assetSource(base: string, headers: Record<string, string>, id: s
   return { uri: `${base}/assets/${encodeURIComponent(id)}`, headers: auth };
 }
 
-export async function fetchAsset(base: string, headers: Record<string, string>, doFetch: typeof fetch, id: string): Promise<AssetRead> {
+export async function fetchAsset(base: string, headers: Record<string, string>, doFetch: typeof fetch, id: string, viewed?: (blob: Blob, response: Response) => Promise<AssetRead | void>): Promise<AssetRead> {
   const source = assetSource(base, headers, id);
   try {
     const response = await doFetch(source.uri, { headers: source.headers });
@@ -39,6 +39,8 @@ export async function fetchAsset(base: string, headers: Record<string, string>, 
       return { denied: json?.denied ?? { code: response.status === 410 ? "E_ASSET_VIEWED" : "E_ASSET_UNKNOWN", family: "asset", message: response.status === 410 ? "this photo was for one view, and it was viewed" : "no asset is served under that id to this viewer" } };
     }
     const blob = await response.blob();
+    const retained = await viewed?.(blob, response);
+    if (retained) return retained;
     const url = URL.createObjectURL(blob);
     return { url, type: response.headers.get("content-type") ?? blob.type, bytes: blob.size, revoke: () => URL.revokeObjectURL(url) };
   } catch {

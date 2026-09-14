@@ -110,13 +110,13 @@ test("online pending writes emit their terminal outcome exactly once", { timeout
   const client = createClient({ url: "http://write.invalid", persona: "alice", fetch: async (input) => {
     assert.equal(new URL(input).pathname, "/m/send");
     attempts++;
-    return attempts === 1 ? Response.json({}, { status: 503 }) : Response.json({ state: "sent", seq: 7 });
+    return attempts === 1 ? Response.json({}, { status: 503 }) : Response.json({ state: "sent", seq: 7, result: { saved: true } });
   } });
   const unsubscribe = client.onWrite((write) => terminal.push(write));
   const admitted = await client.mutate(send, { conversationId: "c1", body: "queued" });
   assert.equal(admitted.state, "pending");
   await until(() => terminal.length === 1, "terminal write event was dropped");
-  assert.deepEqual(terminal[0], { state: "sent", id: admitted.id, seq: 7 });
+  assert.deepEqual(terminal[0], { state: "sent", id: admitted.id, seq: 7, result: { saved: true } });
   await sleep(300);
   assert.equal(terminal.length, 1, "one write id emitted more than one terminal outcome");
   unsubscribe(); await client.close();
@@ -167,9 +167,9 @@ test("local pending writes emit their terminal outcome exactly once", { timeout:
   const unsubscribe = client.onWrite((write) => terminal.push(write));
   const admitted = await client.mutate(send, { conversationId: "c1", body: "queued" });
   assert.equal(admitted.state, "pending");
-  reply.resolve(Response.json({ state: "sent", seq: 7 }));
+  reply.resolve(Response.json({ state: "sent", seq: 7, result: { saved: true } }));
   await until(() => terminal.length === 1, "local terminal write event was dropped");
-  assert.deepEqual(terminal[0], { state: "sent", id: admitted.id, seq: 7 });
+  assert.deepEqual(terminal[0], { state: "sent", id: admitted.id, seq: 7, result: { saved: true } });
   await sleep(50);
   assert.equal(terminal.length, 1);
   unsubscribe(); await client.close();
@@ -370,7 +370,7 @@ test("local auth invalidation notifies viewer listeners before session deletion 
   const backend = {
     generation: 1,
     schema: { tables: { remote: { columns: {}, indexes: {} } } },
-    programs: [{ name: "read", kind: "Query", args: {}, body: [{ table: "remote" }] }],
+    programs: [{ name: "read", kind: "Query", runs: "server", args: {}, body: [{ table: "remote" }] }],
   };
   const client = await createLocalClient({ url: "http://viewer-delete.invalid", session, sessionStore, device: emptyDevice().opener, fetch: async (input, init) => {
     const path = new URL(input).pathname;

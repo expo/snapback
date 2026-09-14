@@ -38,6 +38,10 @@ impl Parser {
 
     pub(super) fn prefix(&mut self, stops: &[&str]) -> Fallible<Expr> {
         let token = self.peek().clone();
+        if token.kind == Kind::Str {
+            self.position += 1;
+            return self.postfix(Expr::Literal { value: Literal::Str(token.value), site: token.site }, stops);
+        }
         if token.value == "not" {
             self.position += 1;
             let value = self.expression(7, stops)?;

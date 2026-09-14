@@ -83,7 +83,7 @@ export function createMockClient(options: MockOptions): MockClient {
       if (row) delete row.pending;
     }
     lastServer = Date.now();
-    const outcome = { state: "sent", id: entry.id, seq } as const;
+    const outcome = { state: "sent", id: entry.id, seq, result: entry.touched } as const;
     entry.resolve(outcome);
     emitWrite(outcome);
   }
@@ -108,7 +108,7 @@ export function createMockClient(options: MockOptions): MockClient {
         close() { listeners.delete(listener); subs.clear(); },
       };
     },
-    async mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write> {
+    async mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write<R>> {
       const fn = options.ops.mutations[op.name];
       const id = mockId();
       if (!fn) return emitWrite({ state: "failed", id, why: { code: "E_OP", family: "op", message: `unknown mutation ${op.name}` } });
@@ -123,13 +123,13 @@ export function createMockClient(options: MockOptions): MockClient {
       bump();
       if (link === "offline") {
         // Durable admission without a server: the write stays pending until the link returns.
-        return await new Promise<Write>((resolve) => {
+        return await new Promise<Write<R>>((resolve) => {
           queue.push({ id, touched: outcome, table, resolve: () => {} });
           resolve({ state: "pending", id });
         });
       }
-      return await new Promise<Write>((resolve) => {
-        const entry = { id, touched: outcome, table, resolve };
+      return await new Promise<Write<R>>((resolve) => {
+        const entry = { id, touched: outcome, table, resolve: resolve as (w: Write) => void };
         setTimeout(() => { settleOne(entry); bump(); }, delay);
       });
     },

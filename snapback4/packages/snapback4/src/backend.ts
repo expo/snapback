@@ -10,6 +10,8 @@ export interface ProgramJson {
   body: unknown[];
   /** The body is the app's native module (LLP 3000.005). */
   native?: boolean;
+  runs?: "device" | "server";
+  predicts?: "eligible" | "never";
 }
 
 export interface TableJson {
@@ -24,6 +26,7 @@ export interface TableJson {
 export interface SchemaJson {
   tables: Record<string, TableJson>;
   maintains?: unknown[];
+  operations?: Record<string, { runs?: "device" | "server"; predicts?: "eligible" | "never" }>;
 }
 
 /** The app's native module the server serves at `/native.wasm` (LLP

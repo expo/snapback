@@ -79,7 +79,7 @@ impl Parser {
             }
             "shape" => self.parse_shape_declaration(),
             "fn" => self.parse_function_declaration(),
-            "proc" => self.parse_proc_declaration(),
+            "proc" => Err(unsupported(&self.peek().site, "proc", "fn")),
             "cursor" => Err(unsupported(&token.site, "cursor as a declaration", "cursor is reserved for a future Quarry form; rename this declaration")),
             "channel" => Err(unsupported(&token.site, "channel", "ephemeral channels arrive after the first slice; keep presence and typing in the client for now")),
             "schedule" => {
@@ -129,7 +129,7 @@ impl Parser {
         self.take(":")?;
         self.newline()?;
         self.take_kind(Kind::Indent)?;
-        let mut table = TableDecl { name: name.clone(), columns: Vec::new(), indexes: Vec::new(), rules: Vec::new(), immutable: Vec::new(), caps: Vec::new(), final_exists: Vec::new(), retain: None, expire: None, public: None, sync: None, site };
+        let mut table = TableDecl { name: name.clone(), columns: Vec::new(), indexes: Vec::new(), rules: Vec::new(), immutable: Vec::new(), caps: Vec::new(), final_exists: Vec::new(), retain: None, expire: None, public: None, sync: None, online_only: false, site };
         while !self.at_kind(Kind::Dedent) && !self.at_kind(Kind::Eof) {
             self.skip_newlines();
             if self.at_kind(Kind::Dedent) {
@@ -203,7 +203,17 @@ impl Parser {
                 table.expire = Some((column, site));
                 Ok(())
             }
+            "online" => {
+                self.take("online")?;
+                self.take("only")?;
+                if table.online_only || table.sync.is_some() {
+                    return Err(crate::diag::sync_error(&token.site, "choose one residency line", "online only  -- or: sync"));
+                }
+                table.online_only = true;
+                self.end_line(&token.site)
+            }
             "sync" => {
+                if table.online_only { return Err(crate::diag::sync_error(&token.site, "online only cannot also sync", "choose online only or sync")); }
                 if table.sync.is_some() {
                     return Err(syntax_with(&token.site, format!("table {} has more than one sync line", table.name), "one sync line per table"));
                 }
@@ -246,6 +256,9 @@ impl Parser {
         let rewrite = "sync to memberships[.conversationId] last 500 by byConvTime";
         let audience = if self.maybe("public") {
             SyncAudience::Public
+        } else if self.at("last") || self.at("by") || self.at_kind(Kind::Newline) || self.at_kind(Kind::Eof) {
+            let principal = if self.maybe("by") { self.take(".")?; Some(self.word()?.value) } else { None };
+            SyncAudience::Inferred { principal }
         } else {
             if !self.maybe("to") {
                 return Err(syntax_with(&site, "sync takes public, to .column, or to table[.column, ...]", rewrite));
@@ -418,6 +431,7 @@ impl Parser {
         self.newline()?;
         self.take_kind(Kind::Indent)?;
         let mut read = None;
+        let mut online_only = false;
         while !self.at_kind(Kind::Dedent) && !self.at_kind(Kind::Eof) {
             self.skip_newlines();
             if self.at_kind(Kind::Dedent) {
@@ -425,6 +439,12 @@ impl Parser {
             }
             let result: Fallible<()> = (|| {
                 let effect = self.word()?;
+                if effect.value == "online" {
+                    self.take("only")?;
+                    if online_only { return Err(syntax_with(&effect.site, "duplicate online only", "keep one online only line")); }
+                    online_only = true;
+                    return self.end_line(&effect.site);
+                }
                 if effect.value == "readable" {
                     return Err(unsupported(&effect.site, "readable on a maintain", "read <- rule  -- a maintain has one rule; the engine delivers it to its source's audience"));
                 }
@@ -449,7 +469,7 @@ impl Parser {
         let Some(read) = read else {
             return Err(syntax_with(&site, format!("maintain {name} requires read <- rule"), "read <- exists memberships[.conversationId, viewer]"));
         };
-        Ok(MaintainDecl { name, aggregate: aggregate.value, source, column, by, read, site })
+        Ok(MaintainDecl { name, aggregate: aggregate.value, source, column, by, read, online_only, site })
     }
 
     /// `effect notify`: a name a mutation or job may `emit` under; the
@@ -535,23 +555,19 @@ impl Parser {
         }
         let args = self.parse_args()?;
         self.take(":")?;
-        let body = self.expression(0, &["<newline>"])?;
-        self.newline()?;
+        let body = if self.at_kind(Kind::Newline) {
+            self.newline()?;
+            let statements = self.parse_block()?;
+            if !matches!(statements.last(), Some(Stmt::Return { .. })) {
+                return Err(syntax_with(&site, "a fn body ends with return", "end the helper with `return expr` or a bare `return`"));
+            }
+            FunctionBody::Block(statements)
+        } else {
+            let expression = self.expression(0, &["<newline>"])?;
+            self.newline()?;
+            FunctionBody::Expression(expression)
+        };
         self.document.functions.push(FunctionDecl { name, args, body, site });
-        Ok(())
-    }
-
-    fn parse_proc_declaration(&mut self) -> Fallible<()> {
-        let site = self.take("proc")?.site;
-        let name = self.binding_name()?;
-        if self.at("from") {
-            return Err(unsupported(&self.peek().site.clone(), "imports", format!("every .q file beside schema.q shares one namespace: declare `proc {name}` once, in any file, and use it anywhere")));
-        }
-        let args = self.parse_args()?;
-        self.take(":")?;
-        self.newline()?;
-        let body = self.parse_block()?;
-        self.document.procs.push(ProcDecl { name, args, body, site });
         Ok(())
     }
 
@@ -710,8 +726,13 @@ impl Parser {
                 self.newline()?;
                 return Ok(Stmt::Break { site });
             }
-            "continue" => return Err(unsupported(&token.site, "continue", "wrap the rest of the loop body in `if`, or `break`")),
+            "continue" => {
+                let site = self.take("continue")?.site;
+                self.newline()?;
+                return Ok(Stmt::Continue { site });
+            }
             "if" => return self.parse_if(),
+            "elif" => return Err(unsupported(&token.site, "elif", "else if cond:")),
             "for" => return self.parse_for(),
             "require" => return self.parse_require(),
             "return" => {
@@ -775,9 +796,16 @@ impl Parser {
         let mut else_body = Vec::new();
         if self.at("else") {
             self.take("else")?;
-            self.take(":")?;
-            self.newline()?;
-            else_body = self.parse_block()?;
+            // @ref LLP 3000.007#5.1 — else if is a nested conditional with the same scope and flow rules.
+            if self.at("if") {
+                else_body.push(self.parse_if()?);
+            } else {
+                self.take(":")?;
+                self.newline()?;
+                else_body = self.parse_block()?;
+            }
+        } else if self.at("elif") {
+            return Err(unsupported(&self.peek().site, "elif", "else if cond:"));
         }
         Ok(Stmt::If { condition, then_body, else_body, site })
     }
@@ -1007,7 +1035,7 @@ mod tests {
         let messages = &document.tables[3];
         assert_eq!(messages.name, "messages");
         let sync = messages.sync.as_ref().unwrap();
-        assert_eq!(sync.audience, SyncAudience::Target { table: "memberships".into(), prefix: vec!["conversationId".into()], principal: None });
+        assert_eq!(sync.audience, SyncAudience::Inferred { principal: None });
         assert_eq!(sync.horizon, Some((500, "byConvTime".into())));
         assert_eq!(messages.retain.as_ref().unwrap().0, "delivered-history");
     }

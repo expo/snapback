@@ -10,6 +10,10 @@ interface Snapback4Native {
   open(path: string, backend: string | null): Promise<number>;
   call(handle: number, request: string): Promise<string>;
   close(handle: number): void;
+  readAsset(handle: number, id: string): Promise<string | null>;
+  writeAsset(handle: number, id: string, hex: string): Promise<void>;
+  removeAsset(handle: number, id: string): Promise<void>;
+  assetUri(handle: number, id: string): string;
 }
 
 const native = requireOptionalNativeModule<Snapback4Native>("Snapback4");
@@ -31,6 +35,12 @@ export const nativeDevice: DeviceOpener = {
     if (!native) throw new Error("snapback4-expo: the native module is not in this build (Expo Go loads no custom native code; make a development build)");
     const handle = await native.open(`${native.documentDirectory.replace(/\/$/, "")}/${name}.sqlite`, backend ? JSON.stringify(backend) : null);
     return {
+      media: {
+        read: (id) => native.readAsset(handle, id),
+        write: (id, hex) => native.writeAsset(handle, id, hex),
+        remove: (id) => native.removeAsset(handle, id),
+        uri: (id) => native.assetUri(handle, id),
+      },
       async call(request) {
         const t0 = trace ? Date.now() : 0;
         const answer = await native.call(handle, JSON.stringify(request));

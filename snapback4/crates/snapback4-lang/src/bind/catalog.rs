@@ -1,5 +1,5 @@
 //! The catalog: every table (declared or generated for a maintain) with its
-//! columns and indexes, plus the named shapes, fns and procs, and where each
+//! columns and indexes, plus the named shapes and functions, and where each
 //! schema path was declared so a core validation issue can point at a line.
 
 use crate::ast::*;
@@ -13,9 +13,6 @@ pub struct TableInfo {
     pub indexes: Vec<IndexDecl>,
     /// Set when the table is a maintain's generated target.
     pub maintained: Option<MaintainDecl>,
-    /// A maintain target inherits its source's audience when the group key
-    /// carries it: the source table's name, resolved after binding.
-    pub inherits_sync_from: Option<String>,
 }
 
 pub struct Catalog {
@@ -24,7 +21,6 @@ pub struct Catalog {
     pub maintains: BTreeMap<String, MaintainDecl>,
     pub shapes: BTreeMap<String, ShapeDecl>,
     pub functions: BTreeMap<String, FunctionDecl>,
-    pub procs: BTreeMap<String, ProcDecl>,
     pub effects: BTreeMap<String, String>,
 }
 
@@ -34,7 +30,6 @@ impl Catalog {
         let mut maintains = BTreeMap::new();
         let mut shapes: BTreeMap<String, ShapeDecl> = BTreeMap::new();
         let mut functions: BTreeMap<String, FunctionDecl> = BTreeMap::new();
-        let mut procs: BTreeMap<String, ProcDecl> = BTreeMap::new();
         let mut effects = BTreeMap::new();
         let mut effect_sites: BTreeMap<String, Site> = BTreeMap::new();
         for doc in &documents {
@@ -89,7 +84,7 @@ impl Catalog {
                     }
                 }
                 if ok {
-                    tables.insert(table.name.clone(), TableInfo { decl: table.clone(), columns, indexes, maintained: None, inherits_sync_from: None });
+                    tables.insert(table.name.clone(), TableInfo { decl: table.clone(), columns, indexes, maintained: None });
                 }
             }
             for maintain in &doc.maintains {
@@ -113,13 +108,6 @@ impl Catalog {
                 }
                 functions.insert(function.name.clone(), function.clone());
             }
-            for proc in &doc.procs {
-                if let Some(first) = procs.get(&proc.name) {
-                    diagnostics.push(unknown(&proc.site, format!("duplicate proc {}; first declared at {}", proc.name, first.site), "rename one procedure"));
-                    continue;
-                }
-                procs.insert(proc.name.clone(), proc.clone());
-            }
             for effect in &doc.effects {
                 if let Some(first) = effect_sites.get(&effect.name) {
                     diagnostics.push(unknown(&effect.site, format!("duplicate effect {}; first declared at {first}", effect.name), "rename one effect"));
@@ -142,13 +130,12 @@ impl Catalog {
                     let columns: BTreeMap<String, ScalarType> = decl.columns.iter().map(|c| (c.name.clone(), c.type_.clone())).collect();
                     let mut indexes = vec![IndexDecl { name: "byId".into(), columns: vec!["id".into()], unique: true, words: None, site: decl.site.clone() }];
                     indexes.extend(decl.indexes.iter().cloned());
-                    let inherits_sync_from = inherits_sync(&source, &maintain).then(|| maintain.source.clone());
-                    tables.insert(name.clone(), TableInfo { decl, columns, indexes, maintained: Some(maintain), inherits_sync_from });
+                    tables.insert(name.clone(), TableInfo { decl, columns, indexes, maintained: Some(maintain) });
                 }
                 Err(diagnostic) => diagnostics.push(diagnostic),
             }
         }
-        Self { documents, tables, maintains, shapes, functions, procs, effects }
+        Self { documents, tables, maintains, shapes, functions, effects }
     }
 
     /// The declaration site behind a schema validation path.
@@ -191,16 +178,5 @@ impl Catalog {
             return maintain.site.clone();
         }
         self.documents.first().map(|d| Site::new(&d.file, 1, 1)).unwrap_or_default()
-    }
-}
-
-/// A count or sum grouped by the audience columns of a synced source is a
-/// local fact: the target inherits the audience, with no horizon.
-fn inherits_sync(source: &TableInfo, maintain: &MaintainDecl) -> bool {
-    let Some(sync) = source.decl.sync.as_ref() else { return false };
-    match &sync.audience {
-        SyncAudience::Public => true,
-        SyncAudience::Column(column) => maintain.by.contains(column),
-        SyncAudience::Target { prefix, .. } => prefix.iter().all(|c| maintain.by.contains(c)),
     }
 }

@@ -62,16 +62,14 @@ pub struct ShapeDecl {
 pub struct FunctionDecl {
     pub name: String,
     pub args: Vec<ArgDecl>,
-    pub body: Expr,
+    pub body: FunctionBody,
     pub site: Site,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ProcDecl {
-    pub name: String,
-    pub args: Vec<ArgDecl>,
-    pub body: Vec<Stmt>,
-    pub site: Site,
+pub enum FunctionBody {
+    Expression(Expr),
+    Block(Vec<Stmt>),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -198,6 +196,7 @@ pub enum Stmt {
     For { name: String, domain: Expr, body: Vec<Stmt>, site: Site },
     /// `break`: the enclosing `for` or `chunk` ends.
     Break { site: Site },
+    Continue { site: Site },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -270,6 +269,7 @@ pub struct SyncDecl {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SyncAudience {
+    Inferred { principal: Option<String> },
     Public,
     Column(String),
     Target { table: String, prefix: Vec<String>, principal: Option<String> },
@@ -296,6 +296,7 @@ pub struct TableDecl {
     pub expire: Option<(String, Site)>,
     pub public: Option<(String, Site)>,
     pub sync: Option<SyncDecl>,
+    pub online_only: bool,
     pub site: Site,
 }
 
@@ -307,6 +308,7 @@ pub struct MaintainDecl {
     pub column: Option<String>,
     pub by: Vec<String>,
     pub read: RuleDecl,
+    pub online_only: bool,
     pub site: Site,
 }
 
@@ -329,6 +331,7 @@ pub struct ProgramDecl {
     pub kind: ProgramKind,
     pub name: String,
     pub args: Vec<ArgDecl>,
+    pub prelude: Vec<Stmt>,
     pub body: Vec<Stmt>,
     /// `job name(): native` — the body is the app's Rust in `snapback/native/`,
     /// compiled to wasm and hosted by the engine (LLP 3000.005).
@@ -365,7 +368,6 @@ pub struct Document {
     pub effects: Vec<EffectDecl>,
     pub shapes: Vec<ShapeDecl>,
     pub functions: Vec<FunctionDecl>,
-    pub procs: Vec<ProcDecl>,
     pub programs: Vec<ProgramDecl>,
     pub schedules: Vec<ScheduleDecl>,
     /// Personas declared with `use personas alice, bob`.

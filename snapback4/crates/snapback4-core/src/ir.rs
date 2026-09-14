@@ -192,6 +192,9 @@ pub enum Builtin {
     Len,
     Slice,
     Concat,
+    Lower,
+    Trim,
+    Join,
     Min,
     Max,
     Divmod { remainder_sink: String },
@@ -209,8 +212,8 @@ pub enum Builtin {
 impl Builtin {
     pub fn arity(&self) -> usize {
         match self {
-            Self::Len | Self::Sort { .. } | Self::MentionTokens | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
-            Self::Concat | Self::Min | Self::Max | Self::Divmod { .. } => 2,
+            Self::Len | Self::Lower | Self::Trim | Self::Sort { .. } | Self::MentionTokens | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
+            Self::Concat | Self::Join | Self::Min | Self::Max | Self::Divmod { .. } => 2,
             Self::Slice | Self::DeterministicShare => 3,
         }
     }

@@ -51,10 +51,11 @@ export function scaleSeed({ groups, messages, members }) {
 }
 
 /** A `snapback4 dev` on the chat backend in a temporary project, seeded. */
-export async function devServer({ seed, port = 4460 + (process.pid % 20) }) {
+export async function devServer({ seed, extraSource = "", port = 4460 + (process.pid % 20) }) {
   const app = mkdtempSync(join(tmpdir(), "sb4-witness-app-"));
   cpSync(join(root, "apps/chat/snapback"), join(app, "snapback"), { recursive: true });
   rmSync(join(app, "snapback/generated"), { recursive: true, force: true });
+  if (extraSource) writeFileSync(join(app, "snapback/media.q"), extraSource);
   const api = `http://127.0.0.1:${port}`;
   const server = spawn(binary(), ["dev", "--port", String(port), "--no-watch"], { cwd: app, stdio: ["ignore", "ignore", "inherit"] });
   for (let i = 0; i < 100; i++) { try { await fetch(api); break; } catch { await new Promise((r) => setTimeout(r, 50)); } }
@@ -65,7 +66,7 @@ export async function devServer({ seed, port = 4460 + (process.pid % 20) }) {
 }
 
 /** Bundle the client into a page, start a seeded dev server, open Chromium. */
-export async function launch({ seed, headless = true }) {
+export async function launch({ seed, extraSource = "", headless = true }) {
   const require = createRequire(join(root, "package.json"));
   const { chromium } = require("playwright-core");
   const exe = chromiumExecutable();
@@ -78,7 +79,7 @@ export async function launch({ seed, headless = true }) {
   writeFileSync(join(harness, "index.html"), `<!doctype html><title>witness</title><script type="module" src="./harness.ts"></script>`);
   await build({ root: harness, logLevel: "silent", build: { outDir: join(harness, "dist"), emptyOutDir: true, minify: false, target: "es2022", assetsInlineLimit: 0 } });
 
-  const dev = await devServer({ seed });
+  const dev = await devServer({ seed, extraSource });
   const { api, app, seeded, seedMs } = dev;
 
   const types = { ".html": "text/html", ".js": "text/javascript", ".wasm": "application/wasm" };
@@ -91,7 +92,9 @@ export async function launch({ seed, headless = true }) {
   });
   await new Promise((r) => pageServer.listen(0, "127.0.0.1", r));
   const pageUrl = `http://127.0.0.1:${pageServer.address().port}/`;
-  const browser = await chromium.launch({ executablePath: exe, headless });
+  let browser;
+  try {
+  browser = await chromium.launch({ executablePath: exe, headless });
   const context = await browser.newContext();
   const page = await context.newPage();
   const cdp = await context.newCDPSession(page);
@@ -114,6 +117,13 @@ export async function launch({ seed, headless = true }) {
       dev.close();
     },
   };
+  } catch (error) {
+    await browser?.close();
+    pageServer.close();
+    dev.close();
+    rmSync(harness, { recursive: true, force: true });
+    throw error;
+  }
 }
 
 export function record(line) {

@@ -2299,3 +2299,399 @@ The final bounded Grok pass at `c30a517d7` reports no material finding in expire
 The 52 run-owned repair and evidence commits landed at `342c53d306d7484cd64e820ee27a151e02eb4b0b`. The normal push hook initially lacked a root JavaScript dependency in the isolated worktree; `bun install --frozen-lockfile` restored it and the normal push passed, with no bypass. The qualified publisher passed its entire suite in 30 seconds (236 Rust, 9 fixture and 89 client passes, zero failures, one declared ignored test), built the production binary and verified the installed consumer. `snapback4` and its darwin-arm64 binary are published at 0.2.6; the rebuilt Expo module is published at 0.2.1. Registry integrity matches all three exact qualified tarballs.
 
 The full unchanged Clique instrument is now frozen to those pins for Astra medium, Grok 4.6 xhigh and Muse Spark 1.3 xhigh. Astra started its cold continuous session at 18:30:36 UTC; later builders, independent grades and fresh M7 runs remain pending. The new record is `benchmarks/runs/2026-09-13-snapback4-clique-0004/`. The grade records all 119 assertions while retaining the previous 101-assertion subtotal for comparison. These are launch facts, not benchmark results.
+
+## 2026-09-13 — LLP 3000.007 implementation launched: five Codex lanes, cut by file ownership
+
+The author ruled on every question of LLP 3000.007 and said "Go. Use
+Astra on xhigh for coding." Five Codex lanes (gpt-6-astra, xhigh) run
+concurrently from worktrees `~/projects/snapback-lane-{M,L,R,C,B}` on
+branches `sb4/lane-*`; the lead lands each. A concurrent session touching
+these files should expect a rebase against them:
+
+- **M — the meter (§5.0):** `crates/snapback4-core/src/{engine/runner.rs
+  (heap charges), value.rs, meter.rs}`; tests in core, sim and both device
+  stores. Concat, Let/Assign and allocating builtins charge the heap;
+  clone-or-charge on variable reads decided by measurement.
+- **L — the language (§5.1–§5.8):** `crates/snapback4-lang/src/{parser*,
+  bind/program*, types, print, diag, guide}`, `crates/snapback4-core/src/
+  {ir.rs, engine/{runner,read,pages,write,job,validate}.rs, schema.rs,
+  cursor.rs}`, README §2, `tests/clique.rs`, the corpus. The seven forms,
+  `fn` bodies (`proc` deleted), job preludes, range seeks, `where` with the
+  §5.6 cursor rule, `group`/`first`/`last`/`at`, `join`/`trim`/`lower`,
+  page-as-list, `upsert` that patches, column defaults, `range` over
+  expressions, `pending` through shapes, guessed spellings refused with
+  exact rewrites.
+- **R — residency (§6):** `bind/schema.rs`, `bind/mod.rs`, `emit.rs` (the
+  `runs`/`predicts` words and doc comments), `verbs.rs` (`check
+  --residency`, `why`, `test --residency`), `local.ts` READ path,
+  `contract.ts` `Op` only, a `residency` card, `tests/residency.rs`. The
+  inferred sync audience, `online only` on tables and maintains, the
+  per-site classes, the three notes, `E_PREDICT` naming the fact.
+- **C — the client and dev seams (§8.1–§8.6, §8.13):** `contract.ts`
+  `Write` only, `client.ts`, `local.ts` WRITE path and assets, `react.tsx`,
+  `web.ts`, `snapback4-expo`, `serve.rs`/`verbs.rs` dev identity limits,
+  the device crate and `validate.rs` for the `{ id }` asset facts, the
+  `E_RULE` message, the media cache.
+- **B — the ceremony bar (§10.3):** `loopbar/`, `metrics/ceremonybar.jsonl`,
+  the "before" record on the published 0.2.8.
+
+Not launched: the periphery verbs, worker actions, and §8.7/§5.9 (the blind
+security review is in flight; its artifacts land under `llp/reviews/`).
+
+## 2026-09-13 — the blind review of LLP 3000.007 §8.7 and §5.9 returned
+
+GPT (Codex, gpt-6-astra, xhigh): NOT READY. Grok (grok-4.6, xhigh): READY
+WITH CHANGES. One brief, one baseline (`4e8e3efef`), read-only, blind to
+each other. They converge: the binder's unique-key write reads under the
+read rule (that is the Clique bug); an unreadable target's failure words
+must collapse to one; the merged image, `old`, `result` and `current` stay
+in the engine; withhold before `_ops` records (replay returns cached
+content after revocation today — a P1 ticket); the device must queue
+without a row on a write miss instead of predicting `NOT_FOUND` or an
+insert; and §5.9's pass must be admitted on uniformly authorized prefixes
+only, because abort versus success at the examined ceiling is the
+meter-cut oracle. Both artifacts are under `llp/reviews/`; the
+dispositions, the narrowed §8.7/§5.9 and the regression list are LLP
+3000.007 §15; ruling 15 is the author's. Neither section lands before it.
+
+
+## 2026-09-13 — Lane M: the heap meter owns accumulation (LLP 3000.007 §5.0)
+
+Implemented allocation charging in the interpreter without changing a ceiling,
+serialized value, binder, or client implementation. Concat, Slice, Sort,
+MentionTokens, Divmod and Share charge their result or workspace; bindings
+(including Const, Let and Assign), owned variable/literal/field copies, page
+loop materialization, literal ranges and recursive results count too. Push
+keeps its value charge and uses the actual Value slot width (32 B here)
+instead of 16 B. Argument/viewer copies now count. Sort and derived loops
+consume owned arrays instead of copying again; text concatenation borrows
+its string operands instead of making temporary string copies. Shared
+Arc row/map images still do not allocate on Clone. The byte model remains
+conservative: binding a compound value charges its retained image even
+when that image was also charged during construction; it is not a live-RSS
+measurement.
+
+Compared charging every owned variable read with borrowing pure field
+accesses and Len/Count/CountCapped/Sum inputs. Kept borrowing plus charging
+every residual owned clone. This preserves the existing Value API and wire;
+it avoids changing String/Array to Arc across other lanes. On the IR
+workloads, it saves 32,000 / 2,064,384 / 400,000 B against clone charging,
+and the measured execution medians fall from 362 / 915 / 143 us to
+291 / 636 / 87 us. The chat queries do not exercise those scalar inspectors;
+their heap counters are identical between the two candidates. The fixture
+wall times are small and noisy; the seeded chat run was slower with the
+chosen candidate, so this is an allocation win, not a claim of universally
+lower query latency.
+
+Heap cuts now record capped_at through Meter::charge and immediately unwind.
+A query whose scalar/shape cannot be finished returns data: null,
+complete: false, next: null; neither a partial value of the wrong shape nor
+a continuation past unprocessed work is invented. The cut and counts remain
+private to the engine, as LLP 3000 §7 requires. A mutation still aborts
+E_BOUND and rolls back the entire transaction. The package README records
+this outcome. The bounds guide needs the same wording when the lead
+integrates the binder lane: its file was explicitly protected from Lane M.
+No new diagnostic code was added.
+
+Measurements use base 4e8e3efefeac6e313d40e5556c45d378b4fdb807. The baseline
+runtime was measured with only the CLI heap-column instrumentation and the
+IR measurement test added; neither changes its execution. For each variant,
+build once, warm each command once, then measure three sequential runs;
+wall times below are medians in seconds, including process startup and the
+warm Cargo invocation, excluding builds. Raw logs and the timer script are
+in /tmp/lane-m-{baseline,charge,borrow}-* and /tmp/lane-m-measure.py on this
+machine. They are development evidence, not committed benchmark apparatus.
+
+| Command/workload | Baseline s | Charge copies s | Borrow + charge s |
+|---|---:|---:|---:|
+| cargo test -p snapback4-core --test corpus -- --nocapture | 1.196233 | 1.141561 | 1.191866 |
+| chat: snapback4 test --fixture ../../fixtures | 0.012059 | 0.010793 | 0.011400 |
+| chat: snapback4 test (empty dev store) | 0.010677 | 0.010184 | 0.009983 |
+| chat: snapback4 test --fixture /tmp/lane-m-chat-fixture | 0.018311 | 0.018182 | 0.024483 |
+| cargo test -p snapback4-core --test meter measured_ir_programs -- --nocapture | 0.080390 | 0.080400 | 0.081147 |
+
+The requested ../../fixtures directory contains the Clique wrapper, not
+chat JSONL: that command loaded 0 rows, ran inbox for all three personas,
+and explicitly skipped thread for missing conversationId. Also launched
+snapback4 dev --fresh --no-watch --port 4499, stopped that recorded process,
+and ran test on the empty dev store. --fresh serves an in-memory store;
+test independently opens the project's empty dev store. To avoid calling
+that a representative data fixture, separately measured a temporary chat
+sample matching the device suite: one conversation, two memberships and
+120 messages (123 rows). Its queries and byte deltas are below. Charlie's
+thread is refused MEMBERSHIP_REQUIRED on the derived conversation in every
+variant, so no successful-program heap counter exists for that row.
+
+| Program/persona and data | Baseline heap B | Charge copies B | Borrow + charge B | Final delta B |
+|---|---:|---:|---:|---:|
+| Empty inbox alice | 0 | 9 | 9 | +9 |
+| Empty inbox bob | 0 | 7 | 7 | +7 |
+| Empty inbox charlie | 0 | 11 | 11 | +11 |
+| 123-row thread alice | 33,120 | 33,135 | 33,135 | +15 |
+| 123-row thread bob | 33,120 | 33,133 | 33,133 | +13 |
+| 123-row inbox alice | 739 | 2,584 | 2,584 | +1,845 |
+| 123-row inbox bob | 739 | 2,581 | 2,581 | +1,842 |
+| 123-row inbox charlie | 0 | 11 | 11 | +11 |
+| IR concat_page_8 | 0 | 666,640 | 634,640 | +634,640 |
+| IR push_page_8 | 2,056,192 | 6,227,792 | 4,163,408 | +2,107,216 |
+| IR count_text_100 | 0 | 411,200 | 11,200 | +11,200 |
+
+The empty-query deltas are exactly the newly charged viewer string copies.
+Thread adds its argument and viewer copies. Inbox also materializes a page,
+point-read row and shaped object, binds locals and copies field values that
+previously went uncharged. Output bytes and query results remain unchanged.
+The three IR execution medians, baseline / charge / borrow in microseconds,
+are 428 / 362 / 291 (concat), 921 / 915 / 636 (push), and 124 / 143 / 87
+(count text). The concat workload folds eight 4,000-character bodies; push
+appends each of those bodies 64 times; count reads a 4,000-character local
+100 times.
+
+Stress fixtures use a complete, schema-capped 128-row page of 4,000-character
+bodies so accumulation, not an examined-row or output cut, reaches the heap
+ceiling. Concat cuts at 16,806,240 B; push at 16,780,160 B; ceiling
+16,777,216 B. Both stores report the same query counts; server mutations
+reach the same counts at 212 and 6,075 steps respectively. Two-row positive
+runs produce 8,000 characters or 128 items and commit successfully. Failed
+server and device mutations leave their pre-loop write absent. A separate
+meter test accepts exactly 16,777,216 B and refuses the next byte, recording
+the first cut under Cap. Builtin tests check returned values and smaller
+heap ceilings; the corpus is unchanged. The CLI test table previously
+omitted heap entirely; verbs.rs now prints heap B beside its ceiling.
+The unmerged binder does not yet emit source text concat, so its end-to-end
+source-to-CLI demonstration belongs to that lane; the IR execution and the
+CLI's real heap counters are independently exercised here.
+
+Verification (commands run from snapback4 unless noted):
+
+- cargo test -p snapback4-core --test meter -- --nocapture:
+  test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+- cargo test -p snapback4-device --test device heap_cuts_and_successful_accumulators_on_both_stores -- --nocapture:
+  test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.44s
+- cargo test -p snapback4-sim --test reviews:
+  test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+- cargo test -p snapback4-core --test corpus -- --nocapture: every candidate
+  passes all 16 tests; corpus (Rust server only; no TypeScript/replica conformance claim): 211 passed, 82 skipped, 0 failed.
+- From repository root, with PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH,
+  bash snapback4/scripts/test.sh: first run 2 failure(s) in 60 s; final run
+  == 1 failure(s) in 57 s. Final Rust totals: 245 passed, 0 failed, 1 ignored;
+  fixture wrapper: 9 passed, 0 failed; client: 79 passed, 1 failed.
+
+The first suite exposed two introduced assertions comparing meters for
+unequal-length caller IDs. Updated the simulator review scenarios to use
+identical caller inputs against empty versus hidden stores; all 11 reviews
+pass, preserving the privacy invariant rather than subtracting its heap
+counter. The remaining full-suite failure is Chromium SIGABRT during launch
+in React hooks and reference-app lifetimes, before any browser assertion.
+node --test packages/snapback4/test/react.test.mjs reproduces alone (0 pass,
+1 fail) and in an untouched git archive of baseline
+4e8e3efefeac6e313d40e5556c45d378b4fdb807 at /tmp/lane-m-base/snapback4
+(0 pass, 1 fail), using the same installed dependencies and Node 24. The
+final suite log is /tmp/lane-m-suite-final.log; baseline browser evidence
+is /tmp/lane-m-baseline-react.log. No browser/client source was changed.
+
+Out of the core/tests scope, only the explicitly allowed missing CLI column
+in crates/snapback4/src/verbs.rs, the required meter documentation in the
+package README, and this required journal entry changed. No commit, push,
+tag or publication was made. Existing LANE-BRIEF.md was left untouched.
+
+## 2026-09-13 — Lane B: the ceremony bar's instrument lands; the "before" runs from the lead's shell
+
+The ceremony bar (LLP 3000.007 §10.3) is `loopbar/ceremony-brief.md` — eight
+personas, three chats, forty posts, sixty messages, five shapes with exact
+expected values, a fixed wire contract, the loop bar's attribution vocabulary
+and one machine-readable schema-shape line — and `loopbar/ceremony.mjs` with
+its helpers: serial runs on the exact npm pin, the fresh agent launched by
+`~/.volta/bin/codex exec` at medium, independent reverification on fresh
+copies (`check`, the agent's own acceptance, and the runner's wire probes,
+which change likes, messages and membership before re-querying so a
+hard-coded answer cannot pass), schema-shape measurement (work tables,
+per-principal counter tables, world-readable counter lines, Quarry lines,
+operations, by name heuristics and by the agent's own declaration), and one
+JSON line per run to `metrics/ceremonybar.jsonl`; five tests in
+`packages/snapback4/test/loopbar.test.mjs`. The lane's three attempts to run
+the bar from inside its own Codex sandbox failed before model work ("failed
+to initialize in-process app-server client: Operation not permitted"): a
+nested Codex cannot start under the sandbox. Those attempts are not a
+measurement and are not recorded; the "before" (N = 3, `snapback4@0.2.8`,
+gpt-6-astra at medium) runs from the lead's shell and lands with its record.
+
+## 2026-09-13 — Lane P: read-only SQL, mechanical fixes, online and Expo starters
+
+Implemented LLP 3000.007 §§7, 8.8–8.10 in additive CLI modules. `sql`
+opens the persisted generation read-only, takes one WAL snapshot of its
+schema/catalog/rows, exposes application views and returns a bounded table
+or JSON. Tagged scalar values are unwrapped without changing stored forms.
+An authorizer experiment showed that a CTE can spoof a public view's accessor
+name; private backing views whose names submitted SQL cannot contain close
+that bypass. UPDATE, internal tables and raw r/i are refused with the two
+new SQL codes. The chat witness read 200 of 205 messages at the default
+limit, saw all 205 with an explicit limit, and counted 205 while a WAL writer
+held its lock in 4.97 ms (one targeted observation, not a benchmark). The
+running dev accepted another mutation afterward and SQL counted 206.
+
+`check --fix` applies only the diagnostic's explicit `mechanical` flag,
+recompiles between edits, preserves comments, and can fix ambiguity and then
+a missing cursor tie-break in one invocation, including an index declared
+in another file. Rust contract tests cover seven guessed spellings, quoted
+keywords/delimiters, Unicode/CRLF, and refusal to edit unmarked diagnostics.
+Lane L must use `.mechanical()` on exact spelling diagnostics (the shared
+`unsupported` constructor already marks the seven bare construct names).
+The combined elif/ambiguity integration test is explicitly skipped until
+L's E_QUARRY_UNSUPPORTED elif diagnostic arrives; no parser/binder was edited.
+
+The default template retains 1 synced table; the online template has 0 sync
+lines and 0 notes. The Expo starter embeds 12 files plus `.gitignore`, copies
+the reference configs/client/screens, removes the witness entry point, fixes
+standalone import paths and selects native versus online from availability.
+Pins: Expo 57.0.22, RN 0.86.3, React 19.2.3, expo-sqlite 57.0.3 and Babel
+preset 57.0.11. Its generated API and TypeScript client compile; no iOS export
+was run. The reference chat's inbox still emits its existing N_NO_CURSOR note.
+
+Targeted results: guide 8/8; fixer 4/4; CLI periphery 6 passed, 0 failed,
+1 explicitly skipped. Final blocking suite: 241 Rust tests passed, 1 ignored;
+fixture wrapper 9 passed; client tests 85 passed, 1 failed, 1 skipped;
+`== 1 failure(s) in 28 s`. Chromium aborts with SIGABRT before the React
+hook test can run. The isolated React test also fails 0 passed/1 failed on
+a clean source snapshot of base 0a8775aba95ae73f76b91c16c1b4dbaf7a98a723
+using the same installed dependencies. This is not a green full-suite claim.
+All new source files are below 1,500 lines. This journal was already 2,339
+lines; its explicit append-only rule was preserved. No commit or publication.
+
+## 2026-09-13 — Lane R: residency, inferred audiences and server-run observations
+
+Implemented LLP 3000.007 §6.1–§6.8 and §8.11: bare `sync` infers the same resolved audience as its explicit form; an explicit clause is checked against the rule; `online only` documents a table or opts a maintain out of inheritance. Compilation records held/horizon/server sites and the runs/predicts words in the schema and /schema programs, and emits operation documentation in api.ts. check/why print the facts; check keeps a successful-generation sidecar while dev compares its served generation. The added redundant messages-byId guard stays eligible and produces N_NOT_PREDICTABLE describing the newly conditional prediction, resolving the acceptance example without mislabelling eligibility. Public maintains and group maintains with unbounded recipients or multiple values per group produce N_MAINTAIN_SYNCED. test --residency uses actual paged snapshots and builds fixture maintains from the loaded sources before measuring.
+
+The local client uses compiled runs, keeps last server answers in memory across watch closure/recreation, refuses E_OFFLINE without one, and reruns server-run watches for /changes table notifications. The device refuses statically non-predicting mutations without changing the write path; a dynamic horizon refusal preserves the first undecidable table/index/site and evaluated key. No ceiling or value serialization changed. The chat schema uses inferred audiences; its parser expectation and existing string-based simulator edits were updated to preserve their original scenarios.
+
+Measured on the embedded cold fixture: each of alice and bob acquires 2 note rows (106 compact JSON bytes) and 1 inherited value row (63 bytes), 3 rows / 169 bytes per persona, 6 rows / 338 bytes summed across both. These are row-payload bytes, excluding transport framing. The maintain has 1 value row; the source has 3 rows and its horizon acquires 2. The final wasm build reports 1,418,142 raw bytes and 398,449 gzip bytes; no size comparison is claimed. The embedded Astra shapes cover 7 operations, and the regression adds a server-only mutation separately.
+
+Validation: 7 residency Rust tests, 8 guide tests, and the 5 process-device/CLI residency tests plus 7 session-security tests pass. The final blocking suite ran in 54 s: 244 Rust passes, 0 failures, 1 declared ignored; 9 fixture passes; 84 client passes and 1 failure. Its sole failure is Chromium SIGABRT at launch in react.test.mjs, before any browser assertion. It reproduces with that test alone and with unchanged sources exported from base 0dc0107e68dd504dbc1311754dd9783ab5477826 (0 passes, 1 launch failure). Build, wasm, package and both app typechecks pass. Logs are /tmp/lane-r-targeted-final.log, /tmp/lane-r-client-final.log, /tmp/lane-r-suite-final.log and /tmp/lane-r-base-react.log. No commit, push, tag or publication was made.
+
+Integration boundary edits: declaration AST/parser and catalog metadata support the two new table/maintain forms; Runner/read/write carry the missing-fact diagnostic; serve adds only /schema words and served-generation notes; backend.ts declares the additive wire words; main.rs advertises the switches. No program lowering or IR forms changed. The journal was already 2,301 lines; this required append preserves its append-only history. Changed source files remain below 1,500 lines.
+
+The final recovery review added a guard for an already-refused maintain declaration whose generated table is absent, with a regression alongside the positive maintain cases. The same 8 guide and 7 residency tests pass. A complete rerun after that correction reports 244 Rust passes / 0 failures / 1 ignored, 9 fixture passes, and 84 client passes / 1 Chromium launch failure, in 58 s (/tmp/lane-r-suite-last.log); the source and package checks remain green. This is the final verification record for the uncommitted lane.
+
+## 2026-09-13 — Lane C: sent results, dev admission and device-owned media
+
+Implemented LLP 3000.007 §8.1, §8.3–§8.6 and §8.13 under rulings 8, 9
+and 14. `Write<R>.sent.result` reaches both clients, terminal queued-write
+events, and React's `run()`/`last`; pending still has no predicted result.
+The device keeps this uploader's server upload receipts, resolves image/video
+arguments from them during prediction and replay, and queues without
+prediction when a receipt is missing. Caller-supplied facts never replace a
+receipt. The id-only video ticket is closed with both-store and live-process
+regressions. `dev` loopback skips the two minute counters and prints one line;
+the two Argon2 slots and HTTP caps remain, and `serve` keeps its counters.
+`E_RULE` keeps its generic refusal and names the upsert/update/maintain idiom.
+
+`webDevice()` persists and verifies wasm bytes by SHA-256 and retains the
+compiled backend. Explicit `assets: { keep: "viewed" | "none", maxBytes }`
+controls ordinary media retention (default none). Confirmed stream images
+index media homes; the device checks the current row and its lifetime before
+cache use. Apply/adopt and write transitions reconcile retained bytes, and a
+timer handles offline expiry. IndexedDB holds web bytes, the Expo opener
+supplies files in Documents without an Expo import in the client, and the
+process opener uses device metadata. One-view responses never store bytes;
+the server's response flag overrides even a stale device schema. A 501-row
+regression caught the need to retire media beyond one page on a non-unique
+audience index while preserving delivered text history.
+
+Measured: the Chromium offline reload opens in 283.6 ms with 0 wasm fetches,
+2 failed transport probes, and a rendered 1×1, 68-byte image; a viewed once
+photo answers E_OFFLINE. Reopen holds 307 rows; the queued write lands. The
+process cache retains 2 images under maxBytes 136 and 0 after keep:none; once
+bytes and deleted-home bytes are 0. A 60-byte MP4 with duration 1,000 ms
+predicts from an id after offline reopen, agrees with sent.result, and survives
+a second offline reopen. Dev admits 200 guest sign-ins and 200 bounded-invalid
+same-email login attempts with 0 E_RATE_LIMIT; serve refuses peer attempt 31
+and email attempt 11. This admission probe took 578 ms on Linux.
+
+Verification: 21 device and 8 guide tests pass locally; 57 targeted client
+tests pass; Expo TypeScript checks and Swift syntax parsing pass. The final
+blocking suite on expo-build-1000 passes in 43 s: 240 Rust, 9 fixture and
+93 client tests, 0 failures, 1 declared ignored Rust test. Its log SHA-256 is
+`60870ca5fe293fefcaa5d9f925b65d6815e46da5af89dba6b433360fb4aa8c49`. The final independent React run passes
+10 tests. The local full suite takes 35 s with all 240 Rust, 9 fixture and
+83 non-browser client tests passing; Chromium fails at process startup under
+the local sandbox. No pre-existing product-failure claim is made. The Linux
+snapshot and local changed product sources match SHA-256
+`cb2fd7bfdf092a4f4b9f16f42e846f378e3783934c40141b1269b7475006f3ea`
+(before this journal append), based on worktree commit
+`0dc0107e68dd504dbc1311754dd9783ab5477826`. No commit or publication was made.
+
+Scope seams: the host counters actually live in `crates/snapback4/src/auth.rs`;
+`assets.ts` needs the successful-byte callback and `mock.ts` must follow the
+new sent form. `contract.ts` changes only Write and the necessary Client.mutate
+return type, leaving Op alone. The local read evaluator and watches, the
+compiler and core interpreter, write authority (§8.7), ceilings and existing
+corpus cases are untouched. Expo's file methods require rebuilding the native
+app; an iOS binary was not built or exercised in this lane.
+
+## 2026-09-13 — lane L: relaxed Quarry through job preludes and patching upsert
+
+Implemented LLP 3000.007 lane items 1–9, in order: local reassignment,
+heap-bound list accumulation lowered to Push, continue, else if (elif refuses
+with its exact rewrite), text + and count/lower/trim/join, Euclidean / and %,
+fn bodies with proc deleted, read-only job preludes, and insert-or-patch upsert.
+The language card exercises each form and its engine test asserts the new
+values. The programs, jobs, writes, types and bounds cards and README §2 agree.
+No existing corpus case or serialized value form changed. Job preludes use
+ordinary setup statements before each sweep, replayed under each chunk's
+transaction and meter. The new text results and merged upsert rows charge heap;
+lane M's allocation/clone charging changes still need integration before this
+lane satisfies the RFC's §5.0 prerequisite.
+
+Measured: the targeted frontend suite has 26 passes and the compiled guide 8,
+zero failures. The final full blocking suite finished in 36 s: 249 Rust passes,
+zero Rust failures, one declared ignore; 9 fixture passes; 79 client passes and
+one failure before Chromium could launch the React page. The same isolated
+launch failure (SIGABRT, kill EPERM) was reproduced using an archive of base
+0dc0107e68dd504dbc1311754dd9783ab5477826. The isolated React suite on the Linux
+expo-build-1000 host passed all 10 tests, zero failures or skips, using Node
+24.13.1; local checks used the pinned Node 24.18.0. Raw final logs are
+/private/tmp/lane-l-final-targeted.log, /private/tmp/lane-l-qualified-suite.log,
+/private/tmp/lane-l-base-react.log and /private/tmp/lane-l-linux-react.log.
+The wasm build reported 1,381,929 B raw and 390,462 B gzip. No size comparison
+or performance improvement is claimed.
+
+The accumulator type's heap-bound marker is u32::MAX (4,294,967,295), not a
+raised meter ceiling. The prelude fixture ran 6 chunks over 2 sweeps, wrote
+6 rows, and produced [8, 12, 12] after a configuration change following the
+first chunk. A prelude that exhausted heap parked with 0 committed chunks
+and 0 rows written. The largest changed Rust source is 1,315 lines.
+
+What the implementation taught: reassignment needs a loop-carried type join,
+including paths that continue, while a fresh assignment has the new value's
+own type. Recursively nesting an accumulator has no finite inferred type.
+Heap-bound strings and lists can be written, with actual lengths checked by
+the row validator, without claiming smaller bounds inside inline helpers.
+A helper's early return must leave that helper's nested loops and preserve
+the caller; a chunk's setup must run before even evaluating its scan prefix.
+Quoted '-' also exposed a lexer-kind distinction the expression parser had
+missed; it now remains a text literal.
+
+Stopped before item 10 (column defaults). Items 10–20 remain, including seeks,
+where and disclosure-sensitive cursors, grouping and page/list unification,
+expression ranges, pending through shapes, the remaining guessed-spelling
+rewrites, the rest of the card rewrite and the Clique acceptance programs.
+Section 5.9 and E_STRUCTURAL_FANOUT were not changed. Work remains uncommitted
+for the lead to integrate; no publication was attempted.
+
+## 2026-09-13 — the ceremony bar's "before" on 0.2.8: three green, the same loop three times
+
+Run from the lead's shell (`node loopbar/ceremony.mjs --n 3 --version
+0.2.8`): 510, 407 and 456 s wall, agent 494, 384 and 441 s, every run
+reverified on fresh copies with all five wire probes green; loops 3 / 5 /
+3, of which Snapback-attributed 0 / 1 / 0 (a `docs` loop on `token`'s
+stdout mixing prose with the token — a ticket). Schema shape: ten tables
+each; maintains 8 / 1 / 1; a `digestPeriods` guard table in every run,
+declared a work table by two agents; no world-readable counters (the
+brief's digest runs as the system, so the counter shape that opened
+tables in the Clique lanes does not arise). The finding: every run's first
+`check` produced `N_NEVER_COMPLETE` on the membership scan and every agent
+answered by duplicating the membership table keyed the other way — a
+membership row read by the viewer's own principal is its own witness for
+`exists memberships[.chat, viewer]`, and the compiler does not see that
+yet. Record: `benchmarks/runs/2026-09-13-snapback4-ceremonybar-before/`;
+metrics: `metrics/ceremonybar.jsonl` (three lines).
+

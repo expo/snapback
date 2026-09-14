@@ -292,7 +292,7 @@ export function createClient(options: ClientOptions): Client {
     if (((json.why ?? json.denied) as Refusal | undefined)?.retryable) return false;
     if (json.state === "sent") {
       const at = Number(json.seq ?? 0);
-      const outcome = { state: "sent", id: entry.id, seq: at } as const;
+      const outcome = { state: "sent", id: entry.id, seq: at, result: json.result } as const;
       entry.resolve(outcome);
       emitWrite(outcome);
       for (const watch of watches.values()) void refresh(watch);
@@ -381,7 +381,7 @@ export function createClient(options: ClientOptions): Client {
         },
       };
     },
-    async mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write> {
+    async mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write<R>> {
       const id = mintId();
       if (closed) return emitWrite({ state: "failed", id, why: ended() });
       if (!credentials || link === "signed-out") return emitWrite({ state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write" } });
@@ -391,7 +391,7 @@ export function createClient(options: ClientOptions): Client {
       pending.push(entry);
       const attempt = flush();
       if (link !== "online") return { state: "pending", id };
-      return Promise.race([settled, attempt.then((): Write => ({ state: "pending", id }))]);
+      return Promise.race([settled, attempt.then((): Write => ({ state: "pending", id }))]) as Promise<Write<R>>;
 
     },
     async upload(bytes) {

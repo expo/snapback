@@ -4,6 +4,7 @@
 pub mod catalog;
 pub mod program;
 pub mod schema;
+pub mod residency;
 
 use crate::ast::Document;
 use crate::diag::Diagnostic;
@@ -71,7 +72,9 @@ pub fn bind(documents: Vec<Document>) -> Bound {
             }
         }
     }
-    let notes = completeness_notes(&catalog, &schema, &programs);
+    schema.operations = programs.iter().map(|bound| (bound.program.name.clone(), residency::execution(&schema, &bound.program))).collect();
+    let mut notes = completeness_notes(&catalog, &schema, &programs);
+    notes.extend(residency::maintain_notes(&catalog, &schema));
     Bound { schema, programs, personas, diagnostics, notes }
 }
 

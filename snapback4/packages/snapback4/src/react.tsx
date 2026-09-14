@@ -158,7 +158,7 @@ export function usePage<A extends { c?: Cursor | null }, R extends readonly unkn
 /** A write. `run` never throws; `last` is the most recent outcome. */
 export function useMutation<A, R>(op: Mutation<A, R>) {
   const client = useClient();
-  const [last, setLast] = useState<Write | undefined>(undefined);
+  const [last, setLast] = useState<Write<R> | undefined>(undefined);
   const [inFlight, setInFlight] = useState(false);
   const lifetime = useRef({ active: true, pending: 0, next: 0, latest: 0, ids: new Map<string, number>(), early: new Map<string, Exclude<Write, { state: "pending" }>>() });
   useEffect(() => {
@@ -180,17 +180,17 @@ export function useMutation<A, R>(op: Mutation<A, R>) {
         return;
       }
       owner.ids.delete(write.id);
-      if (owner.active && lifetime.current === owner && run === owner.latest) setLast(write);
+      if (owner.active && lifetime.current === owner && run === owner.latest) setLast(write as Write<R>);
     });
     return () => { owner.active = false; unsubscribe(); };
   }, [client, op]);
-  const run = useCallback(async (args: A): Promise<Write> => {
+  const run = useCallback(async (args: A): Promise<Write<R>> => {
     const owner = lifetime.current;
     const serial = ++owner.next;
     owner.latest = serial;
     owner.pending++;
     if (owner.active) setInFlight(true);
-    let outcome: Write;
+    let outcome: Write<R>;
     try { outcome = await client.mutate(op, args); }
     catch (error) {
       // A foreign Client can throw without exposing its minted id. Do not
@@ -204,7 +204,7 @@ export function useMutation<A, R>(op: Mutation<A, R>) {
       if (early) {
         owner.early.delete(outcome.id);
         owner.ids.delete(outcome.id);
-        visible = early;
+        visible = early as Write<R>;
       } else if (outcome.state !== "pending") owner.ids.delete(outcome.id);
     }
     owner.pending--;

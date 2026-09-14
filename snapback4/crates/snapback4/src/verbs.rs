@@ -1,7 +1,7 @@
 //! The verbs that do not serve: `check`, `run`, `types`, `why`, `doctor`,
 //! `init`, `data`, `test`. Each prints one honest answer and exits with it.
 
-use crate::project::{GITIGNORE, Project, persona_principal};
+use crate::project::{Project, persona_principal};
 use snapback4_core::engine::rules::scan_visibility;
 use snapback4_core::ir::{self, ProgramKind};
 use snapback4_core::schema::Audience;
@@ -11,6 +11,13 @@ use serde_json::{Value as Json, json};
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::time::Instant;
+
+mod fix;
+mod init;
+mod sql;
+pub use init::init;
+pub use sql::sql;
+mod residency;
 
 pub struct Options {
     pub positionals: Vec<String>,
@@ -29,7 +36,7 @@ pub fn parse(args: &[String]) -> Options {
         } else if let Some(flag) = arg.strip_prefix("--") {
             // A switch takes no value; any other flag takes the next token
             // unless that token is itself a flag.
-            const SWITCHES: &[&str] = &["no-watch", "fresh", "cost", "allow-destructive", "i-understand-cleartext"];
+            const SWITCHES: &[&str] = &["no-watch", "fresh", "cost", "residency", "fix", "online", "expo", "allow-destructive", "i-understand-cleartext"];
             let (name, value) = match flag.split_once('=') {
                 Some((name, value)) => (name.to_owned(), value.to_owned()),
                 None if SWITCHES.contains(&flag) || iter.peek().is_none_or(|next| next.starts_with("--")) => (flag.to_owned(), String::new()),
@@ -82,7 +89,7 @@ fn report_diagnostics(bound: &Bound, json: bool) {
 pub fn check(options: &Options) -> i32 {
     let project = project_or_exit();
     let started = Instant::now();
-    let bound = match project.compile() {
+    let mut bound = match if options.flags.contains_key("fix") { fix::compile(&project) } else { project.compile() } {
         Ok(bound) => bound,
         Err(error) => {
             eprintln!("cannot read snapback/: {error}");
@@ -93,6 +100,7 @@ pub fn check(options: &Options) -> i32 {
         report_diagnostics(&bound, options.json);
         return 1;
     }
+    bound.notes.extend(snapback4_lang::bind::residency::change_notes(&bound, &residency::previous(&project)));
     if let Err(error) = project.write_generated(&bound) {
         eprintln!("cannot write generated types: {error}");
         return 2;
@@ -111,16 +119,18 @@ pub fn check(options: &Options) -> i32 {
             return 1;
         }
     };
+    if let Err(error) = residency::remember(&project, &bound) { eprintln!("cannot write residency facts: {error}"); return 2; }
     let elapsed = started.elapsed();
     let synced = bound.schema.synced().count();
     if options.json {
-        println!("{}", json!({ "ok": true, "tables": bound.schema.tables.len(), "synced": synced, "operations": bound.programs.len(), "notes": bound.notes, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
+        println!("{}", json!({ "ok": true, "tables": bound.schema.tables.len(), "synced": synced, "operations": bound.programs.len(), "notes": bound.notes, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
     } else {
         println!("check: ok — {} tables ({synced} synced), {} operations, no problems{}, {:.1} ms{}", bound.schema.tables.len(), bound.programs.len(), if bound.notes.is_empty() { String::new() } else { format!(", {} note{}", bound.notes.len(), if bound.notes.len() == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0, match &native { Some(b) => format!("; native: {} → {} ({} B, {} ms)", b.jobs.join(", "), b.path.display(), b.bytes, b.ms), None => String::new() });
         for note in &bound.notes {
             println!("note: {note}\n");
         }
     }
+    if options.flags.contains_key("residency") && !options.json { println!("{}", residency::facts(&bound)); }
     if options.flags.contains_key("cost") {
         for program in &bound.programs {
             println!("{}", cost_report(&bound, &program.program));
@@ -491,27 +501,6 @@ pub fn doctor(options: &Options) -> i32 {
     if ok { 0 } else { 1 }
 }
 
-pub fn init(options: &Options) -> i32 {
-    let dir = options.positionals.first().map(Path::new).unwrap_or_else(|| Path::new("."));
-    let schema = dir.join("snapback").join("schema.q");
-    if schema.exists() {
-        eprintln!("{} already exists", schema.display());
-        return 1;
-    }
-    if let Err(error) = std::fs::create_dir_all(schema.parent().unwrap()) {
-        eprintln!("cannot create {}: {error}", schema.display());
-        return 2;
-    }
-    std::fs::write(&schema, snapback4_lang::guide::TEMPLATE).expect("write template");
-    let gitignore = dir.join(".gitignore");
-    let existing = std::fs::read_to_string(&gitignore).unwrap_or_default();
-    if !existing.contains(".snapback4/") {
-        let _ = std::fs::write(&gitignore, format!("{existing}{}{GITIGNORE}", if existing.is_empty() || existing.ends_with('\n') { "" } else { "\n" }));
-    }
-    println!("init: wrote {} — next: `snapback4 check`, then `snapback4 dev`", schema.display());
-    0
-}
-
 pub fn why(options: &Options) -> i32 {
     let Some(subject) = options.positionals.first() else {
         eprintln!("usage: snapback4 why <E_CODE | operation | table>");
@@ -526,11 +515,14 @@ pub fn why(options: &Options) -> i32 {
     if let Some(program) = bound.programs.iter().find(|p| &p.program.name == subject) {
         println!("{} {}({})", program.program.kind.word(), program.program.name, program.args.iter().map(|(name, ty)| format!("{name}: {}", ty.name())).collect::<Vec<_>>().join(", "));
         println!("  returns {}", program.result.name());
+        println!("{}", snapback4_lang::bind::residency::operation_lines(subject, &bound.schema.operations[subject]));
         println!("{}", cost_report(&bound, &program.program));
         return 0;
     }
     if let Some(table) = bound.schema.tables.get(subject) {
         println!("table {subject}");
+        println!("  residency: {}", snapback4_lang::bind::residency::table_line(&bound.schema, subject));
+        if table.residency.inferred { println!("  inferred from read <- {}", table.rules.read.quarry()); }
         println!("  read   <- {}", table.rules.read.quarry());
         println!("  insert <- {}", table.rules.insert.quarry());
         println!("  update <- {}", table.rules.update.quarry());
@@ -565,7 +557,9 @@ pub fn test(options: &Options) -> i32 {
     // A fixture runs against a fresh store in memory, so every run reads
     // the fixture and nothing else; without one, the project's dev store.
     let mut engine = if options.flags.contains_key("fixture") {
-        match snapback4_core::Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())) {
+        let mut fixture_schema = bound.schema.clone();
+        if options.flags.contains_key("residency") { fixture_schema.maintains.clear(); }
+        match snapback4_core::Engine::memory(fixture_schema, bound.programs.iter().map(|p| p.program.clone())) {
             Ok(engine) => engine,
             Err(error) => {
                 eprintln!("cannot open a store: {error}");
@@ -614,6 +608,9 @@ pub fn test(options: &Options) -> i32 {
                 }
             }
         }
+        if options.flags.contains_key("residency") {
+            if let Err(error) = engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())) { eprintln!("cannot build fixture maintains: {error}"); return 1; }
+        }
         println!("test: loaded {loaded} rows from {fixture} in {:.1} s", started.elapsed().as_secs_f64());
     }
     let personas: Vec<String> = match options.flags.get("as") {
@@ -621,10 +618,13 @@ pub fn test(options: &Options) -> i32 {
         None if bound.personas.is_empty() => vec!["alice".into()],
         None => bound.personas.clone(),
     };
+    if options.flags.contains_key("residency") {
+        if let Err(error) = residency::measure(&mut engine, &bound, &personas) { eprintln!("residency measurement failed: {error}"); return 1; }
+    }
     let ceilings = engine.ceilings();
     let mut failures = 0;
-    println!("test: {:<28} {:>8} {:>8} {:>8} {:>8} {:>10}", "operation (persona)", "examined", "entries", "probes", "steps", "output B");
-    println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10}", "ceilings", ceilings.examined, ceilings.index_entries, ceilings.rule_probes, ceilings.steps, ceilings.output_bytes);
+    println!("test: {:<28} {:>8} {:>8} {:>8} {:>8} {:>10} {:>10}", "operation (persona)", "examined", "entries", "probes", "steps", "heap B", "output B");
+    println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10} {:>10}", "ceilings", ceilings.examined, ceilings.index_entries, ceilings.rule_probes, ceilings.steps, ceilings.heap_bytes, ceilings.output_bytes);
     let mut skipped = Vec::new();
     for program in &bound.programs {
         if program.program.kind != ProgramKind::Query {
@@ -656,7 +656,7 @@ pub fn test(options: &Options) -> i32 {
                 Ok(outcome) => {
                     let m = outcome.metered;
                     let state = if outcome.complete { "complete" } else { "capped" };
-                    println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10}  {state} in {:.1} ms{shown}", format!("{} ({persona})", program.program.name), m.examined, m.index_entries, m.rule_probes, m.steps, m.output_bytes, started.elapsed().as_secs_f64() * 1000.0);
+                    println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10} {:>10}  {state} in {:.1} ms{shown}", format!("{} ({persona})", program.program.name), m.examined, m.index_entries, m.rule_probes, m.steps, m.heap_bytes, m.output_bytes, started.elapsed().as_secs_f64() * 1000.0);
                 }
                 Err(refusal) if refusal.family == "rule" && derived => {
                     // A program's own `require` refusing a derived argument

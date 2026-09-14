@@ -17,22 +17,33 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
         let table = bind_table(catalog, info, diagnostics);
         schema.tables.insert(info.decl.name.clone(), table);
     }
-    for info in catalog.tables.values() {
-        if let Some(source) = &info.inherits_sync_from
-            && let Some(sync) = schema.tables.get(source).and_then(|t| t.sync.clone())
-        {
-            schema.tables.get_mut(&info.decl.name).expect("bound").sync = Some(Sync { audience: sync.audience, horizon: None });
+    // @ref LLP 3000.007#6.7 — inherit the resolved audience, unless explicitly online only.
+    for maintain in catalog.maintains.values() {
+        if maintain.online_only || !schema.tables.contains_key(&maintain.name) { continue; }
+        let sync = schema.tables.get(&maintain.source).and_then(|t| t.sync.clone());
+        if let Some(sync) = sync {
+            let inherits = match &sync.audience {
+                Audience::Public => true,
+                Audience::Column(column) => maintain.by.contains(column),
+                Audience::Target { prefix, .. } => prefix.iter().all(|column| maintain.by.contains(column)),
+            };
+            if inherits {
+                let target = schema.tables.get_mut(&maintain.name).expect("bound maintain");
+                target.sync = Some(Sync { audience: sync.audience, horizon: None });
+                target.residency.inherited_from = Some(maintain.source.clone());
+            }
         }
     }
     for maintain in catalog.maintains.values() {
         let source = catalog.tables.get(&maintain.source);
         let Some(source) = source else { continue };
+        if !schema.tables.contains_key(&maintain.name) { continue; }
         let kind = match &maintain.column {
             Some(column) => core::MaintainKind::Sum { of: column.clone() },
             None => core::MaintainKind::Count,
         };
         let _ = source;
-        schema.maintains.push(core::Maintain { kind, source: maintain.source.clone(), by: maintain.by.clone(), target: maintain.name.clone(), readable: None });
+        schema.maintains.push(core::Maintain { residency: schema.tables[&maintain.name].residency.clone(), kind, source: maintain.source.clone(), by: maintain.by.clone(), target: maintain.name.clone(), readable: None });
     }
     for doc in &catalog.documents {
         for effect in &doc.effects {
@@ -137,7 +148,7 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
         _ => LeavePolicy::UntilRevoked,
     };
     let sync = match &decl.sync {
-        Some(sync) => match bind_sync(catalog, info, sync) {
+        Some(sync) => match bind_sync(catalog, info, sync, &rules.read) {
             Ok(sync) => Some(sync),
             Err(diagnostic) => {
                 diagnostics.push(diagnostic);
@@ -156,7 +167,8 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
         },
         None => None,
     };
-    Table { columns, indexes, rules, constraints, leave, sync, expire }
+    let residency = core::Residency { online_only: decl.online_only, inferred: decl.sync.as_ref().is_some_and(|s| matches!(s.audience, SyncAudience::Inferred { .. })), inherited_from: None };
+    Table { columns, indexes, rules, constraints, leave, sync, expire, residency }
 }
 
 /// `expire at .column`: a `time` column (optional means "never" when null)
@@ -177,8 +189,9 @@ fn bind_expire(info: &TableInfo, column: &str, site: &Site) -> Fallible<String> 
     Ok(column.to_owned())
 }
 
-fn bind_sync(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl) -> Fallible<Sync> {
+fn bind_sync(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, rule: &RuleExpr) -> Fallible<Sync> {
     let audience = match &sync.audience {
+        SyncAudience::Inferred { principal } => infer_audience(catalog, sync, rule, principal.as_deref())?,
         SyncAudience::Public => Audience::Public,
         SyncAudience::Column(column) => {
             match info.columns.get(column) {
@@ -214,6 +227,11 @@ fn bind_sync(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl) -> Fallible<S
             Audience::Target { table: table.clone(), prefix: prefix.clone(), principal }
         }
     };
+    let principal = match &audience { Audience::Target { principal, .. } => Some(principal.as_str()), _ => None };
+    let implied = infer_audience(catalog, sync, rule, principal)?;
+    if audience != implied {
+        return Err(sync_error(&sync.site, format!("the sync audience disagrees with the read rule `{}`", rule.quarry()), "sync  -- infer the audience from the read rule"));
+    }
     let horizon = match &sync.horizon {
         Some((last, by)) => {
             if !info.indexes.iter().any(|index| &index.name == by) {
@@ -224,6 +242,28 @@ fn bind_sync(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl) -> Fallible<S
         None => None,
     };
     Ok(Sync { audience, horizon })
+}
+
+// @ref LLP 3000.007#6.6 — omitted audiences invert exactly the same three read rules.
+fn infer_audience(catalog: &Catalog, sync: &SyncDecl, rule: &RuleExpr, named: Option<&str>) -> Fallible<Audience> {
+    let refusal = || sync_error(&sync.site, format!("sync cannot infer an audience from `{}`; use public, `.column = viewer`, or `exists target[.columns, viewer]`", rule.quarry()), "use one invertible read rule, or remove sync (online only)");
+    match rule {
+        RuleExpr::Public { .. } | RuleExpr::Allow if named.is_none() => Ok(Audience::Public),
+        RuleExpr::Eq(RuleTerm::Field(column), RuleTerm::Viewer) | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(column)) if named.is_none() => Ok(Audience::Column(column.clone())),
+        RuleExpr::Exists { table, index, key, .. } if key.last() == Some(&RuleTerm::Viewer) => {
+            let prefix = key[..key.len() - 1].iter().map(|term| match term { RuleTerm::Field(column) => Some(column.clone()), _ => None }).collect::<Option<Vec<_>>>().ok_or_else(refusal)?;
+            let target = catalog.tables.get(table).ok_or_else(refusal)?;
+            let probe = target.indexes.iter().find(|i| &i.name == index).ok_or_else(refusal)?;
+            let recipient = probe.columns.get(key.len() - 1).ok_or_else(refusal)?;
+            let principals: Vec<_> = target.columns.iter().filter(|(_, ty)| ty.kind == TypeKind::Principal && !ty.optional).map(|(name, _)| name.as_str()).collect();
+            if principals.len() > 1 && named.is_none() {
+                return Err(sync_error(&sync.site, format!("sync: {table} has several principal columns ({}); name the recipient with `by .{recipient}`", principals.join(", ")), format!("sync by .{recipient}{}", sync.horizon.as_ref().map(|(n, by)| format!(" last {n} by {by}")).unwrap_or_default())));
+            }
+            if named.is_some_and(|name| name != recipient) || !principals.contains(&recipient.as_str()) { return Err(sync_error(&sync.site, format!("the read rule binds viewer to {table}.{recipient}"), format!("sync by .{recipient}"))); }
+            Ok(Audience::Target { table: table.clone(), prefix, principal: recipient.clone() })
+        }
+        _ => Err(refusal()),
+    }
 }
 
 /// Bind a rule expression over a table's focal row.
@@ -473,6 +513,7 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
         retain: None,
         public: None,
         sync: None,
+        online_only: maintain.online_only,
         expire: None,
         site,
     })

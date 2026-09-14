@@ -93,21 +93,21 @@ fn p2_p5_p7_p8_the_validator_refuses_unsound_audiences() {
         assert!(messages.iter().any(|m| m.contains(expect)), "expected a diagnostic containing {expect:?}; got {messages:?}");
     };
     // 8: a second disjunct admits viewers the sync never delivers to.
-    refused(CHAT.replace("  read <- exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and", "  read <- .authorId = viewer or exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and"), "is only sound when the read rule is exactly");
+    refused(CHAT.replace("  read <- exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and", "  read <- .authorId = viewer or exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and"), "sync cannot infer an audience");
     // 7: a non-unique audience index would revoke a group another row still grants.
     refused(CHAT.replace("unique byConversationPrincipal: conversationId, principal", "by byConversationPrincipal: conversationId, principal"), "must be unique");
     // 2: the recipient column is the probe's, not any principal column of the target.
     refused(
         CHAT.replace("  role: enum('member', 'admin')\n", "  role: enum('member', 'admin')\n  invitedBy: principal\n")
-            .replace("sync to memberships[.id]  ", "sync to memberships[.id] by .principal  ")
-            .replace("sync to memberships[.conversationId]     -- and the roster", "sync to memberships[.conversationId] by .principal     -- and the roster")
-            .replace("sync to memberships[.conversationId] last 500 by byConvTime", "sync to memberships[.conversationId] by .invitedBy last 500 by byConvTime")
+            .replace("sync  ", "sync by .principal  ")
+            .replace("sync     -- and the roster", "sync by .principal     -- and the roster")
+            .replace("sync last 500 by byConvTime", "sync by .invitedBy last 500 by byConvTime")
             .replace("insert memberships { conversationId, principal, role: 'member', joinedAt: now } if absent", "insert memberships { conversationId, principal, invitedBy: viewer, role: 'member', joinedAt: now } if absent"),
         "binds viewer to memberships.principal",
     );
     // The Clique lane at M4: `check` accepted a synced table without an index
     // to take a group's rows from; the first `/sync` then failed E_SCHEMA.
-    refused(CHAT.replace("  by byConvTime: conversationId, at, id\n  immutable conversationId, authorId", "  immutable conversationId, authorId").replace("sync to memberships[.conversationId] last 500 by byConvTime", "sync to memberships[.conversationId]"), "leading with conversationId");
+    refused(CHAT.replace("  by byConvTime: conversationId, at, id\n  immutable conversationId, authorId", "  immutable conversationId, authorId").replace("sync last 500 by byConvTime", "sync"), "leading with conversationId");
     // 5: an aggregate delivered wider than its source, at the core boundary.
     let bound = snapback4_lang::compile(&[("schema.q".to_owned(), CHAT.to_owned())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
@@ -213,7 +213,10 @@ fn h1_check_notes_a_page_that_is_never_complete() {
 #[test]
 fn h4_a_miss_and_a_hidden_hit_cost_the_same() {
     let mut engine = notes_engine(&[("b1", "dev:bob", 1)]);
-    let miss = engine.query("one", Context::new("dev:alice", args(&[("noteId", id("nope"))]))).unwrap();
+    // Caller-owned argument copies are charged too. Keep the input identical
+    // and vary only the store, so the comparison measures hidden state alone.
+    let mut empty = notes_engine(&[]);
+    let miss = empty.query("one", Context::new("dev:alice", args(&[("noteId", id("b1"))]))).unwrap();
     let hidden = engine.query("one", Context::new("dev:alice", args(&[("noteId", id("b1"))]))).unwrap();
     assert_eq!(miss.data, Value::Null);
     assert_eq!(hidden.data, Value::Null);
@@ -228,7 +231,8 @@ fn m1_a_hoisted_false_range_costs_what_an_empty_one_costs() {
     let bobs_ref: Vec<(&str, &str, i64)> = bobs.iter().map(|(a, b, c)| (a.as_str(), b.as_str(), *c)).collect();
     let mut engine = notes_engine(&bobs_ref);
     let theirs = engine.query("theirs", Context::new("dev:alice", args(&[("owner", id("dev:bob")), ("c", Value::Null)]))).unwrap();
-    let nobody = engine.query("theirs", Context::new("dev:alice", args(&[("owner", id("dev:nobody")), ("c", Value::Null)]))).unwrap();
+    let mut empty = notes_engine(&[]);
+    let nobody = empty.query("theirs", Context::new("dev:alice", args(&[("owner", id("dev:bob")), ("c", Value::Null)]))).unwrap();
     assert_eq!(theirs.data, Value::Array(Vec::new()));
     assert_eq!(theirs.complete, nobody.complete);
     assert_eq!(theirs.next, nobody.next);

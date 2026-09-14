@@ -38,3 +38,11 @@ in 31 ms, a reopen in 6 ms, a cold start with no network answering the
 thread from the store in 2 ms, and writes composed offline surviving a
 restart and landing in order. `EXPO_PUBLIC_SNAPBACK_TRACE=1` logs every
 call's op, time and answer size. Android follows.
+
+Ordinary media can be retained with `createLocalClient({ ..., device: nativeDevice,
+assets: { keep: "viewed", maxBytes: 67108864 } })`. The opener supplies private
+file storage beside each device store in Documents. Offline `client.asset` and
+`useAsset` return a file URI; online calls revalidate. The client purges bytes
+on home-row revocation, deletion, clearing or expiry and on sign-out; `once`
+bytes never enter file storage. Rebuild the native app to include this storage
+capability. `keep: "none"` (default) retains no bytes.
