@@ -2337,3 +2337,19 @@ these files should expect a rebase against them:
 
 Not launched: the periphery verbs, worker actions, and §8.7/§5.9 (the blind
 security review is in flight; its artifacts land under `llp/reviews/`).
+
+## 2026-09-13 — the blind review of LLP 3000.007 §8.7 and §5.9 returned
+
+GPT (Codex, gpt-6-astra, xhigh): NOT READY. Grok (grok-4.6, xhigh): READY
+WITH CHANGES. One brief, one baseline (`4e8e3efef`), read-only, blind to
+each other. They converge: the binder's unique-key write reads under the
+read rule (that is the Clique bug); an unreadable target's failure words
+must collapse to one; the merged image, `old`, `result` and `current` stay
+in the engine; withhold before `_ops` records (replay returns cached
+content after revocation today — a P1 ticket); the device must queue
+without a row on a write miss instead of predicting `NOT_FOUND` or an
+insert; and §5.9's pass must be admitted on uniformly authorized prefixes
+only, because abort versus success at the examined ceiling is the
+meter-cut oracle. Both artifacts are under `llp/reviews/`; the
+dispositions, the narrowed §8.7/§5.9 and the regression list are LLP
+3000.007 §15; ruling 15 is the author's. Neither section lands before it.
