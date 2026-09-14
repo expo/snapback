@@ -5038,3 +5038,17 @@ retains the result and limits. The [core-owner follow-up](../issues/20260914-sna
 starts with a current-source measurement: 0.2.12 added work on these query
 paths, so the old diagnostic is not a current-release claim. No core edit,
 result/authority cache, ceiling change or new performance win follows yet.
+
+## 2026-09-14 — Clique's expiry receipt can pass before expiry
+
+Recording the 0.2.10 three-model cell found a false-positive M5 expiry
+receipt. Muse's final choreography passed after 46.459 seconds, but an
+independent read-only inspection found the exact probe message still stored
+with a 24-hour TTL. The frozen packet supplies shortened grading windows;
+the lane used production windows and a 45-second adapter wait. The probe
+checks for absent bubbles after relaunch without establishing that their
+data has loaded. Its original pass is retained and qualified, not rewritten.
+The [benchmark ticket](../issues/20260914-clique-expiry-choreography-can-pass-with-unexpired-row.md)
+and selected-field evidence separate that insufficient measurement from an
+engine expiry defect. No frozen instrument or product code changed;
+independent grading has begun, and the M7 phases remain pending.
