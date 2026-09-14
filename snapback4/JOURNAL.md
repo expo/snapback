@@ -6664,6 +6664,123 @@ Verbatim stage and count summaries:
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
+
+
+## 2026-09-14 — A1: a word finds its card, and prediction has one
+
+Implemented LLP 3000.007 §20.1 against base
+`33b530d41b00f1d685656f360e37c52ec1255ad6`. The guide has 25 canonical
+cards and 35 aliases in one table beside KEYWORDS. Lookup prints a card
+on stdout; a miss prints three distinct nearest cards (substring and edit
+distance over keywords and aliases), the keyword/alias list, and exits 1.
+Bare `guide` lists the vocabulary; `guide language` prints the language card.
+The existing personas card already covers SQL inspection, so sql/inspect
+resolve there. Evolution is a short card from README §5.
+
+Inventory rows closed within this lane: **S01** (discovery and prediction
+card), **S19** (retry-id versus redundant horizon guards), **S20 docs**
+(upsert misses and the compiled set-state alternative), **S21 recipe**
+(per-conversation server ordinals and cursor paging), **S04** (availability
+query, first post-signup profile mutation and recoverable null-profile
+onboarding). **S13's card portion** is answered; its always-on summary is
+B2's work and is absent on this base. The inventory and builder evidence
+were read in place; neither external checkout was modified.
+
+The prediction card distinguishes held/horizon/server sites and static
+eligibility from a call's outcome. Its examples prove eligible draft,
+message and effect-only-presence writes, versus never-predicting online-only
+maintain and fallible-presence writes. Existing upsert recipes retain their
+semantics and gain their prediction limit. A stable mutation id dedupes a
+retry for a principal; reusing a row id with a fresh mutation id is not the
+same guarantee. The boolean set-state alternative uses insert-if-absent and
+an existence-guarded delete over a complete viewer partition.
+
+Measurements: 4 new compiled Quarry blocks (2 prediction, 1 arrival order,
+1 onboarding), 1 new TypeScript block, 12 README TypeScript blocks checking
+36 public functions. The ordinal witness sends 51 messages with the same
+millisecond and reverse-ordered row ids, retries all 51 mutations, and reads
+50 + 1 rows with ordinals 51 through 1. The onboarding witness observes a
+taken handle, a null profile after the race, then a successful profile under
+the same principal. The set-state witness executes 6 set/clear calls in the
+prediction interpreter and 6 on the server, including an initial clear,
+a first like and repeated set/clear. Largest changed code file: guide.rs,
+1,383 lines by caps' split-on-newline convention (1,382 newline characters),
+down from 1,424. The writes card moved byte-for-byte into guide/writes.rs
+before its additions; existing Markdown prose was not compressed or reflowed.
+
+Targeted commands run from `snapback4/`; every JS command used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` first.
+
+`cargo test -p snapback4-lang --test guide`, before implementation and final:
+
+```text
+test result: FAILED. 9 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+```
+
+Intermediate guide passes had 12 and 14 passing tests respectively, each
+with 0 failed in 0.04s. `cargo test -p snapback4 --test check guide_`,
+before implementation and after:
+
+```text
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 11 filtered out; finished in 1.05s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 1.04s
+```
+
+Final review added `cargo test -p snapback4-lang --test guide set_state_recipe`
+before fixing the new recipe's missing clear guard, then after:
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.01s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+```
+
+The unguarded clear refused `NOT_FOUND` at `schema.q:15:5`; the corrected
+recipe completes all 6 calls on each interpreter. That is an application
+recipe correction, with no runtime or diagnostic change.
+
+`node --test packages/snapback4/test/readme-examples.test.mjs` initially
+reported 2 tests, 1 pass, 1 fail: the draft used read/write instead of the
+client's query/mutate, and the generated wasm module had not been built.
+After correcting those calls and running `bash scripts/build-wasm.sh`
+(`wasm 1608850 B raw, 447107 B gzip`), the same command reported:
+
+```text
+ℹ 12 README blocks; 36 public functions; 734.10 ms
+ℹ tests 2
+ℹ pass 2
+ℹ fail 0
+```
+
+One wrongly rooted Cargo invocation stopped before building; it was rerun
+from snapback4. One test append used a doubly prefixed path and ran a filter
+matching 0 tests; the path was corrected. An exploratory test used the
+nonexistent Ceilings::mutation constructor, corrected to the unchanged
+Ceilings::default before the red/green witness above. None is a product or
+inherited failure.
+
+From the repository root, with Node 24 on PATH:
+`bash snapback4/scripts/test.sh`. First run: 575 Rust tests passed, 0 failed,
+1 ignored; final run after the clear-guard regression: 576 passed, 0 failed,
+1 ignored. Both runs built wasm, typechecked/built the package and checked
+both apps. Verbatim first/final summaries:
+
+```text
+-- ok: cargo test (121 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (7 s)
+ℹ tests 137
+ℹ pass 136
+ℹ fail 1
+-- FAIL: client tests (41 s)
+== 1 failure(s) in 125 s
+
+-- ok: cargo test (108 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
 -- ok: fixture wrapper tests (10 s)
 ℹ tests 137
 ℹ pass 136
@@ -6686,6 +6803,14 @@ to the already installed dependencies, then run with:
 
 Both commands reproduced `signal=SIGABRT` at Chromium launch and both
 reported the identical summary:
+
+-- FAIL: client tests (43 s)
+== 1 failure(s) in 114 s
+```
+
+The sole suite failure is Chromium SIGABRT during browserType.launch,
+before the React harness executes. Isolated command:
+`node --test packages/snapback4/test/react.test.mjs`:
 
 ```text
 ℹ tests 1
@@ -6739,4 +6864,68 @@ it remains a successful positive case:
 
 ```json
 {"code":"E_BOUND","family":"bound","message":"steps reached the ceiling 28","site":"probe:7:then:1:then:2","rewrite":"move the loop into a job with `chunk`, or read a maintained aggregate instead of counting rows","guide":"bounds"}
+
+The React harness, witness helper, package runtime sources, app sources and
+dependency inputs were verified byte-unchanged from base
+`33b530d41b00f1d685656f360e37c52ec1255ad6` with git diff before that isolated
+run; this test launches no backend and therefore does not exercise the
+changed binary. The lead must rerun Chromium outside this sandbox.
+No lifecycle or bulk client timeout occurred in either suite run.
+
+`./ref-check --verbose` passed before this entry:
+`ref-check: ok — 474 LLP docs, 8853 refs in 22825 files, 0 errors, 0 unchecked`.
+`git diff --check` passed. `node scripts/caps.mjs` reported `1 violation.`:
+205 oversize files versus 204 allowed. A read-only git ls-tree/git cat-file
+census at the exact base above found the same 205/204, with
+`crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs` at 1,504 lines.
+No oversize source file was changed; all 8 changed/new code files are below
+1,500, including untracked new cards which root caps does not yet enumerate.
+
+Only out-of-brief file: snapback4/AGENTS.md, one command-sheet comment
+corrected for bare guide's new list behavior. No runtime, ceilings,
+serialized values, conformance cases, client package implementation or
+other lane's diagnostics were changed. No commit, push, tag or publish.
+B2's absent always-on summary is intentionally omitted; all other lane
+work is complete. The lesson is to test both transitions and repeated
+set-state calls: a compiled delete is not an idempotent clear on an absent
+row, even though a whole partition can establish that absence.
+
+Exact CLI text before, on stderr with empty stdout and exit 1:
+
+```text
+no card for prediction; cards: language, types, indexes, rules, sync, residency, expire, assets, reads, shapes, writes, programs, jobs, native, feeds, search, effects, actions, services, presence, bounds, refusals, personas
+```
+
+After, `snapback4 guide prediction` exits 0, with empty stderr. First 20
+stdout lines, verbatim:
+
+```text
+# Prediction: queued writes and local rows
+
+`pending` means the write has not settled; `sent` means the server committed it.
+A predicted row carries `pending: true`; a pending write may have no predicted row.
+
+Run `snapback4 check --residency` and `snapback4 why <op>` to see read sites:
+- `held`: the viewer's whole synced partition, or an inherited maintain.
+- `horizon`: a synced `last N` window; a held row can be read, but a miss
+  cannot prove absence beyond the horizon, so that call may queue without a row.
+- `server`: online-only data; a mutation reading it has `predicts: never`.
+
+`predicts: eligible` requires device-readable sites and synced writes;
+the call still needs its facts on this device and must fit the meter and rules.
+Every mutation can queue on the local client; eligibility is not a promise
+that every call produces a predicted row. Native reads also need their module.
+
+```quarry
+table drafts:
+  owner: principal
+  body: text <=200
+```
+
+`snapback4 guide banana` exits 1 with empty stderr and this stdout:
+
+```text
+no card named banana; nearest: reads, assets, bounds
+cards: language, types, indexes, rules, sync, residency, prediction, evolution, expire, assets, reads, shapes, writes, programs, jobs, native, feeds, search, effects, actions, services, presence, bounds, refusals, personas
+aliases: grammar -> language, quarry -> language, predict -> prediction, predictable -> prediction, offline -> prediction, optimistic -> prediction, pending -> prediction, pagination -> reads, paging -> reads, cursor -> reads, next -> reads, migration -> evolution, migrate -> evolution, schema-evolution -> evolution, adoption -> evolution, sql -> personas, inspect -> personas, push -> effects, notification -> effects, notify -> effects, worker -> effects, auth -> personas, signin -> personas, login -> personas, session -> personas, upload -> assets, media -> assets, image -> assets, video -> assets, realtime -> reads, live -> reads, subscribe -> reads, order -> writes, ordinal -> writes, arrival -> writes
 ```

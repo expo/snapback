@@ -356,6 +356,9 @@ charged to that chunk's meter. Writes belong inside a chunk.
   an absent row fills defaults and then, for any required column still
   missing, refuses `NOT_FOUND`, the one word an unreadable target gets),
   `delete t[key]`; the key is an id, a row you hold, or a full unique key.
+  Upsert predicts only an update of a held row; a first like or reaction
+  queues without a predicted row. `guide prediction` shows predictable
+  insert-if-absent/delete set-state writes over a held viewer partition.
   A final write is the implicit return; bind it to use it (`row = insert
   ..`). Writes check the rule, unique indexes, caps, immutables, text
   formats and `after insert`; any refusal rolls the whole mutation back.
@@ -1175,6 +1178,77 @@ if (signedIn.ok) {
 if (visitor.ok) await logout(url, visitor.session.token);
 ```
 
+#### Profile onboarding after sign-up
+
+Check handle availability with a query before sign-up. The unique index is
+still authoritative: another signup may claim the handle between that check
+and the profile mutation. Write the profile in the first mutation after
+sign-up, and keep the signed-in session if that write fails so the user can
+choose another handle. On sign-in or reload, a profile query returning null
+routes to the profile screen; loading and denied reads are separate states.
+A session without a profile is onboarding, never an app stuck loading.
+
+```quarry
+use identity
+table profiles:
+  principal: principal
+  handle: text 3..20 format handle
+  unique byPrincipal: principal
+  unique byHandle: handle
+  public 'handles are discoverable before signup'
+  insert <- .principal = viewer
+  online only
+
+query handleAvailable(handle: text 3..20 format handle):
+  return not exists profiles[handle = handle]
+
+query myProfile():
+  return profiles[principal = viewer]
+
+mutation createProfile(handle: text 3..20 format handle):
+  insert profiles { principal: viewer, handle }
+```
+
+The availability query needs a guest session (`use identity` enables guests)
+or an existing session. Reuse the signed-in client on the profile screen:
+
+```ts
+import { createClient } from "snapback4/client";
+import { guest, signup } from "snapback4/auth";
+import type { Client } from "snapback4/contract";
+import { api } from "../snapback/generated/api";
+const url = "http://127.0.0.1:4400";
+
+async function profileScreen(client: Client) {
+  const profile = await client.query(api.myProfile, {});
+  if ("loading" in profile) return "loading";
+  if ("denied" in profile) return "error";
+  return profile.data === null ? "profile" : "app";
+}
+
+async function register(email: string, password: string, handle: string) {
+  const visitor = await guest(url);
+  if (!visitor.ok) return { error: visitor.why.message };
+  const beforeSignup = createClient({ url, session: visitor.session });
+  const available = await beforeSignup.query(api.handleAvailable, { handle });
+  await beforeSignup.close();
+  if (!("data" in available) || !available.complete || !available.fresh) return { error: "Try checking the handle again" };
+  if (!available.data) return { error: "Choose another handle" };
+  const account = await signup(url, email, password);
+  if (!account.ok) return { error: account.why.message };
+  const client = createClient({ url, session: account.session });
+  const write = await client.mutate(api.createProfile, { handle });
+  // Keep client/session on failure; the profile screen retries createProfile, not signup.
+  if (write.state === "failed") return { client, screen: "profile", error: write.why.message };
+  if (write.state === "pending") return { client, screen: "profile", waiting: true };
+  return { client, screen: await profileScreen(client) };
+}
+```
+
+On a pending profile write, wait for its terminal outcome before submitting
+again; after a failed write choose a new handle and retry `createProfile`.
+Apply `profileScreen` to the client created from `login` too.
+
 ### Action results
 
 `client.act(op, args)` returns `Act<R>`: `{ state: "done", id, result }`,
@@ -1383,10 +1457,13 @@ step.
   hint on stderr; **`doctor [--json]`** says what is in place: the
   store, its size, schedules and their last boundary, the last job runs,
   the effects by state and the failed ones;
-  **`guide [keyword]`** prints the language card or one card: language,
-  types, indexes, rules, sync, residency, expire, assets, reads, shapes, writes,
+  **`guide [keyword]`** lists cards and aliases, or prints one card: language,
+  types, indexes, rules, sync, residency, prediction, evolution, expire, assets, reads, shapes, writes,
   programs, jobs, native, feeds, search, effects, actions, services, presence,
   bounds, refusals, personas (`guide <E_CODE>` explains a code);
+  Natural words resolve too: `offline` → prediction, `pagination` → reads,
+  `migration` → evolution, `sql` → personas, `push` → effects. An unknown
+  word prints three nearest cards and the list on stdout, then exits 1.
   **`--version`** prints the binary's version, which equals the
   package's. Every flag may be spelled `--flag=value`.
 

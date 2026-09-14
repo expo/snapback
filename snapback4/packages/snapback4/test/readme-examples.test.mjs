@@ -19,6 +19,9 @@ const publicSources = Object.entries(pkg.exports).filter(([key]) => key !== "./c
 const apiStub = `import type { Query, Mutation, Action, Cursor } from "snapback4/contract";
 type Message = { id: string; body: string | null; photo?: { id: string } | null };
 export declare const api: {
+  handleAvailable: Query<{ handle: string }, boolean>;
+  myProfile: Query<{}, { id: string; principal: string; handle: string } | null>;
+  createProfile: Mutation<{ handle: string }, { id: string; principal: string; handle: string }>;
   thread: Query<{ conversationId: string; c?: Cursor | null }, Message[]>;
   inbox: Query<{ c?: Cursor | null }, { conversationId: string }[]>;
   send: Mutation<{ conversationId: string; body: string }, { id: string }>;
