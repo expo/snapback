@@ -5194,3 +5194,18 @@ passed. The unchanged receipt is in `metrics/publish.jsonl`; the
 [performance record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
 preserves qualification details and the sync A/B's separate measured identities.
 Concurrent stream-tail and many-group-feed follow-ups remain open.
+
+## 2026-09-14 — Clique grading comparison needs an avatar-contract qualification
+
+The completed 0.2.10 Astra independent grade reports 99 pass, 2 fail and
+18 not run. Nine missing native proofs were classified as fail on the
+earlier pins and not run here; the smaller fail count is not a corresponding
+product improvement. One new failure follows conflicting frozen requirements:
+the DM-avatar assertion and brief require avatars, while the contract and
+choreography allow the kit's default no-avatar layout. A [narrow instrument
+ticket](../issues/20260914-clique-dm-avatar-assertion-conflicts-with-conditional-kit-contract.md)
+retains the contradiction and received result. The other failure is a
+settings action followed by navigation before admission; its evidence is
+added to the existing navigation follow-up. No received grade, frozen
+instrument or product code changed. Grok's independent grade is running;
+Muse's grade and all fresh M7 sessions remain to be completed.
