@@ -633,8 +633,10 @@ mutation send(conversationId: id, body: text <=4000):
   return { id: msg.id }
 ```
 
-This send stays eligible to predict because presence decides only effects; the server decides who is notified at commit.
-For dispatch-time presence or any other presence-dependent decision, emit unconditionally and have the worker call a service mutation that reads `connected`.
+This send stays eligible to predict because presence decides only effects;
+the server decides who is notified at commit. For dispatch-time presence
+or any other presence-dependent decision, emit unconditionally and have
+the worker call a service mutation that reads `connected`.
 
 The data plane never calls out. `emit name { payload }` in a mutation or
 a job keeps the payload durably in the same commit as the rows (a
@@ -654,8 +656,9 @@ connected[p]` is the test. It is not a table: nothing syncs, nothing is
 written. A mutation reads it to notify only those with no connected
 client (Effects, above); a query reads it for an online mark. On a
 device the word is unknown: a query that reads it is `complete: false`,
-and the server answers it online.
-A mutation stays eligible to predict when presence decides only effects, so its rows are independent of presence and the server decides who is notified at commit.
+and the server answers it online. A mutation stays eligible to predict
+when presence decides only effects, so its rows are independent of
+presence and the server decides who is notified at commit.
 
 ### The meter
 
