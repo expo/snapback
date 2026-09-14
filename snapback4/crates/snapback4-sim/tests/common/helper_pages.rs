@@ -45,6 +45,12 @@ fn nested(i: items):
       return early(i)
   return conditional(i)
 
+fn laneKey(scope: int):
+  for n in range(0, 2):
+    if n = 0:
+      return scope
+  return 99
+
 query withEarly(c: cursor ?):
   return items[] after c last 5 by byN { id, n, mark: early(.) }
 
@@ -66,6 +72,12 @@ query withMerge(c: cursor ?):
     [1]
   return page { id, n, mark: early(.) }
 
+query withMergeSetup(c: cursor ?):
+  page = merge items after c last 5 by byScopeN:
+    [laneKey(0)]
+    [laneKey(1)]
+  return page { id, n, mark: early(.) }
+
 query withMatching(c: cursor ?):
   return items[] matching 'hello' after c last 5 by byWords { id, n, mark: early(.) }
 
@@ -79,6 +91,18 @@ query interrupted(c: cursor ?):
     result = result + [{ id: i.id, n: i.n }]
     break
   return result
+
+query total(c: cursor ?):
+  rows = items[] after c last 5 by byN
+  return count(rows)
+
+query ownedAndLost(c: cursor ?):
+  owned = items[] after c last 5 by byN { id, n }
+  lost = []
+  for i in items[] after c last 5 by byN:
+    lost = lost + [{ id: i.id, n: i.n }]
+    break
+  return { owned, lost }
 
 query returnedFromLoop(c: cursor ?):
   result = []
@@ -110,7 +134,7 @@ pub fn check_pages(name: &str, mut query: impl FnMut(Option<String>) -> QueryOut
         assert!(!read.complete || read.next.is_some() || ids.len() + rows.len() == 12,
             "{name}, page {page}: a lost continuation must not claim complete: {read:?}");
         assert_eq!(read.next.is_some(), page < 2, "{name}, page {page}: {read:?}");
-        assert!(read.complete, "{name}, page {page}: {read:?}");
+        assert_eq!(read.complete, name != "withAuxiliary", "{name}, page {page}: {read:?}");
         for row in rows {
             let id = row.field("id").unwrap().as_str().unwrap().to_owned();
             assert!(ids.insert(id), "{name}: duplicate row");
@@ -136,4 +160,25 @@ pub fn check_full_final_page(read: QueryOutcome) {
     assert_eq!(read.data.as_array().unwrap().len(), 5);
     assert!(read.next.is_none());
     assert!(read.complete, "a full, exhausted page with a proven owner is complete: {read:?}");
+}
+
+pub fn check_collector(read: QueryOutcome, count: usize) {
+    println!("interrupted/{count}: rows={}, next={}, complete={}", read.data.as_array().unwrap().len(), read.next.is_some(), read.complete);
+    assert_eq!(read.data.as_array().unwrap().len(), 1);
+    assert!(read.next.is_none());
+    assert_eq!(read.complete, count == 1, "{count} rows: {read:?}");
+}
+
+pub fn check_total(read: QueryOutcome, count: usize) {
+    println!("total/{count}: value={:?}, next={}, complete={}", read.data, read.next.is_some(), read.complete);
+    assert_eq!(read.data, Value::Int(count.min(5) as i64));
+    assert!(read.next.is_none());
+    assert_eq!(read.complete, count <= 5, "{count} rows: {read:?}");
+}
+
+pub fn check_siblings(read: QueryOutcome, count: usize) {
+    assert_eq!(read.data.field("owned").unwrap().as_array().unwrap().len(), count.min(5));
+    assert_eq!(read.data.field("lost").unwrap().as_array().unwrap().len(), 1);
+    assert_eq!(read.next.is_some(), count > 5, "the owned sibling keeps its cursor: {read:?}");
+    assert_eq!(read.complete, count == 1, "the owned sibling cannot hide the lost page: {read:?}");
 }

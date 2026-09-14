@@ -15,9 +15,17 @@ enum Origin {
 type Bindings = BTreeMap<String, Origin>;
 
 
-pub(super) fn plan(program: &Program) -> BTreeMap<String, String> {
-    if program.kind != ProgramKind::Query { return BTreeMap::new(); }
-    returned_origins(program, false).into_iter().filter_map(|(path, origin)| result_page(&origin).map(|(site, _)| (path, site.to_owned()))).collect()
+#[derive(Default)]
+pub(super) struct Plan {
+    pub returns: BTreeMap<String, String>,
+    pub collectors: BTreeMap<String, String>,
+}
+
+pub(super) fn plan(program: &Program) -> Plan {
+    if program.kind != ProgramKind::Query { return Plan::default(); }
+    let mut collectors = BTreeMap::new();
+    let returns = returned_origins(program, false, &mut collectors).into_iter().filter_map(|(path, origin)| result_page(&origin).map(|(site, _)| (path, site.to_owned()))).collect();
+    Plan { returns, collectors }
 }
 
 /// Read sites whose pages flow to a query return, including cursorless pages.
@@ -35,7 +43,7 @@ pub fn returned_page_sites(program: &Program) -> BTreeSet<String> {
     }
     let mut sites = BTreeSet::new();
     if program.kind == ProgramKind::Query {
-        for origin in returned_origins(program, true).into_values() {
+        for origin in returned_origins(program, true, &mut BTreeMap::new()).into_values() {
             collect(origin, &mut sites);
         }
     }
@@ -64,14 +72,14 @@ fn result_page(origin: &Origin) -> Option<(&str, Option<&str>)> {
     })
 }
 
-fn returned_origins(program: &Program, include_cursorless: bool) -> BTreeMap<String, Origin> {
+fn returned_origins(program: &Program, include_cursorless: bool, collectors: &mut BTreeMap<String, String>) -> BTreeMap<String, Origin> {
     let mut bindings = program.args.iter().filter_map(|(name, kind)| {
         (matches!(kind, ArgType::Cursor)
             || matches!(kind, ArgType::Optional(inner) if matches!(inner.as_ref(), ArgType::Cursor)))
             .then(|| (name.clone(), Origin::Cursor(name.clone())))
     }).collect();
     let mut returns = BTreeMap::new();
-    if origins(&program.body, &program.name, &mut bindings, &mut returns, include_cursorless) {
+    if origins(&program.body, &program.name, &mut bindings, &mut returns, collectors, include_cursorless) {
         returns.insert("fallthrough".into(), Origin::Empty);
     }
     returns
@@ -100,7 +108,7 @@ fn expression_origin(value: &Expr, bindings: &Bindings, include_cursorless: bool
                 if lane.source.is_some() {
                     local.remove(&lane.binding);
                 }
-                origins(&lane.setup, "", &mut local, &mut BTreeMap::new(), include_cursorless);
+                origins(&lane.setup, "", &mut local, &mut BTreeMap::new(), &mut BTreeMap::new(), include_cursorless);
                 let next = scan_cursor(&lane.scan, &local);
                 if next.is_none() || (cursor.is_some() && next != cursor) {
                     return Some(Origin::Page(merge.site.clone(), None));
@@ -176,6 +184,7 @@ fn origins(
     prefix: &str,
     bindings: &mut Bindings,
     returns: &mut BTreeMap<String, Origin>,
+    collectors: &mut BTreeMap<String, String>,
     include_cursorless: bool,
 ) -> bool {
     for (index, statement) in body.iter().enumerate() {
@@ -207,8 +216,8 @@ fn origins(
             } => {
                 let mut yes = bindings.clone();
                 let mut no = bindings.clone();
-                let yes_live = origins(then_body, &format!("{path}:then"), &mut yes, returns, include_cursorless);
-                let no_live = origins(else_body, &format!("{path}:else"), &mut no, returns, include_cursorless);
+                let yes_live = origins(then_body, &format!("{path}:then"), &mut yes, returns, collectors, include_cursorless);
+                let no_live = origins(else_body, &format!("{path}:else"), &mut no, returns, collectors, include_cursorless);
                 *bindings = match (yes_live, no_live) {
                     (true, true) => yes
                         .into_iter()
@@ -230,10 +239,14 @@ fn origins(
                 let mut local = bindings.clone();
                 local.remove(binding);
                 let mut nested = BTreeMap::new();
-                origins(body, &path, &mut local, &mut nested, include_cursorless);
+                origins(body, &path, &mut local, &mut nested, collectors, include_cursorless);
                 returns.extend(nested.into_keys().map(|path| (path, Origin::Empty)));
                 let mut changed = BTreeMap::new();
                 let exits = writes(body, &mut changed, false);
+                // @ref LLP 3000.007#19.2 — retain the rejected collector's page so execution distinguishes an untaken exit or exhausted loop from lost rows.
+                if exits && let Some(Origin::Page(site, _)) = &origin {
+                    collectors.insert(path.clone(), site.clone());
+                }
                 *changed.entry(binding.clone()).or_default() += 1;
                 let targets = body
                     .iter()

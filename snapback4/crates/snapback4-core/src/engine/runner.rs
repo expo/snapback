@@ -21,17 +21,15 @@ pub(super) enum Flow {
     Return(Value),
 }
 
-/// The page a `next` cursor can continue: the last top-level cursor-bearing
-/// scan the program evaluated before it returned.
+/// One evaluated cursor-bearing page; the return plan selects its owner.
 #[derive(Clone, Debug)]
 pub(crate) struct PagePosition {
     pub table: String,
     pub index: String,
     pub order: Order,
     pub prefix_len: usize,
-    /// A full scan still needs a proven result owner when its lookahead
-    /// reached the end: an interrupted shape may have dropped its rows.
-    pub filled: bool,
+    /// A collector exited with rows still unconsumed, even on a short page.
+    pub interrupted: bool,
     /// The suffix values of the last returned row, if another visible row
     /// followed it (else the page is the last one).
     pub next: Option<Vec<Value>>,
@@ -64,7 +62,8 @@ pub struct Runner<'a> {
     pub(crate) page_depth: usize,
     pub(crate) page: Option<PagePosition>,
     pub(crate) pages: BTreeMap<String, PagePosition>,
-    page_plan: BTreeMap<String, String>,
+    pub(super) page_owner: Option<String>,
+    page_plan: super::pages::Plan,
     /// Whether a scan ran whose read rule the prefix does not decide. Such a
     /// result is `capped` whatever the meter found (LLP 1001 §3): a page
     /// that was `complete` only when few hidden rows were walked would
@@ -121,7 +120,8 @@ impl<'a> Runner<'a> {
             page_depth: 0,
             page: None,
             pages: BTreeMap::new(),
-            page_plan: BTreeMap::new(),
+            page_owner: None,
+            page_plan: super::pages::Plan::default(),
             non_uniform: false,
             page_overflow: false,
             word_cut_at: None,
@@ -196,16 +196,21 @@ impl<'a> Runner<'a> {
                     self.statements(branch, &format!("{site}:{arm}"))?
                 }
                 Stmt::For { binding, domain, body } => {
-                    let values = self.domain(domain)?;
+                    let mut values = self.domain(domain)?;
                     let is_page = matches!(domain, LoopDomain::Page(_) | LoopDomain::Recurse(_));
                     if is_page {
                         self.page_depth += 1;
                     }
                     let mut result = Flow::Next;
-                    for value in values {
+                    while let Some(value) = values.next() {
                         if matches!(domain, LoopDomain::LiteralRange { .. } | LoopDomain::ExpressionRange { .. }) { self.meter.step(1)?; }
                         self.bind(binding, value);
-                        match self.statements(body, &site)? {
+                        let flow = self.statements(body, &site)?;
+                        if matches!(flow, Flow::Break | Flow::Return(_)) && values.size_hint().0 > 0
+                            && let Some(page) = self.page_plan.collectors.get(&site).and_then(|page| self.pages.get_mut(page)) {
+                            page.interrupted = true;
+                        }
+                        match flow {
                             Flow::Next | Flow::Continue => {}
                             Flow::Break => break,
                             returned @ Flow::Return(_) => {
@@ -278,7 +283,8 @@ impl<'a> Runner<'a> {
                 }
                 Stmt::Return(value) => {
                     let value = self.expr(value)?;
-                    self.page = self.page_plan.get(&site).and_then(|owner| self.pages.get(owner)).cloned();
+                    self.page_owner = self.page_plan.returns.get(&site).cloned();
+                    self.page = self.page_owner.as_ref().and_then(|owner| self.pages.get(owner)).cloned();
                     Flow::Return(value)
                 },
                 Stmt::Break => Flow::Break,

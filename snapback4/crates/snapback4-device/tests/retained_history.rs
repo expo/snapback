@@ -61,6 +61,15 @@ query history(conversationId: conversations):
   return messages[conversationId] last 50 by byTime
 query recent(conversationId: conversations, c: cursor ?):
   return messages[conversationId] after c last 10 by byTime
+query interrupted(conversationId: conversations, c: cursor ?):
+  result = []
+  for m in messages[conversationId, at >= 22] after c last 5 by byTime:
+    result = result + [m]
+    break
+  return result
+query exhaustedScalar(conversationId: conversations, c: cursor ?):
+  rows = messages[conversationId, at >= 21] after c last 5 by byTime
+  return count(rows)
 query across():
   return messages[] first 50 by byId
 query temporary():
@@ -329,6 +338,30 @@ fn retained_answer<S: DeviceStore>(device: &mut Device<S>, expected: bool, now: 
     assert_eq!(retained, expected);
     assert_eq!(unknown, !expected && !read.complete);
 }
+
+fn collector_coverage<H: Host>(host: &mut H) {
+    let (mut engine, backend, _) = fixture(true, Value::Null);
+    let mut device = host.open("collector", Some(backend)).unwrap();
+    for (n, page) in snapshot(&mut engine, 110).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
+    let watermark = engine.seq().unwrap();
+    write(&mut engine, "leave", "leave-collector", 120, &[]);
+    device.apply(&stream(&mut engine, watermark, 120), false).unwrap();
+    let args = serde_json::json!({"conversationId":"g", "c":null});
+    let (read, unknown, retained) = device.query_with_coverage("interrupted", "dev:bob", &args, 130);
+    let read = read.unwrap();
+    assert_eq!(read.data.as_array().unwrap().len(), 1);
+    assert!(!read.complete && read.next.is_none() && !unknown, "{read:?}");
+    assert!(!retained, "a lost page is an independent incomplete reason");
+    let (read, unknown, retained) = device.query_with_coverage("exhaustedScalar", "dev:bob", &args, 130);
+    let read = read.unwrap();
+    assert_eq!(read.data, Value::Int(5));
+    assert!(!read.complete && read.next.is_none() && !unknown && retained, "only the retained horizon remains: {read:?}; unknown={unknown}, retained={retained}");
+}
+
+#[test]
+fn interrupted_collector_is_not_only_retained_history_sqlite() { collector_coverage(&mut Sqlite::new("collector")); }
+#[test]
+fn interrupted_collector_is_not_only_retained_history_memory() { collector_coverage(&mut Memory::new()); }
 
 fn missed_log<H: Host>(host: &mut H) where H::Store: PhysicalRows {
     for path in ["R1-held-deletion", "R2-unseen-removal", "R3-live-removal"] {

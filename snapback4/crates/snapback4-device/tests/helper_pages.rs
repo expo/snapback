@@ -41,30 +41,63 @@ page_test!(early_return_in_for_keeps_page, "withEarly");
 page_test!(early_return_in_if_else_if_keeps_page, "withConditional");
 page_test!(nested_returning_helper_keeps_page, "withNested");
 page_test!(returning_helper_keeps_merge_page, "withMerge");
+page_test!(returning_helper_inside_merge_setup_keeps_page, "withMergeSetup");
 page_test!(returning_helper_keeps_matching_page, "withMatching");
-page_test!(auxiliary_scan_does_not_reclassify_the_final_page, "withAuxiliary");
+page_test!(auxiliary_lost_page_is_incomplete, "withAuxiliary");
 
-#[test]
-fn lost_continuation_is_incomplete_sqlite() {
-    for count in [5, 12] {
-        let mut host = Sqlite::new("lost-page");
-        let mut device = device_with_rows(&mut host, count);
-        if count == 5 {
-            fixture::check_full_final_page(device.query("withEarly", "dev:alice", &serde_json::json!({}), 100).unwrap());
+macro_rules! collector_test {
+    ($module:ident, $count:literal) => {
+        mod $module {
+            use super::*;
+            fn run<H: Host>(host: &mut H) {
+                fixture::check_collector(device_with_rows(host, $count).query("interrupted", "dev:alice", &serde_json::json!({}), 100).unwrap(), $count);
+            }
+            #[test]
+            fn sqlite() { run(&mut Sqlite::new(stringify!($module))); }
+            #[test]
+            fn memory() { run(&mut Memory::new()); }
         }
-        fixture::check_interrupted(device.query("interrupted", "dev:alice", &serde_json::json!({}), 100).unwrap());
-    }
+    };
 }
 
-#[test]
-fn lost_continuation_is_incomplete_memory() {
-    for count in [5, 12] {
-        let mut device = device_with_rows(&mut Memory::new(), count);
-        if count == 5 {
-            fixture::check_full_final_page(device.query("withEarly", "dev:alice", &serde_json::json!({}), 100).unwrap());
+collector_test!(interrupted_1, 1);
+collector_test!(interrupted_2, 2);
+collector_test!(interrupted_3, 3);
+collector_test!(interrupted_4, 4);
+collector_test!(interrupted_5, 5);
+collector_test!(interrupted_6, 6);
+collector_test!(interrupted_12, 12);
+
+macro_rules! outcome_test {
+    ($module:ident, $count:literal, $op:literal, $check:ident) => {
+        mod $module {
+            use super::*;
+            fn run<H: Host>(host: &mut H) {
+                fixture::$check(device_with_rows(host, $count).query($op, "dev:alice", &serde_json::json!({}), 100).unwrap(), $count);
+            }
+            #[test]
+            fn sqlite() { run(&mut Sqlite::new(stringify!($module))); }
+            #[test]
+            fn memory() { run(&mut Memory::new()); }
         }
-        fixture::check_interrupted(device.query("interrupted", "dev:alice", &serde_json::json!({}), 100).unwrap());
+    };
+}
+
+outcome_test!(exhausted_scalar_is_complete, 5, "total", check_total);
+outcome_test!(continuing_scalar_is_incomplete, 6, "total", check_total);
+outcome_test!(owned_page_and_one_row_sibling_are_complete, 1, "ownedAndLost", check_siblings);
+outcome_test!(owned_page_cannot_mask_short_sibling, 4, "ownedAndLost", check_siblings);
+outcome_test!(owned_page_cannot_mask_continuing_sibling, 6, "ownedAndLost", check_siblings);
+
+mod exhausted_returning_helper_is_complete {
+    use super::*;
+    fn run<H: Host>(host: &mut H) {
+        fixture::check_full_final_page(device_with_rows(host, 5).query("withEarly", "dev:alice", &serde_json::json!({}), 100).unwrap());
     }
+    #[test]
+    fn sqlite() { run(&mut Sqlite::new("helper-exhausted")); }
+    #[test]
+    fn memory() { run(&mut Memory::new()); }
 }
 
 #[test]
