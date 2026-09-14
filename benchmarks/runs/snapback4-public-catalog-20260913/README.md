@@ -1948,3 +1948,24 @@ Each row below pools eight equal 1,000-request blocks. Values are milliseconds; 
 For C1 point reads, body completion after headers averaged 0.0341 ms. The elapsed query interval was the largest mean measured server phase in each group, but these intervals include scheduling and waits. Server timing starts at dispatch, after unobserved accept/parser work; `flushed` means the write/flush call returned, not acknowledgement. Stderr formatting/I/O happens after the last stage while the request permit is still held and can affect later admission. The signed client-minus-server residual is neither network time nor CPU time.
 
 The prepared domain contains all 1,500 feed pages. Selected requests visit 1,259 unique feed pages and 5,555 of the 150-group reader's 30,000 point rows across eight rounds (1,000 unique inputs per corresponding block); C1/C8 use the same selections. Thread requests repeat the first page of group `g020`. This is an instrumented single-host diagnostic, with no optimization adoption, comparator, device, write, durability, WAN or unsampled-performance conclusion.
+
+## Partial HTTP parser-stage diagnostic
+
+The subsequent parser-stage diagnostic **failed and remains partial**. It used the same archived 0.2.8 source `8a81eb855` and `-USQLITE_ENABLE_MEMORY_MANAGEMENT` on Durand, with timestamps added to three existing files. Its experimental CLI `8e1f6507…` (6,967,536 B) passed 26 CLI tests and one explicitly named production reader test, zero failed/ignored; 612 of 615 archived files remained unchanged. That successful build qualification does not qualify the failed HTTP workload.
+
+The load ran 2026-09-14 00:15:08–00:16:22 UTC and exited 1 without retries. It attempted 30,768 selected calls: 30,766 returned exact expected responses and two recorded `UND_ERR_SOCKET` failures (IDs 30766/30767, round 5 C8 point samples 765/766). ID 30768 succeeded. All 30,766 successful calls have exactly one complete 17-stage server trace; neither failed ID has a trace. Thirty 1,000-request blocks completed, followed by 766 successful calls in the unfinished C8 point block. Actual excluded warmups were 930 of the planned 1,440, in addition to 1,500 preparation feed pages. The before-verifier passed nine untimed walks/1,865 pages plus auth/cursor checks using the hash-bound pristine fixture and previously issued sessions. No after-verifier ran. The owned server then exited on controller SIGTERM. Original raw files and the failed receipt remain intact.
+
+The table summarizes available successful observations in milliseconds, using nearest-rank percentiles. C8 point includes the unfinished block and has more samples; these are not a completed, balanced comparison. The evidence record also retains separate complete-block-only distributions and every observed block.
+
+| Case | Successes | Client body mean | First-byte-to-flush mean | Signed residual mean | Client p95 | Client p99 | Client max |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| pointC1 | 5,000 | 2.4676 | 0.7687 | 1.6988 | 3.2387 | 3.8071 | 16.1547 |
+| threadC1 | 5,000 | 2.8544 | 1.1585 | 1.6959 | 3.9212 | 4.7377 | 17.2647 |
+| feedC1 | 5,000 | 4.9700 | 3.4579 | 1.5121 | 5.7133 | 6.1450 | 15.7557 |
+| pointC8 | 5,766 | 2.6871 | 1.7200 | 0.9671 | 3.9371 | 5.9471 | 12.3870 |
+| threadC8 | 5,000 | 3.9702 | 2.8958 | 1.0744 | 5.1348 | 5.8339 | 10.6139 |
+| feedC8 | 5,000 | 6.5800 | 5.3893 | 1.1906 | 8.2487 | 10.1393 | 27.6284 |
+
+For C1 point reads, the added parser interval averaged 0.0187 ms and the following construction/queue/scheduling interval to dispatch 0.0179 ms. These clocks begin only after the parser observes its first byte, including ordinary small-body prebuffering afterward. They exclude waiting for that first byte and prior buffering; neither endpoint is packet arrival. Stages are elapsed intervals, not CPU time. Client-minus-flush remains a signed difference across different boundaries, not network time. Successful calls visited 5,185 point rows and 1,148 feed pages from the 30,000-row/1,500-page domains; thread calls repeat the first page of `g020`.
+
+The source can close before trace emission through connection admission, request admission, or socket/deadline handling. Diagnostic stderr formatting/I/O also retains a request permit after the last timestamp and response flush, so completed client calls need not imply released server permits. These are hypotheses, not an identified failure cause. There is no server close-reason observation, successful complete-run qualification, adoption, comparator, device, write, durability, WAN or unsampled-performance conclusion.
