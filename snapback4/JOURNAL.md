@@ -6356,3 +6356,109 @@ ref-check: ok — 474 LLP docs, 8849 refs in 22825 files, 0 errors, 0 unchecked
 No implementation work is deferred; the remaining external verification is
 Chromium outside this sandbox. The inherited root caps overflow remains
 untouched. The final working tree contains only the 19 intended lane files.
+
+
+## 2026-09-14 — Lane E: a queued web write survives navigation (S29)
+
+Implemented LLP 3000.007 §20.4 against base
+`33b530d41b00f1d685656f360e37c52ec1255ad6`. Read the inventory's S29,
+the 0.2.12 run's epoch 1789409378 and `m3-choreo.txt` (under its
+0.2.11-named lane directory), and the 0.2.6 Astra diary's M3: both
+builders routed administrative writes around the local client to survive
+navigation. The Node reproduction uses fake page events, the real wasm
+device, and a real `snapback4 dev` HTTP server. Before the fix it measured
+2 durable admissions, 0 exit requests, 0 server rows before reopen, and
+2 rows only after reopening the device. After the fix it measured 2 exit
+requests and 2 rows before reopen; explicit duplicate HTTP requests and
+reopening with the same mutation IDs left exactly 2 rows.
+
+The web device already awaited `save` before returning an admission, and
+IndexedDB `save` already awaited transaction completion. Its read/write
+transactions now request strict durability. A synchronous view of committed
+outbox entries changes only after a successful save; a failed save stops
+further device calls so a drained but uncommitted admission cannot leak
+into either transport. Pagehide and hidden visibility dispatch committed
+unsent writes with authenticated fetch keepalive, without the ordinary
+client's abort signal. Closing unregisters the hooks without cancelling
+requests already dispatched. No Node process-device or Expo implementation
+changed. The synchronous web hook advances the device send revision before
+each dispatch wave, so a sync already in flight cannot apply an older
+receipt on a resumed page; metadata persistence stays ordered behind any
+current IndexedDB transaction. Settlement stays with ordinary sends and
+sync receipts, so the next page reuses the same mutation IDs.
+
+Keepalive counts UTF-8 JSON body bytes across these clients in the same
+module instance. The test measured 64,082 bytes across 2 concurrent
+requests against the 65,536-byte browser budget; 2 further requests
+(including another client's) dispatched as quota was released. Larger
+queues split into waves while the page can still run. A single atomic
+mutation over 65,536 bytes cannot be split across the existing `/m`
+endpoint, and the page may disappear before a subsequent wave starts;
+those entries remain durable for ordinary sends or reopening. Other page
+libraries can also consume the browser quota. Beacon is not a fallback:
+it cannot attach the endpoint's bearer/persona headers and shares the
+keepalive quota. The README and writes card state the bounded behavior.
+No E_/N_ code or diagnostic text was added or changed.
+
+Added `witness/navigation.mjs`: it checks actual IndexedDB admissions,
+performs a full navigation to about:blank, queries the server before
+opening another device, and checks replay. **The real-browser reproduction
+did not run:** `node witness/navigation.mjs` exited 1 on Chromium
+`signal=SIGABRT` before a page could launch, both on the unchanged base
+and after implementation. The executable reproduction here is Node-level;
+the witness remains for the lead to run outside this sandbox.
+
+Validation used Node 24.18.0 with
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`; package and
+Node commands ran from `snapback4/`, the suite and ref-check from the
+repository root. No install, commit, push, tag or publication occurred.
+
+- `node --test packages/snapback4/test/web-navigation.test.mjs`: initial
+  regression `ℹ tests 4`, `ℹ pass 0`, `ℹ fail 4` before implementation;
+  `ℹ tests 4`, `ℹ pass 4`, `ℹ fail 0` after it. Final expanded file:
+  `ℹ tests 7`, `ℹ pass 7`, `ℹ fail 0`.
+- To verify the additional regressions against the same base without
+  changing the worktree, compiled a temporary package with `local.ts`
+  and `web.ts` read verbatim from `git show HEAD:<path>`. Ran
+  `node --test --test-name-pattern='pagehide|hidden flushes|mutate waits|IndexedDB|failed persistence|older sync' /tmp/lane-e-base-package/web-navigation.test.mjs`:
+  `ℹ tests 6`, `ℹ pass 0`, `ℹ fail 6`. The same command against
+  `packages/snapback4/test/web-navigation.test.mjs` on the fix:
+  `ℹ tests 6`, `ℹ pass 6`, `ℹ fail 0`.
+- `node --test packages/snapback4/test/web-navigation.test.mjs packages/snapback4/test/local-e2e.test.mjs packages/snapback4/test/client-lifecycle.test.mjs`:
+  initially `ℹ tests 57`, `ℹ pass 56`, `ℹ fail 1` because the new stale-sync
+  test omitted the required `snapshot`/`more` fields; after correcting its
+  fixture, `ℹ tests 57`, `ℹ pass 57`, `ℹ fail 0`. Subsequent keepalive-wave
+  refinements passed the 7-test file and the final complete suite.
+- `bun run --cwd packages/snapback4 typecheck`: exit 0,
+  `$ tsc -p tsconfig.json --noEmit`.
+- `node --test packages/snapback4/test/react.test.mjs`: `ℹ tests 1`,
+  `ℹ pass 0`, `ℹ fail 1`; Chromium SIGABRT before page launch. This is
+  the same launch failure reproduced with the witness on the exact base.
+- `bash snapback4/scripts/test.sh`, initial run: Rust 567 passed, 0 failed,
+  1 ignored; fixtures 9/9; client `ℹ tests 144`, `ℹ pass 142`,
+  `ℹ fail 2` (Chromium and the subsequently corrected test fixture);
+  `== 1 failure(s) in 129 s`.
+- `bash snapback4/scripts/test.sh`, final run: Rust 567 passed, 0 failed,
+  1 ignored; builds and all typechecks green; the only failure was
+  Chromium launching the React test:
+
+```text
+-- ok: cargo test (75 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (10 s)
+ℹ tests 144
+ℹ pass 143
+ℹ fail 1
+-- FAIL: client tests (44 s)
+== 1 failure(s) in 78 s
+```
+
+The persistence-ordering and shared aggregate quota were the important
+findings: awaiting the outbox commit solves durability but does not send
+the write, and splitting bodies alone cannot evade the browser's total
+keepalive budget. No out-of-scope files were touched; the guide change is
+four lines in the published writes card. The remaining external check is
+the browser witness outside the sandbox, and unrestricted unload delivery
+beyond the browser quota is not claimed.

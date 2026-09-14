@@ -941,6 +941,11 @@ const client = await createLocalClient({ url, session, device: processDevice({ d
 await client.close();
 ```
 
+On the web, `mutate` waits for the outbox's IndexedDB commit, and `pagehide`
+or becoming hidden sends queued writes with authenticated keepalive requests
+within the browser's shared 64 KiB body budget; unsent or unconfirmed writes
+stay durable for retry on reopen, with mutation-id dedupe preventing duplicates.
+
 On the web one tab is one device: a second tab on the same store opens
 its own, and the writes a tab left queued when it closed are adopted by
 the next device that opens the store. `webDevice({ wasm })` takes the

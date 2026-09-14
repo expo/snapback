@@ -7,6 +7,7 @@
 
 import type { BackendJson } from "./backend.ts";
 import type { DeviceCore, DeviceOpener } from "./local.ts";
+import type { PendingSend } from "./local-exit.ts";
 import init, { WebDevice } from "./wasm/snapback4_device.js";
 
 /** One change the device reported: the store (`r` rows, `m` metadata, `o`
@@ -52,20 +53,68 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       await ready;
       const store = await claim(name);
       let device: WebDevice;
+      const committed = new Map<string, { seq: number; id: string; op: string; args: unknown; new_ids: string[]; sent_seq?: number | null }>();
+      const remember = (changes: Change[]) => {
+        for (const change of changes) if (change.s === "o") {
+          if (change.v === null) committed.delete(change.k);
+          else committed.set(change.k, JSON.parse(change.v));
+        }
+      };
       try {
-        device = new WebDevice(backend ? JSON.stringify(backend) : null, JSON.stringify(await persist.load(store.name)));
+        const saved = await persist.load(store.name);
+        device = new WebDevice(backend ? JSON.stringify(backend) : null, JSON.stringify(saved));
+        remember(saved);
       } catch (error) {
         await store.release();
         throw new Error(refusalText(error));
       }
       let chain: Promise<unknown> = Promise.resolve();
+      let failed: { error: unknown } | undefined;
+      let closed = false;
       const settle = async (): Promise<void> => {
         const changes = JSON.parse(device.drain()) as Change[];
-        if (changes.length) await persist.save(store.name, changes);
+        if (changes.length) {
+          try { await persist.save(store.name, changes); }
+          catch (error) { failed = { error }; throw error; }
+          remember(changes);
+        }
       };
-      await settle();
-      await adoptOrphans(device, name, store.name, persist, settle);
+      try {
+        await settle();
+        await adoptOrphans(device, name, store.name, persist, settle);
+      } catch (error) { device.free(); await store.release(); throw error; }
+      const suspendListeners = new Set<() => void>();
       const core: DeviceCore = {
+        onSuspend(flush) {
+          if (typeof window === "undefined" || typeof document === "undefined") return () => {};
+          const page = window, doc = document;
+          const beginSend = () => {
+            if (failed || closed) return false;
+            // Invalidate any sync already in flight, including a bfcache page's
+            // snapshot. The synchronous VM call precedes each wave of sends;
+            // its metadata is persisted in order behind any current IDB save.
+            const started = JSON.parse(device.call(JSON.stringify({ op: "begin_send" })));
+            if (started.denied) return false;
+            chain = chain.then(settle).catch(error => { failed = { error }; });
+            return true;
+          };
+          const suspend = () => {
+            if (failed || closed) return;
+            const entries: PendingSend[] = [...committed.values()].filter(e => e.sent_seq == null).sort((a, b) => a.seq - b.seq)
+              .map(e => ({ id: e.id, op: e.op, args: e.args, newIds: e.new_ids }));
+            if (entries.length) flush(entries, beginSend);
+          };
+          const hidden = () => { if (doc.visibilityState === "hidden") suspend(); };
+          const stop = () => {
+            page.removeEventListener("pagehide", suspend);
+            doc.removeEventListener("visibilitychange", hidden);
+            suspendListeners.delete(stop);
+          };
+          page.addEventListener("pagehide", suspend);
+          doc.addEventListener("visibilitychange", hidden);
+          suspendListeners.add(stop);
+          return stop;
+        },
         media: {
           async read(id) { return persist.read ? persist.read(`snapback4-media:${store.name}`, "a", id) : (await persist.load(`snapback4-media:${store.name}`)).find((c) => c.k === id)?.v ?? null; },
           async write(id, hex) { await persist.save(`snapback4-media:${store.name}`, [{ s: "a", k: id, v: hex }]); },
@@ -73,6 +122,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         },
         call(request) {
           const answer = chain.then(async () => {
+            if (failed) throw failed.error;
             const reply = JSON.parse(device.call(JSON.stringify(request))) as Record<string, unknown>;
             await settle();
             return reply;
@@ -81,6 +131,8 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           return answer;
         },
         async close() {
+          closed = true;
+          for (const stop of suspendListeners) stop();
           await chain;
           device.free();
           await store.release();
@@ -237,7 +289,7 @@ export function indexedDbPersistence(): Persistence {
     async save(name, changes) {
       const db = await open(name);
       try {
-        const tx = db.transaction("changes", "readwrite");
+        const tx = db.transaction("changes", "readwrite", { durability: "strict" });
         const store = tx.objectStore("changes");
         for (const change of changes) {
           if (change.v === null) store.delete([change.s, change.k]);
