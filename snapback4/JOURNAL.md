@@ -4944,3 +4944,15 @@ out outside the sandbox when the machine is loaded: the child stalls in
 Versions move to 0.2.12 (client, darwin binary, crate) and snapback4-expo
 0.2.4. Another session published 0.2.11 at 15:24 UTC with bounded HTTP
 reader reuse, so this pin is the next number.
+
+## 2026-09-14 — published: snapback4 0.2.12, snapback4-expo 0.2.4
+
+`scripts/publish.mjs` ran from `a5ef8da61`, 16:50–16:54 UTC. Its suite had
+no failure in 82 s. The production binary is 7,877,184 packed bytes, sha256
+`46696513876d0bbb059b51ae2711fb04b4c77c628b7b767a7b551ca3178bf1a1`. The
+installed-consumer proof passed: a query came back complete and fresh, an
+online write was sent, and an offline write stayed pending. npm served
+`snapback4@0.2.12` and `snapback4-darwin-arm64@0.2.12` at 16:55 UTC. The
+xcframework rebuilt in 74 s, and `snapback4-expo@0.2.4` was served at 16:57
+UTC. The receipt line is in `metrics/publish.jsonl`. The ceremony bar's
+fourth run and the Astra calibration run on this pin.
