@@ -37,11 +37,18 @@ table messages:
   at: time
   body: text <=40
   by byTime: room, at, id
+  by byWords: room, words(body), at, id
   read <- exists members[.room, viewer]
   retain delivered-history
   sync to members[.room] last 25 by byTime
 query history(room: text <=40):
   return messages[room] last 50 by byTime
+query search(room: text <=40, q: text <=40, c: cursor ?):
+  return merge messages matching q after c last 50 by byWords:
+    [room]
+query mixed():
+  ignored = messages['left'] last 1 by byTime
+  return messages['held'] last 50 by byTime
 query across():
   return messages[] first 100 by byId
 mutation join(room: text <=40):
@@ -49,7 +56,7 @@ mutation join(room: text <=40):
 mutation leave(room: text <=40):
   delete members[room = room, principal = 'dev:bob']
 `;
-for (const tier of ["wasm", "process"]) test(`R5 ${tier}: online reads and watches keep left history; held incomplete reads use the server`, { timeout: 60000 }, async (t) => {
+for (const tier of ["wasm", "process"]) for (const scenario of ["R5 history", "R1a empty search", "R1a mixed reads"]) test(`${scenario} ${tier}: retained history and independent held coverage`, { timeout: 60000 }, async (t) => {
   const directory = mkdtempSync(join(tmpdir(), "sb4-retained-"));
   mkdirSync(join(directory, "snapback"));
   writeFileSync(join(directory, "snapback/schema.q"), source);
@@ -62,17 +69,17 @@ for (const tier of ["wasm", "process"]) test(`R5 ${tier}: online reads and watch
   t.after(async () => { await client?.close(); if (child.exitCode == null && child.signalCode == null) child.kill("SIGTERM"); await exit; });
   await until(() => { assert.equal(child.exitCode, null, log); return url; }, "server did not listen");
   const post = async (path, body, persona = "alice") => fetch(`${url}${path}`, { method: "POST", headers: { "x-snapback-persona": persona }, body: JSON.stringify(body) }).then((r) => r.json());
-  const rows = ["left", "held"].flatMap((room) => Array.from({ length: 26 }, (_, at) => ({ table: "messages", row: { id: `${room}-${at}`, room, at, body: "delivered" } })));
+  const rows = ["left", "held"].flatMap((room) => Array.from({ length: 26 }, (_, at) => ({ table: "messages", row: { id: `${room}-${at}`, room, at, body: at === 0 ? "needle" : "delivered" } })));
   rows.push(...["left", "held"].map((room) => ({ table: "members", row: { id: `alice-${room}`, room, principal: "dev:alice" } })));
   assert.equal((await post("/seed", rows)).seeded, 54);
   for (const room of ["left", "held"]) assert.equal((await post("/m/join", { args: { room }, id: `join-${room}` })).state, "sent");
   let offline = false;
-  const requests = [], deviceAnswers = [];
+  const requests = [], deviceAnswers = [], allRequests = [], allAnswers = [];
   const directoryDevice = join(directory, "device"); mkdirSync(directoryDevice);
   const opener = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ binary, dir: directoryDevice, spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
   client = await createLocalClient({ url, persona: "bob", waitSeconds: 1,
-    fetch: async (input, init) => { if (offline) throw new TypeError("test offline"); if (new URL(input).pathname === "/q/history") requests.push(JSON.parse(init.body).args.room); return fetch(input, init); },
-    device: { open: async (...args) => { const core = await opener.open(...args); return { close: () => core.close(), call: async (request) => { const reply = await core.call(request); if (request.op === "query" && request.name === "history") deviceAnswers.push({ room: request.args.room, ...reply.ok }); return reply; } }; } },
+    fetch: async (input, init) => { if (offline) throw new TypeError("test offline"); allRequests.push(new URL(input).pathname); if (new URL(input).pathname === "/q/history") requests.push(JSON.parse(init.body).args.room); return fetch(input, init); },
+    device: { open: async (...args) => { const core = await opener.open(...args); return { close: () => core.close(), call: async (request) => { const reply = await core.call(request); if (request.op === "query") allAnswers.push({ name: request.name, ...reply.ok }); if (request.op === "query" && request.name === "history") deviceAnswers.push({ room: request.args.room, ...reply.ok }); return reply; } }; } },
   });
   await client.sync();
   const held = await client.query(query, { room: "held" });
@@ -86,6 +93,35 @@ for (const tier of ["wasm", "process"]) test(`R5 ${tier}: online reads and watch
   await until(() => watch.getSnapshot().data?.length === 26, "held watch missing");
   assert.equal((await post("/m/leave", { args: { room: "left" }, id: "leave-left" })).state, "sent");
   await client.sync();
+  if (scenario === "R1a empty search") {
+    const search = { kind: "query", name: "search" };
+    const heldSearch = await client.query(search, { room: "held", q: "needle" });
+    assert.equal(heldSearch.data.length, 1, "held empty device search must fall back for the omitted oldest row");
+    assert.equal(heldSearch.complete, true);
+    const from = allRequests.length;
+    const leftSearch = await client.query(search, { room: "left", q: "needle" });
+    assert.deepEqual(leftSearch.data, []);
+    assert.equal(leftSearch.complete, false);
+    assert.ok(!allRequests.slice(from).includes("/q/search"), "left empty search remains a device answer");
+    assert.equal((await client.query(search, { room: "left", q: "del" })).data.length, 25);
+    console.log(`R1a ${tier} empty search: held=${heldSearch.data.length}, complete=${heldSearch.complete}; left=${leftSearch.data.length}, complete=${leftSearch.complete}`);
+    return;
+  }
+  if (scenario === "R1a mixed reads") {
+    const mixed = { kind: "query", name: "mixed" };
+    const result = await client.query(mixed, {});
+    assert.equal(result.data.length, 26, "an unrelated left read must not mask the held horizon");
+    assert.equal(result.complete, true);
+    assert.ok(allRequests.includes("/q/mixed"));
+    assert.ok(allAnswers.some((answer) => answer.name === "mixed" && answer.data?.length === 25 && answer.unknown === true && answer.retained === false));
+    const mixedWatch = client.observe(mixed, {});
+    t.after(() => mixedWatch.close());
+    const stop = mixedWatch.subscribe(() => {}); t.after(stop);
+    await until(() => mixedWatch.getSnapshot().data?.length === 26, "mixed watch must fall back for held coverage");
+    assert.equal((await client.query(query, { room: "left" })).data.length, 25);
+    console.log(`R1a ${tier} mixed: device=25, server=${result.data.length}, watch=${mixedWatch.getSnapshot().data.length}`);
+    return;
+  }
   const left = await client.query(query, { room: "left" });
   console.log(`R5 ${tier} online left: rows=${left.data?.length}, complete=${left.complete}; held: rows=${held.data.length}, complete=${held.complete}`);
   assert.equal(left.data.length, 25, "online read must return retained history");

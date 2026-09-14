@@ -529,22 +529,22 @@ impl<S: DeviceStore> Device<S> {
             let context = Context::new(viewer, typed_args(&program, args)?).at(now);
             let tx = self.store.read_transaction()?;
             let reading = history::Reading { tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, retained: std::cell::Cell::new(false) };
-            let (result, coverage) = if program.native {
+            let (result, coverage, history_only) = if program.native {
                 // A native read over the rows held (LLP 3000.005 §9); without
                 // the module the device does not know, and the host asks the
                 // server.
                 #[cfg(feature = "wasm-host")]
                 match &self.native {
                     Some(module) => local::native_query(&reading, &self.schema, module, &program, context, Ceilings::default()),
-                    None => (Err(RuntimeError::Native { code: "E_NATIVE".into(), message: format!("{name} is a native read and this device has no module yet") }.refusal()), true),
+                    None => (Err(RuntimeError::Native { code: "E_NATIVE".into(), message: format!("{name} is a native read and this device has no module yet") }.refusal()), true, false),
                 }
                 #[cfg(not(feature = "wasm-host"))]
-                (Err(RuntimeError::Native { code: "E_NATIVE".into(), message: format!("{name} is a native read and this device was built without the wasm host") }.refusal()), true)
+                (Err(RuntimeError::Native { code: "E_NATIVE".into(), message: format!("{name} is a native read and this device was built without the wasm host") }.refusal()), true, false)
             } else {
                 local::query_with_coverage(&reading, &self.schema, &program, context, Ceilings::default())
             };
             unknown = coverage;
-            retained = reading.retained.get();
+            retained = reading.retained.get() && history_only;
             drop(reading);
             tx.rollback()?;
             result

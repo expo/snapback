@@ -25,6 +25,25 @@ pub fn scan_visibility(schema: &Schema, scan: &Scan) -> Visibility {
     prefix_visibility(&scan.table, table, &table.rules.read, &pinned)
 }
 
+// @ref LLP 3000.007#18.1 — a pinned conjunct can deny a non-uniform scope before its hidden words or rows are discovered.
+pub(super) fn prefix_decision(schema: &Schema, scan: &Scan) -> Option<RuleExpr> {
+    let table = schema.table(&scan.table)?;
+    let index = table.index(&scan.index)?;
+    let pinned = index.components.iter().zip(&scan.prefix).filter_map(|(part, key)| part.column().zip(key.scalar())).collect();
+    let rule = &table.rules.read;
+    if prefix_visibility(&scan.table, table, rule, &pinned).uniform { return Some(rule.clone()); }
+    let RuleExpr::And(terms) = rule else { return None };
+    fn pinned_conjuncts(terms: &[RuleExpr], table_name: &str, table: &Table, pinned: &BTreeMap<&String, &Expr>, out: &mut Vec<RuleExpr>) {
+        for term in terms {
+            if prefix_visibility(table_name, table, term, pinned).uniform { out.push(term.clone()); }
+            else if let RuleExpr::And(terms) = term { pinned_conjuncts(terms, table_name, table, pinned, out); }
+        }
+    }
+    let mut decided = Vec::new();
+    pinned_conjuncts(terms, &scan.table, table, &pinned, &mut decided);
+    (!decided.is_empty()).then_some(RuleExpr::And(decided))
+}
+
 /// Lazy lanes need a position that identifies one row within the lane.
 /// Keep setup evaluation and non-uniform traversal in their original order.
 pub fn lazy_merge(schema: &Schema, merge: &Merge) -> bool {

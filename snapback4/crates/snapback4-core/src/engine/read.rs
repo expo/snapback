@@ -14,6 +14,13 @@ use crate::value::{Value, canonical_json};
 use std::cmp::Ordering;
 use std::collections::{BTreeSet, BinaryHeap, VecDeque};
 
+// @ref LLP 3000.007#18.1 — search state belongs to the generated word merge's direct lanes, never to an expression nested inside one.
+struct WordRead {
+    admitted: bool,
+    fields: Vec<String>,
+    terms: Vec<String>,
+}
+
 struct MergeHead {
     key: Vec<Value>,
     row: Value,
@@ -50,6 +57,34 @@ impl Probe for Runner<'_> {
 }
 
 impl Runner<'_> {
+    // @ref LLP 3000.007#17 — the dependency envelope is schema-derived too; short-circuit probes cannot disclose a hidden answer through tables.
+    fn rule_dependencies(&mut self, rule: &crate::schema::RuleExpr) {
+        let mut sites = Vec::new();
+        rules::probe_sites(rule, &mut sites);
+        for (table, _) in sites {
+            if let Some(maintain) = self.schema.maintain_for(&table)
+                && self.schema.table(&maintain.source).is_some_and(|source| source.expire.is_some()) {
+                self.read_tables.insert(maintain.source.clone());
+            }
+            self.read_tables.insert(table);
+        }
+    }
+
+    fn prefix_verdict(&mut self, table: &Table, index: &Index, prefix: &[Value], rule: &crate::schema::RuleExpr) -> Result<bool, RuntimeError> {
+        let probe_row = Value::Row(index.components.iter().zip(prefix).filter_map(|(part, value)| part.column().map(|name| (name.clone(), value.clone()))).collect::<std::collections::BTreeMap<_, _>>().into());
+        let viewer = self.context.viewer.clone();
+        let expiry = self.next_expiry;
+        let verdict = rules::evaluate(rule, &viewer, None, &probe_row, false, &mut PrefixProbe { runner: self })?;
+        if !verdict { self.next_expiry = expiry; }
+        // A partial conjunction denial costs the same static allowance as a uniform denial.
+        Ok(self.meter.charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? && verdict)
+    }
+
+    fn horizon_coverage(&mut self, scan: &Scan, prefix: &[Value], retained: bool) {
+        if retained { self.beyond_horizon = true; }
+        else { self.unknown_fact(&scan.table, &scan.index, prefix, &scan.site); }
+    }
+
     // @ref LLP 3000.007#17 — one rule probe, regardless of expired siblings or an expiring maintain's sources.
     fn rule_probe_exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         let definition = self.schema.table(table).ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
@@ -198,6 +233,7 @@ impl Runner<'_> {
             return Ok(true);
         }
         let rule = table.rules.for_effect(effect).clone();
+        if effect == Effect::Read { self.rule_dependencies(&rule); }
         let mut next = next.clone();
         materialize_optional_fields(&mut next, table);
         let old = old.map(|old| {
@@ -227,6 +263,7 @@ impl Runner<'_> {
         let table = self.schema.table(&read.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", read.table)))?;
         let index = table.index(&read.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", read.table, read.index)))?;
         self.read_tables.insert(read.table.clone());
+        self.rule_dependencies(&table.rules.read);
         self.meter.at(&read.site);
         if self.filter_depth > 0 && !self.meter.charge(MeterKind::RuleProbes, 1)? { return Ok(Value::Null); }
         if self.device && table.sync.is_none() {
@@ -311,9 +348,14 @@ impl Runner<'_> {
         };
         let terms = crate::words::terms(&text);
         self.read_tables.insert(scan.table.clone());
+        self.rule_dependencies(&table.rules.read);
         self.meter.at(&scan.site);
         if self.device && table.sync.is_none() {
             self.unknown_fact(&scan.table, &scan.index, &scope, &scan.site);
+        }
+        if self.device && table.sync.as_ref().is_some_and(|sync| sync.horizon.is_some()) {
+            let retained = self.tx.retained_group(&scan.table, &scan.index, &scope)?;
+            self.horizon_coverage(scan, &scope, retained);
         }
         let empty_page = |this: &mut Self| {
             if this.page_depth == 0 && scan.opaque_cursor {
@@ -328,22 +370,14 @@ impl Runner<'_> {
             empty_page(self);
             return Ok(Vec::new());
         }
-        if visibility.uniform && !admitted {
+        if !admitted && let Some(rule) = rules::prefix_decision(self.schema, scan) {
             let aborting = self.meter.cut == crate::meter::Cut::Abort;
             if aborting && !self.meter.charge(MeterKind::Examined, 1)? { empty_page(self); return Ok(Vec::new()); }
-            let probe_row = Value::Row(index.components.iter().zip(&scope).filter_map(|(part, value)| part.column().map(|name| (name.clone(), value.clone()))).collect::<std::collections::BTreeMap<_, _>>().into());
-            let viewer = self.context.viewer.clone();
-            let expiry = self.next_expiry;
-            let mut probe = PrefixProbe { runner: self };
-            let verdict = rules::evaluate(&table.rules.read, &viewer, None, &probe_row, false, &mut probe)?;
-            if !verdict { self.next_expiry = expiry; }
-            // @ref LLP 3000.007#17 — W5's allowance holds per lane: one static charge on either verdict, never the probes a short-circuit ran.
-            if !self.meter.charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? { empty_page(self); return Ok(Vec::new()); }
-            if !verdict {
+            if !self.prefix_verdict(table, index, &scope, &rule)? {
                 empty_page(self);
                 return Ok(Vec::new());
             }
-            admitted = true;
+            admitted = visibility.uniform;
         }
         // The words the first term is a prefix of, one seek per word: the
         // seek lands on the word's first entry, the next seek starts past
@@ -388,12 +422,8 @@ impl Runner<'_> {
             })
             .collect();
         let merge = Merge { site: scan.site.clone(), lanes };
-        let prior_filter = std::mem::replace(&mut self.word_filter, (terms.len() > 1).then(|| (fields, terms[1..].to_vec())));
-        let prior_verdict = std::mem::replace(&mut self.word_verdict, admitted.then(|| scan.site.clone()));
-        let merged = if rules::lazy_merge(self.schema, &merge) { self.merge_lazy(&merge) } else { self.merge(&merge) };
-        self.word_filter = prior_filter;
-        self.word_verdict = prior_verdict;
-        merged
+        let word = WordRead { admitted, fields, terms: terms[1..].to_vec() };
+        self.merge_with_words(&merge, Some(&word))
     }
 
     fn take(&self, bound: &Bound) -> Result<usize, RuntimeError> {
@@ -454,6 +484,10 @@ impl Runner<'_> {
     }
 
     pub(super) fn scan_with_keys(&mut self, scan: &Scan) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
+        self.scan_with_words(scan, None)
+    }
+
+    fn scan_with_words(&mut self, scan: &Scan, word: Option<&WordRead>) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
         if scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_))) {
             // A search page is a merge of word lanes; it carries no keys of
             // its own (a job never sweeps a words index).
@@ -464,17 +498,18 @@ impl Runner<'_> {
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
         let bounds = self.bounds(scan, table, index)?;
         let take = self.take(&scan.take)?;
-        self.scan_prepared(scan, prefix, bounds, take)
+        self.scan_prepared(scan, prefix, bounds, take, word)
     }
 
     /// Resume a merge lane using its already evaluated bounds. The original
     /// expressions still govern uniformity; freezing them into literals would
     /// lose facts such as a prefix pinned to `viewer`.
-    fn scan_prepared(&mut self, scan: &Scan, prefix: Vec<Value>, bounds: Bounds, take: usize) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
+    fn scan_prepared(&mut self, scan: &Scan, prefix: Vec<Value>, bounds: Bounds, take: usize, word: Option<&WordRead>) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
         let retained = self.device && self.tx.retained_group(&scan.table, &scan.index, &prefix)?;
         self.read_tables.insert(scan.table.clone());
+        self.rule_dependencies(&table.rules.read);
         self.meter.at(&scan.site);
         if self.device && table.sync.is_none() {
             self.unknown_fact(&scan.table, &scan.index, &prefix, &scan.site);
@@ -484,7 +519,7 @@ impl Runner<'_> {
             Order::Desc => Dir::Desc,
         };
         let visibility = rules::scan_visibility(self.schema, scan);
-        let always_visible = self.word_verdict.as_ref() == Some(&scan.site) || self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
+        let always_visible = word.is_some_and(|word| word.admitted) || self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
         if !visibility.uniform && !always_visible && !(self.device && table.sync.is_some()) {
             self.non_uniform = true;
         }
@@ -497,19 +532,9 @@ impl Runner<'_> {
         // @ref LLP 3000.007#17 — an aborting page pass costs one examined unit before its verdict in every world; capped queries retain their cut contract.
         let aborting = self.meter.cut == crate::meter::Cut::Abort;
         if aborting && !self.meter.charge(MeterKind::Examined, 1)? { return Ok((Vec::new(), Vec::new())); }
-        if visibility.uniform && !always_visible {
-            let probe_row = Value::Row(index.components.iter().zip(&prefix).filter_map(|(part, value)| part.column().map(|name| (name.clone(), value.clone()))).collect::<std::collections::BTreeMap<_, _>>().into());
-            let viewer = self.context.viewer.clone();
-            let expiry = self.next_expiry;
-            let mut probe = PrefixProbe { runner: self };
-            let verdict = rules::evaluate(&table.rules.read, &viewer, None, &probe_row, false, &mut probe)?;
-            if !verdict { self.next_expiry = expiry; }
-            // @ref LLP 3000.007#17 — W5: one static allowance on either verdict; short-circuit answers never determine the charge.
-            if !self.meter.charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? { return Ok((Vec::new(), Vec::new())); }
-            if !verdict {
-                return Ok((Vec::new(), Vec::new()));
-            }
-            uniform_verdict = Some(true);
+        if !always_visible && word.is_none() && let Some(rule) = rules::prefix_decision(self.schema, scan) {
+            if !self.prefix_verdict(table, index, &prefix, &rule)? { return Ok((Vec::new(), Vec::new())); }
+            if visibility.uniform { uniform_verdict = Some(true); }
         }
         // Non-uniform hidden runs cost examined rows, never a materialized
         // table. A uniform page already has its verdict before fetching.
@@ -534,9 +559,9 @@ impl Runner<'_> {
                 }
                 // A search's further terms: a row a lane found under its
                 // first word still has to carry the rest.
-                let unmatched = self.word_filter.as_ref().is_some_and(|(fields, terms)| {
-                    let texts: Vec<&str> = fields.iter().filter_map(|field| row.field(field).ok().and_then(|value| value.as_str().ok())).collect();
-                    !crate::words::row_matches(&crate::words::row_tokens(texts), terms)
+                let unmatched = word.is_some_and(|word| {
+                    let texts: Vec<&str> = word.fields.iter().filter_map(|field| row.field(field).ok().and_then(|value| value.as_str().ok())).collect();
+                    !crate::words::row_matches(&crate::words::row_tokens(texts), &word.terms)
                 });
                 if unmatched {
                     continue;
@@ -600,13 +625,7 @@ impl Runner<'_> {
             && let Some(horizon) = table.sync.as_ref().and_then(|sync| sync.horizon.as_ref())
             && (horizon.by != scan.index || scan.order != crate::ir::Order::Desc || !has_more)
         {
-            if retained {
-                // A left group's horizon still bounds completeness, but its
-                // delivered rows are the answer; the server cannot supply it.
-                self.beyond_horizon = true;
-            } else {
-                self.unknown_fact(&scan.table, &scan.index, &prefix, &scan.site);
-            }
+            self.horizon_coverage(scan, &prefix, retained);
         }
         if self.page_depth == 0 && !scan.opaque_cursor && has_more && scan.filter.is_none() {
             self.page_overflow = true;
@@ -637,10 +656,14 @@ impl Runner<'_> {
     /// Merge ordered lanes into a page. Seekable uniform lanes use a heap
     /// of heads. Other lanes retain their page scan and stable union sort.
     pub(super) fn merge(&mut self, merge: &Merge) -> Result<Vec<Value>, RuntimeError> {
+        self.merge_with_words(merge, None)
+    }
+
+    fn merge_with_words(&mut self, merge: &Merge, word: Option<&WordRead>) -> Result<Vec<Value>, RuntimeError> {
         // Keep the disclosure-sensitive non-uniform scan traversal unchanged.
         // @ref LLP 3000#7-decisions-during-execution — lazy uniform merge lanes
         if rules::lazy_merge(self.schema, merge) {
-            return self.merge_lazy(merge);
+            return self.merge_lazy(merge, word);
         }
         let Some(first) = merge.lanes.first() else { return Ok(Vec::new()) };
         let table = self.schema.table(&first.scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", first.scan.table)))?;
@@ -681,7 +704,7 @@ impl Runner<'_> {
                 // fills the page still shows there is more to continue on.
                 let mut lane_scan = lane.scan.clone();
                 lane_scan.take = Bound::Literal(take as u32 + 1);
-                let rows = self.scan(&lane_scan)?;
+                let (rows, _) = self.scan_with_words(&lane_scan, word)?;
                 self.page_depth = outer_depth;
                 for row in rows {
                     let id = row.field("id")?.as_str()?.to_owned();
@@ -720,7 +743,7 @@ impl Runner<'_> {
     /// One head per uniform lane, then advance only the winning lane. Each
     /// one-row scan retains the ordinary scan's lookahead and meter checks.
     /// Deduplicate before counting the page, including overlapping lanes.
-    fn merge_lazy(&mut self, merge: &Merge) -> Result<Vec<Value>, RuntimeError> {
+    fn merge_lazy(&mut self, merge: &Merge, word: Option<&WordRead>) -> Result<Vec<Value>, RuntimeError> {
         let Some(first) = merge.lanes.first() else { return Ok(Vec::new()) };
         let table = self.schema.table(&first.scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", first.scan.table)))?;
         let index = table.index(&first.scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", first.scan.table, first.scan.index)))?;
@@ -755,7 +778,7 @@ impl Runner<'_> {
         // seeks would cost more than reading those few pages in one call.
         let batch = if lanes.len() <= 8 { take + 1 } else { 1 };
         for (position, (scan, prefix, bounds, buffer, done)) in lanes.iter_mut().enumerate() {
-            let (rows, _) = self.scan_prepared(scan, prefix.clone(), bounds.clone(), batch)?;
+            let (rows, _) = self.scan_prepared(scan, prefix.clone(), bounds.clone(), batch, word)?;
             *done = rows.len() < batch;
             *buffer = rows.into();
             if let Some(row) = buffer.pop_front() {
@@ -777,7 +800,7 @@ impl Runner<'_> {
             let (scan, prefix, bounds, buffer, done) = &mut lanes[head.lane];
             bounds.after = Some(head.key);
             if buffer.is_empty() && !*done && self.meter.capped_at.is_none() {
-                let (rows, _) = self.scan_prepared(scan, prefix.clone(), bounds.clone(), batch)?;
+                let (rows, _) = self.scan_prepared(scan, prefix.clone(), bounds.clone(), batch, word)?;
                 *done = rows.len() < batch;
                 *buffer = rows.into();
             }
@@ -803,3 +826,7 @@ impl Probe for PrefixProbe<'_, '_> {
     }
     fn created(&mut self, table: &str, index: &str, key: &[Value]) -> bool { self.runner.created(table, index, key) }
 }
+
+#[cfg(all(test, feature = "sqlite"))]
+#[path = "../../tests/read_verdict/mod.rs"]
+mod read_verdict_tests;

@@ -307,7 +307,8 @@ charged to that chunk's meter. Writes belong inside a chunk.
   lanes read a page each; `check` notes a merge past 50 lanes), `walk
   t[seed] up .parentId depth 8` (a bounded list of rows), `t[scope]
   matching q after c last N by wordsIndex` (word-prefix search; Search,
-  below), `connected[p]` (open connections; `exists connected[p]` tests;
+  below), `merge t matching q [after c] last N by wordsIndex:` over scope
+  lanes (search across groups), `connected[p]` (open connections; `exists connected[p]` tests;
   Presence, below). A key may name its columns: `t[a = x, b = y]`.
   With a total unique `(chatKey, principal)` key on t, `.principal = viewer
   or exists t[.chatKey, viewer]` is decided by the chat: each row witnesses
@@ -586,6 +587,12 @@ chats, or read on the device (§4).
 `at` and `id`: each lane is one verdict when its scope decides the rule,
 and the page is complete when all lanes are complete; past 50 lanes
 `check` emits N_WIDE_MERGE, and the device runs the same query over held rows.
+A pinned conjunct such as `exists members[.roomId, viewer]` denies a scope
+before word discovery even when another conjunct needs each row; an
+admitted non-uniform scope keeps its per-row costs and stays incomplete.
+Reads inside `where` use their own rules and search terms. An empty
+matching result past a device horizon is incomplete too, so a held group
+can fall back to the server.
 
 ### Effects
 
@@ -700,7 +707,8 @@ applies after leaving: an exhausted horizon is `complete: false`, while
 unbounded whole-group history is `complete: true`. A read pinning the left
 group answers from those rows on the device online and offline, through a
 query without a membership `require`. Replacement snapshots keep left groups
-and replace held groups with their current acquisition.
+and replace held groups with their current acquisition. If the same query
+also has an unknown held-group read, it still falls back to the server.
 A table with no horizon delivers every row of every group the device
 holds, at every cold start, as the table grows: a public table of posts,
 or a group's receipts, is soon the whole cold start. `check` notes such a
