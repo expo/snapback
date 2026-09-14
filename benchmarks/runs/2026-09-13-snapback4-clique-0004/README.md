@@ -111,8 +111,13 @@ attribution from the documented raw-row metadata boundary. The
 [replica startup audit](./replica-startup-audit.md) confirms the old quadratic
 JavaScript implementation is gone and explains why whole-browser startup
 timing does not identify a new device-apply defect. The observed server exits
-are tracked in the [existing dev-server follow-up](../../../issues/20260913-snapback4-dev-exits-without-diagnostic-during-schema-change.md);
-that ticket retains the builder evidence with attribution still unresolved.
+are tracked in the [existing dev-server follow-up](../../../issues/closed/20260913-snapback4-dev-exits-without-diagnostic-during-schema-change.md);
+later commit `606b1acf2` resolves the cause as SQLite shared-memory SIGBUS from
+closing a permission-check descriptor after SQLite acquired its lock. The
+owner reproduced the crash in 4/4 base/published attempts and completed 3/3
+focused fixed attempts. The original two recorded PIDs were a launcher and
+its binary, so they do not establish two distinct crashes. This later fix and
+new exit diagnostics are not measured by the frozen run.
 
 | Lane | M1 | M2 | M3 | M4 | M5 | M6 | M8 | Continuous wall | Holistic score | Independent 119 | Comparable 101 subtotal | Fresh M7 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -206,6 +211,12 @@ exposed because the app explicitly declared those tables `public` and
 slots; the app discards structured retryability and the harness does not retry.
 The TTL unit conversion, recent-pool Trending, and unreconciled digest counts
 are application logic defects. These qualifications do not change the grade.
+
+Later main commit `a7939d8d6` increases loopback `dev` password-verification
+concurrency to available host parallelism, clamped to 2–16; `serve` retains two
+slots. The owner reports 8/8 simultaneous logins versus 2/8 before. This is an
+additional development-workflow change outside the frozen benchmark pins;
+it does not alter the received Muse grade or its original attribution.
 
 Astra's fresh M7 ran from `2026-09-14T07:58:39Z` to `2026-09-14T08:21:04Z`
 with Astra medium and exited zero after 1,345.403 seconds, within its single
