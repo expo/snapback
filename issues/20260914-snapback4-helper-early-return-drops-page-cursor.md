@@ -81,6 +81,16 @@ resets the enclosing page's position bookkeeping (`pages` / `page_depth` /
 `opaque_cursor` in `crates/snapback4-core/src/engine/read.rs`) before the
 outer page records its `PagePosition`. Verify before fixing.
 
+## Lead's reading of the runtime (2026-09-14, unverified)
+
+`crates/snapback4-core/src/engine/runner.rs`, `Stmt::Return` (around line
+276 at `d54786859`), does
+`self.page = self.page_plan.get(&site).and_then(|owner| self.pages.get(owner)).cloned();`
+before yielding. An inlined helper's `return` inside a shape would set the
+runner's page from the plan of the helper's return site, which owns no page,
+and overwrite the outer page's position with `None`. That fits
+`next: null`. Lane N2 (LLP 3000.007 §19.2) verifies this first.
+
 ## Acceptance
 
 - The reproduction above returns a cursor for `withEarly`, on the server and
