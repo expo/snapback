@@ -210,7 +210,7 @@ impl<S: DeviceStore> Device<S> {
     /// The device over an opened store, for the backend the server sent —
     /// or, with none, for the backend kept from last time, so a device
     /// that starts with no network opens on what it holds. The schema is
-    /// installed; the rows kept stay unless the generation moved.
+    /// installed; a literal-default addition can keep older row images.
     pub fn open_store(mut store: S, backend: Option<Backend>) -> Result<Self, RuntimeError> {
         let backend = match backend {
             Some(backend) => backend,
@@ -221,6 +221,8 @@ impl<S: DeviceStore> Device<S> {
         };
         let held = store.meta(GENERATION)?.and_then(|g| g.parse::<u64>().ok()).unwrap_or(0);
         let reset = held != 0 && held != backend.generation;
+        let keep_images = reset && store.meta(BACKEND)?.and_then(|text| serde_json::from_str::<Backend>(&text).ok())
+            .is_some_and(|old| snapback4_core::successor::keeps_literal_default_images(&old.schema, &backend.schema));
         let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string())]);
         if reset {
             metadata.insert(WATERMARK.to_owned(), "0".into());
@@ -228,7 +230,7 @@ impl<S: DeviceStore> Device<S> {
             metadata.insert(history::GROUPS.to_owned(), "{}".into());
             metadata.insert(history::STAGED_GROUPS.to_owned(), "{}".into());
         }
-        store.install(&backend.schema, &metadata, reset)?;
+        store.install(&backend.schema, &metadata, reset && !keep_images)?;
         let cached_digest = store.meta(NATIVE_DIGEST)?;
         let cached_module = store.meta(NATIVE)?;
         let cached_generation = store.meta(NATIVE_GENERATION)?;
@@ -299,10 +301,11 @@ impl<S: DeviceStore> Device<S> {
     }
 
     /// The backend changed (a new generation from `/schema`): adopt it and
-    /// keep it; a new generation drops the rows, and the next sync is a
-    /// snapshot.
+    /// keep it; a literal-default addition keeps the old images readable.
+    /// A changed generation still requests a fresh snapshot.
     pub fn adopt(&mut self, backend: Backend) -> Result<(), RuntimeError> {
         let reset = backend.generation != self.generation;
+        let keep_images = snapback4_core::successor::keeps_literal_default_images(&self.schema, &backend.schema);
         let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string())]);
         if reset {
             metadata.insert(WATERMARK.to_owned(), "0".into());
@@ -310,7 +313,7 @@ impl<S: DeviceStore> Device<S> {
             metadata.insert(history::GROUPS.to_owned(), "{}".into());
             metadata.insert(history::STAGED_GROUPS.to_owned(), "{}".into());
         }
-        self.store.install(&backend.schema, &metadata, reset)?;
+        self.store.install(&backend.schema, &metadata, reset && !keep_images)?;
         if reset {
             #[cfg(feature = "wasm-host")]
             {

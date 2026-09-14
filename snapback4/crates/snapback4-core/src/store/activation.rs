@@ -54,6 +54,11 @@ impl Store {
             }
         }
         let tx = Tx { tx: sql, catalog: &catalog };
+        if schema_changed && programs.is_some() {
+            if let Some(step) = super::successor::assess(&tx, schema)?.iter().find(|s| s.change == crate::successor::Change::Narrowing) {
+                return Err(step.refusal(schema));
+            }
+        }
         if reset { tx.tx.execute_batch("DELETE FROM r; DELETE FROM i;")?; }
         if schema_changed {
             // Removed names retain only their catalog number, never live row
@@ -69,11 +74,19 @@ impl Store {
                 let t = catalog[name];
                 for index in table.indexes.keys() { tx.tx.execute("DELETE FROM i WHERE ti = ?1", [catalog[&format!("{name}.{index}")]])?; }
                 walk(&tx, t, |id, mut row| {
-                    if let Value::Row(fields) = &mut row { fields.retain(|column, _| table.columns.contains_key(column)); }
+                    let original = row.clone();
+                    if let Value::Row(fields) = &mut row { fields.retain(|column, _| table.columns.contains_key(column) || (programs.is_none() && column == "pending")); }
+                    // Persist only a destructive projection. Defaults and
+                    // optionals are an interpretation of the stored image.
+                    if row != original {
+                        tx.tx.execute("UPDATE r SET data = ?1 WHERE t = ?2 AND id = ?3", params![canonical_json(&row), t, id])?;
+                    }
                     materialize_optional_fields(&mut row, table);
+                    // A device's prediction mark is metadata, retained in
+                    // storage but absent from the row the schema validates.
+                    if programs.is_none() { if let Value::Row(fields) = &mut row { fields.remove("pending"); } }
                     // Maintained rows are replaced by the candidate builder.
                     if schema.maintain_for(name).is_none() { crate::engine::validate::validate_row(schema, name, &row)?; }
-                    tx.tx.execute("UPDATE r SET data = ?1 WHERE t = ?2 AND id = ?3", params![canonical_json(&row), t, id])?;
                     for (index_name, index) in &table.indexes {
                         for key in index_keys(index, &row, id) {
                             tx.tx.execute("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)", params![catalog[&format!("{name}.{index_name}")], key, id])?;
@@ -86,7 +99,9 @@ impl Store {
         build(&tx, changed)?;
         if schema_changed {
             for (name, table) in &schema.tables {
-                walk(&tx, catalog[name], |_, row| {
+                walk(&tx, catalog[name], |_, mut row| {
+                    materialize_optional_fields(&mut row, table);
+                    if programs.is_none() { if let Value::Row(fields) = &mut row { fields.remove("pending"); } }
                     crate::engine::validate::validate_row(schema, name, &row)?;
                     for (column, kind) in &table.columns { validate_assets(&tx, kind, row.field(column).ok())?; }
                     Ok(())
@@ -132,7 +147,7 @@ impl Store {
 
 /// Bounded row buffers even for a large activation. Updating an image does
 /// not change the primary key the next page resumes after.
-fn walk(tx: &Tx<'_>, table: i64, mut visit: impl FnMut(&str, Value) -> Result<(), RuntimeError>) -> Result<(), RuntimeError> {
+pub(super) fn walk(tx: &Tx<'_>, table: i64, mut visit: impl FnMut(&str, Value) -> Result<(), RuntimeError>) -> Result<(), RuntimeError> {
     let mut after: Option<String> = None;
     loop {
         // Keep the continuation predicate sargable: `? IS NULL OR id > ?`
@@ -171,7 +186,7 @@ fn contains_asset_type(kind: &crate::schema::ColumnType) -> bool {
     use crate::schema::ColumnType::*;
     match kind { Optional(inner) | List { of: inner, .. } => contains_asset_type(inner), Image { .. } | Video { .. } => true, _ => false }
 }
-fn validate_assets(tx: &Tx<'_>, kind: &crate::schema::ColumnType, value: Option<&Value>) -> Result<(), RuntimeError> {
+pub(super) fn validate_assets(tx: &Tx<'_>, kind: &crate::schema::ColumnType, value: Option<&Value>) -> Result<(), RuntimeError> {
     use crate::schema::ColumnType::*;
     use crate::assets::AssetKind;
     match (kind, value) {

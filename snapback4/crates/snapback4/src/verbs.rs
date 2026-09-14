@@ -18,6 +18,7 @@ mod sql;
 pub use init::init;
 pub use sql::sql;
 mod residency;
+mod adoption;
 
 pub struct Options {
     pub positionals: Vec<String>,
@@ -96,6 +97,15 @@ pub fn check(options: &Options) -> i32 {
             return 2;
         }
     };
+    if !bound.diagnostics.is_empty() {
+        report_diagnostics(&bound, options.json);
+        return 1;
+    }
+    // @ref LLP 3000.007#18.3 — check judges adoption against the dev store's active generation and rows, read-only
+    match adoption::diagnostics(&project, &bound.schema, options.flags.get("store")) {
+        Ok(problems) => bound.diagnostics.extend(problems),
+        Err(error) => { eprintln!("cannot check store adoption: {error}"); return 2; }
+    }
     if !bound.diagnostics.is_empty() {
         report_diagnostics(&bound, options.json);
         return 1;

@@ -136,6 +136,7 @@ mutation edit(messageId: messages, body: text <=4000):
   upload the row holds — §4, assets); `?` after a type makes the column
   optional (null when absent). `default <literal | now | viewer>` fills an
   omitted insert column on the writing host; an explicit value wins.
+  A required literal default also fills absent columns in older rows on every host; optional columns still read null when absent.
 - **References** are typed ids, with no implicit existence check and no
   delete cascade. The string `"null"` is an id; JSON `null` only fits an
   optional reference. When a mutation requires a visible target, write
@@ -1208,6 +1209,20 @@ const client = createMockClient({ viewer: null, tables: { messages: new Map([[id
 ```
 
 ## 5. Development
+
+**Schema evolution.** New optional columns, required columns with literal
+defaults, non-unique indexes, tables and operations adopt without ceremony.
+Literal defaults materialize in older row images on the server and device,
+including in new indexes, without rewriting rows or logging partition events.
+Required columns without a literal default, tighter types, unique indexes
+and stronger constraints need the existing rows to fit; `default now` and
+`default viewer` on a new required column need an empty table. `check`
+opens `.snapback4/store.sqlite` read-only when it exists, or the explicit
+`--store <path>`, and prints each failed successor step as `E_ADOPT` at its
+column, index or table, with a rewrite. `dev` refuses the same step on save
+and keeps the previous generation. A green `check` against the dev store
+means that store's current rows adopt the compiled schema; a later write
+can change that result. Without a store, `check` only compiles.
 
 - **`snapback4 init [dir] [--online|--expo]`** starts a project without
   overwriting existing files. The default writes the local-first todo

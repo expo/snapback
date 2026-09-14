@@ -1,0 +1,73 @@
+//! The successor under the stored rows: checked narrowing is additive when
+//! the data already fits. Used by both read-only check and atomic activation.
+use super::*;
+use crate::schema::{ColumnDefault, Constraint, materialize_optional_fields};
+use crate::successor::{Change, Step};
+use crate::engine::validate::{validate_column, validate_row};
+
+pub(super) fn assess(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Step>, RuntimeError> {
+    let previous: Option<String> = tx.tx.query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
+    let Some(previous) = previous else { return Ok(Vec::new()) };
+    let previous: Schema = serde_json::from_str(&previous).map_err(|e| RuntimeError::Store(e.to_string()))?;
+    let mut steps = crate::successor::classify(&previous, schema);
+    for step in &mut steps {
+        if step.change != Change::Narrowing { continue; }
+        let path: Vec<_> = step.path.split('.').collect();
+        let Some(name) = path.get(1).copied() else { continue };
+        let Some(table) = schema.table(name) else { continue };
+        let t = tx.num(name)?;
+        let populated: bool = tx.tx.query_row("SELECT EXISTS(SELECT 1 FROM r WHERE t = ?1)", [t], |r| r.get(0))?;
+        if !populated {
+            step.change = Change::Additive;
+            step.message = format!("{}; the table is empty", step.message.split(';').next().unwrap_or(&step.message));
+            continue;
+        }
+        if let ["tables", _, "columns", column] = path.as_slice() {
+            if !previous.tables[name].columns.contains_key(*column) && matches!(table.defaults.get(*column), Some(ColumnDefault::Now | ColumnDefault::Viewer)) {
+                continue;
+            }
+        }
+        let mut fits = true;
+        // Only the changed invariants need grouping; scan bounded image
+        // buffers and retain a count per prospective key, never all rows.
+        let mut groups: BTreeMap<(String, Vec<u8>), u64> = BTreeMap::new();
+        super::activation::walk(tx, t, |_, mut row| {
+            if !fits { return Ok(()); }
+            if let Value::Row(fields) = &mut row { fields.retain(|column, _| table.columns.contains_key(column)); }
+            materialize_optional_fields(&mut row, table);
+            match path.as_slice() {
+                ["tables", _, "columns", column] => {
+                    let kind = &table.columns[*column];
+                    fits = validate_column(name, column, kind, row.field(column).ok()).is_ok()
+                        && super::activation::validate_assets(tx, kind, row.field(column).ok()).is_ok();
+                }
+                ["tables", _, "indexes", index] => {
+                    let values = index_values(&table.indexes[*index], &row);
+                    if !values.contains(&Value::Null) {
+                        let count = groups.entry(((*index).into(), key::encode(&values))).or_default();
+                        *count += 1;
+                        fits = *count <= 1;
+                    }
+                }
+                ["tables", _, "constraints"] => {
+                    fits = validate_row(schema, name, &row).is_ok();
+                    for constraint in &table.constraints {
+                        if let Constraint::Cap { by, max } = constraint {
+                            let values: Vec<_> = by.iter().map(|c| row.field(c).cloned().unwrap_or(Value::Null)).collect();
+                            let count = groups.entry((canonical_json(by), key::encode(&values))).or_default();
+                            *count += 1;
+                            fits &= *count <= u64::from(*max);
+                        }
+                    }
+                }
+                _ => {}
+            }
+            Ok(())
+        })?;
+        if fits {
+            step.change = Change::Additive;
+            step.message.push_str("; existing rows satisfy it");
+        }
+    }
+    Ok(steps)
+}

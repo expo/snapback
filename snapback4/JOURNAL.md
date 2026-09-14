@@ -4308,3 +4308,145 @@ verbatim command summaries are retained under `/private/tmp/cu2b-*`, with
 `/private/tmp/cu2b-verification.md` as the handoff index. There are no changed
 diagnostic codes or texts in this lane; R5's before/after lines above are
 observations, not new diagnostic vocabulary.
+
+## 2026-09-14 — CU4: literal defaults interpret old images; check assesses the dev store
+
+Built LLP 3000.007 §18.3. A required literal default is additive and fills
+absent fields through the existing row-materialization path, before reads,
+rule probes, validation, constraints, index keys and the wire. Adoption keeps
+the stored image unchanged; it rebuilds index entries from the interpreted
+image. A device keeps old images through a safe literal-default addition,
+including on reopen with a new backend, while a changed generation still
+invalidates native code and requests a snapshot. Both stores build, replace
+and delete index entries using the same interpreted values. Optional defaults
+keep their insert-only meaning: an absent optional still reads null.
+
+`check` now opens the dev database read-only (or the explicit `--store`),
+compares its active generation with the compiled schema in one read snapshot,
+and reports each failed successor step as `E_ADOPT` at the declaration's site.
+Atomic activation uses the same assessment and step message/rewrite. Checked
+narrowing whose existing values already fit still adopts. Required `now` and
+`viewer` additions refuse populated tables and adopt empty ones; insert
+context is unchanged. The existing runtime codes did not describe this
+located schema-adoption refusal, so `E_ADOPT` has its own `why` explanation.
+The README's column text, Schema evolution paragraph and types card say so.
+
+Measured scenarios use **3 old rows**, **0 adoption row rewrites** (a SQLite
+trigger refuses any attempted rewrite), **0 new partition events**, and
+**3 matches** on the newly added default-column index. Five required literal
+kinds (bool, int, text, enum and decimal minor units) and one optional default
+are checked on each server row: **18 field assertions**. SQLite and memory
+devices each exercise live adoption and reopen with the successor, **4 device
+scenarios**, each reading the same **3 old images** without a new snapshot;
+their persisted images still lack the new column. The empty-table insert
+controls read `now` as **1234** and `viewer` as **dev:alice**. Unique-index and
+cap refusals also see the materialized value, and rule residual equalities
+read it from the old image.
+
+Before, the successor said:
+
+```text
+column messages.tombstone is added as required; existing rows must already carry it
+```
+
+The runtime refusal was `E_INPUT: messages.tombstone is required (bool)`.
+After, the additive step says:
+
+```text
+column messages.tombstone is added with default false; rows written before it read false
+```
+
+For required contextual defaults the new messages are:
+
+```text
+column messages.at is added as required with default now; existing rows would read the adoption's clock
+column messages.author is added as required with default viewer; existing rows would read the adoption's viewer
+```
+
+The text `check` output, verbatim (exit **1**):
+
+```text
+schema.q:3:3 — E_ADOPT: column messages.at is added as required with default now; existing rows would read the adoption's clock
+  rewrite: at: time ? or at: time default <literal>; otherwise backfill existing rows before making the column required
+  guide: types
+
+check: 1 problem
+```
+
+The viewer rewrite is `author: principal ? or author: principal default
+<literal>; otherwise backfill existing rows before making the column required`.
+The live dev regression verifies that its refusal contains the exact message
+and rewrite produced by check, then successfully adopts the literal default.
+
+The important discovery was that the two stores previously did different
+things to absent fields: SQLite persisted optional nulls during adoption,
+while memory filled every missing column with null and a generation change
+dropped all rows. Making a literal default mean the same thing everywhere
+required keeping the raw image separate from its interpretation, including
+when rebuilding or deleting an index entry. New optional text constraints
+remain additive; caps can bind the materialized default group and must be
+checked. No parser, client-package implementation, meter ceiling, serialized
+value form or existing conformance case changed.
+
+A final old-image regression covers a predicted row carrying `pending: true`.
+SQLite now preserves that metadata while validating only schema columns;
+the memory store already retained the mark. Both stores keep the raw image
+and give it one match in the new default index: **2 additional device-store
+scenarios**, **6 device scenarios total**.
+
+Final focused verification: `cargo test -p snapback4-device --test adoption
+-p snapback4-sim --test adoption --test clique -- --nocapture` passed **35/35**
+(**2 device**, **4 adoption**, **29 Clique**; test-body times **0.04 s**,
+**0.03 s**, **3.35 s**). CLI check tests passed **4/4**, the isolated live
+dev refusal/adoption test **1/1**, and compiled guide/README tests **9/9**.
+
+The first blocking run reported **2 failing steps / 1422 s**: an introduced
+invalid sync-rule fixture and optional-text-constraint classifier regression
+were fixed; the affected suites subsequently passed. It also hit client
+startup timeouts. The second run reported **2 failing steps / 2196 s**:
+Rust **378 passed / 6 failed / 1 ignored** (lifecycle startup deadlines),
+fixtures **9/9**, clients **33 passed / 80 failed / 1 cancelled**. Serial
+client verification passed **121/122**; isolated HTTP and release activation
+passed **9/9** and **10/10**. The remaining Chromium launch abort reproduced
+from the unchanged browser witness inputs at base
+`518891fd1cc67b969a6f57b683e80efadc89b612` (**0 passed / 1 failed**, SIGABRT).
+No claim that the lifecycle/startup timeouts predate CU4 is made.
+
+Each of the **6** lifecycle failures was also rerun individually with
+`cargo test -p snapback4 --test lifecycle <test-name> -- --exact --nocapture`;
+all **6** again missed their **15-second** subprocess deadlines. This
+includes the CU4 dev regression, which had passed earlier in isolation.
+The final report retains both outcomes instead of declaring those failures
+pre-existing or raising a timeout.
+
+Final review also covered a required literal with a new-column text
+constraint (`label: text 1..10 default 'old'`). The compiler already checks
+the literal against that constraint. Device adoption now recognizes that
+constraint, and new-column immutability, as safe for the held images; it
+still refuses to preserve them across changes to existing column meaning.
+All **4** live/reopen device scenarios also assert the constrained text
+default on each of their **3** held rows. The final wasm build measures
+**1,538,036 B raw / 430,830 B gzip**.
+
+The final affected rerun, including constrained text defaults, passed
+**35/35** (**2 device / 0.06 s**, **4 adoption / 0.03 s**, **29 Clique /
+3.70 s**). A final blocking run on the final source used
+`RUST_TEST_THREADS=1 bash snapback4/scripts/test.sh`: **383 Rust passed /
+2 failed / 1 ignored**, fixtures **9 passed / 0 failed**, clients **91
+passed / 30 failed / 1 cancelled**; `== 2 failure(s) in 1132 s`. All builds,
+typechecks and the chat check passed. The CU4 dev test passed in this run.
+The remaining Rust failures were the abort probe's child-exit deadline and
+interleaved startup/signal output; the signal test's isolated retry instead
+hit its startup deadline (**0 passed / 1 failed**, **15.00 s**). Client
+failures were waiting/listen deadlines and the base-reproduced Chromium
+abort. The preceding ordinary blocking run reported **379 Rust passed /
+6 failed / 1 ignored**, clients **69 passed / 51 failed / 2 cancelled**,
+and `== 2 failure(s) in 2416 s`. No test deadline or meter ceiling changed.
+
+The blocking gate therefore remains red. No claim that the process deadlines
+or signal-output failure predate CU4 is made. `ref-check --verbose` passed:
+**474 LLP docs, 8816 refs, 22745 files, 0 errors, 0 unchecked**. The largest
+changed Rust file is **1456 lines**. The journal was already **3795 lines**
+at the base; its complete original prefix is preserved, as required by the
+append-only instruction. Cargo's automatic workspace-version lockfile edits
+were restored; the handoff contains **21 intended files**, uncommitted.

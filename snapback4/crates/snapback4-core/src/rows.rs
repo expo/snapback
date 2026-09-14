@@ -111,6 +111,11 @@ pub fn index_keys(index: &Index, row: &Value, id: &str) -> Vec<Vec<u8>> {
         .collect()
 }
 
+/// Raw stored/confirmed images may predate required literal defaults.
+pub fn stored_index_keys(table: &Table, index: &Index, row: &Value, id: &str) -> Vec<Vec<u8>> {
+    index_keys(index, &crate::schema::row_image(row, table), id)
+}
+
 /// The index's column values from a row image, in component order, the
 /// word component skipped; absent optionals are null.
 pub fn index_values(index: &Index, row: &Value) -> Vec<Value> {

@@ -295,6 +295,29 @@ fn sqlite_replay_survives_counter_split_and_a_concurrent_cli_backfill() {
 }
 
 #[test]
+fn dev_default_adoption_and_check_share_the_successor_refusal() {
+    let dir = Directory::new();
+    let source = "use personas alice\ntable messages:\n  body: text <=100\n  read <- allow\nquery all():\n  return messages[] first 10 by byId\n";
+    let path = dir.0.join("snapback/schema.q");
+    fs::write(&path, source).unwrap();
+    let mut host = Host::start(&dir, &["dev"]);
+    assert_eq!(post(host.port, "/seed", json!((0..3).map(|i| json!({"table": "messages", "row": {"id": format!("m{i}"), "body": "old"}})).collect::<Vec<_>>()))["seeded"], 3);
+    fs::write(&path, source.replace("  read", "  at: time default now\n  read")).unwrap();
+    host.until(|h| h.log().contains("E_ADOPT"));
+    let output = dir.run(&["check", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let diagnostic = serde_json::from_slice::<Value>(&output.stdout).unwrap()["problems"][0].clone();
+    assert!(host.log().contains(diagnostic["message"].as_str().unwrap()));
+    assert!(host.log().contains(diagnostic["rewrite"].as_str().unwrap()));
+    fs::write(path, source.replace("  read", "  tombstone: bool default false\n  read")).unwrap();
+    host.until(|h| h.log().contains("schema adopted as generation 2"));
+    let rows = post(host.port, "/q/all", json!({"args": {}}))["data"].clone();
+    assert_eq!(rows.as_array().unwrap().len(), 3);
+    assert!(rows.as_array().unwrap().iter().all(|r| r["tombstone"] == false));
+    assert!(dir.run(&["check", "--json"]).status.success());
+}
+
+#[test]
 fn watcher_keeps_serving_after_a_refused_edit_and_a_parked_backfill() {
     let dir = Directory::new(); let schema = dir.0.join("snapback/schema.q");
     fs::write(&schema, REPOST_BEFORE).unwrap();

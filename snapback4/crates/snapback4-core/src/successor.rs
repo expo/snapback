@@ -3,7 +3,7 @@
 //! the data to fit; a rule change re-derives partitions; a rename is a drop
 //! plus an add and says so.
 
-use crate::schema::{Constraint, ColumnType, Schema};
+use crate::schema::{Constraint, ColumnDefault, ColumnType, Schema};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -26,6 +26,29 @@ pub struct Step {
     pub message: String,
 }
 
+impl Step {
+    pub fn rewrite(&self, schema: &Schema) -> String {
+        let path: Vec<_> = self.path.split('.').collect();
+        match path.as_slice() {
+            ["tables", table, "columns", column] => {
+                let kind = &schema.tables[*table].columns[*column];
+                if self.message.contains(" is added ") {
+                    format!("{column}: {} ? or {column}: {} default <literal>; otherwise backfill existing rows before making the column required", kind.required(), kind.required())
+                } else {
+                    format!("keep {column}'s previous type and default, or repair existing values before adopting {column}: {kind}")
+                }
+            }
+            ["tables", _, "indexes", index] => format!("make {index} non-unique, or repair duplicate keys before adopting it"),
+            ["tables", table, ..] => format!("keep {table}'s current constraints, or repair existing rows before adopting the new constraints"),
+            _ => "keep the current schema, or repair existing rows before adopting this change".into(),
+        }
+    }
+
+    pub fn refusal(&self, schema: &Schema) -> crate::error::RuntimeError {
+        crate::error::RuntimeError::Structural { code: "E_ADOPT", message: format!("{}\n  rewrite: {}", self.message, self.rewrite(schema)) }
+    }
+}
+
 /// Classify the difference between two schemas.
 pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
     let mut steps = Vec::new();
@@ -39,14 +62,30 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
             let cpath = format!("{path}.columns.{column}");
             match new.columns.get(column) {
                 None => steps.push(Step { path: cpath, change: Change::Destructive, message: format!("column {name}.{column} is removed; its values are lost") }),
-                Some(new_kind) if new_kind == old_kind => {}
+                Some(new_kind) if new_kind == old_kind => {
+                    if !new_kind.is_optional() && old.defaults.get(column) != new.defaults.get(column) {
+                        steps.push(Step { path: cpath, change: Change::Narrowing, message: format!("column {name}.{column} changes its default; existing rows must fit the new definition") });
+                    }
+                }
                 Some(new_kind) => steps.push(Step { path: cpath, change: column_change(old_kind, new_kind), message: format!("column {name}.{column} changes from {old_kind} to {new_kind}") }),
             }
         }
         for (column, kind) in &new.columns {
             if !old.columns.contains_key(column) {
-                let change = if kind.is_optional() { Change::Additive } else { Change::Narrowing };
-                steps.push(Step { path: format!("{path}.columns.{column}"), change, message: if kind.is_optional() { format!("column {name}.{column} is added as optional") } else { format!("column {name}.{column} is added as required; existing rows must already carry it") } });
+                // @ref LLP 3000.007#18.3 — literal defaults describe old images on every host; contextual defaults belong to the write
+                let (change, message) = match (kind.is_optional(), new.defaults.get(column)) {
+                    (true, _) => (Change::Additive, format!("column {name}.{column} is added as optional")),
+                    (false, Some(ColumnDefault::Literal(value))) => {
+                        let value = crate::wire::to_json(value);
+                        (Change::Additive, format!("column {name}.{column} is added with default {value}; rows written before it read {value}"))
+                    }
+                    (false, Some(default)) => {
+                        let (word, context) = match default { ColumnDefault::Now => ("now", "clock"), _ => ("viewer", "viewer") };
+                        (Change::Narrowing, format!("column {name}.{column} is added as required with default {word}; existing rows would read the adoption's {context}"))
+                    }
+                    (false, None) => (Change::Narrowing, format!("column {name}.{column} is added as required; existing rows must already carry it")),
+                };
+                steps.push(Step { path: format!("{path}.columns.{column}"), change, message });
             }
         }
         for (index, definition) in &new.indexes {
@@ -65,11 +104,12 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
         if old.expire != new.expire {
             steps.push(Step { path: format!("{path}.expire"), change: Change::RuleChange, message: match &new.expire { Some(column) => format!("{name} now expires at .{column}; rows already past it vanish and are swept"), None => format!("{name} no longer expires; rows past .{} stay", old.expire.as_deref().unwrap_or("")) } });
         }
-        // A constraint on a column or index that did not exist before binds
-        // no existing row: only constraints over what was already there narrow.
+        // Caps also bind materialized defaults. A new column's text default
+        // is checked by the compiler; absent optionals are null. New unique
+        // indexes are classified above; immutability has no old value to bind.
         let existed = |constraint: &Constraint| match constraint {
             Constraint::Unique { index } => old.indexes.contains_key(index),
-            Constraint::Cap { by, .. } => by.iter().all(|c| old.columns.contains_key(c)),
+            Constraint::Cap { .. } => true,
             Constraint::Immutable { fields } => fields.iter().all(|c| old.columns.contains_key(c)),
             Constraint::Text { field, .. } => old.columns.contains_key(field),
             Constraint::AppendOnly | Constraint::FinalExistsOnInsert { .. } => true,
@@ -128,4 +168,32 @@ fn worse(a: Change, b: Change) -> Change {
 /// The worst change in a set of steps.
 pub fn worst(steps: &[Step]) -> Change {
     steps.iter().map(|step| &step.change).max_by_key(|change| rank(change)).cloned().unwrap_or(Change::Additive)
+}
+
+/// This literal-default addition can interpret held device images without
+/// changing their audience, lifetime, constraints or existing column meaning.
+pub fn keeps_literal_default_images(from: &Schema, to: &Schema) -> bool {
+    if from.maintains != to.maintains { return false; }
+    let mut added_literal = false;
+    for (name, old) in &from.tables {
+        let Some(new) = to.table(name) else { return false };
+        if new.columns.iter().any(|(column, kind)| !old.columns.contains_key(column) && !kind.is_optional()
+            && !matches!(new.defaults.get(column), Some(ColumnDefault::Literal(_)))) { return false; }
+        if new.indexes.iter().any(|(index, definition)| !old.indexes.contains_key(index) && definition.unique) { return false; }
+        added_literal |= new.columns.iter().any(|(column, kind)| !old.columns.contains_key(column)
+            && !kind.is_optional() && matches!(new.defaults.get(column), Some(ColumnDefault::Literal(_))));
+        let mut projected = new.clone();
+        projected.columns.retain(|column, _| old.columns.contains_key(column));
+        projected.defaults.retain(|column, _| old.columns.contains_key(column));
+        projected.indexes.retain(|index, _| old.indexes.contains_key(index));
+        projected.constraints.retain(|constraint| match constraint {
+            // The compiler checks the new field's literal against its text
+            // constraint. Immutability has no previous value to constrain.
+            Constraint::Text { field, .. } => old.columns.contains_key(field),
+            Constraint::Immutable { fields } => fields.iter().any(|field| old.columns.contains_key(field)),
+            _ => true,
+        });
+        if &projected != old { return false; }
+    }
+    added_literal
 }

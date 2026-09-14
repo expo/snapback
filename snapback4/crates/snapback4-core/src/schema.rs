@@ -217,7 +217,7 @@ impl Table {
     /// Whether `row` is past its `expire` column at `now`: absent to every
     /// reader, pending the sweep. A null time never expires.
     pub fn expired(&self, row: &Value, now: i64) -> bool {
-        self.expire.as_ref().is_some_and(|column| matches!(row.field(column), Ok(Value::Int(at)) if *at <= now))
+        self.expire.as_ref().is_some_and(|column| matches!(row_image(row, self).field(column), Ok(Value::Int(at)) if *at <= now))
     }
 
     /// The index the expiry sweep walks: the first leading with the
@@ -1148,17 +1148,30 @@ pub fn contains_system_principal(value: &Value) -> bool {
     }
 }
 
-/// Optional columns absent from a stored image read as `null`.
+/// Missing optional columns read as null; missing required columns with a
+/// literal default read that value. Contextual defaults belong to inserts.
 pub fn materialize_optional_fields(row: &mut Value, table: &Table) {
     let fields = match row {
         Value::Row(fields) | Value::Map(fields) => fields,
         _ => return,
     };
     for (name, kind) in &table.columns {
-        if kind.is_optional() && !fields.contains_key(name) {
-            fields.insert(name.clone(), Value::Null);
+        if !fields.contains_key(name) {
+            if kind.is_optional() {
+                fields.insert(name.clone(), Value::Null);
+            } else if let Some(ColumnDefault::Literal(value)) = table.defaults.get(name) {
+                fields.insert(name.clone(), value.clone());
+            }
         }
     }
+}
+
+/// Borrow complete images; materialize old images only when needed.
+pub fn row_image<'a>(row: &'a Value, table: &Table) -> std::borrow::Cow<'a, Value> {
+    if table.columns.keys().all(|column| row.field(column).is_ok()) { return std::borrow::Cow::Borrowed(row); }
+    let mut image = row.clone();
+    materialize_optional_fields(&mut image, table);
+    std::borrow::Cow::Owned(image)
 }
 
 /// The type an argument declares as a column type, for value validation.

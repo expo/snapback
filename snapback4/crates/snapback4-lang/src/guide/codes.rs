@@ -1,4 +1,5 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_ADOPT", "the compiled schema cannot adopt the stored rows. check reads the dev store (or --store path) without changing it; dev refuses the same successor step. Add an optional column or a literal default, or repair existing values/duplicate keys before narrowing. now and viewer belong to inserts and cannot fill old rows. guide types."),
     ("E_QUARRY_LIVE_MAINTAIN_PROBE", "a rule cannot compare the value of a maintain over an expiring source. Read the maintain in the program; its live value cannot be probed at one unit. Existence probes still cost one unit; guide expire."),
     ("SNAPBACK4_EXIT", "the dev/serve loop returned; status, generation and the startup/listener error or normal-stop reason are on stderr. Generation 0 means it has not served yet. guide refusals."),
     ("SNAPBACK4_PANIC", "a Rust panic on any host thread; stderr names the thread, serving generation, reason, source location and abort/unwind action. guide refusals."),
