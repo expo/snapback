@@ -3,7 +3,7 @@ use super::*;
 
 impl<'a> Binder<'a> {
     // @ref LLP 3000.007#10 — a covered total unique key reads one row; additional named equalities check that row.
-    pub(super) fn read_value(&mut self, read: &ReadExpr, mode: ReadMode, out: &mut Vec<Stmt>) -> Fallible<Expr> {
+    pub(super) fn read_value(&mut self, read: &ReadExpr, mode: ReadMode, out: &mut setup::Body) -> Fallible<Expr> {
         let info = self.table(&read.table, &read.site)?;
         if !read.seeks.is_empty() { return Err(type_error(&read.site, "a seek needs a bounded page", "t[prefix, col >= start] first 50 by index")); }
         if read.keys.is_empty() { return Err(unknown(&read.site, format!("{}[] reads nothing; a point read needs a key", read.table), format!("{}[id]", read.table))); }
@@ -39,7 +39,7 @@ impl<'a> Binder<'a> {
     }
 
     // @ref LLP 3000.007#5.3 — a seek constrains the first index column after the pinned prefix.
-    pub(super) fn seek(&mut self, info: &'a TableInfo, read: &ReadExpr, index: &ast::IndexDecl, out: &mut Vec<Stmt>) -> Fallible<Option<ir::Range>> {
+    pub(super) fn seek(&mut self, info: &'a TableInfo, read: &ReadExpr, index: &ast::IndexDecl, out: &mut setup::Body) -> Fallible<Option<ir::Range>> {
         if read.seeks.is_empty() { return Ok(None); }
         let mut range = ir::Range { gt: None, gte: None, lt: None, lte: None };
         for bound in &read.seeks {
@@ -81,7 +81,7 @@ impl Binder<'_> {
         }
         let prior = self.focal.replace(("$filter".into(), Ty::Row(read.table.clone())));
         let kind = std::mem::replace(&mut self.kind, ProgramKind::Query);
-        let mut body = Vec::new();
+        let mut body = setup::Body::default();
         self.push_scope();
         let bound = self.expr(&predicate, &mut body);
         self.pop_scope();
@@ -90,7 +90,7 @@ impl Binder<'_> {
         let (value, ty) = bound?;
         if !ty.is_bool() { return Err(type_error(predicate.site(), format!("where needs a bool predicate, got {}", ty.name()), "where .col = value")); }
         // @ref LLP 3000.007#5.6 — predicate setup, including lazy reads, runs afresh for each rule-visible row.
-        let value = if body.is_empty() { value } else { Expr::Block { body, value: Box::new(value) } };
+        let value = if body.is_empty() { value } else { Expr::Block { body: body.code, value: Box::new(value) } };
         Ok((read, Some(Box::new(value))))
     }
 }

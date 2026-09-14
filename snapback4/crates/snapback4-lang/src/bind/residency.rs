@@ -10,9 +10,9 @@ pub fn execution(schema: &Schema, program: &Program) -> Execution {
     execution_with_presence(schema, program, None)
 }
 
-pub(super) fn presence_facts(program: &Program, paths: &BTreeMap<String, String>) -> Execution {
+pub(super) fn presence_facts(program: &Program, ownership: &super::program::setup::Ownership) -> Execution {
     let mut fact = Execution::default();
-    presence::inspect(program, &mut fact, paths);
+    presence::inspect(program, &mut fact, ownership);
     fact
 }
 

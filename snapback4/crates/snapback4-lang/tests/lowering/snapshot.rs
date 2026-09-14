@@ -1,0 +1,121 @@
+use super::cases::Sources;
+use snapback4_core::{Ceilings, Context, Engine, Value};
+use snapback4_core::ir::{ArgType, Program, ProgramKind};
+use snapback4_lang::{ast, bind::{catalog::Catalog, program::Binder}, Diagnostic};
+use serde::{Deserialize, Serialize};
+use serde_json::{Value as Json, json};
+use std::collections::BTreeMap;
+
+type Bind = fn(&Catalog, &str, &ast::ProgramDecl, &mut Vec<Diagnostic>) -> Option<snapback4_lang::BoundProgram>;
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct Record {
+    // Keep the serializer's bytes, not a reparsed/reordered JSON object.
+    pub ir: String,
+    pub admission: Vec<Json>,
+    pub observations: Vec<Json>,
+}
+
+pub fn baseline(catalog: &Catalog, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>) -> Option<snapback4_lang::BoundProgram> {
+    Binder::bind(catalog, module, decl, diagnostics)
+}
+
+pub fn snapshot(inputs: BTreeMap<String, Sources>, binder: Bind, measure: bool) -> BTreeMap<String, Record> {
+    let mut records = BTreeMap::new();
+    for (key, sources) in inputs {
+        let mut diagnostics = Vec::new();
+        let documents = sources.iter().map(|(name, source)| {
+            let (document, errors) = snapback4_lang::parse_document(name, source);
+            diagnostics.extend(errors);
+            document
+        }).collect();
+        if !diagnostics.is_empty() { assert!(!key.starts_with("generated-"), "{key}: {diagnostics:?}"); continue; }
+        let catalog = Catalog::build(documents, &mut diagnostics);
+        let schema = snapback4_lang::bind::schema::bind_schema(&catalog, &mut diagnostics);
+        if !diagnostics.is_empty() { assert!(!key.starts_with("generated-"), "{key}: {diagnostics:?}"); }
+        for doc in &catalog.documents {
+            let module = std::path::Path::new(&doc.file).file_stem().unwrap().to_string_lossy();
+            for decl in &doc.programs {
+                let Some(bound) = binder(&catalog, &module, decl, &mut diagnostics) else { assert!(!key.starts_with("generated-"), "{key}: {diagnostics:?}"); continue; };
+                let program = bound.program;
+                if program.native || program.kind == ProgramKind::Job { continue; }
+                let name = format!("{key}:{}", program.name);
+                if !measure {
+                    records.insert(name, Record { ir: serde_json::to_string(&program).unwrap(), admission: Vec::new(), observations: Vec::new() });
+                    continue;
+                }
+                let mut schema = schema.clone();
+                // Deliberately freeze residency policy. Its intended change
+                // does not count as a lowering/admission difference.
+                let mut fact = snapback4_lang::bind::residency::execution(&schema, &program);
+                fact.connected_effects_only = false;
+                fact.prediction_guards.clear();
+                let mut admission = Vec::new();
+                for policy in ["eligible", "never"] {
+                    fact.predicts = Some(policy.into());
+                    schema.operations.insert(program.name.clone(), fact.clone());
+                    admission.push(serde_json::to_value(snapback4_core::engine::admission::check(&schema, &program).err().map(|e| e.refusal())).unwrap());
+                }
+                let mut observations = Vec::new();
+                let worlds = if key.starts_with("generated-") || key == "gpt-pick" { 6 } else { 1 };
+                // Replay the same deterministic calls on the same initial
+                // fixture in each compiler arm. Generated cases start with
+                // two rows; census programs start empty. Reusing the engine
+                // also compares the effects of successful earlier calls.
+                let seed = key.starts_with("generated-");
+                let mut shared = Engine::memory(schema.clone(), [program.clone()]).ok();
+                if seed && let Some(engine) = shared.as_mut() {
+                    engine.seed((0..2).map(|n| ("notes".into(), snapback4_core::value::object([
+                        ("id", Value::Id(format!("seed{n}"))), ("n", Value::Int(n)),
+                    ])))).unwrap();
+                }
+                for world in 0..worlds {
+                    for steps in [10, 28, 34, 2000] {
+                        observations.push(observe(&schema, &program, world, steps, shared.as_mut()));
+                    }
+                }
+                records.insert(name, Record { ir: serde_json::to_string(&program).unwrap(), admission, observations });
+            }
+        }
+    }
+    records
+}
+
+fn observe(schema: &snapback4_core::Schema, program: &Program, world: usize, steps: u64, shared: Option<&mut Engine>) -> Json {
+    let mut fresh;
+    let engine = if let Some(engine) = shared { engine } else {
+        fresh = match Engine::memory(schema.clone(), [program.clone()]) {
+            Ok(engine) => engine,
+            Err(error) => return json!({"engine": error.refusal()}),
+        };
+        &mut fresh
+    };
+    engine.set_ceilings(Ceilings { steps, ..Ceilings::default() });
+    let args = program.args.iter().map(|(name, kind)| (name.clone(), value(kind, world))).collect();
+    let context = Context::new("A", args).at(1000).with_entropy(1).with_ids((0..2048).map(|n| format!("{n:026}")));
+    match program.kind {
+        ProgramKind::Mutation => match engine.mutate(&program.name, None, context) {
+            Ok(outcome) => serde_json::to_value(outcome).unwrap(),
+            Err(error) => json!({"error":error.refusal()}),
+        },
+        ProgramKind::Query => match engine.query(&program.name, context) {
+            Ok(outcome) => serde_json::to_value(outcome).unwrap(),
+            Err(error) => json!({"error":error}),
+        },
+        _ => unreachable!(),
+    }
+}
+
+fn value(kind: &ArgType, world: usize) -> Value {
+    match kind {
+        ArgType::Bool => Value::Bool(world % 2 != 0),
+        ArgType::Int => Value::Int(world as i64 - 1),
+        ArgType::Text { min, .. } => Value::String("x".repeat((*min).max(1) as usize)),
+        ArgType::Id | ArgType::Principal | ArgType::Ref { .. } => Value::Id("A".into()),
+        ArgType::Time => Value::Int(1000),
+        ArgType::Optional(inner) => if world % 3 == 0 { Value::Null } else { value(inner, world) },
+        ArgType::List { .. } => Value::Array(Vec::new()),
+        ArgType::Enum { variants } => Value::String(variants[0].clone()),
+        _ => Value::Null,
+    }
+}

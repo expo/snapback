@@ -4,14 +4,16 @@ use snapback4_core::schema::{Execution, ResidencySite, SiteClass};
 use snapback4_core::engine::prediction::{total_body, total_expr};
 use std::collections::{BTreeMap, BTreeSet};
 
+use super::super::program::setup::{Owner, Ownership, runtime_path};
+
 type Origins = BTreeSet<String>;
 type Env = BTreeMap<String, Origins>;
 const REWRITE: &str = "decide only the emit with presence; read it on the server in a service mutation for anything else";
 
 // @ref LLP 3000.007#19.1 — only presence flows ending in effects preserve prediction; every other sink stays server-only.
-pub(super) fn inspect(program: &Program, fact: &mut Execution, paths: &BTreeMap<String, String>) {
-    let mut flow = Flow { seen: false, sites: BTreeMap::new(), effect_control: Origins::new(), escaped: Env::new(), paths, guards: BTreeSet::new() };
-    flow.body(&program.body, &mut Env::new(), &Origins::new(), &format!("programs.{}.body", program.name), false);
+pub(super) fn inspect(program: &Program, fact: &mut Execution, ownership: &Ownership) {
+    let mut flow = Flow { seen: false, sites: BTreeMap::new(), effect_control: Origins::new(), escaped: Env::new(), ownership, program: &program.name, guards: BTreeSet::new() };
+    flow.body(&program.body, &mut Env::new(), &Origins::new(), "", false);
     fact.connected_effects_only = flow.seen && flow.sites.is_empty();
     if fact.connected_effects_only { fact.prediction_guards = flow.guards.into_iter().collect(); }
     fact.sites.extend(flow.sites.into_values());
@@ -22,15 +24,17 @@ struct Flow<'a> {
     sites: BTreeMap<(String, String, String), ResidencySite>,
     effect_control: Origins,
     escaped: Env,
-    paths: &'a BTreeMap<String, String>,
+    ownership: &'a Ownership,
+    program: &'a str,
     guards: BTreeSet<String>,
 }
 
 impl Flow<'_> {
     fn reject(&mut self, origins: &Origins, usage: &str, site: &str) {
+        let site = if site.starts_with(|c: char| c.is_ascii_digit()) { format!("programs.{}.body.{site}", self.program) } else { site.to_owned() };
         for origin in origins {
-            self.sites.entry((site.into(), usage.into(), origin.clone())).or_insert_with(|| ResidencySite {
-                site: site.into(), table: "connected".into(), index: "principal".into(), kind: "presence".into(), class: SiteClass::Server,
+            self.sites.entry((site.clone(), usage.into(), origin.clone())).or_insert_with(|| ResidencySite {
+                site: site.clone(), table: "connected".into(), index: "principal".into(), kind: "presence".into(), class: SiteClass::Server,
                 reason: format!("{origin} decides {usage} at {site}"), rewrite: REWRITE.into(),
             });
         }
@@ -50,7 +54,15 @@ impl Flow<'_> {
     fn body(&mut self, body: &[Stmt], env: &mut Env, control: &Origins, path: &str, block_value: bool) -> Origins {
         let mut returned = Origins::new();
         for (n, stmt) in body.iter().enumerate() {
-            let site = format!("{path}.{n}");
+            let site = if path.is_empty() { n.to_string() } else { format!("{path}.{n}") };
+            let owner = self.ownership.get(&site).map(|owner| owner.kind);
+            let block_value = block_value || owner.is_some();
+            let before_effect = self.effect_control.clone();
+            let empty = Origins::new();
+            let control = if owner == Some(Owner::Payload) {
+                self.effect_control.extend(control.iter().cloned());
+                &empty
+            } else { control };
             match stmt {
                 Stmt::Const { name, value } | Stmt::Let { name, value } | Stmt::Assign { name, value } => {
                     let mut origins = self.expr(value, env, control, &site);
@@ -69,14 +81,15 @@ impl Flow<'_> {
                     let mut branch = self.expr(condition, env, control, &site);
                     if !branch.is_empty() {
                         if !total_body(then_body) || !total_body(else_body) { self.reject(&branch, "a fallible or variable-cost arm", &site); }
-                        if let Some(runtime) = self.paths.get(&site) { self.guards.insert(runtime.clone()); }
+                        let runtime = runtime_path(self.program, &site);
+                        if !runtime.is_empty() { self.guards.insert(runtime); }
                         else { self.reject(&branch, "an arm without a prediction charge plan", &site); }
                     }
                     branch.extend(control.iter().cloned());
-                    // Expression blocks contain lowered short-circuit/coalesce setup.
-                    // Their assignments compute values; source statement arms must
+                    // Owned short-circuit/coalesce setup computes values;
+                    // the remaining source statement arms must
                     // contain only emits. Sinks inside either form still reject below.
-                    if !block_value && let Some(usage) = non_effect(then_body).or_else(|| non_effect(else_body)) { self.reject(&branch, usage, &site); }
+                    if !block_value && let Some(usage) = non_effect(then_body, &format!("{site}.then"), self.ownership).or_else(|| non_effect(else_body, &format!("{site}.else"), self.ownership)) { self.reject(&branch, usage, &site); }
                     let mut then_env = env.clone();
                     returned.extend(self.body(then_body, &mut then_env, &branch, &format!("{site}.then"), block_value));
                     let mut else_env = env.clone();
@@ -150,6 +163,7 @@ impl Flow<'_> {
                 Stmt::Break => self.reject(control, "break", &site),
                 Stmt::Continue => self.reject(control, "continue", &site),
             }
+            self.effect_control = before_effect;
             // An exit skips later overwrites. Keep every possible exit image
             // conservatively, including a continue's back edge and a break's
             // loop exit; joining only the ordinary branch tail loses these.
@@ -275,12 +289,14 @@ fn join(mut a: Env, b: &Env) -> Env {
     a
 }
 
-fn non_effect(body: &[Stmt]) -> Option<&'static str> {
+fn non_effect(body: &[Stmt], path: &str, ownership: &Ownership) -> Option<&'static str> {
     let mut assignment = None;
-    for stmt in body {
+    for (index, stmt) in body.iter().enumerate() {
+        let site = format!("{path}.{index}");
+        if ownership.contains_key(&site) { continue; }
         let usage = match stmt {
             Stmt::Emit { .. } => None,
-            Stmt::If { then_body, else_body, .. } => non_effect(then_body).or_else(|| non_effect(else_body)),
+            Stmt::If { then_body, else_body, .. } => non_effect(then_body, &format!("{site}.then"), ownership).or_else(|| non_effect(else_body, &format!("{site}.else"), ownership)),
             Stmt::Insert { .. } | Stmt::InsertIfAbsent { .. } | Stmt::Update { .. } | Stmt::Upsert { .. } | Stmt::WriteTarget { .. } | Stmt::Delete { .. } => Some("a write"),
             Stmt::Break => Some("break"),
             Stmt::Continue => Some("continue"),
