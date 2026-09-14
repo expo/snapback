@@ -239,6 +239,9 @@ charged to that chunk's meter. Writes belong inside a chunk.
   matching q after c last N by wordsIndex` (word-prefix search; Search,
   below), `connected[p]` (open connections; `exists connected[p]` tests;
   Presence, below). A key may name its columns: `t[a = x, b = y]`.
+  With a total unique `(chatKey, principal)` key on t, `.principal = viewer
+  or exists t[.chatKey, viewer]` is decided by the chat: each row witnesses
+  itself, so the chat's roster page is complete without a second table.
 - **Seeks and filters:** `t[prefix, col >= start, col < end] first N by idx`
   seeks on the first unpinned index column. `t[prefix] after c first N by idx
   where predicate` evaluates the read rule then the predicate for each row;
@@ -574,8 +577,8 @@ with `data: null`, `complete: false`, and no continuation, since an interrupted
 scalar or shape has no valid partial answer. Its meter and cut site remain
 internal; a mutation rolls back with `E_BOUND` as above.
 
-A page whose read rule the prefix does not decide (the rule reads a
-column the scan does not pin) is never `complete`: the device cannot tell
+A page whose read rule the prefix does not decide (the deciding fields include a
+column the scan does not pin) is never `complete`: the server cannot tell
 "no more" from "more you may not see". Scan by an index that leads with
 the rule's columns, or read the page on the device (§4), where the
 partition holds exactly what the viewer may read. `check` says so

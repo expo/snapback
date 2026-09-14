@@ -2914,3 +2914,56 @@ built as lane S — the "before" agents' original rule was own-row OR
 co-member, and inside a chat-pinned prefix the first disjunct is implied
 by the second, so the roster page was complete all along and the note
 was wrong.
+
+## 2026-09-13 — Lane S: a membership row witnesses its own equality
+
+Built LLP 3000.007 §16's commissioned absorption in core `engine/rules.rs`:
+within an `or`, `.principal = viewer` (either operand order) is implied by
+a same-table `exists` on a total unique plain index whose principal term
+is `viewer` and whose other terms are their own columns' fields. Literal
+terms, nullable/non-unique/words keys, different tables and an `and`
+disjunct do not qualify. `prefix_visibility` and the binder's
+N_NEVER_COMPLETE text/rewrite now share the deciding fields; `decided_true`
+and runtime rule evaluation are unchanged. The reads/search cards and
+README explain why the chat-pinned roster needs no second membership table.
+
+The new simulator membership fixture preserves the brief's table verbatim.
+Its deciding fields fall from 2 (`chatKey`, `principal`) to 1 (`chatKey`).
+All 3 alpha members see all 3 rows with `complete: true`; a member of a
+different chat and a principal with no memberships see 0 rows, also complete,
+with no cursor and the empty-range examined count. Bob's roster makes exactly
+1 rule probe for all 3 rows, whereas the viewer-pinned directory makes 0.
+Receipt aggregation stays complete through sent, delivered, read and leave.
+Literal-admin and foreign-table probes keep Bob's roster at 1 visible row
+and `complete: false`. Both device stores produce the same data, preserve
+privacy, and keep these online-only reads incomplete even when candidate
+rows are deliberately installed: a uniform rule is not a residency fact.
+
+Measured existing bound schemas: the app's 5 read rules, 106 read rules in
+the 15 loopbar fixtures named by metrics/loopbar.jsonl (sets A–E), and 40
+read rules in the 3 retained ceremony-before fixtures. Deciding-field sets
+shrank for 0 of these 151 read rules, and for 0 of all 604 read/write rules
+(including implicit deny rules and maintained tables). No existing test's
+completeness assertion changed; the complete Rust suite passed without
+editing any existing expectation or corpus case.
+
+Targeted checks: simulator membership 4/4; device membership selection 4/4
+(the new scenario runs on SQLite and memory); frontend self-witness 1/1;
+guide 8/8. `bash snapback4/scripts/test.sh`: 301 Rust passed, 0 failed,
+1 ignored; fixtures 9/9; client 108 passed, 1 failed; all builds and
+typechecks passed. The run took 507 s, including cold builds and a long
+pre-harness launch stall on the simulator device binary, which subsequently
+passed all 3 tests. The lone failure is Chromium SIGABRT before the React
+assertions: reproduced alone and on an untouched archive of base
+`d4f29b70528a3235c8ac82247fe84d8a8f9eb0a4` with Node 24.18.0. The current
+React source snapshot passed all 11 tests (0 skips) on expo-build-1000,
+Node 24.13.1. This is not a green local full-suite claim. Verbatim logs and
+commands are retained in `/private/tmp/lane-s-verification.md`.
+
+Learned: the sampled row can change whether equality short-circuits the
+probe, but cannot change the prefix's verdict; the negative cases must keep
+testing the completeness class even when a particular viewer sees all rows.
+The ceremony instrument, other lanes' engine files, meter, value forms and
+client TypeScript are untouched. No commit, push, tag or publication. Every
+changed source file stays below 1,500 lines; this journal was already 2,869
+lines and its explicit append-only instruction is preserved.

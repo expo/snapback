@@ -4,6 +4,7 @@
 
 mod common;
 mod language;
+mod membership;
 
 use common::*;
 use snapback4_core::engine::WriteState;

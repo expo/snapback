@@ -730,9 +730,13 @@ query readForms(roomId: rooms, messageId: messages, c: cursor ?):
 ```
 
 The table names are the language card's. A page's read rule is checked
-once when the prefix decides it, else per row, and a page whose rule reads
-a column the scan does not pin is never `complete` (N_NEVER_COMPLETE names
-the index that would decide it). Modifiers come in one order: `after c`,
+once when the prefix decides it, else per row, and a page whose rule still depends
+on a column the scan does not pin is never `complete` (N_NEVER_COMPLETE names
+the index that would decide it). With a total unique `(chatKey, principal)`
+key on t, `.principal = viewer or exists t[.chatKey, viewer]` is decided by
+the chat alone because the row is its own witness, so a roster page pinned
+by the chat is complete and no second table is needed.
+Modifiers come in one order: `after c`,
 then `first N` or `last N`, then `by index`, then optional `where predicate`. A page a query returns without
 a cursor cannot be continued: an unfiltered page with more rows reads
 `complete: false` with no `next` (N_NO_CURSOR); declare `c: cursor ?` and
@@ -1186,7 +1190,10 @@ so. Every further term must be a prefix of some word of the row ("cof
 car" finds "COFFEE for Carol"). Mid-word text does not match; an empty
 search matches nothing, not everything; an expired row is gone at once;
 an edit re-tokenizes. A uniform scope (the rule decided by the room)
-costs one verdict per word; the unscoped `byWords` under a per-room rule
+costs one verdict per word; with a total unique `(chatKey, principal)` key
+on t, `.principal = viewer or exists t[.chatKey, viewer]` is decided by the
+chat alone because the row is its own witness, so a roster page pinned by
+the chat is complete and no second table is needed. The unscoped `byWords` under a per-room rule
 checks the rule per row and is never `complete` (`N_NEVER_COMPLETE` names
 it) — search across every room on the device instead, where the
 partition holds exactly what the viewer may read, offline included."##,

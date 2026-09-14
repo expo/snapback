@@ -1,6 +1,6 @@
 //! Rule evaluation and the static facts about it that the engine hoists: a
 //! rule that is proven true by the scanned prefix (`decided_true`) costs no
-//! probes; a rule whose every field is pinned by the prefix (`uniform`) is
+//! probes; a rule whose deciding fields are pinned by the prefix (`uniform`) is
 //! decided once for the whole range. Copied from Snapback 2's uniformity
 //! analysis (LLP 2000.000 §5.1); the certificate that priced these is gone,
 //! the analysis is not.
@@ -47,9 +47,45 @@ pub fn lazy_merge(schema: &Schema, merge: &Merge) -> bool {
 /// merge lanes use it too).
 pub fn prefix_visibility(table_name: &str, table: &Table, rule: &RuleExpr, pinned: &BTreeMap<&String, &Expr>) -> Visibility {
     let decided_true = rule_true(rule, table_name, table, pinned);
-    let mut used = BTreeSet::new();
-    rule.fields(&mut used);
+    let used = deciding_fields(table_name, table, rule);
     Visibility { uniform: decided_true || used.iter().all(|field| pinned.contains_key(field)), decided_true }
+}
+
+/// Fields that decide a rule after absorbing same-row equalities into
+/// self-probes in each `or`. Shared by runtime hoisting and compiler notes.
+pub fn deciding_fields(table_name: &str, table: &Table, rule: &RuleExpr) -> BTreeSet<String> {
+    let mut used = BTreeSet::new();
+    match rule {
+        RuleExpr::Or(_) => {
+            let disjuncts = rule.disjuncts();
+            for disjunct in &disjuncts {
+                if !disjuncts.iter().any(|other| self_probe_absorbs(table_name, table, disjunct, other)) {
+                    used.extend(deciding_fields(table_name, table, disjunct));
+                }
+            }
+        }
+        RuleExpr::And(terms) => terms.iter().for_each(|term| used.extend(deciding_fields(table_name, table, term))),
+        RuleExpr::Not(inner) => used.extend(deciding_fields(table_name, table, inner)),
+        _ => rule.fields(&mut used),
+    }
+    used
+}
+
+fn self_probe_absorbs(table_name: &str, table: &Table, disjunct: &RuleExpr, other: &RuleExpr) -> bool {
+    let column = match disjunct {
+        RuleExpr::Eq(RuleTerm::Field(column), RuleTerm::Viewer) | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(column)) => column,
+        _ => return false,
+    };
+    let RuleExpr::Exists { table: target, index, key, .. } = other else { return false };
+    if target != table_name { return false; }
+    let Some(index) = table.index(index) else { return false };
+    // @ref LLP 3000.007#16 — the equal row is its own witness on a total unique key; literal key terms cannot absorb it.
+    index.unique && index.is_plain() && key.len() == index.components.len()
+        && index.columns().contains(column)
+        && index.columns().iter().zip(key).all(|(component, term)| {
+            table.columns.get(component).is_some_and(|kind| !kind.is_optional())
+                && if component == column { matches!(term, RuleTerm::Viewer) } else { matches!(term, RuleTerm::Field(field) if field == component) }
+        })
 }
 
 fn pinned_term(term: &RuleTerm, expression: &Expr) -> bool {

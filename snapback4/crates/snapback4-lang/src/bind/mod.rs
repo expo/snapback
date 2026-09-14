@@ -209,10 +209,13 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             }
             let Some(index) = table.index(&scan.index) else { continue };
             let pinned: std::collections::BTreeSet<String> = index.columns().into_iter().take(scan.prefix.len()).collect();
-            let mut used = std::collections::BTreeSet::new();
-            table.rules.read.fields(&mut used);
+            let used = snapback4_core::engine::rules::deciding_fields(&scan.table, table, &table.rules.read);
             let unpinned: Vec<String> = used.difference(&pinned).cloned().collect();
-            let leading = unpinned.iter().map(|c| c.as_str()).chain(index.columns().iter().skip(scan.prefix.len()).map(String::as_str).map(|s| Box::leak(s.to_owned().into_boxed_str()) as &str)).collect::<Vec<_>>().join(", ");
+            let mut leading = unpinned.clone();
+            for column in index.columns().into_iter().skip(scan.prefix.len()) {
+                if !leading.contains(&column) { leading.push(column); }
+            }
+            let leading = leading.join(", ");
             notes.push(
                 Diagnostic::new(
                     &bound.site,
