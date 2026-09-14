@@ -32,7 +32,7 @@ pub fn query_with_coverage(rows: &dyn Rows, schema: &Schema, program: &Program, 
     runner.charge_output(&data)?;
     let next = runner.next_cursor()?;
     Ok(QueryOutcome {
-        complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.beyond_horizon && !runner.presence_unknown,
+        complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.page_position_lost() && !runner.beyond_horizon && !runner.presence_unknown,
         capped_at: runner.meter.capped_at.clone(),
         word_cut_at: runner.word_cut_at.clone(),
         next,
@@ -93,7 +93,7 @@ pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Mo
         let data = value?;
         runner.charge_output(&data)?;
         Ok(QueryOutcome {
-            complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.beyond_horizon,
+            complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.beyond_horizon,
             capped_at: runner.meter.capped_at.clone(),
             word_cut_at: runner.word_cut_at.clone(),
             next: None,
@@ -111,7 +111,7 @@ pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Mo
 impl Runner<'_> {
     // @ref LLP 3000.007#18.2 — retained history suppresses fallback only when no independent unknown or incomplete reason remains.
     fn only_retained_incomplete(&self) -> bool {
-        self.missing_fact.is_none() && self.meter.capped_at.is_none() && self.word_cut_at.is_none() && !self.non_uniform && !self.page_overflow && !self.presence_unknown
+        self.missing_fact.is_none() && self.meter.capped_at.is_none() && self.word_cut_at.is_none() && !self.non_uniform && !self.page_overflow && !self.page_position_lost() && !self.presence_unknown
     }
 
     // @ref LLP 3000.007#6.2 — preserve the first undecidable site's evaluated key.

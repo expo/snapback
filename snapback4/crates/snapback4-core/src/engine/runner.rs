@@ -29,6 +29,9 @@ pub(crate) struct PagePosition {
     pub index: String,
     pub order: Order,
     pub prefix_len: usize,
+    /// A full scan still needs a proven result owner when its lookahead
+    /// reached the end: an interrupted shape may have dropped its rows.
+    pub filled: bool,
     /// The suffix values of the last returned row, if another visible row
     /// followed it (else the page is the last one).
     pub next: Option<Vec<Value>>,

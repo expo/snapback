@@ -140,7 +140,7 @@ fn domain_origin(domain: &LoopDomain, bindings: &Bindings, include_cursorless: b
 
 // Count every collector write and reject early exits. Nested point shapes can
 // branch and write their own temporaries, but the outer collector gets one push.
-fn writes(body: &[Stmt], counts: &mut BTreeMap<String, usize>) -> bool {
+fn writes(body: &[Stmt], counts: &mut BTreeMap<String, usize>, nested_loop: bool) -> bool {
     let mut exits = false;
     for statement in body {
         match statement {
@@ -153,14 +153,16 @@ fn writes(body: &[Stmt], counts: &mut BTreeMap<String, usize>) -> bool {
                 else_body,
                 ..
             } => {
-                exits |= writes(then_body, counts);
-                exits |= writes(else_body, counts);
+                exits |= writes(then_body, counts, nested_loop);
+                exits |= writes(else_body, counts, nested_loop);
             }
             Stmt::For { binding, body, .. } => {
                 *counts.entry(binding.clone()).or_default() += 1;
-                exits |= writes(body, counts);
+                // @ref LLP 3000.007#19.2 — a helper's lowered return breaks its own loop, not the enclosing page's one-to-one shape.
+                exits |= writes(body, counts, true);
             }
-            Stmt::Return(_) | Stmt::Break | Stmt::Continue => exits = true,
+            Stmt::Return(_) => exits = true,
+            Stmt::Break | Stmt::Continue => exits |= !nested_loop,
             _ => {}
         }
     }
@@ -231,7 +233,7 @@ fn origins(
                 origins(body, &path, &mut local, &mut nested, include_cursorless);
                 returns.extend(nested.into_keys().map(|path| (path, Origin::Empty)));
                 let mut changed = BTreeMap::new();
-                let exits = writes(body, &mut changed);
+                let exits = writes(body, &mut changed, false);
                 *changed.entry(binding.clone()).or_default() += 1;
                 let targets = body
                     .iter()
