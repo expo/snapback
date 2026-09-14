@@ -892,6 +892,15 @@ time-ordered 128-bit form.
   `snapback4-expo@0.2.3`; the ceremony bar's third run and the three-model
   Clique cell run on that pin.
 
+- **2026-09-14 — the ceremony bar's third run records lane S's result.**
+  On published `snapback4@0.2.10` (with `snapback4-expo@0.2.3`), three
+  green and independently reverified: 437/407/419 s, loops 1/2/1 all
+  agent-error, nine tables each, and the natural private membership rule
+  retained in every run. The before duplicated membership; the after
+  made its roster public; the third does neither. LLP 3000.007 §16 and
+  its linked record retain the evidence and N = 3 limits; the Clique
+  cell and the author's rulings remain pending.
+
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal

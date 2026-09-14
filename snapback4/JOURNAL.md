@@ -3912,3 +3912,41 @@ that run is unfinished. Its snapshot is
 its available space. Only this task's failed base build files were removed,
 and its named failed incremental directory was moved to
 `/tmp/w5-generated-recovery` for recovery; no source work was removed.
+
+
+## 2026-09-14 — 0.2.10 published; the third ceremony run keeps the membership rule
+
+The publication record is now retained: `snapback4@0.2.10` and its Darwin
+package at 11:02:06 UTC, followed by `snapback4-expo@0.2.3` at 11:14:36.
+The binary is 7,728,288 B (`af4e26be…`); the client tarball 505,169 B.
+The first publisher attempt refused on client startup timeouts under host
+load; the successful attempt's suite passed before publication. npm then
+processed the client package asynchronously for roughly seven minutes,
+outlasting the launcher's five-minute visibility wait; the continuation
+allowed thirty minutes and completed the remaining steps. The package
+version bookkeeping in Cargo.lock and the publish metric land with this
+record. W5 is later than this pin.
+
+The third ceremony run, on that pin, is three green and independently
+reverified, 5/5 runner probes each: walls 437/407/419 s; loops 1/2/1,
+all agent-error; source tables 9/9/9; maintains 1/1/0. Every agent wrote
+and kept `.principal = viewer or exists members[.chatKey, viewer]`, with
+no membership correction, public roster or duplicate membership table.
+Lane S's absorption removed both forms of the ceremony §16 identified.
+The before/after/third totals are 11/6/4 loops, with recorded
+Snapback-attributed totals 1/0/0. Means from raw walls are
+457.4/477.4/421.0 s, N = 3 per pin under shared-host load, not a
+magnitude claim. Search still carries N_NO_CURSOR in runs 1 and 3.
+The Clique builder overlapped the latter part of run 1 and all of runs
+2–3; the full cell remains in flight.
+
+The [third-run record](../benchmarks/runs/2026-09-14-snapback4-ceremonybar-third/README.md)
+keeps the schemas, reports, logs and runner results. A P3
+[ticket](../issues/20260914-snapback4-lifecycle-tests-time-out-under-host-load.md)
+records the loaded-host lifecycle and client startup waits: the prior
+orchestrator observed them across trees including main, and the retained
+serial client control passes 132/132. No timeout is counted as product
+success. This landing changes records and version bookkeeping only;
+validation is the evidence consistency audit and `./ref-check --verbose`.
+The orchestrator still owes the §10.3 finding from the full cell. The
+SQL-read choice and rulings 16, 17 (a)–(c) remain for the author.
