@@ -5023,3 +5023,18 @@ whole-tree `./ref-check --verbose` reports 42 errors in ignored
 `.llp/ship-runs/` logs and retained instrument copies; none is in this change.
 Whitespace validation passes. These are documentation checks, not new product
 qualification.
+
+## 2026-09-14 — membership feed query CPU and wall time
+
+The performance lane completed and independently audited an instrumented
+0.2.10 Office run: 18,432 HTTP calls and all 2,304 selected traces passed.
+At 150 groups/C8, first/rotating feed query CPU averaged 5.898/7.817 ms and
+query wall 10.557/16.154 ms, accounting for 78.9%/85.5% of server wall. The
+residual does not identify an internal lock or I/O cause. The older partial
+capture remains failed; no smoke or partial trace entered these statistics.
+
+The [performance record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
+retains the result and limits. The [core-owner follow-up](../issues/20260914-snapback4-membership-feed-query-cost.md)
+starts with a current-source measurement: 0.2.12 added work on these query
+paths, so the old diagnostic is not a current-release claim. No core edit,
+result/authority cache, ceiling change or new performance win follows yet.

@@ -2587,3 +2587,60 @@ Earlier source refusal, failed V2 smoke and successful excluded smokes are
 preserved. The local/remote exit timestamps differ by 30.5 ms in reverse
 order; zero exit and within-host chronology agree, without a synchronized
 clock assumption.
+
+### Query CPU and wall time: instrumented 0.2.10 membership reads
+
+A diagnostic on Office M1 Max / ARM Linux Colima (four CPUs, 12 GiB)
+completed at 2026-09-14 20:25:45 UTC. It used source `beed6a51e…` with a
+host-only stage/thread-CPU observer, binary `a68b11a2…`, Node 24.21.0 and
+the packaged SQLite option with MEMSTATUS enabled. Production compilation
+and 49 CLI tests passed. All 18,432 timed HTTP calls, 2,160 excluded warmups,
+72 case/round blocks and 2,304 selected traces validated. Selection rotates
+one in eight calls across three rounds; each case has 32 traces per round.
+The 48-trace passing smoke remains separate. Before/after whole-fixture,
+ordinary-session, outsider and invalid/expired-auth proofs passed; all owned
+processes exited. Of the formal selected readers, 2,303 were reused and one
+was constructed.
+
+The following combines 96 selected observations per row across three rounds.
+Means and nearest-rank p95 describe the instrumented `reader.query` interval;
+ratios divide sums, not medians. Server wall runs from dispatch observation
+through handler completion. All 24 combined cases and 72 separate case/round
+summaries remain in the diagnostic ledger record.
+
+| 150-group query | Mean CPU ms | Mean wall ms | Query wall p95 ms | CPU / query wall | Query / server wall |
+|---|---:|---:|---:|---:|---:|
+| First page, C1 | 4.719 | 4.735 | 6.956 | 99.65% | 89.08% |
+| Rotating page, C1 | 6.180 | 6.212 | 9.339 | 99.49% | 91.52% |
+| First page, C8 | 5.898 | 10.557 | 23.680 | 55.87% | 78.89% |
+| Rotating page, C8 | 7.817 | 16.154 | 32.373 | 48.39% | 85.45% |
+
+For the two C8 feed rows, waits for the outer auth/reader engine mutexes
+average 0.154/0.173 ms. Query wall minus thread CPU averages 4.659/8.337 ms.
+That signed residual cannot identify an internal lock, scheduler, I/O or
+specific core function. The null-cursor first page is already CPU-intensive
+at C1. The observer runs in-process and its cost is not calibrated away;
+there is no uninstrumented speedup or new comparator conclusion here.
+
+The earlier V3 formal attempt remains a **failed capture**: its HTTP load
+finished, but only 421 of 2,304 required traces were collected and no after
+verifier ran. Its traces are excluded. A host-only logging correction
+preformats each line before taking the stderr lock; the successful V4 run
+uses that reviewed correction. This diagnoses the observer, not product
+latency. One `write_all` call is not a one-syscall guarantee.
+
+Current core/language source at `206650f29…` and `886afe026…` is identical,
+but differs materially from the measured `beed6a51e…`. Schema-derived rule
+dependencies, prefix-verdict work and lookup materialization execute for
+this fixture in the newer core. These numbers must not be relabelled as
+0.2.12/current-release performance. The [feed follow-up](../../../issues/20260914-snapback4-membership-feed-query-cost.md)
+requires a scoped current-source measurement before selecting a core change.
+The old final cursor-encoding deletion remains unadopted.
+
+The formal transfer (`eba60c90…`) retains 22 original public files, 4,674,220
+bytes, under the ignored ship run's `membership-stages-0210-v4-formal-public/`.
+Independent summary `81055afd…`, evidence review `19a4b5b7…` and reconciliation
+`0eee78c1…` bind this result. The two calculators agree on 23,040 shared event
+values and 2,304 shared group statistics; their p50 conventions differ
+(arithmetic median versus nearest rank), and each was checked against its
+own definition. No failed or smoke sample contributes to formal statistics.
