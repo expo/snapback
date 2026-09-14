@@ -8,6 +8,7 @@
 use crate::error::RuntimeError;
 use crate::key;
 pub use crate::rows::{Bounds, Dir, index_key, index_keys, index_values};
+use crate::rows::stored_index_keys;
 use crate::schema::{Index, Schema, Table};
 use crate::value::{Value, canonical_json};
 use rusqlite::{Connection, OptionalExtension, params};
@@ -15,6 +16,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 mod activation;
+mod successor;
 
 const STORE_VERSION: &str = "snapback4-store-1";
 
@@ -41,6 +43,30 @@ fn scan_sql(dir: Dir) -> &'static str {
 }
 
 impl Store {
+    /// Inspect a dev store without creating a database, changing permissions, or
+    /// running the writable store's initialization and upgrade path.
+    pub fn open_read_only(path: &Path) -> Result<Self, RuntimeError> {
+        let mut conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+        conn.busy_timeout(std::time::Duration::from_secs(5))?;
+        let tx = conn.transaction()?;
+        let version: String = tx.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| row.get(0))?;
+        if version != STORE_VERSION { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}"))); }
+        let catalog = tx.prepare("SELECT name, num FROM _catalog")?.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?.collect::<Result<_, _>>()?;
+        let identity = activation::identity(&tx)?;
+        tx.rollback()?;
+        let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+        let assets_dir = real.parent().unwrap_or(Path::new(".")).join("assets");
+        Ok(Self { conn, catalog, identity, assets_dir })
+    }
+
+    /// Classify against one read snapshot of the active generation and rows.
+    pub fn successor(&mut self, schema: &Schema) -> Result<Vec<crate::successor::Step>, RuntimeError> {
+        let tx = self.read_transaction()?;
+        let steps = successor::assess(&tx, schema)?;
+        tx.rollback()?;
+        Ok(steps)
+    }
+
     pub fn open(path: &Path) -> Result<Self, RuntimeError> {
         let io = |e: std::io::Error| RuntimeError::Store(format!("private store: {e}"));
         // Release links intentionally point at the one shared database.
@@ -353,7 +379,7 @@ impl<'a> Tx<'a> {
                 self.tx.prepare_cached("INSERT INTO r(t, id, data) VALUES (?1, ?2, ?3)")?.execute(params![t, id, data])?;
                 for (index_name, index) in &table.indexes {
                     let ti = self.num(&format!("{table_name}.{index_name}"))?;
-                    for key in index_keys(index, row, &id) {
+                    for key in stored_index_keys(table, index, row, &id) {
                         self.tx.prepare_cached("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)")?.execute(params![ti, key, id])?;
                         entries += 1;
                     }
@@ -362,8 +388,8 @@ impl<'a> Tx<'a> {
             Some(old) => {
                 self.tx.prepare_cached("UPDATE r SET data = ?3 WHERE t = ?1 AND id = ?2")?.execute(params![t, id, data])?;
                 for (index_name, index) in &table.indexes {
-                    let before = index_keys(index, old, &id);
-                    let after = index_keys(index, row, &id);
+                    let before = stored_index_keys(table, index, old, &id);
+                    let after = stored_index_keys(table, index, row, &id);
                     if before == after {
                         continue;
                     }
@@ -389,7 +415,7 @@ impl<'a> Tx<'a> {
         let mut entries = 0;
         for (index_name, index) in &table.indexes {
             let ti = self.num(&format!("{table_name}.{index_name}"))?;
-            for key in index_keys(index, old, &id) {
+            for key in stored_index_keys(table, index, old, &id) {
                 self.tx.prepare_cached("DELETE FROM i WHERE ti = ?1 AND k = ?2")?.execute(params![ti, key])?;
                 entries += 1;
             }

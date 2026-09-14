@@ -18,7 +18,7 @@ use std::process::ExitCode;
 const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on every device
 
   init [dir] [--online|--expo]      start local-first, online-only, or with the Expo client
-  check [--cost|--residency|--fix|--json]          compile snapback/*.q; write snapback/generated/api.ts; build snapback/native if there is one
+  check [--cost|--residency|--fix|--json] [--store path]  compile snapback/*.q; check store adoption; write types; build native jobs
   types                            compile and write snapback/generated/api.ts
   dev [--port N] [--no-watch] [--fresh]  serve on 127.0.0.1:4400, re-adopting on every save; --fresh: a store in memory
   deploy <dir> [--allow-destructive]  a release: the compiled backend into <dir>/releases/N, current → N

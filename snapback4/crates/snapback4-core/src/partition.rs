@@ -626,14 +626,14 @@ fn expand_joins(tx: &Tx<'_>, schema: &Schema, page: Vec<LogEvent>, held: &BTreeM
         if expired_predecessor {
             out.push(LogEvent { seq: event.seq, ord: event.ord, table: event.table.clone(), kind: "scope".into(), id: event.id.clone(), data: Some(Value::Array(group.clone())) });
         }
-        let mut rows: Vec<Value> = tx.group_at(&group_partition(&event.table, &group), event.seq)?.into_iter().filter_map(|event| event.data).filter(|row| !table.expired(row, now)).collect();
+        let mut rows: Vec<Value> = tx.group_at(&group_partition(&event.table, &group), event.seq)?.into_iter().filter_map(|event| event.data)
+            .map(|mut row| { materialize_optional_fields(&mut row, table); row }).filter(|row| !table.expired(row, now)).collect();
         if let Some(horizon) = &sync.horizon {
             let index = table.index(&horizon.by).ok_or_else(|| RuntimeError::Schema(format!("missing horizon index {}", horizon.by)))?;
             rows.sort_by_cached_key(|row| std::cmp::Reverse(crate::rows::index_key(index, row, row.field("id").ok().and_then(|v| v.as_str().ok()).unwrap_or(""))));
             rows.truncate(horizon.last as usize);
         }
-        for mut row in rows {
-            materialize_optional_fields(&mut row, table);
+        for row in rows {
             let id = row.field("id")?.as_str()?.to_owned();
             out.push(LogEvent { seq: event.seq, ord: event.ord, table: event.table.clone(), kind: "put".into(), id, data: Some(row) });
         }

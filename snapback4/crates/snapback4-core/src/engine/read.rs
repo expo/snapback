@@ -96,12 +96,15 @@ impl Runner<'_> {
 
     pub(super) fn lookup_live(&mut self, table_name: &str, name: &str, index: &Index, key: &[Value], charge: bool) -> Result<Option<Value>, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
-        if table.expire.is_none() { return self.tx.lookup(table_name, name, index, key); }
+        if table.expire.is_none() {
+            return self.tx.lookup(table_name, name, index, key).map(|found| found.map(|mut row| { materialize_optional_fields(&mut row, table); row }));
+        }
         let mut bounds = Bounds::default();
         loop {
             let rows = self.tx.scan(table_name, name, key, &bounds, Dir::Asc, 32)?;
             let count = rows.len();
-            for (row, stored) in rows {
+            for (mut row, stored) in rows {
+                materialize_optional_fields(&mut row, table);
                 if charge && !self.meter.charge(MeterKind::Examined, 1)? { return Ok(None); }
                 bounds.after = crate::key::decode(&stored).map(|values| values.into_iter().skip(key.len()).collect());
                 if !self.expired(table, &row) { return Ok(Some(row)); }
@@ -130,7 +133,8 @@ impl Runner<'_> {
         'sources: loop {
             let rows = self.tx.scan(&maintain.source, index, &prefix, &bounds, Dir::Asc, 256)?;
             let count = rows.len();
-            for (candidate, key) in rows {
+            for (mut candidate, key) in rows {
+                materialize_optional_fields(&mut candidate, source);
                 if !self.meter.charge(MeterKind::Examined, 1)? { break 'sources; }
                 bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(prefix.len()).collect());
                 if self.expired(source, &candidate) || crate::schema::maintained_key(&candidate, &maintain.by) != group { continue; }
@@ -498,6 +502,7 @@ impl Runner<'_> {
                     break 'outer;
                 }
                 cursor.after = Some(crate::key::decode(&key).unwrap_or_default().into_iter().skip(prefix.len()).collect());
+                materialize_optional_fields(&mut row, table);
                 if self.expired(table, &row) {
                     // Gone, whatever the rule says; it cost one examined row.
                     continue;
@@ -511,7 +516,6 @@ impl Runner<'_> {
                 if unmatched {
                     continue;
                 }
-                materialize_optional_fields(&mut row, table);
                 let row_expiry_mark = self.next_expiry;
                 let allowed = match uniform_verdict {
                     Some(verdict) => verdict,

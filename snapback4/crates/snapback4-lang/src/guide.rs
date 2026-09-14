@@ -440,6 +440,13 @@ lists are heap-bound; a write still validates their actual column lengths.
 A column may end with `default <literal | now | viewer>`. Omitted insert
 fields take their defaults before rules run; explicit values, including null
 on an optional column, win. `now` and `viewer` use the writing host's context.
+An added required column with a literal default also fills absent fields in
+old images on every host, without rewriting rows or logging partition events.
+Optional columns still read null when absent. New required `default now` or
+`default viewer` columns adopt only an empty table; otherwise use an optional
+column or a literal default. `check` reads `.snapback4/store.sqlite` when it
+exists (or `--store path`); `E_ADOPT` locates each successor refusal and its
+rewrite, as `dev` refuses the save. Without a store, check only compiles.
 Pages, lists and shaped collections share the list operations: `sort`, `slice`,
 `count`, `sum`, `group`, `first`, `last`, `at`, `join` and `for`. Their elements
 must still fit the operation: `join` joins texts; `sum(page, .amount)` projects numbers."##,

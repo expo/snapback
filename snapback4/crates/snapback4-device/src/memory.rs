@@ -11,7 +11,7 @@ use crate::store::{DeviceStore, DeviceTx};
 use serde::{Deserialize, Serialize};
 use snapback4_core::error::RuntimeError;
 use snapback4_core::key;
-use snapback4_core::rows::{Bounds, Dir, Rows, index_keys, scan_range};
+use snapback4_core::rows::{Bounds, Dir, Rows, stored_index_keys, scan_range};
 use snapback4_core::schema::{Index, Schema, Table};
 use snapback4_core::value::Value;
 use std::cell::RefCell;
@@ -180,7 +180,7 @@ impl MemoryStore {
         for ((table_name, id), row) in &state.rows {
             let Some(table) = schema.table(table_name) else { continue };
             for (index_name, index) in &table.indexes {
-                for key in index_keys(index, row, id) {
+                for key in stored_index_keys(table, index, row, id) {
                     state.entries.insert((format!("{table_name}.{index_name}"), key), id.clone());
                 }
             }
@@ -189,20 +189,13 @@ impl MemoryStore {
 }
 
 /// A row projected onto its table: columns the schema no longer has go,
-/// columns it gained read as null. `pending` is the device's own mark on
+/// columns it gained are materialized by the runner. `pending` is the device's own mark on
 /// a predicted row, not a column; it stays.
 fn project(row: &mut Value, table: &Table) -> bool {
     let Value::Row(fields) = row else { return false };
     let before = fields.len();
     fields.retain(|column, _| column == "pending" || table.columns.contains_key(column));
-    let mut changed = fields.len() != before;
-    for column in table.columns.keys() {
-        if !fields.contains_key(column) {
-            fields.insert(column.clone(), Value::Null);
-            changed = true;
-        }
-    }
-    changed
+    fields.len() != before
 }
 
 impl DeviceStore for MemoryStore {
@@ -420,11 +413,11 @@ impl Rows for MemoryTx<'_> {
         for (index_name, index) in &table.indexes {
             let ti = format!("{table_name}.{index_name}");
             if let Some(old) = old {
-                for key in index_keys(index, old, &id) {
+                for key in stored_index_keys(table, index, old, &id) {
                     self.set_entry((ti.clone(), key), None);
                 }
             }
-            for key in index_keys(index, row, &id) {
+            for key in stored_index_keys(table, index, row, &id) {
                 self.set_entry((ti.clone(), key), Some(id.clone()));
                 written += 1;
             }
@@ -436,7 +429,7 @@ impl Rows for MemoryTx<'_> {
         let id = old.field("id")?.as_str()?.to_owned();
         let mut removed = 0;
         for (index_name, index) in &table.indexes {
-            for key in index_keys(index, old, &id) {
+            for key in stored_index_keys(table, index, old, &id) {
                 self.set_entry((format!("{table_name}.{index_name}"), key), None);
                 removed += 1;
             }
