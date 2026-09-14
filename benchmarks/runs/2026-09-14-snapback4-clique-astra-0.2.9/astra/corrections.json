@@ -1,0 +1,195 @@
+{
+  "method": "Normalized per protocol: exclude first-pass compiler fixes, unresolved unchanged-rerun flake, and initial documentation discovery; group two scale inspection losses into one correction with two iterations. Operational run-log labels remain unedited.",
+  "counts": {
+    "environment": 2,
+    "agent-error": 17,
+    "snapback4-defect": 1,
+    "ambiguous": 1
+  },
+  "rows": [
+    {
+      "id": 1,
+      "attribution": "environment",
+      "description": "Node PATH mismatch",
+      "evidence": "run-log.md",
+      "protocolLoop": true
+    },
+    {
+      "id": 2,
+      "attribution": "agent-error",
+      "description": "Generated module API references",
+      "evidence": "evidence/m2-acceptance-retry.txt",
+      "protocolLoop": true
+    },
+    {
+      "id": 3,
+      "attribution": "environment",
+      "description": "Frozen default fixture path",
+      "evidence": "evidence/m2-choreo-console.txt",
+      "protocolLoop": true
+    },
+    {
+      "id": 4,
+      "attribution": "agent-error",
+      "description": "Feed navigation from subsidiary screens",
+      "evidence": "evidence/m2-choreo-console.txt",
+      "protocolLoop": true
+    },
+    {
+      "id": 5,
+      "attribution": "agent-error",
+      "description": "Retryable Argon2 slot pressure",
+      "evidence": "scripts/auth-probe.mjs",
+      "protocolLoop": true
+    },
+    {
+      "id": 6,
+      "attribution": "agent-error",
+      "description": "Group title/slug route mismatch",
+      "evidence": "evidence/m3-choreo-retry2.txt",
+      "protocolLoop": true
+    },
+    {
+      "id": 7,
+      "attribution": "agent-error",
+      "description": "Overlapping suite/choreography and unstable seed comparison",
+      "evidence": "evidence/m3-acceptance-final.txt",
+      "protocolLoop": true
+    },
+    {
+      "id": 8,
+      "attribution": "agent-error",
+      "description": "Uncreated DM route and duplicate group identities",
+      "evidence": "evidence/m3-choreo-retry3.txt",
+      "protocolLoop": true
+    },
+    {
+      "id": 9,
+      "attribution": "agent-error",
+      "description": "Queued per-keystroke typing and stray whitespace",
+      "evidence": "evidence/m3-choreo-retry4.txt",
+      "protocolLoop": true
+    },
+    {
+      "id": 10,
+      "attribution": "snapback4-defect",
+      "description": "Retained history plus horizon disappears; unbounded sync workaround",
+      "evidence": "evidence/m3-retention-probe7.txt",
+      "protocolLoop": true,
+      "subAttribution": "defect"
+    },
+    {
+      "id": 11,
+      "attribution": "agent-error",
+      "description": "Required additive tombstone column failed adoption",
+      "evidence": "evidence/m4-window-console.txt",
+      "protocolLoop": true
+    },
+    {
+      "id": 12,
+      "attribution": "agent-error",
+      "description": "Empty-string JSX guard warnings",
+      "evidence": "evidence/m4-media-probe.txt",
+      "protocolLoop": true
+    },
+    {
+      "id": 13,
+      "attribution": "agent-error",
+      "description": "Media authoritative settlement and video close control",
+      "evidence": "evidence/m4-acceptance-retry2.txt",
+      "protocolLoop": true
+    },
+    {
+      "id": 14,
+      "attribution": "agent-error",
+      "description": "Offline link banner lag; shorter documented poll wait",
+      "evidence": "evidence/m5-choreo-console.txt",
+      "protocolLoop": true
+    },
+    {
+      "id": 15,
+      "attribution": "agent-error",
+      "description": "Premature M6 choreography launch before suite receipt",
+      "evidence": "evidence/m6-choreo-console.txt",
+      "protocolLoop": true
+    },
+    {
+      "id": 16,
+      "attribution": "agent-error",
+      "description": "Live presence read disabled send prediction",
+      "evidence": "evidence/m6-send-why.txt",
+      "protocolLoop": true
+    },
+    {
+      "id": 17,
+      "attribution": "agent-error",
+      "description": "Home chat rows for cross-device unread check",
+      "evidence": "evidence/m8-choreo-console.txt",
+      "protocolLoop": true
+    },
+    {
+      "id": 18,
+      "attribution": "ambiguous",
+      "description": "Dual-offline intermittent timeout; unchanged retry and independent probe passed",
+      "evidence": "evidence/m8-choreo-final.txt",
+      "protocolLoop": false
+    },
+    {
+      "id": 19,
+      "attribution": "ambiguous",
+      "description": "Scale instance lost during concurrent administrative inspection; two iterations, stopped-server workaround",
+      "evidence": "evidence/attempt1-scale-run.json",
+      "protocolLoop": true
+    },
+    {
+      "id": 20,
+      "attribution": "agent-error",
+      "description": "Checkpoint celebrity post-count assumption",
+      "evidence": "evidence/scale-o5-exact-console.txt",
+      "protocolLoop": true
+    },
+    {
+      "id": 21,
+      "attribution": "agent-error",
+      "description": "Deep quote navigation needed repeated taps",
+      "evidence": "evidence/deep-quote-proof.json",
+      "protocolLoop": true
+    },
+    {
+      "id": 22,
+      "attribution": "agent-error",
+      "description": "Cold probe elapsed field mislabeled; value preserved and renamed",
+      "evidence": "evidence/scale-cold-web-original.json",
+      "protocolLoop": true
+    },
+    {
+      "id": 23,
+      "attribution": "ambiguous",
+      "description": "Schedule module target refusal; root declaration workaround",
+      "evidence": "evidence/m8-check3.txt",
+      "protocolLoop": false
+    },
+    {
+      "id": 24,
+      "attribution": "snapback4-defect",
+      "description": "Undocumented processDevice directory signature",
+      "evidence": "evidence/process-device-preflight.txt",
+      "protocolLoop": false,
+      "subAttribution": "knowledge-gap"
+    },
+    {
+      "id": 25,
+      "attribution": "agent-error",
+      "description": "First-pass Quarry syntax/index/type refusals (not protocol correction loops)",
+      "evidence": "evidence/event-ledger.txt",
+      "protocolLoop": false
+    },
+    {
+      "id": 26,
+      "attribution": "environment",
+      "description": "Read-only copied file modes and missing shared harness helper",
+      "evidence": "lib/json-schema.mjs",
+      "protocolLoop": false
+    }
+  ]
+}

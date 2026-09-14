@@ -1,0 +1,130 @@
+{
+  "reportVersion": 1,
+  "lane": "astra-snapback4",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "/Users/ccheever/clique-sb4-20260914-astra-0.2.9/instrument/schema/social-messenger/assertions.json",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace.md#phase-1-builder-suite (m8: six server totals match SQL counts)"
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": null,
+      "evidence": "trace.md#phase-3-choreography (m8-a02-insights-like-refresh)"
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace.md#phase-1-builder-suite (m8: UTC buckets)"
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace.md#phase-1-builder-suite (m8: UTC buckets, zero days)"
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace.md#phase-1-builder-suite (m8: trending rank)"
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace.md#phase-1-builder-suite (m8: trailing window proof)",
+      "note": "Proven in an isolated project copy with a test-only backdated post/ranking over the same rankings table, query and expire rule; not observed on the live store."
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace.md#phase-1-builder-suite (m8: newest-first tie)"
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#digest-probe (m8-a08)",
+      "note": "Push-seam log, period 1789380960000: counts R=[1,2,3,2] X=[0,0,2,2] O=[0,0,2,2] vs expected {\"R\":[1,2,3,2],\"X\":[0,0,2,2],\"O\":[0,0,2,2]} ([newFollowers,newPostsInFollowing,unreadMessages,unreadChats]); no client connected for these personas."
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#digest-probe (m8-a09)",
+      "note": "A dormant persona and the sender (no activity counting toward them) received no digest for period P."
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#digest-probe (m8-a10, follow-up)",
+      "note": "Follow-up: activity in period Q produced one digest; the quiet period Q+1 emitted none ({\"R\":0,\"S\":0,\"D\":0}), across a backend restart."
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#digest-probe (m8-a11)",
+      "note": "Restart mid-P before emission gave exactly one digest per active user; restarts after emission (session-teardown relaunch and mid-Q+1) re-emitted nothing: Q count 1, P counts {\"o\":1,\"r\":1,\"x\":1}."
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#digest-probe (m8-a12)",
+      "note": "R's digest counted 3 unread messages in 2 chats; one unread message each in an S-O DM and an S-O-X group (R not a member) did not contribute."
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": null,
+      "evidence": "trace.md#phase-3-choreography (m8-a13-same-account-message-live)"
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": null,
+      "evidence": "trace.md#phase-3-choreography (m8-a14-cross-device-read-state)"
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": null,
+      "evidence": "trace.md#phase-3-choreography (m8-a15-dual-offline-convergence)"
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": null,
+      "evidence": "trace.md#phase-3-choreography (m8-a16-dual-offline-receipts)"
+    },
+    "m8-a17": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#native-artifacts (M8)",
+      "note": "No iOS simulator durable-queue artifact (no m8-ios-screen.mp4 / receipts / run manifest; builder M8 summary records ios-simulator-m8 not-recorded). A browser-profile restart proof exists (evidence/m8-durable-web-proof.json, nativeClaim:false) but is not the native artifact; scored not-passed."
+    },
+    "m8-a18": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#native-artifacts (M8)",
+      "note": "No iOS simulator durable-queue artifact (no m8-ios-screen.mp4 / receipts / run manifest; builder M8 summary records ios-simulator-m8 not-recorded). A browser-profile restart proof exists (evidence/m8-durable-web-proof.json, nativeClaim:false) but is not the native artifact; scored not-passed."
+    }
+  }
+}
