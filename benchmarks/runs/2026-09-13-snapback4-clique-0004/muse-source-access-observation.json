@@ -1,0 +1,20 @@
+{
+  "observedAt": "2026-09-14T01:41:59.414302+00:00",
+  "lane": "muse-snapback4",
+  "classification": "Published-surface access deviation; preserve the received run, no builder intervention",
+  "requestedBoundary": "Published README, guide and generated types; prompt also prohibits Snapback source anywhere",
+  "promptSha256": "96769c83bffbbca8c61ca47ac3af00dc6e138bb91b42dd2e6554d194fffdaeaa",
+  "publicToolEvidence": [
+    {
+      "recordedAt": 1780531400017926,
+      "lineNumber": 8965,
+      "eventSha256": "ef80f2ff639da949d0bfef42bfbbba8ca069e42157b1533ac88851d105d51f66",
+      "description": "Read auth session store implementation",
+      "installedImplementationPaths": [
+        "app-host/clique/node_modules/snapback4/dist/auth.js"
+      ],
+      "referencesRepositoryCheckout": false
+    }
+  ],
+  "scope": "Observed read of installed dist/auth.js implementation, not a repository checkout. Raw command, implementation body and private model reasoning are not copied here. Audit does not change independent assertion grades."
+}

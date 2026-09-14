@@ -1,0 +1,698 @@
+{
+  "schemaVersion": "clique.finished-builder-source-access-audit.v1",
+  "observedAt": "2026-09-14T01:51:35.124397Z",
+  "status": "complete",
+  "purpose": "orchestration fairness/source-access qualification for the finished Astra and Grok continuous builders; this is not a benchmark grade",
+  "scope": {
+    "includedWaves": [
+      "astra",
+      "grok"
+    ],
+    "excludedWave": "muse (still active when this audit was requested and covered by a separate orchestrator receipt)",
+    "logs": {
+      "astra": {
+        "path": "logs/astra-snapback4.ndjson",
+        "bytes": 2468890,
+        "lineCount": 842,
+        "sha256": "817a5971bdf6b2540c508c89e66a18378c06a732593a4d2e0c2a565ac9f1cbca"
+      },
+      "grok": {
+        "path": "logs/grok-snapback4.ndjson",
+        "bytes": 131085500,
+        "lineCount": 15755,
+        "sha256": "dcda8fba530e5b4a4d95678d3b50d0dc844fc56f2e8fa0409ecf630be2feba1a"
+      }
+    },
+    "promptPolicy": {
+      "astra": {
+        "path": "prompts/astra-snapback4.md",
+        "sha256": "669bc9882331da20da449cac348fae96c7f0b92a02716af690fd40ba50eb3b62",
+        "governingLines": [
+          3,
+          4,
+          5,
+          6,
+          8
+        ]
+      },
+      "grok": {
+        "path": "prompts/grok-snapback4.md",
+        "sha256": "b3e8b2a1f67447c4db36bf2fa9b36a6182594ba20470b11ae61612153bc500b5",
+        "governingLines": [
+          3,
+          4,
+          5,
+          6,
+          8
+        ]
+      },
+      "ruleApplied": "No Snapback/Exact checkout or Snapback source anywhere; the enumerated discovery surface is the installed package README, served guide/keyword cards, why diagnostics, and generated snapback/generated/api.ts."
+    }
+  },
+  "method": {
+    "astra": "Parsed item.started events and inspected only command_execution item.command arguments; 393 command-execution starts were checked.",
+    "grok": "Parsed tool_call events and inspected only toolName plus rawInput command/path fields; 729 tool calls were checked.",
+    "ignored": [
+      "Astra agent_message content and command result/output bodies",
+      "Grok thought, text, plan, tool_call_update, and terminal/read/grep result bodies",
+      "private reasoning or message bodies of either builder",
+      "path strings that appeared only in build output, written source/comments, reports, or evidence-pointer arguments"
+    ],
+    "lineHash": "SHA-256 of the exact one-based NDJSON line bytes, including its line terminator",
+    "secretHandling": "No raw multi-command shell arguments or credential values are copied into this receipt.",
+    "classification": {
+      "implementationSource": "Content reads/searches of installed .js/.ts implementation or a Snapback source checkout are source access.",
+      "publicDeclarations": "Published declaration-only .d.ts reads are recorded separately from implementation/source reads. They are outside the prompt wording that specifically names generated api.ts, so this receipt does not silently merge them into the enumerated lookup surface.",
+      "metadataAndUsage": "README content, package metadata, directory/file-name listings, generated api.ts, and copying a runtime WASM asset are separately recorded and are not implementation content inspection.",
+      "nonReadReferences": "Writing or mentioning an implementation path is not classified as a read unless a public tool argument performs a content read/search."
+    }
+  },
+  "results": {
+    "astra": {
+      "verdict": "no prohibited implementation/source read observed in public command arguments",
+      "prohibitedAccessEventCount": 0,
+      "prohibitedAccessEvents": [],
+      "repositoryCheckoutArgumentMatchCount": 0,
+      "implementationJsTsPathArgumentMatchCount": 0,
+      "boundaryDispositions": {
+        "packageReadmeContent": {
+          "classification": "enumerated published documentation surface",
+          "commandEventCount": 23,
+          "paths": [
+            "$ASTRA_LANE/node_modules/snapback4/README.md",
+            "$ASTRA_LANE/node_modules/snapback4-expo/README.md"
+          ],
+          "events": [
+            {
+              "line": 28,
+              "lineSha256": "1514b9c6b4bc2de7e47ba854765b85fa8f1e556500b2becb535d83e1d50ddd4a",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_14"
+            },
+            {
+              "line": 30,
+              "lineSha256": "cb66f8337ed599d05ff89f184bfd149d983ff333c187fd7d87881ec77b523c32",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_15"
+            },
+            {
+              "line": 32,
+              "lineSha256": "9f280ac79f7a00359ae8e327f3e6465f5c74031ad97342837b7fef3fe9004d58",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_16"
+            },
+            {
+              "line": 34,
+              "lineSha256": "e1fb05a16df9ad046ca301bf52eaf36d17526a617424e57ad91db136e21fca3a",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_17"
+            },
+            {
+              "line": 301,
+              "lineSha256": "2d07c16a73346d347325f8fcd44aabd4fbbaec0b1a52730876e26e526e28a0fd",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_158"
+            },
+            {
+              "line": 306,
+              "lineSha256": "9e93a1673568007fa01fac6b7b155e47a10521c66eed46c713545737370647bd",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_161"
+            },
+            {
+              "line": 308,
+              "lineSha256": "4ff6ba449caef12a44d72853576baa495597d92c6e7fff1ff4233e275c66706f",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_162"
+            },
+            {
+              "line": 345,
+              "lineSha256": "400e9d88e3d135dc6e05db22d8ed547553baf8605155bef7787eaf85ec4d0f9f",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_182"
+            },
+            {
+              "line": 349,
+              "lineSha256": "20d7dc1b21a8de2a5cc2e9fad1f7d628fd2bb6cdf8e09cc58a18ed73eac77d01",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_184"
+            },
+            {
+              "line": 354,
+              "lineSha256": "32670a49278b50561f086a8a66be708d2a56c8f816b0d51c6cc6fc5910d7b403",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_187"
+            },
+            {
+              "line": 384,
+              "lineSha256": "6cfcaf9966a5b8d75f05d407b4df89ef40ab50dac0b9456813d098426e4bd8ee",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_202"
+            },
+            {
+              "line": 394,
+              "lineSha256": "b9d9476270be717e650d6ce03b540b6e92b5b97ee9df71c5e6cea4335d317ee9",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_207"
+            },
+            {
+              "line": 399,
+              "lineSha256": "ba708e6458464a8022148a3c32cab42a57ec353bee828f1af70e0a43862ee261",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_210"
+            },
+            {
+              "line": 439,
+              "lineSha256": "a525b582bf6f993711abe1ab52c04721d917397978ed18f0910c0a96fc31be1b",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_231"
+            },
+            {
+              "line": 465,
+              "lineSha256": "0cf598295d3d663c843d244dac3367a53ce0f6d97a763b7d8b9cdbf391d49295",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_245"
+            },
+            {
+              "line": 532,
+              "lineSha256": "73118f586d2d338cf3fcab9a06d9b1dc8e8bd02e4f81688c96d6d5fae8a8870f",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_280"
+            },
+            {
+              "line": 695,
+              "lineSha256": "9682d44bd6ce08633273f8b0a147d39450d5c4c4a6b7a53ce13707de4e1e6b5b",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_368"
+            },
+            {
+              "line": 698,
+              "lineSha256": "f91b5203fb0910e1bc93a23322ac09a4750d076c04b7e4a14c5ae6c4864165b7",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_369"
+            },
+            {
+              "line": 702,
+              "lineSha256": "1139e8759b64b10aaa4da3521bbdd841749969b0bb01613ae3871309421298a6",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_371"
+            },
+            {
+              "line": 708,
+              "lineSha256": "96c75dbde837a2111e932057e13afcdb20b58b7b679d5415a64a38a7e046a788",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_374"
+            },
+            {
+              "line": 710,
+              "lineSha256": "b5a2b2d3ef00579fa1391fb46a9c3194a9335bc2a1829c4cd8cf3de8124ca890",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_375"
+            },
+            {
+              "line": 715,
+              "lineSha256": "40a608a14f482751a38af68ad6cd76973169697f0db00ca67a0198eccf83ef60",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_378"
+            },
+            {
+              "line": 723,
+              "lineSha256": "4bbb40aca1e3406596db15a8341851dc634ffe2384971ff004b0855a868d15f6",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_382"
+            }
+          ]
+        },
+        "generatedApiContent": {
+          "classification": "enumerated generated type surface",
+          "commandEventCount": 4,
+          "path": "$ASTRA_LANE/snapback/generated/api.ts",
+          "events": [
+            {
+              "line": 46,
+              "lineSha256": "c48c5ab54a458eea5dc878a47738efaac3c5469d90481742070a2ba621a198d4",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_23"
+            },
+            {
+              "line": 176,
+              "lineSha256": "d10c2b6ca0b0e242bfe5b65cab50473bbc7490dbd902bb63ecd753149c29336a",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_91"
+            },
+            {
+              "line": 180,
+              "lineSha256": "5d3175e7e2d0bb11bf8c89b1a6a51a373d4605bebd3571fffb4ced33d2b25753",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_93"
+            },
+            {
+              "line": 409,
+              "lineSha256": "90ad1b251a2c74ac8414ea00826ea00c42c306fbca89c8b11da694b510372db5",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_215"
+            }
+          ]
+        },
+        "packageMetadata": {
+          "classification": "metadata, not implementation content",
+          "path": "$ASTRA_LANE/node_modules/snapback4/package.json",
+          "events": [
+            {
+              "line": 46,
+              "lineSha256": "c48c5ab54a458eea5dc878a47738efaac3c5469d90481742070a2ba621a198d4",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_23"
+            }
+          ]
+        },
+        "implementationFilenameEnumeration": {
+          "classification": "filename discovery only, not file-content inspection",
+          "path": "$ASTRA_LANE/node_modules/snapback4/dist (filtered for a WASM filename)",
+          "events": [
+            {
+              "line": 48,
+              "lineSha256": "9f2af71e6994b1ce82ec84381caed1a9b5bd81a03a8516c5e51dc6fc93b08fd4",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_24"
+            }
+          ]
+        },
+        "runtimeAssetCopy": {
+          "classification": "runtime asset use, not source inspection",
+          "path": "$ASTRA_LANE/node_modules/snapback4/dist/wasm/snapback4_device_bg.wasm",
+          "events": [
+            {
+              "line": 51,
+              "lineSha256": "9aa5cf908026982693b48a048641f203634b024864cc9d2f9093b5ee7670d3d4",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_26"
+            }
+          ]
+        },
+        "nonReadPackagePathMentions": {
+          "classification": "evidence-pointer/report arguments; no content-read verb against the package path",
+          "commandEventCount": 4,
+          "events": [
+            {
+              "line": 201,
+              "lineSha256": "167f7fc54129d6bb5e5c6ec6097c17ba5cd553de87ebba3460cd797044d52fdf",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_104"
+            },
+            {
+              "line": 314,
+              "lineSha256": "0f75c4ee4876a5847a8afab8aeab59182f782860de98e65b703429e3be2fc44f",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_165"
+            },
+            {
+              "line": 544,
+              "lineSha256": "e39c97fe66a4eebfd5e121c406fdaa115cd0391bda37024acff9cb2b4280f654",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_286"
+            },
+            {
+              "line": 725,
+              "lineSha256": "01bb71dd4eb7d1953160427318b863193e3696890790c146050278266d0c37a3",
+              "eventType": "item.started",
+              "tool": "command_execution",
+              "toolCallId": "item_383"
+            }
+          ]
+        }
+      },
+      "limitation": "The verdict covers explicit public command arguments in the retained log. It does not claim knowledge of dynamically constructed paths, subprocess internals, excluded outputs, private reasoning, or unlogged activity."
+    },
+    "grok": {
+      "verdict": "prohibited installed-package implementation/source access observed",
+      "prohibitedAccessEventCount": 5,
+      "directContentReadEventCount": 4,
+      "mixedImplementationDeclarationSearchEventCount": 1,
+      "uniqueDirectImplementationPaths": [
+        "$GROK_LANE/node_modules/snapback4-expo/src/index.ts",
+        "$GROK_LANE/node_modules/snapback4/bin/snapback4.js",
+        "$GROK_LANE/node_modules/snapback4/dist/react.js"
+      ],
+      "prohibitedAccessEvents": [
+        {
+          "line": 1216,
+          "lineSha256": "38d5060b599271936c8b7a090dfef913ebd4a7e1cdde938b97b81795ffb494b3",
+          "eventType": "tool_call",
+          "tool": "read_file",
+          "toolCallId": "call-776c4e40-795f-48d7-9328-fe3fbe986a9f-70",
+          "operation": "bounded file-content read",
+          "classification": "installed-package implementation/source read",
+          "path": "$GROK_LANE/node_modules/snapback4-expo/src/index.ts",
+          "certainty": "high",
+          "qualification": "The explicit read_file target is a published TypeScript source file, which is implementation/source rather than README, guide output, generated API, or declaration-only types."
+        },
+        {
+          "line": 2797,
+          "lineSha256": "1be2abf353a5d98b6e51bfd9398c94afb19d4361f73ce9f35183e3f9ca1ebdf5",
+          "eventType": "tool_call",
+          "tool": "run_terminal_command",
+          "toolCallId": "call-2df41fd7-d384-4854-84ea-f81fd031b16a-157",
+          "operation": "shell content read of file prefix",
+          "classification": "installed-package CLI implementation read",
+          "path": "$GROK_LANE/node_modules/snapback4/bin/snapback4.js",
+          "certainty": "high",
+          "qualification": "The public command argument explicitly reads the first part of the installed JavaScript CLI entrypoint. The receipt omits the full multi-command argument."
+        },
+        {
+          "line": 7815,
+          "lineSha256": "eb7f03ab2f04421816c9e5b1632fcb45b01e76851fd8ce4b58836126dc4ffe2c",
+          "eventType": "tool_call",
+          "tool": "grep",
+          "toolCallId": "call-651790f5-b015-4e82-b948-f262eb13325c-53",
+          "operation": "content search",
+          "classification": "mixed implementation-JavaScript and declaration search",
+          "path": "$GROK_LANE/**/snapback4/dist/**/*.{js,d.ts}",
+          "certainty": "high that the requested search scope includes implementation JavaScript; match/output not examined",
+          "qualification": "The grep glob explicitly includes both .js implementation and .d.ts declarations. rawInput supplies no base path, so $GROK_LANE reflects the tool session workspace; tool output was deliberately excluded."
+        },
+        {
+          "line": 7874,
+          "lineSha256": "396bad866936169e41857b12fff1ecfb32e5c749eea1b2ced5c7bfc1b8651a42",
+          "eventType": "tool_call",
+          "tool": "read_file",
+          "toolCallId": "call-51e5e29c-ed95-439b-818e-e5dec58b43a8-57",
+          "operation": "bounded file-content read",
+          "classification": "installed-package implementation read",
+          "path": "$GROK_LANE/node_modules/snapback4/dist/react.js",
+          "certainty": "high",
+          "qualification": "The explicit read_file target is compiled JavaScript implementation."
+        },
+        {
+          "line": 7925,
+          "lineSha256": "b1f1b357180cc08b8c64e40cb2e96e338163e5b851e4d73649993b2783680c82",
+          "eventType": "tool_call",
+          "tool": "read_file",
+          "toolCallId": "call-4c3f6e3b-72f1-445d-b244-17f1d9dd3a77-62",
+          "operation": "second bounded file-content read",
+          "classification": "installed-package implementation read",
+          "path": "$GROK_LANE/node_modules/snapback4/dist/react.js",
+          "certainty": "high",
+          "qualification": "This is a separate read_file call against another range of the same compiled JavaScript implementation."
+        }
+      ],
+      "repositoryCheckoutArgumentMatchCount": 0,
+      "boundaryDispositions": {
+        "publishedDeclarationContent": {
+          "classification": "declaration-only public types; separately qualified, not implementation/source reads",
+          "toolCallCount": 12,
+          "paths": [
+            "$GROK_LANE/node_modules/snapback4/dist/{auth,client,contract,local,native,react,web,worker}.d.ts"
+          ],
+          "promptSurfaceQualification": "The prompt explicitly enumerates generated snapback/generated/api.ts rather than installed-package declaration files; these calls therefore remain visible as a separate public-declaration access class.",
+          "events": [
+            {
+              "line": 934,
+              "lineSha256": "332943dd3da207e795673844fa14a3fe8948e3a39e74195df54850a589e8efb5",
+              "eventType": "tool_call",
+              "tool": "read_file",
+              "toolCallId": "call-fc5deef3-47d9-4ec0-94a5-edc6f872b88d-46"
+            },
+            {
+              "line": 936,
+              "lineSha256": "624ac39d4b8525eecd34a1704797f02a4d538ab464875da7b41ceb9197b24afe",
+              "eventType": "tool_call",
+              "tool": "read_file",
+              "toolCallId": "call-fc5deef3-47d9-4ec0-94a5-edc6f872b88d-47"
+            },
+            {
+              "line": 938,
+              "lineSha256": "1d9a8aa3b6e35ca2fa2bfcd23ee3fa79cca689d6f199ffa2ac2a403a4ba810ed",
+              "eventType": "tool_call",
+              "tool": "read_file",
+              "toolCallId": "call-fc5deef3-47d9-4ec0-94a5-edc6f872b88d-48"
+            },
+            {
+              "line": 1071,
+              "lineSha256": "571427e874d2a407e273a3bd34bd5f4461ddfce77eabbe8c6c1510415fa5b5e7",
+              "eventType": "tool_call",
+              "tool": "read_file",
+              "toolCallId": "call-dbbdb4fb-5f9c-4417-8c5a-1e7544a69d68-49"
+            },
+            {
+              "line": 1073,
+              "lineSha256": "ca86e21dbd7f0eb7204117fc6fbecc9b6a94bb86c512ad51f698d504ad5e95e0",
+              "eventType": "tool_call",
+              "tool": "read_file",
+              "toolCallId": "call-dbbdb4fb-5f9c-4417-8c5a-1e7544a69d68-50"
+            },
+            {
+              "line": 1075,
+              "lineSha256": "e1d9659fc8a634b37c925f2de70a660c9bee17eb134fefb883f6176efd326eed",
+              "eventType": "tool_call",
+              "tool": "read_file",
+              "toolCallId": "call-dbbdb4fb-5f9c-4417-8c5a-1e7544a69d68-51"
+            },
+            {
+              "line": 1077,
+              "lineSha256": "c7b411a608055601fd454c848965e4d0e2feac4a28040004ba8ceff168f3e029",
+              "eventType": "tool_call",
+              "tool": "read_file",
+              "toolCallId": "call-dbbdb4fb-5f9c-4417-8c5a-1e7544a69d68-52"
+            },
+            {
+              "line": 1153,
+              "lineSha256": "07db850913b80f05940925942e11c6c8814c8f67a800cae517b3842a6ddea9c3",
+              "eventType": "tool_call",
+              "tool": "read_file",
+              "toolCallId": "call-7627c545-960e-4b56-a2ed-71930fb351d2-64"
+            },
+            {
+              "line": 7689,
+              "lineSha256": "994dabb3cc822ad96612620e792d9f367f680743a4aaaa473f37d172c84efdae",
+              "eventType": "tool_call",
+              "tool": "read_file",
+              "toolCallId": "call-a3b18de2-0384-4d58-b121-d2438c55cae4-39"
+            },
+            {
+              "line": 7971,
+              "lineSha256": "2ee0e0561660902e9fdcb6e132fb39b48db458faaaee8dbe979ebafae4bd9108",
+              "eventType": "tool_call",
+              "tool": "grep",
+              "toolCallId": "call-70991157-9f00-457f-ad5e-a4df422761f1-68"
+            },
+            {
+              "line": 8712,
+              "lineSha256": "f72f7428e20207a583e9866cba684a7472dc46b0d0b8a62761b49597adf52c60",
+              "eventType": "tool_call",
+              "tool": "grep",
+              "toolCallId": "call-01086abd-0458-4b3b-be85-2d1add7fbda2-115"
+            },
+            {
+              "line": 8745,
+              "lineSha256": "b565ee2e96f37434132ed517c523b6622b615f7503383c5906dfb6485f44c2f5",
+              "eventType": "tool_call",
+              "tool": "read_file",
+              "toolCallId": "call-d034e1ba-a145-4faf-8b8c-927ff26f3b0c-117"
+            }
+          ]
+        },
+        "packageReadmeContent": {
+          "classification": "enumerated published documentation surface",
+          "toolCallCount": 5,
+          "paths": [
+            "$GROK_LANE/node_modules/snapback4/README.md",
+            "$GROK_LANE/node_modules/snapback4-expo/README.md"
+          ],
+          "events": [
+            {
+              "line": 779,
+              "lineSha256": "1a6c4d3c57bd7dffc2aa8444c73c5b028da57f070e96c423c9ad9774765b0387",
+              "eventType": "tool_call",
+              "tool": "read_file",
+              "toolCallId": "call-16c15b6e-63ec-4f32-8592-2a37b5d341a5-40"
+            },
+            {
+              "line": 781,
+              "lineSha256": "b506a66eedc71f398b6d451fafc8687e73126a4982a1fb7a647ac4b6f40caecf",
+              "eventType": "tool_call",
+              "tool": "read_file",
+              "toolCallId": "call-16c15b6e-63ec-4f32-8592-2a37b5d341a5-41"
+            },
+            {
+              "line": 928,
+              "lineSha256": "234e58ba5935ce0f9123a146a1ac7988ef9422caaf7300140e4f064999c7d4c2",
+              "eventType": "tool_call",
+              "tool": "read_file",
+              "toolCallId": "call-fc5deef3-47d9-4ec0-94a5-edc6f872b88d-43"
+            },
+            {
+              "line": 7880,
+              "lineSha256": "5487e242dd886726fe3e6b859164643e21a7e42021fabc85947ae3b3acdd8286",
+              "eventType": "tool_call",
+              "tool": "grep",
+              "toolCallId": "call-51e5e29c-ed95-439b-818e-e5dec58b43a8-60"
+            },
+            {
+              "line": 7973,
+              "lineSha256": "158a83a1e508b158c850fc699e9517aa51c9be4590b1f4a696ad17572e1df6d2",
+              "eventType": "tool_call",
+              "tool": "read_file",
+              "toolCallId": "call-70991157-9f00-457f-ad5e-a4df422761f1-69"
+            }
+          ]
+        },
+        "generatedApiContent": {
+          "classification": "enumerated generated type surface",
+          "toolCallCount": 6,
+          "path": "$GROK_LANE/snapback/generated/api.ts",
+          "events": [
+            {
+              "line": 2066,
+              "lineSha256": "e66fc2a8a94cac5f6e38c3b9f2d8c2570323c0faf19ea2249b20266d1ba1a675",
+              "eventType": "tool_call",
+              "tool": "read_file",
+              "toolCallId": "call-59c7dbe2-ff38-4fb3-ab51-ce19de1ec0c6-118"
+            },
+            {
+              "line": 2105,
+              "lineSha256": "4ce8cf52334de6970458dc22931d2a52521c03632c283f76ef4a4cc348b78464",
+              "eventType": "tool_call",
+              "tool": "read_file",
+              "toolCallId": "call-f613f577-3707-4fd5-92a9-97292aa962af-120"
+            },
+            {
+              "line": 2127,
+              "lineSha256": "41bf07de2f921d1a2ba08a4bd3d0150e772909c67921c1d038cab7e02625927d",
+              "eventType": "tool_call",
+              "tool": "read_file",
+              "toolCallId": "call-a04eacb1-e717-4c8c-bdd8-7497c2af3160-121"
+            },
+            {
+              "line": 7757,
+              "lineSha256": "effd275bf35fcfff6f56b185b0326fb3fd2265dd4d62ef97675025c885644a89",
+              "eventType": "tool_call",
+              "tool": "read_file",
+              "toolCallId": "call-5a230f4e-99b3-46f6-9e64-6c9851b5c464-45"
+            },
+            {
+              "line": 7759,
+              "lineSha256": "69bea96349c7e51c5e4304dfc1e4713f014592fadd4c9b7f1502c80507e4442f",
+              "eventType": "tool_call",
+              "tool": "grep",
+              "toolCallId": "call-5a230f4e-99b3-46f6-9e64-6c9851b5c464-46"
+            },
+            {
+              "line": 8710,
+              "lineSha256": "07e40b5de09a7a24377e1d71fd0990a1c217557e3b23ba90266555188cfeff33",
+              "eventType": "tool_call",
+              "tool": "grep",
+              "toolCallId": "call-01086abd-0458-4b3b-be85-2d1add7fbda2-114"
+            }
+          ]
+        },
+        "packageMetadataAndDirectoryListings": {
+          "classification": "package metadata or filename listing, not implementation content",
+          "toolCallCount": 4,
+          "paths": [
+            "$GROK_LANE/node_modules/snapback4/package.json",
+            "$GROK_LANE/node_modules/snapback4/dist",
+            "$GROK_LANE/node_modules/snapback4-expo",
+            "$GROK_LANE/node_modules/snapback4-expo/package.json"
+          ],
+          "events": [
+            {
+              "line": 735,
+              "lineSha256": "7ad96b2552ffaea57a47d5b3a261c1e1a6582df0fd7679c1b9aae957c2b24668",
+              "eventType": "tool_call",
+              "tool": "run_terminal_command",
+              "toolCallId": "call-052ca62d-b801-4711-9457-4950e7451c50-39"
+            },
+            {
+              "line": 932,
+              "lineSha256": "4527a263129e7a1bc98a44673b55d702a0c52274d01cb4620494b8ff1494c53a",
+              "eventType": "tool_call",
+              "tool": "list_dir",
+              "toolCallId": "call-fc5deef3-47d9-4ec0-94a5-edc6f872b88d-45"
+            },
+            {
+              "line": 2990,
+              "lineSha256": "ec237f8f264eccb6d7eb216218c1b5d85c06d04570a143e1f067a9c4176801a5",
+              "eventType": "tool_call",
+              "tool": "list_dir",
+              "toolCallId": "call-7debd02e-9538-4d70-a05c-0a9d373fd4df-167"
+            },
+            {
+              "line": 2992,
+              "lineSha256": "930a9cd114f295470e676660119ce5df0713f3ece10a21adc1f03cf989a43e13",
+              "eventType": "tool_call",
+              "tool": "read_file",
+              "toolCallId": "call-7debd02e-9538-4d70-a05c-0a9d373fd4df-168"
+            }
+          ]
+        },
+        "runtimeAssetCopy": {
+          "classification": "runtime asset use, not source inspection",
+          "path": "$GROK_LANE/node_modules/snapback4/dist/wasm/snapback4_device_bg.wasm",
+          "events": [
+            {
+              "line": 3157,
+              "lineSha256": "647c81c7414a1e8acc70507ab762e52d331575db6e6186263b909ffa5d6a986b",
+              "eventType": "tool_call",
+              "tool": "run_terminal_command",
+              "toolCallId": "call-cdbc218a-1e3a-4294-9a2a-70709a409744-178"
+            }
+          ]
+        },
+        "writtenImplementationPathReference": {
+          "classification": "write event containing a path reference; not an implementation read by this tool call",
+          "pathMentioned": "$GROK_LANE/node_modules/snapback4/bin/snapback4.js",
+          "destination": "$GROK_LANE/scripts/write-setup-identity.mjs",
+          "events": [
+            {
+              "line": 3748,
+              "lineSha256": "1fb82fd4d0d8a689ff5881127508d2ca088c0c94c53629f5af9d1059df3858be",
+              "eventType": "tool_call",
+              "tool": "write",
+              "toolCallId": "call-711b36e1-868d-4391-8793-de22ba93acb1-234"
+            }
+          ]
+        }
+      },
+      "limitation": "The event findings are based solely on explicit public tool arguments. The mixed grep result is qualified because its output was intentionally excluded. No claim is made about dynamically constructed paths, subprocess internals, excluded outputs, private reasoning, or unlogged activity."
+    }
+  },
+  "summary": {
+    "astra": "No prohibited Snapback implementation/source access was observed in 393 public command starts.",
+    "grok": "Five public tool calls targeted implementation/source content: four direct reads across three installed implementation files and one mixed .js/.d.ts content-search scope. No Snapback/Exact repository-checkout path appeared in Grok tool-call arguments.",
+    "comparisonUse": "Carry these qualifications with builder results; do not feed them to builders, scorers, or graders."
+  }
+}

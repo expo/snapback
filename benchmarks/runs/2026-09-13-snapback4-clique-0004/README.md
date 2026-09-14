@@ -27,7 +27,7 @@ binary and raw-log digests. Astra reports all seven continuous milestones green;
 | Builder sequence | one continuous cold session: M1 → M2 → M3 → M4 → M5 → M6 → M8 |
 | Later phases | same-family holistic score; fresh Claude Opus 5 independent grade; fresh M7 builder-family session |
 | Execution | serial, foreground, on the Black M5 Max; ports 49300–49319 |
-| Product access | published packages, package README, generated API, CLI guide and diagnostics only; no source-repository access or steering |
+| Requested product access | published packages, package README, generated API, CLI guide and diagnostics only; source-inspection deviations are recorded below |
 | Evidence level | N=1 per model; calibration evidence, not a magnitude claim |
 
 | Lane | Harness | Builder | Effort | Holistic scorer |
@@ -40,6 +40,15 @@ The independent grader is a fresh `claude-opus-5` session for each artifact.
 That matches the September 5 grader model. Its prior CLI version was not
 recorded; this packet uses Claude Code 2.1.270, which limits comparison of
 grader behavior across runs.
+
+The [public-tool source-access audit](./source-access-audit.json) found five
+Grok calls targeting installed package implementation, and no such call among
+Astra's 393 inspected command starts. A separate [active-run observation](./muse-source-access-observation.json)
+records Muse reading installed `dist/auth.js`. These exceed the requested
+documentation and generated-API discovery path. The audit inspects public
+command/path arguments, not private reasoning or every possible indirect read;
+no repository-checkout path appeared in the inspected arguments. These access
+qualifications accompany the results without changing assertion grades.
 
 ## Results
 
@@ -62,8 +71,21 @@ It produced no successful iOS Hermes export and stopped its scale replay
 before verifying invariants. Its report cites insufficient remaining session
 wall, although the prompt provides four hours per milestone and a separate
 scale clock. This early stop is retained as an execution limitation, not an
-exhausted benchmark allowance. Muse is building M1; holistic scores,
-independent grades and fresh M7 sessions remain pending.
+exhausted benchmark allowance.
+
+Muse's [running-build observations](./muse-progress-observations.json) record
+passing acceptance-suite claims for M1–M6 and M8, plus one verified Hermes
+export after M8. Choreography and separate milestone-boundary exports remain
+unqualified. Its first two local replays each report 36,809 actions, versus the
+frozen 167,157; the first had 3,113 action failures and the second reported zero,
+with invariant verification still unresolved. The [provisional corpus audit](./muse-provisional-scale-corpus-audit.json)
+records the smaller input and missing named full-scale fixtures. Muse has since
+changed that local log and started a third reduced replay, so final input and
+outcome audits remain pending. These attempts do not qualify the frozen full
+scale replay. A [clock observation](./muse-runlog-clock-observation.json) also
+records three handwritten log epochs ahead of observer wall time; driver and
+receipt clocks remain separate. Holistic scores, independent grades and fresh
+M7 sessions remain pending.
 
 The separate [Grok client attribution audit](./grok-client-attribution-audit.md)
 identifies mutation return values as a documented client limitation. Static
@@ -80,7 +102,7 @@ timing does not identify a new device-apply defect.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Astra medium | builder green | builder green | builder green | builder green | builder green | builder green | builder green | 9,614.013 s | pending | pending | pending | pending |
 | Grok 4.6 xhigh | web green | web green | capability failure | blocked; partial API suite | blocked; partial API suite | blocked; scale incomplete | blocked; partial API suite | 12,499.350 s | pending | pending | pending | pending |
-| Muse Spark 1.3 xhigh | running | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending |
+| Muse Spark 1.3 xhigh | suite green; full pending | suite green; full pending | suite green; full pending | suite green; full pending | suite green; full pending | suite green; full pending | suite green; full pending | running | pending | pending | pending | pending |
 
 The Astra M4 builder reproduced a new [video prediction defect](../../../issues/20260913-snapback4-video-id-only-prediction-refuses.md): passing the documented asset `{ id }` fails locally when the mutation reads `.duration`. Passing the complete upload response let it continue. This is a received builder reproduction; independent grading is pending, and the published pins remain unchanged.
 
@@ -95,6 +117,14 @@ M8 assertion result.
 The holistic score and complete independent grade occur before M7 because M7
 changes the artifact. Each M7 run starts a fresh process using its lane's
 builder model and effort.
+
+The [Muse score-provenance preflight](./muse-score-output-provenance-preflight.md)
+found that recursive JSON-string extraction could accept the prompt's example
+if the final answer were malformed. The frozen aggregator remains unchanged.
+Before aggregation, an external capture helper validates the unique public
+terminal answer and its complete score, then retains that answer verbatim as
+`scores/muse/FINAL.md` with a provenance receipt. Validation failure stops this
+path; no score is inferred or repaired.
 
 ## Prior N=1 anchors
 
@@ -133,6 +163,7 @@ python3 scripts/run_phase.py builder muse
 python3 scripts/run_phase.py score astra
 python3 scripts/run_phase.py score grok
 python3 scripts/run_phase.py score muse
+python3 observed-milestones/helpers/capture-muse-score-final.py .
 python3 scripts/aggregate_scores.py
 python3 scripts/run_phase.py grade astra
 python3 scripts/run_phase.py grade grok

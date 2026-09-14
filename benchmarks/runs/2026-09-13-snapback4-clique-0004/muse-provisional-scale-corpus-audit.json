@@ -1,0 +1,427 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-09-14T03:49:27.869384Z",
+  "status": "provisional-builder-active",
+  "scope": {
+    "purpose": "Read-only corpus identity and fresh-instance audit of the Muse Snapback4 scale pipeline against the frozen full Clique instrument.",
+    "constraints": [
+      "No process was launched, contacted, steered, graded, or modified.",
+      "No lane, instrument, prompt, fixture, or grader input was changed.",
+      "Private model messages and reasoning were not read or retained.",
+      "Only public task lifecycle command arguments were normalized; command output text was not copied into this receipt."
+    ],
+    "finalization": "Re-hash and re-audit after the Muse builder exits if any recorded corpus, driver, generator, verifier, or public invocation input changes."
+  },
+  "corpora": {
+    "museLaneGenerated": {
+      "packetRelativePath": "lanes/muse-snapback4/scale.log",
+      "bytes": 2654251,
+      "lineCount": 36811,
+      "actionCount": 36809,
+      "checkpointCommentCount": 2,
+      "checkpointComments": [
+        {
+          "line": 3681,
+          "sha256": "e0f424eb1981b8217bd87d776b3ee854e3dc8998bbd118a2a7161d20fc9214a6"
+        },
+        {
+          "line": 18406,
+          "sha256": "2ddfe80d58bfaece48a31b67eb910a7294d20d2d18ca258d63c917b0014b4381"
+        }
+      ],
+      "blankLineCount": 0,
+      "parseErrorCount": 0,
+      "sha256": "4a3f9dcfbf6c836934618ed25b0223a027ab2618bf474f2d6f844f09d369d3e9",
+      "firstActionTimestamp": "2026-02-01T00:00:00Z",
+      "lastActionTimestamp": "2026-02-01T10:13:28Z",
+      "distinctActorTokenCount": 300,
+      "registeredActorCount": 300,
+      "registeredActorMin": "u000",
+      "registeredActorMax": "u299",
+      "verbCounts": {
+        "dm-create": 72,
+        "follow": 2311,
+        "group-create": 43,
+        "like": 9300,
+        "member-add": 133,
+        "post": 6000,
+        "profile-set": 300,
+        "react": 2200,
+        "register": 300,
+        "reply": 2500,
+        "repost": 1650,
+        "send": 10771,
+        "send-media": 1229
+      }
+    },
+    "frozenFullInstrument": {
+      "packetRelativePath": "instrument/fixtures/scale.log",
+      "bytes": 13014016,
+      "lineCount": 167159,
+      "actionCount": 167157,
+      "checkpointCommentCount": 2,
+      "checkpointComments": [
+        {
+          "line": 24778,
+          "sha256": "e0f424eb1981b8217bd87d776b3ee854e3dc8998bbd118a2a7161d20fc9214a6"
+        },
+        {
+          "line": 88059,
+          "sha256": "2ddfe80d58bfaece48a31b67eb910a7294d20d2d18ca258d63c917b0014b4381"
+        }
+      ],
+      "blankLineCount": 0,
+      "parseErrorCount": 0,
+      "sha256": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9",
+      "firstActionTimestamp": "2026-01-01T00:00:00Z",
+      "lastActionTimestamp": "2026-01-02T22:25:56Z",
+      "distinctActorTokenCount": 1000,
+      "registeredActorCount": 1000,
+      "registeredActorMin": "u0001",
+      "registeredActorMax": "u1000",
+      "verbCounts": {
+        "dm-create": 900,
+        "follow": 5909,
+        "group-create": 100,
+        "like": 5000,
+        "member-add": 48,
+        "post": 48200,
+        "profile-set": 1000,
+        "react": 2000,
+        "register": 1000,
+        "reply": 2000,
+        "repost": 1000,
+        "send": 99090,
+        "send-media": 910
+      }
+    }
+  },
+  "comparison": {
+    "actionShortfall": 130348,
+    "laneFractionOfFrozenActions": 0.220206153496,
+    "lanePercentOfFrozenActions": 22.020615,
+    "allObservedVerbCountsDiffer": true,
+    "verbCounts": {
+      "dm-create": {
+        "lane": 72,
+        "frozen": 900,
+        "laneMinusFrozen": -828
+      },
+      "follow": {
+        "lane": 2311,
+        "frozen": 5909,
+        "laneMinusFrozen": -3598
+      },
+      "group-create": {
+        "lane": 43,
+        "frozen": 100,
+        "laneMinusFrozen": -57
+      },
+      "like": {
+        "lane": 9300,
+        "frozen": 5000,
+        "laneMinusFrozen": 4300
+      },
+      "member-add": {
+        "lane": 133,
+        "frozen": 48,
+        "laneMinusFrozen": 85
+      },
+      "post": {
+        "lane": 6000,
+        "frozen": 48200,
+        "laneMinusFrozen": -42200
+      },
+      "profile-set": {
+        "lane": 300,
+        "frozen": 1000,
+        "laneMinusFrozen": -700
+      },
+      "react": {
+        "lane": 2200,
+        "frozen": 2000,
+        "laneMinusFrozen": 200
+      },
+      "register": {
+        "lane": 300,
+        "frozen": 1000,
+        "laneMinusFrozen": -700
+      },
+      "reply": {
+        "lane": 2500,
+        "frozen": 2000,
+        "laneMinusFrozen": 500
+      },
+      "repost": {
+        "lane": 1650,
+        "frozen": 1000,
+        "laneMinusFrozen": 650
+      },
+      "send": {
+        "lane": 10771,
+        "frozen": 99090,
+        "laneMinusFrozen": -88319
+      },
+      "send-media": {
+        "lane": 1229,
+        "frozen": 910,
+        "laneMinusFrozen": 319
+      }
+    },
+    "identityAndEnvelopeDifferences": {
+      "laneGeneratorDeclaredEnvelope": {
+        "users": 300,
+        "posts": 6000,
+        "messages": 12000,
+        "busyGroupMessages": 3000,
+        "sourceLines": "lanes/muse-snapback4/scripts/gen-scale-log.mjs:3,35-38,202,241-243"
+      },
+      "frozenRegisteredUsers": 1000,
+      "laneRegisteredUsers": 300,
+      "laneIdentityExamples": [
+        "u000",
+        "u001",
+        "u002",
+        "g-busy"
+      ],
+      "frozenFullNamedFixturesChecked": [
+        "u0005",
+        "u0500",
+        "u0900",
+        "u0901",
+        "g0001"
+      ],
+      "frozenFullNamedFixturesAbsentFromLaneCorpus": [
+        "u0005",
+        "u0500",
+        "u0900",
+        "u0901",
+        "g0001"
+      ],
+      "laneIdentityExamplesAbsentFromFrozenCorpus": [
+        "u000",
+        "u001",
+        "u002",
+        "g-busy"
+      ],
+      "timestampEpochDiffers": true,
+      "identityPresenceMatchMethod": "Exact shell-token equality across parsed action records."
+    }
+  },
+  "inputFiles": {
+    "scripts/gen-scale-log.mjs": {
+      "packetRelativePath": "lanes/muse-snapback4/scripts/gen-scale-log.mjs",
+      "bytes": 12655,
+      "lineCount": 266,
+      "sha256": "2958bc7988f6aafc97021fced0a4015d091605f2f333dab51084fd7e182a0a02"
+    },
+    "scripts/scale-run.mjs": {
+      "packetRelativePath": "lanes/muse-snapback4/scripts/scale-run.mjs",
+      "bytes": 2436,
+      "lineCount": 53,
+      "sha256": "36011f1c11943e7e1300910d2b4b8594b48c9f409b7cfb41ee23346148b6dc7e"
+    },
+    "scripts/replay.mjs": {
+      "packetRelativePath": "lanes/muse-snapback4/scripts/replay.mjs",
+      "bytes": 20720,
+      "lineCount": 517,
+      "sha256": "110df08438bc328874dca9ae85d977a693843d093ab5bdc5416568abdc8eb182"
+    },
+    "scripts/verify-replay.mjs": {
+      "packetRelativePath": "lanes/muse-snapback4/scripts/verify-replay.mjs",
+      "bytes": 14587,
+      "lineCount": 303,
+      "sha256": "4829a8d72e98b50fbe0f3f1df6227f6ba92a0cd9f92d3142e34e3c1f366a6ecc"
+    },
+    "scripts/seed.mjs": {
+      "packetRelativePath": "lanes/muse-snapback4/scripts/seed.mjs",
+      "bytes": 3014,
+      "lineCount": 80,
+      "sha256": "9994a1979432fcba807725bcccbe10f01be59284da734a45a14629829f5a7eed"
+    },
+    "node_modules/snapback4/README.md": {
+      "packetRelativePath": "lanes/muse-snapback4/node_modules/snapback4/README.md",
+      "bytes": 57502,
+      "lineCount": 1074,
+      "sha256": "eaa5d557bcb3a0e77b8a3f804d0f555d1aa9fa01dcf47beb970628d8e1e64072"
+    },
+    "node_modules/snapback4/bin/snapback4.js": {
+      "packetRelativePath": "lanes/muse-snapback4/node_modules/snapback4/bin/snapback4.js",
+      "bytes": 1736,
+      "lineCount": 30,
+      "sha256": "7bbf2b41452d92d726d65af711ef69aa23d393c6f869565d7fa34fa38447aa7f"
+    },
+    "node_modules/snapback4/package.json": {
+      "packetRelativePath": "lanes/muse-snapback4/node_modules/snapback4/package.json",
+      "bytes": 2044,
+      "lineCount": 80,
+      "sha256": "367937e9d198cfc3f1c949cd3b1de2b2e3262e9a3df085048669331c7012f097"
+    },
+    "frozenCombinedInvariant": {
+      "packetRelativePath": "instrument/fixtures/invariant-manifest-combined.json",
+      "bytes": 234703,
+      "lineCount": 10751,
+      "sha256": "b8bd6b67db63c212cae622334850fdb758637bf44ec716544487f6cb41194f98"
+    }
+  },
+  "publicCommandArgumentEvents": {
+    "source": {
+      "packetRelativePath": "logs/muse-snapback4.ndjson",
+      "snapshotBytes": 20296764,
+      "snapshotLineCount": 21667,
+      "snapshotSha256": "207dfa632e3fd3f6da323b06d26e167e54e3879f9d4f93a8e7ac8089506e17d4"
+    },
+    "requestReportedObservedCount": 4,
+    "auditSnapshotObservedCount": 5,
+    "countDifferenceNote": "A fifth public scale-run invocation event appeared while the builder remained active; the first four remain the request-time observations.",
+    "hashMethod": "SHA-256 of the complete raw NDJSON event line including its line terminator; the receipt stores only the hash, line number, task id, and normalized command argument facts.",
+    "events": [
+      {
+        "ordinal": 1,
+        "ndjsonLine": 20978,
+        "rawEventLineSha256IncludingTerminator": "22a5b46ea0735086dabd0cdb252488f2ff6acf81e33060cf2e8f78620c6d9ffb",
+        "taskId": "01a09df8-2792-7ff0-a74c-934e3e9e31b0",
+        "normalizedCommandArgumentFacts": {
+          "driver": "scripts/scale-run.mjs",
+          "port": "49302",
+          "log": "scale.log",
+          "preflightNodeCheckReplay": false,
+          "pipelineToTailWithoutPipefail": true,
+          "printsCapturedDriverExit": false
+        }
+      },
+      {
+        "ordinal": 2,
+        "ndjsonLine": 21031,
+        "rawEventLineSha256IncludingTerminator": "12e9d12c38dab0a07c4340c73ca04b6198462d5fe28a5fa85b974e44e14677ad",
+        "taskId": "01a09df9-2f23-71b3-9f92-7a98f0642090",
+        "normalizedCommandArgumentFacts": {
+          "driver": "scripts/scale-run.mjs",
+          "port": "49302",
+          "log": "scale.log",
+          "preflightNodeCheckReplay": false,
+          "pipelineToTailWithoutPipefail": true,
+          "printsCapturedDriverExit": false
+        }
+      },
+      {
+        "ordinal": 3,
+        "ndjsonLine": 21104,
+        "rawEventLineSha256IncludingTerminator": "7edfa4417e2a7c798d0609da300d28f74972bdab422748b908e14edfaefa4222",
+        "taskId": "01a09dfa-5220-7140-914c-2103e0b4e898",
+        "normalizedCommandArgumentFacts": {
+          "driver": "scripts/scale-run.mjs",
+          "port": "49302",
+          "log": "scale.log",
+          "preflightNodeCheckReplay": false,
+          "pipelineToTailWithoutPipefail": true,
+          "printsCapturedDriverExit": false
+        }
+      },
+      {
+        "ordinal": 4,
+        "ndjsonLine": 21182,
+        "rawEventLineSha256IncludingTerminator": "d34b027574a33fbd9108661416ee69f91964ced11571fb6bea5fefb7012b982e",
+        "taskId": "01a09dfb-68ce-74a0-bfbb-b51b853658b9",
+        "normalizedCommandArgumentFacts": {
+          "driver": "scripts/scale-run.mjs",
+          "port": "49302",
+          "log": "scale.log",
+          "preflightNodeCheckReplay": false,
+          "pipelineToTailWithoutPipefail": false,
+          "printsCapturedDriverExit": true
+        }
+      },
+      {
+        "ordinal": 5,
+        "ndjsonLine": 21276,
+        "rawEventLineSha256IncludingTerminator": "d552c90417aa7b20ff32fdb85c9f45571e147fdf5d641410a7ca1531bf5b7bb1",
+        "taskId": "01a09dfb-ac4e-7b32-ac84-8beb5965474a",
+        "normalizedCommandArgumentFacts": {
+          "driver": "scripts/scale-run.mjs",
+          "port": "49302",
+          "log": "scale.log",
+          "preflightNodeCheckReplay": true,
+          "pipelineToTailWithoutPipefail": false,
+          "printsCapturedDriverExit": true
+        }
+      }
+    ],
+    "commonFacts": {
+      "allInvokeDriver": "scripts/scale-run.mjs",
+      "allExplicitlySelectLog": "scale.log",
+      "allSelectPort": "49302"
+    },
+    "wrapperExitObservation": "The first three public shell wrappers pipe or append commands without preserving the driver exit status. The fourth and fifth print the driver exit before later shell commands, but the wrapper final status can still differ. A tool shell status alone is therefore not a scale-driver verdict."
+  },
+  "freshInstanceClaim": {
+    "staticSupport": true,
+    "driverEvidence": {
+      "packetRelativePath": "lanes/muse-snapback4/scripts/scale-run.mjs",
+      "lines": "11-16,20-22,40-52",
+      "spawnExecutable": "npx",
+      "spawnArguments": [
+        "snapback4",
+        "dev",
+        "--port",
+        "<selected-port>",
+        "--fresh",
+        "--no-watch"
+      ],
+      "childProcessGroupKilledOnExit": true,
+      "seedReplayAndVerifyUseSameLoopbackUrl": true
+    },
+    "publishedPackageEvidence": {
+      "version": "0.2.6",
+      "readmePath": "lanes/muse-snapback4/node_modules/snapback4/README.md",
+      "readmeLines": "868-875",
+      "documentedNormalStore": ".snapback4/store.sqlite",
+      "documentedFreshStore": "in-memory store that dies with the process",
+      "binDelegatorPath": "lanes/muse-snapback4/node_modules/snapback4/bin/snapback4.js"
+    },
+    "localCliSourceEvidence": {
+      "deliveryWorktreeHeadAtAudit": "a32e2de2bd796f1c277451a92ce4e0c1c43d162f",
+      "files": {
+        "main.rs": {
+          "absolutePath": "/Users/ccheever/projects/snapback-worktrees/sb4-36-delivery/snapback4/crates/snapback4/src/main.rs",
+          "bytes": 10793,
+          "lineCount": 216,
+          "sha256": "dda38b0dc4096459adf37897dc8fa3b2763d7282f711744b7b1fe5e8e2139880"
+        },
+        "serve.rs": {
+          "absolutePath": "/Users/ccheever/projects/snapback-worktrees/sb4-36-delivery/snapback4/crates/snapback4/src/serve.rs",
+          "bytes": 62856,
+          "lineCount": 1172,
+          "sha256": "22ac491fb81c7a38783d7b474902fe060402a3d7185c31e9a85c0606e7c9f831"
+        }
+      },
+      "mainArgumentMapping": "dev --fresh maps to Mode::Dev { fresh: true } (main.rs:21,84).",
+      "storeSelection": "Mode::Dev { fresh: true } constructs Engine::memory; non-fresh dev opens the project engine (serve.rs:159-165)."
+    },
+    "conclusion": "The current driver statically supports a fresh-instance claim: it passes --fresh, and both published package documentation and local CLI source select an in-memory engine for that flag.",
+    "limits": "Static inspection does not establish that a particular server child reached readiness, that the selected port was uncontended, or that process-group cleanup completed."
+  },
+  "fullCorpusQualification": {
+    "qualifiedByCurrentLanePipeline": false,
+    "reason": "Every observed public scale-run command selects the lane-generated 36,809-action scale.log, whose identity and verb distribution differ from the frozen 167,157-action instrument corpus.",
+    "verifierBinding": {
+      "packetRelativePath": "lanes/muse-snapback4/scripts/verify-replay.mjs",
+      "lines": "6,15-17,124-125,301",
+      "behavior": "The verifier derives expected state from starter-m1.log, starter-m2.log, starter-m3.log, and the selected --log value; it therefore verifies the selected lane corpus rather than the frozen corpus implicitly."
+    },
+    "frozenInvariantBinding": {
+      "packetRelativePath": "instrument/fixtures/invariant-manifest-combined.json",
+      "sha256": "b8bd6b67db63c212cae622334850fdb758637bf44ec716544487f6cb41194f98",
+      "declaredScaleLogSha256": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9",
+      "declaredScaleActionCount": 167157,
+      "namedFullFixturesAbsentFromLaneCorpus": [
+        "u0005",
+        "u0500",
+        "u0900",
+        "u0901",
+        "g0001"
+      ]
+    },
+    "practicalMeaning": "A green run of the current driver can qualify only its reduced lane corpus. It does not supply evidence for the frozen full 167,157-action qualification or its named combined-invariant fixtures."
+  }
+}
