@@ -2340,3 +2340,91 @@ The first fresh comparator attempts failed because their trial identifiers excee
 Current Snapback retries return execution identity with `replayed: true`, withholding historical `result` and `current` as required by LLP 3000.007 §17 and the language guide. The private-catalog instrument now distinguishes fresh results from those receipts. Fresh writes still require their exact SKU/revision result; retries must match the captured first response's id, state and sequence or refusal code. Eight simultaneous same-id calls require one fresh execution and seven matching receipts, independent of response arrival order. The six relevant first responses are retained only as oracle evidence. For Snapback `--private-restart`, `SB4_PRIVATE_REPLAY_RECORD` names the completed main raw record; instrument, trial, sample count and session-file bindings are checked before replay, and its digest is recorded. No replay result is fabricated and no extra query is added to a timing interval.
 
 The complete row, authorization, acknowledged-write/read visibility, failed-replay, concurrent-write and actual-process-restart oracles remain. Sample counts and the mutation schedule are unchanged. The Convex fixture continues returning its historical result, so replay timing must disclose this response-contract difference and cannot be described as a same-result recovery speedup. The separate [client type/documentation mismatch](../../../issues/20260914-snapback4-write-result-type-omits-replay-state.md) is an owner follow-up; it does not justify returning historical data from the server.
+
+### Current reader reuse versus native Convex: trials 220–222
+
+Six serial native loopback runs on Ubuntu 24.04 / AMD EPYC 9454 completed at 2026-09-14 14:12:46 UTC. Orders were Snapback/Convex, Convex/Snapback, Snapback/Convex. Snapback is qualified source `beed6a51e…` (0.2.10), native binary `d6dd5f6c…`; Convex is official `precompiled-2026-09-11-157eb19`, binary `36c41a7f…`, reported version `unknown`, CLI 1.45.0. Both use pinned Node 24.21.0 / Undici 7.29.1. Snapback retains the packaged SQLite flag with MEMSTATUS enabled. Instrument `364e3d13…` is a separate input; its landed commit `49742f7e8` is not the measured server source.
+
+All 39,000 timed HTTP calls, 4,380 excluded warmup calls and 3,000 timed two-request write/read pairs passed, with zero reported errors. The 180 warmup pairs are included in the excluded HTTP count. All 100,000-row before/after/restart oracles, auth/owner/outsider/cursor checks, fresh and failed retries and contended writes passed. Six actual process restarts used the original app/instance and unchanged credentials; twelve planned SIGTERM stops and empty owned-process cleanup were verified. The independent audit also compared all 900,000 rows in the nine Convex canonical projections and the 18 retained Snapback first-response identities. Individual retry wire bodies and private receipt contents are not public proof.
+
+Medians of three reported run statistics follow, **Snapback / Convex**. Latencies are milliseconds; rate is HTTP requests/s except the final row, which is pairs/s. These are not pooled percentiles or statistical significance estimates.
+
+| Case | p50 | p95 | p99 | Maximum | Rate |
+|---|---:|---:|---:|---:|---:|
+| `privatePointHot` | 0.472 / 1.166 | 0.638 / 1.406 | 0.968 / 1.772 | 4.071 / 32.345 | 1975.1 / 784.2 |
+| `privatePointRandomC1` | 0.430 / 3.249 | 0.490 / 5.448 | 0.639 / 7.473 | 0.793 / 9.032 | 2202.5 / 269.4 |
+| `privatePointRandomC8` | 1.583 / 3.144 | 2.404 / 6.229 | 15.121 / 13.621 | 17.352 / 16.411 | 3903.4 / 2043.7 |
+| `privatePointRandomC32` | 5.624 / 7.567 | 22.517 / 30.531 | 24.786 / 36.949 | 28.058 / 39.751 | 4110.1 / 3019.1 |
+| `privateMissingDistinct` | 0.375 / 3.549 | 0.438 / 4.972 | 0.609 / 7.634 | 10.039 / 12.243 | 2404.9 / 274.9 |
+| `privateCategoryHotC1` | 0.888 / 1.356 | 1.149 / 1.415 | 1.570 / 1.621 | 7.743 / 7.697 | 966.1 / 685.5 |
+| `privateCategoryHotC8` | 1.706 / 2.198 | 3.164 / 4.393 | 7.760 / 7.965 | 7.855 / 8.413 | 3964.3 / 3133.8 |
+| `privateNextHot` | 0.818 / 1.332 | 1.013 / 1.390 | 1.454 / 1.736 | 6.209 / 9.876 | 1117.6 / 707.9 |
+| `privateReplayHot` | 0.342 / 2.843 | 0.513 / 5.280 | 0.563 / 6.071 | 7.449 / 8.258 | 2504.3 / 309.3 |
+| `privateFreshBumpC1` | 0.653 / 4.156 | 0.884 / 6.454 | 1.113 / 7.545 | 7.253 / 9.831 | 1473.2 / 229.3 |
+| `privateFreshBumpC8` | 1.871 / 9.940 | 4.061 / 14.969 | 6.731 / 16.625 | 8.615 / 19.921 | 3784.1 / 771.6 |
+| `privateWriteThenCategoryC1` | 1.957 / 24.541 | 2.474 / 26.535 | 2.923 / 27.757 | 11.449 / 297.421 | 474.3 / 40.1 |
+
+Excluding the replay row, Snapback has lower p50 and p95 in all **11 case medians and 33 matched case-runs**; p99/max are lower in 10/9 medians and 27/28 matched case-runs. Including replay, counts are 12/12/11/10 case medians for p50/p95/p99/max, and 36/36/30/30 matched case-runs. All ordinary request, pair and pair-HTTP rates favor Snapback here. There are no ties. The pair's separate HTTP-rate medians are 948.7/80.3 requests/s; component percentiles remain separate and are never summed.
+
+Losses remain: random-point C8 median p99 is 15.121/13.621 ms (+11.01%) and maximum 17.352/16.411 ms (+5.73%); category C1 maximum is 7.743/7.697 ms (+0.60%). The six paired p99 and six paired maximum losses are retained, including C8 point p99 +43.89% in trial 221 and +21.78% in 222, and category C1 maximum +72.47% in 220. Largest individual observations are 38.509 ms Snapback and 341.235 ms Convex, in different cases; they do not erase the matched losses.
+
+The replay row compares Snapback's execution identity without historical result/current against the Convex fixture's historical result. It is not a same-result recovery comparison. Prepared full verification warms inputs, native automatic query caches remain enabled, OS cache residency is unmeasured, and write timings compare default acknowledgements (Snapback WAL/NORMAL), not matched power-loss durability. No causal attribution to reader reuse or W5 follows from this cross-backend batch. No registry-artifact, hosted/WAN, Supabase, cold-cache, device, realtime, memory-pressure or universal result follows. Host load/available-memory observations are point samples, with no new process RSS or peak measurement.
+
+The six appended storage records preserve their complete raw main objects and separately labeled restart, lifecycle, state and input evidence. The public bundle under `.llp/ship-runs/sb4-performance-20260913/private-write-read-x64/current0210-v3-formal-220-222/` contains 218 files (archive `a06e8c76…`). Root `b5d6c2ab…` and independent `2955ebf9…` summaries agree on all 486 numeric raw statistics, 162 medians, 81 median contrasts, 243 paired contrasts and six resource-point bindings; reconciliation `b6c071ee…`, independent review `39bc9b42…`. Original invalid-trial and replay-parser failures remain excluded and preserved.
+
+### Published 0.2.11 — bounded HTTP reader reuse
+
+The existing publisher completed at **2026-09-14 15:15:59 UTC** on the prepared M4 Pro, publishing `snapback4` and `snapback4-darwin-arm64` **0.2.11**. Its source archive is `13fdce76f7d6e881e070f0ad247b95f39fb0c0de`, including the landed reader reuse and bounded Linux signal-log correction. Of its 669 files, 668 are byte-identical to landed `b2b38c474`; the sole difference is six later benchmark rows in `snapback4/metrics/storage.jsonl`. Runtime, package metadata, publisher, tests and fixture source match. The archive is not asserted to be the exact `b2b38c474` tree.
+
+The full suite passed **379 Rust, 132 client and 9 fixture tests**, with zero failures and one existing ignored Rust test. It used Node 24.21.0, `RUST_TEST_THREADS=1`, `CARGO_BUILD_JOBS=4`, and the packaged `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` input. The suite took **161 s**, above the 60-second budget; Cargo tests reported 157 s, client tests 38 s and fixture tests 5 s, with stages overlapping. Preparation had installed dependencies and compiled workspace tests, but this run does not establish a fully warm native-fixture state or a matched warm-loop regression. No assertion failure was bypassed.
+
+The production build passed. The installed-package consumer passed typechecking and mock-client query readiness/freshness, online-write-sent and offline-write-pending checks. The consumer verified CLI version `snapback4 0.2.11` and the exact **7,728,304-byte** production binary, SHA-256 `7627e77098bd2f343b1cf2aeff6e0980dc5f4730d6aaf98582efc59dc35c21ad`. Publication took **260.3 s**. The supervisor recorded both child process groups absent, temporary credential removal, and no cleanup failure or remaining scoped process.
+
+Both public registry versions were verified by **15:28:59 UTC**. Their tarballs match the tested archives byte for byte, including registry SHA-512 integrity and SHA-1 metadata; the client pins its platform optional dependency to 0.2.11. The client archive is 505,220 B (`ba4a3b31…` SHA-256); the platform archive is 3,787,041 B (`0f7c3e52…`). The initial registry observation returned a 404 while retaining the platform archive; it remains recorded separately. Only read-only visibility checks followed, with no repeated publication.
+
+The unchanged publisher row is appended to `snapback4/metrics/publish.jsonl`. The ignored run retains `reader-reuse-0211-publication-public/` (nine verified public files), `reader-reuse-0211-registry-verification.json` (`2db60a7d…`), and `reader-reuse-0211-publication-qualification.json`; publisher log SHA-256 is `e740cff582cc5ab50c500709cf6a37ac20c6f9b781ea27b67ff57c8ba3f55b23`. These are publication and correctness receipts. The preceding native A/B and comparator timings retain their measured source and binary identities; this release qualification adds no performance measurement.
+
+### Development-loop follow-up: shared write-observation index
+
+An unchanged repeat of the 0.2.11 source's full suite on the prepared M4 Pro
+took **140 s**: 379 Rust, 132 client and 9 fixture passes, zero failures and
+one existing ignored Rust test. The shared test observation helper contained
+a quadratic deletion search. The candidate indexes typed identities per
+table, preserving the complete observation boundary and original privacy
+populations, and adds one assertion included by four existing Rust targets.
+It changes no runtime source, client contract, suite command or ceiling.
+
+The isolated candidate completed two full runs at 2026-09-14 16:16:27 UTC:
+
+| Observation | Suite wall seconds | Cargo seconds | Client seconds | Rust / client / fixture passes |
+|---|---:|---:|---:|---:|
+| Unchanged warm baseline | 140 | 137 | 38 | 379 / 132 / 9 |
+| Candidate first, including rebuilds | 140 | 119 | 39 | 383 / 132 / 9 |
+| Candidate warm | 96 | 93 | 38 | 383 / 132 / 9 |
+
+Every run has zero failures and one existing ignored Rust test. Stages
+overlap and must not be summed. The warm suite is 44 s / 31.4% shorter in
+these observations. They ran consecutively in separate source directories
+with a shared target cache; this is not randomized repeated A/B or an exact
+attribution of every wall-time difference. Node 24.21.0, Rust 1.97.0,
+`CARGO_BUILD_JOBS=4`, `RUST_TEST_THREADS=1` and the packaged SQLite build flag
+were retained. The first candidate's build work is not a warm-loop result.
+
+The page-admission group fell from 69.11 to 33.61 s, and the 34/35-test
+group from 18.21 to 9.72 s; the unchanged 17-test group took 18.12 s.
+The [budget P0](../../../issues/20260913-snapback4-blocking-suite-over-60-seconds.md)
+remains open at 96 s. No product latency, comparator or publication claim
+follows from this test-helper measurement.
+
+The ignored run's `write-observation-delta-0211-v2-public/` retains seven
+hash-verified public files. Complete receipt SHA-256 is
+`5c6599162685ec508fce261be698b3660927472aa9c33d9db87a8bf80b3a7afe`;
+warm log is `23a815b862f29eb604eb828dd178087927d8a782ee1dfe521c75a1cfbd9f47e4`.
+The baseline receipt/log are in `warm-suite-reader-reuse-0211-v1-public/`.
+The isolated test tree matches all 669 archived source files with one exact
+helper override. Integration base `99dfedfc9` differs from the archive only
+in seven later metrics rows; this landing adds the helper and its journal
+and benchmark evidence. Source checks passed before/after, all three owned process groups
+exited zero and were observed absent, and cleanup reported no remaining
+scoped process or failure. The V1 archive preflight refusal was local and
+preceded any launch; it remains preserved separately.
