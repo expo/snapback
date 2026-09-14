@@ -2224,3 +2224,95 @@ The public transfer contains 290 data files plus its manifest, all size/hash che
 Evidence is retained under `.llp/ship-runs/sb4-performance-20260913/private-write-read-x64/formal-990-992/`; the nine appended storage records preserve the entire original main records plus separately labeled restart/cleanup/completion evidence. Public archive SHA-256 `bc47ee330df1e6305cdf32c1b8264f8b6d07b2f6ee15a5b75e20f9027ebe8373`; transfer `8e2f56628215d2888dd4687ab18386ddcb427569d6cfa86240464175bcd9d8fc`; protocol `d8034d2da9bbcde4f5512b80bd7914f4bdd1394fb725c0797060560ffe55f478`; freeze `07dc72766fab4d9940938486ca27e1c7b133ad847c66f0cffea874d5cb0e234d`. Root summary `845d35a299a45fcd4eded5c841173ff5178c221dd937768df908e71aae93fbe1`, independent summary `29f3ae57a58b94c2e031f3174f2c8bb14d5a0af0782b59304e0b9545f313b5cc`, reconciliation `7bb6e44e3728f53a2468e091fe8d9766e9247ffdaa594603dd43e5316f421f98`, and independent evidence review `34c99ac1faeb23815e74c58326f721f185677bd46b05caa59fa098daed2258de` bind the full retained results and every loss.
 
 Limits: prepared loopback workloads after seed and full verification, retained OS caches with unmeasured residency, backend-native automatic caches, different default authentication and acknowledgement paths. Snapback uses WAL/NORMAL; effective native Convex connection durability is not established. Write results therefore measure default acknowledgements, not matched power-loss durability. Raw timing vectors and private client stderr are unavailable, so the audit checks reported statistics rather than recomputing percentiles. Private SQLite files, credentials, original Convex export ZIPs and receipt contents remain remote; receipt contents are not independently proven. Pre-run process/memory observations are point samples. This establishes no hosted, Supabase, cold-cache, device/SDK, memory-pressure, isolated-version or universal result.
+
+### Published-policy membership comparison with Node 24.21 (formal V3, 2026-09-14)
+
+Nine serial runs on the Office M1 Max ARM64 Colima VM (4 CPUs,12 GiB) rotated Snapback/Convex/Supabase, Convex/Supabase/Snapback, then Supabase/Snapback/Convex (trials 96–98). Snapback is the retained source-built 0.2.8 Linux artifact `33bd0c0b…`, source `8a81eb855…`, with the packaged SQLite flag and MEMSTATUS enabled. Node 24.21.0/Undici 7.29.1 and the original 39-case instrument are shared. Comparator service/source bindings are preserved in the original public records; source pins are not an independent proof of exact deployed Convex module bytes.
+
+All 175,500 timed calls and 10,530 excluded warmups passed exact results and reported zero errors. The 243 complete authorized walks/50,265 pages are **untimed**. Complete fixture, outsider/foreign/invalid credentials, acknowledged leave, old cursors and same-session regrant checks passed. Convex used five separately issued same-principal 24-hour fixture JWTs with the original expired control; seven live credential probes preceded formal preparation. Supabase used ordinary per-run login. No workload was retried or dropped. Prepared walks visit the arguments later timed, and native automatic query caching is retained. These are warm self-hosted reads on one VM, not hosted/WAN, cold-cache, write, device, realtime, durability or memory-pressure claims.
+
+Counts of lower Snapback median latency or higher throughput, out of 39 cases. These compare medians of three reported statistics, not pooled request quantiles or significance:
+
+| Comparator | p50 | p95 | p99 | Maximum | Requests/s |
+|---|---:|---:|---:|---:|---:|
+| convex | 3/39 | 5/39 | 9/39 | 8/39 | 4/39 |
+| supabase | 34/39 | 35/39 | 31/39 | 29/39 | 35/39 |
+
+All uncounted cells are losses; there are no ties. In particular, the 150-membership first-feed page at eight clients is 37.103/3.415/36.110 ms p50 for Snapback/Convex/Supabase. The working-feed page is 31.831/3.528/29.957 ms. These remain concrete targets.
+
+Every cell below is **Snapback/Convex/Supabase**. Latencies are milliseconds; maximum is the median of per-run maxima.
+
+| Case | p50 | p95 | p99 | Maximum | Requests/s |
+|---|---:|---:|---:|---:|---:|
+| `groups5PointHotC1` | 2.224 / 1.608 / 7.995 | 5.097 / 3.310 / 23.964 | 10.075 / 5.548 / 36.610 | 28.945 / 9.156 / 58.921 | 361.5 / 522.9 / 98.7 |
+| `groups5PointWorkingSetC1` | 1.782 / 9.327 / 6.065 | 2.343 / 17.689 / 23.539 | 3.360 / 29.768 / 41.080 | 17.354 / 38.864 / 67.055 | 527.4 / 93.3 / 115.8 |
+| `groups5ThreadFirstC1` | 2.812 / 2.372 / 7.223 | 3.808 / 4.262 / 11.061 | 5.947 / 8.326 / 13.218 | 30.091 / 14.694 / 47.045 | 329.8 / 387.9 / 125.2 |
+| `groups5ThreadNextC1` | 3.013 / 1.975 / 6.915 | 5.512 / 3.647 / 12.937 | 8.023 / 4.672 / 25.161 | 12.075 / 18.463 / 56.449 | 298.8 / 422.6 / 128.7 |
+| `groups5FeedFirstC1` | 3.535 / 1.405 / 7.858 | 8.715 / 2.442 / 18.719 | 18.223 / 3.750 / 30.068 | 27.453 / 10.187 / 48.596 | 228.2 / 608.5 / 103.6 |
+| `groups5FeedNextC1` | 4.083 / 1.517 / 7.429 | 9.840 / 3.466 / 14.527 | 17.387 / 5.594 / 25.406 | 26.940 / 22.697 / 41.477 | 197.4 / 528.0 / 114.7 |
+| `groups5FeedWorkingSetC1` | 3.415 / 1.957 / 6.872 | 8.283 / 4.486 / 9.255 | 11.632 / 6.374 / 13.995 | 22.530 / 8.068 / 31.904 | 235.0 / 440.5 / 136.6 |
+| `groups5PointWorkingSetC8` | 7.540 / 3.888 / 8.901 | 16.727 / 7.980 / 19.119 | 24.971 / 18.917 / 136.980 | 28.621 / 20.989 / 169.620 | 942.3 / 1774.7 / 682.2 |
+| `groups5ThreadFirstC8` | 14.210 / 7.593 / 11.735 | 24.159 / 16.746 / 24.694 | 39.592 / 34.324 / 38.954 | 47.214 / 38.699 / 46.903 | 529.9 / 921.0 / 590.8 |
+| `groups5ThreadNextC8` | 13.390 / 8.840 / 15.328 | 21.440 / 18.851 / 31.925 | 30.779 / 40.437 / 49.046 | 35.169 / 47.069 / 62.841 | 573.4 / 775.4 / 452.8 |
+| `groups5FeedFirstC8` | 12.998 / 6.064 / 17.578 | 21.327 / 15.191 / 43.533 | 25.681 / 30.698 / 66.697 | 31.689 / 35.013 / 69.681 | 596.6 / 1096.4 / 385.6 |
+| `groups5FeedNextC8` | 13.895 / 5.056 / 18.418 | 31.811 / 10.502 / 48.986 | 47.900 / 28.825 / 66.309 | 50.225 / 33.450 / 86.155 | 501.6 / 1343.0 / 361.5 |
+| `groups5FeedWorkingSetC8` | 11.995 / 8.137 / 20.370 | 25.100 / 19.500 / 37.477 | 34.948 / 42.692 / 52.930 | 41.737 / 48.193 / 73.408 | 596.8 / 820.2 / 359.4 |
+| `groups30PointHotC1` | 2.139 / 1.912 / 4.748 | 6.561 / 4.932 / 17.779 | 10.981 / 8.873 / 32.754 | 37.262 / 26.653 / 41.678 | 332.1 / 418.5 / 148.8 |
+| `groups30PointWorkingSetC1` | 1.982 / 10.183 / 5.309 | 4.347 / 22.016 / 9.330 | 7.977 / 30.587 / 14.339 | 41.463 / 79.551 / 24.377 | 381.8 / 83.7 / 170.9 |
+| `groups30ThreadFirstC1` | 3.375 / 2.807 / 7.464 | 6.109 / 10.735 / 16.028 | 9.120 / 16.168 / 27.763 | 19.357 / 36.640 / 42.820 | 248.3 / 223.7 / 108.5 |
+| `groups30ThreadNextC1` | 3.203 / 2.066 / 9.090 | 7.091 / 5.548 / 24.453 | 12.515 / 9.037 / 42.187 | 18.896 / 11.509 / 59.531 | 256.8 / 411.5 / 96.8 |
+| `groups30FeedFirstC1` | 3.836 / 1.277 / 11.224 | 4.395 / 2.838 / 41.395 | 4.636 / 4.543 / 62.683 | 16.351 / 11.534 / 81.017 | 258.2 / 635.6 / 63.7 |
+| `groups30FeedNextC1` | 3.682 / 1.507 / 10.460 | 6.938 / 3.821 / 23.409 | 10.021 / 5.381 / 40.669 | 18.448 / 21.163 / 64.987 | 241.7 / 522.0 / 80.5 |
+| `groups30FeedWorkingSetC1` | 3.683 / 1.335 / 8.368 | 5.554 / 2.376 / 12.520 | 7.113 / 3.632 / 18.025 | 20.229 / 17.778 / 48.058 | 246.2 / 643.2 / 109.6 |
+| `groups30PointWorkingSetC8` | 6.959 / 3.140 / 8.167 | 11.729 / 7.576 / 13.451 | 24.201 / 25.249 / 23.978 | 30.281 / 25.805 / 25.554 | 1082.7 / 2004.8 / 940.7 |
+| `groups30ThreadFirstC8` | 14.395 / 4.508 / 13.771 | 22.387 / 10.375 / 28.027 | 31.501 / 23.966 / 47.643 | 37.686 / 26.521 / 49.910 | 538.7 / 1487.4 / 514.8 |
+| `groups30ThreadNextC8` | 14.013 / 4.447 / 16.759 | 22.305 / 8.984 / 34.532 | 29.785 / 24.101 / 43.832 | 36.798 / 25.385 / 50.361 | 547.1 / 1558.9 / 426.5 |
+| `groups30FeedFirstC8` | 11.599 / 3.316 / 16.885 | 18.761 / 6.368 / 28.009 | 33.329 / 16.497 / 36.759 | 38.665 / 18.349 / 53.295 | 649.6 / 2067.9 / 451.4 |
+| `groups30FeedNextC8` | 11.273 / 3.636 / 19.525 | 22.422 / 6.971 / 36.851 | 29.552 / 9.221 / 51.439 | 35.476 / 11.024 / 70.830 | 646.9 / 2021.0 / 379.6 |
+| `groups30FeedWorkingSetC8` | 11.731 / 3.388 / 15.445 | 23.901 / 6.809 / 25.718 | 49.282 / 26.047 / 33.211 | 52.877 / 27.862 / 37.872 | 598.2 / 1913.9 / 501.0 |
+| `groups150PointHotC1` | 1.625 / 1.054 / 4.184 | 2.890 / 2.013 / 5.600 | 10.606 / 2.991 / 7.263 | 22.196 / 21.210 / 17.231 | 504.5 / 801.8 / 224.3 |
+| `groups150PointWorkingSetC1` | 1.552 / 7.018 / 4.553 | 2.518 / 11.157 / 5.755 | 3.673 / 15.903 / 7.115 | 25.200 / 24.954 / 21.980 | 542.8 / 129.2 / 209.8 |
+| `groups150ThreadFirstC1` | 2.610 / 1.377 / 6.920 | 4.290 / 2.090 / 10.070 | 6.979 / 2.520 / 13.461 | 20.398 / 11.560 / 23.471 | 336.3 / 652.7 / 133.5 |
+| `groups150ThreadNextC1` | 4.136 / 1.393 / 6.701 | 11.688 / 2.270 / 8.964 | 19.335 / 3.048 / 10.608 | 39.147 / 16.440 / 23.768 | 179.8 / 606.1 / 140.6 |
+| `groups150FeedFirstC1` | 8.072 / 1.258 / 13.515 | 13.069 / 1.983 / 20.523 | 22.032 / 3.569 / 31.971 | 32.791 / 12.854 / 61.163 | 113.2 / 712.7 / 68.5 |
+| `groups150FeedNextC1` | 8.158 / 1.237 / 14.099 | 10.072 / 2.794 / 19.244 | 14.184 / 4.541 / 26.879 | 33.214 / 15.405 / 63.484 | 122.2 / 639.7 / 67.1 |
+| `groups150FeedWorkingSetC1` | 8.390 / 1.287 / 14.570 | 14.460 / 2.470 / 27.029 | 22.066 / 4.228 / 41.613 | 44.273 / 18.489 / 81.296 | 105.0 / 650.7 / 59.2 |
+| `groups150PointWorkingSetC8` | 8.644 / 2.913 / 12.364 | 26.308 / 6.978 / 33.684 | 47.891 / 23.814 / 50.858 | 55.243 / 26.559 / 61.311 | 704.8 / 2107.0 / 516.2 |
+| `groups150ThreadFirstC8` | 15.844 / 4.580 / 17.166 | 29.233 / 8.006 / 32.597 | 38.880 / 25.089 / 65.302 | 51.564 / 27.340 / 80.111 | 462.3 / 1615.6 / 418.2 |
+| `groups150ThreadNextC8` | 18.640 / 4.197 / 16.369 | 43.015 / 8.077 / 30.480 | 61.826 / 21.102 / 40.743 | 81.319 / 22.340 / 48.040 | 367.8 / 1631.4 / 448.1 |
+| `groups150FeedFirstC8` | 37.103 / 3.415 / 36.110 | 67.575 / 7.046 / 64.616 | 91.527 / 18.518 / 78.707 | 130.179 / 20.089 / 105.315 | 196.0 / 2018.0 / 211.7 |
+| `groups150FeedNextC8` | 27.847 / 3.328 / 36.251 | 48.132 / 6.694 / 63.464 | 57.710 / 22.198 / 74.713 | 70.292 / 23.668 / 86.632 | 270.5 / 2053.8 / 209.4 |
+| `groups150FeedWorkingSetC8` | 31.831 / 3.528 / 29.957 | 71.354 / 7.331 / 47.446 | 103.684 / 22.753 / 58.347 | 149.058 / 27.665 / 69.768 | 216.9 / 1892.0 / 261.0 |
+
+The initial frozen independent audit failed on the credential-probe logical-value hash because it serialized the same four fields in fixture insertion order, while the source helper hashes the returned Convex object order. The original failure is preserved. A versioned post-data-access correction (`575f0eaa…`) changes that field order only; run, proof and statistic logic is unchanged. Its independent result `690bd519…` and root result `ed7904bf…` agree on all 702 formal median values and 1,872 shared contrast records. The 2,106 formal raw metric values and 702 separate smoke values were revalidated separately; smoke contributes no formal statistic. All 195 transferred public files rehash. Twelve Convex snapshot ZIPs remain remote and are not locally rehashed; their normalized public proof JSON is preserved.
+
+### Bounded HTTP reader reuse: native x86 Linux A/B, trials 996–998
+
+Six native loopback runs on the Ubuntu 24.04 AMD EPYC 9454 host compare the qualified 0.2.9 snapshot `04ed8cab8…` with the same source plus the host reader-pool change and two host regressions. Baseline/candidate binary hashes are `d09d1ec5…`/`dee2c2b6…`; the candidate is 9,457,144 B. Both use Rust 1.97.0, the production speed profile, `-USQLITE_ENABLE_MEMORY_MANAGEMENT`, MEMSTATUS enabled, and Node 24.21.0/Undici 7.29.1. Core source, SQLite flags, admission limits, authentication and timed instrument are unchanged. Successful query readers retain their connections/plans; each invocation still opens and ends a fresh identity-checked transaction.
+
+Orders are baseline/candidate, candidate/baseline, baseline/candidate. All 39,000 timed HTTP calls,4,380 excluded warmups and 3,000 timed write/read pairs passed. The paired workflow has two HTTP calls per sample;180 warmup pairs are included in the excluded request count. Exact owner/outsider/auth checks, acknowledged writes and replay, all 100,000 canonical rows, six actual same-app process restarts and empty owned-process cleanup passed. The two 50-sample smoke runs are excluded. No workload retries or missing runs are substituted.
+
+Candidate median p50/p95/p99 improve in 11/12 cases each; maximum in 9/12 and throughput in 11/12. Paired p50 improves 30/36, p95/p99 each 32/36, maximum 24/36; ordinary request rate improves 28/33 and pair rate 2/3. All losses remain. Cells below are **baseline/candidate**; rate is requests/s except the write/read workflow, which is pairs/s.
+
+| Case | p50 ms | p95 ms | p99 ms | Maximum ms | Rate |
+|---|---:|---:|---:|---:|---:|
+| `privatePointHot` | 0.991 / 0.460 | 1.527 / 0.689 | 2.076 / 0.822 | 4.224 / 3.925 | 941.5 / 2028.3 |
+| `privatePointRandomC1` | 1.014 / 0.427 | 1.208 / 0.474 | 1.775 / 0.630 | 1.914 / 0.827 | 933.9 / 2270.5 |
+| `privatePointRandomC8` | 5.249 / 1.506 | 8.396 / 2.269 | 17.518 / 13.412 | 24.045 / 16.470 | 1484.3 / 4149.9 |
+| `privatePointRandomC32` | 23.718 / 5.690 | 44.878 / 20.293 | 62.120 / 22.138 | 86.010 / 29.862 | 1206.8 / 4074.7 |
+| `privateMissingDistinct` | 0.937 / 0.371 | 1.205 / 0.472 | 1.646 / 0.618 | 10.263 / 11.028 | 1024.0 / 2405.7 |
+| `privateCategoryHotC1` | 1.519 / 0.931 | 2.278 / 1.044 | 3.049 / 1.508 | 7.461 / 7.697 | 586.5 / 972.5 |
+| `privateCategoryHotC8` | 7.182 / 1.713 | 11.556 / 3.361 | 13.936 / 7.385 | 16.799 / 7.989 | 1061.7 / 3946.9 |
+| `privateNextHot` | 1.380 / 0.804 | 1.972 / 0.907 | 2.628 / 1.419 | 7.784 / 6.021 | 649.5 / 1162.9 |
+| `privateReplayHot` | 0.463 / 0.385 | 0.599 / 0.554 | 0.656 / 0.683 | 0.788 / 0.841 | 2233.6 / 2254.9 |
+| `privateFreshBumpC1` | 0.648 / 0.646 | 0.859 / 0.787 | 1.094 / 1.056 | 7.034 / 6.684 | 1450.8 / 1498.6 |
+| `privateFreshBumpC8` | 1.752 / 1.871 | 3.543 / 4.151 | 8.557 / 6.796 | 8.897 / 7.902 | 3941.6 / 3747.3 |
+| `privateWriteThenCategoryC1` | 2.188 / 1.921 | 2.871 / 2.475 | 5.182 / 2.991 | 12.803 / 10.911 | 421.1 / 481.1 |
+
+Concurrent fresh writes regress in **all three pairs**: median p50 rises 1.752→1.871 ms (+6.79%), p95 rises 3.543→4.151 ms (+17.16%), and throughput falls 3,941.6→3,747.3 requests/s (−4.93%). Replay p99 and three case-median maxima also worsen. The final pair has write/read workflow and component regressions; component percentiles are not summed, and HTTP rate is not reconstructed from rounded pair rate.
+
+Untimed process snapshots show after-workload RSS medians 33,780→39,600 KiB (+5,820 KiB); all three paired RSS differences are positive. Restart snapshots have separate process lifetimes. These are point observations and process-lifetime HWM, not continuous peak sampling or an isolated measure of pool allocation. Retained connections trade memory between requests for the measured read improvements; the count is capped by the existing 32-request worker bound.
+
+The candidate passed 32 CLI test executions and one separately compiled production reader-policy check. The first candidate qualification had a newly written test incorrectly assert that stale-generation refusal is retryable; that failed attempt remains. Correcting the assertion to the existing `E_GENERATION` code and strengthening empty-success checks changed only tests, and the V2 production binary is byte-identical to the first build-only artifact. This is not a claim that the failed qualification passed.
+
+Independent result `d307e12c…` and root result `0d124444…` agree on 360 shared raw values,120 medians,240 contrasts and all 18 resource snapshots; the independent audit retains 126 additional elapsed/component/rate values. The formal freeze is `c7382937…`, full public transfer `f9443c31…`, and independent evidence review `8d32e082…`. The historical A/B is separate from current-main integration, real native rebuild qualification and publication. There is no fresh comparator, matched power-loss durability, cold-cache or universal performance claim.
