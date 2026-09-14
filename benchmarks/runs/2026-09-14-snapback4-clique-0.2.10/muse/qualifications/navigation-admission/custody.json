@@ -1,0 +1,38 @@
+{
+  "observedAt": "2026-09-14T22:46:07.059085+00:00",
+  "scope": "Independent published-pin reduced control; source/results only, no stores, credentials or model transcripts. First attempt preserved; final source tightens immediate closure by removing pre-close queue/server inspections.",
+  "files": {
+    "probe.mjs": {
+      "bytes": 6319,
+      "sha256": "5c9514107b2b221c5a3c98ffce4e2b76c8f53d1406aadca60daab5d04bdd8706"
+    },
+    "result.json": {
+      "bytes": 1272,
+      "sha256": "bdc9b9297a464b4804544e25ae6bce40cdad6cb44715311ec61f3d9dd2fcaeef"
+    },
+    "check.txt": {
+      "bytes": 921,
+      "sha256": "5454fb752c1087e8f2479745a7ca3f6454c20bd3d872d02e94c21a9735488a87"
+    },
+    "schema.q": {
+      "bytes": 325,
+      "sha256": "6dc4038dcc9459495a958133dcd54dc9079e8db7c16a1b47b78e6910fa8b5b89"
+    },
+    "driver.log": {
+      "bytes": 65,
+      "sha256": "46cdeff7408f1f5ca539762c9285f5e0174c1a7f907ea1bc1bfc64d19eccc09b"
+    },
+    "first-attempt-result.json": {
+      "bytes": 1139,
+      "sha256": "4bbf02d3e70f94bd26f246aaa5e8b78a8a18e20dce434c7d89a036406f30fab6"
+    },
+    "first-attempt-custody.json": {
+      "bytes": 999,
+      "sha256": "592a9e3b6b2230f7ca2eb5c1dd3bc84aa3ed9e1578f136a3954a90a62c740a8a"
+    },
+    "first-attempt-probe.mjs": {
+      "bytes": 6272,
+      "sha256": "1e59cb9f79daecf8a67f6a71a966fc960bf63a1b7806e01c828482bda91190c9"
+    }
+  }
+}

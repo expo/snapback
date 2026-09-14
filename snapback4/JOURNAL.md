@@ -5052,3 +5052,16 @@ The [benchmark ticket](../issues/20260914-clique-expiry-choreography-can-pass-wi
 and selected-field evidence separate that insufficient measurement from an
 engine expiry defect. No frozen instrument or product code changed;
 independent grading has begun, and the M7 phases remain pending.
+
+## 2026-09-14 — Awaited browser admission survives page closure in a reduced control
+
+Muse's Clique essay attributed a settings/navigation loss to the SDK's
+outbox. A reduced published-0.2.10 Chromium control awaited an offline
+mutation with default IndexedDB persistence, closed the page as its next
+asynchronous action, recovered the one queued mutation from a new page and
+committed one row on reconnect. It used no keepalive or write-through path.
+The [follow-up ticket](../issues/20260914-snapback4-muse-navigation-outbox-loss-needs-reproduction.md)
+retains that counterexample and asks for the full app flow's admission and
+navigation ordering. The received app bug, workaround and scorer's charge
+remain recorded; the broad durability claim is not established. No product
+or frozen benchmark code changed.
