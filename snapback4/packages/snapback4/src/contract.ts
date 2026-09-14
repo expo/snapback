@@ -35,12 +35,13 @@ export interface Pending {
   readonly pending?: boolean;
 }
 
-/** A write. `sent.result` is the server answer; pending rows show predictions.
+/** A write. `sent.result` is the fresh server answer; a replay carries no result; pending rows show predictions.
  * `id` is client-minted and stable across replay. */
-// @ref LLP 3000.007#8 — only sent carries a mutation result
+// @ref LLP 3000.007#20.2 — a replay proves execution without retaining historical read authority.
 export type Write<R = unknown> =
   | { readonly state: "pending"; readonly id: string }
-  | { readonly state: "sent"; readonly id: string; readonly seq: number; readonly result: R }
+  | { readonly state: "sent"; readonly id: string; readonly seq: number; readonly replayed?: false; readonly result: R }
+  | { readonly state: "sent"; readonly id: string; readonly seq: number; readonly replayed: true; readonly result?: never }
   | { readonly state: "failed"; readonly id: string; readonly why: Refusal };
 
 /** An action's server outcome. A denial precedes admission; a pending id
@@ -131,6 +132,8 @@ export interface Client {
   viewer(): Principal | null;
   onViewer(notify: (viewer: Principal | null) => void): () => void;
   onWrite(notify: (write: Exclude<Write, { state: "pending" }>) => void): () => void;
+  /** Revoke this session when reachable, clear local credentials, and close. */
+  signOut(): Promise<void>;
   close(): Promise<void>;
 }
 

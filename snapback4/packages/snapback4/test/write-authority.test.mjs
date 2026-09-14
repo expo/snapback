@@ -142,3 +142,52 @@ test("write authority: a lost readable key-collision reply cannot recover its ke
   assert.equal(retry.why.message, "the program refused with E_CONSTRAINT");
   for (const field of ["code", "site", "rewrite", "guide", "family", "retryable"]) assert.deepEqual(retry.why[field], first.why[field]);
 });
+
+for (const tier of ["online", "local"]) test(`replay card: ${tier} keeps a lost response's same-id receipt and fresh result`, { timeout: 20000 }, async (t) => {
+  const f = await fixture(t);
+  const { createClient } = await import("../dist/client.js");
+  let lose = false;
+  const ids = [];
+  const transport = async (input, init) => {
+    const response = await fetch(input, init);
+    if (new URL(input).pathname === "/m/put") {
+      ids.push(JSON.parse(init.body).id);
+      if (lose) { lose = false; await response.arrayBuffer(); throw new TypeError("lost committed reply"); }
+    }
+    return response;
+  };
+  const options = { url: f.url, persona: "alice", fetch: transport, waitSeconds: 1 };
+  const client = tier === "online" ? createClient(options) : await createLocalClient({ ...options, device: processDevice({ binary, dir: join(f.directory, "replay-device") }) });
+  f.clients.push(client);
+  const writes = [];
+  client.onWrite(write => writes.push(write));
+  const op = { kind: "mutation", name: "put" };
+  const fresh = await client.mutate(op, { key: "lookup" });
+  assert.equal(fresh.state, "sent");
+  assert.equal(fresh.result.secret, "PRIVATE");
+  assert.notEqual(fresh.replayed, true);
+  lose = true;
+  await client.mutate(op, { key: "lookup" });
+  await until(() => writes.length === 2, "retry did not settle");
+  assert.equal(ids.length, 3);
+  assert.equal(ids[1], ids[2]);
+  assert.equal(writes[1].replayed, true);
+  assert.equal("result" in writes[1], false);
+});
+
+test("online sign-out revokes its bearer and clears the client even without a link", async () => {
+  const { createClient } = await import("../dist/client.js");
+  for (const offline of [false, true]) {
+    const calls = [];
+    const client = createClient({ url: "http://example.invalid", token: "kept-token", fetch: async (url, init) => {
+      calls.push([new URL(url).pathname, init.headers.authorization]);
+      if (offline) throw new TypeError("offline");
+      return Response.json({ ok: true });
+    } });
+    await client.signOut();
+    assert.deepEqual(calls, [["/auth/logout", "Bearer kept-token"]]);
+    assert.equal(client.viewer(), null);
+    assert.equal(client.link(), "signed-out");
+    assert.equal((await client.mutate({ kind: "mutation", name: "put" }, {})).state, "failed");
+  }
+});

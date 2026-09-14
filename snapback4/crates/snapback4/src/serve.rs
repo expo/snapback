@@ -38,6 +38,8 @@ pub struct Shared {
     pub seq: Mutex<u64>,
     /// `dev` admits loopback personas; a release refuses them.
     pub personas: bool,
+    pub hold_effects: bool,
+    pub hold_schedules: bool,
     pub entropy: Mutex<u64>,
     /// Who holds a long poll open right now: what `connected[p]` reads.
     pub presence: Arc<Live>,
@@ -181,7 +183,7 @@ pub(crate) fn test_work(hook: &WorkHook) {
 /// How the server is run: `dev` on a project (personas, watch), or a
 /// release (`serve`): a compiled generation over a store, tokens only.
 pub enum Mode {
-    Dev { watch: bool, fresh: bool },
+    Dev { watch: bool, fresh: bool, hold_effects: bool, hold_schedules: bool },
     Release { expected: u64 },
 }
 
@@ -195,6 +197,9 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
         return Err(format!("{} problem{} in snapback/", bound.diagnostics.len(), if bound.diagnostics.len() == 1 { "" } else { "s" }));
     }
     let dev = matches!(mode, Mode::Dev { .. });
+    // @ref LLP 3000.007#20.2 — replay holds gate admission; mutations still commit durable effects.
+    let hold_effects = matches!(mode, Mode::Dev { hold_effects: true, .. });
+    let hold_schedules = matches!(mode, Mode::Dev { hold_schedules: true, .. });
     let generated = if dev { Some(project.write_generated(&bound).map_err(|e| e.to_string())?) } else { None };
     // `--fresh`: a store in memory that dies with the process, for acceptance
     // scripts that must start from nothing every time.
@@ -208,13 +213,14 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     if dev {
         crate::native::build(&project, &bound).map_err(|p| p.to_string())?;
     }
+    crate::dev_replay::schedules(&mut engine, hold_schedules, snapback4_core::now_ms()).map_err(|e| e.to_string())?;
     let installed = crate::native::install(&mut engine, &project).map_err(|p| p.to_string())?;
     let presence = Arc::new(Live::default());
     engine.set_presence(Some(presence.clone()));
     let seq = engine.seq().map_err(|e| e.to_string())?;
     let generation: u64 = engine.generation();
     let shared = Arc::new(Shared {
-        engine: Mutex::new(engine), readers: Mutex::new(QueryReaders::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
+        engine: Mutex::new(engine), readers: Mutex::new(QueryReaders::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
         #[cfg(test)] auth_work: Mutex::new(None),
         #[cfg(test)] upload_work: Mutex::new(None),
         #[cfg(test)] effect_wait: Mutex::new(None),
@@ -384,7 +390,7 @@ fn maintain(shared: Arc<Shared>) {
             Ok(_) => bump_seq(&shared),
             Err(error) => eprintln!("snapback4: the expiry sweep failed: {error}"),
         }
-        match lock(&shared.engine).fire_schedules(now) {
+        match if shared.hold_schedules { Ok(Vec::new()) } else { lock(&shared.engine).fire_schedules(now) } {
             Ok(fired) => {
                 for name in fired {
                     eprintln!("snapback4: schedule {name} fired");
@@ -1038,7 +1044,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     Ok(worker) => worker,
                     Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
                 };
-                let claimed = lock(&shared.engine).claim_effects(&worker, effect.as_deref(), limit, lease_ms, snapback4_core::now_ms());
+                let claimed = if shared.hold_effects { Ok(Vec::new()) } else { lock(&shared.engine).claim_effects(&worker, effect.as_deref(), limit, lease_ms, snapback4_core::now_ms()) };
                 match claimed {
                     Ok(runs) if runs.is_empty() && Instant::now() < deadline => {
                         // Nothing due: wait for a commit (an emit), or for a
@@ -1160,6 +1166,8 @@ mod poison_tests {
             committed: Condvar::new(),
             seq: Mutex::new(0),
             personas: true,
+            hold_effects: false,
+            hold_schedules: false,
             entropy: Mutex::new(1),
             presence: Arc::new(Live::default()),
             asset_transfers: AssetTransfers::default(),

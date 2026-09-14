@@ -7,12 +7,16 @@ package carries both: the `snapback4` CLI (the Rust binary, installed for
 your platform as an optional dependency) and the TypeScript client.
 
 ```sh
-npm install snapback4            # the client, and the CLI for darwin-arm64
+npm install --save-exact snapback4 # the client, and the CLI for darwin-arm64
 npx snapback4 init               # writes snapback/schema.q (and ignores .snapback4/ and snapback/generated/)
 npx snapback4 check              # compiles it; writes snapback/generated/api.ts
 npx snapback4 dev                # serves it on 127.0.0.1:4400, re-adopting on every save
 npx snapback4 guide              # the language card; `guide <keyword>` for a card
 ```
+
+For an online or Expo starter, replace `init` above with `init --online`
+or `init --expo`, then run `npm install` before `check` to install the
+merged dependencies. The initial exact pin matches the starter's dependency.
 
 Everything below is the whole published surface. There is no other
 documentation; the diagnostics carry the rest (every refusal names its
@@ -976,7 +980,7 @@ type Read<T> =
   | { data: T; complete: boolean; fresh: boolean; since?: number; next?: Cursor | null }
   | { loading: true }
   | { denied: Refusal };
-type Write<R> = { state: "pending"; id: string } | { state: "sent"; id: string; seq: number; result: R } | { state: "failed"; id: string; why: Refusal };
+type Write<R> = { state: "pending"; id: string } | { state: "sent"; id: string; seq: number; replayed?: false; result: R } | { state: "sent"; id: string; seq: number; replayed: true; result?: never } | { state: "failed"; id: string; why: Refusal };
 type Refusal = { code: string; family: string; message: string; site?: string; rewrite?: string; guide?: string; rule?: string; retryable?: boolean };
 type Link = "online" | "offline" | "signed-out";
 ```
@@ -1004,7 +1008,7 @@ the same id, and `useMutation.last` follows it. `family` is `input`, `schema`, `
 engine, and `link` or `client` from the client itself. `isReady`,
 `isLoading`, `isDenied` narrow a `Read`.
 
-The `sent` outcome carries the server's typed `result`, including reused ids
+A fresh `sent` outcome carries the server's typed `result`, including reused ids
 and shaped objects. A queued write's eventual `onWrite` event carries that same
 terminal result; `useMutation.last` follows it. Pending writes have no predicted
 result: their predicted rows carry `pending`.
@@ -1014,12 +1018,21 @@ them without a network fetch on reload. It also persists the compiled backend
 with the device rows, so a device that opened and synced online can reopen
 offline. Custom wasm URLs should identify immutable module versions.
 
+A sent replay receipt carries `replayed: true` and no result. Narrow with
+`write.state === "sent" && !write.replayed` before using `write.result`;
+query the current state when a replay needs a value. Both client tiers and
+React mutation settlement preserve the receipt. `Client.signOut()` revokes
+its session when reachable, clears its credentials and closes the client.
+Applications keeping an online session with `keepSession` also call
+`forgetSession` on their own store (§6); the local client clears its managed store.
+
 ### React
 
 ```tsx
 import { SnapbackProvider, useClient, useQuery, usePage, useMutation, useAction, useLink, useViewer, useSession, useAsset } from "snapback4/react";
 import type { Client } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
+import { Image, Text, View } from "react-native";
 function Thread({ conversationId }: { conversationId: string }) {
   const inbox = useQuery(api.inbox, {});
   const { items, hasMore, loadMore, read } = usePage(api.thread, { conversationId });
@@ -1030,7 +1043,14 @@ function Thread({ conversationId }: { conversationId: string }) {
   const session = useSession(); // null once the local session ended
   const client = useClient();
   const photo = useAsset(items[0]?.photo?.id);
-  return <p>{link}: {items.length} messages</p>;
+  return <View>
+    <Text>{link}: {items.length} messages</Text>
+    {photo.status === "ready" && <Image source={{ uri: photo.url }} style={{ width: 240, height: 180 }} />}
+    {photo.status === "loading" && <Text>Loading photo…</Text>}
+    {photo.status === "empty" && <Text>No photo</Text>}
+    {photo.status === "denied" && <Text>{photo.why.message}</Text>}
+    <Text onPress={() => void client.signOut()}>Sign out</Text>
+  </View>;
 }
 export function App({ client, conversationId }: { client: Client; conversationId: string }) {
   return SnapbackProvider({ client, children: <Thread conversationId={conversationId} /> });
@@ -1273,7 +1293,11 @@ caps over it, and a group that no longer fits is `E_ADOPT` like any other
 step.
 
 - **`snapback4 init [dir] [--online|--expo]`** starts a project without
-  overwriting existing files. The default writes the local-first todo
+  overwriting existing files. An existing `package.json` keeps its metadata;
+  required dependencies, devDependencies and scripts merge into it. A different
+  value for the same required key refuses with the key and both values before
+  any file is written. Run `npm install` again after merging a starter.
+  The default writes the local-first todo
   schema and `.gitignore`; `--online` adds an online client, package.json
   and README. `--expo` copies the chat starter with its backend, invitation worker, screens,
   secure session store and native/online tier selection. Its toolchain
@@ -1283,13 +1307,18 @@ step.
   private fields in the bundle that Hermes cannot compile. The generated
   README gives the install and run commands.
 
-- **`snapback4 dev [--port N] [--no-watch] [--fresh]`** serves
+- **`snapback4 dev [--port N] [--no-watch] [--fresh] [--hold-effects] [--hold-schedules]`** serves
   `snapback/*.q` on `127.0.0.1:4400`, recompiling and re-adopting on
   every save (the watcher polls every 400 ms; a save with problems keeps
   the previous generation serving and prints the diagnostics); the store
   lives in `.snapback4/store.sqlite` and persists across runs, and
   `--fresh` uses one in memory that dies with the process (acceptance
-  scripts start from nothing). `dev` writes `api.ts` on start and on
+  scripts start from nothing). For recorded-action replays, `--hold-effects`
+  prevents workers from claiming effects; emitted effects remain durable and
+  become claimable after restarting without the flag. `--hold-schedules`
+  prevents schedule admission; restart without it resumes at the next boundary,
+  skipping the held periods. Already queued jobs still run. Both flags are
+  independent and require no app code. `dev` writes `api.ts` on start and on
   every adoption, and refuses a store that belongs to a deployment
   (`E_GENERATION`). Personas (`use personas ..`) sign requests from the
   same machine with the `x-snapback-persona: alice` header (the client's
@@ -1398,7 +1427,8 @@ and body before changing an offline link back to online. `POST /q/<op>`
 with `{ "args": {..} }` answers `{ data, complete, seq, next, nextExpiry,
 tables, viewer }` or `{ denied }`; `nextExpiry` is the earliest future expiry
 the visible read encountered, or null. `POST /m/<op>` with `{ "id", "args",
-"newIds" }` answers `{ state: "sent", id, seq, result }` or `{ state:
+"newIds" }` answers `{ state: "sent", id, seq, result }` on fresh success,
+`{ state: "sent", id, seq, replayed: true }` on replay, or `{ state:
 "failed", id, why, current? }` (a client-minted `id` makes the write
 apply at most once, and a replay adds `replayed: true`; `current` is the
 live row on `E_CONFLICT`); a job is refused over the wire (`E_OP`).
@@ -1491,6 +1521,15 @@ chunks each tick, and sweeps unplaced assets once a minute.
   store to the directory's, so the filesystem must support symlinks.
 
 ## 7. Expo
+
+`npx snapback4 init --expo` writes `metro.config.js` and
+`metro-wasm-transformer.cjs` (the config is `metro.config.cjs` in an existing
+ESM package): wasm is a Metro asset, and the transformer
+turns the web device's module-relative wasm URL into an asset dependency.
+On web, `webDevice()` then finds the emitted wasm URL without a manual
+`wasm` option, in development and in an Expo web export. Keep both generated
+files when customizing Metro. The starter selects native or online on phones;
+select `webDevice()` when adding a local-first web client.
 
 The same client runs on React Native over the native module — the
 `snapback4-expo` package, §7.1 — in a development or production build.

@@ -54,7 +54,7 @@ test("README TypeScript examples compile and call every public function", (t) =>
     "snapback4-expo": ["../snapback4-expo/src/index.ts"],
     "expo-secure-store": [expoRequire.resolve("expo-secure-store/build/SecureStore.d.ts")],
   } });
-  const program = ts.createProgram([...blocks.map(b => b.file), ...publicSources.map(s => s.path)], options);
+  const program = ts.createProgram([...blocks.map(b => b.file), ...publicSources.map(s => s.path), join(root, "test/fixtures/client-card.tsx")], options);
   const checker = program.getTypeChecker();
   const diagnostics = ts.getPreEmitDiagnostics(program).map((d) => {
     const block = blocks.find(b => b.file === d.file?.fileName);
