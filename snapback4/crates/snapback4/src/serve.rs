@@ -30,6 +30,7 @@ mod tests;
 
 pub struct Shared {
     pub engine: Mutex<Engine>,
+    readers: Mutex<QueryReaders>,
     pub bound: Mutex<Bound>,
     pub generation: Mutex<u64>,
     /// Woken on every commit so long polls return promptly.
@@ -54,6 +55,38 @@ pub struct Shared {
     pub upload_work: WorkHook,
     #[cfg(test)]
     pub effect_wait: WorkHook,
+}
+
+// @ref LLP 3000#7-decisions-during-execution — reader reuse retains fresh transactions and retires old native modules.
+/// Reuse only detached read owners. Each query still opens and rolls back
+/// its own identity-checked SQLite transaction; no result or viewer is cached.
+#[derive(Default)]
+struct QueryReaders {
+    epoch: Arc<()>,
+    idle: Vec<Engine>,
+}
+
+impl QueryReaders {
+    fn take(&mut self, engine: &Engine) -> Result<(Arc<()>, Engine), snapback4_core::RuntimeError> {
+        let reader = match self.idle.pop() {
+            Some(reader) => reader,
+            None => engine.reader()?,
+        };
+        Ok((self.epoch.clone(), reader))
+    }
+
+    fn put(&mut self, epoch: &Arc<()>, reader: Engine) {
+        if Arc::ptr_eq(epoch, &self.epoch) && self.idle.len() < REQUEST_WORKERS {
+            self.idle.push(reader);
+        }
+    }
+
+    fn invalidate(&mut self) {
+        // Native code can change without a schema-generation change. Loans
+        // retain their old epoch so an in-flight return cannot repopulate it.
+        self.epoch = Arc::new(());
+        self.idle.clear();
+    }
 }
 
 /// A panicking request must not turn one poisoned process mutex into a
@@ -181,7 +214,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     let seq = engine.seq().map_err(|e| e.to_string())?;
     let generation: u64 = engine.generation();
     let shared = Arc::new(Shared {
-        engine: Mutex::new(engine), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
+        engine: Mutex::new(engine), readers: Mutex::new(QueryReaders::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
         #[cfg(test)] auth_work: Mutex::new(None),
         #[cfg(test)] upload_work: Mutex::new(None),
         #[cfg(test)] effect_wait: Mutex::new(None),
@@ -290,6 +323,7 @@ fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: u128) {
                 match engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())) {
                     Ok(next) => {
                         crate::lifecycle::generation(next);
+                        lock(&shared.readers).invalidate();
                         if let Some(built) = &rebuilt {
                             match crate::native::install(&mut engine, &project) {
                                 Ok(installed) => {
@@ -840,9 +874,16 @@ fn handle(mut request: Request, shared: &Shared) {
                     respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("{op} is a mutation; POST /m/{op}"))) }));
                     return;
                 }
-                let reader = { lock(&shared.engine).reader() };
+                let reader = {
+                    let engine = lock(&shared.engine);
+                    lock(&shared.readers).take(&engine)
+                };
                 let outcome = match reader {
-                    Ok(mut reader) => reader.query(&op, context),
+                    Ok((epoch, mut reader)) => {
+                        let outcome = reader.query(&op, context);
+                        if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader); }
+                        outcome
+                    },
                     // `--fresh` deliberately uses an in-memory store, which
                     // has no second SQLite connection to detach.
                     Err(_) => lock(&shared.engine).query(&op, context),
@@ -1113,6 +1154,7 @@ mod poison_tests {
         let engine = Engine::memory(Default::default(), Vec::<snapback4_core::ir::Program>::new()).unwrap();
         let shared = Arc::new(Shared {
             engine: Mutex::new(engine),
+            readers: Mutex::new(QueryReaders::default()),
             bound: Mutex::new(Bound { schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics: Vec::new(), notes: Vec::new() }),
             generation: Mutex::new(1),
             committed: Condvar::new(),

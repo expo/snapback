@@ -9,9 +9,9 @@ static DEV: AtomicBool = AtomicBool::new(false);
 static SIGNAL: AtomicI32 = AtomicI32::new(0);
 static WORKER_CLEANUP: AtomicBool = AtomicBool::new(false);
 
-struct Line { bytes: [u8; 4096], len: usize }
-impl Line {
-    fn new() -> Self { Self { bytes: [0; 4096], len: 0 } }
+struct Line<const N: usize> { bytes: [u8; N], len: usize }
+impl<const N: usize> Line<N> {
+    fn new() -> Self { Self { bytes: [0; N], len: 0 } }
     fn send(mut self) {
         self.bytes[self.len] = b'\n';
         // One unbuffered write keeps short lines intact under redirection.
@@ -33,7 +33,7 @@ impl Line {
         self.number(GENERATION.load(Ordering::Acquire));
     }
 }
-impl Write for Line {
+impl<const N: usize> Write for Line<N> {
     fn write_str(&mut self, text: &str) -> fmt::Result {
         let mut count = text.len().min(self.bytes.len() - 1 - self.len);
         while !text.is_char_boundary(count) { count -= 1; }
@@ -74,7 +74,8 @@ extern "C" fn signal_received(signal: libc::c_int) {
     let errno = unsafe { libc::__errno_location() };
     #[cfg(any(target_os = "macos", target_os = "linux"))]
     let saved_errno = unsafe { *errno };
-    let mut line = Line::new();
+    // @ref LLP 3000#7-decisions-during-execution — signal frames share a small alternate stack.
+    let mut line = Line::<256>::new();
     line.prefix("SNAPBACK4_SIGNAL");
     let _ = line.write_str(" reason=");
     let _ = line.write_str(signal_name(signal));
@@ -98,7 +99,7 @@ pub(crate) fn install(verb: &str) -> Result<(), String> {
         let thread = std::thread::current();
         let reason = info.payload().downcast_ref::<&str>().copied()
             .or_else(|| info.payload().downcast_ref::<String>().map(String::as_str)).unwrap_or("non-string panic payload");
-        let mut line = Line::new();
+        let mut line = Line::<4096>::new();
         line.prefix("SNAPBACK4_PANIC");
         let _ = write!(line, " thread={:?} action={} reason={reason:?}", thread.name().unwrap_or("unnamed"), if cfg!(panic = "abort") { "abort" } else { "unwind" });
         if let Some(at) = info.location() { let _ = write!(line, " location={}:{}:{}", at.file(), at.line(), at.column()); }
@@ -129,7 +130,7 @@ pub(crate) fn finish(result: Result<(), String>) -> i32 {
     let signal = SIGNAL.load(Ordering::Acquire);
     if signal != 0 { return 128 + signal; } // The handler already reported the reason, before cleanup.
     let (status, reason) = match result { Ok(()) => (0, "server loop returned".to_owned()), Err(reason) => (1, reason) };
-    let mut line = Line::new();
+    let mut line = Line::<4096>::new();
     line.prefix("SNAPBACK4_EXIT");
     let _ = write!(line, " status={status} reason={reason:?}");
     line.send();
@@ -145,7 +146,7 @@ pub(crate) fn background(name: &'static str, body: impl FnOnce() + Send + 'stati
         struct Exit(&'static str);
         impl Drop for Exit {
             fn drop(&mut self) {
-                let mut line = Line::new();
+                let mut line = Line::<4096>::new();
                 line.prefix("SNAPBACK4_THREAD_EXIT");
                 let reason = if std::thread::panicking() { "panic" } else if stopping() { "shutdown" } else { "unexpected return" };
                 let _ = write!(line, " thread={:?} reason={reason:?}", self.0);
