@@ -16,12 +16,23 @@ pub const BODY_CEILING: usize = 4096;
 const WINDOW: Duration = Duration::from_secs(60);
 const KEYS: usize = 4096;
 
-#[derive(Default)]
 pub struct Admission {
     attempts: Mutex<HashMap<String, (Instant, u32)>>,
     kdfs: AtomicUsize,
+    dev_kdf_slots: usize,
+}
+impl Default for Admission {
+    fn default() -> Self {
+        // @ref LLP 3000.007#14 — ruling 9: dev loopback KDF work fits the host, bounded at 2–16 slots
+        let dev_kdf_slots = std::thread::available_parallelism().map(|n| n.get().clamp(2, 16)).unwrap_or(2);
+        Self { attempts: Mutex::new(HashMap::new()), kdfs: AtomicUsize::new(0), dev_kdf_slots }
+    }
 }
 impl Admission {
+    pub fn kdf_slots(&self, dev_loopback: bool) -> usize {
+        if dev_loopback { self.dev_kdf_slots } else { 2 }
+    }
+
     fn attempt(&self, peer: &str, email: Option<&str>, now: Instant) -> bool {
         let mut attempts = self.attempts.lock().unwrap();
         attempts.retain(|_, (start, _)| now.duration_since(*start) < WINDOW);
@@ -48,10 +59,11 @@ impl Admission {
         }
         admitted
     }
-    fn kdf(&self) -> Option<Kdf<'_>> {
+    fn kdf(&self, dev_loopback: bool) -> Option<Kdf<'_>> {
+        let slots = self.kdf_slots(dev_loopback);
         self.kdfs
             .fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| {
-                (n < 2).then_some(n + 1)
+                (n < slots).then_some(n + 1)
             })
             .ok()?;
         Some(Kdf(&self.kdfs))
@@ -103,7 +115,7 @@ pub fn handle(request: Request, shared: &Shared, path: &str, body: &str) {
         return limited(request);
     }
     let kdf = if password_route {
-        match shared.auth.kdf() {
+        match shared.auth.kdf(dev_loopback) {
             Some(permit) => Some(permit),
             None => return limited(request),
         }
@@ -258,12 +270,24 @@ mod tests {
         }
         assert!(!a.attempt("1", Some("another@example.com"), now));
         assert!(a.attempt("1", Some("a@example.com"), now + WINDOW));
-        let first = a.kdf().unwrap();
-        let second = a.kdf().unwrap();
-        assert!(a.kdf().is_none());
-        drop(first);
-        assert!(a.kdf().is_some());
-        drop(second);
+    }
+
+    #[test]
+    fn password_slots_are_bounded_and_reusable_for_each_admission_class() {
+        let a = Admission::default();
+        assert!((2..=16).contains(&a.kdf_slots(true)));
+        assert_eq!(a.kdf_slots(false), 2);
+        for dev_loopback in [false, true] {
+            let mut permits: Vec<_> = (0..a.kdf_slots(dev_loopback)).map(|_| a.kdf(dev_loopback).unwrap()).collect();
+            assert!(a.kdf(dev_loopback).is_none());
+            assert!(a.kdf(false).is_none(), "loopback slots share the physical bound with other peers");
+            permits.pop();
+            let replacement = a.kdf(dev_loopback).unwrap();
+            assert!(a.kdf(dev_loopback).is_none());
+            drop(replacement);
+            drop(permits);
+            assert_eq!(a.kdfs.load(Ordering::Acquire), 0);
+        }
     }
 
     #[test]

@@ -173,7 +173,7 @@ test("dev loopback admits 200 sign-ins without minute limits; serve retains peer
     const result = await dev.post("/auth/login", { email: "same@example.com", password: "x".repeat(1025) }, false);
     assert.equal(result.denied?.code, "E_AUTH", JSON.stringify(result));
   }
-  assert.match(dev.log(), /no per-peer or per-email minute limits; Argon2 slots and connection\/worker caps still apply/);
+  assert.match(dev.log(), /no per-peer or per-email minute limits; Argon2 slots: (?:[2-9]|1[0-6]) on this host; connection\/worker caps still apply/);
   const release = await fixture(t, true);
   for (let n = 0; n < 30; n++) assert.ok((await release.post("/auth/guest", {}, false)).session?.token);
   assert.equal((await release.post("/auth/guest", {}, false)).denied?.code, "E_RATE_LIMIT");

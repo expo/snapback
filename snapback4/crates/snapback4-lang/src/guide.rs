@@ -1383,12 +1383,15 @@ socket peer.
 `GET /auth/config` is the small public advertisement for guest/password
 support. Catalog, schema, generated API, native module and changes require a
 live principal. Signup accepts 8–1,024 password bytes and login at most 1,024;
-password hashing is limited to two concurrent slots outside the engine mutex.
+password hashing runs in bounded concurrent slots outside the engine mutex.
 Under `serve`, guest, login and signup share 30 attempts per socket peer per
 minute, while login and signup also share 10 per normalized email per minute
-(E_RATE_LIMIT). Under `dev`, loopback peers have neither minute counter; startup
-prints this once. The two Argon2 slots and connection/worker caps still bound
-concurrent work. Non-loopback peers retain the counters. Unknown emails perform the same Argon2 verification work.
+(E_RATE_LIMIT). Under `dev`, loopback peers have neither minute counter; their
+Argon2 slots equal the host's available cores, capped at 16 and never below 2.
+Startup prints the slot count and the lifted counters once. `serve` and
+non-loopback peers keep two slots and the minute counters; full slots refuse
+with retryable E_RATE_LIMIT. Connection/worker caps remain. Unknown emails
+perform the same Argon2 verification work.
 
 Ordinary guest and password sessions last seven days. `refreshSession`
 atomically exchanges a live token; `logoutAll` revokes every session for the

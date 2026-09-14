@@ -3191,3 +3191,66 @@ under **1,500 lines** (largest **1,476**, the guide); this append-only
 journal was already **3,054** lines. No ceiling, engine write-path file,
 existing corpus case or ceremony instrument changed. No commit, push,
 tag or publication.
+
+## 2026-09-14 — Lane A: dev loopback Argon2 capacity follows the host
+
+Applied LLP 3000.007 §14 ruling 9: admission snapshots the host's available
+parallelism once, clamps it to 2–16, and uses that capacity only for `dev`
+loopback password work. The shared bounded semaphore still refuses excess
+work with retryable `E_RATE_LIMIT`; `serve` and non-loopback requests keep
+two slots. This host reports 18 available cores and dev prints
+`Argon2 slots: 16 on this host` on stderr. Minute counters, Argon2
+parameters, the engine meter, serialized values and client code are unchanged.
+The README and personas card explain both capacities; ruling 9 gains one
+dated application sentence without changing its existing text.
+
+The new HTTP regression parks eight simultaneous sign-ins before their
+Argon2 work, proves a query completes while they are parked, then verifies
+all eight sessions succeed without a refusal. On hosts with fewer than
+eight available cores it tests the smaller physical capacity. The existing
+third-request refusal test now runs as `serve` with a real guest session
+instead of a dev persona, covering both signup and login and the retryable
+flag. The semaphore regression fills each admission class, refuses the
+next permit, and proves released permits can be reused.
+
+Measured eight existing accounts over loopback HTTP on unoptimized Cargo
+dev binaries, before at `0d7b77bb3c577366ac81bf159e57524c613c9e12` and after
+this change. Account creation is outside the clock; eight request threads
+start together. Three trials per mode, measured sequentially after the
+baseline suite finished (milliseconds):
+
+| Mode | Before trials | After trials | Before → after median |
+| --- | --- | --- | --- |
+| One attempt per login | 256.980, 248.675, 253.208 | 261.905, 290.482, 314.969 | 253.208 → 290.482 |
+| All eight complete, retry refusals every 25 ms | 1137.052, 1033.687, 1032.919 | 339.553, 355.558, 358.707 | 1033.687 → 355.558 |
+
+The first row is **2 successes / 6 rate refusals before, 8 / 0 after** in
+every trial, so its elapsed times are not equal amounts of completed work.
+The second row completes eight in every trial: 115, 108, 106 refusals
+before and zero after, a 2.907× median completion speedup with this retry
+policy. An earlier baseline measured alongside the busy base suite took
+1677.680 ms median to complete eight, illustrating shared-host variance.
+These are local debug-build observations, not packaged throughput claims.
+The measurement program and raw results are in `/tmp/snapback-lane-A-auth/`.
+
+Targeted tests: auth **3 passed**, HTTP **18 passed**, compiled guide
+**8 passed**, client seams **4 passed**, all with zero failures. The full
+suite's first changed-tree run caught the client-seams assertion expecting
+the old startup sentence; its one-line expectation now checks a printed
+2–16 slot count. That test file is the only addition to the brief's named
+file scope. The final full suite took **30 s**: **303 Rust passed,
+0 failed, 1 ignored; 9 fixture tests passed; 111 client tests passed,
+1 failed**. All builds and typechecks passed. The sole remaining failure
+is Chromium SIGABRT before the React assertions, reproduced alone on this
+tree and on the untouched base above. The base suite also encountered an
+HTTP startup timeout and a worker timeout (the latter repeated alone);
+both passed in the final full suite. A green outside-sandbox Chromium run
+remains the lead's, not a green-suite claim from this lane.
+
+Learned: lifting minute counters did not remove the two-slot correction
+loop; concurrent admission needed its own regression, independent of the
+implementation's selected capacity. Startup text is also an exercised
+surface, with an assertion outside the server crate. Modified source files
+remain below 1,500 lines (maximum 1,464); this journal was already 3,054
+lines, and its prior entries are preserved verbatim. No commit, push, tag
+or publication.
