@@ -6,6 +6,7 @@ impl Binder<'_> {
     // ----- statements -----
 
     pub(super) fn block(&mut self, statements: &[S], out: &mut Vec<Stmt>, completes: bool) -> Fallible<()> {
+        let before = self.visible_bindings();
         self.push_scope();
         let count = statements.len();
         let mut result = Ok(());
@@ -15,7 +16,14 @@ impl Binder<'_> {
                 break;
             }
         }
+        let after = self.visible_bindings();
         self.pop_scope();
+        for (name, old) in before {
+            let new = &after[&name];
+            if old.runtime == new.runtime && old.revision != new.revision {
+                self.scopes.last_mut().expect("a scope").insert(name, new.clone());
+            }
+        }
         result
     }
 
@@ -35,18 +43,47 @@ impl Binder<'_> {
                     return Err(unknown(site, "tuple bindings take exactly two names and sorted(a, b) or divmod(a, b)", "(quotient, remainder) = divmod(dividend, divisor)"));
                 }
                 let name = &names[0];
-                if self.scopes.last().is_some_and(|scope| scope.contains_key(name)) {
-                    return Err(unknown(site, format!("duplicate local {name}"), format!("rename {name} so every local in this scope is unique")));
-                }
-                if matches!(self.lookup(name), Some(_)) && self.scopes[0].contains_key(name) {
+                if self.binding(name).is_some_and(|binding| binding.parameter) {
                     return Err(unknown(site, format!("{name} is an argument; locals cannot shadow arguments"), format!("rename the local (for example {name}2)")));
+                }
+                if let Some(mut binding) = self.binding(name).cloned()
+                    && let Ty::List(item, _) = &binding.ty
+                    && let A::Binary { op, left, right, .. } = value
+                    && op == "+" && matches!(left.as_ref(), A::Name { name: source, .. } if source == name)
+                    && let A::Array { items, .. } = right.as_ref()
+                    && items.len() == 1
+                {
+                    let (value, ty) = self.value_of(&items[0], out)?;
+                    if !ty.assignable_to(item) && !item.assignable_to(&ty) {
+                        return Err(type_error(site, format!("{name} holds {}; cannot append {}", item.name(), ty.name()), "append an item of the list's type"));
+                    }
+                    // @ref LLP 3000.007#5-1 — append in place; the heap meter is the accumulated list's bound.
+                    binding.ty = Ty::List(Box::new(item.join(&ty)), u32::MAX);
+                    binding.declared = binding.ty.clone();
+                    binding.revision += 1;
+                    out.push(Stmt::Push { target: binding.runtime.clone(), value });
+                    self.scopes.last_mut().expect("a scope").insert(name.clone(), binding);
+                    return Ok(());
                 }
                 let (expr, ty) = self.value_of(value, out)?;
                 if matches!(value, A::Write { op: WriteOp::Delete, .. }) {
                     return Err(unknown(site, "delete does not yield a value; return a confirmation value after the write", "delete the row, then `return null`"));
                 }
-                let runtime = self.declare(name, ty);
-                out.push(Stmt::Let { name: runtime, value: expr });
+                // @ref LLP 3000.007#5-1 — rebinding preserves the local slot and resets its flow refinement.
+                if let Some(mut binding) = self.binding(name).cloned() {
+                    if ty != Ty::Null && binding.declared != Ty::Null && !ty.assignable_to(&binding.declared) && !binding.declared.assignable_to(&ty) {
+                        return Err(type_error(site, format!("{name} is {}; cannot rebind it to {}", binding.declared.name(), ty.name()), "use a different local for a different type"));
+                    }
+                    let joined = binding.declared.join(&ty);
+                    binding.declared = if self.loops > 0 { joined.rebound() } else { joined };
+                    binding.ty = if self.loops > 0 { ty.rebound() } else { ty };
+                    binding.revision += 1;
+                    out.push(Stmt::Assign { name: binding.runtime.clone(), value: expr });
+                    self.scopes.last_mut().expect("a scope").insert(name.clone(), binding);
+                } else {
+                    let runtime = self.declare(name, ty);
+                    out.push(Stmt::Let { name: runtime, value: expr });
+                }
                 Ok(())
             }
             S::Require { condition, code, site } => {
@@ -60,6 +97,9 @@ impl Binder<'_> {
                 Ok(())
             }
             S::Emit { effect, payload, site } => {
+                if self.in_prelude {
+                    return Err(placement(site, "a write belongs to a chunk", "move emit into the chunk body"));
+                }
                 if self.kind == ProgramKind::Query {
                     return Err(Diagnostic::new(site, "E_EMIT_IN_QUERY", "queries cannot emit effects", "change query to mutation before emitting an effect"));
                 }
@@ -87,8 +127,10 @@ impl Binder<'_> {
                         (false, false) => then_ty.join(else_ty),
                         (false, true) => then_ty.clone(),
                         (true, false) => else_ty.clone(),
-                        (true, true) => continue,
+                        (true, true) => binding.ty.clone(),
                     };
+                    binding.declared = then_bindings[&name].declared.join(&else_bindings[&name].declared);
+                    binding.revision = then_bindings[&name].revision.max(else_bindings[&name].revision);
                     self.scopes.last_mut().expect("a scope").insert(name, binding);
                 }
                 out.push(Stmt::If { condition: expr, then_body: then_out, else_body: else_out });
@@ -96,15 +138,10 @@ impl Binder<'_> {
             }
             S::For { name, domain, body, site } => {
                 let (loop_domain, item_ty) = self.loop_domain(domain, out)?;
-                let mut body_out = Vec::new();
-                self.push_scope();
-                let binding = self.declare(name, item_ty);
-                self.loops += 1;
-                let result = self.block(body, &mut body_out, false);
-                self.loops -= 1;
-                self.pop_scope();
-                result?;
-                let _ = site;
+                if self.binding(name).is_some_and(|binding| binding.parameter) {
+                    return Err(unknown(site, format!("{name} is an argument; locals cannot shadow arguments"), "give the loop item a fresh name"));
+                }
+                let (binding, body_out) = self.loop_body(name, item_ty, body, site)?;
                 out.push(Stmt::For { binding, domain: loop_domain, body: body_out });
                 Ok(())
             }
@@ -115,11 +152,22 @@ impl Binder<'_> {
                 out.push(Stmt::Break);
                 Ok(())
             }
+            S::Continue { site } => {
+                if self.loops == 0 {
+                    return Err(placement(site, "continue advances the enclosing for or chunk, and there is none here", "delete this line; a program ends with return"));
+                }
+                // @ref LLP 3000.007#5-1 — continue uses the interpreter's existing loop flow.
+                out.push(Stmt::Continue);
+                Ok(())
+            }
             S::Expr { value, site } => {
                 if let A::Call { name, args, site: call_site } = value
-                    && self.catalog.procs.contains_key(name)
+                    && let Some(function) = self.catalog.functions.get(name).cloned()
+                    && (!completes || self.kind == ProgramKind::Job)
                 {
-                    return self.proc_call(name, args, call_site, out);
+                    let (value, _) = self.fn_call(&function, args, call_site, out)?;
+                    out.push(Stmt::Let { name: self.temp("discarded"), value });
+                    return Ok(());
                 }
                 if completes && self.kind != ProgramKind::Job {
                     let (expr, ty) = self.value_of(value, out)?;
@@ -175,6 +223,52 @@ impl Binder<'_> {
             out.push(Stmt::Let { name: second, value: Expr::Builtin { builtin: Builtin::Max, args: vec![ir::var(&ta), ir::var(&tb)] } });
         }
         Ok(())
+    }
+
+    /// Join loop-carried writes with the zero-iteration path before accepting
+    /// the body. A refinement from the first iteration cannot bless later ones.
+    fn loop_body(&mut self, name: &str, item: Ty, body: &[S], site: &Site) -> Fallible<(String, Vec<Stmt>)> {
+        let mut header = self.visible_bindings();
+        let saved = self.scopes.clone();
+        let (temps, sites, returns) = (self.temps, self.sites, self.returns.len());
+        // An acyclic dependency among carried slots stabilizes in at most
+        // one pass per slot plus the first literal refinement. A cycle that
+        // keeps nesting a value inside itself has no finite Quarry type.
+        for _ in 0..header.len() + 2 {
+            self.scopes = saved.clone();
+            self.scopes.last_mut().expect("a scope").extend(header.clone());
+            self.temps = temps;
+            self.sites = sites;
+            self.returns.truncate(returns);
+            self.push_scope();
+            let binding = self.declare(name, item.clone());
+            self.loops += 1;
+            let mut out = Vec::new();
+            let result = self.block(body, &mut out, false);
+            self.loops -= 1;
+            let after = self.visible_bindings();
+            self.pop_scope();
+            result?;
+            let mut changed = false;
+            for (local, old) in &mut header {
+                let new = &after[local];
+                if new.runtime != old.runtime || new.revision == old.revision {
+                    continue;
+                }
+                let declared = old.declared.join(&new.declared);
+                let ty = old.ty.join(&declared);
+                changed |= old.ty != ty || old.declared != declared;
+                old.ty = ty;
+                old.declared = declared;
+                old.revision = new.revision;
+            }
+            if !changed {
+                self.scopes.last_mut().expect("a scope").extend(header);
+                return Ok((binding, out));
+            }
+        }
+        self.scopes = saved;
+        Err(type_error(site, "this loop keeps growing a recursive value type", "accumulate items of a fixed type rather than nesting an accumulator inside itself"))
     }
 
     /// After `require x != null` or inside `if x != null:`, `x` is present.
@@ -266,36 +360,44 @@ impl Binder<'_> {
             }
             let runtime = self.temp(&declared.name);
             out.push(Stmt::Let { name: runtime.clone(), value: expr });
-            bindings.insert(declared.name.clone(), Binding { runtime, ty: expected });
+            bindings.insert(declared.name.clone(), Binding { runtime, ty: expected.clone(), declared: expected, parameter: true, revision: 0 });
         }
         Ok(bindings)
-    }
-
-    pub(super) fn proc_call(&mut self, name: &str, args: &[A], site: &Site, out: &mut Vec<Stmt>) -> Fallible<()> {
-        let proc = self.catalog.procs[name].clone();
-        let bindings = self.helper_arguments(name, &proc.args, args, site, out)?;
-        let caller = std::mem::replace(&mut self.scopes, vec![bindings]);
-        let focal = self.focal.take();
-        let loops = std::mem::take(&mut self.loops);
-        self.depth += 1;
-        let result = self.block(&proc.body, out, false);
-        self.depth -= 1;
-        self.loops = loops;
-        self.scopes = caller;
-        self.focal = focal;
-        result
     }
 
     pub(super) fn fn_call(&mut self, function: &ast::FunctionDecl, args: &[A], site: &Site, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
         let bindings = self.helper_arguments(&function.name, &function.args, args, site, out)?;
         let caller = std::mem::replace(&mut self.scopes, vec![bindings]);
         let focal = self.focal.take();
+        let loops = std::mem::take(&mut self.loops);
+        let returns = std::mem::take(&mut self.returns);
         self.depth += 1;
-        let result = self.expr(&function.body, out);
+        // @ref LLP 3000.007#5-2 — helpers expand in the caller's placement; a return exits only this expansion.
+        let result = match &function.body {
+            ast::FunctionBody::Expression(value) => self.value_of(value, out),
+            ast::FunctionBody::Block(statements) => {
+                let mut body = Vec::new();
+                self.block(statements, &mut body, false).map(|()| {
+                    let ty = self.returns.iter().cloned().reduce(|a, b| a.join(&b)).unwrap_or(Ty::Null);
+                    let result = self.temp("result");
+                    let done = self.temp("returned");
+                    out.push(Stmt::Let { name: result.clone(), value: Expr::Literal(Value::Null) });
+                    out.push(Stmt::Let { name: done.clone(), value: Expr::Literal(Value::Bool(false)) });
+                    out.extend(helper_returns(body, &result, &done).0);
+                    (ir::var(&result), ty)
+                })
+            }
+        };
         self.depth -= 1;
+        self.returns = returns;
+        self.loops = loops;
         self.scopes = caller;
         self.focal = focal;
-        result
+        result.map_err(|diagnostic| {
+            if matches!(diagnostic.code.as_str(), "E_QUARRY_PLACEMENT" | "E_EMIT_IN_QUERY") || diagnostic.message == "queries cannot mint ids" {
+                placement(site, format!("fn {}: {} (at {})", function.name, diagnostic.message, diagnostic.site), diagnostic.rewrite)
+            } else { diagnostic }
+        })
     }
 
     fn visible_bindings(&self) -> BTreeMap<String, Binding> {
@@ -317,11 +419,43 @@ impl Binder<'_> {
     }
 }
 
+/// Lower helper-local returns without extending the serialized IR. Guards
+/// skip the remaining statements; a returning loop breaks its own iteration.
+fn helper_returns(statements: Vec<Stmt>, result: &str, done: &str) -> (Vec<Stmt>, bool) {
+    let mut out = Vec::new();
+    let mut may_return = false;
+    for statement in statements {
+        let (statements, returns) = match statement {
+            Stmt::Return(value) => (vec![Stmt::Assign { name: result.into(), value }, Stmt::Assign { name: done.into(), value: Expr::Literal(Value::Bool(true)) }], true),
+            Stmt::If { condition, then_body, else_body } => {
+                let (then_body, a) = helper_returns(then_body, result, done);
+                let (else_body, b) = helper_returns(else_body, result, done);
+                (vec![Stmt::If { condition, then_body, else_body }], a || b)
+            }
+            Stmt::For { binding, domain, body } => {
+                let (mut body, returns) = helper_returns(body, result, done);
+                if returns {
+                    body.push(Stmt::If { condition: ir::var(done), then_body: vec![Stmt::Break], else_body: Vec::new() });
+                }
+                (vec![Stmt::For { binding, domain, body }], returns)
+            }
+            other => (vec![other], false),
+        };
+        if may_return {
+            out.push(Stmt::If { condition: Expr::Unary { op: UnaryOp::Not, value: Box::new(ir::var(done)) }, then_body: statements, else_body: Vec::new() });
+        } else {
+            out.extend(statements);
+        }
+        may_return |= returns;
+    }
+    (out, may_return)
+}
+
 /// A loop may be empty. A return, an unconditional refusal, or two exiting
 /// branches leave no path to the following statement.
 pub(super) fn exits(statements: &[Stmt]) -> bool {
     statements.iter().any(|statement| match statement {
-        Stmt::Return(_) | Stmt::Break => true,
+        Stmt::Return(_) | Stmt::Break | Stmt::Continue => true,
         Stmt::Require { condition: Expr::Literal(Value::Bool(false)), .. } => true,
         Stmt::If { then_body, else_body, .. } => exits(then_body) && exits(else_body),
         _ => false,

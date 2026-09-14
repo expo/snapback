@@ -279,9 +279,6 @@ impl Binder<'_> {
             let ty = if rt.is_optional() { lt.required().join(&rt) } else { lt.required().join(&rt).required() };
             return Ok((ir::var(&tmp), ty));
         }
-        if op == "/" || op == "%" {
-            return Err(unknown(site, "division binds a quotient and a remainder at once", format!("(quotient, remainder) = divmod({}, {})", print::expression(left), print::expression(right))));
-        }
         let (l, lt) = self.expr(left, out)?;
         if op == "and" || op == "or" {
             let result = self.temp("bool");
@@ -321,6 +318,19 @@ impl Binder<'_> {
             ir::var(&left_value)
         };
         let ir_op = match op {
+            "/" | "%" => {
+                if !matches!(lt, Ty::Int | Ty::Time) || !matches!(rt, Ty::Int | Ty::Time) {
+                    return Err(type_error(site, format!("{op} takes present ints or times; got {} and {}", lt.name(), rt.name()), "narrow the operands before division"));
+                }
+                // @ref LLP 3000.007#5-1 — division shares divmod's Euclidean result and zero refusal.
+                let divided = Expr::Builtin { builtin: Builtin::Divmod { remainder_sink: "operator".into() }, args: vec![l, r] };
+                return Ok((ir::field(divided, if op == "/" { "quotient" } else { "remainder" }), Ty::Int));
+            }
+            "+" if matches!((&lt, &rt), (Ty::Text(_), Ty::Text(_))) => {
+                let (Ty::Text(a), Ty::Text(b)) = (lt, rt) else { unreachable!() };
+                // @ref LLP 3000.007#5-1 — text addition uses the shared, heap-metered concatenation builtin.
+                return Ok((Expr::Builtin { builtin: Builtin::Concat, args: vec![l, r] }, Ty::Text(a.saturating_add(b))));
+            }
             "=" | "!=" => {
                 if !lt.comparable(&rt) {
                     return Err(type_error(site, format!("{op} compares {} with {}", lt.name(), rt.name()), "compare values of one type"));
@@ -389,9 +399,6 @@ impl Binder<'_> {
         if let Some(function) = self.catalog.functions.get(name).cloned() {
             return self.fn_call(&function, args, site, out);
         }
-        if self.catalog.procs.contains_key(name) {
-            return Err(unknown(site, format!("{name} is a proc; call it as a statement"), format!("{name}({})", args.iter().map(print::expression).collect::<Vec<_>>().join(", "))));
-        }
         let arity = |n: usize, rewrite: &str| -> Fallible<()> {
             if args.len() != n {
                 return Err(type_error(site, format!("{name} takes {n} argument{}; received {}", if n == 1 { "" } else { "s" }, args.len()), rewrite));
@@ -402,14 +409,39 @@ impl Binder<'_> {
             "count" => {
                 arity(1, "count(list)")?;
                 let (e, t) = self.expr(&args[0], out)?;
+                if matches!(t, Ty::Text(_)) {
+                    return Ok((Expr::Builtin { builtin: Builtin::Len, args: vec![e] }, Ty::Int));
+                }
                 if t.loop_max().is_none() {
                     return Err(type_error(
                         args[0].site(),
-                        format!("count takes a bounded list or page, got {}", t.name()),
-                        if matches!(t.required(), Ty::Text(_)) { "for a text length use slice, or store the length" } else { "count a page or a bounded list" },
+                        format!("count takes present text, a list or a page, got {}", t.name()),
+                        "count(text), count(list), or count(page); narrow optional values first",
                     ));
                 }
                 Ok((Expr::Builtin { builtin: Builtin::Count, args: vec![e] }, Ty::Int))
+            }
+            "lower" | "trim" => {
+                arity(1, &format!("{name}(text)"))?;
+                let (value, ty) = self.expr(&args[0], out)?;
+                let Ty::Text(max) = ty else {
+                    return Err(type_error(site, format!("{name} takes present text, got {}", ty.name()), &format!("{name}(text ?? '')")));
+                };
+                let (builtin, max) = if name == "lower" { (Builtin::Lower, max.saturating_mul(3)) } else { (Builtin::Trim, max) };
+                Ok((Expr::Builtin { builtin, args: vec![value] }, Ty::Text(max)))
+            }
+            "join" => {
+                arity(2, "join(list, separator)")?;
+                let [(list, lt), (sep, st)]: [(Expr, Ty); 2] = self.strict_args(args, out)?.try_into().expect("checked arity");
+                let max = match (&lt, &st) {
+                    (Ty::List(item, count) | Ty::Collection(item, count), Ty::Text(sep)) => match item.as_ref() {
+                        Ty::Text(max) => max.saturating_mul(*count).saturating_add(sep.saturating_mul(count.saturating_sub(1))),
+                        Ty::Unknown if *count == 0 => 0,
+                        _ => return Err(type_error(site, "join takes a list of present text values", "join(['a', 'b'], ', ')")),
+                    },
+                    _ => return Err(type_error(site, "join takes a list of present text values and a text separator", "join(['a', 'b'], ', ')")),
+                };
+                Ok((Expr::Builtin { builtin: Builtin::Join, args: vec![list, sep] }, Ty::Text(max)))
             }
             "sum" if args.len() == 2 => {
                 // `sum(page, .x)`: the rows' field, summed — a loop that
@@ -529,7 +561,7 @@ impl Binder<'_> {
             other => Err(unknown(
                 site,
                 format!("unknown function {other}"),
-                name_rewrite(other, self.catalog.functions.keys().map(String::as_str).chain(["count", "sum", "slice", "min", "max", "tokens", "share", "sort", "divmod", "sorted"]), None),
+                name_rewrite(other, self.catalog.functions.keys().map(String::as_str).chain(["count", "sum", "slice", "min", "max", "tokens", "share", "sort", "divmod", "sorted", "lower", "trim", "join"]), None),
             )),
         }
     }

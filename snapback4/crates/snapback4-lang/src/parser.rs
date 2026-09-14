@@ -79,7 +79,7 @@ impl Parser {
             }
             "shape" => self.parse_shape_declaration(),
             "fn" => self.parse_function_declaration(),
-            "proc" => self.parse_proc_declaration(),
+            "proc" => Err(unsupported(&self.peek().site, "proc", "fn")),
             "cursor" => Err(unsupported(&token.site, "cursor as a declaration", "cursor is reserved for a future Quarry form; rename this declaration")),
             "channel" => Err(unsupported(&token.site, "channel", "ephemeral channels arrive after the first slice; keep presence and typing in the client for now")),
             "schedule" => {
@@ -555,23 +555,19 @@ impl Parser {
         }
         let args = self.parse_args()?;
         self.take(":")?;
-        let body = self.expression(0, &["<newline>"])?;
-        self.newline()?;
+        let body = if self.at_kind(Kind::Newline) {
+            self.newline()?;
+            let statements = self.parse_block()?;
+            if !matches!(statements.last(), Some(Stmt::Return { .. })) {
+                return Err(syntax_with(&site, "a fn body ends with return", "end the helper with `return expr` or a bare `return`"));
+            }
+            FunctionBody::Block(statements)
+        } else {
+            let expression = self.expression(0, &["<newline>"])?;
+            self.newline()?;
+            FunctionBody::Expression(expression)
+        };
         self.document.functions.push(FunctionDecl { name, args, body, site });
-        Ok(())
-    }
-
-    fn parse_proc_declaration(&mut self) -> Fallible<()> {
-        let site = self.take("proc")?.site;
-        let name = self.binding_name()?;
-        if self.at("from") {
-            return Err(unsupported(&self.peek().site.clone(), "imports", format!("every .q file beside schema.q shares one namespace: declare `proc {name}` once, in any file, and use it anywhere")));
-        }
-        let args = self.parse_args()?;
-        self.take(":")?;
-        self.newline()?;
-        let body = self.parse_block()?;
-        self.document.procs.push(ProcDecl { name, args, body, site });
         Ok(())
     }
 
@@ -730,8 +726,13 @@ impl Parser {
                 self.newline()?;
                 return Ok(Stmt::Break { site });
             }
-            "continue" => return Err(unsupported(&token.site, "continue", "wrap the rest of the loop body in `if`, or `break`")),
+            "continue" => {
+                let site = self.take("continue")?.site;
+                self.newline()?;
+                return Ok(Stmt::Continue { site });
+            }
             "if" => return self.parse_if(),
+            "elif" => return Err(unsupported(&token.site, "elif", "else if cond:")),
             "for" => return self.parse_for(),
             "require" => return self.parse_require(),
             "return" => {
@@ -795,9 +796,16 @@ impl Parser {
         let mut else_body = Vec::new();
         if self.at("else") {
             self.take("else")?;
-            self.take(":")?;
-            self.newline()?;
-            else_body = self.parse_block()?;
+            // @ref LLP 3000.007#5-1 — else if is a nested conditional with the same scope and flow rules.
+            if self.at("if") {
+                else_body.push(self.parse_if()?);
+            } else {
+                self.take(":")?;
+                self.newline()?;
+                else_body = self.parse_block()?;
+            }
+        } else if self.at("elif") {
+            return Err(unsupported(&self.peek().site, "elif", "else if cond:"));
         }
         Ok(Stmt::If { condition, then_body, else_body, site })
     }

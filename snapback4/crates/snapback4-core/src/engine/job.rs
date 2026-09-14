@@ -215,14 +215,21 @@ impl Engine {
             native_chunk(tx, head, &program, now)?;
             return self.job(&id);
         }
-        let sweeps: Vec<(&str, &Scan, &[Stmt])> = program.body.iter().filter_map(|stmt| match stmt { Stmt::For { binding, domain: LoopDomain::Page(scan), body } => Some((binding.as_str(), scan, body.as_slice())), _ => None }).collect();
+        let mut sweeps = Vec::new();
+        let mut setup_start = 0;
+        for (index, statement) in program.body.iter().enumerate() {
+            if let Stmt::For { binding, domain: LoopDomain::Page(scan), body } = statement {
+                sweeps.push((binding.as_str(), scan, body.as_slice(), &program.body[setup_start..index]));
+                setup_start = index + 1;
+            }
+        }
         let sweep = head.run.sweep as usize;
         if sweep >= sweeps.len() {
             tx.conn().execute("UPDATE _jobs SET state = 'done', sweep = ?2, cursor = NULL, upper = NULL, updated_at = ?3 WHERE id = ?1", params![head.run.id, sweeps.len() as i64, now])?;
             tx.commit()?;
             return self.job(&head.run.id);
         }
-        let (binding, scan, body) = sweeps[sweep];
+        let (binding, scan, body, setup) = sweeps[sweep];
         tx.savepoint("job_chunk")?;
         let seq = tx.next_seq()?;
         let mut context = Context::system().at(now).with_presence(presence);
@@ -231,16 +238,24 @@ impl Engine {
         // The sweep's upper key is captured when it begins: a row the body
         // inserts beyond it is never visited, so a sweep over its own
         // table ends.
-        let upper = match &head.upper {
-            Some(upper) => Ok(Some(upper.clone())),
-            None => runner.prefix_values(scan).and_then(|prefix| Ok(tx.scan(&scan.table, &scan.index, &prefix, &Bounds::default(), Dir::Desc, 1)?.pop().map(|(_, key)| key))),
-        };
         let site = format!("{}:{}", program.name, sweep + 1);
-        let outcome = match upper {
-            Ok(Some(upper)) => sweep_chunk(&mut runner, scan, head.cursor.as_deref(), &upper, binding, body, &site).map(|chunk| (chunk, Some(upper))),
-            Ok(None) => Ok((Chunk { last_key: None, visited: 0, ended: true, finished: false }, None)),
-            Err(error) => Err(error),
-        };
+        let outcome = (|| {
+            // @ref LLP 3000.007#5-2 — replay setup for every chunk, in its transaction and under its meter.
+            if let Flow::Return(_) = runner.statements(setup, &format!("{site}:prelude"))? {
+                return Ok((Chunk { last_key: None, visited: 0, ended: true, finished: true }, None));
+            }
+            let upper = match &head.upper {
+                Some(upper) => Some(upper.clone()),
+                None => {
+                    let prefix = runner.prefix_values(scan)?;
+                    tx.scan(&scan.table, &scan.index, &prefix, &Bounds::default(), Dir::Desc, 1)?.pop().map(|(_, key)| key)
+                }
+            };
+            match upper {
+                Some(upper) => sweep_chunk(&mut runner, scan, head.cursor.as_deref(), &upper, binding, body, &site).map(|chunk| (chunk, Some(upper))),
+                None => Ok((Chunk { last_key: None, visited: 0, ended: true, finished: false }, None)),
+            }
+        })();
         let outcome = outcome.and_then(|chunk| runner.check_final_exists().map(|()| chunk));
         let events = std::mem::take(&mut runner.events);
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();

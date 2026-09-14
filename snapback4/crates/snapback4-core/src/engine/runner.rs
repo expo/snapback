@@ -462,6 +462,25 @@ impl<'a> Runner<'a> {
     fn builtin(&mut self, builtin: &Builtin, mut args: Vec<Value>) -> Result<Value, RuntimeError> {
         let result: Result<Value, RuntimeError> = match builtin {
             Builtin::Len | Builtin::Count | Builtin::CountCapped | Builtin::Sum => scalar_builtin(builtin, &args[0]),
+            Builtin::Lower | Builtin::Trim => {
+                let text = args[0].as_str()?;
+                let value = Value::String(if matches!(builtin, Builtin::Lower) { text.to_lowercase() } else { text.trim().to_owned() });
+                // @ref LLP 3000.007#5-3 — the small text library charges every new result to the heap meter.
+                self.meter.heap(value.heap_bytes())?;
+                Ok(value)
+            }
+            Builtin::Join => {
+                let values = args[0].as_array()?;
+                let sep = args[1].as_str()?;
+                let mut text = String::new();
+                for (index, value) in values.iter().enumerate() {
+                    if index > 0 { text.push_str(sep); }
+                    text.push_str(value.as_str()?);
+                }
+                let value = Value::String(text);
+                self.meter.heap(value.heap_bytes())?;
+                Ok(value)
+            }
             Builtin::Slice => {
                 let value = args.remove(0);
                 let start = args.remove(0).as_int()?.max(0) as usize;

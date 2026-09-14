@@ -195,11 +195,16 @@ its source rows.
 `shape card = { id, name, owner: .ownerId }` names a shape; `row card` and
 `page card` use it, and `{ ...card, extra: 1 }` spreads its fields into
 another. `fn isBrief(ttl: int ?): ttl != null` is a helper expression and
-`proc stamp(roomId: rooms):` a helper block (a mutation's statements),
+`fn stamp(roomId: rooms):` a helper block ending in `return expr` or a bare `return`,
 each expanded where it is called (`isBrief(ttl)`; `stamp(r.id)` as a
-statement), at most eight levels deep.
+statement or expression), at most eight levels deep. A helper can write only
+when its caller can; a query's diagnostic names the write at the call site.
 
 ### Queries, mutations and jobs
+
+A job may put a read-only prelude before its first `chunk`. It runs again
+at the start of every chunk, with its bindings visible there and its work
+charged to that chunk's meter. Writes belong inside a chunk.
 
 - **Arguments** are typed like columns; `c: cursor ?` is an opaque page
   cursor. An omitted optional argument reads as null.
@@ -225,25 +230,30 @@ statement), at most eight levels deep.
   unless given as `id: new` or an id you hold), `insert t { .. } if
   absent` (null on a unique clash), `update t[key] { patch }` (`if .col =
   expected` makes it conditional, refusing `E_CONFLICT` with the current
-  row; `NOT_FOUND` when the row is missing), `upsert t[key] { fields }`,
+  row; `NOT_FOUND` when the row is missing), `upsert t[key] { fields }`
+  (insert or patch: omitted columns keep their values on an existing row;
+  an absent row with a missing required column refuses `E_INPUT` naming it),
   `delete t[key]`; the key is an id, a row you hold, or a full unique key.
   A final write is the implicit return; bind it to use it (`row = insert
   ..`). Writes check the rule, unique indexes, caps, immutables, text
   formats and `after insert`; any refusal rolls the whole mutation back.
-- **Statements:** `x = expr` (a local binds once; there is no
-  reassignment), `(q, r) = divmod(a, b)`, `(lo, hi) = sorted(a, b)`,
-  `require cond else CODE`, `if:` / `else:` (no `else if`: nest), `for x
+- **Statements:** `x = expr` binds or reassigns a local with a compatible type;
+  reassignment resets refinements, and arguments cannot be shadowed. `(q, r) = divmod(a, b)`, `(lo, hi) = sorted(a, b)`,
+  `xs = []` then `xs = xs + [value]` appends under the heap meter;
+  `for x in xs:` iterates the accumulated list.
+  `require cond else CODE`, `if:` / `else if:` / `else:`, `for x
   in domain:` over a page, a bounded list, `range(a, b)` (integer
-  literals) or `tokens(text)`, `break`, `return [value]`, a `proc` call,
+  literals) or `tokens(text)`, `break`, `continue`, `return [value]`, a `fn` call,
   `emit effect { payload }` (Effects, below), and a write. Values: `viewer`, `now`, `new` (an id, mutations only),
-  `count(page | list)`, `sum(page, .x)`, `sum(list)`, `min(a, b)`, `max(a,
+  `count(text | page | list)` (characters or items), `lower(text)`,
+  `trim(text)`, `join(list, separator)`, `sum(page, .x)`, `sum(list)`, `min(a, b)`, `max(a,
   b)`, `slice(text | list, start, end)`, `sort(list, 'col', '-col')`,
   `tokens(text)` (the @mentions, at most 64), `share(amount, list,
   member)`, `a ?? b`, `a if cond else b` (the arm not taken is never
   evaluated; `x != null` as the condition narrows `x` in the taken arm).
-  There is no `/` or `%`: `divmod` binds both parts at once, so a
-  remainder is never dropped unread. There is no string concatenation:
-  store the parts, the client formats. A bare `return` returns null.
+  `/` and `%` give the Euclidean quotient and remainder of ints or times;
+  zero refuses `E_DIV_ZERO`. `divmod` binds both parts at once. Text `+` concatenates present texts;
+  interpolation and formatting stay in the client. A bare `return` returns null.
   `=` and `!=` are total (null equals null); `<` and friends need present
   operands — narrow with `if x != null:` or `x ! else CODE`. `not` binds
   tightest: `a != b`, not `not a = b`.

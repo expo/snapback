@@ -1,5 +1,5 @@
 //! The catalog: every table (declared or generated for a maintain) with its
-//! columns and indexes, plus the named shapes, fns and procs, and where each
+//! columns and indexes, plus the named shapes and functions, and where each
 //! schema path was declared so a core validation issue can point at a line.
 
 use crate::ast::*;
@@ -21,7 +21,6 @@ pub struct Catalog {
     pub maintains: BTreeMap<String, MaintainDecl>,
     pub shapes: BTreeMap<String, ShapeDecl>,
     pub functions: BTreeMap<String, FunctionDecl>,
-    pub procs: BTreeMap<String, ProcDecl>,
     pub effects: BTreeMap<String, String>,
 }
 
@@ -31,7 +30,6 @@ impl Catalog {
         let mut maintains = BTreeMap::new();
         let mut shapes: BTreeMap<String, ShapeDecl> = BTreeMap::new();
         let mut functions: BTreeMap<String, FunctionDecl> = BTreeMap::new();
-        let mut procs: BTreeMap<String, ProcDecl> = BTreeMap::new();
         let mut effects = BTreeMap::new();
         let mut effect_sites: BTreeMap<String, Site> = BTreeMap::new();
         for doc in &documents {
@@ -110,13 +108,6 @@ impl Catalog {
                 }
                 functions.insert(function.name.clone(), function.clone());
             }
-            for proc in &doc.procs {
-                if let Some(first) = procs.get(&proc.name) {
-                    diagnostics.push(unknown(&proc.site, format!("duplicate proc {}; first declared at {}", proc.name, first.site), "rename one procedure"));
-                    continue;
-                }
-                procs.insert(proc.name.clone(), proc.clone());
-            }
             for effect in &doc.effects {
                 if let Some(first) = effect_sites.get(&effect.name) {
                     diagnostics.push(unknown(&effect.site, format!("duplicate effect {}; first declared at {first}", effect.name), "rename one effect"));
@@ -144,7 +135,7 @@ impl Catalog {
                 Err(diagnostic) => diagnostics.push(diagnostic),
             }
         }
-        Self { documents, tables, maintains, shapes, functions, procs, effects }
+        Self { documents, tables, maintains, shapes, functions, effects }
     }
 
     /// The declaration site behind a schema validation path.

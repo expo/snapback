@@ -13,14 +13,15 @@ const HELPERS: &str = r#"
 fn identity(x: int): x
 fn pair(x: int, y: int): x * 10 + y
 fn twice(x: id): { left: x, right: x }
-proc add(x: int, y: int):
+fn add(x: int, y: int):
   local = pair(x, y)
   insert items { n: local, a: x, b: y }
+  return
 query repeated():
   return identity(1) + identity(2)
 query nested(x: int):
   return pair(identity(1), pair(2, x)) + x
-mutation procs(x: int):
+mutation helpers(x: int):
   local = 7
   add(1, x)
   add(2, x)
@@ -78,6 +79,409 @@ fn mutation(engine: &mut Engine, name: &str, args: &[(&str, Value)]) -> Value {
 }
 
 #[test]
+fn accumulated_values_write_under_runtime_column_bounds() {
+    let source = r#"
+table labels:
+  text: text <=3
+  values: [int] <=3
+  read <- allow
+  insert <- allow
+mutation build(extra: bool):
+  text = ''
+  values = []
+  record = { text: '' }
+  for i in range(0, 3):
+    text = text + 'x'
+    values = values + [i]
+    record = { text: record.text + 'x' }
+  if extra:
+    text = text + 'x'
+  insert labels { text, values }
+  return record.text
+query precise():
+  text = 'x'
+  text = 'xx'
+  return text
+"#;
+    let compiled = bound(source);
+    assert_eq!(compiled.programs[1].result, Ty::Text(2));
+    let mut e = engine(source);
+    assert_eq!(mutation(&mut e, "build", &[("extra", Value::Bool(false))]), Value::String("xxx".into()));
+    let outcome = e.mutate("build", None, context(&[("extra", Value::Bool(true))])).unwrap();
+    let WriteState::Failed { why, .. } = outcome.state else { panic!("column length still applies") };
+    assert_eq!(why.code, "E_INPUT");
+    assert!(why.message.contains("labels.text"), "{why:?}");
+    assert_eq!(e.store().rows("labels").unwrap().len(), 1);
+}
+
+#[test]
+fn upsert_patches_existing_rows_and_validates_absent_rows_as_inserts() {
+    let source = r#"
+table profiles:
+  owner: principal
+  name: text <=40
+  bio: text <=100 ?
+  score: int
+  unique byOwner: owner
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  update <- .owner = viewer
+  sync to .owner
+mutation create():
+  return upsert profiles[owner=viewer] { name: 'Alice', bio: 'kept', score: 1 }
+mutation rename():
+  return upsert profiles[owner=viewer] { name: 'New name' }
+mutation score(id: profiles):
+  return upsert profiles[id] { score: 2 }
+mutation clear():
+  return upsert profiles[owner=viewer] { bio: null }
+mutation absent():
+  return upsert profiles[owner=viewer] { bio: 'only a bio' }
+"#;
+    let mut e = engine(source);
+    let absent = e.mutate("absent", None, context(&[])).unwrap();
+    let WriteState::Failed { why, .. } = absent.state else { panic!("missing required column must refuse") };
+    assert_eq!(why.code, "E_INPUT");
+    assert!(why.message.contains("profiles.name"), "{why:?}");
+    assert!(e.store().rows("profiles").unwrap().is_empty());
+    let created = mutation(&mut e, "create", &[]);
+    let id = created.field("id").unwrap().clone();
+    let renamed = mutation(&mut e, "rename", &[]);
+    assert_eq!(renamed.field("id"), Ok(&id));
+    assert_eq!(renamed.field("name"), Ok(&Value::String("New name".into())));
+    assert_eq!(renamed.field("bio"), Ok(&Value::String("kept".into())));
+    assert_eq!(renamed.field("score"), Ok(&Value::Int(1)));
+    let scored = mutation(&mut e, "score", &[("id", id)]);
+    assert_eq!(scored.field("name"), renamed.field("name"));
+    assert_eq!(scored.field("score"), Ok(&Value::Int(2)));
+    assert_eq!(mutation(&mut e, "clear", &[]).field("bio"), Ok(&Value::Null));
+    let other = e.mutate("score", None, Context::new("dev:bob", BTreeMap::from([("id".into(), created.field("id").unwrap().clone())])).at(1)).unwrap();
+    assert!(matches!(other.state, WriteState::Failed { .. }));
+    assert_eq!(e.store().rows("profiles").unwrap().len(), 1);
+}
+
+#[test]
+fn job_preludes_rerun_for_each_chunk_and_each_sweep() {
+    let source = format!("{ITEMS}\n{}", r#"
+table config:
+  n: int
+  read <- allow
+  update <- allow
+mutation configure(n: int):
+  update config['settings'] { n }
+  return
+fn amount():
+  row = config['settings'] ! else NO_CONFIG
+  return row.n
+job refresh():
+  base = amount()
+  total = 0
+  for i in range(0, 2):
+    total = total + base
+  chunk row in items first 1 by byId:
+    update items[row.id] { n: row.n + total }
+  chunk row in items first 1 by byId:
+    update items[row.id] { n: row.n + total }
+"#);
+    let mut e = engine(&source);
+    e.seed([("config".into(), snapback4_core::value::object([("id", Value::Id("settings".into())), ("n", Value::Int(1))]))]).unwrap();
+    e.seed((0..3).map(|n| ("items".into(), snapback4_core::value::object([
+        ("id", Value::Id(format!("r{n}"))), ("n", Value::Int(0)), ("a", Value::Int(n)), ("b", Value::Int(0)),
+    ])))).unwrap();
+    let id = e.enqueue_job("refresh", BTreeMap::new(), 1).unwrap();
+    let first = e.run_job_chunk(1).unwrap().unwrap();
+    assert_eq!((first.chunks, first.rows_written), (1, 1));
+    mutation(&mut e, "configure", &[("n", Value::Int(3))]);
+    while e.run_job_chunk(2).unwrap().is_some() {}
+    let run = e.job(&id).unwrap().unwrap();
+    assert_eq!(run.state, snapback4_core::JobState::Done);
+    assert_eq!((run.chunks, run.rows_written), (6, 6));
+    assert_eq!(e.store().rows("items").unwrap().iter().map(|row| row.field("n").unwrap().as_int().unwrap()).collect::<Vec<_>>(), [8, 12, 12]);
+    println!("job prelude: {} chunks, {} rows written, values [8, 12, 12]", run.chunks, run.rows_written);
+    for prelude in ["  update items['r0'] { n: 7 }\n", "  changed = (update items['r0'] { n: 7 })\n", "  change()\n", "  emit notify { n: 1 }\n"] {
+        let source = format!("{ITEMS}\neffect notify\nfn change():\n  update items['r0'] {{ n: 7 }}\n  return\njob refused():\n{prelude}  chunk row in items first 1 by byId:\n    return\n");
+        let refused = compile(&[("schema.q".into(), source)]);
+        assert!(refused.diagnostics.iter().any(|d| d.code == "E_QUARRY_PLACEMENT" && d.message.contains("a write belongs to a chunk")), "{:?}", refused.diagnostics);
+    }
+}
+
+#[test]
+fn job_prelude_meter_refusal_parks_before_writing_a_chunk() {
+    let source = format!("{ITEMS}\njob limited(s: text <=1000000):\n  for i in range(0, 100):\n    text = lower(s)\n  chunk row in items first 1 by byId:\n    update items[row.id] {{ n: 1 }}\n");
+    let mut e = engine(&source);
+    e.seed([("items".into(), snapback4_core::value::object([("id", Value::Id("r".into())), ("n", Value::Int(0)), ("a", Value::Int(0)), ("b", Value::Int(0))]))]).unwrap();
+    let run = e.run_job("limited", BTreeMap::from([("s".into(), Value::String("A".repeat(1_000_000)))]), 1).unwrap();
+    assert_eq!(run.state, snapback4_core::JobState::Parked);
+    assert_eq!((run.chunks, run.rows_written), (0, 0));
+    assert!(run.error.as_ref().is_some_and(|error| error.contains("E_BOUND") && error.contains("heap")), "{run:?}");
+    assert_eq!(e.store().rows("items").unwrap()[0].field("n"), Ok(&Value::Int(0)));
+}
+
+#[test]
+fn helper_bodies_return_values_without_returning_from_the_caller() {
+    let source = format!("{ITEMS}\n{}", r#"
+fn find(n: int):
+  for i in range(0, 4):
+    if i != n:
+      continue
+    for j in range(0, 2):
+      return i * 10 + j
+  return -1
+fn write(n: int):
+  row = insert items { n, a: n, b: 0 }
+  return row.n
+fn empty():
+  return
+fn number():
+  return 100
+query caller(n: int):
+  number()
+  return { value: find(n) + 1, empty: empty() }
+mutation writes():
+  first = write(1)
+  second = write(2)
+  return first + second
+"#);
+    let mut e = engine(&source);
+    for (n, expected) in [(2, 21), (9, 0)] {
+        let result = query(&mut e, "caller", &[("n", Value::Int(n))]);
+        assert_eq!(result.field("value"), Ok(&Value::Int(expected)));
+        assert_eq!(result.field("empty"), Ok(&Value::Null));
+    }
+    assert_eq!(mutation(&mut e, "writes", &[]), Value::Int(3));
+    assert_eq!(e.store().rows("items").unwrap().len(), 2);
+    let compiled = bound(&source);
+    assert!(matches!(&compiled.programs[0].result, Ty::Object(fields) if fields["value"] == Ty::Int && fields["empty"] == Ty::Null));
+    let call = "query refuses():\n  return write(3)\n";
+    let refused = compile(&[("schema.q".into(), format!("{source}{call}"))]);
+    assert!(refused.diagnostics.iter().any(|d| d.code == "E_QUARRY_PLACEMENT" && d.site.line == source.lines().count() as u32 + 2 && d.message.contains("insert items")), "{:?}", refused.diagnostics);
+    let refused = compile(&[("schema.q".into(), "proc old():\n  return\n".into())]);
+    assert_eq!((&*refused.diagnostics[0].code, &*refused.diagnostics[0].rewrite), ("E_QUARRY_UNSUPPORTED", "fn"));
+    let refused = compile(&[("schema.q".into(), "fn mint():\n  id = new\n  return id\nquery q():\n  return mint()\n".into())]);
+    assert!(refused.diagnostics.iter().any(|d| d.code == "E_QUARRY_PLACEMENT" && d.site.line == 5 && d.message.contains("mint ids")));
+    for source in [
+        "fn noReturn():\n  n = 1\nquery q():\n  return noReturn()\n",
+        "fn recursive(): recursive()\nquery q():\n  return recursive()\n",
+        "fn stop():\n  continue\n  return\nquery q():\n  for i in range(0, 2):\n    stop()\n  return 1\n",
+    ] {
+        assert!(!compile(&[("schema.q".into(), source.into())]).diagnostics.is_empty(), "{source}");
+    }
+}
+
+#[test]
+fn loop_carried_types_include_continued_paths_and_reject_recursive_accumulation() {
+    for source in [
+        "query q(flag: bool):\n  x = 1\n  for i in range(0, 3):\n    n = x + 1\n    if flag:\n      x = null\n      continue\n    else:\n      continue\n  return x\n",
+        "query q():\n  xs = []\n  for i in range(0, 3):\n    xs = xs + [xs]\n  return xs\n",
+    ] {
+        let refused = compile(&[("schema.q".into(), source.into())]);
+        assert!(refused.diagnostics.iter().any(|d| d.code == "E_QUARRY_TYPE"), "{source}");
+    }
+    let source = "query q():\n  xs = []\n  ys = []\n  for i in range(0, 3):\n    xs = xs + [ys]\n    ys = ys + [i]\n  return xs\n";
+    let result = query(&mut engine(source), "q", &[]);
+    assert_eq!(result.as_array().unwrap().iter().map(|value| value.as_array().unwrap().len()).collect::<Vec<_>>(), [0, 1, 2]);
+}
+
+#[test]
+fn division_and_remainder_share_divmods_results_precedence_and_zero_refusal() {
+    let source = r#"
+query divide(a: int, b: int):
+  (q, r) = divmod(a, b)
+  return { q, r, quotient: a / b, remainder: a % b, precedence: 2 + 12 / 3 * 2 % 5 }
+query clockParts(t: time):
+  return { q: t / 1000, r: t % 1000 }
+query divideZero():
+  return 1 / 0
+query remainderZero():
+  return 1 % 0
+"#;
+    let mut e = engine(source);
+    for (a, b) in [(7, 3), (-7, 3), (7, -3), (-7, -3)] {
+        let result = query(&mut e, "divide", &[("a", Value::Int(a)), ("b", Value::Int(b))]);
+        assert_eq!(result.field("q"), result.field("quotient"));
+        assert_eq!(result.field("r"), result.field("remainder"));
+        assert_eq!(result.field("precedence"), Ok(&Value::Int(5)));
+    }
+    let clock = query(&mut e, "clockParts", &[("t", Value::Int(1234))]);
+    assert_eq!(clock.field("q"), Ok(&Value::Int(1)));
+    assert_eq!(clock.field("r"), Ok(&Value::Int(234)));
+    for name in ["divideZero", "remainderZero"] {
+        assert_eq!(e.query(name, context(&[])).unwrap_err().code, "E_DIV_ZERO");
+    }
+    let refused = compile(&[("schema.q".into(), "query q(x: int ?):\n  return x / 2\n".into())]);
+    assert!(refused.diagnostics.iter().any(|d| d.code == "E_QUARRY_TYPE"));
+}
+
+#[test]
+fn text_operations_use_characters_and_meter_new_results() {
+    let source = r#"
+query textForms():
+  s = 'start'
+  for i in range(0, 2):
+    s = s + 'é'
+  return { s, chars: count('é😊'), folded: lower('İSTANBUL'), stripped: trim('  hello\t'), joined: join(['a', '😊', 'b'], ' / '), empty: join([], ',') }
+mutation lowerText(s: text <=1000):
+  return lower(s)
+mutation trimText(s: text <=1000):
+  return trim(s)
+mutation joinText(xs: [text <=1000] <=3):
+  return join(xs, '-')
+"#;
+    let mut e = engine(source);
+    let result = query(&mut e, "textForms", &[]);
+    for (field, expected) in [("s", "startéé"), ("folded", "i\u{307}stanbul"), ("stripped", "hello"), ("joined", "a / 😊 / b"), ("empty", "")] {
+        assert_eq!(result.field(field), Ok(&Value::String(expected.into())));
+    }
+    assert_eq!(result.field("chars"), Ok(&Value::Int(2)));
+    e.set_ceilings(snapback4_core::Ceilings { heap_bytes: 10, ..e.ceilings() });
+    for (name, args) in [
+        ("lowerText", vec![("s", Value::String("A".repeat(100)))]),
+        ("trimText", vec![("s", Value::String("x".repeat(100)))]),
+        ("joinText", vec![("xs", Value::Array(vec![Value::String("x".repeat(100))]))]),
+    ] {
+        let outcome = e.mutate(name, None, context(&args)).unwrap();
+        let WriteState::Failed { why, .. } = outcome.state else { panic!("must cut at heap meter") };
+        assert_eq!(why.code, "E_BOUND");
+        assert!(why.message.contains("heap"), "{why:?}");
+    }
+    for expression in ["'a' + 1", "count(null)", "lower(1)", "trim(null)", "join([1], ',')"] {
+        let refused = compile(&[("schema.q".into(), format!("query q():\n  return {expression}\n"))]);
+        assert!(refused.diagnostics.iter().any(|d| d.code == "E_QUARRY_TYPE"), "{expression}");
+    }
+}
+
+#[test]
+fn else_if_selects_one_branch_and_elif_names_the_exact_rewrite() {
+    let source = r#"
+query choose(n: int):
+  result = 0
+  if n < 0:
+    result = -1
+  else if n = 0:
+    result = 10
+  else if n = 1:
+    result = 20
+  else:
+    result = 30
+  return result
+"#;
+    let mut e = engine(source);
+    for (n, expected) in [(-2, -1), (0, 10), (1, 20), (2, 30)] {
+        assert_eq!(query(&mut e, "choose", &[("n", Value::Int(n))]), Value::Int(expected));
+    }
+    let refused = compile(&[("schema.q".into(), source.replace("else if", "elif"))]);
+    assert!(refused.diagnostics.iter().any(|d| d.code == "E_QUARRY_UNSUPPORTED" && d.rewrite == "else if cond:"));
+}
+
+#[test]
+fn continue_advances_the_nearest_for_or_chunk() {
+    let source = format!("{ITEMS}\n{}", r#"
+query skip():
+  n = 0
+  for i in range(0, 4):
+    if i = 1:
+      continue
+    for j in range(0, 3):
+      if j != 2:
+        continue
+      n = n + i
+  return n
+job skipRows():
+  chunk row in items first 10 by byId:
+    if row.n = 1:
+      continue
+    update items[row.id] { n: row.n + 10 }
+"#);
+    let mut e = engine(&source);
+    assert_eq!(query(&mut e, "skip", &[]), Value::Int(5));
+    e.seed((0..3).map(|n| ("items".into(), snapback4_core::value::object([
+        ("id", Value::Id(format!("r{n}"))), ("n", Value::Int(n)), ("a", Value::Int(n)), ("b", Value::Int(0)),
+    ])))).unwrap();
+    let run = e.run_job("skipRows", BTreeMap::new(), 1).unwrap();
+    assert_eq!(run.state, snapback4_core::JobState::Done);
+    assert_eq!(e.store().rows("items").unwrap().iter().map(|row| row.field("n").unwrap().as_int().unwrap()).collect::<Vec<_>>(), [10, 1, 12]);
+    let refused = compile(&[("schema.q".into(), "query q():\n  continue\n".into())]);
+    assert_eq!(refused.diagnostics[0].code, "E_QUARRY_PLACEMENT");
+}
+
+#[test]
+fn accumulated_lists_append_in_place_and_can_be_iterated() {
+    let source = r#"
+query accumulate():
+  xs = []
+  for i in range(0, 5):
+    xs = xs + [{ n: i }]
+  total = 0
+  for row in xs:
+    total = total + row.n
+  return { xs, total }
+"#;
+    let compiled = bound(source);
+    let Ty::Object(result) = &compiled.programs[0].result else { panic!("object result") };
+    assert!(matches!(result["xs"], Ty::List(_, u32::MAX)));
+    let ir = format!("{:?}", compiled.programs[0].program.body);
+    assert!(ir.contains("Push"));
+    assert!(!ir.contains("Concat"));
+    let result = query(&mut engine(source), "accumulate", &[]);
+    assert_eq!(result.field("total"), Ok(&Value::Int(10)));
+    assert_eq!(result.field("xs").unwrap().as_array().unwrap().len(), 5);
+    let invalid = bound("query q():\n  xs = []\n  xs = xs + [1]\n  return xs\n");
+    assert!(matches!(invalid.programs[0].result, Ty::List(ref item, u32::MAX) if **item == Ty::Int));
+    let refused = compile(&[("schema.q".into(), "query q():\n  xs = [1]\n  xs = xs + ['bad']\n  return xs\n".into())]);
+    assert!(refused.diagnostics.iter().any(|d| d.code == "E_QUARRY_TYPE"));
+}
+
+#[test]
+fn reassignment_carries_locals_through_branches_and_loops_and_resets_refinements() {
+    let source = r#"
+query counter(flag: bool):
+  n = 0
+  for i in range(0, 4):
+    if flag:
+      n = n + i
+    else:
+      n = n + 1
+  n = n + 10
+  return n
+query nullable(x: int ?):
+  n = x
+  require n != null else MISSING
+  n = null
+  return n
+query guarded():
+  n = 1
+  for i in range(0, 3):
+    if n != null:
+      n = n + 1
+    n = null
+  return n
+query replaced(x: int ?):
+  n = x
+  n = 1
+  return n + 1
+"#;
+    let compiled = bound(source);
+    assert!(format!("{:?}", compiled.programs[0].program.body).contains("Assign"));
+    let mut e = engine(source);
+    assert_eq!(query(&mut e, "counter", &[("flag", Value::Bool(true))]), Value::Int(16));
+    assert_eq!(query(&mut e, "counter", &[("flag", Value::Bool(false))]), Value::Int(14));
+    assert_eq!(query(&mut e, "nullable", &[("x", Value::Int(1))]), Value::Null);
+    assert_eq!(query(&mut e, "guarded", &[]), Value::Null);
+    assert_eq!(query(&mut e, "replaced", &[("x", Value::Null)]), Value::Int(2));
+    for source in [
+        "query q(x: int):\n  x = 1\n  return x\n",
+        "query q(x: int):\n  for x in range(0, 2):\n    return x\n",
+        "query q():\n  n = 1\n  n = 'text'\n  return n\n",
+        "query q(x: int ?):\n  n = x\n  require n != null else MISSING\n  n = x\n  return n + 1\n",
+        "query q():\n  n = 1\n  for i in range(0, 2):\n    m = n + 1\n    n = null\n  return n\n",
+        "query q():\n  n = 1\n  for i in range(0, 0):\n    n = null\n  return n + 1\n",
+    ] {
+        let compiled = compile(&[("schema.q".into(), source.into())]);
+        assert!(!compiled.diagnostics.is_empty(), "{source}");
+    }
+}
+
+#[test]
 fn helpers_have_lexical_bindings_and_snapshot_arguments_once_in_source_order() {
     let mut e = engine(&format!("{ITEMS}\n{HELPERS}"));
     assert_eq!(query(&mut e, "repeated", &[]), Value::Int(3));
@@ -85,7 +489,7 @@ fn helpers_have_lexical_bindings_and_snapshot_arguments_once_in_source_order() {
     let minted = mutation(&mut e, "minted", &[]);
     assert_eq!(minted.field("left"), Ok(&Value::Id("id1".into())));
     assert_eq!(minted.field("left"), minted.field("right"));
-    let locals = mutation(&mut e, "procs", &[("x", Value::Int(9))]);
+    let locals = mutation(&mut e, "helpers", &[("x", Value::Int(9))]);
     assert_eq!(locals.field("x"), Ok(&Value::Int(9)));
     assert_eq!(locals.field("local"), Ok(&Value::Int(7)));
     let rows = e.store().rows("items").unwrap();
@@ -204,15 +608,15 @@ shape card = { value: 1 }
 shape card = { value: 2 }
 fn calculate(x: int): x
 fn calculate(x: int): x + 1
-proc fill():
+fn fill():
   return null
-proc fill():
+fn fill():
   return null
 effect notify
 effect notify
 "#.into())]);
     assert_eq!(duplicates.diagnostics.len(), 4, "{:?}", duplicates.diagnostics);
-    for name in ["duplicate shape card", "duplicate fn calculate", "duplicate proc fill", "duplicate effect notify"] {
+    for name in ["duplicate shape card", "duplicate fn calculate", "duplicate fn fill", "duplicate effect notify"] {
         assert!(duplicates.diagnostics.iter().any(|diagnostic| diagnostic.message.contains(name)), "{name}: {:?}", duplicates.diagnostics);
     }
 

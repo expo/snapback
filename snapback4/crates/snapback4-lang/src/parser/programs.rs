@@ -67,23 +67,28 @@ impl Parser {
             if kind == ProgramKind::Mutation {
                 return Err(Diagnostic::new(&native.site, "E_NATIVE", format!("only a job or a query can be native; a mutation runs in the interpreter so a device can predict it and the server can replay it"), format!("job {name}(): native  -- or: query {name}(): native")).guide("native"));
             }
-            return Ok(ProgramDecl { kind, name, args, body: Vec::new(), native: true, site: kind_token.site });
+            return Ok(ProgramDecl { kind, name, args, prelude: Vec::new(), body: Vec::new(), native: true, site: kind_token.site });
         }
         self.newline()?;
-        let body = if kind == ProgramKind::Job { self.parse_chunks()? } else { self.parse_block()? };
+        let (prelude, body) = if kind == ProgramKind::Job { self.parse_chunks()? } else { (Vec::new(), self.parse_block()?) };
         if body.is_empty() {
             return Err(syntax(&kind_token.site, format!("{} {name} has an empty body", kind_token.value)));
         }
-        Ok(ProgramDecl { kind, name, args, body, native: false, site: kind_token.site })
+        Ok(ProgramDecl { kind, name, args, prelude, body, native: false, site: kind_token.site })
     }
 
-    pub(super) fn parse_chunks(&mut self) -> Fallible<Vec<Stmt>> {
+    pub(super) fn parse_chunks(&mut self) -> Fallible<(Vec<Stmt>, Vec<Stmt>)> {
         self.take_kind(Kind::Indent)?;
+        let mut prelude = Vec::new();
         let mut chunks = Vec::new();
         while !self.at_kind(Kind::Dedent) && !self.at_kind(Kind::Eof) {
             self.skip_newlines();
             if self.at_kind(Kind::Dedent) {
                 break;
+            }
+            if !self.at("chunk") && chunks.is_empty() {
+                prelude.push(self.parse_statement()?);
+                continue;
             }
             let site = self.take("chunk")?.site;
             let name = self.binding_name()?;
@@ -106,6 +111,6 @@ impl Parser {
             chunks.push(Stmt::For { name, domain: Expr::Read(domain), body, site });
         }
         self.take_kind(Kind::Dedent)?;
-        Ok(chunks)
+        Ok((prelude, chunks))
     }
 }

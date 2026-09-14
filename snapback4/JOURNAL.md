@@ -2626,3 +2626,53 @@ return type, leaving Op alone. The local read evaluator and watches, the
 compiler and core interpreter, write authority (§8.7), ceilings and existing
 corpus cases are untouched. Expo's file methods require rebuilding the native
 app; an iOS binary was not built or exercised in this lane.
+
+## 2026-09-13 — lane L: relaxed Quarry through job preludes and patching upsert
+
+Implemented LLP 3000.007 lane items 1–9, in order: local reassignment,
+heap-bound list accumulation lowered to Push, continue, else if (elif refuses
+with its exact rewrite), text + and count/lower/trim/join, Euclidean / and %,
+fn bodies with proc deleted, read-only job preludes, and insert-or-patch upsert.
+The language card exercises each form and its engine test asserts the new
+values. The programs, jobs, writes, types and bounds cards and README §2 agree.
+No existing corpus case or serialized value form changed. Job preludes use
+ordinary setup statements before each sweep, replayed under each chunk's
+transaction and meter. The new text results and merged upsert rows charge heap;
+lane M's allocation/clone charging changes still need integration before this
+lane satisfies the RFC's §5.0 prerequisite.
+
+Measured: the targeted frontend suite has 26 passes and the compiled guide 8,
+zero failures. The final full blocking suite finished in 36 s: 249 Rust passes,
+zero Rust failures, one declared ignore; 9 fixture passes; 79 client passes and
+one failure before Chromium could launch the React page. The same isolated
+launch failure (SIGABRT, kill EPERM) was reproduced using an archive of base
+0dc0107e68dd504dbc1311754dd9783ab5477826. The isolated React suite on the Linux
+expo-build-1000 host passed all 10 tests, zero failures or skips, using Node
+24.13.1; local checks used the pinned Node 24.18.0. Raw final logs are
+/private/tmp/lane-l-final-targeted.log, /private/tmp/lane-l-qualified-suite.log,
+/private/tmp/lane-l-base-react.log and /private/tmp/lane-l-linux-react.log.
+The wasm build reported 1,381,929 B raw and 390,462 B gzip. No size comparison
+or performance improvement is claimed.
+
+The accumulator type's heap-bound marker is u32::MAX (4,294,967,295), not a
+raised meter ceiling. The prelude fixture ran 6 chunks over 2 sweeps, wrote
+6 rows, and produced [8, 12, 12] after a configuration change following the
+first chunk. A prelude that exhausted heap parked with 0 committed chunks
+and 0 rows written. The largest changed Rust source is 1,315 lines.
+
+What the implementation taught: reassignment needs a loop-carried type join,
+including paths that continue, while a fresh assignment has the new value's
+own type. Recursively nesting an accumulator has no finite inferred type.
+Heap-bound strings and lists can be written, with actual lengths checked by
+the row validator, without claiming smaller bounds inside inline helpers.
+A helper's early return must leave that helper's nested loops and preserve
+the caller; a chunk's setup must run before even evaluating its scan prefix.
+Quoted '-' also exposed a lexer-kind distinction the expression parser had
+missed; it now remains a text literal.
+
+Stopped before item 10 (column defaults). Items 10–20 remain, including seeks,
+where and disclosure-sensitive cursors, grouping and page/list unification,
+expression ranges, pending through shapes, the remaining guessed-spelling
+rewrites, the rest of the card rewrite and the Clique acceptance programs.
+Section 5.9 and E_STRUCTURAL_FANOUT were not changed. Work remains uncommitted
+for the lead to integrate; no publication was attempted.
