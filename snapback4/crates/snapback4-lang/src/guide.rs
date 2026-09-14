@@ -549,7 +549,11 @@ fields return HTTP 400 `E_INPUT`. Continue snapshots with `after: next`;
 Joining a group delivers its
 rows; leaving it delivers one scope tombstone, and `retain` says whether the
 device keeps what it was given (`delivered-history`) or drops it
-(`until-revoked`, the default). What it keeps it can still read locally
+(`until-revoked`, the default). Retained rows survive a leave whatever the
+horizon; the horizon bounds what a device acquires, never what it keeps.
+The same local completeness rule applies after leaving: an exhausted horizon
+is `complete: false`, while unbounded whole-group history is `complete: true`.
+What it keeps it can still read locally
 through a query without a membership `require`, while the server refuses
 the same query. A table without `sync` is online-only. A `maintain`
 grouped by the audience columns inherits sync and is delivered as a value row.

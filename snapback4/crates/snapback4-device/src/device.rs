@@ -394,6 +394,7 @@ impl<S: DeviceStore> Device<S> {
         if replacing {
             if page.snapshot && first {
                 tx.staged_clear()?;
+                snapshot::retain(&tx, &self.schema)?;
                 tx.set_meta(SNAPSHOT_WATERMARK, &page.watermark.to_string())?;
                 tx.set_meta(SNAPSHOT_THROUGH, &page.watermark.to_string())?;
                 tx.set_meta(SNAPSHOT_OWNER, owner.as_deref().expect("first page owner"))?;
@@ -431,9 +432,13 @@ impl<S: DeviceStore> Device<S> {
                 let rows = tx.staged_after(&after, 500)?;
                 for (key, table_name, data) in &rows {
                     let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("unknown table {table_name}")))?;
-                    let row: Value = decoded(data)?;
-                    tx.put(table_name, table, &row, None)?;
-                    media::remember(&tx, table_name, table, &row, self.generation)?;
+                    let staged: snapshot::Staged = decoded(data)?;
+                    tx.put(table_name, table, &staged.row, None)?;
+                    if staged.acquired {
+                        media::remember(&tx, table_name, table, &staged.row, self.generation)?;
+                    } else {
+                        media::forget(&tx, table, &staged.row)?;
+                    }
                     after = key.clone();
                 }
                 if rows.len() < 500 {

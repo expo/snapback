@@ -3793,3 +3793,117 @@ that those supplemental failures predate this lane is made.
 ## 2026-09-14 — the 0.2.9 calibration scored; the catch-up program opens (LLP 3000.007 §18)
 
 The Astra calibration on 0.2.9 scored 85 overall and behind the September 5 Convex and Supabase cells on setup_and_docs (78), data_modeling (88) and queries_and_live (74). The scorer's notes charge four things the published surface did: `processDevice()` named without a signature, retained history lost under a horizon on removal, an unscoped authorized search that is never complete on the server, and a defaulted column that refused adoption while `check` stayed green; the rest is learning cost. LLP 3000.007 §18 records the five decisions and their lanes: a merge of matching lanes over the viewer's groups (CU1), retained history kept whatever the horizon (CU2), the Node device's directory argument and a README example check (CU3), literal defaults materialized wherever absent and `check` reading the dev store (CU4), four more mechanical rewrites with the Trending recipe (CU5). The 0.2.10 three-model cell keeps running unchanged; the pin after these landings is 0.2.11.
+
+## 2026-09-14 — CU2: retained history survives replacement acquisition (LLP 3000.007 §18.2)
+
+Reproduced against base **518891fd1cc67b969a6f57b683e80efadc89b612** with
+self-synced members, conversations and messages all retaining delivered
+history, **26 messages**, a **25-row** message horizon and a local
+`last 50 by byTime` read. The new regression is
+`crates/snapback4-device/tests/retained_history.rs`; its ten tests were
+**0 passed / 10 failed** against the base implementation. The paired
+physical-store count matters: the actual deletion is
+`crates/snapback4-device/src/device.rs:427` **at that base**, where replacement
+application calls `tx.clear_rows()` and reinstalls only staged acquisition.
+The server's horizon re-evaluation did not send message deletions. A live
+scope itself already preserved the rows.
+
+Both SQLite and memory produced these message counts; reopening each
+store preserved the same result. The fixed replacement is also tested with
+**15 unrelated public rows**, forcing a multi-page snapshot after leaving;
+partial pages remain private.
+
+| Path | Before leave | Base after | Fixed after | Local completeness before → after |
+| --- | ---: | ---: | ---: | --- |
+| Live scope | 25 | 25 | 25 | false → false |
+| New paged snapshot from zero after leave | 25 | 0 | 25 | false → false |
+| Snapshot catch-up starting after leave | 25 | 0 | 25 | false → false |
+| Snapshot staged before leave, then log catch-up across leave | 25 | 25 | 25 | false → false |
+| Logical membership expiry, appended scope without a sweep | 25 | 25 | 25 | false → false |
+
+The unbounded control holds **26 rows**, with `complete: true` before and
+after: the base also lost those **26 → 0** on replacement and catch-up
+starting after leave, while the fix keeps **26 → 26** on every path. Thus
+replacement loss is not specific to horizons. Rejoin acquires **25 current
+images**, keeps the already delivered older image outside that acquisition,
+and leaves **26 distinct rows** even after duplicate page application and
+another paged snapshot; the never-delivered oldest row stays absent. An
+explicit catch-up deletion leaves **24 rows**, and a later snapshot keeps
+**24**. Predicted insertion, edit and deletion are not promoted to history:
+replacement preserves the **25 confirmed images**. Media home authority is
+retired on the staged scope and stays retired on resnapshot; reacquisition
+activates it again, on both stores.
+
+Built the fix by seeding snapshot staging with delivered-history rows and
+overlaying their confirmed bases beneath predictions before acquisition.
+Incoming puts replace those images; explicit deletes still remove them;
+scopes preserve text and retire media authority. Staging distinguishes a
+newly acquired image from a retained one, so publication does not authorize
+revoked media. Tables without media keep their constant-work retained scope
+path. No server partition filtering, acquisition limit, completeness rule,
+meter ceiling, value-model serialization, or existing corpus case changed.
+The sync card and README §3 now state the acquisition/retention distinction.
+The exhausted horizon stays `complete: false`; the whole-group control
+without a horizon stays `complete: true`. The existing rule cannot certify
+an exhausted horizon merely because a small group happened to fit, and no
+new coverage receipt or count-based completeness claim was introduced.
+
+The browser evidence taught a second lesson: **0 rows / complete: true** is
+not proof that the device store was cleared. In these regressions the local
+read after a live leave is **25 / false**, and the revoked server's query is
+**0 / true**. `packages/snapback4/src/local.ts:657` replaces an incomplete
+local answer with `server()` while online with no pending prediction. That
+path can hide retained history without deleting it. The package is outside
+CU2's scope; it remains unchanged and the remaining visible defect is filed
+as `issues/20260914-snapback4-online-fallback-hides-retained-history.md`.
+The original ticket is closed specifically for the reproduced device
+replacement loss, with that remaining issue linked explicitly. `git mv`
+could not create this worktree's index lock under the filesystem sandbox;
+the file was moved into `issues/closed/` without staging for the lead.
+
+Targeted verification after the fix: **27 device / 5 native / 10 retention
+tests passed, 0 failed**. The ten regression tests took **0.62 s** in the
+combined targeted run (a standalone copy of the same final test executable:
+**1.34 s**). Process startup on this host took minutes before some native
+binaries reached the harness; those delays are not test execution times.
+The first test authoring attempts had an invalid named-key separator and a
+short raw-list page assertion that needed an opaque cursor; both were
+corrected. One intermediate native test launch was SIGKILLed while another
+Cargo invocation relinked its executable; the completed final runs above
+supersede that interrupted attempt. No commit, push, tag or publication was
+performed. The existing journal was already **3,795 lines**; this required
+entry appends to it, while every changed Rust source/test and the README
+remain below **1,500 lines** (largest: the guide, **1,453**).
+
+Final blocking run: `bash snapback4/scripts/test.sh` reports **2 failure(s)
+in 1343 s**: **383 Rust passed / 1 failed / 1 ignored**, **9 fixture passed /
+0 failed**, **121 client passed / 1 failed**; every build and typecheck passed.
+The first wasm rebuild took **362 s**; the complete Rust step took **957 s**.
+The wasm output is **1,529,741 B raw / 429,065 B gzip**. The separate guide
+suite is **9 passed / 0 failed**. `./ref-check --verbose` reports **474 LLP
+docs, 8815 refs in 22741 files, 0 errors, 0 unchecked**.
+
+The client failure is `react.test.mjs`'s Chromium startup **SIGABRT**, also
+**0 passed / 1 failed** in isolation. Its test, React/app source inputs,
+package inputs and browser helper were verified byte-identical to base
+**518891fd1cc67b969a6f57b683e80efadc89b612**; this mock-based test does not
+load the changed device implementation. The Rust failure is
+`dev_and_serve_report_signals_without_an_application_worker`: the combined
+run interleaved the serve startup text with its SIGHUP diagnostic, so its
+exact-line assertion failed (**10 passed / 1 failed** in that suite).
+Two isolated attempts instead failed waiting **15 s** for startup. Rebuilding
+the CLI with both changed device production files restored to the named
+base reproduced that startup timeout (**0 passed / 1 failed**, **10 filtered
+out**, **15.01 s**). Both edited sources and the fixed CLI were restored
+immediately afterward. This proves the startup timeout at the base; it does
+not claim that the combined run's interleaving was separately reproduced
+there. No host lifecycle code or test, browser configuration, test timeout,
+or threshold was changed. The blocking suite is therefore **not green**;
+the lead still needs a completed green host/browser run. Cargo's automatic
+0.2.9 → 0.2.10 lockfile rewrites were restored to the original file because
+version bookkeeping is outside this lane.
+
+After the base probes and final cleanup, the reference recheck is still
+**474 LLP docs, 8815 refs, 0 errors, 0 unchecked**, now across **22742 files**;
+`git diff --check` also passes. Only the intended source, docs and ticket
+changes remain; no lockfile change is left for the lead.
