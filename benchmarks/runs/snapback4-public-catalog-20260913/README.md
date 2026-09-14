@@ -2034,3 +2034,26 @@ Every body tail loss remains: p95 was higher for thread C8 rounds 1 and 3 and fe
 Each client visited the same 4,000 point keys and 1,111 of 1,500 feed pages; the thread case repeated one 50-row page. The 1,440 warmups and 1,500 feed preparation pages were excluded from selected counts. Preparation used only the bundled client, and both pools retained their separate histories. Before/after checks added 18 untimed complete walks/3,730 pages plus auth/cursor checks using the same previously issued sessions; this was not a new physical full-database scan or leave/regrant exercise. All 210 npm files and archive/registry integrity were checked before and after; no lifecycle script or product package installation was involved.
 
 This instrumented comparison includes callback/collection overhead and the entire dispatcher-version/defaults delta. It does not isolate any particular timer, network time, CPU time or server duration, or qualify a Node runtime upgrade, first-party client change, comparator, device/WAN, write/durability result or adoption. Server source and build were unchanged, and there were no retries. Raw load `366de1b8…`, receipt `ca9648fb…`, controller `14ce2e88…`, loader `5391661c…` and independently frozen summary `f6197a5e…` bind the observations.
+
+### SQLite memory-accounting follow-up using Node 24.21.0
+
+On 2026-09-14 UTC, three paired rounds on the prepared Durand M4 Pro compared the same retained 0.2.8 production binaries: baseline `92db0d86…` (the published CLI) and experimental `93fa3b16…`, whose only additional SQLite input is `-DSQLITE_DEFAULT_MEMSTATUS=0`. Both retain `-USQLITE_ENABLE_MEMORY_MANAGEMENT`, thread safety and configured cache size. Both clients used the same official Node 24.21.0 binary `e4b5a3af…`, bundled Undici 7.29.1 and ordinary built-in fetch, with no lifecycle hooks or custom dispatcher. This compares the SQLite variants under that runtime; it is not an isolated Node-upgrade experiment.
+
+Trials 61–63 ran B/C, C/B, B/C with identical logical inputs within each pair. Six runs completed all 39 cases × 500 samples: **117,000 case calls**, plus 7,020 excluded case warmups. Separate initial/after-leave/regrant traversals contributed **33,510 timed page requests across 162 walks**. Two earlier 50-sample smokes passed and are excluded from the formal comparisons. Every run restored the same 100,000-message snapshot, checked all three physical application tables, verified full authorized feeds/threads and denial/cursor behavior, left one group, checked the current authorized union, restored that membership and reverified with the same previously issued sessions on the same server. All reported errors were zero; owned processes stopped successfully.
+
+Counts below compare medians of three **per-run statistics**, not pooled request quantiles. Case throughput is requests/second; traversal throughput is pages/second. Individual latency timers include HTTP/JSON/projection; throughput includes exact oracle checks.
+
+| Comparison | Lower p50 | Lower p95 | Lower p99 | Lower maximum | Higher throughput |
+|---|---:|---:|---:|---:|---:|
+| All case medians / 39 | 38 | 30 | 26 | 25 | 34 |
+| C1 case medians / 21 | 20 | 12 | 9 | 8 | 16 |
+| C8 case medians / 18 | 18 | 18 | 17 | 17 | 18 |
+| All paired case values / 117 | 97 | 88 | 80 | 82 | 91 |
+| Traversal medians / 27 | 16 | 18 | 16 | 16 | 19 |
+| Paired traversal values / 81 | 48 | 46 | 44 | 40 | 48 |
+
+In all 54 C8 paired cases, p50/p95 were lower and throughput was higher; C8 p50 medians were 30.48–82.03% lower. C1 retained substantial tail variation: 12/21 p99 and 13/21 maximum medians were higher, and 20/63 paired p50 values were higher. The sole higher case p50 median was five-group `FeedWorkingSetC1`, 0.509→0.510 ms. Median throughput fell for five-group `ThreadFirstC1`, `FeedNextC1`, `FeedWorkingSetC1`, and 30-/150-group `FeedFirstC1`. Selected tail regressions include five-group `FeedNextC1` maximum median 3.448→7.790 ms and 30-group `PointWorkingSetC8` p99 3.548→4.167 ms / maximum 3.885→4.723 ms. The largest individual case observations were 18.871 ms baseline and 15.777 ms candidate; neither is omitted.
+
+Traversal behavior was mixed. The initial 150-group feed's p50/p95 medians were 1.648/1.804→1.695/1.949 ms; its after-leave maximum median rose 3.195→10.363 ms. The largest individual traversal page observations were 17.826 ms baseline and 22.254 ms candidate. Paired traversal p99 and maximum each have one tie; all remaining comparisons not counted as lower in those columns are losses. One-page empty controls and four-page threads provide few observations for tail percentiles. All raw values, every case/traversal median loss and every loss in a matched pair are retained in the [appended records](../../../snapback4/metrics/storage.jsonl).
+
+Bindings: source `8a81eb855…`, historical build qualification `90b7637b…`, frozen instrument `ebe5b64d…`, controller `26f8c62f…`, Node download receipt `bf507238…`; independent summary `e37d2f44…`. Fresh server/client processes and full proofs/traversals preceded repeated cases; OS cache was retained without resets, residency unmeasured. Earlier Node 24.18 observations remain intact. This evidence makes no adoption, general platform, comparator, device, memory-pressure, write-throughput or durability claim.
