@@ -335,3 +335,92 @@ fn guide_lists_aliases_and_resolves_them_on_stdout() {
     assert!(output.status.success());
     assert!(String::from_utf8_lossy(&output.stdout).starts_with("# Reads"));
 }
+
+// L12 final-check omitted all prediction-loss notes once residency.json caught up.
+#[test]
+fn b2_every_check_summarizes_zero_one_and_three_never_mutations() {
+    let p = Project::new();
+    let source = include_str!("../../snapback4-lang/tests/fixtures/residency-notes.q");
+    for count in [0, 1, 3] {
+        let source = if count == 0 { source.to_owned() } else { source.replace("  read <- allow", "  read <- allow\n  online only") };
+        let source = if count == 1 { source[..source.find("mutation createPost").unwrap()].to_owned() } else { source };
+        p.source(&source);
+        for _ in 0..2 {
+            let output = p.run(&["check"]);
+            assert!(output.status.success(), "{output:?}");
+            let text = String::from_utf8(output.stdout).unwrap();
+            println!("{text}");
+            let lines: Vec<_> = text.lines().filter(|line| line.contains("never predict:")).collect();
+            if count == 0 { assert!(lines.is_empty()); } else {
+                let names = if count == 1 { "like (reads online-only maintain likeCounts)" } else { "createPost (reads online-only maintain likeCounts), like (reads online-only maintain likeCounts), repost (reads online-only maintain likeCounts)" };
+                assert_eq!(lines, [format!("{count} mutations never predict: {names} — snapback4 why <op>")]);
+            }
+        }
+    }
+}
+
+#[test]
+fn b2_why_fanout_is_one_paragraph_and_an_example() {
+    let p = Project::new();
+    let output = p.run(&["why", "E_STRUCTURAL_FANOUT"]);
+    assert!(output.status.success());
+    let text = String::from_utf8(output.stdout).unwrap();
+    println!("{text}");
+    assert!(text.contains("Example:"));
+    assert!(text.contains("cap 50 by room"));
+    assert!(text.split_whitespace().count() < 120);
+}
+
+#[test]
+fn b2_maintain_note_measures_the_current_store_and_cold_snapshot() {
+    let p = Project::new();
+    let source = include_str!("../../snapback4-lang/tests/fixtures/residency-notes.q");
+    p.source(source);
+    let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    let mut e = Engine::new(Store::open(&p.store()).unwrap(), b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    let table = &e.schema().tables["likes"];
+    e.seed([( "l1", "p1"), ("l2", "p1"), ("l3", "p2")].map(|(id, post)| ("likes".into(), wire::row_from_json(table, &json!({"id":id,"postId":post,"owner":"alice"})).unwrap()))).unwrap();
+    assert_eq!(e.store().count("likeCounts").unwrap(), 2);
+    let output = p.run(&["check", "--residency"]);
+    assert!(output.status.success(), "{output:?}");
+    let text = String::from_utf8(output.stdout).unwrap();
+    println!("{text}");
+    assert!(text.contains("current store measurement: 2 value rows"), "{text}");
+    assert!(text.contains("createPost, like, repost would stop predicting"));
+    let output = p.run(&["test", "--residency", "--as", "alice"]);
+    assert!(output.status.success(), "{output:?}");
+    let text = String::from_utf8(output.stdout).unwrap();
+    println!("{text}");
+    assert!(text.contains("alice likeCounts: 2 rows"), "{text}");
+}
+
+#[test]
+fn b2_l12_final_ranked_writes_and_entry_counts_remain_visible_in_json_and_text() {
+    let p = Project::new();
+    p.source("table ranked:\n  score: int\n  read <- allow\n  insert <- allow\ntable entries:\n  postId: id\n  by byPost: postId, id\n  public 'feed'\n  sync\nmaintain entryCounts: count entries by postId\n  read <- allow\n  online only\nmutation repost(postId: id):\n  return entryCounts[postId]\nmutation like():\n  insert ranked { score: 1 }\nmutation createPost():\n  insert ranked { score: 0 }\n");
+    let summary = "3 mutations never predict: createPost (writes online-only table ranked), like (writes online-only table ranked), repost (reads online-only maintain entryCounts) — snapback4 why <op>";
+    for args in [vec!["check"], vec!["check", "--json"], vec!["check", "--residency"]] {
+        let output = p.run(&args);
+        assert!(output.status.success(), "{output:?}");
+        if args.contains(&"--json") { assert_eq!(parsed(&output)["predictionSummary"], summary); }
+        else { assert_eq!(String::from_utf8_lossy(&output.stdout).matches(summary).count(), 1); }
+    }
+    let output = p.run(&["why", "repost"]);
+    assert!(String::from_utf8_lossy(&output.stdout).contains("remove `online only` from maintain entryCounts"));
+}
+
+#[test]
+fn b2_predicts_assertion_refuses_check_and_is_quiet_when_satisfied() {
+    let p = Project::new();
+    let source = "mutation dispatch() predicts: server\n  return null\n";
+    p.source(source);
+    let output = p.run(&["check"]);
+    println!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    assert_eq!(output.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("schema.q:1:1 — E_NOT_PREDICTABLE"));
+    assert!(String::from_utf8_lossy(&output.stdout).contains("1 mutations never predict: dispatch"));
+    p.source(&source.replace(": server", ":"));
+    let output = p.run(&["check", "--json"]);
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(parsed(&output)["predictionSummary"], Value::Null);
+}

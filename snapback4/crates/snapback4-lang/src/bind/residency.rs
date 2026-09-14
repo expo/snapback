@@ -72,7 +72,7 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
 fn site(schema: &Schema, location: &str, table: &str, index: &str, kind: &str) -> ResidencySite {
     let sync = schema.tables.get(table).and_then(|table| table.sync.as_ref());
     let (class, reason, rewrite) = match sync {
-        None => (SiteClass::Server, format!("{kind} {table} by {index}: online only"), format!("sync {table} to its read-rule audience, or read a compact synced projection")),
+        None => (SiteClass::Server, format!("{kind} {table} by {index}: online only"), if schema.maintain_for(table).is_some() { format!("remove `online only` from maintain {table} to inherit its source's sync, or read a compact synced projection") } else { format!("sync {table} to its read-rule audience, or read a compact synced projection") }),
         Some(sync) if sync.horizon.is_some() => (SiteClass::Horizon, format!("{kind} {table} by {index}: {}", sync.line()), "remove a redundant guard, or read a synced fact without a horizon".into()),
         Some(_) => (SiteClass::Held, format!("{kind} {table} by {index}: held, no horizon"), String::new()),
     };
@@ -163,6 +163,23 @@ fn expr(schema: &Schema, value: &Expr, codes: &mut BTreeSet<String>, sites: &mut
     }
 }
 
+/// A single human reason for the first site that prevents prediction.
+pub fn prediction_reason(schema: &Schema, site: &ResidencySite) -> String {
+    if matches!(site.kind.as_str(), "presence" | "dispatch" | "native") { return site.reason.clone(); }
+    let verb = match site.kind.as_str() { "write" | "write target" => "writes", "rule" => "a write rule reads", _ => "reads" };
+    let noun = if schema.maintain_for(&site.table).is_some() { "maintain" } else { "table" };
+    format!("{verb} online-only {noun} {}", site.table)
+}
+
+pub fn prediction_summary(bound: &Bound) -> Option<String> {
+    let names: Vec<_> = bound.schema.operations.iter().filter_map(|(name, fact)| {
+        if fact.predicts.as_deref() != Some("never") || !bound.programs.iter().any(|p| p.program.name == *name && p.program.kind == ProgramKind::Mutation) { return None; }
+        let site = fact.sites.iter().find(|site| site.class == SiteClass::Server)?;
+        Some(format!("{name} ({})", prediction_reason(&bound.schema, site)))
+    }).collect();
+    (!names.is_empty()).then(|| format!("{} mutations never predict: {} — snapback4 why <op>", names.len(), names.join(", ")))
+}
+
 pub(super) fn maintain_notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
     let mut notes: Vec<_> = schema.synced().filter_map(|(name, table, sync)| {
         let source = table.residency.inherited_from.as_ref()?;
@@ -174,7 +191,9 @@ pub(super) fn maintain_notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnost
             }
             Audience::Public => {}
         }
-        Some(Diagnostic::new(&catalog.site_for(&format!("tables.{name}")), "N_MAINTAIN_SYNCED", format!("maintain {name}: {} inherited from {source}; one value row per {} reaches {}", sync.line(), schema.maintain_for(name)?.by.join(", "), if sync.audience == Audience::Public { "every device" } else { "every member of the group" }), "add `online only` to the maintain to opt out of inherited sync; measure with `test --residency`").guide("residency"))
+        let readers: Vec<_> = schema.operations.iter().filter(|(_, fact)| fact.predicts.as_deref() == Some("eligible") && fact.sites.iter().any(|site| site.table == name)).map(|(name, _)| name.as_str()).collect();
+        let consequence = if readers.is_empty() { "no currently eligible mutation reads it".into() } else { format!("{} would stop predicting if {name} goes `online only`", readers.join(", ")) };
+        Some(Diagnostic::new(&catalog.site_for(&format!("tables.{name}")), "N_MAINTAIN_SYNCED", format!("maintain {name}: {} inherited from {source}; one value row per {} reaches {}; {consequence}", sync.line(), schema.maintain_for(name)?.by.join(", "), if sync.audience == Audience::Public { "every device" } else { "every member of the group" }), "keep inherited sync for local readers, or add `online only` to opt out; measure cold rows with `snapback4 test --residency`").guide("residency"))
     }).collect();
     // @ref LLP 3000.007#8 — item 7: a readable maintain can disclose a hidden source's write delta.
     for maintain in &schema.maintains {

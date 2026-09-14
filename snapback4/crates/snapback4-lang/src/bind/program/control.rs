@@ -156,6 +156,7 @@ impl Binder<'_> {
                     return Err(unknown(site, format!("{name} is an argument; locals cannot shadow arguments"), "give the loop item a fresh name"));
                 }
                 let (binding, body_out) = self.loop_body(name, item_ty, body, site)?;
+                self.sources.insert(format!("for/{binding}"), (site.clone(), print::expression(domain)));
                 out.push_for(binding, loop_domain, body_out);
                 Ok(())
             }

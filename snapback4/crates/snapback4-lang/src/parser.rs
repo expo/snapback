@@ -456,6 +456,9 @@ impl Parser {
                 if effect.value == "readable" {
                     return Err(unsupported(&effect.site, "readable on a maintain", "read <- rule  -- a maintain has one rule; the engine delivers it to its source's audience"));
                 }
+                if effect.value == "sync" {
+                    return Err(syntax_with(&effect.site, "a maintain inherits its source's sync; `online only` opts out", "remove this sync line to inherit, or replace it with `online only`").guide("residency"));
+                }
                 if effect.value != "read" {
                     let rewrite = if effect.value == "public" { "read <- allow  -- maintain has no public property" } else { "read <- rule" };
                     return Err(syntax_with(&effect.site, format!("unknown maintain property {}", effect.value), rewrite));
