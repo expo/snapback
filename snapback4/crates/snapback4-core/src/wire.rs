@@ -7,6 +7,10 @@ use crate::value::Value;
 use serde_json::{Map, Value as Json};
 use std::collections::BTreeMap;
 
+/// Audience prefixes only, keyed by delivered-history table. An empty list
+/// means this principal currently holds none of that table’s groups.
+pub type HeldGroups = BTreeMap<String, Vec<Vec<Json>>>;
+
 /// Serialize a borrowed value directly in its plain wire form, without
 /// allocating an intermediate JSON tree. The tagged store form is unchanged.
 pub struct Plain<'a>(pub &'a Value);

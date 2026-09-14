@@ -468,6 +468,7 @@ impl Runner<'_> {
     fn scan_prepared(&mut self, scan: &Scan, prefix: Vec<Value>, bounds: Bounds, take: usize) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
+        let retained = self.device && self.tx.retained_group(&scan.table, &scan.index, &prefix)?;
         self.read_tables.insert(scan.table.clone());
         self.meter.at(&scan.site);
         if self.device && table.sync.is_none() {
@@ -594,7 +595,13 @@ impl Runner<'_> {
             && let Some(horizon) = table.sync.as_ref().and_then(|sync| sync.horizon.as_ref())
             && (horizon.by != scan.index || scan.order != crate::ir::Order::Desc || !has_more)
         {
-            self.unknown_fact(&scan.table, &scan.index, &prefix, &scan.site);
+            if retained {
+                // A left group's horizon still bounds completeness, but its
+                // delivered rows are the answer; the server cannot supply it.
+                self.beyond_horizon = true;
+            } else {
+                self.unknown_fact(&scan.table, &scan.index, &prefix, &scan.site);
+            }
         }
         if self.page_depth == 0 && !scan.opaque_cursor && has_more && scan.filter.is_none() {
             self.page_overflow = true;

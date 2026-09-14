@@ -42,7 +42,7 @@ pub fn query_with_coverage(rows: &dyn Rows, schema: &Schema, program: &Program, 
         next_expiry: runner.next_expiry,
     })
     })();
-    (result, runner.beyond_horizon)
+    (result, runner.missing_fact.is_some())
 }
 
 /// What a mutation predicts on the device: its result, and the tables it
@@ -102,7 +102,7 @@ pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Mo
             next_expiry: runner.next_expiry,
         })
     })();
-    (result, runner.beyond_horizon)
+    (result, runner.missing_fact.is_some())
 }
 
 

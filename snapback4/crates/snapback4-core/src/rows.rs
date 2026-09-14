@@ -119,6 +119,9 @@ pub fn index_values(index: &Index, row: &Value) -> Vec<Value> {
 
 /// The store as the interpreter sees it.
 pub trait Rows {
+    /// A device-only fact: this scan pins a delivered-history group it left.
+    fn retained_group(&self, _table: &str, _index: &str, _prefix: &[Value]) -> Result<bool, RuntimeError> { Ok(false) }
+
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError>;
     /// The first row whose index components equal `key` exactly.
     fn lookup(&self, table: &str, index_name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError>;

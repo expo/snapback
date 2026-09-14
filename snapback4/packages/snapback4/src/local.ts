@@ -651,10 +651,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const unavailableWhy = unavailable();
     if (unavailableWhy) return { read: { denied: unavailableWhy }, tables, nextExpiry: null };
     if (answer.denied) return { read: { denied: answer.denied }, tables, nextExpiry: null };
-    const outcome = answer.ok as { denied?: Refusal; data?: unknown; complete?: boolean; next?: string | null; tables?: string[]; unknown?: boolean; nextExpiry?: number | null };
+    const outcome = answer.ok as { denied?: Refusal; data?: unknown; complete?: boolean; next?: string | null; tables?: string[]; unknown?: boolean; retained?: boolean; nextExpiry?: number | null };
     for (const table of outcome.tables ?? []) tables.add(table);
-    if (outcome.denied) return outcome.unknown ? link === "online" ? server() : { read: { denied: offline() }, tables, nextExpiry: null } : { read: { denied: outcome.denied }, tables, nextExpiry: null };
-    if (outcome.complete === false && link === "online" && !(await queued()).some((e) => e.observed_seq == null && (e.predictable ?? e.predicted.length > 0))) return server();
+    // @ref LLP 3000.007#18.2 — a left group answers from delivered rows, online and offline, including watch reruns.
+    if (outcome.denied) return outcome.unknown && !outcome.retained ? link === "online" ? server() : { read: { denied: offline() }, tables, nextExpiry: null } : { read: { denied: outcome.denied }, tables, nextExpiry: null };
+    if (!outcome.retained && outcome.complete === false && link === "online" && !(await queued()).some((e) => e.observed_seq == null && (e.predictable ?? e.predicted.length > 0))) return server();
     const fresh = link === "online" && caughtUp;
     const nextExpiry = typeof outcome.nextExpiry === "number" && Number.isFinite(outcome.nextExpiry) ? outcome.nextExpiry : null;
     return { read: { data: outcome.data as R, complete: outcome.complete !== false, fresh, next: (outcome.next as Cursor | null | undefined) ?? null, ...(fresh || !lastSyncAt ? {} : { since: lastSyncAt }) }, tables, nextExpiry };
