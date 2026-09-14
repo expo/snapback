@@ -226,7 +226,7 @@ impl Binder<'_> {
                     }
                 }
             }
-            Ty::Object(fields) => match fields.get(name) {
+            Ty::Object(fields) | Ty::RowShape(fields) => match fields.get(name) {
                 Some(field) => field.clone(),
                 None => return Err(unknown(site, format!("this object has no field {name}"), name_rewrite(name, fields.keys().map(String::as_str), None))),
             },
@@ -430,13 +430,29 @@ impl Binder<'_> {
                 let (builtin, max) = if name == "lower" { (Builtin::Lower, max.saturating_mul(3)) } else { (Builtin::Trim, max) };
                 Ok((Expr::Builtin { builtin, args: vec![value] }, Ty::Text(max)))
             }
+            "group" => {
+                arity(2, "group(list, 'column')")?;
+                let (value, ty) = self.expr(&args[0], out)?;
+                let Some((item, max)) = ty.sequence() else { return Err(type_error(site, "group takes a list or page", "group(rows, 'column')")); };
+                let A::Literal { value: Literal::Str(field), .. } = &args[1] else { return Err(type_error(args[1].site(), "group names one field with a text literal", "group(rows, 'column')")); };
+                let (_, key) = self.member(Expr::Literal(Value::Null), item.clone(), field, args[1].site())?;
+                let group = Ty::Object(BTreeMap::from([("key".into(), key), ("items".into(), Ty::List(Box::new(item), max))]));
+                Ok((Expr::Builtin { builtin: Builtin::Group { field: field.clone() }, args: vec![value] }, Ty::List(Box::new(group), max)))
+            }
+            "first" | "last" | "at" => {
+                arity(if name == "at" { 2 } else { 1 }, &format!("{name}(list{})", if name == "at" { ", index" } else { "" }))?;
+                let values = self.strict_args(args, out)?;
+                let Some((item, _)) = values[0].1.sequence() else { return Err(type_error(args[0].site(), format!("{name} takes a list or page"), &format!("{name}(rows)"))); };
+                if name == "at" && values[1].1 != Ty::Int { return Err(type_error(args[1].site(), "at's index is an int", "at(list, 0)")); }
+                Ok((Expr::Builtin { builtin: match name { "first" => Builtin::First, "last" => Builtin::Last, _ => Builtin::At }, args: values.into_iter().map(|(value, _)| value).collect() }, item.optional()))
+            }
             "join" => {
                 arity(2, "join(list, separator)")?;
                 let [(list, lt), (sep, st)]: [(Expr, Ty); 2] = self.strict_args(args, out)?.try_into().expect("checked arity");
-                let max = match (&lt, &st) {
-                    (Ty::List(item, count) | Ty::Collection(item, count), Ty::Text(sep)) => match item.as_ref() {
-                        Ty::Text(max) => max.saturating_mul(*count).saturating_add(sep.saturating_mul(count.saturating_sub(1))),
-                        Ty::Unknown if *count == 0 => 0,
+                let max = match (lt.sequence(), &st) {
+                    (Some((item, count)), Ty::Text(sep)) => match item {
+                        Ty::Text(max) => max.saturating_mul(count).saturating_add(sep.saturating_mul(count.saturating_sub(1))),
+                        Ty::Unknown if count == 0 => 0,
                         _ => return Err(type_error(site, "join takes a list of present text values", "join(['a', 'b'], ', ')")),
                     },
                     _ => return Err(type_error(site, "join takes a list of present text values and a text separator", "join(['a', 'b'], ', ')")),
@@ -449,6 +465,7 @@ impl Binder<'_> {
                 let (source, source_ty) = self.expr(&args[0], out)?;
                 let (domain, item_ty) = match (&source, &source_ty) {
                     (Expr::Scan(scan), Ty::Page(table, _)) => (LoopDomain::Page(scan.clone()), Ty::Row(table.clone())),
+                    (_, Ty::Page(table, max)) => (LoopDomain::DerivedArray { value: source.clone(), max: *max, bound_source: "sum".into() }, Ty::Row(table.clone())),
                     (_, Ty::Collection(item, max)) | (_, Ty::List(item, max)) => (LoopDomain::DerivedArray { value: source.clone(), max: *max, bound_source: "sum".into() }, item.as_ref().clone()),
                     (_, other) => return Err(type_error(args[0].site(), format!("sum takes a page or a bounded list, got {}", other.name()), "sum(t[prefix] first 50 by index, .amount)")),
                 };
@@ -477,10 +494,7 @@ impl Binder<'_> {
             "sum" => {
                 arity(1, "sum(list)")?;
                 let (e, t) = self.expr(&args[0], out)?;
-                let item = match &t {
-                    Ty::List(item, _) | Ty::Collection(item, _) => item.as_ref().clone(),
-                    other => return Err(type_error(args[0].site(), format!("sum takes a bounded list of numbers, got {}", other.name()), "sum a list of int values")),
-                };
+                let Some((item, _)) = t.sequence() else { return Err(type_error(args[0].site(), format!("sum takes a list of numbers, got {}", t.name()), "sum(list), or sum(page, .amount)")); };
                 if !item.is_numeric() {
                     return Err(type_error(args[0].site(), format!("sum takes numbers, got a list of {}", item.name()), "map the rows to their numeric field first"));
                 }
@@ -557,11 +571,10 @@ impl Binder<'_> {
                 }
                 Ok((Expr::Builtin { builtin: Builtin::Sort { keys }, args: vec![e] }, t))
             }
-            "len" => Err(unknown(site, "len is spelled count", format!("count({})", args.first().map(print::expression).unwrap_or_default()))),
             other => Err(unknown(
                 site,
                 format!("unknown function {other}"),
-                name_rewrite(other, self.catalog.functions.keys().map(String::as_str).chain(["count", "sum", "slice", "min", "max", "tokens", "share", "sort", "divmod", "sorted", "lower", "trim", "join"]), None),
+                name_rewrite(other, self.catalog.functions.keys().map(String::as_str).chain(["count", "sum", "slice", "min", "max", "tokens", "share", "sort", "divmod", "sorted", "lower", "trim", "join", "group", "first", "last", "at"]), None),
             )),
         }
     }

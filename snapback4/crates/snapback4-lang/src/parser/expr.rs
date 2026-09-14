@@ -20,6 +20,13 @@ impl Parser {
             let right = self.expression(precedence + u8::from(token.value != "??"), stops)?;
             left = Expr::Binary { op: token.value, left: Box::new(left), right: Box::new(right), site: token.site };
         }
+        if minimum == 0 && self.at("?") {
+            let site = self.take("?")?.site;
+            let yes = self.expression(0, &[":"])?;
+            self.take(":")?;
+            let no = self.expression(0, stops)?;
+            return Err(unsupported(&site, "? :", format!("{} if {} else {}", print::expression(&yes), print::expression(&left), print::expression(&no))));
+        }
         // `a if cond else b`, below every operator: the value is one of the
         // two, and the other is never evaluated.
         if minimum == 0 && self.at("if") && !stops.contains(&"if") && self.peek_at(1).value != "absent" {
@@ -58,7 +65,7 @@ impl Parser {
             let Expr::Read(read) = value else {
                 return Err(syntax(value.site(), format!("{} requires an indexed read t[key]", token.value)));
             };
-            if read.range.is_some() {
+            if read.range.is_some() || !read.seeks.is_empty() || read.filter.is_some() {
                 return Err(syntax(&read.site, format!("{} requires an indexed read t[key]", token.value)));
             }
             return Ok(if token.value == "exists" { Expr::Exists { read, site: token.site } } else { Expr::Created { read, site: token.site } });
@@ -147,12 +154,19 @@ impl Parser {
     pub(super) fn postfix(&mut self, initial: Expr, stops: &[&str]) -> Fallible<Expr> {
         let mut value = initial;
         loop {
-            if self.at(".") && self.peek_at(1).kind == Kind::Word {
+            if self.is_stop(self.peek(), stops) { break; }
+            if self.at("?") && self.peek_at(1).value == "." {
+                let site = self.take("?")?.site;
+                self.take(".")?;
+                let name = self.word()?.value;
+                let base = print::expression(&value);
+                return Err(unsupported(&site, "?.", format!("{base}.{name} if {base} != null else null")));
+            } else if self.at(".") && self.peek_at(1).kind == Kind::Word {
                 let site = self.take(".")?.site;
                 let name = self.word()?.value;
                 value = Expr::Member { base: Box::new(value), name, site };
             } else if self.at("(") && matches!(value, Expr::Name { .. }) {
-                let Expr::Name { name, .. } = value else { unreachable!() };
+                let Expr::Name { name, site: name_site } = value else { unreachable!() };
                 let site = self.take("(")?.site;
                 let mut args = Vec::new();
                 while !self.at(")") {
@@ -162,6 +176,7 @@ impl Parser {
                     }
                 }
                 self.take(")")?;
+                if name == "len" { return Err(unsupported(&name_site, "len", format!("count({})", args.iter().map(print::expression).collect::<Vec<_>>().join(", ")))); }
                 value = Expr::Call { name, args, site };
             } else if self.at("[") && matches!(value, Expr::Name { .. }) {
                 let Expr::Name { name, site } = value else { unreachable!() };
@@ -170,16 +185,15 @@ impl Parser {
                 // `t first N by index`: the whole table's page, the empty
                 // prefix spelled without brackets, as `chunk` takes it.
                 let Expr::Name { name, site } = value else { unreachable!() };
-                value = Expr::Read(ReadExpr { table: name, keys: Vec::new(), index: None, range: None, matching: None, site });
+                value = Expr::Read(ReadExpr { table: name, keys: Vec::new(), index: None, range: None, matching: None, filter: None, seeks: Vec::new(), site });
             } else if matches!(value, Expr::Read(_)) && self.at("where") {
                 let site = self.take("where")?.site;
-                let predicate = self.expression(0, &["<newline>", "{", ",", "}"])?;
-                let Expr::Read(read) = &value else { unreachable!() };
-                let mut repaired = read.clone();
-                if repaired.range.is_none() {
-                    repaired.range = Some(RangeSpec { order: Order::Asc, take: 50, cursor: None, site: site.clone() });
+                let predicate = self.expression(0, &["<newline>", "{", ",", "}", ")", ":"])?;
+                let Expr::Read(read) = &mut value else { unreachable!() };
+                if read.range.is_none() || read.filter.is_some() {
+                    return Err(syntax_with(&site, "where follows one bounded page", "t[prefix] first 50 by index where .col = value"));
                 }
-                return Err(Diagnostic::new(&site, "E_QUARRY_UNSUPPORTED", format!("where is not a Quarry filter; index the predicate {} or check it in the read rule", print::expression(&predicate)), format!("declare an index whose prefix pins `{}`, then read {}", print::expression(&predicate), print::read_expr(&repaired))).guide("indexes"));
+                read.filter = Some(Box::new(predicate));
             } else if matches!(value, Expr::Read(_)) && self.at("before") {
                 return Err(unsupported(&self.peek().site.clone(), "before", "use after c; reverse display order in the client when needed"));
             } else if matches!(value, Expr::Read(_)) && matches!(self.peek().value.as_str(), "matching" | "after" | "first" | "last" | "by") {
@@ -210,6 +224,7 @@ impl Parser {
     pub(super) fn parse_read(&mut self, table: &str, site: &Site) -> Fallible<ReadExpr> {
         self.take("[")?;
         let mut keys = Vec::new();
+        let mut seeks = Vec::new();
         while !self.at("]") {
             let key_site = self.peek().site.clone();
             let mut column = None;
@@ -217,14 +232,23 @@ impl Parser {
                 column = Some(self.word()?.value);
                 self.take("=")?;
             }
-            let value = self.expression(0, &[",", "]"])?;
-            keys.push(KeyPart { column, value, site: key_site });
+            if column.is_none() && self.at_kind(Kind::Word) && matches!(self.peek_at(1).value.as_str(), ">" | ">=" | "<" | "<=") {
+                let column = self.word()?.value;
+                let op = self.peek().value.clone();
+                self.position += 1;
+                let value = self.expression(0, &[",", "]"])?;
+                seeks.push(SeekBound { column, op, value, site: key_site });
+            } else {
+                if !seeks.is_empty() { return Err(syntax_with(&key_site, "pin the prefix before the seek comparisons", "t[prefix, col >= start, col < end] first 50 by index")); }
+                let value = self.expression(0, &[",", "]"])?;
+                keys.push(KeyPart { column, value, site: key_site });
+            }
             if !self.maybe(",") {
                 break;
             }
         }
         self.take("]")?;
-        Ok(ReadExpr { table: table.to_owned(), keys, index: None, range: None, matching: None, site: site.clone() })
+        Ok(ReadExpr { table: table.to_owned(), keys, index: None, range: None, filter: None, matching: None, seeks, site: site.clone() })
     }
 
     pub(super) fn parse_range(&mut self, mut read: ReadExpr) -> Fallible<ReadExpr> {
@@ -329,7 +353,9 @@ impl Parser {
                 break;
             }
             let lane_site = self.peek().site.clone();
-            let keys = self.parse_read(&table, &lane_site)?.keys;
+            let read = self.parse_read(&table, &lane_site)?;
+            if !read.seeks.is_empty() { return Err(syntax(&lane_site, "a merge lane takes a pinned prefix; use a bounded page for a seek")); }
+            let keys = read.keys;
             let columns = if keys.iter().any(|key| key.column.is_some()) { Some(keys.iter().map(|key| key.column.clone()).collect()) } else { None };
             let prefix = keys.into_iter().map(|key| key.value).collect();
             let mut loop_ = None;
@@ -388,7 +414,11 @@ impl Parser {
             "upsert" => WriteOp::Upsert,
             _ => WriteOp::Delete,
         };
-        let keys = if op == WriteOp::Insert { Vec::new() } else { self.parse_read(&table, &op_token.site)?.keys };
+        let keys = if op == WriteOp::Insert { Vec::new() } else {
+            let read = self.parse_read(&table, &op_token.site)?;
+            if !read.seeks.is_empty() { return Err(syntax(&op_token.site, "a write needs an exact key; use a bounded page for a seek")); }
+            read.keys
+        };
         let fields = if op == WriteOp::Delete { Vec::new() } else { self.parse_object_fields()? };
         let mut if_absent = false;
         let mut condition = None;
@@ -424,7 +454,7 @@ impl Parser {
         let site = self.take("walk")?.site;
         let table = self.word()?.value;
         let read = self.parse_read(&table, &site)?;
-        if read.keys.len() != 1 || read.keys[0].column.is_some() {
+        if read.keys.len() != 1 || read.keys[0].column.is_some() || !read.seeks.is_empty() {
             return Err(syntax(&read.site, "walk seed must be one positional reference t[seed]"));
         }
         self.take("up")?;

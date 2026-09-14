@@ -133,7 +133,8 @@ mutation edit(messageId: messages, body: text <=4000):
   `format handle|url`, `enum('a', 'b')`, `json <=N`, `bytes <=N`,
   `[type] <=N` (a bounded list), `image <=N [once]` and `video <=N` (an
   upload the row holds — §4, assets); `?` after a type makes the column
-  optional (null when absent).
+  optional (null when absent). `default <literal | now | viewer>` fills an
+  omitted insert column on the writing host; an explicit value wins.
 - **References** are typed ids, with no implicit existence check and no
   delete cascade. The string `"null"` is an id; JSON `null` only fits an
   optional reference. When a mutation requires a visible target, write
@@ -238,9 +239,26 @@ charged to that chunk's meter. Writes belong inside a chunk.
   matching q after c last N by wordsIndex` (word-prefix search; Search,
   below), `connected[p]` (open connections; `exists connected[p]` tests;
   Presence, below). A key may name its columns: `t[a = x, b = y]`.
+- **Seeks and filters:** `t[prefix, col >= start, col < end] first N by idx`
+  seeks on the first unpinned index column. `t[prefix] after c first N by idx
+  where predicate` evaluates the read rule then the predicate for each row;
+  only rows passing both count toward N. `.` is the row, and indexed reads
+  inside the predicate are metered probes. A lone next-column comparison
+  lowers to a seek with N_SEEK. A full page's cursor is after its last result;
+  a cut page continues after the last rule-visible examined row, including a
+  filter rejection, never a hidden row. Non-uniform ranges stay incomplete.
+  A uniform filtered page is complete at N matches or the range's end, even
+  without a cursor; a meter cut is incomplete.
+- **List operations:** pages, lists, and shaped collections share `sort`,
+  `slice`, `count`, `sum`, `group`, `first`, `last`, `at`, `join`, and `for`,
+  subject to their element types. Aggregating a page aggregates that page;
+  `check --cost` names the examined and probe work, and expression ranges
+  as `steps ≤ meter`.
 - **Shapes:** `{ *, author: users[.authorId], count: counts[.conversationId] }`
   after a page, a list, a row or an object; `.` is the row; `*` spreads its
-  columns; a point read inside a shape is null for a hidden row. A shape is
+  columns; a shape based on a row keeps its device-owned `pending?: boolean`,
+  including through named spreads and another shape. A point read inside is null
+  for a hidden row. A shape is
   the only projection.
 - **Writes:** `insert t { fields }` (returns the row; the id is minted
   unless given as `id: new` or an id you hold), `insert t { .. } if
@@ -248,7 +266,7 @@ charged to that chunk's meter. Writes belong inside a chunk.
   expected` makes it conditional, refusing `E_CONFLICT` with the current
   row; `NOT_FOUND` when the row is missing), `upsert t[key] { fields }`
   (insert or patch: omitted columns keep their values on an existing row;
-  an absent row with a missing required column refuses `E_INPUT` naming it),
+  an absent row fills defaults and then refuses `E_INPUT` for any missing required column),
   `delete t[key]`; the key is an id, a row you hold, or a full unique key.
   A final write is the implicit return; bind it to use it (`row = insert
   ..`). Writes check the rule, unique indexes, caps, immutables, text
@@ -259,10 +277,11 @@ charged to that chunk's meter. Writes belong inside a chunk.
   `for x in xs:` iterates the accumulated list.
   `require cond else CODE`, `if:` / `else if:` / `else:`, `for x
   in domain:` over a page, a bounded list, `range(a, b)` (integer
-  literals) or `tokens(text)`, `break`, `continue`, `return [value]`, a `fn` call,
+  expressions, under the step meter) or `tokens(text)`, `break`, `continue`, `return [value]`, a `fn` call,
   `emit effect { payload }` (Effects, below), and a write. Values: `viewer`, `now`, `new` (an id, mutations only),
   `count(text | page | list)` (characters or items), `lower(text)`,
-  `trim(text)`, `join(list, separator)`, `sum(page, .x)`, `sum(list)`, `min(a, b)`, `max(a,
+  `trim(text)`, `group(list, 'col')` (first-seen `{ key, items }` groups),
+  `first(list)`, `last(list)`, `at(list, i)` (element or null), `join(list, separator)`, `sum(page, .x)`, `sum(list)`, `min(a, b)`, `max(a,
   b)`, `slice(text | list, start, end)`, `sort(list, 'col', '-col')`,
   `tokens(text)` (the @mentions, at most 64), `share(amount, list,
   member)`, `a ?? b`, `a if cond else b` (the arm not taken is never

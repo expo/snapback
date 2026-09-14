@@ -128,14 +128,14 @@ test("check --fix leaves unmarked rewrites and prints the diagnostic", (t) => {
   assert.equal(read(join(dir, "snapback/schema.q")), source);
 });
 
-test("an elif and an ambiguous key are fixed together when lane L's diagnostic is available", (t) => {
+test("an elif and an ambiguous key are fixed together", (t) => {
   const { dir, run, invoke } = fixture(t);
   mkdirSync(join(dir, "snapback"));
   const source = ambiguous.replace("  by byTitle: title, id", "  by byOtherOwner: owner, title, id") + "\nquery choose(n: int):\n  if n = 0:\n    return 0\n  elif n = 1:\n    return 1\n  else:\n    return 2\n";
   writeFileSync(join(dir, "snapback/schema.q"), source);
   const before = JSON.parse(invoke("check", "--json").stdout);
   const alias = before.problems?.find((d) => d.code === "E_QUARRY_UNSUPPORTED" && /elif/.test(d.message));
-  if (!alias) { t.skip("lane L's exact E_QUARRY_UNSUPPORTED elif diagnostic is not in this checkout"); return; }
+  assert.ok(alias, "elif has an exact mechanical diagnostic");
   assert.equal(alias.mechanical, true, "lane L's exact spelling rewrite must call .mechanical()");
   run("check", "--fix");
   assert.doesNotMatch(read(join(dir, "snapback/schema.q")), /\belif\b/);
@@ -227,4 +227,32 @@ test("SQL attaches to a release without source and never creates a missing store
   assert.equal(refused.status, 1);
   assert.equal(JSON.parse(refused.stdout).denied.code, "E_STORE");
   assert.equal(existsSync(missing), false);
+});
+
+test("check --fix repairs every remaining guessed spelling and the repaired program runs", (t) => {
+  const { dir, invoke, run } = fixture(t);
+  mkdirSync(join(dir, "snapback"));
+  const file = join(dir, "snapback/schema.q");
+  writeFileSync(file, "# header\n// another header\nquery choose(cond: bool, a: int, b: int):\n  return cond ? a : b -- keep\nquery member():\n  a = { b: 7 }\n  return a?.b\nquery size():\n  return len([1, 2, 3])\n");
+  const before = invoke("check", "--json");
+  assert.equal(before.status, 1);
+  assert.ok(JSON.parse(before.stdout).problems.some((d) => d.code === "E_QUARRY_UNSUPPORTED" && d.mechanical));
+  run("check", "--fix");
+  const repaired = read(file);
+  assert.match(repaired, /-- header\n-- another header/);
+  assert.match(repaired, /a if cond else b/);
+  assert.match(repaired, /a.b if a != null else null/);
+  assert.match(repaired, /count\(\[1, 2, 3\]\)/);
+  assert.match(repaired, /-- keep/);
+  assert.equal(JSON.parse(run("run", "choose", '{"cond":true,"a":5,"b":9}', "--json").stdout).data, 5);
+  assert.equal(JSON.parse(run("run", "member", "--json").stdout).data, 7);
+  assert.equal(JSON.parse(run("run", "size", "--json").stdout).data, 3);
+});
+
+test("check --cost describes expression ranges, filtered probes, pages and seeks", (t) => {
+  const { dir, run } = fixture(t);
+  mkdirSync(join(dir, "snapback"));
+  writeFileSync(join(dir, "snapback/schema.q"), "table items:\n  n: int\n  by byN: n, id\n  read <- allow\nquery scan(n: int, c: cursor ?):\n  total = 0\n  for i in range(0, n + 1):\n    total = total + i\n  return items[] after c first 10 by byN where .n > total and exists items[.id]\nquery seek(n: int, c: cursor ?):\n  return items[n > n] after c first 10 by byN\n");
+  const output = run("check", "--cost").stdout;
+  for (const text of ["steps ≤ meter", "filter over ≤ examined ceiling", "probe × examined", "prefix seek", "consume this page"]) assert.ok(output.includes(text), output);
 });

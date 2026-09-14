@@ -436,6 +436,7 @@ fn outer_page_limit(body: &[snapback4_core::ir::Stmt], expected: &Expected) -> b
             LoopDomain::Page(scan) => scan_limit(scan, expected),
             LoopDomain::Recurse(recurse) => expression_page_limit(&recurse.seed, expected),
             LoopDomain::DerivedArray { value, .. } => expression_page_limit(value, expected) || outer_page_limit(body, expected),
+            LoopDomain::ExpressionRange { start, end_exclusive } => expression_page_limit(start, expected) || expression_page_limit(end_exclusive, expected) || outer_page_limit(body, expected),
             LoopDomain::LiteralRange { .. } | LoopDomain::ArgList { .. } => outer_page_limit(body, expected),
         },
         Stmt::Require { condition, .. } | Stmt::Check { condition, .. } => expression_page_limit(condition, expected),
@@ -452,6 +453,7 @@ fn scan_limit(scan: &snapback4_core::ir::Scan, expected: &Expected) -> bool {
         || scan.prefix.iter().filter_map(|key| key.scalar()).any(|value| expression_page_limit(value, expected))
         || [scan.after.as_deref(), scan.before.as_deref()].into_iter().flatten().any(|value| expression_page_limit(value, expected))
         || scan.range.as_ref().is_some_and(|range| [range.gt.as_deref(), range.gte.as_deref(), range.lt.as_deref(), range.lte.as_deref()].into_iter().flatten().any(|value| expression_page_limit(value, expected)))
+        || scan.filter.as_ref().is_some_and(|value| expression_page_limit(value, expected))
 }
 
 fn expression_page_limit(expr: &snapback4_core::ir::Expr, expected: &Expected) -> bool {
@@ -461,6 +463,8 @@ fn expression_page_limit(expr: &snapback4_core::ir::Expr, expected: &Expected) -
         Expr::Field { base, .. } | Expr::Unary { value: base, .. } => expression_page_limit(base, expected),
         Expr::Array(values) | Expr::Builtin { args: values, .. } => values.iter().any(|value| expression_page_limit(value, expected)),
         Expr::Object(fields) => fields.values().any(|value| expression_page_limit(value, expected)),
+        Expr::Shape { base, fields } => expression_page_limit(base, expected) || fields.values().any(|value| expression_page_limit(value, expected)),
+        Expr::Block { body, value } => outer_page_limit(body, expected) || expression_page_limit(value, expected),
         Expr::Binary { left, right, .. } => expression_page_limit(left, expected) || expression_page_limit(right, expected),
         Expr::Get(read) | Expr::Exists(read) => read.key.iter().any(|value| expression_page_limit(value, expected)),
         Expr::Scan(scan) => scan_limit(scan, expected),

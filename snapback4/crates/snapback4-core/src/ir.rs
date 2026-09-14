@@ -124,6 +124,7 @@ pub enum Stmt {
 pub enum LoopDomain {
     Page(Scan),
     LiteralRange { start: i64, end_exclusive: i64 },
+    ExpressionRange { start: Expr, end_exclusive: Expr },
     ArgList { name: String, max: u32 },
     DerivedArray { value: Expr, max: u32, bound_source: String },
     Recurse(Recurse),
@@ -151,11 +152,13 @@ pub enum Expr {
     Field { base: Box<Expr>, name: String },
     Array(Vec<Expr>),
     Object(BTreeMap<String, Expr>),
+    Shape { base: Box<Expr>, fields: BTreeMap<String, Expr> },
     Binary { op: BinaryOp, left: Box<Expr>, right: Box<Expr> },
     Unary { op: UnaryOp, value: Box<Expr> },
     Builtin { builtin: Builtin, args: Vec<Expr> },
     Get(Read),
     Exists(Read),
+    Block { body: Vec<Stmt>, value: Box<Expr> },
     Scan(Scan),
     Merge(Merge),
 }
@@ -198,6 +201,10 @@ pub enum Builtin {
     Lower,
     Trim,
     Join,
+    Group { field: String },
+    First,
+    Last,
+    At,
     Min,
     Max,
     Divmod { remainder_sink: String },
@@ -215,8 +222,8 @@ pub enum Builtin {
 impl Builtin {
     pub fn arity(&self) -> usize {
         match self {
-            Self::Len | Self::Lower | Self::Trim | Self::Sort { .. } | Self::MentionTokens | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
-            Self::Concat | Self::Join | Self::Min | Self::Max | Self::Divmod { .. } => 2,
+            Self::Group { .. } | Self::First | Self::Last | Self::Len | Self::Lower | Self::Trim | Self::Sort { .. } | Self::MentionTokens | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
+            Self::At | Self::Concat | Self::Join | Self::Min | Self::Max | Self::Divmod { .. } => 2,
             Self::Slice | Self::DeterministicShare => 3,
         }
     }
@@ -270,6 +277,8 @@ pub struct Scan {
     pub before: Option<Box<Expr>>,
     #[serde(default)]
     pub range: Option<Range>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub filter: Option<Box<Expr>>,
     #[serde(default, skip_serializing_if = "is_false")]
     pub opaque_cursor: bool,
     #[serde(default)]
@@ -398,6 +407,7 @@ fn stmts_read_sites(stmts: &[Stmt], out: &mut Vec<ReadSite>) {
             Stmt::For { domain, body, .. } => {
                 match domain {
                     LoopDomain::Page(scan) => scan_read_sites(scan, out),
+                    LoopDomain::ExpressionRange { start, end_exclusive } => { expr_read_sites(start, out); expr_read_sites(end_exclusive, out); }
                     LoopDomain::DerivedArray { value, .. } => expr_read_sites(value, out),
                     LoopDomain::Recurse(recurse) => {
                         expr_read_sites(&recurse.seed, out);
@@ -428,6 +438,10 @@ fn stmts_read_sites(stmts: &[Stmt], out: &mut Vec<ReadSite>) {
 }
 
 fn scan_read_sites(scan: &Scan, out: &mut Vec<ReadSite>) {
+    if let Some(filter) = &scan.filter { expr_read_sites(filter, out); }
+    if let Some(range) = &scan.range {
+        for bound in [&range.gt, &range.gte, &range.lt, &range.lte].into_iter().flatten() { expr_read_sites(bound, out); }
+    }
     for key in &scan.prefix {
         if let Some(expr) = key.scalar() {
             expr_read_sites(expr, out);
@@ -445,6 +459,7 @@ fn expr_read_sites(expr: &Expr, out: &mut Vec<ReadSite>) {
         Expr::Field { base, .. } => expr_read_sites(base, out),
         Expr::Array(items) => items.iter().for_each(|item| expr_read_sites(item, out)),
         Expr::Object(fields) => fields.values().for_each(|item| expr_read_sites(item, out)),
+        Expr::Shape { base, fields } => { expr_read_sites(base, out); fields.values().for_each(|item| expr_read_sites(item, out)); }
         Expr::Binary { left, right, .. } => {
             expr_read_sites(left, out);
             expr_read_sites(right, out);
@@ -455,6 +470,7 @@ fn expr_read_sites(expr: &Expr, out: &mut Vec<ReadSite>) {
             read.key.iter().for_each(|item| expr_read_sites(item, out));
             out.push(ReadSite { site: read.site.clone(), table: read.table.clone(), index: read.index.clone(), kind: "point", take: 1 });
         }
+        Expr::Block { body, value } => { stmts_read_sites(body, out); expr_read_sites(value, out); }
         Expr::Scan(scan) => scan_read_sites(scan, out),
         Expr::Merge(merge) => {
             for lane in &merge.lanes {
@@ -491,6 +507,7 @@ fn stmts_scans<'a>(stmts: &'a [Stmt], out: &mut Vec<&'a Scan>) {
                         expr_scans_of_scan(scan, out);
                         out.push(scan);
                     }
+                    LoopDomain::ExpressionRange { start, end_exclusive } => { expr_scans(start, out); expr_scans(end_exclusive, out); }
                     LoopDomain::DerivedArray { value, .. } => expr_scans(value, out),
                     LoopDomain::Recurse(recurse) => expr_scans(&recurse.seed, out),
                     LoopDomain::LiteralRange { .. } | LoopDomain::ArgList { .. } => {}
@@ -515,6 +532,10 @@ fn stmts_scans<'a>(stmts: &'a [Stmt], out: &mut Vec<&'a Scan>) {
 }
 
 fn expr_scans_of_scan<'a>(scan: &'a Scan, out: &mut Vec<&'a Scan>) {
+    if let Some(filter) = &scan.filter { expr_scans(filter, out); }
+    if let Some(range) = &scan.range {
+        for bound in [&range.gt, &range.gte, &range.lt, &range.lte].into_iter().flatten() { expr_scans(bound, out); }
+    }
     for key in &scan.prefix {
         if let Some(expr) = key.scalar() {
             expr_scans(expr, out);
@@ -531,6 +552,7 @@ fn expr_scans<'a>(expr: &'a Expr, out: &mut Vec<&'a Scan>) {
         Expr::Field { base, .. } => expr_scans(base, out),
         Expr::Array(items) => items.iter().for_each(|item| expr_scans(item, out)),
         Expr::Object(fields) => fields.values().for_each(|item| expr_scans(item, out)),
+        Expr::Shape { base, fields } => { expr_scans(base, out); fields.values().for_each(|item| expr_scans(item, out)); }
         Expr::Binary { left, right, .. } => {
             expr_scans(left, out);
             expr_scans(right, out);
@@ -538,6 +560,7 @@ fn expr_scans<'a>(expr: &'a Expr, out: &mut Vec<&'a Scan>) {
         Expr::Unary { value, .. } => expr_scans(value, out),
         Expr::Builtin { args, .. } => args.iter().for_each(|item| expr_scans(item, out)),
         Expr::Get(read) | Expr::Exists(read) => read.key.iter().for_each(|item| expr_scans(item, out)),
+        Expr::Block { body, value } => { stmts_scans(body, out); expr_scans(value, out); }
         Expr::Scan(scan) => {
             expr_scans_of_scan(scan, out);
             out.push(scan);

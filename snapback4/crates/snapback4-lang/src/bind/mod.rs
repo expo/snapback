@@ -2,6 +2,7 @@
 //! problem as a located diagnostic.
 
 pub mod catalog;
+mod defaults;
 pub mod program;
 pub mod schema;
 pub mod residency;
@@ -75,7 +76,8 @@ pub fn bind(documents: Vec<Document>) -> Bound {
         }
     }
     schema.operations = programs.iter().map(|bound| (bound.program.name.clone(), residency::execution(&schema, &bound.program))).collect();
-    let mut notes = completeness_notes(&catalog, &schema, &programs);
+    let mut notes: Vec<_> = programs.iter().flat_map(|p| p.notes.clone()).collect();
+    notes.extend(completeness_notes(&catalog, &schema, &programs));
     notes.extend(residency::maintain_notes(&catalog, &schema));
     Bound { schema, programs, personas, diagnostics, notes }
 }

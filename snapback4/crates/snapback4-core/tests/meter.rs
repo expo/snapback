@@ -143,6 +143,6 @@ fn scalar_inspection_borrows_large_values_but_still_charges_steps() {
     let mut engine = engine(measured_programs(), 8);
     let result = engine.query("count_text_100", context()).unwrap();
     assert_eq!(result.data, Value::Int(4000));
-    assert_eq!(result.metered.heap_bytes, 8000 + 100 * std::mem::size_of::<Value>() as u64);
+    assert_eq!(result.metered.heap_bytes, 8000, "range iterates under the step meter without materializing its 100 integers");
     assert!(result.metered.steps >= 300);
 }

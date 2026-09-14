@@ -3,6 +3,7 @@
 //! changes handed back on the next open). One scenario, two runs.
 
 mod common;
+mod language;
 
 use common::*;
 use snapback4_core::engine::WriteState;

@@ -360,8 +360,9 @@ impl Parser {
         if matches!(type_.kind, TypeKind::Cursor) {
             return Err(syntax_with(&name.site, "cursor is an operation argument type, not a table column", "use c: cursor ? on a query"));
         }
+        let default = if self.maybe("default") { Some(self.expression(0, &[])?) } else { None };
         self.newline()?;
-        Ok(ColumnDecl { name: name.value, type_, site: name.site })
+        Ok(ColumnDecl { name: name.value, type_, default, site: name.site })
     }
 
     fn parse_index(&mut self, unique: bool) -> Fallible<IndexDecl> {

@@ -80,6 +80,7 @@ fn inspect(stmts: &[Stmt], codes: &mut BTreeSet<String>, sites: &mut Vec<Residen
             Stmt::For { domain, body, .. } => {
                 match domain {
                     LoopDomain::Page(scan) => scan_exprs(scan, codes, sites),
+                    LoopDomain::ExpressionRange { start, end_exclusive } => { expr(start, codes, sites); expr(end_exclusive, codes, sites); }
                     LoopDomain::DerivedArray { value, .. } => expr(value, codes, sites),
                     LoopDomain::Recurse(recurse) => expr(&recurse.seed, codes, sites),
                     _ => {}
@@ -97,11 +98,16 @@ fn inspect(stmts: &[Stmt], codes: &mut BTreeSet<String>, sites: &mut Vec<Residen
     }
 }
 fn scan_exprs(scan: &ir::Scan, codes: &mut BTreeSet<String>, sites: &mut Vec<ResidencySite>) {
+    if let Some(filter) = &scan.filter { expr(filter, codes, sites); }
     for key in &scan.prefix { let (ir::IndexKeyExpr::Scalar(value) | ir::IndexKeyExpr::WordPrefix(value)) = key; expr(value, codes, sites); }
     if let Some(after) = &scan.after { expr(after, codes, sites); }
+    if let Some(range) = &scan.range {
+        for value in [&range.gt, &range.gte, &range.lt, &range.lte].into_iter().flatten() { expr(value, codes, sites); }
+    }
 }
 fn expr(value: &Expr, codes: &mut BTreeSet<String>, sites: &mut Vec<ResidencySite>) {
     match value {
+        Expr::Block { body, value } => { inspect(body, codes, sites); expr(value, codes, sites); }
         Expr::Builtin { builtin, args } => {
             if *builtin == ir::Builtin::Connected { sites.push(ResidencySite { site: "connected".into(), table: "connected".into(), index: "principal".into(), kind: "presence".into(), class: SiteClass::Server, reason: "connected[principal] is known only by the server".into(), rewrite: "remove connected from this query; observe presence separately online".into() }); }
             for value in args { expr(value, codes, sites); }
@@ -109,6 +115,7 @@ fn expr(value: &Expr, codes: &mut BTreeSet<String>, sites: &mut Vec<ResidencySit
         Expr::Field { base, .. } | Expr::Unary { value: base, .. } => expr(base, codes, sites),
         Expr::Array(values) => for value in values { expr(value, codes, sites); },
         Expr::Object(fields) => for value in fields.values() { expr(value, codes, sites); },
+        Expr::Shape { base, fields } => { expr(base, codes, sites); for value in fields.values() { expr(value, codes, sites); } }
         Expr::Binary { left, right, .. } => { expr(left, codes, sites); expr(right, codes, sites); }
         Expr::Get(read) | Expr::Exists(read) => for key in &read.key { expr(key, codes, sites); },
         Expr::Scan(scan) => scan_exprs(scan, codes, sites),

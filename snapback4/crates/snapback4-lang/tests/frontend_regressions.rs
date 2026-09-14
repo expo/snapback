@@ -899,3 +899,126 @@ fn actions_declare_typed_admission_and_unknown_results_without_a_quarry_body() {
     assert_eq!(diagnostics.len(), 1);
     assert_eq!(document.actions[0].name, "recovered");
 }
+#[test]
+fn range_seeks_type_the_next_column_and_continue_in_both_directions() {
+    let source = format!("{ITEMS}\nquery seek(lo: int, hi: int, c: cursor ?):\n  return items[1, b > lo, b <= hi] after c first 2 by byABId\nquery reverse(lo: int, hi: int, c: cursor ?):\n  return items[a = 1, b >= lo, b < hi] after c last 2 by byABId\n");
+    let mut engine = engine(&source);
+    engine.seed((0..10).map(|n| ("items".into(), snapback4_core::value::object([("id", Value::Id(format!("n{n}"))), ("a", Value::Int(1)), ("b", Value::Int(n)), ("n", Value::Int(n))])))).unwrap();
+    for (op, want) in [("seek", vec![3, 4, 5, 6, 7]), ("reverse", vec![6, 5, 4, 3, 2])] {
+        let mut input = vec![("lo", Value::Int(2)), ("hi", Value::Int(7))];
+        let mut values = Vec::new();
+        for _ in 0..4 {
+            let page = engine.query(op, context(&input)).unwrap();
+            assert!(page.complete, "{page:?}");
+            values.extend(page.data.as_array().unwrap().iter().map(|r| r.field("b").unwrap().as_int().unwrap()));
+            match page.next { Some(cursor) => { input.retain(|(k, _)| *k != "c"); input.push(("c", Value::String(cursor))); }, None => break }
+        }
+        assert_eq!(values, want);
+    }
+    for (from, to) in [("b > lo", "n > lo"), ("b > lo", "b > 'bad'"), ("b > lo", "b > lo, b >= lo"), ("b > lo", "b > lo, 2")] {
+        let bad = compile(&[("schema.q".into(), source.replace(from, to))]);
+        assert!(!bad.diagnostics.is_empty(), "{to}");
+    }
+    for operation in [
+        "query bad():\n  return exists items[1, b >= 2]\n",
+        "mutation bad():\n  update items[1, b >= 2] { n: 9 }\n",
+        "mutation bad():\n  delete items[1, b >= 2]\n",
+    ] {
+        let bad = compile(&[("schema.q".into(), format!("{ITEMS}\n{operation}"))]);
+        assert!(!bad.diagnostics.is_empty(), "a point operation must not discard seek bounds: {operation}");
+    }
+    let bad_rule = compile(&[("schema.q".into(), format!("{ITEMS}\ntable guarded:\n  read <- exists items[1, b >= 2]\n"))]);
+    assert!(!bad_rule.diagnostics.is_empty(), "a rule must not discard seek bounds");
+}
+
+#[test]
+fn where_filters_after_rules_and_meters_lazy_predicate_reads() {
+    let source = format!("{ITEMS}\ntable flags:\n  item: items\n  owner: principal\n  keep: bool\n  unique byItemOwner: item, owner\n  read <- .owner = viewer\nquery selected(c: cursor ?):\n  return items[1] after c first 2 by byABId where .n >= 4 and exists flags[.id, viewer] and flags[.id, viewer].keep = true\nquery sought(c: cursor ?):\n  return items[1] after c first 2 by byABId where .b >= 4\nquery direct(c: cursor ?):\n  return items[1, b >= 4] after c first 2 by byABId\n");
+    let bound = bound(&source);
+    assert_eq!(bound.notes.iter().filter(|n| n.code == "N_SEEK").count(), 1);
+    let selected = &bound.programs.iter().find(|p| p.program.name == "selected").unwrap().program;
+    let sites = snapback4_core::ir::read_sites(selected);
+    assert_eq!(sites.iter().filter(|s| s.table == "flags" && s.index == "byItemOwner").count(), 2);
+    assert!(bound.schema.operations["selected"].sites.iter().any(|s| s.table == "flags"));
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed((0..8).map(|n| ("items".into(), snapback4_core::value::object([("id", Value::Id(format!("n{n}"))), ("a", Value::Int(1)), ("b", Value::Int(n)), ("n", Value::Int(n))])))).unwrap();
+    engine.seed([4, 6].map(|n| ("flags".into(), snapback4_core::value::object([("id", Value::Id(format!("f{n}"))), ("item", Value::Id(format!("n{n}"))), ("owner", Value::Id("dev:alice".into())), ("keep", Value::Bool(true))])))).unwrap();
+    let page = engine.query("selected", context(&[])).unwrap();
+    assert_eq!(page.data.as_array().unwrap().iter().map(|r| r.field("n").unwrap().as_int().unwrap()).collect::<Vec<_>>(), [4, 6]);
+    assert_eq!(page.metered.rule_probes, 5, "rows 4..6 probe presence; the two present flags also read keep");
+    assert_eq!(engine.query("sought", context(&[])).unwrap().data, engine.query("direct", context(&[])).unwrap().data);
+    let bad = compile(&[("schema.q".into(), source.replace(".n >= 4 and exists", ".n + 4 and exists"))]);
+    assert!(!bad.diagnostics.is_empty());
+}
+
+#[test]
+fn grouping_preserves_first_seen_order_and_list_selection_is_nullable() {
+    let mut engine = engine("query grouped():\n  rows = [{ emoji: 'b', who: 1 }, { emoji: 'a', who: 2 }, { emoji: 'b', who: 3 }]\n  return group(rows, 'emoji') { key, count: count(.items), first: first(.items), last: last(.items), at: at(.items, 1) }\nquery empty():\n  return { first: first([]), last: last([]), at: at([1], 9), negative: at([1], -1) }\n");
+    let grouped = query(&mut engine, "grouped", &[]);
+    let rows = grouped.as_array().unwrap();
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0].field("key").unwrap(), &Value::String("b".into()));
+    assert_eq!(rows[0].field("count").unwrap(), &Value::Int(2));
+    assert_eq!(rows[0].field("first").unwrap().field("who").unwrap(), &Value::Int(1));
+    assert_eq!(rows[0].field("last").unwrap().field("who").unwrap(), &Value::Int(3));
+    assert_eq!(rows[0].field("at").unwrap().field("who").unwrap(), &Value::Int(3));
+    assert_eq!(rows[1].field("at").unwrap(), &Value::Null);
+    assert!(query(&mut engine, "empty", &[]).as_object().unwrap().values().all(|v| v == &Value::Null));
+    for value in ["group([{ emoji: 'a' }], 'missing')", "group([1], 'emoji')", "at([1], 'x')"] {
+        assert!(!compile(&[("schema.q".into(), format!("query bad():\n  return {value}\n"))]).diagnostics.is_empty());
+    }
+}
+
+#[test]
+fn every_list_builtin_accepts_pages_and_shaped_collections() {
+    for source in ["items[] first 20 by byId", "items[] first 20 by byId { * }", "[{ id: 'a', n: 2 }, { id: 'b', n: 3 }]"] {
+        let mut engine = engine(&format!("{ITEMS}\nquery all():\n  rows = {source}\n  total = 0\n  labels = []\n  for row in rows:\n    total = total + row.n\n    labels = labels + ['x']\n  return {{ total, sum: sum(rows, .n), count: count(rows), slice: slice(rows, 0, 1), sort: sort(rows, '-n'), group: group(rows, 'n'), first: first(rows), last: last(rows), at: at(rows, 1), joined: join(labels, ',') }}\n"));
+        engine.seed([("a", 2), ("b", 3)].map(|(id, n)| ("items".into(), snapback4_core::value::object([("id", Value::Id(id.into())), ("a", Value::Int(n)), ("b", Value::Int(n)), ("n", Value::Int(n))])))).unwrap();
+        let result = query(&mut engine, "all", &[]);
+        assert_eq!(result.field("total").unwrap(), &Value::Int(5));
+        assert_eq!(result.field("sum").unwrap(), &Value::Int(5));
+        assert_eq!(result.field("count").unwrap(), &Value::Int(2));
+        assert_eq!(result.field("sort").unwrap().as_array().unwrap()[0].field("n").unwrap(), &Value::Int(3));
+        assert_eq!(result.field("first").unwrap().field("n").unwrap(), &Value::Int(2));
+        assert_eq!(result.field("last").unwrap().field("n").unwrap(), &Value::Int(3));
+        assert_eq!(result.field("joined").unwrap(), &Value::String("x,x".into()));
+    }
+}
+
+#[test]
+fn expression_ranges_evaluate_bounds_once_and_stop_at_the_step_meter() {
+    let source = "query total(a: int, b: int):\n  total = 0\n  for i in range(a + 1, b * 2):\n    total = total + i\n  return total\nmutation capped(n: int):\n  for i in range(0, n):\n    continue\n  return 1\nquery literal():\n  n = 0\n  for i in range(0, 10001):\n    n = n + 1\n  return n\n";
+    let mut engine = engine(source);
+    assert_eq!(query(&mut engine, "total", &[("a", Value::Int(1)), ("b", Value::Int(4))]), Value::Int(27));
+    assert_eq!(query(&mut engine, "total", &[("a", Value::Int(10)), ("b", Value::Int(2))]), Value::Int(0));
+    assert_eq!(query(&mut engine, "literal", &[]), Value::Int(10001));
+    engine.set_ceilings(snapback4_core::Ceilings { steps: 30, ..snapback4_core::Ceilings::default() });
+    let outcome = engine.mutate("capped", None, context(&[("n", Value::Int(9007199254740991))])).unwrap();
+    let WriteState::Failed { why, .. } = outcome.state else { panic!("expected step refusal") };
+    assert_eq!(why.code, "E_BOUND");
+    assert!(why.message.contains("steps"), "{}", why.message);
+    assert!(outcome.metered.heap_bytes < 1000, "a range is not materialized: {:?}", outcome.metered);
+    let bad = compile(&[("schema.q".into(), source.replace("range(a + 1, b * 2)", "range('a', b)"))]);
+    assert!(!bad.diagnostics.is_empty());
+}
+
+#[test]
+fn guessed_spellings_are_mechanical_refusals_with_exact_rewrites() {
+    for (source, expected) in [
+        ("query q(cond: bool, a: int, b: int):\n  return cond ? a : b\n", "a if cond else b"),
+        ("query q():\n  a = { b: 1 }\n  return a?.b\n", "a.b if a != null else null"),
+        ("query q(x: [int] <=10):\n  return len(x)\n", "count(x)"),
+        ("// guessed\nquery q():\n  return 1\n", "--"),
+        ("# guessed\nquery q():\n  return 1\n", "--"),
+    ] {
+        let compiled = compile(&[("schema.q".into(), source.into())]);
+        let refusal = compiled.diagnostics.iter().find(|d| d.code == "E_QUARRY_UNSUPPORTED").expect("one spelling refusal");
+        assert_eq!(refusal.rewrite, expected, "{source}");
+        assert!(refusal.mechanical);
+    }
+    let mut engine = engine("-- canonical\nquery q(cond: bool):\n  a = { b: 1 }\n  return { pick: 1 if cond else 2, member: a.b if a != null else null, count: count([1, 2]) }\n");
+    let result = query(&mut engine, "q", &[("cond", Value::Bool(true))]);
+    assert_eq!(result.field("pick").unwrap(), &Value::Int(1));
+    assert_eq!(result.field("member").unwrap(), &Value::Int(1));
+    assert_eq!(result.field("count").unwrap(), &Value::Int(2));
+}

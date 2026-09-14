@@ -2786,3 +2786,84 @@ The largest changed source is guide.rs at 1,439 lines. This required
 append preserves the already-long journal's history. SQL application reads
 remain unimplemented as ruled; NOT-DOING records the trade. No commit,
 push, tag or publication was made; the lead owns integration.
+
+## 2026-09-13 — lane L2: the language, re-derived, part two
+
+Implemented LLP 3000.007 items 10–20 after cf2d13eea: literal/now/viewer
+column defaults, typed range seeks on the first unpinned index column,
+row-local where predicates (including lazy metered reads), disclosure-safe
+continuations, group/first/last/at, page/list/collection unification,
+expression ranges under the step meter, pending through row shapes, the
+remaining mechanical guessed-spelling refusals, and the compiled language
+card plus the reads/writes/shapes/types/bounds cards and README §2. N_SEEK
+names the canonical key spelling. check --cost reports prefix seeks, filter
+examined bounds, predicate probes and expression-range steps. Every new
+allocating builtin charges its result; defaults filled by the engine charge
+the new row. No meter ceiling or serialized Value form changed.
+
+The disclosure fixtures return all 4 matches after 23 filter rejections at
+an examined ceiling of 7, with cursor positions [6, 13, 20, 24, 26] and 3
+capped pages. A non-uniform fixture decodes every cursor, rejects every
+hidden key, reaches visible key 16, and ends in an empty capped page inside
+the hidden run. A full filtered page returns keys 0 and 3 after examining
+4 rows; its cursor carries 3. A separate positive case verifies that N
+matches also complete a uniform filtered page without a cursor. Predicate
+reads in the language regression cost 5 probes for 2 returned matches.
+
+Five Clique acceptance tests run the seven-day Insights loop, all 3 receipt
+states with sender/late-joiner continue, a two-counter digest (Alice: 5
+messages in 2 chats; Bob: 1 in 1), an 80-character Unicode push preview,
+around's 20 before/21 after rows, first-seen reaction groups of 2 and 1,
+and the corrected whole-day trending query. Trending ranks all 250 fixture
+posts and selects the oldest, most-liked post first; the 8,193-post day
+returns 10 rows with complete:false and an examined-meter cut. Both device
+stores preserve defaults at the pinned write time 1,234 and pending through
+raw, spread, named, repeated, projected and extended shapes, offline reopen,
+and server confirmation. Lazy ranges remove the old 100-element temporary:
+the existing count-text meter fixture now charges 8,000 B rather than
+11,200 B, while retaining its step charges. A range ending at
+9,007,199,254,740,991 stops at the test's 30-step ceiling without materializing
+its domain; the positive literal range completes 10,001 iterations.
+
+Verification used Node 24.18.0 locally and Cargo/Bun from snapback4. The
+compiled guide passed 8/8 after each item 10–19 and again in the final suite.
+Final targeted results: frontend regressions 32/32, guide 8/8, Clique 23/23,
+filters 4/4, device 24/24, core meter 7/7, chat typing 4/4 and periphery 9/9.
+The final unchanged bash snapback4/scripts/test.sh run reports
+`== 1 failure(s) in 26 s`: 289 Rust passes, 0 failures, 1 declared ignore;
+9 fixture passes; 101 client passes, 1 failure, 0 skips. Wasm is 1,476,787 B
+raw and 412,887 B gzip. The remaining failure is Chromium SIGABRT during
+process launch, before the React assertions. The isolated test reproduces
+on an untouched git archive of base
+cf2d13eea1858f5e89093d70562841f7296cab0c using the same installed dependencies.
+The Linux expo-build-1000 snapshot passes all 10 React tests, with 0 failures
+or skips, using Node 24.13.1. This is not a green local full-suite claim.
+
+An earlier loaded run took 219 s and hit process-start timeouts in 40 client
+cases in addition to the browser failure. Serial client-file verification
+recovered all those cases (101 passed, 1 browser failure); the final normal
+suite then reproduced only that browser failure. No timeout was changed.
+The initial full runs also caught the corpus harness's new IR cases and two
+assertions affected by the intended behavior (lazy-range heap and pending in
+the inferred inbox shape); those are fixed. Raw commands and verbatim counts
+are in /private/tmp/l2-verification.md, the final full log is
+/private/tmp/l2-suite-last.log, and browser baseline/Linux logs are
+/private/tmp/l2-react-base.log and /private/tmp/l2-react-remote.log.
+
+What this taught: a predicate's setup must execute inside each row's scope
+and preserve lazy reads; seek keys/bounds must preserve source evaluation
+order; positions may pass author-filtered rows but never rule-hidden keys.
+The parser must not discard a seek in a point write or rule read. Device
+metadata belongs to a projected row, including through named spreads, not
+to its enclosing ordinary object. Defaults need both the engine boundary
+and the insert expression's returned image to agree.
+
+Scope seams are minimal: bind/schema.rs installs defaults and initializes
+the new AST field; bind/residency.rs walks new expressions and bounds;
+engine/admission.rs, engine/native.rs and the corpus test harness handle the
+new IR fields/variants. E_STRUCTURAL_FANOUT policy is unchanged. No existing
+corpus case changed. The largest changed Rust file is 1,445 lines; this
+journal was already 2,678 lines and its explicit append-only rule is kept.
+Items 10–20 are complete; §5.9 and §8.7 were not implemented. Nothing was
+committed, pushed, tagged or published, and the existing LANE-BRIEF.md is
+untouched.

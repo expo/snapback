@@ -168,7 +168,8 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
         None => None,
     };
     let residency = core::Residency { online_only: decl.online_only, inferred: decl.sync.as_ref().is_some_and(|s| matches!(s.audience, SyncAudience::Inferred { .. })), inherited_from: None };
-    Table { columns, indexes, rules, constraints, leave, sync, expire, residency }
+    let defaults = super::defaults::bind(info, diagnostics);
+    Table { columns, defaults, indexes, rules, constraints, leave, sync, expire, residency }
 }
 
 /// `expire at .column`: a `time` column (optional means "never" when null)
@@ -493,14 +494,14 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
             None => return Err(unknown(&site, format!("sum names unknown column {}.{column}", maintain.source), name_rewrite(column, source.columns.keys().map(String::as_str), None))),
         },
     };
-    columns.push(ColumnDecl { name: "value".into(), type_: value_type, site: site.clone() });
+    columns.push(ColumnDecl { default: None, name: "value".into(), type_: value_type, site: site.clone() });
     let mut seen = BTreeSet::new();
     for field in &maintain.by {
         if !seen.insert(field.clone()) {
             return Err(unknown(&site, format!("maintain by repeats {field}"), format!("maintain {}: {} {} by {}", maintain.name, maintain.aggregate, maintain.source, seen.iter().cloned().collect::<Vec<_>>().join(", "))));
         }
         let ty = if field == "id" { ScalarType { kind: TypeKind::Ref { table: maintain.source.clone() }, optional: false } } else { source.columns.get(field).cloned().ok_or_else(|| unknown(&site, format!("maintain names unknown column {}.{field}", maintain.source), name_rewrite(field, source.columns.keys().map(String::as_str), None)))? };
-        columns.push(ColumnDecl { name: field.clone(), type_: ty, site: site.clone() });
+        columns.push(ColumnDecl { default: None, name: field.clone(), type_: ty, site: site.clone() });
     }
     Ok(TableDecl {
         name: maintain.name.clone(),

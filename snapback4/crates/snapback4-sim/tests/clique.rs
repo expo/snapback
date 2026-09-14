@@ -1087,3 +1087,179 @@ fn actions_durable_replay_survives_reopen_and_result_bounds_keep_the_lease() {
     drop(engine);
     std::fs::remove_dir_all(path).unwrap();
 }
+#[test]
+fn column_defaults_fill_inserts_and_upserts_but_do_not_replace_explicit_values() {
+    let source = r#"table notes:
+  owner: principal default viewer
+  at: time default now
+  score: int default -2
+  role: enum('member', 'admin') default 'member'
+  label: text 1..10 default 'hello'
+  optional: bool ? default true
+  by byOwner: owner, id
+  required: bool
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  update <- .owner = viewer
+  sync to .owner
+mutation add():
+  return insert notes { required: true }
+mutation put(note: notes):
+  return upsert notes[note] { required: false }
+mutation explicit():
+  return insert notes { required: true, score: 8, optional: null }
+query get(note: notes):
+  return notes[note]
+"#;
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let encoded = serde_json::to_value(&bound.schema).unwrap();
+    let decoded = serde_json::from_value(encoded.clone()).unwrap();
+    assert_eq!(bound.schema, decoded);
+    let mut old = encoded;
+    old["tables"]["notes"].as_object_mut().unwrap().remove("defaults");
+    let old: snapback4_core::schema::Schema = serde_json::from_value(old).unwrap();
+    assert!(old.tables["notes"].defaults.is_empty());
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    for (op, key, at) in [("add", "a", 100), ("put", "b", 200), ("explicit", "c", 300)] {
+        let input = if op == "put" { args(&[("note", id(key))]) } else { args(&[]) };
+        let sent = engine.mutate(op, None, Context::new("dev:alice", input).at(at).with_ids([key.into()])).unwrap();
+        let WriteState::Sent { result, .. } = sent.state else { panic!("{:?}", sent.state) };
+        assert_eq!(result.field("at").unwrap(), &Value::Int(at));
+        assert_eq!(result.field("owner").unwrap(), &id("dev:alice"));
+        assert_eq!(result.field("role").unwrap(), &Value::String("member".into()));
+        assert_eq!(result.field("score").unwrap(), &Value::Int(if op == "explicit" { 8 } else { -2 }));
+        assert_eq!(result.field("optional").unwrap(), if op == "explicit" { &Value::Null } else { &Value::Bool(true) });
+    }
+    let patched = engine.mutate("put", None, Context::new("dev:alice", args(&[("note", id("a"))])).at(400)).unwrap();
+    let WriteState::Sent { result, .. } = patched.state else { panic!("{:?}", patched.state) };
+    assert_eq!(result.field("at").unwrap(), &Value::Int(100));
+    assert_eq!(result.field("required").unwrap(), &Value::Bool(false));
+    for (from, to) in [("default -2", "default 'wrong'"), ("default now", "default viewer"), ("default 'member'", "default 'other'"), ("default 'hello'", "default ''"), ("default -2", "default 1 + 2")] {
+        let bad = snapback4_lang::compile(&[("schema.q".into(), source.replace(from, to))]);
+        assert!(bad.diagnostics.iter().any(|d| d.code == "E_QUARRY_TYPE"), "{to}: {:?}", bad.diagnostics);
+    }
+    let missing = snapback4_lang::compile(&[("schema.q".into(), source.replace("{ required: true }", "{}"))]);
+    assert!(!missing.diagnostics.is_empty());
+}
+
+const RELAXED: &str = include_str!("fixtures/clique-relaxed.q");
+fn relaxed_engine() -> Engine {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), RELAXED.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap()
+}
+fn row(fields: &[(&str, Value)]) -> Value { snapback4_core::value::object(fields.iter().cloned()) }
+
+#[test]
+fn clique_insights_builds_seven_days_with_one_loop() {
+    let mut engine = relaxed_engine();
+    let day = 10 * 86400000;
+    engine.seed([
+        ("activities".into(), row(&[("id", id("p1")), ("principal", id("dev:alice")), ("day", Value::Int(day)), ("kind", Value::String("post".into()))])),
+        ("activities".into(), row(&[("id", id("p2")), ("principal", id("dev:alice")), ("day", Value::Int(day)), ("kind", Value::String("post".into()))])),
+        ("activities".into(), row(&[("id", id("l1")), ("principal", id("dev:alice")), ("day", Value::Int(day - 86400000)), ("kind", Value::String("like".into()))])),
+        ("follows".into(), row(&[("id", id("f1")), ("follower", id("dev:alice")), ("followed", id("dev:bob"))])),
+        ("follows".into(), row(&[("id", id("f2")), ("follower", id("dev:bob")), ("followed", id("dev:alice"))])),
+    ]).unwrap();
+    let outcome = engine.query("insights", Context::new("dev:alice", args(&[])).at(day + 1234)).unwrap();
+    assert!(outcome.complete);
+    assert_eq!(outcome.data.field("posts").unwrap(), &Value::Int(2));
+    assert_eq!(outcome.data.field("followers").unwrap(), &Value::Int(1));
+    assert_eq!(outcome.data.field("following").unwrap(), &Value::Int(1));
+    let days = outcome.data.field("days").unwrap().as_array().unwrap();
+    assert_eq!(days.len(), 7);
+    for (i, record) in days.iter().enumerate() {
+        assert_eq!(record.field("day").unwrap(), &Value::Int(day - i as i64 * 86400000));
+        assert_eq!(record.field("posts").unwrap(), &Value::Int(if i == 0 { 2 } else { 0 }));
+        assert_eq!(record.field("likesReceived").unwrap(), &Value::Int(if i == 1 { 1 } else { 0 }));
+    }
+}
+
+fn membership(key: &str, cid: &str, principal: &str, joined: i64, read: i64, delivered: i64) -> (String, Value) {
+    ("memberships".into(), row(&[("id", id(key)), ("conversationId", id(cid)), ("principal", id(principal)), ("joinedSequence", Value::Int(joined)), ("readSequence", Value::Int(read)), ("deliveredSequence", Value::Int(delivered))]))
+}
+
+#[test]
+fn clique_receipt_helper_skips_sender_and_late_joiners() {
+    for (read, delivered, expected) in [(10, 10, "read"), (9, 10, "delivered"), (8, 9, "sent")] {
+        let mut engine = relaxed_engine();
+        engine.seed([
+            membership("a", "c", "dev:alice", 0, 0, 0),
+            membership("b", "c", "dev:bob", 0, read, delivered),
+            membership("later", "c", "dev:carol", 10, 0, 0),
+        ]).unwrap();
+        let outcome = engine.query("receipt", Context::new("dev:alice", args(&[("cid", id("c")), ("sender", id("dev:alice")), ("seq", Value::Int(10))])).at(100)).unwrap();
+        assert_eq!(outcome.data, Value::String(expected.into()));
+        assert!(outcome.complete);
+    }
+}
+
+#[test]
+fn clique_digest_uses_two_counters_and_push_preview_concatenates_text() {
+    let mut engine = relaxed_engine();
+    engine.seed([
+        ("profiles".into(), row(&[("id", id("alice")), ("principal", id("dev:alice")), ("displayName", Value::String("Alice".into()))])),
+        ("profiles".into(), row(&[("id", id("bob")), ("principal", id("dev:bob")), ("displayName", Value::String("Bob".into()))])),
+        membership("a1", "c1", "dev:alice", 0, 0, 0), membership("a2", "c2", "dev:alice", 0, 0, 0), membership("b1", "c1", "dev:bob", 0, 0, 0),
+    ]).unwrap();
+    for (who, cid, n) in [("dev:alice", "c1", 3), ("dev:alice", "c2", 2), ("dev:bob", "c1", 1)] {
+        engine.seed((0..n).map(|i| ("unreadEvents".into(), row(&[("id", id(&format!("{who}-{cid}-{i}"))), ("conversationId", id(cid)), ("principal", id(who)), ("periodStart", Value::Int(100)), ("bucket", Value::Int(0))])))).unwrap();
+    }
+    let run = engine.run_job("digest", args(&[("periodStart", Value::Int(100)), ("periodEnd", Value::Int(200))]), 200).unwrap();
+    assert_eq!(run.state, snapback4_core::JobState::Done, "{run:?}");
+    let effects = engine.effects(Some("queued"), 10).unwrap();
+    assert_eq!(effects.len(), 2);
+    for effect in effects {
+        let payload = &effect.payload;
+        let alice = payload.field("targetUserId").unwrap() == &id("dev:alice");
+        assert_eq!(payload.field("unreadMessages").unwrap(), &Value::Int(if alice { 5 } else { 1 }));
+        assert_eq!(payload.field("unreadChats").unwrap(), &Value::Int(if alice { 2 } else { 1 }));
+    }
+    let sent = engine.mutate("push", None, Context::new("dev:alice", args(&[("cid", id("c1")), ("body", Value::String("é".repeat(90)))])).at(300)).unwrap();
+    assert!(matches!(sent.state, WriteState::Sent { .. }), "{:?}", sent.state);
+    let effects = engine.effects(Some("queued"), 10).unwrap();
+    let preview = effects.iter().find(|effect| effect.payload.field("preview").is_ok()).unwrap();
+    assert_eq!(preview.payload.field("preview").unwrap(), &Value::String(format!("Alice: {}", "é".repeat(80))));
+    assert_eq!(preview.payload.field("targetUserId").unwrap(), &id("dev:bob"));
+}
+
+#[test]
+fn clique_around_seeks_to_the_quote_and_groups_reactions() {
+    let mut engine = relaxed_engine();
+    engine.seed((0..60).map(|n| ("messages".into(), row(&[("id", id(&format!("m{n:02}"))), ("conversationId", id("c")), ("authorId", id("dev:alice")), ("body", Value::String(format!("message {n}"))), ("at", Value::Int(n))])))).unwrap();
+    let around = engine.query("around", Context::new("dev:alice", args(&[("conversationId", id("c")), ("messageId", id("m30"))])).at(100)).unwrap();
+    let times = |field| around.data.field(field).unwrap().as_array().unwrap().iter().map(|r| r.field("at").unwrap().as_int().unwrap()).collect::<Vec<_>>();
+    assert_eq!(times("before"), (10..30).rev().collect::<Vec<_>>());
+    assert_eq!(times("after"), (30..51).collect::<Vec<_>>());
+    engine.seed([(0, "dev:alice", "👍"), (1, "dev:bob", "❤️"), (2, "dev:carol", "👍")].map(|(n, who, emoji)| ("reactions".into(), row(&[("id", id(&format!("r{n}"))), ("conversationId", id("c")), ("messageId", id("m30")), ("principal", id(who)), ("emoji", Value::String(emoji.into()))])))).unwrap();
+    let groups = engine.query("reactionCounts", Context::new("dev:alice", args(&[("messageId", id("m30"))])).at(100)).unwrap();
+    let groups = groups.data.as_array().unwrap();
+    assert_eq!(groups.len(), 2);
+    assert_eq!(groups[0].field("emoji").unwrap(), &Value::String("👍".into()));
+    assert_eq!(groups[0].field("count").unwrap(), &Value::Int(2));
+    assert_eq!(groups[1].field("count").unwrap(), &Value::Int(1));
+    assert!(groups.iter().all(|g| g.field("mine").unwrap() == &Value::Bool(true)));
+}
+
+#[test]
+fn clique_trending_ranks_the_whole_day_and_marks_a_day_past_the_ceiling_incomplete() {
+    let now = 2 * 86400000;
+    let mut engine = relaxed_engine();
+    engine.seed((0..250).map(|n| ("posts".into(), row(&[("id", id(&format!("p{n:04}"))), ("at", Value::Int(now - 1000 + n))])))).unwrap();
+    let likes = |n: i64| if n == 0 { 50 } else { n % 13 };
+    engine.seed((0..250).flat_map(|n| (0..likes(n)).map(move |k| ("likes".into(), row(&[("id", id(&format!("l{n}-{k}"))), ("postId", id(&format!("p{n:04}"))), ("principal", id(&format!("user{k}")))]))))).unwrap();
+    let page = engine.query("trending", Context::new("dev:alice", args(&[])).at(now)).unwrap();
+    assert!(page.complete, "{page:?}");
+    let mut expected: Vec<i64> = (0..250).collect();
+    expected.sort_by_key(|n| (-likes(*n), -*n));
+    let ids = page.data.as_array().unwrap().iter().map(|r| r.field("id").unwrap().clone()).collect::<Vec<_>>();
+    assert_eq!(ids, expected[..10].iter().map(|n| id(&format!("p{n:04}"))).collect::<Vec<_>>());
+    assert_eq!(ids[0], id("p0000"), "the oldest post wins; last 200 would have lost it");
+    let mut large = relaxed_engine();
+    large.seed((0..8193).map(|n| ("posts".into(), row(&[("id", id(&format!("p{n:05}"))), ("at", Value::Int(now - 10000 + n))])))).unwrap();
+    let cut = large.query("trending", Context::new("dev:alice", args(&[])).at(now)).unwrap();
+    assert!(!cut.complete, "an incomplete population cannot claim the true top ten");
+    assert_eq!(cut.capped_at.as_ref().map(|(kind, _)| *kind), Some(snapback4_core::error::MeterKind::Examined));
+    assert_eq!(cut.data.as_array().unwrap().len(), 10);
+}

@@ -156,6 +156,8 @@ fn prove_probe_row_readable(rule: &RuleExpr, table: &str, index: &str, index_col
 pub struct Table {
     #[serde(default, skip_serializing_if = "Residency::is_default")]
     pub residency: Residency,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub defaults: BTreeMap<String, ColumnDefault>,
     pub columns: BTreeMap<String, ColumnType>,
     pub indexes: BTreeMap<String, Index>,
     pub rules: Rules,
@@ -174,6 +176,23 @@ pub struct Table {
     /// to each device that holds it (LLP 3000 §7).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expire: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ColumnDefault {
+    Literal(Value),
+    Now,
+    Viewer,
+}
+
+impl ColumnDefault {
+    pub fn value(&self, now: i64, viewer: &str) -> Value {
+        match self {
+            Self::Literal(value) => value.clone(),
+            Self::Now => Value::Int(now),
+            Self::Viewer => Value::Id(viewer.to_owned()),
+        }
+    }
 }
 
 impl Table {
@@ -592,6 +611,7 @@ pub fn public_table(columns: BTreeMap<String, ColumnType>, indexes: BTreeMap<Str
     let public = RuleExpr::Public { reason: "fixture".to_owned() };
     Table {
         residency: Residency::default(),
+        defaults: BTreeMap::new(),
         columns,
         indexes,
         rules: Rules { read: public.clone(), insert: public.clone(), update: public.clone(), delete: public },

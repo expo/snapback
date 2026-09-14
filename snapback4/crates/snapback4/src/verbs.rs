@@ -150,6 +150,8 @@ fn cost_report(bound: &Bound, program: &ir::Program) -> String {
         });
         return lines.join("\n");
     }
+    range_costs(&program.body, &mut lines);
+    let scans = ir::scans(program);
     let sites = ir::read_sites(program);
     if sites.is_empty() {
         lines.push("    reads nothing".into());
@@ -157,7 +159,7 @@ fn cost_report(bound: &Bound, program: &ir::Program) -> String {
     for site in &sites {
         let hoist = match site.kind {
             "scan" => {
-                let scan = find_scan(&program.body, &site.site);
+                let scan = scans.iter().copied().find(|scan| scan.site == site.site);
                 match scan.map(|scan| scan_visibility(&bound.schema, scan)) {
                     Some(v) if v.decided_true => "rule decided by the prefix: no probes",
                     Some(v) if v.uniform => "rule uniform over the prefix: one verdict",
@@ -169,7 +171,18 @@ fn cost_report(bound: &Bound, program: &ir::Program) -> String {
             _ => "bounded walk",
         };
         let take = if site.kind == "scan" { format!(" first {}", site.take) } else { String::new() };
-        lines.push(format!("    {} {}.{}{take} — {hoist}", site.kind, site.table, site.index));
+        let scan = scans.iter().copied().find(|scan| scan.site == site.site);
+        let kind = if scan.is_some_and(|s| s.range.is_some()) { "prefix seek" } else { site.kind };
+        lines.push(format!("    {kind} {}.{}{take} — {hoist}", site.table, site.index));
+        if let Some(scan) = scan {
+            lines.push("      sort/group/sum/count consume this page, not the whole population".into());
+            if let Some(filter) = &scan.filter {
+                let ceiling = if program.kind == ProgramKind::Job { snapback4_core::Ceilings::job() } else { snapback4_core::Ceilings::default() }.examined;
+                lines.push(format!("      filter over ≤ examined ceiling ({ceiling})"));
+                let filter_program = ir::Program { body: vec![ir::Stmt::Return(*filter.clone())], ..program.clone() };
+                if !ir::read_sites(&filter_program).is_empty() { lines.push("      probe × examined".into()); }
+            }
+        }
     }
     let writes = ir::write_tables(program);
     for (table, kind) in &writes {
@@ -179,38 +192,18 @@ fn cost_report(bound: &Bound, program: &ir::Program) -> String {
     lines.join("\n")
 }
 
-fn find_scan<'a>(stmts: &'a [ir::Stmt], site: &str) -> Option<&'a ir::Scan> {
-    fn in_expr<'a>(expr: &'a ir::Expr, site: &str) -> Option<&'a ir::Scan> {
-        match expr {
-            ir::Expr::Scan(scan) if scan.site == site => Some(scan),
-            ir::Expr::Merge(merge) => merge.lanes.iter().find_map(|lane| if lane.scan.site == site { Some(&lane.scan) } else { lane.source.as_ref().filter(|s| s.site == site) }),
-            ir::Expr::Field { base, .. } => in_expr(base, site),
-            ir::Expr::Array(items) | ir::Expr::Builtin { args: items, .. } => items.iter().find_map(|e| in_expr(e, site)),
-            ir::Expr::Object(fields) => fields.values().find_map(|e| in_expr(e, site)),
-            ir::Expr::Binary { left, right, .. } => in_expr(left, site).or_else(|| in_expr(right, site)),
-            ir::Expr::Unary { value, .. } => in_expr(value, site),
-            _ => None,
-        }
-    }
-    for stmt in stmts {
-        let found = match stmt {
-            ir::Stmt::For { domain: ir::LoopDomain::Page(scan), body, .. } => {
-                if scan.site == site {
-                    Some(scan)
-                } else {
-                    find_scan(body, site)
-                }
+// @ref LLP 3000.007#5.7 — expression ranges have an intended bound and are priced by the step meter.
+fn range_costs(body: &[ir::Stmt], lines: &mut Vec<String>) {
+    for stmt in body {
+        match stmt {
+            ir::Stmt::For { domain, body, .. } => {
+                if matches!(domain, ir::LoopDomain::ExpressionRange { .. }) { lines.push("    range: steps ≤ meter".into()); }
+                range_costs(body, lines);
             }
-            ir::Stmt::For { body, .. } => find_scan(body, site),
-            ir::Stmt::If { then_body, else_body, .. } => find_scan(then_body, site).or_else(|| find_scan(else_body, site)),
-            ir::Stmt::Const { value, .. } | ir::Stmt::Let { value, .. } | ir::Stmt::Assign { value, .. } | ir::Stmt::Push { value, .. } | ir::Stmt::Return(value) => in_expr(value, site),
-            _ => None,
-        };
-        if found.is_some() {
-            return found;
+            ir::Stmt::If { then_body, else_body, .. } => { range_costs(then_body, lines); range_costs(else_body, lines); }
+            _ => {}
         }
     }
-    None
 }
 
 pub fn types(options: &Options) -> i32 {

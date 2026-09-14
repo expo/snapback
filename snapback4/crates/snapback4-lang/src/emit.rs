@@ -107,6 +107,10 @@ pub fn ty_ts(ty: &Ty) -> String {
         Ty::Row(table) => format!("Rows[{}]", string_literal(table)),
         Ty::Page(table, _) => format!("Rows[{}][]", string_literal(table)),
         Ty::Collection(item, _) => format!("{}[]", wrap(&ty_ts(item))),
+        Ty::RowShape(fields) => {
+            let fields = fields.iter().map(|(name, ty)| format!("{}: {}", property(name), ty_ts(ty))).chain(["pending?: boolean".into()]).collect::<Vec<_>>();
+            format!("{{ {} }}", fields.join("; "))
+        }
         Ty::Object(fields) => {
             if fields.is_empty() {
                 return "Record<string, never>".into();

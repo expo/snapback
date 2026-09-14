@@ -1,0 +1,108 @@
+//! Disclosure and progress at a filtered page's meter boundary (LLP 3000.007 §5.6).
+use snapback4_core::{Context, Engine, Value};
+use snapback4_core::cursor::decode_cursor;
+use snapback4_core::meter::Ceilings;
+use snapback4_core::value::object;
+use std::collections::BTreeMap;
+
+fn fixture(rule: &str, predicate: &str, take: u32, examined: u64) -> Engine {
+    fixture_with_cursor(rule, predicate, take, examined, true)
+}
+fn fixture_with_cursor(rule: &str, predicate: &str, take: u32, examined: u64, cursor: bool) -> Engine {
+    let after = if cursor { " after c" } else { "" };
+    let source = format!("table items:\n  n: int\n  owner: principal\n  by byN: n, id\n  read <- {rule}\nquery page(c: cursor ?):\n  return items[]{after} first {take} by byN where {predicate}\n");
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert_eq!(bound.notes.iter().any(|n| n.code == "N_NEVER_COMPLETE"), rule != "allow");
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.set_ceilings(Ceilings { examined, ..Ceilings::default() });
+    engine
+}
+
+fn seed(engine: &mut Engine, count: i64, hidden: impl Fn(i64) -> bool) {
+    engine.seed((0..count).map(|n| ("items".into(), object([("id", Value::Id(format!("r{n:03}"))), ("n", Value::Int(n)), ("owner", Value::Id(if hidden(n) { "dev:bob" } else { "dev:alice" }.into()))])))).unwrap();
+}
+fn context(cursor: Option<&str>) -> Context {
+    Context::new("dev:alice", cursor.map(|c| BTreeMap::from([("c".into(), Value::String(c.into()))])).unwrap_or_default()).at(1)
+}
+
+#[test]
+fn uniform_filtered_pages_advance_past_more_rejections_than_the_ceiling() {
+    // n is indexed; adding `and true` deliberately keeps this a filter, not a seek.
+    let mut engine = fixture("allow", ".n >= 23 and true", 2, 7);
+    seed(&mut engine, 27, |_| false);
+    let mut cursor = None;
+    let mut matched = Vec::new();
+    let mut positions = Vec::new();
+    let mut capped = 0;
+    for _ in 0..10 {
+        let page = engine.query("page", context(cursor.as_deref())).unwrap();
+        if !page.complete { capped += 1; assert!(page.capped_at.is_some()); }
+        matched.extend(page.data.as_array().unwrap().iter().map(|r| r.field("n").unwrap().as_int().unwrap()));
+        match page.next {
+            Some(next) => {
+                let position = decode_cursor(engine.schema(), &next).unwrap().values[0].as_int().unwrap();
+                if let Some(prior) = positions.last() { assert!(position > *prior); }
+                positions.push(position);
+                cursor = Some(next);
+            }
+            None => break,
+        }
+    }
+    assert_eq!(matched, [23, 24, 25, 26]);
+    assert_eq!(positions, [6, 13, 20, 24, 26]);
+    assert_eq!(capped, 3);
+}
+
+#[test]
+fn no_cursor_discloses_a_hidden_key_and_a_hidden_run_ends_empty() {
+    let mut engine = fixture(".owner = viewer", ".n % 4 = 0", 2, 5);
+    seed(&mut engine, 30, |n| n % 2 == 1 || n >= 18);
+    let mut cursor = None;
+    let mut count = 0;
+    let mut last = -1;
+    for _ in 0..15 {
+        let page = engine.query("page", context(cursor.as_deref())).unwrap();
+        assert!(!page.complete, "a non-uniform prefix never claims completeness");
+        for row in page.data.as_array().unwrap() { assert_eq!(row.field("owner").unwrap(), &Value::Id("dev:alice".into())); }
+        match page.next {
+            Some(next) => {
+                let decoded = decode_cursor(engine.schema(), &next).unwrap();
+                let n = decoded.values[0].as_int().unwrap();
+                assert!(n % 2 == 0 && n < 18, "hidden key in {decoded:?}");
+                assert_eq!(decoded.values[1], Value::Id(format!("r{n:03}")));
+                assert!(n > last);
+                last = n;
+                count += 1;
+                cursor = Some(next);
+            }
+            None => { assert!(page.data.as_array().unwrap().is_empty()); assert!(page.capped_at.is_some()); break; }
+        }
+    }
+    assert!(count >= 4);
+    assert_eq!(last, 16);
+}
+
+#[test]
+fn a_filled_page_positions_after_its_last_returned_row() {
+    let mut engine = fixture("allow", ".n % 3 = 0", 2, 7);
+    seed(&mut engine, 15, |_| false);
+    let page = engine.query("page", context(None)).unwrap();
+    assert!(page.complete);
+    let last = page.data.as_array().unwrap().last().unwrap();
+    assert_eq!(last.field("n").unwrap(), &Value::Int(3));
+    let decoded = decode_cursor(engine.schema(), page.next.as_deref().unwrap()).unwrap();
+    assert_eq!(decoded.values, [Value::Int(3), Value::Id("r003".into())]);
+    assert_eq!(page.metered.examined, 4);
+}
+
+#[test]
+fn a_filled_uniform_filter_is_complete_without_a_cursor_too() {
+    let mut engine = fixture_with_cursor("allow", ".n % 3 = 0", 2, 7, false);
+    seed(&mut engine, 15, |_| false);
+    let page = engine.query("page", context(None)).unwrap();
+    assert!(page.complete, "N matches satisfy the filtered page even without a cursor: {page:?}");
+    assert_eq!(page.data.as_array().unwrap().len(), 2);
+    assert_eq!(page.metered.examined, 4);
+    assert!(page.next.is_none());
+}

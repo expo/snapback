@@ -95,6 +95,7 @@ struct Flow<'a> {
 impl Flow<'_> {
     fn expr(&self, expr: &Expr) -> Origin {
         match expr {
+            Expr::Block { .. } => Origin::Unknown(Vec::new()),
             Expr::Merge(merge) => {
                 Origin::Merge(merge.lanes.iter().map(|lane| lane.scan.clone()).collect())
             }
@@ -111,7 +112,7 @@ impl Flow<'_> {
                 .iter()
                 .fold(Origin::Other, |origin, arg| origin.join(self.expr(arg)))
                 .transformed(),
-            Expr::Object(fields) => fields
+            Expr::Object(fields) | Expr::Shape { fields, .. } => fields
                 .values()
                 .fold(Origin::Other, |origin, value| origin.join(self.expr(value)))
                 .transformed(),

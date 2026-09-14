@@ -79,6 +79,7 @@ pub struct Runner<'a> {
     pub(crate) missing_fact: Option<String>,
     /// While a search page runs: the words columns and the terms after the
     /// first, which every row of the page must also carry.
+    pub(crate) filter_depth: u32,
     pub(crate) word_filter: Option<(Vec<String>, Vec<String>)>,
     /// The program read `connected[p]` where no registry answers (a
     /// device): a query's result is not `complete`; the compiled execution
@@ -122,6 +123,7 @@ impl<'a> Runner<'a> {
             beyond_horizon: false,
             missing_fact: None,
             word_filter: None,
+            filter_depth: 0,
             presence_unknown: false,
             seq,
             statement_site: String::new(),
@@ -194,6 +196,7 @@ impl<'a> Runner<'a> {
                     }
                     let mut result = Flow::Next;
                     for value in values {
+                        if matches!(domain, LoopDomain::LiteralRange { .. } | LoopDomain::ExpressionRange { .. }) { self.meter.step(1)?; }
                         self.bind(binding, value);
                         match self.statements(body, &site)? {
                             Flow::Next | Flow::Continue => {}
@@ -280,17 +283,21 @@ impl<'a> Runner<'a> {
         self.env.insert(name.to_owned(), value);
     }
 
-    fn domain(&mut self, domain: &LoopDomain) -> Result<Vec<Value>, RuntimeError> {
-        match domain {
+    fn domain(&mut self, domain: &LoopDomain) -> Result<Box<dyn Iterator<Item = Value>>, RuntimeError> {
+        let values = match domain {
             LoopDomain::Page(scan) => {
                 let values = self.scan(scan)?;
                 self.meter.heap(values.capacity() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Value::heap_bytes).sum::<u64>())?;
                 Ok(values)
             }
             LoopDomain::LiteralRange { start, end_exclusive } => {
-                let count = end_exclusive.saturating_sub(*start).max(0) as u64;
-                self.meter.heap(count.saturating_mul(std::mem::size_of::<Value>() as u64))?;
-                (*start..*end_exclusive).map(|value| Value::int(value as i128)).collect::<Result<Vec<_>, _>>().map_err(Into::into)
+                return Ok(Box::new((*start..*end_exclusive).map(Value::Int)));
+            }
+            // @ref LLP 3000.007#5.7 — expression bounds are evaluated once; iteration consumes steps without allocating the range.
+            LoopDomain::ExpressionRange { start, end_exclusive } => {
+                let start = self.expr(start)?.as_int()?;
+                let end = self.expr(end_exclusive)?.as_int()?;
+                return Ok(Box::new((start..end).map(Value::Int)));
             }
             LoopDomain::ArgList { name, max } => {
                 let value = self.env.get(name).ok_or_else(|| RuntimeError::Input(format!("missing arg {name}")))?;
@@ -309,7 +316,8 @@ impl<'a> Runner<'a> {
                 Ok(values)
             }
             LoopDomain::Recurse(recurse) => self.recurse(recurse),
-        }
+        }?;
+        Ok(Box::new(values.into_iter()))
     }
 
     fn recurse(&mut self, recurse: &Recurse) -> Result<Vec<Value>, RuntimeError> {
@@ -377,9 +385,22 @@ impl<'a> Runner<'a> {
                     }
                 }
             }
+            Expr::Block { body, value } => {
+                self.statements(body, "where")?;
+                self.expr(value)
+            }
             Expr::Array(values) => {
                 let values = values.iter().map(|value| self.expr(value)).collect::<Result<Vec<_>, _>>()?;
                 let value = Value::Array(values);
+                self.meter.heap(value.heap_bytes())?;
+                Ok(value)
+            }
+            Expr::Shape { base, fields } => {
+                // @ref LLP 3000.007#5.3 — shaping a device row preserves its own pending metadata.
+                let base = self.expr(base)?;
+                let mut fields = fields.iter().map(|(key, value)| Ok((key.clone(), self.expr(value)?))).collect::<Result<BTreeMap<_, _>, RuntimeError>>()?;
+                if base.as_object()?.get("pending") == Some(&Value::Bool(true)) { fields.insert("pending".into(), Value::Bool(true)); }
+                let value = Value::Row(fields.into());
                 self.meter.heap(value.heap_bytes())?;
                 Ok(value)
             }
@@ -468,6 +489,28 @@ impl<'a> Runner<'a> {
                 // @ref LLP 3000.007#5.3 — the small text library charges every new result to the heap meter.
                 self.meter.heap(value.heap_bytes())?;
                 Ok(value)
+            }
+            Builtin::Group { field } => {
+                // @ref LLP 3000.007#5.3 — groups retain first-seen order; keys and the result are heap charged.
+                let values = into_array(args.remove(0))?;
+                let mut positions = BTreeMap::<String, usize>::new();
+                let mut groups: Vec<(Value, Vec<Value>)> = Vec::new();
+                for value in values {
+                    self.meter.step(1)?;
+                    let key = value.field(field)?.clone();
+                    let encoded = canonical_json(&key);
+                    self.meter.heap(encoded.len() as u64 + key.clone_heap_bytes())?;
+                    let next = groups.len();
+                    let position = *positions.entry(encoded).or_insert(next);
+                    if position == next { groups.push((key, Vec::new())); }
+                    groups[position].1.push(value);
+                }
+                Ok(Value::Array(groups.into_iter().map(|(key, items)| object([("key", key), ("items", Value::Array(items))])).collect()))
+            }
+            Builtin::First | Builtin::Last | Builtin::At => {
+                let values = into_array(args.remove(0))?;
+                let position = match builtin { Builtin::First => 0, Builtin::Last => values.len().saturating_sub(1), _ => usize::try_from(args[0].as_int()?).unwrap_or(usize::MAX) };
+                Ok(values.into_iter().nth(position).unwrap_or(Value::Null))
             }
             Builtin::Join => {
                 let values = args[0].as_array()?;
@@ -600,7 +643,7 @@ impl<'a> Runner<'a> {
             }
         };
         let value = result?;
-        if matches!(builtin, Builtin::Concat | Builtin::Slice | Builtin::Sort { .. } | Builtin::MentionTokens | Builtin::Divmod { .. }) {
+        if matches!(builtin, Builtin::Group { .. } | Builtin::First | Builtin::Last | Builtin::At | Builtin::Concat | Builtin::Slice | Builtin::Sort { .. } | Builtin::MentionTokens | Builtin::Divmod { .. }) {
             self.meter.heap(value.heap_bytes())?;
         }
         Ok(value)

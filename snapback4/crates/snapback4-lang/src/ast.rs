@@ -95,9 +95,19 @@ pub struct RangeSpec {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SeekBound {
+    pub column: String,
+    pub op: String,
+    pub value: Expr,
+    pub site: Site,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ReadExpr {
     pub table: String,
     pub keys: Vec<KeyPart>,
+    pub seeks: Vec<SeekBound>,
+    pub filter: Option<Box<Expr>>,
     pub index: Option<String>,
     pub range: Option<RangeSpec>,
     /// `matching q`: the search text, read through a `words(..)` index whose
@@ -255,6 +265,7 @@ pub struct RuleDecl {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ColumnDecl {
     pub name: String,
+    pub default: Option<Expr>,
     pub type_: ScalarType,
     pub site: Site,
 }

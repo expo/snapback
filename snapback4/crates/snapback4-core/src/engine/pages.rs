@@ -110,7 +110,7 @@ fn expression_origin(value: &Expr, bindings: &Bindings, include_cursorless: bool
             Some(Origin::Page(merge.site.clone(), cursor))
         }
         Expr::Variable(name) => bindings.get(name).cloned(),
-        Expr::Object(fields) => Some(Origin::Record(
+        Expr::Object(fields) | Expr::Shape { fields, .. } => Some(Origin::Record(
             fields
                 .iter()
                 .filter_map(|(name, value)| {

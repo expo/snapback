@@ -4,7 +4,7 @@
 
 use crate::error::RuntimeError;
 use crate::ir::{ArgType, Program};
-use crate::schema::{ColumnType, Constraint, Schema, Table, TextFormat, contains_system_principal};
+use crate::schema::{ColumnType, Constraint, Schema, TextFormat, contains_system_principal};
 use crate::value::{I53_MAX, I53_MIN, Value, canonical_json};
 use std::collections::BTreeMap;
 
@@ -18,7 +18,7 @@ pub fn validate_row(schema: &Schema, table_name: &str, row: &Value) -> Result<()
         return Err(RuntimeError::Input(format!("{table_name} row contains undeclared field {name}")));
     }
     for (name, kind) in &table.columns {
-        validate_column(table, table_name, name, kind, object.get(name))?;
+        validate_column(table_name, name, kind, object.get(name))?;
     }
     for constraint in &table.constraints {
         if let Constraint::Text { field, min, format } = constraint
@@ -30,8 +30,7 @@ pub fn validate_row(schema: &Schema, table_name: &str, row: &Value) -> Result<()
     Ok(())
 }
 
-fn validate_column(table: &Table, table_name: &str, name: &str, kind: &ColumnType, value: Option<&Value>) -> Result<(), RuntimeError> {
-    let _ = table;
+pub fn validate_column(table_name: &str, name: &str, kind: &ColumnType, value: Option<&Value>) -> Result<(), RuntimeError> {
     let label = format!("{table_name}.{name}");
     if let Some(value) = value {
         crate::value::validate_identities(value)?;
