@@ -1,7 +1,7 @@
 # complete battery red: app-cli-served-journey
 
-**Status:** Closed
-**Reopened by battery run:** `local.20260908T125200Z.e6c89816b6d2`
+**Status:** Open
+**Reopened by battery run:** `local.20260914T104118Z.86928d068765`
 **Closure:** `signature absent from determinate FAIL`
 **Closed at revision:** `58251b46dce85b379bbf02f94b1ddad308b41a5d`
 **Impact:** 5
@@ -13,12 +13,12 @@
 **Battery gate:** `app-cli-served-journey`
 **Failure signature:** `sha256:3cf2850f4c377128fe0609f4721600dc047c753ca1017af3fbec7f0cddc0e8d3`
 **First observed run:** `local.20260826T230829Z.fb14180ba761`
-**Last observed run:** `local.20260912T231718Z.9e930482fe75`
-**Last processed run:** `local.20260913T092549Z.58251b46dce8`
+**Last observed run:** `local.20260914T104118Z.86928d068765`
+**Last processed run:** `local.20260914T104118Z.86928d068765`
 **Detected at revision:** `fb14180ba761ee0cee2881d4889f4fffa981ae83`
-**Last observed revision:** `9e930482fe7538d1a5dc3bda71dcfd870744790e`
-**Consecutive red runs:** `12`
-**Escalation:** `AUTHOR_ESCALATION_REQUIRED`
+**Last observed revision:** `86928d068765e3d57c68747e4f2359950b8ff7d1`
+**Consecutive red runs:** `1`
+**Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
@@ -43,8 +43,3 @@ node tests/acceptance/app-cli-served-journey.mjs
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
 this signature. Four consecutive red observations require author escalation.
-
-## Author escalation
-
-This root-failure signature remained red for 4 consecutive scheduled
-battery runs. Escalate to the author (Charlie Cheever) before the next run.

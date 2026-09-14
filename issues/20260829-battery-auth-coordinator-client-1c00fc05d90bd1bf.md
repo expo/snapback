@@ -1,7 +1,7 @@
 # complete battery red: auth-coordinator-client
 
-**Status:** Closed
-**Reopened by battery run:** `local.20260911T062045Z.15c134d056d0`
+**Status:** Open
+**Reopened by battery run:** `local.20260914T104118Z.86928d068765`
 **Closure:** `signature absent from determinate FAIL`
 **Closed at revision:** `9e930482fe7538d1a5dc3bda71dcfd870744790e`
 **Impact:** 5
@@ -13,12 +13,12 @@
 **Battery gate:** `auth-coordinator-client`
 **Failure signature:** `sha256:1c00fc05d90bd1bfe608162fdb49f968d940e9acf32c98ec3307dce904e06d3c`
 **First observed run:** `local.20260829T140951Z.cace7b53cf00`
-**Last observed run:** `local.20260912T132006Z.195ccc9b90d5`
-**Last processed run:** `local.20260912T231718Z.9e930482fe75`
+**Last observed run:** `local.20260914T104118Z.86928d068765`
+**Last processed run:** `local.20260914T104118Z.86928d068765`
 **Detected at revision:** `cace7b53cf008e7692e4cb633c14b4c2400fdd5c`
-**Last observed revision:** `195ccc9b90d5816f4cdc6145b29b5215bd348579`
-**Consecutive red runs:** `4`
-**Escalation:** `AUTHOR_ESCALATION_REQUIRED`
+**Last observed revision:** `86928d068765e3d57c68747e4f2359950b8ff7d1`
+**Consecutive red runs:** `1`
+**Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
@@ -43,8 +43,3 @@ node demos/_kit/tests/auth-coordinator-client.mjs
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
 this signature. Four consecutive red observations require author escalation.
-
-## Author escalation
-
-This root-failure signature remained red for 4 consecutive scheduled
-battery runs. Escalate to the author (Charlie Cheever) before the next run.
