@@ -93,21 +93,21 @@ fn p2_p5_p7_p8_the_validator_refuses_unsound_audiences() {
         assert!(messages.iter().any(|m| m.contains(expect)), "expected a diagnostic containing {expect:?}; got {messages:?}");
     };
     // 8: a second disjunct admits viewers the sync never delivers to.
-    refused(CHAT.replace("  read <- exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and", "  read <- .authorId = viewer or exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and"), "is only sound when the read rule is exactly");
+    refused(CHAT.replace("  read <- exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and", "  read <- .authorId = viewer or exists memberships[.conversationId, viewer]\n  insert <- .authorId = viewer and"), "sync cannot infer an audience");
     // 7: a non-unique audience index would revoke a group another row still grants.
     refused(CHAT.replace("unique byConversationPrincipal: conversationId, principal", "by byConversationPrincipal: conversationId, principal"), "must be unique");
     // 2: the recipient column is the probe's, not any principal column of the target.
     refused(
         CHAT.replace("  role: enum('member', 'admin')\n", "  role: enum('member', 'admin')\n  invitedBy: principal\n")
-            .replace("sync to memberships[.id]  ", "sync to memberships[.id] by .principal  ")
-            .replace("sync to memberships[.conversationId]     -- and the roster", "sync to memberships[.conversationId] by .principal     -- and the roster")
-            .replace("sync to memberships[.conversationId] last 500 by byConvTime", "sync to memberships[.conversationId] by .invitedBy last 500 by byConvTime")
+            .replace("sync  ", "sync by .principal  ")
+            .replace("sync     -- and the roster", "sync by .principal     -- and the roster")
+            .replace("sync last 500 by byConvTime", "sync by .invitedBy last 500 by byConvTime")
             .replace("insert memberships { conversationId, principal, role: 'member', joinedAt: now } if absent", "insert memberships { conversationId, principal, invitedBy: viewer, role: 'member', joinedAt: now } if absent"),
         "binds viewer to memberships.principal",
     );
     // The Clique lane at M4: `check` accepted a synced table without an index
     // to take a group's rows from; the first `/sync` then failed E_SCHEMA.
-    refused(CHAT.replace("  by byConvTime: conversationId, at, id\n  immutable conversationId, authorId", "  immutable conversationId, authorId").replace("sync to memberships[.conversationId] last 500 by byConvTime", "sync to memberships[.conversationId]"), "leading with conversationId");
+    refused(CHAT.replace("  by byConvTime: conversationId, at, id\n  immutable conversationId, authorId", "  immutable conversationId, authorId").replace("sync last 500 by byConvTime", "sync"), "leading with conversationId");
     // 5: an aggregate delivered wider than its source, at the core boundary.
     let bound = snapback4_lang::compile(&[("schema.q".to_owned(), CHAT.to_owned())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);

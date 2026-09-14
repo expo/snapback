@@ -541,6 +541,7 @@ partition holds exactly what the viewer may read. `check` says so
 ## 3. Sync: the viewer's partition is the unit of sync
 
 ```text
+sync [last N by index]                           audience inferred from the read rule
 sync public [last N by index]                    everyone holds the same rows
 sync to .col [last N by index]                   each row reaches the principal in .col
 sync to t[.a, .b] [by .col] [last N by index]    each row reaches every principal with a
@@ -548,6 +549,7 @@ sync to t[.a, .b] [by .col] [last N by index]    each row reaches every principa
                                                  the recipient column when t has several
 ```
 
+`sync` infers the audience from the read rule; an explicit `to` must agree.
 The read rule must be exactly the audience — `public`, `.col = viewer` or
 `exists t[.a, .b, viewer]` — so a device never holds a row it may not read,
 and never misses one it may. A second disjunct or an extra conjunct is a
@@ -570,6 +572,27 @@ the newest N per group stay on the device, the rest are online and a
 local read past them says `complete: false`). A snapshot arrives in pages
 of 2,000 events, each staged in its own transaction and published
 together with the last, so a device never shows half a snapshot.
+
+`online only` optionally documents a table with no sync. On a `maintain`,
+it opts out of inherited sync. `N_MAINTAIN_SYNCED` calls out public inherited
+aggregates and group audiences with unbounded recipients or multiple values per group.
+
+`check --residency` lists every table's residency, inferred and inherited
+audiences, and each operation's `runs: device | server` or
+`predicts: eligible | never`. Read sites are `held`, `horizon` or `server`.
+A horizon site stays eligible but may queue without a row past the horizon;
+`E_PREDICT` names the table, index and key. `why <op>` names the reason and
+rewrite; `why <table>` includes the rule used for inference. The generated
+`api.ts` documents arguments, results, these words, horizon sites and
+`require` codes. `check` compares with `snapback/generated/residency.json`;
+`dev` compares with its served generation. `N_NOW_SERVER` and
+`N_NOT_PREDICTABLE` name changed sites, including added horizon risks.
+
+`test --residency --fixture dir [--as persona]` prints measured cold rows and
+compact JSON row bytes per synced table and persona, plus totals and
+aggregate row counts. It uses the real partition snapshot, respecting
+horizons. Facts and measurements are labelled; byte counts exclude transport
+framing and are not extrapolated.
 
 ### Feeds: fan out on write, read one page
 
@@ -660,6 +683,13 @@ service seat (`insert <- viewer = 'service:ranker'`). The whole card, both
 shapes: `snapback4 guide feeds`.
 
 ## 4. The client
+
+The local client routes queries using the compiled `runs` word. An observed
+server-run query refreshes when a commit touches its tables. Offline, it
+returns the last server answer for that watch with `fresh: false` and
+`since`, kept only in memory for the client's lifetime, or `denied: E_OFFLINE`
+(`family: link`, `retryable: true`) when there is no answer. It never uses an
+empty device page as a server answer.
 
 ```ts
 import { createLocalClient } from "snapback4/local";   // the local-first tier
@@ -913,7 +943,7 @@ PNG and `asset` is always denied.
   prints the result, the meter and, for a mutation, the partition events;
   a job runs whole as the system (`--as` is ignored) and prints its run.
   Exit 1 on a refusal or a parked job, 2 on an engine error.
-- **`snapback4 test [--fixture dir] [--as persona]`** loads a fixture
+- **`snapback4 test [--residency] [--fixture dir] [--as persona]`** loads a fixture
   (one `<table>.jsonl` per table; a file for an unknown table is
   skipped) into a fresh store in memory (without a fixture, the project's
   dev store), runs every query as each persona with arguments derived
@@ -962,7 +992,7 @@ PNG and `asset` is always denied.
   store, its size, schedules and their last boundary, the last job runs,
   the effects by state and the failed ones;
   **`guide [keyword]`** prints the language card or one card: language,
-  types, indexes, rules, sync, expire, assets, reads, shapes, writes,
+  types, indexes, rules, sync, residency, expire, assets, reads, shapes, writes,
   programs, jobs, native, feeds, search, effects, services, presence,
   bounds, refusals, personas (`guide <E_CODE>` explains a code);
   **`--version`** prints the binary's version, which equals the

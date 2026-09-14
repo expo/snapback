@@ -370,7 +370,7 @@ test("local auth invalidation notifies viewer listeners before session deletion 
   const backend = {
     generation: 1,
     schema: { tables: { remote: { columns: {}, indexes: {} } } },
-    programs: [{ name: "read", kind: "Query", args: {}, body: [{ table: "remote" }] }],
+    programs: [{ name: "read", kind: "Query", runs: "server", args: {}, body: [{ table: "remote" }] }],
   };
   const client = await createLocalClient({ url: "http://viewer-delete.invalid", session, sessionStore, device: emptyDevice().opener, fetch: async (input, init) => {
     const path = new URL(input).pathname;

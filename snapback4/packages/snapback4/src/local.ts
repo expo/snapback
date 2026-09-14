@@ -256,6 +256,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let partitionDenied: Refusal | null = null;
   const linkListeners = new Set<(link: Link) => void>();
   const watches = new Map<string, Watch>();
+  const serverAnswers = new Map<string, { read: Extract<Read<unknown>, { data: unknown }>; at: number; tables: Set<string> }>();
   const settled = new Map<string, (write: Write) => void>();
   let lastSyncAt = Number((await call({ op: "meta", key: "syncedAt" })).ok ?? 0);
   let caughtUp = false;
@@ -498,6 +499,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         for (const watch of watches.values()) if (watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void rerun(watch);
       } else if (!closed && caughtUp) {
         for (const watch of watches.values()) {
+          if (serverRun(watch.op)) { void rerun(watch); continue; }
           if (!("data" in watch.snapshot) || watch.snapshot.fresh) continue;
           const { since: _, ...read } = watch.snapshot;
           watch.snapshot = { ...read, fresh: true };
@@ -537,6 +539,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const changed = json.seq > seq || (json.generation !== undefined && json.generation !== generation);
       if (changed) {
         seq = Math.max(seq, json.seq);
+        const touched = new Set(json.tables ?? []);
+        for (const watch of watches.values()) {
+          if (serverRun(watch.op) && (watch.tables.size === 0 || [...watch.tables].some((table) => touched.has(table)))) void rerun(watch);
+        }
       }
       return changed;
     } catch {
@@ -567,6 +573,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
   // ----- reads -----
 
+  // @ref LLP 3000.007#6-5 — route from compiled facts; keep server answers only in this client's memory.
+  function serverRun(op: Query<unknown, unknown>): boolean {
+    const program = backend?.programs.find((program) => program.name === op.name);
+    if (program?.native) return !nativeReady;
+    return (backend?.schema.operations?.[op.name]?.runs ?? program?.runs ?? op.runs) === "server";
+  }
+
   function runLocal<R>(op: Query<unknown, R>, args: unknown) {
     const work = evaluateLocal(op, args);
     active.add(work);
@@ -581,11 +594,17 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const program = backend!.programs.find((p) => p.name === op.name);
     const tables = program && schema ? operationTables(program, schema) : new Set<string>();
     if (partitionDenied) return { read: { denied: partitionDenied }, tables, nextExpiry: null };
+    const key = `${op.name}:${JSON.stringify(args)}`;
+    const remembered = () => {
+      const last = serverAnswers.get(key);
+      if (last) for (const table of last.tables) tables.add(table);
+      return { read: last ? { ...last.read, fresh: false, since: last.at } as Read<R> : { denied: offline() } as Read<R>, tables, nextExpiry: null };
+    };
     const server = async () => {
       while (true) {
         const result = await post(`/q/${op.name}`, { args });
         if (sessionDead) return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } } as Read<R>, tables, nextExpiry: null };
-        if (!result.ok) return { read: { denied: offline() } as Read<R>, tables, nextExpiry: null };
+        if (!result.ok) return remembered();
         if (result.obsoleteAuth) {
           const rotation = refreshing;
           if (rotation) try { await rotation; } catch {}
@@ -595,29 +614,30 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
         const json = result.json;
         for (const table of (json.tables as string[] | undefined) ?? []) tables.add(table);
-        if (json.denied) return { read: { denied: json.denied as Refusal } as Read<R>, tables, nextExpiry: null };
+        if (json.denied) { serverAnswers.delete(key); return { read: { denied: json.denied as Refusal } as Read<R>, tables, nextExpiry: null }; }
         const next = (json.next as Cursor | null | undefined) ?? null;
         const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
-        return { read: { data: json.data as R, complete: json.complete !== false, fresh: true, next }, tables, nextExpiry };
+        const read = { data: json.data as R, complete: json.complete !== false, fresh: true, next };
+        serverAnswers.set(key, { read, at: Date.now(), tables: new Set(tables) });
+        return { read, tables, nextExpiry };
       }
     };
     if (program?.native && !nativeReady) {
       if (link === "online") nativeReady = await installNative(aborter.signal);
-      if (!nativeReady) return link === "online" ? server() : { read: { denied: offline() }, tables, nextExpiry: null };
+      if (!nativeReady) return link === "online" ? server() : remembered();
     }
-    const onlineOnly = [...tables].some((t) => !schema.tables[t]?.sync);
-    if (onlineOnly && link === "online") return server();
+    if (serverRun(op)) return link === "online" ? server() : remembered();
     const answer = await call({ op: "query", name: op.name, viewer: principal, args, now: Date.now() });
     const unavailableWhy = unavailable();
     if (unavailableWhy) return { read: { denied: unavailableWhy }, tables, nextExpiry: null };
     if (answer.denied) return { read: { denied: answer.denied }, tables, nextExpiry: null };
     const outcome = answer.ok as { denied?: Refusal; data?: unknown; complete?: boolean; next?: string | null; tables?: string[]; unknown?: boolean; nextExpiry?: number | null };
     for (const table of outcome.tables ?? []) tables.add(table);
-    if (outcome.denied) return onlineOnly || outcome.unknown ? link === "online" ? server() : { read: { denied: offline() }, tables, nextExpiry: null } : { read: { denied: outcome.denied }, tables, nextExpiry: null };
+    if (outcome.denied) return outcome.unknown ? link === "online" ? server() : { read: { denied: offline() }, tables, nextExpiry: null } : { read: { denied: outcome.denied }, tables, nextExpiry: null };
     if (outcome.complete === false && link === "online" && !(await queued()).some((e) => e.observed_seq == null && (e.predictable ?? e.predicted.length > 0))) return server();
     const fresh = link === "online" && caughtUp;
     const nextExpiry = typeof outcome.nextExpiry === "number" && Number.isFinite(outcome.nextExpiry) ? outcome.nextExpiry : null;
-    return { read: { data: outcome.data as R, complete: outcome.complete !== false && !onlineOnly, fresh, next: (outcome.next as Cursor | null | undefined) ?? null, ...(fresh || !lastSyncAt ? {} : { since: lastSyncAt }) }, tables, nextExpiry };
+    return { read: { data: outcome.data as R, complete: outcome.complete !== false, fresh, next: (outcome.next as Cursor | null | undefined) ?? null, ...(fresh || !lastSyncAt ? {} : { since: lastSyncAt }) }, tables, nextExpiry };
   }
 
   function notify(watch: Watch) {

@@ -8,7 +8,7 @@
 //! on its own; one that does not compiles beside the language card's schema.
 
 /// The keyword cards, in the order `snapback4 guide` lists them.
-pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "rules", "sync", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "services", "presence", "bounds", "refusals", "personas"];
+pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "rules", "sync", "residency", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "services", "presence", "bounds", "refusals", "personas"];
 
 /// The contents of every ```quarry block in a card or a README.
 pub fn quarry(text: &str) -> Vec<String> {
@@ -162,7 +162,7 @@ table messages:
   delete <- .authorId = viewer
   retain delivered-history            -- a device keeps what it was given after it leaves the group; `until-revoked` (the default) drops it
   expire at .expiresAt                -- a row past that time is absent everywhere at once, then swept; a null time never expires
-  sync to members[.roomId] last 500 by byRoomTime     -- the horizon: a device acquires the newest N per group; older rows are online-only
+  sync last 500 by byRoomTime     -- the horizon: a device acquires the newest N per group; older rows are online-only
 
 table posts:
   authorId: principal
@@ -209,7 +209,8 @@ table profiles:
   public 'profiles are public'
   insert <- .principal = viewer
   update <- .principal = viewer
-  delete <- deny                      -- no sync line: an online-only table; its queries run on the server
+  delete <- deny
+  online only                         -- optional; no sync line has the same meaning
 
 table ledger:
   ownerId: principal
@@ -227,6 +228,7 @@ maintain messageCounts: count messages by roomId       -- an aggregate the engin
   read <- exists members[.roomId, viewer]
 maintain scoreTotals: sum posts of score by authorId   -- count, or sum of an int, decimal or money column
   read <- allow
+  online only                         -- opt out of inheriting public sync
 
 shape card = { id, name, owner: .ownerId, tagCount: count(.tags) }   -- a named shape: `.` is the row; `row card` and `page card` use it
 fn isBrief(ttl: int ?): ttl != null                                  -- a helper expression, expanded where it is called
@@ -363,7 +365,7 @@ with `return [value]`, or with its last expression, or with its final write.
 - Presence tables, heartbeats, typing → `connected[p]` for the connected set; typing lives in the client.
 - Service accounts as rows, an admin flag, `system` → `viewer = 'service:name'` in a rule (guide services).
 
-Cards: `snapback4 guide <keyword>` — types, indexes, rules, sync, expire,
+Cards: `snapback4 guide <keyword>` — types, indexes, rules, sync, residency, expire,
 assets, reads, shapes, writes, programs, jobs, native, feeds, search,
 effects, services, presence, bounds, refusals, personas. `snapback4 why
 <CODE>` explains a refusal.
@@ -490,7 +492,7 @@ table notices:
   insert <- deny
   update <- deny
   delete <- deny
-  sync public last 100 by byTime            -- everyone holds the newest 100
+  sync last 100 by byTime            -- everyone holds the newest 100
 
 table todos:
   ownerId: principal
@@ -500,7 +502,7 @@ table todos:
   insert <- .ownerId = viewer
   update <- .ownerId = viewer
   delete <- .ownerId = viewer
-  sync to .ownerId last 500 by byOwner      -- each row reaches the principal in the column
+  sync last 500 by byOwner      -- each row reaches the principal in the column
 
 table participants:
   threadId: threads
@@ -512,7 +514,7 @@ table participants:
   read <- exists participants[.threadId, viewer]
   insert <- exists participants[.threadId, viewer]
   delete <- .personId = viewer
-  sync to participants[.threadId] by .personId   -- the target has two principal columns: name the recipient
+  sync by .personId   -- the target has two principal columns: name the recipient
 
 table threads:
   subject: text <=200
@@ -524,6 +526,8 @@ table threads:
   sync to participants[.id] by .personId    -- each row reaches every principal with a participants row whose threadId matches
 ```
 
+`sync [last N by index]` infers its audience from the read rule. Explicit
+`sync public` and `sync to ...` remain valid and must agree with that rule.
 The read rule must be exactly the audience — `public`, `.col = viewer`, or
 `exists t[.a, .b, viewer]` — so a device never holds a row it may not read
 and never misses one it may; a second disjunct or an extra conjunct is
@@ -548,7 +552,67 @@ device keeps what it was given (`delivered-history`) or drops it
 (`until-revoked`, the default). What it keeps it can still read locally
 through a query without a membership `require`, while the server refuses
 the same query. A table without `sync` is online-only. A `maintain`
-grouped by the audience columns is delivered as a value row."##,
+grouped by the audience columns inherits sync and is delivered as a value row.
+`online only` on a table documents the absence of sync; on a maintain it opts
+out of inheritance. Both lines absent on a table still means online only.
+See `guide residency` for operation classes and cold acquisition measurements."##,
+        "residency" => r##"# Residency: facts at check, coverage on each call
+
+```quarry
+table notices:
+  body: text <=200
+  author: principal
+  at: time
+  by byTime: at, id
+  by byAuthor: author, id
+  public 'a public bulletin'
+  insert <- .author = viewer
+  sync last 100 by byTime
+maintain noticeCounts: count notices by author
+  read <- allow
+  online only
+table audit:
+  actor: principal
+  by byActor: actor, id
+  read <- .actor = viewer
+  online only
+query notice(id: notices):
+  return notices[id]
+query countNotices(author: principal):
+  return noticeCounts[author]
+mutation post(body: text <=200):
+  insert notices { body, author: viewer, at: now }
+```
+
+`check --residency` prints two tables of facts: each table's audience and
+horizon (inferred audiences say "from the read rule"; maintains name their
+source), then operations and their read sites: held, horizon, or server.
+Queries run on the device unless a site is server-only. Mutations predict
+when eligible; every mutation can queue. An eligible mutation's horizon
+sites say "may queue without a row past the horizon"; E_PREDICT names the
+site, table, index and key the device could not establish. Native reads
+need the app's module on the device; connected is known only by the server.
+
+`why notice` names its horizon; `why countNotices` names the online-only
+maintain and the rewrite. `why notices` prints the rule that inferred sync.
+Generated api.ts documents arguments, results, runs/predicts, horizon sites
+and require codes. check compares with generated/residency.json; dev compares
+with the generation it serves. N_NOW_SERVER names a newly server-run query.
+N_NOT_PREDICTABLE names lost eligibility or an added horizon risk, explicitly
+distinguishing a call that may queue from an operation that never predicts.
+
+N_MAINTAIN_SYNCED names public inherited aggregates and group audiences
+with unbounded recipients or multiple values per group. Add online only
+to opt out. Run
+`test --residency --fixture dir --as alice` to measure cold rows and compact
+JSON row bytes per synced table and persona, plus totals and aggregate row
+counts. Facts are labelled facts; measurements exclude transport framing
+and are not estimates for another fixture.
+
+An observed server-run query re-runs after commits touching its tables.
+Offline it returns its last server answer, held in memory for this client's
+lifetime, with fresh: false and since. Without one it refuses E_OFFLINE
+(family link, retryable). It never answers an empty device page as server data."##,
         "expire" => r##"# Expire: a row's life ends at a time
 
 ```quarry
@@ -1249,6 +1313,9 @@ refused. The default limit is 200, with a notice when more rows exist."##,
 pub const CODES: &[(&str, &str)] = &[
     ("E_SQL_READ_ONLY", "developer SQL accepts exactly one SELECT or WITH … SELECT. Writes, attachment, pragmas and side effects are refused; guide personas."),
     ("E_SQL_INTERNAL", "developer SQL reads only generated application-table views. Raw r/i, internal tables and SQLite metadata are refused; guide personas."),
+    ("N_NOW_SERVER", "a query now reads a server-only site; why names it and the rewrite. See guide residency."),
+    ("N_NOT_PREDICTABLE", "a mutation lost eligibility, or gained a horizon site that may queue without a row; the note names which. See guide residency."),
+    ("N_MAINTAIN_SYNCED", "a maintain inherits public sync or a group audience with unbounded recipients or multiple values per group; online only opts out. test --residency measures its rows."),
     ("E_INPUT", "family input — an argument or a row value does not fit its declared type. The message names the field; fix the value or the declaration. A table reference validates the id's shape, not the target's existence: the string \"null\" is an id, while JSON null needs an optional type; `require exists t[id] else CODE` checks for a visible target (guide writes)."),
     ("E_TYPE", "family input — a value has the wrong type for its position at run time (a Quarry program that binds cannot raise it; a seed or a wire argument can); the message names both types."),
     ("E_OVERFLOW", "family input — integer arithmetic left ±(2^53 − 1), the value model's range. Store minor units in a decimal or money column, or narrow the operands."),
@@ -1278,7 +1345,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_ASSET_VIEWED", "family asset — a `once` asset was served to this principal already; the second view is refused (HTTP 410). The uploader is counted after placement; an unplaced preview is not."),
     ("E_EFFECT_UNKNOWN", "family schema — no effect is queued under that id on this server (HTTP 404): it was never emitted here, or `doctor` shows it under another id. A worker settles only what it claimed (guide effects)."),
     ("E_EFFECT_LEASE", "family schema — the effect is not running under this worker's claim: another worker holds it, its lease expired and it was queued again, or it is already settled. Claim it again (`POST /effects/claim`) before settling; two workers never hold one effect (guide effects)."),
-    ("E_PREDICT", "family prediction — the device could not predict this mutation locally (a read it needs is not on the device, or an id that was not fixed at submission); the write is queued without local rows and the server judges it. An `emit` predicts nothing and needs nothing: the server keeps the effect when the write lands."),
+    ("E_PREDICT", "family prediction — the device could not predict this mutation locally (a read it needs is not on the device, or an id that was not fixed at submission); the refusal names the undecidable site, table, index and key. The write is queued without local rows and the server judges it. An `emit` predicts nothing and needs nothing: the server keeps the effect when the write lands."),
     ("E_OFFLINE", "family link — the client could not reach the server; retryable. A local-first read still answers from the device with `fresh: false` and `since`; a write waits as `pending` and lands when the link returns."),
     ("E_CLIENT", "family client — the client refused before asking the server: a hook used outside its provider, a session that ended, a malformed argument. The message says which."),
     ("E_CLOSED", "family client — the client was closed while this request was in flight. The local-first client resolves such a write `pending` instead: it is queued durably and lands on the next open."),

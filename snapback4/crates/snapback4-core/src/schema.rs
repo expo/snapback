@@ -25,6 +25,52 @@ pub struct Schema {
     /// The owner's clock: each fires its job once per period.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub schedules: Vec<Schedule>,
+    /// Compiled execution facts; absent on serialized conformance inputs.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub operations: BTreeMap<String, Execution>,
+}
+
+// @ref LLP 3000.007#6-2 — eligibility is static; prediction and horizon coverage are per call.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Execution {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runs: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub predicts: Option<String>,
+    #[serde(default)]
+    pub sites: Vec<ResidencySite>,
+    #[serde(default)]
+    pub requires: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ResidencySite {
+    pub site: String,
+    pub table: String,
+    pub index: String,
+    pub kind: String,
+    pub class: SiteClass,
+    pub reason: String,
+    pub rewrite: String,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SiteClass { Held, Horizon, Server }
+
+/// Source spelling only: the resolved `sync` remains the delivery authority.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Residency {
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub online_only: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub inferred: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inherited_from: Option<String>,
+}
+
+impl Residency {
+    fn is_default(&self) -> bool { self == &Self::default() }
 }
 
 /// `schedule name every 2m [at 08:00]: job`. Period boundaries are whole
@@ -108,6 +154,8 @@ fn prove_probe_row_readable(rule: &RuleExpr, table: &str, index: &str, index_col
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Table {
+    #[serde(default, skip_serializing_if = "Residency::is_default")]
+    pub residency: Residency,
     pub columns: BTreeMap<String, ColumnType>,
     pub indexes: BTreeMap<String, Index>,
     pub rules: Rules,
@@ -508,6 +556,8 @@ impl TextFormat {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Maintain {
+    #[serde(default, skip_serializing_if = "Residency::is_default")]
+    pub residency: Residency,
     pub kind: MaintainKind,
     pub source: String,
     pub by: Vec<String>,
@@ -541,6 +591,7 @@ pub const BY_ID: &str = "byId";
 pub fn public_table(columns: BTreeMap<String, ColumnType>, indexes: BTreeMap<String, Index>) -> Table {
     let public = RuleExpr::Public { reason: "fixture".to_owned() };
     Table {
+        residency: Residency::default(),
         columns,
         indexes,
         rules: Rules { read: public.clone(), insert: public.clone(), update: public.clone(), delete: public },

@@ -270,6 +270,7 @@ pub struct SyncDecl {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SyncAudience {
+    Inferred { principal: Option<String> },
     Public,
     Column(String),
     Target { table: String, prefix: Vec<String>, principal: Option<String> },
@@ -296,6 +297,7 @@ pub struct TableDecl {
     pub expire: Option<(String, Site)>,
     pub public: Option<(String, Site)>,
     pub sync: Option<SyncDecl>,
+    pub online_only: bool,
     pub site: Site,
 }
 
@@ -307,6 +309,7 @@ pub struct MaintainDecl {
     pub column: Option<String>,
     pub by: Vec<String>,
     pub read: RuleDecl,
+    pub online_only: bool,
     pub site: Site,
 }
 

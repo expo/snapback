@@ -55,7 +55,7 @@ test("the local client rotates near expiry and keeps every protected request on 
   const backend = {
     generation: 1,
     schema: { tables: { remote: { columns: {}, indexes: {}, sync: null } } },
-    programs: [{ name: "remote", kind: "Query", args: {}, body: [{ table: "remote" }] }],
+    programs: [{ name: "remote", kind: "Query", runs: "server", args: {}, body: [{ table: "remote" }] }],
     native: { digest: "native-one", jobs: [], reads: [] },
   };
   const requests = [];
@@ -237,7 +237,7 @@ test("an online-only watch retries a stale-token refusal after rotation", async 
   const backend = {
     generation: 1,
     schema: { tables: { remote: { columns: {}, indexes: {}, sync: null } } },
-    programs: [{ name: "remote", kind: "Query", args: {}, body: [{ table: "remote" }] }],
+    programs: [{ name: "remote", kind: "Query", runs: "server", args: {}, body: [{ table: "remote" }] }],
   };
   const oldReply = deferred();
   const queryBearers = [];
@@ -307,7 +307,7 @@ test("a current-token sign-out cannot reclassify a stale write refusal", async (
     schema: { tables: { remote: { columns: {}, indexes: {}, sync: null } } },
     programs: [
       { name: "send", kind: "Mutation", args: {}, body: [] },
-      { name: "remote", kind: "Query", args: {}, body: [{ table: "remote" }] },
+      { name: "remote", kind: "Query", runs: "server", args: {}, body: [{ table: "remote" }] },
     ],
   };
   const queued = [];

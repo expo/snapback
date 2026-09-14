@@ -46,6 +46,8 @@ export type Link = "online" | "offline" | "signed-out";
 
 /** A named operation. `Args` and `Result` are inferred from the authored program. */
 export interface Op<Args, Result> {
+  readonly runs?: "device" | "server";
+  readonly predicts?: "eligible" | "never";
   readonly kind: "query" | "mutation";
   readonly name: string;
   readonly __args?: Args;

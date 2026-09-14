@@ -21,7 +21,7 @@ table profiles:
   insert <- .principal = viewer
   update <- .principal = viewer
   delete <- deny
-  sync public last 2000 by byHandle        -- everyone holds the same bounded partition
+  sync last 2000 by byHandle        -- everyone holds the same bounded partition
 
 table conversations:
   title: text <=120
@@ -31,7 +31,7 @@ table conversations:
   update <- deny
   delete <- deny
   after insert <- exists memberships[.id, .creatorId, 'admin']
-  sync to memberships[.id]                 -- a member's device holds its conversations
+  sync                 -- a member's device holds its conversations
 
 table memberships:
   conversationId: conversations
@@ -46,7 +46,7 @@ table memberships:
   read <- exists memberships[.conversationId, viewer]
   insert <- exists memberships[.conversationId, viewer, 'admin']
   delete <- .principal = viewer or exists memberships[.conversationId, viewer, 'admin']
-  sync to memberships[.conversationId]     -- and the roster of each
+  sync     -- and the roster of each
 
 table messages:
   conversationId: conversations
@@ -62,7 +62,7 @@ table messages:
   update <- .authorId = viewer
   delete <- .authorId = viewer
   retain delivered-history                 -- an expelled member keeps what was delivered
-  sync to memberships[.conversationId] last 500 by byConvTime   -- the horizon: 500 per conversation
+  sync last 500 by byConvTime   -- the horizon: 500 per conversation
 
 maintain messageCounts: count messages by conversationId
   read <- exists memberships[.conversationId, viewer]

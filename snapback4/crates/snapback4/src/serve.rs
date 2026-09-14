@@ -253,6 +253,7 @@ fn watch_sources(project: Project, shared: Arc<Shared>) {
                         continue;
                     }
                 };
+                let residency_notes = snapback4_lang::bind::residency::change_notes(&bound, &lock(&shared.bound).schema.operations);
                 let steps = snapback4_core::successor::classify(&lock(&shared.bound).schema, &bound.schema);
                 let worst = snapback4_core::successor::worst(&steps);
                 let generated = match project.write_generated(&bound) {
@@ -278,6 +279,8 @@ fn watch_sources(project: Project, shared: Arc<Shared>) {
                         // /schema takes these guards in the same order.
                         let mut active = lock(&shared.bound);
                         let mut generation = lock(&shared.generation);
+                        for note in &residency_notes { println!("note: {note}"); }
+                        for note in &bound.notes { println!("note: {note}"); }
                         *active = bound;
                         *generation = next;
                         println!("snapback4 dev: schema adopted as generation {} ({:?}) in {} ms; types: {}", *generation, worst, started.elapsed().as_millis(), generated.display());
@@ -711,7 +714,7 @@ fn handle(mut request: Request, shared: &Shared) {
             // programs' IR, bound to a generation.
             let (schema, programs, generation, native) = {
                 let bound = lock(&shared.bound);
-                (bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()).collect::<Vec<_>>(), *lock(&shared.generation), lock(&shared.native).as_ref().map(|n| (n.digest.clone(), n.jobs.clone(), n.reads.clone())))
+                (bound.schema.clone(), snapback4_lang::emit::backend_programs(&bound), *lock(&shared.generation), lock(&shared.native).as_ref().map(|n| (n.digest.clone(), n.jobs.clone(), n.reads.clone())))
             };
             let native = native.map(|(digest, jobs, reads)| json!({ "digest": digest, "jobs": jobs, "reads": reads }));
             respond(request, 200, json!({ "generation": generation, "schema": schema, "programs": programs, "native": native }));

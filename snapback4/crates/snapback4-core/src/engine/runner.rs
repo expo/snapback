@@ -76,12 +76,13 @@ pub struct Runner<'a> {
     pub(crate) device: bool,
     /// The device touched an online-only table or a horizon: `complete: false`.
     pub(crate) beyond_horizon: bool,
+    pub(crate) missing_fact: Option<String>,
     /// While a search page runs: the words columns and the terms after the
     /// first, which every row of the page must also carry.
     pub(crate) word_filter: Option<(Vec<String>, Vec<String>)>,
     /// The program read `connected[p]` where no registry answers (a
-    /// device): a query's result is not `complete`; a prediction stands,
-    /// the server deciding when the write arrives.
+    /// device): a query's result is not `complete`; the compiled execution
+    /// fact excludes a mutation with this site from prediction.
     pub(crate) presence_unknown: bool,
     /// The sequence this run will commit as (a query reads at `seq`).
     #[allow(dead_code)]
@@ -119,6 +120,7 @@ impl<'a> Runner<'a> {
             page_overflow: false,
             device: false,
             beyond_horizon: false,
+            missing_fact: None,
             word_filter: None,
             presence_unknown: false,
             seq,

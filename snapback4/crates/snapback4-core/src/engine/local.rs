@@ -57,11 +57,15 @@ pub struct Prediction {
 
 pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context: Context, ceilings: Ceilings) -> Result<Prediction, RuntimeError> {
     validate_inputs(schema, program, &mut context.args)?;
+    if let Some(fact) = schema.operations.get(&program.name) && fact.predicts.as_deref() == Some("never") {
+        let reason = fact.sites.iter().find(|site| site.class == crate::schema::SiteClass::Server).map(|site| format!("site {}: {}", site.site, site.reason)).unwrap_or_else(|| program.name.clone());
+        return Err(RuntimeError::Prediction(format!("{reason}; queued without a predicted row")));
+    }
     let mut runner = Runner::new(rows, schema, context, Meter::new(ceilings, Cut::Abort), 0);
     runner.device = true;
     let result = runner.run(program).and_then(|value| { runner.check_final_exists()?; Ok(value) });
     if runner.beyond_horizon {
-        return Err(RuntimeError::Prediction("this device does not hold enough rows to judge the mutation".into()));
+        return Err(RuntimeError::Prediction(runner.missing_fact.clone().unwrap_or_else(|| format!("{}: this device cannot establish a read needed to predict", program.name))));
     }
     let result = result?;
     runner.charge_output(&result)?;
@@ -99,3 +103,14 @@ pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Mo
     (result, runner.beyond_horizon)
 }
 
+
+impl Runner<'_> {
+    // @ref LLP 3000.007#6-2 — preserve the first undecidable site's evaluated key.
+    pub(crate) fn unknown_fact(&mut self, table: &str, index: &str, key: &[Value], site: &str) {
+        self.beyond_horizon = true;
+        if self.missing_fact.is_none() {
+            let key = crate::wire::to_json(&Value::Array(key.to_vec()));
+            self.missing_fact = Some(format!("site {site}: this device cannot establish {table} by {index} at key {key}; the row or its absence is past the acquired horizon or online only"));
+        }
+    }
+}

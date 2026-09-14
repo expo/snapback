@@ -17,6 +17,7 @@ pub fn context() -> Context { Context::new("alice", BTreeMap::new()).at(1) }
 
 pub fn schema() -> Schema {
     let mut table = Table {
+        residency: Default::default(),
         columns: BTreeMap::from([("id".into(), ColumnType::Id), ("bucket".into(), ColumnType::Int), ("body".into(), ColumnType::Text { max: 4000 })]),
         indexes: BTreeMap::from([("byId".into(), Index::of(&["id"], true)), ("byBucket".into(), Index::of(&["bucket", "id"], false))]),
         rules: Rules { read: RuleExpr::Allow, insert: RuleExpr::Allow, update: RuleExpr::Allow, delete: RuleExpr::Allow },

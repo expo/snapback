@@ -48,7 +48,7 @@ impl Probe for Runner<'_> {
             Some(row) => self.live_aggregate(table, row)?,
             None => None,
         };
-        if self.device && (definition.sync.is_none() || (found.is_none() && definition.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.beyond_horizon = true; }
+        if self.device && (definition.sync.is_none() || (found.is_none() && definition.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.unknown_fact(table, index, key, "rule probe"); }
         Ok(found.is_some_and(|row| {
             let live = !self.expired(definition, &row);
             if live { self.note_expiry(definition, &row); }
@@ -88,12 +88,12 @@ impl Runner<'_> {
         let source = self.schema.table(&maintain.source).ok_or_else(|| RuntimeError::Schema("missing maintain source".into()))?;
         if source.expire.is_none() { return Ok(Some(row)); }
         self.read_tables.insert(maintain.source.clone());
-        if self.device && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some()) {
-            self.beyond_horizon = true;
-        }
         let group = crate::schema::maintained_key(&row, &maintain.by);
         let (index, prefix) = source.indexes.iter().find(|(_, index)| index.word_component().is_none() && index.columns().starts_with(&maintain.by))
             .map(|(name, _)| (name.as_str(), group.clone())).unwrap_or(("byId", Vec::new()));
+        if self.device && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some()) {
+            self.unknown_fact(&maintain.source, index, &prefix, "live aggregate");
+        }
         let mut bounds = Bounds::default();
         let mut total = 0_i128;
         let mut any = false;
@@ -178,7 +178,7 @@ impl Runner<'_> {
     pub(crate) fn fetch(&mut self, table_name: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
         let found = self.tx.get(table_name, id)?;
-        if self.device && (table.sync.is_none() || (found.is_none() && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.beyond_horizon = true; }
+        if self.device && (table.sync.is_none() || (found.is_none() && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.unknown_fact(table_name, "byId", &[Value::Id(id.to_owned())], "write target"); }
         Ok(found.filter(|row| !self.expired(table, row)).map(|mut row| {
             materialize_optional_fields(&mut row, table);
             row
@@ -194,7 +194,7 @@ impl Runner<'_> {
         self.read_tables.insert(read.table.clone());
         self.meter.at(&read.site);
         if self.device && table.sync.is_none() {
-            self.beyond_horizon = true;
+            self.unknown_fact(&read.table, &read.index, &key, &read.site);
         }
         if key.iter().any(|value| *value == Value::Null) && !index.columns().iter().zip(&key).all(|(column, value)| *value != Value::Null || table.columns.get(column).is_some_and(|kind| kind.is_optional())) {
             // A null key on a required column addresses nothing.
@@ -212,7 +212,7 @@ impl Runner<'_> {
             return Ok(Value::Null);
         }
         let Some(mut row) = found else {
-            if self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) { self.beyond_horizon = true; }
+            if self.device && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()) { self.unknown_fact(&read.table, &read.index, &key, &read.site); }
             return Ok(Value::Null);
         };
         if self.expired(table, &row) {
@@ -277,7 +277,7 @@ impl Runner<'_> {
         self.read_tables.insert(scan.table.clone());
         self.meter.at(&scan.site);
         if self.device && table.sync.is_none() {
-            self.beyond_horizon = true;
+            self.unknown_fact(&scan.table, &scan.index, &scope, &scan.site);
         }
         let empty_page = |this: &mut Self| {
             if this.page_depth == 0 && scan.opaque_cursor {
@@ -417,7 +417,7 @@ impl Runner<'_> {
         self.read_tables.insert(scan.table.clone());
         self.meter.at(&scan.site);
         if self.device && table.sync.is_none() {
-            self.beyond_horizon = true;
+            self.unknown_fact(&scan.table, &scan.index, &prefix, &scan.site);
         }
         let dir = match scan.order {
             Order::Asc => Dir::Asc,
@@ -521,7 +521,7 @@ impl Runner<'_> {
             && let Some(horizon) = table.sync.as_ref().and_then(|sync| sync.horizon.as_ref())
             && (horizon.by != scan.index || scan.order != crate::ir::Order::Desc || !has_more)
         {
-            self.beyond_horizon = true;
+            self.unknown_fact(&scan.table, &scan.index, &prefix, &scan.site);
         }
         if self.page_depth == 0 && !scan.opaque_cursor && has_more {
             self.page_overflow = true;

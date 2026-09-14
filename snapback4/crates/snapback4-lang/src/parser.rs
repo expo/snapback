@@ -129,7 +129,7 @@ impl Parser {
         self.take(":")?;
         self.newline()?;
         self.take_kind(Kind::Indent)?;
-        let mut table = TableDecl { name: name.clone(), columns: Vec::new(), indexes: Vec::new(), rules: Vec::new(), immutable: Vec::new(), caps: Vec::new(), final_exists: Vec::new(), retain: None, expire: None, public: None, sync: None, site };
+        let mut table = TableDecl { name: name.clone(), columns: Vec::new(), indexes: Vec::new(), rules: Vec::new(), immutable: Vec::new(), caps: Vec::new(), final_exists: Vec::new(), retain: None, expire: None, public: None, sync: None, online_only: false, site };
         while !self.at_kind(Kind::Dedent) && !self.at_kind(Kind::Eof) {
             self.skip_newlines();
             if self.at_kind(Kind::Dedent) {
@@ -203,7 +203,17 @@ impl Parser {
                 table.expire = Some((column, site));
                 Ok(())
             }
+            "online" => {
+                self.take("online")?;
+                self.take("only")?;
+                if table.online_only || table.sync.is_some() {
+                    return Err(crate::diag::sync_error(&token.site, "choose one residency line", "online only  -- or: sync"));
+                }
+                table.online_only = true;
+                self.end_line(&token.site)
+            }
             "sync" => {
+                if table.online_only { return Err(crate::diag::sync_error(&token.site, "online only cannot also sync", "choose online only or sync")); }
                 if table.sync.is_some() {
                     return Err(syntax_with(&token.site, format!("table {} has more than one sync line", table.name), "one sync line per table"));
                 }
@@ -246,6 +256,9 @@ impl Parser {
         let rewrite = "sync to memberships[.conversationId] last 500 by byConvTime";
         let audience = if self.maybe("public") {
             SyncAudience::Public
+        } else if self.at("last") || self.at("by") || self.at_kind(Kind::Newline) || self.at_kind(Kind::Eof) {
+            let principal = if self.maybe("by") { self.take(".")?; Some(self.word()?.value) } else { None };
+            SyncAudience::Inferred { principal }
         } else {
             if !self.maybe("to") {
                 return Err(syntax_with(&site, "sync takes public, to .column, or to table[.column, ...]", rewrite));
@@ -418,6 +431,7 @@ impl Parser {
         self.newline()?;
         self.take_kind(Kind::Indent)?;
         let mut read = None;
+        let mut online_only = false;
         while !self.at_kind(Kind::Dedent) && !self.at_kind(Kind::Eof) {
             self.skip_newlines();
             if self.at_kind(Kind::Dedent) {
@@ -425,6 +439,12 @@ impl Parser {
             }
             let result: Fallible<()> = (|| {
                 let effect = self.word()?;
+                if effect.value == "online" {
+                    self.take("only")?;
+                    if online_only { return Err(syntax_with(&effect.site, "duplicate online only", "keep one online only line")); }
+                    online_only = true;
+                    return self.end_line(&effect.site);
+                }
                 if effect.value == "readable" {
                     return Err(unsupported(&effect.site, "readable on a maintain", "read <- rule  -- a maintain has one rule; the engine delivers it to its source's audience"));
                 }
@@ -449,7 +469,7 @@ impl Parser {
         let Some(read) = read else {
             return Err(syntax_with(&site, format!("maintain {name} requires read <- rule"), "read <- exists memberships[.conversationId, viewer]"));
         };
-        Ok(MaintainDecl { name, aggregate: aggregate.value, source, column, by, read, site })
+        Ok(MaintainDecl { name, aggregate: aggregate.value, source, column, by, read, online_only, site })
     }
 
     /// `effect notify`: a name a mutation or job may `emit` under; the
@@ -1007,7 +1027,7 @@ mod tests {
         let messages = &document.tables[3];
         assert_eq!(messages.name, "messages");
         let sync = messages.sync.as_ref().unwrap();
-        assert_eq!(sync.audience, SyncAudience::Target { table: "memberships".into(), prefix: vec!["conversationId".into()], principal: None });
+        assert_eq!(sync.audience, SyncAudience::Inferred { principal: None });
         assert_eq!(sync.horizon, Some((500, "byConvTime".into())));
         assert_eq!(messages.retain.as_ref().unwrap().0, "delivered-history");
     }

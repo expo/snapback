@@ -341,7 +341,7 @@ impl Runner<'_> {
                     Some(row) => self.live_aggregate(target, row)?,
                     None => None,
                 };
-                if self.device && (definition.sync.is_none() || (found.is_none() && definition.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.beyond_horizon = true; }
+                if self.device && (definition.sync.is_none() || (found.is_none() && definition.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.unknown_fact(target, index, &key, "after insert"); }
                 if found.is_none() {
                     return Err(RuntimeError::Constraint(format!("inserting into {table_name} requires a matching row in {target} by the end of the mutation")));
                 }

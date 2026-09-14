@@ -45,6 +45,11 @@ pub fn typescript(bound: &Bound) -> String {
                 // A job is the server's to run (a schedule, `snapback4 run`); no client calls it.
                 ProgramKind::Job => continue,
             };
+            let fact = &bound.schema.operations[&program.program.name];
+            let horizon = fact.sites.iter().filter(|site| site.class == snapback4_core::schema::SiteClass::Horizon).map(|site| format!("{} by {} ({})", site.table, site.index, site.site)).collect::<Vec<_>>().join(", ");
+            let word = fact.runs.as_ref().map(|word| format!("runs: {word}")).or_else(|| fact.predicts.as_ref().map(|word| format!("predicts: {word}"))).unwrap_or_default();
+            let comment = format!("Arguments: {}. Result: {}. {word}. Horizon sites: {}. Require codes: {}.", args_ts(&program.args), ty_ts(&program.result), if horizon.is_empty() { "none" } else { &horizon }, if fact.requires.is_empty() { "none".into() } else { fact.requires.join(", ") });
+            out.push_str(&format!("{indent}/** {} */\n", comment.replace("*/", "* /")));
             out.push_str(&format!("{indent}{}: {kind}<{}, {}>;\n", property(short), args_ts(&program.args), ty_ts(&program.result)));
         }
         if module != "schema" {
@@ -65,7 +70,9 @@ pub fn typescript(bound: &Bound) -> String {
                 ProgramKind::Mutation => "mutation",
                 ProgramKind::Job => continue,
             };
-            out.push_str(&format!("{indent}{}: {{ kind: \"{kind}\", name: {} }},\n", property(short), string_literal(&program.program.name)));
+            let fact = &bound.schema.operations[&program.program.name];
+            let words = fact.runs.as_ref().map(|word| format!(", runs: {}", string_literal(word))).or_else(|| fact.predicts.as_ref().map(|word| format!(", predicts: {}", string_literal(word)))).unwrap_or_default();
+            out.push_str(&format!("{indent}{}: {{ kind: \"{kind}\", name: {}{words} }},\n", property(short), string_literal(&program.program.name)));
         }
         if module != "schema" {
             out.push_str("  },\n");
@@ -129,4 +136,14 @@ fn property(name: &str) -> String {
 
 fn string_literal(value: &str) -> String {
     serde_json::to_string(value).expect("strings always serialize").replace('\u{2028}', "\\u2028").replace('\u{2029}', "\\u2029")
+}
+
+/// The wire adds execution words without changing the interpreter's IR.
+pub fn backend_programs(bound: &Bound) -> Vec<serde_json::Value> {
+    bound.programs.iter().map(|program| {
+        let mut value = serde_json::to_value(&program.program).expect("program JSON");
+        let facts = serde_json::to_value(&bound.schema.operations[&program.program.name]).expect("execution JSON");
+        value.as_object_mut().expect("program object").extend(facts.as_object().expect("execution object").clone());
+        value
+    }).collect()
 }
