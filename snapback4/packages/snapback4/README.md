@@ -873,8 +873,8 @@ and catches up when the link returns. A device needs a kept backend to open
 offline. Merely installing that backend does not acquire its partition: until
 a snapshot and catch-up finish, partition-dependent reads fall back to the
 server or return `E_OFFLINE`, and writes queue without invented predictions.
-A successfully acquired empty partition is still known data. When upgrading a pre-0.2.13 store, the missing acquisition metadata requires
-one completed online sync;
+A successfully acquired empty partition is still known data. When upgrading a store that lacks acquisition metadata, one completed online
+sync is required;
 existing durable writes remain queued. Safe literal-default-only schema
 widening keeps acquired images readable; a reset or newly added table requires
 acquisition again.
