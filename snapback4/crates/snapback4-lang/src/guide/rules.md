@@ -40,7 +40,7 @@ id and unique-key targets privately; the update rule judges old and next.
 | Target before the write | Refusal details |
 | --- | --- |
 | Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_CONSTRAINT`; `E_INPUT` |
-| Unreadable or absent | `NOT_FOUND` for rule denial, any `if`, any immutable column in the patch, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |
+| Unreadable or absent | `NOT_FOUND` for rule denial, an `update` condition, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |
 
 A hidden collision on ordinary insert or `insert ... if absent` stays
 `E_RULE`; a readable collision names its index (if-absent returns null).
@@ -49,8 +49,17 @@ An update or upsert-patch colliding with a different hidden row returns generic
 Use `upsert counters[recipient] { count: 1 }` under an `update` rule to
 write another principal's row. Success discloses the admitted row's existence
 and the update rule predicates. It grants no extra stream or snapshot row.
-A condition needs a row you can read; a blind patch needs none. On an unreadable
-target, an immutable column in a patch refuses without comparing its value.
+A condition belongs on `update`; an upsert inserts or patches. A condition
+needs a row you can read; a blind patch needs none. On a row you cannot read,
+immutable columns in a patch are ignored. A readable immutable mismatch still
+names the column. Before target lookup, the engine reserves room for the rule
+probes and the largest merged image allowed by the schema and supplied patch;
+if it cannot fit, `E_BOUND` refuses equally for a hidden or absent target.
 A readable maintain over a hidden source is a declared read channel: its
 delta can disclose the old contribution. `N_MAINTAIN_DELTA` notes potentially
 wider update authority under a separately readable maintain.
+
+Omitted asset columns keep their placement. An explicit asset id on a row you
+cannot read must be your own upload, even if it equals the retained id. A rule
+probe costs one unit regardless of expired siblings; a uniform false page is
+decided from its pinned prefix and returns empty and complete at no charge.

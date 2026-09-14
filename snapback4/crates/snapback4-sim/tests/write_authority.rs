@@ -125,12 +125,20 @@ fn s05_insert_and_insert_if_absent_on_a_hidden_unique_clash_stay_e_rule() {
 }
 #[test]
 fn s05_a_readable_clash_still_names_the_index() {
-    let mut e = world(SOURCE, true, 7);
-    let body = call(&mut e, "add", "alice", json!({"key":"lookup"}), "clash").reply(Some("clash"));
-    assert_eq!(body["why"]["code"], "E_CONSTRAINT");
-    assert!(body["why"]["message"].as_str().unwrap().contains("key"));
-    assert!(body["why"]["message"].as_str().unwrap().contains("lookup"));
-    assert!(matches!(call(&mut e, "quiet", "alice", json!({"key":"lookup"}), "quiet").state, WriteState::Sent { result: Value::Null, .. }));
+    let mut observations = Vec::new();
+    for clash in [true, false] {
+        let mut e = world(SOURCE, clash, 7);
+        let (_, observation) = observed(&mut e, "add", "alice", json!({"key":"lookup"}), "same");
+        if clash {
+            assert_eq!(observation.body()["why"]["code"], "E_CONSTRAINT");
+            assert!(observation.body()["why"]["message"].as_str().unwrap().contains("records.byKey"));
+            assert!(observation.body()["why"]["message"].as_str().unwrap().contains("lookup"));
+            observation.assert_unchanged();
+            assert!(matches!(call(&mut e, "quiet", "alice", json!({"key":"lookup"}), "quiet").state, WriteState::Sent { result: Value::Null, .. }));
+        } else { assert_eq!(observation.body()["state"], "sent"); }
+        observations.push(observation);
+    }
+    assert_ne!(observations[0].first_http_body, observations[1].first_http_body, "readable clash is a granted distinction");
 }
 #[test]
 fn s05_upsert_on_a_hidden_row_succeeds_when_the_update_rule_admits_and_returns_no_row() {
@@ -168,21 +176,32 @@ fn w1_e_conflict_current_is_withheld_and_the_code_does_not_tell_hidden_from_abse
     let body = call(&mut e, "conditional", "alice", json!({"key":"lookup","expected":4}), "conflict").reply(Some("conflict"));
     assert_eq!(body["why"]["code"], "E_CONFLICT");
     assert_eq!(body["current"]["amount"], 7);
-    assert_eq!(call(&mut e, "conditional", "bob", json!({"key":"lookup","expected":7}), "yes").reply(Some("yes"))["why"]["code"], "NOT_FOUND");
+    unchanged_pair(SOURCE, "conditional", json!({"key":"lookup","expected":7}), 7);
     assert!(matches!(call(&mut e, "conditional", "alice", json!({"key":"lookup","expected":7}), "readable").state, WriteState::Sent { .. }));
 }
 #[test]
-fn w1_an_immutable_patch_on_a_hidden_row_refuses_matching_and_mismatching_guesses() {
-    let takeover = format!("{SOURCE}\nmutation takeover(key: text <=80):\n  update records[key] {{owner: viewer, frozen: 'wrong'}}\n");
-    unchanged_pair(&takeover, "takeover", json!({"key":"lookup"}), 7);
-    unchanged_pair(SOURCE, "immutable", json!({"key":"lookup","guess":"different"}), 7);
+fn w1_an_immutable_patch_on_a_hidden_row_ignores_matching_and_mismatching_guesses() {
+    let mut observations = Vec::new();
+    for frozen in ["fixed", "wrong"] {
+        let mut e = engine(SOURCE);
+        let mut r = row("target", "lookup", "alice", 7, "PRIVATE"); r["frozen"] = json!(frozen);
+        seed(&mut e, "records", vec![r]);
+        let (_, observation) = observed(&mut e, "immutable", "bob", json!({"key":"lookup","guess":"fixed"}), "same");
+        assert_eq!(observation.body()["state"], "sent");
+        assert_eq!(observation.body()["result"], Json::Null);
+        assert_eq!(value(&mut e, "alice").field("frozen").unwrap().as_str().unwrap(), frozen);
+        assert_eq!(observation.changes, json!({}));
+        observations.push(observation);
+    }
+    equal_observations(&observations);
     let mut e = world(SOURCE, true, 7);
-    let mismatch = unchanged_pair(SOURCE, "immutable", json!({"key":"lookup","guess":"wrong"}), 7);
-    let matching = unchanged_pair(SOURCE, "immutable", json!({"key":"lookup","guess":"fixed"}), 7);
-    assert_eq!(matching, mismatch);
     assert!(matches!(call(&mut e, "immutable", "alice", json!({"key":"lookup","guess":"fixed"}), "yes").state, WriteState::Sent { .. }));
-    assert_eq!(call(&mut e, "immutable", "alice", json!({"key":"lookup","guess":"different"}), "no").reply(Some("no"))["why"]["code"], "E_CONSTRAINT");
+    let body = call(&mut e, "immutable", "alice", json!({"key":"lookup","guess":"different"}), "no").reply(Some("no"));
+    assert_eq!(body["why"]["code"], "E_CONSTRAINT");
+    assert!(body["why"]["message"].as_str().unwrap().contains("records.frozen"));
+    unchanged_pair(SOURCE, "editId", json!({"target":"absent"}), 7);
 }
+
 #[test]
 fn w1_incomplete_patch_upsert_does_not_tell_hidden_deny_from_absent() {
     unchanged_pair(&SOURCE.replace("update <- allow", "update <- deny"), "put", json!({"key":"lookup"}), 7);
@@ -306,28 +325,35 @@ fn wa3_hidden_patch_preserves_foreign_asset_without_disclosing_id() {
 #[test]
 fn wa5_hidden_write_replay_returns_only_sanitized_receipt() {
     w1_replayed_ops_returns_the_withheld_body();
-    let mut e = world(SOURCE, true, 7);
-    let first = call(&mut e, "conditional", "bob", json!({"key":"lookup","expected":0}), "same");
-    let body = recorded(&e, "bob", "same");
-    assert_eq!(body, first.receipt(Some("same")));
-    for field in ["current", "result", "metered", "tables", "events"] { assert!(body.get(field).is_none(), "{body}"); }
-    assert!(e.replay("bob", "same").unwrap().unwrap().reply(Some("same")).get("current").is_none());
+    let mut observations = Vec::new();
+    for hidden in [false, true] {
+        let mut e = world(SOURCE, hidden, 7);
+        let (first, observation) = observed(&mut e, "conditional", "bob", json!({"key":"lookup","expected":0}), "same");
+        let body: Json = serde_json::from_str(&observation.receipt).unwrap();
+        assert_eq!(body, first.receipt(Some("same")));
+        for field in ["current", "result", "metered", "tables", "events"] { assert!(body.get(field).is_none(), "{body}"); }
+        observations.push(observation);
+    }
+    equal_observations(&observations);
 }
 #[test]
 fn wa5_revoked_result_and_conflict_current_are_not_retrievable() {
     for (name, a) in [("edit", json!({"key":"lookup"})), ("conditional", json!({"key":"lookup","expected":0}))] {
-        let mut e = world(SOURCE, true, 7);
-        let first = call(&mut e, name, "alice", a.clone(), "lost"); // response dropped
-        let original = first.reply(Some("lost"));
-        assert!(original.get("result").or_else(|| original.get("current")).is_some());
-        seed(&mut e, "records", vec![row("target", "lookup", "carol", 7, "REVOKED")]);
-        assert_eq!(value(&mut e, "alice"), Value::Null);
-        let before = e.store().rows("records").unwrap();
-        let replay = call(&mut e, name, "alice", a, "lost").reply(Some("lost"));
-        for field in ["result", "current", "metered", "tables", "events"] { assert!(replay.get(field).is_none(), "{replay}"); }
-        assert_eq!(replay["state"], original["state"]);
-        assert_eq!(e.store().rows("records").unwrap(), before);
-        assert!(e.replay("bob", "lost").unwrap().is_none());
+        let mut observations = Vec::new();
+        for secret in ["REVOKED1", "REVOKED2"] {
+            let mut e = world(SOURCE, true, 7);
+            let (_, observation) = observation::observe_with_intervention(&mut e, name, "alice", a.clone(), "lost", ("one", json!({"key":"lookup"})), |e| {
+                seed(e, "records", vec![row("target", "lookup", "carol", 7, secret)]);
+                assert_eq!(value(e, "alice"), Value::Null);
+            });
+            assert!((observation.body().get("result").is_some() || observation.body().get("current").is_some()));
+            let replay: Json = serde_json::from_slice(&observation.retry_http_body).unwrap();
+            for field in ["result", "current", "metered", "tables", "events"] { assert!(replay.get(field).is_none(), "{replay}"); }
+            assert_eq!(replay["state"], observation.body()["state"]);
+            assert!(e.replay("bob", "lost").unwrap().is_none());
+            observations.push(observation);
+        }
+        equal_observations(&observations);
     }
     // Arbitrary scalar results cannot be reauthorized as rows; replay withholds them too.
     let mut e = world(&format!("{SOURCE}\nmutation scalar(key: text <=80):\n  r = records[key] ! else NOT_FOUND\n  return r.secret\n"), true, 7);
@@ -549,30 +575,28 @@ fn w2_cap_refusals_never_name_retained_group_values() {
 #[test]
 fn w2_receipts_store_the_replay_body_before_revocation_including_diagnostics() {
     let source = SOURCE.replace("  immutable frozen", "  unique bySecretAmount: secret, amount\n  immutable frozen");
-    let mut e = world(&source, true, 7);
-    seed(&mut e, "records", vec![row("other", "other", "alice", 0, "PRIVATE")]);
-    let first = call(&mut e, "edit", "alice", json!({"key":"lookup"}), "lost").reply(Some("lost"));
-    assert_eq!(first["why"]["code"], "E_CONSTRAINT");
-    assert!(first["why"]["message"].as_str().unwrap().contains("PRIVATE"));
-    let receipt = recorded(&e, "alice", "lost");
-    assert!(!receipt.to_string().contains("PRIVATE"));
-    for field in ["code", "site", "rewrite", "guide", "family", "retryable"] { assert_eq!(receipt["why"][field], first["why"][field]); }
-    seed(&mut e, "records", vec![row("target", "lookup", "carol", 7, "PRIVATE"), row("other", "other", "carol", 0, "PRIVATE")]);
-    assert_eq!(value(&mut e, "alice"), Value::Null);
-    assert_eq!(e.replay("alice", "lost").unwrap().unwrap().reply(Some("lost")), receipt);
-    assert_eq!(call(&mut e, "edit", "alice", json!({"key":"lookup"}), "lost").reply(Some("lost")), receipt);
-    let mut e = world(SOURCE, true, 7);
-    for (name, values) in [("edit", json!({"key":"lookup"})), ("conditional", json!({"key":"lookup","expected":99}))] {
-        let first = call(&mut e, name, "alice", values, name).reply(Some(name));
-        assert!(first.get("result").or_else(|| first.get("current")).is_some());
-        let receipt = recorded(&e, "alice", name);
-        for field in ["result", "current"] { assert!(receipt.get(field).is_none()); }
-        assert_eq!(e.replay("alice", name).unwrap().unwrap().reply(Some(name)), receipt);
+    let mut observations = Vec::new();
+    for secret in ["REVOKED1", "REVOKED2"] {
+        let mut e = world(&source, true, 7);
+        seed(&mut e, "records", vec![row("other", "other", "alice", 0, "PRIVATE")]);
+        let (_, observation) = observation::observe_with_intervention(&mut e, "edit", "alice", json!({"key":"lookup"}), "lost", ("one", json!({"key":"lookup"})), |e| {
+            seed(e, "records", vec![row("target", "lookup", "carol", 7, secret), row("other", "other", "carol", 0, secret)]);
+            assert_eq!(value(e, "alice"), Value::Null);
+        });
+        let first = observation.body();
+        assert_eq!(first["why"]["code"], "E_CONSTRAINT");
+        assert!(first["why"]["message"].as_str().unwrap().contains("PRIVATE"));
+        let receipt: Json = serde_json::from_str(&observation.receipt).unwrap();
+        assert!(!receipt.to_string().contains("PRIVATE"));
+        for field in ["code", "site", "rewrite", "guide", "family", "retryable"] { assert_eq!(receipt["why"][field], first["why"][field]); }
+        observations.push(observation);
     }
+    equal_observations(&observations);
 }
 
 #[test]
 fn w2_hidden_refusal_restores_read_rule_probe_work_too() {
+    exhausted_target_pairs();
     let source = format!("{}\ntable grants:\n  record: records\n  principal: principal\n  unique byPair: record, principal\n  read <- allow\n", SOURCE.replace("read <- .owner = viewer", "read <- exists grants[.id, viewer]").replace("  sync to .owner last 100 by byOwner\n", "").replace("update <- allow", "update <- deny"));
     for (name, input) in [("edit", json!({"key":"lookup"})), ("editId", json!({"target":"target"})), ("put", json!({"key":"lookup"}))] { unchanged_pair(&source, name, input, 7); }
     let mut e = world(&source.replace("update <- deny", "update <- allow"), true, 7);
@@ -580,4 +604,163 @@ fn w2_hidden_refusal_restores_read_rule_probe_work_too() {
     let result = call(&mut e, "edit", "bob", json!({"key":"lookup"}), "readable");
     assert!(matches!(result.state, WriteState::Sent { .. }));
     assert!(result.metered.rule_probes > 0);
+}
+
+fn exhausted_target_pairs() {
+    for resource in ["probes", "heap"] {
+        for address in ["id", "unique", "upsert"] {
+            for guard in ["plain", "immutable", "conditional"] {
+                if address == "upsert" && guard == "conditional" { continue; } // upsert conditions are a compiler-observation exception.
+                let base = SOURCE.replace("secret: text <=80", "secret: text <=4000").replace("read <- .owner = viewer", "read <- exists grants[.id, viewer]")
+                    .replace("  sync to .owner last 100 by byOwner\n", "").replace("update <- allow", "update <- exists grants[.id, viewer]");
+                let prelude = if resource == "probes" { "  for i in range(0, 8192):\n    w = work[id = 'work']\n" } else { "  for i in range(0, 2000):\n    p = pad\n" };
+                let statement = format!("{} records[{}] {{{}}}{}", if address == "upsert" {"upsert"} else {"update"}, if address == "id" {"target"} else {"key"},
+                    if guard == "immutable" {"frozen: 'wrong'"} else {"amount: 0"}, if guard == "conditional" {" if .amount = 7"} else {""});
+                let source = format!("{base}\ntable grants:\n  record: text <=80\n  principal: principal\n  unique byPair: record, principal\n  read <- allow\ntable work:\n  record: records\n  read <- exists grants[.record, viewer]\nmutation warm(pad: text <=4000, key: text <=80, target: records): server\n{prelude}  return null\nmutation pressure(pad: text <=4000, key: text <=80, target: records): server\n{prelude}  {statement}\n");
+                // A rule's key types match target IDs, including serialized caller IDs.
+                let source = source.replace("record: text <=80", "record: records");
+                let input = json!({"pad":"x".repeat(4000),"key":"lookup","target":"target"});
+                let mut observations = Vec::new();
+                for hidden in [false, true] {
+                    let mut e = world(&source, hidden, 7);
+                    seed(&mut e, "records", vec![row(if hidden {"target"} else {"decoy"}, if hidden {"lookup"} else {"elsewhere"}, "alice", 7, &"s".repeat(4000))]);
+                    seed(&mut e, "work", vec![json!({"id":"work","record":"work"})]);
+                    seed(&mut e, "grants", vec![json!({"id":"grant","record":"work","principal":"bob"})]);
+                    let warm = call(&mut e, "warm", "bob", input.clone(), "warm");
+                    assert!(matches!(warm.state, WriteState::Sent { .. }), "{resource}: {:?}", warm.state);
+                    if resource == "heap" { e.set_ceilings(snapback4_core::meter::Ceilings { heap_bytes: warm.metered.heap_bytes + 1024, ..e.ceilings() }); }
+                    else { assert_eq!(warm.metered.rule_probes, 8192); }
+                    let (_, observation) = observed(&mut e, "pressure", "bob", input.clone(), "same");
+                    assert_eq!(observation.body()["why"]["code"], "E_BOUND", "{resource}/{address}/{guard}: {:?}", observation.body());
+                    assert!(observation.body()["why"]["message"].as_str().unwrap().contains(if resource == "heap" {"heap"} else {"rule"}));
+                    if resource == "probes" { assert_eq!(observation.meter.rule_probes, 8192); }
+                    else { assert!((warm.metered.heap_bytes..e.ceilings().heap_bytes).contains(&observation.meter.heap_bytes)); }
+                    if !hidden && address == "id" && guard == "plain" {
+                        eprintln!("W3 {resource}: warm heap {}, refusal heap {}, heap ceiling {}, probes {}", warm.metered.heap_bytes, observation.meter.heap_bytes, e.ceilings().heap_bytes, observation.meter.rule_probes);
+                    }
+                    observations.push(observation);
+                }
+                equal_observations(&observations);
+            }
+        }
+    }
+}
+
+#[test]
+fn w3_hidden_maintain_overflow_never_serializes_the_retained_contribution() {
+    let source = format!("{SOURCE}\nmaintain totals: sum records of amount by secret\n  read <- deny\nmutation move(key: text <=80):\n  update records[key] {{secret: 'B'}}\n");
+    let mut observations = Vec::new();
+    for contribution in [1, 2] {
+        let mut e = engine(&source);
+        seed(&mut e, "records", vec![row("target", "lookup", "alice", contribution, "A"), row("balance", "balance", "alice", snapback4_core::value::I53_MAX, "B")]);
+        let (_, observation) = observed(&mut e, "move", "bob", json!({"key":"lookup"}), "same");
+        assert_eq!(observation.body()["why"]["code"], "E_OVERFLOW");
+        assert_eq!(observation.body()["why"]["message"], "E_OVERFLOW: maintain totals.value overflowed");
+        observation.assert_unchanged();
+        observations.push(observation);
+    }
+    equal_observations(&observations);
+    let mut e = engine(&source);
+    seed(&mut e, "records", vec![row("target", "lookup", "alice", 2, "A"), row("balance", "balance", "alice", snapback4_core::value::I53_MAX - 2, "B")]);
+    let (result, _) = observed(&mut e, "move", "bob", json!({"key":"lookup"}), "positive");
+    assert!(matches!(result.state, WriteState::Sent { .. }));
+}
+
+#[test]
+fn w3_explicit_foreign_asset_guess_does_not_test_hidden_placement() {
+    let source = format!("{SOURCE}\nmutation asset(key: text <=80, photo: image <=1000):\n  update records[key] {{photo}}\n");
+    for explicit in [true, false] {
+        let mut observations = Vec::new();
+        for held in ["G", "H"] {
+            let mut e = engine(&source);
+            let mut png = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR".to_vec(); png.extend(1u32.to_be_bytes()); png.extend(1u32.to_be_bytes());
+            let mut asset = e.store_asset("alice", &png, 1000).unwrap();
+            e.store().forget_asset(&asset.id).unwrap();
+            for id in ["G", "H"] { asset.id = id.into(); e.store().record_asset(&asset).unwrap(); }
+            asset.id = held.into();
+            let mut r = row("target", "lookup", "alice", 7, "PRIVATE"); r["photo"] = wire::to_json(&asset.column_value());
+            seed(&mut e, "records", vec![r]);
+            let (name, input) = if explicit { ("asset", json!({"key":"lookup","photo":{"id":"G"}})) } else { ("edit", json!({"key":"lookup"})) };
+            let (_, observation) = observed(&mut e, name, "bob", input, "same");
+            if explicit { assert_eq!(observation.body()["why"]["code"], "E_ASSET_UNKNOWN"); observation.assert_unchanged(); }
+            else { assert_eq!(observation.body()["state"], "sent"); }
+            assert_eq!(value(&mut e, "alice").field("photo"), Ok(&asset.column_value()));
+            observations.push(observation);
+        }
+        equal_observations(&observations);
+    }
+    // An explicit upload owned by the writer remains a permitted assignment.
+    let mut e = world(&source, true, 7);
+    let mut png = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR".to_vec(); png.extend(1u32.to_be_bytes()); png.extend(1u32.to_be_bytes());
+    let asset = e.store_asset("bob", &png, 1000).unwrap();
+    let (result, _) = observed(&mut e, "asset", "bob", json!({"key":"lookup","photo":{"id":asset.id}}), "positive");
+    assert!(matches!(result.state, WriteState::Sent { .. }));
+}
+
+#[test]
+fn w3_historical_w_receipt_is_resanitized_on_replay() {
+    let mut e = world(SOURCE, true, 7);
+    let first = call(&mut e, "conditional", "alice", json!({"key":"lookup","expected":0}), "historical");
+    let mut historical = first.reply(Some("historical")); // W stored the first reply, including current and the old why.
+    historical["why"]["message"] = json!("row-derived PRIVATE diagnostic");
+    e.store().conn().execute("UPDATE _ops SET outcome = ?1 WHERE principal = 'alice' AND id = 'historical'", [historical.to_string()]).unwrap();
+    seed(&mut e, "records", vec![row("target", "lookup", "carol", 7, "REVOKED")]);
+    let replay = e.replay("alice", "historical").unwrap().unwrap().reply(Some("historical"));
+    assert_eq!(replay["why"]["message"], "the program refused with E_CONFLICT");
+    assert!(replay.get("current").is_none() && replay.get("result").is_none());
+    assert!(!replay.to_string().contains("PRIVATE"));
+    assert_eq!(call(&mut e, "conditional", "alice", json!({"key":"lookup","expected":0}), "historical").reply(Some("historical")), replay);
+}
+
+#[test]
+fn w3_hidden_upsert_ignores_immutables_and_absent_upsert_inserts_them() {
+    for guess in ["fixed", "wrong"] {
+        let source = format!("{SOURCE}\nmutation profile(key: text <=80):\n  return upsert records[key] {{owner: viewer, secret: 'supplied', frozen: '{guess}', amount: 0}}\n");
+        let mut observations = Vec::new();
+        for hidden in [true, false] {
+            let mut e = world(&source, hidden, 7);
+            let (_, observation) = observed(&mut e, "profile", "bob", json!({"key":"lookup"}), "same");
+            let body = observation.body();
+            assert_eq!(body["state"], "sent");
+            assert_eq!(body["result"]["owner"], "bob"); // This patch explicitly grants read authority.
+            assert_eq!(body["result"]["frozen"], if hidden {"fixed"} else {guess});
+            assert_eq!(body["result"]["id"], if hidden {"target"} else {"fresh"});
+            assert_eq!(body["result"], wire::to_json(&value(&mut e, "bob")));
+            for device in &observation.devices {
+                assert!(device["settled"]["outbox"].as_array().unwrap().is_empty());
+                assert_eq!(device["settled"]["query"]["data"], body["result"]);
+            }
+            observations.push(observation);
+        }
+        // Preserve the actual bodies. Only the explicitly granted row (including
+        // its id/frozen), committed write, stream/device row, and admitted work differ.
+        let mut bodies = observations.iter().map(Observation::body).collect::<Vec<_>>();
+        for body in &mut bodies { body.as_object_mut().unwrap().remove("result"); }
+        assert_eq!(bodies[0], bodies[1]);
+        assert_eq!(observations[0].receipt, observations[1].receipt);
+        assert_eq!(observations[0].retry_http_body, observations[1].retry_http_body);
+        assert_eq!(observations[0].effects, observations[1].effects);
+        assert_eq!(observations[0].meter.rows_written, observations[1].meter.rows_written);
+        assert_eq!(observations[0].meter.rule_probes, observations[1].meter.rule_probes);
+    }
+}
+
+#[test]
+fn w3_live_aggregate_overflow_uses_the_same_value_free_refusal() {
+    let source = "table items:\n  group: text <=10\n  amount: int\n  until: time ?\n  by byGroup: group, id\n  by byExpiry: until\n  expire at .until\n  read <- deny\nmaintain sums: sum items of amount by group\n  read <- allow\n  online only\nmutation live(): server\n  return sums['g'] by byGroup\nquery one(key: text <=80):\n  return null\n";
+    let mut observations = Vec::new();
+    for contribution in [1, 2] {
+        let mut e = engine(source);
+        seed(&mut e, "items", vec![json!({"id":"c","group":"g","amount":-contribution,"until":1}),
+            json!({"id":"a","group":"g","amount":snapback4_core::value::I53_MAX,"until":null}), json!({"id":"b","group":"g","amount":contribution,"until":null})]);
+        let (_, observation) = observed(&mut e, "live", "bob", json!({}), "same");
+        assert_eq!(observation.body()["why"]["code"], "E_OVERFLOW");
+        assert_eq!(observation.body()["why"]["message"], "E_OVERFLOW: maintain sums.value overflowed");
+        observations.push(observation);
+    }
+    equal_observations(&observations);
+    let mut e = engine(source);
+    seed(&mut e, "items", vec![json!({"id":"a","group":"g","amount":snapback4_core::value::I53_MAX,"until":null})]);
+    let (result, _) = observed(&mut e, "live", "bob", json!({}), "positive");
+    assert!(matches!(result.state, WriteState::Sent { result: Value::Int(snapback4_core::value::I53_MAX), .. }));
 }

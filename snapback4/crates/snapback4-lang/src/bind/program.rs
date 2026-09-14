@@ -634,6 +634,10 @@ impl<'a> Binder<'a> {
                 Ok(valued.then(|| (ir::var(&tmp), row_ty)))
             }
             WriteOp::Update | WriteOp::Upsert => {
+                // @ref LLP 3000.007#17 — upsert's insert arm has no old row on which to decide a condition.
+                if *op == WriteOp::Upsert && condition.is_some() {
+                    return Err(unknown(site, "upsert cannot take a condition", "a condition belongs on update; an upsert inserts or patches"));
+                }
                 // @ref LLP 3000.007#8 — item 7: target resolution and conditional old images belong to the engine.
                 let key = self.write_key(info, keys, site, out)?;
                 let upsert = *op == WriteOp::Upsert;

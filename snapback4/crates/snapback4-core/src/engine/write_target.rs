@@ -1,8 +1,8 @@
 //! Engine-private write addressing, conditions and disclosure.
 use super::runner::{Flow, Runner};
-use crate::error::RuntimeError;
+use crate::error::{MeterKind, RuntimeError};
 use crate::ir::{Builtin, Expr, IndexKeyExpr, Input, KeyProvenance, LoopDomain, Read, Scan, Stmt, WriteCondition};
-use crate::schema::{Effect, materialize_optional_fields};
+use crate::schema::{ColumnType, Effect, RuleExpr, Table, materialize_optional_fields};
 use crate::value::Value;
 
 impl Runner<'_> {
@@ -12,6 +12,32 @@ impl Runner<'_> {
         let result = attempt(self);
         if matches!(&result, Err(RuntimeError::Require { code, .. }) if code == "NOT_FOUND") { self.meter.restore(mark); }
         result
+    }
+
+    // @ref LLP 3000.007#17 — reserve resolution's static worst case before the target lookup; no ceiling is changed.
+    pub(super) fn reserve_target_resolution(&self, table: &Table, patch: &Value, upsert: bool) -> Result<(), RuntimeError> {
+        let probes = rule_probes(&table.rules.read).saturating_mul(2).saturating_add(rule_probes(&table.rules.update))
+            .saturating_add(if upsert { rule_probes(&table.rules.insert).saturating_mul(2) } else { 0 });
+        // Covers the largest cloned row allowed by the schema, the caller's patch
+        // (including ill-typed fields), and the miss arm's image/default materialization.
+        // Retained maps/assets share their Arc; the merge charges only memory it copies.
+        let heap = row_copy_ceiling(table).saturating_mul(2).saturating_add(patch.heap_bytes().saturating_mul(2));
+        for (kind, amount, used, ceiling) in [(MeterKind::RuleProbes, probes, self.meter.used.rule_probes, self.meter.ceilings.rule_probes),
+            (MeterKind::HeapBytes, heap, self.meter.used.heap_bytes, self.meter.ceilings.heap_bytes)] {
+            if !self.meter.room(kind, amount) { return Err(RuntimeError::Bound { kind, actual: used.saturating_add(amount), ceiling, site: self.meter.site().into() }); }
+        }
+        Ok(())
+    }
+
+    pub(super) fn merge_patch(&mut self, old: &Value, patch: &Value) -> Result<Value, RuntimeError> {
+        let mut bytes = 40_u64;
+        for (key, value) in old.as_object()?.iter().filter(|(key, _)| !patch.as_object().expect("patch checked").contains_key(*key)).chain(patch.as_object()?.iter()) {
+            bytes = bytes.saturating_add(80 + key.len() as u64 + value.clone_heap_bytes());
+        }
+        self.meter.heap(bytes)?;
+        let fields = old.as_object()?.iter().filter(|(key, _)| !patch.as_object().expect("patch checked").contains_key(*key)).chain(patch.as_object()?.iter())
+            .map(|(key, value)| (key.clone(), value.clone())).collect::<std::collections::BTreeMap<_, _>>();
+        Ok(Value::Row(fields.into()))
     }
 
     pub(super) fn no_write_target(&self) -> RuntimeError {
@@ -33,6 +59,7 @@ impl Runner<'_> {
 
     fn resolve_write_target(&mut self, target: &Read, patch: &Expr, upsert: bool, condition: Option<&WriteCondition>, valued: bool) -> Result<Value, RuntimeError> {
         self.refuse_engine_owned(&target.table)?;
+        if upsert && condition.is_some() { return Err(RuntimeError::Input("a condition belongs on update; an upsert inserts or patches".into())); }
         if let Some(condition) = condition { validate_condition(condition)?; }
         let key = target.key.iter().map(|e| self.expr(e)).collect::<Result<Vec<_>, _>>()?;
         let patch = self.expr(patch)?;
@@ -41,17 +68,15 @@ impl Runner<'_> {
         if !index.unique || key.len() != index.columns().len() { return Err(RuntimeError::Input("a write target needs one complete unique key".into())); }
         if patch.as_object()?.contains_key("id") { return Err(RuntimeError::Input(format!("{} update patch cannot change id", target.table))); }
         self.read_tables.insert(target.table.clone());
-        let old = self.live_lookup(&target.table, &target.index, index, &key)?;
+        self.reserve_target_resolution(&definition, &patch, upsert)?;
+        let old = self.lookup_live(&target.table, &target.index, index, &key, false)?;
         if self.device && (old.is_none() || definition.sync.is_none()) { return Err(self.write_miss(&target.table, &target.index, &key)); }
         let id = if let Some(mut old) = old {
             materialize_optional_fields(&mut old, &definition);
             let readable = self.check_rule(&target.table, Effect::Read, None, &old)?;
-            self.refuse_hidden_immutable_patch(&target.table, &patch, readable)?;
+            let patch = self.ignore_hidden_immutable_patch(&target.table, patch, readable)?;
             let id = old.field("id")?.clone();
-            let mut fields = old.as_object()?.clone();
-            fields.extend(patch.as_object()?.iter().map(|(k, v)| (k.clone(), v.clone())));
-            let new = Value::Row(fields.into());
-            self.meter.heap(new.heap_bytes())?;
+            let new = self.merge_patch(&old, &patch)?;
             // The old image is used only in this isolated condition scope, after update authority.
             self.authorize_update(&target.table, &old, &new, readable)?;
             if let Some(condition) = condition {
@@ -63,7 +88,7 @@ impl Runner<'_> {
                     Err(error) => return Err(error),
                 }
             }
-            self.replace_authorized(&target.table, old, new, readable)?;
+            self.replace_authorized(&target.table, old, new, readable, &patch)?;
             id
         } else {
             if !upsert { return Err(self.no_write_target()); }
@@ -81,13 +106,16 @@ impl Runner<'_> {
         self.get(&Read { site: target.site.clone(), table: target.table.clone(), index: "byId".into(), key: vec![Expr::Literal(id)], provenance: KeyProvenance::Computed })
     }
 
-    // @ref LLP 3000.007#14 — ruling 17 (a): immutable presence on an unreadable patch refuses without comparing.
-    pub(super) fn refuse_hidden_immutable_patch(&self, table: &str, patch: &Value, readable: bool) -> Result<(), RuntimeError> {
-        if !readable && self.schema.tables[table].constraints.iter().any(|constraint| match constraint {
-            crate::schema::Constraint::Immutable { fields } => fields.iter().any(|field| patch.as_object().is_ok_and(|patch| patch.contains_key(field))),
-            _ => false,
-        }) { return Err(self.no_write_target()); }
-        Ok(())
+    // @ref LLP 3000.007#17 — ruling 17 (a), third pass: hidden immutable fields are ignored, never compared, on update and upsert.
+    pub(super) fn ignore_hidden_immutable_patch(&self, table: &str, patch: Value, readable: bool) -> Result<Value, RuntimeError> {
+        if readable { return Ok(patch); }
+        let mut fields = patch.as_object()?.clone();
+        for constraint in &self.schema.tables[table].constraints {
+            if let crate::schema::Constraint::Immutable { fields: immutable } = constraint {
+                for field in immutable { fields.remove(field); }
+            }
+        }
+        Ok(Value::Row(fields.into()))
     }
 
     // @ref LLP 3000.007#14 — ruling 17 (b): an author condition needs a readable target; a blind patch needs none.
@@ -174,5 +202,31 @@ fn pure_builtin(builtin: &Builtin) -> bool {
         Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Join | Builtin::Group { .. }
         | Builtin::First | Builtin::Last | Builtin::At | Builtin::Min | Builtin::Max | Builtin::Sort { .. } | Builtin::MentionTokens
         | Builtin::DeterministicShare | Builtin::Count | Builtin::Sum | Builtin::CountCapped => true,
+    }
+}
+
+fn rule_probes(rule: &RuleExpr) -> u64 {
+    match rule {
+        RuleExpr::Exists { .. } => 1,
+        RuleExpr::And(terms) | RuleExpr::Or(terms) => terms.iter().map(rule_probes).fold(0, u64::saturating_add),
+        RuleExpr::Not(inner) => rule_probes(inner),
+        RuleExpr::Allow | RuleExpr::Deny | RuleExpr::Public { .. } | RuleExpr::Eq(..) | RuleExpr::Ne(..) | RuleExpr::Created { .. } => 0,
+    }
+}
+fn row_copy_ceiling(table: &Table) -> u64 {
+    table.columns.iter().fold(40, |total, (name, ty)| total.saturating_add(80 + name.len() as u64).saturating_add(column_copy_ceiling(ty)))
+}
+fn column_copy_ceiling(ty: &ColumnType) -> u64 {
+    match ty {
+        ColumnType::Id | ColumnType::Principal | ColumnType::Ref { .. } => 144,
+        ColumnType::Text { max } => u64::from(*max) * 4,
+        ColumnType::Bytes { max } => u64::from(*max),
+        ColumnType::Enum { variants } => variants.iter().map(|v| v.len() as u64).max().unwrap_or(0),
+        ColumnType::Optional(inner) => column_copy_ceiling(inner),
+        ColumnType::List { of, max } => u64::from(*max).saturating_mul(std::mem::size_of::<Value>() as u64 + column_copy_ceiling(of)),
+        // Canonical JSON bytes bound owned strings/bytes and array slots at every
+        // depth. Object subtrees, like image/video facts, are shared Arc values.
+        ColumnType::Json { max_bytes } => u64::from(*max_bytes) * (std::mem::size_of::<Value>() as u64 + 1),
+        ColumnType::Image { .. } | ColumnType::Video { .. } | ColumnType::Int | ColumnType::Decimal { .. } | ColumnType::Money { .. } | ColumnType::Bool | ColumnType::Time => 0,
     }
 }

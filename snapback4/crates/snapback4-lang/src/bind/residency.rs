@@ -166,7 +166,7 @@ fn old_read(rule: &RuleExpr) -> RuleExpr {
         RuleExpr::And(rules) => RuleExpr::And(rules.iter().map(old_read).collect()),
         RuleExpr::Or(rules) => RuleExpr::Or(rules.iter().map(old_read).collect()),
         RuleExpr::Not(rule) => RuleExpr::Not(Box::new(old_read(rule))),
-        RuleExpr::Exists { table, index, key, provenance } => RuleExpr::Exists { table: table.clone(), index: index.clone(), key: key.iter().map(old).collect(), provenance: *provenance },
+        RuleExpr::Exists { table, index, key, provenance, equalities } => RuleExpr::Exists { table: table.clone(), index: index.clone(), key: key.iter().map(old).collect(), provenance: *provenance, equalities: equalities.iter().map(|(column, term)| (column.clone(), old(term))).collect() },
         other => other.clone(),
     }
 }

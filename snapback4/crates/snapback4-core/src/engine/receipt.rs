@@ -45,7 +45,9 @@ impl MutationOutcome {
         let state = match body["state"].as_str() {
             Some("sent") => WriteState::Sent { seq: body["seq"].as_u64().ok_or_else(malformed)?, result: Value::Null },
             Some("failed") => {
-                let why: Refusal = serde_json::from_value(body["why"].clone()).map_err(|e| RuntimeError::Store(e.to_string()))?;
+                let mut why: Refusal = serde_json::from_value(body["why"].clone()).map_err(|e| RuntimeError::Store(e.to_string()))?;
+                // @ref LLP 3000.007#17 — even a historical W-shaped receipt cannot return row-derived diagnostic text.
+                why.message = format!("the program refused with {}", why.code);
                 WriteState::Failed { why, current: None }
             }
             _ => return Err(malformed()),

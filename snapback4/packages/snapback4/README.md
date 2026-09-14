@@ -188,7 +188,7 @@ id and unique-key targets privately; the update rule judges old and next.
 | Target before the write | Refusal details |
 | --- | --- |
 | Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_CONSTRAINT`; `E_INPUT` |
-| Unreadable or absent | `NOT_FOUND` for rule denial, any `if`, any immutable column in the patch, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |
+| Unreadable or absent | `NOT_FOUND` for rule denial, an `update` condition, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |
 
 A hidden collision on ordinary insert or `insert ... if absent` stays
 `E_RULE`; a readable collision names its index (if-absent returns null).
@@ -197,15 +197,20 @@ An update or upsert-patch colliding with a different hidden row returns generic
 Use `upsert counters[recipient] { count: 1 }` under an `update` rule to
 write another principal's row. Success discloses the admitted row's existence
 and the update rule predicates. It grants no extra stream or snapshot row.
-A condition needs a row you can read; a blind patch needs none. On an unreadable
-target, an immutable column in a patch refuses without comparing its value.
+A condition belongs on `update`; an upsert inserts or patches. A condition
+needs a row you can read; a blind patch needs none. On a row you cannot read,
+immutable columns in a patch are ignored. A readable immutable mismatch still
+names the column. Before target lookup, the engine reserves room for the rule
+probes and the largest merged image allowed by the schema and supplied patch;
+if it cannot fit, `E_BOUND` refuses equally for a hidden or absent target.
 
 `old` in a rule and the conditional update's `if` are evaluated inside the
 engine. An update/upsert result and conflict `current` are read-rule gets,
 never the merged patch image: null or withheld when hidden at that read.
-A patch can grant read authority and then return its row. Unchanged assets
-keep their established facts, and update authority is checked before asset
-diagnostics. A readable maintain is an explicit delta read channel;
+A patch can grant read authority and then return its row. Omitted asset columns
+keep their placement. An explicit asset id on a row you cannot read must be your
+own upload, even if it equals the retained id. Update authority is checked
+before asset diagnostics. A readable maintain is an explicit delta read channel;
 `N_MAINTAIN_DELTA` notes potentially wider source update authority.
 A device missing a write target, on any synced table with or without a
 horizon, queues without a predicted row and still sends `/m`.
@@ -259,7 +264,8 @@ compiled on that card beside the language card.
 A mutation classified `predicts: "never"`, from a server site or an author's
 `: server` marker, may iterate a bounded plain prefix page when its read rule
 is uniform over the prefix. `matching`, merges and tables with expiry are
-refused for that pass (`E_STRUCTURAL_FANOUT`). Prediction still needs a complete
+refused for every mutation page (`E_STRUCTURAL_FANOUT`), predicting or not,
+looped or only bound. Prediction still needs a complete
 schema-capped group. Every page a mutation reads, including a page it only
 binds, must be uniformly decided by its prefix (`E_STRUCTURAL_FANOUT`): read it in
 a query, or pin the deciding columns.

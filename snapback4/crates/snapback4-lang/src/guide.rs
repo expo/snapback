@@ -781,7 +781,9 @@ Defaults fill missing insert columns on the writing host, including the insert
 branch of `upsert`; updates and existing-row upserts never reapply defaults.
 `upsert` inserts or patches: on an existing row, unnamed columns keep their
 values. An incomplete insert patch answers `NOT_FOUND`. An explicit null
-clears an optional column. Unchanged asset facts are preserved; the update
+clears an optional column. Omitted asset columns keep their placement; an explicit
+asset id on a row you cannot read must be your own upload, even if it equals the
+retained id. The update
 rule runs before asset diagnostics. Conditional `if` sees old only inside
 the engine; neither old nor the merged image is a program binding.
 
@@ -792,7 +794,7 @@ id and unique-key targets privately; the update rule judges old and next.
 | Target before the write | Refusal details |
 | --- | --- |
 | Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_CONSTRAINT`; `E_INPUT` |
-| Unreadable or absent | `NOT_FOUND` for rule denial, any `if`, any immutable column in the patch, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |
+| Unreadable or absent | `NOT_FOUND` for rule denial, an `update` condition, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |
 
 A hidden collision on ordinary insert or `insert ... if absent` stays
 `E_RULE`; a readable collision names its index (if-absent returns null).
@@ -801,8 +803,12 @@ An update or upsert-patch colliding with a different hidden row returns generic
 Use `upsert counters[recipient] { count: 1 }` under an `update` rule to
 write another principal's row. Success discloses the admitted row's existence
 and the update rule predicates. It grants no extra stream or snapshot row.
-A condition needs a row you can read; a blind patch needs none. On an unreadable
-target, an immutable column in a patch refuses without comparing its value.
+A condition belongs on `update`; an upsert inserts or patches. A condition
+needs a row you can read; a blind patch needs none. On a row you cannot read,
+immutable columns in a patch are ignored. A readable immutable mismatch still
+names the column. Before target lookup, the engine reserves room for the rule
+probes and the largest merged image allowed by the schema and supplied patch;
+if it cannot fit, `E_BOUND` refuses equally for a hidden or absent target.
 
 
 The table names are the language card's. A final write is the implicit
@@ -840,7 +846,7 @@ mutation programWrites(roomId: rooms, title: text 1..80):     -- reads and write
 A mutation with `predicts: "never"` (a server site or `: server`) may pass
 over a bounded plain prefix page whose read rule is uniform over its prefix,
 without a complete schema-capped group. `matching`, merges and tables with
-expiry are refused for that pass (`E_STRUCTURAL_FANOUT`). A predicting mutation
+expiry are refused for every mutation page, predicting or not, looped or bound (`E_STRUCTURAL_FANOUT`). A predicting mutation
 keeps the complete-group requirement. Every page a mutation reads, even just
 binding it, must be uniformly decided by its prefix (`E_STRUCTURAL_FANOUT`):
 read it in a query, or pin the deciding columns.
@@ -1449,12 +1455,12 @@ pub const CODES: &[(&str, &str)] = &[
     ("N_MAINTAIN_SYNCED", "a maintain inherits public sync or a group audience with unbounded recipients or multiple values per group; online only opts out. test --residency measures its rows."),
     ("E_INPUT", "family input — an argument or a row value does not fit its declared type, or an HTTP request exceeds its body bound (sync: 256 KiB, HTTP 413). The message names the field; fix the value or the declaration. A table reference validates the id's shape, not the target's existence: the string \"null\" is an id, while JSON null needs an optional type; `require exists t[id] else CODE` checks for a visible target (guide writes)."),
     ("E_TYPE", "family input — a value has the wrong type for its position at run time (a Quarry program that binds cannot raise it; a seed or a wire argument can); the message names both types."),
-    ("E_OVERFLOW", "family input — integer arithmetic left ±(2^53 − 1), the value model's range. Store minor units in a decimal or money column, or narrow the operands."),
+    ("E_OVERFLOW", "family input — integer arithmetic left ±(2^53 − 1), the value model's range. Internal aggregate overflow names the maintain and its value column, never the computed sum. Store minor units in a decimal or money column, or narrow the operands."),
     ("E_DIV_ZERO", "family input — divmod, / or % by zero. Check the divisor first: `require n != 0 else EMPTY`."),
     ("E_FIELD", "family input — a field was read from a value that has none (a null row's column, a missing object field). Narrow the row first: `row ! else NOT_FOUND`."),
     ("E_SCHEMA", "family schema — the schema or the store is inconsistent. `snapback4 check` names the line."),
     ("E_SCHEMA_CONSTRAINT", "family schema — a declaration the compiler binds but the core refuses: a cap or an expire without its index, a maintain target without its unique group index, a sync whose aggregate would reveal rows its audience may not read. The message names the declaration; guide indexes."),
-    ("E_STRUCTURAL_FANOUT", "family schema — prediction needs a complete schema-capped group; a never-predicting mutation may pass a bounded uniform plain prefix page over a table without expiry. Every mutation page, even without a loop, must be uniformly decided by its prefix. Matching word scans, merges and unknown origins are refused for a never-predicting pass. Pin the read-rule fields and a capped group, use : server for a bounded uniform pass, or move a sweep to a job chunk."),
+    ("E_STRUCTURAL_FANOUT", "family schema — prediction needs a complete schema-capped group; a never-predicting mutation may pass a bounded uniform plain prefix page over a table without expiry. Every mutation page, even without a loop, must be uniformly decided by its prefix. Matching word scans, merges and expiring tables are refused for every mutation page, predicting or not, looped or bound; unknown loop origins are refused too. Pin the read-rule fields and a capped group, use : server for a bounded uniform pass, or move a sweep to a job chunk."),
     ("E_UNBOUND_SCAN", "family schema — a compiled program scans a table or index the schema no longer has. Recompile: `snapback4 check` after the schema change."),
     ("E_RULE", "family auth — a table's insert, update or delete rule did not admit this viewer, or a unique key collided with a row you cannot read; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count. Reads never raise it: a hidden row is null. Read the rule with `snapback4 why <table>`."),
     ("E_AUTH", "family auth — no principal, a session that is not live, or the wrong kind at a door: send `x-snapback-persona` in development or a bearer token (a persona is refused off loopback and under `serve`); claiming effects and minting sessions take a service token (`snapback4 token --service <name>`), never a user's (guide services)."),

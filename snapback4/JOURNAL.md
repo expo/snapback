@@ -3592,3 +3592,128 @@ Logs: `/private/tmp/lane-w2-suite-final.log` and
 `git diff --check` is clean; the journal's entire base is an unchanged prefix,
 §14 is unchanged, and the existing corpus, meter ceilings and ceremony
 instrument have no diff. The pre-existing untracked `LANE-BRIEF.md` is untouched.
+
+## 2026-09-14 — lane W3: third-pass write authority and uniform-page repairs
+
+Built LLP 3000.007 §17's third-pass dispositions in this worktree, starting at
+`b80ad0cb60582c08ed1fb5cc6cad60b4947b90c9`. The nine dated built lines under
+that table map its rows to this repair; §14 is byte-for-byte unchanged from
+this lane's supplied RFC. The governing constraints are LLP 3000 §6–§7 and
+LLP 3000.007 §5.9, §8 item 7, and §17. No ceiling, serialized value form,
+existing corpus case, delete implementation, or ceremony instrument changed.
+
+1. Uniform pages decide their read rule from pinned prefix values before
+   fetching a candidate. A false verdict returns an empty complete page
+   with **0 examined / 0 rule probes**, including after **8,192 examined**
+   or **8,192 probes**. Complete observations match across **0 / 1 / 10,000**
+   hidden rows. A rule probe costs **1** logical unit regardless of expired
+   siblings; existence of a live maintain needs a live source witness, not
+   its sum. The expiry regression compares **0 / 9,000** expired probe
+   targets on false and true verdicts: **0 / 0** and **1 / 1** examined/probes
+   respectively. This is logical accounting, not a physical-time claim.
+2. Before an ID or unique-key target lookup, resolution checks available
+   room for twice the read rule's probe sites, the update rule's, and (for
+   upsert) twice the insert rule's; short-circuit branches cannot exceed
+   that static count. Heap room covers two schema-maximum copied row images
+   plus twice the supplied patch's measured heap. Merges charge the memory
+   they actually copy; retained map/asset Arcs are shared, and overwritten
+   hidden columns are never copied just to discard them. A non-fitting
+   reservation refuses E_BOUND before lookup in both worlds. The exhaustion
+   fixture reserves **3 probes**, a **17,561 B** maximum copied row, and
+   **35,374 B** for an amount patch or **35,384 B** for its immutable patch.
+   Its heap prelude uses **16,004,012 B**; the refused amount target reaches
+   **16,004,156 B** with a test ceiling of **16,005,036 B** (lower than the
+   unchanged **16,777,216 B** default). Its other prelude uses the full
+   **8,192** probes. **16 paired scenarios / 32 worlds** cover ID update,
+   unique update and upsert, with immutable and conditional updates; the
+   existing ample-budget and readable-admitted controls remain.
+3. Physical and live maintained-sum overflow share a value-free E_OVERFLOW:
+   the maintain name and `value` column, never the computed total. Retained
+   contributions **1 / 2** overflow identically in both paths; a total of
+   **9,007,199,254,740,991** still succeeds. The live fixture seeds its
+   cancelling expired contribution first so setup stays within range.
+4. An explicit asset ID on an unreadable target proves upload ownership
+   before any equality-preservation shortcut. Both **G / H** hidden worlds
+   refuse the same foreign G; omitted-column controls retain the old
+   placement, and a writer-owned upload succeeds.
+5. The scan traversal records structural Expr::Merge, independent of
+   merge_site. A serialized non-looping merge without that marker refuses;
+   the corresponding plain bound page succeeds. Plain, non-expiring,
+   non-merge pages are required in **every** mutation, predicting or not,
+   looped or bound. The predicting matching-page pair refuses equally for
+   **0 / 8,193** hidden words.
+6. The shared helper retains the serializer's exact first-body bytes; it
+   does not claim an actual HTTP transport/status capture. It compares all
+   **7** meter fields (examined, index_entries, rule_probes, steps,
+   heap_bytes, output_bytes, rows_written), receipt, retry, committed source
+   and maintain deltas, effects, stream, snapshot and **2** device stores,
+   including admission, pending, reopen and settlement. An intervention
+   now revokes before retry and both stores' settlement. Readable clash
+   asserts `byKey` with a no-clash control; failed receipts, revocations,
+   matching conditions and serialized-condition runtime cases use the
+   helper. Structural/compiler refusals are explicitly the no-receipt
+   exception. Pure readable conditions retain a successful control.
+7. from_receipt re-sanitizes historical why.message; a W-shaped historical
+   response with current and row-derived diagnostic text cannot recover
+   either after revocation. No published W receipts exist, so no migration
+   was added.
+8. The binder refuses upsert conditions with **1** population-independent
+   diagnostic and the rewrite “a condition belongs on update; an upsert
+   inserts or patches”. The parser consumes the form so it reaches that
+   single refusal rather than two parser-recovery errors. Serialized IR
+   receives the same pre-lookup runtime prohibition. The named
+   ignore_hidden_immutable_patch drops immutable fields without comparison
+   on hidden update/upsert hits; readable mismatches still name the column.
+   Matching/mismatching update worlds agree. Profile upsert inserts its
+   supplied immutable fields on a miss and preserves them on a hidden hit;
+   both send. Its explicit owner change grants read authority, so the test
+   preserves and checks the legitimately returned, streamed and settled
+   row differences instead of redacting them in the helper. Admitted-work
+   meters and physical insert/update deltas remain the ruled residuals.
+9. README, rules/writes/programs cards and CODES describe these forms and
+   refusals. Census correction to W2: **5** tracked Quarry files contain
+   **38** operations, including the native fixture's **12**. No application,
+   fixture or loopbar caller needed a rewrite for these changes. The largest
+   changed source is guide.rs, **1,479 lines**. The already oversized RFC
+   and this required append-only journal remain documentation, not source.
+
+Learned: restoring a meter after a refusal is too late if deciding that
+refusal can exhaust it. The reservation must precede lookup, and a uniform
+page needs no first row to establish its verdict. Omitted versus explicit
+patch fields carry different authority. Ignoring hidden immutables keeps the
+ordinary upsert insert branch usable; refusing only the hit reopens existence.
+The recorded residuals (caps, after-insert, admitted-write budget outcomes,
+retained-unique match and physical timing) remain; no constant-time claim.
+
+The broad suite also required a minimal update to the existing membership
+regression (`snapback4-sim/tests/membership.rs`): a readable roster now uses
+**1 probe** for the first member too, because its verdict precedes every
+candidate. Its old **0-probe** expectation depended on sampling that member's
+own row first. Only that assertion and its comment changed; the membership
+fixture, application, self-witness analysis and ceremony instrument did not.
+
+Verification: the final focused simulator run passes **40 / 0** (condition
+**1**, page admission **7**, write authority **32**); guide **8 / 0**, device
+write authority **2 / 0**, and the adjusted membership suite **4 / 0**. The
+complete blocking script passes on the fleet Linux host in **71 s**:
+**344 Rust passes / 0 failures / 1 ignored**, **9 fixture passes / 0 failures**,
+and **126 client passes / 0 failures**, including Chromium. This exceeds the
+script's 60-second budget by **11 s**; no test or timing threshold was changed.
+The isolated copy's **661** tracked input files had **0** hash mismatches,
+manifest SHA256
+`0ae4b7b6c9b63924588bd154e824fa8808339629ea7cce1991e242d3f43e0fcd`;
+only this verification paragraph was appended afterward. Linux wasm measured
+**1,517,613 B raw / 425,787 B gzip** (Binaryen 132); the local macOS build
+measured **1,517,859 B raw / 426,105 B gzip**.
+
+The first local complete run reported **2 failing steps in 827 s**: Rust
+included the now-fixed membership expectation and a live-overflow regression
+whose seed order itself overflowed; concurrent client launches hit startup
+deadlines under local load. A serial client rerun passed **115 / 116**, with
+only Chromium's sandbox SIGABRT left. That exact browser failure was reproduced
+on base **b80ad0cb60582c08ed1fb5cc6cad60b4947b90c9** (**0 / 1** browser tests).
+The first isolated Linux run passed all **126** client tests but still had
+the old membership assertion and lacked the shared social-messenger fixture
+inputs; the final complete rerun above includes both corrections. These
+setup/test corrections are not labelled inherited product failures. No commit,
+push, tag, or publication was performed.

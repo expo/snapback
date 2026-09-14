@@ -60,14 +60,14 @@ impl Origin {
 
 
 pub fn check(schema: &Schema, program: &Program) -> Result<(), RuntimeError> {
-    let scans = crate::ir::scans(program);
+    let (scans, has_merge) = crate::ir::read_structure(program);
     if program.kind == ProgramKind::Mutation {
         require_uniform_mutation_pages(schema, &scans)?;
-        if schema.operations.get(&program.name).is_some_and(|fact| fact.predicts.as_deref() == Some("never")) {
-            for scan in &scans {
-                if let Some(reason) = plain_prefix_problem(schema, scan) {
-                    return Err(RuntimeError::Structural { code: "E_STRUCTURAL_FANOUT", message: format!("{}: {reason}", scan.site) });
-                }
+        // @ref LLP 3000.007#17 — structural merges and every mutation page are checked, including bound pages in predicting mutations.
+        if has_merge { return Err(RuntimeError::Structural { code: "E_STRUCTURAL_FANOUT", message: format!("{}: a merge is not a plain prefix scan; read it in a query, or use a job chunk", program.name) }); }
+        for scan in &scans {
+            if let Some(reason) = plain_prefix_problem(schema, scan) {
+                return Err(RuntimeError::Structural { code: "E_STRUCTURAL_FANOUT", message: format!("{}: {reason}", scan.site) });
             }
         }
         let nonuniform = scans.iter().find(|s| schema.table(&s.table).and_then(|t| t.index(&s.index)).is_some() && !scan_visibility(schema, s).uniform).map(|s| (*s).clone());
@@ -349,13 +349,13 @@ fn collect(body: &[Stmt], top: bool, out: &mut BTreeMap<String, Binding>) {
     }
 }
 
-// @ref LLP 3000.007#17 — word expansion and expiry can exhaust the meter before a uniform verdict.
+// @ref LLP 3000.007#17 — every mutation page stays a plain, non-expiring prefix even after the uniform-verdict repair.
 fn plain_prefix_problem(schema: &Schema, scan: &Scan) -> Option<String> {
     let table = schema.table(&scan.table)?;
     if !table.index(&scan.index)?.is_plain() || scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_))) {
         Some("matching word scans expand hidden words before deciding visibility; read it in a query, or use a plain prefix scan".into())
     } else if table.expire.is_some() {
-        Some("a table with expiry examines expired rows before deciding visibility; read it in a query, or use a job chunk".into())
+        Some("a mutation page cannot scan a table with expiry; read it in a query, or use a job chunk".into())
     } else if scan.merge_site.is_some() {
         Some("a merge is not a plain prefix scan; read it in a query, or use a job chunk".into())
     } else { None }

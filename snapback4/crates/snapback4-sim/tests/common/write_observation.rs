@@ -1,5 +1,6 @@
 //! One paired-world observation boundary, shared by simulator and device acceptance.
-//! First/retry bytes use the very serializer /m uses; the package test exercises its HTTP route.
+//! First/retry bodies are the serializer's bytes, unchanged: no redaction and no actual HTTP transport/status.
+//! The package tests exercise /m's HTTP route separately.
 #![allow(dead_code)]
 #[path = "../../../snapback4-device/tests/common/mod.rs"]
 mod hosts;
@@ -112,6 +113,11 @@ fn settle<H: Host>(host: &mut H, mut device: Device<H::Store>, mut observation: 
 }
 
 pub fn observe(e: &mut Engine, name: &str, viewer: &str, values: Json, op: &str, query: (&str, Json)) -> (MutationOutcome, Observation) {
+    observe_with_intervention(e, name, viewer, values, op, query, |_| {})
+}
+
+/// Run a revocation after recording the first body, before retry and both stores' settlement.
+pub fn observe_with_intervention(e: &mut Engine, name: &str, viewer: &str, values: Json, op: &str, query: (&str, Json), intervene: impl FnOnce(&mut Engine)) -> (MutationOutcome, Observation) {
     let before = rows(e);
     let initial = snapshot(e, viewer);
     let seq = e.seq().unwrap();
@@ -130,12 +136,13 @@ pub fn observe(e: &mut Engine, name: &str, viewer: &str, values: Json, op: &str,
     let first_http_body = serde_json::to_vec(&result.reply(Some(op))).unwrap();
     let receipt = e.store().applied_outcome(viewer, op).unwrap().unwrap();
     assert_eq!(serde_json::from_str::<Json>(&receipt).unwrap(), result.receipt(Some(op)));
+    let committed = rows(e);
+    let changes = delta(&before, &committed);
+    intervene(e);
     let retry = e.mutate(name, Some(op), context).unwrap();
     let retry_http_body = serde_json::to_vec(&retry.reply(Some(op))).unwrap();
     assert_eq!(retry_http_body, receipt.as_bytes());
     assert_eq!(e.replay(viewer, op).unwrap().unwrap().reply(Some(op)), retry.reply(Some(op)));
-    let committed = rows(e);
-    let changes = delta(&before, &committed);
     let stream_page = e.stream_at(viewer, seq, 20_000, 1000).unwrap();
     let stream = serde_json::to_value(&stream_page).unwrap();
     let page: StreamPage = serde_json::from_value(json!({"snapshot":false,"events":stream_page.events.iter().map(|event| json!({"table":event.table,"kind":event.kind,"id":event.id,"data":event.data.as_ref().map(wire::to_json)})).collect::<Vec<_>>(),"watermark":stream_page.watermark,"more":stream_page.more,"generation":e.generation()})).unwrap();
