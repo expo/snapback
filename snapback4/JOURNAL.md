@@ -5173,3 +5173,24 @@ retains that counterexample and asks for the full app flow's admission and
 navigation ordering. The received app bug, workaround and scorer's charge
 remain recorded; the broad durability claim is not established. No product
 or frozen benchmark code changed.
+
+
+## 2026-09-14 — published 0.2.13: borrowed sync replies
+
+The performance lane's unchanged publisher completed from `d81381a98` at
+23:10:55 UTC. It passed 474 Rust, 146 reported client and 9 fixture tests,
+zero failures and one existing ignored Rust test, in 130 s. The existing
+suite-budget follow-up remains open; this release is no new timing comparison.
+The production binary is 7,893,696 B, SHA-256
+`096b464f9a9afb3e0ec8b6ad64b0dd29558897b60fba65c2c0847aa97e4963e8`.
+The installed CLI/version/digest and TypeScript checks passed; the mock
+consumer asserted ready/fresh query rows, online sent and offline pending.
+
+Both npm packages' 0.2.13 archives matched the tested bytes by 23:14:28 UTC.
+The first platform metadata request returned 404 and is retained; a read-only
+retry verified it, with no second publication. Both owned process groups
+ended, the temporary credential was removed and the 700-file source check
+passed. The unchanged receipt is in `metrics/publish.jsonl`; the
+[performance record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
+preserves qualification details and the sync A/B's separate measured identities.
+Concurrent stream-tail and many-group-feed follow-ups remain open.
