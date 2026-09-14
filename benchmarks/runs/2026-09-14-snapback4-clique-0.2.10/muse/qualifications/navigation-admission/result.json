@@ -1,0 +1,26 @@
+{
+  "observedAt": "2026-09-14T22:43:29.626Z",
+  "pin": "0.2.10",
+  "binary": "/Users/ccheever/projects/snapback-ceremony-third/runs/run-1/node_modules/snapback4-darwin-arm64/snapback4",
+  "serverPid": 11331,
+  "backend": "http://127.0.0.1:53422",
+  "origin": "http://127.0.0.1:53424",
+  "admitted": {
+    "mutation": {
+      "state": "pending",
+      "id": "01M2H1DT2DBMX14RGGTNKWP1MM"
+    },
+    "storeName": "snapback4-http%3A%2F%2F127.0.0.1%3A53422%3Adev%3Aalice"
+  },
+  "reopened": {
+    "queuedCount": 1,
+    "queuedIds": [
+      "01M2H1DT2DBMX14RGGTNKWP1MM"
+    ]
+  },
+  "authoritativeRowsAfterCloseBeforeReconnect": 0,
+  "authoritativeRowsAfterReconnect": 1,
+  "method": "Headless Chromium, default IndexedDB persistence, backend fetch blocked before awaited mutation; next asynchronous controller action closes page without client.close, queue inspection or server read before closure; new page opens stored device with null backend and finds one queued mutation; reconnect settles it once. No keepalive/write-through path.",
+  "limits": "One reduced awaited-admission case, not full Muse settings app, arbitrary pre-admission tab destruction, process crash, or power-loss proof. Controller handoff after evaluate is not a zero-nanosecond kill.",
+  "pass": true
+}

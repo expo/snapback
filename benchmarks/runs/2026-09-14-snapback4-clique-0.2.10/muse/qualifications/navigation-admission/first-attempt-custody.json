@@ -1,0 +1,29 @@
+{
+  "reason": "First reduced control passes, but it reads the queue and queries the server between admission and page closure. Preserve it; next control removes that extra wait before closure.",
+  "files": {
+    "probe.mjs": {
+      "bytes": 6272,
+      "sha256": "1e59cb9f79daecf8a67f6a71a966fc960bf63a1b7806e01c828482bda91190c9"
+    },
+    "probe.log": {
+      "bytes": 65,
+      "sha256": "46cdeff7408f1f5ca539762c9285f5e0174c1a7f907ea1bc1bfc64d19eccc09b"
+    },
+    "result.json": {
+      "bytes": 1139,
+      "sha256": "4bbf02d3e70f94bd26f246aaa5e8b78a8a18e20dce434c7d89a036406f30fab6"
+    },
+    "check.txt": {
+      "bytes": 922,
+      "sha256": "0fdea1912f18d70cb7a251313ec3e61d29693f277ef2d44351e4fbd95c453f7b"
+    },
+    "server.log": {
+      "bytes": 415,
+      "sha256": "f9522e5a9194b92571758c5f7cd223fd304d51e91646078634d99d3eb13ea418"
+    },
+    "snapback/schema.q": {
+      "bytes": 325,
+      "sha256": "6dc4038dcc9459495a958133dcd54dc9079e8db7c16a1b47b78e6910fa8b5b89"
+    }
+  }
+}
