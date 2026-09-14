@@ -885,7 +885,7 @@ session in place so the operation can be retried. The online client takes
 device; applications that keep its session use `refreshSession(url,
 token)` and replace the online client with the returned session.
 
-**Node.** `dir` is required; stores live there and the directory is created on first open. `binary` uses `SNAPBACK4_BIN`, then the platform package (or a repository build); `spawn` and `writeFile` default to Node’s functions.
+**Node.** `dir` is required, and a blank string refuses the same way, before the opener is returned; stores live there and the directory is created on first open. `binary` uses `SNAPBACK4_BIN`, then the platform package (or a repository build); `spawn` and `writeFile` default to Node’s functions.
 
 ```ts
 import { createLocalClient } from "snapback4/local";
@@ -1223,7 +1223,12 @@ opens `.snapback4/store.sqlite` read-only when it exists, or the explicit
 column, index or table, with a rewrite. `dev` refuses the same step on save
 and keeps the previous generation. A green `check` against the dev store
 means that store's current rows adopt the compiled schema; a later write
-can change that result. Without a store, `check` only compiles.
+can change that result. Without a store, `check` only compiles. `data`
+and `sql` show an old row with its literal default too (a device's
+persistence export stays the raw stored image). Changing the
+default of an existing required column rechecks the unique indexes and
+caps over it, and a group that no longer fits is `E_ADOPT` like any other
+step.
 
 - **`snapback4 init [dir] [--online|--expo]`** starts a project without
   overwriting existing files. The default writes the local-first todo
@@ -1291,8 +1296,10 @@ can change that result. Without a store, `check` only compiles.
   structural class, and `--residency` names where operations run.
   `--fix` applies only diagnostics explicitly marked `mechanical`: an
   ambiguous key's `by`, a cursor index's missing `id`, and exact canonical
-  spelling rewrites. It prints one `fix:` line per change to stderr,
-  recompiles, and reports the remaining diagnostics normally (`--json`
+  spelling rewrites. Before it edits, every compiled file must be
+  unchanged on disk, and the destination is read again just before the
+  write; a concurrent edit refuses and names the file. It prints one
+  `fix:` line per change to stderr, re-reads the project, recompiles, and reports the remaining diagnostics normally (`--json`
   remains one JSON result on stdout; `--cost` prose goes to stderr when
   combined with `--json`). Unmarked design suggestions are
   left for the author. **`snapback4 types`** writes `api.ts` alone and prints
@@ -1302,7 +1309,8 @@ can change that result. Without a store, `check` only compiles.
   `.snapback4/store.sqlite` read-only alongside `dev`, or a deployment's
   store with `--release`; no schema adoption and no writer lock. Temporary
   views expose each application table's `id` and columns from the active
-  compiled schema. Scalar tags are unwrapped; compound values remain
+  compiled schema; a required column an old row lacks reads its literal
+  default, and an absent optional column reads null. Scalar tags are unwrapped; compound values remain
   canonical tagged JSON. Only one `SELECT` or `WITH … SELECT` is allowed:
   writes refuse `E_SQL_READ_ONLY`, and internal tables (including raw
   `r`/`i` and SQLite metadata) refuse `E_SQL_INTERNAL`. The result is bounded

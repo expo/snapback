@@ -18,7 +18,7 @@ export interface ProcessDeviceOptions {
  * Defaults resolve the CLI and load Node only when opening the device. */
 // @ref LLP 3000.007#18.4 — require the stores' directory; share the CLI resolver and default to Node's host functions.
 export function processDevice(options: ProcessDeviceOptions): DeviceOpener {
-  if (!options || typeof options.dir !== "string") throw new Error("processDevice needs { dir }: the directory its stores live in");
+  if (!options || typeof options.dir !== "string" || options.dir.trim().length === 0) throw new Error("processDevice needs { dir }: the directory its stores live in");
   const { dir, binary: suppliedBinary, spawn: suppliedSpawn, writeFile: suppliedWriteFile } = options;
   return {
     async open(name, backend) {

@@ -11,10 +11,11 @@ pub(super) fn assess(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Step>, RuntimeE
     let previous: Schema = serde_json::from_str(&previous).map_err(|e| RuntimeError::Store(e.to_string()))?;
     let mut steps = crate::successor::classify(&previous, schema);
     for step in &mut steps {
-        if step.change != Change::Narrowing { continue; }
         let path: Vec<_> = step.path.split('.').collect();
         let Some(name) = path.get(1).copied() else { continue };
         let Some(table) = schema.table(name) else { continue };
+        let column_step = matches!(path.as_slice(), ["tables", _, "columns", column] if previous.tables[name].columns.contains_key(*column));
+        if step.change != Change::Narrowing && !(column_step && step.change == Change::Additive) { continue; }
         let t = tx.num(name)?;
         let populated: bool = tx.tx.query_row("SELECT EXISTS(SELECT 1 FROM r WHERE t = ?1)", [t], |r| r.get(0))?;
         if !populated {
@@ -40,6 +41,31 @@ pub(super) fn assess(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Step>, RuntimeE
                     let kind = &table.columns[*column];
                     fits = validate_column(name, column, kind, row.field(column).ok()).is_ok()
                         && super::activation::validate_assets(tx, kind, row.field(column).ok()).is_ok();
+                    // @ref LLP 3000.007#18.3 — changing interpretation rechecks existing dependent invariants at the column's site.
+                    for (index_name, index) in table.indexes.iter().filter(|(_, index)| index.unique && index.columns().iter().any(|c| c == column)) {
+                        let values = index_values(index, &row);
+                        if !values.contains(&Value::Null) {
+                            let count = groups.entry((format!("unique:{index_name}"), key::encode(&values))).or_default();
+                            *count += 1;
+                            fits &= *count <= 1;
+                        }
+                    }
+                    for constraint in &table.constraints {
+                        match constraint {
+                            Constraint::Cap { by, max } if by.iter().any(|c| c == column) => {
+                                let values: Vec<_> = by.iter().map(|c| row.field(c).cloned().unwrap_or(Value::Null)).collect();
+                                let count = groups.entry((format!("cap:{}", canonical_json(by)), key::encode(&values))).or_default();
+                                *count += 1;
+                                fits &= *count <= u64::from(*max);
+                            }
+                            Constraint::Text { field, min, format } if field == column => {
+                                if let Ok(Value::String(text)) = row.field(column) {
+                                    fits &= crate::engine::validate::validate_text(&format!("{name}.{column}"), text, *min, *format).is_ok();
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
                 }
                 ["tables", _, "indexes", index] => {
                     let values = index_values(&table.indexes[*index], &row);
@@ -67,6 +93,8 @@ pub(super) fn assess(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Step>, RuntimeE
         if fits {
             step.change = Change::Additive;
             step.message.push_str("; existing rows satisfy it");
+        } else {
+            step.change = Change::Narrowing;
         }
     }
     Ok(steps)

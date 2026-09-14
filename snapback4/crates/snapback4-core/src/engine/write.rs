@@ -560,6 +560,8 @@ impl Runner<'_> {
             for (row, stored) in rows {
                 self.meter.charge(MeterKind::Examined, 1)?;
                 bounds.after = crate::key::decode(&stored).map(|values| values.into_iter().skip(prefix.len()).collect());
+                // @ref LLP 3000.007#18.3 — old source images group by their literal defaults, including zero-sum candidates.
+                let row = crate::schema::row_image(&row, source);
                 if maintained_key(&row, &maintain.by) == key { return Ok(true); }
             }
             if count < 256 { return Ok(false); }

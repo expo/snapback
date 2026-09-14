@@ -111,3 +111,24 @@ fn rules_and_residual_probe_equalities_read_literal_defaults_in_old_images() {
     assert_eq!(successor::worst(&e.store_mut().successor(&removed.schema).unwrap()), Change::Narrowing);
     assert_eq!(e.adopt(removed.schema, removed.programs.into_iter().map(|p| p.program)).unwrap_err().code(), "E_ADOPT");
 }
+
+#[test]
+fn rule_probe_materializes_defaulted_maintain_source_groups() {
+    let before = include_str!("fixtures/adoption-sum.q");
+    for indexed in [true, false] {
+        let b = bound(before);
+        let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        let now = snapback4_core::now_ms();
+        let source = e.schema().tables["sources"].clone();
+        e.seed([("sources".into(), wire::row_from_json(&source, &serde_json::json!({"id":"s", "amount":1, "until":now+60_000})).unwrap())]).unwrap();
+        let index = if indexed { "  by byBucket: bucket, id\n" } else { "" };
+        let after = before.replace("  amount:", &format!("  bucket: int default 0\n{index}  amount:"))
+            + "maintain totals: sum sources of amount by bucket\n  read <- allow\ntable probes:\n  bucket: int\n  read <- exists totals[.bucket]\nquery probe():\n  return probes['p']\n";
+        let b = bound(&after);
+        e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        let table = e.schema().tables["probes"].clone();
+        e.seed([("probes".into(), wire::row_from_json(&table, &serde_json::json!({"id":"p","bucket":0})).unwrap())]).unwrap();
+        assert_ne!(e.query("probe", context().at(now)).unwrap().data, Value::Null, "indexed={indexed}: a live source admits the probe");
+        assert_eq!(e.query("probe", context().at(now+60_001)).unwrap().data, Value::Null, "expired source grants nothing");
+    }
+}

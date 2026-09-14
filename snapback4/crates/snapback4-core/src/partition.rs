@@ -18,7 +18,7 @@ use crate::engine::runner::Runner;
 use crate::error::{MeterKind, RuntimeError};
 #[cfg(feature = "sqlite")]
 use crate::schema::Table;
-use crate::schema::{Audience, AudienceBinding, Schema, Sync, audience_binding, materialize_optional_fields};
+use crate::schema::{Audience, AudienceBinding, Schema, Sync, audience_binding, row_image};
 use crate::rows::{Bounds, Dir};
 #[cfg(feature = "sqlite")]
 use crate::store::{LogEvent, Tx};
@@ -88,7 +88,8 @@ impl EventKind {
 }
 
 /// The group a row belongs to under a sync declaration: the audience
-/// prefix values (empty for a public partition).
+/// prefix values (empty for a public partition). Callers supply `row_image`
+/// under the row's table before extracting group fields.
 pub fn group_of(sync: &Sync, row: &Value) -> Vec<Value> {
     match &sync.audience {
         Audience::Public => Vec::new(),
@@ -126,13 +127,17 @@ pub fn partitions(table_name: &str, sync: &Sync, row: &Value) -> Vec<String> {
 pub fn row_changed(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
     let schema = runner.schema;
     let table = schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
+    // @ref LLP 3000.007#18.3 — audience keys and lifetimes use the same interpreted image as rules and indexes.
+    let old_image = old.map(|row| row_image(row, table));
+    let new_image = new.map(|row| row_image(row, table));
+    let old = old_image.as_deref();
+    let new = new_image.as_deref();
     if let Some(sync) = &table.sync {
         let before: BTreeSet<String> = old.map(|old| partitions(table_name, sync, old)).unwrap_or_default().into_iter().collect();
         let after: BTreeSet<String> = new.map(|new| partitions(table_name, sync, new)).unwrap_or_default().into_iter().collect();
         let id = old.or(new).expect("a row change has an image").field("id")?.as_str()?.to_owned();
         if let Some(new) = new {
-            let mut image = new.clone();
-            materialize_optional_fields(&mut image, table);
+            let image = new.clone();
             for partition in &after {
                 runner.events.push(Event { partition: partition.clone(), table: table_name.to_owned(), kind: EventKind::Put, id: id.clone(), data: Some(image.clone()) });
             }
@@ -186,6 +191,7 @@ pub fn row_changed(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value
                     let rows = runner.tx.scan(table_name, &bound.group_index, &key, &bounds, Dir::Asc, 32)?;
                     let count = rows.len();
                     for (candidate, stored) in rows {
+                        let candidate = row_image(&candidate, table);
                         runner.meter.charge(MeterKind::Examined, 1)?;
                         bounds.after = crate::key::decode(&stored).map(|values| values.into_iter().skip(key.len()).collect());
                         if !runner.context.now.is_some_and(|now| table.expired(&candidate, now)) { replaced = true; break; }
@@ -222,7 +228,9 @@ pub fn group_rows(tx: &Tx<'_>, table_name: &str, table: &Table, sync: &Sync, gro
 fn groups_now(tx: &Tx<'_>, schema: &Schema, bound: &AudienceBinding, target: &str, principal: &str, now: i64) -> Result<Vec<Vec<Value>>, RuntimeError> {
     let mut groups = BTreeSet::new();
     for (member, _) in tx.scan(target, &bound.principal_index, &[Value::Id(principal.to_owned())], &Bounds::default(), Dir::Asc, u32::MAX as usize)? {
-        if schema.table(target).is_some_and(|table| table.expired(&member, now)) { continue; }
+        let table = schema.table(target).expect("validated audience target");
+        let member = row_image(&member, table);
+        if table.expired(&member, now) { continue; }
         let group: Vec<Value> = bound.columns.iter().map(|c| member.field(c).cloned().unwrap_or(Value::Null)).collect();
         if !group.iter().any(|value| *value == Value::Null) {
             groups.insert(canonical_json(&group));
@@ -387,7 +395,8 @@ fn group_rows_from(tx: &Tx<'_>, table_name: &str, table: &Table, sync: &Sync, gr
         let batch = ask.saturating_add(1).saturating_sub(live.len()).min(256).max(1);
         let rows = tx.scan(table_name, &index_name, group, &bounds, dir, batch)?;
         let count = rows.len();
-        for (mut row, key) in rows {
+        for (row, key) in rows {
+            let mut row = row_image(&row, table).into_owned();
             bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
             if table.expired(&row, now) { continue; }
             if let Some(schema) = schema {
@@ -395,7 +404,6 @@ fn group_rows_from(tx: &Tx<'_>, table_name: &str, table: &Table, sync: &Sync, gr
                 let Some(live_row) = runner.live_aggregate(table_name, row)? else { continue; };
                 row = live_row;
             }
-            materialize_optional_fields(&mut row, table);
             live.push((row, key));
             if live.len() > ask { break; }
         }
@@ -475,6 +483,7 @@ fn intervals(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64) -> R
         let Audience::Target { table: target, .. } = &sync.audience else { continue };
         let bound = binding(schema, table_name, sync).ok_or_else(|| RuntimeError::Schema(format!("sync to {target} has no audience index")))?;
         for (member, _) in tx.scan(target, &bound.principal_index, &[Value::Id(principal.to_owned())], &Bounds::default(), Dir::Asc, usize::MAX)? {
+            let member = row_image(&member, schema.table(target).expect("validated audience target"));
             let group: Vec<Value> = bound.columns.iter().map(|c| member.field(c).cloned().unwrap_or(Value::Null)).collect();
             if group.contains(&Value::Null) { continue; }
             let expiry = schema.table(target).and_then(|table| table.expire.as_ref()).and_then(|column| member.field(column).ok()).and_then(|value| value.as_int().ok());
@@ -651,7 +660,7 @@ fn expand_joins(tx: &Tx<'_>, schema: &Schema, page: Vec<LogEvent>, held: &BTreeM
             out.push(LogEvent { seq: event.seq, ord: event.ord, table: event.table.clone(), kind: "scope".into(), id: event.id.clone(), data: Some(Value::Array(group.clone())) });
         }
         let mut rows: Vec<Value> = tx.group_at(&group_partition(&event.table, &group), event.seq)?.into_iter().filter_map(|event| event.data)
-            .map(|mut row| { materialize_optional_fields(&mut row, table); row }).filter(|row| !table.expired(row, now)).collect();
+            .map(|row| row_image(&row, table).into_owned()).filter(|row| !table.expired(row, now)).collect();
         if let Some(horizon) = &sync.horizon {
             let index = table.index(&horizon.by).ok_or_else(|| RuntimeError::Schema(format!("missing horizon index {}", horizon.by)))?;
             rows.sort_by_cached_key(|row| std::cmp::Reverse(crate::rows::index_key(index, row, row.field("id").ok().and_then(|v| v.as_str().ok()).unwrap_or(""))));

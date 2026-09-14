@@ -349,7 +349,7 @@ test("check --cost describes expression ranges, filtered probes, pages and seeks
 test("processDevice requires its directory synchronously before spawning", () => {
   let spawned = 0;
   const spawn = () => { spawned++; throw new Error("must not spawn"); };
-  for (const options of [undefined, null, "devices", {}, { dir: undefined, spawn }, { dir: null, spawn }, { dir: 7, spawn }, { dir: {}, spawn }]) {
+  for (const options of [undefined, null, "devices", {}, { dir: undefined, spawn }, { dir: null, spawn }, { dir: 7, spawn }, { dir: {}, spawn }, { dir: "", spawn }, { dir: " \t\n", spawn }]) {
     assert.throws(() => processDevice(options), { name: "Error", message: "processDevice needs { dir }: the directory its stores live in" });
   }
   assert.equal(spawned, 0);

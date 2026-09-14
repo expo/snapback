@@ -90,12 +90,9 @@ fn report_diagnostics(bound: &Bound, json: bool) {
 pub fn check(options: &Options) -> i32 {
     let project = project_or_exit();
     let started = Instant::now();
-    let mut bound = match if options.flags.contains_key("fix") { fix::compile(&project) } else { project.compile() } {
+    let mut bound = match fix::checked(if options.flags.contains_key("fix") { fix::compile(&project) } else { project.compile() }) {
         Ok(bound) => bound,
-        Err(error) => {
-            eprintln!("cannot read snapback/: {error}");
-            return 2;
-        }
+        Err(code) => return code,
     };
     if !bound.diagnostics.is_empty() {
         report_diagnostics(&bound, options.json);
@@ -383,7 +380,7 @@ pub fn data(options: &Options) -> i32 {
         return 2;
     };
     let project = project_or_exit();
-    let store = match project.open_store() {
+    let mut store = match project.open_store() {
         Ok(store) => store,
         Err(error) => {
             eprintln!("cannot open the store: {error}");
@@ -400,7 +397,21 @@ pub fn data(options: &Options) -> i32 {
             }
         },
     };
-    match store.rows_limited(table, limit) {
+    // Read the schema and rows from one snapshot; source on disk may be unadopted.
+    let inspected = (|| -> Result<_, snapback4_core::RuntimeError> {
+        let tx = store.read_transaction()?;
+        let encoded: String = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT value FROM _meta WHERE key = 'generation')", [], |row| row.get(0))?;
+        let schema: snapback4_core::schema::Schema = serde_json::from_str(&encoded).map_err(|e| snapback4_core::RuntimeError::Store(e.to_string()))?;
+        let definition = schema.table(table).ok_or_else(|| snapback4_core::RuntimeError::Schema(format!("no table {table}")))?;
+        let mut rows: Vec<_> = tx.scan(table, "byId", &[], &Default::default(), snapback4_core::rows::Dir::Asc, limit.saturating_add(1))?.into_iter().map(|(row, _)| row).collect();
+        let more = rows.len() > limit;
+        rows.truncate(limit);
+        // @ref LLP 3000.007#18.3 — data prints the interpreted row of the stored generation.
+        for row in &mut rows { snapback4_core::schema::materialize_optional_fields(row, definition); }
+        tx.rollback()?;
+        Ok((rows, more))
+    })();
+    match inspected {
         Ok((rows, more)) => {
             for row in &rows {
                 println!("{}", wire::to_json(row));

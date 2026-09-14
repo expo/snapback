@@ -3,8 +3,18 @@
 use crate::project::Project;
 use snapback4_lang::{Bound, Diagnostic, lexer::{self, Kind, Token}};
 
+/// The check command's source-I/O refusal, also exercised by the interleaved-editor subprocess tests.
+pub(super) fn checked(result: std::io::Result<Bound>) -> Result<Bound, i32> {
+    result.map_err(|error| { eprintln!("cannot read snapback/: {error}"); 2 })
+}
+
 // @ref LLP 3000.007#8 — apply mechanical fixes and recompile; leave design choices to the author
 pub fn compile(project: &Project) -> std::io::Result<Bound> {
+    compile_observed(project, |_| {})
+}
+
+// The observer lets the integration suite interleave an editor save at each I/O boundary.
+pub(super) fn compile_observed(project: &Project, mut observe: impl FnMut(&str)) -> std::io::Result<Bound> {
     let mut sources = project.sources()?;
     // A spelling repair removes at least one original token's ambiguity.
     // This also bounds a faulty diagnostic that keeps suggesting insertions.
@@ -15,19 +25,31 @@ pub fn compile(project: &Project) -> std::io::Result<Bound> {
             let index = sources.iter().position(|(name, _)| name == &diagnostic.site.file)?;
             edit(&sources, index, diagnostic).map(|(target, start, end, replacement)| (target, start, end, replacement, diagnostic))
         });
-        let Some((target, start, end, replacement, diagnostic)) = repair else { return Ok(bound); };
+        observe("compiled");
+        let Some((target, start, end, replacement, diagnostic)) = repair else { return project.compile(); };
         let (name, source) = &sources[target];
         let path = project.schema_dir().join(name);
-        // Refuse an editor save observed since compilation.
-        if std::fs::read_to_string(&path)? != *source { return Err(std::io::Error::other(format!("{} changed while check --fix was running; rerun", path.display()))); }
+        // @ref LLP 3000.007#18.5 — a cross-file repair depends on every compiled source, including the query's file.
+        let current = project.sources()?;
+        if let Some(name) = sources.iter().find(|(name, text)| !current.iter().any(|(n, t)| n == name && t == text)).map(|(name, _)| name)
+            .or_else(|| current.iter().find(|(name, _)| !sources.iter().any(|(n, _)| n == name)).map(|(name, _)| name)) {
+            return Err(changed_source(&project.schema_dir().join(name)));
+        }
         let mut changed = source.clone();
         changed.replace_range(start..end, &replacement);
-        if changed == *source { return Ok(bound); }
+        if changed == *source { return project.compile(); }
+        observe("write");
+        // Re-read at publication too, after preparing the replacement bytes.
+        if std::fs::read_to_string(&path)? != *source { return Err(changed_source(&path)); }
         std::fs::write(&path, &changed)?;
         eprintln!("fix: {} — {}: {}", diagnostic.site, diagnostic.code, diagnostic.rewrite.replace('\n', " "));
         sources[target].1 = changed;
     }
-    Ok(snapback4_lang::compile(&sources))
+    project.compile()
+}
+
+fn changed_source(path: &std::path::Path) -> std::io::Error {
+    std::io::Error::other(format!("{} changed while check --fix was running; rerun", path.display()))
 }
 
 pub(super) fn edit(sources: &[(String, String)], index: usize, diagnostic: &Diagnostic) -> Option<(usize, usize, usize, String)> {
