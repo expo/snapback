@@ -13,17 +13,37 @@ pub fn init(options: &Options) -> i32 {
     let dir = options.positionals.first().map(Path::new).unwrap_or_else(|| Path::new("."));
     let online = options.flags.contains_key("online");
     let expo = options.flags.contains_key("expo");
-    let files = if expo { expo_files() } else if online { online_files() } else { vec![("snapback/schema.q", snapback4_lang::guide::TEMPLATE.to_owned())] };
+    let mut files = if expo { expo_files() } else if online { online_files() } else { vec![("snapback/schema.q", snapback4_lang::guide::TEMPLATE.to_owned())] };
+    // @ref LLP 3000.007#20.2 — installed packages can receive a starter; only conflicting required entries refuse.
+    for (name, text) in &mut files {
+        if *name == "package.json" && dir.join(*name).exists() {
+            match merge_package(&dir.join(*name), text) {
+                Ok(merged) => *text = merged,
+                Err(error) => { eprintln!("init: {error}"); return 1; }
+            }
+        }
+    }
+    // Preserve an existing ESM package while keeping Metro and Babel's configs CommonJS.
+    if expo && files.iter().any(|(name, text)| *name == "package.json" && serde_json::from_str::<Value>(text).unwrap()["type"] == "module") {
+        for (name, _) in &mut files {
+            *name = match *name { "metro.config.js" => "metro.config.cjs", "babel.config.js" => "babel.config.cjs", other => other };
+        }
+    }
     // Check every destination before writing any starter file.
     for (name, _) in &files {
-        if dir.join(name).exists() {
-            eprintln!("{} already exists", dir.join(name).display());
+        let alternate = match *name { "metro.config.cjs" => Some("metro.config.js"), "babel.config.cjs" => Some("babel.config.js"), "metro.config.js" => Some("metro.config.cjs"), "babel.config.js" => Some("babel.config.cjs"), _ => None };
+        if let Some(alternate) = alternate.filter(|name| dir.join(name).exists()) {
+            eprintln!("{} already exists", dir.join(alternate).display());
+            return 1;
+        }
+        if *name != "package.json" && dir.join(*name).exists() {
+            eprintln!("{} already exists", dir.join(*name).display());
             return 1;
         }
     }
     let write = || -> std::io::Result<()> {
         for (name, text) in &files {
-            let path = dir.join(name);
+            let path = dir.join(*name);
             std::fs::create_dir_all(path.parent().unwrap())?;
             std::fs::write(path, text)?;
         }
@@ -36,6 +56,29 @@ pub fn init(options: &Options) -> i32 {
     if let Err(error) = write() { eprintln!("init: {error}"); return 2; }
     println!("init: wrote {} files in {} — {} — next: `snapback4 check`, then `snapback4 dev`{}", files.len(), dir.display(), if expo { "Expo: native when available, online in Expo Go" } else if online { "online-only" } else { "local-first" }, if expo || online { "; see README.md" } else { "" });
     0
+}
+
+fn merge_package(path: &Path, starter: &str) -> Result<String, String> {
+    let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let mut existing: Value = serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
+    let object = existing.as_object_mut().ok_or("package.json must be an object")?;
+    let required: Value = serde_json::from_str(starter).unwrap();
+    for (key, value) in required.as_object().unwrap() {
+        if matches!(key.as_str(), "dependencies" | "devDependencies" | "scripts") {
+            let group = object.entry(key.clone()).or_insert_with(|| json!({})).as_object_mut()
+                .ok_or_else(|| format!("package.json {key} must be an object"))?;
+            for (name, needed) in value.as_object().unwrap() {
+                match group.get(name) {
+                    Some(old) if old != needed => return Err(format!("package.json conflict at {key}.{name}: existing {old}, required {needed}")),
+                    Some(_) => {},
+                    None => { group.insert(name.clone(), needed.clone()); }
+                }
+            }
+        } else {
+            object.entry(key.clone()).or_insert_with(|| value.clone());
+        }
+    }
+    Ok(pretty(&existing))
 }
 
 // @ref LLP 3000.007#7 — no sync lines and createClient pave the online tier
@@ -79,12 +122,13 @@ fn expo_files() -> Vec<(&'static str, String)> {
         ("package.json", pretty(&package)),
         ("app.json", include_str!("../../../../apps/chat-expo/app.json").to_owned()),
         ("babel.config.js", include_str!("../../../../apps/chat-expo/babel.config.js").to_owned()),
-        ("metro.config.js", "const { getDefaultConfig } = require(\"expo/metro-config\");\nconst config = getDefaultConfig(__dirname);\nconfig.resolver.unstable_enablePackageExports = true;\nmodule.exports = config;\n".to_owned()),
+        ("metro.config.js", include_str!("init/metro.config.js").to_owned()),
+        ("metro-wasm-transformer.cjs", include_str!("init/metro-wasm-transformer.cjs").to_owned()),
         ("index.js", include_str!("../../../../apps/chat-expo/index.js").to_owned()),
         ("tsconfig.json", include_str!("../../../../apps/chat-expo/tsconfig.json").to_owned()),
         ("App.tsx", app), ("src/client.ts", client.to_owned()), ("src/Inbox.tsx", inbox), ("src/Thread.tsx", thread),
         ("snapback/schema.q", include_str!("../../../../apps/chat/snapback/schema.q").to_owned()),
         ("snapback/worker.ts", include_str!("../../../../apps/chat/snapback/worker.ts").to_owned()),
-        ("README.md", format!("# Expo chat starter\n\n{TWO_WAYS}\n\nThis starter opens the native Rust device in development and production\nbuilds that carry `snapback4-expo`; Expo Go selects `createClient`, with\nno native module and no wasm. `src/client.ts` exports `tier`.\n\nThe reference toolchain is Expo 57.0.22, React Native 0.86.3, React 19.2.3,\nexpo-sqlite 57.0.3 and babel-preset-expo 57.0.11. Keep the Expo and Babel\npreset major versions together; mixing them can fail Hermes compilation.\n\nRun `npm install`, `npx snapback4 check`, then `npx snapback4 dev` in one\nterminal. In another, run `EXPO_PUBLIC_SNAPBACK_PERSONA=alice npm start`\nfor Expo Go, or `EXPO_PUBLIC_SNAPBACK_PERSONA=alice npm run ios:dev` for\nthe native development build. The local server URL defaults to\nhttp://127.0.0.1:4400 (the iOS simulator on this machine). Set\nEXPO_PUBLIC_SNAPBACK_URL to your TLS deployment for a physical phone;\npersonas work on loopback only, and otherwise the client signs in as a guest.\nThe inbox starts empty: seed a conversation and its memberships through\n`POST /seed` during development. Change app.json's bundle IDs before shipping.\n")),
+        ("README.md", format!("# Expo chat starter\n\n{TWO_WAYS}\n\nThis starter opens the native Rust device in development and production\nbuilds that carry `snapback4-expo`; Expo Go selects `createClient`, with\nno native module and no wasm. `src/client.ts` exports `tier`.\nFor a web client using `webDevice()`, keep the generated Metro config and\nmetro-wasm-transformer.cjs: Metro then emits the wasm asset URL.\n\nThe reference toolchain is Expo 57.0.22, React Native 0.86.3, React 19.2.3,\nexpo-sqlite 57.0.3 and babel-preset-expo 57.0.11. Keep the Expo and Babel\npreset major versions together; mixing them can fail Hermes compilation.\n\nRun `npm install`, `npx snapback4 check`, then `npx snapback4 dev` in one\nterminal. In another, run `EXPO_PUBLIC_SNAPBACK_PERSONA=alice npm start`\nfor Expo Go, or `EXPO_PUBLIC_SNAPBACK_PERSONA=alice npm run ios:dev` for\nthe native development build. The local server URL defaults to\nhttp://127.0.0.1:4400 (the iOS simulator on this machine). Set\nEXPO_PUBLIC_SNAPBACK_URL to your TLS deployment for a physical phone;\npersonas work on loopback only, and otherwise the client signs in as a guest.\nThe inbox starts empty: seed a conversation and its memberships through\n`POST /seed` during development. Change app.json's bundle IDs before shipping.\n")),
     ]
 }

@@ -6929,3 +6929,81 @@ no card named banana; nearest: reads, assets, bounds
 cards: language, types, indexes, rules, sync, residency, prediction, evolution, expire, assets, reads, shapes, writes, programs, jobs, native, feeds, search, effects, actions, services, presence, bounds, refusals, personas
 aliases: grammar -> language, quarry -> language, predict -> prediction, predictable -> prediction, offline -> prediction, optimistic -> prediction, pending -> prediction, pagination -> reads, paging -> reads, cursor -> reads, next -> reads, migration -> evolution, migrate -> evolution, schema-evolution -> evolution, adoption -> evolution, sql -> personas, inspect -> personas, push -> effects, notification -> effects, notify -> effects, worker -> effects, auth -> personas, signin -> personas, login -> personas, session -> personas, upload -> assets, media -> assets, image -> assets, video -> assets, realtime -> reads, live -> reads, subscribe -> reads, order -> writes, ordinal -> writes, arrival -> writes
 ```
+
+
+## 2026-09-14 — A2: CLI and client mistakes from the Astra inventory
+
+Implemented LLP 3000.007 §20.2 on base
+`33b530d41b00f1d685656f360e37c52ec1255ad6`, without commits or publication.
+Closed this lane's S02 (rendered/narrowed React asset example and shared
+`Client.signOut`), S03 (package dependency/script merging with named conflicts),
+S22 (typed replay receipts, ticket moved to `issues/closed/`), S28 (independent
+`dev --hold-effects` and `--hold-schedules`), and S32 (Metro wasm configuration).
+The separate observed-query fan-out concern in inventory S32 is outside this
+lane's Expo-config brief.
+
+Both client tiers preserve a sent replay as `replayed: true` with no result
+property. The fresh arm uses `replayed?: false`, preserving the wire's smaller
+fresh shape and letting a caller narrow before reading `result: R`. The online
+client now revokes its bearer when reachable, clears credentials and closes;
+the local client already did. The mock implements the same shared method.
+README React examples render all four asset states, including an Image with
+its URL guarded by `status === "ready"`. A compiled fixture exercises both
+client types and rejects an unchecked write result.
+
+Init checks all destinations before writing. Existing package metadata stays;
+required dependencies, devDependencies and scripts merge, with the existing
+and required values named on a key conflict. The README uses an exact initial
+package pin and puts the merged dependency install before check. An existing
+ESM package receives `.cjs` Metro/Babel configs. Config aliases are also
+protected from collisions. The Metro transformer turns the web module's wasm
+URL into a static asset dependency; the generated resolver includes wasm.
+
+Effect holds gate authenticated claims without removing emitted work: the
+regression observes 1 queued effect, 0 attempts while held, and 1 claim after
+restart. A durable schedule-hold marker skips held periods on release, then
+admits exactly 1 job at the next boundary; queued jobs remain runnable. This
+uses the host's existing store transaction API, with no core or meter change.
+
+Before/after regressions: init 0 passed / 2 failed → 2 passed / 0 failed;
+replay holds 0 passed / 3 failed → 3 passed / 0 failed; client/README tests
+5 passed / 4 failed → 9 passed / 0 failed. The generated Expo config and
+reference-toolchain typecheck pass (2 tests); its initial typecheck attempt
+also exposed a test-fixture module-resolution mistake, fixed by linking the
+workspace node_modules. The README check compiles 11 blocks and covers 36
+public functions (880.04 ms on the first green run).
+
+A real Expo web export of a minimal `webDevice()` entry built 4 modules in
+458 ms, emitted 1 wasm asset (1,608,850 bytes), and a 14,091-byte JS bundle.
+A Node VM ran the exported bundle against an HTTP server rooted at the export:
+1 wasm fetch, a device opened, `queued` returned `{ "ok": [] }`, 0 failures.
+No manual wasm URL was supplied. Export used the installed Expo toolchain,
+2 Metro workers, offline/no-cache flags, and disabled automatic web dependency
+setup for the headless entry (the reference app does not install react-native-web).
+This is a wasm-resolution witness, not a rendered Expo UI witness.
+
+The first complete `bash snapback4/scripts/test.sh` took 127 s: Rust totals
+572 passed, 0 failed, 1 ignored; fixture tests 9 passed; client tests 140 passed,
+1 failed. Package, chat and Expo typechecks passed. The sole failure was
+Chromium SIGABRT before the React harness started. It reproduced in the isolated
+React test (0 passed / 1 failed), and with that test's unmodified source from
+the base commit above (0 passed / 1 failed). No product test ran in that browser;
+the lead still needs the React witness outside this sandbox. The changed source
+maximum was 1,222 lines (`serve.rs`), with 0 changed code files above 1,500.
+`ref-check` passed with 0 errors and 0 unchecked references.
+
+Learned: types must preserve the server's withholding policy, and a bundler
+asset extension alone does not make `new URL` a Metro dependency. Schedule
+holds also need a release boundary persisted across restarts; merely skipping
+the timer would replay the skipped period as soon as the flag was removed.
+
+Final verification of the completed change: the two Rust target suites passed
+2/2 and 3/3, and the combined README/write-authority/periphery run passed 26/26.
+The second full suite took 75 s: all Rust tests and typechecks passed; default
+client concurrency produced 130 passes and 3 failures (Chromium plus HTTP
+admission and release-activation process timeouts). The required
+`node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'` rerun
+completed in 63,641.284 ms with 140 passes, 1 failure, 0 cancellations: both
+timeouts cleared, leaving only Chromium's launch SIGABRT. The final reference
+audit reports 474 LLP docs, 8,855 refs, 0 errors, 0 unchecked. No other lane's
+files, meter ceilings, serialized value forms or existing corpus cases changed.

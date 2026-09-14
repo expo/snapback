@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync, copyFileSync, realpathSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync, copyFileSync, realpathSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +10,7 @@ import { createRequire } from "node:module";
 import { DatabaseSync } from "node:sqlite";
 import { setTimeout as delay } from "node:timers/promises";
 import vm from "node:vm";
+import ts from "typescript";
 import { processDevice } from "../dist/native.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -146,15 +147,37 @@ test("Expo starter copies reference pins, parses configs, and carries both clien
   const babel = { module: { exports: {} } };
   vm.runInNewContext(read(join(dir, "babel.config.js")), babel);
   assert.deepEqual(Array.from(babel.module.exports({ cache(value) { assert.equal(value, true); } }).presets), ["babel-preset-expo"]);
-  const metro = { module: { exports: {} }, __dirname: dir, require(name) { assert.equal(name, "expo/metro-config"); return { getDefaultConfig: () => ({ resolver: {} }) }; } };
+  const metroRequire = Object.assign((name) => { assert.equal(name, "expo/metro-config"); return { getDefaultConfig: () => ({ resolver: { assetExts: ["png"] }, transformer: {} }) }; }, { resolve: name => join(dir, name) });
+  const metro = { module: { exports: {} }, __dirname: dir, require: metroRequire };
   vm.runInNewContext(read(join(dir, "metro.config.js")), metro);
   assert.equal(metro.module.exports.resolver.unstable_enablePackageExports, true);
+  assert.ok(metro.module.exports.resolver.assetExts.includes("wasm"));
+  assert.match(metro.module.exports.transformer.babelTransformerPath, /metro-wasm-transformer.cjs$/);
+  const transformer = { module: { exports: {} }, require(name) { assert.equal(name, "@expo/metro-config/babel-transformer"); return { transform: args => args }; } };
+  vm.runInNewContext(read(join(dir, "metro-wasm-transformer.cjs")), transformer);
+  const src = 'const wasm = new URL("./wasm/snapback4_device_bg.wasm", import.meta.url);';
+  const transform = transformer.module.exports.transform;
+  assert.equal(transform({ src, options: { platform: "web" } }).src, 'const wasm = require("./wasm/snapback4_device_bg.wasm");');
+  assert.equal(transform({ src, options: { platform: "ios" } }).src, src);
+  const shipped = read(join(root, "packages/snapback4/dist/web.js"));
+  assert.ok(transform({ src: shipped, options: { platform: "web" } }).src.includes('options.wasm ?? require("./wasm/snapback4_device_bg.wasm")'));
   assert.equal(read(join(dir, "src/client.ts")), read(join(reference, "src/client.ts")));
   assert.equal(read(join(dir, "snapback/worker.ts")), read(join(root, "apps/chat/snapback/worker.ts")));
   assert.match(read(join(dir, "src/client.ts")), /nativeAvailable\(\) \? "native" : "online"/);
   assert.doesNotMatch(read(join(dir, "App.tsx")), /runWitness|EXPO_PUBLIC_WITNESS/);
   for (const screen of ["Inbox", "Thread"]) assert.match(read(join(dir, `src/${screen}.tsx`)), /\.\.\/snapback\/generated\/api/);
   run("check");
+});
+
+test("Expo generated template typechecks against the reference toolchain", (t) => {
+  const { dir, run } = fixture(t);
+  run("init", "--expo"); run("check");
+  symlinkSync(join(root, "node_modules"), join(dir, "node_modules"), "dir");
+  const config = ts.readConfigFile(join(dir, "tsconfig.json"), ts.sys.readFile);
+  const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, dir);
+  const program = ts.createProgram(parsed.fileNames, parsed.options);
+  const errors = [...parsed.errors, ...ts.getPreEmitDiagnostics(program)].map(d => ts.flattenDiagnosticMessageText(d.messageText, "\n"));
+  assert.deepEqual(errors, []);
 });
 
 const ambiguous = `use personas alice

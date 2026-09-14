@@ -223,12 +223,13 @@ const cases = {
     let raced;
     await act(async () => {
       raced = latest.run({ n: 4.75 });
-      client.emitWrite(sent("raced"));
+      client.emitWrite({ state: "sent", id: "raced", seq: 1, replayed: true });
       client.writes[5].resolve({ state: "pending", id: "raced" });
       await raced;
     });
     check(latest.last.state === "sent" && latest.last.id === "raced", "terminal settlement wins a race with the pending return");
-    equal(latest.last.result, { reused: "raced" }, "queued terminal result reaches last");
+    const receipt = { state: "sent", id: "raced", seq: 1, replayed: true };
+    equal(latest.last, receipt, "the hook preserves replay identity without fabricating a result");
     let obsolete;
     await act(async () => { obsolete = latest.run({ n: 5 }); });
     const replacement = controlled();

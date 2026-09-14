@@ -162,6 +162,7 @@ export function createMockClient(options: MockOptions): MockClient {
     viewer: () => viewer,
     onViewer(notify) { viewerListeners.add(notify); return () => viewerListeners.delete(notify); },
     onWrite(notify) { writeListeners.add(notify); return () => writeListeners.delete(notify); },
+    async signOut() { client.setLink("signed-out"); await client.close(); },
     async close() { listeners.clear(); linkListeners.clear(); viewerListeners.clear(); writeListeners.clear(); },
     setLink(next) {
       link = next;

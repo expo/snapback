@@ -6,7 +6,7 @@
 
 import { changeFeed } from "./changes.ts";
 import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
-import type { Session } from "./auth.ts";
+import { logout, type Session } from "./auth.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
 
@@ -295,7 +295,7 @@ export function createClient(options: ClientOptions): Client {
     if (((json.why ?? json.denied) as Refusal | undefined)?.retryable) return false;
     if (json.state === "sent") {
       const at = Number(json.seq ?? 0);
-      const outcome = { state: "sent", id: entry.id, seq: at, result: json.result } as const;
+      const outcome = { state: "sent", id: entry.id, seq: at, ...(json.replayed === true ? { replayed: true } as const : { result: json.result }) } as const;
       entry.resolve(outcome);
       emitWrite(outcome);
       for (const watch of watches.values()) void refresh(watch);
@@ -427,6 +427,14 @@ export function createClient(options: ClientOptions): Client {
     onWrite(listener) {
       writeListeners.add(listener);
       return () => writeListeners.delete(listener);
+    },
+    async signOut() {
+      const bearer = headers.authorization?.slice("Bearer ".length);
+      endCredentials();
+      // Close immediately so outstanding work cannot reuse the credentials.
+      const closing = client.close();
+      if (bearer) await logout(base, bearer, doFetch);
+      await closing;
     },
     close() {
       if (closing) return closing;

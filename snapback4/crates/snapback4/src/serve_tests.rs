@@ -39,6 +39,8 @@ impl Host {
             committed: Condvar::new(),
             seq: Mutex::new(0),
             personas: dev,
+            hold_effects: false,
+            hold_schedules: false,
             entropy: Mutex::new(1),
             presence,
             asset_transfers: AssetTransfers::default(),

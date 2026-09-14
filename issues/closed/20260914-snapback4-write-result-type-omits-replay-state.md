@@ -1,6 +1,6 @@
 # Snapback 4: the write result type does not represent replay receipts
 
-Status: Open
+Status: Closed
 Priority: P2
 Systems: Snapback 4 client contract, mutation retry, package documentation
 Reported: 2026-09-14, performance lane
@@ -8,7 +8,7 @@ Source: `beed6a51e1592360a746099de585a049df3808d7`
 
 After a successful mutation's response is lost, retrying the same principal/id
 returns `{ state: "sent", id, seq, replayed: true }` without a `result`.
-This is the accepted security behavior in [LLP 3000.007 §17](../llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md#17):
+This is the accepted security behavior in [LLP 3000.007 §17](../../llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md#17):
 an execution identity does not retain historical read authority. The language
 guide and the package README's security paragraph correctly describe it.
 
@@ -29,5 +29,17 @@ Keep the existing revocation and historical-result withholding regressions.
 Do not restore cached historical values to the server's replay response.
 
 The earlier server disclosure issue is already resolved:
-[cached results after revocation](./closed/20260913-snapback4-ops-replay-returns-cached-content-after-revocation.md).
+[cached results after revocation](./20260913-snapback4-ops-replay-returns-cached-content-after-revocation.md).
 This follow-up concerns the client representation, not that server fix.
+
+## Resolution — 2026-09-14, Lane A2
+
+`Write<R>` now distinguishes a fresh sent outcome (`replayed?: false`,
+`result: R`) from a replay receipt (`replayed: true`, `result?: never`).
+Both clients preserve the receipt without adding an undefined result property;
+React already forwards the same settlement object. The optional false arm
+keeps the contract small and matches the fresh wire reply, which omits the flag.
+The README card and HTTP summary now distinguish the two outcomes. A compiled
+fixture refuses an unchecked result and accepts both narrowed outcomes.
+Real HTTP tests drop a committed value-bearing reply and observe the same-id
+retry in both tiers, alongside fresh success and the existing revocation tests.

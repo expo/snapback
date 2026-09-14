@@ -67,7 +67,6 @@ export type LocalClient = Client & {
   refreshSession(): Promise<SignIn>;
   /** Revoke every session for this principal and close this client. */
   logoutAll(): Promise<SessionRevocation>;
-  signOut(): Promise<void>;
 };
 
 interface Watch {
@@ -769,7 +768,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const settle = settled.get(entry.id);
       settled.delete(entry.id);
       const outcome: Write = json.state === "sent"
-        ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), result: json.result }
+        ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), ...(json.replayed === true ? { replayed: true } as const : { result: json.result }) }
         : { state: "failed", id: entry.id, why: (json.why as Refusal | undefined) ?? (json.denied as Refusal | undefined) ?? { code: "E_STORE", family: "store", message: "the server answered without a state", retryable: true } };
       if (outcome.state === "sent") await syncOnce();
       else rerunTables(predictedTables(entry.predicted));

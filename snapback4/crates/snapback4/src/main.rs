@@ -9,6 +9,7 @@ mod native;
 mod project;
 mod serve;
 mod dev_worker;
+mod dev_replay;
 mod lifecycle;
 mod verbs;
 
@@ -20,7 +21,8 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   init [dir] [--online|--expo]      start local-first, online-only, or with the Expo client
   check [--cost|--residency|--fix|--json] [--store path]  compile snapback/*.q; check store adoption; write types; build native jobs
   types                            compile and write snapback/generated/api.ts
-  dev [--port N] [--no-watch] [--fresh]  serve on 127.0.0.1:4400, re-adopting on every save; --fresh: a store in memory
+  dev [--port N] [--no-watch] [--fresh] [--hold-effects] [--hold-schedules]
+                                      hold worker claims or schedule admission during replay; serve on 127.0.0.1:4400, re-adopting on every save; --fresh: a store in memory
   deploy <dir> [--allow-destructive]  a release: the compiled backend into <dir>/releases/N, current → N
   rollback <dir>                   current → the previous release
   serve <dir> [--port N] [--bind IP]  serve HTTP on 127.0.0.1:4400 behind a TLS proxy; tokens only
@@ -84,7 +86,7 @@ fn main() -> ExitCode {
                 return Err("no snapback/schema.q here or above; run `snapback4 init` to start one".into());
             };
             let port: u16 = options.flags.get("port").and_then(|p| p.parse().ok()).unwrap_or(4400);
-            serve::serve(project, port, serve::Mode::Dev { watch: !options.flags.contains_key("no-watch"), fresh: options.flags.contains_key("fresh") }, "127.0.0.1")
+            serve::serve(project, port, serve::Mode::Dev { watch: !options.flags.contains_key("no-watch"), fresh: options.flags.contains_key("fresh"), hold_effects: options.flags.contains_key("hold-effects"), hold_schedules: options.flags.contains_key("hold-schedules") }, "127.0.0.1")
         }),
         other => {
             eprintln!("unknown verb {other}\n{HELP}");
