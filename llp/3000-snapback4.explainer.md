@@ -945,6 +945,19 @@ time-ordered 128-bit form.
   preserves the earlier review history and changes no implementation.
   SQL reads still await §10.3's full-cell finding.
 
+- **2026-09-14 — holistic product excellence, documentation commissioned.**
+  The author asked for an LLP and one sub-LLP for each of five gaps identified
+  in a review of the current code and retained application evidence: ordinary
+  Quarry programming, understandable and efficient data placement, the client
+  experience, whole-application performance, and dependable composition and
+  broader usefulness. [LLP 3000.008](./3000.008-holistic-product-excellence.rfc.md)
+  records the assessment and coordinates those five proposals. It extends
+  LLPs 3000.006 and 3000.007 by reference rather than replacing their detailed
+  designs, and carries the unresolved questions from the earlier research
+  children without reopening repaired defects. The request authorizes this
+  document family; its proposed product changes remain Draft. The bakeoff,
+  runtime contracts, scope exclusions and promotion decision are unchanged.
+
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal

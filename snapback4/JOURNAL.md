@@ -4989,3 +4989,37 @@ promising prediction the binder refuses; it recurred from 0.2.10. The
 other is a helper whose early `return` drops its page's cursor while the
 page reads complete, which I reproduced in 12 rows and filed as P1. Both
 are the next landing's work; §18.7 records the numbers.
+## 2026-09-14 — holistic product excellence: an umbrella and five children
+
+Charlie asked whether Snapback 4 was holistically excellent, beautiful,
+ergonomic, elegant and performant, then requested an LLP and a child for each
+of the assessment's five gaps. [LLP 3000.008](../llp/3000.008-holistic-product-excellence.rfc.md)
+records the answer: a coherent implemented foundation and a credible path,
+with whole-application ergonomics and evidence still uneven. Its five Draft
+RFC children cover ordinary Quarry programming, understandable data placement,
+the client experience, whole-application performance, and dependable composition
+and broader usefulness.
+
+The family references the existing residency and relaxed-language drafts rather
+than re-parenting them. It distinguishes static capability from current device
+coverage, flags filtering/cursor disclosure and exact-ranking semantics for
+resolution, treats documented client workarounds as ergonomic evidence, and
+requires actual-client and operational evidence for the claims those models
+cannot establish. Retained benchmark numbers keep their original versions and
+limits. No new benchmark, product test, runtime implementation or publication
+was performed for this documentation task.
+
+All six new drafts are linked into `llp/current/`. The non-hidden working-set
+count was already 60 against the declared 59-document cap and is now 66. This
+requested document family does not raise that cap or archive another session's
+in-progress proposals to make the count green; working-set curation remains
+outstanding. Root LLP 3000 and drafts 3000.006/3000.007 link the new agenda.
+
+Documentation validation: all 76 local Markdown links in the six drafts,
+their anchors, required metadata and current symlinks pass. The existing
+reference checker restricted to tracked source plus the six new drafts reports
+480 LLPs, 8,732 references, zero errors and zero unchecked. The unmodified
+whole-tree `./ref-check --verbose` reports 42 errors in ignored
+`.llp/ship-runs/` logs and retained instrument copies; none is in this change.
+Whitespace validation passes. These are documentation checks, not new product
+qualification.
