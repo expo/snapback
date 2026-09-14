@@ -69,7 +69,7 @@ for (const tier of ["wasm", "process"]) test(`R5 ${tier}: online reads and watch
   let offline = false;
   const requests = [], deviceAnswers = [];
   const directoryDevice = join(directory, "device"); mkdirSync(directoryDevice);
-  const opener = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice(binary, directoryDevice, (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), async (path, text) => writeFileSync(path, text));
+  const opener = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ binary, dir: directoryDevice, spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
   client = await createLocalClient({ url, persona: "bob", waitSeconds: 1,
     fetch: async (input, init) => { if (offline) throw new TypeError("test offline"); if (new URL(input).pathname === "/q/history") requests.push(JSON.parse(init.body).args.room); return fetch(input, init); },
     device: { open: async (...args) => { const core = await opener.open(...args); return { close: () => core.close(), call: async (request) => { const reply = await core.call(request); if (request.op === "query" && request.name === "history") deviceAnswers.push({ room: request.args.room, ...reply.ok }); return reply; } }; } },
