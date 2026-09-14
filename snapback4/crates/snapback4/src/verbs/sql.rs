@@ -119,14 +119,14 @@ fn inspect(options: &Options) -> Result<()> {
     if options.json {
         println!("{}", json!({ "header": header, "columns": columns, "rows": rows, "limit": limit, "more": more, "ruleFiltered": false }));
     } else {
-        println!("{header}");
+        eprintln!("{header}");
         let cells: Vec<Vec<String>> = rows.iter().map(|row| row.iter().map(|v| match v { Value::String(s) => s.escape_debug().to_string(), _ => v.to_string() }).collect()).collect();
         let widths: Vec<usize> = columns.iter().enumerate().map(|(i, name)| cells.iter().map(|row| row[i].chars().count()).chain([name.chars().count()]).max().unwrap()).collect();
         let line = |cells: &[String]| cells.iter().zip(&widths).map(|(cell, width)| format!("{cell}{}", " ".repeat(width.saturating_sub(cell.chars().count())))).collect::<Vec<_>>().join(" | ");
         println!("{}", line(&columns));
         println!("{}", widths.iter().map(|n| "-".repeat(*n)).collect::<Vec<_>>().join("-+-"));
         for row in &cells { println!("{}", line(row)); }
-        println!("{} row(s){}", rows.len(), if more { " — more rows exist; increase --limit or refine the SELECT" } else { "" });
+        eprintln!("{} row(s){}", rows.len(), if more { " — more rows exist; increase --limit or refine the SELECT" } else { "" });
     }
     Ok(())
 }

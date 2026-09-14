@@ -853,6 +853,19 @@ time-ordered 128-bit form.
   ceremony bar's "after" runs on it; the Clique rerun waits for W. Ruling
   16 (the `Act<R>` card word) is open in §14.
 
+- **2026-09-14 — the second blind pass on §8.7 and §5.9 returns NOT
+  READY and READY WITH CHANGES.** LLP 3000.007 §17 records both
+  families' findings on lane W's implementation and their dispositions:
+  one wrong word (a secondary hidden collision on a readable target is
+  `E_RULE`, not `NOT_FOUND`), the absent-target path made one word with
+  the hidden path on every branch and every meter field, cap
+  diagnostics without values, an exhaustive purity check with a runtime
+  write prohibition, a receipt that records the replay-shaped body,
+  §5.9 narrowed to plain prefix scans, and one observation helper for
+  the acceptance. Three findings are rulings 17 (a)–(c), built
+  conservatively by lane W2 until the author relaxes them. The
+  implementation returns to both families once more before it lands.
+
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal

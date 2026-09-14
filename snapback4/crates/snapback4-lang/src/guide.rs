@@ -1267,7 +1267,9 @@ mutation rank(postId: id, score: int):
 ```
 
 `snapback4 token --service ranker [--days 365] [--release <dir>]` prints,
-once, a bearer session for the principal `service:ranker`. Rules name it
+once, a bearer session for the principal `service:ranker`.
+The token and one newline are the whole of stdout (even with `--json`), with prose on stderr, so capture it with `TOKEN=$(npx snapback4 token --service ranker)`.
+Rules name it
 like any principal, so the ranker is admitted and nobody else is; with
 its token a worker claims effects (guide effects) and runs any operation
 a rule admits it to.

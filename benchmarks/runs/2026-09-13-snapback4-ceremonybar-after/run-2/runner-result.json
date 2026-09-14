@@ -1,0 +1,624 @@
+{
+  "at": "2026-09-14T06:38:03.576Z",
+  "run": 2,
+  "version": "0.2.9",
+  "model": "gpt-6-astra",
+  "effort": "medium",
+  "lane": "/Users/ccheever/projects/snapback-ceremony-after/runs/run-2",
+  "packet": {
+    "ceremony-brief.md": "5ca90964af0dd5301fc5025a0d722167e711b0dabbe0ca5401908143a1adf4db",
+    "ceremony.mjs": "20e1a8f79ff33cbfdb59c095330088fee94b26997c7c9a67597fbf17b8e1dc81",
+    "ceremony-metrics.mjs": "b28f07761b4ad821d3ce16e466034c7bcc41547acac662aacccf02ab35ce2828",
+    "ceremony-process.mjs": "59b725fe8317c6a5124dd9b04a4dda9c955727ffc5e00df5df85ac4ee5948f1d",
+    "ceremony-probes.mjs": "37b80df7496f2a407eddd30dd6655ed9d2523dc15dedee72808171652fe55242",
+    "run.mjs": "45347dc802b62e8ccf9d9c5cb8f1b28d4fe3a283c7c24d3d085517ed44bf1e00"
+  },
+  "host": {
+    "name": "Charlies-MacBook-Pro-M5Max-Black.local",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpus": 18,
+    "cpu": "Apple M5 Max",
+    "loadAverage": [
+      14.9375,
+      22.68701171875,
+      25.1962890625
+    ],
+    "sharedAndLoaded": true
+  },
+  "node": "v24.18.0",
+  "timedOut": false,
+  "installSeconds": 1.013,
+  "installedBefore": {
+    "version": "0.2.9",
+    "platformVersion": "0.2.9",
+    "binarySha256": "6550376e49d2ef450a27c3234b7250af33bdac2da3f64239b4d81ad3bbe3b8ae",
+    "readmeSha256": "aa026f23f633fce4c2afd064304c30865788827a58699e724f3a9128a9293473",
+    "packageLockSha256": "b1331ed020e7799e9c5eb2a9d8ccc051d0691e9dc06f626e5c8513e717ed3cdf"
+  },
+  "agentStartedAt": "2026-09-14T06:38:04.593Z",
+  "invocation": {
+    "command": "/Users/ccheever/.volta/bin/codex",
+    "args": [
+      "exec",
+      "--dangerously-bypass-approvals-and-sandbox",
+      "--skip-git-repo-check",
+      "--json",
+      "--color",
+      "never",
+      "-m",
+      "gpt-6-astra",
+      "-c",
+      "model_reasoning_effort=medium",
+      "-C",
+      "/Users/ccheever/projects/snapback-ceremony-after/runs/run-2",
+      "-o",
+      "/Users/ccheever/projects/snapback-ceremony-after/runs/run-2/FINAL.md",
+      "-"
+    ]
+  },
+  "agentPid": 77675,
+  "exitCode": 0,
+  "exitSignal": null,
+  "agentError": null,
+  "agentWallSeconds": 402.112,
+  "wallSeconds": 403.129,
+  "installedAfter": {
+    "version": "0.2.9",
+    "platformVersion": "0.2.9",
+    "binarySha256": "6550376e49d2ef450a27c3234b7250af33bdac2da3f64239b4d81ad3bbe3b8ae",
+    "readmeSha256": "aa026f23f633fce4c2afd064304c30865788827a58699e724f3a9128a9293473",
+    "packageLockSha256": "b1331ed020e7799e9c5eb2a9d8ccc051d0691e9dc06f626e5c8513e717ed3cdf"
+  },
+  "pinUnchanged": true,
+  "agentSeconds": 382,
+  "correctionLoops": {
+    "byAttribution": {
+      "snapback4-defect": 0,
+      "docs": 0,
+      "agent-error": 2,
+      "environment": 0,
+      "ambiguous": 0
+    },
+    "snapbackAttributed": 0,
+    "total": 2,
+    "loops": [
+      {
+        "id": 1,
+        "attribution": "agent-error",
+        "line": "1789368004 loop=1 attribution=agent-error failed=\"npx snapback4 check\" missing chat key/admin authorization index; resolved by declaring byKeyAdmin. knowledge source=why E_QUARRY_UNKNOWN."
+      },
+      {
+        "id": 2,
+        "attribution": "agent-error",
+        "line": "1789368053 loop=2 attribution=agent-error failed=\"npx snapback4 check completeness review\" OR-based membership read rule makes recipient scan never complete; resolved with explicitly public roster directory (message content remains membership-gated). knowledge source=diagnostic N_NEVER_COMPLETE and generated snapback/generated/api.ts."
+      }
+    ],
+    "malformed": []
+  },
+  "schemaShape": {
+    "tables": 9,
+    "tableNames": [
+      "profiles",
+      "posts",
+      "likes",
+      "follows",
+      "chats",
+      "members",
+      "messages",
+      "acknowledgements",
+      "digestPeriods"
+    ],
+    "maintains": 1,
+    "maintainNames": [
+      "likeCounts"
+    ],
+    "tablesIncludingMaintains": 10,
+    "workTablesHeuristic": {
+      "count": 0,
+      "names": []
+    },
+    "workTablesReported": {
+      "count": 1,
+      "names": [
+        "digestPeriods"
+      ]
+    },
+    "perPrincipalCountersHeuristic": [
+      "digestPeriods"
+    ],
+    "perPrincipalCountersReported": [],
+    "publicPerPrincipalCounterLines": {
+      "count": 0,
+      "lines": []
+    },
+    "quarryLines": 214,
+    "quarryCodeLines": 189,
+    "operations": 14,
+    "operationsByKind": {
+      "query": 4,
+      "mutation": 9,
+      "job": 1
+    },
+    "operationNames": [
+      {
+        "kind": "mutation",
+        "name": "profile",
+        "path": "snapback/schema.q",
+        "line": 94
+      },
+      {
+        "kind": "mutation",
+        "name": "post",
+        "path": "snapback/schema.q",
+        "line": 97
+      },
+      {
+        "kind": "mutation",
+        "name": "like",
+        "path": "snapback/schema.q",
+        "line": 106
+      },
+      {
+        "kind": "mutation",
+        "name": "follow",
+        "path": "snapback/schema.q",
+        "line": 112
+      },
+      {
+        "kind": "mutation",
+        "name": "createChat",
+        "path": "snapback/schema.q",
+        "line": 117
+      },
+      {
+        "kind": "mutation",
+        "name": "addMember",
+        "path": "snapback/schema.q",
+        "line": 121
+      },
+      {
+        "kind": "mutation",
+        "name": "send",
+        "path": "snapback/schema.q",
+        "line": 127
+      },
+      {
+        "kind": "mutation",
+        "name": "leave",
+        "path": "snapback/schema.q",
+        "line": 131
+      },
+      {
+        "kind": "mutation",
+        "name": "ack",
+        "path": "snapback/schema.q",
+        "line": 135
+      },
+      {
+        "kind": "query",
+        "name": "receipt",
+        "path": "snapback/schema.q",
+        "line": 146
+      },
+      {
+        "kind": "query",
+        "name": "trending",
+        "path": "snapback/schema.q",
+        "line": 161
+      },
+      {
+        "kind": "query",
+        "name": "insights",
+        "path": "snapback/schema.q",
+        "line": 165
+      },
+      {
+        "kind": "query",
+        "name": "search",
+        "path": "snapback/schema.q",
+        "line": 187
+      },
+      {
+        "kind": "job",
+        "name": "digest",
+        "path": "snapback/schema.q",
+        "line": 194
+      }
+    ],
+    "auxiliaryOperationsReported": [],
+    "reportingError": null
+  },
+  "verify": {
+    "directory": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-GifVM1",
+    "acceptanceDirectory": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-jMMzOv",
+    "probeDirectory": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-uL0PbO",
+    "check": {
+      "ok": true,
+      "status": 0,
+      "timedOut": false,
+      "error": null,
+      "tail": "check: ok — 10 tables (0 synced), 14 operations, no problems, 3.0 ms\n"
+    },
+    "acceptance": {
+      "ok": true,
+      "status": 0,
+      "timedOut": false,
+      "error": null,
+      "tail": "\n> acceptance\n> node scripts/acceptance.mjs\n\n2026-09-14T06:44:47.531Z check start\n2026-09-14T06:44:47.841Z check green\n2026-09-14T06:44:47.843Z Started owned server PID 39785, port 50270, persistent store /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-jMMzOv/.acceptance/run-AIsKlc\n2026-09-14T06:44:48.275Z seed start\n2026-09-14T06:44:48.778Z seed green\n2026-09-14T06:44:48.826Z initial queries and authority green\n2026-09-14T06:44:49.524Z Stopped owned server PID 39785\n2026-09-14T06:44:49.527Z Started owned server PID 40263, port 50270, persistent store /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-jMMzOv/.acceptance/run-AIsKlc\n2026-09-14T06:44:50.450Z persistent digest duplicate/next period and real worker claim/settlement green\n2026-09-14T06:44:50.451Z scheduled boundary start: waiting for 2026-09-14T06:46:00.000Z\n2026-09-14T06:45:05.537Z Waiting for real two-minute scheduler tick\n2026-09-14T06:45:20.604Z Waiting for real two-minute scheduler tick\n2026-09-14T06:45:35.683Z Waiting for real two-minute scheduler tick\n2026-09-14T06:45:50.754Z Waiting for real two-minute scheduler tick\n2026-09-14T06:46:00.311Z actual scheduled two-minute boundary green\n2026-09-14T06:46:00.736Z receipt progression, monotonicity, leave and one-message unread green\n2026-09-14T06:46:02.023Z live likes, new messages, read contribution, membership and zero digest green\n2026-09-14T06:46:02.026Z ACCEPTANCE GREEN\n2026-09-14T06:46:02.040Z Stopped owned server PID 40263\nEvidence retained at /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-jMMzOv/.acceptance/run-AIsKlc\n"
+    },
+    "probes": {
+      "directory": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-uL0PbO",
+      "ok": true,
+      "checks": [
+        {
+          "name": "insights",
+          "ok": true,
+          "seconds": 0.022
+        },
+        {
+          "name": "trending",
+          "ok": true,
+          "seconds": 0.038
+        },
+        {
+          "name": "search",
+          "ok": true,
+          "seconds": 0.025
+        },
+        {
+          "name": "digest",
+          "ok": true,
+          "seconds": 114.877
+        },
+        {
+          "name": "receipt",
+          "ok": true,
+          "seconds": 0.04
+        }
+      ],
+      "evidence": {
+        "insights": {
+          "initial": {
+            "posts": 6,
+            "likesReceived": 21,
+            "repostsReceived": 2,
+            "repliesReceived": 2,
+            "followers": 3,
+            "following": 2,
+            "days": [
+              {
+                "day": 1788739200000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1788825600000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1788912000000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1788998400000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1789084800000,
+                "posts": 1,
+                "likesReceived": 7
+              },
+              {
+                "day": 1789171200000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1789257600000,
+                "posts": 4,
+                "likesReceived": 12
+              }
+            ]
+          },
+          "afterLike": {
+            "posts": 6,
+            "likesReceived": 22,
+            "repostsReceived": 2,
+            "repliesReceived": 2,
+            "followers": 3,
+            "following": 2,
+            "days": [
+              {
+                "day": 1788739200000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1788825600000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1788912000000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1788998400000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1789084800000,
+                "posts": 1,
+                "likesReceived": 7
+              },
+              {
+                "day": 1789171200000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1789257600000,
+                "posts": 4,
+                "likesReceived": 13
+              }
+            ]
+          }
+        },
+        "trending": {
+          "initial": [
+            {
+              "key": "p01",
+              "likes": 6,
+              "at": 1789318800000
+            },
+            {
+              "key": "p02",
+              "likes": 5,
+              "at": 1789315200000
+            },
+            {
+              "key": "p03",
+              "likes": 4,
+              "at": 1789311600000
+            },
+            {
+              "key": "p04",
+              "likes": 4,
+              "at": 1789308000000
+            },
+            {
+              "key": "p05",
+              "likes": 4,
+              "at": 1789304400000
+            },
+            {
+              "key": "p06",
+              "likes": 3,
+              "at": 1789300800000
+            },
+            {
+              "key": "p07",
+              "likes": 3,
+              "at": 1789297200000
+            },
+            {
+              "key": "p08",
+              "likes": 3,
+              "at": 1789293600000
+            },
+            {
+              "key": "p09",
+              "likes": 2,
+              "at": 1789290000000
+            },
+            {
+              "key": "p10",
+              "likes": 2,
+              "at": 1789286400000
+            }
+          ],
+          "afterLikes": [
+            {
+              "key": "p16",
+              "likes": 7,
+              "at": 1789264800000
+            },
+            {
+              "key": "p01",
+              "likes": 6,
+              "at": 1789318800000
+            },
+            {
+              "key": "p02",
+              "likes": 5,
+              "at": 1789315200000
+            },
+            {
+              "key": "p03",
+              "likes": 4,
+              "at": 1789311600000
+            },
+            {
+              "key": "p04",
+              "likes": 4,
+              "at": 1789308000000
+            },
+            {
+              "key": "p05",
+              "likes": 4,
+              "at": 1789304400000
+            },
+            {
+              "key": "p06",
+              "likes": 3,
+              "at": 1789300800000
+            },
+            {
+              "key": "p07",
+              "likes": 3,
+              "at": 1789297200000
+            },
+            {
+              "key": "p08",
+              "likes": 3,
+              "at": 1789293600000
+            },
+            {
+              "key": "p09",
+              "likes": 2,
+              "at": 1789290000000
+            }
+          ]
+        },
+        "search": {
+          "initial": [
+            {
+              "chatKey": "alpha",
+              "keys": [
+                "a20",
+                "a15",
+                "a10",
+                "a05"
+              ]
+            },
+            {
+              "chatKey": "beta",
+              "keys": [
+                "b20",
+                "b15",
+                "b10",
+                "b05"
+              ]
+            }
+          ],
+          "insertedMessage": "b21"
+        },
+        "digest": {
+          "explicitPeriod": {
+            "periodStart": 1789367160000,
+            "periodEnd": 1789367280000
+          },
+          "followingPeriod": {
+            "periodStart": 1789367280000,
+            "periodEnd": 1789367400000
+          },
+          "scheduledBoundary": 1789368480000,
+          "observed": [
+            {
+              "id": "01M2FAN0BH03Q0CQHB8VX2QVRM",
+              "payload": {
+                "periodEnd": 1789367280000,
+                "periodStart": 1789367160000,
+                "targetUserId": "dev:bob",
+                "unreadChats": 2,
+                "unreadMessages": 40
+              }
+            },
+            {
+              "id": "01M2FAN0BH4JWNSG336WF6KEWY",
+              "payload": {
+                "periodEnd": 1789367280000,
+                "periodStart": 1789367160000,
+                "targetUserId": "dev:carol",
+                "unreadChats": 1,
+                "unreadMessages": 20
+              }
+            },
+            {
+              "id": "01M2FAN0BH9KG4X7YQ3PYMF016",
+              "payload": {
+                "periodEnd": 1789367280000,
+                "periodStart": 1789367160000,
+                "targetUserId": "dev:alice",
+                "unreadChats": 1,
+                "unreadMessages": 21
+              }
+            },
+            {
+              "id": "01M2FAN20DGC3HD6ZR3R4C1ZHW",
+              "payload": {
+                "periodEnd": 1789367400000,
+                "periodStart": 1789367280000,
+                "targetUserId": "dev:carol",
+                "unreadChats": 1,
+                "unreadMessages": 20
+              }
+            },
+            {
+              "id": "01M2FAN20DHD004RA31J5DFDDR",
+              "payload": {
+                "periodEnd": 1789367400000,
+                "periodStart": 1789367280000,
+                "targetUserId": "dev:alice",
+                "unreadChats": 1,
+                "unreadMessages": 21
+              }
+            },
+            {
+              "id": "01M2FAN20DQT1KZGM56P4FM1HQ",
+              "payload": {
+                "periodEnd": 1789367400000,
+                "periodStart": 1789367280000,
+                "targetUserId": "dev:bob",
+                "unreadChats": 1,
+                "unreadMessages": 20
+              }
+            },
+            {
+              "id": "01M2FARD5Q3Z3XSCQEV9KPB2VH",
+              "payload": {
+                "periodEnd": 1789368480000,
+                "periodStart": 1789368360000,
+                "targetUserId": "dev:carol",
+                "unreadChats": 1,
+                "unreadMessages": 20
+              }
+            },
+            {
+              "id": "01M2FARD5QJ399X0Z9FCAQ0QKF",
+              "payload": {
+                "periodEnd": 1789368480000,
+                "periodStart": 1789368360000,
+                "targetUserId": "dev:bob",
+                "unreadChats": 1,
+                "unreadMessages": 20
+              }
+            },
+            {
+              "id": "01M2FARD5QTMRT5R722GZ0WSB1",
+              "payload": {
+                "periodEnd": 1789368480000,
+                "periodStart": 1789368360000,
+                "targetUserId": "dev:alice",
+                "unreadChats": 1,
+                "unreadMessages": 21
+              }
+            }
+          ]
+        },
+        "receipt": [
+          "sent",
+          "sent",
+          "delivered",
+          "delivered",
+          "read",
+          "read"
+        ]
+      }
+    },
+    "ok": true
+  },
+  "verificationSeconds": 196.88,
+  "green": true,
+  "measurementComplete": true,
+  "loopBarComparison": {
+    "wallAtMost1200": true,
+    "snapbackAttributedAtMost1": true
+  }
+}

@@ -133,7 +133,8 @@ pub fn check(options: &Options) -> i32 {
     if options.flags.contains_key("residency") && !options.json { println!("{}", residency::facts(&bound)); }
     if options.flags.contains_key("cost") {
         for program in &bound.programs {
-            println!("{}", cost_report(&bound, &program.program));
+            let report = cost_report(&bound, &program.program);
+            if options.json { eprintln!("{report}"); } else { println!("{report}"); }
         }
     }
     0
@@ -211,7 +212,8 @@ pub fn types(options: &Options) -> i32 {
     let bound = compile_or_exit(&project, options.json);
     match project.write_generated(&bound) {
         Ok(path) => {
-            println!("types: {}", path.display());
+            println!("{}", path.display());
+            eprintln!("types: wrote {}", path.display());
             0
         }
         Err(error) => {
@@ -357,7 +359,7 @@ pub fn data(options: &Options) -> i32 {
                 println!("{}", wire::to_json(row));
             }
             if more {
-                println!("… more rows (increase --limit)");
+                eprintln!("… more rows (increase --limit)");
             }
             0
         }
@@ -732,12 +734,9 @@ pub fn token(options: &Options) -> i32 {
     };
     match snapback4_core::identity::service_session(&store, name, snapback4_core::now_ms(), days) {
         Ok(session) => {
-            if options.json {
-                println!("{}", json!({ "principal": session.principal, "kind": session.kind, "token": session.token, "expiresAt": session.expires_at }));
-            } else {
-                println!("{}", session.token);
-                eprintln!("token: a session for {} until {} — printed once; keep it where the worker keeps secrets", session.principal, session.expires_at);
-            }
+            // Shell capture has one form, including when the shared --json flag is present.
+            println!("{}", session.token);
+            eprintln!("token: a session for {} until {} — printed once; keep it where the worker keeps secrets", session.principal, session.expires_at);
             0
         }
         Err(error) => {

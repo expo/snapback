@@ -58,7 +58,7 @@ impl DevWorker {
             self.backoff = (self.backoff * 2).min(Duration::from_secs(5));
         }
         if self.stopping() || Instant::now() < self.restart { return; }
-        match Command::new(&self.node).arg(&self.source).current_dir(&self.project.root).env("SNAPBACK_URL", &self.url).env("SNAPBACK_SERVICE_TOKEN", &self.token).stdin(Stdio::null()).stdout(Stdio::inherit()).stderr(Stdio::inherit()).spawn() {
+        match Command::new(&self.node).arg(&self.source).current_dir(&self.project.root).env("SNAPBACK_URL", &self.url).env("SNAPBACK_SERVICE_TOKEN", &self.token).stdin(Stdio::null()).stdout(Stdio::from(std::io::stderr())).stderr(Stdio::inherit()).spawn() {
             Ok(child) => { eprintln!("snapback4 dev worker: {} (pid {})", self.source.display(), child.id()); self.child = Some(child); self.started = Instant::now(); }
             Err(error) => { eprintln!("snapback4 dev worker: cannot start: {error}"); self.restart = Instant::now() + self.backoff; self.backoff = (self.backoff * 2).min(Duration::from_secs(5)); }
         }

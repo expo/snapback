@@ -1,0 +1,15 @@
+start=1789368497
+1789368504 milestone=design-start lookup=package-README
+1789368504 loop=1 attribution=agent-error failed-command=initial-clock-write resolution=all-subsequent-work-confined-to-current-directory
+1789368530 lookup=package-guide-language-jobs-bounds-search-and-why-E_STRUCTURAL_FANOUT milestone=design-green milestone=implementation-start
+1789368663 milestone=implementation-green milestone=client-and-acceptance-start lookup=generated-api-types
+1789368896 lookup=model-knowledge-Node-process-fetch-assert-filesystem milestone=client-and-acceptance-implementation-green milestone=proof-run-start
+schema-shape={"workTables":["digestPeriods"],"perPrincipalCounterTables":["authored","targeted","receivedLikes","followers","following"],"auxiliaryOperations":[]}
+Schema choices: profiles hold explicit active flags. Public posts and reactions preserve author/kind provenance at insertion; posts are immutable after insertion, so that provenance cannot drift. Authored, targeted, receivedLikes, followers and following are engine-maintained counters, readable only by the principal they describe. postLikes is world-readable because counts rank public posts and reveal only the count of already-public reactions; it is a per-post counter, not a per-principal counter.
+Schema choices: members is an intentionally public membership directory, making both principal-scoped enumeration and chat-scoped recipient enumeration complete. Chats, messages and acknowledgments remain membership-protected. Only admins add members; only the viewer can leave or acknowledge, and send always attributes to the viewer. Per-recipient state cannot regress from read. Current membership determines receipt and digest audiences.
+Schema choices: digestPeriods is conservatively listed as a work table under the brief's same-job-read definition. It holds durable per-principal period issuance facts, not computed unread numbers; its unique triple prevents repeated emissions across independent runs and restarts. Insertion and emit share a transaction. It is read only by its principal (system jobs bypass rules) and is not world-readable. There are no accumulator tables or auxiliary operations. profile, post, follow, createChat and addMember are ordinary domain creation mutations used by seed.
+Schema choices: insights builds seven UTC day buckets in Quarry using bounded indexed seeks. trending shapes maintained like counts, sorts and slices in Quarry. search performs native scoped word-prefix matching and returns ordered chat groups from Quarry. digest scans current memberships/messages and per-message acknowledgments as system. Page sizes stay within unchanged package ceilings; chat membership and message groups have explicit caps of 100 and 500.
+1789368932 milestone=initial-wire-proof-green milestone=manual-effects-green milestone=scheduled-boundary-start lookup=wire-diagnostic-initial-assertions
+1789369009 milestone=scheduled-boundary-green milestone=restart-dedup-green milestone=live-change-and-authorization-green milestone=proof-run-green milestone=final-record-start lookup=acceptance-diagnostics
+1789369009 milestone=final-record-green
+green=1789369009
