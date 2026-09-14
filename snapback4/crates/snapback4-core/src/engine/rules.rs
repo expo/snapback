@@ -31,7 +31,8 @@ pub(super) fn prefix_decision(schema: &Schema, scan: &Scan) -> Option<RuleExpr> 
     let index = table.index(&scan.index)?;
     let pinned = index.components.iter().zip(&scan.prefix).filter_map(|(part, key)| part.column().zip(key.scalar())).collect();
     let rule = simplify_prefix(&table.rules.read, &scan.table, table, &pinned);
-    let terms = match rule { RuleExpr::And(terms) => terms, RuleExpr::Allow => return None, rule => vec![rule] };
+    if matches!(rule, RuleExpr::Allow) { return None; }
+    let terms = conjuncts(rule);
     let decided: Vec<_> = terms.into_iter().take_while(|term| {
         let mut fields = BTreeSet::new();
         term.fields(&mut fields);
@@ -40,10 +41,15 @@ pub(super) fn prefix_decision(schema: &Schema, scan: &Scan) -> Option<RuleExpr> 
     (!decided.is_empty()).then_some(RuleExpr::And(decided))
 }
 
+// Flatten only conjunctions, preserving left-to-right short-circuit order.
+fn conjuncts(rule: RuleExpr) -> Vec<RuleExpr> {
+    match rule { RuleExpr::And(terms) => terms.into_iter().flat_map(conjuncts).collect(), rule => vec![rule] }
+}
+
 fn simplify_prefix(rule: &RuleExpr, name: &str, table: &Table, pinned: &BTreeMap<&String, &Expr>) -> RuleExpr {
     if rule_true(rule, name, table, pinned) { return RuleExpr::Allow; }
     match rule {
-        RuleExpr::And(terms) => RuleExpr::And(terms.iter().map(|term| simplify_prefix(term, name, table, pinned)).filter(|term| !matches!(term, RuleExpr::Allow)).collect()),
+        RuleExpr::And(terms) => RuleExpr::And(terms.iter().map(|term| simplify_prefix(term, name, table, pinned)).flat_map(conjuncts).filter(|term| !matches!(term, RuleExpr::Allow)).collect()),
         RuleExpr::Or(_) => {
             // Use the same self-witness absorption as uniformity, but remove
             // the absorbed field read from the expression we actually run.

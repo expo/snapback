@@ -198,6 +198,8 @@ fn cross_file_fix_refuses_a_changed_destination_before_apply() { concurrent_fix(
 #[test]
 fn cross_file_fix_rereads_destination_immediately_before_write() { concurrent_fix("write", "tables.q"); }
 #[test]
+fn r3_cross_file_fix_rereads_query_immediately_before_write() { concurrent_fix("write", "queries.q"); }
+#[test]
 fn fix_final_compile_reads_the_current_project() {
     let root = std::env::temp_dir().join(format!("sb4-r1b-final-{}", std::process::id()));
     std::fs::create_dir_all(root.join("snapback")).unwrap();

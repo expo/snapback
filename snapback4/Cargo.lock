@@ -446,6 +446,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "snapback4-lang",
  "thiserror",
  "unicode-normalization",
  "wasmi",

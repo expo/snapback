@@ -30,22 +30,27 @@ pub(super) fn compile_observed(project: &Project, mut observe: impl FnMut(&str))
         let (name, source) = &sources[target];
         let path = project.schema_dir().join(name);
         // @ref LLP 3000.007#18.5 — a cross-file repair depends on every compiled source, including the query's file.
-        let current = project.sources()?;
-        if let Some(name) = sources.iter().find(|(name, text)| !current.iter().any(|(n, t)| n == name && t == text)).map(|(name, _)| name)
-            .or_else(|| current.iter().find(|(name, _)| !sources.iter().any(|(n, _)| n == name)).map(|(name, _)| name)) {
-            return Err(changed_source(&project.schema_dir().join(name)));
-        }
+        verify_sources(project, &sources)?;
         let mut changed = source.clone();
         changed.replace_range(start..end, &replacement);
         if changed == *source { return project.compile(); }
         observe("write");
-        // Re-read at publication too, after preparing the replacement bytes.
-        if std::fs::read_to_string(&path)? != *source { return Err(changed_source(&path)); }
+        // Best effort: an editor can still save between these reads and the write.
+        verify_sources(project, &sources)?;
         std::fs::write(&path, &changed)?;
         eprintln!("fix: {} — {}: {}", diagnostic.site, diagnostic.code, diagnostic.rewrite.replace('\n', " "));
         sources[target].1 = changed;
     }
     project.compile()
+}
+
+fn verify_sources(project: &Project, sources: &[(String, String)]) -> std::io::Result<()> {
+    let current = project.sources()?;
+    if let Some(name) = sources.iter().find(|(name, text)| !current.iter().any(|(n, t)| n == name && t == text)).map(|(name, _)| name)
+        .or_else(|| current.iter().find(|(name, _)| !sources.iter().any(|(n, _)| n == name)).map(|(name, _)| name)) {
+        return Err(changed_source(&project.schema_dir().join(name)));
+    }
+    Ok(())
 }
 
 fn changed_source(path: &std::path::Path) -> std::io::Error {

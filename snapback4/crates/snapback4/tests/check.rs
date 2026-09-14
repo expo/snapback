@@ -33,6 +33,18 @@ impl Drop for Project { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0)
 fn parsed(output: &Output) -> Value { serde_json::from_slice(&output.stdout).unwrap_or_else(|_| panic!("{output:?}")) }
 
 #[test]
+fn r3_cost_and_why_name_the_lane_local_word_bound() {
+    let p = Project::new();
+    p.source(include_str!("../../snapback4-sim/tests/search_merge/round3.q"));
+    for args in [vec!["check", "--cost"], vec!["why", "matching"]] {
+        let output = p.run(&args);
+        assert!(output.status.success(), "{output:?}");
+        let text = String::from_utf8(output.stdout).unwrap();
+        assert!(text.contains("past 32 words a lane is incomplete (word_cut_at names it), later lanes continue; meter ceilings remain query-wide"), "{text}");
+    }
+}
+
+#[test]
 fn check_without_a_store_and_additive_or_fitting_adoption_are_quiet() {
     let p = Project::new();
     assert!(p.run(&["check", "--json"]).status.success());

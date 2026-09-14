@@ -4812,3 +4812,80 @@ A final temporary N3 preservation assertion was also run on the process client
 with the implementation and CLI rebuilt at the exact base: **0 passed, 1
 failed**, `0 !== 25` for the online left component. The permanent regression
 was restored to pin today's whole-query behavior, and the final CLI rebuilt.
+
+## 2026-09-14 — R3: nested denial, a word bound per scope, and best-effort fixes
+
+Reproduced all three findings before changing implementation at base
+`c3c80fc8f0b03f1bc014dc5cc4a9a5b5876fd2e5`. The compiled three-term rule
+really is `And([And([permit, principal]), body])`. The base core run was
+**0 passed / 4 failed** (complete observation, examined boundary, 33-word
+later-lane preservation, and the admitted-scope bound under both cuts).
+The admitted-scope server pair was **0/1**, both device stores **0/2**, and
+the query-save-at-write-boundary fixer regression **0/1**. The new tests
+use the compiler's output, including its cursor, rather than reconstructing
+only a two-term rule. A test-only language dependency and its lock entry
+let the core's private observation suite inspect that compiled output.
+
+Prefix simplification and selection flatten nested conjunctions in their
+left-to-right short-circuit order. A leading denial runs before discovery;
+the first unpinned term still stops the pre-check. No term is reordered.
+The 32-word bound now records the first scope in `word_cut_at`, independently
+of `capped_at`: the scope makes the page incomplete but later lanes run.
+Completeness and cursor publication on both hosts include the word bound;
+retained-history fallback cannot mistake it for retained incompleteness.
+The existing uniform wide-lane regression changes only its name carrier.
+`check --cost`, `why`, the search card and README name the bound. An admitted
+non-uniform scope's hidden rows still spend the query-wide examined and
+index-entry budgets. At a real ceiling of **10**, W0 returns its row while
+W1 caps or refuses under Cap/Abort; no ceiling was raised. Mutation pages
+still refuse matching at check (`E_STRUCTURAL_FANOUT`), including a bound
+page outside a loop; the runner can execute matching IR under either cut,
+and both cuts are covered on SQLite and memory as well as the server.
+
+The nested-denial test compares **10 complete observation pairs**: plain
+and matching under Cap/Abort at ample and boundary budgets, plus the
+33-hidden-word merge under both cuts. With ample budgets, the plain
+Cap/Abort examined W0/W1 counts change **0/1 → 0/0** and **1/2 → 1/1**;
+matching changes **0/1 → 0/0** and **0/2 → 1/1**. Matching index entries
+change **1/2 → 0/0**, probes **0/1 → 1/1**, steps **5/9 → 5/5**, and heap
+**4/11 → 4/4 B**. Output remains **12 B**, writes **0**, expiry **null**.
+Every observation also compares rows, complete, cursor, cap, dependencies,
+and the error envelope. The 33-word nested merge now returns **1/1** row
+with identical cursors, all seven meters, and no error under either cut.
+R2's reversed-conjunct, input-order, expiry and self-witness tests stay green.
+
+For the admitted-scope pair, alice belongs to both r1 and r2; only r1's
+**33** hidden `cof*` words differ. The server and both device stores now
+return **1/1** row and the same non-null cursor, both **complete: false**;
+the base returned **1/0** and lost W1's cursor. Core Cap's final W0/W1
+meters are examined **3/35**, index entries **3/35**, probes **3/35**,
+steps **20/117**, heap **427/651 B**, output **115/115 B**, writes **0/0**.
+Abort examined is **7/71**, the other six fields as above; it no longer
+raises the artificial `index entries reached the ceiling 32` refusal.
+These unequal private costs are the documented non-uniform contract.
+
+The fixer repeats whole-project source validation at `observe("write")`.
+A save to queries.q there now leaves tables.q unchanged and exits **2**,
+naming queries.q; the base wrote the stale index repair and exited **1**.
+Existing positive byte-exact repairs remain green. README calls validation
+best effort: an observed edit refuses, but a save after the final read and
+before `fs::write` can still be overwritten. No editor-lock mechanism added.
+
+Targeted: core read_verdict **15/0**; simulator membership **5/0**,
+page_admission **13/0**, search_merge **11/0**, write_authority **34/0**;
+device (including search_merge) **37/0**, retained_history **16/0**;
+CLI check **11/0**, fix **16/0**; language guide **9/0**. The blocking
+`bash snapback4/scripts/test.sh` completed in **183 s**: Rust **468 passed,
+0 failed, 1 ignored**, fixture wrapper **9/0**, client **135/1**. The sole
+failure was Chromium **SIGABRT** before the React assertions. It fails
+alone **0/1** and **0/1** using the React witness, package source and reference
+apps extracted from the exact base above, with the same installed dependencies;
+that witness launches no Rust backend. No lifecycle timeout occurred.
+
+The suite's wasm build measured **1,602,708 B raw / 444,853 B gzip**.
+All Snapback 4 code remains below 1,500 lines (largest **1,447**).
+No serialized value form, meter ceiling, diagnostic code, existing corpus
+case, or client card type changed. No sub-agent, remote machine, repository
+clone, formatter, installation, commit, push, tag or publication was used.
+The lesson is to preserve evaluation order through nesting and to separate
+a scope's bounded search from exhaustion of the query's actual budget.

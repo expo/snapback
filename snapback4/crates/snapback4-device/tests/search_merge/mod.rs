@@ -1,6 +1,7 @@
 use super::*;
 
 mod round2;
+mod round3;
 
 #[test]
 fn matching_merges_page_the_same_rows_on_both_device_stores() {

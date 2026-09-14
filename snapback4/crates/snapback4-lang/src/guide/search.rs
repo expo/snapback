@@ -51,7 +51,7 @@ words index serves `matching` and nothing else, and cannot be unique.
 
 `matching q` folds the text the same way. Its first term selects every
 word it is a prefix of ("cof": coffee, coffers, cofounder — one seek each,
-at most 32 words, else the page is `complete: false`), and those words
+at most 32 words per scope, else the page is `complete: false`), and those words
 merge as ordered lanes into one page — newest first when the index says
 so. Every further term must be a prefix of some word of the row ("cof
 car" finds "COFFEE for Carol"). Mid-word text does not match; an empty
@@ -70,6 +70,9 @@ and the page is complete when all lanes are complete; past 50 lanes
 `check` emits N_WIDE_MERGE, and the device runs the same query over held rows.
 A pinned conjunct such as `exists members[.roomId, viewer]` can deny a scope
 before word discovery even when another conjunct needs each row. Admitted
-non-uniform scopes keep per-row costs and remain incomplete. Reads inside
+non-uniform scopes keep per-row costs and remain incomplete; hidden rows
+there still spend the query-wide examined/index-entry budget. The 32-word
+bound makes that lane incomplete without cutting later lanes; operator
+results name it in `word_cut_at`, separately from a meter cut in `capped_at`. Reads inside
 `where` use their own rules and search terms. Even an empty matching result
 past a device horizon is incomplete; a held group can fall back to the server."##;

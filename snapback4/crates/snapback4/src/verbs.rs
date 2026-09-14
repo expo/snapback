@@ -161,7 +161,7 @@ fn cost_report(bound: &Bound, program: &ir::Program) -> String {
     range_costs(&program.body, &mut lines);
     for merge in snapback4_lang::bind::merges(&program.body) {
         let matching = merge.lanes.iter().any(|lane| lane.scan.prefix.iter().any(|key| matches!(key, ir::IndexKeyExpr::WordPrefix(_))));
-        lines.push(format!("    merge {}: up to {} lanes{}", merge.table(), merge.max_lanes(), if matching { "; each matching scope merges at most 32 first-term words, further terms filter; past 32 words a lane is incomplete" } else { "" }));
+        lines.push(format!("    merge {}: up to {} lanes{}", merge.table(), merge.max_lanes(), if matching { "; each matching scope merges at most 32 first-term words, further terms filter; past 32 words a lane is incomplete (word_cut_at names it), later lanes continue; meter ceilings remain query-wide" } else { "" }));
     }
     let scans = ir::scans(program);
     let sites = ir::read_sites(program);

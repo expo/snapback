@@ -5,6 +5,7 @@ use snapback4_core::value::object;
 use std::collections::BTreeMap;
 
 const SCHEMA: &str = include_str!("search_merge/schema.q");
+#[path = "search_merge/round3.rs"] mod round3;
 fn id(value: &str) -> Value { Value::Id(value.into()) }
 fn text(value: &str) -> Value { Value::String(value.into()) }
 fn bound(source: &str) -> snapback4_lang::Bound {
@@ -76,9 +77,9 @@ fn a_wide_word_lane_is_named_and_incomplete_but_a_denied_lane_cannot_cut() {
     for n in 0..33 { seed_message(&mut engine, "r2", &format!("wide{n}"), &format!("cof{n:02}"), n); }
     let page = read(&mut engine, "everywhere", "cof", None);
     assert!(!page.complete);
-    let (_, site) = page.capped_at.as_ref().expect("word cut");
+    let site = page.word_cut_at.as_ref().expect("word cut");
     assert!(site.contains("lane") && site.contains("r2"), "{site}");
-    println!("word cut: {:?}", page.capped_at);
+    println!("word cut: {:?}", page.word_cut_at);
 }
 
 #[test]

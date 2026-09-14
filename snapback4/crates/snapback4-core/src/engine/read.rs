@@ -400,16 +400,8 @@ impl Runner<'_> {
                 return Err(RuntimeError::Store(format!("{}.{} holds a key whose word is not text", scan.table, scan.index)));
             };
             if words.len() == MAX_WORD_LANES {
-                // More words than the page can merge: what it returns is
-                // right, and it is not everything.
-                match self.meter.cut {
-                    crate::meter::Cut::Cap => {
-                        if self.meter.capped_at.is_none() {
-                            self.meter.capped_at = Some((MeterKind::IndexEntries, format!("{} lane {:?}", scan.site, scope)));
-                        }
-                    }
-                    crate::meter::Cut::Abort => return Err(RuntimeError::Bound { kind: MeterKind::IndexEntries, actual: MAX_WORD_LANES as u64 + 1, ceiling: MAX_WORD_LANES as u64, site: scan.site.clone() }),
-                }
+                // @ref LLP 3000.007#18.1 — the word bound limits this scope, not later lanes; actual meter ceilings still cut the whole query.
+                if self.word_cut_at.is_none() { self.word_cut_at = Some(format!("{} lane {:?}", scan.site, scope)); }
                 break;
             }
             bounds.after = Some(vec![Value::String(word.clone())]);
@@ -640,7 +632,7 @@ impl Runner<'_> {
             let components = index.components.len();
             // @ref LLP 3000.007#5.6 — a full page positions after its last result; a cut may pass filter rejects, never rule-hidden keys.
             let position = if visible.len() == take { keys.last() } else { last_rule_visible.as_ref().or_else(|| keys.last()) };
-            let continues = if capped || self.non_uniform { position.is_some() } else { has_more };
+            let continues = if capped || self.non_uniform || self.word_cut_at.is_some() { position.is_some() } else { has_more };
             let next = if continues { position.and_then(|key| crate::key::decode(key)).map(|values| values.into_iter().take(components).skip(prefix.len()).collect()) } else { None };
             self.pages.insert(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: prefix.len(), next });
         }
@@ -739,7 +731,7 @@ impl Runner<'_> {
             self.page_overflow = true;
         }
         if self.page_depth == 0 && first.scan.opaque_cursor {
-            let continues = if self.meter.capped_at.is_some() || self.non_uniform { !candidates.is_empty() } else { has_more };
+            let continues = if self.meter.capped_at.is_some() || self.non_uniform || self.word_cut_at.is_some() { !candidates.is_empty() } else { has_more };
             let next = if continues { candidates.last().map(|(key, _)| key.clone()) } else { None };
             self.pages.insert(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, next });
         }
@@ -817,7 +809,7 @@ impl Runner<'_> {
         self.page_depth = depth;
         if depth == 0 {
             if first.scan.opaque_cursor {
-                let continues = if self.meter.capped_at.is_some() || self.non_uniform { !page.is_empty() } else { has_more };
+                let continues = if self.meter.capped_at.is_some() || self.non_uniform || self.word_cut_at.is_some() { !page.is_empty() } else { has_more };
                 self.pages.insert(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, next: if continues { last } else { None } });
             } else if has_more { self.page_overflow = true; }
         }

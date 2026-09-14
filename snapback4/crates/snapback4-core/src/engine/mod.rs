@@ -125,6 +125,9 @@ pub struct QueryOutcome {
     pub complete: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub capped_at: Option<(MeterKind, String)>,
+    /// Operator detail: a scope passed the word bound, independently of the meter.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub word_cut_at: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub next: Option<String>,
     /// The store's sequence when the read ran.
@@ -637,7 +640,7 @@ impl Engine {
                 let (value, mut runner) = native::run_read(module, runner, name, &args, now);
                 let data = value?;
                 runner.charge_output(&data)?;
-                let outcome = QueryOutcome { complete: runner.meter.capped_at.is_none() && !runner.non_uniform, capped_at: runner.meter.capped_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry };
+                let outcome = QueryOutcome { complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform, capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry };
                 drop(runner);
                 tx.rollback()?;
                 return Ok(outcome);
@@ -654,8 +657,9 @@ impl Engine {
         // `complete` is a class, not a count: a query with a scan the prefix
         // does not decide is capped whatever the meter found (LLP 1001 §3).
         let outcome = QueryOutcome {
-            complete: runner.meter.capped_at.is_none() && !runner.non_uniform && !runner.page_overflow,
+            complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow,
             capped_at: runner.meter.capped_at.clone(),
+            word_cut_at: runner.word_cut_at.clone(),
             next,
             data,
             seq,

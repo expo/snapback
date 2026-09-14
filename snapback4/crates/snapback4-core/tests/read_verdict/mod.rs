@@ -9,6 +9,7 @@ use serde_json::{json, Value as Json};
 use std::collections::BTreeMap;
 
 mod round2;
+mod round3;
 
 fn table() -> Table {
     Table { residency: Default::default(), defaults: BTreeMap::new(),

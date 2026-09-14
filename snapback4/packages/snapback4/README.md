@@ -572,7 +572,7 @@ columns before it scope the search (a chat); the columns after it order
 the page and end in `id`, so a cursor continues it. A words index serves
 `matching` and nothing else, and cannot be unique. `matching q` folds the
 text the same way: the first term selects every word it is a prefix of
-("cof": coffee, coffers, cofounder — one seek each, at most 32 words,
+("cof": coffee, coffers, cofounder — one seek each, at most 32 words per scope,
 else `complete: false`) and merges them as ordered lanes into one page,
 newest first when the index says so; every further term must be a prefix
 of some word of the row ("cof car" finds "COFFEE for Carol"). Mid-word
@@ -589,7 +589,10 @@ and the page is complete when all lanes are complete; past 50 lanes
 `check` emits N_WIDE_MERGE, and the device runs the same query over held rows.
 A pinned conjunct such as `exists members[.roomId, viewer]` denies a scope
 before word discovery even when another conjunct needs each row; an
-admitted non-uniform scope keeps its per-row costs and stays incomplete.
+admitted non-uniform scope keeps its per-row costs and stays incomplete;
+hidden rows there still spend the query-wide examined/index-entry budget.
+The 32-word bound makes that lane incomplete without cutting later lanes;
+operator results name it in `word_cut_at`, separately from a meter cut in `capped_at`.
 Reads inside `where` use their own rules and search terms. An empty
 matching result past a device horizon is incomplete too, so a held group
 can fall back to the server.
@@ -1308,8 +1311,9 @@ step.
   `--fix` applies only diagnostics explicitly marked `mechanical`: an
   ambiguous key's `by`, a cursor index's missing `id`, and exact canonical
   spelling rewrites. Before it edits, every compiled file must be
-  unchanged on disk, and the destination is read again just before the
-  write; a concurrent edit refuses and names the file. It prints one
+  unchanged on disk, and every compiled file is read again just before the
+  write. This check is best effort: it refuses an edit it observes and names
+  the file; a save in the instant before the write can still be overwritten. It prints one
   `fix:` line per change to stderr, re-reads the project, recompiles, and reports the remaining diagnostics normally (`--json`
   remains one JSON result on stdout; `--cost` prose goes to stderr when
   combined with `--json`). Unmarked design suggestions are
