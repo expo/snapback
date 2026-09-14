@@ -10,7 +10,7 @@ use snapback4_core::{Context, Engine, MutationOutcome, Value, WriteState, wire};
 use snapback4_core::ir::*;
 use snapback4_core::meter::Metered;
 use snapback4_device::device::{Backend, Device, Queued, StreamPage};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 type Rows = BTreeMap<String, Vec<Value>>;
 #[derive(Debug)]
@@ -54,6 +54,11 @@ fn delta(before: &Rows, after: &Rows) -> Json {
     let mut changes = serde_json::Map::new();
     for (table, rows) in after {
         let old: BTreeMap<_, _> = before[table].iter().map(|r| (r.field("id").unwrap().as_str().unwrap(), r)).collect();
+        // Index the current identities once; keep nominal ids distinct from strings.
+        let present: BTreeSet<_> = rows.iter().map(|row| {
+            let id = row.field("id").unwrap();
+            (id.kind(), id.as_str().unwrap())
+        }).collect();
         for row in rows {
             let id = row.field("id").unwrap();
             let fields: serde_json::Map<_, _> = row.as_object().unwrap().iter().filter(|(name, value)| old.get(id.as_str().unwrap()).is_none_or(|r| r.field(name).ok() != Some(value)))
@@ -62,10 +67,32 @@ fn delta(before: &Rows, after: &Rows) -> Json {
         }
         for row in &before[table] {
             let id = row.field("id").unwrap();
-            if !rows.iter().any(|r| r.field("id").unwrap() == id) { changes.insert(format!("{table}/{}", id.as_str().unwrap()), Json::Null); }
+            if !present.contains(&(id.kind(), id.as_str().unwrap())) { changes.insert(format!("{table}/{}", id.as_str().unwrap()), Json::Null); }
         }
     }
     Json::Object(changes)
+}
+
+#[test]
+fn delta_preserves_field_changes_deletions_and_nominal_ids_per_table() {
+    let row = |id: Value, amount: i64| Value::Row([("id".into(), id), ("amount".into(), Value::Int(amount))].into_iter().collect());
+    let before: Rows = [
+        ("items".into(), vec![row(Value::Id("same".into()), 1), row(Value::Id("edited".into()), 2), row(Value::Id("deleted".into()), 3), row(Value::Id("nominal".into()), 4)]),
+        ("other".into(), vec![row(Value::Id("deleted".into()), 5), row(Value::Id("same".into()), 6)]),
+        ("empty".into(), vec![]),
+    ].into();
+    let after: Rows = [
+        ("items".into(), vec![row(Value::Id("edited".into()), 8), row(Value::Id("added".into()), 9), row(Value::Id("same".into()), 1), row(Value::String("nominal".into()), 4)]),
+        ("other".into(), vec![row(Value::Id("deleted".into()), 5)]),
+        ("empty".into(), vec![]),
+    ].into();
+    assert_eq!(delta(&before, &after), json!({
+        "items/edited": {"amount": 8},
+        "items/added": {"id": "added", "amount": 9},
+        "items/deleted": null,
+        "items/nominal": null,
+        "other/same": null,
+    }));
 }
 fn snapshot(e: &mut Engine, viewer: &str) -> Json {
     let (events, watermark) = e.snapshot_at(viewer, 1000).unwrap();

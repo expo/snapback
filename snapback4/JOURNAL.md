@@ -3963,3 +3963,26 @@ prefix scans for every mutation page read. Earlier question and review
 text remains intact. No code or status line changes; the existing guards
 are the accepted behavior. The 0.2.10 Clique cell continues unchanged,
 and the SQL-read choice remains pending its §10.3 finding.
+
+## 2026-09-14 — shorten the shared write-observation check without shrinking its worlds
+
+The current warm full suite took 140 seconds, reopening the existing
+[60-second budget ticket](../issues/20260913-snapback4-blocking-suite-over-60-seconds.md).
+Its shared test observation helper checked each before-row's deletion by
+scanning every after-row, including 10,000-row privacy fixtures. A per-table
+index of typed identities removes that quadratic search while preserving
+nominal-ID/string equality and the complete observations of LLP 3000.007 §17.
+The privacy worlds, probe ceilings, receipts, both device stores and all
+existing assertions remain intact. One regression runs in four existing
+integration targets; the product runtime and client contract do not change.
+
+On the same prepared M4 Pro, the isolated candidate passed the unchanged
+suite twice: 140 seconds including first-build work, then **96 seconds warm**.
+Both passed 383 Rust, 132 client and 9 fixture tests, with zero failures and
+one existing ignored Rust test. The warm comparison is 44 seconds / 31.4%
+shorter; it is consecutive, uses a shared build cache, and is not a randomized
+repeated experiment. The suite still exceeds its budget, so the P0 stays open.
+The page-admission group still takes 33.61 seconds and needs profiling.
+The [performance record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
+and ticket retain source, raw-log and cleanup evidence. No release is needed
+for this test-helper change.

@@ -1,6 +1,6 @@
 # Snapback 4: warm blocking suite exceeds the 60-second budget
 
-**Status:** Closed
+**Status:** Open
 **Priority:** P0
 **Date:** 2026-09-13
 **Systems:** `snapback4/scripts/test.sh`, the simulator and development loop
@@ -27,7 +27,7 @@ framing/version unit group took 0.01 s. Stage-level timing and an equivalent
 current-main control are needed before blaming a particular change.
 
 Evidence and the exact release pin are in
-[the catalog record](../../benchmarks/runs/snapback4-public-catalog-20260913/README.md).
+[the catalog record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md).
 Detailed local logs are retained under
 `.llp/ship-runs/sb4-performance-20260913/catalog-{final-suite,publish}.log`.
 
@@ -174,3 +174,75 @@ reuse; no causal claim assigns the whole final timing change to the runner.
 ### Published repair qualification
 
 The qualified publisher at landed `342c53d306d7484cd64e820ee27a151e02eb4b0b` reran the entire suite in 30 seconds: 236 Rust, 9 fixture and 89 client passes, zero failures and the same one declared ignored debug throughput test. Raw log SHA-256: `38f71d6c2d0e74f8d134c20e7da2bb88d1a6530f7f55849a048f0c12d68ca94a`. The resulting 0.2.6 package and 0.2.1 Expo artifact are published and registry-verified; no ceiling changed.
+
+
+## Reopened — 2026-09-14: 0.2.11 warm suite takes 140 seconds
+
+Owner: Codex performance lane (`llp-ship/sb4-performance-20260913/integration`).
+
+The unchanged 0.2.11 source `13fdce76f7d6e881e070f0ad247b95f39fb0c0de`
+passed the publisher's full suite in 161 s, then an unchanged repeat using
+that completed build cache in **140 s**. Both passed 379 Rust, 132 client
+and 9 fixture tests, with zero failures and one existing ignored Rust test.
+The M4 Pro host has 12 CPUs and 24 GB RAM; the repeat's load averages were
+2.71/2.47/2.44 before and 2.29/2.43/2.43 after. It used Node 24.21.0,
+Rust 1.97.0, `CARGO_BUILD_JOBS=4`, `RUST_TEST_THREADS=1` and the packaged
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` input. No limit or
+assertion was changed. This is a reproduced current budget failure, not
+an isolated attribution to a particular intervening commit.
+
+The repeat reported Cargo tests 137 s, client tests 38 s and fixture tests
+5 s; these branches overlap. Its thirteen-test group took 69.11 s. A
+point observation of the recorded process group showed `page_admission`
+using 100% CPU after 66 seconds. Source inspection then found a quadratic
+deleted-row search in the shared `tests/common/write_observation.rs`
+helper: every before-row scans the after-rows, including 10,000-row
+privacy fixtures. Indexing typed row identities is a candidate repair;
+its complete-suite qualification had not run at this observation.
+The complete paired observations and original populations must remain.
+
+Evidence under `.llp/ship-runs/sb4-performance-20260913/`: the repeat's
+`warm-suite-reader-reuse-0211-v1-public/complete.json` SHA-256 is
+`d01f08c42907f42cb1a77d106c0f3797f4aed5a3da2fea76bd10f7f56d9a6b62`,
+and `warm-suite.log` is
+`f93afe8004638d658ff293bd18c1d15512be29b93e9dc42e293db4d0a874155c`.
+All 669 archived source files were checked before and after; the sole
+expected archive difference is the already recorded publisher ledger row.
+The owned group exited 0 and was observed absent; no scoped process or
+cleanup failure remained. No new publication occurred. The mid-run process
+snapshot and the original 161-second publisher log are retained separately.
+
+## Partial repair — 2026-09-14: 140 to 96 seconds; budget remains open
+
+The shared observation helper now indexes the after-image's typed row
+identities once per table instead of rescanning every row for each deletion
+check. Nominal IDs remain distinct from strings. The full before/after
+states, first/retry bodies, receipt, all seven meter fields, changes,
+effects, stream, snapshot and both device-store observations remain intact.
+The 10,000-row privacy worlds and 8,192-probe boundary exercises are unchanged.
+A focused assertion covers field changes, inserts, deletions, table isolation
+and nominal-ID equality; it runs in four existing integration targets.
+
+The isolated source passed the unchanged full suite twice on the same M4
+Pro: **140 s first, 96 s warm**. Each run passed **383 Rust, 132 client and
+9 fixture tests**, with zero failures and the same one ignored Rust test.
+The first run includes rebuilding from a separate source directory; its
+140-second result is not a warm comparison. Against the earlier unchanged
+140-second warm baseline, the second run is **44 s / 31.4% shorter**.
+These are consecutive observations sharing the target cache, not randomized
+repeated trials or attribution of every saved second to this source change.
+
+Warm Cargo time fell from 137 to 93 s; client time remained 38 s. The
+page-admission group fell from 69.11 to 33.61 s, and the 34/35-test group
+from 18.21 to 9.72 s. The unchanged 17-test group took 18.12 s. These
+remaining slow groups need targeted profiling; **the P0 remains open**.
+No ceiling, test population, blocking command or product runtime changed.
+
+The seven verified public receipts/logs are retained under this run's
+`write-observation-delta-0211-v2-public/`. Complete receipt SHA-256:
+`5c6599162685ec508fce261be698b3660927472aa9c33d9db87a8bf80b3a7afe`;
+warm log: `23a815b862f29eb604eb828dd178087927d8a782ee1dfe521c75a1cfbd9f47e4`.
+All 669 archived source files matched before/after except the one exact
+reviewed helper override; all owned groups exited zero and were observed
+absent, with no cleanup failure. The unexecuted V1 helper's local archive
+preflight refusal remains separate from these successful V2 test runs.

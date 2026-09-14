@@ -2383,3 +2383,48 @@ The production build passed. The installed-package consumer passed typechecking 
 Both public registry versions were verified by **15:28:59 UTC**. Their tarballs match the tested archives byte for byte, including registry SHA-512 integrity and SHA-1 metadata; the client pins its platform optional dependency to 0.2.11. The client archive is 505,220 B (`ba4a3b31…` SHA-256); the platform archive is 3,787,041 B (`0f7c3e52…`). The initial registry observation returned a 404 while retaining the platform archive; it remains recorded separately. Only read-only visibility checks followed, with no repeated publication.
 
 The unchanged publisher row is appended to `snapback4/metrics/publish.jsonl`. The ignored run retains `reader-reuse-0211-publication-public/` (nine verified public files), `reader-reuse-0211-registry-verification.json` (`2db60a7d…`), and `reader-reuse-0211-publication-qualification.json`; publisher log SHA-256 is `e740cff582cc5ab50c500709cf6a37ac20c6f9b781ea27b67ff57c8ba3f55b23`. These are publication and correctness receipts. The preceding native A/B and comparator timings retain their measured source and binary identities; this release qualification adds no performance measurement.
+
+### Development-loop follow-up: shared write-observation index
+
+An unchanged repeat of the 0.2.11 source's full suite on the prepared M4 Pro
+took **140 s**: 379 Rust, 132 client and 9 fixture passes, zero failures and
+one existing ignored Rust test. The shared test observation helper contained
+a quadratic deletion search. The candidate indexes typed identities per
+table, preserving the complete observation boundary and original privacy
+populations, and adds one assertion included by four existing Rust targets.
+It changes no runtime source, client contract, suite command or ceiling.
+
+The isolated candidate completed two full runs at 2026-09-14 16:16:27 UTC:
+
+| Observation | Suite wall seconds | Cargo seconds | Client seconds | Rust / client / fixture passes |
+|---|---:|---:|---:|---:|
+| Unchanged warm baseline | 140 | 137 | 38 | 379 / 132 / 9 |
+| Candidate first, including rebuilds | 140 | 119 | 39 | 383 / 132 / 9 |
+| Candidate warm | 96 | 93 | 38 | 383 / 132 / 9 |
+
+Every run has zero failures and one existing ignored Rust test. Stages
+overlap and must not be summed. The warm suite is 44 s / 31.4% shorter in
+these observations. They ran consecutively in separate source directories
+with a shared target cache; this is not randomized repeated A/B or an exact
+attribution of every wall-time difference. Node 24.21.0, Rust 1.97.0,
+`CARGO_BUILD_JOBS=4`, `RUST_TEST_THREADS=1` and the packaged SQLite build flag
+were retained. The first candidate's build work is not a warm-loop result.
+
+The page-admission group fell from 69.11 to 33.61 s, and the 34/35-test
+group from 18.21 to 9.72 s; the unchanged 17-test group took 18.12 s.
+The [budget P0](../../../issues/20260913-snapback4-blocking-suite-over-60-seconds.md)
+remains open at 96 s. No product latency, comparator or publication claim
+follows from this test-helper measurement.
+
+The ignored run's `write-observation-delta-0211-v2-public/` retains seven
+hash-verified public files. Complete receipt SHA-256 is
+`5c6599162685ec508fce261be698b3660927472aa9c33d9db87a8bf80b3a7afe`;
+warm log is `23a815b862f29eb604eb828dd178087927d8a782ee1dfe521c75a1cfbd9f47e4`.
+The baseline receipt/log are in `warm-suite-reader-reuse-0211-v1-public/`.
+The isolated test tree matches all 669 archived source files with one exact
+helper override. Integration base `99dfedfc9` differs from the archive only
+in seven later metrics rows; this landing adds the helper and its journal
+and benchmark evidence. Source checks passed before/after, all three owned process groups
+exited zero and were observed absent, and cleanup reported no remaining
+scoped process or failure. The V1 archive preflight refusal was local and
+preceded any launch; it remains preserved separately.
