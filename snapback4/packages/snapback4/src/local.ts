@@ -769,7 +769,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const settle = settled.get(entry.id);
       settled.delete(entry.id);
       const outcome: Write = json.state === "sent"
-        ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), result: json.result }
+        ? json.replayed === true
+          ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), replayed: true }
+          : { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), result: json.result }
         : { state: "failed", id: entry.id, why: (json.why as Refusal | undefined) ?? (json.denied as Refusal | undefined) ?? { code: "E_STORE", family: "store", message: "the server answered without a state", retryable: true } };
       if (outcome.state === "sent") await syncOnce();
       else rerunTables(predictedTables(entry.predicted));

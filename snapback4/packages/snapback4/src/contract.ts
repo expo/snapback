@@ -35,12 +35,14 @@ export interface Pending {
   readonly pending?: boolean;
 }
 
-/** A write. `sent.result` is the server answer; pending rows show predictions.
- * `id` is client-minted and stable across replay. */
-// @ref LLP 3000.007#8 — only sent carries a mutation result
+/** A write. Fresh `sent` carries the server answer, including null. A replay
+ * confirms execution identity only: `replayed: true` has no historical result.
+ * Pending rows show predictions; `id` is client-minted and stable across replay. */
+// @ref LLP 3000.007#17 — replay confirms execution without historical read authority
 export type Write<R = unknown> =
   | { readonly state: "pending"; readonly id: string }
-  | { readonly state: "sent"; readonly id: string; readonly seq: number; readonly result: R }
+  | { readonly state: "sent"; readonly id: string; readonly seq: number; readonly replayed?: false; readonly result: R }
+  | { readonly state: "sent"; readonly id: string; readonly seq: number; readonly replayed: true; readonly result?: never }
   | { readonly state: "failed"; readonly id: string; readonly why: Refusal };
 
 /** An action's server outcome. A denial precedes admission; a pending id

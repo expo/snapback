@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
+import { createRequire } from "node:module";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
@@ -44,6 +45,17 @@ table clips:
   read <- allow
   insert <- allow
   sync public
+table receipts:
+  n: int
+  read <- allow
+  insert <- allow
+  sync public
+mutation record(n: int):
+  return insert receipts { n }
+query receipts():
+  return receipts[] first 100 by byId
+mutation answerNull():
+  return null
 mutation answer(n: int):
   return { n: n }
 mutation attach(photo: image <=100000, until: time ?):
@@ -107,6 +119,109 @@ test("sent results reach online, process-device and queued-write callers", async
   const landed = await until(() => terminal.find(write => write.id === pending.id));
   assert.equal(landed.state, "sent"); assert.deepEqual(landed.result, { n: 43 });
   assert.equal(terminal.filter(write => write.id === pending.id).length, 1);
+});
+
+for (const tier of ["online", "process-device"]) for (const queued of [false, true]) {
+  test(`${tier}: ${queued ? "queued" : "immediate"} lost first acknowledgement preserves the same-id replay receipt`, { timeout: 15000 }, async t => {
+    const f = await fixture(t);
+    let offline = false, dropped = false;
+    const attempts = [], replies = [];
+    const transport = async (input, init) => {
+      if (offline) throw new TypeError("offline");
+      if (!String(input).endsWith("/m/record")) return fetch(input, init);
+      attempts.push(JSON.parse(init.body));
+      const response = await fetch(input, init);
+      const reply = await response.clone().json();
+      replies.push(reply);
+      if (!dropped) { dropped = true; throw new TypeError("first committed acknowledgement lost"); }
+      return response;
+    };
+    const options = { url: f.url, persona: "alice", waitSeconds: 1, fetch: transport };
+    const client = tier === "online" ? createClient(options) : await createLocalClient({ ...options, device: f.device });
+    f.clients.push(client);
+    const terminal = []; client.onWrite(write => terminal.push(write));
+    const fresh = await client.mutate(mutation("answer"), { n: 41 });
+    assert.deepEqual(fresh, { state: "sent", id: fresh.id, seq: fresh.seq, result: { n: 41 } });
+    const nil = await client.mutate(mutation("answerNull"), {});
+    assert.deepEqual(nil, { state: "sent", id: nil.id, seq: nil.seq, result: null });
+    if (queued) {
+      offline = true;
+      if (tier === "online") await client.query({ kind: "query", name: "receipts" }, {});
+      else await client.sync();
+      assert.equal(client.link(), "offline");
+    }
+    const initial = await client.mutate(mutation("record"), { n: 43 });
+    if (queued) assert.equal(initial.state, "pending");
+    offline = false;
+    if (tier !== "online") await client.sync();
+    const final = await until(() => terminal.find(write => write.id === initial.id));
+    assert.deepEqual(replies[0].result.n, 43);
+    assert.equal(replies[0].replayed, undefined);
+    const receipt = { state: "sent", id: initial.id, seq: replies[0].seq, replayed: true };
+    assert.deepEqual(replies[1], receipt, "the real HTTP server withholds historical values");
+    assert.equal(attempts.length, 2);
+    assert.deepEqual(attempts[1], attempts[0], "retry preserves id, arguments and predicted ids");
+    const rows = await f.post("/q/receipts", { args: {} });
+    assert.equal(rows.data.length, 1, "the dropped response does not duplicate the write");
+    t.diagnostic(`wire=${JSON.stringify(replies[1])}; client=${JSON.stringify(final)}; result key=${Object.hasOwn(final, "result")}`);
+    assert.deepEqual(final, receipt, "the client preserves replay identity without a result property");
+    if (initial.state === "sent") assert.deepEqual(initial, receipt, "mutate returns the replay outcome intact");
+    assert.equal(terminal.filter(write => write.id === initial.id).length, 1);
+  });
+}
+
+test("write types require replay narrowing through mutate, onWrite and useMutation", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sb4-write-types-"));
+  const packageRoot = join(root, "packages/snapback4");
+  const require = createRequire(join(packageRoot, "package.json"));
+  try {
+    const fixture = join(dir, "write.ts");
+    writeFileSync(fixture, `
+import type { Client, Mutation, Write } from ${JSON.stringify(join(packageRoot, "dist/contract.js"))};
+import { useMutation } from ${JSON.stringify(join(packageRoot, "dist/react.js"))};
+type Value = { n: number };
+declare const client: Client;
+declare const op: Mutation<{}, Value>;
+function inspect(write: Write<Value>) {
+  if (write.state === "pending") {
+    // @ts-expect-error pending is not a predicted result
+    write.result;
+  }
+  if (write.state === "sent") {
+    // @ts-expect-error sent alone no longer promises a result
+    const value: Value = write.result;
+    if (write.replayed) {
+      const absent: undefined = write.result;
+      // @ts-expect-error replay cannot supply a historical value
+      const value: Value = write.result;
+    } else {
+      const value: Value = write.result;
+    }
+  }
+}
+const fresh: Write<Value> = { state: "sent", id: "fresh", seq: 1, result: { n: 1 } };
+const explicitFresh: Write<Value> = { state: "sent", id: "fresh", seq: 1, replayed: false, result: { n: 1 } };
+const replay: Write<Value> = { state: "sent", id: "replay", seq: 1, replayed: true };
+const nil: Write<null> = { state: "sent", id: "nil", seq: 1, result: null };
+// @ts-expect-error fresh sent must have its result
+const missing: Write<Value> = { state: "sent", id: "missing", seq: 1 };
+// @ts-expect-error a replay cannot also claim a result
+const historical: Write<Value> = { state: "sent", id: "old", seq: 1, replayed: true, result: { n: 1 } };
+async function returned() { inspect(await client.mutate(op, {})); }
+client.onWrite(write => {
+  if (write.state === "sent" && write.replayed) {
+    const absent: undefined = write.result;
+  }
+});
+function hook() {
+  const mutation = useMutation(op);
+  mutation.run({}).then(inspect);
+  if (mutation.last) inspect(mutation.last);
+}
+`);
+    const check = spawnSync(process.execPath, [require.resolve("typescript/bin/tsc"), "--noEmit", "--strict", "--exactOptionalPropertyTypes", "--skipLibCheck", "--target", "ES2022", "--module", "ESNext", "--moduleResolution", "Bundler", "--jsx", "react-jsx", fixture], { cwd: packageRoot, encoding: "utf8" });
+    assert.equal(check.status, 0, check.stdout + check.stderr);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 test("ordinary media survives a process-device offline reopen; once never persists; home changes purge bytes", async t => {

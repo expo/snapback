@@ -948,7 +948,11 @@ type Read<T> =
   | { data: T; complete: boolean; fresh: boolean; since?: number; next?: Cursor | null }
   | { loading: true }
   | { denied: Refusal };
-type Write<R> = { state: "pending"; id: string } | { state: "sent"; id: string; seq: number; result: R } | { state: "failed"; id: string; why: Refusal };
+type Write<R> =
+  | { state: "pending"; id: string }
+  | { state: "sent"; id: string; seq: number; replayed?: false; result: R }
+  | { state: "sent"; id: string; seq: number; replayed: true; result?: never }
+  | { state: "failed"; id: string; why: Refusal };
 type Refusal = { code: string; family: string; message: string; site?: string; rewrite?: string; guide?: string; rule?: string; retryable?: boolean };
 type Link = "online" | "offline" | "signed-out";
 ```
@@ -976,10 +980,15 @@ the same id, and `useMutation.last` follows it. `family` is `input`, `schema`, `
 engine, and `link` or `client` from the client itself. `isReady`,
 `isLoading`, `isDenied` narrow a `Read`.
 
-The `sent` outcome carries the server's typed `result`, including reused ids
-and shaped objects. A queued write's eventual `onWrite` event carries that same
-terminal result; `useMutation.last` follows it. Pending writes have no predicted
-result: their predicted rows carry `pending`.
+A fresh `sent` outcome carries the server's typed `result`, including reused ids,
+shaped objects and `null`. If that first reply was lost, the same-id retry returns
+`sent` with `replayed: true` and no `result`: execution was confirmed, but historical
+read authority is not retained. Check `write.state === "sent" && !write.replayed`
+before using `write.result`. For a replay, read the current state through an
+ordinary query if needed; do not issue a new mutation to recover the old result.
+A queued write's eventual `onWrite` event and `useMutation.last` preserve the same
+fresh-or-replayed outcome; `useMutation.run()` returns the outcome of its call.
+Pending writes have no predicted result: their predicted rows carry `pending`.
 
 `webDevice()` stores wasm bytes by SHA-256 digest in IndexedDB and opens from
 them without a network fetch on reload. It also persists the compiled backend
@@ -1372,8 +1381,9 @@ tables, viewer }` or `{ denied }`; `nextExpiry` is the earliest future expiry
 the visible read encountered, or null. `POST /m/<op>` with `{ "id", "args",
 "newIds" }` answers `{ state: "sent", id, seq, result }` or `{ state:
 "failed", id, why, current? }` (a client-minted `id` makes the write
-apply at most once, and a replay adds `replayed: true`; `current` is the
-live row on `E_CONFLICT`); a job is refused over the wire (`E_OP`).
+apply at most once). A replay adds `replayed: true` and omits both `result`
+and `current`; a fresh `E_CONFLICT` may carry the live row in `current`.
+A job is refused over the wire (`E_OP`).
 `POST /sync` takes JSON `{ from, limit, after, stream, pending }` (defaults:
 `0`, `2000`, `null`, `false`, `[]`). With `from: 0` it returns the paged
 snapshot: `{ snapshot: true, events: [{ table, kind, id, data }], watermark,
