@@ -321,6 +321,7 @@ impl Parser {
     pub(super) fn parse_merge(&mut self) -> Fallible<MergeExpr> {
         let site = self.take("merge")?.site;
         let table = self.word()?.value;
+        let matching = if self.maybe("matching") { Some(Box::new(self.expression(0, &["after", "first", "last", "by", ":"])?)) } else { None };
         let mut cursor = None;
         if self.at("before") {
             return Err(unsupported(&self.peek().site.clone(), "before", "use after c in the merge header"));
@@ -331,7 +332,7 @@ impl Parser {
         }
         let bound = self.peek().clone();
         if !self.at("first") && !self.at("last") {
-            return Err(syntax_with(&bound.site, "merge modifiers use [after cursor] first|last N by index", format!("merge {table} first 20 by index:")));
+            return Err(syntax_with(&bound.site, "merge modifiers use [matching q] [after cursor] first|last N by index", format!("merge {table}{} first 20 by index:", if matching.is_some() { " matching q" } else { "" })));
         }
         let order = if self.word()?.value == "first" { Order::Asc } else { Order::Desc };
         let take = self.number()?;
@@ -375,7 +376,7 @@ impl Parser {
         if lanes.is_empty() {
             return Err(syntax_with(&site, "merge requires at least one lane", "[viewer]"));
         }
-        Ok(MergeExpr { table, index, order, take, cursor, lanes, site })
+        Ok(MergeExpr { table, matching, index, order, take, cursor, lanes, site })
     }
 
     pub(super) fn parse_shape_fields(&mut self) -> Fallible<Vec<ShapeField>> {

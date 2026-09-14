@@ -32,6 +32,7 @@ pub fn lazy_merge(schema: &Schema, merge: &Merge) -> bool {
     merge.lanes.iter().all(|lane| {
         let scan = &lane.scan;
         lane.setup.is_empty() && scan.table == first.scan.table && scan.index == first.scan.index
+            && scan.prefix.iter().all(|key| matches!(key, IndexKeyExpr::Scalar(_)))
             && scan.order == first.scan.order && scan.prefix.len() == first.scan.prefix.len()
             && scan_visibility(schema, scan).uniform
             && schema.table(&scan.table).is_some_and(|table| table.index(&scan.index).is_some_and(|index| {

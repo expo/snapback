@@ -3793,3 +3793,52 @@ that those supplemental failures predate this lane is made.
 ## 2026-09-14 — the 0.2.9 calibration scored; the catch-up program opens (LLP 3000.007 §18)
 
 The Astra calibration on 0.2.9 scored 85 overall and behind the September 5 Convex and Supabase cells on setup_and_docs (78), data_modeling (88) and queries_and_live (74). The scorer's notes charge four things the published surface did: `processDevice()` named without a signature, retained history lost under a horizon on removal, an unscoped authorized search that is never complete on the server, and a defaulted column that refused adoption while `check` stayed green; the rest is learning cost. LLP 3000.007 §18 records the five decisions and their lanes: a merge of matching lanes over the viewer's groups (CU1), retained history kept whatever the horizon (CU2), the Node device's directory argument and a README example check (CU3), literal defaults materialized wherever absent and `check` reading the dev store (CU4), four more mechanical rewrites with the Trending recipe (CU5). The 0.2.10 three-model cell keeps running unchanged; the pin after these landings is 0.2.11.
+
+## 2026-09-14 — CU1: search across the viewer's rooms (LLP 3000.007 §18.1)
+
+Admitted `merge messages matching q after c last 50 by byRoomWords`, with
+exact scope prefixes and the same modifier order as a matching scan. The
+binder uses the existing `Merge` / `Scan` / `WordPrefix` serialization;
+no corpus case or value form changed. Matching scopes read their existing
+word pages and the outer merge orders by the suffix and id. The heap path
+accepts resolved word heads, not an unresolved matching prefix. A uniform
+scope decides its rule once before discovering words, so a denied room
+cannot use its word population to cap the page. The per-row rule path and
+32-word limit remain. A cut names its scope in the private meter site.
+
+The search card, language card and README exercise `everywhere`; the reads
+card names matching lanes. N_NEVER_COMPLETE leads with the scoped merge
+rewrite and guide search. `check --cost` prints the lane count and the
+32-word work inside each matching scope; 50 lanes have no wide-merge note,
+51 do. Existing self-probe analysis already proves that the viewer's own
+membership prefix is readable: no membership-rule or sync change was
+needed. The source discovery remains bounded by the author's first 50.
+
+Measured over 2 rooms × 3 distinct first-term words × 20 messages (120
+messages), one page returned 50 rows, complete with a next cursor: examined
+122, index entries 8, rule probes 2, steps 244, heap bytes 19664, output
+bytes 4941, rows written 0. More than 8 word heads still use 2 verdicts;
+24 distinct rows exhaust across 12 pages without gaps. The 33-word fixture
+is incomplete and names `programs.everywhere.2 lane [Id("r2")]`; a denied
+33-word room leaves the admitted page complete. Both device stores return
+the server's rows and cursors for `cof` and `cof car`.
+
+Focused verification: search merge 8 passed / 0 failed, guide 9 / 0,
+device 1 / 0 (the scenario runs on both stores). Early local attempts caught
+and fixed test-code type errors and fixture sync declarations; those reds
+are not claimed to predate CU1. The measured wasm is 1528868 B raw and
+428709 B gzip; its build took 427 s on this shared host. All changed source
+files and the README remain below 1500 lines; this already-long journal
+was kept append-only as instructed. No commit, push, tag, or publication.
+
+Final blocking run: `bash snapback4/scripts/test.sh` reported **1 failure
+in 1571 s**: Rust **383 passed / 0 failed / 1 ignored**, fixture
+wrapper **9 / 0**, client **121 / 1**; all builds, typechecks and the chat
+check passed. The React browser-launch test fails with Chromium SIGABRT,
+alone as well as in the suite. Its unchanged inputs exported from base
+**518891fd1cc67b969a6f57b683e80efadc89b612** reproduce **0 passed / 1 failed**
+with the same SIGABRT; no other failure is claimed to predate CU1. The
+full run included long executable-startup delays; no time budget or gate
+was changed. `ref-check --verbose`: **474 LLP docs, 8816 refs, 0 errors,
+0 unchecked**. Cargo's version-only lockfile drift was restored; only
+CU1's intended changes remain for the lead to commit.

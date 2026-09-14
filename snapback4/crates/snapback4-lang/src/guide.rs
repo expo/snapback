@@ -298,6 +298,10 @@ query search(roomId: rooms, q: text <=100, c: cursor ?):
   require exists members[roomId, viewer] else NOT_MEMBER
   return messages[roomId] matching q after c last 50 by byRoomWords   -- word-prefix search: every term a prefix of some word of the row, newest first
 
+query everywhere(q: text <=100, c: cursor ?):
+  return merge messages matching q after c last 50 by byRoomWords:
+    [m.roomId] for m in members[viewer] first 50 by byPrincipalRoom
+
 query online(p: principal):
   return connected[p]                 -- how many connections the principal holds open on the server; `exists connected[p]` tests (guide presence)
 
@@ -735,7 +739,8 @@ Modifiers come in one order: `after c`,
 then `first N` or `last N`, then `by index`, then optional `where predicate`. A page a query returns without
 a cursor cannot be continued: an unfiltered page with more rows reads
 `complete: false` with no `next` (N_NO_CURSOR); declare `c: cursor ?` and
-page with `after c`. Uniform merge lanes with a unique index or one ending
+page with `after c`. A merge reads plain lanes, or matching lanes over a
+words index (guide search). Uniform plain merge lanes with a unique index or one ending
 in `id` read one head each, then advance the winning lanes; `check` notes
 a merge past 50 lanes (N_WIDE_MERGE). The meter counts examined rows and
 probes; a query it cuts returns what it found and `complete: false`.
@@ -1215,6 +1220,10 @@ query inRoom(roomId: id, q: text <=100, c: cursor ?):
   require exists members[roomId, viewer] else NOT_MEMBER
   return messages[roomId] matching q after c last 50 by byRoomWords
 
+query everywhere(q: text <=100, c: cursor ?):
+  return merge messages matching q after c last 50 by byRoomWords:
+    [m.roomId] for m in members[viewer] first 50 by byPrincipalRoom
+
 query people(q: text <=100, c: cursor ?):
   return profiles matching q after c first 20 by byNameWords
 ```
@@ -1234,13 +1243,17 @@ so. Every further term must be a prefix of some word of the row ("cof
 car" finds "COFFEE for Carol"). Mid-word text does not match; an empty
 search matches nothing, not everything; an expired row is gone at once;
 an edit re-tokenizes. A uniform scope (the rule decided by the room)
-costs one verdict per word; with a total unique `(chatKey, principal)` key
+costs one verdict per scope; with a total unique `(chatKey, principal)` key
 on t, `.principal = viewer or exists t[.chatKey, viewer]` is decided by the
 chat alone because the row is its own witness, so a roster page pinned by
 the chat is complete and no second table is needed. The unscoped `byWords` under a per-room rule
 checks the rule per row and is never `complete` (`N_NEVER_COMPLETE` names
-it) — search across every room on the device instead, where the
-partition holds exactly what the viewer may read, offline included."##,
+it); use `everywhere` to search the viewer's rooms, or read on the device.
+
+`everywhere` merges matching pages from the viewer's rooms, ordered by
+`at` and `id`: each lane is one verdict when its scope decides the rule,
+and the page is complete when all lanes are complete; past 50 lanes
+`check` emits N_WIDE_MERGE, and the device runs the same query over held rows."##,
         "actions" => actions::CARD,
         "effects" => r##"# Effects: the outside world, performed by a worker
 
