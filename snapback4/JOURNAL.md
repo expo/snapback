@@ -3950,3 +3950,16 @@ success. This landing changes records and version bookkeeping only;
 validation is the evidence consistency audit and `./ref-check --verbose`.
 The orchestrator still owes the §10.3 finding from the full cell. The
 SQL-read choice and rulings 16, 17 (a)–(c) remain for the author.
+
+
+## 2026-09-14 — the author accepts the four outstanding card and write-authority choices
+
+Charlie accepted the orchestrator's recommendations for LLP 3000.007
+§14 rulings 16 and 17 (a)–(c): "your recs fine." The dated ruling now
+accepts the landed `Act<R>` words, ignored immutable patch fields on
+unreadable targets, conditions refused without evaluation on those
+targets with `upsert … if` refused at check, and uniformly decided plain
+prefix scans for every mutation page read. Earlier question and review
+text remains intact. No code or status line changes; the existing guards
+are the accepted behavior. The 0.2.10 Clique cell continues unchanged,
+and the SQL-read choice remains pending its §10.3 finding.

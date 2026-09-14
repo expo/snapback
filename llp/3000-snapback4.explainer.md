@@ -936,6 +936,15 @@ time-ordered 128-bit form.
   its linked record retain the evidence and N = 3 limits; the Clique
   cell and the author's rulings remain pending.
 
+- **2026-09-14 — rulings 16 and 17 (a)–(c) accepted as landed (author).**
+  Charlie accepted all four recommendations in LLP 3000.007 §14: the
+  `Act<R>` card words; immutable patch columns ignored without comparison
+  on unreadable targets; unreadable author conditions refused without
+  evaluation and `upsert … if` refused at check; every mutation page read
+  restricted to a uniformly decided plain prefix. The dated ruling
+  preserves the earlier review history and changes no implementation.
+  SQL reads still await §10.3's full-cell finding.
+
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal
