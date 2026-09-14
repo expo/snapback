@@ -1,0 +1,13 @@
+start=1789405101
+1789405107 milestone=packet-start lookup=package-README attribution=agent-error note=initial-clock-command-wrote-outside-directory-no-project-data
+1789405115 lookup=package-guide-language,bounds,effects,search,why-E_STRUCTURAL_FANOUT milestone=packet-green
+1789405192 milestone=implementation-start lookup=package-guide design=domain-tables-and-digest-ledger
+1789405196 milestone=check-green lookup=generated-api.ts
+1789405343 milestone=client-green milestone=acceptance-start lookup=model-knowledge-Node-process-and-assertion-APIs
+1789405381 milestone=exact-answers-green milestone=restart-idempotency-green milestone=scheduled-boundary-start
+schema-shape={"workTables":["digestEmissions"],"perPrincipalCounterTables":[],"auxiliaryOperations":[]}
+Schema choices: profiles hold explicit active status; posts, likes and follows hold public social domain facts. chats, members, messages and acknowledgements hold membership-protected chat facts. likeCounts is a per-post maintained aggregate, world-readable because its source likes and posts are public; it contains no per-user counter. insights computes lifetime totals and seven UTC buckets from indexed domain facts. trending seeks the requested original-post time window and sorts maintained counts, creation times and logical keys in Quarry. search shapes the viewer's ordered memberships into scoped native word-prefix pages. receipt evaluates only current recipients and monotone per-message acknowledgements. digest scans current memberships/messages, emits even zero counts, and commits its effect together with a unique principal/period record.
+The workTables list conservatively includes digestEmissions: its durable emission facts prevent duplicate effects across repeated jobs and restarts. It is not a scratch accumulator; it contains no computed unread counters. There are no per-principal counter tables and no auxiliary operations. profile, post, follow, createChat and addMember are ordinary domain-write operations used by seed, with viewer ownership/admin checks; they do not exist solely to support another operation or work table.
+1789405381 loop=1 attribution=agent-error command="date +%s > /tmp/ceremony-time-unused" resolution="The preliminary clock command unintentionally wrote one timestamp file outside cwd before run-log creation; no external data was read. All subsequent task artifacts and temporary projects are confined to cwd. The initial file was not used. This scope violation cannot be undone retroactively."
+1789405469 milestone=scheduled-boundary-green milestone=worker-settlement-green milestone=positive-probes-green milestone=acceptance-green milestone=schema-record-green
+green=1789405469

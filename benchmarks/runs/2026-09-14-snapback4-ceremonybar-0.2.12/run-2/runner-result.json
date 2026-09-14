@@ -1,0 +1,624 @@
+{
+  "at": "2026-09-14T17:08:02.737Z",
+  "run": 2,
+  "version": "0.2.12",
+  "model": "gpt-6-astra",
+  "effort": "medium",
+  "lane": "/Users/ccheever/projects/snapback-ceremony-fourth/runs/run-2",
+  "packet": {
+    "ceremony-brief.md": "5ca90964af0dd5301fc5025a0d722167e711b0dabbe0ca5401908143a1adf4db",
+    "ceremony.mjs": "20e1a8f79ff33cbfdb59c095330088fee94b26997c7c9a67597fbf17b8e1dc81",
+    "ceremony-metrics.mjs": "b28f07761b4ad821d3ce16e466034c7bcc41547acac662aacccf02ab35ce2828",
+    "ceremony-process.mjs": "59b725fe8317c6a5124dd9b04a4dda9c955727ffc5e00df5df85ac4ee5948f1d",
+    "ceremony-probes.mjs": "37b80df7496f2a407eddd30dd6655ed9d2523dc15dedee72808171652fe55242",
+    "run.mjs": "45347dc802b62e8ccf9d9c5cb8f1b28d4fe3a283c7c24d3d085517ed44bf1e00"
+  },
+  "host": {
+    "name": "Charlies-MacBook-Pro-M5Max-Black.local",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpus": 18,
+    "cpu": "Apple M5 Max",
+    "loadAverage": [
+      24.802734375,
+      20.29248046875,
+      18.81494140625
+    ],
+    "sharedAndLoaded": true
+  },
+  "node": "v24.18.0",
+  "timedOut": false,
+  "installSeconds": 1.004,
+  "installedBefore": {
+    "version": "0.2.12",
+    "platformVersion": "0.2.12",
+    "binarySha256": "46696513876d0bbb059b51ae2711fb04b4c77c628b7b767a7b551ca3178bf1a1",
+    "readmeSha256": "d66543c2cd0eba4402ff662596ea0aa0a92660453c65a4374653dad6a4d1c07f",
+    "packageLockSha256": "8dcb1b6ab1869f6af0613da2924580c6343cc5c88044bf26e8c40a05f3c55110"
+  },
+  "agentStartedAt": "2026-09-14T17:08:03.745Z",
+  "invocation": {
+    "command": "/Users/ccheever/.volta/bin/codex",
+    "args": [
+      "exec",
+      "--dangerously-bypass-approvals-and-sandbox",
+      "--skip-git-repo-check",
+      "--json",
+      "--color",
+      "never",
+      "-m",
+      "gpt-6-astra",
+      "-c",
+      "model_reasoning_effort=medium",
+      "-C",
+      "/Users/ccheever/projects/snapback-ceremony-fourth/runs/run-2",
+      "-o",
+      "/Users/ccheever/projects/snapback-ceremony-fourth/runs/run-2/FINAL.md",
+      "-"
+    ]
+  },
+  "agentPid": 48689,
+  "exitCode": 0,
+  "exitSignal": null,
+  "agentError": null,
+  "agentWallSeconds": 518.664,
+  "wallSeconds": 519.672,
+  "installedAfter": {
+    "version": "0.2.12",
+    "platformVersion": "0.2.12",
+    "binarySha256": "46696513876d0bbb059b51ae2711fb04b4c77c628b7b767a7b551ca3178bf1a1",
+    "readmeSha256": "d66543c2cd0eba4402ff662596ea0aa0a92660453c65a4374653dad6a4d1c07f",
+    "packageLockSha256": "8dcb1b6ab1869f6af0613da2924580c6343cc5c88044bf26e8c40a05f3c55110"
+  },
+  "pinUnchanged": true,
+  "agentSeconds": 505,
+  "correctionLoops": {
+    "byAttribution": {
+      "snapback4-defect": 0,
+      "docs": 0,
+      "agent-error": 2,
+      "environment": 0,
+      "ambiguous": 0
+    },
+    "snapbackAttributed": 0,
+    "total": 2,
+    "loops": [
+      {
+        "id": 1,
+        "attribution": "agent-error",
+        "line": "1789405697 milestone=packet-start source=package-README/guide Read README and language cards; initial shell accidentally wrote a timestamp outside cwd; all subsequent work confined to cwd. loop=1 attribution=agent-error command=timestamp resolution=stopped-outside-writes"
+      },
+      {
+        "id": 2,
+        "attribution": "agent-error",
+        "line": "1789405987 loop=2 attribution=agent-error command=acceptance-process-cleanup-review resolution=clear-shutdown-escalation-timer-after-child-exit-to-avoid-delayed-signal; acceptance milestones now append to run-log directly"
+      }
+    ],
+    "malformed": []
+  },
+  "schemaShape": {
+    "tables": 9,
+    "tableNames": [
+      "profiles",
+      "posts",
+      "likes",
+      "follows",
+      "chats",
+      "members",
+      "messages",
+      "acknowledgments",
+      "digestPeriods"
+    ],
+    "maintains": 1,
+    "maintainNames": [
+      "likeCounts"
+    ],
+    "tablesIncludingMaintains": 10,
+    "workTablesHeuristic": {
+      "count": 0,
+      "names": []
+    },
+    "workTablesReported": {
+      "count": 1,
+      "names": [
+        "digestPeriods"
+      ]
+    },
+    "perPrincipalCountersHeuristic": [
+      "digestPeriods"
+    ],
+    "perPrincipalCountersReported": [],
+    "publicPerPrincipalCounterLines": {
+      "count": 0,
+      "lines": []
+    },
+    "quarryLines": 208,
+    "quarryCodeLines": 184,
+    "operations": 14,
+    "operationsByKind": {
+      "query": 4,
+      "mutation": 9,
+      "job": 1
+    },
+    "operationNames": [
+      {
+        "kind": "mutation",
+        "name": "profile",
+        "path": "snapback/schema.q",
+        "line": 91
+      },
+      {
+        "kind": "mutation",
+        "name": "post",
+        "path": "snapback/schema.q",
+        "line": 94
+      },
+      {
+        "kind": "mutation",
+        "name": "like",
+        "path": "snapback/schema.q",
+        "line": 102
+      },
+      {
+        "kind": "mutation",
+        "name": "follow",
+        "path": "snapback/schema.q",
+        "line": 108
+      },
+      {
+        "kind": "mutation",
+        "name": "createChat",
+        "path": "snapback/schema.q",
+        "line": 113
+      },
+      {
+        "kind": "mutation",
+        "name": "addMember",
+        "path": "snapback/schema.q",
+        "line": 118
+      },
+      {
+        "kind": "mutation",
+        "name": "send",
+        "path": "snapback/schema.q",
+        "line": 123
+      },
+      {
+        "kind": "mutation",
+        "name": "ack",
+        "path": "snapback/schema.q",
+        "line": 127
+      },
+      {
+        "kind": "mutation",
+        "name": "leave",
+        "path": "snapback/schema.q",
+        "line": 136
+      },
+      {
+        "kind": "query",
+        "name": "receipt",
+        "path": "snapback/schema.q",
+        "line": 141
+      },
+      {
+        "kind": "query",
+        "name": "search",
+        "path": "snapback/schema.q",
+        "line": 156
+      },
+      {
+        "kind": "query",
+        "name": "trending",
+        "path": "snapback/schema.q",
+        "line": 163
+      },
+      {
+        "kind": "query",
+        "name": "insights",
+        "path": "snapback/schema.q",
+        "line": 167
+      },
+      {
+        "kind": "job",
+        "name": "digest",
+        "path": "snapback/schema.q",
+        "line": 191
+      }
+    ],
+    "auxiliaryOperationsReported": [],
+    "reportingError": null
+  },
+  "verify": {
+    "directory": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-XlhVCz",
+    "acceptanceDirectory": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-vSWoMS",
+    "probeDirectory": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-QLvPAQ",
+    "check": {
+      "ok": true,
+      "status": 0,
+      "timedOut": false,
+      "error": null,
+      "tail": "check: ok — 10 tables (0 synced), 14 operations, no problems, 1 note, 1.4 ms\nnote: schema.q:156:1 — N_NO_CURSOR: query search returns a page of 200 members rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on\n  rewrite: declare `c: cursor ?` and page with `after c` — search(.., c: cursor ?): return members[..] after c last 200 by <index>\n  guide: reads\n\n"
+    },
+    "acceptance": {
+      "ok": true,
+      "status": 0,
+      "timedOut": false,
+      "error": null,
+      "tail": "erId\":\"dev:carol\",\"unreadChats\":1,\"unreadMessages\":19}}\n{\"at\":\"2026-09-14T17:18:01.092Z\",\"label\":\"effect-observed\",\"id\":\"01M2GESZBJS3112R9YVAEYWA45\",\"payload\":{\"periodEnd\":1789495200000,\"periodStart\":1789408800000,\"targetUserId\":\"dev:alice\",\"unreadChats\":1,\"unreadMessages\":20}}\n{\"at\":\"2026-09-14T17:18:01.094Z\",\"label\":\"receipts-authority-green\"}\n{\"at\":\"2026-09-14T17:18:01.519Z\",\"label\":\"effect-observed\",\"id\":\"01M2GESZS60CM8EQ8P4TH18EPS\",\"payload\":{\"periodEnd\":1789581600000,\"periodStart\":1789495200000,\"targetUserId\":\"dev:carol\",\"unreadChats\":1,\"unreadMessages\":19}}\n{\"at\":\"2026-09-14T17:18:01.521Z\",\"label\":\"effect-observed\",\"id\":\"01M2GESZS6RRTA5CHQ0EN6KNPD\",\"payload\":{\"periodEnd\":1789581600000,\"periodStart\":1789495200000,\"targetUserId\":\"dev:bob\",\"unreadChats\":2,\"unreadMessages\":39}}\n{\"at\":\"2026-09-14T17:18:01.522Z\",\"label\":\"effect-observed\",\"id\":\"01M2GESZS6VTZBMPZVTPT926SP\",\"payload\":{\"periodEnd\":1789581600000,\"periodStart\":1789495200000,\"targetUserId\":\"dev:alice\",\"unreadChats\":1,\"unreadMessages\":21}}\n{\"at\":\"2026-09-14T17:18:01.717Z\",\"label\":\"effect-observed\",\"id\":\"01M2GESZZADRJX0XJ411C2ES8S\",\"payload\":{\"periodEnd\":1789668000000,\"periodStart\":1789581600000,\"targetUserId\":\"dev:carol\",\"unreadChats\":1,\"unreadMessages\":19}}\n{\"at\":\"2026-09-14T17:18:01.718Z\",\"label\":\"effect-observed\",\"id\":\"01M2GESZZAFG4W4H793PDG0ZEH\",\"payload\":{\"periodEnd\":1789668000000,\"periodStart\":1789581600000,\"targetUserId\":\"dev:alice\",\"unreadChats\":1,\"unreadMessages\":20}}\n{\"at\":\"2026-09-14T17:18:01.719Z\",\"label\":\"effect-observed\",\"id\":\"01M2GESZZAY6X5RHG723834Y0P\",\"payload\":{\"periodEnd\":1789668000000,\"periodStart\":1789581600000,\"targetUserId\":\"dev:bob\",\"unreadChats\":2,\"unreadMessages\":39}}\n{\"at\":\"2026-09-14T17:18:01.942Z\",\"label\":\"effect-observed\",\"id\":\"01M2GET06C9BP49A5EDF3CZMZH\",\"payload\":{\"periodEnd\":1789754400000,\"periodStart\":1789668000000,\"targetUserId\":\"dev:bob\",\"unreadChats\":2,\"unreadMessages\":39}}\n{\"at\":\"2026-09-14T17:18:01.945Z\",\"label\":\"effect-observed\",\"id\":\"01M2GET06CE4YC0JMKMD7T3WS7\",\"payload\":{\"periodEnd\":1789754400000,\"periodStart\":1789668000000,\"targetUserId\":\"dev:alice\",\"unreadChats\":0,\"unreadMessages\":0}}\n{\"at\":\"2026-09-14T17:18:01.947Z\",\"label\":\"effect-observed\",\"id\":\"01M2GET06CQ18C5YXEXB97TM29\",\"payload\":{\"periodEnd\":1789754400000,\"periodStart\":1789668000000,\"targetUserId\":\"dev:carol\",\"unreadChats\":1,\"unreadMessages\":19}}\n{\"at\":\"2026-09-14T17:18:01.956Z\",\"label\":\"live-changes-zero-recipients-zero-digest-green\"}\n{\"at\":\"2026-09-14T17:18:01.956Z\",\"label\":\"acceptance-green\"}\n"
+    },
+    "probes": {
+      "directory": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-QLvPAQ",
+      "ok": true,
+      "checks": [
+        {
+          "name": "insights",
+          "ok": true,
+          "seconds": 0.013
+        },
+        {
+          "name": "trending",
+          "ok": true,
+          "seconds": 0.017
+        },
+        {
+          "name": "search",
+          "ok": true,
+          "seconds": 0.012
+        },
+        {
+          "name": "digest",
+          "ok": true,
+          "seconds": 119.305
+        },
+        {
+          "name": "receipt",
+          "ok": true,
+          "seconds": 0.034
+        }
+      ],
+      "evidence": {
+        "insights": {
+          "initial": {
+            "posts": 6,
+            "likesReceived": 21,
+            "repostsReceived": 2,
+            "repliesReceived": 2,
+            "followers": 3,
+            "following": 2,
+            "days": [
+              {
+                "day": 1788739200000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1788825600000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1788912000000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1788998400000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1789084800000,
+                "posts": 1,
+                "likesReceived": 7
+              },
+              {
+                "day": 1789171200000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1789257600000,
+                "posts": 4,
+                "likesReceived": 12
+              }
+            ]
+          },
+          "afterLike": {
+            "posts": 6,
+            "likesReceived": 22,
+            "repostsReceived": 2,
+            "repliesReceived": 2,
+            "followers": 3,
+            "following": 2,
+            "days": [
+              {
+                "day": 1788739200000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1788825600000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1788912000000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1788998400000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1789084800000,
+                "posts": 1,
+                "likesReceived": 7
+              },
+              {
+                "day": 1789171200000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1789257600000,
+                "posts": 4,
+                "likesReceived": 13
+              }
+            ]
+          }
+        },
+        "trending": {
+          "initial": [
+            {
+              "key": "p01",
+              "likes": 6,
+              "at": 1789318800000
+            },
+            {
+              "key": "p02",
+              "likes": 5,
+              "at": 1789315200000
+            },
+            {
+              "key": "p03",
+              "likes": 4,
+              "at": 1789311600000
+            },
+            {
+              "key": "p04",
+              "likes": 4,
+              "at": 1789308000000
+            },
+            {
+              "key": "p05",
+              "likes": 4,
+              "at": 1789304400000
+            },
+            {
+              "key": "p06",
+              "likes": 3,
+              "at": 1789300800000
+            },
+            {
+              "key": "p07",
+              "likes": 3,
+              "at": 1789297200000
+            },
+            {
+              "key": "p08",
+              "likes": 3,
+              "at": 1789293600000
+            },
+            {
+              "key": "p09",
+              "likes": 2,
+              "at": 1789290000000
+            },
+            {
+              "key": "p10",
+              "likes": 2,
+              "at": 1789286400000
+            }
+          ],
+          "afterLikes": [
+            {
+              "key": "p16",
+              "likes": 7,
+              "at": 1789264800000
+            },
+            {
+              "key": "p01",
+              "likes": 6,
+              "at": 1789318800000
+            },
+            {
+              "key": "p02",
+              "likes": 5,
+              "at": 1789315200000
+            },
+            {
+              "key": "p03",
+              "likes": 4,
+              "at": 1789311600000
+            },
+            {
+              "key": "p04",
+              "likes": 4,
+              "at": 1789308000000
+            },
+            {
+              "key": "p05",
+              "likes": 4,
+              "at": 1789304400000
+            },
+            {
+              "key": "p06",
+              "likes": 3,
+              "at": 1789300800000
+            },
+            {
+              "key": "p07",
+              "likes": 3,
+              "at": 1789297200000
+            },
+            {
+              "key": "p08",
+              "likes": 3,
+              "at": 1789293600000
+            },
+            {
+              "key": "p09",
+              "likes": 2,
+              "at": 1789290000000
+            }
+          ]
+        },
+        "search": {
+          "initial": [
+            {
+              "chatKey": "alpha",
+              "keys": [
+                "a20",
+                "a15",
+                "a10",
+                "a05"
+              ]
+            },
+            {
+              "chatKey": "beta",
+              "keys": [
+                "b20",
+                "b15",
+                "b10",
+                "b05"
+              ]
+            }
+          ],
+          "insertedMessage": "b21"
+        },
+        "digest": {
+          "explicitPeriod": {
+            "periodStart": 1789405080000,
+            "periodEnd": 1789405200000
+          },
+          "followingPeriod": {
+            "periodStart": 1789405200000,
+            "periodEnd": 1789405320000
+          },
+          "scheduledBoundary": 1789406400000,
+          "observed": [
+            {
+              "id": "01M2GET1BT8QP4STKCC8EMN0ER",
+              "payload": {
+                "periodEnd": 1789405200000,
+                "periodStart": 1789405080000,
+                "targetUserId": "dev:alice",
+                "unreadChats": 1,
+                "unreadMessages": 21
+              }
+            },
+            {
+              "id": "01M2GET1BTHER1FW5JWK79SGPF",
+              "payload": {
+                "periodEnd": 1789405200000,
+                "periodStart": 1789405080000,
+                "targetUserId": "dev:carol",
+                "unreadChats": 1,
+                "unreadMessages": 20
+              }
+            },
+            {
+              "id": "01M2GET1BTKWTJXPZYHSS0AE7E",
+              "payload": {
+                "periodEnd": 1789405200000,
+                "periodStart": 1789405080000,
+                "targetUserId": "dev:bob",
+                "unreadChats": 2,
+                "unreadMessages": 40
+              }
+            },
+            {
+              "id": "01M2GET2D22JGZBGMR38DAGBA2",
+              "payload": {
+                "periodEnd": 1789405320000,
+                "periodStart": 1789405200000,
+                "targetUserId": "dev:carol",
+                "unreadChats": 1,
+                "unreadMessages": 20
+              }
+            },
+            {
+              "id": "01M2GET2D27NN6SB7Z7F94G130",
+              "payload": {
+                "periodEnd": 1789405320000,
+                "periodStart": 1789405200000,
+                "targetUserId": "dev:alice",
+                "unreadChats": 1,
+                "unreadMessages": 21
+              }
+            },
+            {
+              "id": "01M2GET2D2ZCESY0H7FG6T5TG3",
+              "payload": {
+                "periodEnd": 1789405320000,
+                "periodStart": 1789405200000,
+                "targetUserId": "dev:bob",
+                "unreadChats": 1,
+                "unreadMessages": 20
+              }
+            },
+            {
+              "id": "01M2GEXKMH1V5NRY1ACF8ZEVGY",
+              "payload": {
+                "periodEnd": 1789406400000,
+                "periodStart": 1789406280000,
+                "targetUserId": "dev:carol",
+                "unreadChats": 1,
+                "unreadMessages": 20
+              }
+            },
+            {
+              "id": "01M2GEXKMHQ6WMTYXQAYET46V9",
+              "payload": {
+                "periodEnd": 1789406400000,
+                "periodStart": 1789406280000,
+                "targetUserId": "dev:alice",
+                "unreadChats": 1,
+                "unreadMessages": 21
+              }
+            },
+            {
+              "id": "01M2GEXKMHT8D1E6FWJBYZD213",
+              "payload": {
+                "periodEnd": 1789406400000,
+                "periodStart": 1789406280000,
+                "targetUserId": "dev:bob",
+                "unreadChats": 1,
+                "unreadMessages": 20
+              }
+            }
+          ]
+        },
+        "receipt": [
+          "sent",
+          "sent",
+          "delivered",
+          "delivered",
+          "read",
+          "read"
+        ]
+      }
+    },
+    "ok": true
+  },
+  "verificationSeconds": 199.66,
+  "green": true,
+  "measurementComplete": true,
+  "loopBarComparison": {
+    "wallAtMost1200": true,
+    "snapbackAttributedAtMost1": true
+  }
+}
