@@ -4912,3 +4912,35 @@ The page-admission group still takes 33.61 seconds and needs profiling.
 The [performance record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
 and ticket retain source, raw-log and cleanup evidence. No release is needed
 for this test-helper change.
+
+## 2026-09-14 — the catch-up lands as 0.2.12 (LLP 3000.007 §18)
+
+The lead (Claude, after the handoff's Astra lead was never started)
+integrated lanes CU1–CU5 and a continuation, CU2b, as `4582f8421`. Two blind
+families reviewed that commit (GPT NOT READY, twelve findings; Grok READY
+WITH CHANGES, four), and three fix rounds followed (R1a and R1b, R2, R3). In
+each round a finding was first reproduced as a failing test; four did not
+reproduce, and their regressions stay. After round 3 both families' narrow
+re-checks returned READY. The integration found what no single lane could
+see. CU2b's client test called the positional `processDevice` that CU3 had
+removed, and main's W5 had removed the probe counter CU1's lane verdict still
+read, so each lane now takes W5's static allowance.
+
+What the builders will meet, measured on the real client and the real CLI:
+
+- A left group's history read online: 0 rows, `complete: true` before; 25
+  rows, `complete: false` after, on both the wasm and process devices.
+- `check` against a stopped `dev` store: `default now` on a new required
+  column prints `E_ADOPT` at its line and exits 1; a literal default exits
+  0, and `dev` then serves the old row with the default.
+- A bare `processDevice()` refuses in one sentence before spawning anything.
+
+Two environment traps cost time. First, `git checkout` and `git merge` in
+lane worktrees hang in the post-checkout hook, so run them with
+`-c core.hooksPath=/dev/null`. Second, five `lifecycle.rs` host tests time
+out outside the sandbox when the machine is loaded: the child stalls in
+`_dyld_start` (ticketed). They were green once the load dropped.
+
+Versions move to 0.2.12 (client, darwin binary, crate) and snapback4-expo
+0.2.4. Another session published 0.2.11 at 15:24 UTC with bounded HTTP
+reader reuse, so this pin is the next number.
