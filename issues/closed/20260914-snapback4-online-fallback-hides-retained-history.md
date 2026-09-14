@@ -1,6 +1,6 @@
 # Snapback 4: online fallback hides device-held retained history after a leave
 
-Status: Open
+Status: Resolved
 Priority: P2
 Date: 2026-09-14
 Systems: local-first client reads, retained history, horizons
@@ -36,3 +36,31 @@ subscriptions on the real client. Preserve truthful completeness and the
 server's current-image security rule; do not grant access to revoked
 images or claim that an exhausted horizon is complete. This requires client
 package work, which the CU2 brief explicitly excluded.
+
+## Resolution — 2026-09-14, CU2b
+
+The device persists held/left audience prefixes with its confirmed partition.
+Scope tombstones mark delivered-history groups left; the first snapshot page
+carries only the viewer's current held prefixes, so a missed scope is recognized
+without serving a revoked image. Replacement publication keeps confirmed
+candidates only for left groups; held groups take the current acquisition, so
+an absent deleted row does not survive a held-group snapshot. Prefix-only join
+metadata clears the state even when the rejoined group has no rows.
+
+A scan pinning a left group carries the internal device outcome `retained: true`
+and keeps the existing completeness rule. The client consumes that outcome in
+its shared one-shot/watch evaluation and does not replace it with a server
+answer online. `Read<R>` is unchanged; an unscoped read and a held group's
+incomplete read retain the existing server fallback.
+
+`packages/snapback4/test/retained-history.test.mjs` reproduced the visible bug
+at base `09bbd95e7b7caed30ae2e281e187a28ee443b222`: 0 passed, 2 failed;
+both real hosts printed `rows=0, complete=true` for the left group. Fixed:
+2 passed, 0 failed; both print `rows=25, complete=false`, keep those rows in
+watches online/offline, and still get 26 complete rows from the server for the
+held control. The server still returns 0 revoked rows. The device regression
+is 16 passed, 0 failed across SQLite and memory, including held deletion,
+unseen/live removal, rejoin, removal between pages, persistence, and empty
+rejoin. The earlier CU2 cases remain, with its held-group resnapshot assertion
+corrected from 26 to the authoritative 25-row acquisition required by §18.2.
+The dated CU2b journal entry records the commands and whole-suite limitations.

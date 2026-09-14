@@ -265,6 +265,19 @@ pub struct SnapshotPage {
     pub events: Vec<Event>,
     pub watermark: u64,
     pub next: Option<SnapshotCursor>,
+    pub held: Option<crate::wire::HeldGroups>,
+}
+
+#[cfg(feature = "sqlite")]
+fn snapshot_groups(tx: &Tx<'_>, schema: &Schema, table_name: &str, sync: &Sync, principal: &str, now: i64) -> Result<Vec<Vec<Value>>, RuntimeError> {
+    Ok(match &sync.audience {
+        Audience::Public => vec![Vec::new()],
+        Audience::Column(_) => vec![vec![Value::Id(principal.to_owned())]],
+        Audience::Target { table: target, .. } => {
+            let bound = binding(schema, table_name, sync).ok_or_else(|| RuntimeError::Schema(format!("sync to {target} has no audience index")))?;
+            groups_now(tx, schema, &bound, target, principal, now)?
+        }
+    })
 }
 
 /// Everything a principal holds right now, one page at a time: the
@@ -280,20 +293,21 @@ pub fn snapshot_page(tx: &Tx<'_>, schema: &Schema, principal: &str, cursor: Opti
         Some(cursor) => cursor.watermark,
         None => tx.next_seq()? - 1,
     };
+    // @ref LLP 3000.007#18.2 — the first page names only this viewer's audience prefixes; held groups replace, left groups retain.
+    let held = if cursor.is_none() {
+        let mut held = crate::wire::HeldGroups::new();
+        for (name, _, sync) in schema.synced().filter(|(_, table, _)| table.leave == crate::schema::LeavePolicy::DeliveredHistory) {
+            held.insert(name.to_owned(), snapshot_groups(tx, schema, name, sync, principal, now)?.iter().map(|group| group.iter().map(crate::wire::to_json).collect()).collect());
+        }
+        Some(held)
+    } else { None };
     let mut at = cursor.unwrap_or(SnapshotCursor { watermark, ..SnapshotCursor::default() });
     let tables: Vec<(&str, &Table, &Sync)> = schema.synced().collect();
     let mut events = Vec::new();
     let limit = limit.max(1);
     while at.table < tables.len() {
         let (table_name, table, sync) = tables[at.table];
-        let groups: Vec<Vec<Value>> = match &sync.audience {
-            Audience::Public => vec![Vec::new()],
-            Audience::Column(_) => vec![vec![Value::Id(principal.to_owned())]],
-            Audience::Target { table: target, .. } => {
-                let bound = binding(schema, table_name, sync).ok_or_else(|| RuntimeError::Schema(format!("sync to {target} has no audience index")))?;
-                groups_now(tx, schema, &bound, target, principal, now)?
-            }
-        };
+        let groups = snapshot_groups(tx, schema, table_name, sync, principal, now)?;
         // Resume at the group in flight, or at the first group after one
         // the principal no longer holds.
         let mut position = match &at.group {
@@ -309,7 +323,7 @@ pub fn snapshot_page(tx: &Tx<'_>, schema: &Schema, principal: &str, cursor: Opti
             let room = limit - events.len();
             if room == 0 {
                 at.group = Some(group.clone());
-                return Ok(SnapshotPage { events, watermark, next: Some(at) });
+                return Ok(SnapshotPage { events, watermark, next: Some(at), held });
             }
             let (rows, exhausted) = group_rows_from(tx, table_name, table, sync, group, at.after.as_deref(), at.taken, room, now, Some(schema))?;
             for (row, key) in rows {
@@ -325,7 +339,7 @@ pub fn snapshot_page(tx: &Tx<'_>, schema: &Schema, principal: &str, cursor: Opti
             }
             if !exhausted {
                 at.group = Some(group.clone());
-                return Ok(SnapshotPage { events, watermark, next: Some(at) });
+                return Ok(SnapshotPage { events, watermark, next: Some(at), held });
             }
             at.after = None;
             at.taken = 0;
@@ -334,7 +348,7 @@ pub fn snapshot_page(tx: &Tx<'_>, schema: &Schema, principal: &str, cursor: Opti
         at.table += 1;
         at.group = None;
     }
-    Ok(SnapshotPage { events, watermark, next: None })
+    Ok(SnapshotPage { events, watermark, next: None, held })
 }
 
 /// The whole snapshot at once, for hosts that hold it (the simulator's
@@ -432,6 +446,8 @@ pub fn append(tx: &Tx<'_>, seq: u64, events: &[Event]) -> Result<(), RuntimeErro
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StreamPage {
     pub events: Vec<LogEvent>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub joined: crate::wire::HeldGroups,
     /// The watermark after applying `events`.
     pub watermark: u64,
     /// Whether more events wait past `watermark`.
@@ -522,7 +538,7 @@ pub fn stream(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64, lim
         Audience::Target { table, .. } => schema.table(table).is_some_and(|target| target.expire.is_some()),
         _ => false,
     });
-    if watermark >= head && !expiring_audience { return Ok(StreamPage { events: Vec::new(), watermark, more: false }); }
+    if watermark >= head && !expiring_audience { return Ok(StreamPage { events: Vec::new(), watermark, more: false, joined: BTreeMap::new() }); }
     let held = intervals(tx, schema, principal, watermark)?;
     let mut spans = vec![(partition_of(principal), watermark.saturating_add(1), None, None), (PUBLIC.to_owned(), watermark.saturating_add(1), None, None)];
     for ((table, group), intervals) in &held {
@@ -545,6 +561,14 @@ pub fn stream(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64, lim
     }
     let mut next = page.last().map_or(watermark, |event| event.seq);
     let more = !tx.read_log_spans(&spans, next, None, 1)?.is_empty();
+    let mut joined = crate::wire::HeldGroups::new();
+    for event in page.iter().filter(|event| event.kind == "join") {
+        if !schema.table(&event.table).is_some_and(|table| table.leave == crate::schema::LeavePolicy::DeliveredHistory) { continue; }
+        if held.get(&(event.table.clone(), event.id.clone())).is_some_and(|spans| spans.last().is_some_and(|span| span.from == event.seq && span.to.is_none() && span.expires_at.is_none_or(|expiry| expiry > now))) {
+            let group: Vec<Value> = serde_json::from_str(&event.id).map_err(|e| RuntimeError::Store(e.to_string()))?;
+            joined.entry(event.table.clone()).or_default().push(group.iter().map(crate::wire::to_json).collect());
+        }
+    }
     let mut events = expand_joins(tx, schema, page, &held, now)?;
     if !more {
         next = next.max(head);
@@ -594,7 +618,7 @@ pub fn stream(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64, lim
         }
         events.push(event);
     }
-    Ok(StreamPage { events, watermark: next, more })
+    Ok(StreamPage { events, watermark: next, more, joined })
 }
 
 /// A join acquires the images that existed at its own commit, even if a

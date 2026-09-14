@@ -901,6 +901,11 @@ impl Engine {
     }
 
     pub fn snapshot_page_at(&mut self, principal: &str, after: Option<&str>, limit: usize, now: i64) -> Result<(Vec<Event>, u64, Option<String>), RuntimeError> {
+        let (events, watermark, next, _) = self.snapshot_page_with_groups_at(principal, after, limit, now)?;
+        Ok((events, watermark, next))
+    }
+
+    pub fn snapshot_page_with_groups_at(&mut self, principal: &str, after: Option<&str>, limit: usize, now: i64) -> Result<(Vec<Event>, u64, Option<String>, Option<crate::wire::HeldGroups>), RuntimeError> {
         let cursor = match after {
             Some(token) => Some(partition::SnapshotCursor::decode(token).ok_or_else(|| RuntimeError::Input("the snapshot cursor is not one this server minted".into()))?),
             None => None,
@@ -908,7 +913,7 @@ impl Engine {
         let tx = self.store.read_transaction()?;
         let page = partition::snapshot_page(&tx, &self.schema, principal, cursor, limit, now)?;
         tx.rollback()?;
-        Ok((page.events, page.watermark, page.next.map(|next| next.encode())))
+        Ok((page.events, page.watermark, page.next.map(|next| next.encode()), page.held))
     }
 
     /// The whole snapshot at once (the simulator's device, tests).

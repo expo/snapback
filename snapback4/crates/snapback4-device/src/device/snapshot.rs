@@ -8,8 +8,8 @@ pub(super) struct Staged {
     pub acquired: bool,
 }
 
-// @ref LLP 3000.007#18.2 — acquisition overlays confirmed delivered history; neither a horizon nor a replacement snapshot evicts it.
-pub(super) fn retain<T: DeviceTx>(tx: &T, schema: &Schema) -> Result<(), RuntimeError> {
+// @ref LLP 3000.007#18.2 — replacement keeps confirmed history only for groups the viewer no longer holds.
+pub(super) fn retain<T: DeviceTx>(tx: &T, schema: &Schema, held: Option<&wire::HeldGroups>) -> Result<(), RuntimeError> {
     for (name, _, _) in schema.synced().filter(|(_, table, _)| table.leave == LeavePolicy::DeliveredHistory) {
         let mut bounds = Bounds::default();
         loop {
@@ -33,6 +33,34 @@ pub(super) fn retain<T: DeviceTx>(tx: &T, schema: &Schema) -> Result<(), Runtime
             None => tx.staged_delete(&key)?,
         }
     }
+    let mut left = history::load(tx, history::GROUPS)?;
+    let held: BTreeMap<String, BTreeSet<String>> = held.into_iter().flat_map(|tables| tables.iter()).map(|(name, groups)| {
+        Ok((name.clone(), groups.iter().map(encoded).collect::<Result<_, RuntimeError>>()?))
+    }).collect::<Result<_, RuntimeError>>()?;
+    for (name, groups) in &held {
+        if let Some(known) = left.get_mut(name) {
+            for (group, state) in known { *state = if groups.contains(group) { history::Membership::Held } else { history::Membership::Left }; }
+        }
+        for group in groups { left.entry(name.clone()).or_default().insert(group.clone(), history::Membership::Held); }
+    }
+    // Keep confirmed candidates private until catch-up decides the final
+    // membership. A leave between pages must keep already delivered rows.
+    let mut after = String::new();
+    loop {
+        let rows = tx.staged_after(&after, 500)?;
+        for (key, name, data) in &rows {
+            let table = schema.table(name).ok_or_else(|| RuntimeError::Schema(format!("unknown table {name}")))?;
+            let staged: Staged = decoded(data)?;
+            let group = history::row_key(table, &staged.row)?;
+            let retain = held.get(name).map_or_else(|| history::is_left(&left, name, &group), |groups| !groups.contains(&group));
+            if retain {
+                left.entry(name.clone()).or_default().insert(group, history::Membership::Left);
+            }
+            after = key.clone();
+        }
+        if rows.len() < 500 { break; }
+    }
+    tx.set_meta(history::STAGED_GROUPS, &encoded(&left)?)?;
     Ok(())
 }
 

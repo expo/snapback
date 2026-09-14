@@ -553,9 +553,10 @@ device keeps what it was given (`delivered-history`) or drops it
 horizon; the horizon bounds what a device acquires, never what it keeps.
 The same local completeness rule applies after leaving: an exhausted horizon
 is `complete: false`, while unbounded whole-group history is `complete: true`.
-What it keeps it can still read locally
-through a query without a membership `require`, while the server refuses
-the same query. A table without `sync` is online-only. A `maintain`
+A read pinning the left group answers from those rows on the device online
+and offline, through a query without a membership `require`; the server
+cannot serve that retained history. Replacement snapshots keep left groups
+and replace held groups with their current acquisition. A table without `sync` is online-only. A `maintain`
 grouped by the audience columns inherits sync and is delivered as a value row.
 `online only` on a table documents the absence of sync; on a maintain it opts
 out of inheritance. Both lines absent on a table still means online only.

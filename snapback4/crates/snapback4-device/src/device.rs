@@ -21,6 +21,7 @@ use std::collections::{BTreeMap, BTreeSet};
 mod predictions;
 mod media;
 mod snapshot;
+mod history;
 
 /// The compiled backend, as `GET /schema` sends it.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -62,6 +63,10 @@ pub struct StreamPage {
     pub snapshot_catchup: bool,
     #[serde(default)]
     pub acknowledged: BTreeMap<String, u64>,
+    #[serde(default)]
+    pub held: Option<wire::HeldGroups>,
+    #[serde(default)]
+    pub joined: wire::HeldGroups,
     pub snapshot: bool,
     pub events: Vec<StreamEvent>,
     pub watermark: u64,
@@ -117,7 +122,7 @@ const SNAPSHOT_OWNERS: &str = "device:snapshot:owners";
 const SNAPSHOT_WATERMARK: &str = "device:snapshot:watermark";
 const SNAPSHOT_SEND_REVISION: &str = "device:snapshot:send_revision";
 const SNAPSHOT_THROUGH: &str = "device:snapshot:through";
-const SNAPSHOT_KEYS: [&str; 4] = [SNAPSHOT_OWNER, SNAPSHOT_WATERMARK, SNAPSHOT_SEND_REVISION, SNAPSHOT_THROUGH];
+const SNAPSHOT_KEYS: [&str; 5] = [SNAPSHOT_OWNER, SNAPSHOT_WATERMARK, SNAPSHOT_SEND_REVISION, SNAPSHOT_THROUGH, history::STAGED_GROUPS];
 /// The app's native module (LLP 3000.005 §9), kept so a cold start offline
 /// answers native reads too: the bytes as hex, and the digest the server named.
 const NATIVE: &str = "device:native";
@@ -220,6 +225,8 @@ impl<S: DeviceStore> Device<S> {
         if reset {
             metadata.insert(WATERMARK.to_owned(), "0".into());
             invalidate_native(&mut metadata);
+            metadata.insert(history::GROUPS.to_owned(), "{}".into());
+            metadata.insert(history::STAGED_GROUPS.to_owned(), "{}".into());
         }
         store.install(&backend.schema, &metadata, reset)?;
         let cached_digest = store.meta(NATIVE_DIGEST)?;
@@ -300,6 +307,8 @@ impl<S: DeviceStore> Device<S> {
         if reset {
             metadata.insert(WATERMARK.to_owned(), "0".into());
             invalidate_native(&mut metadata);
+            metadata.insert(history::GROUPS.to_owned(), "{}".into());
+            metadata.insert(history::STAGED_GROUPS.to_owned(), "{}".into());
         }
         self.store.install(&backend.schema, &metadata, reset)?;
         if reset {
@@ -358,6 +367,7 @@ impl<S: DeviceStore> Device<S> {
         tx.base_clear()?;
         tx.staged_clear()?;
         tx.set_meta(WATERMARK, "0")?;
+        tx.delete_meta(&[history::GROUPS])?;
         tx.delete_meta(&SNAPSHOT_KEYS)?;
         tx.commit()?;
         self.snapshot_owner = None;
@@ -394,7 +404,7 @@ impl<S: DeviceStore> Device<S> {
         if replacing {
             if page.snapshot && first {
                 tx.staged_clear()?;
-                snapshot::retain(&tx, &self.schema)?;
+                snapshot::retain(&tx, &self.schema, page.held.as_ref())?;
                 tx.set_meta(SNAPSHOT_WATERMARK, &page.watermark.to_string())?;
                 tx.set_meta(SNAPSHOT_THROUGH, &page.watermark.to_string())?;
                 tx.set_meta(SNAPSHOT_OWNER, owner.as_deref().expect("first page owner"))?;
@@ -414,6 +424,7 @@ impl<S: DeviceStore> Device<S> {
                 return Err(RuntimeError::Generation("snapshot catch-up moved backwards".into()));
             }
             snapshot::stage(&tx, &self.schema, &page.events, page.snapshot)?;
+            history::events(&tx, &self.schema, &page.events, &page.joined, true)?;
             tx.set_meta(SNAPSHOT_THROUGH, &page.watermark.to_string())?;
             // Paged snapshots read different server transactions. Keep every
             // image private until log catch-up repairs intervening commits.
@@ -425,6 +436,7 @@ impl<S: DeviceStore> Device<S> {
         }
         predictions::restore(&tx, &self.schema)?;
         if replacing {
+            let groups = history::load(&tx, history::STAGED_GROUPS)?;
             tx.clear_rows()?;
             touched.extend(self.schema.tables.keys().cloned());
             let mut after = String::new();
@@ -433,18 +445,20 @@ impl<S: DeviceStore> Device<S> {
                 for (key, table_name, data) in &rows {
                     let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("unknown table {table_name}")))?;
                     let staged: snapshot::Staged = decoded(data)?;
+                    after = key.clone();
+                    if !staged.acquired && !history::is_left(&groups, table_name, &history::row_key(table, &staged.row)?) { continue; }
                     tx.put(table_name, table, &staged.row, None)?;
                     if staged.acquired {
                         media::remember(&tx, table_name, table, &staged.row, self.generation)?;
                     } else {
                         media::forget(&tx, table, &staged.row)?;
                     }
-                    after = key.clone();
                 }
                 if rows.len() < 500 {
                     break;
                 }
             }
+            tx.set_meta(history::GROUPS, &encoded(&groups)?)?;
             tx.staged_clear()?;
             tx.delete_meta(&SNAPSHOT_KEYS)?;
         } else {
@@ -476,6 +490,8 @@ impl<S: DeviceStore> Device<S> {
                 }
             }
         }
+        if !replacing { history::events(&tx, &self.schema, &page.events, &page.joined, false)?; }
+        touched.extend(page.joined.keys().cloned());
         tx.set_meta(WATERMARK, &page.watermark.to_string())?;
         for (id, seq) in &page.acknowledged {
             if *seq > page.watermark {
@@ -502,31 +518,35 @@ impl<S: DeviceStore> Device<S> {
 
     /// The query, and whether it touched something the device does not
     /// hold (an online-only table, a row past the horizon).
-    pub fn query_with_coverage(&mut self, name: &str, viewer: &str, args: &serde_json::Value, now: i64) -> (Result<QueryOutcome, Refusal>, bool) {
+    pub fn query_with_coverage(&mut self, name: &str, viewer: &str, args: &serde_json::Value, now: i64) -> (Result<QueryOutcome, Refusal>, bool, bool) {
         let mut unknown = false;
+        let mut retained = false;
         let result = (|| {
             let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
             let context = Context::new(viewer, typed_args(&program, args)?).at(now);
             let tx = self.store.read_transaction()?;
+            let reading = history::Reading { tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, retained: std::cell::Cell::new(false) };
             let (result, coverage) = if program.native {
                 // A native read over the rows held (LLP 3000.005 §9); without
                 // the module the device does not know, and the host asks the
                 // server.
                 #[cfg(feature = "wasm-host")]
                 match &self.native {
-                    Some(module) => local::native_query(&tx, &self.schema, module, &program, context, Ceilings::default()),
+                    Some(module) => local::native_query(&reading, &self.schema, module, &program, context, Ceilings::default()),
                     None => (Err(RuntimeError::Native { code: "E_NATIVE".into(), message: format!("{name} is a native read and this device has no module yet") }.refusal()), true),
                 }
                 #[cfg(not(feature = "wasm-host"))]
                 (Err(RuntimeError::Native { code: "E_NATIVE".into(), message: format!("{name} is a native read and this device was built without the wasm host") }.refusal()), true)
             } else {
-                local::query_with_coverage(&tx, &self.schema, &program, context, Ceilings::default())
+                local::query_with_coverage(&reading, &self.schema, &program, context, Ceilings::default())
             };
             unknown = coverage;
+            retained = reading.retained.get();
+            drop(reading);
             tx.rollback()?;
             result
         })();
-        (result, unknown)
+        (result, unknown, retained)
     }
 
     /// Predict a mutation: its rows land in the store marked `pending`, in

@@ -915,18 +915,18 @@ fn handle(mut request: Request, shared: &Shared) {
                     match reader {
                         Ok(mut reader) => {
                             let generation = reader.generation();
-                            (reader.snapshot_page(&principal, after.as_deref(), limit).and_then(|(events, watermark, next)| reader.acknowledged(&principal, &pending, watermark).map(|acks| (events, watermark, next, acks))), generation)
+                            (reader.snapshot_page_with_groups_at(&principal, after.as_deref(), limit, snapback4_core::now_ms()).and_then(|(events, watermark, next, held)| reader.acknowledged(&principal, &pending, watermark).map(|acks| (events, watermark, next, held, acks))), generation)
                         }
                         Err(_) => {
                             let mut engine = lock(&shared.engine);
-                            (engine.snapshot_page(&principal, after.as_deref(), limit).and_then(|(events, watermark, next)| engine.acknowledged(&principal, &pending, watermark).map(|acks| (events, watermark, next, acks))), *lock(&shared.generation))
+                            (engine.snapshot_page_with_groups_at(&principal, after.as_deref(), limit, snapback4_core::now_ms()).and_then(|(events, watermark, next, held)| engine.acknowledged(&principal, &pending, watermark).map(|acks| (events, watermark, next, held, acks))), *lock(&shared.generation))
                         }
                     }
                 };
                 match outcome {
-                    Ok((events, watermark, next, acknowledged)) => {
+                    Ok((events, watermark, next, held, acknowledged)) => {
                         let events: Vec<Json> = events.into_iter().map(|e| json!({ "table": e.table, "kind": e.kind.word(), "id": e.id, "data": e.data.as_ref().map(wire::to_json) })).collect();
-                        respond(request, 200, json!({ "snapshot": true, "events": events, "watermark": watermark, "more": next.is_some(), "next": next, "generation": generation, "acknowledged": acknowledged }));
+                        respond(request, 200, json!({ "snapshot": true, "held": held, "events": events, "watermark": watermark, "more": next.is_some(), "next": next, "generation": generation, "acknowledged": acknowledged }));
                     }
                     Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else if refusal.code == "E_INPUT" { 400 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
                 }
@@ -947,7 +947,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 match outcome {
                     Ok((page, acknowledged)) => {
                         let events: Vec<Json> = page.events.into_iter().map(|e| json!({ "seq": e.seq, "table": e.table, "kind": e.kind, "id": e.id, "data": e.data.as_ref().map(wire::to_json) })).collect();
-                        respond(request, 200, json!({ "snapshot": false, "events": events, "watermark": page.watermark, "more": page.more, "generation": generation, "acknowledged": acknowledged }));
+                        respond(request, 200, json!({ "snapshot": false, "joined": page.joined, "events": events, "watermark": page.watermark, "more": page.more, "generation": generation, "acknowledged": acknowledged }));
                     }
                     Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
                 }

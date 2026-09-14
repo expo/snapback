@@ -70,10 +70,10 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, request: &Json) -> Json {
             "query" => {
                 let args = request.get("args").cloned().unwrap_or(json!({}));
                 let now = request.get("now").and_then(Json::as_i64).unwrap_or(0);
-                let (result, unknown) = device.query_with_coverage(text(request, "name")?, text(request, "viewer")?, &args, now);
+                let (result, unknown, retained) = device.query_with_coverage(text(request, "name")?, text(request, "viewer")?, &args, now);
                 match result {
-                    Ok(outcome) => json!({ "data": snapback4_core::wire::to_json(&outcome.data), "complete": outcome.complete, "next": outcome.next, "nextExpiry": outcome.next_expiry, "tables": outcome.tables, "unknown": unknown }),
-                    Err(refusal) => json!({ "denied": refusal, "unknown": unknown }),
+                    Ok(outcome) => json!({ "data": snapback4_core::wire::to_json(&outcome.data), "complete": outcome.complete, "next": outcome.next, "nextExpiry": outcome.next_expiry, "tables": outcome.tables, "unknown": unknown, "retained": retained }),
+                    Err(refusal) => json!({ "denied": refusal, "unknown": unknown, "retained": retained }),
                 }
             }
             "backend" => encoded(&device.backend())?,

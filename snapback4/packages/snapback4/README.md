@@ -686,7 +686,10 @@ one scope tombstone, and the table's `retain` says what the device keeps.
 Retained rows survive a leave whatever the horizon; the horizon bounds what
 a device acquires, never what it keeps. The same local completeness rule
 applies after leaving: an exhausted horizon is `complete: false`, while
-unbounded whole-group history is `complete: true`.
+unbounded whole-group history is `complete: true`. A read pinning the left
+group answers from those rows on the device online and offline, through a
+query without a membership `require`. Replacement snapshots keep left groups
+and replace held groups with their current acquisition.
 A table with no horizon delivers every row of every group the device
 holds, at every cold start, as the table grows: a public table of posts,
 or a group's receipts, is soon the whole cold start. `check` notes such a

@@ -50,10 +50,10 @@ pub fn snapshot_pages(engine: &mut Engine, principal: &str, limit: usize) -> Vec
     let mut pages = Vec::new();
     let mut after: Option<String> = None;
     loop {
-        let (events, watermark, next) = engine.snapshot_page(principal, after.as_deref(), limit).unwrap();
+        let (events, watermark, next, held) = engine.snapshot_page_with_groups_at(principal, after.as_deref(), limit, snapback4_core::now_ms()).unwrap();
         let more = next.is_some();
         pages.push(serde_json::from_value(serde_json::json!({
-            "snapshot": true,
+            "snapshot": true, "held": held,
             "events": events.iter().map(|e| serde_json::json!({ "table": e.table, "kind": e.kind.word(), "id": e.id, "data": e.data.as_ref().map(snapback4_core::wire::to_json) })).collect::<Vec<_>>(),
             "watermark": watermark, "more": more, "next": next, "generation": engine.generation(),
         })).unwrap());
@@ -67,14 +67,14 @@ pub fn snapshot_pages(engine: &mut Engine, principal: &str, limit: usize) -> Vec
 pub fn stream_page(engine: &mut Engine, principal: &str, watermark: u64) -> StreamPage {
     let page = engine.stream(principal, watermark, 1_000).unwrap();
     serde_json::from_value(serde_json::json!({
-        "snapshot": false,
+        "snapshot": false, "joined": page.joined,
         "events": page.events.iter().map(|e| serde_json::json!({ "table": e.table, "kind": e.kind, "id": e.id, "data": e.data.as_ref().map(snapback4_core::wire::to_json) })).collect::<Vec<_>>(),
         "watermark": page.watermark, "more": page.more, "generation": engine.generation(),
     })).unwrap()
 }
 
 pub fn page_json(page: &StreamPage) -> serde_json::Value {
-    serde_json::json!({ "snapshot": page.snapshot, "events": page.events.iter().map(|e| serde_json::json!({ "table": e.table, "kind": e.kind, "id": e.id, "data": e.data })).collect::<Vec<_>>(), "watermark": page.watermark, "more": page.more, "next": page.next, "generation": page.generation })
+    serde_json::json!({ "snapshot": page.snapshot, "held": page.held, "joined": page.joined, "events": page.events.iter().map(|e| serde_json::json!({ "table": e.table, "kind": e.kind, "id": e.id, "data": e.data })).collect::<Vec<_>>(), "watermark": page.watermark, "more": page.more, "next": page.next, "generation": page.generation })
 }
 
 pub fn context(principal: &str, pairs: &[(&str, Value)]) -> Context {

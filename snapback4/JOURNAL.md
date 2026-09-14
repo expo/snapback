@@ -3907,3 +3907,162 @@ After the base probes and final cleanup, the reference recheck is still
 **474 LLP docs, 8815 refs, 0 errors, 0 unchecked**, now across **22742 files**;
 `git diff --check` also passes. Only the intended source, docs and ticket
 changes remain; no lockfile change is left for the lead.
+
+## 2026-09-14 — CU2b: left history is the online answer; held snapshots replace (LLP 3000.007 §18.2)
+
+Continued CU2 at base **09bbd95e7b7caed30ae2e281e187a28ee443b222**. The real
+client regression first reproduced the builder-visible failure on that
+unchanged base: **0 passed / 2 failed**, wasm and process device. Its output:
+
+```text
+R5 wasm online left: rows=0, complete=true; held: rows=26, complete=true
+R5 process online left: rows=0, complete=true; held: rows=26, complete=true
+```
+
+The seam is the existing snapshot audience calculation, factored without
+changing its rule or row filtering. The first snapshot page adds `held`, a map
+from each delivered-history synced table to the viewer's current audience
+prefixes, including an empty list when none are held. A stream page adds
+`joined`, only the prefixes of this viewer's current grants whose joins are
+on that page; an empty rejoin must clear left state without a row image.
+Both fields use plain wire values and carry no row image or another
+principal's groups. `local.ts` already forwards the whole page as a record,
+so there is no separate transport parser to update. The server's current
+readable-image filter is unchanged.
+
+The device persists held/left state in its existing transaction metadata,
+including groups with no delivered rows. Snapshot candidates and membership
+state stay private together until publication; catch-up can mark a group
+left between pages before its current rows were acquired. Only acquired
+images or confirmed candidates of left groups publish. A held group therefore
+replaces its rows with the snapshot's current acquisition, and an absent
+server deletion cannot be copied back as a held row. Predictions are still
+replaced by their confirmed bases before retention; explicit deletions and
+media-home revocation keep their existing behavior. Reopen preserves the
+state; clear/generation reset clears it with the partition.
+
+The shared interpreter asks the device about a scan's evaluated prefix.
+When it pins a left delivered-history group, its result keeps the existing
+completeness rule but carries `retained: true`, and that horizon is not an
+`unknown` fact. This is an internal device outcome, alongside `unknown`;
+`contract.ts` and `Read<R>` are unchanged. `local.ts` consumes it at the
+fallback shared by one-shot reads and watches, online and offline. A read
+that does not pin a group, including a scan across all conversations, keeps
+today's fallback. Held incomplete reads also keep their server fallback.
+No acquisition limit, log backfill, meter ceiling, value-model serialization,
+search form, `check`, `--fix`, or `processDevice` implementation changed.
+
+Both stores produced the same physical/read counts and states:
+
+| Path (SQLite and memory each) | Rows before → after | Complete after | Unknown / retained after |
+| --- | --- | --- | --- |
+| R1 held deletion while away, replacement | 25 → 25 | false | true / false |
+| R2 unseen removal, replacement | 25 → 25 | false | false / true |
+| R3 live removal, later replacement | 25 → 25 | false | false / true |
+| R4 live rejoin, duplicate page | 25 → 26 distinct | false | true / false |
+| R4 subsequent held replacement | 26 → 25 | false | true / false |
+| Removal between snapshot pages plus catch-up | 25 → 25 | false | false / true |
+| Unbounded whole-group leave/replacement/reopen | 26 → 26 | true | false / true |
+| Confirmed delete, then left replacement | 24 → 24 | false | false / true |
+| Predicted insert/edit/delete, left replacement | 25 confirmed → 25 | false | false / true |
+
+R1 deletes visible `m25`; it remains absent, while ordinary snapshot
+acquisition supplies `m00`, leaving 25 current rows. R4 still acquires exactly
+25 puts on rejoin without duplication, but CU2's assertion that a *held*
+replacement kept a 26th old row was the over-retention defect: it now expects
+25 and excludes `m01` outside that horizon. Every CU2 scenario remains in the
+suite. A 10-row page of the left group remains complete; full exhausted
+horizon reads stay incomplete. The existing conservative rule is unchanged:
+no coverage receipt or count-based completeness claim was introduced.
+
+Fixed R5, **2 passed / 0 failed**, on the real server and real wasm/process
+devices, verbatim:
+
+```text
+R5 wasm online left: rows=25, complete=false; held: rows=26, complete=true
+R5 wasm watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+R5 process online left: rows=25, complete=false; held: rows=26, complete=true
+R5 process watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+```
+
+Targeted commands run from `snapback4/` (Node commands first set
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`):
+
+- `cargo test -p snapback4-device --test retained_history --test device --test native -- --nocapture`:
+  **27 device / 5 native / 16 retention passed, 0 failed**, harness times
+  **2.04 s / 0.05 s / 0.37 s**. A separate final retention run was **16 / 0**
+  in **0.56 s**.
+- `cargo test -p snapback4-lang --test guide`: **9 passed / 0 failed**, **0.05 s**.
+- `node --test packages/snapback4/test/retained-history.test.mjs`:
+  **2 passed / 0 failed**, **384.914709 ms**.
+
+The sync card and README §3 now say a pinned left-group read answers from
+the device online and offline, and distinguish left retention from held
+replacement. Closed the online-fallback ticket with this resolution. The
+supporting seams beyond the brief's named files are `Rows`, engine local
+coverage/snapshot plumbing, the device RPC dispatcher and shared test page
+helper, and the HTTP response assembly; no other lane's implementation is
+changed. All changed source files are under 1,500 lines (largest: guide,
+**1,454**). This journal was already over that size; this is the required
+append-only entry. No commit, push, tag or publication was performed.
+
+Final verification: `bash snapback4/scripts/test.sh` at the repository root
+ran twice, with no source changes between runs. The first ended
+`== 2 failure(s) in 1361 s`; the second ended
+`== 2 failure(s) in 370 s`. Each had **389 Rust passed / 1 failed / 1 ignored**
+and **9 fixture passed / 0 failed**. Their parallel client phases reported,
+respectively, **85 passed / 38 failed / 1 cancelled** (124 tests) and
+**45 passed / 70 failed / 1 cancelled** (116 tests). All builds and
+package/chat/Expo typechecks passed. The chat check waited **196 s / 209 s**
+even though its own measured work was **9.3 ms / 5.5 ms**. Both wasm builds
+reported **1,577,426 B raw / 437,990 B gzip**. The two full runs are **not
+green**, and no timeout or test threshold was changed to make them pass.
+
+The failed Rust case in both runs is
+`abort_profile_reports_an_off_thread_panic_to_redirected_stderr`: its fresh
+abort-probe child did not exit within 15 seconds. Isolated with
+`cargo test -p snapback4 --test lifecycle abort_profile_reports_an_off_thread_panic_to_redirected_stderr -- --exact --nocapture`, it again reported
+**0 passed / 1 failed / 10 filtered out**, **15.19 s**. The test and
+`src/lifecycle.rs` are byte-identical to base
+**09bbd95e7b7caed30ae2e281e187a28ee443b222**. A separate identical probe
+compiled directly from that base's lifecycle blob (linking only libc)
+completed with SIGABRT in **8.17 s** and emitted both expected panic/signal
+lines. This does **not** establish the observed timeout as pre-existing;
+no such claim is made. The lead needs to rerun that case outside this lane's
+sandbox alongside the known Chromium artifact.
+
+The parallel client failures were startup/readiness timeouts plus Chromium
+startup SIGABRT. Rerunning the entire client group alone, with
+`node --test 'packages/snapback4/test/*.test.mjs'` from `snapback4/`, twice
+reported **123 passed / 1 failed / 0 cancelled**, **38,728.997875 ms** and
+**38,901.479541 ms**. Only `React hooks and reference-app lifetimes` failed,
+at Chromium launch with SIGABRT; `node --test packages/snapback4/test/react.test.mjs`
+also reported **0 passed / 1 failed** in isolation. The final standalone
+client group includes both R5 hosts passing with the exact output above.
+No client readiness failure is labeled pre-existing from inference alone.
+
+For an additional controlled red, a scratch package under
+`/private/tmp/cu2b-base-client` restores only `local.ts` from the exact base
+blob and uses the fixed server and devices. Its R5 run is **0 passed / 2
+failed**, again printing the two base `rows=0, complete=true` lines above.
+The repository sources were never reverted for this proof. The scratch CLI
+copy and the workspace CLI have the same SHA-256:
+`b87b4ac55ee613c5123910f0e7460f20e010d5c4a11b10dc14f6a71b31ab8fc1`.
+This isolates the fallback fix from device storage correctness.
+
+The held-prefix seam is needed because absence from horizon acquisition
+cannot establish membership, and membership rows may themselves be retained.
+Reusing the server's own audience calculation supplies the missing fact
+without reconstructing authority from device-held images. The internal state
+also records empty held groups, so a later missed removal can mark them left.
+`joined` handles the complementary empty rejoin without changing stream event
+kinds or serving an image. Preparing the compiled test executables with
+`--list` during the long run changed no sources and ran no tests; those
+listings are not included in pass counts.
+
+Final `./ref-check --verbose`: **474 LLP docs, 8817 refs in 22744 files,
+0 errors, 0 unchecked**. `git diff --check` passes. The full logs and exact
+verbatim command summaries are retained under `/private/tmp/cu2b-*`, with
+`/private/tmp/cu2b-verification.md` as the handoff index. There are no changed
+diagnostic codes or texts in this lane; R5's before/after lines above are
+observations, not new diagnostic vocabulary.
