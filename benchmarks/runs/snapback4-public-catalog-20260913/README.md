@@ -2780,3 +2780,51 @@ The original independent formal calculator also failed before numeric work
 on a smoke-only outer-launcher field. Its separately versioned correction
 validates the formal input receipt and bootstrap; all statistic/oracle
 functions are unchanged. Both attempts and the correction are retained.
+
+
+### Published 0.2.13 — borrowed sync serialization
+
+The unchanged publisher completed on the prepared M4 Pro at **2026-09-14
+23:10:55 UTC**, publishing `snapback4` and `snapback4-darwin-arm64` **0.2.13**
+from committed source `d81381a98f56478f8e5d776f0d1b36d234145112`. The
+700-file source archive is SHA-256 `40081bdccd36a0b35300ac39568b0790c1ff561385e3c27a1a478638010a490b`.
+The later pushed checkpoint `ec15bba44` adds incoming benchmark documentation;
+runtime, package, scripts, vendor and fixture source remain identical.
+
+The full suite passed **474 Rust, 146 reported client and 9 fixture tests**,
+with zero failures and one existing ignored Rust test. Its wall time was
+**130 s**, above the existing 60-second budget. Cargo tests took 127 s,
+client tests 38 s and fixture tests 6 s; stages overlap and are not summed.
+Node 24.21.0, Rust 1.97.0, four Cargo build jobs, one Rust test thread and
+the packaged `-USQLITE_ENABLE_MEMORY_MANAGEMENT` setting were retained.
+Preparation compiled tests but did not execute them; these counts come
+from the actual publication run. This is no matched warm-loop comparison.
+
+The production build and installed-package proof passed. The installed
+CLI reports `snapback4 0.2.13` and matches the **7,893,696-byte** packed
+production binary, SHA-256 `096b464f9a9afb3e0ec8b6ad64b0dd29558897b60fba65c2c0847aa97e4963e8`.
+The TypeScript consumer compiles; its mock client asserts query readiness,
+freshness and three rows, an online write sent and an offline write pending.
+Its inherited log says `complete+fresh`, but it does not separately assert
+the query's complete flag. Publication took **235.5 s**. Both supervised
+process groups were absent at completion, the temporary credential was
+removed, and all 700 source files were rechecked with only the one expected
+publication-metric append. No cleanup failure or scoped process remained.
+
+Both public registry archives were verified by **23:14:28 UTC** against
+the tested tarballs, their registry SHA-512/SHA-1 values, and the packed
+binary. The client is **526,218 B**, SHA-256 `1dfa3256525624731d0db1641ae56efb200d39612e1552347ae826fc33c7df90`;
+the platform archive is **3,868,663 B**, SHA-256 `5df79c0e5696cab551acd5a44880e643a426471cdecff80fb9df888d5e6435b2`.
+The client pins its optional platform dependency to 0.2.13. The initial
+platform metadata request returned 404 while the client archive verified;
+that observation is retained separately. Only read-only visibility checks
+followed, with no repeated publication.
+
+The original publisher row is appended unchanged to `snapback4/metrics/publish.jsonl`.
+The ignored run retains `sync-wire-0213-publication-public/` (nine original
+public files), `sync-wire-0213-registry-verification.json` and
+`sync-wire-0213-publication-qualification.json`. Publisher log SHA-256 is
+`d3fae29b9bc32679f2176b399acf370a03e4d547367b65cc7cdcb6c12132db4a`.
+This is release and correctness evidence; the preceding native sync
+measurements retain their original 0.2.12 A/B source and binary identities.
+No new latency, hosted, competitor, device or durability result follows.
