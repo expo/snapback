@@ -4,6 +4,9 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { containsPath, prepareVerificationLane } from "../../../loopbar/run.mjs";
+import { correctionLoops, measureSchema } from "../../../loopbar/ceremony-metrics.mjs";
+import { aliceInsights, ANCHOR, unwrap } from "../../../loopbar/ceremony-probes.mjs";
+import { command } from "../../../loopbar/ceremony-process.mjs";
 
 test("reverification owns a fresh copy and does not touch sibling or live stores", () => {
   const root = mkdtempSync(join(tmpdir(), "sb4-loopbar-ownership-"));
@@ -41,4 +44,74 @@ test("reverification owns a fresh copy and does not touch sibling or live stores
     if (directory) rmSync(directory, { recursive: true, force: true });
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("ceremony counts final loop attributions, docs aliases and retractions once", () => {
+  const result = correctionLoops(`start=1
+2 loop=1 attribution=snapback4-defect failed check
+3 loop=1 attribution=agent-error read the documented form
+4 loop=2 attribution=docs-gap missing spelling
+5 loop=3 attribution=environment port conflict
+6 loop=4 attribution=ambiguous unresolved
+7 loop=5 attribution=snapback4-defect initial suspicion
+8 loop=5 retracted
+schema discussion mentioning docs and agent-error is not a correction loop
+green=9`);
+  assert.deepEqual(result.byAttribution, { "snapback4-defect": 0, docs: 1, "agent-error": 1, environment: 1, ambiguous: 1 });
+  assert.equal(result.snapbackAttributed, 1);
+  assert.equal(result.total, 4);
+  assert.deepEqual(result.malformed, []);
+  assert.equal(correctionLoops("loop=1 attribution=unknown").malformed.length, 1);
+});
+
+test("ceremony measures declared tables and maintains separately, exposing heuristic disagreements", () => {
+  const source = `-- table falsePositive:
+table digestWork:
+  ownerId: principal
+  total: int
+  public 'query fake(): read <- allow'
+table accounts:
+  principal: principal
+  read <- .principal = viewer
+table buffer:
+  ownerId: principal
+  count: int
+  read <- allow
+maintain userCounts: count accounts by principal
+  read <- allow
+query insights():
+  return 1
+mutation send():
+  return null
+job digest():
+  chunk a in accounts first 1 by byId:
+    return null
+`;
+  const result = measureSchema([{ path: "snapback/schema.q", source }], 'schema-shape={"workTables":["buffer"],"perPrincipalCounterTables":["buffer","userCounts"],"auxiliaryOperations":["digest"]}');
+  assert.equal(result.tables, 3); assert.equal(result.maintains, 1); assert.equal(result.tablesIncludingMaintains, 4);
+  assert.deepEqual(result.workTablesHeuristic, { count: 1, names: ["digestWork"] });
+  assert.deepEqual(result.workTablesReported, { count: 1, names: ["buffer"] });
+  assert.equal(result.publicPerPrincipalCounterLines.count, 3);
+  assert.equal(result.quarryLines, 21); assert.equal(result.quarryCodeLines, 20);
+  assert.equal(result.operations, 3); assert.deepEqual(result.operationsByKind, { query: 1, mutation: 1, job: 1 });
+  assert.equal(result.reportingError, null);
+  const malformed = measureSchema([{ path: "schema.q", source }], 'schema-shape={"workTables":["nonexistent"],"perPrincipalCounterTables":[],"auxiliaryOperations":[]}');
+  assert.match(malformed.reportingError, /does not exist/);
+});
+
+test("ceremony unwraps native pages while refusing incomplete plausible answers", () => {
+  assert.equal(new Date(ANCHOR).toISOString(), "2026-09-13T18:00:00.000Z");
+  const expected = aliceInsights();
+  assert.equal(expected.likesReceived, 21);
+  assert.deepEqual(expected.days.map((day) => day.posts), [0, 0, 0, 0, 1, 0, 4]);
+  assert.deepEqual(unwrap({ rows: [{ chatKey: "alpha", messages: { rows: [{ key: "a01" }], complete: true } }], complete: true }),
+    [{ chatKey: "alpha", messages: [{ key: "a01" }] }]);
+  assert.throws(() => unwrap({ rows: [{ key: "a01" }], complete: false }), /complete/);
+});
+
+test("ceremony process execution succeeds and a stuck owned process times out", async () => {
+  const good = await command(process.execPath, ["-e", "process.stdout.write('finished')"], { limitMs: 10_000 });
+  assert.equal(good.status, 0); assert.equal(good.out, "finished"); assert.equal(good.timedOut, false);
+  const stuck = await command(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { limitMs: 100 });
+  assert.equal(stuck.timedOut, true); assert.equal(stuck.signal, "SIGTERM");
 });

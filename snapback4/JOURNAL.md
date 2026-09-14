@@ -2493,3 +2493,24 @@ Out of the core/tests scope, only the explicitly allowed missing CLI column
 in crates/snapback4/src/verbs.rs, the required meter documentation in the
 package README, and this required journal entry changed. No commit, push,
 tag or publication was made. Existing LANE-BRIEF.md was left untouched.
+
+## 2026-09-13 — Lane B: the ceremony bar's instrument lands; the "before" runs from the lead's shell
+
+The ceremony bar (LLP 3000.007 §10.3) is `loopbar/ceremony-brief.md` — eight
+personas, three chats, forty posts, sixty messages, five shapes with exact
+expected values, a fixed wire contract, the loop bar's attribution vocabulary
+and one machine-readable schema-shape line — and `loopbar/ceremony.mjs` with
+its helpers: serial runs on the exact npm pin, the fresh agent launched by
+`~/.volta/bin/codex exec` at medium, independent reverification on fresh
+copies (`check`, the agent's own acceptance, and the runner's wire probes,
+which change likes, messages and membership before re-querying so a
+hard-coded answer cannot pass), schema-shape measurement (work tables,
+per-principal counter tables, world-readable counter lines, Quarry lines,
+operations, by name heuristics and by the agent's own declaration), and one
+JSON line per run to `metrics/ceremonybar.jsonl`; five tests in
+`packages/snapback4/test/loopbar.test.mjs`. The lane's three attempts to run
+the bar from inside its own Codex sandbox failed before model work ("failed
+to initialize in-process app-server client: Operation not permitted"): a
+nested Codex cannot start under the sandbox. Those attempts are not a
+measurement and are not recorded; the "before" (N = 3, `snapback4@0.2.8`,
+gpt-6-astra at medium) runs from the lead's shell and lands with its record.
