@@ -813,11 +813,16 @@ implicit row parameter, `messages[m] { body: .body }`. Shapes are projections,
 not declared helper-argument types.
 A helper's early `return` inside a page's shape ends only that call; the page
 keeps its `next` cursor and completeness.
-A collector that exits with rows still unconsumed makes the query incomplete,
-even on a short final page. Each page needs its own returned owner when it has
+A collector building a returned value makes the query incomplete if it exits
+with rows still unconsumed, even on a short final page.
+Each page needs its own returned owner when it has
 more rows: one field's cursor cannot cover a lost sibling or auxiliary page.
 A fully consumed, exhausted scan needs no cursor owner, even when its row count
 equals the bound and the query returns a scalar such as `count(rows)`.
+An auxiliary traversal of an intact returned page does not affect completeness,
+even if it breaks. Repeating a page read cannot clear earlier loss: only the
+final execution of an owned page site supplies `next`, and an earlier lost
+continuation still makes the query incomplete.
 A row-based shape keeps `pending?: boolean` from its base, including `*`, named
 spreads and subsequent shapes. It is this device's unconfirmed change, absent
 after confirmation; it is not a schema column or metadata on a containing record."##,

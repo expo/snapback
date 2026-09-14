@@ -62,6 +62,8 @@ pub struct Runner<'a> {
     pub(crate) page_depth: usize,
     pub(crate) page: Option<PagePosition>,
     pub(crate) pages: BTreeMap<String, PagePosition>,
+    /// Loss from replaced executions cannot be repaired by a later page.
+    pub(super) discarded_page_loss: bool,
     pub(super) page_owner: Option<String>,
     page_plan: super::pages::Plan,
     /// Whether a scan ran whose read rule the prefix does not decide. Such a
@@ -124,6 +126,7 @@ impl<'a> Runner<'a> {
             page_depth: 0,
             page: None,
             pages: BTreeMap::new(),
+            discarded_page_loss: false,
             page_owner: None,
             page_plan: super::pages::Plan::default(),
             non_uniform: false,

@@ -110,3 +110,8 @@ fn program_return_still_exits_nested_loops_sqlite() {
 fn program_return_still_exits_nested_loops_memory() {
     fixture::check_interrupted(device(&mut Memory::new()).query("returnedFromLoop", "dev:alice", &serde_json::json!({}), 100).unwrap());
 }
+
+#[path = "../../snapback4-sim/tests/common/page_loss.rs"]
+mod loss_fixture;
+#[path = "page_loss/mod.rs"]
+mod page_loss;

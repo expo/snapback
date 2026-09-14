@@ -83,3 +83,8 @@ fn exhausted_returning_helper_is_complete() {
 fn program_return_still_exits_nested_loops_without_a_cursor() {
     fixture::check_interrupted(engine().query("returnedFromLoop", Context::new("dev:alice", BTreeMap::new())).unwrap());
 }
+
+#[path = "common/page_loss.rs"]
+mod loss_fixture;
+#[path = "common/page_loss_server.rs"]
+mod page_loss;

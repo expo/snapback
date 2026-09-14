@@ -14,6 +14,9 @@ enum Origin {
 }
 type Bindings = BTreeMap<String, Origin>;
 
+#[path = "page_collectors.rs"]
+mod collectors;
+
 
 #[derive(Default)]
 pub(super) struct Plan {
@@ -25,6 +28,10 @@ pub(super) fn plan(program: &Program) -> Plan {
     if program.kind != ProgramKind::Query { return Plan::default(); }
     let mut collectors = BTreeMap::new();
     let returns = returned_origins(program, false, &mut collectors).into_iter().filter_map(|(path, origin)| result_page(&origin).map(|(site, _)| (path, site.to_owned()))).collect();
+    if !collectors.is_empty() {
+        let returned = collectors::returned_collectors(program);
+        collectors.retain(|path, _| returned.contains(path));
+    }
     Plan { returns, collectors }
 }
 

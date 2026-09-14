@@ -6356,3 +6356,181 @@ ref-check: ok — 474 LLP docs, 8849 refs in 22825 files, 0 errors, 0 unchecked
 No implementation work is deferred; the remaining external verification is
 Chromium outside this sandbox. The inherited root caps overflow remains
 untouched. The final working tree contains only the 19 intended lane files.
+
+## 2026-09-14 — R2g: page loss survives repeated execution; auxiliary traversals keep the returned page whole
+
+Base: `56cdedba6a8ff343c8d297b246b7431824ef0241`. Read the GPT re-check's A and B and R1g's entry.
+Reproduced both findings on the server, SQLite device and memory device before
+changing the runtime. No binder setup/residency files, meter ceilings,
+serialized value/IR forms or existing corpus cases changed.
+
+The runner now retains one monotone bit for loss from replaced executions.
+All plain, matching, empty-matching and merge page registrations use the same
+replacement method: an earlier interruption or continuation survives the
+replacement. The returned site's final execution still supplies `next`; it
+never takes custody of an earlier execution's cursor. The same loss predicate
+continues to drive server, local, native and retained-history classification.
+
+The page plan filters exiting loops by backward flow from returned values,
+including aliases, selected record fields and enclosing loops. Only writes
+that contribute to that result make a loop a collector. An auxiliary traversal
+can break without interrupting its intact returned source. A separate returned
+collector of that source still records its own loss. Growing field paths in
+loop-carried serialized IR widen to the whole variable so analysis terminates;
+queries with no candidate exiting page collector skip this analysis.
+
+| Finding | Reproduced (test, red output) | Fix | Green |
+| --- | --- | --- | --- |
+| A: earlier interruption replaced | `interrupted_twice_4_1` and `interrupted_twice_5_0`, server and both stores; `interruptedTwice/[4, 1]: rows=2, next=false, complete=true` | Remember loss before replacing the site's page | 4/1: 2 rows, no cursor, incomplete; 5/0: 1 row, no cursor, incomplete; 0/5 stays incomplete; 1/1 stays complete |
+| A: earlier continuation replaced | `repeated_count_loses_first_cursor` and `repeated_owned_site_keeps_only_last_cursor`, server and both stores | A final execution cannot own an earlier cursor | Scalar 6/0 incomplete; exhausted 5/0 complete; owned-site controls keep the final cursor byte-for-byte |
+| B: intact returned page poisoned | `still_whole_4`, `_5`, `_6`, server and both stores; `stillWhole/[4, 0]: rows=4, next=false, complete=false` | Only returned-value collectors register interruption | 4/5 rows complete without cursor; 6 rows return 5, with cursor and complete under the existing owned-page rule |
+| B: auxiliary values hidden behind aliases | `auxiliary_field`, server and both stores, failed the first implementation | Track selected record fields through aliases | `return alias.rows` ignores the broken collector in `alias.unused` |
+
+The positive cases include an auxiliary loop that finishes, an auxiliary loop
+that builds an unused array and breaks, a collector overwritten before return,
+a different returned collector from the same page, and both the intact page
+and that partial collector returned together. All R1g controls remain: the
+short collector populations, lost sibling, exact-five scalar, helper inside
+merge setup, early/nested helper returns and program return from a loop.
+The repeated-owner witness reuses a compiled scan's exact static site in IR
+before returning its final execution; cases are 4/7, 6/1, 6/7, 7/0 and 0/7.
+
+The generated oracle enumerates 12 combinations of 0–2 loops, break/no break
+and returned/auxiliary traversal, with 0–7 rows in each of two scopes: 768
+cases per host, 2,304 total. It independently enumerates the input row IDs,
+models emitted rows and cursor coverage, and asserts both implications of
+completeness plus exact output order and cursor presence. It does not read
+runtime loss flags or the ownership plan. All 2,304 pass.
+
+Targeted commands run from `snapback4/`. Summaries are verbatim.
+
+`cargo test -p snapback4-sim -p snapback4-device --test helper_pages --no-fail-fast -- --nocapture`
+
+Base runtime with the expanded regression suite (device, server):
+
+```text
+test result: FAILED. 62 passed; 20 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.11s
+test result: FAILED. 29 passed; 10 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.30s
+```
+
+Final (device, server; the selected-field case adds two device tests and one
+server test after the base run above):
+
+```text
+test result: ok. 84 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 22.42s
+test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.00s
+```
+
+`cargo test -p snapback4-sim -p snapback4-device --test helper_pages auxiliary_field --no-fail-fast -- --nocapture`
+
+First implementation, then field-sensitive correction:
+
+```text
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 82 filtered out; finished in 0.02s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 39 filtered out; finished in 0.01s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 82 filtered out; finished in 0.03s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 39 filtered out; finished in 0.01s
+```
+
+`cargo test -p snapback4-device --test retained_history --test native_reads --no-fail-fast -- --nocapture`
+
+```text
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.82s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+```
+
+`cargo test -p snapback4-core --test corpus -- --nocapture`
+
+```text
+corpus (Rust server only; no TypeScript/replica conformance claim): 211 passed, 83 skipped, 0 failed
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.29s
+```
+
+`cargo test -p snapback4-lang --test guide -- --nocapture`
+
+```text
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+```
+
+Fixture-authoring corrections before the valid base reproduction: the
+simulator source must be named `schema.q` for bare operation names, a collector
+rebound to rows must collect rows rather than integers, and generated device
+worlds need distinct stores because snapshot watermarks cannot move backwards.
+Those draft-test errors are not counted as product regressions.
+
+No diagnostic or note was added or changed; `guide::CODES` is unchanged.
+The README, shape card and LLP 3000.007 §19.2 describe the corrected policy.
+No out-of-scope file was touched. No commit, push, tag or publication was made.
+
+Full suite, from the repository root, on Node 24.18.0:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+```
+
+The first pass completed before the selected-field refinement; the second
+uses the final source. Both report only the sandbox Chromium failure.
+
+First pass: Rust totals 621 passed, 0 failed, 1 ignored.
+
+```text
+-- ok: cargo test (178 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ tests 137
+ℹ pass 136
+ℹ fail 1
+-- FAIL: client tests (44 s)
+== 1 failure(s) in 205 s
+```
+
+Final pass: Rust totals 624 passed, 0 failed, 1 ignored.
+
+```text
+-- ok: cargo test (163 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ tests 137
+ℹ pass 136
+ℹ fail 1
+-- FAIL: client tests (49 s)
+== 1 failure(s) in 192 s
+```
+
+Isolated reproduction, from `snapback4/`:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+node --test packages/snapback4/test/react.test.mjs
+```
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+```
+
+Chromium exits `signal=SIGABRT` at `react.test.mjs:72:30` in both full
+runs and the isolated rerun. This is the sandbox artifact explicitly named
+in the lane instructions; the lead's outside-sandbox rerun remains necessary
+for a completely green blocking suite. No lifecycle or client-concurrency
+failure occurred. No failure is claimed independently base-verified as
+pre-existing; the base hash above binds the page regression reproduction.
+
+Final checks at the repository root: `./ref-check --verbose`,
+`git diff --check`, and a count of changed code files. The 10 changed code
+files have a maximum of 1,428 lines (the guide); zero exceed 1,500. Markdown
+was not compressed or reflowed to meet a cap. Reference validation:
+
+```text
+ref-check: ok — 474 LLP docs, 8854 refs in 22829 files, 0 errors, 0 unchecked
+```
+
+Learned: a static page site is a cursor-selection key, not an execution
+history. Remembering an earlier loss needs one monotone bit, while deciding
+whether a traversal loses returned data needs value flow precise enough to
+exclude unused record fields. These are independent decisions; neither
+requires changing the cursor encoding or charging another data-plane step.

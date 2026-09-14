@@ -251,12 +251,17 @@ statement or expression), at most eight levels deep. A table-typed helper parame
 when its caller can; a query's diagnostic names the write at the call site.
 A helper's `return` ends only that call, including inside a page's shape;
 the page keeps its continuation and completeness.
-A collector that exits with rows still unconsumed makes the query incomplete,
-even on a short final page. Every page with more rows needs its own returned
+A collector building a returned value makes the query incomplete if it exits
+with rows still unconsumed, even on a short final page.
+Every page with more rows needs its own returned
 cursor owner; another field's page cannot cover a lost sibling or auxiliary
 page. A fully consumed, exhausted scan is complete without an owner, including
 an exact-bound scan returned as `count(rows)` (subject to the meter, rules and
-device horizon).
+device horizon). An auxiliary loop over an intact returned page does not change
+its completeness, even if that loop breaks. Repeating a page read never clears
+an earlier loss. If an owned page site executes repeatedly, only its final
+execution supplies `next`; a continuation lost by an earlier execution still
+makes the query incomplete.
 
 ### Actions
 
