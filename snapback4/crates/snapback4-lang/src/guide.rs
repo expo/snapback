@@ -585,6 +585,7 @@ and offline, through a query without a membership `require`; the server
 cannot serve that retained history. Replacement snapshots keep left groups
 and replace held groups with their current acquisition. If the same query
 also has an unknown held-group read, it still falls back to the server.
+Keep a read of a left group in its own query: mixing its retained rows with an unknown held-group read returns the whole server answer online (without the left rows) and the whole device answer offline.
 A table without `sync` is online-only. A `maintain`
 grouped by the audience columns inherits sync and is delivered as a value row.
 `online only` on a table documents the absence of sync; on a maintain it opts

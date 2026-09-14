@@ -4734,3 +4734,81 @@ Every R1a file was restored afterward. Final `./ref-check --verbose`: **474 LLP
 docs, 8833 refs in 22772 files, 0 errors, 0 unchecked**. `git diff --check`
 passes, and all **15** changed source/test/README files are at most **1496**
 lines (the existing append-only journal is separate).
+
+
+## 2026-09-14 — R2: ordered prefix admission, SQL defaults, and mixed retained reads
+
+Reproduced N1, N2 and N4 against `056335ebf3f27976227f8cee655219e0b875c70a`
+before repairing implementation code. The core base run had **5 passed, 6
+failed**: five N1 regressions (reversed conjuncts, the examined boundary,
+malformed cursor order, partial-verdict expiry, and missing take input) and
+one N2 self-witness regression. With base implementation restored, the device
+run had **1 passed, 2 failed**: both SQLite and memory lost the coffee row;
+the mixed-result test passed because it pins the documented limitation.
+The SQL base run had **0 passed, 1 failed**: JSON false, JSON 'Null', JSON 7,
+and bytes projected differently when absent versus explicitly stored.
+
+Prefix admission now simplifies statically true self-witnesses, then takes
+only the leading conjuncts whose actual fields the prefix pins. A
+row-dependent conjunct stops the pre-check. The existing self-probe absorption
+used by uniformity is reflected in the evaluated expression, so no absorbed
+field is read from an incomplete image. Matching reads validate bounds,
+cursors and take before any early return. Every non-uniform pre-check restores
+its expiry mark, including a true verdict; admitted rows still record their
+expiries. Uniform verdicts retain W5's static allowance and admitted expiry.
+R1a's leading-conjunct denial and W5's complete-observation pairs stay green.
+
+N1's reversed pair compares **16 pairs of complete observations** across plain/matching,
+Cap/Abort, ample/boundary budgets and both malformed-cursor orders. In the four
+ample-budget pairs, base W0/W1 examined counts were **0/1, 1/2, 0/1, 1/3**;
+afterward they are **1/1, 2/2, 1/1, 2/2**. Matching index entries changed from
+**0/2** to **2/2**, steps from **4/6** to **6/6**, and heap from **4/11 B** to
+**11/11 B**. All seven meters match: final plain/matching probes **0/0**,
+output **12 B**, writes **0**, and expiry **null/null** instead of **null/200**.
+At examined ceiling **0**, Cap marks both worlds; at ceiling **1**, Abort
+refuses both with the same E_BOUND envelope. Malformed cursors now refuse both
+before admission. A leading true permit with a denied row leaves expiry null;
+an admitted row and a uniform admitted rule both retain expiry **200**.
+N2 returns **1 coffee row**, excluding the non-coffee candidate, on plain and
+matching reads with both cuts over the server and both device store substrates;
+the actual device query also preserves online-only unknown coverage.
+
+SQL defaults now use the same JSON extraction path as a stored value of the
+column's declared type. **3 JSON cases and all 11 scalar projection kinds**
+compare equal and group into **1 group of 2 rows** each; optional absence and
+explicit overrides retain their existing tests. Bytes also needed this repair:
+the old default was '[0,255]' while the stored projection was '00ff'. No value
+serialization, ceiling, diagnostic code, or existing corpus case changed.
+
+N3 intentionally adds no result provenance. Both real client hosts and both
+Rust device stores pin the whole-query limit: online **left 0 / held 26**,
+offline **left 25 / held 25**, including watches and reconnect; a separate left
+query keeps **25**. The base real-host reproduction passed **2/2** and the
+final retained-history suite **8/8**. The sync card and README each gain one
+sentence directing authors to keep a left-group read in its own query. The
+P3 ticket `issues/20260914-snapback4-mixed-left-held-query-loses-retained-rows-online.md`
+records the read/result provenance and composition design a future change needs.
+
+Final targeted Rust: core read_verdict **11/0**; simulator membership **5/0**,
+page_admission **13/0**, search_merge **10/0**, write_authority **34/0**;
+device (including search_merge) **35/0**, retained_history **16/0**;
+CLI check **10/0**; language guide **9/0**. The blocking script completed in
+**120 s**: Rust **459 passed, 0 failed, 1 ignored**, fixture wrapper **9/0**,
+client **135/1**. The sole failure is Chromium aborting **SIGABRT** before the
+React assertions; it also fails alone (**0/1**) and with the relevant sources
+restored to the exact base above (**0/1**). That witness launches no Rust
+backend and directly imports unchanged client/app source. No lifecycle timeout
+occurred. All intended files and artifacts were restored after base checks.
+
+The same local wasm build measured base **1,598,440 B raw / 443,350 B gzip**,
+final **1,600,989 / 444,211 B**, delta **+2,549 / +861 B**. These are artifact
+sizes on this shared host, not a performance claim. All Snapback 4 code files
+remain under the cap (largest **1,447 lines**); no bare formatter, installation,
+commit, push, tag, publication, remote machine or sub-agent was used. The
+lesson is that a static truth must disappear from an incomplete-row evaluation,
+and a safe early decision must preserve the rule's order as well as its fields.
+
+A final temporary N3 preservation assertion was also run on the process client
+with the implementation and CLI rebuilt at the exact base: **0 passed, 1
+failed**, `0 !== 25` for the online left component. The permanent regression
+was restored to pin today's whole-query behavior, and the final CLI rebuilt.

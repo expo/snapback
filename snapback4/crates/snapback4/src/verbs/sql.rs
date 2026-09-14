@@ -60,14 +60,7 @@ fn inspect(options: &Options) -> Result<()> {
             let mut value = format!("json_extract(data, {})", literal(&path));
             // @ref LLP 3000.007#18.3 — inspection projects required literal defaults, while optional absence remains SQL null.
             if !kind.is_optional() && let Some(ColumnDefault::Literal(default)) = table.defaults.get(column) {
-                let default = match default {
-                    snapback4_core::Value::Bool(value) => i32::from(*value).to_string(),
-                    snapback4_core::Value::Int(value) => value.to_string(),
-                    snapback4_core::Value::Id(value) | snapback4_core::Value::String(value) => literal(value),
-                    snapback4_core::Value::Null => "NULL".into(),
-                    snapback4_core::Value::Bytes(value) => literal(&snapback4_core::value::canonical_json(value)),
-                    _ => literal(&snapback4_core::value::canonical_json(default)),
-                };
+                let default = format!("json_extract({}, {})", literal(&snapback4_core::value::canonical_json(default)), literal(&format!("${tag}")));
                 let field = literal(&format!("$.Row.{}", ident(column)));
                 value = format!("CASE WHEN json_type(data, {field}) IS NULL THEN {default} ELSE {value} END");
             }

@@ -1,5 +1,7 @@
 use super::*;
 
+mod round2;
+
 #[test]
 fn matching_merges_page_the_same_rows_on_both_device_stores() {
     on_both(|host| {
@@ -63,6 +65,10 @@ query search(room: text <=40, q: text <=40, c: cursor ?):
 query mixed():
   ignored = messages['left'] last 1 by byTime
   return messages['held'] last 50 by byTime
+query both():
+  leftRows = messages['left'] last 50 by byTime
+  heldRows = messages['held'] last 50 by byTime
+  return {left: leftRows, held: heldRows}
 query mixed_complete(c: cursor ?):
   ignored = messages['left'] last 50 by byTime
   return messages['held'] after c last 10 by byTime
