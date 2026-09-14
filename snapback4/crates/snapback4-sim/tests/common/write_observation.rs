@@ -118,6 +118,16 @@ pub fn observe(e: &mut Engine, name: &str, viewer: &str, values: Json, op: &str,
 
 /// Run a revocation after recording the first body, before retry and both stores' settlement.
 pub fn observe_with_intervention(e: &mut Engine, name: &str, viewer: &str, values: Json, op: &str, query: (&str, Json), intervene: impl FnOnce(&mut Engine)) -> (MutationOutcome, Observation) {
+    observe_lifecycle(e, name, viewer, values, op, query, |_| None, intervene)
+}
+
+/// Plant an explicitly historical raw receipt; compare replay with today's sanitized
+/// receipt, while retaining the raw bytes and the complete device lifecycle.
+pub fn observe_with_historical_receipt(e: &mut Engine, name: &str, viewer: &str, values: Json, op: &str, query: (&str, Json), historical: impl FnOnce(&MutationOutcome) -> Json, intervene: impl FnOnce(&mut Engine)) -> (MutationOutcome, Observation) {
+    observe_lifecycle(e, name, viewer, values, op, query, |result| Some(historical(result)), intervene)
+}
+
+fn observe_lifecycle(e: &mut Engine, name: &str, viewer: &str, values: Json, op: &str, query: (&str, Json), historical: impl FnOnce(&MutationOutcome) -> Option<Json>, intervene: impl FnOnce(&mut Engine)) -> (MutationOutcome, Observation) {
     let before = rows(e);
     let initial = snapshot(e, viewer);
     let seq = e.seq().unwrap();
@@ -134,14 +144,18 @@ pub fn observe_with_intervention(e: &mut Engine, name: &str, viewer: &str, value
     let result = e.mutate(name, Some(op), context.clone()).unwrap();
     assert!(!result.replayed);
     let first_http_body = serde_json::to_vec(&result.reply(Some(op))).unwrap();
+    let expected_replay = result.receipt(Some(op));
+    assert_eq!(serde_json::from_str::<Json>(&e.store().applied_outcome(viewer, op).unwrap().unwrap()).unwrap(), expected_replay);
+    if let Some(raw) = historical(&result) {
+        e.store().conn().execute("UPDATE _ops SET outcome = ?1 WHERE principal = ?2 AND id = ?3", [raw.to_string(), viewer.to_owned(), op.to_owned()]).unwrap();
+    }
     let receipt = e.store().applied_outcome(viewer, op).unwrap().unwrap();
-    assert_eq!(serde_json::from_str::<Json>(&receipt).unwrap(), result.receipt(Some(op)));
     let committed = rows(e);
     let changes = delta(&before, &committed);
     intervene(e);
     let retry = e.mutate(name, Some(op), context).unwrap();
     let retry_http_body = serde_json::to_vec(&retry.reply(Some(op))).unwrap();
-    assert_eq!(retry_http_body, receipt.as_bytes());
+    assert_eq!(retry_http_body, serde_json::to_vec(&expected_replay).unwrap());
     assert_eq!(e.replay(viewer, op).unwrap().unwrap().reply(Some(op)), retry.reply(Some(op)));
     let stream_page = e.stream_at(viewer, seq, 20_000, 1000).unwrap();
     let stream = serde_json::to_value(&stream_page).unwrap();

@@ -465,7 +465,9 @@ impl Runner<'_> {
         let mut has_more = false;
         let mut capped = false;
         let mut uniform_verdict: Option<bool> = always_visible.then_some(true);
-        // @ref LLP 3000.007#17 — decide from pinned values before any population-dependent charge, even at a full meter.
+        // @ref LLP 3000.007#17 — an aborting page pass costs one examined unit before its verdict in every world; capped queries retain their cut contract.
+        let aborting = self.meter.cut == crate::meter::Cut::Abort;
+        if aborting && !self.meter.charge(MeterKind::Examined, 1)? { return Ok((Vec::new(), Vec::new())); }
         if visibility.uniform && !always_visible {
             let probe_row = Value::Row(index.components.iter().zip(&prefix).filter_map(|(part, value)| part.column().map(|name| (name.clone(), value.clone()))).collect::<std::collections::BTreeMap<_, _>>().into());
             let viewer = self.context.viewer.clone();
@@ -473,11 +475,11 @@ impl Runner<'_> {
             let mut probe = PrefixProbe { runner: self, count: 0 };
             let verdict = rules::evaluate(&table.rules.read, &viewer, None, &probe_row, false, &mut probe)?;
             let count = probe.count;
+            if (aborting || verdict) && !self.meter.charge(MeterKind::RuleProbes, count)? { return Ok((Vec::new(), Vec::new())); }
             if !verdict {
                 self.next_expiry = expiry;
                 return Ok((Vec::new(), Vec::new()));
             }
-            if !self.meter.charge(MeterKind::RuleProbes, count)? { return Ok((Vec::new(), Vec::new())); }
             uniform_verdict = Some(true);
         }
         // Non-uniform hidden runs cost examined rows, never a materialized

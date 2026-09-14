@@ -163,7 +163,11 @@ mutation edit(messageId: messages, body: text <=4000):
   `exists t[id = .docId, ownerId = viewer]`), `created t[..]` (insert rules
   only: true when this mutation inserted the probed row), `and`, `or`,
   `not`. `update (old, next) <- old.x = next.x` names both images. A table
-  with no rule for an effect denies it. Rules compare with `=` and `!=`
+  with no rule for an effect denies it. A rule may probe existence on a maintain
+  over an expiring source at one unit, but `check` refuses an equality on its
+  `value` (E_QUARRY_LIVE_MAINTAIN_PROBE): read the maintain in the program;
+  its live value cannot be probed at one unit. Equalities on non-expiring
+  maintains and ordinary tables are unchanged. Rules compare with `=` and `!=`
   only; the system principal consults no rules. Write authority and refusal
   disclosure are separate, as the write contract below states.
 - **Sync** (§3) and **retain**: `retain until-revoked` (the default: a

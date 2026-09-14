@@ -75,8 +75,9 @@ fn w2_a_uniform_hidden_page_after_metered_work_has_the_same_complete_observation
             let grant = wire::row_from_json(e.schema().table("grants").unwrap(), &json!({"id":"grant","owner":"bob","reader":"bob"})).unwrap();
             e.seed([("grants".into(), grant)]).unwrap();
             let (result, observation) = observation::observe(&mut e, "pass", "bob", json!({}), "same", ("page", json!({"owner":"bob"})));
-            assert!(matches!(result.state, WriteState::Sent { result: Value::Int(n), .. } if n == if budget == "steps" {100} else {8192}), "{budget}: {:?}", result.state);
-            if budget != "steps" { assert_eq!(result.metered.examined, 8192); }
+            if budget == "steps" { assert!(matches!(result.state, WriteState::Sent { result: Value::Int(100), .. })); }
+            else { assert_eq!(observation.body()["why"]["code"], "E_BOUND"); }
+            assert_eq!(result.metered.examined, if budget == "steps" {1} else {8193});
             assert_eq!(result.metered.rule_probes, if budget == "probes" {8192} else {0});
             assert_eq!(result.metered.rows_written, 0);
             observations.push(observation);
@@ -98,7 +99,7 @@ fn w3_uniform_page_with_expiring_rule_probe_has_no_population_oracle() {
             e.seed(rows).unwrap();
             let (result, observation) = observation::observe(&mut e, "pass", "bob", json!({}), "same", ("page", json!({"owner":"bob"})));
             assert!(matches!(result.state, WriteState::Sent { result: Value::Int(n), .. } if n == i64::from(admitted)));
-            assert_eq!((result.metered.examined, result.metered.rule_probes), if admitted {(1, 1)} else {(0, 0)});
+            assert_eq!((result.metered.examined, result.metered.rule_probes), if admitted {(2, 1)} else {(1, 1)});
             observations.push(observation);
         }
         observations[0].assert_same(&observations[1]);
@@ -138,4 +139,94 @@ fn w3_upsert_condition_is_one_compiler_refusal_and_update_condition_is_admitted(
     assert_eq!(b.diagnostics.len(), 1);
     assert_eq!(b.diagnostics[0].rewrite, "a condition belongs on update; an upsert inserts or patches");
     assert!(compile(&format!("{SOURCE}\n{}", operation.replace("upsert", "update"))).diagnostics.is_empty());
+}
+
+
+#[test]
+fn w4_negated_self_probe_empty_and_hidden_pages_match_at_probe_ceiling() {
+    // The full ceiling also exhausts examined; the smaller probe-only ceiling
+    // checks the verdict's probe charge independently of the page-attempt charge.
+    for (work, probe_ceiling) in [(0, 8192), (8192, 8192), (4, 4)] {
+        let source = format!("table secrets:\n  read <- deny\ntable work:\n  read <- exists work[.id]\nmutation pass(): server\n  for i in range(0, {work}):\n    r = work[id = 'work']\n  rows = secrets[] first 1 by byId\n  return count(rows)\nquery one():\n  return null\n");
+        let mut observations = Vec::new();
+        for hidden in [false, true] {
+            let mut b = compile(&source);
+            assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+            // Literal reference IDs enter through schema IR; this is exactly
+            // `read <- not exists secrets[id = 'sentinel']` at the engine boundary.
+            b.schema.tables.get_mut("secrets").unwrap().rules.read = snapback4_core::schema::RuleExpr::Not(Box::new(snapback4_core::schema::RuleExpr::Exists {
+                table: "secrets".into(), index: "byId".into(), key: vec![snapback4_core::schema::RuleTerm::Literal(Value::Id("sentinel".into()))],
+                equalities: vec![], provenance: snapback4_core::ir::KeyProvenance::Const,
+            }));
+            let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+            let mut rows = vec![("work".into(), snapback4_core::value::object([("id", Value::Id("work".into()))]))];
+            if hidden { rows.push(("secrets".into(), snapback4_core::value::object([("id", Value::Id("sentinel".into()))]))); }
+            e.seed(rows).unwrap();
+            e.set_ceilings(snapback4_core::meter::Ceilings { rule_probes: probe_ceiling, ..e.ceilings() });
+            let (result, observed) = observation::observe(&mut e, "pass", "bob", json!({}), "same", ("one", json!({})));
+            if work == 0 { assert!(matches!(result.state, WriteState::Sent { result: Value::Int(0), .. })); }
+            else { assert_eq!(observed.body()["why"]["code"], "E_BOUND"); }
+            assert_eq!((result.metered.examined, result.metered.rule_probes), match work { 0 => (1, 1), 4 => (5, 5), _ => (8193, 8192) });
+            observations.push(observed);
+        }
+        observations[0].assert_same(&observations[1]);
+    }
+}
+
+const MAINTAIN_PROBE: &str = "table sources:\n  group: text <=10\n  amount: int\n  until: time ?\n  by byGroup: group, id\n  by byExpiry: until\n  expire at .until\n  read <- deny\nmaintain totals: sum sources of amount by group\n  read <- deny\ntable targets:\n  group: text <=10\n  amount: int\n  by byGroup: group, id\n  read <- exists totals[.group]\n  update <- allow\nmutation pass(): server\n  rows = targets['g'] first 1 by byGroup\n  return count(rows)\nquery one():\n  return null\n";
+fn maintain_probe_world(source: &str, population: usize, live: bool) -> Engine {
+    let b = compile(source);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    let sources = (0..population).map(|n| json!({"id":format!("expired{n:05}"),"group":"g","amount":0,"until":1}))
+        .chain([json!({"id":"live","group":if live {"g"} else {"other"},"amount":2,"until":2000})]);
+    let rows = sources.map(|r| ("sources".into(), wire::row_from_json(e.schema().table("sources").unwrap(), &r).unwrap()))
+        .chain([("targets".into(), wire::row_from_json(e.schema().table("targets").unwrap(), &json!({"id":"target","group":"g","amount":0})).unwrap())]).collect::<Vec<_>>();
+    e.seed(rows).unwrap();
+    e
+}
+
+#[test]
+fn w4_live_maintain_existence_walk_has_one_probe_with_zero_or_nine_thousand_expired_sources() {
+    for live in [false, true] {
+        let mut observations = Vec::new();
+        for population in [0, 9000] {
+            let mut e = maintain_probe_world(MAINTAIN_PROBE, population, live);
+            let (result, observed) = observation::observe(&mut e, "pass", "bob", json!({}), "same", ("one", json!({})));
+            assert!(matches!(result.state, WriteState::Sent { result: Value::Int(n), .. } if n == i64::from(live)));
+            assert_eq!((result.metered.rule_probes, result.metered.examined), (1, if live {2} else {1}));
+            observations.push(observed);
+        }
+        observations[0].assert_same(&observations[1]);
+    }
+}
+
+#[test]
+fn w4_live_maintain_probe_equalities_ignore_expired_contributions() {
+    for effect in ["read", "update"] {
+        let base = if effect == "read" { MAINTAIN_PROBE.to_owned() } else {
+            MAINTAIN_PROBE.replace("read <- exists totals[.group]", "read <- deny").replace("update <- allow", "update <- exists totals[.group]")
+                .replace("  rows = targets['g'] first 1 by byGroup\n  return count(rows)", "  update targets[id = 'target'] {amount: 1}")
+        };
+        let source = base.replace("exists totals[.group]", "exists totals[group = .group, value = 2]");
+        let refused = compile(&source);
+        assert_eq!(refused.diagnostics.len(), 1, "{:?}", refused.diagnostics);
+        assert_eq!(refused.diagnostics[0].code, "E_QUARRY_LIVE_MAINTAIN_PROBE");
+        assert_eq!(refused.diagnostics[0].rewrite, "read the maintain in the program; its live value cannot be probed at one unit");
+        assert_eq!(refused.diagnostics[0].guide, "expire");
+        // Non-expiring maintains retain equality support: same total from 1 or
+        // 9,001 sources, one probe, with an actually admitted page/write.
+        let control = source.replace("  expire at .until\n", "");
+        let mut observations = Vec::new();
+        for population in [0, 9000] {
+            let mut e = maintain_probe_world(&control, population, true);
+            let (result, observed) = observation::observe(&mut e, "pass", "bob", json!({}), "same", ("one", json!({})));
+            assert!(matches!(result.state, WriteState::Sent { .. }));
+            assert_eq!(result.metered.rule_probes, 1);
+            if effect == "read" { assert!(matches!(result.state, WriteState::Sent { result: Value::Int(1), .. })); }
+            else { assert_eq!(e.store().rows("targets").unwrap()[0].field("amount"), Ok(&Value::Int(1))); }
+            observations.push(observed);
+        }
+        observations[0].assert_same(&observations[1]);
+    }
 }

@@ -3717,3 +3717,75 @@ the old membership assertion and lacked the shared social-messenger fixture
 inputs; the final complete rerun above includes both corrections. These
 setup/test corrections are not labelled inherited product failures. No commit,
 push, tag, or publication was performed.
+
+
+### 2026-09-14 — lane W4: normalize the page attempt, reserve created equalities, refuse expired maintained-value probes
+
+Built the fourth-pass dispositions of LLP 3000.007 §17. An aborting page
+pass charges **1 examined unit** before its prefix verdict and charges the
+verdict's probes for both outcomes. This is scoped to the aborting pass of
+§5.9: applying the extra charge to capped queries changed the immutable
+corpus's wide-merge pages and filter continuation boundaries. Capped queries
+keep their existing contract; no corpus case or meter ceiling changed.
+`Created` with residual equalities now contributes **1 probe** to the static
+worst case before target lookup. A rule equality on the `value` of a maintain
+over an expiring source produces **1 E_QUARRY_LIVE_MAINTAIN_PROBE** at check,
+with the rewrite “read the maintain in the program; its live value cannot be
+probed at one unit”. Existence and non-expiring equality probes stay supported.
+The guide's code explanations were split into `guide/codes.rs` to keep the
+edited guide below **1,500 lines**; the public `guide::CODES` API is unchanged.
+
+Measured paired observations through the shared helper: the negated self
+probe has `(examined, rule_probes)` **(1, 1)** with ample budget,
+**(8193, 8192)** after the ordinary **8192**-probe/examined prelude (both
+E_BOUND), and **(5, 5)** with a deliberately lowered **4**-probe ceiling
+that isolates probe exhaustion (both E_BOUND). All **7 meter fields** and
+the complete observation agree in each pair. Literal reference IDs for
+that exact rule are supplied through schema IR, because Quarry's rule
+comparison requires a typed reference. Created-equality upserts compare
+absent and hidden denied targets on **2 entry points**, at **0** and
+**8192** prior probes: NOT_FOUND with room, E_BOUND at the ceiling; an
+allowed insertion succeeds and uses **2 probes** for its two authority
+checks. The existing **16** target-exhaustion pairs remain covered.
+
+Live-maintain existence probes compare **0** with **9000** expired sources
+for both verdicts: `(rule_probes, examined)` is **(1, 1)** for false and
+**(1, 2)** for true. Non-expiring maintained-value equality controls over
+**1** and **9001** sources admit the page and update at **1 probe** each.
+Historical raw receipts and scalar results now have paired revocation
+lifecycles, including replay, queued admission, reopen and settlement on
+**2 device stores**. Ignored immutable patches match the patch without that
+field on ordinary and expiring sources: amount **7 → 0**, aggregate
+**10 → 3**, immutable value retained, identical committed rows, maintain
+deltas, reply/receipt, effects, stream, snapshot and both devices. Different
+caller-authored expressions may cost different evaluation work; that test
+compares the requested state and delivery boundary without pretending the
+programs are identical. The exhaustion fixture's debug print is removed.
+
+The lesson from these repairs is that deciding before a population-dependent
+charge still needs a common attempt cost, and an equality on a created or
+maintained fact must account for how that fact is actually obtained. The
+maintain refusal keeps a one-unit existence contract without testing a stale
+physical total. No commit, push, tag or publication was performed.
+
+Final verification: focused simulator **50 passed / 0 failed** (condition
+**1**, membership **5**, page admission **10**, write authority **34**),
+guide **9 / 0**, corpus harness **16 / 0** with **211 cases passed /
+82 skipped / 0 failed**. The final local blocking script reports **1 failing
+step in 142 s**: **374 Rust passes / 0 failures / 1 ignored**, **9 fixture
+passes / 0 failures**, **121 client passes / 1 failure**. All builds and
+typechecks pass. The only failure is Chromium startup SIGABRT inside the
+sandbox, reproduced by the isolated React test on untouched base
+**e3187c87ff0f4b6db2ae03bc19beea433f8a8d86** (**0 passed / 1 failed**);
+the lead reruns that witness outside. Local wasm is **1,523,579 B raw /
+427,369 B gzip**. Runtime is **82 s** above the script's 60-second budget;
+no threshold was changed. `ref-check --verbose`: **474 LLP docs, 8812 refs,
+22590 files, 0 errors, 0 unchecked**. All **8 changed Rust source/test files**
+are below 1,500 lines; the largest is **1449**.
+
+The first local blocking run was **2 failing steps / 162 s** while the
+query-wide attempt charge and two fixture mistakes were still present; the
+final run above fixes those introduced failures. A supplemental Linux run
+on a **669-file, 0-mismatch** snapshot was interrupted after
+client cleanup stalled and is not counted as passing evidence. No claim
+that those supplemental failures predate this lane is made.

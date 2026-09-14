@@ -355,10 +355,21 @@ fn wa5_revoked_result_and_conflict_current_are_not_retrievable() {
         }
         equal_observations(&observations);
     }
-    // Arbitrary scalar results cannot be reauthorized as rows; replay withholds them too.
-    let mut e = world(&format!("{SOURCE}\nmutation scalar(key: text <=80):\n  r = records[key] ! else NOT_FOUND\n  return r.secret\n"), true, 7);
-    assert_eq!(call(&mut e, "scalar", "alice", json!({"key":"lookup"}), "scalar").reply(Some("scalar"))["result"], "PRIVATE");
-    assert!(e.replay("alice", "scalar").unwrap().unwrap().reply(Some("scalar")).get("result").is_none());
+    // Arbitrary scalars are withheld too, including after a real revocation.
+    let source = format!("{SOURCE}\nmutation scalar(key: text <=80):\n  r = records[key] ! else NOT_FOUND\n  return r.secret\n");
+    let mut observations = Vec::new();
+    for secret in ["REVOKED1", "REVOKED2"] {
+        let mut e = world(&source, true, 7);
+        let (_, observation) = observation::observe_with_intervention(&mut e, "scalar", "alice", json!({"key":"lookup"}), "scalar", ("one", json!({"key":"lookup"})), |e| {
+            seed(e, "records", vec![row("target", "lookup", "carol", 7, secret)]);
+            assert_eq!(value(e, "alice"), Value::Null);
+        });
+        assert_eq!(observation.body()["result"], "PRIVATE");
+        assert!(serde_json::from_slice::<Json>(&observation.retry_http_body).unwrap().get("result").is_none());
+        for device in &observation.devices { assert_eq!(device["settled"]["query"]["data"], Json::Null); }
+        observations.push(observation);
+    }
+    equal_observations(&observations);
 }
 
 const PAGE: &str = r#"
@@ -635,9 +646,6 @@ fn exhausted_target_pairs() {
                     assert!(observation.body()["why"]["message"].as_str().unwrap().contains(if resource == "heap" {"heap"} else {"rule"}));
                     if resource == "probes" { assert_eq!(observation.meter.rule_probes, 8192); }
                     else { assert!((warm.metered.heap_bytes..e.ceilings().heap_bytes).contains(&observation.meter.heap_bytes)); }
-                    if !hidden && address == "id" && guard == "plain" {
-                        eprintln!("W3 {resource}: warm heap {}, refusal heap {}, heap ceiling {}, probes {}", warm.metered.heap_bytes, observation.meter.heap_bytes, e.ceilings().heap_bytes, observation.meter.rule_probes);
-                    }
                     observations.push(observation);
                 }
                 equal_observations(&observations);
@@ -699,17 +707,26 @@ fn w3_explicit_foreign_asset_guess_does_not_test_hidden_placement() {
 
 #[test]
 fn w3_historical_w_receipt_is_resanitized_on_replay() {
-    let mut e = world(SOURCE, true, 7);
-    let first = call(&mut e, "conditional", "alice", json!({"key":"lookup","expected":0}), "historical");
-    let mut historical = first.reply(Some("historical")); // W stored the first reply, including current and the old why.
-    historical["why"]["message"] = json!("row-derived PRIVATE diagnostic");
-    e.store().conn().execute("UPDATE _ops SET outcome = ?1 WHERE principal = 'alice' AND id = 'historical'", [historical.to_string()]).unwrap();
-    seed(&mut e, "records", vec![row("target", "lookup", "carol", 7, "REVOKED")]);
-    let replay = e.replay("alice", "historical").unwrap().unwrap().reply(Some("historical"));
-    assert_eq!(replay["why"]["message"], "the program refused with E_CONFLICT");
-    assert!(replay.get("current").is_none() && replay.get("result").is_none());
-    assert!(!replay.to_string().contains("PRIVATE"));
-    assert_eq!(call(&mut e, "conditional", "alice", json!({"key":"lookup","expected":0}), "historical").reply(Some("historical")), replay);
+    let mut observations = Vec::new();
+    for secret in ["REVOKED1", "REVOKED2"] {
+        let mut e = world(SOURCE, true, 7);
+        let (_, observation) = observation::observe_with_historical_receipt(&mut e, "conditional", "alice", json!({"key":"lookup","expected":0}), "historical", ("one", json!({"key":"lookup"})), |first| {
+            let mut historical = first.reply(Some("historical")); // W stored current and the old why.
+            historical["why"]["message"] = json!("row-derived PRIVATE diagnostic");
+            historical
+        }, |e| {
+            seed(e, "records", vec![row("target", "lookup", "carol", 7, secret)]);
+            assert_eq!(value(e, "alice"), Value::Null);
+        });
+        assert!(observation.receipt.contains("PRIVATE"));
+        let replay: Json = serde_json::from_slice(&observation.retry_http_body).unwrap();
+        assert_eq!(replay["why"]["message"], "the program refused with E_CONFLICT");
+        assert!(replay.get("current").is_none() && replay.get("result").is_none());
+        assert!(!replay.to_string().contains("PRIVATE"));
+        for device in &observation.devices { assert_eq!(device["settled"]["query"]["data"], Json::Null); }
+        observations.push(observation);
+    }
+    equal_observations(&observations);
 }
 
 #[test]
@@ -763,4 +780,89 @@ fn w3_live_aggregate_overflow_uses_the_same_value_free_refusal() {
     seed(&mut e, "items", vec![json!({"id":"a","group":"g","amount":snapback4_core::value::I53_MAX,"until":null})]);
     let (result, _) = observed(&mut e, "live", "bob", json!({}), "positive");
     assert!(matches!(result.state, WriteState::Sent { result: Value::Int(snapback4_core::value::I53_MAX), .. }));
+}
+
+
+#[test]
+fn w4_created_equality_upsert_reserves_before_lookup() {
+    use snapback4_core::ir::{Expr, Program, Stmt};
+    for serialized in [false, true] {
+        for work in [0, 8192] {
+            let source = format!("table permits:\n  owner: principal\n  enabled: bool\n  unique byOwner: owner\n  insert <- allow\ntable work:\n  read <- exists work[.id]\ntable targets:\n  amount: int\n  read <- deny\n  update <- deny\n  insert <- created permits[owner = viewer, enabled = true]\nmutation pressure(): server\n  insert permits {{owner: viewer, enabled: false}}\n  for i in range(0, {work}):\n    r = work[id = 'work']\n  upsert targets[id = 'target'] {{amount: 0}}\n  return null\nquery one(key: text <=80):\n  return null\n");
+            let build = |source: &str| {
+                let b = compile(source);
+                let programs = b.programs.into_iter().map(|p| {
+                    let mut p = p.program;
+                    if serialized && p.name == "pressure" {
+                        let write = p.body.iter_mut().find(|s| matches!(s, Stmt::WriteTarget { .. })).unwrap();
+                        let Stmt::WriteTarget { target, patch: Expr::Object(fields), upsert: true, .. } = write else { panic!("{write:?}") };
+                        let mut fields = fields.clone();
+                        fields.insert("id".into(), target.key[0].clone());
+                        *write = Stmt::Upsert { table: target.table.clone(), key: target.key[0].clone(), row: Expr::Object(fields) };
+                    }
+                    serde_json::from_str::<Program>(&serde_json::to_string(&p).unwrap()).unwrap()
+                }).collect::<Vec<_>>();
+                Engine::memory(b.schema, programs).unwrap()
+            };
+            let mut observations = Vec::new();
+            for hidden in [false, true] {
+                let mut e = build(&source);
+                let rows = [("work", json!({"id":"work"})), ("targets", json!({"id":if hidden {"target"} else {"decoy"},"amount":7}))];
+                e.seed(rows.into_iter().map(|(t,r)| (t.into(), wire::row_from_json(e.schema().table(t).unwrap(), &r).unwrap())).collect::<Vec<_>>()).unwrap();
+                let (_, observation) = observed(&mut e, "pressure", "bob", json!({}), "same");
+                assert_eq!(observation.body()["why"]["code"], if work == 0 {"NOT_FOUND"} else {"E_BOUND"}, "serialized={serialized}");
+                assert_eq!(observation.meter.rule_probes, work);
+                observation.assert_unchanged();
+                observations.push(observation);
+            }
+            equal_observations(&observations);
+            if work == 0 {
+                let mut e = build(&source.replace("enabled: false", "enabled: true").replace("update <- deny", "update <- allow"));
+                let (result, _) = observed(&mut e, "pressure", "bob", json!({}), "positive");
+                assert!(matches!(result.state, WriteState::Sent { .. }), "{:?}", result.state);
+                assert_eq!(e.store().rows("targets").unwrap()[0].field("amount"), Ok(&Value::Int(0)));
+                assert_eq!(result.metered.rule_probes, 2, "insert authority is checked twice");
+            }
+        }
+    }
+}
+
+#[test]
+fn w4_ignored_immutable_patch_preserves_maintains_and_delivery() {
+    for expiring in [false, true] {
+        let base = SOURCE.replace("  immutable frozen", "  until: time ?\n  by byExpiry: until\n  immutable frozen");
+        let base = if expiring { base.replace("  immutable frozen", "  expire at .until\n  immutable frozen") } else { base };
+        let mut observations = Vec::new();
+        for ignored in [false, true] {
+            let patch = if ignored {"amount: 0, frozen: 'wrong'"} else {"amount: 0"};
+            let source = format!("{base}\nmaintain totals: sum records of amount by frozen\n  read <- allow\n  online only\nmutation change(key: text <=80):\n  update records[key] {{{patch}}}\n");
+            let mut e = engine(&source);
+            let mut target = row("target", "lookup", "alice", 7, "PRIVATE");
+            let mut sibling = row("sibling", "sibling", "alice", 3, "PRIVATE");
+            target["until"] = Json::Null;
+            sibling["until"] = Json::Null;
+            seed(&mut e, "records", vec![target, sibling]);
+            let (result, observation) = observed(&mut e, "change", "bob", json!({"key":"lookup"}), "same");
+            assert!(matches!(result.state, WriteState::Sent { .. }));
+            assert_eq!(value(&mut e, "bob"), Value::Null);
+            assert_eq!(value(&mut e, "alice").field("frozen"), Ok(&Value::String("fixed".into())));
+            assert_eq!(value(&mut e, "alice").field("amount"), Ok(&Value::Int(0)));
+            assert_eq!(e.store().rows("totals").unwrap()[0].field("value"), Ok(&Value::Int(3)));
+            assert_eq!(observation.changes["records/target"], json!({"amount":0}));
+            observations.push(observation);
+        }
+        // Caller-authored patches differ; their evaluation work is not a hidden-state
+        // comparison. Bodies, physical source/maintain results and delivery must agree.
+        assert_eq!(observations[0].first_http_body, observations[1].first_http_body);
+        assert_eq!(observations[0].receipt, observations[1].receipt);
+        assert_eq!(observations[0].retry_http_body, observations[1].retry_http_body);
+        assert_eq!(observations[0].before, observations[1].before);
+        assert_eq!(observations[0].committed, observations[1].committed);
+        assert_eq!(observations[0].changes, observations[1].changes);
+        assert_eq!(observations[0].effects, observations[1].effects);
+        assert_eq!(observations[0].stream, observations[1].stream);
+        assert_eq!(observations[0].snapshot, observations[1].snapshot);
+        assert_eq!(observations[0].devices, observations[1].devices);
+        assert_eq!(observations[0].meter.rows_written, observations[1].meter.rows_written);
+    }
 }

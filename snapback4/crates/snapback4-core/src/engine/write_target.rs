@@ -208,9 +208,11 @@ fn pure_builtin(builtin: &Builtin) -> bool {
 fn rule_probes(rule: &RuleExpr) -> u64 {
     match rule {
         RuleExpr::Exists { .. } => 1,
+        // @ref LLP 3000.007#17 — created facts with extra equalities take the metered exists path when the fact holds.
+        RuleExpr::Created { equalities, .. } => u64::from(!equalities.is_empty()),
         RuleExpr::And(terms) | RuleExpr::Or(terms) => terms.iter().map(rule_probes).fold(0, u64::saturating_add),
         RuleExpr::Not(inner) => rule_probes(inner),
-        RuleExpr::Allow | RuleExpr::Deny | RuleExpr::Public { .. } | RuleExpr::Eq(..) | RuleExpr::Ne(..) | RuleExpr::Created { .. } => 0,
+        RuleExpr::Allow | RuleExpr::Deny | RuleExpr::Public { .. } | RuleExpr::Eq(..) | RuleExpr::Ne(..) => 0,
     }
 }
 fn row_copy_ceiling(table: &Table) -> u64 {
