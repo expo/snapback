@@ -2299,3 +2299,41 @@ The final bounded Grok pass at `c30a517d7` reports no material finding in expire
 The 52 run-owned repair and evidence commits landed at `342c53d306d7484cd64e820ee27a151e02eb4b0b`. The normal push hook initially lacked a root JavaScript dependency in the isolated worktree; `bun install --frozen-lockfile` restored it and the normal push passed, with no bypass. The qualified publisher passed its entire suite in 30 seconds (236 Rust, 9 fixture and 89 client passes, zero failures, one declared ignored test), built the production binary and verified the installed consumer. `snapback4` and its darwin-arm64 binary are published at 0.2.6; the rebuilt Expo module is published at 0.2.1. Registry integrity matches all three exact qualified tarballs.
 
 The full unchanged Clique instrument is now frozen to those pins for Astra medium, Grok 4.6 xhigh and Muse Spark 1.3 xhigh. Astra started its cold continuous session at 18:30:36 UTC; later builders, independent grades and fresh M7 runs remain pending. The new record is `benchmarks/runs/2026-09-13-snapback4-clique-0004/`. The grade records all 119 assertions while retaining the previous 101-assertion subtotal for comparison. These are launch facts, not benchmark results.
+
+## 2026-09-13 — LLP 3000.007 implementation launched: five Codex lanes, cut by file ownership
+
+The author ruled on every question of LLP 3000.007 and said "Go. Use
+Astra on xhigh for coding." Five Codex lanes (gpt-6-astra, xhigh) run
+concurrently from worktrees `~/projects/snapback-lane-{M,L,R,C,B}` on
+branches `sb4/lane-*`; the lead lands each. A concurrent session touching
+these files should expect a rebase against them:
+
+- **M — the meter (§5.0):** `crates/snapback4-core/src/{engine/runner.rs
+  (heap charges), value.rs, meter.rs}`; tests in core, sim and both device
+  stores. Concat, Let/Assign and allocating builtins charge the heap;
+  clone-or-charge on variable reads decided by measurement.
+- **L — the language (§5.1–§5.8):** `crates/snapback4-lang/src/{parser*,
+  bind/program*, types, print, diag, guide}`, `crates/snapback4-core/src/
+  {ir.rs, engine/{runner,read,pages,write,job,validate}.rs, schema.rs,
+  cursor.rs}`, README §2, `tests/clique.rs`, the corpus. The seven forms,
+  `fn` bodies (`proc` deleted), job preludes, range seeks, `where` with the
+  §5.6 cursor rule, `group`/`first`/`last`/`at`, `join`/`trim`/`lower`,
+  page-as-list, `upsert` that patches, column defaults, `range` over
+  expressions, `pending` through shapes, guessed spellings refused with
+  exact rewrites.
+- **R — residency (§6):** `bind/schema.rs`, `bind/mod.rs`, `emit.rs` (the
+  `runs`/`predicts` words and doc comments), `verbs.rs` (`check
+  --residency`, `why`, `test --residency`), `local.ts` READ path,
+  `contract.ts` `Op` only, a `residency` card, `tests/residency.rs`. The
+  inferred sync audience, `online only` on tables and maintains, the
+  per-site classes, the three notes, `E_PREDICT` naming the fact.
+- **C — the client and dev seams (§8.1–§8.6, §8.13):** `contract.ts`
+  `Write` only, `client.ts`, `local.ts` WRITE path and assets, `react.tsx`,
+  `web.ts`, `snapback4-expo`, `serve.rs`/`verbs.rs` dev identity limits,
+  the device crate and `validate.rs` for the `{ id }` asset facts, the
+  `E_RULE` message, the media cache.
+- **B — the ceremony bar (§10.3):** `loopbar/`, `metrics/ceremonybar.jsonl`,
+  the "before" record on the published 0.2.8.
+
+Not launched: the periphery verbs, worker actions, and §8.7/§5.9 (the blind
+security review is in flight; its artifacts land under `llp/reviews/`).

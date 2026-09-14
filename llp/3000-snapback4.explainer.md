@@ -817,6 +817,21 @@ time-ordered 128-bit form.
   stays superseded; the media cache with the language. The meter (§5.0)
   is the first landing.
 
+- **2026-09-13 — LLP 3000.007's implementation goes to Codex (author:
+  "Go. Use Astra on xhigh for coding").** Decision 4's rule that the lead
+  session alone writes the engine, the store and the client contract is
+  relaxed for this program: Codex (gpt-6-astra, xhigh) implements every
+  lane, the lead cuts the lanes by file ownership, reviews each diff, runs
+  the blocking suite outside the sandbox and lands. Five lanes run
+  concurrently from 2026-09-13: M (the meter, §5.0), L (the language,
+  §5.1–§5.8), R (residency and the inferred audience, §6), C (the client
+  and dev seams and the media cache, §8.1–§8.6, §8.13), B (the ceremony
+  bar's "before" on the published 0.2.8, §10.3). Not yet launched: the
+  periphery verbs (`sql`, `check --fix`, `init --online`, `init --expo`),
+  worker actions (§9.2, phase C2), and §8.7/§5.9, which wait on the blind
+  security review commissioned the same day. The journal carries the
+  lane cut and the file ownership.
+
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal
