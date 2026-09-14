@@ -47,24 +47,32 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
   return {
     async open(name, backend) {
       ready ??= cachedWasm(options.wasm ?? new URL("./wasm/snapback4_device_bg.wasm", import.meta.url), persist)
-        .then((module_or_path) => init({ module_or_path: module_or_path as never }))
         .catch((error) => { ready = null; throw error; });
       await ready;
       const store = await claim(name);
-      let device: WebDevice;
-      try {
-        device = new WebDevice(backend ? JSON.stringify(backend) : null, JSON.stringify(await persist.load(store.name)));
-      } catch (error) {
-        await store.release();
-        throw new Error(refusalText(error));
-      }
+      let device: WebDevice | undefined;
       let chain: Promise<unknown> = Promise.resolve();
+      let closing: Promise<void> | undefined;
+      const discard = (): void => {
+        const previous = device;
+        device = undefined;
+        previous?.free();
+      };
       const settle = async (): Promise<void> => {
-        const changes = JSON.parse(device.drain()) as Change[];
+        const changes = JSON.parse(device!.drain()) as Change[];
         if (changes.length) await persist.save(store.name, changes);
       };
-      await settle();
-      await adoptOrphans(device, name, store.name, persist, settle);
+      const restore = async (backend?: BackendJson | null): Promise<void> => {
+        device = new WebDevice(backend ? JSON.stringify(backend) : null, JSON.stringify(await persist.load(store.name)));
+        await settle();
+      };
+      try {
+        await restore(backend);
+        await adoptOrphans(device!, name, store.name, persist, settle);
+      } catch (error) {
+        try { discard(); } finally { await store.release(); }
+        throw new Error(refusalText(error));
+      }
       const core: DeviceCore = {
         media: {
           async read(id) { return persist.read ? persist.read(`snapback4-media:${store.name}`, "a", id) : (await persist.load(`snapback4-media:${store.name}`)).find((c) => c.k === id)?.v ?? null; },
@@ -72,18 +80,28 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           async remove(id) { await persist.save(`snapback4-media:${store.name}`, [{ s: "a", k: id, v: null }]); },
         },
         call(request) {
+          if (closing) return Promise.reject(new Error("the device is closed"));
           const answer = chain.then(async () => {
-            const reply = JSON.parse(device.call(JSON.stringify(request))) as Record<string, unknown>;
-            await settle();
-            return reply;
+            try {
+              // @ref LLP 3000.008.004#3 — publish only after persistence;
+              // a failed call discards its uncommitted memory. Reopen lazily
+              // on the kept backend, with no store copy on successful calls.
+              if (!device) await restore();
+              const reply = JSON.parse(device!.call(JSON.stringify(request))) as Record<string, unknown>;
+              await settle();
+              return reply;
+            } catch (error) {
+              discard();
+              throw error;
+            }
           });
           chain = answer.catch(() => undefined);
           return answer;
         },
-        async close() {
-          await chain;
-          device.free();
-          await store.release();
+        close() {
+          return closing ??= chain.then(async () => {
+            try { discard(); } finally { await store.release(); }
+          });
         },
       };
       return core;
@@ -92,9 +110,9 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
 }
 
 // @ref LLP 3000.007#8 — a cold offline open owns its wasm bytes, keyed by SHA-256
-async function cachedWasm(source: WasmSource | Promise<WasmSource>, persist: Persistence): Promise<BufferSource | WebAssembly.Module> {
+async function cachedWasm(source: WasmSource | Promise<WasmSource>, persist: Persistence): Promise<unknown> {
   const resolved = await source;
-  if (resolved instanceof WebAssembly.Module) return resolved;
+  if (resolved instanceof WebAssembly.Module) return initializeWasm(resolved);
   const isUrl = typeof resolved === "string" || resolved instanceof URL;
   const url = isUrl ? String(resolved) : null;
   const name = "snapback4-wasm";
@@ -104,18 +122,37 @@ async function cachedWasm(source: WasmSource | Promise<WasmSource>, persist: Per
   const digest = async (bytes: Uint8Array) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes as BufferSource)), (b) => b.toString(16).padStart(2, "0")).join("");
   if (hex) {
     const bytes = Uint8Array.from(hex.match(/../g) ?? [], (b) => parseInt(b, 16));
-    if (await digest(bytes) === pointer) return bytes;
+    if (await digest(bytes) === pointer) {
+      try { return await initializeWasm(bytes); } catch {
+        // A cache from an interrupted/older installer may be unusable even
+        // when its content hash matches. An online fetch can repair it.
+      }
+    }
   }
   const fetched = isUrl ? await fetch(resolved as string | URL) : resolved;
   if (fetched instanceof Response && !fetched.ok) throw new Error(`wasm: HTTP ${fetched.status}`);
   const bytes = fetched instanceof Response ? new Uint8Array(await fetched.arrayBuffer())
     : ArrayBuffer.isView(fetched) ? new Uint8Array(fetched.buffer, fetched.byteOffset, fetched.byteLength) : new Uint8Array(fetched as ArrayBuffer);
   const hash = await digest(bytes);
+  // Initialization must succeed before these bytes become the offline entry.
+  // The content and URL pointer are then installed in one atomic host save.
+  const initialized = await initializeWasm(bytes);
   await persist.save(name, [
     { s: "sha256", k: hash, v: Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("") },
     ...(url ? [{ s: "url", k: url, v: hash }] : []),
   ]);
-  return bytes;
+  return initialized;
+}
+
+async function initializeWasm(source: BufferSource | WebAssembly.Module): Promise<unknown> {
+  // Compile independently of wasm-bindgen's realm-wide initialized shortcut:
+  // a previous cache-save failure must not let a retry install invalid bytes.
+  const module = source instanceof WebAssembly.Module ? source : await WebAssembly.compile(source);
+  const exports = new Map(WebAssembly.Module.exports(module).map(e => [e.name, e.kind]));
+  if (exports.get("memory") !== "memory" || ["webdevice_new", "webdevice_call", "webdevice_drain", "__wbg_webdevice_free"].some(name => exports.get(name) !== "function")) {
+    throw new Error("wasm: the module does not export the Snapback device runtime; use the wasm shipped with this package");
+  }
+  return init({ module_or_path: module });
 }
 
 function refusalText(error: unknown): string {
@@ -154,20 +191,21 @@ async function claim(name: string): Promise<Claim> {
 
 /** Hold a lock until released; null when another holder has it. */
 function hold(locks: LockManager, name: string): Promise<(() => Promise<void>) | null> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     let release!: () => void;
     const done = new Promise<void>((r) => (release = r));
-    void locks.request(name, { ifAvailable: true }, async (lock) => {
+    const requested = locks.request(name, { ifAvailable: true }, async (lock) => {
       if (!lock) {
         resolve(null);
         return;
       }
       resolve(async () => {
         release();
-        await done;
+        await requested;
       });
       await done;
     });
+    void requested.catch(reject);
   });
 }
 
