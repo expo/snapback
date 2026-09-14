@@ -31,11 +31,11 @@ impl Runner<'_> {
     fn insert_mode(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
         self.refuse_engine_owned(table_name)?;
         let row = self.with_defaults(table_name, row)?;
-        let row = self.with_asset_facts(table_name, row, None)?;
-        validate_row(self.schema, table_name, &row)?;
         if !self.check_rule(table_name, Effect::Insert, None, &row)? {
             return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Insert });
         }
+        let row = self.with_asset_facts(table_name, row, None)?;
+        validate_row(self.schema, table_name, &row)?;
         let table = self.schema.table(table_name).expect("validated").clone();
         if if_absent {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
@@ -65,6 +65,10 @@ impl Runner<'_> {
     }
 
     pub(super) fn update(&mut self, table_name: &str, key: &Value, patch: Value) -> Result<(), RuntimeError> {
+        self.target_attempt(|runner| runner.update_attempt(table_name, key, patch))
+    }
+
+    fn update_attempt(&mut self, table_name: &str, key: &Value, patch: Value) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name)?;
         if patch.as_object()?.contains_key("id") {
             return Err(RuntimeError::Input(format!("{table_name} update patch cannot change id")));
@@ -74,14 +78,20 @@ impl Runner<'_> {
             return Err(self.write_miss(table_name, "byId", &[key.clone()]));
         };
         if self.device && self.schema.tables[table_name].sync.is_none() { return Err(self.write_miss(table_name, "byId", &[key.clone()])); }
+        let readable = self.check_rule(table_name, Effect::Read, None, &old)?;
+        self.refuse_hidden_immutable_patch(table_name, &patch, readable)?;
         let mut new = old.as_object()?.clone();
         for (name, value) in patch.as_object()? {
             new.insert(name.clone(), value.clone());
         }
-        self.replace(table_name, old, Value::Row(new.into()))
+        self.replace(table_name, old, Value::Row(new.into()), readable)
     }
 
     pub(super) fn upsert(&mut self, table_name: &str, key: &Value, row: Value) -> Result<(), RuntimeError> {
+        self.target_attempt(|runner| runner.upsert_attempt(table_name, key, row))
+    }
+
+    fn upsert_attempt(&mut self, table_name: &str, key: &Value, row: Value) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name)?;
         let id = key.as_str()?;
         if row.field("id")?.as_str()? != id {
@@ -89,12 +99,14 @@ impl Runner<'_> {
         }
         match self.fetch(table_name, id)? {
             Some(old) => {
+                let readable = self.check_rule(table_name, Effect::Read, None, &old)?;
+                self.refuse_hidden_immutable_patch(table_name, &row, readable)?;
                 // @ref LLP 3000.007#5.4 — an existing row receives a patch; omitted columns keep their values.
                 let mut fields = old.as_object()?.clone();
                 fields.extend(row.as_object()?.iter().map(|(name, value)| (name.clone(), value.clone())));
                 let row = Value::Row(fields.into());
                 self.meter.heap(row.heap_bytes())?;
-                self.replace(table_name, old, row)
+                self.replace(table_name, old, row, readable)
             }
             None if self.device => Err(self.write_miss(table_name, "byId", &[key.clone()])),
             None => self.insert_upsert(table_name, row),
@@ -104,19 +116,19 @@ impl Runner<'_> {
     pub(super) fn insert_upsert(&mut self, table_name: &str, row: Value) -> Result<(), RuntimeError> {
         // Defaults fill first, so a patch that leaves a defaulted column out is a complete row here.
         let row = self.with_defaults(table_name, row)?;
-        // An absent target has no pre-write read authority, including an incomplete insert patch.
-        // Establish completeness before asset lookup can disclose a supplied asset's status.
+        // @ref LLP 3000.007#17 — absent upserts decide insert authority before asset or constraint diagnostics.
+        if !self.check_rule(table_name, Effect::Insert, None, &row)? { return Err(self.no_write_target()); }
+        // An incomplete insert patch has the same word as a refused hidden target.
         if let Err(error) = validate_row(self.schema, table_name, &row) {
             return Err(if matches!(error, RuntimeError::Input(_)) { self.no_write_target() } else { error });
         }
         match self.insert(table_name, row) {
-            Err(RuntimeError::Input(_) | RuntimeError::Rule { .. }) => Err(self.no_write_target()),
+            Err(RuntimeError::Input(_)) => Err(self.no_write_target()),
             result => result,
         }
     }
 
-    fn replace(&mut self, table_name: &str, old: Value, new: Value) -> Result<(), RuntimeError> {
-        let readable = self.check_rule(table_name, Effect::Read, None, &old)?;
+    fn replace(&mut self, table_name: &str, old: Value, new: Value, readable: bool) -> Result<(), RuntimeError> {
         self.authorize_update(table_name, &old, &new, readable)?;
         self.replace_authorized(table_name, old, new, readable)
     }
@@ -274,6 +286,7 @@ impl Runner<'_> {
 
     /// Programs never write a maintained target; the engine does.
     pub(super) fn refuse_engine_owned(&self, table: &str) -> Result<(), RuntimeError> {
+        self.refuse_condition_write()?;
         if self.schema.maintain_for(table).is_some() {
             return Err(RuntimeError::Schema(format!("{table} is a maintained aggregate; write its source rows instead")));
         }
@@ -294,10 +307,7 @@ impl Runner<'_> {
                     && existing.field("id")?.as_str()? != id
                 {
                     if effect == Effect::Update && !readable { return Err(self.no_write_target()); }
-                    match self.visible_collision(table_name, &existing, effect) {
-                        Err(RuntimeError::Rule { .. }) if effect == Effect::Update => return Err(self.no_write_target()),
-                        result => result?,
-                    }
+                    self.visible_collision(table_name, &existing, effect)?;
                     return Err(RuntimeError::Constraint(format!("{table_name}.{name} already has a row where {} = {}", index.columns().join(", "), key.iter().map(describe).collect::<Vec<_>>().join(", "))));
                 }
             }
@@ -355,7 +365,8 @@ impl Runner<'_> {
                         count
                     };
                     if count >= *max as u64 {
-                        return Err(RuntimeError::Constraint(format!("{table_name} holds at most {max} rows where {} = {}", by.join(", "), group.iter().map(describe).collect::<Vec<_>>().join(", "))));
+                        // @ref LLP 3000.007#17 — cap diagnostics describe the schema, never retained group values.
+                        return Err(RuntimeError::Constraint(format!("{table_name} holds at most {max} rows per group by {}", by.join(", "))));
                     }
                 }
             }

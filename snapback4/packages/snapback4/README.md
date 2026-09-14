@@ -188,15 +188,17 @@ id and unique-key targets privately; the update rule judges old and next.
 | Target before the write | Refusal details |
 | --- | --- |
 | Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_CONSTRAINT`; `E_INPUT` |
-| Unreadable or absent | `NOT_FOUND` for rule denial, failed `if`, immutable mismatch, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |
+| Unreadable or absent | `NOT_FOUND` for rule denial, any `if`, any immutable column in the patch, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |
 
 A hidden collision on ordinary insert or `insert ... if absent` stays
 `E_RULE`; a readable collision names its index (if-absent returns null).
-An update colliding with a different hidden row returns `NOT_FOUND`, even
-when its target is readable: target authority does not authorize that row.
+An update or upsert-patch colliding with a different hidden row returns generic
+`E_RULE` when its target is readable and `NOT_FOUND` when its target is unreadable.
 Use `upsert counters[recipient] { count: 1 }` under an `update` rule to
 write another principal's row. Success discloses the admitted row's existence
-and the rule/condition predicates. It grants no extra stream or snapshot row.
+and the update rule predicates. It grants no extra stream or snapshot row.
+A condition needs a row you can read; a blind patch needs none. On an unreadable
+target, an immutable column in a patch refuses without comparing its value.
 
 `old` in a rule and the conditional update's `if` are evaluated inside the
 engine. An update/upsert result and conflict `current` are read-rule gets,
@@ -207,7 +209,8 @@ diagnostics. A readable maintain is an explicit delta read channel;
 `N_MAINTAIN_DELTA` notes potentially wider source update authority.
 A device missing a write target, on any synced table with or without a
 horizon, queues without a predicted row and still sends `/m`.
-The at-most-once record stores exactly the initial `/m` body. Replay returns
+The at-most-once record stores the replay body, with value-free diagnostic
+messages and no `result` or `current`. Replay returns
 execution identity only, with `replayed: true`; historical `result` and
 `current` are withheld, including after revocation or a dropped response.
 The same operation id under another principal has no access to that receipt.
@@ -254,9 +257,12 @@ compiled on that card beside the language card.
 ### Queries, mutations and jobs
 
 A mutation classified `predicts: "never"`, from a server site or an author's
-`: server` marker, may iterate a bounded page when its read rule is uniform
-over the prefix. Prediction still needs a complete schema-capped group.
-Non-uniform prefixes, merges and unknown origins keep `E_STRUCTURAL_FANOUT`.
+`: server` marker, may iterate a bounded plain prefix page when its read rule
+is uniform over the prefix. `matching`, merges and tables with expiry are
+refused for that pass (`E_STRUCTURAL_FANOUT`). Prediction still needs a complete
+schema-capped group. Every page a mutation reads, including a page it only
+binds, must be uniformly decided by its prefix (`E_STRUCTURAL_FANOUT`): read it in
+a query, or pin the deciding columns.
 The pass is atomic and remains subject to 1,024 rows written per mutation.
 `check --cost` prints "a pass over the first N rows of <prefix>; examined
 ceiling <n>". It never commits a partial pass after a budget abort.
@@ -264,7 +270,7 @@ ceiling <n>". It never commits a partial pass after a budget abort.
 ```quarry
 mutation recentPass(roomId: rooms): server
   n = 0
-  for row in messages[roomId] first 10 by byRoomTime:
+  for row in members[roomId] first 10 by byRoomPrincipal:
     n = n + 1
   return n
 ```

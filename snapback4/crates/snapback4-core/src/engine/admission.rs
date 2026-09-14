@@ -62,6 +62,14 @@ impl Origin {
 pub fn check(schema: &Schema, program: &Program) -> Result<(), RuntimeError> {
     let scans = crate::ir::scans(program);
     if program.kind == ProgramKind::Mutation {
+        require_uniform_mutation_pages(schema, &scans)?;
+        if schema.operations.get(&program.name).is_some_and(|fact| fact.predicts.as_deref() == Some("never")) {
+            for scan in &scans {
+                if let Some(reason) = plain_prefix_problem(schema, scan) {
+                    return Err(RuntimeError::Structural { code: "E_STRUCTURAL_FANOUT", message: format!("{}: {reason}", scan.site) });
+                }
+            }
+        }
         let nonuniform = scans.iter().find(|s| schema.table(&s.table).and_then(|t| t.index(&s.index)).is_some() && !scan_visibility(schema, s).uniform).map(|s| (*s).clone());
         let mut bindings = BTreeMap::new();
         collect(&program.body, true, &mut bindings);
@@ -252,7 +260,7 @@ impl Flow<'_> {
         if self.nonuniform.is_some() { return Some("another non-uniform scan can truncate this mutation's population".into()); }
         // @ref LLP 3000.007#5.9 — a never-predicting pass drops completeness, never uniformity.
         if self.schema.operations.get(&self.program.name).is_some_and(|fact| fact.predicts.as_deref() == Some("never")) {
-            return None;
+            return plain_prefix_problem(self.schema, scan);
         }
         let pinned: Vec<_> = index.columns().into_iter().take(scan.prefix.len()).collect();
         let cap = table.constraints.iter().filter_map(|c| match c { Constraint::Cap { by, max } if by.iter().all(|key| pinned.contains(key)) => Some(*max), _ => None }).min();
@@ -339,4 +347,26 @@ fn collect(body: &[Stmt], top: bool, out: &mut BTreeMap<String, Binding>) {
             _ => {}
         }
     }
+}
+
+// @ref LLP 3000.007#17 — word expansion and expiry can exhaust the meter before a uniform verdict.
+fn plain_prefix_problem(schema: &Schema, scan: &Scan) -> Option<String> {
+    let table = schema.table(&scan.table)?;
+    if !table.index(&scan.index)?.is_plain() || scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_))) {
+        Some("matching word scans expand hidden words before deciding visibility; read it in a query, or use a plain prefix scan".into())
+    } else if table.expire.is_some() {
+        Some("a table with expiry examines expired rows before deciding visibility; read it in a query, or use a job chunk".into())
+    } else if scan.merge_site.is_some() {
+        Some("a merge is not a plain prefix scan; read it in a query, or use a job chunk".into())
+    } else { None }
+}
+
+// @ref LLP 3000.007#14 — ruling 17 (c): binding a page has the same abort channel as looping over it.
+fn require_uniform_mutation_pages(schema: &Schema, scans: &[&Scan]) -> Result<(), RuntimeError> {
+    for scan in scans {
+        if schema.table(&scan.table).and_then(|table| table.index(&scan.index)).is_some() && !scan_visibility(schema, scan).uniform {
+            return Err(RuntimeError::Structural { code: "E_STRUCTURAL_FANOUT", message: format!("{}: the mutation page's read rule is not uniformly decided by its prefix; read it in a query, or pin the deciding columns", scan.site) });
+        }
+    }
+    Ok(())
 }

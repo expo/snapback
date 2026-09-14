@@ -3453,3 +3453,142 @@ word. A durable execution receipt must not confer permanent historical read
 authority. This implements the declared channels, not constant time or general
 noninterference: cap/postcondition outcomes, near-ceiling budget aborts, timing,
 and the explicitly noted maintain delta retain the RFC's stated limitations.
+
+
+## 2026-09-14 — Lane W2: second blind-pass dispositions on write authority and mutation pages
+
+Built LLP 3000.007 §17 on lane W HEAD
+`604dd6c3c5c9fa8269eb123993bd3cf14db3ef2b`, leaving the work uncommitted for
+the lead and the third blind pass. Read both reviews in full; §14's ruling
+text is byte-for-byte unchanged. No commit, push, tag, publication, meter
+ceiling, serialized value form, existing corpus case or ceremony instrument
+changed. Delete's authority remains unchanged; the shared runtime write guard
+also prevents a delete inside a condition, as §17 requires.
+
+The repair map follows the brief's order:
+
+1. `engine/write.rs::check_constraints` preserves generic S05 `E_RULE` for
+   a secondary hidden collision on a readable target; unreadable targets get
+   `NOT_FOUND`. The paired regression covers update and upsert-patch, both
+   target visibilities, and a successful control.
+2. `insert_upsert` decides insert authority before asset or constraint
+   diagnostics. `write_target.rs::target_attempt` marks before target
+   resolution and restores every meter field on `NOT_FOUND`, also for legacy
+   IR update/upsert. The complete-patch test covers an unknown upload and a
+   recorded foreign upload, both hidden/absent worlds, an admitted foreign
+   asset refusal, and a successful owned-asset insertion. Another pair
+   exercises a read rule's probe work.
+3. Cap refusals name columns and size, never group values, on readable and
+   unreadable targets. The hidden cap pair varies only the retained group key;
+   the readable controls check the same value-free diagnostic.
+4. Every expression, statement, loop domain and builtin in condition purity
+   has an explicit disposition. Blocks, both shape positions, scan filters,
+   merge setup, expression-range bounds, id minting and the side-effecting
+   divmod builtin are exercised via serialized IR, alongside a successful
+   pure-block condition. Eighteen scenarios (9 forms × 2 visibilities) write
+   no copies of `old`; a runtime flag independently forbids writes while a
+   condition holds the old image.
+5. `engine/receipt.rs::receipt` stores the replay-shaped body: no result or
+   current, a value-free diagnostic message, and the original code, site,
+   rewrite, guide and other refusal identity. Re-encoding `from_receipt` is
+   identical to the stored body. Readable composite-key collision followed by
+   revocation is tested through `Engine::replay`, mutation retry and real `/m`,
+   including a lost first response. The closed replay ticket records this
+   additional coverage.
+6. Never-predicting mutation reads are plain prefix scans only. Word scans,
+   merges and expiring tables are refused even without a loop. Tests compare
+   0/40 hidden matching words and 0/9,000 expired rows at check. A plain
+   uniformly false page following 100 iterations of metered work is admitted
+   with identical observations at 0/10,000 hidden rows.
+7. `refuse_hidden_immutable_patch` isolates ruling 17 (a): presence refuses
+   without comparing, including matching guesses; readable mismatch keeps
+   named E_CONSTRAINT.
+8. `require_readable_condition` isolates ruling 17 (b): a hidden author
+   condition is not evaluated. The README and cards say: a condition needs a
+   row you can read; a blind patch needs none.
+9. `require_uniform_mutation_pages` isolates ruling 17 (c), with the existing
+   E_STRUCTURAL_FANOUT and the exact rewrite "read it in a query, or pin the
+   deciding columns". Census: 4 checked-in `.q` files / 26 operations, the
+   loopbar fixture (3 queries), 21 guide blocks and 8 README blocks; **0**
+   programs newly refused by (c). The separate expiry narrowing refused **2**
+   documentation examples, language `pagePass` and README `recentPass`; both
+   now scan members. No app or fixture program needed a rewrite.
+10. `snapback4-sim/tests/common/write_observation.rs` is shared with the
+    device crate: first and retry /m serializer bytes, durable receipt,
+    every meter, complete before/after source and maintain rows, committed
+    changes, effects, writer stream page/snapshot, and both stores' initial,
+    pending, reopened and settled observations. Paired equality compares
+    committed changes rather than equating intentionally different retained
+    hidden images; each refusal also asserts full rollback. Real HTTP is
+    separately exercised in the package suite. The device regression remains
+    in the device crate and now covers 64 scenarios (4 ops × 2 horizons ×
+    2 worlds × 2 authority classes × 2 stores), plus held-target controls.
+    Both renamed tests say what they prove; the retained composite-key case
+    gains a non-colliding world and explicitly preserves the ruled outcome
+    residual.
+11. Rules/writes/programs cards, README and RFC §5.9/§8/§15/§17 record the
+    narrowed surface. The rules card moved to `guide/rules.md` to keep source
+    under the cap. Largest changed source: `guide.rs`, **1,471** lines;
+    `write.rs` is **612**. The pre-existing 3,145-line append-only journal and
+    1,517-line RFC are documentation exceptions to an all-files reading of
+    1,500; this required entry and the RFC's dated record extend them, without
+    rewriting history or splitting the author's rulings.
+
+Measured acceptance: the final isolated Linux blocking suite passed **335 Rust
+tests** (1 declared ignore), **9 fixture tests**, and **123 client tests**, with
+`== 0 failure(s) in 84 s`. Node 24.18.0 and Bun 1.3.12; wasm-opt was on PATH.
+The input archive SHA-256 was
+`555f65c38b64a7a3d635f62d3b710ee09f16c949d3b64323301bf5cd020f8d5e`;
+all **661** regular input files were hash-checked remotely, **0** mismatches,
+and no temporary census test remained. Subsequent edits are this journal and
+RFC records only. Wasm measured **1,507,842 B raw / 423,385 B gzip** on Linux,
+**1,508,078 B raw / 423,233 B gzip** locally. No size improvement is claimed.
+The seven compared meters are examined, index_entries, rule_probes, steps,
+heap_bytes, output_bytes and rows_written. The unchanged write ceiling still
+commits **1,024** source writes and aborts attempted write **1,025**, with
+no committed delta; rollback coverage also includes maintains and effects.
+
+Targeted commands run from `snapback4/` (Node commands always used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`):
+
+- `cargo test -p snapback4-core --test corpus`: `test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.27s`.
+- `cargo test -p snapback4-sim --test write_authority --test condition_authority --test page_admission --no-fail-fast`: condition **1/0**, pages **3/0**, write authority **27/0**; the final local summaries are in `/private/tmp/lane-w2-sim-final2.log`.
+- `cargo test -p snapback4-device --test write_authority`: `test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.93s`.
+- `cargo test -p snapback4-lang --test guide`: `test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s`.
+- `node --test snapback4/packages/snapback4/test/write-authority.test.mjs` (repo root): **4 passed / 0 failed** (`lane-w2-http-alone.log`).
+- `node --test --test-name-pattern='online watches retain' snapback4/packages/snapback4/test/client-lifecycle.test.mjs`: **1/0**; the same command with pattern `wasm:`: **12/0** (`lane-w2-flake-online.log`, `lane-w2-flake-wasm.log`).
+- `bash snapback4/scripts/test.sh` (repo root), both local and on the isolated Linux input above; Linux output in `/private/tmp/lane-w2-suite-linux.log`.
+- `./ref-check --verbose` (repo root) and `git diff --check`.
+
+The first local full run reported `== 2 failure(s) in 400 s`: the introduced
+sibling diagnostic code broke 3 corpus expectations, fixed by retaining
+E_STRUCTURAL_FANOUT (no corpus edits), and concurrent client launches timed out.
+The isolated HTTP/lifecycle retries above pass. Chromium's launch SIGABRT/EPERM
+was reproduced against the exact archived base
+`604dd6c3c5c9fa8269eb123993bd3cf14db3ef2b` with
+`node --test /private/tmp/lane-w2-base-604dd6c/snapback4/packages/snapback4/test/react.test.mjs`
+(**0 passed / 1 failed**, `/private/tmp/lane-w2-base-react.log`). No other
+failure is labeled pre-existing. The Linux suite includes Chromium and passes.
+
+Learned: normalization must cover the complete absent branch and the meter,
+not only the final error word. Purity checks need an exhaustive allowlist and
+an independent runtime guard. Historical diagnostic text has the same custody
+problem as a cached row. A mutation binding a page has the same population
+abort risk as looping over it. This is the ruled disclosure contract, not a
+claim of constant-time execution or elimination of the explicitly retained
+constraint-outcome and maintained-delta channels.
+
+Final local verification: `bash snapback4/scripts/test.sh` reported
+`== 1 failure(s) in 304 s`: **335 Rust passed / 0 failed / 1 ignored**,
+**9 fixture tests passed**, and the concurrent client run **57 passed / 48
+failed** from startup deadlines and Chromium. The follow-up command, from
+`snapback4/`, `node --test --test-concurrency=1 'packages/snapback4/test/*.test.mjs'`
+reported `ℹ tests 113`, `ℹ pass 112`, `ℹ fail 1`; its only failure was the
+base-reproduced Chromium SIGABRT. All startup-deadline failures passed on this
+serial run. The Linux full suite above is completely green, browser included.
+Logs: `/private/tmp/lane-w2-suite-final.log` and
+`/private/tmp/lane-w2-client-serial.log`. Final reference check:
+`ref-check: ok — 474 LLP docs, 8796 refs in 22437 files, 0 errors, 0 unchecked`.
+`git diff --check` is clean; the journal's entire base is an unchanged prefix,
+§14 is unchanged, and the existing corpus, meter ceilings and ceremony
+instrument have no diff. The pre-existing untracked `LANE-BRIEF.md` is untouched.

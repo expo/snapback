@@ -57,3 +57,8 @@ and a different principal reusing the id. The real HTTP counterpart is
 dropped replies and revocation` in
 `snapback4/packages/snapback4/test/write-authority.test.mjs`. These tests
 compare the complete receipt and verify that no retry repeats effects.
+
+2026-09-14 — Lane W2 also covers row-derived diagnostic content: `_ops` now
+records the replay-shaped body with no result/current and a value-free message;
+readable composite-key collisions followed by revocation are exercised through
+`Engine::replay` and `/m`, including a lost first response.

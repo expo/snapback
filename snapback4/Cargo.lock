@@ -487,6 +487,7 @@ version = "0.2.9"
 dependencies = [
  "serde_json",
  "snapback4-core",
+ "snapback4-device",
  "snapback4-lang",
 ]
 

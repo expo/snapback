@@ -89,6 +89,7 @@ pub struct Runner<'a> {
     #[allow(dead_code)]
     pub(crate) seq: u64,
     pub(crate) statement_site: String,
+    pub(crate) evaluating_write_condition: bool,
 }
 
 impl<'a> Runner<'a> {
@@ -127,6 +128,7 @@ impl<'a> Runner<'a> {
             presence_unknown: false,
             seq,
             statement_site: String::new(),
+            evaluating_write_condition: false,
         }
     }
 
@@ -154,6 +156,7 @@ impl<'a> Runner<'a> {
     pub(super) fn statements(&mut self, statements: &[Stmt], prefix: &str) -> Result<Flow, RuntimeError> {
         for (index, statement) in statements.iter().enumerate() {
             let site = format!("{prefix}:{}", index + 1);
+            if matches!(statement, Stmt::Insert { .. } | Stmt::InsertIfAbsent { .. } | Stmt::Update { .. } | Stmt::Upsert { .. } | Stmt::WriteTarget { .. } | Stmt::Delete { .. } | Stmt::Emit { .. }) { self.refuse_condition_write()?; }
             self.statement_site = site.clone();
             self.meter.at(&site);
             self.meter.step(1)?;

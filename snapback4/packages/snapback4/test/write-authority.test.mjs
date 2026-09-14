@@ -18,6 +18,7 @@ table counters:
   secret: text <=80
   amount: int
   unique byKey: key
+  unique bySecretAmount: secret, amount
   by byOwner: owner, id
   read <- .owner = viewer
   update <- allow
@@ -122,4 +123,22 @@ test("write authority: check --cost prints the bounded uniform pass and its exam
   const checked = spawnSync(binary, ["check", "--cost"], { cwd: f.directory, encoding: "utf8" });
   assert.equal(checked.status, 0, checked.stderr);
   assert.match(checked.stdout, /a pass over the first 10 rows of counters\[owner\] by byOwner; examined ceiling 8192/);
+});
+
+test("write authority: a lost readable key-collision reply cannot recover its key after revocation", { timeout: 20000 }, async (t) => {
+  const f = await fixture(t);
+  const other = { id: "other", key: "other", owner: "dev:alice", secret: "PRIVATE", amount: 0 };
+  assert.equal((await f.request("/seed", "alice", [{ table: "counters", row: other }])).seeded, 1);
+  const input = { id: "lost-key", args: { key: "lookup" } };
+  const first = await f.request("/m/put", "alice", input); // application loses this response
+  assert.equal(first.why.code, "E_CONSTRAINT");
+  assert.match(first.why.message, /PRIVATE/);
+  await f.seed("dev:carol");
+  assert.equal((await f.request("/seed", "alice", [{ table: "counters", row: { ...other, owner: "dev:carol" } }])).seeded, 1);
+  const retry = await f.request("/m/put", "alice", input);
+  assert.equal(retry.why.code, first.why.code);
+  assert.equal(retry.replayed, true);
+  assert.doesNotMatch(JSON.stringify(retry), /PRIVATE|bySecretAmount/);
+  assert.equal(retry.why.message, "the program refused with E_CONSTRAINT");
+  for (const field of ["code", "site", "rewrite", "guide", "family", "retryable"]) assert.deepEqual(retry.why[field], first.why[field]);
 });

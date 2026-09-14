@@ -303,7 +303,7 @@ query online(p: principal):
 
 mutation pagePass(roomId: rooms): server
   n = 0
-  for row in messages[roomId] first 10 by byRoomTime:
+  for row in members[roomId] first 10 by byRoomPrincipal:
     n = n + 1
   return n
 
@@ -474,60 +474,7 @@ leading with the column; a merge's lanes are equal-width prefixes of one
 index; a job's `chunk` sweeps an index whose columns are `id` or
 `immutable`. The diagnostic names the indexes that exist and the one to
 declare."##,
-        "rules" => r##"# Rules
-
-```quarry
-table docs:
-  ownerId: principal
-  title: text <=120
-  state: enum('draft', 'final')
-  by byOwner: ownerId, id
-  read <- .ownerId = viewer or exists editors[.id, viewer]                  -- allow | deny | public ['why'] | .col = viewer | .col != 'x' | exists t[..] | and | or | not
-  insert <- .ownerId = viewer and .state = 'draft'
-  update (old, next) <- old.ownerId = viewer and next.ownerId = viewer and old.state != 'final'   -- both images of an update
-  delete <- .ownerId = viewer
-
-table editors:
-  docId: docs
-  principal: principal
-  unique byDocPrincipal: docId, principal
-  by byPrincipalDoc: principal, docId, id
-  read <- exists editors[.docId, viewer]
-  insert <- exists docs[id = .docId, ownerId = viewer] or created docs[.docId]   -- a probe may name its columns; created: this mutation inserted the row
-  delete <- .principal = viewer
-```
-
-Each of `read`, `insert`, `update` and `delete` takes one rule over the row
-(`.col`), `viewer` and literals. A table without a rule for an effect denies
-it. `public 'why'` on its own line is the read rule. An `exists` probe needs
-an index over the probed columns (`by index` names one when two match); named
-equalities may cover a total unique key and check extra columns on that one row,
-for both `exists` and `created`, without an extra index. Every focal field used
-by the key or extra tests must be pinned for one verdict to serve a whole page. `created t[..]` is valid in insert rules only. Rules
-compare with `=` and `!=` alone: a rule that varies with time is not an
-audience a partition can hold (use `expire`). A read rule that is exactly
-`exists t[.a, .b, viewer]`, `.col = viewer` or `public` can be synced (guide
-sync). The system principal consults no rules, so `system` is never a rule word.
-
-For update/upsert, "readable" means the read rule admits the old row in the
-pre-write state, before the patch or any of its effects. The engine resolves
-id and unique-key targets privately; the update rule judges old and next.
-
-| Target before the write | Refusal details |
-| --- | --- |
-| Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_CONSTRAINT`; `E_INPUT` |
-| Unreadable or absent | `NOT_FOUND` for rule denial, failed `if`, immutable mismatch, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |
-
-A hidden collision on ordinary insert or `insert ... if absent` stays
-`E_RULE`; a readable collision names its index (if-absent returns null).
-An update colliding with a different hidden row returns `NOT_FOUND`, even
-when its target is readable: target authority does not authorize that row.
-Use `upsert counters[recipient] { count: 1 }` under an `update` rule to
-write another principal's row. Success discloses the admitted row's existence
-and the rule/condition predicates. It grants no extra stream or snapshot row.
-A readable maintain over a hidden source is a declared read channel: its
-delta can disclose the old contribution. `N_MAINTAIN_DELTA` notes potentially
-wider update authority under a separately readable maintain."##,
+        "rules" => include_str!("guide/rules.md"),
         "sync" => r##"# Sync: the viewer's partition is the unit of sync
 
 ```quarry
@@ -845,15 +792,17 @@ id and unique-key targets privately; the update rule judges old and next.
 | Target before the write | Refusal details |
 | --- | --- |
 | Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_CONSTRAINT`; `E_INPUT` |
-| Unreadable or absent | `NOT_FOUND` for rule denial, failed `if`, immutable mismatch, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |
+| Unreadable or absent | `NOT_FOUND` for rule denial, any `if`, any immutable column in the patch, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |
 
 A hidden collision on ordinary insert or `insert ... if absent` stays
 `E_RULE`; a readable collision names its index (if-absent returns null).
-An update colliding with a different hidden row returns `NOT_FOUND`, even
-when its target is readable: target authority does not authorize that row.
+An update or upsert-patch colliding with a different hidden row returns generic
+`E_RULE` when its target is readable and `NOT_FOUND` when its target is unreadable.
 Use `upsert counters[recipient] { count: 1 }` under an `update` rule to
 write another principal's row. Success discloses the admitted row's existence
-and the rule/condition predicates. It grants no extra stream or snapshot row.
+and the update rule predicates. It grants no extra stream or snapshot row.
+A condition needs a row you can read; a blind patch needs none. On an unreadable
+target, an immutable column in a patch refuses without comparing its value.
 
 
 The table names are the language card's. A final write is the implicit
@@ -865,7 +814,8 @@ fans out to its partitions (guide sync). A mutation applies at most once
 per client-minted id and principal. Valued updates/upserts and conflict
 `current` are ordinary read-rule gets (null or withheld when hidden), evaluated
 at the read's state; a write that grants read authority may return its row.
-The recorded body is exactly the initial `/m` reply. Retries return only
+The recorded body is the replay body, with value-free diagnostic messages
+and no `result` or `current`. Retries return only
 execution identity (`sent`/`failed`, `seq`/`why`, `replayed`), withholding
 historical `result` and `current`, including scalar results after a lost reply.
 A device write-target miss, by id or unique key with any horizon, queues
@@ -888,9 +838,12 @@ mutation programWrites(roomId: rooms, title: text 1..80):     -- reads and write
 ```
 
 A mutation with `predicts: "never"` (a server site or `: server`) may pass
-over a bounded page whose read rule is uniform over its prefix, without a
-complete schema-capped group. A predicting mutation keeps that requirement;
-non-uniform prefixes, merges and unknown origins keep `E_STRUCTURAL_FANOUT`.
+over a bounded plain prefix page whose read rule is uniform over its prefix,
+without a complete schema-capped group. `matching`, merges and tables with
+expiry are refused for that pass (`E_STRUCTURAL_FANOUT`). A predicting mutation
+keeps the complete-group requirement. Every page a mutation reads, even just
+binding it, must be uniformly decided by its prefix (`E_STRUCTURAL_FANOUT`):
+read it in a query, or pin the deciding columns.
 The pass is atomic and still aborts above 1,024 rows written. `check --cost`
 prints "a pass over the first N rows of <prefix>; examined ceiling <n>".
 
@@ -1501,7 +1454,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_FIELD", "family input — a field was read from a value that has none (a null row's column, a missing object field). Narrow the row first: `row ! else NOT_FOUND`."),
     ("E_SCHEMA", "family schema — the schema or the store is inconsistent. `snapback4 check` names the line."),
     ("E_SCHEMA_CONSTRAINT", "family schema — a declaration the compiler binds but the core refuses: a cap or an expire without its index, a maintain target without its unique group index, a sync whose aggregate would reveal rows its audience may not read. The message names the declaration; guide indexes."),
-    ("E_STRUCTURAL_FANOUT", "family schema — prediction needs a complete schema-capped group; a never-predicting mutation may pass a bounded uniform page. Non-uniform prefixes, merges and unknown origins are refused in either class. Pin the read-rule fields and a capped group, use : server for a bounded uniform pass, or move a sweep to a job chunk."),
+    ("E_STRUCTURAL_FANOUT", "family schema — prediction needs a complete schema-capped group; a never-predicting mutation may pass a bounded uniform plain prefix page over a table without expiry. Every mutation page, even without a loop, must be uniformly decided by its prefix. Matching word scans, merges and unknown origins are refused for a never-predicting pass. Pin the read-rule fields and a capped group, use : server for a bounded uniform pass, or move a sweep to a job chunk."),
     ("E_UNBOUND_SCAN", "family schema — a compiled program scans a table or index the schema no longer has. Recompile: `snapback4 check` after the schema change."),
     ("E_RULE", "family auth — a table's insert, update or delete rule did not admit this viewer, or a unique key collided with a row you cannot read; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count. Reads never raise it: a hidden row is null. Read the rule with `snapback4 why <table>`."),
     ("E_AUTH", "family auth — no principal, a session that is not live, or the wrong kind at a door: send `x-snapback-persona` in development or a bearer token (a persona is refused off loopback and under `serve`); claiming effects and minting sessions take a service token (`snapback4 token --service <name>`), never a user's (guide services)."),

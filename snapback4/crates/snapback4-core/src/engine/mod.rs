@@ -810,7 +810,7 @@ impl Engine {
                 WriteState::Sent { seq, .. } => *seq,
                 WriteState::Failed { .. } => tx.next_seq()? - 1,
             };
-            tx.record_applied(&viewer, op, seq, &serde_json::to_string(&outcome.reply(Some(op))).map_err(|e| RuntimeError::Store(e.to_string()))?)?;
+            tx.record_applied(&viewer, op, seq, &serde_json::to_string(&outcome.receipt(Some(op))).map_err(|e| RuntimeError::Store(e.to_string()))?)?;
         }
         tx.commit()?;
         Ok(outcome)

@@ -1,0 +1,56 @@
+# Rules
+
+```quarry
+table docs:
+  ownerId: principal
+  title: text <=120
+  state: enum('draft', 'final')
+  by byOwner: ownerId, id
+  read <- .ownerId = viewer or exists editors[.id, viewer]                  -- allow | deny | public ['why'] | .col = viewer | .col != 'x' | exists t[..] | and | or | not
+  insert <- .ownerId = viewer and .state = 'draft'
+  update (old, next) <- old.ownerId = viewer and next.ownerId = viewer and old.state != 'final'   -- both images of an update
+  delete <- .ownerId = viewer
+
+table editors:
+  docId: docs
+  principal: principal
+  unique byDocPrincipal: docId, principal
+  by byPrincipalDoc: principal, docId, id
+  read <- exists editors[.docId, viewer]
+  insert <- exists docs[id = .docId, ownerId = viewer] or created docs[.docId]   -- a probe may name its columns; created: this mutation inserted the row
+  delete <- .principal = viewer
+```
+
+Each of `read`, `insert`, `update` and `delete` takes one rule over the row
+(`.col`), `viewer` and literals. A table without a rule for an effect denies
+it. `public 'why'` on its own line is the read rule. An `exists` probe needs
+an index over the probed columns (`by index` names one when two match); named
+equalities may cover a total unique key and check extra columns on that one row,
+for both `exists` and `created`, without an extra index. Every focal field used
+by the key or extra tests must be pinned for one verdict to serve a whole page. `created t[..]` is valid in insert rules only. Rules
+compare with `=` and `!=` alone: a rule that varies with time is not an
+audience a partition can hold (use `expire`). A read rule that is exactly
+`exists t[.a, .b, viewer]`, `.col = viewer` or `public` can be synced (guide
+sync). The system principal consults no rules, so `system` is never a rule word.
+
+For update/upsert, "readable" means the read rule admits the old row in the
+pre-write state, before the patch or any of its effects. The engine resolves
+id and unique-key targets privately; the update rule judges old and next.
+
+| Target before the write | Refusal details |
+| --- | --- |
+| Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_CONSTRAINT`; `E_INPUT` |
+| Unreadable or absent | `NOT_FOUND` for rule denial, any `if`, any immutable column in the patch, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |
+
+A hidden collision on ordinary insert or `insert ... if absent` stays
+`E_RULE`; a readable collision names its index (if-absent returns null).
+An update or upsert-patch colliding with a different hidden row returns generic
+`E_RULE` when its target is readable and `NOT_FOUND` when its target is unreadable.
+Use `upsert counters[recipient] { count: 1 }` under an `update` rule to
+write another principal's row. Success discloses the admitted row's existence
+and the update rule predicates. It grants no extra stream or snapshot row.
+A condition needs a row you can read; a blind patch needs none. On an unreadable
+target, an immutable column in a patch refuses without comparing its value.
+A readable maintain over a hidden source is a declared read channel: its
+delta can disclose the old contribution. `N_MAINTAIN_DELTA` notes potentially
+wider update authority under a separately readable maintain.

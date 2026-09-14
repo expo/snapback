@@ -203,6 +203,10 @@ impl RuntimeError {
                 refusal.message = format!("the program refused with {code}");
                 refusal.guide = Some("programs".into());
             }
+            Self::Structural { code: "E_STRUCTURAL_FANOUT", message } => {
+                refusal.rewrite = Some(if message.contains("read it in a query, or pin the deciding columns") { "read it in a query, or pin the deciding columns".into() } else { message.clone() });
+                refusal.guide = Some("programs".into());
+            }
             Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE") => refusal.guide = Some("actions".into()),
             Self::Bound { kind, ceiling, site, .. } => {
                 // The ceiling, never the count: the count would measure rows

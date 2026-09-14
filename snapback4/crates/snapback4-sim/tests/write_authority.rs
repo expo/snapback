@@ -1,5 +1,8 @@
 //! LLP 3000.007 §15: paired hidden worlds, complete /m envelopes, durable
 //! retries, effects and partition observations. Physical timing is not asserted.
+#[path = "common/write_observation.rs"]
+mod observation;
+use observation::{Observation, observe};
 use snapback4_core::{Context, Engine, MutationOutcome, Value, WriteState, wire};
 use serde_json::{Value as Json, json};
 use std::collections::BTreeMap;
@@ -67,11 +70,8 @@ fn args(e: &Engine, name: &str, values: Json) -> BTreeMap<String, Value> {
 fn call(e: &mut Engine, name: &str, viewer: &str, values: Json, op: &str) -> MutationOutcome {
     let result = e.mutate(name, Some(op), Context::new(viewer, args(e, name, values)).at(1000).with_ids(["fresh".into(), "effect".into()])).unwrap();
     if !result.replayed {
-        let mut receipt = result.reply(Some(op));
+        let receipt = result.receipt(Some(op));
         assert_eq!(recorded(e, viewer, op), receipt);
-        receipt.as_object_mut().unwrap().remove("result");
-        receipt.as_object_mut().unwrap().remove("current");
-        receipt["replayed"] = Json::Bool(true);
         assert_eq!(e.replay(viewer, op).unwrap().unwrap().reply(Some(op)), receipt);
     }
     result
@@ -83,30 +83,26 @@ fn recorded(e: &Engine, viewer: &str, op: &str) -> Json {
     let text = e.store().applied_outcome(viewer, op).unwrap().unwrap();
     serde_json::from_str(&text).unwrap()
 }
+fn observed(e: &mut Engine, name: &str, viewer: &str, values: Json, op: &str) -> (MutationOutcome, Observation) {
+    let query = if e.programs().any(|p| p.name == "one") { ("one", json!({"key":"lookup"})) } else { ("page", json!({"owner":values["owner"],"c":null})) };
+    observe(e, name, viewer, values, op, query)
+}
+fn equal_observations(observations: &[Observation]) {
+    assert!(observations.len() >= 2);
+    for pair in observations.windows(2) { pair[0].assert_same(&pair[1]); }
+}
 fn unchanged_pair(source: &str, name: &str, values: Json, hidden_amount: i64) -> Json {
-    let mut worlds = [world(source, false, 7), world(source, true, hidden_amount)];
-    let mut bodies = Vec::new();
-    let mut retries = Vec::new();
-    for e in &mut worlds {
-        assert_eq!(value(e, "bob"), Value::Null);
-        let before = e.store().rows("records").unwrap();
-        let seq = e.seq().unwrap();
-        let result = call(e, name, "bob", values.clone(), "same");
-        let body = result.reply(Some("same"));
-        assert_eq!(recorded(e, "bob", "same"), body);
-        assert_eq!(e.store().rows("records").unwrap(), before);
-        assert_eq!(e.seq().unwrap(), seq);
-        assert!(e.stream_at("bob", seq, 100, 1000).unwrap().events.is_empty());
-        assert!(e.snapshot_at("bob", 1000).unwrap().0.is_empty());
-        assert!(e.effects(None, 100).unwrap().is_empty());
-        retries.push(call(e, name, "bob", values.clone(), "same").reply(Some("same")));
-        bodies.push(body);
+    let mut observations = Vec::new();
+    for mut e in [world(source, false, 7), world(source, true, hidden_amount)] {
+        assert_eq!(value(&mut e, "bob"), Value::Null);
+        let (_, observation) = observed(&mut e, name, "bob", values.clone(), "same");
+        observation.assert_unchanged();
+        assert_eq!(observation.body()["why"]["code"], "NOT_FOUND");
+        assert!(observation.body().get("current").is_none());
+        observations.push(observation);
     }
-    assert_eq!(bodies[0], bodies[1]);
-    assert_eq!(retries[0], retries[1]);
-    assert_eq!(bodies[0]["why"]["code"], "NOT_FOUND");
-    assert!(bodies[0].get("current").is_none());
-    bodies.remove(0)
+    equal_observations(&observations);
+    observations[0].body()
 }
 
 #[test]
@@ -117,12 +113,12 @@ fn s05_insert_and_insert_if_absent_on_a_hidden_unique_clash_stay_e_rule() {
             let mut e = engine(SOURCE);
             seed(&mut e, "records", vec![row("target", "lookup", "alice", 7, hidden_secret)]);
             let before = e.store().rows("records").unwrap();
-            let result = call(&mut e, name, "bob", json!({"key":"lookup"}), "same");
+            let (result, observation) = observed(&mut e, name, "bob", json!({"key":"lookup"}), "same");
             assert_eq!(result.reply(Some("same"))["why"]["code"], "E_RULE");
             assert_eq!(e.store().rows("records").unwrap(), before);
-            replies.push(result.reply(Some("same")));
+            replies.push(observation);
         }
-        assert_eq!(replies[0], replies[1]);
+        equal_observations(&replies);
         let mut e = engine(SOURCE);
         assert!(matches!(call(&mut e, name, "bob", json!({"key":"free"}), "positive").state, WriteState::Sent { .. }));
     }
@@ -141,18 +137,17 @@ fn s05_upsert_on_a_hidden_row_succeeds_when_the_update_rule_admits_and_returns_n
     let mut replies = Vec::new();
     for amount in [7, 19] {
         let mut e = world(SOURCE, true, amount);
-        let result = call(&mut e, "put", "bob", json!({"key":"lookup"}), "same");
+        let (result, observation) = observed(&mut e, "put", "bob", json!({"key":"lookup"}), "same");
         assert!(matches!(result.state, WriteState::Sent { result: Value::Null, .. }));
         assert_eq!(value(&mut e, "alice").field("amount"), Ok(&Value::Int(0)));
         assert_eq!(value(&mut e, "bob"), Value::Null);
         assert_eq!(e.store().rows("records").unwrap().len(), 1);
-        replies.push(result.reply(Some("same")));
+        replies.push(observation);
     }
-    assert_eq!(replies[0], replies[1]);
+    equal_observations(&replies);
 }
 #[test]
-fn s05_upsert_on_a_hidden_row_is_e_rule_when_the_update_rule_refuses() {
-    // Historical reviewer name; ruling 15 revises the hidden refusal to NOT_FOUND.
+fn s05_upsert_on_a_hidden_row_is_not_found_when_the_update_rule_refuses() {
     unchanged_pair(&SOURCE.replace("update <- allow", "update (old, next) <- old.owner = viewer"), "put", json!({"key":"lookup"}), 7);
 }
 #[test]
@@ -173,15 +168,19 @@ fn w1_e_conflict_current_is_withheld_and_the_code_does_not_tell_hidden_from_abse
     let body = call(&mut e, "conditional", "alice", json!({"key":"lookup","expected":4}), "conflict").reply(Some("conflict"));
     assert_eq!(body["why"]["code"], "E_CONFLICT");
     assert_eq!(body["current"]["amount"], 7);
-    assert!(matches!(call(&mut e, "conditional", "bob", json!({"key":"lookup","expected":7}), "yes").state, WriteState::Sent { result: Value::Null, .. }));
+    assert_eq!(call(&mut e, "conditional", "bob", json!({"key":"lookup","expected":7}), "yes").reply(Some("yes"))["why"]["code"], "NOT_FOUND");
+    assert!(matches!(call(&mut e, "conditional", "alice", json!({"key":"lookup","expected":7}), "readable").state, WriteState::Sent { .. }));
 }
 #[test]
-fn w1_an_immutable_mismatch_on_a_hidden_row_is_not_a_searchable_constraint() {
+fn w1_an_immutable_patch_on_a_hidden_row_refuses_matching_and_mismatching_guesses() {
     let takeover = format!("{SOURCE}\nmutation takeover(key: text <=80):\n  update records[key] {{owner: viewer, frozen: 'wrong'}}\n");
     unchanged_pair(&takeover, "takeover", json!({"key":"lookup"}), 7);
     unchanged_pair(SOURCE, "immutable", json!({"key":"lookup","guess":"different"}), 7);
     let mut e = world(SOURCE, true, 7);
-    assert!(matches!(call(&mut e, "immutable", "bob", json!({"key":"lookup","guess":"fixed"}), "yes").state, WriteState::Sent { .. }));
+    let mismatch = unchanged_pair(SOURCE, "immutable", json!({"key":"lookup","guess":"wrong"}), 7);
+    let matching = unchanged_pair(SOURCE, "immutable", json!({"key":"lookup","guess":"fixed"}), 7);
+    assert_eq!(matching, mismatch);
+    assert!(matches!(call(&mut e, "immutable", "alice", json!({"key":"lookup","guess":"fixed"}), "yes").state, WriteState::Sent { .. }));
     assert_eq!(call(&mut e, "immutable", "alice", json!({"key":"lookup","guess":"different"}), "no").reply(Some("no"))["why"]["code"], "E_CONSTRAINT");
 }
 #[test]
@@ -195,13 +194,17 @@ fn w1_incomplete_patch_upsert_does_not_tell_hidden_deny_from_absent() {
 #[test]
 fn w1_the_merged_image_is_not_in_result_current_or_the_program() {
     let source = format!("{SOURCE}\nmutation shape(key: text <=80):\n  written = upsert records[key] {{amount: 0}}\n  require written = null else LEAK\n  return {{written, read: records[key]}}\n");
+    let mut observations = Vec::new();
     for amount in [7, 19] {
         let mut e = world(&source, true, amount);
-        let body = call(&mut e, "shape", "bob", json!({"key":"lookup"}), "shape").reply(Some("shape"));
+        let (result, observation) = observed(&mut e, "shape", "bob", json!({"key":"lookup"}), "shape");
+        let body = result.reply(Some("shape"));
         assert_eq!(body["result"], json!({"written":null,"read":null}));
         assert_eq!(body["state"], "sent");
         assert!(body.get("current").is_none());
+        observations.push(observation);
     }
+    equal_observations(&observations);
     let invalid = compile(SOURCE);
     let json = serde_json::to_string(&invalid.programs.iter().find(|p| p.program.name == "conditional").unwrap().program).unwrap();
     assert!(json.contains("WriteTarget"));
@@ -213,7 +216,7 @@ fn w1_the_writers_stream_and_snapshot_do_not_gain_the_row() {
     for amount in [7, 19] {
         let mut e = world(SOURCE, true, amount);
         let before = e.seq().unwrap();
-        let result = call(&mut e, "put", "bob", json!({"key":"lookup"}), "same");
+        let (result, observation) = observed(&mut e, "put", "bob", json!({"key":"lookup"}), "same");
         let WriteState::Sent { seq, .. } = result.state else { panic!("{result:?}") };
         let page = e.stream_at("bob", before, 100, 1000).unwrap();
         assert!(page.events.is_empty());
@@ -221,34 +224,42 @@ fn w1_the_writers_stream_and_snapshot_do_not_gain_the_row() {
         assert!(e.snapshot_at("bob", 1000).unwrap().0.is_empty());
         assert_eq!(e.snapshot_at("alice", 1000).unwrap().0.len(), 1);
         assert_eq!(e.acknowledged("bob", &["same".into()], seq).unwrap()["same"], seq);
-        observations.push(serde_json::to_value(page).unwrap());
+        observations.push(observation);
     }
-    assert_eq!(observations[0], observations[1]);
+    equal_observations(&observations);
 }
 #[test]
 fn w1_replayed_ops_returns_the_withheld_body() {
-    let mut e = world(SOURCE, true, 7);
-    let first = call(&mut e, "put", "bob", json!({"key":"lookup"}), "same");
-    assert_eq!(recorded(&e, "bob", "same"), first.reply(Some("same")));
-    let before = e.store().rows("records").unwrap();
-    let replay = call(&mut e, "put", "bob", json!({"key":"lookup"}), "same");
-    assert_eq!(replay.reply(Some("same")), json!({"state":"sent","id":"same","seq":e.seq().unwrap(),"replayed":true}));
-    assert_eq!(e.store().rows("records").unwrap(), before);
+    let mut observations = Vec::new();
+    for amount in [7, 19] {
+        let mut e = world(SOURCE, true, amount);
+        let (_, observation) = observed(&mut e, "put", "bob", json!({"key":"lookup"}), "same");
+        assert_eq!(serde_json::from_slice::<Json>(&observation.retry_http_body).unwrap(), json!({"state":"sent","id":"same","seq":e.seq().unwrap(),"replayed":true}));
+        observations.push(observation);
+    }
+    equal_observations(&observations);
 }
+
 #[test]
 fn wa2_secondary_hidden_collision_does_not_borrow_target_authority() {
     let source = SOURCE.replace("  immutable frozen", "  unique byAmount: amount\n  immutable frozen");
-    let mut replies = Vec::new();
-    for secret in ["FIRST", "SECOND"] {
-        let mut e = engine(&source);
-        seed(&mut e, "records", vec![row("target", "lookup", "bob", 7, "visible"), row("other", "other", "alice", 0, secret)]);
-        let before = e.store().rows("records").unwrap();
-        let body = call(&mut e, "edit", "bob", json!({"key":"lookup"}), "same").reply(Some("same"));
-        assert_eq!(body["why"]["code"], "NOT_FOUND");
-        assert_eq!(e.store().rows("records").unwrap(), before);
-        replies.push(body);
+    for name in ["edit", "put"] {
+        for owner in ["bob", "alice"] {
+            let mut replies = Vec::new();
+            for secret in ["FIRST", "SECOND"] {
+                let mut e = engine(&source);
+                seed(&mut e, "records", vec![row("target", "lookup", owner, 7, "visible"), row("other", "other", "alice", 0, secret)]);
+                let before = e.store().rows("records").unwrap();
+                let (result, observation) = observed(&mut e, name, "bob", json!({"key":"lookup"}), "same");
+                let body = result.reply(Some("same"));
+                assert_eq!(body["why"]["code"], if owner == "bob" { "E_RULE" } else { "NOT_FOUND" });
+                for private in ["byAmount", "FIRST", "SECOND"] { assert!(!body.to_string().contains(private)); }
+                assert_eq!(e.store().rows("records").unwrap(), before);
+                replies.push(observation);
+            }
+            equal_observations(&replies);
+        }
     }
-    assert_eq!(replies[0], replies[1]);
     let mut e = world(&source, true, 7);
     assert!(matches!(call(&mut e, "edit", "bob", json!({"key":"lookup"}), "positive").state, WriteState::Sent { .. }));
 }
@@ -260,11 +271,19 @@ fn wa2_retained_composite_key_never_enters_refusal() {
         let mut e = engine(&source);
         // The readable set is identical in both worlds; the target selects a different retained key.
         seed(&mut e, "records", vec![row("target", "lookup", "alice", 7, secret), row("one", "one", "bob", 0, "FIRST"), row("two", "two", "bob", 0, "SECOND")]);
-        let body = call(&mut e, "edit", "bob", json!({"key":"lookup"}), "same").reply(Some("same"));
+        let (result, observation) = observed(&mut e, "edit", "bob", json!({"key":"lookup"}), "same");
+        let body = result.reply(Some("same"));
         assert_eq!(body["why"]["code"], "NOT_FOUND");
-        replies.push(body);
+        replies.push(observation);
     }
-    assert_eq!(replies[0], replies[1]);
+    equal_observations(&replies);
+    let mut e = engine(&source);
+    seed(&mut e, "records", vec![row("target", "lookup", "alice", 7, "THIRD"), row("one", "one", "bob", 0, "FIRST"), row("two", "two", "bob", 0, "SECOND")]);
+    let (result, observation) = observed(&mut e, "edit", "bob", json!({"key":"lookup"}), "same");
+    assert!(matches!(result.state, WriteState::Sent { result: Value::Null, .. }));
+    assert_eq!(observation.changes, json!({"records/target":{"amount":0}}));
+    // A retained unique-key match remains an explicit §17 outcome residual; its value never leaves.
+    assert!(!observation.body().to_string().contains("THIRD"));
 }
 #[test]
 fn wa3_hidden_patch_preserves_foreign_asset_without_disclosing_id() {
@@ -275,12 +294,12 @@ fn wa3_hidden_patch_preserves_foreign_asset_without_disclosing_id() {
         let asset = e.store_asset("alice", &png, 1000).unwrap();
         let mut r = row("target", "lookup", "alice", 7, "PRIVATE"); r["photo"] = wire::to_json(&asset.column_value());
         seed(&mut e, "records", vec![r]);
-        let result = call(&mut e, "put", "bob", json!({"key":"lookup"}), "same");
+        let (result, observation) = observed(&mut e, "put", "bob", json!({"key":"lookup"}), "same");
         assert!(matches!(result.state, WriteState::Sent { result: Value::Null, .. }));
         assert_eq!(value(&mut e, "alice").field("photo"), Ok(&asset.column_value()));
-        replies.push(result.reply(Some("same")));
+        replies.push(observation);
     }
-    assert_eq!(replies[0], replies[1]);
+    equal_observations(&replies);
     let source = format!("{}\nmutation asset(key: text <=80, photo: image <=1000):\n  update records[key] {{amount: 0, photo}}\n", SOURCE.replace("update <- allow", "update <- deny"));
     unchanged_pair(&source, "asset", json!({"key":"lookup","photo":{"id":"foreign-upload"}}), 7);
 }
@@ -290,7 +309,7 @@ fn wa5_hidden_write_replay_returns_only_sanitized_receipt() {
     let mut e = world(SOURCE, true, 7);
     let first = call(&mut e, "conditional", "bob", json!({"key":"lookup","expected":0}), "same");
     let body = recorded(&e, "bob", "same");
-    assert_eq!(body, first.reply(Some("same")));
+    assert_eq!(body, first.receipt(Some("same")));
     for field in ["current", "result", "metered", "tables", "events"] { assert!(body.get(field).is_none(), "{body}"); }
     assert!(e.replay("bob", "same").unwrap().unwrap().reply(Some("same")).get("current").is_none());
 }
@@ -347,22 +366,22 @@ fn m3_a_non_predicting_pass_over_a_hidden_prefix_does_not_abort_when_a_query_wou
     let source = PAGE.replace("items[owner] first 1100 by byOwner", "items[] first 1100 by byOwner");
     let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
     assert!(bound.diagnostics.iter().any(|d| d.code == "E_STRUCTURAL_FANOUT"));
-    let helper = format!("{SOURCE}\nfn countVisible():\n  n = 0\n  for r in records[viewer] first 10 by byOwner:\n    n = n + 1\n  return n\nmutation checked(key: text <=80): server\n  return update records[key] {{amount: 0}} if countVisible() = 0\n");
+    let helper = format!("{SOURCE}\nfn countVisible():\n  n = 0\n  for r in records[viewer] first 10 by byOwner:\n    n = n + 1\n  return n\nmutation checked(key: text <=80): server\n  return update records[key] {{amount: 0}} if countVisible() = 1\n");
     let mut e = world(&helper, true, 7);
-    assert_eq!(call(&mut e, "checked", "bob", json!({"key":"lookup"}), "helper").reply(Some("helper"))["state"], "sent");
+    assert_eq!(call(&mut e, "checked", "alice", json!({"key":"lookup"}), "helper").reply(Some("helper"))["state"], "sent");
     let unpinned = helper.replace("records[viewer] first 10", "records[] first 10");
     assert!(snapback4_lang::compile(&[("schema.q".into(), unpinned)]).diagnostics.iter().any(|d| d.code == "E_STRUCTURAL_FANOUT"));
     let mut bodies = Vec::new();
     for hidden in [0, 100, 10_000] {
         let mut e = page_world(PAGE, 1, hidden);
-        let result = call(&mut e, "pass", "bob", json!({"owner":"alice"}), "same");
+        let (result, observation) = observed(&mut e, "pass", "bob", json!({"owner":"alice"}), "same");
         assert!(matches!(result.state, WriteState::Sent { result: Value::Int(0), .. }));
         let query = e.query("page", Context::new("bob", args(&e, "page", json!({"owner":"alice","c":null})))).unwrap();
         assert_eq!(query.data, Value::Array(vec![]));
         assert_eq!(result.metered.rows_written, 0);
-        bodies.push(result.reply(Some("same")));
+        bodies.push(observation);
     }
-    assert!(bodies.windows(2).all(|w| w[0] == w[1]));
+    equal_observations(&bodies);
 }
 #[test]
 fn m3_visible_count_in_the_program_matches_a_query_of_the_same_prefix() {
@@ -370,13 +389,13 @@ fn m3_visible_count_in_the_program_matches_a_query_of_the_same_prefix() {
     for hidden in [0, 10_000] {
         let mut e = page_world(PAGE, 3, hidden);
         let query = e.query("page", Context::new("bob", args(&e, "page", json!({"owner":"bob","c":null})))).unwrap();
-        let result = call(&mut e, "pass", "bob", json!({"owner":"bob"}), "same");
+        let (result, observation) = observed(&mut e, "pass", "bob", json!({"owner":"bob"}), "same");
         assert!(matches!(result.state, WriteState::Sent { result: Value::Int(n), .. } if n == query.data.as_array().unwrap().len() as i64));
         assert_eq!(result.metered.rows_written, 3);
         assert_eq!(call(&mut e, "pass", "bob", json!({"owner":"bob"}), "same").reply(Some("same"))["replayed"], true);
-        bodies.push(result.reply(Some("same")));
+        bodies.push(observation);
     }
-    assert_eq!(bodies[0], bodies[1]);
+    equal_observations(&bodies);
     // Lane R's inferred never class also admits the pass with no author marker.
     let online = PAGE.replace(": server", ":").replace("  sync to .owner last 2000 by byOwner\n", "");
     let mut e = page_world(&online, 3, 1);
@@ -399,15 +418,15 @@ fn p2_rows_written_still_aborts_at_1024() {
         assert_eq!(result.metered.rows_written, 1024);
         let mut e = page_world(PAGE, 1025, hidden);
         let before = e.store().rows("items").unwrap();
-        let result = call(&mut e, "pass", "bob", json!({"owner":"bob"}), "over");
+        let (result, observation) = observed(&mut e, "pass", "bob", json!({"owner":"bob"}), "over");
         let body = result.reply(Some("over"));
         assert_eq!(body["why"]["code"], "E_BOUND", "{body}");
         assert!(body["why"]["message"].as_str().unwrap().contains("1024"));
         assert_eq!(result.metered.rows_written, 1025);
         assert_eq!(e.store().rows("items").unwrap(), before);
-        failed.push(body);
+        failed.push(observation);
     }
-    assert_eq!(failed[0], failed[1]);
+    equal_observations(&failed);
 }
 #[test]
 fn p2_the_pass_is_atomic() {
@@ -420,16 +439,17 @@ fn p2_the_pass_is_atomic() {
         let rows = e.store().rows("items").unwrap();
         let totals = e.store().rows("totals").unwrap();
         let seq = e.seq().unwrap();
-        let body = call(&mut e, "pass", "bob", json!({"owner":"bob"}), "same").reply(Some("same"));
+        let (result, observation) = observed(&mut e, "pass", "bob", json!({"owner":"bob"}), "same");
+        let body = result.reply(Some("same"));
         assert_eq!(body["why"]["code"], "STOP");
         assert_eq!(e.store().rows("items").unwrap(), rows);
         assert_eq!(e.store().rows("totals").unwrap(), totals);
         assert_eq!(e.seq().unwrap(), seq);
         assert!(e.effects(None, 100).unwrap().is_empty());
         assert!(e.stream_at("bob", seq, 100, 1000).unwrap().events.is_empty());
-        replies.push(body);
+        replies.push(observation);
     }
-    assert_eq!(replies[0], replies[1]);
+    equal_observations(&replies);
     let mut e = page_world(&source, 2, 5);
     assert!(matches!(call(&mut e, "pass", "bob", json!({"owner":"bob"}), "positive").state, WriteState::Sent { result: Value::Int(2), .. }));
     assert_eq!(e.effects(None, 100).unwrap().len(), 2);
@@ -467,8 +487,97 @@ fn a_unique_upsert_evaluates_its_key_once_and_conditions_keep_helper_bindings_pr
     for amount in [7, 19] {
         let mut e = world(&source, true, amount);
         let body = call(&mut e, "checked", "bob", json!({"key":"lookup"}), "same").reply(Some("same"));
-        assert_eq!(body["result"], json!({"sentinel":"caller","written":null}));
+        assert_eq!(body["why"]["code"], "NOT_FOUND");
+        let readable = call(&mut e, "checked", "alice", json!({"key":"lookup"}), "readable").reply(Some("readable"));
+        assert_eq!(readable["result"]["sentinel"], "caller");
+        assert_eq!(readable["result"]["written"]["amount"], 0);
         bodies.push(body);
     }
     assert_eq!(bodies[0], bodies[1]);
+}
+
+#[test]
+fn w2_complete_patch_upsert_with_a_foreign_asset_is_one_word_absent_or_hidden() {
+    let source = format!("{}\nmutation completeAsset(key: text <=80, photo: image <=1000):\n  upsert records[key] {{owner: 'alice', secret: 'supplied', frozen: 'fixed', amount: 0, photo}}\n", SOURCE.replace("update <- allow", "update <- deny"));
+    unchanged_pair(&source, "completeAsset", json!({"key":"lookup","photo":{"id":"foreign-upload"}}), 7);
+    let asset = snapback4_core::assets::Asset { id: "foreign-upload".into(), owner: "carol".into(), kind: snapback4_core::assets::AssetKind::Image, content_type: "image/png".into(), bytes: 24, width: Some(1), height: Some(1), duration: None, created_at: 1000, home: None, released_at: None };
+    let mut pair = Vec::new();
+    for hidden in [false, true] {
+        let mut e = world(&source, hidden, 7);
+        e.store().record_asset(&asset).unwrap();
+        let (_, observation) = observed(&mut e, "completeAsset", "bob", json!({"key":"lookup","photo":{"id":"foreign-upload"}}), "same");
+        assert_eq!(observation.body()["why"]["code"], "NOT_FOUND");
+        assert_eq!(e.store().asset(&asset.id).unwrap(), Some(asset.clone()), "denied writes cannot claim the foreign asset");
+        pair.push(observation);
+    }
+    equal_observations(&pair);
+    // An admitted absent insert reaches asset validation, proving this patch is complete.
+    let mut e = world(&source, false, 7);
+    e.store().record_asset(&asset).unwrap();
+    assert_eq!(call(&mut e, "completeAsset", "alice", json!({"key":"lookup","photo":{"id":"foreign-upload"}}), "allowed").reply(Some("allowed"))["why"]["code"], "E_ASSET_UNKNOWN");
+    let mut owned = asset.clone(); owned.owner = "alice".into();
+    let mut e = world(&source, false, 7);
+    e.store().record_asset(&owned).unwrap();
+    assert!(matches!(call(&mut e, "completeAsset", "alice", json!({"key":"lookup","photo":{"id":"foreign-upload"}}), "owned").state, WriteState::Sent { .. }));
+    let mut e = world(SOURCE, false, 7);
+    assert!(matches!(call(&mut e, "full", "alice", json!({"key":"lookup"}), "insert").state, WriteState::Sent { .. }));
+}
+
+#[test]
+fn w2_cap_refusals_never_name_retained_group_values() {
+    let source = SOURCE.replace("  immutable frozen", "  by bySecretAmount: secret, amount, id\n  cap 1 by secret, amount\n  immutable frozen");
+    for owner in ["alice", "bob"] {
+        let mut bodies = Vec::new();
+        for secret in ["FIRST", "OTHER"] {
+            let mut e = engine(&source);
+            seed(&mut e, "records", vec![row("target", "lookup", owner, 7, secret), row("one", "one", "alice", 0, "FIRST"), row("two", "two", "alice", 0, "OTHER")]);
+            let before = e.store().rows("records").unwrap();
+            let (result, observation) = observed(&mut e, "edit", "bob", json!({"key":"lookup"}), "same");
+        let body = result.reply(Some("same"));
+            assert_eq!(body["why"]["code"], "E_CONSTRAINT");
+            assert_eq!(body["why"]["message"], "records holds at most 1 rows per group by secret, amount");
+            assert_eq!(e.store().rows("records").unwrap(), before);
+            bodies.push(observation);
+        }
+        if owner == "alice" { equal_observations(&bodies); }
+        else { assert_eq!(bodies[0].first_http_body, bodies[1].first_http_body, "cap text is value-free even on readable targets"); }
+    }
+    let mut e = world(&source, true, 7);
+    assert!(matches!(call(&mut e, "edit", "bob", json!({"key":"lookup"}), "free").state, WriteState::Sent { .. }));
+}
+
+#[test]
+fn w2_receipts_store_the_replay_body_before_revocation_including_diagnostics() {
+    let source = SOURCE.replace("  immutable frozen", "  unique bySecretAmount: secret, amount\n  immutable frozen");
+    let mut e = world(&source, true, 7);
+    seed(&mut e, "records", vec![row("other", "other", "alice", 0, "PRIVATE")]);
+    let first = call(&mut e, "edit", "alice", json!({"key":"lookup"}), "lost").reply(Some("lost"));
+    assert_eq!(first["why"]["code"], "E_CONSTRAINT");
+    assert!(first["why"]["message"].as_str().unwrap().contains("PRIVATE"));
+    let receipt = recorded(&e, "alice", "lost");
+    assert!(!receipt.to_string().contains("PRIVATE"));
+    for field in ["code", "site", "rewrite", "guide", "family", "retryable"] { assert_eq!(receipt["why"][field], first["why"][field]); }
+    seed(&mut e, "records", vec![row("target", "lookup", "carol", 7, "PRIVATE"), row("other", "other", "carol", 0, "PRIVATE")]);
+    assert_eq!(value(&mut e, "alice"), Value::Null);
+    assert_eq!(e.replay("alice", "lost").unwrap().unwrap().reply(Some("lost")), receipt);
+    assert_eq!(call(&mut e, "edit", "alice", json!({"key":"lookup"}), "lost").reply(Some("lost")), receipt);
+    let mut e = world(SOURCE, true, 7);
+    for (name, values) in [("edit", json!({"key":"lookup"})), ("conditional", json!({"key":"lookup","expected":99}))] {
+        let first = call(&mut e, name, "alice", values, name).reply(Some(name));
+        assert!(first.get("result").or_else(|| first.get("current")).is_some());
+        let receipt = recorded(&e, "alice", name);
+        for field in ["result", "current"] { assert!(receipt.get(field).is_none()); }
+        assert_eq!(e.replay("alice", name).unwrap().unwrap().reply(Some(name)), receipt);
+    }
+}
+
+#[test]
+fn w2_hidden_refusal_restores_read_rule_probe_work_too() {
+    let source = format!("{}\ntable grants:\n  record: records\n  principal: principal\n  unique byPair: record, principal\n  read <- allow\n", SOURCE.replace("read <- .owner = viewer", "read <- exists grants[.id, viewer]").replace("  sync to .owner last 100 by byOwner\n", "").replace("update <- allow", "update <- deny"));
+    for (name, input) in [("edit", json!({"key":"lookup"})), ("editId", json!({"target":"target"})), ("put", json!({"key":"lookup"}))] { unchanged_pair(&source, name, input, 7); }
+    let mut e = world(&source.replace("update <- deny", "update <- allow"), true, 7);
+    seed(&mut e, "grants", vec![json!({"id":"grant","record":"target","principal":"bob"})]);
+    let result = call(&mut e, "edit", "bob", json!({"key":"lookup"}), "readable");
+    assert!(matches!(result.state, WriteState::Sent { .. }));
+    assert!(result.metered.rule_probes > 0);
 }

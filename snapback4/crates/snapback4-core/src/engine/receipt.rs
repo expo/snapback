@@ -1,4 +1,4 @@
-//! The /m reply is also the durable at-most-once record. Replays retrieve
+//! The durable at-most-once record is the replay body. Replays retrieve
 //! execution identity, never historical read authority (including scalar results).
 use super::{MutationOutcome, WriteState};
 #[cfg(feature = "sqlite")]
@@ -9,7 +9,6 @@ use crate::value::Value;
 use serde_json::{Value as Json, json};
 
 impl MutationOutcome {
-    // @ref LLP 3000.007#8 — item 7: withhold before recording; retries cannot recover revoked content.
     pub fn reply(&self, id: Option<&str>) -> Json {
         let mut body = match &self.state {
             WriteState::Sent { seq, result } => {
@@ -24,6 +23,18 @@ impl MutationOutcome {
             }
         };
         if self.replayed { body["replayed"] = Json::Bool(true); }
+        body
+    }
+
+    // @ref LLP 3000.007#17 — store the replay body: no historical values, even in a diagnostic message.
+    pub fn receipt(&self, id: Option<&str>) -> Json {
+        let mut body = self.reply(id);
+        body.as_object_mut().expect("reply object").remove("result");
+        body.as_object_mut().expect("reply object").remove("current");
+        if let WriteState::Failed { why, .. } = &self.state {
+            body["why"]["message"] = Json::String(format!("the program refused with {}", why.code));
+        }
+        body["replayed"] = Json::Bool(true);
         body
     }
 

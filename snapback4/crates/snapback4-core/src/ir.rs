@@ -530,7 +530,7 @@ fn stmts_scans<'a>(stmts: &'a [Stmt], out: &mut Vec<&'a Scan>) {
                 stmts_scans(body, out);
             }
             Stmt::Require { condition, .. } => expr_scans(condition, out),
-            Stmt::Check { condition, .. } => expr_scans(condition, out),
+            Stmt::Check { condition, current } => { expr_scans(condition, out); for key in &current.key { expr_scans(key, out); } }
             Stmt::InsertIfAbsent { row, .. } | Stmt::Insert { row, .. } => expr_scans(row, out),
             Stmt::Update { key, patch, .. } => {
                 expr_scans(key, out);
@@ -557,13 +557,9 @@ fn expr_scans_of_scan<'a>(scan: &'a Scan, out: &mut Vec<&'a Scan>) {
         for bound in [&range.gt, &range.gte, &range.lt, &range.lte].into_iter().flatten() { expr_scans(bound, out); }
     }
     for key in &scan.prefix {
-        if let Some(expr) = key.scalar() {
-            expr_scans(expr, out);
-        }
+        match key { IndexKeyExpr::Scalar(expr) | IndexKeyExpr::WordPrefix(expr) => expr_scans(expr, out) }
     }
-    if let Some(after) = &scan.after {
-        expr_scans(after, out);
-    }
+    for cursor in [&scan.after, &scan.before].into_iter().flatten() { expr_scans(cursor, out); }
 }
 
 fn expr_scans<'a>(expr: &'a Expr, out: &mut Vec<&'a Scan>) {
