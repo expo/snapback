@@ -147,7 +147,7 @@ test("IndexedDB save resolves on transaction completion, not request success", a
   assert.equal(options?.durability, "strict");
 });
 
-test("failed persistence stops the device before either transport can send an undurable admission", async t => {
+test("failed persistence discards the device before either transport can send an undurable admission", async t => {
   const f = await fixture(t);
   f.persist.save = async (_name, changes) => {
     if (changes.some(c => c.s === "o")) throw new Error("disk full");
@@ -156,7 +156,9 @@ test("failed persistence stops the device before either transport can send an un
   assert.equal(write.state, "failed"); assert.equal(write.why.code, "E_STORE");
   f.window.dispatchEvent(new Event("pagehide"));
   assert.equal(f.requests.length, 0);
-  await assert.rejects(f.cores[0].call({ op: "queued" }), /disk full/);
+  // The failed call discarded its uncommitted memory; the next call reopens
+  // from IndexedDB, where the admission never landed.
+  assert.deepEqual((await f.cores[0].call({ op: "queued" })).ok, []);
   assert.equal((await f.rows()).length, 0);
 });
 
