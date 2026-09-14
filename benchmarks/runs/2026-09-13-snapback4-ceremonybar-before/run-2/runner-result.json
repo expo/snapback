@@ -1,0 +1,638 @@
+{
+  "at": "2026-09-14T04:58:02.606Z",
+  "run": 2,
+  "version": "0.2.8",
+  "model": "gpt-6-astra",
+  "effort": "medium",
+  "lane": "/Users/ccheever/projects/snapback-ceremony-before/runs/run-2",
+  "packet": {
+    "ceremony-brief.md": "5ca90964af0dd5301fc5025a0d722167e711b0dabbe0ca5401908143a1adf4db",
+    "ceremony.mjs": "2078bf58bdeca8cc4ed0ec9e4a9ca046a6fd61778a65a8f6ed14a963817293a8",
+    "ceremony-metrics.mjs": "b7fe90ee950eef4fba484e4c21c96fcfcc5ded38a0b580f724f282a4fae9245f",
+    "ceremony-process.mjs": "59b725fe8317c6a5124dd9b04a4dda9c955727ffc5e00df5df85ac4ee5948f1d",
+    "ceremony-probes.mjs": "37b80df7496f2a407eddd30dd6655ed9d2523dc15dedee72808171652fe55242",
+    "run.mjs": "45347dc802b62e8ccf9d9c5cb8f1b28d4fe3a283c7c24d3d085517ed44bf1e00"
+  },
+  "host": {
+    "name": "Charlies-MacBook-Pro-M5Max-Black.local",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpus": 18,
+    "cpu": "Apple M5 Max",
+    "loadAverage": [
+      12.89013671875,
+      15.158203125,
+      17.18408203125
+    ],
+    "sharedAndLoaded": true
+  },
+  "node": "v24.18.0",
+  "timedOut": false,
+  "installSeconds": 0.971,
+  "installedBefore": {
+    "version": "0.2.8",
+    "platformVersion": "0.2.8",
+    "binarySha256": "92db0d86e76a9e68859306870b45da795cc5e525f5b6519566aea6a414a369d8",
+    "readmeSha256": "eaa5d557bcb3a0e77b8a3f804d0f555d1aa9fa01dcf47beb970628d8e1e64072",
+    "packageLockSha256": "b70b3d62b2660d46fa08a9c5aa6f23add10b5c5a69fd176b77e31d9bf1f42458"
+  },
+  "agentStartedAt": "2026-09-14T04:58:03.580Z",
+  "invocation": {
+    "command": "/Users/ccheever/.volta/bin/codex",
+    "args": [
+      "exec",
+      "--dangerously-bypass-approvals-and-sandbox",
+      "--skip-git-repo-check",
+      "--json",
+      "--color",
+      "never",
+      "-m",
+      "gpt-6-astra",
+      "-c",
+      "model_reasoning_effort=medium",
+      "-C",
+      "/Users/ccheever/projects/snapback-ceremony-before/runs/run-2",
+      "-o",
+      "/Users/ccheever/projects/snapback-ceremony-before/runs/run-2/FINAL.md",
+      "-"
+    ]
+  },
+  "agentPid": 31676,
+  "exitCode": 0,
+  "exitSignal": null,
+  "agentError": null,
+  "agentWallSeconds": 405.866,
+  "wallSeconds": 406.84,
+  "installedAfter": {
+    "version": "0.2.8",
+    "platformVersion": "0.2.8",
+    "binarySha256": "92db0d86e76a9e68859306870b45da795cc5e525f5b6519566aea6a414a369d8",
+    "readmeSha256": "eaa5d557bcb3a0e77b8a3f804d0f555d1aa9fa01dcf47beb970628d8e1e64072",
+    "packageLockSha256": "b70b3d62b2660d46fa08a9c5aa6f23add10b5c5a69fd176b77e31d9bf1f42458"
+  },
+  "pinUnchanged": true,
+  "agentSeconds": 384,
+  "correctionLoops": {
+    "byAttribution": {
+      "snapback4-defect": 0,
+      "docs": 1,
+      "agent-error": 4,
+      "environment": 0,
+      "ambiguous": 0
+    },
+    "snapbackAttributed": 1,
+    "total": 5,
+    "loops": [
+      {
+        "id": 1,
+        "attribution": "agent-error",
+        "line": "1789361897 loop=1 attribution=agent-error command=initial timestamp command wrote /tmp/unused-ceremony-time outside current directory; resolution=all subsequent work confined to current directory"
+      },
+      {
+        "id": 2,
+        "attribution": "agent-error",
+        "line": "1789362011 loop=2 attribution=agent-error command=npx snapback4 check produced N_NEVER_COMPLETE; resolution=separate userChats audience from members recipient access"
+      },
+      {
+        "id": 3,
+        "attribution": "docs",
+        "line": "1789362154 loop=3 attribution=docs command=npm run acceptance failed ByteString token header; lookup source=diagnostic token CLI output; resolution=parse final token output line rather than prose plus token"
+      },
+      {
+        "id": 4,
+        "attribution": "agent-error",
+        "line": "1789362176 loop=4 attribution=agent-error command=acceptance lifecycle code review found cleanup timeout would fire after normal exit; resolution=clear kill timeout once owned child closes; added no-recipient read assertion"
+      },
+      {
+        "id": 5,
+        "attribution": "agent-error",
+        "line": "1789362186 loop=5 attribution=agent-error command=npm run acceptance failed ByteString again; resolution=extract opaque token by token alphabet because merged stdout and stderr order varies"
+      }
+    ],
+    "malformed": []
+  },
+  "schemaShape": {
+    "tables": 10,
+    "tableNames": [
+      "profiles",
+      "posts",
+      "likes",
+      "follows",
+      "chats",
+      "members",
+      "userChats",
+      "messages",
+      "acknowledgments",
+      "digestPeriods"
+    ],
+    "maintains": 1,
+    "maintainNames": [
+      "likeCounts"
+    ],
+    "tablesIncludingMaintains": 11,
+    "workTablesHeuristic": {
+      "count": 0,
+      "names": []
+    },
+    "workTablesReported": {
+      "count": 0,
+      "names": []
+    },
+    "perPrincipalCountersHeuristic": [
+      "digestPeriods"
+    ],
+    "perPrincipalCountersReported": [],
+    "publicPerPrincipalCounterLines": {
+      "count": 0,
+      "lines": []
+    },
+    "quarryLines": 191,
+    "quarryCodeLines": 164,
+    "operations": 14,
+    "operationsByKind": {
+      "query": 4,
+      "mutation": 9,
+      "job": 1
+    },
+    "operationNames": [
+      {
+        "kind": "mutation",
+        "name": "profile",
+        "path": "snapback/schema.q",
+        "line": 105
+      },
+      {
+        "kind": "mutation",
+        "name": "post",
+        "path": "snapback/schema.q",
+        "line": 108
+      },
+      {
+        "kind": "mutation",
+        "name": "like",
+        "path": "snapback/schema.q",
+        "line": 115
+      },
+      {
+        "kind": "mutation",
+        "name": "follow",
+        "path": "snapback/schema.q",
+        "line": 121
+      },
+      {
+        "kind": "mutation",
+        "name": "createChat",
+        "path": "snapback/schema.q",
+        "line": 126
+      },
+      {
+        "kind": "mutation",
+        "name": "addMember",
+        "path": "snapback/schema.q",
+        "line": 132
+      },
+      {
+        "kind": "mutation",
+        "name": "send",
+        "path": "snapback/schema.q",
+        "line": 139
+      },
+      {
+        "kind": "mutation",
+        "name": "leave",
+        "path": "snapback/schema.q",
+        "line": 144
+      },
+      {
+        "kind": "mutation",
+        "name": "ack",
+        "path": "snapback/schema.q",
+        "line": 150
+      },
+      {
+        "kind": "query",
+        "name": "receipt",
+        "path": "snapback/schema.q",
+        "line": 161
+      },
+      {
+        "kind": "query",
+        "name": "search",
+        "path": "snapback/schema.q",
+        "line": 167
+      },
+      {
+        "kind": "query",
+        "name": "trending",
+        "path": "snapback/schema.q",
+        "line": 171
+      },
+      {
+        "kind": "query",
+        "name": "insights",
+        "path": "snapback/schema.q",
+        "line": 178
+      },
+      {
+        "kind": "job",
+        "name": "digest",
+        "path": "snapback/schema.q",
+        "line": 184
+      }
+    ],
+    "auxiliaryOperationsReported": [],
+    "reportingError": null
+  },
+  "verify": {
+    "directory": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-XWAfUf",
+    "acceptanceDirectory": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-5Vul1n",
+    "probeDirectory": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-wc76sk",
+    "check": {
+      "ok": true,
+      "status": 0,
+      "timedOut": false,
+      "error": null,
+      "tail": "check: ok — 11 tables (0 synced), 14 operations, no problems, 1.1 ms\n"
+    },
+    "acceptance": {
+      "ok": true,
+      "status": 0,
+      "timedOut": false,
+      "error": null,
+      "tail": "\n> acceptance\n> node acceptance.mjs\n\nacceptance copy: /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-5Vul1n/.acceptance-BdIoRc\nseed: eight profiles, 40 posts, 60 messages, three chats, follows and likes installed\nbaseline five-shape reads green\ndigest persistence and real worker settlement green; waiting for actual two-minute schedule\nreal scheduled boundary green 1789362360000\nacceptance: all assertions green\n"
+    },
+    "probes": {
+      "directory": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-wc76sk",
+      "ok": true,
+      "checks": [
+        {
+          "name": "insights",
+          "ok": true,
+          "seconds": 0.013
+        },
+        {
+          "name": "trending",
+          "ok": true,
+          "seconds": 0.022
+        },
+        {
+          "name": "search",
+          "ok": true,
+          "seconds": 0.017
+        },
+        {
+          "name": "digest",
+          "ok": true,
+          "seconds": 119.351
+        },
+        {
+          "name": "receipt",
+          "ok": true,
+          "seconds": 0.036
+        }
+      ],
+      "evidence": {
+        "insights": {
+          "initial": {
+            "posts": 6,
+            "likesReceived": 21,
+            "repostsReceived": 2,
+            "repliesReceived": 2,
+            "followers": 3,
+            "following": 2,
+            "days": [
+              {
+                "day": 1788739200000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1788825600000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1788912000000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1788998400000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1789084800000,
+                "posts": 1,
+                "likesReceived": 7
+              },
+              {
+                "day": 1789171200000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1789257600000,
+                "posts": 4,
+                "likesReceived": 12
+              }
+            ]
+          },
+          "afterLike": {
+            "posts": 6,
+            "likesReceived": 22,
+            "repostsReceived": 2,
+            "repliesReceived": 2,
+            "followers": 3,
+            "following": 2,
+            "days": [
+              {
+                "day": 1788739200000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1788825600000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1788912000000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1788998400000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1789084800000,
+                "posts": 1,
+                "likesReceived": 7
+              },
+              {
+                "day": 1789171200000,
+                "posts": 0,
+                "likesReceived": 0
+              },
+              {
+                "day": 1789257600000,
+                "posts": 4,
+                "likesReceived": 13
+              }
+            ]
+          }
+        },
+        "trending": {
+          "initial": [
+            {
+              "key": "p01",
+              "likes": 6,
+              "at": 1789318800000
+            },
+            {
+              "key": "p02",
+              "likes": 5,
+              "at": 1789315200000
+            },
+            {
+              "key": "p03",
+              "likes": 4,
+              "at": 1789311600000
+            },
+            {
+              "key": "p04",
+              "likes": 4,
+              "at": 1789308000000
+            },
+            {
+              "key": "p05",
+              "likes": 4,
+              "at": 1789304400000
+            },
+            {
+              "key": "p06",
+              "likes": 3,
+              "at": 1789300800000
+            },
+            {
+              "key": "p07",
+              "likes": 3,
+              "at": 1789297200000
+            },
+            {
+              "key": "p08",
+              "likes": 3,
+              "at": 1789293600000
+            },
+            {
+              "key": "p09",
+              "likes": 2,
+              "at": 1789290000000
+            },
+            {
+              "key": "p10",
+              "likes": 2,
+              "at": 1789286400000
+            }
+          ],
+          "afterLikes": [
+            {
+              "key": "p16",
+              "likes": 7,
+              "at": 1789264800000
+            },
+            {
+              "key": "p01",
+              "likes": 6,
+              "at": 1789318800000
+            },
+            {
+              "key": "p02",
+              "likes": 5,
+              "at": 1789315200000
+            },
+            {
+              "key": "p03",
+              "likes": 4,
+              "at": 1789311600000
+            },
+            {
+              "key": "p04",
+              "likes": 4,
+              "at": 1789308000000
+            },
+            {
+              "key": "p05",
+              "likes": 4,
+              "at": 1789304400000
+            },
+            {
+              "key": "p06",
+              "likes": 3,
+              "at": 1789300800000
+            },
+            {
+              "key": "p07",
+              "likes": 3,
+              "at": 1789297200000
+            },
+            {
+              "key": "p08",
+              "likes": 3,
+              "at": 1789293600000
+            },
+            {
+              "key": "p09",
+              "likes": 2,
+              "at": 1789290000000
+            }
+          ]
+        },
+        "search": {
+          "initial": [
+            {
+              "chatKey": "alpha",
+              "keys": [
+                "a20",
+                "a15",
+                "a10",
+                "a05"
+              ]
+            },
+            {
+              "chatKey": "beta",
+              "keys": [
+                "b20",
+                "b15",
+                "b10",
+                "b05"
+              ]
+            }
+          ],
+          "insertedMessage": "b21"
+        },
+        "digest": {
+          "explicitPeriod": {
+            "periodStart": 1789361160000,
+            "periodEnd": 1789361280000
+          },
+          "followingPeriod": {
+            "periodStart": 1789361280000,
+            "periodEnd": 1789361400000
+          },
+          "scheduledBoundary": 1789362480000,
+          "observed": [
+            {
+              "id": "01M2F4XQ307920GRYTYVEQGTG0",
+              "payload": {
+                "periodEnd": 1789361280000,
+                "periodStart": 1789361160000,
+                "targetUserId": "dev:bob",
+                "unreadChats": 2,
+                "unreadMessages": 40
+              }
+            },
+            {
+              "id": "01M2F4XQ30DTNNP8WBA7ME14C9",
+              "payload": {
+                "periodEnd": 1789361280000,
+                "periodStart": 1789361160000,
+                "targetUserId": "dev:alice",
+                "unreadChats": 1,
+                "unreadMessages": 21
+              }
+            },
+            {
+              "id": "01M2F4XQ30FV99146EPA1KRH2Q",
+              "payload": {
+                "periodEnd": 1789361280000,
+                "periodStart": 1789361160000,
+                "targetUserId": "dev:carol",
+                "unreadChats": 1,
+                "unreadMessages": 20
+              }
+            },
+            {
+              "id": "01M2F4XR4C9V45R04JG0SY9AGW",
+              "payload": {
+                "periodEnd": 1789361400000,
+                "periodStart": 1789361280000,
+                "targetUserId": "dev:carol",
+                "unreadChats": 1,
+                "unreadMessages": 20
+              }
+            },
+            {
+              "id": "01M2F4XR4CAT0MD9DDCJQNX024",
+              "payload": {
+                "periodEnd": 1789361400000,
+                "periodStart": 1789361280000,
+                "targetUserId": "dev:alice",
+                "unreadChats": 1,
+                "unreadMessages": 21
+              }
+            },
+            {
+              "id": "01M2F4XR4CSK6XC4PA8DR0XBB9",
+              "payload": {
+                "periodEnd": 1789361400000,
+                "periodStart": 1789361280000,
+                "targetUserId": "dev:bob",
+                "unreadChats": 1,
+                "unreadMessages": 20
+              }
+            },
+            {
+              "id": "01M2F5191E6HQRZKZGZ6ZRDR70",
+              "payload": {
+                "periodEnd": 1789362480000,
+                "periodStart": 1789362360000,
+                "targetUserId": "dev:bob",
+                "unreadChats": 1,
+                "unreadMessages": 20
+              }
+            },
+            {
+              "id": "01M2F5191EG5WSH9M60EHZ8X0V",
+              "payload": {
+                "periodEnd": 1789362480000,
+                "periodStart": 1789362360000,
+                "targetUserId": "dev:carol",
+                "unreadChats": 1,
+                "unreadMessages": 20
+              }
+            },
+            {
+              "id": "01M2F5191EPWM6A0VWT4F2MNNN",
+              "payload": {
+                "periodEnd": 1789362480000,
+                "periodStart": 1789362360000,
+                "targetUserId": "dev:alice",
+                "unreadChats": 1,
+                "unreadMessages": 21
+              }
+            }
+          ]
+        },
+        "receipt": [
+          "sent",
+          "sent",
+          "delivered",
+          "delivered",
+          "read",
+          "read"
+        ]
+      }
+    },
+    "ok": true
+  },
+  "verificationSeconds": 192.977,
+  "green": true,
+  "measurementComplete": true,
+  "loopBarComparison": {
+    "wallAtMost1200": true,
+    "snapbackAttributedAtMost1": true
+  }
+}

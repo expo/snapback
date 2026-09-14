@@ -2676,3 +2676,22 @@ expression ranges, pending through shapes, the remaining guessed-spelling
 rewrites, the rest of the card rewrite and the Clique acceptance programs.
 Section 5.9 and E_STRUCTURAL_FANOUT were not changed. Work remains uncommitted
 for the lead to integrate; no publication was attempted.
+
+## 2026-09-13 — the ceremony bar's "before" on 0.2.8: three green, the same loop three times
+
+Run from the lead's shell (`node loopbar/ceremony.mjs --n 3 --version
+0.2.8`): 510, 407 and 456 s wall, agent 494, 384 and 441 s, every run
+reverified on fresh copies with all five wire probes green; loops 3 / 5 /
+3, of which Snapback-attributed 0 / 1 / 0 (a `docs` loop on `token`'s
+stdout mixing prose with the token — a ticket). Schema shape: ten tables
+each; maintains 8 / 1 / 1; a `digestPeriods` guard table in every run,
+declared a work table by two agents; no world-readable counters (the
+brief's digest runs as the system, so the counter shape that opened
+tables in the Clique lanes does not arise). The finding: every run's first
+`check` produced `N_NEVER_COMPLETE` on the membership scan and every agent
+answered by duplicating the membership table keyed the other way — a
+membership row read by the viewer's own principal is its own witness for
+`exists memberships[.chat, viewer]`, and the compiler does not see that
+yet. Record: `benchmarks/runs/2026-09-13-snapback4-ceremonybar-before/`;
+metrics: `metrics/ceremonybar.jsonl` (three lines).
+
