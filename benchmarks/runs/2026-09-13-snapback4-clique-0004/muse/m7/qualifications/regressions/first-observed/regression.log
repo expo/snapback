@@ -1,0 +1,199 @@
+
+> muse-snapback4@1.0.0 acceptance
+> node tests/accept.mjs
+
+--- suite m1 ---
+ok m1-a01 — user:01M2FM3XB5B7H9E8R9JM3MFPZ8
+ok m1-a01-short-refused
+ok m1-a02 — http://127.0.0.1:49311/feed
+ok m1-a03 — error nodes: 1
+ok m1-a04 — error nodes: 1
+ok m1-a08
+ok m1-a05 — http://127.0.0.1:49311/profile/edit
+ok m1-a10 — 01M2FM452032GMZFGFFXKF7T35
+ok m1-a10-bad-refused
+ok m1-a11 — naturalWidth=256
+--- suite m2 ---
+ok m2-a01
+ok m2-a01-cap
+ok m2-a02 — rows=2
+ok m2-a03
+ok m2-a06-follow
+ok m2-a06 — entries=3
+ok m2-a06-noself
+ok m2-a25 — entries=1
+ok m2-a27
+ok m2-a16-set
+ok m2-a18
+ok m2-a16 — attribution join present
+ok m2-a26
+ok m2-a15-like — count=1
+ok m2-a15 — count=0
+ok m2-a15-idem
+ok m2-a08-unfollow
+ok m2-a08 — entries=1
+ok m2-a08-via-carol — repost by still-followed carol remains
+ok m2-a09
+ok m2-a08b-unfollow
+ok m2-a08b — entries=0
+ok m2-a17-clear
+ok m2-a17
+ok m2-a17-own
+ok m2-a10 — m2p-dave-4611
+ok m2-a11
+ok m2-a20 — replies=0
+ok m2-a21
+ok m2-a22 — 20/1
+ok m2-a23 — 20/20
+ok m2-a24 — no dup
+ok m2-a12 — role=link text=https://example.com/cafe target=https://example.com/cafe
+ok m2-a13 — unfurl nodes: 0
+--- suite m3 ---
+ok m3-a03-create
+ok m3-a03 — m3dm-6778
+ok m3-a04
+ok m3-a04-add
+ok m3-a05 — m3g1-6783 vs m3g2-6786
+ok m3-a10 — M3 Alice
+Quoted original line
+ok m3-a11 — bubbles=2
+ok m3-a14 — NOT_ADMIN
+SUITE-ERROR m3: Error: Command failed: npm run seed -- --segment m1
+node:internal/errors:985
+  const err = new Error(message);
+              ^
+
+Error: Command failed: curl -s -X POST http://127.0.0.1:49300/seed -H content-type: application/json -d [{"table":"appConfig","row":{"id":"editWindow","key":"editWindow","num":60}},{"table":"appConfig","row":{"id":"deleteWindow","key":"deleteWindow","num":120}},{"table":"appConfig","row":{"id":"ttl24h","key":"ttl24h","num":180}},{"table":"appConfig","row":{"id":"ttl7d",
+--- suite m4 ---
+ok m4-a01 — photo bubble image loaded
+ok m4-a03-settled — video servable server-side
+ok m4-a03 — bubbles=2 poster=true readyState=4
+ok m4-a06-set
+ok m4-a06
+ok m4-a06-one — ["❤️"]
+ok m4-a07
+ok m4-a04 — {"code":"EDIT_WINDOW_EXPIRED","family":"rule","guide":"programs","message":"the program refused with EDIT_WINDOW_EXPIRED
+ok m4-a04-control
+ok m4-a05-serves — asset=01M2FM6JS2S4H3K754GFKYZKF0 http=200
+ok m4-a05-del
+ok m4-a05 — {"t":true,"b":null}
+ok m4-a05-asset — http=404
+ok m4-a09 — edited label + new text shown
+--- suite m5 ---
+ok m5-a03-bg
+ok m5-a03-color — coral selected
+ok m5-a03-nonadmin — {"code":"NOT_ADMIN","family":"rule","guide":"programs","message":"the program refused with NOT_ADMIN
+ok m5-a03-sees-bg — naturalWidth=640
+ok m5-a04-people — hits=10
+ok m5-a04-chat — rows=1
+ok m5-a04-all — chats=2
+ok m5-a04-ui-groups — groups=2
+ok m5-a05 — badge=1 online=2 offline=2
+ok m5-a02-sent — once=01M2FM7R4FYTCDB96S6SFFFX88
+ok m5-a02-open — viewed once
+ok m5-a02-denied — err=1 viewer=0
+ok m5-a02-asset — http=410
+ok m5-a01 — expired message refused server-side
+ok m5-a01-purge — purged on reconnect
+ok m5-a01-search — offline results=0
+--- suite live ---
+ok live-a01 — typing visible on peer
+ok live-a01-hint — chats list typing hint
+ok live-a01-expire — typing expired
+ok live-a02-sent — tick=sent
+ok live-a02-delivered — tick=delivered
+ok live-a02-read — tick=read
+ok live-a03-waits — tick=sent with carol outstanding
+ok live-a03-read — tick=read
+ok live-a04 — alice sees Like (1)
+ok live-a04-unlike — alice sees Like (0)
+ok live-a05-repost — attributed repost visible live
+ok live-a05-reply — reply count Reply (1)
+ok live-a06-react — reaction chip visible live on alice
+ok live-a06-edit — edited text visible live on bob
+--- suite m6 ---
+ok m6-a03-text — preview="push preview text 59615 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+ok m6-a03-photo — view-once previews as Photo
+ok m6-a02-pending — pending ticks=2
+ok m6-a02-order — flushed in order
+ok m6-a02-read — queued messages reach read
+ok m6-a02-like — likeCount=1
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+[TypeError: fetch failed] {
+  [cause]: Error: connect ECONNREFUSED 127.0.0.1:49300
+      at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1706:16) {
+    errno: -61,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 49300
+  }
+}
+
+Node.js v24.18.0
+FAIL m6-a04
+ok m6-a05 — 11425 chars
+ok m6-a01-cache — photo viewed online
+ok m6-a01-history — history renders offline
+ok m6-a01-media — cached photo renders offline width=640
+ok m6-a01-search — offline results=1
+ok m6-a01-viewonce — viewonce image offline=0
+--- suite m7 ---
+ENSURE-POLL present: m7-choreo-poll total=0
+ok m7-a01-exists — Saturday plan: coffee first or trail first?
+ok m7-a01-options — ["m7-option-a","m7-option-b"]
+ok m7-a01-coherent — total=0
+ok m7-a01-listed — polls=1
+ok m7-a01-message — Saturday plan: coffee first or trail first?
+ok m7-a01-idempotent — sent
+ok m7-a01-dupids — DUP_OPTION
+ok m7-a01-longq — E_INPUT
+ok m7-a01-emptylabel — E_INPUT
+ok m7-a01-dmonly — POLL_GROUP_ONLY
+ok m7-a01-nonmember — NOT_FOUND
+ok m7-a01-badoption — UNKNOWN_OPTION
+ok m7-setup-group — sent
+ok m7-a01-three — sent
+ok m7-a01-threeopts — 3
+ok m7-a01-freshzero — total=0
+ok m7-a03-votes — [1,1,0]
+ok m7-a03-mine — m7t-77491-b
+ok m7-a03-change — [0,2,0]
+ok m7-a04-retry — replayed=true
+ok m7-a04-samemut — [0,2,0]
+ok m7-a06-dm — count=6
+ok m7-a06-group — count=10 paged=10
+ok m7-a06-selfconsistent — paged=6
+ok m7-a06-ephemeral-counted — 1 -> 2
+ok m7-a06-expired — 2 -> 1
+ok m7-a07-send — 1 -> 2
+ok m7-a07-pollcounts — 1 -> 3
+ok m7-a07-delete — 3 -> 2
+ok m7-a07-settings — shown=2 want=2
+ok m7-a07-uivote — mine=m7t-77491-a red=1
+--- suite m8 ---
+ok m8-a01 — posts=2 likes=1 followers=2
+ok m8-a02 — D6 posts=2 likes=1 older=0,0,0,0,0,0
+ok m8-a01-ui — 2 Posts 1 Likes received 0 Reposts received 0 Replies received 2 Followers 0 Following
+ok m8-a01-refresh — 2 Posts 2 Likes received 0 Reposts received 0 Replies received 2 Followers 0 Following
+ok m8-a03-wire — counts=2,1,0
+ok m8-a03 — Trending post rank 1 | Trending post rank 2 | Trending post rank 3
+ok m8-a03-top — #1 MA M8 Alice @m8a91663 · 9/14/2026, 2:38:13 AM trend top 93168 ◗ ↻ ♥ 2
+ok m8-a04 — n=1 f=1 p=1 u=2 c=1
+ok m8-a04-once — periods=1 digests=1
+ok m8-a04-stranger — erin n=1 u=1
+ok m8-a04-empty — before=1 after=1
+ok m8-a04-inactive — dave digests=0
+ok m8-a06-send — B shows A-sent message live
+ok m8-a06-unread — A unread hints=1
+ok m8-a06-readsync — A unread after B read=0
+ok m8-a07 — A=154,88,22 B=154,88,22 dup=0
+ok m8-a08-pending — pending before kill=1
+ok m8-a08-pending2 — pending after relaunch=1
+ok m8-a08-flush — adopted write flushed after reconnect
+
+TALLY total=159 pass=158 fail=1
+FAIL m6-a04 — 

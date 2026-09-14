@@ -1,0 +1,58 @@
+{
+  "capturedEpoch": 1789376570.0824919,
+  "sourceRoot": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/muse-snapback4/m7",
+  "role": "orchestrator passive pre-snapshot capture; private until screening",
+  "activePhasePid": 11190,
+  "files": [
+    {
+      "sourceRelativePath": "run-log.md",
+      "bytes": 703,
+      "sha256": "5dd2a3a50240524fd9057849d4a39d456aa191dd0b815942398a8d48c6fb5865"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/alice.json",
+      "bytes": 21483,
+      "sha256": "9e5c7e8c187895d3e2b800fec9b06d70f7b7d85cee581b206f4ec6a028835ad5"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/bob.json",
+      "bytes": 21476,
+      "sha256": "1de131032ddb459f4f873638c3059c74a555b9aa496419d2475b4ae5b16925ac"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/carol.json",
+      "bytes": 13162,
+      "sha256": "9700e0cf0b5362008414b79db91607c3ed6f4ef6d73fdfcdf470b3e6bd8b1199"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/dave.json",
+      "bytes": 573,
+      "sha256": "dde58c301e496117532b915f10c3a47c97a69f0567694f0cd34be51993ec3fe4"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/erin.json",
+      "bytes": 577,
+      "sha256": "05cc73c41d2411d99474437536ba84571cb9ac81d63b98534b6f06fecdb0060d"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/frank.json",
+      "bytes": 574,
+      "sha256": "17f1eec46ba2ea6d8644ee148c282899b3612109b489afbfebdf5e02ee956e21"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/grace.json",
+      "bytes": 579,
+      "sha256": "b2c45084e6fb978431fda83ec46a8b6834c512fbed7dd00e6c118eca87003bd4"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/henry.json",
+      "bytes": 574,
+      "sha256": "39e99afe95c263e7398c685228932f11c4a24265b15af7161214a5541a054df8"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/manifest.json",
+      "bytes": 750,
+      "sha256": "9f2061832810e0c9f87f4d73f4ecbee5c33e0524d6871977323f175e9f0104da"
+    }
+  ]
+}

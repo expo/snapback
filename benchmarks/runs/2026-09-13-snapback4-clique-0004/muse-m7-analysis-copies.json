@@ -1,0 +1,17 @@
+{
+  "createdAt": "2026-09-14T10:53:29.186094+00:00",
+  "copies": [
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/observed-milestones/muse-m7-outcome-audit.md",
+      "destination": "muse-m7-outcome-audit.md",
+      "bytes": 17352,
+      "sha256": "574007b6de0b22370ae3dce6f25df9d6188bc54475cc351a2870370404499827"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/observed-milestones/muse-m7-source-delta-audit.md",
+      "destination": "muse-m7-source-delta-audit.md",
+      "bytes": 14555,
+      "sha256": "5551a3da4440bd1c02cf9f917135d25e0af1ceb526fc9a3eea6a77bffa270c1e"
+    }
+  ]
+}

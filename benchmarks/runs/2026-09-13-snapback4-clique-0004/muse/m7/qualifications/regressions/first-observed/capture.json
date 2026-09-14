@@ -1,0 +1,26 @@
+{
+  "capturedEpoch": 1789379028.219795,
+  "sourceRoot": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/muse-snapback4/m7",
+  "role": "orchestrator passive first observed final regression log; private until screening",
+  "activePhasePid": 11190,
+  "observedTally": {
+    "total": 159,
+    "pass": 158,
+    "fail": 1,
+    "failedIds": [
+      "m6-a04"
+    ]
+  },
+  "files": [
+    {
+      "sourceRelativePath": "regression.log",
+      "bytes": 6897,
+      "sha256": "66a1023f5d508cf7c5f6e9f9dcd0b361d894d598fb9a0611c4cf9cd1038a676d"
+    },
+    {
+      "sourceRelativePath": "run-log.md",
+      "bytes": 2250,
+      "sha256": "a1e4622eb306238e85ac3085fffc217270a86d5c5df430dcdd4a2e49b4462c6d"
+    }
+  ]
+}

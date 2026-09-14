@@ -1,0 +1,58 @@
+{
+  "capturedEpoch": 1789376877.5612931,
+  "sourceRoot": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/muse-snapback4/m7",
+  "role": "orchestrator passive replacement snapshot capture after store reset; all9preJSON differfromoriginal",
+  "activePhasePid": 11190,
+  "files": [
+    {
+      "sourceRelativePath": "run-log.md",
+      "bytes": 1269,
+      "sha256": "c9640d8a1f2253351b9df1981a538cca2820a9de75b41896c2d8658f4682cc48"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/alice.json",
+      "bytes": 21483,
+      "sha256": "c465a15b549b4609af4b5ab8ebbe4cc60cf38430d47a0a334f0d174080838d3d"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/bob.json",
+      "bytes": 21476,
+      "sha256": "519edfdd57a0db7ea70d4e1f872bfebcfcaad35c05417bd5d887b1ba553bf50a"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/carol.json",
+      "bytes": 13162,
+      "sha256": "a91e9b71fe61de08c4bc19e896bfc60f8d241e4772bd0e6832585bd974068d73"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/dave.json",
+      "bytes": 573,
+      "sha256": "a40b91e38ed8b433abff5139611d017b2213794ccf5eb6a1f7dcb8d1b2c2448d"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/erin.json",
+      "bytes": 577,
+      "sha256": "55c17fbdfa382a2bc2a0cc03b57ddf54a2091bb80deb9987bd6005a7761614dd"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/frank.json",
+      "bytes": 574,
+      "sha256": "46ecd0443a3411fb48f783e457f09907eca95a0a5ece6da354e500d3f3d220a0"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/grace.json",
+      "bytes": 579,
+      "sha256": "35a314c9cfea176b0a07329a34a16ec37213af6ca99ea012111ddbab59c146b3"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/henry.json",
+      "bytes": 574,
+      "sha256": "5c281f8cd3c64e464911ac20513c76b69fa0bdabbcd84eb7ffc92d712b1d0670"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/manifest.json",
+      "bytes": 750,
+      "sha256": "9c3255b78410b2b236aed481fd0a31edfb388617ea19367ada4904ff306d4d99"
+    }
+  ]
+}

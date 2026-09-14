@@ -1,0 +1,68 @@
+{
+  "endedAt": "2026-09-14T10:41:15.056696Z",
+  "error": null,
+  "exitCode": 0,
+  "externalStartSha256": "eb6a3cf3d5feb3c86e205652d4e92e8f7d175814770403b875febe8a6b8fbbfe",
+  "phase": "m7",
+  "pid": 11181,
+  "runnerLifecycle": {
+    "end": {
+      "path": "/Users/ccheever/clique-sb4-20260913-full-3models/logs/muse-snapback4.m7.end.json",
+      "record": {
+        "endedAt": "2026-09-14T10:41:15Z",
+        "endedEpoch": 1789382475,
+        "exitCode": 0,
+        "lane": "muse-snapback4",
+        "phase": "m7",
+        "pid": 11190,
+        "stderr": "/Users/ccheever/clique-sb4-20260913-full-3models/logs/muse-snapback4.m7.stderr.log",
+        "stdout": "/Users/ccheever/clique-sb4-20260913-full-3models/logs/muse-snapback4.m7.ndjson",
+        "wallSeconds": 6434.294
+      },
+      "sha256": "f8129bfedb2d71622f689a1183d595eb0ddd6917b20707ef8a7f22d38318849a"
+    },
+    "start": {
+      "path": "/Users/ccheever/clique-sb4-20260913-full-3models/logs/muse-snapback4.m7.start.json",
+      "record": {
+        "command": [
+          "/Users/ccheever/.local/bin/muse",
+          "exec",
+          "--prompt-file",
+          "/Users/ccheever/clique-sb4-20260913-full-3models/prompts/muse-snapback4.m7.md",
+          "--model",
+          "muse-spark-1.3",
+          "--reasoning-effort",
+          "xhigh",
+          "--json",
+          "--yolo",
+          "--trust-workspace",
+          "--user-input-auto-resolve",
+          "--max-model-steps",
+          "50000",
+          "--workspace",
+          "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/muse-snapback4"
+        ],
+        "cwd": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/muse-snapback4",
+        "detached": false,
+        "effort": "xhigh",
+        "lane": "muse-snapback4",
+        "model": "muse-spark-1.3",
+        "packages": {
+          "snapback4": "0.2.6",
+          "snapback4-expo": "0.2.1"
+        },
+        "phase": "m7",
+        "pid": 11190,
+        "prompt": "/Users/ccheever/clique-sb4-20260913-full-3models/prompts/muse-snapback4.m7.md",
+        "startedAt": "2026-09-14T08:54:00Z",
+        "startedEpoch": 1789376040,
+        "stderr": "/Users/ccheever/clique-sb4-20260913-full-3models/logs/muse-snapback4.m7.stderr.log",
+        "stdout": "/Users/ccheever/clique-sb4-20260913-full-3models/logs/muse-snapback4.m7.ndjson"
+      },
+      "sha256": "8d8898354286d9a70f3a1454381db90b2a6948b41ad5126f9257d00b5f6ade37"
+    }
+  },
+  "schemaVersion": "clique-muse-exit130-postphase.v1",
+  "wallSeconds": 6434.309,
+  "wave": "muse"
+}

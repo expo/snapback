@@ -1,0 +1,54 @@
+{
+  "choreography": {
+    "finalObservationsMatchFirstGreen": true,
+    "finalReceiptMatchesFirstGreen": true,
+    "firstGreenCaptureSha256": "bb487d67ee8ce8dffdf32358b4d1ef3fa56eb7fc94657ef9b6f9e144969d9ee1",
+    "firstRedCaptureSha256": "07eab8b30f5a4a6c0db90b3c9631c35968d46109c41265cb938d8a7ae1734ae8",
+    "qualification": "The later choreography is received green but links a 31/31 suite run from before the source corrections between red and green.",
+    "suiteHashSameAcrossRedAndGreen": true
+  },
+  "createdAt": "2026-09-14T10:50:50Z",
+  "regression": {
+    "currentOverlappingRegressionSha256": "69bfa4ff87a1a4104ade6f18d8c71835ba0dc578f6a1c8bd04f5337026276994",
+    "finalCleanMatchesObserverCopy": true,
+    "finalCleanSha256": "541860a8fbacfe1fb72722cd58be65882e377b4d12e97f9ee2d8afb5d237c01b",
+    "finalCleanTally": {
+      "fail": 0,
+      "pass": 160,
+      "total": 160
+    },
+    "observedHistoryComplete": false,
+    "qualification": "Earlier passive receipts include 158/159 with m6-a04 failed, a 73/73 partial run, and two 159/160 captures. Overlapping writers introduced NUL holes in two retained logs; the later separate regression-final is clean 160/160."
+  },
+  "schemaVersion": 1,
+  "snapshot": {
+    "firstMigrationCaptureSha256": "985a14600090fd9841505f4601a9e1a8d8e37e4bd1cdd8eb640862088bd50afa",
+    "firstMigrationVsReplacementIdenticalPayloads": [
+      "pre-snapshot/alice.json",
+      "pre-snapshot/bob.json",
+      "pre-snapshot/carol.json",
+      "pre-snapshot/dave.json",
+      "pre-snapshot/erin.json",
+      "pre-snapshot/frank.json",
+      "pre-snapshot/grace.json",
+      "pre-snapshot/henry.json",
+      "pre-snapshot/manifest.json",
+      "run-log.md"
+    ],
+    "originalCaptureSha256": "c13907bf2588699a4436a6a9039eb631ab048919172dbe73875cb38567236de1",
+    "originalVsReplacementChangedPayloads": [
+      "pre-snapshot/alice.json",
+      "pre-snapshot/bob.json",
+      "pre-snapshot/carol.json",
+      "pre-snapshot/dave.json",
+      "pre-snapshot/erin.json",
+      "pre-snapshot/frank.json",
+      "pre-snapshot/grace.json",
+      "pre-snapshot/henry.json",
+      "pre-snapshot/manifest.json",
+      "run-log.md"
+    ],
+    "qualification": "The first-migration passive capture already contains replacement bytes. The original 48/0 migration claim has only its contemporaneous run-log line; final 48/0 comparison uses the replacement baseline.",
+    "replacementCaptureSha256": "942d1ca4f9bde3f8d00cf347685797b3ecaa1724ab86b9a7657be062bdc76b48"
+  }
+}

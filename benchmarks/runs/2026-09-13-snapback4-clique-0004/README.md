@@ -1,6 +1,8 @@
 # Clique on Snapback 4 — full brief, three builder models
 
-**Status: running.** Astra medium completed its continuous build at
+**Status: complete.** All three continuous builds, holistic scores, independent
+grades and fresh M7 sessions have finished. The [comparison](./comparison.md)
+summarizes the results and prior-run changes. Astra medium completed its continuous build at
 `2026-09-13T21:10:50Z` in 9,614.013 seconds of driver wall time. Grok 4.6 xhigh
 finished at `2026-09-14T00:40:23Z` after 12,499.350 seconds with incomplete
 milestone coverage. Muse delivered its builder report, then its runtime kept
@@ -17,7 +19,11 @@ seconds. Its [evidence audit](./astra-m7-outcome-audit.md) supports that result
 with protocol qualifications below. Grok M7 exited zero in 1,658.219 seconds,
 reporting green; its [outcome audit](./grok-m7-outcome-audit.md) is complete,
 and its [source audit](./grok-m7-source-delta-audit.md) identifies material app
-defects despite passing receipts. Muse M7 is active.
+defects despite passing receipts. Muse M7 exited zero at
+`2026-09-14T10:41:15Z` after 6,434.294 seconds, reporting green. Its final
+choreography follows client corrections that postdate the suite logs, and a
+replaced snapshot baseline limits the migration claim. The final audits below
+qualify the received result and identify poll-query lifetime and bound defects.
 All three lanes are frozen to published `snapback4@0.2.6` and
 `snapback4-expo@0.2.1`. `REGISTRY_RECEIPTS.json` confirms that registry integrity
 matches the exact qualified tarballs, including the platform binary.
@@ -102,8 +108,7 @@ frozen log that the builder did not select and the copied choreography it did
 not execute. A [clock observation](./muse-runlog-clock-observation.json)
 records handwritten epochs ahead of observer wall time. Receipt clocks,
 builder-written times, and driver time including the runtime continuation loop
-remain separate. All three baseline grades are complete; fresh M7 sessions
-remain in progress.
+remain separate. All three baseline grades and fresh M7 sessions are complete.
 
 The separate [Grok client attribution audit](./grok-client-attribution-audit.md)
 identifies mutation return values as a documented client limitation. Static
@@ -127,7 +132,7 @@ new exit diagnostics are not measured by the frozen run.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Astra medium | builder green | builder green | builder green | builder green | builder green | builder green | builder green | 9,614.013 s | 84 | 100 pass / 10 fail / 9 not-run | 84 pass / 8 fail / 9 not-run | builder green; 1,345.403 s; protocol qualifications |
 | Grok 4.6 xhigh | web green | web green | capability failure | blocked; partial API suite | blocked; partial API suite | blocked; scale incomplete | blocked; partial API suite | 12,499.350 s | 70 | 70 pass / 18 fail / 31 not-run | 60 pass / 17 fail / 24 not-run | builder green; 1,658.219 s; audited app defects |
-| Muse Spark 1.3 xhigh | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | 17,657.686 s; includes interrupted runtime continuation | 80 | 94 pass / 16 fail / 8 not-run / 1 not-applicable | 79 pass / 13 fail / 8 not-run / 1 not-applicable | active |
+| Muse Spark 1.3 xhigh | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | 17,657.686 s; includes interrupted runtime continuation | 80 | 94 pass / 16 fail / 8 not-run / 1 not-applicable | 79 pass / 13 fail / 8 not-run / 1 not-applicable | builder green; 6,434.294 s; app defects and evidence gaps |
 
 Astra's grade passed the frozen schema and exact 101+18 assertion partition.
 Its 18 M8 results are 16 pass / 2 fail; all nine not-run results are pre-evolution
@@ -247,14 +252,49 @@ voting. It also finds a conversation-wide 200-vote query that can truncate
 later poll tallies and an unreachable native poll composer. New suite mappings
 omit some option-bound, expiry, and rendered-settings checks, while regression
 reruns preserve inherited weak mappings. Grok's received green is therefore
-qualified by these app defects and coverage gaps. Muse's final M7 phase started at
-`2026-09-14T08:54:00Z`, with a single 14,400-second cap.
+qualified by these app defects and coverage gaps. Muse's final M7 phase ran from
+`2026-09-14T08:54:00Z` to `2026-09-14T10:41:15Z`, exiting zero after
+6,434.294 seconds within its single 14,400-second cap. Its handwritten
+6,391-second clock is retained separately from the runner's wall time.
+
+The [Muse M7 outcome audit](./muse-m7-outcome-audit.md) verifies its received
+31/31 feature suite, 160/160 regression log, and final green choreography.
+The live-tally choreography passes two attempts and times out on the third;
+the offline-vote attempt passes. That is green under the frozen best-of-three
+rule. The initial failed offline attempt and failed or overlapping regression
+attempts remain in the [M7 archive](./muse/m7/README.md). Both green suite logs
+predate the final offline-vote client corrections, and the choreography
+predates a later web rebuild. These artifacts establish results for successive
+states rather than an all-checks-green final source state.
+
+Muse's final pre-snapshot is a replacement captured after resetting and
+reseeding the evolved store. The original snapshot is retained separately.
+Both the original migration and final snapshot comparison have logged 48/0
+claims, but no retained post-persona inputs from which to recompute them.
+The replacement snapshot contains 39 message projections, no populated
+message receipts, reactions or media, and byte hashes covering three of eight
+direct avatar references. Its new 2,805,530-byte Hermes bundle supports an
+export claim, with no simulator or device execution proof. M7 is therefore
+builder-reported green with migration and verification qualifications; the
+independent baseline grade is unchanged.
+
+The [Muse source audit](./muse-m7-source-delta-audit.md) finds coherent group
+authorization, option bounds, maintained tallies, and set-state voting. It
+also finds deleted or expired poll metadata still queryable, with orphan rows
+consuming an unpageable 100-poll prefix and eventually hiding later live polls.
+Those are application-schema defects. The count change works for the
+tombstone-free starter corpus and future writes, but has no backfill for
+historical tombstones. Its nine inherited test files and package locks remain
+unchanged. These source findings qualify the received builder green.
 
 The [expiry attribution addendum](./m7-expiry-attribution-addendum.md)
 corrects the builder reports and the original Astra source audit: both sum
 and count queries exclude expired source rows before physical cleanup, and
 observed queries use the expiry deadline to schedule a rerun. The asserted
 fixed sweep delay was an incorrect explanation, not a measured product delay.
+The Muse source audit rejects the same sweep explanation and its claimed
+one-second ledger skew: message and tombstone-ledger rows carry the same
+logical deadline, and both counts exclude them at that deadline.
 
 The frozen packet has two M7 methodology limitations. Its brief calls for a
 pre-session snapshot, while its supplied prompt instructs the fresh builder to
@@ -265,7 +305,7 @@ not a builder error. Also, assertion `m7-a08` assigns snapshot comparison to
 the grader, but the packet and prior full runs have no post-M7 independent
 grade stage. M7 therefore remains builder functional evidence with a static
 audit, independently ungraded. The baseline grade remains unchanged; snapshot
-preservation is supported for the captured pre-change state.
+preservation in Astra's audit is supported for its captured pre-change state.
 
 The [holistic scorers](./holistic/summary.md) use their own builders' narratives, so their diagnoses are
 not independent technical findings. Astra charged pending metadata loss that
@@ -282,8 +322,8 @@ Muse later supplied a [second compact-video trace](./muse-m4-compact-video-provi
 
 The frozen assertion manifest contains 119 unique IDs: 101 for M1–M7 and 18
 for M8. The frozen report schema accepts the 101-ID set, so each independent
-grader will write those results to `grader-report.json` and the same session's
-18 M8 results to `m8-assertion-results.json`. The summary must retain the full
+grader wrote those results to `grader-report.json` and the same session's
+18 M8 results to `m8-assertion-results.json`. The summary retains the full
 119 result and the comparable 101 subtotal separately. Earlier structured
 grades omitted all 18 M8 IDs; their narrative comments are not a comparable
 M8 assertion result.
@@ -358,6 +398,9 @@ exit record are retained unchanged. This is an orchestration exception, not a
 successful builder-process exit or a benchmark pass.
 
 The packet's foreground runner records command, PID, start, exit, end, wall
-time, stdout, and stderr for every phase. Those retained lifecycle records,
-lane reports, holistic outputs, 101-ID grade files, 18-ID M8 supplements, grade
-summary, and fresh-M7 reports will replace the pending cells after execution.
+time, stdout, and stderr for every phase. Retained lifecycle records, lane
+reports, holistic outputs, 101-ID grade files, 18-ID M8 supplements, grade
+summary and fresh-M7 reports are linked above. The [final integrity check](./final-packet-integrity.json)
+verified all 177 instrument files byte-identical and read-only, frozen pins and
+runner/helper hashes unchanged, and all 20 benchmark ports closed. It also
+verified 87 Astra, 93 Grok and 87 Muse selected pre-M7 grading files unchanged.

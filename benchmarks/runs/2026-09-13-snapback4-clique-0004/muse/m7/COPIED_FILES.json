@@ -1,0 +1,491 @@
+{
+  "authoredFilesExcluded": [
+    "README.md",
+    "COPIED_FILES.json",
+    "external-artifacts.json",
+    "capture-comparison.json",
+    "source-m7-delta.json",
+    "source-final-inventory.json"
+  ],
+  "copiedBytes": 358663,
+  "copiedFileCount": 59,
+  "copyVerification": "Each destination was exclusively created, then byte length and SHA-256 were compared with the source. All copied files passed UTF-8, NUL, and high-confidence credential screens.",
+  "createdAt": "2026-09-14T10:50:50Z",
+  "destinationRoot": "benchmarks/runs/2026-09-13-snapback4-clique-0004/muse/m7",
+  "files": [
+    {
+      "bytes": 6061,
+      "category": "builder-report",
+      "destination": "diary.md",
+      "sha256": "331410064c667db927748a4c24cca0f8d782d873e103b2de2bb7550dbee7f38e",
+      "sourcePath": "lanes/muse-snapback4/m7/diary.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 2899,
+      "category": "builder-report",
+      "destination": "essay-paragraphs.md",
+      "sha256": "45c792b10cd407a1fd33485f7a5641d6491147027d4e81db33e22d5161942689",
+      "sourcePath": "lanes/muse-snapback4/m7/essay-paragraphs.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1241,
+      "category": "m7-suite",
+      "destination": "evidence/accept-m7.log",
+      "sha256": "e649e519fac247dd54b69e6bb2f1a156417274a58cb91cdee02f8c26230981e4",
+      "sourcePath": "lanes/muse-snapback4/m7/accept-m7.log",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 3552,
+      "category": "m7-choreography",
+      "destination": "evidence/choreo-m7.jsonl",
+      "sha256": "03f53e49d10685f98eb7a8f5d5fd84d2679122b49107a7d0a57bf101010e6220",
+      "sourcePath": "lanes/muse-snapback4/m7/choreo-receipts.jsonl",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1435,
+      "category": "m7-choreography",
+      "destination": "evidence/choreo-m7.jsonl.observations.jsonl",
+      "sha256": "1b7066055e9e3116dbfddd5175e6a1653b29c082ed1af332e8c01a5de320f2f0",
+      "sourcePath": "lanes/muse-snapback4/m7/choreo-receipts.jsonl.observations.jsonl",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1389,
+      "category": "m7-suite",
+      "destination": "evidence/coverage-m7.json",
+      "sha256": "976610ce9a391596e02d058cdac1802c9d0ec2394de454f7eb8b122d9eb43b2a",
+      "sourcePath": "lanes/muse-snapback4/coverage/m7.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 6341,
+      "category": "m7-final-regression",
+      "destination": "evidence/regression-final-160-of-160.log",
+      "sha256": "541860a8fbacfe1fb72722cd58be65882e377b4d12e97f9ee2d8afb5d237c01b",
+      "sourcePath": "lanes/muse-snapback4/m7/regression-final.log",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 762,
+      "category": "m7-identity",
+      "destination": "evidence/setup-identity.json",
+      "sha256": "368dd4ca05a57033c43b909e60183b3bd0b208fcd976f31d17b84808396b12db",
+      "sourcePath": "lanes/muse-snapback4/m7/setup-identity.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 46,
+      "category": "m7-suite",
+      "destination": "evidence/suite-status.json",
+      "sha256": "629b34ef344aaa7c9dd4cb5465eb25d8440387125777fd44ac276c9d88a089f0",
+      "sourcePath": "lanes/muse-snapback4/m7/suite-status.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 7346,
+      "category": "builder-report",
+      "destination": "final-report.md",
+      "sha256": "d6f40c070381294d5df1a1d783d404e2bf6b86eaa3013e5dffc262e311fabcd3",
+      "sourcePath": "lanes/muse-snapback4/m7/final-report.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 2529,
+      "category": "continuation-lifecycle",
+      "destination": "lifecycle/muse-m7-exit130-override.end.json",
+      "sha256": "037f0e2a5af9cb19edcfc0d7da921dd7702a04f37d2bdb32c0bff13e617a80c1",
+      "sourcePath": "observed-milestones/muse-m7-exit130-override.end.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 365,
+      "category": "runner-lifecycle",
+      "destination": "lifecycle/muse-snapback4.m7.end.json",
+      "sha256": "f8129bfedb2d71622f689a1183d595eb0ddd6917b20707ef8a7f22d38318849a",
+      "sourcePath": "logs/muse-snapback4.m7.end.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1120,
+      "category": "runner-lifecycle",
+      "destination": "lifecycle/muse-snapback4.m7.start.json",
+      "sha256": "8d8898354286d9a70f3a1454381db90b2a6948b41ad5126f9257d00b5f6ade37",
+      "sourcePath": "logs/muse-snapback4.m7.start.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1241,
+      "category": "orchestrator-choreography-first-green",
+      "destination": "qualifications/choreography/first-green/accept-m7.log",
+      "sha256": "e649e519fac247dd54b69e6bb2f1a156417274a58cb91cdee02f8c26230981e4",
+      "sourcePath": "observed-milestones/muse-m7-first-green-choreography-prefix/accept-m7.log",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1789,
+      "category": "orchestrator-choreography-first-green",
+      "destination": "qualifications/choreography/first-green/capture.json",
+      "sha256": "bb487d67ee8ce8dffdf32358b4d1ef3fa56eb7fc94657ef9b6f9e144969d9ee1",
+      "sourcePath": "observed-milestones/muse-m7-first-green-choreography-prefix/capture.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 3552,
+      "category": "orchestrator-choreography-first-green",
+      "destination": "qualifications/choreography/first-green/choreo-receipts.jsonl",
+      "sha256": "03f53e49d10685f98eb7a8f5d5fd84d2679122b49107a7d0a57bf101010e6220",
+      "sourcePath": "observed-milestones/muse-m7-first-green-choreography-prefix/choreo-receipts.jsonl",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1435,
+      "category": "orchestrator-choreography-first-green",
+      "destination": "qualifications/choreography/first-green/choreo-receipts.jsonl.observations.jsonl",
+      "sha256": "1b7066055e9e3116dbfddd5175e6a1653b29c082ed1af332e8c01a5de320f2f0",
+      "sourcePath": "observed-milestones/muse-m7-first-green-choreography-prefix/choreo-receipts.jsonl.observations.jsonl",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 4098,
+      "category": "orchestrator-choreography-first-green",
+      "destination": "qualifications/choreography/first-green/run-log.md",
+      "sha256": "b4ecc46f419394f9527048fc7b47ddc53ef56bcccccc8b6291cae3bc677718cd",
+      "sourcePath": "observed-milestones/muse-m7-first-green-choreography-prefix/run-log.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 46,
+      "category": "orchestrator-choreography-first-green",
+      "destination": "qualifications/choreography/first-green/suite-status.json",
+      "sha256": "629b34ef344aaa7c9dd4cb5465eb25d8440387125777fd44ac276c9d88a089f0",
+      "sourcePath": "observed-milestones/muse-m7-first-green-choreography-prefix/suite-status.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1241,
+      "category": "orchestrator-choreography-first-red",
+      "destination": "qualifications/choreography/first-red/accept-m7.log",
+      "sha256": "e649e519fac247dd54b69e6bb2f1a156417274a58cb91cdee02f8c26230981e4",
+      "sourcePath": "observed-milestones/muse-m7-first-choreography-prefix/accept-m7.log",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1786,
+      "category": "orchestrator-choreography-first-red",
+      "destination": "qualifications/choreography/first-red/capture.json",
+      "sha256": "07eab8b30f5a4a6c0db90b3c9631c35968d46109c41265cb938d8a7ae1734ae8",
+      "sourcePath": "observed-milestones/muse-m7-first-choreography-prefix/capture.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 3601,
+      "category": "orchestrator-choreography-first-red",
+      "destination": "qualifications/choreography/first-red/choreo-receipts.jsonl",
+      "sha256": "2293e4ef45c52dc24eb06a1658ca537864b2907596e1af78002df4c49736784a",
+      "sourcePath": "observed-milestones/muse-m7-first-choreography-prefix/choreo-receipts.jsonl",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1430,
+      "category": "orchestrator-choreography-first-red",
+      "destination": "qualifications/choreography/first-red/choreo-receipts.jsonl.observations.jsonl",
+      "sha256": "db2557bc2963900e15aca333c7a4ba074b4c8b2242f67e1a19c0ffed58959ace",
+      "sourcePath": "observed-milestones/muse-m7-first-choreography-prefix/choreo-receipts.jsonl.observations.jsonl",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 3449,
+      "category": "orchestrator-choreography-first-red",
+      "destination": "qualifications/choreography/first-red/run-log.md",
+      "sha256": "6b3aad4402ae8c622d2d8a4ec75312744555d721b8215f49b77df7d010976e5f",
+      "sourcePath": "observed-milestones/muse-m7-first-choreography-prefix/run-log.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 46,
+      "category": "orchestrator-choreography-first-red",
+      "destination": "qualifications/choreography/first-red/suite-status.json",
+      "sha256": "629b34ef344aaa7c9dd4cb5465eb25d8440387125777fd44ac276c9d88a089f0",
+      "sourcePath": "observed-milestones/muse-m7-first-choreography-prefix/suite-status.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 4359,
+      "category": "continuation-qualification",
+      "destination": "qualifications/muse-exit130-postphase-helper-verification.json",
+      "sha256": "4daf379da26b9646dac44d4320f84d9361714a5d0be690a97ded0eca3c1e908a",
+      "sourcePath": "observed-milestones/muse-exit130-postphase-helper-verification.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 6821,
+      "category": "orchestrator-qualification",
+      "destination": "qualifications/muse-m7-choreography-provisional.md",
+      "sha256": "ecc23361b66e58ee750f8fb5649220bb549dccd4bc5aa2ece7b52dae6dd65fdb",
+      "sourcePath": "observed-milestones/muse-m7-choreography-provisional.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 6688,
+      "category": "orchestrator-qualification",
+      "destination": "qualifications/muse-m7-snapshot-replacement-provisional.md",
+      "sha256": "15fa6f624e8c8ca4e92ce9483d5006b1e0c8013468530ca738c13c2c1cb9d275",
+      "sourcePath": "observed-milestones/muse-m7-snapshot-replacement-provisional.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 744,
+      "category": "orchestrator-regression-default-ports",
+      "destination": "qualifications/regressions/default-ports/capture.json",
+      "sha256": "4d10923f86800651a2d8a506d9997281385272457d36c0f9fa54e343dbed5b05",
+      "sourcePath": "observed-milestones/muse-m7-regression-default-ports/capture.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 6658,
+      "category": "orchestrator-regression-default-ports",
+      "destination": "qualifications/regressions/default-ports/regression.log",
+      "sha256": "b8021c5e96c3877e4e49e681f3e8cd091a203a237bee33585a88b16e022e596e",
+      "sourcePath": "observed-milestones/muse-m7-regression-default-ports/regression.log",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 2706,
+      "category": "orchestrator-regression-default-ports",
+      "destination": "qualifications/regressions/default-ports/run-log.md",
+      "sha256": "6607993ff5be0a761c12db148e5224255714108badef6dad2f7ea2f43bfae7b1",
+      "sourcePath": "observed-milestones/muse-m7-regression-default-ports/run-log.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 710,
+      "category": "orchestrator-regression-first-observed",
+      "destination": "qualifications/regressions/first-observed/capture.json",
+      "sha256": "3a0c06dca5846acf99144a6027b65c60c2b4d309a0124158493b7a2d965e7060",
+      "sourcePath": "observed-milestones/muse-m7-regression-first-observed/capture.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 6897,
+      "category": "orchestrator-regression-first-observed",
+      "destination": "qualifications/regressions/first-observed/regression.log",
+      "sha256": "66a1023f5d508cf7c5f6e9f9dcd0b361d894d598fb9a0611c4cf9cd1038a676d",
+      "sourcePath": "observed-milestones/muse-m7-regression-first-observed/regression.log",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 2250,
+      "category": "orchestrator-regression-first-observed",
+      "destination": "qualifications/regressions/first-observed/run-log.md",
+      "sha256": "a1e4622eb306238e85ac3085fffc217270a86d5c5df430dcdd4a2e49b4462c6d",
+      "sourcePath": "observed-milestones/muse-m7-regression-first-observed/run-log.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1549,
+      "category": "orchestrator-regression-history",
+      "destination": "qualifications/regressions/observer-history-events.jsonl",
+      "sha256": "0613ccf5549f68701602e847dd9bf9a3b24c53025e132b59ea61ec12a40db039",
+      "sourcePath": "observed-milestones/muse-m7-regression-observer-history/events.jsonl",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 2012,
+      "category": "orchestrator-snapshot-first-migration",
+      "destination": "qualifications/snapshot/first-migration/capture.json",
+      "sha256": "985a14600090fd9841505f4601a9e1a8d8e37e4bd1cdd8eb640862088bd50afa",
+      "sourcePath": "observed-milestones/muse-m7-first-migration-prefix/capture.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1269,
+      "category": "orchestrator-snapshot-first-migration",
+      "destination": "qualifications/snapshot/first-migration/run-log.md",
+      "sha256": "c9640d8a1f2253351b9df1981a538cca2820a9de75b41896c2d8658f4682cc48",
+      "sourcePath": "observed-milestones/muse-m7-first-migration-prefix/run-log.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1960,
+      "category": "orchestrator-snapshot-original",
+      "destination": "qualifications/snapshot/original/capture.json",
+      "sha256": "c13907bf2588699a4436a6a9039eb631ab048919172dbe73875cb38567236de1",
+      "sourcePath": "observed-milestones/muse-m7-presnapshot-prefix/capture.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 703,
+      "category": "orchestrator-snapshot-original",
+      "destination": "qualifications/snapshot/original/run-log.md",
+      "sha256": "5dd2a3a50240524fd9057849d4a39d456aa191dd0b815942398a8d48c6fb5865",
+      "sourcePath": "observed-milestones/muse-m7-presnapshot-prefix/run-log.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1994,
+      "category": "orchestrator-snapshot-replacement",
+      "destination": "qualifications/snapshot/replacement/capture.json",
+      "sha256": "942d1ca4f9bde3f8d00cf347685797b3ecaa1724ab86b9a7657be062bdc76b48",
+      "sourcePath": "observed-milestones/muse-m7-replacement-snapshot-prefix/capture.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1269,
+      "category": "orchestrator-snapshot-replacement",
+      "destination": "qualifications/snapshot/replacement/run-log.md",
+      "sha256": "c9640d8a1f2253351b9df1981a538cca2820a9de75b41896c2d8658f4682cc48",
+      "sourcePath": "observed-milestones/muse-m7-replacement-snapshot-prefix/run-log.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 4263,
+      "category": "builder-report",
+      "destination": "run-log.md",
+      "sha256": "1a602c8ed74d1ada4b564215f94ea8fe3d394c52bf5c7b1ab124be3e76c51146",
+      "sourcePath": "lanes/muse-snapback4/m7/run-log.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 11509,
+      "category": "m7-source",
+      "destination": "source-m7/API.md",
+      "sha256": "9f4c9bcd414133fe54edc619848f578e791e0640520dd3affc8b44df99f7e58e",
+      "sourcePath": "lanes/muse-snapback4/API.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 29891,
+      "category": "m7-source",
+      "destination": "source-m7/app-host/clique/src-api.ts",
+      "sha256": "d56e394f997e3cee30ca3b5feef6d7bd46631d7f669c41ffe38f3e8d791afa4c",
+      "sourcePath": "lanes/muse-snapback4/app-host/clique/src-api.ts",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 35868,
+      "category": "m7-source",
+      "destination": "source-m7/app-host/clique/src/components/ConversationView.tsx",
+      "sha256": "93c8553f0be10954fe89809fa864943a99ac33cc584f6ad037e00df667a01792",
+      "sourcePath": "lanes/muse-snapback4/app-host/clique/src/components/ConversationView.tsx",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 6790,
+      "category": "m7-source",
+      "destination": "source-m7/choreo/setup-identity.mjs",
+      "sha256": "a2e965b0a6db8e5ed7ec9c361035a0f5fb0252a261f4d44f8825463278da9420",
+      "sourcePath": "lanes/muse-snapback4/choreo/setup-identity.mjs",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 7733,
+      "category": "m7-source",
+      "destination": "source-m7/lib/json-schema.mjs",
+      "sha256": "7b882f6147e6efde88bc41f4dbc6806e712fb54c2e1b47a214a5d59e96f02660",
+      "sourcePath": "lanes/muse-snapback4/lib/json-schema.mjs",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 4067,
+      "category": "m7-source",
+      "destination": "source-m7/metering/finalization-diagnostics.mjs",
+      "sha256": "3006a8ffb3905c7877f115e076d290c5fc0d9a8d3d05ffdee339151644feb707",
+      "sourcePath": "lanes/muse-snapback4/metering/finalization-diagnostics.mjs",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1202,
+      "category": "m7-source",
+      "destination": "source-m7/metering/mutation-guard.mjs",
+      "sha256": "48a4b3f8c7c0f81763a48b70330c458b258c026d9a94cee98c9cc1d17c97b228",
+      "sourcePath": "lanes/muse-snapback4/metering/mutation-guard.mjs",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 37056,
+      "category": "m7-source",
+      "destination": "source-m7/metering/observations.mjs",
+      "sha256": "12a81779e1b1a6eb8eaa04e8ed4aec209fb7f5164206aec9437bb1a07d49acbf",
+      "sourcePath": "lanes/muse-snapback4/metering/observations.mjs",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 4902,
+      "category": "m7-source",
+      "destination": "source-m7/scripts/m7-compare.mjs",
+      "sha256": "acf653aed17474aee243d65818b89868079e4519dc57e1a6d0341b7383e542a8",
+      "sourcePath": "lanes/muse-snapback4/scripts/m7-compare.mjs",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 3466,
+      "category": "m7-source",
+      "destination": "source-m7/scripts/m7-decarol.mjs",
+      "sha256": "8f154e129cebcc8dcae0ea10f23764aba132bf04ef0d0b3a23762126db2a6ba1",
+      "sourcePath": "lanes/muse-snapback4/scripts/m7-decarol.mjs",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 2814,
+      "category": "m7-source",
+      "destination": "source-m7/scripts/m7-ensure-poll.mjs",
+      "sha256": "67b8e358eb9358320aa007e7f2f34b37ae6ec42da67eab3502ff43ce16c4dbab",
+      "sourcePath": "lanes/muse-snapback4/scripts/m7-ensure-poll.mjs",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 5164,
+      "category": "m7-source",
+      "destination": "source-m7/scripts/m7-snapshot.mjs",
+      "sha256": "21e5833b6d2353ac8d53ac31f999c20aff9bfced53065da578a654268a86a7b3",
+      "sourcePath": "lanes/muse-snapback4/scripts/m7-snapshot.mjs",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 2124,
+      "category": "m7-source",
+      "destination": "source-m7/scripts/serve-dist.mjs",
+      "sha256": "270d7831ac5b60dc288a2193bbdae8fb06b581b7d581a2c42b1ea129128d52f9",
+      "sourcePath": "lanes/muse-snapback4/scripts/serve-dist.mjs",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 29891,
+      "category": "m7-source",
+      "destination": "source-m7/snapback/generated/api.ts",
+      "sha256": "d56e394f997e3cee30ca3b5feef6d7bd46631d7f669c41ffe38f3e8d791afa4c",
+      "sourcePath": "lanes/muse-snapback4/snapback/generated/api.ts",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 48126,
+      "category": "m7-source",
+      "destination": "source-m7/snapback/schema.q",
+      "sha256": "b2604e84346b5a121ca47ce39d7d8b3071c2a53b6005fce32950eb191246bbce",
+      "sourcePath": "lanes/muse-snapback4/snapback/schema.q",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 2297,
+      "category": "m7-source",
+      "destination": "source-m7/tests/accept.mjs",
+      "sha256": "1a127b05f9885b7c72ca5d6365b743a305ac907b9e948b1c62f18b8feb0b7b25",
+      "sourcePath": "lanes/muse-snapback4/tests/accept.mjs",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 14111,
+      "category": "m7-source",
+      "destination": "source-m7/tests/m7.mjs",
+      "sha256": "dd627da7d5838339561e80ecbec940bf7e6f6bb7f6f7bb8294a2b75ddd3aeb8f",
+      "sourcePath": "lanes/muse-snapback4/tests/m7.mjs",
+      "verifiedByteIdentical": true
+    }
+  ],
+  "schemaVersion": 1,
+  "sourceRoot": "/Users/ccheever/clique-sb4-20260913-full-3models"
+}

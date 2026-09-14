@@ -1,0 +1,230 @@
+{
+  "addedFileCount": 10,
+  "baseline": {
+    "captureBaseHelperSha256": "bdb0acbeef445664e300a5b75b0e27c7d1fbd87db50d5f79901c75b5f608ab5c",
+    "manifestBytes": 51355,
+    "manifestPath": "snapshots/muse-continuous/snapshot-manifest.json",
+    "manifestSha256": "b21980770054a865c85080ee5cda679c872b8d9809f063ad7166f6a2f07be1c1",
+    "sourceArchiveBytes": 3479123,
+    "sourceArchivePath": "snapshots/muse-continuous/source-snapshot.tar.gz",
+    "sourceArchiveSha256": "446d1072677631db4de474326d0e2864340c7d0d2dbc6378df88dfac1fc7451c",
+    "sourceFileCount": 195
+  },
+  "changedFileCount": 8,
+  "createdAt": "2026-09-14T10:50:50Z",
+  "deletedBaselineFileCount": 0,
+  "files": [
+    {
+      "after": {
+        "bytes": 11509,
+        "sha256": "9f4c9bcd414133fe54edc619848f578e791e0640520dd3affc8b44df99f7e58e"
+      },
+      "before": {
+        "bytes": 9944,
+        "sha256": "c7d23e64d0b6206e121f4d31eb88a86ff94ceccf4fcc6be13102586b08dae508"
+      },
+      "change": "changed",
+      "copiedTo": "source-m7/API.md",
+      "path": "API.md"
+    },
+    {
+      "after": {
+        "bytes": 29891,
+        "sha256": "d56e394f997e3cee30ca3b5feef6d7bd46631d7f669c41ffe38f3e8d791afa4c"
+      },
+      "before": {
+        "bytes": 26911,
+        "sha256": "513ffd018af44b9b27a17c41f6c1a9b0df75f2ceef51a0e1fa236fcb0ef0a4d9"
+      },
+      "change": "changed",
+      "copiedTo": "source-m7/app-host/clique/src-api.ts",
+      "path": "app-host/clique/src-api.ts"
+    },
+    {
+      "after": {
+        "bytes": 35868,
+        "sha256": "93c8553f0be10954fe89809fa864943a99ac33cc584f6ad037e00df667a01792"
+      },
+      "before": {
+        "bytes": 26213,
+        "sha256": "9352099279721924a4ffa72af51e98adfef435542fb334408a548bf4930d969e"
+      },
+      "change": "changed",
+      "copiedTo": "source-m7/app-host/clique/src/components/ConversationView.tsx",
+      "path": "app-host/clique/src/components/ConversationView.tsx"
+    },
+    {
+      "after": {
+        "bytes": 6790,
+        "sha256": "a2e965b0a6db8e5ed7ec9c361035a0f5fb0252a261f4d44f8825463278da9420"
+      },
+      "before": {
+        "bytes": 6793,
+        "sha256": "7d2b582aa2a2fc94602b76c9e732120e83be57b3c978df392937ca178cc8bf93"
+      },
+      "change": "changed",
+      "copiedTo": "source-m7/choreo/setup-identity.mjs",
+      "path": "choreo/setup-identity.mjs"
+    },
+    {
+      "after": {
+        "bytes": 7733,
+        "sha256": "7b882f6147e6efde88bc41f4dbc6806e712fb54c2e1b47a214a5d59e96f02660"
+      },
+      "before": null,
+      "change": "added",
+      "copiedTo": "source-m7/lib/json-schema.mjs",
+      "path": "lib/json-schema.mjs"
+    },
+    {
+      "after": {
+        "bytes": 4067,
+        "sha256": "3006a8ffb3905c7877f115e076d290c5fc0d9a8d3d05ffdee339151644feb707"
+      },
+      "before": null,
+      "change": "added",
+      "copiedTo": "source-m7/metering/finalization-diagnostics.mjs",
+      "path": "metering/finalization-diagnostics.mjs"
+    },
+    {
+      "after": {
+        "bytes": 1202,
+        "sha256": "48a4b3f8c7c0f81763a48b70330c458b258c026d9a94cee98c9cc1d17c97b228"
+      },
+      "before": null,
+      "change": "added",
+      "copiedTo": "source-m7/metering/mutation-guard.mjs",
+      "path": "metering/mutation-guard.mjs"
+    },
+    {
+      "after": {
+        "bytes": 37056,
+        "sha256": "12a81779e1b1a6eb8eaa04e8ed4aec209fb7f5164206aec9437bb1a07d49acbf"
+      },
+      "before": null,
+      "change": "added",
+      "copiedTo": "source-m7/metering/observations.mjs",
+      "path": "metering/observations.mjs"
+    },
+    {
+      "after": {
+        "bytes": 4902,
+        "sha256": "acf653aed17474aee243d65818b89868079e4519dc57e1a6d0341b7383e542a8"
+      },
+      "before": null,
+      "change": "added",
+      "copiedTo": "source-m7/scripts/m7-compare.mjs",
+      "path": "scripts/m7-compare.mjs"
+    },
+    {
+      "after": {
+        "bytes": 3466,
+        "sha256": "8f154e129cebcc8dcae0ea10f23764aba132bf04ef0d0b3a23762126db2a6ba1"
+      },
+      "before": null,
+      "change": "added",
+      "copiedTo": "source-m7/scripts/m7-decarol.mjs",
+      "path": "scripts/m7-decarol.mjs"
+    },
+    {
+      "after": {
+        "bytes": 2814,
+        "sha256": "67b8e358eb9358320aa007e7f2f34b37ae6ec42da67eab3502ff43ce16c4dbab"
+      },
+      "before": null,
+      "change": "added",
+      "copiedTo": "source-m7/scripts/m7-ensure-poll.mjs",
+      "path": "scripts/m7-ensure-poll.mjs"
+    },
+    {
+      "after": {
+        "bytes": 5164,
+        "sha256": "21e5833b6d2353ac8d53ac31f999c20aff9bfced53065da578a654268a86a7b3"
+      },
+      "before": null,
+      "change": "added",
+      "copiedTo": "source-m7/scripts/m7-snapshot.mjs",
+      "path": "scripts/m7-snapshot.mjs"
+    },
+    {
+      "after": {
+        "bytes": 2124,
+        "sha256": "270d7831ac5b60dc288a2193bbdae8fb06b581b7d581a2c42b1ea129128d52f9"
+      },
+      "before": null,
+      "change": "added",
+      "copiedTo": "source-m7/scripts/serve-dist.mjs",
+      "path": "scripts/serve-dist.mjs"
+    },
+    {
+      "after": {
+        "bytes": 29891,
+        "sha256": "d56e394f997e3cee30ca3b5feef6d7bd46631d7f669c41ffe38f3e8d791afa4c"
+      },
+      "before": {
+        "bytes": 27296,
+        "sha256": "0d3654f2e58f7faed5d162c23ce648b236463b9af372d9b3c4d0d77af4bf5d91"
+      },
+      "change": "changed",
+      "copiedTo": "source-m7/snapback/generated/api.ts",
+      "path": "snapback/generated/api.ts"
+    },
+    {
+      "after": {
+        "bytes": 48126,
+        "sha256": "b2604e84346b5a121ca47ce39d7d8b3071c2a53b6005fce32950eb191246bbce"
+      },
+      "before": {
+        "bytes": 41396,
+        "sha256": "e2d9f902b1385a7f4cc3c3dac9abf648f04ffa15f51467b956e31797a511a01a"
+      },
+      "change": "changed",
+      "copiedTo": "source-m7/snapback/schema.q",
+      "path": "snapback/schema.q"
+    },
+    {
+      "after": {
+        "bytes": 2297,
+        "sha256": "1a127b05f9885b7c72ca5d6365b743a305ac907b9e948b1c62f18b8feb0b7b25"
+      },
+      "before": {
+        "bytes": 1746,
+        "sha256": "911373b851b47ff04d998448b43dacbd7f65a94d2a03289acbf21772124a380f"
+      },
+      "change": "changed",
+      "copiedTo": "source-m7/tests/accept.mjs",
+      "path": "tests/accept.mjs"
+    },
+    {
+      "after": {
+        "bytes": 14111,
+        "sha256": "dd627da7d5838339561e80ecbec940bf7e6f6bb7f6f7bb8294a2b75ddd3aeb8f"
+      },
+      "before": null,
+      "change": "added",
+      "copiedTo": "source-m7/tests/m7.mjs",
+      "path": "tests/m7.mjs"
+    },
+    {
+      "after": {
+        "bytes": 1894,
+        "sha256": "045a9bbe800e550e48c25de353aa8380f4a5e21477ca1b95b006859fc6bd0de7"
+      },
+      "before": {
+        "bytes": 1894,
+        "sha256": "5ccd3a2c1f054fb2b5e2f325aef1a1b7758c99cc204adb5546204828bfb5e908"
+      },
+      "change": "changed",
+      "copiedTo": null,
+      "copyQualification": "execution transcript retained by hash only",
+      "path": "transcript.json"
+    }
+  ],
+  "finalEligibleFileCount": 205,
+  "manualExclusion": {
+    "path": ".snapback4.pre-m7-keep",
+    "reason": "runtime tree; frozen helper excludes .snapback4 and .snapback4-* but misses the dot suffix spelling; tree not inspected"
+  },
+  "schemaVersion": 1,
+  "scope": "Files eligible for the continuous source snapshot, with .snapback4.pre-m7-keep explicitly excluded as runtime state. M7/report/runtime output directories and generated logs are excluded. This is a source-inventory comparison, not a Git diff."
+}

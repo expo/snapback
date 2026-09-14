@@ -1,0 +1,11 @@
+{
+  "lane": "muse-snapback4",
+  "phase": "m7",
+  "pid": 11190,
+  "endedAt": "2026-09-14T10:41:15Z",
+  "endedEpoch": 1789382475,
+  "wallSeconds": 6434.294,
+  "exitCode": 0,
+  "stdout": "/Users/ccheever/clique-sb4-20260913-full-3models/logs/muse-snapback4.m7.ndjson",
+  "stderr": "/Users/ccheever/clique-sb4-20260913-full-3models/logs/muse-snapback4.m7.stderr.log"
+}

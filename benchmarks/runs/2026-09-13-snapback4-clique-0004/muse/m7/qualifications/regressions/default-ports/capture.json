@@ -1,0 +1,24 @@
+{
+  "capturedEpoch": 1789379682.7692292,
+  "activePhasePid": 11190,
+  "sourceRoot": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/muse-snapback4/m7",
+  "role": "passive latest default-port regression log; private until screening",
+  "observedTally": {
+    "total": 73,
+    "pass": 73,
+    "fail": 0
+  },
+  "qualification": "different count from prior159; execution scope requires final audit",
+  "files": [
+    {
+      "sourceRelativePath": "regression.log",
+      "bytes": 6658,
+      "sha256": "b8021c5e96c3877e4e49e681f3e8cd091a203a237bee33585a88b16e022e596e"
+    },
+    {
+      "sourceRelativePath": "run-log.md",
+      "bytes": 2706,
+      "sha256": "6607993ff5be0a761c12db148e5224255714108badef6dad2f7ea2f43bfae7b1"
+    }
+  ]
+}

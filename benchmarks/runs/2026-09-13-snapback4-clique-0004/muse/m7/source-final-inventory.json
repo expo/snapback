@@ -1,0 +1,1348 @@
+{
+  "createdAt": "2026-09-14T10:50:50Z",
+  "excludedPaths": [
+    {
+      "path": ".replay-passwords.json",
+      "reason": "credential or secret filename marker"
+    },
+    {
+      "path": ".replay-tokens.json",
+      "reason": "credential token filename"
+    },
+    {
+      "path": ".snapback4",
+      "reason": "excluded directory name"
+    },
+    {
+      "path": ".snapback4.pre-m7-keep",
+      "reason": "manual runtime-tree exclusion; frozen helper gap"
+    },
+    {
+      "path": ".worker-token.json",
+      "reason": "credential token filename"
+    },
+    {
+      "path": "app-host/clique/.claude",
+      "reason": "excluded directory name"
+    },
+    {
+      "path": "app-host/clique/.expo",
+      "reason": "excluded directory name"
+    },
+    {
+      "path": "app-host/clique/.git",
+      "reason": "excluded directory name"
+    },
+    {
+      "path": "app-host/clique/dist",
+      "reason": "excluded directory name"
+    },
+    {
+      "path": "app-host/clique/dist-ios",
+      "reason": "excluded directory name"
+    },
+    {
+      "path": "app-host/clique/dist-web/assets/node_modules",
+      "reason": "excluded directory name"
+    },
+    {
+      "path": "app-host/clique/node_modules",
+      "reason": "excluded directory name"
+    },
+    {
+      "path": "choreo/node_modules",
+      "reason": "excluded directory name"
+    },
+    {
+      "path": "coverage",
+      "reason": "excluded directory name"
+    },
+    {
+      "path": "essay.md",
+      "reason": "copied separately as builder report"
+    },
+    {
+      "path": "final-report.md",
+      "reason": "copied separately as builder report"
+    },
+    {
+      "path": "grading",
+      "reason": "excluded directory name"
+    },
+    {
+      "path": "instrument",
+      "reason": "symbolic-link directory"
+    },
+    {
+      "path": "m7",
+      "reason": "excluded directory name"
+    },
+    {
+      "path": "node_modules",
+      "reason": "excluded directory name"
+    },
+    {
+      "path": "push.log",
+      "reason": "generated runtime file"
+    },
+    {
+      "path": "run-log.md",
+      "reason": "copied separately as builder report"
+    },
+    {
+      "path": "sample-50.log",
+      "reason": "generated runtime file"
+    },
+    {
+      "path": "scale.log",
+      "reason": "generated runtime file"
+    },
+    {
+      "path": "starter-m1.log",
+      "reason": "generated runtime file"
+    },
+    {
+      "path": "starter-m2.log",
+      "reason": "generated runtime file"
+    },
+    {
+      "path": "starter-m3.log",
+      "reason": "generated runtime file"
+    }
+  ],
+  "fileCount": 205,
+  "files": [
+    {
+      "bytes": 11509,
+      "mode": "0o644",
+      "path": "API.md",
+      "sha256": "9f4c9bcd414133fe54edc619848f578e791e0640520dd3affc8b44df99f7e58e"
+    },
+    {
+      "bytes": 8039,
+      "mode": "0o444",
+      "path": "action-schema.json",
+      "sha256": "a8a64c8d26ffc0ed0beb049c2df82ff4604d0a8f795afda30199ac8799d1bc55"
+    },
+    {
+      "bytes": 440,
+      "mode": "0o644",
+      "path": "app-host/clique/.gitignore",
+      "sha256": "5936b94a73a28b6735de672b54c2c058a33c9ae1edb62d87d6a4418e14447805"
+    },
+    {
+      "bytes": 118,
+      "mode": "0o644",
+      "path": "app-host/clique/AGENTS.md",
+      "sha256": "5986df214fcb822f856b9a8aac7c06503e02158aad55c8d7edf2966d7ee2dffd"
+    },
+    {
+      "bytes": 11,
+      "mode": "0o644",
+      "path": "app-host/clique/CLAUDE.md",
+      "sha256": "336cc4fbf19beaada7ccf9986414fa91851a8d7a07dfb3ccbe800a69eed0ab49"
+    },
+    {
+      "bytes": 1106,
+      "mode": "0o644",
+      "path": "app-host/clique/LICENSE",
+      "sha256": "fb3ca4a837f5779e83cef89b78253a8949cfb9429c340309f62d0465ec6610b4"
+    },
+    {
+      "bytes": 754,
+      "mode": "0o644",
+      "path": "app-host/clique/app.json",
+      "sha256": "17d6c7d9ab2351560fa110bc9118e3c90c1f9eee304022891b99b3db02107d43"
+    },
+    {
+      "bytes": 236,
+      "mode": "0o644",
+      "path": "app-host/clique/app/_layout.tsx",
+      "sha256": "f67d6a05549d9674e4365cf81f0bd10568d1c483f60d56f27f874fe74e22d02d"
+    },
+    {
+      "bytes": 1517,
+      "mode": "0o644",
+      "path": "app-host/clique/app/auth.tsx",
+      "sha256": "6dd47d8ad6f103e2289d323ea675aa9a78d2f31380a1448283e38a6afa48e032"
+    },
+    {
+      "bytes": 4390,
+      "mode": "0o644",
+      "path": "app-host/clique/app/chats.tsx",
+      "sha256": "aed2fcf64e70104c0057436ee6525e5fa988dfbcd73ce3aeece5e26fa3aad685"
+    },
+    {
+      "bytes": 284,
+      "mode": "0o644",
+      "path": "app-host/clique/app/chatsettings/[id].tsx",
+      "sha256": "ca9186010414bd42220c149ace9cc2dba830a20c3fc13c0c25f286a00dfda84e"
+    },
+    {
+      "bytes": 2358,
+      "mode": "0o644",
+      "path": "app-host/clique/app/conversation/[handle].tsx",
+      "sha256": "165efe0eca95111580d9f226e976896fecf5eb1c2ba1782e4e952445dda6b5d0"
+    },
+    {
+      "bytes": 1517,
+      "mode": "0o644",
+      "path": "app-host/clique/app/conversation/group/[group].tsx",
+      "sha256": "502d8130326411d7282e7062bdb5bef924b0fca06812d8c59a562141b23513bd"
+    },
+    {
+      "bytes": 1226,
+      "mode": "0o644",
+      "path": "app-host/clique/app/conversation/group/[group]/settings.tsx",
+      "sha256": "eb691c398ec720366745284a0ae577359a5379992919a58b297dd40ed3c9f8ab"
+    },
+    {
+      "bytes": 10889,
+      "mode": "0o644",
+      "path": "app-host/clique/app/feed.tsx",
+      "sha256": "ef7f083ec993665e24f882a12c5e998c2c1328e3c7a7af5b0a81743b0f3a2c8e"
+    },
+    {
+      "bytes": 459,
+      "mode": "0o644",
+      "path": "app-host/clique/app/index.tsx",
+      "sha256": "a87b4e2e5a15154b659857d80a32d4e425a142affcbebdd46dfab3f69d2ad3fd"
+    },
+    {
+      "bytes": 1870,
+      "mode": "0o644",
+      "path": "app-host/clique/app/insights.tsx",
+      "sha256": "f4306d0ab49702f2f91a82d4710c32b9d5ef194ec3193beed19aedfe87127c57"
+    },
+    {
+      "bytes": 3361,
+      "mode": "0o644",
+      "path": "app-host/clique/app/new-chat.tsx",
+      "sha256": "e07235be01ae146ca1df6cae38b35913a3224049c5213c35e541bf80438b35a2"
+    },
+    {
+      "bytes": 2519,
+      "mode": "0o644",
+      "path": "app-host/clique/app/post/[id].tsx",
+      "sha256": "449eb738267ea06119f3a4c413b99f81f8aef72ea7e7bc88051287fa4ded5add"
+    },
+    {
+      "bytes": 4455,
+      "mode": "0o644",
+      "path": "app-host/clique/app/profile/[handle].tsx",
+      "sha256": "6624580e2ebee3cedab8a6ec20a5ebbd188a1f3876fb245ca7e82f4a505d4bfd"
+    },
+    {
+      "bytes": 3869,
+      "mode": "0o644",
+      "path": "app-host/clique/app/profile/edit.tsx",
+      "sha256": "e80640ca08f4d8a2238df474cfc05b3ea6fd3e8e1b86fd34036d4fe6f3a5f6fc"
+    },
+    {
+      "bytes": 4882,
+      "mode": "0o644",
+      "path": "app-host/clique/app/search.tsx",
+      "sha256": "ed0a18bcbecbebdab674f2ee4fdf1231f074a1687636c52651e61d4f3ed5bcff"
+    },
+    {
+      "bytes": 762,
+      "mode": "0o644",
+      "path": "app-host/clique/app/settings.tsx",
+      "sha256": "179c952b5e8e57ca924e99bcf2762387e950db1af24090f919659764a5c871a4"
+    },
+    {
+      "bytes": 17549,
+      "mode": "0o644",
+      "path": "app-host/clique/assets/android-icon-background.png",
+      "sha256": "fb139c2dee362ebf2070e23b96da6fc0d43f8492de38b8af1fd7223e19b5861d"
+    },
+    {
+      "bytes": 78796,
+      "mode": "0o644",
+      "path": "app-host/clique/assets/android-icon-foreground.png",
+      "sha256": "9e3d0315a33c6799de601dd34cd8bf8cc3a8d16f3bf75592baec2ceb7240b391"
+    },
+    {
+      "bytes": 4140,
+      "mode": "0o644",
+      "path": "app-host/clique/assets/android-icon-monochrome.png",
+      "sha256": "6371fc2c12e33ad2215a86c281db3d682a81bebe7c957a842c13b8bf00cceb83"
+    },
+    {
+      "bytes": 1129,
+      "mode": "0o644",
+      "path": "app-host/clique/assets/favicon.png",
+      "sha256": "a4e030697a7571b3e95d31860e4da55d2f98e5e861e2b55e414f45a8556828ba"
+    },
+    {
+      "bytes": 393493,
+      "mode": "0o644",
+      "path": "app-host/clique/assets/icon.png",
+      "sha256": "119462bb78eb240a65c869fc067ee599639b3cb5a41953f25c07b17d2a8c7e0f"
+    },
+    {
+      "bytes": 1379350,
+      "mode": "0o644",
+      "path": "app-host/clique/assets/snapback4_device_bg.wasm",
+      "sha256": "01d36fcc8f3f62c0321e58c29cfb906b133b688e0adb563ebdfaa560e644d6bc"
+    },
+    {
+      "bytes": 17547,
+      "mode": "0o644",
+      "path": "app-host/clique/assets/splash-icon.png",
+      "sha256": "5f4c0a732b6325bf4071d9124d2ae67e037cb24fcc9c482ef82bea742109a3b8"
+    },
+    {
+      "bytes": 1279924,
+      "mode": "0o644",
+      "path": "app-host/clique/dist-web/_expo/static/js/web/entry-6a6e1b2f663fe7e9a8c3e6c9055fc7d4.js",
+      "sha256": "d3c1d9a4998ac1bc0f444938f42af57b7acf5587b924e866c742b579fab5cc01"
+    },
+    {
+      "bytes": 9165,
+      "mode": "0o644",
+      "path": "app-host/clique/dist-web/_expo/static/js/web/index-8b5f605be42c69a67241609ad7583035.js",
+      "sha256": "2631fb5be89320141dcb61fdbeb72c78f6898687b5171ad4fe063c35c24dc72d"
+    },
+    {
+      "bytes": 1379350,
+      "mode": "0o644",
+      "path": "app-host/clique/dist-web/assets/assets/snapback4_device_bg.ed6bfbba539169f5612df7c4affcf6a7.wasm",
+      "sha256": "01d36fcc8f3f62c0321e58c29cfb906b133b688e0adb563ebdfaa560e644d6bc"
+    },
+    {
+      "bytes": 14510,
+      "mode": "0o644",
+      "path": "app-host/clique/dist-web/favicon.ico",
+      "sha256": "8184b2ca6c201c87bade03c6d01497e4cd1a416046ca8a48db0ae3c3c758fc8c"
+    },
+    {
+      "bytes": 1211,
+      "mode": "0o644",
+      "path": "app-host/clique/dist-web/index.html",
+      "sha256": "0e984bb4701089111dca4f9a42fed5561137c46a2ea9eb5400a81185452a0d67"
+    },
+    {
+      "bytes": 49,
+      "mode": "0o644",
+      "path": "app-host/clique/dist-web/metadata.json",
+      "sha256": "aa5f19cc84d41c0f8c70ececb2bc82e863227ea1e121632aca879eb616056991"
+    },
+    {
+      "bytes": 217,
+      "mode": "0o644",
+      "path": "app-host/clique/metro.config.js",
+      "sha256": "b3916644c357b6e0b0d6ce352cec3b3389758531f5db36afe6527495f3319284"
+    },
+    {
+      "bytes": 287329,
+      "mode": "0o644",
+      "path": "app-host/clique/package-lock.json",
+      "sha256": "65d7a5ba28d157b22d7105161207a03ebb121ccce48db8830cbe681cb3f2a659"
+    },
+    {
+      "bytes": 976,
+      "mode": "0o644",
+      "path": "app-host/clique/package.json",
+      "sha256": "f2fff600bfbe2b5e9b1c740b3bc90cbdb76f300605f2d6ca92b15f10949d9f77"
+    },
+    {
+      "bytes": 29891,
+      "mode": "0o644",
+      "path": "app-host/clique/src-api.ts",
+      "sha256": "d56e394f997e3cee30ca3b5feef6d7bd46631d7f669c41ffe38f3e8d791afa4c"
+    },
+    {
+      "bytes": 5126,
+      "mode": "0o644",
+      "path": "app-host/clique/src/assetCache.ts",
+      "sha256": "dd512635c253f64af64e488295506dc1544c1278d13dab11c5ac4f1a566a9f9c"
+    },
+    {
+      "bytes": 2442,
+      "mode": "0o644",
+      "path": "app-host/clique/src/components/AssetImage.tsx",
+      "sha256": "16dfa3058f302278be6bb8beaee5c1753ab0ff0db06ace1fdecd27aca023744c"
+    },
+    {
+      "bytes": 8048,
+      "mode": "0o644",
+      "path": "app-host/clique/src/components/ChatSettingsView.tsx",
+      "sha256": "b9e7eea4a0b3d71ec44a3a78498899b238aa184a3fafa9a1e1f4a0d051bda823"
+    },
+    {
+      "bytes": 35868,
+      "mode": "0o644",
+      "path": "app-host/clique/src/components/ConversationView.tsx",
+      "sha256": "93c8553f0be10954fe89809fa864943a99ac33cc584f6ad037e00df667a01792"
+    },
+    {
+      "bytes": 4833,
+      "mode": "0o644",
+      "path": "app-host/clique/src/components/PostCard.tsx",
+      "sha256": "3fcd18daad713a7eb185b571e73ed3aac2872e320f408a43f65f30b4b9eeabc5"
+    },
+    {
+      "bytes": 3301,
+      "mode": "0o644",
+      "path": "app-host/clique/src/media.ts",
+      "sha256": "897051b6af31c0f58de6af174c96945f94c7a693b25593c3b570797528f8c457"
+    },
+    {
+      "bytes": 3561,
+      "mode": "0o644",
+      "path": "app-host/clique/src/pending.ts",
+      "sha256": "8d2d964b1a3c778f30600525cc3524d6aa7d9ae4ef3b0b9d7cd68992dde65726"
+    },
+    {
+      "bytes": 5724,
+      "mode": "0o644",
+      "path": "app-host/clique/src/sb.tsx",
+      "sha256": "f62ce5ed0242bc15ebc6b6e96910c2f8ca50586cea6f357374f9932cb13eceea"
+    },
+    {
+      "bytes": 85,
+      "mode": "0o644",
+      "path": "app-host/clique/tsconfig.json",
+      "sha256": "712583ff9cdb4b4e4f9b000a4a56d68db8dc1921cbfbc36d490a3a9f2be3dd72"
+    },
+    {
+      "bytes": 8633,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/NEUTRALITY.md",
+      "sha256": "f6905ea379c0b09720869ea6f93362190c8ad79b8e2176b2cc39e69b1f397385"
+    },
+    {
+      "bytes": 5892,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/README.md",
+      "sha256": "03422a88942099564f0eac355b97bd6d80b7bb989dd14b5a549a325db187e30d"
+    },
+    {
+      "bytes": 9,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/VERSION",
+      "sha256": "a3fa57c8819a0fb2e1bef13c68adf699188b995c7ee870cccdd30a98760b10d7"
+    },
+    {
+      "bytes": 828554,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/assets/clique-logo.png",
+      "sha256": "9406d0121af03c131dc2c173a9cf848242be6cbf2ac28eb7303d6f1c5377df05"
+    },
+    {
+      "bytes": 836,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/index.ts",
+      "sha256": "ddefaf68b4cbcf90bfc60de0f3d1cfd87101eae71a63971354e8c008eec1f26b"
+    },
+    {
+      "bytes": 131543,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/package-lock.json",
+      "sha256": "2d0977de17621995fb00be93549facc43cc25484eea40da1f8b3b8861c782562"
+    },
+    {
+      "bytes": 691,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/package.json",
+      "sha256": "f9e5aab1816414099204865648f677e999999124c5c9d1c100899e5d4e560164"
+    },
+    {
+      "bytes": 13988,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/screens.md",
+      "sha256": "360f55de7912191c6723fb7b93a53c6a60f54a3f4f80e181c45fd5e7f469b5d7"
+    },
+    {
+      "bytes": 4540,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/src/AuthForm.tsx",
+      "sha256": "a4d3462a97da088d14aff1598a1e87fe0885390bb7a72c3cccd3a97966384366"
+    },
+    {
+      "bytes": 2285,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/src/Avatar.tsx",
+      "sha256": "3da5edcd67fff9ffcae549ec889c6269527f41886ff913214fd4fea458392a7f"
+    },
+    {
+      "bytes": 4067,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/src/ChatListRow.tsx",
+      "sha256": "bfda9c88920efb98a74069757a1a2813d8d383fa4d33bc7e211d830be7aa2f3d"
+    },
+    {
+      "bytes": 15598,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/src/ChatSettingsForm.tsx",
+      "sha256": "8129f4af6f157c82a0c09e95b3e659d5182836de34e409cb3af5f168c4f18d8e"
+    },
+    {
+      "bytes": 7557,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/src/Composer.tsx",
+      "sha256": "b5db37b39afa14f96da75cc824310fe54bc0ea9372abe78b1be9b206ccc7f767"
+    },
+    {
+      "bytes": 9654,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/src/FeedCard.tsx",
+      "sha256": "2c7b1d12c47b3da436bef5a4a83518bdba244613a8e19a2631ffebbe4c481de2"
+    },
+    {
+      "bytes": 2454,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/src/FeedTabs.tsx",
+      "sha256": "7f1c4deb28f4a826934a8ad2e859e9be85e792aeba7c86eaa6ccf6ecf1d0b20e"
+    },
+    {
+      "bytes": 3580,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/src/InsightsBarList.tsx",
+      "sha256": "503f0cf202b0e4cf316dd8537b544ea45bb9e8f0e45c51b0f2666fe88778e242"
+    },
+    {
+      "bytes": 2060,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/src/InsightsSummary.tsx",
+      "sha256": "2be73279d8b4fcec36253d0e7f19218e32bcaf5d79a756d9433e0852d22da605"
+    },
+    {
+      "bytes": 11076,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/src/MessageBubble.tsx",
+      "sha256": "3ae1a4664995f4bf2b32f5e62efc0633a6e82761be08c1543333ba2fb4ea936d"
+    },
+    {
+      "bytes": 5401,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/src/PollCompose.tsx",
+      "sha256": "5a143045095ae1bae8e640317799fbbed49db436594a0dd72226b9620f525054"
+    },
+    {
+      "bytes": 4617,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/src/PollDisplay.tsx",
+      "sha256": "bb5dfffb85a55184a5b9e1aafdd611c8b64eb94500015bf63a5f33f4d07fc4ec"
+    },
+    {
+      "bytes": 11497,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/src/ProfileForm.tsx",
+      "sha256": "c4ffc38634b1e33909053e013d6b67051834d91aa15d2c08f1d9a5ad03776272"
+    },
+    {
+      "bytes": 1998,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/src/QuotedReply.tsx",
+      "sha256": "65e24e92c10d2773582854b05a56574630b351945699d4b1a158760c3e0213ec"
+    },
+    {
+      "bytes": 3159,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/src/ReactionPicker.tsx",
+      "sha256": "1496d7a45f4387bcccff0d0939d6b6c78ca0cd546c4fe323aebb53995d993c95"
+    },
+    {
+      "bytes": 1729,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/src/ReceiptTicks.tsx",
+      "sha256": "f9ac0bc1da1ec0eef23a4ddae681110ef7d81fecc4e2a985705df864f1bd83ae"
+    },
+    {
+      "bytes": 6284,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/src/SearchBar.tsx",
+      "sha256": "c0327283375be77223811c282de46cb6b7c20385088026c359fe1aa9d79cd420"
+    },
+    {
+      "bytes": 2351,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/src/TrendingRow.tsx",
+      "sha256": "cdaf53d7e9c6c8432cefca5662f41cd72fda689e3462cb90f506b37ec597a1f8"
+    },
+    {
+      "bytes": 2625,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/src/TypingIndicator.tsx",
+      "sha256": "9c792b0a53c87482008c9f2effce9943b329fab6fd600b7411a8e6ada76078d9"
+    },
+    {
+      "bytes": 1060,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/src/linkify.tsx",
+      "sha256": "5e705a9336b230c74fcd2a5cb00fd9096b78fd526b54882e77b8e48158428717"
+    },
+    {
+      "bytes": 1935,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/src/tokens.ts",
+      "sha256": "dd5f86492fe4a7e4595c255f0b0c48f3ab563a726765230eb528d41f80773c02"
+    },
+    {
+      "bytes": 596,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/src/webSemantics.ts",
+      "sha256": "0379fe03e1eb43d81046e1c6a79249fed0eb9cf60e491f93132fb0505faf1379"
+    },
+    {
+      "bytes": 3001,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/test/observability-contract.test.mjs",
+      "sha256": "8e4f0a535c0b9e597cfe2bb6b64610391e7b8cd660807207b13ec68bf09ac7c7"
+    },
+    {
+      "bytes": 862,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/test/quoted-reply.test.mjs",
+      "sha256": "981b75d68007c9d128b9f79ac1ede2c2d0fe4363a81ac95c2340166088f1ea20"
+    },
+    {
+      "bytes": 7757,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/test/rn-web-consumer.test.mjs",
+      "sha256": "65710d3bae1b9482a8c1932c8c5574e437fbdc77004ea9dcb53aa7a0437cf0ef"
+    },
+    {
+      "bytes": 4786,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/test/rn-web-consumer.tsx",
+      "sha256": "9ea32951f1d0c74675473c9d0f0904016a00a2cf08e1ab17773153bcb73f798d"
+    },
+    {
+      "bytes": 483,
+      "mode": "0o644",
+      "path": "app-host/clique/ui-kit/tsconfig.json",
+      "sha256": "2cc903a9988d9a855b708f4db8acd679dd015a691cb4ee26a6bfb5cd3074ef52"
+    },
+    {
+      "bytes": 71,
+      "mode": "0o644",
+      "path": "app-host/clique/wasm.d.ts",
+      "sha256": "56971cdfc9d89ecf6ac70f1274eb8761038825287c805c0719a16b8d4a1f037b"
+    },
+    {
+      "bytes": 17876,
+      "mode": "0o444",
+      "path": "choreo-src/README.md",
+      "sha256": "c724e6b432ee8d2420f1e64b91f7412f2406671f9ad1e888dd28af6df5dc7847"
+    },
+    {
+      "bytes": 8809,
+      "mode": "0o444",
+      "path": "choreo-src/RUNBOOK.md",
+      "sha256": "7b68c0c6a335774ac5e101ef0415058c66ac12aaa683772346f112f99e3b8a1d"
+    },
+    {
+      "bytes": 9,
+      "mode": "0o444",
+      "path": "choreo-src/VERSION",
+      "sha256": "3836e222461383c23dcbe54d1d58e07ccf621ea86a32bbdf49874f6dde998b95"
+    },
+    {
+      "bytes": 117581,
+      "mode": "0o444",
+      "path": "choreo-src/choreography.mjs",
+      "sha256": "cc600295f80d40b89910a1bf01eb3c7d8b9c24625c9741035ca3844f80418fcc"
+    },
+    {
+      "bytes": 38354,
+      "mode": "0o444",
+      "path": "choreo-src/control-lane.mjs",
+      "sha256": "937f38b09a15d510576e18b20dba78274e2fd57900dd4753cc766f1ff06057b9"
+    },
+    {
+      "bytes": 302,
+      "mode": "0o444",
+      "path": "choreo-src/package.json",
+      "sha256": "a2cda3361f89e28b1b805ce4fa12a8414938126b495b6b2817d12c102969309c"
+    },
+    {
+      "bytes": 10723,
+      "mode": "0o444",
+      "path": "choreo-src/receipts-format.md",
+      "sha256": "1c247f0d7dc0edc84f2138bde37b1be39c01b3d3fe1247da1fbc0efef3e32b4d"
+    },
+    {
+      "bytes": 27080,
+      "mode": "0o444",
+      "path": "choreo-src/receipts.schema.json",
+      "sha256": "5970f62483fa58358bc2cc08692a74925112de300a696eac61aa54853e9a1c39"
+    },
+    {
+      "bytes": 44163,
+      "mode": "0o444",
+      "path": "choreo-src/self-test.mjs",
+      "sha256": "6bf78419ad72a8efd40dc9125d5ec1dac753018ad79d9d4e68374e5379f32703"
+    },
+    {
+      "bytes": 6793,
+      "mode": "0o444",
+      "path": "choreo-src/setup-identity.mjs",
+      "sha256": "7d2b582aa2a2fc94602b76c9e732120e83be57b3c978df392937ca178cc8bf93"
+    },
+    {
+      "bytes": 4167,
+      "mode": "0o444",
+      "path": "choreo-src/setup-identity.schema.json",
+      "sha256": "bbc54559dc14fe2bb0b2f0a4a74ddaf10a2a5b16f36ebbc2346a00238f32058b"
+    },
+    {
+      "bytes": 8903,
+      "mode": "0o444",
+      "path": "choreo-src/simulator.md",
+      "sha256": "a89a7af573e0d3716b78207a7b159e9e056a8d83405553f49e868d29ae4cca3f"
+    },
+    {
+      "bytes": 8969,
+      "mode": "0o444",
+      "path": "choreo-src/startup.test.mjs",
+      "sha256": "3ab86c94b0358e339bdda097049d7ea8aed107bcf536b414305fa23d2fc60e36"
+    },
+    {
+      "bytes": 8543,
+      "mode": "0o444",
+      "path": "choreo-src/w9-coterie-browser.mjs",
+      "sha256": "0bb80fcfb1a0587b588f5c7d4b56b91a90d2e1088bfc44243d9ede4497ab8d89"
+    },
+    {
+      "bytes": 3803,
+      "mode": "0o444",
+      "path": "choreo-src/w9-host-preflight.mjs",
+      "sha256": "4d8b8d0105892f899e7f3a171d0215788984880b8f2e2e4e33a5f7846668913a"
+    },
+    {
+      "bytes": 8601,
+      "mode": "0o444",
+      "path": "choreo-src/w9-native-host.mjs",
+      "sha256": "1afdf0852a7469352609be725fbdb977da177d5b4f4eb81b33874db4894db924"
+    },
+    {
+      "bytes": 17876,
+      "mode": "0o444",
+      "path": "choreo/README.md",
+      "sha256": "c724e6b432ee8d2420f1e64b91f7412f2406671f9ad1e888dd28af6df5dc7847"
+    },
+    {
+      "bytes": 8809,
+      "mode": "0o444",
+      "path": "choreo/RUNBOOK.md",
+      "sha256": "7b68c0c6a335774ac5e101ef0415058c66ac12aaa683772346f112f99e3b8a1d"
+    },
+    {
+      "bytes": 9,
+      "mode": "0o444",
+      "path": "choreo/VERSION",
+      "sha256": "3836e222461383c23dcbe54d1d58e07ccf621ea86a32bbdf49874f6dde998b95"
+    },
+    {
+      "bytes": 117581,
+      "mode": "0o444",
+      "path": "choreo/choreography.mjs",
+      "sha256": "cc600295f80d40b89910a1bf01eb3c7d8b9c24625c9741035ca3844f80418fcc"
+    },
+    {
+      "bytes": 38354,
+      "mode": "0o444",
+      "path": "choreo/control-lane.mjs",
+      "sha256": "937f38b09a15d510576e18b20dba78274e2fd57900dd4753cc766f1ff06057b9"
+    },
+    {
+      "bytes": 3871,
+      "mode": "0o644",
+      "path": "choreo/package-lock.json",
+      "sha256": "7a14b0f412e4273b1a53e67fa011b99e00299512e1aa39f0ecb7f6e4b9221252"
+    },
+    {
+      "bytes": 302,
+      "mode": "0o444",
+      "path": "choreo/package.json",
+      "sha256": "a2cda3361f89e28b1b805ce4fa12a8414938126b495b6b2817d12c102969309c"
+    },
+    {
+      "bytes": 10723,
+      "mode": "0o444",
+      "path": "choreo/receipts-format.md",
+      "sha256": "1c247f0d7dc0edc84f2138bde37b1be39c01b3d3fe1247da1fbc0efef3e32b4d"
+    },
+    {
+      "bytes": 27080,
+      "mode": "0o444",
+      "path": "choreo/receipts.schema.json",
+      "sha256": "5970f62483fa58358bc2cc08692a74925112de300a696eac61aa54853e9a1c39"
+    },
+    {
+      "bytes": 44163,
+      "mode": "0o444",
+      "path": "choreo/self-test.mjs",
+      "sha256": "6bf78419ad72a8efd40dc9125d5ec1dac753018ad79d9d4e68374e5379f32703"
+    },
+    {
+      "bytes": 6790,
+      "mode": "0o644",
+      "path": "choreo/setup-identity.mjs",
+      "sha256": "a2e965b0a6db8e5ed7ec9c361035a0f5fb0252a261f4d44f8825463278da9420"
+    },
+    {
+      "bytes": 4167,
+      "mode": "0o444",
+      "path": "choreo/setup-identity.schema.json",
+      "sha256": "bbc54559dc14fe2bb0b2f0a4a74ddaf10a2a5b16f36ebbc2346a00238f32058b"
+    },
+    {
+      "bytes": 8903,
+      "mode": "0o444",
+      "path": "choreo/simulator.md",
+      "sha256": "a89a7af573e0d3716b78207a7b159e9e056a8d83405553f49e868d29ae4cca3f"
+    },
+    {
+      "bytes": 8969,
+      "mode": "0o444",
+      "path": "choreo/startup.test.mjs",
+      "sha256": "3ab86c94b0358e339bdda097049d7ea8aed107bcf536b414305fa23d2fc60e36"
+    },
+    {
+      "bytes": 8543,
+      "mode": "0o444",
+      "path": "choreo/w9-coterie-browser.mjs",
+      "sha256": "0bb80fcfb1a0587b588f5c7d4b56b91a90d2e1088bfc44243d9ede4497ab8d89"
+    },
+    {
+      "bytes": 3803,
+      "mode": "0o444",
+      "path": "choreo/w9-host-preflight.mjs",
+      "sha256": "4d8b8d0105892f899e7f3a171d0215788984880b8f2e2e4e33a5f7846668913a"
+    },
+    {
+      "bytes": 8601,
+      "mode": "0o444",
+      "path": "choreo/w9-native-host.mjs",
+      "sha256": "1afdf0852a7469352609be725fbdb977da177d5b4f4eb81b33874db4894db924"
+    },
+    {
+      "bytes": 78,
+      "mode": "0o644",
+      "path": "config/digest.production.json",
+      "sha256": "aa6ca173333960e6c44a77b2457281e7d6e8e45a8fcab971ad0916cf9ac54143"
+    },
+    {
+      "bytes": 372,
+      "mode": "0o644",
+      "path": "config/windows.production.json",
+      "sha256": "e7f23cbce26bbc3448baf2293c1a6c29244643bc2b3cac4025c95620d468c20a"
+    },
+    {
+      "bytes": 177,
+      "mode": "0o444",
+      "path": "fixture-config/digest.production.json",
+      "sha256": "c389728f1505612d3ac2a44597efa12a83042666a34432f27cf832e54fdfdc21"
+    },
+    {
+      "bytes": 182,
+      "mode": "0o444",
+      "path": "fixture-config/digest.shortened.json",
+      "sha256": "f5ddbd66bd4d791056a39b8cd4e77488c6822e6cbcdf65d97689be489851ea60"
+    },
+    {
+      "bytes": 438,
+      "mode": "0o444",
+      "path": "fixture-config/windows.production.json",
+      "sha256": "c43a0ae50d80488f7e52f652d682b8e9d443b00e95269c71a4f98ac4fb870764"
+    },
+    {
+      "bytes": 484,
+      "mode": "0o444",
+      "path": "fixture-config/windows.shortened.json",
+      "sha256": "22dfdde4ef58026081f52eddbbabe9491624d6a00215522b6279c0f21f4c0bd9"
+    },
+    {
+      "bytes": 7733,
+      "mode": "0o644",
+      "path": "lib/json-schema.mjs",
+      "sha256": "7b882f6147e6efde88bc41f4dbc6806e712fb54c2e1b47a214a5d59e96f02660"
+    },
+    {
+      "bytes": 729,
+      "mode": "0o444",
+      "path": "media/avatar-alice.png",
+      "sha256": "283773fb9ae8f07a00e335fdd37fd9f836845594d8be3352ee0fab542c4c9984"
+    },
+    {
+      "bytes": 758,
+      "mode": "0o444",
+      "path": "media/avatar-bob.png",
+      "sha256": "9b49a333e2841ea99f6a708bc098a967d473183c134b5de9f35b6c36a72544d5"
+    },
+    {
+      "bytes": 2062,
+      "mode": "0o444",
+      "path": "media/img-01.png",
+      "sha256": "7afbd9d91e6f1197e9fd392ba0a53dce78a66ee5a3a528a6c2641a82b2a0417c"
+    },
+    {
+      "bytes": 2080,
+      "mode": "0o444",
+      "path": "media/img-02.png",
+      "sha256": "ef284acb000e375fa4cffc07b3e2d228e47a6bf3b1f9078b4b7399d23c440101"
+    },
+    {
+      "bytes": 2087,
+      "mode": "0o444",
+      "path": "media/img-03.png",
+      "sha256": "eb986767458c2d0799441334b7ccdd70cc35e3296cea376c84f6e8f3a3774dd8"
+    },
+    {
+      "bytes": 2081,
+      "mode": "0o444",
+      "path": "media/img-04.png",
+      "sha256": "f0e403aaa541a4d50b35dc46ccc01c9903c96106faaa70ab96d69cb8887d44ef"
+    },
+    {
+      "bytes": 2072,
+      "mode": "0o444",
+      "path": "media/img-05.png",
+      "sha256": "ce7543ab1030d31f2f66fec69b5bd9c22b3c820bbdfd44d71488fed3e6607fdc"
+    },
+    {
+      "bytes": 2066,
+      "mode": "0o444",
+      "path": "media/img-06.png",
+      "sha256": "3b720f191084b6acf4c570fe3a2c72353f4cf887802f453e8de118579ce4695a"
+    },
+    {
+      "bytes": 1406,
+      "mode": "0o444",
+      "path": "media/manifest.json",
+      "sha256": "bd1c2bd1a40e5f22e38b8be1b9d04a8348218e152de352ed1bf1a8b73d51bb2a"
+    },
+    {
+      "bytes": 6875,
+      "mode": "0o444",
+      "path": "media/media-gen.mjs",
+      "sha256": "8fc755e683d7b3cb25813b562662a3f49d7c4acd697bbef6494133613881abdd"
+    },
+    {
+      "bytes": 49779,
+      "mode": "0o444",
+      "path": "media/vid-01.mp4",
+      "sha256": "7e22b943746b2c858910252162f624cac396eb9e4f4100ae80e70431b7883d5f"
+    },
+    {
+      "bytes": 4067,
+      "mode": "0o444",
+      "path": "metering/finalization-diagnostics.mjs",
+      "sha256": "3006a8ffb3905c7877f115e076d290c5fc0d9a8d3d05ffdee339151644feb707"
+    },
+    {
+      "bytes": 1202,
+      "mode": "0o444",
+      "path": "metering/mutation-guard.mjs",
+      "sha256": "48a4b3f8c7c0f81763a48b70330c458b258c026d9a94cee98c9cc1d17c97b228"
+    },
+    {
+      "bytes": 37056,
+      "mode": "0o444",
+      "path": "metering/observations.mjs",
+      "sha256": "12a81779e1b1a6eb8eaa04e8ed4aec209fb7f5164206aec9437bb1a07d49acbf"
+    },
+    {
+      "bytes": 1301,
+      "mode": "0o644",
+      "path": "package-lock.json",
+      "sha256": "5707103c6a705ee99a902bbf8b78fcadce9c022281edd2a6251bbcb6b3e77402"
+    },
+    {
+      "bytes": 639,
+      "mode": "0o644",
+      "path": "package.json",
+      "sha256": "9ce636cda83d05472d66503e298b6ea71dff49f96e26494bea18a2496214af53"
+    },
+    {
+      "bytes": 3974,
+      "mode": "0o444",
+      "path": "personas.json",
+      "sha256": "605e4dedeba7c75625ee34ddfd711c4af51937321c69f97949741ef3ccef32a7"
+    },
+    {
+      "bytes": 6291,
+      "mode": "0o644",
+      "path": "scripts/custom-client-demo.mjs",
+      "sha256": "b4b79bd0f8d71d1974f1281a7b0c3d2b3ecc1e8b5fd85ff390bbfecb9b7ba7d7"
+    },
+    {
+      "bytes": 12769,
+      "mode": "0o644",
+      "path": "scripts/gen-scale-log.mjs",
+      "sha256": "9ddcebd738b618b5bca3be052735e350b62738fd7f875a1eec7e75c86d374a28"
+    },
+    {
+      "bytes": 4902,
+      "mode": "0o644",
+      "path": "scripts/m7-compare.mjs",
+      "sha256": "acf653aed17474aee243d65818b89868079e4519dc57e1a6d0341b7383e542a8"
+    },
+    {
+      "bytes": 3466,
+      "mode": "0o644",
+      "path": "scripts/m7-decarol.mjs",
+      "sha256": "8f154e129cebcc8dcae0ea10f23764aba132bf04ef0d0b3a23762126db2a6ba1"
+    },
+    {
+      "bytes": 2814,
+      "mode": "0o644",
+      "path": "scripts/m7-ensure-poll.mjs",
+      "sha256": "67b8e358eb9358320aa007e7f2f34b37ae6ec42da67eab3502ff43ce16c4dbab"
+    },
+    {
+      "bytes": 5164,
+      "mode": "0o644",
+      "path": "scripts/m7-snapshot.mjs",
+      "sha256": "21e5833b6d2353ac8d53ac31f999c20aff9bfced53065da578a654268a86a7b3"
+    },
+    {
+      "bytes": 2638,
+      "mode": "0o644",
+      "path": "scripts/postexport-web.mjs",
+      "sha256": "359ff41ea5ff24fc462845750b72318e06f473df6f95be4f7780ce384a12cee7"
+    },
+    {
+      "bytes": 21741,
+      "mode": "0o644",
+      "path": "scripts/replay.mjs",
+      "sha256": "e6b0ae030bfc7a57a3171bd35ebe2a2d543ca99788927f8361342c048f312852"
+    },
+    {
+      "bytes": 2436,
+      "mode": "0o644",
+      "path": "scripts/scale-run.mjs",
+      "sha256": "36011f1c11943e7e1300910d2b4b8594b48c9f409b7cfb41ee23346148b6dc7e"
+    },
+    {
+      "bytes": 3014,
+      "mode": "0o644",
+      "path": "scripts/seed.mjs",
+      "sha256": "9994a1979432fcba807725bcccbe10f01be59284da734a45a14629829f5a7eed"
+    },
+    {
+      "bytes": 2124,
+      "mode": "0o644",
+      "path": "scripts/serve-dist.mjs",
+      "sha256": "270d7831ac5b60dc288a2193bbdae8fb06b581b7d581a2c42b1ea129128d52f9"
+    },
+    {
+      "bytes": 11146,
+      "mode": "0o644",
+      "path": "scripts/smoke.mjs",
+      "sha256": "38da1a2dde52613d6f1a5927649ac55a84a89084b055dc30ecc7d43c76005639"
+    },
+    {
+      "bytes": 14926,
+      "mode": "0o644",
+      "path": "scripts/verify-replay.mjs",
+      "sha256": "49bc64168fa7b4712e684f343a674c621221f93ac899ae598ac5137bef43844f"
+    },
+    {
+      "bytes": 1857,
+      "mode": "0o644",
+      "path": "scripts/worker.mjs",
+      "sha256": "62cf648d6ddfd03b33a5684d58dad02f2335484d4c501486701aea4dac1fe886"
+    },
+    {
+      "bytes": 29891,
+      "mode": "0o644",
+      "path": "snapback/generated/api.ts",
+      "sha256": "d56e394f997e3cee30ca3b5feef6d7bd46631d7f669c41ffe38f3e8d791afa4c"
+    },
+    {
+      "bytes": 48126,
+      "mode": "0o644",
+      "path": "snapback/schema.q",
+      "sha256": "b2604e84346b5a121ca47ce39d7d8b3071c2a53b6005fce32950eb191246bbce"
+    },
+    {
+      "bytes": 2297,
+      "mode": "0o644",
+      "path": "tests/accept.mjs",
+      "sha256": "1a127b05f9885b7c72ca5d6365b743a305ac907b9e948b1c62f18b8feb0b7b25"
+    },
+    {
+      "bytes": 6851,
+      "mode": "0o644",
+      "path": "tests/helpers.mjs",
+      "sha256": "58b2ebdf5e647567a5123d94baa9bdd3208c8751a9d9a6699e20fec4317c36d8"
+    },
+    {
+      "bytes": 12635,
+      "mode": "0o644",
+      "path": "tests/m-live.mjs",
+      "sha256": "b2bfe7a6bbb0106f873a7355f7da0f8d24a1c02cd976644236d90e63d1f98108"
+    },
+    {
+      "bytes": 5607,
+      "mode": "0o644",
+      "path": "tests/m1.mjs",
+      "sha256": "15bd4b9dbc6f59d92193b8e41b7e481a8f0cacac02e936db9552a60450c74d9e"
+    },
+    {
+      "bytes": 10163,
+      "mode": "0o644",
+      "path": "tests/m2.mjs",
+      "sha256": "43bca67f21efa8804782293ed0663097da8f547c20422dcb42e42ecd124e1cac"
+    },
+    {
+      "bytes": 5314,
+      "mode": "0o644",
+      "path": "tests/m3.mjs",
+      "sha256": "75b6600add958e30666e086e5dc6d66b7eab45a93f8c2036960bff76adcd48e0"
+    },
+    {
+      "bytes": 9217,
+      "mode": "0o644",
+      "path": "tests/m4.mjs",
+      "sha256": "90bc0172f033b93052edd31726d2cd28f535b64d7779ec1b813f764474e079f9"
+    },
+    {
+      "bytes": 10714,
+      "mode": "0o644",
+      "path": "tests/m5.mjs",
+      "sha256": "502f75b1f00864dbf375876d01560c13bda36306d293d288902b73cc33f89d48"
+    },
+    {
+      "bytes": 11115,
+      "mode": "0o644",
+      "path": "tests/m6.mjs",
+      "sha256": "06183476b61ccb0cfdeae7de048eb2c5afd3c03a04181d3753884a56d4dff105"
+    },
+    {
+      "bytes": 14111,
+      "mode": "0o644",
+      "path": "tests/m7.mjs",
+      "sha256": "dd627da7d5838339561e80ecbec940bf7e6f6bb7f6f7bb8294a2b75ddd3aeb8f"
+    },
+    {
+      "bytes": 16218,
+      "mode": "0o644",
+      "path": "tests/m8.mjs",
+      "sha256": "3e094d0e04caae51c8265145d8b604bef986c6d0d546e3ed10bd1fde7f72a920"
+    },
+    {
+      "bytes": 1894,
+      "mode": "0o644",
+      "path": "transcript.json",
+      "sha256": "045a9bbe800e550e48c25de353aa8380f4a5e21477ca1b95b006859fc6bd0de7"
+    },
+    {
+      "bytes": 8633,
+      "mode": "0o644",
+      "path": "ui-kit/NEUTRALITY.md",
+      "sha256": "f6905ea379c0b09720869ea6f93362190c8ad79b8e2176b2cc39e69b1f397385"
+    },
+    {
+      "bytes": 5892,
+      "mode": "0o644",
+      "path": "ui-kit/README.md",
+      "sha256": "03422a88942099564f0eac355b97bd6d80b7bb989dd14b5a549a325db187e30d"
+    },
+    {
+      "bytes": 9,
+      "mode": "0o644",
+      "path": "ui-kit/VERSION",
+      "sha256": "a3fa57c8819a0fb2e1bef13c68adf699188b995c7ee870cccdd30a98760b10d7"
+    },
+    {
+      "bytes": 828554,
+      "mode": "0o644",
+      "path": "ui-kit/assets/clique-logo.png",
+      "sha256": "9406d0121af03c131dc2c173a9cf848242be6cbf2ac28eb7303d6f1c5377df05"
+    },
+    {
+      "bytes": 836,
+      "mode": "0o644",
+      "path": "ui-kit/index.ts",
+      "sha256": "ddefaf68b4cbcf90bfc60de0f3d1cfd87101eae71a63971354e8c008eec1f26b"
+    },
+    {
+      "bytes": 131543,
+      "mode": "0o644",
+      "path": "ui-kit/package-lock.json",
+      "sha256": "2d0977de17621995fb00be93549facc43cc25484eea40da1f8b3b8861c782562"
+    },
+    {
+      "bytes": 691,
+      "mode": "0o644",
+      "path": "ui-kit/package.json",
+      "sha256": "f9e5aab1816414099204865648f677e999999124c5c9d1c100899e5d4e560164"
+    },
+    {
+      "bytes": 13988,
+      "mode": "0o644",
+      "path": "ui-kit/screens.md",
+      "sha256": "360f55de7912191c6723fb7b93a53c6a60f54a3f4f80e181c45fd5e7f469b5d7"
+    },
+    {
+      "bytes": 4535,
+      "mode": "0o644",
+      "path": "ui-kit/src/AuthForm.tsx",
+      "sha256": "c222139ae5f5bd1ab2aaad81e9b473f9eaa3596c3999d581ace23225e9d78efb"
+    },
+    {
+      "bytes": 2285,
+      "mode": "0o644",
+      "path": "ui-kit/src/Avatar.tsx",
+      "sha256": "3da5edcd67fff9ffcae549ec889c6269527f41886ff913214fd4fea458392a7f"
+    },
+    {
+      "bytes": 4067,
+      "mode": "0o644",
+      "path": "ui-kit/src/ChatListRow.tsx",
+      "sha256": "bfda9c88920efb98a74069757a1a2813d8d383fa4d33bc7e211d830be7aa2f3d"
+    },
+    {
+      "bytes": 15598,
+      "mode": "0o644",
+      "path": "ui-kit/src/ChatSettingsForm.tsx",
+      "sha256": "8129f4af6f157c82a0c09e95b3e659d5182836de34e409cb3af5f168c4f18d8e"
+    },
+    {
+      "bytes": 7557,
+      "mode": "0o644",
+      "path": "ui-kit/src/Composer.tsx",
+      "sha256": "b5db37b39afa14f96da75cc824310fe54bc0ea9372abe78b1be9b206ccc7f767"
+    },
+    {
+      "bytes": 9654,
+      "mode": "0o644",
+      "path": "ui-kit/src/FeedCard.tsx",
+      "sha256": "2c7b1d12c47b3da436bef5a4a83518bdba244613a8e19a2631ffebbe4c481de2"
+    },
+    {
+      "bytes": 2454,
+      "mode": "0o644",
+      "path": "ui-kit/src/FeedTabs.tsx",
+      "sha256": "7f1c4deb28f4a826934a8ad2e859e9be85e792aeba7c86eaa6ccf6ecf1d0b20e"
+    },
+    {
+      "bytes": 3580,
+      "mode": "0o644",
+      "path": "ui-kit/src/InsightsBarList.tsx",
+      "sha256": "503f0cf202b0e4cf316dd8537b544ea45bb9e8f0e45c51b0f2666fe88778e242"
+    },
+    {
+      "bytes": 2060,
+      "mode": "0o644",
+      "path": "ui-kit/src/InsightsSummary.tsx",
+      "sha256": "2be73279d8b4fcec36253d0e7f19218e32bcaf5d79a756d9433e0852d22da605"
+    },
+    {
+      "bytes": 11076,
+      "mode": "0o644",
+      "path": "ui-kit/src/MessageBubble.tsx",
+      "sha256": "3ae1a4664995f4bf2b32f5e62efc0633a6e82761be08c1543333ba2fb4ea936d"
+    },
+    {
+      "bytes": 5401,
+      "mode": "0o644",
+      "path": "ui-kit/src/PollCompose.tsx",
+      "sha256": "5a143045095ae1bae8e640317799fbbed49db436594a0dd72226b9620f525054"
+    },
+    {
+      "bytes": 4617,
+      "mode": "0o644",
+      "path": "ui-kit/src/PollDisplay.tsx",
+      "sha256": "bb5dfffb85a55184a5b9e1aafdd611c8b64eb94500015bf63a5f33f4d07fc4ec"
+    },
+    {
+      "bytes": 11497,
+      "mode": "0o644",
+      "path": "ui-kit/src/ProfileForm.tsx",
+      "sha256": "c4ffc38634b1e33909053e013d6b67051834d91aa15d2c08f1d9a5ad03776272"
+    },
+    {
+      "bytes": 1998,
+      "mode": "0o644",
+      "path": "ui-kit/src/QuotedReply.tsx",
+      "sha256": "65e24e92c10d2773582854b05a56574630b351945699d4b1a158760c3e0213ec"
+    },
+    {
+      "bytes": 3159,
+      "mode": "0o644",
+      "path": "ui-kit/src/ReactionPicker.tsx",
+      "sha256": "1496d7a45f4387bcccff0d0939d6b6c78ca0cd546c4fe323aebb53995d993c95"
+    },
+    {
+      "bytes": 1729,
+      "mode": "0o644",
+      "path": "ui-kit/src/ReceiptTicks.tsx",
+      "sha256": "f9ac0bc1da1ec0eef23a4ddae681110ef7d81fecc4e2a985705df864f1bd83ae"
+    },
+    {
+      "bytes": 6284,
+      "mode": "0o644",
+      "path": "ui-kit/src/SearchBar.tsx",
+      "sha256": "c0327283375be77223811c282de46cb6b7c20385088026c359fe1aa9d79cd420"
+    },
+    {
+      "bytes": 2351,
+      "mode": "0o644",
+      "path": "ui-kit/src/TrendingRow.tsx",
+      "sha256": "cdaf53d7e9c6c8432cefca5662f41cd72fda689e3462cb90f506b37ec597a1f8"
+    },
+    {
+      "bytes": 2625,
+      "mode": "0o644",
+      "path": "ui-kit/src/TypingIndicator.tsx",
+      "sha256": "9c792b0a53c87482008c9f2effce9943b329fab6fd600b7411a8e6ada76078d9"
+    },
+    {
+      "bytes": 1060,
+      "mode": "0o644",
+      "path": "ui-kit/src/linkify.tsx",
+      "sha256": "5e705a9336b230c74fcd2a5cb00fd9096b78fd526b54882e77b8e48158428717"
+    },
+    {
+      "bytes": 1935,
+      "mode": "0o644",
+      "path": "ui-kit/src/tokens.ts",
+      "sha256": "dd5f86492fe4a7e4595c255f0b0c48f3ab563a726765230eb528d41f80773c02"
+    },
+    {
+      "bytes": 596,
+      "mode": "0o644",
+      "path": "ui-kit/src/webSemantics.ts",
+      "sha256": "0379fe03e1eb43d81046e1c6a79249fed0eb9cf60e491f93132fb0505faf1379"
+    },
+    {
+      "bytes": 3001,
+      "mode": "0o644",
+      "path": "ui-kit/test/observability-contract.test.mjs",
+      "sha256": "8e4f0a535c0b9e597cfe2bb6b64610391e7b8cd660807207b13ec68bf09ac7c7"
+    },
+    {
+      "bytes": 862,
+      "mode": "0o644",
+      "path": "ui-kit/test/quoted-reply.test.mjs",
+      "sha256": "981b75d68007c9d128b9f79ac1ede2c2d0fe4363a81ac95c2340166088f1ea20"
+    },
+    {
+      "bytes": 7757,
+      "mode": "0o644",
+      "path": "ui-kit/test/rn-web-consumer.test.mjs",
+      "sha256": "65710d3bae1b9482a8c1932c8c5574e437fbdc77004ea9dcb53aa7a0437cf0ef"
+    },
+    {
+      "bytes": 4786,
+      "mode": "0o644",
+      "path": "ui-kit/test/rn-web-consumer.tsx",
+      "sha256": "9ea32951f1d0c74675473c9d0f0904016a00a2cf08e1ab17773153bcb73f798d"
+    },
+    {
+      "bytes": 483,
+      "mode": "0o644",
+      "path": "ui-kit/tsconfig.json",
+      "sha256": "2cc903a9988d9a855b708f4db8acd679dd015a691cb4ee26a6bfb5cd3074ef52"
+    }
+  ],
+  "schemaVersion": 1,
+  "selection": "Continuous capture helper filename/directory rules plus explicit .snapback4.pre-m7-keep runtime-tree exclusion; no bytes copied by this inventory."
+}

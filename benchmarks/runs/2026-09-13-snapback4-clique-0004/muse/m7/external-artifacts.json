@@ -1,0 +1,281 @@
+{
+  "artifacts": [
+    {
+      "bytes": 6143775,
+      "path": "logs/muse-snapback4.m7.ndjson",
+      "role": "raw CLI stream; private model/tool transcript, not copied",
+      "sha256": "cbeba4017492c51367aa787077688dc107b916da01baac98c31933942e449fc3"
+    },
+    {
+      "bytes": 456,
+      "path": "logs/muse-snapback4.m7.stderr.log",
+      "role": "raw CLI stderr, not copied",
+      "sha256": "23d1b5b4523184208a2b501fb281965654e65c7c4ebeada450d5f3b7682992f1"
+    },
+    {
+      "bytes": 2805530,
+      "path": "lanes/muse-snapback4/app-host/clique/dist-ios/_expo/static/js/ios/entry-ae6af08f792727e483a95577ebbb51e2.hbc",
+      "qualification": "no simulator execution in this M7 phase",
+      "role": "final native Hermes bytecode; binary, not copied",
+      "sha256": "1893bec10e4b1992bca075eb6078dd4c1e19258fbc580f1b08dbaa3a037ce3f6"
+    },
+    {
+      "bytes": 6373,
+      "path": "lanes/muse-snapback4/m7/regression.log",
+      "qualification": "current bytes match the 69bfa4 observer-history capture; not the final clean log",
+      "role": "overlapping NUL-bearing 159/160 regression output, not copied",
+      "sha256": "69bfa4ff87a1a4104ade6f18d8c71835ba0dc578f6a1c8bd04f5337026276994"
+    },
+    {
+      "bytes": 6373,
+      "path": "observed-milestones/muse-m7-regression-observer-history/08597dc4cd406b6b9518ebf1942acd510415482ae7158664c19b90d65d50979c.log",
+      "role": "earlier NUL-bearing 159/160 observer copy, not copied",
+      "sha256": "08597dc4cd406b6b9518ebf1942acd510415482ae7158664c19b90d65d50979c"
+    },
+    {
+      "bytes": 6373,
+      "path": "observed-milestones/muse-m7-regression-observer-history/69bfa4ff87a1a4104ade6f18d8c71835ba0dc578f6a1c8bd04f5337026276994.log",
+      "role": "later NUL-bearing 159/160 observer copy, not copied",
+      "sha256": "69bfa4ff87a1a4104ade6f18d8c71835ba0dc578f6a1c8bd04f5337026276994"
+    },
+    {
+      "bytes": 51355,
+      "path": "snapshots/muse-continuous/snapshot-manifest.json",
+      "role": "immutable 195-file pre-M7 baseline manifest, external",
+      "sha256": "b21980770054a865c85080ee5cda679c872b8d9809f063ad7166f6a2f07be1c1"
+    },
+    {
+      "bytes": 3479123,
+      "path": "snapshots/muse-continuous/source-snapshot.tar.gz",
+      "role": "immutable continuous source archive, external",
+      "sha256": "446d1072677631db4de474326d0e2864340c7d0d2dbc6378df88dfac1fc7451c"
+    },
+    {
+      "bytes": 1894,
+      "path": "lanes/muse-snapback4/transcript.json",
+      "role": "final execution transcript changed from baseline; hash-only output",
+      "sha256": "045a9bbe800e550e48c25de353aa8380f4a5e21477ca1b95b006859fc6bd0de7"
+    },
+    {
+      "bytes": 986,
+      "path": "observed-milestones/final-packet-integrity.json",
+      "role": "final instrument/pin/custody/port integrity receipt, root-owned external reference",
+      "sha256": "6cc992b50018b66b749abfd688c69c9339610b913f1b6ea57963154981644faa"
+    },
+    {
+      "path": "observed-milestones/muse-m7-exit130-override.start.json",
+      "qualification": "digest copied from muse-m7-exit130-override.end.json",
+      "role": "unsafe continuation wrapper START; not read or copied",
+      "sha256": "eb6a3cf3d5feb3c86e205652d4e92e8f7d175814770403b875febe8a6b8fbbfe"
+    },
+    {
+      "bytes": 21483,
+      "path": "observed-milestones/muse-m7-presnapshot-prefix/pre-snapshot/alice.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "original snapshot manifest/persona body; hash-only",
+      "sha256": "9e5c7e8c187895d3e2b800fec9b06d70f7b7d85cee581b206f4ec6a028835ad5"
+    },
+    {
+      "bytes": 21476,
+      "path": "observed-milestones/muse-m7-presnapshot-prefix/pre-snapshot/bob.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "original snapshot manifest/persona body; hash-only",
+      "sha256": "1de131032ddb459f4f873638c3059c74a555b9aa496419d2475b4ae5b16925ac"
+    },
+    {
+      "bytes": 13162,
+      "path": "observed-milestones/muse-m7-presnapshot-prefix/pre-snapshot/carol.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "original snapshot manifest/persona body; hash-only",
+      "sha256": "9700e0cf0b5362008414b79db91607c3ed6f4ef6d73fdfcdf470b3e6bd8b1199"
+    },
+    {
+      "bytes": 573,
+      "path": "observed-milestones/muse-m7-presnapshot-prefix/pre-snapshot/dave.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "original snapshot manifest/persona body; hash-only",
+      "sha256": "dde58c301e496117532b915f10c3a47c97a69f0567694f0cd34be51993ec3fe4"
+    },
+    {
+      "bytes": 577,
+      "path": "observed-milestones/muse-m7-presnapshot-prefix/pre-snapshot/erin.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "original snapshot manifest/persona body; hash-only",
+      "sha256": "05cc73c41d2411d99474437536ba84571cb9ac81d63b98534b6f06fecdb0060d"
+    },
+    {
+      "bytes": 574,
+      "path": "observed-milestones/muse-m7-presnapshot-prefix/pre-snapshot/frank.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "original snapshot manifest/persona body; hash-only",
+      "sha256": "17f1eec46ba2ea6d8644ee148c282899b3612109b489afbfebdf5e02ee956e21"
+    },
+    {
+      "bytes": 579,
+      "path": "observed-milestones/muse-m7-presnapshot-prefix/pre-snapshot/grace.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "original snapshot manifest/persona body; hash-only",
+      "sha256": "b2c45084e6fb978431fda83ec46a8b6834c512fbed7dd00e6c118eca87003bd4"
+    },
+    {
+      "bytes": 574,
+      "path": "observed-milestones/muse-m7-presnapshot-prefix/pre-snapshot/henry.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "original snapshot manifest/persona body; hash-only",
+      "sha256": "39e99afe95c263e7398c685228932f11c4a24265b15af7161214a5541a054df8"
+    },
+    {
+      "bytes": 750,
+      "path": "observed-milestones/muse-m7-presnapshot-prefix/pre-snapshot/manifest.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "original snapshot manifest/persona body; hash-only",
+      "sha256": "9f2061832810e0c9f87f4d73f4ecbee5c33e0524d6871977323f175e9f0104da"
+    },
+    {
+      "bytes": 21483,
+      "path": "observed-milestones/muse-m7-first-migration-prefix/pre-snapshot/alice.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "first-migration snapshot manifest/persona body; hash-only",
+      "sha256": "c465a15b549b4609af4b5ab8ebbe4cc60cf38430d47a0a334f0d174080838d3d"
+    },
+    {
+      "bytes": 21476,
+      "path": "observed-milestones/muse-m7-first-migration-prefix/pre-snapshot/bob.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "first-migration snapshot manifest/persona body; hash-only",
+      "sha256": "519edfdd57a0db7ea70d4e1f872bfebcfcaad35c05417bd5d887b1ba553bf50a"
+    },
+    {
+      "bytes": 13162,
+      "path": "observed-milestones/muse-m7-first-migration-prefix/pre-snapshot/carol.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "first-migration snapshot manifest/persona body; hash-only",
+      "sha256": "a91e9b71fe61de08c4bc19e896bfc60f8d241e4772bd0e6832585bd974068d73"
+    },
+    {
+      "bytes": 573,
+      "path": "observed-milestones/muse-m7-first-migration-prefix/pre-snapshot/dave.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "first-migration snapshot manifest/persona body; hash-only",
+      "sha256": "a40b91e38ed8b433abff5139611d017b2213794ccf5eb6a1f7dcb8d1b2c2448d"
+    },
+    {
+      "bytes": 577,
+      "path": "observed-milestones/muse-m7-first-migration-prefix/pre-snapshot/erin.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "first-migration snapshot manifest/persona body; hash-only",
+      "sha256": "55c17fbdfa382a2bc2a0cc03b57ddf54a2091bb80deb9987bd6005a7761614dd"
+    },
+    {
+      "bytes": 574,
+      "path": "observed-milestones/muse-m7-first-migration-prefix/pre-snapshot/frank.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "first-migration snapshot manifest/persona body; hash-only",
+      "sha256": "46ecd0443a3411fb48f783e457f09907eca95a0a5ece6da354e500d3f3d220a0"
+    },
+    {
+      "bytes": 579,
+      "path": "observed-milestones/muse-m7-first-migration-prefix/pre-snapshot/grace.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "first-migration snapshot manifest/persona body; hash-only",
+      "sha256": "35a314c9cfea176b0a07329a34a16ec37213af6ca99ea012111ddbab59c146b3"
+    },
+    {
+      "bytes": 574,
+      "path": "observed-milestones/muse-m7-first-migration-prefix/pre-snapshot/henry.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "first-migration snapshot manifest/persona body; hash-only",
+      "sha256": "5c281f8cd3c64e464911ac20513c76b69fa0bdabbcd84eb7ffc92d712b1d0670"
+    },
+    {
+      "bytes": 750,
+      "path": "observed-milestones/muse-m7-first-migration-prefix/pre-snapshot/manifest.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "first-migration snapshot manifest/persona body; hash-only",
+      "sha256": "9c3255b78410b2b236aed481fd0a31edfb388617ea19367ada4904ff306d4d99"
+    },
+    {
+      "bytes": 21483,
+      "path": "observed-milestones/muse-m7-replacement-snapshot-prefix/pre-snapshot/alice.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "replacement snapshot manifest/persona body; hash-only",
+      "sha256": "c465a15b549b4609af4b5ab8ebbe4cc60cf38430d47a0a334f0d174080838d3d"
+    },
+    {
+      "bytes": 21476,
+      "path": "observed-milestones/muse-m7-replacement-snapshot-prefix/pre-snapshot/bob.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "replacement snapshot manifest/persona body; hash-only",
+      "sha256": "519edfdd57a0db7ea70d4e1f872bfebcfcaad35c05417bd5d887b1ba553bf50a"
+    },
+    {
+      "bytes": 13162,
+      "path": "observed-milestones/muse-m7-replacement-snapshot-prefix/pre-snapshot/carol.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "replacement snapshot manifest/persona body; hash-only",
+      "sha256": "a91e9b71fe61de08c4bc19e896bfc60f8d241e4772bd0e6832585bd974068d73"
+    },
+    {
+      "bytes": 573,
+      "path": "observed-milestones/muse-m7-replacement-snapshot-prefix/pre-snapshot/dave.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "replacement snapshot manifest/persona body; hash-only",
+      "sha256": "a40b91e38ed8b433abff5139611d017b2213794ccf5eb6a1f7dcb8d1b2c2448d"
+    },
+    {
+      "bytes": 577,
+      "path": "observed-milestones/muse-m7-replacement-snapshot-prefix/pre-snapshot/erin.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "replacement snapshot manifest/persona body; hash-only",
+      "sha256": "55c17fbdfa382a2bc2a0cc03b57ddf54a2091bb80deb9987bd6005a7761614dd"
+    },
+    {
+      "bytes": 574,
+      "path": "observed-milestones/muse-m7-replacement-snapshot-prefix/pre-snapshot/frank.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "replacement snapshot manifest/persona body; hash-only",
+      "sha256": "46ecd0443a3411fb48f783e457f09907eca95a0a5ece6da354e500d3f3d220a0"
+    },
+    {
+      "bytes": 579,
+      "path": "observed-milestones/muse-m7-replacement-snapshot-prefix/pre-snapshot/grace.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "replacement snapshot manifest/persona body; hash-only",
+      "sha256": "35a314c9cfea176b0a07329a34a16ec37213af6ca99ea012111ddbab59c146b3"
+    },
+    {
+      "bytes": 574,
+      "path": "observed-milestones/muse-m7-replacement-snapshot-prefix/pre-snapshot/henry.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "replacement snapshot manifest/persona body; hash-only",
+      "sha256": "5c281f8cd3c64e464911ac20513c76b69fa0bdabbcd84eb7ffc92d712b1d0670"
+    },
+    {
+      "bytes": 750,
+      "path": "observed-milestones/muse-m7-replacement-snapshot-prefix/pre-snapshot/manifest.json",
+      "qualification": "not copied; contents represented only by orchestrator capture metadata",
+      "role": "replacement snapshot manifest/persona body; hash-only",
+      "sha256": "9c3255b78410b2b236aed481fd0a31edfb388617ea19367ada4904ff306d4d99"
+    },
+    {
+      "path": "lanes/muse-snapback4/.snapback4.pre-m7-keep",
+      "qualification": "frozen capture helper naming gap; no traversal, hashing, or copy",
+      "role": "runtime database/assets tree excluded without content inspection",
+      "sha256": null
+    }
+  ],
+  "createdAt": "2026-09-14T10:50:50Z",
+  "exclusions": [
+    "raw CLI and private reasoning",
+    "credential and token files",
+    "dotenv/environment files",
+    "runtime databases and .snapback4 trees",
+    "process listings",
+    "persona and snapshot bodies",
+    "dependencies",
+    "generated exports and binaries",
+    "grading and continuous snapshot contents",
+    "prompts and frozen instrument"
+  ],
+  "schemaVersion": 1
+}

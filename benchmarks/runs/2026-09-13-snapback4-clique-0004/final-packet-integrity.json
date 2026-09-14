@@ -1,0 +1,18 @@
+{
+  "checkedAtEpoch": 1789382600.676245,
+  "instrumentFilesByteIdenticalAndReadOnly": 177,
+  "frozenInputDigests": {
+    "scripts/run_phase.py": "a3b3658347f61ee57b9cf13a557fafe4edb9baf385fa59d29e620a1802247b69",
+    "PACKAGE_PINS.json": "6c8241a0bed493a7f80dc0af8f22ecb4dfeebe57c7fe9684fe6474a004298814",
+    "INSTRUMENT.sha256": "b495fed56611a6d3fb7e1e592fafb6bfbc224f222ce72039ffbf963ed82548f9",
+    "observed-milestones/helpers/muse_post_interruption_phase.py": "c62563f2e5a9c52a5016ff228f19830e4d2be347d383a7ae374ca3ebfdda9bf5",
+    "observed-milestones/helpers/run_phase_muse_exit130.py": "6c98247006a3a0dc033b54a3c36eb441396cac1b08258e47e60c7d46a6240ff3"
+  },
+  "selectedPreM7GradingFilesUnchanged": {
+    "astra": 87,
+    "grok": 93,
+    "muse": 87
+  },
+  "occupiedBenchmarkPorts": [],
+  "qualification": "Post-final-phase read-only integrity check; selected grading capture custody only, not a product or benchmark rerun. Raw streams remain private. All model phases ended."
+}

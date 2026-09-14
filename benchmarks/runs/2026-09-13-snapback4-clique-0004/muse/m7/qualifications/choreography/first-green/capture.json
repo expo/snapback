@@ -1,0 +1,41 @@
+{
+  "capturedEpoch": 1789382336.3728929,
+  "qualification": "Private passive first-observed green choreography prefix, not atomic lane snapshot or independent grade; screen before repository curation",
+  "files": [
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/muse-snapback4/m7/choreo-receipts.jsonl",
+      "copy": "choreo-receipts.jsonl",
+      "bytes": 3552,
+      "sha256": "03f53e49d10685f98eb7a8f5d5fd84d2679122b49107a7d0a57bf101010e6220",
+      "sourceMtimeEpoch": 1789382299.0411913
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/muse-snapback4/m7/choreo-receipts.jsonl.observations.jsonl",
+      "copy": "choreo-receipts.jsonl.observations.jsonl",
+      "bytes": 1435,
+      "sha256": "1b7066055e9e3116dbfddd5175e6a1653b29c082ed1af332e8c01a5de320f2f0",
+      "sourceMtimeEpoch": 1789382299.0404892
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/muse-snapback4/m7/suite-status.json",
+      "copy": "suite-status.json",
+      "bytes": 46,
+      "sha256": "629b34ef344aaa7c9dd4cb5465eb25d8440387125777fd44ac276c9d88a089f0",
+      "sourceMtimeEpoch": 1789381756.0438685
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/muse-snapback4/m7/accept-m7.log",
+      "copy": "accept-m7.log",
+      "bytes": 1241,
+      "sha256": "e649e519fac247dd54b69e6bb2f1a156417274a58cb91cdee02f8c26230981e4",
+      "sourceMtimeEpoch": 1789381752.3665204
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/muse-snapback4/m7/run-log.md",
+      "copy": "run-log.md",
+      "bytes": 4098,
+      "sha256": "b4ecc46f419394f9527048fc7b47ddc53ef56bcccccc8b6291cae3bc677718cd",
+      "sourceMtimeEpoch": 1789382333.443205
+    }
+  ]
+}
