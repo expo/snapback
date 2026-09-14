@@ -4969,3 +4969,23 @@ The [open suite-budget ticket](../issues/20260913-snapback4-blocking-suite-over-
 records the exact old-source artifact and the core-owner follow-up,
 including current main's literal-default handling. No core edit, smaller
 privacy world or new full-suite timing follows from this diagnosis.
+
+## 2026-09-14 — the catch-up measured on 0.2.12: ceremony bar and Astra calibration
+
+- **Ceremony bar, fourth run.** 3/3 green with 4 loops, none attributed to
+  Snapback, and the natural membership rule 3/3.
+- **Astra calibration, first attempt.** It aborted at M1 in 777 s because
+  the packet's frozen choreography imports a library that does not
+  resolve from a lane copy. Two earlier builders had supplied that file
+  themselves. The packet now provides the instrument's own copy, and the
+  attempt is kept unscored.
+- **Astra calibration, second attempt.** 7/7 green in 5,438 s, 13 loops,
+  holistic 86. The target categories moved to setup_and_docs 79,
+  data_modeling 89 and queries_and_live 80. The grade passed 101/119.
+
+Everything §18 fixed disappeared from the scorer's notes. The remaining
+drag is two new Snapback-attributed loops. One is the presence card
+promising prediction the binder refuses; it recurred from 0.2.10. The
+other is a helper whose early `return` drops its page's cursor while the
+page reads complete, which I reproduced in 12 rows and filed as P1. Both
+are the next landing's work; §18.7 records the numbers.

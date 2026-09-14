@@ -1,0 +1,67 @@
+[
+  {
+    "epoch": 1789408307,
+    "attribution": "agent-error",
+    "record": "1789408307 correction-loop attribution=agent-error source=diagnostic evidence=evidence/m1-suite.json; profile form forwarded extra row fields; explicit argument projection fixes save; iteration=1"
+  },
+  {
+    "epoch": 1789408602,
+    "attribution": "agent-error",
+    "record": "1789408602 correction-loop attribution=agent-error evidence=evidence/m2-acceptance-console.txt; RN Web lacks Image.resolveAssetSource, using copied fixture URL on web and native resolver on iOS."
+  },
+  {
+    "epoch": 1789408759,
+    "attribution": "agent-error",
+    "record": "1789408759 correction-loop attribution=agent-error source=fixture evidence=evidence/m2-choreo-console.txt,choreography/choreography.mjs:949; harness navigates from profile to feed by feed tabs; moved feed navigation into shared shell. Pagination suite initially counted virtualized DOM rows; changed to scroll and verify second-page content, API cursor check retained."
+  },
+  {
+    "epoch": 1789408933,
+    "attribution": "agent-error",
+    "record": "1789408933 correction-loop attribution=agent-error source=diagnostic evidence=evidence/m2-choreo-retry.txt; Expo Stack retains hidden screen DOM causing first-locator and strict duplicate composer failures; switched route outlet to Slot. Navigation loop iteration=2."
+  },
+  {
+    "epoch": 1789409378,
+    "attribution": "agent-error",
+    "record": "1789409378 correction-loop attribution=agent-error source=diagnostic evidence=evidence/m3-choreo.txt; immediate full-page harness navigation dropped local admin mutation before durable submission (server roster still contained Dave). Admin membership changes use online client with keepalive transport; all messages retain local outbox."
+  },
+  {
+    "epoch": 1789409732,
+    "attribution": "agent-error",
+    "record": "1789409732 correction-loop attribution=agent-error source=diagnostic evidence=evidence/m4-conversation.png,evidence/m4-acceptance.txt; empty-string conditional rendered a raw RN text node, dev error toast overlapped attachment control; replaced with boolean conditional."
+  },
+  {
+    "epoch": 1789409806,
+    "attribution": "agent-error",
+    "record": "1789409806 correction-loop attribution=agent-error source=fixture evidence=evidence/m4-choreo.txt,choreography/choreography.mjs:1095; asynchronous modal mount exposed a video root after harness selected descendant; wrapped player in contracted viewer container for stable descendant observation."
+  },
+  {
+    "epoch": 1789411480,
+    "attribution": "snapback4-defect",
+    "record": "1789411480 correction-loop M6 attribution=snapback4-defect source=package README/guide,diagnostic evidence=evidence/m6-send-why.txt,evidence/offline-debug-2.txt; published presence recipe says device treats everyone connected, but connected read classifies send predicts never. Workaround splits durable notificationRequested effect from service-only Quarry dispatchNotification. Retry also removed redundant horizon guard (agent-error), stable mutation IDs provide replay dedupe. First service-read workaround refused E_SYNC; reverted broader reads."
+  },
+  {
+    "epoch": 1789412141,
+    "attribution": "ambiguous",
+    "record": "1789412141 correction-loop M8 attribution=ambiguous source=diagnostic evidence=evidence/paging-diagnostic.json; shaped history with receipt helper returned 50 rows and next:null despite 10000 persisted rows. Isolated helper early return as trigger, rewrote loop to accumulated state. Initial reaction-only diagnosis incomplete; reaction cache retained as bounded summary. No cursor encoding invented."
+  },
+  {
+    "epoch": 1789412421,
+    "attribution": "agent-error",
+    "record": "1789412421 correction-loop M8 source=diagnostic attribution=agent-error evidence=evidence/m8-check.txt,evidence/m8-check-2.txt,evidence/m8-check-3.txt,evidence/m8-fixture-check.txt,evidence/m8-fixture-check-2.txt; map emit uses explicit fields, expiry index required, fixture job full sweep filters principal. Config re-copy EACCES corrected by preserving existing fixture config files."
+  },
+  {
+    "epoch": 1789412421,
+    "attribution": "snapback4-defect",
+    "record": "1789412421 correction-loop M8 source=diagnostic attribution=snapback4-defect evidence=evidence/paging-diagnostic-console.txt,evidence/paging-diagnostic-fixed-console.txt; helper early-return suppressed outer page next; equivalent state accumulation restores cursor."
+  },
+  {
+    "epoch": 1789412818,
+    "attribution": "agent-error",
+    "record": "1789412818 correction-loop M8 attribution=agent-error source=diagnostic evidence=evidence/regression-m4-console.txt,scripts/seed.mjs; seed send retry relied on removed backend lookup; installed-segment receipts plus existing-message check restore idempotence. Predictive media display now precedes authoritative settlement; acceptance polls authoritative history before assertions."
+  },
+  {
+    "epoch": 1789412818,
+    "attribution": "agent-error",
+    "record": "1789412818 correction-loop M8 attribution=agent-error source=diagnostic evidence=evidence/scale-write-probe-attempt-1-invalid-baseline.json,evidence/scale-write-probe.json; baseline actor u0001 collided with group-send probe dispatch; selected operation by explicit label and repeated only this invalid probe."
+  }
+]

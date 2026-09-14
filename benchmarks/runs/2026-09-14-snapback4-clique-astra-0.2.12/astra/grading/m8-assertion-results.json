@@ -1,0 +1,126 @@
+{
+  "reportVersion": 1,
+  "lane": "astra-snapback4",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "/Users/ccheever/clique-sb4-20260914-astra-0.2.11/instrument/schema/social-messenger/assertions.json",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md §4.2 (api-probes social-counts insights = expected six totals for a controlled account) and §4.3 (m8-insights-ui: UI tiles equal API)"
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "note": "Grader run 1 failed because grader posts had pushed every Alice post off the first Global page. The re-run passed, and the lane receipt passed too.",
+      "evidence": "grading/trace.md §4.1 (choreo-m2m8-run2 m8-a02-insights-like-refresh 32 -> 33; run1 failure caused by grader-created posts, see §4.1)"
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md §4.2 (insights today bucket posts=2 for posts created today) and builder suite server-utc-seven-days"
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md §4.3 (m8-insights-ui: 7 day rows, six prior UTC days rendered 'Posts 0 Likes received 0')"
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md §4.6 (followup-checks m8-trending: 10-like post is rows[0]; next best has 9)"
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "note": "The aged post was created through the lane CLI-only fixture job (test-fixtures.ancientPost), the only way to backdate.",
+      "evidence": "grading/trace.md §4.6 (m8-trending: 25 h-old post with 10 likes absent) and §4.7 (ranked rows expire at post time + 24 h)"
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md §4.6 (m8-trending: two 9-like posts, newer at index 1 before older at index 2)"
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "grading/trace.md §4.5 (digest-check P1: exactly one digest each for H1 {1,2,4,2}, H2 {0,0,5,1}, H5 {0,0,5,1}, all as expected; accounts never connected)"
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "grading/trace.md §4.5 (digest-check: idle persona H3 and outsider-author H4 received no digest)"
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "grading/trace.md §4.5 (digest-check P2 rows [] for all five accounts)"
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "grading/trace.md §4.5 (backend killed and restarted 52 s into P3; exactly one P3 digest for H1 {0,0,1,1}; audit shows no user-period duplicates)"
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "grading/trace.md §4.5 (H1 unreadMessages=4, not 9: five messages in a group H1 is not in were excluded, and a tombstoned message was excluded)"
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "grading/trace.md §4.1 (choreo-m8-run1 and m2m8-run2 m8-a13-same-account-message-live)"
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "grading/trace.md §4.1 (m8-a14-cross-device-read-state passed in both grader runs)"
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "grading/trace.md §4.1 (m8-a15-dual-offline-convergence: exactly once, server-arrival order on all three pages)"
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "grading/trace.md §4.1 (m8-a16-dual-offline-receipts reached read)"
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "note": "Native-artifact assertion: the simulator proof never existed, so this scores not-passed.",
+      "evidence": "grading/trace.md §4.8 (no iOS-simulator artifact; ios-simulator-m8 not-recorded; the builder processDevice durable-queue script is not admissible native evidence)"
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "note": "Native-artifact assertion: the simulator proof never existed, so this scores not-passed.",
+      "evidence": "grading/trace.md §4.8 (no iOS-simulator artifact; ios-simulator-m8 not-recorded; the builder processDevice durable-queue script is not admissible native evidence)"
+    }
+  }
+}
