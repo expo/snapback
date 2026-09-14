@@ -203,3 +203,30 @@ second submission. The client was then submitted and verified the same way.
 The live metric explicitly identifies direct publication of previously
 qualified tarballs; it does not claim that the publisher's full build ran twice.
 Expo delivery remains separate until the target-corrected artifact qualifies.
+
+## Corrected Expo artifact qualification
+
+The [original strict-link controls](./expo-original-target-refusal.json) refuse
+both old 26.5-targeted slices when the existing 16.4 consumer links treat
+warnings as errors. The four-line script correction was integrated unchanged
+at `a8ae933ce`, with its governing decision and journal entry. Both installed
+rustc and cc consume the shared target variable; cc also declares it as a
+rebuild input. Runtime, CLI and client sources are unchanged.
+
+The [replacement receipt](./expo-0.2.5-target-qualified.json) binds clean
+build `43577eed5` (landed `a72a1dda3` plus the script correction), Rust 1.97.0,
+production size optimization, the publication SQLite flag and the exact new
+0.2.5 tarball. Each arm64 slice contains 374 Mach-O objects. All deployment
+records are at most 16.4; Rust and SQLite declare 16.4. The author independently
+[reconciled the exact packed archive members](./expo-archive-reconciliation.json)
+and verified that the symbol table is the sole other member. Actual C and
+Swift consumer executables link at 16.4 for device and simulator with fatal
+linker warnings and four empty logs. These are build and linking checks,
+not execution on an iOS 16.4 device or a complete Expo application.
+
+[Sol's source review](../../../llp/reviews/3000.008-holistic-product-excellence-native-target.gpt.md)
+and [Grok's source review](../../../llp/reviews/3000.008-holistic-product-excellence-native-target.grok.md)
+both returned READY with no must-fix finding. Grok's first attempt exhausted
+its turn limit without a verdict; the fresh completed review is the one
+recorded. The earlier unpublished tarball remains counterevidence and is
+not reused for release. Actual publication follows source landing.
