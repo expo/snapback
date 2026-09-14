@@ -1,0 +1,51 @@
+{
+  "sourceLanded": "a72a1dda3e7c75c2f8d92653eabb8b824b0a914e",
+  "qualificationSource": "ec4480d24579dd94a3d4766111fbf3763f1d4af3",
+  "qualificationManifest": "darwin-0.2.14-qualification.json",
+  "method": "npm publish exact qualified tarballs after source landing; no rebuild; verify registry SHA512/SHA1 when available",
+  "startedAt": "2026-09-14T23:30:19.632910+00:00",
+  "packages": [
+    {
+      "name": "snapback4-darwin-arm64",
+      "version": "0.2.14",
+      "artifact": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-vVGMKE/snapback4-darwin-arm64-0.2.14.tgz",
+      "bytes": 3871935,
+      "sha256": "ec418a31871977b8f660d365e905d29d35fb7d667c8de22498710008b7462935",
+      "expectedIntegrity": "sha512-LrU2J3BFSAFAHpHRNfTBdHC6YETbeHcHC5IW6Dwu+vXB4Q70Rf8fonm41sp2fxj2Ox1jUUcj4ogn32VgWQ9OVA==",
+      "expectedShasum": "279520720f28d3427685ca43644e983f5b1e0c45",
+      "publishAccepted": true,
+      "publishedByThisRun": true,
+      "state": "registry-integrity-verified",
+      "publishLog": "snapback4-darwin-arm64-0.2.14-publish.log",
+      "integrity": "sha512-LrU2J3BFSAFAHpHRNfTBdHC6YETbeHcHC5IW6Dwu+vXB4Q70Rf8fonm41sp2fxj2Ox1jUUcj4ogn32VgWQ9OVA==",
+      "shasum": "279520720f28d3427685ca43644e983f5b1e0c45",
+      "tarball": "https://registry.npmjs.org/snapback4-darwin-arm64/-/snapback4-darwin-arm64-0.2.14.tgz",
+      "verifiedAt": "2026-09-14T23:35:01.402620+00:00"
+    },
+    {
+      "name": "snapback4",
+      "version": "0.2.14",
+      "artifact": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-vVGMKE/snapback4-0.2.14.tgz",
+      "bytes": 530247,
+      "sha256": "af67bb58b3a937381f2e4eb4c1e3cc95e7b5eb4f0c7a2d45c2a06929b9f4b661",
+      "expectedIntegrity": "sha512-jGJaJtziFLu9JknIjqtbhaIGtpY/kDLPeUM2QlViCQohADwNUjn3jXDLZSWovR3jZWLLJQNznPtPHyNixRivBg==",
+      "expectedShasum": "d6e44fa47adb122b7c93dc99fd61014314542066",
+      "publishAccepted": true,
+      "publishedByThisRun": true,
+      "state": "registry-integrity-verified",
+      "publishLog": "snapback4-0.2.14-publish.log",
+      "acceptedAt": "2026-09-14T23:33:10.148747+00:00",
+      "integrity": "sha512-jGJaJtziFLu9JknIjqtbhaIGtpY/kDLPeUM2QlViCQohADwNUjn3jXDLZSWovR3jZWLLJQNznPtPHyNixRivBg==",
+      "shasum": "d6e44fa47adb122b7c93dc99fd61014314542066",
+      "tarball": "https://registry.npmjs.org/snapback4/-/snapback4-0.2.14.tgz",
+      "verifiedAt": "2026-09-14T23:35:01.572050+00:00"
+    }
+  ],
+  "observations": [
+    {
+      "at": "2026-09-14T23:31:36.301042+00:00",
+      "event": "npm publish exit0, reports processing; early registry reads returned404. Initial checker stopped on missing dist metadata, not a differing integrity value. No republish attempted."
+    }
+  ],
+  "finishedAt": "2026-09-14T23:35:01.572070+00:00"
+}

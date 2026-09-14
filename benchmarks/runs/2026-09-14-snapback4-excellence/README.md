@@ -185,3 +185,21 @@ runtime compatibility. The original unpublished artifact is held. Astra is
 correcting the native build target and will rebuild both slices, inspect their
 deployment metadata and repeat consumer linking against 16.4. This does not
 change the independently qualified Darwin CLI or browser client inputs.
+
+## CLI and browser delivery
+
+Source landed on `origin/main` at `a72a1dda3`. The normal pre-push hook passed
+visibility governance and applied the repository's scheduled drift posture.
+Two absent shared-hook dependencies were installed at their lockfile pins in
+ignored task-owned state; no hook was bypassed and no Snapback 1 product input
+was changed.
+
+The exact qualified `snapback4-darwin-arm64@0.2.14` and `snapback4@0.2.14`
+tarballs are published. [The publication receipt](./publication-0.2.14.json)
+records SHA-256, registry SHA-512/SHA-1 and tarball identities. npm accepted
+the platform submission while its metadata was still processing; early reads
+returned 404. Later read-only verification matched both hashes, with no
+second submission. The client was then submitted and verified the same way.
+The live metric explicitly identifies direct publication of previously
+qualified tarballs; it does not claim that the publisher's full build ran twice.
+Expo delivery remains separate until the target-corrected artifact qualifies.
