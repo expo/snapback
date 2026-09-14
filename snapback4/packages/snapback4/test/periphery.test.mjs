@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync, copyFileSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +10,7 @@ import { createRequire } from "node:module";
 import { DatabaseSync } from "node:sqlite";
 import { setTimeout as delay } from "node:timers/promises";
 import vm from "node:vm";
+import { processDevice } from "../dist/native.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
@@ -343,4 +344,115 @@ test("check --cost describes expression ranges, filtered probes, pages and seeks
   assert.equal(JSON.parse(structured.stdout).ok, true);
   assert.match(structured.stderr, /steps ≤ meter/);
   assert.ok(output.endsWith(structured.stderr));
+});
+
+test("processDevice requires its directory synchronously before spawning", () => {
+  let spawned = 0;
+  const spawn = () => { spawned++; throw new Error("must not spawn"); };
+  for (const options of [undefined, null, "devices", {}, { dir: undefined, spawn }, { dir: null, spawn }, { dir: 7, spawn }, { dir: {}, spawn }]) {
+    assert.throws(() => processDevice(options), { name: "Error", message: "processDevice needs { dir }: the directory its stores live in" });
+  }
+  assert.equal(spawned, 0);
+});
+
+test("processDevice imports without Node builtins and opens with injected host functions", () => {
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
+    import assert from "node:assert/strict";
+    import { registerHooks } from "node:module";
+    registerHooks({ resolve(specifier, context, next) {
+      if (specifier.startsWith("node:")) throw new Error("Node builtin unavailable: " + specifier);
+      return next(specifier, context);
+    } });
+    const { processDevice } = await import(${JSON.stringify(new URL("../dist/native.js", import.meta.url).href)});
+    const writes = [], spawns = [];
+    let killed = 0, receive;
+    const opener = processDevice({ dir: "devices/", binary: "host-cli", writeFile: async (...args) => { writes.push(args); }, spawn: (...args) => {
+      spawns.push(args);
+      return { stdin: { write(text) { assert.deepEqual(JSON.parse(text), { op: "probe" }); queueMicrotask(() => receive('{"ok":42}\\n')); } },
+        stdout: { on(event, listener) { receive = listener; queueMicrotask(() => receive('{"ok":true}\\n')); } }, kill() { killed++; } };
+    } });
+    const core = await opener.open("alice", { fixture: true });
+    assert.deepEqual(writes, [["devices/alice.sqlite.backend.json", '{"fixture":true}']]);
+    assert.deepEqual(spawns, [["host-cli", ["device", "devices/alice.sqlite", "devices/alice.sqlite.backend.json"]]]);
+    assert.deepEqual(await core.call({ op: "probe" }), { ok: 42 });
+    await core.close();
+    const cold = await opener.open("alice", null);
+    assert.equal(writes.length, 1);
+    assert.deepEqual(spawns[1], ["host-cli", ["device", "devices/alice.sqlite"]]);
+    await cold.close();
+    assert.equal(killed, 2);
+  `], { encoding: "utf8", timeout: 5000 });
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+});
+
+test("CLI and Node device share environment, platform-package and repository binary resolution", async (t) => {
+  const { dir } = fixture(t);
+  const pkgDir = join(dir, "packages/snapback4");
+  const platformDir = join(pkgDir, `node_modules/snapback4-${process.platform}-${process.arch}`);
+  for (const path of [join(pkgDir, "dist"), join(pkgDir, "bin"), platformDir, join(dir, "target/release"), join(dir, "target/debug")]) mkdirSync(path, { recursive: true });
+  writeFileSync(join(pkgDir, "package.json"), '{"type":"module"}');
+  for (const file of ["dist/native.js", "dist/resolve-binary.js", "bin/snapback4.js"]) copyFileSync(join(root, "packages/snapback4", file), join(pkgDir, file));
+  writeFileSync(join(platformDir, "package.json"), '{"name":"fixture"}');
+  const candidates = [join(dir, "override"), join(platformDir, "snapback4"), join(dir, "target/release/snapback4"), join(dir, "target/debug/snapback4")];
+  for (const file of candidates) writeFileSync(file, "binary resolution fixture");
+  const env = { ...process.env, SNAPBACK4_BIN: "./override" };
+  for (const expected of candidates) {
+    const cli = spawnSync(process.execPath, ["--input-type=module", "-e", `
+      import childProcess from "node:child_process";
+      import { EventEmitter } from "node:events";
+      import { syncBuiltinESMExports } from "node:module";
+      childProcess.spawn = (binary) => {
+        console.log(binary);
+        const child = new EventEmitter();
+        child.kill = () => {};
+        queueMicrotask(() => child.emit("exit", 0));
+        return child;
+      };
+      syncBuiltinESMExports();
+      await import(${JSON.stringify(join(pkgDir, "bin/snapback4.js"))});
+    `], { cwd: dir, env, encoding: "utf8", timeout: 5000 });
+    assert.equal(cli.status, 0, cli.stderr);
+    assert.equal(realpathSync(cli.stdout.trim()), realpathSync(expected));
+    const device = spawnSync(process.execPath, ["--input-type=module", "-e", `
+      import { processDevice } from ${JSON.stringify(join(pkgDir, "dist/native.js"))};
+      const opener = processDevice({ dir: "unused", spawn(binary) {
+        console.log(binary);
+        return { stdin: { write() {} }, stdout: { on(event, receive) { queueMicrotask(() => receive('{"ok":true}\\n')); } }, kill() {} };
+      }, writeFile: async () => {} });
+      await (await opener.open("alice", null)).close();
+    `], { cwd: dir, env, encoding: "utf8", timeout: 5000 });
+    assert.equal(device.status, 0, device.stderr);
+    assert.equal(realpathSync(device.stdout.trim()), realpathSync(expected));
+    rmSync(expected);
+  }
+  const missing = spawnSync(process.execPath, [join(pkgDir, "bin/snapback4.js")], { cwd: dir, env, encoding: "utf8", timeout: 5000 });
+  assert.equal(missing.status, 2);
+  assert.match(missing.stderr, /^snapback4: no binary for /);
+});
+
+test("processDevice defaults to Node spawn and file writing in a new directory", (t) => {
+  const { dir } = fixture(t);
+  // Node stands in for the CLI here; native-e2e runs the actual Rust device.
+  writeFileSync(join(dir, "device"), `
+    const fs = require("node:fs");
+    const readline = require("node:readline");
+    const backend = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
+    console.log(JSON.stringify({ ok: true }));
+    readline.createInterface({ input: process.stdin }).on("line", line => {
+      console.log(JSON.stringify({ ok: { backend, request: JSON.parse(line) } }));
+    });
+  `);
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
+    import assert from "node:assert/strict";
+    import { readFile } from "node:fs/promises";
+    import { processDevice } from ${JSON.stringify(new URL("../dist/native.js", import.meta.url).href)};
+    const backend = { fixture: true };
+    const core = await processDevice({ dir: "new/devices", binary: process.execPath }).open("alice", backend);
+    try {
+      assert.deepEqual(await core.call({ op: "probe" }), { ok: { backend, request: { op: "probe" } } });
+      assert.equal(await readFile("new/devices/alice.sqlite.backend.json", "utf8"), JSON.stringify(backend));
+    } finally { await core.close(); }
+  `], { cwd: dir, encoding: "utf8", timeout: 5000 });
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
 });

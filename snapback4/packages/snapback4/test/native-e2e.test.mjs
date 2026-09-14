@@ -6,7 +6,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtempSync, cpSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, cpSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -30,7 +30,10 @@ async function until(check, ms = 10_000) {
   }
 }
 
-test("the native module follows the server, predicts, queues, and starts cold offline", { timeout: 90_000 }, async () => {
+test("the native module follows the server, predicts, queues, and starts cold offline", { timeout: 90_000 }, async (t) => {
+  const previousBinary = process.env.SNAPBACK4_BIN;
+  process.env.SNAPBACK4_BIN = binary;
+  t.after(() => { if (previousBinary === undefined) delete process.env.SNAPBACK4_BIN; else process.env.SNAPBACK4_BIN = previousBinary; });
   const dir = mkdtempSync(join(tmpdir(), "sb4-native-"));
   cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true, filter: (path) => !/\/worker\.(ts|mjs)$/.test(path) });
   rmSync(join(dir, "snapback/generated"), { recursive: true, force: true });
@@ -49,9 +52,7 @@ test("the native module follows the server, predicts, queues, and starts cold of
       { table: "memberships", row: { id: "m2", conversationId: "c1", principal: "dev:bob", role: "member", joinedAt: 2 } },
       ...Array.from({ length: 30 }, (_, n) => ({ table: "messages", row: { id: `seed${String(n).padStart(3, "0")}`, conversationId: "c1", authorId: "dev:alice", body: `seed ${n}`, at: 1000 + n } })),
     ]) });
-    const { mkdirSync } = await import("node:fs");
-    mkdirSync(data, { recursive: true });
-    const native = processDevice(binary, data, (command, args) => spawn(command, args, { stdio: ["pipe", "pipe", "inherit"] }), async (path, text) => writeFileSync(path, text));
+    const native = processDevice({ dir: data });
     let offline = false;
     const gated = (input, init) => offline ? Promise.reject(new TypeError("offline")) : fetch(input, init);
     const alice = await createLocalClient({ url, persona: "alice", device: native, fetch: gated, waitSeconds: 2 });

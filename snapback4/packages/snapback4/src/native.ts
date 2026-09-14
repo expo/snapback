@@ -7,13 +7,30 @@ import type { DeviceOpener } from "./local.ts";
 
 export type { DeviceCore, DeviceOpener } from "./local.ts";
 
-/** The device as a process, for Node: `snapback4 device <store> [backend]`,
- * one JSON line each way, its stores in `dataDir`. The path to the binary
- * and the spawn are the host's to give. */
-export function processDevice(binary: string, dataDir: string, spawn: (command: string, args: string[]) => { stdin: { write(text: string): unknown }; stdout: { on(event: "data", listener: (chunk: unknown) => void): unknown }; on?(event: "exit" | "error", listener: (...args: unknown[]) => void): unknown; kill(): unknown }, writeFile: (path: string, text: string) => Promise<void>): DeviceOpener {
+export interface ProcessDeviceOptions {
+  readonly dir: string;
+  readonly binary?: string;
+  readonly spawn?: (command: string, args: string[]) => { stdin: { write(text: string): unknown }; stdout: { on(event: "data", listener: (chunk: unknown) => void): unknown }; on?(event: "exit" | "error", listener: (...args: unknown[]) => void): unknown; kill(): unknown };
+  readonly writeFile?: (path: string, text: string) => Promise<void>;
+}
+
+/** The device as a process for Node, with one store per client in `dir`.
+ * Defaults resolve the CLI and load Node only when opening the device. */
+// @ref LLP 3000.007#18.4 — require the stores' directory; share the CLI resolver and default to Node's host functions.
+export function processDevice(options: ProcessDeviceOptions): DeviceOpener {
+  if (!options || typeof options.dir !== "string") throw new Error("processDevice needs { dir }: the directory its stores live in");
+  const { dir, binary: suppliedBinary, spawn: suppliedSpawn, writeFile: suppliedWriteFile } = options;
   return {
     async open(name, backend) {
-      const path = `${dataDir.replace(/\/$/, "")}/${name}.sqlite`;
+      const binary = suppliedBinary ?? (await import("./resolve-binary.ts")).resolveBinary();
+      const spawn = suppliedSpawn ?? (await import("node:child_process")).spawn;
+      const writeFile = suppliedWriteFile ?? (async (path: string, text: string) => {
+        const { mkdir, writeFile } = await import("node:fs/promises");
+        const { dirname } = await import("node:path");
+        await mkdir(dirname(path), { recursive: true });
+        await writeFile(path, text);
+      });
+      const path = `${dir.replace(/\/$/, "")}/${name}.sqlite`;
       const args = [ "device", path ];
       if (backend) {
         const file = `${path}.backend.json`;

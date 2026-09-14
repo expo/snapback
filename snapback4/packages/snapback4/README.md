@@ -33,7 +33,8 @@ my-app/
 
 The backend is one file (more `.q` files beside it hold modules; their
 operations are named `<module>.<op>`, and every file shares one namespace
-of tables, shapes and helpers). The client imports `api` from the generated
+of tables, shapes and helpers); generated operations group under `api.<module>`
+(`api.social.follow`, not `api.follow`). The client imports `api` from the generated
 file and talks to the server through one client object. There are no
 resolvers, no migrations to write, no subscriptions to manage: a table's
 `sync` line says which devices hold its rows, and the client's reads run
@@ -804,6 +805,8 @@ shapes: `snapback4 guide feeds`.
 
 ## 4. The client
 
+The generated `api` groups a module’s operations under `api.<module>`: `api.social.follow`, not `api.follow` (§1).
+
 The local client routes queries using the compiled `runs` word. An observed
 server-run query refreshes when a commit touches its tables. Offline, it
 returns the last server answer for that watch with `fresh: false` and
@@ -814,19 +817,22 @@ empty device page as a server answer.
 ```ts
 import { createLocalClient } from "snapback4/local";   // the local-first tier
 import { webDevice } from "snapback4/web";             // the device on the web
-import { createClient } from "snapback4/client";       // the online tier (no store)
+import { createClient, mintId } from "snapback4/client"; // the online tier (no store)
 import { api } from "../snapback/generated/api";
 
-const client = await createLocalClient({ url: "http://127.0.0.1:4400", persona: "alice", device: webDevice() });
-const thread = await client.query(api.thread, { conversationId });
-const write = await client.mutate(api.send, { conversationId, body: "hi" });
-const invitation = await client.act(api.invite, { email: "friend@example.com" });
+async function openThread(conversationId: string) { // an existing conversation this viewer belongs to
+  const online = createClient({ url: "http://127.0.0.1:4400", persona: "alice" });
+  const client = await createLocalClient({ url: "http://127.0.0.1:4400", persona: "alice", device: webDevice() });
+  const thread = await client.query(api.thread, { conversationId });
+  const write = await client.mutate(api.send, { conversationId, body: "hi" });
+  const invitation = await client.act(api.invite, { email: "friend@example.com" }, { id: mintId() });
+}
 ```
 
 The local-first client opens the device — the Rust module, the same
 interpreter the server runs: as wasm on the web (`webDevice()`, the
 partition in memory and kept in IndexedDB behind each call), as the
-native module on Expo (§7), as a process in Node (`processDevice()` from
+native module on Expo (§7), as a process in Node (`processDevice({ dir, binary?, spawn?, writeFile? })` from
 `snapback4/native`) — syncs the viewer's partition into it, runs every
 query on it, queues every mutation durably and predicts its rows, and
 follows the server's stream for the rest. The device keeps the compiled
@@ -862,12 +868,32 @@ session in place so the operation can be retried. The online client takes
 device; applications that keep its session use `refreshSession(url,
 token)` and replace the online client with the returned session.
 
+**Node.** `dir` is required; stores live there and the directory is created on first open. `binary` uses `SNAPBACK4_BIN`, then the platform package (or a repository build); `spawn` and `writeFile` default to Node’s functions.
+
+```ts
+import { createLocalClient } from "snapback4/local";
+import { processDevice } from "snapback4/native";
+import { login } from "snapback4/auth";
+const url = "http://127.0.0.1:4400";
+const signedIn = await login(url, "alice@example.com", "a-long-password");
+if (!signedIn.ok) throw new Error(signedIn.why.message);
+const session = signedIn.session;
+const client = await createLocalClient({ url, session, device: processDevice({ dir: ".snapback4/devices" }) });
+await client.close();
+```
+
 On the web one tab is one device: a second tab on the same store opens
 its own, and the writes a tab left queued when it closed are adopted by
 the next device that opens the store. `webDevice({ wasm })` takes the
 wasm as a URL, a Response, bytes or a compiled module when a bundler
 cannot resolve the default beside the module; `webDevice({ persist:
-memoryPersistence() })` keeps nothing, for tests.
+memoryPersistence() })` keeps nothing, for tests:
+
+```ts
+import { webDevice, indexedDbPersistence, memoryPersistence } from "snapback4/web";
+const persistent = webDevice({ persist: indexedDbPersistence() });
+const ephemeral = webDevice({ persist: memoryPersistence() });
+```
 
 While a change poll is active, **link loss is reported within 5 seconds**
 on a running browser or native host: heartbeats arrive every 2 seconds,
@@ -886,11 +912,12 @@ chunks promptly when exposing streams.
 Every word a screen reads is on the card (`snapback4/contract`):
 
 ```ts
+import type { Cursor } from "snapback4/contract";
 type Read<T> =
   | { data: T; complete: boolean; fresh: boolean; since?: number; next?: Cursor | null }
   | { loading: true }
   | { denied: Refusal };
-type Write<R> = { state: "pending"; id } | { state: "sent"; id; seq; result: R } | { state: "failed"; id; why: Refusal };
+type Write<R> = { state: "pending"; id: string } | { state: "sent"; id: string; seq: number; result: R } | { state: "failed"; id: string; why: Refusal };
 type Refusal = { code: string; family: string; message: string; site?: string; rewrite?: string; guide?: string; rule?: string; retryable?: boolean };
 type Link = "online" | "offline" | "signed-out";
 ```
@@ -931,16 +958,24 @@ offline. Custom wasm URLs should identify immutable module versions.
 ### React
 
 ```tsx
-import { SnapbackProvider, useClient, useQuery, usePage, useMutation, useLink, useViewer, useSession, useAsset } from "snapback4/react";
-
-<SnapbackProvider client={client}>...</SnapbackProvider>
-const inbox = useQuery(api.inbox, {});                              // Read<...>
-const { items, hasMore, loadMore, read } = usePage(api.thread, { conversationId });
-const send = useMutation(api.send);   // await send.run(args) → Write<R>; sent.result is the server answer; send.last carries it
-const link = useLink();               // "online" | "offline" | "signed-out"
-const viewer = useViewer();           // the principal, or null
-const session = useSession();         // the local client's session, null once it ended
-const client = useClient();           // the provided client
+import { SnapbackProvider, useClient, useQuery, usePage, useMutation, useAction, useLink, useViewer, useSession, useAsset } from "snapback4/react";
+import type { Client } from "snapback4/contract";
+import { api } from "../snapback/generated/api";
+function Thread({ conversationId }: { conversationId: string }) {
+  const inbox = useQuery(api.inbox, {});
+  const { items, hasMore, loadMore, read } = usePage(api.thread, { conversationId });
+  const send = useMutation(api.send); // send.run(args) → Write<R>; send.last follows settlement
+  const invite = useAction(api.invite);
+  const link = useLink(); // "online" | "offline" | "signed-out"
+  const viewer = useViewer();
+  const session = useSession(); // null once the local session ended
+  const client = useClient();
+  const photo = useAsset(items[0]?.photo?.id);
+  return <p>{link}: {items.length} messages</p>;
+}
+export function App({ client, conversationId }: { client: Client; conversationId: string }) {
+  return SnapbackProvider({ client, children: <Thread conversationId={conversationId} /> });
+}
 ```
 
 `useQuery` observes: it re-renders when a sync or a local prediction
@@ -952,16 +987,21 @@ supplies the query's cursor argument itself, which must be named `c`
 ### Assets
 
 ```ts
-const uploaded = await client.upload(file);            // Blob | ArrayBuffer | Uint8Array
-if (uploaded.ok) await client.mutate(api.sendPhoto, { conversationId, photo: { id: uploaded.asset.id } });
-const photo = useAsset(message.photo?.id);             // { status: "empty" | "loading" | "ready" | "denied", ... }
+import type { Client } from "snapback4/contract";
+import { api } from "../snapback/generated/api";
+async function sendPhoto(client: Client, conversationId: string, file: Blob) {
+  const uploaded = await client.upload(file); // also accepts ArrayBuffer | Uint8Array
+  if (uploaded.ok) await client.mutate(api.sendPhoto, { conversationId, photo: { id: uploaded.asset.id } });
+}
 ```
 
 The local-first client can retain ordinary viewed images and videos:
 
 ```ts
+import { createLocalClient } from "snapback4/local";
+import { webDevice } from "snapback4/web";
 const client = await createLocalClient({
-  url, session, device: webDevice(),
+  url: "http://127.0.0.1:4400", guest: true, device: webDevice(),
   assets: { keep: "viewed", maxBytes: 64 * 1024 * 1024 },
 });
 ```
@@ -1050,6 +1090,27 @@ talks to the server directly with `createLocalClient({ url, session })`;
 the principal is the application's own name for the account
 (`member:42`), outside the engine's namespaces.
 
+Session helpers can also be used directly; choose memory or explicit browser persistence:
+
+```ts
+import { guest, signup, login, refreshSession, logout, logoutAll, memorySessionStore, localStorageSessionStore, sessionKey, keepSession, restoreSession, forgetSession } from "snapback4/auth";
+const url = "http://127.0.0.1:4400", email = "alice@example.com", password = "a-long-password";
+const store = memorySessionStore(); // or the explicit browser opt-in below
+const persisted = localStorageSessionStore();
+const key = sessionKey(url);
+const visitor = await guest(url);
+const registered = await signup(url, email, password);
+const signedIn = await login(url, email, password);
+if (signedIn.ok) {
+  await keepSession(url, signedIn.session, store);
+  const kept = await restoreSession(url, store);
+  const rotated = await refreshSession(url, signedIn.session.token);
+  if (rotated.ok) await logoutAll(url, rotated.session.token);
+  await forgetSession(url, store);
+}
+if (visitor.ok) await logout(url, visitor.session.token);
+```
+
 ### Action results
 
 `client.act(op, args)` returns `Act<R>`: `{ state: "done", id, result }`,
@@ -1070,8 +1131,13 @@ author's ruling (LLP 2000.000 §8).
 
 ```ts
 import { runWorker, mintSession, revokeSessions, listEffects, GiveUp } from "snapback4/worker";
-
-runWorker({ url, token, effects: { notify: async (payload, meta) => { await push(payload); return { providerId: meta.id }; } } });
+const url = process.env.SNAPBACK_URL!, token = process.env.SNAPBACK_SERVICE_TOKEN!;
+runWorker({ url, token, effects: { notify: async (payload, meta) => {
+  const sent = await fetch("https://push.example.com/send", { method: "POST", headers: { "idempotency-key": meta.id }, body: JSON.stringify(payload) });
+  if (!sent.ok) throw new GiveUp("Push provider refused the notification");
+  return { providerId: meta.id };
+} } });
+const queued = await listEffects(url, token, "queued");
 const session = await mintSession(url, token, "member:42", "member", 30);
 await revokeSessions(url, token, "member:42");
 ```
@@ -1117,6 +1183,14 @@ mutation named `t.verb` marks the rows of table `t` pending until
 `settle()` commits it (`commitDelayMs` and an initial `link` are options);
 `setLink("offline")` flips the link; `upload` accepts anything as a 1×1
 PNG and `asset` is always denied.
+
+```ts
+import { createMockClient, mockId, page } from "snapback4/mock";
+const id = mockId();
+const client = createMockClient({ viewer: null, tables: { messages: new Map([[id, { id, body: "hello" }]]) },
+  ops: { queries: { thread: (tables) => page([...tables.messages!.values()], null) }, mutations: {} },
+});
+```
 
 ## 5. Development
 
@@ -1345,8 +1419,18 @@ there runs the online tier with a session it keeps itself:
 import * as SecureStore from "expo-secure-store";
 import { createLocalClient } from "snapback4/local";
 import { nativeAvailable, nativeDevice } from "snapback4-expo";
-
+import { createClient } from "snapback4/client";
+import { guest, keepSession, restoreSession } from "snapback4/auth";
+const url = "http://127.0.0.1:4400";
 const sessionStore = { get: SecureStore.getItemAsync, set: SecureStore.setItemAsync, delete: SecureStore.deleteItemAsync };
+async function kept() {
+  const restored = await restoreSession(url, sessionStore);
+  if (restored) return restored;
+  const signedIn = await guest(url);
+  if (!signedIn.ok) throw new Error(signedIn.why.message);
+  await keepSession(url, signedIn.session, sessionStore);
+  return signedIn.session;
+}
 const client = nativeAvailable()
   ? await createLocalClient({ url, guest: true, sessionStore, device: nativeDevice })
   : createClient({ url, session: await kept() });   // Expo Go

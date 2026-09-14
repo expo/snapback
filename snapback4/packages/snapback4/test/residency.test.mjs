@@ -84,7 +84,7 @@ async function fixture(t, watchSources = false) {
   const deviceReads = [];
   const open = async () => {
     const data = join(directory, "device"); mkdirSync(data, { recursive: true });
-    const opener = processDevice(binary, data, (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), async (path, text) => writeFileSync(path, text));
+    const opener = processDevice({ binary, dir: data, spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
     const client = await createLocalClient({ url, persona: "alice", waitSeconds: 1,
       fetch: async (input, init) => { requests++; if (offline) throw new TypeError("test link down"); return fetch(input, init); },
       device: { open: async (...args) => { const core = await opener.open(...args); return { close: () => core.close(), call: (request) => { if (request.op === "query") deviceReads.push(request.name); return core.call(request); } }; } },

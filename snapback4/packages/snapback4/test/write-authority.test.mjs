@@ -95,7 +95,7 @@ test("write authority: /m replay keeps only execution identity after hidden writ
 test("write authority: the client sends a queued unheld upsert without planting a pending row", { timeout: 20000 }, async (t) => {
   const f = await fixture(t);
   const storage = join(f.directory, "device"); mkdirSync(storage);
-  const opener = processDevice(binary, storage, (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), async (path, text) => writeFileSync(path, text));
+  const opener = processDevice({ binary, dir: storage, spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
   let offline = false, posts = 0, core;
   const client = await createLocalClient({ url: f.url, persona: "bob", waitSeconds: 1,
     fetch: async (input, init) => { if (offline) throw new TypeError("offline"); if (new URL(input).pathname.startsWith("/m/")) posts++; return fetch(input, init); },

@@ -21,7 +21,7 @@ scope is [`NOT-DOING.md`](./NOT-DOING.md); the chronology is
 | `crates/snapback4-device` | the device in Rust: the interpreter over its own SQLite behind one JSON call and a C ABI (the native module for Expo and Exact2 hosts); the same as wasm, for measurement |
 | `crates/snapback4-sim` | the deterministic world: the engine and replica devices under faults, LLP 3000 §6's invariants |
 | `crates/snapback4-native`, `native-fixtures/` | the guest SDK for native jobs — the app's Rust, hosted as wasm by the engine (LLP 3000.005) — and the fixture module the suite builds and runs |
-| `packages/snapback4` | the client: the contract (the card), the online tier, the one local-first client over a device (`webDevice()` as wasm on the web, `snapback4-expo`'s module, `processDevice()` in Node), the React hooks, sign-in, a labelled mock; the CLI shim |
+| `packages/snapback4` | the client: the contract (the card), the online tier, the one local-first client over a device (`webDevice()` as wasm on the web, `snapback4-expo`'s module, `processDevice({ dir })` in Node), the React hooks, sign-in, a labelled mock; the CLI shim |
 | `packages/snapback4-darwin-arm64`, `packages/snapback4-expo` | the binary as an optional dependency; the Expo module (Swift over the device's C ABI, the xcframework) |
 | `apps/chat`, `apps/chat-expo` | the chat reference app on the web and on React Native; `snapback/schema.q` is the backend |
 | `corpus/`, `fixtures/`, `floors/` | Snapback 2's conformance corpus; the Clique hub fixture wrapper; the five physical floors |

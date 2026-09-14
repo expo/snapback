@@ -62,8 +62,8 @@ async function host(t) {
   const opener = (tier, name) => {
     const data = join(dir, name);
     mkdirSync(data, { recursive: true });
-    return tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice(binary, data,
-      (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), async (path, text) => writeFileSync(path, text));
+    return tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ binary, dir: data,
+      spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
   };
   return { url, post, opener, clients };
 }
