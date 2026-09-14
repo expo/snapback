@@ -5059,3 +5059,67 @@ What I learned: recovery can keep the helper's complete structure while
 the recorded diagnostic still blocks compilation. Rechecking full-source
 tokens matters even for a two-byte edit: matching a source substring alone
 would also match an operator inside a newly edited string or comment.
+
+
+## 2026-09-14 — lane N2: a helper return preserves its caller's page (LLP 3000.007 §19.2)
+
+The twelve-row reproduction was a page-ownership analysis bug, not a
+helper executing the runtime's `Stmt::Return`. `helper_returns` in
+`bind/program/control.rs:465` already lowers the return to assignments
+and a conditional loop-local `Break`. `engine/pages.rs:159` counted that
+nested break as an exit from the outer shape collector, so it discarded
+the one-to-one page origin. The actual query return then selected no
+page, although the scan's position was still recorded. The analysis now
+keeps nested `Break`/`Continue` local; a program `Return` still propagates
+through all loops. Helper inlining and the serialized IR are unchanged.
+
+Both query hosts now check for a lost page position before claiming
+complete. The private `PagePosition.filled` bit also catches an exactly
+full final scan whose interrupted collector dropped rows: five stored
+rows, five scanned, one returned, no safe continuation, incomplete. A
+proved full final page remains complete, and an auxiliary scan cannot
+reclassify an owned final page. The first full suite caught an overly
+broad safeguard on native reads; that correction preserves their existing
+class because a native scan carries its continuation in its own response.
+The existing native-read suite then passed all seven tests.
+
+The final regression fixture was run with all five changed core files
+restored temporarily to base `ce15819ad71bd24c9d1b9ec228c083330dee3a31`,
+then restored byte-for-byte to the intended changes. From `snapback4/`,
+`cargo test -p snapback4-sim -p snapback4-device --test helper_pages --no-fail-fast`
+reported (device first, simulator second):
+
+```text
+Base:
+test result: FAILED. 6 passed; 14 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+test result: FAILED. 3 passed; 7 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+Fixed:
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+```
+
+Each of eight paged shapes traversed **12 distinct rows in 3 pages
+(5, 5, 2)**, with **0 duplicates and 0 gaps**, on the server and both
+SQLite and memory devices: **24 traversals, 72 pages**. The cases include
+return inside a loop, pure `if`/`else if`, nested helpers, a merge over
+two populated lanes, matching, auxiliary scans, and the original plain
+and accumulated controls. The interrupted-page tests cover both 5 and
+12 stored rows; program returns retain their early-exit behavior.
+Mutations have no `next` field, so the conditional mutation-continuation
+requirement is inapplicable. No corpus case is needed: neither IR nor
+value serialization changed. The ticket is resolved under `issues/closed/`;
+the README and shapes/control cards state the helper's page guarantee.
+
+With Node 24.18.0 on PATH, `bash snapback4/scripts/test.sh` first reported
+`== 2 failure(s) in 212 s` (the native-read regression above and Chromium).
+After correction it reported `== 1 failure(s) in 123 s`: **502 Rust passed,
+0 failed, 1 ignored; 9 fixture passed; 135 client passed, 1 failed**.
+The remaining client failure is Chromium `SIGABRT` at browser launch in
+`react.test.mjs`, the sandbox artifact listed in the lane instructions.
+`node --test packages/snapback4/test/react.test.mjs` reproduced it alone
+(**0 passed, 1 failed**), before app code loads. This is not a claim that
+an unrun base blocking suite passed. The lead must rerun that browser
+check outside the sandbox. `cargo test -p snapback4-lang --test guide`
+passed **9/9**. All **9 changed code files** are below 1,500 lines
+(maximum **1,410**). No diagnostics, ceilings or helper forms changed;
+no commit, push, tag or publication was made.

@@ -249,6 +249,8 @@ another. `fn isBrief(ttl: int ?): ttl != null` is a helper expression and
 each expanded where it is called (`isBrief(ttl)`; `stamp(r.id)` as a
 statement or expression), at most eight levels deep. A table-typed helper parameter keeps a row argument as a row with fields and no lookup; a reference argument stays a reference. A helper can write only
 when its caller can; a query's diagnostic names the write at the call site.
+A helper's `return` ends only that call, including inside a page's shape;
+the page keeps its continuation and completeness.
 
 ### Actions
 

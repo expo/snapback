@@ -809,6 +809,8 @@ A table-typed helper accepts that table's row or reference. A reference has no
 fields: read `messages[m] ! else NOT_FOUND` first, or select through the shape's
 implicit row parameter, `messages[m] { body: .body }`. Shapes are projections,
 not declared helper-argument types.
+A helper's early `return` inside a page's shape ends only that call; the page
+keeps its `next` cursor and completeness.
 A row-based shape keeps `pending?: boolean` from its base, including `*`, named
 spreads and subsequent shapes. It is this device's unconfirmed change, absent
 after confirmation; it is not a schema column or metadata on a containing record."##,
@@ -914,6 +916,7 @@ domain:`, `break`, `continue`, `return`, a helper `fn` call, and a write; every 
 expression must be bound or returned. `fn` takes one expression or a body ending
 in `return expr` or a bare `return`; calls work in statements and expressions.
 A helper return exits only the helper, and its locals cannot capture the caller's.
+It never repositions or reclassifies an enclosing page.
 Queries cannot write or mint ids, including through a helper; the call site names
 the write that does not belong."##,
         "jobs" => r##"# Jobs and schedules: the server's own work, on its own clock
