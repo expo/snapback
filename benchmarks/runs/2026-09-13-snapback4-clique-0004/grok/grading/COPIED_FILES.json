@@ -1,0 +1,70 @@
+{
+  "authoredFilesExcluded": [
+    "README.md",
+    "COPIED_FILES.json",
+    "external-evidence-references.json"
+  ],
+  "copiedFileCount": 8,
+  "createdAt": "2026-09-14T07:29:41Z",
+  "destinationRoot": "benchmarks/runs/2026-09-13-snapback4-clique-0004/grok/grading",
+  "files": [
+    {
+      "bytes": 54616,
+      "destination": "grader-report.json",
+      "sha256": "30112e495f85977a396ae5fb6e53cbb4263b3d62471f3e04fdd320b234efc982",
+      "sourcePath": "lanes/grok-snapback4/grading/grader-report.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 6816,
+      "destination": "m8-assertion-results.json",
+      "sha256": "90becd30f8bbb91a28dba470a8a0e8519b71638a39aa0c3d9c4fa3b235f6f743",
+      "sourcePath": "lanes/grok-snapback4/grading/m8-assertion-results.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 28878,
+      "destination": "trace.md",
+      "sha256": "d77ca21d509e33e6726c69da7e878bafda3d22d14a9b16e18f4de13c1d0bca1e",
+      "sourcePath": "lanes/grok-snapback4/grading/trace.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 15,
+      "destination": "DONE",
+      "sha256": "ce82a0edc8772dab588e10eea38211f5fad3c005b17e3d3bac3cf13bf2452eb5",
+      "sourcePath": "lanes/grok-snapback4/grading/DONE",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1728,
+      "destination": "validation.json",
+      "sha256": "6880d68f5c65c679a3d6eb6ff88a537aa87c6171af6fa026ca4a44e9eae84f53",
+      "sourcePath": "observed-milestones/grok-received-grade-validation.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 956,
+      "destination": "grok-snapback4.grade.start.json",
+      "sha256": "02541355c70bdc5a78b481a486e716cff576f1433e3921fd20c51b1ebc11ed61",
+      "sourcePath": "logs/grok-snapback4.grade.start.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 373,
+      "destination": "grok-snapback4.grade.end.json",
+      "sha256": "f215313637f82048baaeb2de6853cac7243f8943e0c76349c79a947cc4f25281",
+      "sourcePath": "logs/grok-snapback4.grade.end.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 27037,
+      "destination": "grader-access-source-custody-final.json",
+      "sha256": "c43b62b742547b988d255b05b86cb13f11d1d2a410ee99cbd2bf618de2f3f737",
+      "sourcePath": "observed-milestones/grok-grader-access-source-custody-final.json",
+      "verifiedByteIdentical": true
+    }
+  ],
+  "schemaVersion": 1,
+  "sourceRoot": "/Users/ccheever/clique-sb4-20260913-full-3models"
+}

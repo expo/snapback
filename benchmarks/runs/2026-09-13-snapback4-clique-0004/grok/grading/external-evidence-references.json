@@ -1,0 +1,819 @@
+{
+  "createdAt": "2026-09-14T07:29:41Z",
+  "externalRoot": "/Users/ccheever/clique-sb4-20260913-full-3models",
+  "originalBuilderReceipts": {
+    "custodyDetail": "grader-access-source-custody-final.json sourceCustody.repositoryBuilderArchive",
+    "repositoryPath": "benchmarks/runs/2026-09-13-snapback4-clique-0004/grok/receipts",
+    "result": "All 28 archived original builder receipt files match source and repository bytes."
+  },
+  "referenceCount": 99,
+  "references": [
+    {
+      "bytes": 660,
+      "group": "grader-metadata",
+      "path": "lanes/grok-snapback4/grading/build-tallies.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "8afeadbaacc4e5beac1ad0087ede81b8a645d4d9521f3b66651b6fd5525f7046"
+    },
+    {
+      "bytes": 24,
+      "group": "grader-metadata",
+      "path": "lanes/grok-snapback4/grading/choreo-npm-install.log",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "cb5a29db685a05130d24daec49b004ca2122e085768c3e0abe13962f46a03a2a"
+    },
+    {
+      "bytes": 25929,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/api-probes.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "6ffbffd09abd187913d0e71d6a5b0db3afc8a492bdb2db88822480dc30ed66b0"
+    },
+    {
+      "bytes": 9083,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/api-probes.log",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "40a942e8ef0904f5bdbceb7848d774d5692fbb7711f05f675a673f7b16557bd9"
+    },
+    {
+      "bytes": 1285,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/apimd-variation.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "f406ff32fa55cbdb3e72eb93776080e63d234b5412e81e2726a47fc4832d4ec2"
+    },
+    {
+      "bytes": 3512,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/digest-experiment.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "3d08d1f9549037f34a948c68a3587ff3e319fa25b3592547b03798484b74706f"
+    },
+    {
+      "bytes": 1773,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/digest-experiment.log",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "633754e73c28331efb9a31e14cf10a45467e1011a91588cd26b1b4c8c2c808e8"
+    },
+    {
+      "bytes": 914,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/repost-recheck.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "8ba95bc98b261c3148b7e7e969908ea0f9473f916424c75e057571280d562d67"
+    },
+    {
+      "bytes": 788,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/sample50-verify.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "d0efbcd3eff9a00c4709b8eba64605955ea870b1638001401e101b56ea58df83"
+    },
+    {
+      "bytes": 33692,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/screens/diag-convo-final.png",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "c422c0bfa77a71dc66f6c17cb8e93242d5dce9bae84c9f0336b595b2d35fa236"
+    },
+    {
+      "bytes": 16092,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/screens/m1-a02-after-signup.png",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "a24f1613b25e1ca0be9728b31b4b5e6a34ea8531749324a996b592a86e7dee23"
+    },
+    {
+      "bytes": 14493,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/screens/m1-a03-duplicate-handle-edit.png",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "de23687149e3f3477838b39bdd94dfc370c6fc85ca5216b9e6c9be3b137ae5ae"
+    },
+    {
+      "bytes": 24301,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/screens/m1-a03-duplicate-handle-signup.png",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "5be71e60e1a254ee34bc2b0b598a580ad651fd9ea5193cc211e607b5a4f1abb1"
+    },
+    {
+      "bytes": 8364,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/screens/m1-a03-redo-edit.png",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "a7e6ca215261c124efa77204fc8b1e50b095ba0b5f22b9a786f2b81ac63686fd"
+    },
+    {
+      "bytes": 16092,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/screens/m1-a03-redo-signup.png",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "a24f1613b25e1ca0be9728b31b4b5e6a34ea8531749324a996b592a86e7dee23"
+    },
+    {
+      "bytes": 21592,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/screens/m1-a04-duplicate-email.png",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "5d17f3f28be5537a0aabe3e6862a56cbfb4894b44456a8591db7d516b15b425a"
+    },
+    {
+      "bytes": 25291,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/screens/m1-a08-a11-profile.png",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "0d4b1af7eb24b0a776f9ae583068d9b5eb3db0409d93d74635d08d92614ea5de"
+    },
+    {
+      "bytes": 13388,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/screens/m2-a12-link-post.png",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "7ef3e98833dfe1bbbd1574cc751967737ddb801f8765ebb6ed706526954171ce"
+    },
+    {
+      "bytes": 88178,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/screens/m2-a16-repost.png",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "ce1ea76343d57e50eeaeec006deb5ed999fe21e7a0ea1cbaf3ef7d4c94065099"
+    },
+    {
+      "bytes": 33671,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/screens/m2-a20-thread.png",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "4863f6749e9a13363a07abfcadde022a3aeaee0a5d07895c690ee2ce8e360a9a"
+    },
+    {
+      "bytes": 42256,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/screens/m3-a11-after-quote-tap.png",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "6bf6adc60d7800d0a10e6949e3327715e098e7ace516c303d364b729b2c35994"
+    },
+    {
+      "bytes": 38850,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/screens/m4-m5-web-convo-affordances.png",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "69eb970b4010a1141cf2edbd7f5d653aff13080e544e3273fb6c57d54d347c6c"
+    },
+    {
+      "bytes": 14085,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/screens/m5-a02-relaunch.png",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "4c702660db1e043aba93575737aeb72cb704633e0a349d56b37966d57fdf5501"
+    },
+    {
+      "bytes": 24384,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/screens/m5-a03-offline-search.png",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "c86c17a9edb82811fb3442370dad7ea6dac019c18cadee4d9e947d44703cf8f5"
+    },
+    {
+      "bytes": 33589,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/screens/m5-a11-search-grouped.png",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "2a880bf5927ef98be5d930eeb7eace99ad7d0606b84e7694b2fe70f8cdaf944e"
+    },
+    {
+      "bytes": 30571,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/screens/m5-warm-offline-search.png",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "adaf2be3a964d59dbc3280ab6a6ec7ad545b503268b62b850eea3069ae209634"
+    },
+    {
+      "bytes": 39351,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/screens/m8-insights.png",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "100e67f6461b34ac5dfbbed8b059c6fc946a6f1a249e737905612e59b31a4547"
+    },
+    {
+      "bytes": 85651,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/screens/m8-trending.png",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "06b416b8d029e2b285ae5dc4916904032b5bc0038d9cc135e36484541af7a158"
+    },
+    {
+      "bytes": 13315,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/screens/overlay-after-nav.png",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "1a0ff07b466bc0f1403dbb65d0f3c851c73a1da9ab03b1873b427bd2c294807c"
+    },
+    {
+      "bytes": 570,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/seed-idempotency.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "26b0630076c0e5c985c1c643f382b2382fef41c9ecfc562c5f867447a789b7dd"
+    },
+    {
+      "bytes": 165,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/seed-idempotency.log",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "957252fc897e7feb583e9577dd3cef7f74e5f40994d2499a2bf4f79e1320ef46"
+    },
+    {
+      "bytes": 2167,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/web-convo-diag.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "77f0118f60074c66f0d88587ab8dd4d0c153b6f8582507223a08cce44fda910a"
+    },
+    {
+      "bytes": 306,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/web-m1a03-redo.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "50b4e1577c2297d1888a8565252d3e28d83737b1c60c7092f78394631c8f762f"
+    },
+    {
+      "bytes": 260,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/web-overlay-nav.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "733d81a3eac26636c1b333287bc8f4c067c49b74066549af1917324db7844647"
+    },
+    {
+      "bytes": 5911,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/web-probes-2.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "281f172a85ca24bef12d3d4a73d0a554c76bdae75bdd58127e05306e765c6f86"
+    },
+    {
+      "bytes": 2657,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/web-probes-2.log",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "a0639de6cbab7ff649d88d48a0febb4aae1f6aeb92c22ead60a8e9baf8d490fc"
+    },
+    {
+      "bytes": 3991,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/web-probes.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "251a5e0b37785de159bbc71c9391929edee98a14cfc873ed5e1b5fa34b8e1819"
+    },
+    {
+      "bytes": 1625,
+      "group": "grader-authored-evidence",
+      "path": "lanes/grok-snapback4/grading/evidence/web-probes.log",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "41f0c0031cd5111db84ae629b2723ca8ed4ab1b86cff0af64abe3cad718b3f7b"
+    },
+    {
+      "bytes": 2152,
+      "group": "grader-authored-script",
+      "path": "lanes/grok-snapback4/grading/insights-baseline.mjs",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "b518f311c08ec3d99470d948bbf75580a3016b6c21b7da07994153260816b3e0"
+    },
+    {
+      "bytes": 10730,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/api-probes.stdout",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "b7bfd2fe2ee6a6d3a5606785bee723269cf0489e60c97b17216134c32464df3f"
+    },
+    {
+      "bytes": 6462,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/backend.log",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "1d09f827f75a32ced41a5e252be11d787de4fb73b0427b9861458fc0fa7d07ff"
+    },
+    {
+      "bytes": 2562,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/digest.stdout",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "832f29b94e987890cd148c039b0fc93d1b3fa34ec1e142ca650be57b6277cc26"
+    },
+    {
+      "bytes": 845,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/repost-recheck.stdout",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "6bcfaa6d83a99c8d304579fe2f55fe00c4de29d44bf975de68bbc1b18c19c9fe"
+    },
+    {
+      "bytes": 789,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/sample50.stdout",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "508be25334f9bcf77eb19e54f6446b35f167a58a939494968fe93184732e3386"
+    },
+    {
+      "bytes": 185,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/seed-idempotency.stdout",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "28b01155868076b8cada0e61c0eada0f1cfbb64ce0ce872bcc244af4034b30f4"
+    },
+    {
+      "bytes": 211,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/seed-m2-rerun-2.log",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "2ccbe34c00634972ae7f1548fb0dea91045e2c1c36ac3a0ce74d7611aeddc287"
+    },
+    {
+      "bytes": 211,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/seed-m2-rerun.log",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "ebb7ebb0ca19109427d5a8aac3119a7c518099f8ca3a3a08e952aaac6a4bfecd"
+    },
+    {
+      "bytes": 169,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/suite-m1.log",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "dd1e5c88f9c68932ab9d70d773adeb8ddc7fd4f1e77bf2d92d89ff15edc832d9"
+    },
+    {
+      "bytes": 562,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/suite-m1.receipt.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "412531bc9a173280fd88f74af7d31cb6498c9ab857e8138960576e7bfa09b10e"
+    },
+    {
+      "bytes": 334,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/suite-m2.log",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "01d86c8a3b78b4d55a34f72a5891f78b6be3bcb65f7d800ebc9ba8733e3d1a16"
+    },
+    {
+      "bytes": 1372,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/suite-m2.receipt.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "7e3538c6c7f0195a908d8e7396c5a94d89c8c2c9bb1ac8c47d3c909192ed9358"
+    },
+    {
+      "bytes": 169,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/suite-m3.log",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "3f2c931263ac643615734f28b0bfb1e962805c9e9976e63475b0a542339252ce"
+    },
+    {
+      "bytes": 562,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/suite-m3.receipt.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "536539a8bf91c0160087024f3d4a5387aba9a5d17d7b29768ca9f79f5ffb6279"
+    },
+    {
+      "bytes": 147,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/suite-m4.log",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "e9e6f1f1c72e548805a8fa86e2a6089400d052b084381cfe5cefbc0059b6c196"
+    },
+    {
+      "bytes": 454,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/suite-m4.receipt.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "c9926f9c964e0d0c0112edb9d3bf7071bacf6f77a47a19154f7d4fa53b060d0f"
+    },
+    {
+      "bytes": 158,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/suite-m5-rerun.log",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "8d7283367e0854a1aebcf22d9e8d1919dba3b7db87d5d0ab6b12417753b6ad18"
+    },
+    {
+      "bytes": 508,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/suite-m5-rerun.receipt.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "7a22d5c5f0c75a9fad9c281c9b0731774a07e66aa3ea6970ed18206cb06c747b"
+    },
+    {
+      "bytes": 196,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/suite-m5.log",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "791d0a70c73e8caca8178673c94068b5486646b56e4445a9081043abc72fcdee"
+    },
+    {
+      "bytes": 582,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/suite-m5.receipt.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "db11625ed607e129fa57fe83d9e54d41bc32fae958d752bbc907575082435cdf"
+    },
+    {
+      "bytes": 1120,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/suite-m6.log",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "3f19b4dc75d8734a97e395b239a65c978a5d3c92ba1cedf461a8350720b7e19c"
+    },
+    {
+      "bytes": 454,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/suite-m6.receipt.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "d85787ced21b0e7af8eb204135e66068156de57c0226ac130aee8308822ef343"
+    },
+    {
+      "bytes": 158,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/suite-m8.log",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "20ffefcee1c0fd34a4625b7208d9b9c7b3076e20c4e002e352be26a5f7b7ed7f"
+    },
+    {
+      "bytes": 508,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/suite-m8.receipt.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "c098dcb1b45b3a7d8dadb33e8c6e29d25b784c90f3c8bdeaca632eaae9084a19"
+    },
+    {
+      "bytes": 113,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/token.err",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [
+        "sensitive filename; never copy"
+      ],
+      "sha256": "d0652aa260df9a17a7e78c35b50c1df4762ddfccae33b5af91d6cf3e0f676e1c"
+    },
+    {
+      "bytes": 1806,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/web-convo-diag.stdout",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "ef71026277e4616a56a7ab2a86af84fe62f6ec15b833dd6135f7bb43cd29965d"
+    },
+    {
+      "bytes": 3146,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/web-probes-2.stdout",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "9ef68a43c9040eb30f361ea1c4cb3e47f4471b64ebdd4c707c4ac3c1634ba63b"
+    },
+    {
+      "bytes": 2007,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/web-probes.stdout",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "b5bf6ba93dfd5dd6e33a8516a81884d854d5317abe2fc36f18c8905bdd0b5de3"
+    },
+    {
+      "bytes": 11545,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/web.log",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "bdc621ae2661f5026614fc8c94e0bdc8f3438541fe4e90dd64d384620265f47a"
+    },
+    {
+      "bytes": 1369,
+      "group": "grader-suite-or-runtime-log",
+      "path": "lanes/grok-snapback4/grading/logs/worker.log",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "867b9c4227d57e18b000c53767debf6e25908d41bfc46a04ee9d09d3a9bbffcc"
+    },
+    {
+      "bytes": 20152,
+      "group": "grader-authored-script",
+      "path": "lanes/grok-snapback4/grading/work/assemble-report.mjs",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "48857a8a0c8f7da7f8d1c4fa59ddded4cec4e1d545fd476e692663742eca05ed"
+    },
+    {
+      "bytes": 29084,
+      "group": "grader-authored-script",
+      "path": "lanes/grok-snapback4/grading/work/build-report.mjs",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "11f5ac4bdf49a62c3c47d23f678da849955022d517f56bb56136040c3d119dbb"
+    },
+    {
+      "bytes": 41485,
+      "group": "grader-authored-script",
+      "path": "lanes/grok-snapback4/grading/work/grader-api-probes.mjs",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "be7d991d0ef9695a80d5010264081e10c23779540419a82aa316c0399e73b2e8"
+    },
+    {
+      "bytes": 2347,
+      "group": "grader-authored-script",
+      "path": "lanes/grok-snapback4/grading/work/grader-apimd-variation.mjs",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "59de7035770a6eac17d6389d377621355cc556771a4269009db3dbe8e1158dd2"
+    },
+    {
+      "bytes": 10124,
+      "group": "grader-authored-script",
+      "path": "lanes/grok-snapback4/grading/work/grader-digest.mjs",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "6606c5f7c8d546407869b741cfa57e105760b3d95528c40a78240b748fc593c6"
+    },
+    {
+      "bytes": 2152,
+      "group": "grader-authored-script",
+      "path": "lanes/grok-snapback4/grading/work/grader-insights-baseline.mjs",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "b518f311c08ec3d99470d948bbf75580a3016b6c21b7da07994153260816b3e0"
+    },
+    {
+      "bytes": 2330,
+      "group": "grader-authored-script",
+      "path": "lanes/grok-snapback4/grading/work/grader-repost-recheck.mjs",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "0788211334e45bd0f4a7e149dc8513d33e6493895e882193a3f16920330348c1"
+    },
+    {
+      "bytes": 6056,
+      "group": "grader-authored-script",
+      "path": "lanes/grok-snapback4/grading/work/grader-sample50-verify.mjs",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "a8f808a1f125aa367038d8940e2e16425e0ceabc5844e4fb195fe7ddeff9fc1a"
+    },
+    {
+      "bytes": 4878,
+      "group": "grader-authored-script",
+      "path": "lanes/grok-snapback4/grading/work/grader-web-convo-diag.mjs",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "8c28c5cdf476b2b1e44b44bf12d3d7690c11a3fee0502186261bce2b5b39d870"
+    },
+    {
+      "bytes": 3450,
+      "group": "grader-authored-script",
+      "path": "lanes/grok-snapback4/grading/work/grader-web-m1a03.mjs",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "898648ce9fb94aece1e88c26af2d39e0f8ce6f1766363002b28c556eae2967d9"
+    },
+    {
+      "bytes": 4058,
+      "group": "grader-authored-script",
+      "path": "lanes/grok-snapback4/grading/work/grader-web-overlay.mjs",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "13c0296e74f816f4e37fb8f0becdf5d3cbdd935b807b99fbfb3ee46b6a340d69"
+    },
+    {
+      "bytes": 33784,
+      "group": "grader-authored-script",
+      "path": "lanes/grok-snapback4/grading/work/grader-web.mjs",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "a23e8f74496c0a56e711c3f7c4fd0b1edc15000a9c890af0ab7e598133b70494"
+    },
+    {
+      "bytes": 62682,
+      "group": "grader-metadata",
+      "path": "lanes/grok-snapback4/grading/work/push-log.jsonl",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "4ad2310eee986f1b5542c2bf51073253da06c084f8728fe957ba85010cc569c6"
+    },
+    {
+      "bytes": 242,
+      "group": "grader-work-receipt",
+      "path": "lanes/grok-snapback4/grading/work/receipts/coverage-m1.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "7b99889a9ad4b2dc07c7f6d1c41d13f77170450a3c0ad8e63f70e4def865d691"
+    },
+    {
+      "bytes": 482,
+      "group": "grader-work-receipt",
+      "path": "lanes/grok-snapback4/grading/work/receipts/coverage-m2.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "ea6e2f458155005f1da0f6073b66aad102d51375d6d130e4029674c309fcec24"
+    },
+    {
+      "bytes": 242,
+      "group": "grader-work-receipt",
+      "path": "lanes/grok-snapback4/grading/work/receipts/coverage-m3.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "6a619d46c5136c520caca7d0745887ddf9fbee4fe0cdca0e4fedcac2291ae64c"
+    },
+    {
+      "bytes": 210,
+      "group": "grader-work-receipt",
+      "path": "lanes/grok-snapback4/grading/work/receipts/coverage-m4.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "4e898c523317b4593f7f319ddd0331f33dd4d06aa9d075e73166a6c20afa06b6"
+    },
+    {
+      "bytes": 226,
+      "group": "grader-work-receipt",
+      "path": "lanes/grok-snapback4/grading/work/receipts/coverage-m5.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "c571af68dd867af16f1f0aa333416a44a090f940611914f617878976ad4c87ef"
+    },
+    {
+      "bytes": 210,
+      "group": "grader-work-receipt",
+      "path": "lanes/grok-snapback4/grading/work/receipts/coverage-m6.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "eff1bc14b92c587d35cef187a6d1d869628f5199ea6f6e1d8ece08d9be3adbd7"
+    },
+    {
+      "bytes": 226,
+      "group": "grader-work-receipt",
+      "path": "lanes/grok-snapback4/grading/work/receipts/coverage-m8.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "f447c9e46c45a64acafa35344305e1f13c968652adc74b851ab71e842a0b91d8"
+    },
+    {
+      "bytes": 562,
+      "group": "grader-work-receipt",
+      "path": "lanes/grok-snapback4/grading/work/receipts/suite-m1.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "412531bc9a173280fd88f74af7d31cb6498c9ab857e8138960576e7bfa09b10e"
+    },
+    {
+      "bytes": 1372,
+      "group": "grader-work-receipt",
+      "path": "lanes/grok-snapback4/grading/work/receipts/suite-m2.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "7e3538c6c7f0195a908d8e7396c5a94d89c8c2c9bb1ac8c47d3c909192ed9358"
+    },
+    {
+      "bytes": 562,
+      "group": "grader-work-receipt",
+      "path": "lanes/grok-snapback4/grading/work/receipts/suite-m3.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "536539a8bf91c0160087024f3d4a5387aba9a5d17d7b29768ca9f79f5ffb6279"
+    },
+    {
+      "bytes": 454,
+      "group": "grader-work-receipt",
+      "path": "lanes/grok-snapback4/grading/work/receipts/suite-m4.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "c9926f9c964e0d0c0112edb9d3bf7071bacf6f77a47a19154f7d4fa53b060d0f"
+    },
+    {
+      "bytes": 508,
+      "group": "grader-work-receipt",
+      "path": "lanes/grok-snapback4/grading/work/receipts/suite-m5.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "7a22d5c5f0c75a9fad9c281c9b0731774a07e66aa3ea6970ed18206cb06c747b"
+    },
+    {
+      "bytes": 454,
+      "group": "grader-work-receipt",
+      "path": "lanes/grok-snapback4/grading/work/receipts/suite-m6.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "d85787ced21b0e7af8eb204135e66068156de57c0226ac130aee8308822ef343"
+    },
+    {
+      "bytes": 508,
+      "group": "grader-work-receipt",
+      "path": "lanes/grok-snapback4/grading/work/receipts/suite-m8.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "c098dcb1b45b3a7d8dadb33e8c6e29d25b784c90f3c8bdeaca632eaae9084a19"
+    },
+    {
+      "bytes": 390,
+      "group": "grader-work-receipt",
+      "path": "lanes/grok-snapback4/grading/work/receipts/suite-status.json",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [],
+      "sha256": "c90b07dfc1d1ea4e7b269ca0d355cf5f25612640975ed980f95c085c9d360694"
+    },
+    {
+      "bytes": 3111289,
+      "group": "raw-grader-cli-log",
+      "path": "logs/grok-snapback4.grade.ndjson",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [
+        "raw CLI stream; external only",
+        "large file over 1 MiB"
+      ],
+      "sha256": "bdd51eaf0197bc59515ee5bcf2b336c9bbb95d6ff4cf1641eca29bd43cc9d625"
+    },
+    {
+      "bytes": 0,
+      "group": "grader-cli-stderr",
+      "path": "logs/grok-snapback4.grade.stderr.log",
+      "repositoryContentsCopied": false,
+      "retentionNotes": [
+        "raw CLI stream; external only"
+      ],
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "schemaVersion": 1,
+  "selection": {
+    "contentsCopied": false,
+    "credentialValuesCopied": false,
+    "description": "Selected grader-created evidence, screenshots, suite/runtime logs, work receipts, scripts and raw CLI custody relevant to the received Grok grade.",
+    "notExhaustive": "The full isolated work tree, dependencies, runtime database, PID files, token files, instrument and builder lane are not inventoried here."
+  },
+  "status": "hash references only"
+}

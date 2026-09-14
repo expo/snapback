@@ -9,8 +9,8 @@ interrupted that loop at `2026-09-14T05:34:59Z`; the actual exit code is **130**
 and driver wall time is 17,657.686 seconds, including the continuation tail.
 [Holistic scores](./holistic/README.md) are complete: Astra 84, Grok 70, Muse 80
 (mean 78). Astra's received independent grade is 100 pass / 10 fail / 9 not-run
-across 119 assertions; Grok grading is active. Muse's grade and fresh M7 runs
-remain pending.
+across 119 assertions. Grok's received grade is 70 pass / 18 fail / 31 not-run.
+Muse grading is active; the three fresh M7 runs remain pending.
 All three lanes are frozen to published `snapback4@0.2.6` and
 `snapback4-expo@0.2.1`. `REGISTRY_RECEIPTS.json` confirms that registry integrity
 matches the exact qualified tarballs, including the platform binary.
@@ -113,7 +113,7 @@ that ticket retains the builder evidence with attribution still unresolved.
 | Lane | M1 | M2 | M3 | M4 | M5 | M6 | M8 | Continuous wall | Holistic score | Independent 119 | Comparable 101 subtotal | Fresh M7 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Astra medium | builder green | builder green | builder green | builder green | builder green | builder green | builder green | 9,614.013 s | 84 | 100 pass / 10 fail / 9 not-run | 84 pass / 8 fail / 9 not-run | pending |
-| Grok 4.6 xhigh | web green | web green | capability failure | blocked; partial API suite | blocked; partial API suite | blocked; scale incomplete | blocked; partial API suite | 12,499.350 s | 70 | pending | pending | pending |
+| Grok 4.6 xhigh | web green | web green | capability failure | blocked; partial API suite | blocked; partial API suite | blocked; scale incomplete | blocked; partial API suite | 12,499.350 s | 70 | 70 pass / 18 fail / 31 not-run | 60 pass / 17 fail / 24 not-run | pending |
 | Muse Spark 1.3 xhigh | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | 17,657.686 s; includes interrupted runtime continuation | 80 | pending | pending | pending |
 
 Astra's grade passed the frozen schema and exact 101+18 assertion partition.
@@ -145,6 +145,33 @@ class and adds a regression; this benchmark does not measure that fix. The
 grader also observed delayed offline indication despite 1 ms local search.
 That separate [link-detection follow-up](../../../issues/20260913-snapback4-offline-link-detection-can-lag-during-held-poll.md)
 retains the three samples and the inferred long-poll mechanism.
+
+Grok's independent grader exited zero after 2,793.393 seconds. Its structurally
+validated results are 60 pass / 17 fail / 24 not-run on the comparable 101 IDs,
+plus 10 pass / 1 fail / 7 not-run for M8. It reports O1=10 and O2=25, with O3,
+O4 and O5 null. O1 applies a separate coverage adjudication: the grader found
+assertions such as `assert(true)` and `assert(own || true)` and marked six
+milestones' suite mappings dishonest. The raw 70/119 passing observations and
+that scoring penalty remain distinct. The [exact Grok comparison](./grok-grade-comparison.md) records 60 current
+passes versus 68 on the prior Snapback2 run, with changed methods and instrument
+limits retained. The [completed Grok grade audit](./grok/grading/README.md)
+confirms the coverage findings, original source custody, and package pins. It
+records two citation defects without changing received grades. Grok's grader
+used the original choreography receipts and separate web/API probes; it did
+not rerun the choreography harness.
+
+The [Grok client attribution audit](./grok-grade-client-attribution.md) separates
+application defects from one concrete [pending-sync transport mismatch](../../../issues/20260914-snapback4-sync-pending-query-exceeds-request-line-limit.md):
+256 ordinary pending IDs produce a 9,011-byte request line, exceeding the
+host's 8,192-byte limit. The app's repeated receipt writes amplify the trigger.
+The retained failed URL is truncated, so its exact size and the parser response
+remain unproven; the supported-state mismatch follows from pinned code.
+
+The received Grok report says scale replay was never attempted. The continuous
+builder archive instead retains a short real attempt that stopped without
+completing the frozen replay or verifying invariants. Its lack of a qualifying
+scale receipt is established; the received wording and O5=null remain
+unchanged and carry this qualification.
 
 The [holistic scorers](./holistic/summary.md) use their own builders' narratives, so their diagnoses are
 not independent technical findings. Astra charged pending metadata loss that

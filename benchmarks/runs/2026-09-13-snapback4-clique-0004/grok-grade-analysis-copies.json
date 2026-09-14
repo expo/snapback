@@ -1,0 +1,24 @@
+{
+  "observedAt": "2026-09-14T07:31:41.918026+00:00",
+  "copies": [
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/observed-milestones/grok-grade-comparison.json",
+      "destination": "grok-grade-comparison.json",
+      "bytes": 131138,
+      "sha256": "08e56d5366cd9250c207bb5ea828098956736f09f45ea590d7c04aa03710b8ae"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/observed-milestones/grok-grade-comparison.md",
+      "destination": "grok-grade-comparison.md",
+      "bytes": 6565,
+      "sha256": "c72aefe6f1bcc8e5ffbfe374ac31ff5cbf0aaa7df39ae99535c47099cf243a3b"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/observed-milestones/grok-grade-client-attribution.md",
+      "destination": "grok-grade-client-attribution.md",
+      "bytes": 10705,
+      "sha256": "42e4ab33fb109e2a585530412d0bb7c79aba2f93ad0a24196ed90d26074cab62"
+    }
+  ],
+  "updatedAt": "2026-09-14T07:33:05.774569+00:00"
+}

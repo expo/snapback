@@ -1,0 +1,729 @@
+{
+  "accessAudit": {
+    "excludedNarrativeOrCrossLaneArgumentMatches": [
+      {
+        "classification": "output write mentions forbidden filenames",
+        "eventSha256": "da6fdff562a623a8d33d156c96594ffe1644345422d43b3ddbd7f1892c596415",
+        "line": 1685,
+        "markerClasses": {
+          "excluded-builder-narrative": [
+            "diary.md",
+            "essay.md",
+            "final-report.md",
+            "final.md",
+            "run-log.md"
+          ]
+        },
+        "safePath": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/grok-snapback4/grading/trace.md",
+        "tool": "Write"
+      }
+    ],
+    "finding": "No public Read or Bash argument accessed the builder diary, essay, final report, run log, another lane, or a prior run. The only marker hit is the grader writing trace.md text that lists forbidden filenames; it is output, not access.",
+    "selectedPublicEvents": [
+      {
+        "classification": "read builder acceptance source",
+        "eventSha256": "ea98c9bb09dadd6164579f5f5125842fed2487a13c2bcb7e82178b8b5dd3da9b",
+        "line": 34,
+        "safePath": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/grok-snapback4/scripts/acceptance.mjs",
+        "tool": "Read"
+      },
+      {
+        "classification": "read original builder choreography receipts",
+        "eventSha256": "d93fc110d8461e9753503a7b2f81317540082e5f176bdded32825dd9fc2a2309",
+        "line": 61,
+        "safePath": null,
+        "tool": "Bash"
+      },
+      {
+        "classification": "copy harness, install its dependencies, and print Playwright version; no choreography invocation",
+        "eventSha256": "442c1cfc1421c174cfbb4af82555f16e070f14e1a772dc1e246fe230c1755e94",
+        "line": 229,
+        "safePath": null,
+        "tool": "Bash"
+      },
+      {
+        "classification": "grep harness source for assertion IDs",
+        "eventSha256": "6832ba1d0e4b7c98fc1b93459e8497c8f9377bb1046d171741eb3b505145cc1e",
+        "line": 1055,
+        "safePath": null,
+        "tool": "Bash"
+      },
+      {
+        "classification": "read harness source",
+        "eventSha256": "ddabbad0d3409ee1a448f792a6deaa2b4f1a233becbf5d542b305f99192c4593",
+        "line": 1083,
+        "safePath": "/Users/ccheever/clique-sb4-20260913-full-3models/instrument/choreography/choreography.mjs",
+        "tool": "Read"
+      },
+      {
+        "classification": "read harness source",
+        "eventSha256": "6177b49f2ba9339739abce5f93933e00d3ab59b2bf241ff0b6b2a347dd90d505",
+        "line": 1085,
+        "safePath": "/Users/ccheever/clique-sb4-20260913-full-3models/instrument/choreography/choreography.mjs",
+        "tool": "Read"
+      },
+      {
+        "classification": "read harness toggle/reply functions",
+        "eventSha256": "47fb7961689f12525ac8e199111046578cb8c7623c439d8e12868c4decf9f6a6",
+        "line": 1115,
+        "safePath": null,
+        "tool": "Bash"
+      }
+    ]
+  },
+  "choreographyMethod": {
+    "allAssertions": [
+      {
+        "evidence": "receipts/choreo-m1.jsonl session-persists-on-relaunch",
+        "id": "m1-a05",
+        "partition": "prior101",
+        "result": "pass"
+      },
+      {
+        "evidence": "receipts/choreo-m1.jsonl logout-remains-signed-out-on-relaunch",
+        "id": "m1-a06",
+        "partition": "prior101",
+        "result": "pass"
+      },
+      {
+        "evidence": "receipts/choreo-m1.jsonl profile-edit-live-visibility",
+        "id": "m1-a09",
+        "partition": "prior101",
+        "result": "pass"
+      },
+      {
+        "evidence": "receipts/choreo-m2.jsonl feed-text/image/video-post-live-update",
+        "id": "m2-a04",
+        "partition": "prior101",
+        "result": "pass"
+      },
+      {
+        "evidence": "receipts/choreo-m2.jsonl feed-author-avatar-and-display-name",
+        "id": "m2-a05",
+        "partition": "prior101",
+        "result": "pass"
+      },
+      {
+        "evidence": "receipts/choreo-m2.jsonl follow-unfollow-live-projection; instrument choreography.mjs toggleFollow",
+        "id": "m2-a07",
+        "partition": "prior101",
+        "result": "not-run"
+      },
+      {
+        "evidence": "receipts/choreo-m2.jsonl like-unlike-live-count",
+        "id": "m2-a14",
+        "partition": "prior101",
+        "result": "pass"
+      },
+      {
+        "evidence": "receipts/choreo-m2.jsonl reply-live-thread-projection",
+        "id": "m2-a19",
+        "partition": "prior101",
+        "result": "pass"
+      },
+      {
+        "evidence": "receipts/choreo-m3.jsonl dm-live-messages",
+        "id": "m3-a01",
+        "partition": "prior101",
+        "result": "fail"
+      },
+      {
+        "evidence": "receipts/choreo-m3.jsonl sender-avatar-identity-when-rendered; components/WebConvoSurface.tsx:83-97",
+        "id": "m3-a02",
+        "partition": "prior101",
+        "result": "fail"
+      },
+      {
+        "evidence": "receipts/choreo-m3.jsonl typing-indicator-within-2s-expires-within-5s",
+        "id": "m3-a06",
+        "partition": "prior101",
+        "result": "fail"
+      },
+      {
+        "evidence": "receipts/choreo-m3.jsonl typing-indicator-within-2s-expires-within-5s",
+        "id": "m3-a07",
+        "partition": "prior101",
+        "result": "fail"
+      },
+      {
+        "evidence": "receipts/choreo-m3.jsonl receipt-sent-delivered-read-transitions",
+        "id": "m3-a08",
+        "partition": "prior101",
+        "result": "fail"
+      },
+      {
+        "evidence": "receipts/choreo-m3.jsonl group-receipt-waits-for-slowest-member",
+        "id": "m3-a09",
+        "partition": "prior101",
+        "result": "fail"
+      },
+      {
+        "evidence": "receipts/choreo-m3.jsonl member-add-promote-remove-leave-and-live-cutoff",
+        "id": "m3-a12",
+        "partition": "prior101",
+        "result": "pass"
+      },
+      {
+        "evidence": "receipts/choreo-m3.jsonl member-add-promote-remove-leave-and-live-cutoff",
+        "id": "m3-a13",
+        "partition": "prior101",
+        "result": "pass"
+      },
+      {
+        "evidence": "receipts/ (no choreo-m4 receipt)",
+        "id": "m4-a02",
+        "partition": "prior101",
+        "result": "not-run"
+      },
+      {
+        "evidence": "receipts/ (no choreo-m4 receipt)",
+        "id": "m4-a04",
+        "partition": "prior101",
+        "result": "not-run"
+      },
+      {
+        "evidence": "receipts/ (no choreo-m4 receipt)",
+        "id": "m4-a05",
+        "partition": "prior101",
+        "result": "not-run"
+      },
+      {
+        "evidence": "receipts/ (no choreo-m4 receipt)",
+        "id": "m4-a08",
+        "partition": "prior101",
+        "result": "not-run"
+      },
+      {
+        "evidence": "receipts/ (no choreo-m4 receipt)",
+        "id": "m4-a11",
+        "partition": "prior101",
+        "result": "not-run"
+      },
+      {
+        "evidence": "receipts/ (no choreo-m5 receipt)",
+        "id": "m5-a07",
+        "partition": "prior101",
+        "result": "not-run"
+      },
+      {
+        "evidence": "receipts/ (no choreo-m5 receipt)",
+        "id": "m5-a12",
+        "partition": "prior101",
+        "result": "not-run"
+      },
+      {
+        "evidence": "trace.md#m6-native (no simulator artifact in lane)",
+        "id": "m6-a01",
+        "partition": "prior101",
+        "result": "not-run"
+      },
+      {
+        "evidence": "trace.md#m6-native (no simulator artifact in lane)",
+        "id": "m6-a02",
+        "partition": "prior101",
+        "result": "not-run"
+      },
+      {
+        "evidence": "trace.md#m6-native (no simulator artifact in lane)",
+        "id": "m6-a03",
+        "partition": "prior101",
+        "result": "not-run"
+      },
+      {
+        "evidence": "trace.md#m6-native (no simulator artifact in lane)",
+        "id": "m6-a04",
+        "partition": "prior101",
+        "result": "not-run"
+      },
+      {
+        "evidence": "trace.md#m6-native (no simulator artifact in lane)",
+        "id": "m6-a05",
+        "partition": "prior101",
+        "result": "not-run"
+      },
+      {
+        "evidence": "trace.md#m6-native (no simulator artifact in lane)",
+        "id": "m6-a06",
+        "partition": "prior101",
+        "result": "not-run"
+      },
+      {
+        "evidence": "trace.md#m6-native (no simulator artifact in lane)",
+        "id": "m6-a07",
+        "partition": "prior101",
+        "result": "not-run"
+      },
+      {
+        "evidence": "trace.md#m7",
+        "id": "m7-a02",
+        "partition": "prior101",
+        "result": "not-run"
+      },
+      {
+        "evidence": "trace.md#m7",
+        "id": "m7-a05",
+        "partition": "prior101",
+        "result": "not-run"
+      },
+      {
+        "evidence": "receipts/ (no choreo-m8 receipt)",
+        "id": "m8-a02",
+        "partition": "m8Supplemental",
+        "result": "not-run"
+      },
+      {
+        "evidence": "receipts/ (no choreo-m8 receipt)",
+        "id": "m8-a13",
+        "partition": "m8Supplemental",
+        "result": "not-run"
+      },
+      {
+        "evidence": "receipts/ (no choreo-m8 receipt)",
+        "id": "m8-a14",
+        "partition": "m8Supplemental",
+        "result": "not-run"
+      },
+      {
+        "evidence": "receipts/ (no choreo-m8 receipt)",
+        "id": "m8-a15",
+        "partition": "m8Supplemental",
+        "result": "not-run"
+      },
+      {
+        "evidence": "receipts/ (no choreo-m8 receipt)",
+        "id": "m8-a16",
+        "partition": "m8Supplemental",
+        "result": "not-run"
+      },
+      {
+        "evidence": "trace.md#m6-native (no native artifact)",
+        "id": "m8-a17",
+        "partition": "m8Supplemental",
+        "result": "not-run"
+      },
+      {
+        "evidence": "trace.md#m6-native (no native artifact)",
+        "id": "m8-a18",
+        "partition": "m8Supplemental",
+        "result": "not-run"
+      }
+    ],
+    "notRun": {
+      "assertionIds": [
+        "m2-a07",
+        "m4-a02",
+        "m4-a04",
+        "m4-a05",
+        "m4-a08",
+        "m4-a11",
+        "m5-a07",
+        "m5-a12",
+        "m6-a01",
+        "m6-a02",
+        "m6-a03",
+        "m6-a04",
+        "m6-a05",
+        "m6-a06",
+        "m6-a07",
+        "m7-a02",
+        "m7-a05",
+        "m8-a02",
+        "m8-a13",
+        "m8-a14",
+        "m8-a15",
+        "m8-a16",
+        "m8-a17",
+        "m8-a18"
+      ],
+      "count": 24,
+      "reasons": "m2-a07 receipt does not observe follower count; M4/M5/M8 receipts are absent; M6/M8 native proof is absent; M7 is reserved for a fresh later session"
+    },
+    "o4": {
+      "reason": "M6 is not green; no simulator/native artifact exists",
+      "score": null
+    },
+    "originalReceiptPassFail": {
+      "assertionIds": [
+        "m1-a05",
+        "m1-a06",
+        "m1-a09",
+        "m2-a04",
+        "m2-a05",
+        "m2-a14",
+        "m2-a19",
+        "m3-a01",
+        "m3-a02",
+        "m3-a06",
+        "m3-a07",
+        "m3-a08",
+        "m3-a09",
+        "m3-a12",
+        "m3-a13"
+      ],
+      "count": 15,
+      "results": {
+        "fail": 6,
+        "pass": 9
+      }
+    },
+    "publicExecutionFinding": "No public command invoked choreography.mjs. The grader copied the harness, installed dependencies, printed Playwright version, read/grepped its source, and read the original M1-M3 receipts.",
+    "results": {
+      "fail": 6,
+      "not-run": 24,
+      "pass": 9
+    },
+    "total119ChoreographyMethodCount": 39
+  },
+  "citationTraceability": {
+    "defects": [
+      {
+        "finding": "The file has 87 lines, so this line citation cannot resolve. The received summary is otherwise supported by the cited web evidence and source; report bytes are unchanged.",
+        "owner": "d-02",
+        "reported": "app/profile/edit.tsx:563"
+      },
+      {
+        "finding": "The citation omits the .mjs extension and names a script rather than a retained result receipt. grading/insights-baseline.mjs exists; the observed counts are embedded in the result note and trace. Report bytes are unchanged.",
+        "owner": "m8-a01",
+        "reported": "grading/insights-baseline (API)"
+      }
+    ],
+    "otherMissingExplicitFileReferences": [],
+    "verified": "All explicit assertion/defect evidence files resolve using trace.md shorthand: evidence/ is grading/evidence, screens/ is grading/evidence/screens, receipts/ is the original lane, and app/components/lib/scripts/snapback are the isolated work source. Trace custom anchors m1-source, m6-native and milestone anchors are present. The fixtures/config/*.production.json glob resolves to two original-lane files."
+  },
+  "coverageAndO1": {
+    "coverageSpotVerification": {
+      "dishonestMilestones": [
+        "M2",
+        "M3",
+        "M4",
+        "M5",
+        "M6",
+        "M8"
+      ],
+      "sampleCount": 24,
+      "sampledAssertionIds": [
+        "m1-a02",
+        "m1-a03",
+        "m1-a11",
+        "m2-a11",
+        "m2-a12",
+        "m2-a13",
+        "m2-a18",
+        "m2-a22",
+        "m2-a25",
+        "m3-a03",
+        "m3-a11",
+        "m3-a15",
+        "m4-a06",
+        "m4-a09",
+        "m5-a05",
+        "m5-a10",
+        "m6-a08",
+        "m6-a09",
+        "m6-a11",
+        "m6-a13",
+        "m8-a01",
+        "m8-a05",
+        "m8-a06",
+        "m8-a07"
+      ],
+      "source": {
+        "bytes": 24155,
+        "path": "lanes/grok-snapback4/scripts/acceptance.mjs",
+        "publicReadEvent": {
+          "classification": "read builder acceptance source",
+          "eventSha256": "ea98c9bb09dadd6164579f5f5125842fed2487a13c2bcb7e82178b8b5dd3da9b",
+          "line": 34,
+          "safePath": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/grok-snapback4/scripts/acceptance.mjs",
+          "tool": "Read"
+        },
+        "sha256": "4ab682dc7060360085343457ce6dd63753b2cada1ca1e57c62e208e58c73f1b4"
+      },
+      "supportByMilestone": {
+        "M2": "sampled m2-a13 is assert(true), m2-a25 is assert(own || true), and sampled m2-a11/a12/a18/a22 do not exercise their full observables",
+        "M3": "sampled m3-a11 is assert(true); m3-a15 replays starter-m1 only and compares inbox lengths",
+        "M4": "sampled m4-a09 ends with assert(msg?.editedAt || true)",
+        "M5": "sampled m5-a05 is assert(true); m5-a10 is API-only for an in-chat UI search observable",
+        "M6": "sampled m6-a08, m6-a09 and m6-a11 are unconditional assert(true)",
+        "M8": "sampled m8-a05 checks only Array.isArray; m8-a06 and m8-a07 are assert(true)"
+      },
+      "verdict": "The six dishonest-milestone findings are concretely supported by the unchanged acceptance source. The frozen prompt lines 67-72 and schema lines 210-248 make the adjudication scoring-only and require each dishonest milestone checklist to count not-passed in O1."
+    },
+    "o1Adjudication": "O1=10 does not report the raw assertion subtotal as 12/119. It applies the frozen scoring-only coverage rule: M2, M3, M4, M5, M6 and M8 are treated as checklist not-passed, M7 is not run, and only M1 contributes its 12 passes. The received grade is preserved without recomputing or repairing this judgment.",
+    "rawAssertionResults": "The exact 119-ID files contain 70 pass, 18 fail and 31 not-run results."
+  },
+  "finalVerdict": "The received grade is schema-valid with the exact 119-ID partition and is preserved unchanged. No excluded-context access, cross-lane/prior-run access, original source/report/receipt mutation, or package-pin drift was found. Coverage dishonesty has concrete source support and explains O1 crediting only M1, while raw 119 counts remain 70/18/31. Choreography was receipt-only in actual execution. O5=null remains appropriate for lack of a qualifying replay receipt, but the builder did attempt a short incomplete replay. The d-02 line citation and m8-a01 script citation carry traceability qualifications.",
+  "governingInstructionScope": {
+    "application": "The prompt/schema have the same general scope tension recorded for Astra, but no conflict was exercised here: the grader ran separate web/API scripts and did not invoke the frozen choreography program.",
+    "graderPrompt": {
+      "coverageAdjudication": "lines 67-72",
+      "independentWebExecution": "lines 74-82",
+      "nativeNeverRerun": "lines 84-87",
+      "path": "instrument/grader/grader-prompt.md",
+      "receiptOnlyO4": "lines 37-39",
+      "sha256": "97ce0e44d219c48b7a9dfe16ce26e9f0b90d47b00e09b43acc678cc9e2dfded6"
+    },
+    "schema": {
+      "allChoreographyReceiptOnly": "line 171",
+      "coverageAdjudication": "lines 210-248",
+      "path": "instrument/grader/grader-report.schema.json",
+      "sha256": "82d213374eecdbf47438193a7213dc4e8532b1a1db37204d6c21f352bfac0c30"
+    }
+  },
+  "graderLifecycle": {
+    "end": {
+      "bytes": 373,
+      "endedAt": "2026-09-14T07:17:44Z",
+      "exitCode": 0,
+      "path": "logs/grok-snapback4.grade.end.json",
+      "sha256": "f215313637f82048baaeb2de6853cac7243f8943e0c76349c79a947cc4f25281",
+      "wallSeconds": 2793.393
+    },
+    "start": {
+      "bytes": 956,
+      "path": "logs/grok-snapback4.grade.start.json",
+      "sha256": "02541355c70bdc5a78b481a486e716cff576f1433e3921fd20c51b1ebc11ed61",
+      "startedAt": "2026-09-14T06:31:10Z"
+    }
+  },
+  "observedAt": "2026-09-14T07:28:17Z",
+  "packagePins": {
+    "expected": {
+      "snapback4": "0.2.6",
+      "snapback4-expo": "0.2.1"
+    },
+    "finding": "Original manifest, lock and installed packages match both expected pins. The isolated grading work has no copied lockfile; its manifest and installed metadata match the same pins byte-for-byte with the original equivalents.",
+    "observations": [
+      {
+        "installed": {
+          "snapback4": "0.2.6",
+          "snapback4-expo": "0.2.1"
+        },
+        "lock": {
+          "snapback4": "0.2.6",
+          "snapback4-expo": "0.2.1"
+        },
+        "manifest": {
+          "snapback4": "0.2.6",
+          "snapback4-expo": "0.2.1"
+        },
+        "scope": "originalLane"
+      },
+      {
+        "installed": {
+          "snapback4": "0.2.6",
+          "snapback4-expo": "0.2.1"
+        },
+        "lock": "not copied into isolated grading work",
+        "manifest": {
+          "snapback4": "0.2.6",
+          "snapback4-expo": "0.2.1"
+        },
+        "scope": "gradingWork"
+      }
+    ]
+  },
+  "purpose": "Public-tool-argument, source, pin, receipt, methodology, coverage and citation custody audit for the received Grok builder grade. The received grade is preserved unchanged.",
+  "rawLog": {
+    "bytes": 3111289,
+    "endsWithNewline": true,
+    "eventCounts": {
+      "assistant": 212,
+      "rate_limit_event": 11,
+      "result": 1,
+      "system": 1809,
+      "tool_progress": 12,
+      "user": 111
+    },
+    "lineCount": 2156,
+    "malformedLines": [],
+    "modelMetadata": {
+      "assistantMessageCount": 212,
+      "assistantMessageModels": {
+        "claude-opus-5": 212
+      },
+      "systemInit": {
+        "claudeCodeVersion": "2.1.270",
+        "model": "claude-opus-5"
+      }
+    },
+    "path": "logs/grok-snapback4.grade.ndjson",
+    "publicToolUsesByName": {
+      "Bash": 75,
+      "Edit": 10,
+      "Read": 16,
+      "Write": 10
+    },
+    "retention": "external hash reference only; raw stream not copied into repository evidence",
+    "sha256": "bdd51eaf0197bc59515ee5bcf2b336c9bbb95d6ff4cf1641eca29bd43cc9d625"
+  },
+  "receivedGrade": {
+    "calibration": "uncalibrated N=1; not claim-eligible",
+    "counts": {
+      "complete119": {
+        "fail": 18,
+        "not-run": 31,
+        "pass": 70
+      },
+      "m8Supplemental": {
+        "fail": 1,
+        "not-run": 7,
+        "pass": 10
+      },
+      "prior101": {
+        "fail": 17,
+        "not-run": 24,
+        "pass": 60
+      }
+    },
+    "done": {
+      "bytes": 15,
+      "path": "lanes/grok-snapback4/grading/DONE",
+      "sha256": "ce82a0edc8772dab588e10eea38211f5fad3c005b17e3d3bac3cf13bf2452eb5"
+    },
+    "m8": {
+      "bytes": 6816,
+      "path": "lanes/grok-snapback4/grading/m8-assertion-results.json",
+      "sha256": "90becd30f8bbb91a28dba470a8a0e8519b71638a39aa0c3d9c4fa3b235f6f743"
+    },
+    "report": {
+      "bytes": 54616,
+      "path": "lanes/grok-snapback4/grading/grader-report.json",
+      "sha256": "30112e495f85977a396ae5fb6e53cbb4263b3d62471f3e04fdd320b234efc982"
+    },
+    "scores": {
+      "O1": {
+        "anchorsCited": "Below the ~30 anchor ('core features partially work; several checklist items fail'); far from ~60 ('M1-M4 solid, later milestones patchy or failed on cap').",
+        "justification": "Denominator is every full-run milestone (M1-M8, 119 assertions). Independent execution: M1 12/13, M2 25/27, M3 8/15, M4 2/12, M5 8/12, M6 5/13, M7 0/9, M8 10/18. Coverage adjudication (dishonest mappings) scores M2, M3, M4, M5, M6 and M8 checklists not-passed; M7 never attempted. Credited: M1 only, 12 of 119 assertions (about 10%), with m1-a03 failing on web. Even before adjudication M3's choreography segment failed (live DM delivery, typing, receipts), M4-M5 web interactions are largely missing (d-06), and no M4/M5/M6/M8 choreography or native artifact exists, so no milestone after M2 could be green.",
+        "score": 10
+      },
+      "O2": {
+        "anchorsCited": "Near the ~30 anchor ('multiple high-severity defects in core flows'), slightly below it; well short of ~60 ('a few medium defects off the happy path').",
+        "justification": "8 major and 6 minor defects beyond the checklist, several in core flows: d-01 (reposts stick in followers' feeds and cannot be re-created), d-02 (colliding sign-up strands an account without a profile), d-03/d-04 (DM pair integrity broken through the API, including cross-user denial), d-05/d-06 (web conversation stale and missing media/reaction/edit/delete/view-once), d-07 (production windows and digest schedule unreachable). No crash of the backend was observed; server-side authorization for reads, assets, edit/delete windows and view-once held.",
+        "score": 25
+      },
+      "O3": null,
+      "O4": null,
+      "O5": null
+    },
+    "trace": {
+      "bytes": 28878,
+      "path": "lanes/grok-snapback4/grading/trace.md",
+      "sha256": "d77ca21d509e33e6726c69da7e878bafda3d22d14a9b16e18f4de13c1d0bca1e"
+    },
+    "validation": {
+      "bytes": 1728,
+      "exactPartition": {
+        "complete": 119,
+        "m8": 18,
+        "prior101": 101
+      },
+      "path": "observed-milestones/grok-received-grade-validation.json",
+      "schemaValid": true,
+      "sha256": "6880d68f5c65c679a3d6eb6ff88a537aa87c6171af6fa026ca4a44e9eae84f53"
+    }
+  },
+  "scaleAttemptQualification": {
+    "basis": "This context comes only from the already curated repository Grok builder archive, which the grader did not access.",
+    "disposition": "Preserve O5=null and the received text; carry this orchestration qualification beside it.",
+    "graderContamination": false,
+    "orchestratorContext": "The separately curated continuous-builder record proves a real but non-qualifying scale attempt: it ran for 233 seconds under registration rate limiting, stopped without finishing, and produced no invariant verification or replay result. The accurate distinction is no qualifying replay receipt, not no execution attempt.",
+    "receivedStatement": "The grade notes and O5 rationale say the scale replay was never attempted because no replay receipt exists; O5 is null.",
+    "references": [
+      {
+        "bytes": 5075,
+        "repositoryPath": "benchmarks/runs/2026-09-13-snapback4-clique-0004/grok/README.md",
+        "sha256": "90aafdd3f79b54a1771e4ea3a9890300caeb0330ff0d5bbbbfe4023a7a481e2e"
+      },
+      {
+        "bytes": 3088,
+        "repositoryPath": "benchmarks/runs/2026-09-13-snapback4-clique-0004/grok/run-log.md",
+        "sha256": "3f3ca3390b0a08d105bf624ddcc017d2f2bfd1f40090745d5c563b8a72db0aaf"
+      },
+      {
+        "bytes": 2811,
+        "repositoryPath": "benchmarks/runs/2026-09-13-snapback4-clique-0004/grok/timing-audit.json",
+        "sha256": "0b3c7f0313273f15d8e8c47050b4d99f5e8b0781b0aa1e24d71a1ea6be31b415"
+      }
+    ]
+  },
+  "schemaVersion": 1,
+  "scope": {
+    "graderOutputsModified": false,
+    "privateReasoningBodiesInspected": false,
+    "publicToolArgumentsOnly": true,
+    "rawCliCopiedToRepository": false
+  },
+  "sourceCustody": {
+    "canonicalSnapshot": {
+      "currentOriginalLaneMatches": 228,
+      "includedFiles": 228,
+      "manifestPath": "snapshots/grok-continuous/snapshot-manifest.json",
+      "manifestSha256": "bdd70d9b0b40ad59e84f1597aab490438c5a40cfa941a2d17c038c57a88fff5e",
+      "mismatches": [],
+      "sourceInventoryPath": "snapshots/grok-continuous/source-inventory.sha256",
+      "sourceInventorySha256": "90ca6c94a164e4a0eee562f16bfc73b30d021acf0d87df0319c4584cf18233b1"
+    },
+    "excludedBuilderReports": {
+      "count": 4,
+      "files": [
+        {
+          "bytes": 7573,
+          "currentLaneMatches": true,
+          "file": "final-report.md",
+          "sha256": "0958642941e6aa2bc0afd450a6a435fc4b1fdb21de34de815a522462ccfaee3e",
+          "snapshotMatches": true
+        },
+        {
+          "bytes": 4740,
+          "currentLaneMatches": true,
+          "file": "diary.md",
+          "sha256": "6f213114e71a39b0b700247142f5b2546aeff3f5194a7d9f096b557ef9d6b91b",
+          "snapshotMatches": true
+        },
+        {
+          "bytes": 6917,
+          "currentLaneMatches": true,
+          "file": "essay.md",
+          "sha256": "7b9af191b8444ab58cf90292019cdd608b5bcf44c5f29a1791c9b304d3f0fae9",
+          "snapshotMatches": true
+        },
+        {
+          "bytes": 3088,
+          "currentLaneMatches": true,
+          "file": "run-log.md",
+          "sha256": "3f3ca3390b0a08d105bf624ddcc017d2f2bfd1f40090745d5c563b8a72db0aaf",
+          "snapshotMatches": true
+        }
+      ],
+      "finding": "All four reports remain byte-identical between current lane and canonical snapshot."
+    },
+    "isolatedGradingWork": {
+      "canonicalFilesAbsent": 100,
+      "canonicalFilesChanged": 10,
+      "canonicalFilesMatching": 118,
+      "changedPaths": [
+        "push-log.jsonl",
+        "receipts/coverage-m2.json",
+        "receipts/suite-m1.json",
+        "receipts/suite-m2.json",
+        "receipts/suite-m3.json",
+        "receipts/suite-m4.json",
+        "receipts/suite-m5.json",
+        "receipts/suite-m6.json",
+        "receipts/suite-m8.json",
+        "receipts/suite-status.json"
+      ],
+      "qualification": "All 118 copied source/config files match the canonical snapshot. The ten changed common paths are generated grading state: push log, coverage-m2, suite-m1..m8, and suite-status. One hundred canonical files were not selected for the isolated work copy."
+    },
+    "repositoryBuilderArchive": {
+      "builderReceiptFiles": 28,
+      "copiedFiles": 50,
+      "finding": "All 50 repository archive entries match their named source and destination bytes, including all 28 original builder receipts.",
+      "manifestPath": "benchmarks/runs/2026-09-13-snapback4-clique-0004/grok/COPIED_FILES.json",
+      "manifestSha256": "eda02bb77ee922114cec35b287b986db10cf151f86cca1bd02490253a6e53129",
+      "verificationErrors": []
+    }
+  },
+  "status": "complete"
+}
