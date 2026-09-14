@@ -844,6 +844,15 @@ time-ordered 128-bit form.
   the implementation returns to both reviewers before it lands (option 1
   of the lead's recommendation).
 
+- **2026-09-13 — 0.2.9 published: the language landing is on npm.** The
+  pin LLP 3000.007 §10.3 runs on, carrying every lane of the
+  implementation program but W (§8.7 and §5.9, in their second blind
+  pass): the meter, the bar, `sql` and `check --fix`, residency with the
+  inferred sync audience, the client seams and the media cache, the
+  language in full, worker actions; `snapback4-expo@0.2.2` beside it. The
+  ceremony bar's "after" runs on it; the Clique rerun waits for W. Ruling
+  16 (the `Act<R>` card word) is open in §14.
+
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal

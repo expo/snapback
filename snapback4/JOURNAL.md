@@ -2867,3 +2867,50 @@ journal was already 2,678 lines and its explicit append-only rule is kept.
 Items 10–20 are complete; §5.9 and §8.7 were not implemented. Nothing was
 committed, pushed, tagged or published, and the existing LANE-BRIEF.md is
 untouched.
+
+## 2026-09-13 — 0.2.9 published: the pin after the language landing; the Expo module at 0.2.2
+
+The pin LLP 3000.007 §10.3 and §16 ask for. On main at `d4f29b705` and
+in the package: the meter (lane M, `c3b2d0f1b`), the ceremony bar (lane B,
+`b8acd113f`), `sql`, `check --fix` and `init --online`/`--expo` (lane P,
+`10324ebf5`), residency and the inferred sync audience (lane R,
+`047862694`), the client seams and the media cache (lane C, `7b2b8fc65`),
+the language in two parts (lane L, `cf2d13eea`; lane L2, `4fd2d2eb0`) and
+worker actions (lane X, `8e52cab71`). Not in it: §8.7 and §5.9 (lane W),
+which return to both reviewer families before they land (ruling 15).
+
+The publisher ran the whole suite first — 0 failures in 113 s — then
+built the production binary: 7,579,344 bytes, sha256 `6550376e…`, and
+proved the installed consumer (query complete and fresh, an online write
+`sent`, an offline write `pending`). The client tarball is 487,036 bytes
+over 33 files; the platform tarball 3,700,981 bytes. `snapback4@0.2.9`
+and `snapback4-darwin-arm64@0.2.9` are on npm; `metrics/publish.jsonl`
+has the record.
+
+The Expo module moved to 0.2.2 because the device crate changed under it
+(the media cache, the actions): `scripts/build-xcframework.sh` rebuilt
+the two slices, 13 MB together, and `snapback4-expo@0.2.2` went out at
+4.8 MB packed, 13.4 MB unpacked, 13 files. The lock file moved with the
+crate version.
+
+Landing L2 over X found the one semantic conflict a textual rebase cannot:
+L2 gave every bound program its own `notes`, and X's action binder built a
+program without them — a one-line initializer, caught by the compiler,
+not by the merge. The append-vs-append test files were rebuilt as main's
+text plus the lane's tail.
+
+The ceremony bar's "after" started on the published pin at 06:27 UTC,
+three serial runs on the unchanged instrument (its packet hashes match
+the "before"), from the lead's shell as before. Its record follows in
+`benchmarks/runs/`. The Clique rerun of §10.3 waits for W: the pin it
+runs on must carry §8.7, the hidden-collision friction the rerun exists
+to measure, and a three-model serial run costs eleven hours in the
+anchor. A fresh packet is prepared with pending pins.
+
+Two loose ends are written down rather than left in the lead's head:
+ruling 16 (the `Act<R>` card word) is open in the RFC's §14 with a
+recommendation, and the self-witnessing membership rule of §16 is being
+built as lane S — the "before" agents' original rule was own-row OR
+co-member, and inside a chat-pinned prefix the first disjunct is implied
+by the second, so the roster page was complete all along and the note
+was wrong.
