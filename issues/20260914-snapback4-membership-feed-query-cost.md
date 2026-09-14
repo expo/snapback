@@ -1,6 +1,6 @@
 # Snapback 4: requalify and reduce membership-feed query cost
 
-Status: Open — historical deficit measured; current-source measurement pending
+Status: Open — query execution dominates on qualified 0.2.12; internal cost decomposition pending
 Priority: P1
 Systems: Snapback 4 online membership feeds, query execution
 Implementation owner: Snapback 4 core lead (LLP 3000 decision 4)
@@ -40,21 +40,39 @@ is present in the measurements and has not been calibrated away.
 The current-source audit matters: `206650f29` and `886afe026` have identical
 core/language/Cargo inputs, but the measured `beed6a51e` predates executable
 rule-dependency, prefix-verdict and lookup-materialization changes. W5's
-static probe allowance already existed in the measured source. A current
-bottleneck or regression is not yet proven.
+static probe allowance already existed in the measured source. The newer-source measurement below locates a query bottleneck; these separate
+time windows do not isolate a cross-version regression or improvement.
+
+Current-source follow-up, completed 2026-09-14:
+
+The fixed `206650f29` 0.2.12 build passed 71 CLI tests and production
+qualification with the same host-only observer. All 18,432 requests,
+2,160 warmups, 2,304 selected traces, full fixture/auth proofs and owned
+group cleanup passed. The two independent calculations agree on their
+shared intervals and summary fields. Smoke and historical runs are excluded.
+
+| 150-group query | Mean CPU ms | Mean wall ms | Query wall p95 ms | CPU / query wall | Query / server wall |
+|---|---:|---:|---:|---:|---:|
+| First page, C1 | 4.399 | 4.410 | 5.073 | 99.75% | 91.05% |
+| Rotating page, C1 | 5.550 | 5.568 | 6.467 | 99.67% | 92.09% |
+| First page, C8 | 5.585 | 11.138 | 22.781 | 50.14% | 84.72% |
+| Rotating page, C8 | 9.384 | 17.293 | 33.239 | 54.26% | 82.53% |
+
+At C8 the signed wall-minus-CPU residual averages 5.553/7.909 ms. The five
+outer host mutex waits together average 0.301/0.117 ms; these include
+program and reader-pool mutexes as well as engine locks. No internal lock,
+I/O or scheduler attribution follows. The current measurements confirm
+that query execution warrants the next investigation. They do not qualify
+an uninstrumented improvement or a current competitor comparison.
 
 Next work:
 
-1. Qualify the current source on the same Office host and repeat the existing
-   bounded 24-case diagnostic, with its own smoke and unchanged fixture,
-   auth checks, case order and selection. Keep historical and current results
-   separate; use an uninstrumented run for any latency/comparator claim.
-2. If query execution still dominates, split its CPU cost among transaction
+1. Split query CPU cost among transaction
    setup, membership enumeration, per-lane rule/metadata preparation, SQL
    stepping, row/key decoding, merge work and result/cursor construction.
    The unchanged lazy merge initializes every lane and uses one-row batches
    above eight groups; its repeated work is a source lead, not attribution.
-3. Let the core owner choose a measured optimization. Pure schema/IR
+2. Let the core owner choose a measured optimization. Pure schema/IR
    preparation reuse is a candidate; live authority or result caching is not
    permitted. Preserve fresh transactions, membership/expiry checks, static
    dependency/probe accounting, all meters/cut/refusal order, typed cursors,
@@ -70,3 +88,7 @@ independent summary `81055afd…`, review `19a4b5b7…`, reconciliation
 (0b0eba5e7ea563da9461a91237d05f4e221003bb65690900ddf28c2c8b7053ce). The current-source binding file is `18551175…`.
 
 No core code, policy, ceiling or client contract is changed by this ticket.
+
+Current-source bindings under the same local run: formal transfer
+`0fffccfc…`, independent summary `1b626d34…`, review `f748ffad…`,
+reconciliation `e5deff38…`, and build qualification `dff38735…`.

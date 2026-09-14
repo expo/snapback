@@ -5105,3 +5105,71 @@ The initial integrated Linux suite's 116 s red and the cold Office M1
 publication dry-run's 656 s refusal remain recorded. The latter encountered
 five deadline failures during high host load; it published nothing. These
 observations do not close the suite-budget ticket or prove holistic excellence.
+
+## 2026-09-14 — confirm the feed query bottleneck on 0.2.12
+
+The performance lane repeated the bounded Office diagnostic on fixed
+`206650f29` (0.2.12): all 18,432 requests and 2,304 selected traces passed,
+with full fixture/auth checks and independently audited cleanup. At 150
+groups/C8, first/rotating feed query wall averages 11.138/17.293 ms and
+accounts for 84.7%/82.5% of server wall. At C1 the query interval is about
+99.7% thread CPU. The residual does not identify an internal wait cause.
+
+The [performance record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
+preserves the current and historical measurements separately. The
+[core-owner follow-up](../issues/20260914-snapback4-membership-feed-query-cost.md)
+now calls for internal query cost decomposition. No core code, authority
+cache, ceiling or client contract changed, and no new speedup is claimed.
+
+
+## 2026-09-14 — encode sync replies from their existing values
+
+The performance lane extends the existing borrowed query-wire encoding to
+snapshot and stream replies. Each reply owns its original events, borrows
+their plain values during serialization, and drops the rows before socket
+I/O. Full wire fields, explicit nulls, event order, held/joined groups,
+acknowledgements, cursors and the bounded response writer are unchanged.
+No core, reader, transaction, auth or client-contract change is involved.
+
+On fixed 0.2.12 source, six native Linux A/B runs passed all 9,600 timed
+calls and their ordinary-auth/full-page proofs. A 4,000-event first snapshot
+at C1 falls 38.832 → 25.873 ms p50 and 45.992 → 28.541 ms p95. C8 first-page
+p50 is effectively flat, and stream C8 p99/maximum regress about 10%.
+The [comparison record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
+preserves every gain and loss; a [tail follow-up](../issues/20260914-snapback4-sync-concurrent-tail-latency.md)
+remains open. These warm source-built measurements do not establish device,
+realtime, cold-cache or competitor performance.
+
+The actual native production qualification passed 71/73 baseline/candidate
+CLI tests; both variants passed the HTTP bounds suite (nine reported tests,
+including eight nested cases) and 32 normalized ordinary-auth response pairs. Two independent formal calculations reconcile.
+The failed V1 smoke and first independent calculator attempt remain excluded
+and retained. The source and evidence have independent reviews; publication
+qualification and registry verification are separate work.
+
+## 2026-09-14 — Clique's expiry receipt can pass before expiry
+
+Recording the 0.2.10 three-model cell found a false-positive M5 expiry
+receipt. Muse's final choreography passed after 46.459 seconds, but an
+independent read-only inspection found the exact probe message still stored
+with a 24-hour TTL. The frozen packet supplies shortened grading windows;
+the lane used production windows and a 45-second adapter wait. The probe
+checks for absent bubbles after relaunch without establishing that their
+data has loaded. Its original pass is retained and qualified, not rewritten.
+The [benchmark ticket](../issues/20260914-clique-expiry-choreography-can-pass-with-unexpired-row.md)
+and selected-field evidence separate that insufficient measurement from an
+engine expiry defect. No frozen instrument or product code changed;
+independent grading has begun, and the M7 phases remain pending.
+
+## 2026-09-14 — Awaited browser admission survives page closure in a reduced control
+
+Muse's Clique essay attributed a settings/navigation loss to the SDK's
+outbox. A reduced published-0.2.10 Chromium control awaited an offline
+mutation with default IndexedDB persistence, closed the page as its next
+asynchronous action, recovered the one queued mutation from a new page and
+committed one row on reconnect. It used no keepalive or write-through path.
+The [follow-up ticket](../issues/20260914-snapback4-muse-navigation-outbox-loss-needs-reproduction.md)
+retains that counterexample and asks for the full app flow's admission and
+navigation ordering. The received app bug, workaround and scorer's charge
+remain recorded; the broad durability claim is not established. No product
+or frozen benchmark code changed.

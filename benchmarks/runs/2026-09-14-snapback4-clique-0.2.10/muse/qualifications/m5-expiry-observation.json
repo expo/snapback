@@ -1,0 +1,86 @@
+{
+  "observedAt": "2026-09-14T22:33:43.200715+00:00",
+  "method": "Independent read-only SQLite connection mode=ro after builder, before grade; select only synthetic m5-expiring message timing/body and application window config. No auth tables, credentials, or write queries.",
+  "store": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/muse-snapback4/.snapback4/store.sqlite",
+  "rows": [
+    {
+      "table": 59,
+      "rowId": "01M2GZB3V00T8RFJVF7NSQ892F",
+      "selectedFields": {
+        "at": {
+          "Int": 1789423620003
+        },
+        "body": {
+          "String": "choreo-0f68c0c1-9c7c-4b9f-9d15-031d60725caf-m5-expiring"
+        },
+        "expiresAt": {
+          "Int": 1789510020003
+        }
+      }
+    },
+    {
+      "table": 108,
+      "rowId": "v1",
+      "selectedFields": {
+        "ttlA": {
+          "Int": 86400
+        },
+        "ttlB": {
+          "Int": 604800
+        },
+        "editWin": {
+          "Int": 900
+        },
+        "deleteWin": {
+          "Int": 3600
+        }
+      }
+    }
+  ],
+  "assertionReceipt": {
+    "version": "0.3.8-m8",
+    "runId": "0f68c0c1-9c7c-4b9f-9d15-031d60725caf",
+    "recordedAt": "2026-09-14T22:07:45.701Z",
+    "type": "assertion",
+    "segment": "m5",
+    "assertion": "disappearing-message-expiry-and-purge",
+    "implemented": true,
+    "required": false,
+    "status": "passed",
+    "pass": true,
+    "outcomeClass": null,
+    "timings": [
+      {
+        "attempt": 1,
+        "pass": true,
+        "startedAt": "2026-09-14T22:06:59.241Z",
+        "durationMs": 46459,
+        "settlementWaitMs": 1130.1,
+        "metrics": {}
+      }
+    ],
+    "bestOf": 1,
+    "details": {
+      "selection": "only attempt",
+      "selectedAttempt": 1,
+      "reason": null
+    }
+  },
+  "assertionLineSha256": "73a0eef420599c93904f5123ee8a98d78d069e04c41e791c38720609404b5b09",
+  "originalReceipt": {
+    "packetPath": "lanes/muse-snapback4/receipts-all5.jsonl",
+    "bytes": 38938,
+    "sha256": "b57a0ebeac7750a6c3879784b03cb591fb65917e7705634ef80059d3ef1761e8"
+  },
+  "expiryMinusCreatedMs": 86400000,
+  "adapter": {
+    "optionValue": "24h",
+    "waitMs": 45000
+  },
+  "frozenInstrument": "409954115f151a72dd95e897c5f00f36877f11e0",
+  "qualifications": [
+    "Observed original pass is preserved; no new browser run was performed.",
+    "This proves the receipt did not establish deletion of its own unexpired probe row. The precise client timing mechanism is inferred from source and builder diagnosis, not independently traced.",
+    "Published package0.2.10 correctly retaining an unexpired24h row is not an engine expiry failure."
+  ]
+}
