@@ -1,6 +1,6 @@
 # Snapback 4: `==` in a condition is a generic syntax error, not a mechanical rewrite
 
-Status: Open
+Status: Closed
 Priority: P3
 Date: 2026-09-14
 Systems: Quarry parser diagnostics, `check --fix` guessed spellings (LLP 3000.007 §5.5, §18.5)
@@ -30,3 +30,17 @@ Observed by the catch-up lead while writing the helper-cursor reproduction
 `E_QUARRY_SYNTAX: equality is = in Quarry` with the rewrite `a = b`,
 marked mechanical so `check --fix` applies it. No alias enters the parser
 (ruling 3): the rewrite is applied, never silently accepted.
+
+## Resolution — 2026-09-14, lane N3
+
+The helper reproduction produced 3 diagnostics on base
+`ce15819ad71bd24c9d1b9ec228c083330dee3a31`; it now produces exactly 1:
+`E_QUARRY_SYNTAX: equality is = in Quarry`, with the operator-span rewrite
+`=` marked mechanical. The parser continues through the comparison and
+helper, but compilation stops before binding until the spelling is fixed.
+`check --fix` rechecks the two adjacent symbol tokens at the exact source
+site and replaces only those two bytes. Tests cover the reproduced helper,
+two comparisons on one line and in two files, stale sites, Unicode, CRLF,
+and unchanged strings and comments. `!=` remains valid and unchanged (the
+acceptance paragraph's parenthetical did not mean to refuse Quarry's own
+inequality); `===` retains its generic, non-mechanical diagnostics.

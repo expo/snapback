@@ -125,6 +125,44 @@ fn check_fix_applies_the_four_reproduced_repairs_byte_exact() {
 }
 
 #[test]
+fn check_fix_repairs_double_equals_byte_exact_in_helpers_and_multiple_files() {
+    let helper = include_str!("../../snapback4-lang/tests/fixtures/repair-equality.q");
+    check_fix(&[("schema.q", helper, &helper.replace("==", "="))], true);
+    let source = "query q():\r\n  return ('é'=='é') and (2 == 2) and ('==' != '=') -- == keep café\r\n";
+    let expected = source.replace("'é'=='é'", "'é'='é'").replace("2 == 2", "2 = 2");
+    check_fix(&[("one.q", source, &expected), ("two.q", source, &expected)], true);
+    for source in ["query q():\n  return '==' != '=' -- ==\n", "query q():\n  return 1 != 2\n"] {
+        check_fix(&[("schema.q", source, source)], true);
+    }
+    let triple = "query q():\n  return 1 === 1\n";
+    check_fix(&[("schema.q", triple, triple)], false);
+}
+
+#[test]
+fn double_equals_edit_rechecks_tokens_at_the_exact_site() {
+    let source = "query q():\n  return 1 == 1\n";
+    let d = snapback4_lang::compile(&[("schema.q".into(), source.into())]).diagnostics.remove(0);
+    let sources = vec![("schema.q".into(), source.into())];
+    let (target, start, end, replacement) = fix::edit(&sources, 0, &d).unwrap();
+    assert_eq!(target, 0);
+    assert_eq!(&source[start..end], "==");
+    assert_eq!(replacement, "=");
+    for changed in [
+        source.replace("==", "="), source.replace("==", "!="), source.replace("==", "==="),
+        source.replace("==", "= ="), source.replace("==", "=\n="),
+        "query q():\n  return 1 '=='\n".into(), "query q():\n  return '--=='\n".into(),
+        "query q():\n  return 1--==\n".into(), "query q():\n  return 1//==\n".into(),
+        format!("{}query later():\n  return 1 == 1\n", source.replace("==", "=")),
+    ] { assert!(fix::edit(&[("schema.q".into(), changed.clone())], 0, &d).is_none(), "{changed}"); }
+    let mut unmarked = d.clone();
+    unmarked.mechanical = false;
+    assert!(fix::edit(&sources, 0, &unmarked).is_none());
+    let mut wrong = d;
+    wrong.rewrite = "!=".into();
+    assert!(fix::edit(&sources, 0, &wrong).is_none());
+}
+
+#[test]
 fn missing_index_inserts_after_last_index_across_files_with_matching_indentation() {
     let (table, query) = MISSING_INDEX.split_once("query ").unwrap();
     let table = table.replace("  ", "    ").replace("    public", "    unique byOther: id\n    public").replace('\n', "\r\n");

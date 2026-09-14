@@ -1310,7 +1310,7 @@ step.
   structural class, and `--residency` names where operations run.
   `--fix` applies only diagnostics explicitly marked `mechanical`: an
   ambiguous key's `by`, a cursor index's missing `id`, and exact canonical
-  spelling rewrites. Before it edits, every compiled file must be
+  spelling rewrites, including `==` to `=`. Before it edits, every compiled file must be
   unchanged on disk, and every compiled file is read again just before the
   write. This check is best effort: it refuses an edit it observes and names
   the file; a save in the instant before the write can still be overwritten. It prints one
