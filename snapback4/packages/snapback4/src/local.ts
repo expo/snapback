@@ -52,7 +52,7 @@ export interface LocalOptions {
   readonly sessionStore?: SessionStore;
   readonly fetch?: typeof fetch;
   /** The device: `webDevice()` on the web, `nativeDevice` from
-   * `snapback4-expo`, `processDevice()` in Node. */
+   * `snapback4-expo`, `processDevice({ dir })` in Node. */
   readonly device: DeviceOpener;
   readonly waitSeconds?: number;
   /** Ordinary viewed media only; default is no retained bytes. */

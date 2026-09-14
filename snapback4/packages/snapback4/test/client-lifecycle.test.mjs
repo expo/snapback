@@ -666,7 +666,7 @@ async function fixture(t, additions = "") {
     }
     let persist = kept.get(dataDir);
     if (!persist) kept.set(dataDir, (persist = memoryPersistence()));
-    const opener = tier === "native" ? processDevice(binary, dataDir, spawnDevice, async (path, text) => writeFileSync(path, text)) : webDevice({ wasm, persist });
+    const opener = tier === "native" ? processDevice({ binary, dir: dataDir, spawn: spawnDevice, writeFile: async (path, text) => writeFileSync(path, text) }) : webDevice({ wasm, persist });
     const device = options.wrapNative ? { open: async (...params) => options.wrapNative(await opener.open(...params)) } : opener;
     const client = await createLocalClient({ ...common, device });
     clients.add(client);
@@ -1137,7 +1137,7 @@ test("close aborts online posts and stops admission", { timeout: 10_000 }, async
 });
 
 test("device process failures reject opening and pending calls instead of leaving close waiting", { timeout: 3000 }, async () => {
-  const opener = (script) => processDevice(process.execPath, "unused", (command) => spawn(command, ["-e", script], { stdio: ["pipe", "pipe", "inherit"] }), async () => {});
+  const opener = (script) => processDevice({ binary: process.execPath, dir: "unused", spawn: (command) => spawn(command, ["-e", script], { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async () => {} });
   await assert.rejects(opener("process.exit(4)").open("unused", null), /exited/);
   const core = await opener('process.stdout.write(JSON.stringify({ok:true}) + "\\n"); process.stdin.once("data", () => process.exit(5));').open("unused", null);
   await assert.rejects(core.call({ op: "state" }), /exited/);

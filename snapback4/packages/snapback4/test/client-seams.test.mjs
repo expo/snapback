@@ -83,7 +83,7 @@ async function fixture(t, release = false) {
   const clients = [];
   t.after(async () => { for (const client of clients) await client.close(); server.kill(); await exited; rmSync(dir, { recursive: true, force: true }); });
   await until(() => { if (server.exitCode != null) throw new Error(log); return url; });
-  const native = processDevice(binary, join(dir, "devices"), (command, args) => spawn(command, args, { stdio: ["pipe", "pipe", "inherit"] }), async (path, text) => writeFileSync(path, text));
+  const native = processDevice({ binary, dir: join(dir, "devices"), spawn: (command, args) => spawn(command, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
   const cores = [];
   const device = { async open(name, backend) { const core = await native.open(name, backend); cores.push(core); return core; } };
   const post = async (path, body, persona = true) => (await fetch(url + path, { method: "POST", headers: persona ? { "x-snapback-persona": "alice" } : {}, body: JSON.stringify(body) })).json();

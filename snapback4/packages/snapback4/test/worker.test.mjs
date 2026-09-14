@@ -229,7 +229,7 @@ test("actions run as the requesting viewer; client done/failed and replay reach 
     fail: () => { throw new GiveUp("the provider refused this address"); },
   } });
   const online = createClient({ url: f.url, persona: "alice" }); f.clients.push(online);
-  const device = processDevice(binary, join(f.directory, "devices"), (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), async (path, text) => writeFileSync(path, text));
+  const device = processDevice({ binary, dir: join(f.directory, "devices"), spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
   const local = await createLocalClient({ url: f.url, persona: "alice", device, waitSeconds: 1 }); f.clients.push(local);
   for (const [i, client] of [online, local].entries()) {
     const writes = []; client.onWrite(w => writes.push(w));
@@ -316,7 +316,7 @@ test("actions are denied offline on both tiers without entering the device queue
   let offline = false, actionPosts = 0;
   const network = (...args) => { if (String(args[0]).includes("/a/")) actionPosts++; return offline ? Promise.reject(new TypeError("offline")) : fetch(...args); };
   const online = createClient({ url: f.url, persona: "alice", fetch: network }); f.clients.push(online);
-  const native = processDevice(binary, join(f.directory, "devices"), (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), async (path, text) => writeFileSync(path, text));
+  const native = processDevice({ binary, dir: join(f.directory, "devices"), spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
   const cores = [];
   const device = { async open(...args) { const core = await native.open(...args); cores.push(core); return core; } };
   const local = await createLocalClient({ url: f.url, persona: "alice", fetch: network, device, waitSeconds: 1 }); f.clients.push(local);

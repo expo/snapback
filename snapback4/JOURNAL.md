@@ -3793,3 +3793,58 @@ that those supplemental failures predate this lane is made.
 ## 2026-09-14 — the 0.2.9 calibration scored; the catch-up program opens (LLP 3000.007 §18)
 
 The Astra calibration on 0.2.9 scored 85 overall and behind the September 5 Convex and Supabase cells on setup_and_docs (78), data_modeling (88) and queries_and_live (74). The scorer's notes charge four things the published surface did: `processDevice()` named without a signature, retained history lost under a horizon on removal, an unscoped authorized search that is never complete on the server, and a defaulted column that refused adoption while `check` stayed green; the rest is learning cost. LLP 3000.007 §18 records the five decisions and their lanes: a merge of matching lanes over the viewer's groups (CU1), retained history kept whatever the horizon (CU2), the Node device's directory argument and a README example check (CU3), literal defaults materialized wherever absent and `check` reading the dev store (CU4), four more mechanical rewrites with the Trending recipe (CU5). The 0.2.10 three-model cell keeps running unchanged; the pin after these landings is 0.2.11.
+
+## 2026-09-14 — CU3: the Node device takes its directory; README calls compile
+
+Built LLP 3000.007 §18.4 in the client package: one
+`processDevice({ dir, binary?, spawn?, writeFile? })` opener, synchronous directory
+validation, one resolver shared with the CLI shim, lazy Node host defaults, and
+creation of the stores' directory when writing the initial backend. Migrated all
+**9 positional calls**. The injected host can import and open without Node builtins;
+the default host writes and spawns using Node; the real Rust device's existing
+replication, prediction, queued writes and cold-offline reopen test now supplies only
+`dir`. Resolver tests cover **4 choices**: environment, platform package, release
+build and debug build, plus the no-binary refusal. No Rust, contract or guide-card
+change was needed.
+
+The README now has **11 standalone TypeScript/TSX blocks**, checked in one TypeScript
+program against the package source and the workspace's React/Expo types, with a typed
+stub only for the app's generated API. The check discovers all **36 callable exports**
+from the **8 public function subpaths** and resolves each example call to its exported
+symbol. Before this lane **22 exports** lacked a named call in any TypeScript fence:
+`auth.guest`, `auth.signup`, `auth.login`, `auth.refreshSession`, `auth.logoutAll`,
+`auth.memorySessionStore`, `auth.localStorageSessionStore`, `auth.sessionKey`,
+`auth.restoreSession`, `auth.keepSession`, `auth.forgetSession`, `auth.logout`,
+`client.mintId`, `mock.page`, `mock.mockId`, `mock.createMockClient`,
+`native.processDevice`, `react.SnapbackProvider`, `react.useAction`,
+`web.indexedDbPersistence`, `web.memoryPersistence`, `worker.listEffects`.
+Two more calls (`createClient`, `useAsset`) lacked an in-scope import. The original
+**7 blocks** also exposed undefined example values and untyped card fields. The new
+check takes **877.03 ms** alone, **1061.47 ms** in the focused group and **1308.50 ms**
+in the sequential client run (all below **10 s**). The package README is **1494 lines**;
+the longest changed source/test file is **1262 lines**. Keep the README's six-line
+headroom in mind when integrating the other lanes' documentation.
+
+On base **518891fd1cc67b969a6f57b683e80efadc89b612**, a bare call returned an opener
+and its first open threw `TypeError: Cannot read properties of undefined (reading 'replace')`.
+It now throws synchronously: `Error: processDevice needs { dir }: the directory its stores live in`.
+The lesson: prose naming an opener and imports naming a helper did not prove a builder
+could call either. Compiling isolated examples and checking their actual bindings
+found the missing directory, the missing imports and the untyped examples together.
+The Node paragraph and the generated `api.<module>` explanation are in the client section.
+
+Verification: focused native/periphery/README **18 passed / 0 failed**; opener-only
+**4 / 0**; package typecheck and build green. The blocking script completed with
+**1 failing step in 666 s**: Rust **374 passed / 0 failed / 1 ignored**, fixtures
+**9 / 0**, concurrent clients **98 / 21**. The rebuild took **78 s**, chat check
+**195 s**, Rust tests **388 s**, Expo typecheck **139 s**; executable startup also
+made an earlier run stall and time out otherwise unchanged server tests. The sequential
+client rerun is **126 / 1** in **122941.09225 ms**: every timing failure clears;
+Chromium startup SIGABRT remains. The unchanged React test from the exact base above,
+with all its loaded repository sources verified unchanged, reproduces it **0 / 1**.
+No product failure is labelled pre-existing beyond this verified browser-start failure.
+`ref-check --verbose` is green; no ceiling, test timeout or gate changed. The wasm
+build reports **1523587 B raw / 427302 B gzip**. The automatic Cargo.lock version
+refresh was reverted. The resolved ticket moved into `issues/closed/` by filesystem
+rename because `git mv` could not write the worktree index outside the sandbox.
+No commit, push, tag or publication was performed.
