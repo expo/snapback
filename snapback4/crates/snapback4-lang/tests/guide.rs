@@ -109,6 +109,10 @@ fn the_language_card_compiles_and_runs() {
     // digest: divmod, sorted, min, max, slice, sort, a helper with null.
     let digest = engine.query("digest", Context::new(alice, args(&[("roomId", id("r1"))])).at(2_200)).unwrap().data;
     assert_eq!(digest.field("total").unwrap(), &Value::Int(2));
+    assert_eq!(digest.field("grouped").unwrap().as_array().unwrap()[0].field("count").unwrap(), &Value::Int(2));
+    assert_eq!(digest.field("first").unwrap().field("id").unwrap(), &id("msg2"));
+    assert_eq!(digest.field("last").unwrap().field("id").unwrap(), &id("msg1"));
+    assert_eq!(digest.field("at").unwrap().field("id").unwrap(), &id("msg1"));
     assert_eq!(digest.field("counter").unwrap(), &Value::Int(2));
     assert_eq!(digest.field("offsets").unwrap(), &Value::Array(vec![Value::Int(0), Value::Int(1)]));
     assert_eq!(digest.field("label").unwrap(), &text("digest: room / messages"));

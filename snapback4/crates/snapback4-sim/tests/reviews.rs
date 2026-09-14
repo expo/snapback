@@ -35,7 +35,7 @@ fn p1_a_principal_named_public_is_only_itself() {
     let mut engine = chat_engine(&["dev:alice", "dev:bob"]);
     sent(&mut engine, "s1", "dev:alice", "send", &[("conversationId", id("c1")), ("body", Value::String("secret".into()))], &["m-secret"]);
     let before = engine.seq().unwrap();
-    sent(&mut engine, "i1", "dev:alice", "invite", &[("conversationId", id("c1")), ("principal", id("public"))], &["mem-public"]);
+    sent(&mut engine, "i1", "dev:alice", "addMember", &[("conversationId", id("c1")), ("principal", id("public"))], &["mem-public"]);
     // A stranger's stream carries nothing of c1; the principal named public holds it.
     let stranger = engine.stream("dev:charlie", before, 1_000).unwrap();
     assert!(stranger.events.is_empty(), "{:?}", stranger.events);
@@ -255,7 +255,7 @@ fn a_closed_membership_suppresses_join_time_history() {
     let mut engine = chat_engine(&["dev:alice"]);
     sent(&mut engine, "before", "dev:alice", "send", &[("conversationId", id("c1")), ("body", Value::String("before join".into()))], &["old"]);
     let from = engine.seq().unwrap();
-    sent(&mut engine, "invite", "dev:alice", "invite", &[("conversationId", id("c1")), ("principal", id("dev:bob"))], &["bob"]);
+    sent(&mut engine, "invite", "dev:alice", "addMember", &[("conversationId", id("c1")), ("principal", id("dev:bob"))], &["bob"]);
     sent(&mut engine, "leave", "dev:bob", "leave", &[("conversationId", id("c1"))], &[]);
     sent(&mut engine, "edit-after-leave", "dev:alice", "edit", &[("messageId", id("old")), ("body", Value::String("private edit after leave".into()))], &[]);
     sent(&mut engine, "after", "dev:alice", "send", &[("conversationId", id("c1")), ("body", Value::String("private new row".into()))], &["new"]);
@@ -286,7 +286,7 @@ fn a_truncated_own_page_never_grants_a_later_membership_early() {
         ("conversations".into(), object([("id", id("c2")), ("title", Value::String("Other".into())), ("creatorId", id("dev:alice"))])),
         ("memberships".into(), object([("id", id("other")), ("conversationId", id("c2")), ("principal", id("dev:bob")), ("role", Value::String("member".into())), ("joinedAt", Value::Int(1))])),
     ]).unwrap();
-    let join = sent(&mut engine, "invite", "dev:alice", "invite", &[("conversationId", id("c1")), ("principal", id("dev:bob"))], &["bob"]);
+    let join = sent(&mut engine, "invite", "dev:alice", "addMember", &[("conversationId", id("c1")), ("principal", id("dev:bob"))], &["bob"]);
     let mut from = watermark;
     loop {
         let page = engine.stream("dev:bob", from, 1).unwrap();

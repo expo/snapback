@@ -2,7 +2,7 @@
 // Every hook returns a value from the card (contract.ts) and nothing else.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import type { AssetRead, Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
+import type { Act, Action, ActOptions, AssetRead, Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import type { Session } from "./auth.ts";
 import { isReady } from "./contract.ts";
 
@@ -213,6 +213,38 @@ export function useMutation<A, R>(op: Mutation<A, R>) {
       setInFlight(owner.pending > 0);
     }
     return outcome;
+  }, [client, op]);
+  return { run, last, inFlight };
+}
+
+/** A worker action. `run` returns its outcome; pass a pending id again to
+ * collect it. Concurrent calls keep `last` on the most recently started. */
+export function useAction<A, R>(op: Action<A, R>) {
+  const client = useClient();
+  const [last, setLast] = useState<Act<R> | undefined>(undefined);
+  const [inFlight, setInFlight] = useState(false);
+  const lifetime = useRef({ active: true, pending: 0, next: 0, latest: 0 });
+  useEffect(() => {
+    lifetime.current = { active: true, pending: 0, next: 0, latest: 0 };
+    const owner = lifetime.current;
+    setLast(undefined);
+    setInFlight(false);
+    return () => { owner.active = false; };
+  }, [client, op]);
+  const run = useCallback(async (args: A, options?: ActOptions): Promise<Act<R>> => {
+    const owner = lifetime.current;
+    const serial = ++owner.next;
+    owner.latest = serial;
+    owner.pending++;
+    if (owner.active) setInFlight(true);
+    try {
+      const outcome = await client.act(op, args, options);
+      if (owner.active && lifetime.current === owner && serial === owner.latest) setLast(outcome);
+      return outcome;
+    } finally {
+      owner.pending--;
+      if (owner.active && lifetime.current === owner) setInFlight(owner.pending > 0);
+    }
   }, [client, op]);
   return { run, last, inFlight };
 }

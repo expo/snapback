@@ -43,6 +43,23 @@ export type Write<R = unknown> =
   | { readonly state: "sent"; readonly id: string; readonly seq: number; readonly result: R }
   | { readonly state: "failed"; readonly id: string; readonly why: Refusal };
 
+/** An action's server outcome. A denial precedes admission; a pending id
+ * may already be running. Retry with that same id, never predict or queue
+ * an action on the device. This new card word needs the author's ruling. */
+// @ref LLP 3000.007#9.2 — request/response worker results have no predicted state.
+export type Act<R = unknown> =
+  | { readonly state: "done"; readonly id: string; readonly result: R }
+  | { readonly state: "failed"; readonly id: string; readonly why: Refusal }
+  | { readonly state: "pending"; readonly id: string }
+  | { readonly denied: Refusal; readonly id: string };
+
+export interface ActOptions {
+  /** Reuse a previous pending/uncertain id to collect its recorded result. */
+  readonly id?: string;
+  /** Wait up to 25 seconds; 0 only admits or collects the request. */
+  readonly waitSeconds?: number;
+}
+
 /** The app's relationship to its server. */
 export type Link = "online" | "offline" | "signed-out";
 
@@ -50,13 +67,14 @@ export type Link = "online" | "offline" | "signed-out";
 export interface Op<Args, Result> {
   readonly runs?: "device" | "server";
   readonly predicts?: "eligible" | "never";
-  readonly kind: "query" | "mutation";
+  readonly kind: "query" | "mutation" | "action";
   readonly name: string;
   readonly __args?: Args;
   readonly __result?: Result;
 }
 export type Query<Args, Result> = Op<Args, Result> & { readonly kind: "query" };
 export type Mutation<Args, Result> = Op<Args, Result> & { readonly kind: "mutation" };
+export type Action<Args, Result = unknown> = Op<Args, Result> & { readonly kind: "action" };
 export type ArgsOf<O> = O extends Op<infer A, unknown> ? A : never;
 export type ResultOf<O> = O extends Op<unknown, infer R> ? R : never;
 
@@ -95,6 +113,7 @@ export interface Client {
   query<A, R>(op: Query<A, R>, args: A): Promise<Read<R>>;
   observe<A, R>(op: Query<A, R>, args: A): Observed<R>;
   mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write<R>>;
+  act<A, R>(op: Action<A, R>, args: A, options?: ActOptions): Promise<Act<R>>;
   /** Send the bytes of a photo or video; place `asset.id` in a mutation's
    * `image`/`video` argument. Online only: an upload waits for no link. */
   upload(bytes: Blob | ArrayBuffer | Uint8Array): Promise<Uploaded>;

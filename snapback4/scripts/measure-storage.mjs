@@ -51,7 +51,7 @@ assert.ok([groups, messages, members].every((n) => Number.isSafeInteger(n) && n 
 assert.ok(members >= 2 && members <= 50 && groups <= 1000);
 const binary = binaryPath();
 const app = mkdtempSync(join(tmpdir(), "sb4-storage-"));
-cpSync(join(root, "apps/chat/snapback"), join(app, "snapback"), { recursive: true });
+cpSync(join(root, "apps/chat/snapback"), join(app, "snapback"), { recursive: true, filter: (path) => !/\/worker\.(ts|mjs)$/.test(path) });
 rmSync(join(app, "snapback/generated"), { recursive: true, force: true });
 if (workloads) appendFileSync(join(app, "snapback/schema.q"), `
 query point(messageId: messages):

@@ -95,9 +95,19 @@ pub struct RangeSpec {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SeekBound {
+    pub column: String,
+    pub op: String,
+    pub value: Expr,
+    pub site: Site,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ReadExpr {
     pub table: String,
     pub keys: Vec<KeyPart>,
+    pub seeks: Vec<SeekBound>,
+    pub filter: Option<Box<Expr>>,
     pub index: Option<String>,
     pub range: Option<RangeSpec>,
     /// `matching q`: the search text, read through a `words(..)` index whose
@@ -255,6 +265,7 @@ pub struct RuleDecl {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ColumnDecl {
     pub name: String,
+    pub default: Option<Expr>,
     pub type_: ScalarType,
     pub site: Site,
 }
@@ -319,6 +330,14 @@ pub struct ArgDecl {
     pub site: Site,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ActionDecl {
+    pub name: String,
+    pub args: Vec<ArgDecl>,
+    pub rule: Expr,
+    pub site: Site,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ProgramKind {
     Query,
@@ -369,6 +388,7 @@ pub struct Document {
     pub shapes: Vec<ShapeDecl>,
     pub functions: Vec<FunctionDecl>,
     pub programs: Vec<ProgramDecl>,
+    pub actions: Vec<ActionDecl>,
     pub schedules: Vec<ScheduleDecl>,
     /// Personas declared with `use personas alice, bob`.
     pub personas: Vec<String>,

@@ -3,6 +3,8 @@
 //! changes handed back on the next open). One scenario, two runs.
 
 mod common;
+mod language;
+mod membership;
 
 use common::*;
 use snapback4_core::engine::WriteState;
@@ -1394,6 +1396,29 @@ fn a_scope_retires_media_past_a_page_while_preserving_delivered_history() {
         ok(device.call(serde_json::json!({"op":"apply","page":{"snapshot":false,"events":[{"table":"photos","kind":"scope","id":"scope","data":["dev:alice"]}],"watermark":2,"more":false}})));
         assert_eq!(ok(device.call(home)), serde_json::Value::Null);
         assert_eq!(query(&mut *device, "photo", "dev:alice", serde_json::json!({"id":"r500"}), 1)["data"]["id"], "r500", "textual history remains held");
+        device.close();
+    });
+}
+
+
+#[test]
+fn actions_never_predict_query_or_enter_either_device_outbox() {
+    on_both(|host| {
+        let source = "action remote(n: int)\nmutation answer(n: int):\n  return { n }\nquery answer():\n  return 7\n".replace("query answer()", "query number()");
+        let (_, backend) = compile(&source);
+        let mut device = host.open("actions", Some(backend)).unwrap();
+        let predicted = ok(device.call(serde_json::json!({ "op": "predict", "name": "answer", "viewer": "dev:alice", "args": { "n": 42 }, "now": 1 })));
+        assert_eq!(predicted["result"]["n"], 42);
+        assert_eq!(query(device.as_mut(), "number", "dev:alice", serde_json::json!({}), 1)["data"], 7);
+        for op in ["query", "predict"] {
+            let refused = device.call(serde_json::json!({ "op": op, "name": "remote", "viewer": "dev:alice", "args": { "n": 42 }, "now": 1 }));
+            assert_eq!(refused["ok"]["denied"]["code"], "E_OP", "{refused}");
+        }
+        for predictable in [true, false] {
+            let refused = device.call(serde_json::json!({ "op": "admit", "entry": { "id": "action", "op": "remote", "args": { "n": 42 }, "seq": 1, "viewer": "dev:alice", "now": 1, "predictable": predictable } }));
+            assert_eq!(refused["denied"]["code"], "E_OP", "{refused}");
+        }
+        assert_eq!(ok(device.call(serde_json::json!({ "op": "queued" }))), serde_json::json!([]));
         device.close();
     });
 }

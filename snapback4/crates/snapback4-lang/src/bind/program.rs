@@ -14,6 +14,7 @@ use std::collections::BTreeMap;
 
 mod control;
 mod expr;
+mod reads;
 
 /// A bound operation: the IR plus the types the client sees.
 #[derive(Clone, Debug)]
@@ -22,6 +23,7 @@ pub struct BoundProgram {
     pub module: String,
     pub args: Vec<(String, Ty)>,
     pub result: Ty,
+    pub notes: Vec<Diagnostic>,
     pub site: Site,
 }
 
@@ -39,6 +41,7 @@ pub struct Binder<'a> {
     /// Enclosing `for` and `chunk` bodies: where `break` may stand.
     loops: u32,
     in_prelude: bool,
+    notes: Vec<Diagnostic>,
 }
 
 /// Source names are lexical; the IR's flat environment needs a distinct
@@ -57,7 +60,7 @@ const MENTION_MAX: u32 = 64;
 
 impl<'a> Binder<'a> {
     pub fn bind(catalog: &'a Catalog, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>) -> Option<BoundProgram> {
-        let mut binder = Binder { catalog, name: decl.name.clone(), kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false };
+        let mut binder = Binder { catalog, name: decl.name.clone(), kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, notes: Vec::new() };
         let mut args = BTreeMap::new();
         let mut arg_types = Vec::new();
         for arg in &decl.args {
@@ -84,7 +87,7 @@ impl<'a> Binder<'a> {
                 ProgramKind::Query => (ir::ProgramKind::Query, Ty::Json),
                 _ => (ir::ProgramKind::Job, Ty::Null),
             };
-            return Some(BoundProgram { program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true }, module: module.to_owned(), args: arg_types, result, site: decl.site.clone() });
+            return Some(BoundProgram { program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true }, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
         }
         let mut body = Vec::new();
         let mut failed = false;
@@ -145,7 +148,7 @@ impl<'a> Binder<'a> {
             ProgramKind::Mutation => ir::ProgramKind::Mutation,
             ProgramKind::Job => ir::ProgramKind::Job,
         };
-        Some(BoundProgram { program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body, native: false }, module: module.to_owned(), args: arg_types, result, site: decl.site.clone() })
+        Some(BoundProgram { program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body, native: false }, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
     }
 
     fn site(&mut self) -> String {
@@ -214,6 +217,7 @@ impl<'a> Binder<'a> {
     /// names, and types.
     fn point(&mut self, read: &ReadExpr, mode: ReadMode, out: &mut Vec<Stmt>) -> Fallible<(Read, &'a TableInfo)> {
         let info = self.table(&read.table, &read.site)?;
+        if !read.seeks.is_empty() { return Err(type_error(&read.site, "a seek needs a bounded page", "t[prefix, col >= start] first 50 by index")); }
         if read.keys.is_empty() {
             return Err(unknown(&read.site, format!("{}[] reads nothing; a point read needs a key", read.table), format!("{}[id]", read.table)));
         }
@@ -230,6 +234,11 @@ impl<'a> Binder<'a> {
         if range.take == 0 {
             return Err(type_error(&range.site, "a page holds at least one row", print::read_expr(&ReadExpr { range: Some(ast::RangeSpec { take: 50, ..range.clone() }), ..read.clone() })));
         }
+        let (read, filter) = self.scan_filter(read, &index)?;
+        let read = &read;
+        // Key expressions precede the seek bounds and cursor, including their setup.
+        let prefix: Vec<Expr> = prefix.into_iter().map(|value| self.snapshot(value, out)).collect();
+        let seek = self.seek(info, read, &index, out)?;
         let mut after = None;
         if let Some(cursor) = &range.cursor {
             let (e, t) = self.expr(cursor, out)?;
@@ -263,7 +272,8 @@ impl<'a> Binder<'a> {
                 take: Bound::Literal(range.take),
                 after,
                 before: None,
-                range: None,
+                range: seek,
+                filter,
                 opaque_cursor: range.cursor.is_some(),
                 merge_site: None,
                 provenance: KeyProvenance::Shape,
@@ -302,6 +312,7 @@ impl<'a> Binder<'a> {
             .indexes
             .iter()
             .filter(|index| read.index.as_ref().is_none_or(|explicit| explicit == &index.name))
+            .filter(|index| read.seeks.iter().all(|b| index.columns.get(keys.len()) == Some(&b.column)))
             .filter(|index| if searching { index.searches_after(keys.len()) } else { index.is_plain() })
             .filter(|index| match mode {
                 ReadMode::Point => index.unique && index.columns.len() == keys.len(),
@@ -466,7 +477,7 @@ impl<'a> Binder<'a> {
                 source = Some(scan);
                 binding = self.declare(name, Ty::Row(domain.table.clone()));
             }
-            let read = ReadExpr { table: merge.table.clone(), keys: lane.prefix.iter().enumerate().map(|(position, value)| ast::KeyPart { column: lane.columns.as_ref().and_then(|c| c.get(position).cloned().flatten()), value: value.clone(), site: value.site().clone() }).collect(), index: Some(merge.index.clone()), range: Some(ast::RangeSpec { order: merge.order, take: merge.take, cursor: None, site: lane.site.clone() }), matching: None, site: lane.site.clone() };
+            let read = ReadExpr { table: merge.table.clone(), keys: lane.prefix.iter().enumerate().map(|(position, value)| ast::KeyPart { column: lane.columns.as_ref().and_then(|c| c.get(position).cloned().flatten()), value: value.clone(), site: value.site().clone() }).collect(), index: Some(merge.index.clone()), range: Some(ast::RangeSpec { order: merge.order, take: merge.take, cursor: None, site: lane.site.clone() }), matching: None, filter: None, seeks: Vec::new(), site: lane.site.clone() };
             let (mut scan, _) = self.scan(&read, &mut setup)?;
             self.pop_scope();
             scan.after = cursor_expr.clone().map(Box::new);
@@ -507,12 +518,12 @@ impl<'a> Binder<'a> {
                 out.push(Stmt::For { binding: item, domain: LoopDomain::DerivedArray { value: base_expr, max, bound_source: "shape".into() }, body });
                 Ok((ir::var(&list), Ty::Collection(Box::new(object_ty), max)))
             }
-            Ty::Row(_) | Ty::Object(_) => {
+            Ty::Row(_) | Ty::Object(_) | Ty::RowShape(_) => {
                 let row = self.temp("row");
                 out.push(Stmt::Let { name: row.clone(), value: base_expr });
                 self.shape_object(&row, base_ty, fields, site, out)
             }
-            Ty::Optional(inner) if matches!(*inner, Ty::Row(_) | Ty::Object(_)) => {
+            Ty::Optional(inner) if matches!(*inner, Ty::Row(_) | Ty::Object(_) | Ty::RowShape(_)) => {
                 let row = self.temp("row");
                 out.push(Stmt::Let { name: row.clone(), value: base_expr });
                 let result = self.temp("shaped");
@@ -557,7 +568,7 @@ impl<'a> Binder<'a> {
                         };
                         let mut setup = Vec::new();
                         let (nested, nested_ty) = self.shape_object(row_var, row_ty.clone(), &shape.fields, site, &mut setup)?;
-                        if let (Expr::Object(nested_fields), Ty::Object(nested_types)) = (nested, nested_ty) {
+                        if let (Expr::Object(nested_fields) | Expr::Shape { fields: nested_fields, .. }, Ty::Object(nested_types) | Ty::RowShape(nested_types)) = (nested, nested_ty) {
                             for (name, e) in nested_fields {
                                 let t = nested_types[&name].clone();
                                 add(self, name, e, t, site, std::mem::take(&mut setup), out)?;
@@ -576,7 +587,11 @@ impl<'a> Binder<'a> {
                 }
             }
             let _ = site;
-            Ok((Expr::Object(exprs.into_iter().collect()), Ty::Object(types)))
+            let fields = exprs.into_iter().collect();
+            if matches!(row_ty, Ty::Row(_) | Ty::RowShape(_)) {
+                if types.contains_key("pending") { return Err(type_error(site, "pending is the device's row metadata", "omit pending from the shape; it is preserved from the row")); }
+                Ok((Expr::Shape { base: Box::new(ir::var(row_var)), fields }, Ty::RowShape(types)))
+            } else { Ok((Expr::Object(fields), Ty::Object(types))) }
         })();
         self.pop_scope();
         self.focal = prior;
@@ -591,7 +606,7 @@ impl<'a> Binder<'a> {
                 fields.extend(info.columns.iter().map(|(name, scalar)| (name.clone(), Ty::from_scalar(scalar))));
                 Ok(fields)
             }
-            Ty::Object(fields) => Ok(fields.into_iter().collect()),
+            Ty::Object(fields) | Ty::RowShape(fields) => Ok(fields.into_iter().collect()),
             other => Err(type_error(site, format!("* spreads a row or an object; got {}", other.name()), "shape a row")),
         }
     }
@@ -723,7 +738,7 @@ impl<'a> Binder<'a> {
                 return Ok(WriteKey { index: "byId".into(), key: vec![ir::var(&id)], alternate: false, named: Vec::new() });
             }
         }
-        let read = ReadExpr { table: info.decl.name.clone(), keys: keys.to_vec(), index: None, range: None, matching: None, site: site.clone() };
+        let read = ReadExpr { table: info.decl.name.clone(), keys: keys.to_vec(), index: None, range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() };
         let (bound, index) = self.select_index(info, &read, ReadMode::Point, out)?;
         let named: Vec<(String, A)> = keys.iter().enumerate().map(|(position, part)| (part.column.clone().unwrap_or_else(|| index.columns[position].clone()), part.value.clone())).collect();
         let key = self.order_keys(info, &index, bound)?;
@@ -793,6 +808,19 @@ impl<'a> Binder<'a> {
                 return Err(unknown(&field.site, format!("field {} is written twice", field.name), "keep one"));
             }
             exprs.push((field.name.clone(), e));
+        }
+        // Materialize the same defaults in the insert expression so its returned row is the written image.
+        for column in &info.decl.columns {
+            if !given.contains(&column.name) && let Some(default) = &column.default {
+                let default = super::defaults::column(column, default)?;
+                let value = match default {
+                    snapback4_core::schema::ColumnDefault::Literal(value) => Expr::Literal(value),
+                    snapback4_core::schema::ColumnDefault::Now => Expr::Input(Input::Now),
+                    snapback4_core::schema::ColumnDefault::Viewer => Expr::Input(Input::Viewer),
+                };
+                exprs.push((column.name.clone(), value));
+                given.insert(column.name.clone());
+            }
         }
         let missing: Vec<&str> = info.columns.iter().filter(|(name, scalar)| !scalar.optional && !given.contains(*name)).map(|(name, _)| name.as_str()).collect();
         if !missing.is_empty() {

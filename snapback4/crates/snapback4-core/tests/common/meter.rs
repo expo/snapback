@@ -17,6 +17,7 @@ pub fn context() -> Context { Context::new("alice", BTreeMap::new()).at(1) }
 
 pub fn schema() -> Schema {
     let mut table = Table {
+        defaults: BTreeMap::new(),
         residency: Default::default(),
         columns: BTreeMap::from([("id".into(), ColumnType::Id), ("bucket".into(), ColumnType::Int), ("body".into(), ColumnType::Text { max: 4000 })]),
         indexes: BTreeMap::from([("byId".into(), Index::of(&["id"], true)), ("byBucket".into(), Index::of(&["bucket", "id"], false))]),
@@ -30,7 +31,7 @@ pub fn schema() -> Schema {
 
 pub fn scan(take: u32) -> Scan {
     Scan { site: "messages.page".into(), table: "messages".into(), index: "byBucket".into(), prefix: vec![IndexKeyExpr::Scalar(int(0))], order: Order::Asc,
-        take: Bound::Literal(take), after: None, before: None, range: None, opaque_cursor: false, merge_site: None, provenance: KeyProvenance::Const }
+        take: Bound::Literal(take), after: None, before: None, range: None, filter: None, opaque_cursor: false, merge_site: None, provenance: KeyProvenance::Const }
 }
 
 pub fn rows(count: usize) -> Vec<(String, Value)> {

@@ -2695,3 +2695,275 @@ membership row read by the viewer's own principal is its own witness for
 yet. Record: `benchmarks/runs/2026-09-13-snapback4-ceremonybar-before/`;
 metrics: `metrics/ceremonybar.jsonl` (three lines).
 
+## 2026-09-13 — Lane X: durable worker actions
+
+Implemented LLP 3000.007 §9.2, ruling 11, phase C2. Quarry declares
+`action name(args)` with typed arguments and an optional viewer rule; the
+application supplies the TypeScript body. The generated API exposes
+`Action<A, unknown>`. Admission records `_requests` transactionally once
+per client id, keeps results private to the original principal and action,
+and returns a settled result or a pending id after at most 25 seconds.
+Replays survive store reopen and ignore replacement arguments. Action
+results are bounded JSON outside Quarry's value model; no serialized value
+form, meter ceiling or existing corpus case changed.
+
+Service workers claim requests with a fresh non-renewable session for the
+REQUEST's principal. The session ends at the shorter of its configured
+lifetime and lease, defaults to 60 seconds, and is revoked on settlement.
+A delegated session cannot become a worker credential, even when its
+principal is a service seat. Settlement requires the claim's session token
+in `x-snapback-action-lease`: this additional wire header fences a stale
+attempt when the next worker uses the same service token. Expired leases
+requeue; errors back off from 2 seconds to 5 minutes, at most 8 attempts;
+`GiveUp` fails immediately. A lost settlement response leaves the lease
+recoverable; invalid JSON results fail without repeatedly running the handler.
+
+Both clients expose `act` without prediction, mutation receipts or device
+outbox entries. A known offline client returns `denied: E_OFFLINE`; an
+uncertain transport response preserves a pending id for an explicit retry.
+React's `useAction` keeps `last` on the newest invocation and respects its
+client/component lifetime. **`Act<R>` is a new card word needing the author's
+ruling under LLP 2000.000 §8**, as the lane brief requires. Its done/failed/
+pending union also has `{ denied, id }` for refusal before admission. The
+implementation and the actions card expose that choice for review; no
+ruling on the new word is implied by this entry.
+
+`dev` supervises `snapback/worker.ts` or `.mjs` with Node 24 and one printed
+`service:worker` token, restarts crashes with backoff and stops its own child
+on exit. `doctor` reports the worker file and queue counts. Chat's action
+`invite(email: text <=200)` mints a session for `member:<email>` and returns
+only the principal. Its old membership mutation is now `addMember`, with
+all callers updated. The Expo starter copies the worker together with the
+schema. Data-only chat fixtures and witnesses exclude the worker file;
+copying it into temporary projects without its dependencies had introduced
+an unwanted worker and a server-shutdown race in those tests.
+
+Measurements: the final isolated Mac worker suite passed 8 tests in
+15,787.616125 ms. Its action round trips, including a viewer write and read,
+were 10.44 ms online and 11.07 ms through the process device; a one-second
+pending wait took 1,004.26 ms. In the final Linux suite those measurements
+were 20.33 ms, 14.22 ms and 1,003.64 ms. These are individual observations,
+not percentiles or improvement claims. The core proves 60,000 ms default
+and 120,000 ms configured viewer lifetimes, terminal expiry on attempt 8,
+and exactly 2 attempts after a lost settlement. Offline action POSTs and
+queued device entries are both 0. The dev probe observes 1 crash/restart,
+1 printed service token, and doctor counts 0 queued / 0 running / 2 done /
+1 failed. Local wasm: 1,441,096 B raw / 405,953 B gzip; Linux wasm:
+1,440,852 B raw / 406,361 B gzip, both optimized with wasm-opt 132.
+
+Verification: targeted Rust tests pass (4 action engine/simulator, 1 both-
+store device, 1 frontend action test, 8 compiled-guide tests); 4 local
+end-to-end and 7 periphery tests pass. The final complete blocking suite on
+Minisforum, with Node 24.18.0, passes in 36 seconds: 277 Rust passes,
+0 Rust failures, 1 declared ignored Rust test; 9 fixture passes; 117 client
+passes including the browser tests; 0 failures overall. Its log is
+`/tmp/sb4-lane-x-suite-linux-final.log`, SHA-256
+`28d04b6a92556b2adc7ba015e4da65d4a4bff6b92deb79e30e8a2fd9b14fcb59`.
+The local and Linux changed-source digest before this append is
+`1a4cfcc4d5eede8308e38882704046035c74f19cc4522e347d51da52efe5e22d`,
+based on `cf2d13eea1858f5e89093d70562841f7296cab0c`.
+
+A completed local suite before the final starter-copy seam passed all 277
+Rust and 9 fixture tests, with 106 client passes and 1 Chromium startup
+failure in 26 seconds. The isolated browser failure (SIGABRT / kill EPERM)
+was reproduced with untouched sources from that exact base commit; the
+isolated Linux React suite passed all 11 tests. Later Mac reruns hit
+executable startup stalls, even for `--version`; the periphery tests passed
+alone afterward. No pre-existing attribution is made for those stalls.
+The remote setup needed its shared `benchmarks/fixtures/social-messenger`
+input and removal of macOS `._` transfer metadata; neither required a
+product change. The final successful run includes the complete fixture tree.
+
+Scope seams: parser/binder implementations live in new `actions.rs` modules;
+the AST, parser registration/recovery keyword, IR kind and emitter need
+small registrations. `bind/residency.rs` has one exhaustive-match arm for
+server-only, never-predicted execution. The language card's program is
+untouched; declarations compile in the new actions card. Local engine and
+device dispatchers refuse execution through query/mutation/prediction.
+The starter, existing renamed chat callers, data-only fixture copies and
+the libc dependency for child termination are the other integration seams.
+The largest changed source is guide.rs at 1,439 lines. This required
+append preserves the already-long journal's history. SQL application reads
+remain unimplemented as ruled; NOT-DOING records the trade. No commit,
+push, tag or publication was made; the lead owns integration.
+
+## 2026-09-13 — lane L2: the language, re-derived, part two
+
+Implemented LLP 3000.007 items 10–20 after cf2d13eea: literal/now/viewer
+column defaults, typed range seeks on the first unpinned index column,
+row-local where predicates (including lazy metered reads), disclosure-safe
+continuations, group/first/last/at, page/list/collection unification,
+expression ranges under the step meter, pending through row shapes, the
+remaining mechanical guessed-spelling refusals, and the compiled language
+card plus the reads/writes/shapes/types/bounds cards and README §2. N_SEEK
+names the canonical key spelling. check --cost reports prefix seeks, filter
+examined bounds, predicate probes and expression-range steps. Every new
+allocating builtin charges its result; defaults filled by the engine charge
+the new row. No meter ceiling or serialized Value form changed.
+
+The disclosure fixtures return all 4 matches after 23 filter rejections at
+an examined ceiling of 7, with cursor positions [6, 13, 20, 24, 26] and 3
+capped pages. A non-uniform fixture decodes every cursor, rejects every
+hidden key, reaches visible key 16, and ends in an empty capped page inside
+the hidden run. A full filtered page returns keys 0 and 3 after examining
+4 rows; its cursor carries 3. A separate positive case verifies that N
+matches also complete a uniform filtered page without a cursor. Predicate
+reads in the language regression cost 5 probes for 2 returned matches.
+
+Five Clique acceptance tests run the seven-day Insights loop, all 3 receipt
+states with sender/late-joiner continue, a two-counter digest (Alice: 5
+messages in 2 chats; Bob: 1 in 1), an 80-character Unicode push preview,
+around's 20 before/21 after rows, first-seen reaction groups of 2 and 1,
+and the corrected whole-day trending query. Trending ranks all 250 fixture
+posts and selects the oldest, most-liked post first; the 8,193-post day
+returns 10 rows with complete:false and an examined-meter cut. Both device
+stores preserve defaults at the pinned write time 1,234 and pending through
+raw, spread, named, repeated, projected and extended shapes, offline reopen,
+and server confirmation. Lazy ranges remove the old 100-element temporary:
+the existing count-text meter fixture now charges 8,000 B rather than
+11,200 B, while retaining its step charges. A range ending at
+9,007,199,254,740,991 stops at the test's 30-step ceiling without materializing
+its domain; the positive literal range completes 10,001 iterations.
+
+Verification used Node 24.18.0 locally and Cargo/Bun from snapback4. The
+compiled guide passed 8/8 after each item 10–19 and again in the final suite.
+Final targeted results: frontend regressions 32/32, guide 8/8, Clique 23/23,
+filters 4/4, device 24/24, core meter 7/7, chat typing 4/4 and periphery 9/9.
+The final unchanged bash snapback4/scripts/test.sh run reports
+`== 1 failure(s) in 26 s`: 289 Rust passes, 0 failures, 1 declared ignore;
+9 fixture passes; 101 client passes, 1 failure, 0 skips. Wasm is 1,476,787 B
+raw and 412,887 B gzip. The remaining failure is Chromium SIGABRT during
+process launch, before the React assertions. The isolated test reproduces
+on an untouched git archive of base
+cf2d13eea1858f5e89093d70562841f7296cab0c using the same installed dependencies.
+The Linux expo-build-1000 snapshot passes all 10 React tests, with 0 failures
+or skips, using Node 24.13.1. This is not a green local full-suite claim.
+
+An earlier loaded run took 219 s and hit process-start timeouts in 40 client
+cases in addition to the browser failure. Serial client-file verification
+recovered all those cases (101 passed, 1 browser failure); the final normal
+suite then reproduced only that browser failure. No timeout was changed.
+The initial full runs also caught the corpus harness's new IR cases and two
+assertions affected by the intended behavior (lazy-range heap and pending in
+the inferred inbox shape); those are fixed. Raw commands and verbatim counts
+are in /private/tmp/l2-verification.md, the final full log is
+/private/tmp/l2-suite-last.log, and browser baseline/Linux logs are
+/private/tmp/l2-react-base.log and /private/tmp/l2-react-remote.log.
+
+What this taught: a predicate's setup must execute inside each row's scope
+and preserve lazy reads; seek keys/bounds must preserve source evaluation
+order; positions may pass author-filtered rows but never rule-hidden keys.
+The parser must not discard a seek in a point write or rule read. Device
+metadata belongs to a projected row, including through named spreads, not
+to its enclosing ordinary object. Defaults need both the engine boundary
+and the insert expression's returned image to agree.
+
+Scope seams are minimal: bind/schema.rs installs defaults and initializes
+the new AST field; bind/residency.rs walks new expressions and bounds;
+engine/admission.rs, engine/native.rs and the corpus test harness handle the
+new IR fields/variants. E_STRUCTURAL_FANOUT policy is unchanged. No existing
+corpus case changed. The largest changed Rust file is 1,445 lines; this
+journal was already 2,678 lines and its explicit append-only rule is kept.
+Items 10–20 are complete; §5.9 and §8.7 were not implemented. Nothing was
+committed, pushed, tagged or published, and the existing LANE-BRIEF.md is
+untouched.
+
+## 2026-09-13 — 0.2.9 published: the pin after the language landing; the Expo module at 0.2.2
+
+The pin LLP 3000.007 §10.3 and §16 ask for. On main at `d4f29b705` and
+in the package: the meter (lane M, `c3b2d0f1b`), the ceremony bar (lane B,
+`b8acd113f`), `sql`, `check --fix` and `init --online`/`--expo` (lane P,
+`10324ebf5`), residency and the inferred sync audience (lane R,
+`047862694`), the client seams and the media cache (lane C, `7b2b8fc65`),
+the language in two parts (lane L, `cf2d13eea`; lane L2, `4fd2d2eb0`) and
+worker actions (lane X, `8e52cab71`). Not in it: §8.7 and §5.9 (lane W),
+which return to both reviewer families before they land (ruling 15).
+
+The publisher ran the whole suite first — 0 failures in 113 s — then
+built the production binary: 7,579,344 bytes, sha256 `6550376e…`, and
+proved the installed consumer (query complete and fresh, an online write
+`sent`, an offline write `pending`). The client tarball is 487,036 bytes
+over 33 files; the platform tarball 3,700,981 bytes. `snapback4@0.2.9`
+and `snapback4-darwin-arm64@0.2.9` are on npm; `metrics/publish.jsonl`
+has the record.
+
+The Expo module moved to 0.2.2 because the device crate changed under it
+(the media cache, the actions): `scripts/build-xcframework.sh` rebuilt
+the two slices, 13 MB together, and `snapback4-expo@0.2.2` went out at
+4.8 MB packed, 13.4 MB unpacked, 13 files. The lock file moved with the
+crate version.
+
+Landing L2 over X found the one semantic conflict a textual rebase cannot:
+L2 gave every bound program its own `notes`, and X's action binder built a
+program without them — a one-line initializer, caught by the compiler,
+not by the merge. The append-vs-append test files were rebuilt as main's
+text plus the lane's tail.
+
+The ceremony bar's "after" started on the published pin at 06:27 UTC,
+three serial runs on the unchanged instrument (its packet hashes match
+the "before"), from the lead's shell as before. Its record follows in
+`benchmarks/runs/`. The Clique rerun of §10.3 waits for W: the pin it
+runs on must carry §8.7, the hidden-collision friction the rerun exists
+to measure, and a three-model serial run costs eleven hours in the
+anchor. A fresh packet is prepared with pending pins.
+
+Two loose ends are written down rather than left in the lead's head:
+ruling 16 (the `Act<R>` card word) is open in the RFC's §14 with a
+recommendation, and the self-witnessing membership rule of §16 is being
+built as lane S — the "before" agents' original rule was own-row OR
+co-member, and inside a chat-pinned prefix the first disjunct is implied
+by the second, so the roster page was complete all along and the note
+was wrong.
+
+## 2026-09-13 — Lane S: a membership row witnesses its own equality
+
+Built LLP 3000.007 §16's commissioned absorption in core `engine/rules.rs`:
+within an `or`, `.principal = viewer` (either operand order) is implied by
+a same-table `exists` on a total unique plain index whose principal term
+is `viewer` and whose other terms are their own columns' fields. Literal
+terms, nullable/non-unique/words keys, different tables and an `and`
+disjunct do not qualify. `prefix_visibility` and the binder's
+N_NEVER_COMPLETE text/rewrite now share the deciding fields; `decided_true`
+and runtime rule evaluation are unchanged. The reads/search cards and
+README explain why the chat-pinned roster needs no second membership table.
+
+The new simulator membership fixture preserves the brief's table verbatim.
+Its deciding fields fall from 2 (`chatKey`, `principal`) to 1 (`chatKey`).
+All 3 alpha members see all 3 rows with `complete: true`; a member of a
+different chat and a principal with no memberships see 0 rows, also complete,
+with no cursor and the empty-range examined count. Bob's roster makes exactly
+1 rule probe for all 3 rows, whereas the viewer-pinned directory makes 0.
+Receipt aggregation stays complete through sent, delivered, read and leave.
+Literal-admin and foreign-table probes keep Bob's roster at 1 visible row
+and `complete: false`. Both device stores produce the same data, preserve
+privacy, and keep these online-only reads incomplete even when candidate
+rows are deliberately installed: a uniform rule is not a residency fact.
+
+Measured existing bound schemas: the app's 5 read rules, 106 read rules in
+the 15 loopbar fixtures named by metrics/loopbar.jsonl (sets A–E), and 40
+read rules in the 3 retained ceremony-before fixtures. Deciding-field sets
+shrank for 0 of these 151 read rules, and for 0 of all 604 read/write rules
+(including implicit deny rules and maintained tables). No existing test's
+completeness assertion changed; the complete Rust suite passed without
+editing any existing expectation or corpus case.
+
+Targeted checks: simulator membership 4/4; device membership selection 4/4
+(the new scenario runs on SQLite and memory); frontend self-witness 1/1;
+guide 8/8. `bash snapback4/scripts/test.sh`: 301 Rust passed, 0 failed,
+1 ignored; fixtures 9/9; client 108 passed, 1 failed; all builds and
+typechecks passed. The run took 507 s, including cold builds and a long
+pre-harness launch stall on the simulator device binary, which subsequently
+passed all 3 tests. The lone failure is Chromium SIGABRT before the React
+assertions: reproduced alone and on an untouched archive of base
+`d4f29b70528a3235c8ac82247fe84d8a8f9eb0a4` with Node 24.18.0. The current
+React source snapshot passed all 11 tests (0 skips) on expo-build-1000,
+Node 24.13.1. This is not a green local full-suite claim. Verbatim logs and
+commands are retained in `/private/tmp/lane-s-verification.md`.
+
+Learned: the sampled row can change whether equality short-circuits the
+probe, but cannot change the prefix's verdict; the negative cases must keep
+testing the completeness class even when a particular viewer sees all rows.
+The ceremony instrument, other lanes' engine files, meter, value forms and
+client TypeScript are untouched. No commit, push, tag or publication. Every
+changed source file stays below 1,500 lines; this journal was already 2,869
+lines and its explicit append-only instruction is preserved.

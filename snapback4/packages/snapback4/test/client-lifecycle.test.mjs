@@ -1073,7 +1073,7 @@ for (const tier of ["wasm", "native"]) {
     const bob = await f.open(tier, { name: `${tier}-bob`, persona: "bob" });
     const denied = bob.observe(thread, { conversationId: "c2", c: null });
     await until(() => denied.getSnapshot().denied?.code === "MEMBERSHIP_REQUIRED", "initial denied read");
-    assert.equal((await f.server.mutate(mutation("invite"), { conversationId: "c2", principal: "dev:bob" })).state, "sent");
+    assert.equal((await f.server.mutate(mutation("addMember"), { conversationId: "c2", principal: "dev:bob" })).state, "sent");
     await until(() => "data" in denied.getSnapshot(), "a require refusal must retain membership dependencies and recover");
   });
 

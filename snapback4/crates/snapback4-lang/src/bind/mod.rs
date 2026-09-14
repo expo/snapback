@@ -2,9 +2,11 @@
 //! problem as a located diagnostic.
 
 pub mod catalog;
+mod defaults;
 pub mod program;
 pub mod schema;
 pub mod residency;
+mod actions;
 
 use crate::ast::Document;
 use crate::diag::Diagnostic;
@@ -53,6 +55,7 @@ pub fn bind(documents: Vec<Document>) -> Bound {
             }
         }
     }
+    actions::bind(&catalog, &mut programs, &mut diagnostics);
     if diagnostics.is_empty() {
         programs.retain(|bound| match snapback4_core::engine::admission::check(&schema, &bound.program) {
             Ok(()) => true,
@@ -73,7 +76,8 @@ pub fn bind(documents: Vec<Document>) -> Bound {
         }
     }
     schema.operations = programs.iter().map(|bound| (bound.program.name.clone(), residency::execution(&schema, &bound.program))).collect();
-    let mut notes = completeness_notes(&catalog, &schema, &programs);
+    let mut notes: Vec<_> = programs.iter().flat_map(|p| p.notes.clone()).collect();
+    notes.extend(completeness_notes(&catalog, &schema, &programs));
     notes.extend(residency::maintain_notes(&catalog, &schema));
     Bound { schema, programs, personas, diagnostics, notes }
 }
@@ -205,10 +209,13 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             }
             let Some(index) = table.index(&scan.index) else { continue };
             let pinned: std::collections::BTreeSet<String> = index.columns().into_iter().take(scan.prefix.len()).collect();
-            let mut used = std::collections::BTreeSet::new();
-            table.rules.read.fields(&mut used);
+            let used = snapback4_core::engine::rules::deciding_fields(&scan.table, table, &table.rules.read);
             let unpinned: Vec<String> = used.difference(&pinned).cloned().collect();
-            let leading = unpinned.iter().map(|c| c.as_str()).chain(index.columns().iter().skip(scan.prefix.len()).map(String::as_str).map(|s| Box::leak(s.to_owned().into_boxed_str()) as &str)).collect::<Vec<_>>().join(", ");
+            let mut leading = unpinned.clone();
+            for column in index.columns().into_iter().skip(scan.prefix.len()) {
+                if !leading.contains(&column) { leading.push(column); }
+            }
+            let leading = leading.join(", ");
             notes.push(
                 Diagnostic::new(
                     &bound.site,

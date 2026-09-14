@@ -48,7 +48,7 @@ fn base64url(bytes: &[u8]) -> String {
     out
 }
 
-fn digest(token: &str) -> String {
+pub(crate) fn digest(token: &str) -> String {
     format!("{:x}", Sha256::digest(token.as_bytes()))
 }
 
@@ -79,6 +79,19 @@ pub fn open_session(store: &Store, principal: &str, kind: &str, now: i64,
 ) -> Result<Session, RuntimeError> {
     let session = new_session(principal, kind, now, SESSION_DAYS)?;
     insert_session(store.conn(), &session, now)?;
+    Ok(session)
+}
+
+/// A claim's non-renewable viewer session. The queue inserts it in the
+/// claim transaction and deletes it in the settlement transaction.
+// @ref LLP 3000.007#9.2 — the worker borrows the request principal only for its lease.
+pub(crate) fn action_session(conn: &Connection, principal: &str, now: i64, expires_at: i64) -> Result<Session, RuntimeError> {
+    if principal == crate::SYSTEM_PRINCIPAL || !crate::value::identity_fits(principal) {
+        return Err(RuntimeError::Auth("an action needs a signed-in principal".into()));
+    }
+    let mut session = new_session(principal, "action", now, 1)?;
+    session.expires_at = expires_at;
+    insert_session(conn, &session, now)?;
     Ok(session)
 }
 
@@ -124,6 +137,9 @@ pub fn rotate_session(
         )?;
         return Ok(None);
     };
+    if kind == "action" {
+        return Err(RuntimeError::Auth("an action session lasts only for its claim and cannot be refreshed".into()));
+    }
     let days = lifetime_ms.div_euclid(DAY_MS).clamp(1, 3_650);
     let session = new_session(&principal, &kind, now, days)?;
     let tx = store.conn().unchecked_transaction()?;

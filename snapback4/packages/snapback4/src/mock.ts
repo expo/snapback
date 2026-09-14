@@ -4,7 +4,7 @@
 // app flips. Its only job is to let the reference application be written
 // against the card before the mechanism exists. Nothing here is measured.
 
-import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
+import type { Act, Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 
 export type Row = Record<string, unknown> & { id: string; pending?: boolean };
 export type Tables = Record<string, Map<string, Row>>;
@@ -19,6 +19,7 @@ function isPage(value: unknown): value is Page<unknown> {
 }
 
 export interface MockOps {
+  readonly actions?: Record<string, (args: never, viewer: Principal | null, id: string) => unknown>;
   readonly queries: Record<string, (tables: Tables, args: never, viewer: Principal | null) => unknown>;
   /** Returns the ids of rows it created or changed, or a Refusal. */
   readonly mutations: Record<string, (tables: Tables, args: never, viewer: Principal | null, mint: () => string) => readonly string[] | Refusal>;
@@ -47,6 +48,7 @@ export function mockId(): string {
 }
 
 export function createMockClient(options: MockOptions): MockClient {
+  const actions = new Map<string, Promise<Act>>();
   const tables = options.tables;
   let link: Link = options.link ?? "online";
   let viewer = options.viewer;
@@ -89,6 +91,20 @@ export function createMockClient(options: MockOptions): MockClient {
   }
 
   const client: MockClient = {
+    async act(op, args, options_) {
+      const id = options_?.id ?? mockId();
+      if (link !== "online") return { denied: { code: link === "offline" ? "E_OFFLINE" : "E_AUTH", family: link === "offline" ? "link" : "auth", message: "an action needs an online signed-in client", retryable: link === "offline" }, id };
+      const key = `${viewer}:${op.name}:${id}`;
+      if (actions.has(key)) return actions.get(key)! as Promise<Act<never>>;
+      const handler = options.ops.actions?.[op.name];
+      if (!handler) return { denied: { code: "E_ACTION_UNKNOWN", family: "action", message: `unknown action ${op.name}` }, id };
+      const outcome = (async (): Promise<Act> => {
+        try { return { state: "done", id, result: await handler(args as never, viewer, id) }; }
+        catch (error) { return { state: "failed", id, why: { code: "E_ACTION_FAILED", family: "action", message: String(error) } }; }
+      })();
+      actions.set(key, outcome);
+      return outcome as Promise<Act<never>>;
+    },
     tables,
     async query(op, args) {
       return evaluate(op, args);

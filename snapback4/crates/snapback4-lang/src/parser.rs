@@ -9,6 +9,7 @@ use crate::print;
 
 mod expr;
 mod programs;
+mod actions;
 
 fn precedence(op: &str) -> Option<u8> {
     Some(match op {
@@ -36,7 +37,7 @@ struct Parser {
     document: Document,
 }
 
-const TOP_LEVEL: [&str; 16] = ["use", "table", "maintain", "channel", "query", "mutation", "job", "effect", "shape", "fn", "proc", "cursor", "schedule", "index", "unique", "deliver"];
+const TOP_LEVEL: [&str; 17] = ["use", "table", "maintain", "channel", "query", "mutation", "job", "action", "effect", "shape", "fn", "proc", "cursor", "schedule", "index", "unique", "deliver"];
 
 impl Parser {
     fn document(&mut self) {
@@ -56,6 +57,7 @@ impl Parser {
     fn top_level(&mut self) -> Fallible<()> {
         let token = self.peek().clone();
         match token.value.as_str() {
+            "action" => self.parse_action(),
             "use" => self.parse_use(),
             "table" => {
                 let table = self.parse_table()?;
@@ -358,8 +360,9 @@ impl Parser {
         if matches!(type_.kind, TypeKind::Cursor) {
             return Err(syntax_with(&name.site, "cursor is an operation argument type, not a table column", "use c: cursor ? on a query"));
         }
+        let default = if self.maybe("default") { Some(self.expression(0, &[])?) } else { None };
         self.newline()?;
-        Ok(ColumnDecl { name: name.value, type_, site: name.site })
+        Ok(ColumnDecl { name: name.value, type_, default, site: name.site })
     }
 
     fn parse_index(&mut self, unique: bool) -> Fallible<IndexDecl> {

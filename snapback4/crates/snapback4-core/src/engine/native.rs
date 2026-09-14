@@ -410,7 +410,7 @@ fn dispatch(runner: &mut Runner<'_>, job: &str, op: &str, request: &Json) -> Res
                 take: Bound::Literal(first as u32),
                 after,
                 before: None,
-                range: None,
+                range: None, filter: None,
                 opaque_cursor: false,
                 merge_site: None,
                 provenance: KeyProvenance::Computed,

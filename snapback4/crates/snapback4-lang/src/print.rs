@@ -50,7 +50,7 @@ pub fn expression(expr: &Expr) -> String {
 }
 
 pub fn read_expr(read: &ReadExpr) -> String {
-    let mut out = format!("{}[{}]", read.table, read.keys.iter().map(key_part).collect::<Vec<_>>().join(", "));
+    let mut out = format!("{}[{}]", read.table, read.keys.iter().map(key_part).chain(read.seeks.iter().map(|b| format!("{} {} {}", b.column, b.op, expression(&b.value)))).collect::<Vec<_>>().join(", "));
     if let Some(matching) = &read.matching {
         out.push_str(&format!(" matching {}", expression(matching)));
     }
@@ -63,6 +63,7 @@ pub fn read_expr(read: &ReadExpr) -> String {
     if let Some(index) = &read.index {
         out.push_str(&format!(" by {index}"));
     }
+    if let Some(filter) = &read.filter { out.push_str(&format!(" where {}", expression(filter))); }
     out
 }
 

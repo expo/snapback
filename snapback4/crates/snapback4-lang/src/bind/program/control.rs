@@ -306,15 +306,18 @@ impl Binder<'_> {
                 Ok((LoopDomain::Recurse(recurse), ty))
             }
             A::Call { name, args, site } if name == "range" => {
-                if args.len() != 2 {
-                    return Err(type_error(site, "range takes two integer literals", "for i in range(0, 10):"));
-                }
-                let start = literal_int(&args[0]).ok_or_else(|| type_error(args[0].site(), "range takes integer literals", "for i in range(0, 10):"))?;
-                let end = literal_int(&args[1]).ok_or_else(|| type_error(args[1].site(), "range takes integer literals", "for i in range(0, 10):"))?;
-                if end < start || end - start > 10_000 {
-                    return Err(unbound_loop(site, "range spans at most 10,000 steps", "for i in range(0, 10):"));
-                }
-                Ok((LoopDomain::LiteralRange { start, end_exclusive: end }, Ty::Int))
+                if args.len() != 2 { return Err(type_error(site, "range takes two int expressions", "for i in range(0, n):")); }
+                let (start, start_ty) = self.expr(&args[0], out)?;
+                let mut setup = Vec::new();
+                let (end, end_ty) = self.expr(&args[1], &mut setup)?;
+                let start = if setup.is_empty() { start } else { self.snapshot(start, out) };
+                out.extend(setup);
+                if start_ty != Ty::Int || end_ty != Ty::Int { return Err(type_error(site, "range takes two present ints", "for i in range(0, n):")); }
+                let domain = match (literal_int(&args[0]), literal_int(&args[1])) {
+                    (Some(start), Some(end_exclusive)) => LoopDomain::LiteralRange { start, end_exclusive },
+                    _ => LoopDomain::ExpressionRange { start, end_exclusive: end },
+                };
+                Ok((domain, Ty::Int))
             }
             A::Name { name, site } if self.scopes[0].contains_key(name) && self.binding(name).is_some_and(|binding| binding.runtime == *name) => {
                 let ty = self.lookup(name).expect("bound argument").clone();

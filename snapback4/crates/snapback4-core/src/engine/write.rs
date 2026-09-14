@@ -30,6 +30,20 @@ impl Runner<'_> {
 
     fn insert_mode(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
         self.refuse_engine_owned(table_name)?;
+        // @ref LLP 3000.007#5.4 — omitted defaults use the clock and viewer of the host running the insert.
+        let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
+        let row = if table.defaults.keys().any(|name| row.as_object().is_ok_and(|fields| !fields.contains_key(name))) {
+            let mut fields = row.as_object()?.clone();
+            for (name, default) in &table.defaults {
+                if !fields.contains_key(name) {
+                    let value = default.value(self.context.now.ok_or_else(|| RuntimeError::Input("write clock is not pinned".into()))?, &self.context.viewer);
+                    fields.insert(name.clone(), value);
+                }
+            }
+            let row = Value::Row(fields.into());
+            self.meter.heap(row.heap_bytes())?;
+            row
+        } else { row };
         let row = self.with_asset_facts(table_name, row)?;
         validate_row(self.schema, table_name, &row)?;
         if !self.check_rule(table_name, Effect::Insert, None, &row)? {

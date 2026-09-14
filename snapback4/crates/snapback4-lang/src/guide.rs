@@ -8,7 +8,9 @@
 //! on its own; one that does not compiles beside the language card's schema.
 
 /// The keyword cards, in the order `snapback4 guide` lists them.
-pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "rules", "sync", "residency", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "services", "presence", "bounds", "refusals", "personas"];
+#[path = "guide/actions.rs"]
+mod actions;
+pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "rules", "sync", "residency", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "services", "presence", "bounds", "refusals", "personas"];
 
 /// The contents of every ```quarry block in a card or a README.
 pub fn quarry(text: &str) -> Vec<String> {
@@ -119,7 +121,7 @@ table rooms:
   kind: enum('open', 'closed')        -- enum('a', 'b') | decimal S | money CUR [S] | json <=N | bytes <=N | image <=N [once] | video <=N
   tags: [text <=20] <=8               -- [type] <=N: a bounded list
   parentId: rooms ?                   -- `?` makes a column optional: null when absent. Every table has an implicit `id` and a unique `byId`
-  createdAt: time
+  createdAt: time default now          -- omitted on insert; evaluated on the writing host
   by byOwner: ownerId, createdAt, id  -- `by` orders; a scan pins the leading columns and pages along the rest
   read <- exists members[.id, viewer]                                     -- rules: allow | deny | public ['why'] | .col = viewer | .col != 'x' | exists t[..] | created t[..] | and | or | not
   insert <- .ownerId = viewer
@@ -237,7 +239,7 @@ fn stamp(roomId: rooms):                                             -- a helper
   return
 fn tally(n: int):
   total = 0
-  for i in range(0, 2):
+  for i in range(0, 1 + 1):
     total = total + n
   return total
 
@@ -246,7 +248,7 @@ query room(roomId: rooms):            -- a query reads; its result type is infer
 
 query thread(roomId: rooms, c: cursor ?):                            -- `cursor ?` is the page argument; an omitted optional argument is null
   require exists members[roomId, viewer] else NOT_MEMBER              -- a refusal with the program's own code
-  return messages[roomId] after c last 50 by byRoomTime { *, room: rooms[.roomId], count: messageCounts[.roomId] }   -- a page from a cursor, shaped: `*` spreads the row; a point read inside is null for a hidden row
+  return messages[roomId] after c last 50 by byRoomTime where .body != null and exists members[.roomId, viewer] { *, room: rooms[.roomId], count: messageCounts[.roomId] }   -- a page from a cursor, shaped: `*` spreads the row; a point read inside is null for a hidden row
 
 query inbox(c: cursor ?):
   return members[viewer] after c first 50 by byPrincipalRoom { roomId, room: rooms[.roomId], unread: messageCounts[.roomId] }
@@ -263,7 +265,7 @@ query ancestors(roomId: rooms):
 
 query digest(roomId: rooms):
   require exists members[roomId, viewer] else NOT_MEMBER
-  page = messages[roomId] last 100 by byRoomTime                     -- a page bound to a name; count, sum, slice, sort and shapes take it
+  page = messages[roomId, at >= now - 86400000] last 100 by byRoomTime                     -- a page bound to a name; count, sum, slice, sort and shapes take it
   (weeks, days) = divmod(count(page), 7)                             -- divmod binds quotient and remainder at once
   (lo, hi) = sorted(weeks, days)                                     -- two values in order
   counter = 0
@@ -280,7 +282,9 @@ query digest(roomId: rooms):
   quotient = counter / 7
   doubled = tally(counter)                                          -- a helper body also yields a value in an expression
   remainder = counter % 7                                          -- the same Euclidean parts as divmod; zero refuses E_DIV_ZERO
-  return { total: messageCounts[roomId], counter, offsets, label, labelSize: count(label), doubled, quotient, remainder, weeks, days, lo, hi, brief: isBrief(null), oldest: sort(slice(page, 0, 10), 'at') { id, at }, smaller: min(weeks, days), larger: max(weeks, days) }
+  sum = sum(page, .at)
+  grouped = group(page, 'authorId') { author: .key, count: count(.items) }
+  return { sum, grouped, first: first(page), last: last(page), at: at(page, 1), total: messageCounts[roomId], counter, offsets, label, labelSize: count(label), doubled, quotient, remainder, weeks, days, lo, hi, brief: isBrief(null), oldest: sort(slice(page, 0, 10), 'at') { id, at }, smaller: min(weeks, days), larger: max(weeks, days) }
 
 query mentions(body: text <=4000):
   return tokens(body)                 -- the @mentions in a text, without the @, at most 64: a bounded list
@@ -293,7 +297,7 @@ query online(p: principal):
   return connected[p]                 -- how many connections the principal holds open on the server; `exists connected[p]` tests (guide presence)
 
 mutation createRoom(name: text 1..80, kind: enum('open', 'closed'), tags: [text <=20] <=8):
-  room = insert rooms { id: new, name, ownerId: viewer, kind, tags, createdAt: now }   -- `new` mints an id; omit `id` and one is minted anyway
+  room = insert rooms { id: new, name, ownerId: viewer, kind, tags }   -- `new` mints an id; omit `id` and one is minted anyway
   insert members { roomId: room.id, principal: viewer, role: 'admin', joinedAt: now }
   upsert rooms[room.id] { createdAt: now }                            -- patches the existing room; name, owner, kind and tags stay
   return room card
@@ -339,7 +343,7 @@ job nightly(periodStart: time, periodEnd: time):                    -- the serve
       break                                                          -- ends this sweep; `return` ends the job
     stamp(r.id)
   chunk p in posts first 100 by byId:
-    for i in range(0, 2):                                            -- integer literals, at most 10,000 steps
+    for i in range(0, 2):                                            -- int expressions, under the step meter
       update posts[p.id] { score: p.score + i }
 schedule everyNight every 1d at 03:00: nightly                       -- once per period boundary of the server's clock: every 2m | 1h | 1d [at HH:MM]
 job rescoreNative(): native                                          -- a job whose body is the app's own Rust in snapback/native/, hosted as wasm (guide native)
@@ -355,6 +359,7 @@ narrow with `if x != null:`, `x ! else CODE`, `x ?? default`, or `require x
 != null else CODE`. `time - time` is an int of milliseconds; `time + int` a
 time. Text `+` concatenates two present texts. `count(text | page | list)` counts characters or items; `lower(text)`, `trim(text)`, `join(list, separator)`, `sum(page, .col)`, `sum(list)`, `min(a, b)`,
 `max(a, b)`, `slice(text | list, start, end)`, `sort(list, 'col', '-col')`,
+`group(list, 'col')`, `first(list)`, `last(list)`, `at(list, index)` (element or null),
 `tokens(text)`, `share(amount, list, member)`, `(q, r) = divmod(a, b)`,
 `(lo, hi) = sorted(a, b)`. `x = expr` binds or reassigns a local with a compatible type; reassignment resets its refinements. Arguments cannot be shadowed. A program ends
 with `return [value]`, or with its last expression, or with its final write.
@@ -362,33 +367,14 @@ with `return [value]`, or with its last expression, or with its final write.
 
 ## Left out on purpose, and the idiom
 
-- `cond ? a : b` → `a if cond else b`.
-- `elif` → `else if cond:`.
-- `proc` → `fn`; a helper body ends in `return expr` or a bare `return`.
-- `while`, unbounded loops → `for` over a page, a bounded list, `range(a, b)` or `tokens(text)`; `walk` for a chain.
-- `where`, filters → an index whose prefix pins the predicate; the rest belongs in the read rule.
-- `before c` → `after c`, and reverse the display order in the client.
-- Interpolation and formatting → text `+`, `slice`, `lower`, `trim`, `join`; richer formatting belongs in the client.
-- Floats and decimal literals → `decimal S` and `money CUR S` columns hold integer minor units; number literals are integers within ±(2^53 − 1).
-- `len(x)` → `count(x)`.
-- `-> type` on a program → the result type is inferred and written to api.ts.
-- `#` and `//` comments → `--`.
-- `shape x from m`, imports → every `.q` file beside schema.q shares one namespace; declare once, use anywhere.
-- Snapback 2's `deliver`, `channel`, `cursor` declarations, `device`, `oblivious`, top-level `index` and `unique` → `sync`; presence lives in the client; indexes live in the table block.
-- `system` in a rule → `deny`; the system principal consults no rules.
-- `E_` codes in `require` → that namespace is the platform's.
-- `time + time`, `time * n` → subtract two times for an int, add an int to a time.
-- `<` on an optional value, `not a = b` → narrow first; `not` binds tightest, so write `not (a = b)` or `a != b`.
-- Writes and `new` in a query → a mutation.
-- A `for` over a page in a mutation past its cap → a mutation loops over one complete schema-capped group (`cap N by cols`, `first N`); everything wider is a job's `chunk`.
-- `effect x from m` → `effect x`; the body is a worker's (`snapback4/worker`), never the engine's.
-- Substring, stemmed, phrase or ranked search, `like`, `contains` → `words(cols)` in an index and `matching q`: every term a prefix of some word (guide search).
-- Presence tables, heartbeats, typing → `connected[p]` for the connected set; typing lives in the client.
-- Service accounts as rows, an admin flag, `system` → `viewer = 'service:name'` in a rule (guide services).
+- `while` and recursion → `for` over a page, list, `range(a, b)` with int expressions, or `tokens(text)`; `walk` for a chain.
+- Floats → integer minor units in `decimal S` and `money CUR S`, or a native job.
+- A typed map with dynamic keys → `group(list, 'col')`, whose result is a list of `{ key, items }` groups in first-seen order.
+- Guessed spellings are refused with `E_QUARRY_UNSUPPORTED`; `check --fix` applies the exact rewrite: `cond ? a : b` → `a if cond else b`; `a?.b` → `a.b if a != null else null`; `len(x)` → `count(x)`; `elif` → `else if`; `proc` → `fn`; `//` and `#` → `--`.
 
 Cards: `snapback4 guide <keyword>` — types, indexes, rules, sync, residency, expire,
 assets, reads, shapes, writes, programs, jobs, native, feeds, search,
-effects, services, presence, bounds, refusals, personas. `snapback4 why
+effects, actions, services, presence, bounds, refusals, personas. `snapback4 why
 <CODE>` explains a refusal.
 "##;
 
@@ -437,7 +423,13 @@ narrow with `if x != null:`, `x ! else CODE`, or `x ?? default`. `time`
 arithmetic: `time - time` is an int, `time + int` a time. `/` and `%` give
 the Euclidean quotient and remainder of ints or times; zero refuses `E_DIV_ZERO`.
 Text `+` concatenates; `count(text)` counts characters. Loop-built strings and
-lists are heap-bound; a write still validates their actual column lengths."##,
+lists are heap-bound; a write still validates their actual column lengths.
+A column may end with `default <literal | now | viewer>`. Omitted insert
+fields take their defaults before rules run; explicit values, including null
+on an optional column, win. `now` and `viewer` use the writing host's context.
+Pages, lists and shaped collections share the list operations: `sort`, `slice`,
+`count`, `sum`, `group`, `first`, `last`, `at`, `join` and `for`. Their elements
+must still fit the operation: `join` joins texts; `sum(page, .amount)` projects numbers."##,
         "indexes" => r##"# Indexes
 
 ```quarry
@@ -727,8 +719,8 @@ query readForms(roomId: rooms, messageId: messages, c: cursor ?):
   must = messages[messageId] ! else NOT_FOUND                 -- the row, or refuse with the code
   member = exists members[roomId, viewer]                    -- true or false; needs an index over exactly these columns
   admin = exists members[roomId = roomId, principal = viewer, role = 'admin'] by byRoomPrincipalRole   -- named keys; `by` names the index when two match
-  oldest = messages[roomId] first 20 by byRoomTime           -- a page, ascending, from the start
-  newest = messages[roomId] after c last 20 by byRoomTime    -- a page, descending, from a cursor
+  oldest = messages[roomId, at < must.at] last 20 by byRoomTime           -- the nearest earlier rows
+  newest = messages[roomId] after c last 20 by byRoomTime where .body != null    -- a page, descending, from a cursor
   everyone = profiles first 50 by byHandle                   -- the whole table's page: the empty prefix, spelled without brackets
   merged = merge posts last 20 by byAuthorTime:              -- one ordered page over several prefixes of one index
     [viewer]
@@ -738,16 +730,32 @@ query readForms(roomId: rooms, messageId: messages, c: cursor ?):
 ```
 
 The table names are the language card's. A page's read rule is checked
-once when the prefix decides it, else per row, and a page whose rule reads
-a column the scan does not pin is never `complete` (N_NEVER_COMPLETE names
-the index that would decide it). Modifiers come in one order: `after c`,
-then `first N` or `last N`, then `by index`. A page a query returns without
-a cursor cannot be continued: when more rows exist the card reads
+once when the prefix decides it, else per row, and a page whose rule still depends
+on a column the scan does not pin is never `complete` (N_NEVER_COMPLETE names
+the index that would decide it). With a total unique `(chatKey, principal)`
+key on t, `.principal = viewer or exists t[.chatKey, viewer]` is decided by
+the chat alone because the row is its own witness, so a roster page pinned
+by the chat is complete and no second table is needed.
+Modifiers come in one order: `after c`,
+then `first N` or `last N`, then `by index`, then optional `where predicate`. A page a query returns without
+a cursor cannot be continued: an unfiltered page with more rows reads
 `complete: false` with no `next` (N_NO_CURSOR); declare `c: cursor ?` and
 page with `after c`. Uniform merge lanes with a unique index or one ending
 in `id` read one head each, then advance the winning lanes; `check` notes
 a merge past 50 lanes (N_WIDE_MERGE). The meter counts examined rows and
-probes; a query it cuts returns what it found and `complete: false`."##,
+probes; a query it cuts returns what it found and `complete: false`.
+`t[prefix, col >= start, col < end]` seeks on the first unpinned index column;
+its bounds have that column's type. A lone `where .col >= start` on that
+column lowers to the seek and emits N_SEEK naming the key spelling.
+Other `where` predicates run after the read rule, with `.` bound to each row.
+Comparisons, `and`/`or`/`not`, arguments, `viewer`, literals and indexed reads
+are metered; a predicate read is a probe. Only rows passing both count toward N.
+A uniformly authorized filtered page is complete when it holds N matches or
+reaches the range's end, including without a cursor; a meter cut is incomplete.
+A filled page positions `next` after its last returned row. A meter-cut page
+positions after its last rule-visible examined row, even if the filter rejected
+it, never after a hidden row. A non-uniform page stays incomplete; a cut in a
+hidden run with no rule-visible row ends on an empty capped page."##,
         "shapes" => r##"# Shapes
 
 ```quarry
@@ -764,7 +772,10 @@ query shapeForms(roomId: rooms, messageId: messages, c: cursor ?):
 The table and shape names are the language card's. A shape over a page is
 a bounded loop; its fields are the row's columns by bare name, `*` for all
 of them, `...shape` for a named shape's fields, and `name: expr` with `.`
-as the row. A shape is the only projection: there is no `select`."##,
+as the row. A shape is the only projection: there is no `select`.
+A row-based shape keeps `pending?: boolean` from its base, including `*`, named
+spreads and subsequent shapes. It is this device's unconfirmed change, absent
+after confirmation; it is not a schema column or metadata on a containing record."##,
         "writes" => r##"# Writes
 
 ```quarry
@@ -778,6 +789,8 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
   return { a: a.id, b }
 ```
 
+Defaults fill missing insert columns on the writing host, including the insert
+branch of `upsert`; updates and existing-row upserts never reapply defaults.
 `upsert` inserts or patches: on an existing row, unnamed columns keep their
 values; on an absent row, a missing required column refuses `E_INPUT`, naming
 the column. An explicit null clears an optional column.
@@ -1177,10 +1190,14 @@ so. Every further term must be a prefix of some word of the row ("cof
 car" finds "COFFEE for Carol"). Mid-word text does not match; an empty
 search matches nothing, not everything; an expired row is gone at once;
 an edit re-tokenizes. A uniform scope (the rule decided by the room)
-costs one verdict per word; the unscoped `byWords` under a per-room rule
+costs one verdict per word; with a total unique `(chatKey, principal)` key
+on t, `.principal = viewer or exists t[.chatKey, viewer]` is decided by the
+chat alone because the row is its own witness, so a roster page pinned by
+the chat is complete and no second table is needed. The unscoped `byWords` under a per-room rule
 checks the rule per row and is never `complete` (`N_NEVER_COMPLETE` names
 it) — search across every room on the device instead, where the
 partition holds exactly what the viewer may read, offline included."##,
+        "actions" => actions::CARD,
         "effects" => r##"# Effects: the outside world, performed by a worker
 
 ```quarry
@@ -1300,9 +1317,14 @@ mutation aborts with E_BOUND naming the meter, the ceiling and the site
 (never the count: it would measure rows the viewer may not read).
 `snapback4 check --cost` prints each site's structural class;
 `snapback4 test` prints the numbers on your data. A loop is bounded
-by a page's `first N`, a list's `<=N`, `range`'s literals, `walk`'s depth,
+by a page's `first N`, a list's `<=N`, `range`'s int expressions, `walk`'s depth,
 or `tokens`' 64. An accumulated list is bounded by the heap meter and its
-iterations by the step meter. `while` stays refused."##,
+iterations by the step meter. `while` stays refused.
+`range(a, b)` evaluates int expressions once and iterates under the step meter,
+without materializing the range. `check --cost` prints `steps ≤ meter`, a
+filtered scan as `filter over ≤ examined ceiling`, its reads as `probe × examined`,
+and a seek as a prefix. Sorting or grouping a page only processes that page.
+"##,
         "refusals" => r##"# Refusals
 
 Every refusal is `{ code, family, message, site?, rewrite?, guide?, rule?,
@@ -1310,7 +1332,7 @@ retryable? }`: `code` and `family` are stable, `rewrite` compiles, `guide`
 names a card, `rule` is the program's own code on a `require` refusal, and
 `retryable` says the same request may succeed later. The engine's families:
 input, schema, auth, rule (your `require` codes), constraint, bound, op,
-asset, prediction, generation, store; the client adds link (the server is
+asset, action, prediction, generation, store; the client adds link (the server is
 unreachable) and client (the client itself refused, as after `close()`).
 `snapback4 why <CODE>` explains one. Reads never raise a rule refusal: a
 hidden row is null, and a page omits it."##,
@@ -1359,6 +1381,10 @@ refused. The default limit is 200, with a notice when more rows exist."##,
 /// Every refusal code `why` explains, with its family. A program's own
 /// `require` codes are the author's and are explained by the program.
 pub const CODES: &[(&str, &str)] = &[
+    ("E_ACTION_PENDING", "family action, retryable — the request is durable but the handler has not settled within the wait; repeat client.act with the same id (guide actions)."),
+    ("E_ACTION_UNKNOWN", "family action — no declared action or recorded request is available under this name and id for this viewer (guide actions)."),
+    ("E_ACTION_LEASE", "family action — this claim expired or no longer owns the request; settle with the current claim's session.token in x-snapback-action-lease (guide actions)."),
+    ("E_ACTION_FAILED", "family action — the handler gave up or exhausted eight attempts; why.message is its error (guide actions)."),
     ("E_SQL_READ_ONLY", "developer SQL accepts exactly one SELECT or WITH … SELECT. Writes, attachment, pragmas and side effects are refused; guide personas."),
     ("E_SQL_INTERNAL", "developer SQL reads only generated application-table views. Raw r/i, internal tables and SQLite metadata are refused; guide personas."),
     ("N_NOW_SERVER", "a query now reads a server-only site; why names it and the rewrite. See guide residency."),
@@ -1418,6 +1444,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("N_NO_HORIZON", "a note, not an error — a synced table with no `last N by index` horizon delivers every row of every group a device holds, and keeps delivering as the table grows; a public table of posts, or a group's receipts, then costs every cold start all of it. Declare `sync ... last 500 by <index>` (the newest N per group; older rows stay readable online and a local read past them says `complete: false`), or bound the group with a `cap`."),
     ("N_WIDE_MERGE", "a note, not an error — a merge visits every source lane. Uniform lanes without setup and with a non-nullable unique index or one ending in id read one head each, then advance the winning lanes; other lanes read a page each. Discovery, rule probes, lookahead, duplicates and expired rows still consume the meter. For frequent reads over many accounts, write entries per reader on the way in, sync to .reader, and read one page (guide feeds)."),
     ("N_NO_CURSOR", "a note, not an error — a query returns a page with no cursor argument, so it cannot continue: when more rows exist than the page holds the card reads `complete: false` with no `next`. Declare `c: cursor ?` and page with `after c`."),
+    ("N_SEEK", "a where on the next index column is a seek; write it in the key, with the comparison after the pinned prefix."),
     ("N_NEVER_COMPLETE", "a note, not an error — a page whose read rule reads a column the scan does not pin is `complete: false` on the server whatever it finds; the note names the index that would decide it, or read the page on the device."),
     ("NOT_FOUND", "the program's own code for a write whose row does not exist (a direct update or delete of a missing point), and the conventional code for `t[key] ! else NOT_FOUND`."),
 ];

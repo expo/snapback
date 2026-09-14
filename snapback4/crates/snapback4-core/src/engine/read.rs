@@ -193,6 +193,7 @@ impl Runner<'_> {
         let index = table.index(&read.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", read.table, read.index)))?;
         self.read_tables.insert(read.table.clone());
         self.meter.at(&read.site);
+        if self.filter_depth > 0 && !self.meter.charge(MeterKind::RuleProbes, 1)? { return Ok(Value::Null); }
         if self.device && table.sync.is_none() {
             self.unknown_fact(&read.table, &read.index, &key, &read.site);
         }
@@ -430,6 +431,7 @@ impl Runner<'_> {
         }
         let mut visible: Vec<Value> = Vec::new();
         let mut keys: Vec<Vec<u8>> = Vec::new();
+        let mut last_rule_visible: Option<Vec<u8>> = None;
         let mut has_more = false;
         let mut capped = false;
         let mut uniform_verdict: Option<bool> = always_visible.then_some(true);
@@ -495,12 +497,25 @@ impl Runner<'_> {
                         break 'outer;
                     }
                     let Some(row) = aggregate else { continue; };
+                    last_rule_visible = Some(key.clone());
+                    if let Some(filter) = &scan.filter {
+                        let prior = self.env.insert("$filter".into(), row.clone());
+                        self.filter_depth += 1;
+                        let matched = self.expr(filter);
+                        self.filter_depth -= 1;
+                        match prior { Some(value) => { self.env.insert("$filter".into(), value); }, None => { self.env.remove("$filter"); } }
+                        let matched = matched?.as_bool()?;
+                        self.meter.at(&scan.site);
+                        if self.meter.capped_at.is_some() { capped = true; break 'outer; }
+                        if !matched { continue; }
+                    }
                     if visible.len() == take {
                         has_more = true;
                         break 'outer;
                     }
                     visible.push(row);
                     keys.push(key.clone());
+                    if scan.filter.is_some() && visible.len() == take { has_more = true; break 'outer; }
                 } else if visibility.uniform {
                     // One hidden row hides the prefix: stop without reading
                     // it, and at the cost of an empty range.
@@ -523,16 +538,15 @@ impl Runner<'_> {
         {
             self.unknown_fact(&scan.table, &scan.index, &prefix, &scan.site);
         }
-        if self.page_depth == 0 && !scan.opaque_cursor && has_more {
+        if self.page_depth == 0 && !scan.opaque_cursor && has_more && scan.filter.is_none() {
             self.page_overflow = true;
         }
         if self.page_depth == 0 && scan.opaque_cursor {
             let components = index.components.len();
-            // A capped page continues from its last visible row whether or not
-            // the range went on, and an empty capped page is the end: the
-            // presence of `next` then says nothing about hidden rows.
-            let continues = if capped || self.non_uniform { !visible.is_empty() } else { has_more };
-            let next = if continues { keys.last().and_then(|key| crate::key::decode(key)).map(|values| values.into_iter().take(components).skip(prefix.len()).collect()) } else { None };
+            // @ref LLP 3000.007#5.6 — a full page positions after its last result; a cut may pass filter rejects, never rule-hidden keys.
+            let position = if visible.len() == take { keys.last() } else { last_rule_visible.as_ref().or_else(|| keys.last()) };
+            let continues = if capped || self.non_uniform { position.is_some() } else { has_more };
+            let next = if continues { position.and_then(|key| crate::key::decode(key)).map(|values| values.into_iter().take(components).skip(prefix.len()).collect()) } else { None };
             self.pages.insert(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: prefix.len(), next });
         }
         Ok((visible, keys))
