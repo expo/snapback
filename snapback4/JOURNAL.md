@@ -5054,3 +5054,29 @@ preserves the current and historical measurements separately. The
 [core-owner follow-up](../issues/20260914-snapback4-membership-feed-query-cost.md)
 now calls for internal query cost decomposition. No core code, authority
 cache, ceiling or client contract changed, and no new speedup is claimed.
+
+
+## 2026-09-14 — encode sync replies from their existing values
+
+The performance lane extends the existing borrowed query-wire encoding to
+snapshot and stream replies. Each reply owns its original events, borrows
+their plain values during serialization, and drops the rows before socket
+I/O. Full wire fields, explicit nulls, event order, held/joined groups,
+acknowledgements, cursors and the bounded response writer are unchanged.
+No core, reader, transaction, auth or client-contract change is involved.
+
+On fixed 0.2.12 source, six native Linux A/B runs passed all 9,600 timed
+calls and their ordinary-auth/full-page proofs. A 4,000-event first snapshot
+at C1 falls 38.832 → 25.873 ms p50 and 45.992 → 28.541 ms p95. C8 first-page
+p50 is effectively flat, and stream C8 p99/maximum regress about 10%.
+The [comparison record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
+preserves every gain and loss; a [tail follow-up](../issues/20260914-snapback4-sync-concurrent-tail-latency.md)
+remains open. These warm source-built measurements do not establish device,
+realtime, cold-cache or competitor performance.
+
+The actual native production qualification passed 71/73 baseline/candidate
+CLI tests; both variants passed the HTTP bounds suite (nine reported tests,
+including eight nested cases) and 32 normalized ordinary-auth response pairs. Two independent formal calculations reconcile.
+The failed V1 smoke and first independent calculator attempt remain excluded
+and retained. The source and evidence have independent reviews; publication
+qualification and registry verification are separate work.
