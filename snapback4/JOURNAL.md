@@ -6356,3 +6356,298 @@ ref-check: ok — 474 LLP docs, 8849 refs in 22825 files, 0 errors, 0 unchecked
 No implementation work is deferred; the remaining external verification is
 Chromium outside this sandbox. The inherited root caps overflow remains
 untouched. The final working tree contains only the 19 intended lane files.
+
+
+## 2026-09-14 — lane D-design: filtered, bucketed and ordered maintains (LLP 3000.007 §20.9)
+
+Built a proposal in LLP 3000.007 §20.9 and an opt-in measurement in
+`crates/snapback4-sim/tests/maintain_measurement.rs`; no production code,
+parser, guide, README, value serialization, ceiling or existing corpus case
+changed. Base: `56cdedba6a8ff343c8d297b246b7431824ef0241`.
+
+Orientation: LLP 3000 §6–§7 (seven invariants, current expiry and delivery
+semantics), LLP 3000.007 §6, §8, §14, §18 and §20 (residency, explicit
+aggregate disclosure, accepted rulings and evidence), and LLP 3000.004
+(the rank recipe) govern this proposal. The current maintain schema, write,
+live-read, successor and activation paths were read alongside the language
+card and package README. `NOT-DOING.md` keeps jobs bounded and rules out
+exact horizon maintenance, time in rules, relevance scoring and a second
+language. No review or author acceptance is claimed; the hand-off is to the
+author for the four questions in §20.9.7, then to the implementation lane.
+
+Proposed: a closed row-local filter; UTC day/hour and literal-duration
+buckets; ordinary bounded row pages over multi-column maintains for reaction
+chips; ordinary value indexes for non-expiring maintained groups. The existing
+source cap bounds the number of distinct chip rows. Full-key maintain reads
+stay scalar. The value index reuses the store's existing target-write path;
+`maintain top N` would need that candidate index anyway after a winner falls.
+Exact trailing-day Trending with zero-like candidates, joins for author
+attribution, and per-recipient unread watermarks remain explicit recipes.
+The readable aggregate is still a declared disclosure channel, including
+filter and computed-key membership; a filter is not anonymization.
+
+What I learned: a paged rebuild is not yet bounded adoption. The base scans
+256 rows at a time but keeps all group totals in a map and publishes using an
+unbounded meter in one transaction. The proposal prepares disk-backed target
+state in bounded durable chunks and publishes the generation once, with a
+write pause pending the author's ruling. The other questions are the rank
+scope, incomplete read-only `check` assessment, and whether aggregate retention
+should continue to default to until-revoked when its source retains history.
+No acceptable write-pause duration is inferred from a debug memory store.
+
+The read-only Clique evidence's 366,624 row writes / 1,047 chunks belong to
+`insights.backfill`, including derived writes; they are not distinct source
+rows or the separate reaction-cache job. The shortened digest's 120,000 ms
+period at epoch origin is why the closed key set includes a literal bucket
+rather than just calendar days. Counts do not replace lists of reactors or
+cross-row unread logic.
+
+### Measurement numbers
+
+Command, from `snapback4/`:
+
+```sh
+cargo test -p snapback4-sim --test maintain_measurement -- --ignored --nocapture > /private/tmp/lane-d-maintain-measurement.log 2>&1
+```
+
+One run, debug, SQLite `:memory:`, no sync, 1,000 group ids, small synthetic
+rows, on the shared loaded host (partly concurrent with the full suite).
+Every mode seeds an independent store before timing adoption. `none` adopts
+an identical schema and is an identity/no-op control, not a scan baseline.
+`filter_proxy` uses a stored 0/1 flag (75% true seed rows); `key_proxy` uses
+that flag plus a stored bucket. Neither measures the unimplemented predicate
+or bucket evaluator. Chips have 100,000 distinct groups across 50,000 item
+ids; the value index is added to that existing compiled schema only inside
+the measurement. It does not become a parser feature.
+
+| Source | Source rows | Mode | Target rows | Adoption ms |
+| --- | ---: | --- | ---: | ---: |
+| posts | 50000 | none | 0 | 0.533 |
+| posts | 50000 | count | 1000 | 2337.643 |
+| posts | 50000 | filter_proxy | 750 | 2360.927 |
+| posts | 50000 | key_proxy | 37500 | 4716.384 |
+| messages | 100000 | none | 0 | 0.467 |
+| messages | 100000 | count | 1000 | 4967.736 |
+| messages | 100000 | filter_proxy | 750 | 5272.848 |
+| messages | 100000 | key_proxy | 75000 | 9678.313 |
+| reactions | 100000 | none | 0 | 0.618 |
+| reactions | 100000 | chips | 100000 | 12757.363 |
+| reactions | 100000 | rank_index | 100000 | 12120.141 |
+
+Per-write times are µs, 200 observations per operation/mode. `move` changes
+group, bucket, flag to false, and emoji; for chips it deletes/creates a group,
+not an in-place value increment. The meters below are the last actual sample,
+including source work. Their current aggregate internals are not completely
+charged; §20.9 specifies the additional accounting the new paths need.
+
+| Source | Mode | Operation | p50 µs | p95 µs | Last sample meters |
+| --- | --- | --- | ---: | ---: | --- |
+| posts | none | add | 100.334 | 169.458 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":13,"heap_bytes":1379,"output_bytes":169,"rows_written":1}` |
+| posts | none | move | 132.708 | 200.833 | `{"examined":1,"index_entries":2,"rule_probes":0,"steps":12,"heap_bytes":1788,"output_bytes":170,"rows_written":1}` |
+| posts | none | remove | 63.167 | 102.833 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":6,"heap_bytes":40,"output_bytes":6,"rows_written":1}` |
+| posts | count | add | 114.041 | 153.041 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":13,"heap_bytes":1379,"output_bytes":169,"rows_written":2}` |
+| posts | count | move | 178.125 | 237.167 | `{"examined":1,"index_entries":2,"rule_probes":0,"steps":12,"heap_bytes":1788,"output_bytes":170,"rows_written":3}` |
+| posts | count | remove | 89.791 | 117.750 | `{"examined":0,"index_entries":4,"rule_probes":0,"steps":6,"heap_bytes":40,"output_bytes":6,"rows_written":2}` |
+| posts | filter_proxy | add | 128.083 | 214.209 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":13,"heap_bytes":1379,"output_bytes":169,"rows_written":2}` |
+| posts | filter_proxy | move | 158.417 | 232.625 | `{"examined":1,"index_entries":4,"rule_probes":0,"steps":12,"heap_bytes":1788,"output_bytes":170,"rows_written":2}` |
+| posts | filter_proxy | remove | 70.042 | 118.459 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":6,"heap_bytes":40,"output_bytes":6,"rows_written":1}` |
+| posts | key_proxy | add | 133.917 | 214.917 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":13,"heap_bytes":1379,"output_bytes":169,"rows_written":2}` |
+| posts | key_proxy | move | 173.791 | 278.917 | `{"examined":1,"index_entries":4,"rule_probes":0,"steps":12,"heap_bytes":1788,"output_bytes":170,"rows_written":2}` |
+| posts | key_proxy | remove | 68.625 | 141.125 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":6,"heap_bytes":40,"output_bytes":6,"rows_written":1}` |
+| messages | none | add | 94.000 | 149.833 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":13,"heap_bytes":1379,"output_bytes":169,"rows_written":1}` |
+| messages | none | move | 131.333 | 212.375 | `{"examined":1,"index_entries":2,"rule_probes":0,"steps":12,"heap_bytes":1788,"output_bytes":170,"rows_written":1}` |
+| messages | none | remove | 62.750 | 125.958 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":6,"heap_bytes":40,"output_bytes":6,"rows_written":1}` |
+| messages | count | add | 121.750 | 175.250 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":13,"heap_bytes":1379,"output_bytes":169,"rows_written":2}` |
+| messages | count | move | 179.417 | 264.250 | `{"examined":1,"index_entries":2,"rule_probes":0,"steps":12,"heap_bytes":1788,"output_bytes":170,"rows_written":3}` |
+| messages | count | remove | 82.291 | 148.875 | `{"examined":0,"index_entries":4,"rule_probes":0,"steps":6,"heap_bytes":40,"output_bytes":6,"rows_written":2}` |
+| messages | filter_proxy | add | 129.792 | 225.459 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":13,"heap_bytes":1379,"output_bytes":169,"rows_written":2}` |
+| messages | filter_proxy | move | 165.792 | 251.792 | `{"examined":1,"index_entries":4,"rule_probes":0,"steps":12,"heap_bytes":1788,"output_bytes":170,"rows_written":2}` |
+| messages | filter_proxy | remove | 69.208 | 109.125 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":6,"heap_bytes":40,"output_bytes":6,"rows_written":1}` |
+| messages | key_proxy | add | 167.875 | 279.375 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":13,"heap_bytes":1379,"output_bytes":169,"rows_written":2}` |
+| messages | key_proxy | move | 218.291 | 361.792 | `{"examined":1,"index_entries":4,"rule_probes":0,"steps":12,"heap_bytes":1788,"output_bytes":170,"rows_written":2}` |
+| messages | key_proxy | remove | 77.667 | 99.375 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":6,"heap_bytes":40,"output_bytes":6,"rows_written":1}` |
+| reactions | none | add | 125.667 | 149.208 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":13,"heap_bytes":1379,"output_bytes":169,"rows_written":1}` |
+| reactions | none | move | 162.292 | 199.542 | `{"examined":1,"index_entries":2,"rule_probes":0,"steps":12,"heap_bytes":1788,"output_bytes":170,"rows_written":1}` |
+| reactions | none | remove | 77.542 | 95.709 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":6,"heap_bytes":40,"output_bytes":6,"rows_written":1}` |
+| reactions | chips | add | 145.500 | 201.541 | `{"examined":0,"index_entries":4,"rule_probes":0,"steps":13,"heap_bytes":1379,"output_bytes":169,"rows_written":2}` |
+| reactions | chips | move | 211.000 | 376.458 | `{"examined":1,"index_entries":6,"rule_probes":0,"steps":12,"heap_bytes":1788,"output_bytes":170,"rows_written":3}` |
+| reactions | chips | remove | 94.625 | 111.917 | `{"examined":0,"index_entries":4,"rule_probes":0,"steps":6,"heap_bytes":40,"output_bytes":6,"rows_written":2}` |
+| reactions | rank_index | add | 158.917 | 257.584 | `{"examined":0,"index_entries":5,"rule_probes":0,"steps":13,"heap_bytes":1379,"output_bytes":169,"rows_written":2}` |
+| reactions | rank_index | move | 227.125 | 474.333 | `{"examined":1,"index_entries":8,"rule_probes":0,"steps":12,"heap_bytes":1788,"output_bytes":170,"rows_written":3}` |
+| reactions | rank_index | remove | 96.333 | 142.875 | `{"examined":0,"index_entries":5,"rule_probes":0,"steps":6,"heap_bytes":40,"output_bytes":6,"rows_written":2}` |
+
+No speedup is claimed from the indexed adoption's lower time in its separate
+trial. The sound measurements are its observed work and its reuse of an
+existing path. Remaining measurements are explicit in §20.9.5: actual new
+forms, value changes, durable/chunk/peak-memory costs, expiry group index,
+full fixture distribution, replicated bytes and both device stores. This
+prototype adds no regression fix; a red-before/green-after regression is not
+applicable to a measurement of unchanged base behavior. The implementation
+lane is required to demonstrate that transition for each new behavior.
+
+### Commands and verbatim summaries
+
+The targeted measurement's summary:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 111.57s
+```
+
+Published-surface control, from `snapback4/`:
+
+```sh
+cargo test -p snapback4-lang --test guide > /private/tmp/lane-d-guide.log 2>&1
+```
+
+```text
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+```
+
+Full suite, from the repository root:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh > /private/tmp/lane-d-full-suite.log 2>&1
+```
+
+All Rust test summaries and the script/fixture/client summaries, verbatim:
+
+```text
+== cargo build
+-- ok: cargo build (11 s)
+== wasm build
+-- ok: wasm build (15 s)
+== package typecheck
+-- ok: package typecheck (1 s)
+== package build
+-- ok: package build (1 s)
+== chat app check
+-- ok: chat app check (1 s)
+== cargo test
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.45s
+test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.30s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.17s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.65s
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.80s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.19s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.24s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.82s
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 4.83s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 24.55s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.42s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+-- ok: cargo test (118 s)
+== chat app typecheck
+-- ok: chat app typecheck (1 s)
+== expo app typecheck
+-- ok: expo app typecheck (1 s)
+== fixture wrapper tests
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10387.962417
+-- ok: fixture wrapper tests (11 s)
+== client tests
+ℹ tests 137
+ℹ suites 0
+ℹ pass 136
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 44580.211625
+-- FAIL: client tests (45 s)
+== 1 failure(s) in 147 s
+```
+
+Rust totals obtained by summing the individual lines: 567 passed, 0 failed,
+2 ignored (one is this measurement). No lifecycle timeout occurred. The one
+client failure is Chromium SIGABRT in `react.test.mjs`, the known sandbox
+artifact. It reproduced alone, from `snapback4/`:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+node --test packages/snapback4/test/react.test.mjs > /private/tmp/lane-d-react-isolated.log 2>&1
+```
+
+```text
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 646.542083
+```
+
+Base verification: `git diff --exit-code
+56cdedba6a8ff343c8d297b246b7431824ef0241 -- snapback4/packages
+snapback4/crates/snapback4 snapback4/crates/snapback4-core
+snapback4/crates/snapback4-device snapback4/crates/snapback4-lang
+snapback4/scripts snapback4/Cargo.toml snapback4/Cargo.lock` exited 0.
+The runtime and failed client test are byte-identical to that base; the only
+added Rust file is the opt-in simulator measurement. The lead still needs
+the browser witness outside the sandbox. No other failure is attributed to
+the base and no code was changed to avoid this browser failure.
+
+No out-of-scope file was touched. README/guide/CODES are unchanged because
+no form or diagnostic ships from a design lane. The existing
+`N_MAINTAIN_DELTA` text is unchanged; §20.9 proposes its future dependency
+wording and one adoption-availability diagnostic. There is no before/after
+production diagnostic pair in this task. Root `ref-check --verbose` and
+`git diff --check` are the final documentation checks.
+
+Final reference check, from the repository root:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+./ref-check --verbose > /private/tmp/lane-d-ref-check-final.log 2>&1
+```
+
+```text
+ref-check: ok — 474 LLP docs, 8853 refs in 22826 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` exited 0; the journal prefix matches the base byte for
+byte, §20.9 is between §20.8 and Non-claims, and the only code addition is
+the 118-line ignored measurement (below the 1,500-line code cap).
