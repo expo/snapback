@@ -1,0 +1,34 @@
+{
+  "observedAt": "2026-09-14T08:09:45.614787+00:00",
+  "purpose": "Read-only observer capture of currently visible M7 regression prefix before possible rerun overwrite. Do not infer first/final status without examining received receipt. Private only; logs may contain fixture runtime state and must be screened before any repo curation.",
+  "files": [
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/m7/regressions/suite-m6.json",
+      "destination": "suite-m6.json",
+      "bytes": 1128,
+      "sha256": "55a2ce26c9835c036f8da26248a2f28a6c279ae104f27f84b0539b87efc3d985",
+      "sourceStillSameAfterCopy": true
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/m7/regressions/m6.log",
+      "destination": "m6.log",
+      "bytes": 2201,
+      "sha256": "a0c29796c22eb065139d32367a0da140ec10d8730fb1daf92f8b584e35fa3c47",
+      "sourceStillSameAfterCopy": true
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/m7/regressions/suite-m8.json",
+      "destination": "suite-m8.json",
+      "bytes": 2230,
+      "sha256": "e2658ca6ca2e9afc53a3644e0c6d7c75717bdb806ec969c9e65b6cf7a5bb7671",
+      "sourceStillSameAfterCopy": true
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/m7/regressions/m8.log",
+      "destination": "m8.log",
+      "bytes": 3658,
+      "sha256": "af9638a5344a56661825ebd65f5934115927c91bbeb8377acfa72b8ceb56c484",
+      "sourceStillSameAfterCopy": true
+    }
+  ]
+}

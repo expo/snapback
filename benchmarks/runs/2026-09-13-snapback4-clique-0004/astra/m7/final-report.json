@@ -1,0 +1,185 @@
+{
+  "start": 1789372730,
+  "end": 1789374034,
+  "wallSeconds": 1304,
+  "status": "green",
+  "suite": {
+    "pass": true,
+    "required": 6
+  },
+  "choreography": {
+    "pass": true,
+    "total": 2,
+    "required": 2,
+    "implemented": 2,
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0,
+    "notImplemented": 0,
+    "requiredUnimplemented": 0
+  },
+  "snapshotComparison": {
+    "pass": true,
+    "at": 1789373229160,
+    "results": [
+      {
+        "actor": "alice",
+        "pass": true,
+        "messages": 15,
+        "assets": 18
+      },
+      {
+        "actor": "bob",
+        "pass": true,
+        "messages": 15,
+        "assets": 18
+      },
+      {
+        "actor": "carol",
+        "pass": true,
+        "messages": 9,
+        "assets": 18
+      },
+      {
+        "actor": "dave",
+        "pass": true,
+        "messages": 0,
+        "assets": 18
+      },
+      {
+        "actor": "erin",
+        "pass": true,
+        "messages": 0,
+        "assets": 18
+      },
+      {
+        "actor": "frank",
+        "pass": true,
+        "messages": 0,
+        "assets": 18
+      },
+      {
+        "actor": "grace",
+        "pass": true,
+        "messages": 0,
+        "assets": 18
+      },
+      {
+        "actor": "henry",
+        "pass": true,
+        "messages": 0,
+        "assets": 18
+      }
+    ]
+  },
+  "previouslyGreen": [
+    {
+      "milestone": "m1",
+      "pass": true,
+      "exit": 0,
+      "start": 1789373877647,
+      "end": 1789373879927,
+      "receipt": "m7/regressions/suite-m1.json"
+    },
+    {
+      "milestone": "m2",
+      "pass": true,
+      "exit": 0,
+      "start": 1789373879927,
+      "end": 1789373884363,
+      "receipt": "m7/regressions/suite-m2.json"
+    },
+    {
+      "milestone": "m3",
+      "pass": true,
+      "exit": 0,
+      "start": 1789373884363,
+      "end": 1789373887518,
+      "receipt": "m7/regressions/suite-m3.json"
+    },
+    {
+      "milestone": "m4",
+      "pass": true,
+      "exit": 0,
+      "start": 1789373887519,
+      "end": 1789373889538,
+      "receipt": "m7/regressions/suite-m4.json"
+    },
+    {
+      "milestone": "m5",
+      "pass": true,
+      "exit": 0,
+      "start": 1789373889538,
+      "end": 1789373891939,
+      "receipt": "m7/regressions/suite-m5.json"
+    },
+    {
+      "milestone": "m6",
+      "pass": true,
+      "exit": 0,
+      "start": 1789373891939,
+      "end": 1789373928425,
+      "receipt": "m7/regressions/suite-m6.json"
+    },
+    {
+      "milestone": "m8",
+      "pass": true,
+      "exit": 0,
+      "start": 1789373928425,
+      "end": 1789373930368,
+      "receipt": "m7/regressions/suite-m8.json"
+    }
+  ],
+  "native": {
+    "path": "artifacts/m7-ios/_expo/static/js/ios/entry-6aab987ef3ca43e1f6b71a91962035b8.hbc",
+    "sha256": "7095e4ca67db544231ae9a0a2a457c7d6d8159d5cccb9df7c60d0a9b122ebb4d",
+    "bytes": 2794166
+  },
+  "correctionLoops": [
+    {
+      "attribution": "agent-error",
+      "event": "Missing vote audience index and nullable sum rejected; add index and use staged optional/backfill/required migration",
+      "evidence": "m7/check-1.log"
+    },
+    {
+      "attribution": "agent-error",
+      "event": "Deployment was still live; stop recorded PIDs before deploy",
+      "evidence": "m7/deploy-expand.log"
+    },
+    {
+      "attribution": "agent-error",
+      "event": "Local run in an unserved release created an empty store; archive it. Deployment run then refused; use scheduled Quarry backfill",
+      "evidence": "m7/backfill.log; m7/backfill-retry.log; m7/backend-migrated.log"
+    },
+    {
+      "attribution": "agent-error",
+      "event": "Unqualified module job not resolved by schedule",
+      "evidence": "m7/deploy-backfill-schedule.log"
+    },
+    {
+      "attribution": "agent-error",
+      "event": "Qualified job name not valid schedule syntax; move scheduled job to root schema",
+      "evidence": "m7/deploy-schedule-retry.log"
+    },
+    {
+      "attribution": "agent-error",
+      "event": "Deploy did not regenerate root client types; check regenerated them and typecheck passed",
+      "evidence": "m7/tsc-final.log; m7/tsc-final-2.log"
+    },
+    {
+      "attribution": "agent-error",
+      "event": "M6 stale replay cache referenced the inherited database; archive cache and rerun unchanged suite",
+      "evidence": "m7/regressions/suite-m6-attempt1.json"
+    },
+    {
+      "attribution": "agent-error",
+      "event": "M8 isolated aging server missing; start fresh helper on 49304 and rerun unchanged suite",
+      "evidence": "m7/regressions/suite-m8-attempt1.json"
+    },
+    {
+      "attribution": "agent-error",
+      "event": "Review caught caption-edit bypass of poll question bound; guard legacy endpoint and hide unsupported Edit action",
+      "evidence": "m7/harden.py; m7/suite-m7.json"
+    }
+  ]
+}

@@ -13,7 +13,8 @@ across 119 assertions. Grok's received grade is 70 pass / 18 fail / 31 not-run.
 Muse's received grade is 94 pass / 16 fail / 8 not-run / 1 not-applicable.
 [All three baseline grades](./grades/summary.md) are complete and structurally
 validated. Astra's fresh M7 completed with a builder green result in 1,345.403
-seconds; its evidence audit is underway. Grok M7 is active; Muse M7 remains pending.
+seconds. Its [evidence audit](./astra-m7-outcome-audit.md) supports that result
+with protocol qualifications below. Grok M7 is active; Muse M7 remains pending.
 All three lanes are frozen to published `snapback4@0.2.6` and
 `snapback4-expo@0.2.1`. `REGISTRY_RECEIPTS.json` confirms that registry integrity
 matches the exact qualified tarballs, including the platform binary.
@@ -121,7 +122,7 @@ new exit diagnostics are not measured by the frozen run.
 
 | Lane | M1 | M2 | M3 | M4 | M5 | M6 | M8 | Continuous wall | Holistic score | Independent 119 | Comparable 101 subtotal | Fresh M7 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Astra medium | builder green | builder green | builder green | builder green | builder green | builder green | builder green | 9,614.013 s | 84 | 100 pass / 10 fail / 9 not-run | 84 pass / 8 fail / 9 not-run | builder green; 1,345.403 s; audit pending |
+| Astra medium | builder green | builder green | builder green | builder green | builder green | builder green | builder green | 9,614.013 s | 84 | 100 pass / 10 fail / 9 not-run | 84 pass / 8 fail / 9 not-run | builder green; 1,345.403 s; protocol qualifications |
 | Grok 4.6 xhigh | web green | web green | capability failure | blocked; partial API suite | blocked; partial API suite | blocked; scale incomplete | blocked; partial API suite | 12,499.350 s | 70 | 70 pass / 18 fail / 31 not-run | 60 pass / 17 fail / 24 not-run | active |
 | Muse Spark 1.3 xhigh | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | 17,657.686 s; includes interrupted runtime continuation | 80 | 94 pass / 16 fail / 8 not-run / 1 not-applicable | 79 pass / 13 fail / 8 not-run / 1 not-applicable | pending |
 
@@ -221,9 +222,27 @@ it does not alter the received Muse grade or its original attribution.
 Astra's fresh M7 ran from `2026-09-14T07:58:39Z` to `2026-09-14T08:21:04Z`
 with Astra medium and exited zero after 1,345.403 seconds, within its single
 14,400-second cap. It reports green acceptance, choreography, eight-persona
-snapshot preservation, and all seven prior suites. Its evidence audit is
-underway; the baseline grade above remains unchanged. Grok's fresh M7 started
+snapshot preservation, and all seven prior suites. The [retained M7 archive](./astra/m7/README.md) and
+[static outcome audit](./astra-m7-outcome-audit.md) verify both suite/choreography
+hash pairs, the eight persona snapshots, and final regression receipts. The
+baseline grade above remains unchanged. The [source-delta audit](./astra-m7-source-delta-audit.md)
+confirms a staged, authorized backfill, unchanged original regression suites,
+and unchanged package pins. It found no material migration or count-maintenance
+defect. Two bounded UI issues remain: blank added options can be submitted
+(a supplied UI-kit behavior), and the app integration displays the poll question
+twice. Grok's fresh M7 started
 at `2026-09-14T08:26:02Z` with its own single four-hour cap.
+
+The frozen packet has two M7 methodology limitations. Its brief calls for a
+pre-session snapshot, while its supplied prompt instructs the fresh builder to
+seed and capture one before making changes. Astra followed that prompt,
+capturing the snapshot about 158 seconds after session start and before the
+first recorded schema-change attempt. This is an orchestration limitation,
+not a builder error. Also, assertion `m7-a08` assigns snapshot comparison to
+the grader, but the packet and prior full runs have no post-M7 independent
+grade stage. M7 therefore remains builder functional evidence with a static
+audit, independently ungraded. The baseline grade remains unchanged; snapshot
+preservation is supported for the captured pre-change state.
 
 The [holistic scorers](./holistic/summary.md) use their own builders' narratives, so their diagnoses are
 not independent technical findings. Astra charged pending metadata loss that

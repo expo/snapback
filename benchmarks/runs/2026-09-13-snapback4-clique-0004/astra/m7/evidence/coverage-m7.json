@@ -1,0 +1,29 @@
+{
+  "milestone": "m7",
+  "assertions": {
+    "m7-a01": {
+      "test": "m7/m7-a01",
+      "status": "pass"
+    },
+    "m7-a03": {
+      "test": "m7/m7-a03",
+      "status": "pass"
+    },
+    "m7-a04": {
+      "test": "m7/m7-a04",
+      "status": "pass"
+    },
+    "m7-a06": {
+      "test": "m7/m7-a06",
+      "status": "pass"
+    },
+    "m7-a07": {
+      "test": "m7/m7-a07",
+      "status": "pass"
+    },
+    "m7-a09": {
+      "test": "m7/m7-a09",
+      "status": "pass"
+    }
+  }
+}

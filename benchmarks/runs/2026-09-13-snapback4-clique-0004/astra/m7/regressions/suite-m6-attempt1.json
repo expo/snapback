@@ -1,0 +1,12 @@
+{
+  "milestone": "m6",
+  "pass": false,
+  "results": [
+    {
+      "id": "m6-a13",
+      "pass": false,
+      "error": "Error: {\"code\":\"E_AUTH\",\"family\":\"auth\",\"guide\":\"personas\",\"message\":\"this session is not live; sign in again\"}\n    at query (file:///Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/scripts/wire.mjs:31:23)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async q (file:///Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/scripts/verify-sample.mjs:9:6)\n    at async verifySample (file:///Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/scripts/verify-sample.mjs:22:17)\n    at async file:///Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/scripts/acceptance-m6.mjs:46:12\n    at async check (file:///Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/scripts/acceptance-m6.mjs:22:20)\n    at async file:///Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/scripts/acceptance-m6.mjs:36:3"
+    }
+  ],
+  "at": 1789373295969
+}

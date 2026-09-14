@@ -1,0 +1,195 @@
+{
+  "milestone": "m7",
+  "pass": true,
+  "results": [
+    {
+      "id": "m7-a06",
+      "pass": true,
+      "detail": {
+        "checked": [
+          {
+            "actor": "alice",
+            "id": "d-alice-bob",
+            "count": 20
+          },
+          {
+            "actor": "alice",
+            "id": "g-starter",
+            "count": 9
+          },
+          {
+            "actor": "bob",
+            "id": "d-alice-bob",
+            "count": 20
+          },
+          {
+            "actor": "bob",
+            "id": "g-starter",
+            "count": 9
+          },
+          {
+            "actor": "carol",
+            "id": "g-starter",
+            "count": 9
+          }
+        ],
+        "migration": {
+          "pass": true,
+          "rows": [
+            {
+              "actor": "alice",
+              "id": "d-alice-bob",
+              "expected": 6,
+              "actual": 6
+            },
+            {
+              "actor": "alice",
+              "id": "g-starter",
+              "expected": 9,
+              "actual": 9
+            },
+            {
+              "actor": "bob",
+              "id": "d-alice-bob",
+              "expected": 6,
+              "actual": 6
+            },
+            {
+              "actor": "bob",
+              "id": "g-starter",
+              "expected": 9,
+              "actual": 9
+            },
+            {
+              "actor": "carol",
+              "id": "g-starter",
+              "expected": 9,
+              "actual": 9
+            }
+          ],
+          "at": 1789373259391,
+          "preExistingCountStructure": false
+        }
+      }
+    },
+    {
+      "id": "m7-a01",
+      "pass": true,
+      "detail": {
+        "poll": "m7-poll-29faf4d5-a733-45d4-a0dc-ec8c3dd5f244",
+        "invalidShapes": 6,
+        "groupOnly": true,
+        "boundaries": true
+      }
+    },
+    {
+      "id": "m7-a03",
+      "pass": true,
+      "detail": {
+        "changed": [
+          1,
+          1
+        ],
+        "lateRetryPreservesNewer": [
+          2,
+          0
+        ],
+        "replayed": true,
+        "nonmemberDenied": true
+      }
+    },
+    {
+      "id": "m7-a04",
+      "pass": true,
+      "detail": {
+        "changed": [
+          1,
+          1
+        ],
+        "lateRetryPreservesNewer": [
+          2,
+          0
+        ],
+        "replayed": true,
+        "nonmemberDenied": true
+      }
+    },
+    {
+      "id": "m7-a07",
+      "pass": true,
+      "detail": {
+        "text": true,
+        "media": true,
+        "polls": true,
+        "tombstones": true,
+        "expiry": true,
+        "settingsScreenshot": "m7/count-settings.png"
+      }
+    },
+    {
+      "id": "m7-a09",
+      "pass": true,
+      "detail": {
+        "results": [
+          {
+            "milestone": "m1",
+            "pass": true,
+            "exit": 0,
+            "start": 1789373877647,
+            "end": 1789373879927,
+            "receipt": "m7/regressions/suite-m1.json"
+          },
+          {
+            "milestone": "m2",
+            "pass": true,
+            "exit": 0,
+            "start": 1789373879927,
+            "end": 1789373884363,
+            "receipt": "m7/regressions/suite-m2.json"
+          },
+          {
+            "milestone": "m3",
+            "pass": true,
+            "exit": 0,
+            "start": 1789373884363,
+            "end": 1789373887518,
+            "receipt": "m7/regressions/suite-m3.json"
+          },
+          {
+            "milestone": "m4",
+            "pass": true,
+            "exit": 0,
+            "start": 1789373887519,
+            "end": 1789373889538,
+            "receipt": "m7/regressions/suite-m4.json"
+          },
+          {
+            "milestone": "m5",
+            "pass": true,
+            "exit": 0,
+            "start": 1789373889538,
+            "end": 1789373891939,
+            "receipt": "m7/regressions/suite-m5.json"
+          },
+          {
+            "milestone": "m6",
+            "pass": true,
+            "exit": 0,
+            "start": 1789373891939,
+            "end": 1789373928425,
+            "receipt": "m7/regressions/suite-m6.json"
+          },
+          {
+            "milestone": "m8",
+            "pass": true,
+            "exit": 0,
+            "start": 1789373928425,
+            "end": 1789373930368,
+            "receipt": "m7/regressions/suite-m8.json"
+          }
+        ]
+      }
+    }
+  ],
+  "at": 1789373930374
+}

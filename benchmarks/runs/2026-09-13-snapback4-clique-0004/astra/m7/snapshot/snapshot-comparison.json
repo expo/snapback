@@ -1,0 +1,54 @@
+{
+  "pass": true,
+  "at": 1789373229160,
+  "results": [
+    {
+      "actor": "alice",
+      "pass": true,
+      "messages": 15,
+      "assets": 18
+    },
+    {
+      "actor": "bob",
+      "pass": true,
+      "messages": 15,
+      "assets": 18
+    },
+    {
+      "actor": "carol",
+      "pass": true,
+      "messages": 9,
+      "assets": 18
+    },
+    {
+      "actor": "dave",
+      "pass": true,
+      "messages": 0,
+      "assets": 18
+    },
+    {
+      "actor": "erin",
+      "pass": true,
+      "messages": 0,
+      "assets": 18
+    },
+    {
+      "actor": "frank",
+      "pass": true,
+      "messages": 0,
+      "assets": 18
+    },
+    {
+      "actor": "grace",
+      "pass": true,
+      "messages": 0,
+      "assets": 18
+    },
+    {
+      "actor": "henry",
+      "pass": true,
+      "messages": 0,
+      "assets": 18
+    }
+  ]
+}

@@ -1,0 +1,410 @@
+{
+  "createdAt": "2026-09-14T08:32:13Z",
+  "excludedByClass": [
+    "runtime SQLite databases and sidecars",
+    "deployment stores, release blobs, uploaded assets, backups, and serve locks",
+    "dependencies, generated build directories outside the enumerated native-export references, and caches",
+    "tokens, dotenv/environment files, credentials, and runtime state",
+    "grading evidence, continuous snapshots, instrument files, and prompts",
+    "unselected verbose logs and raw process listings"
+  ],
+  "hashAlgorithm": "sha256",
+  "referenceCount": 49,
+  "referencedBytes": 5506559,
+  "references": [
+    {
+      "bytes": 2794166,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "7095e4ca67db544231ae9a0a2a457c7d6d8159d5cccb9df7c60d0a9b122ebb4d",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/_expo/static/js/ios/entry-6aab987ef3ca43e1f6b71a91962035b8.hbc"
+    },
+    {
+      "bytes": 9456,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "6deca32b56b97fa1fa87facd6996b46cc45190a553400e7febdf1d2093099b57",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/assets/017bc6ba3fc25503e5eb5e53826d48a8"
+    },
+    {
+      "bytes": 332,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "2325c53a73e54c438cbbc60dffdd8b513d471ba42e2f56713ef404b95e0ca1fc",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/assets/0747a1317bbe9c6fc340b889ef8ab3ae"
+    },
+    {
+      "bytes": 653,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "9adb8c5efca932e2b732b293da813bd2e31952263056bce9e2517fec0f0b6a76",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/assets/0a328cd9c1afd0afe8e3b1ec5165b1b4"
+    },
+    {
+      "bytes": 761,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "3ddd0773ed27e23d25789f301731b3ac455ad8be5aa27a0a1b838f89c6d27225",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/assets/0ea69b5077e7c4696db85dbcba75b0e1"
+    },
+    {
+      "bytes": 201,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "cbdf9213e55f65c48d076acd8423b7c9aee4f1b81101ff6c95a38c4cd8a86461",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/assets/1190ab078c57159f4245a328118fcd9a"
+    },
+    {
+      "bytes": 138,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "a69a2edb5b6c60b8433d5b6d23c69f520ccd8a602f3f60e7996e489718bc175c",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/assets/19eeb73b9593a38f8e9f418337fc7d10"
+    },
+    {
+      "bytes": 4752,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "efc79da3c4c97dfb1571bff6202958ab0529c5aa31e8392600578b3e359d1447",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/assets/20e71bdf79e3a97bf55fd9e164041578"
+    },
+    {
+      "bytes": 809,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "92ed8176ac8cb44362a5fc6a3703626a0006ac6b7cb272ee99f5850262ec070e",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/assets/2d0a9133e39524f138be6d4db9f4851f"
+    },
+    {
+      "bytes": 645,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "c86bb485eee687e06c500fc4234f51a6784b4530c2ae11d0c76481110bce3105",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/assets/3cd68ccdb8938e3711da2e8831b85493"
+    },
+    {
+      "bytes": 465,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "acf691957a3bcce7d195856dce98a5cf14dce10bea28aa5c10b3550c078e23b5",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/assets/412dd9275b6b48ad28f5e3d81bb1f626"
+    },
+    {
+      "bytes": 220,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "d03a5cd7a66ef10c5147916f9d5878b2d0a0a5ad46f405a31cd9967efaa55afd",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/assets/61ca7e64b7d605716c57706cef640b9a"
+    },
+    {
+      "bytes": 266,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "d05c9d30d79f45a78e5585a2e7ec67c6a06a883dd9137e1d5059e8c87b33ce76",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/assets/78c625386b4d0690b421eb0fc78f7b9c"
+    },
+    {
+      "bytes": 290,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "2cdfeb8e5ccde7976f7012fb8cce73af2229029ee21d4f1509fed114871c6cd8",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/assets/7d40544b395c5949f4646f5e150fe020"
+    },
+    {
+      "bytes": 405,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "2b7443a9a58e92ca11a575bdc11598615a57dde305cd8ce70d602606b302cd98",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/assets/a132ecc4ba5c1517ff83c0fb321bc7fc"
+    },
+    {
+      "bytes": 364,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "27f4d229d440925bf7212d5dfffa45d596b2c7b3bb2905c96b839b2081a1dbeb",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/assets/ab19f4cbc543357183a20571f68380a3"
+    },
+    {
+      "bytes": 334,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "ab5613d2ce70fa67c5926e831353664945199fc195fa6fe76c5fe3cec452e31a",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/assets/aff2c65b39a296d4f7e96d0f58169170"
+    },
+    {
+      "bytes": 469,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "c15ec72a74d13957211808313d5c35deb7f7606c6d22dbddceb0000d4e0547ad",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/assets/d1ea1496f9057eb392d5bbf3732a61b7"
+    },
+    {
+      "bytes": 839,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "b434a7cf18c2d4ce747c70942ea2fee2d4412d93967ed92b372f810bb9261ea5",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/assets/d62ddc38b69aff346c20a28774933d6a"
+    },
+    {
+      "bytes": 141,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "b1bc1810ca23e2c38cd76971c43591d726161061240d8b792b05757196ddb528",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/assets/d84e297c3b3e49a614248143d53e40ca"
+    },
+    {
+      "bytes": 188,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "708a79cf561b8a2a4850ce0254584d3a5231046be08fb7fadf4b6edfdb31178b",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/assets/d8b800c443b8972542883e0b9de2bdc6"
+    },
+    {
+      "bytes": 502,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "c4e54e6a0a7de636aa153378fbc62ea4a41695bfedf807f90df7b18ffd733f67",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/assets/d8e7601e3df962f83c62371ac14964d8"
+    },
+    {
+      "bytes": 317,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "dc56b976bd45638e1125f6689743525e6886ae0bef2c8f4651994833685a831f",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/assets/dad2fa9f4394a630f0f9a0d6dabd44bc"
+    },
+    {
+      "bytes": 589,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "ef13fc0dfc52ec23817585fd7e109fbdf593a3b2549c40ce71ac9b0eda12cc2c",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/assets/f3a81967828232c893d547162e922764"
+    },
+    {
+      "bytes": 1379350,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "01d36fcc8f3f62c0321e58c29cfb906b133b688e0adb563ebdfaa560e644d6bc",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/device.wasm"
+    },
+    {
+      "bytes": 1590,
+      "category": "native-export",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Generated native bytecode, Wasm, assets, and metadata remain external.",
+      "sha256": "a6540721b57304f0db8ae605aa5fd4bf95b3ea2b6789646ec0e00b5f54c911aa",
+      "sourcePath": "lanes/astra-snapback4/artifacts/m7-ios/metadata.json"
+    },
+    {
+      "bytes": 39148,
+      "category": "screenshot",
+      "contentInspection": "bytes hashed only",
+      "reasonNotCopied": "Binary screenshot remains external; structured UI receipts are copied.",
+      "sha256": "fad15a66fd2a29c07572aa77acd1f82d6a1fa852d7cdc2b9640c57f70a0edeec",
+      "sourcePath": "lanes/astra-snapback4/m7/count-settings.png"
+    },
+    {
+      "bytes": 34313,
+      "category": "screenshot",
+      "contentInspection": "bytes hashed only",
+      "reasonNotCopied": "Binary screenshot remains external; structured UI receipts are copied.",
+      "sha256": "23f43b53092a8af8bb145ae5231035d722b35fbf4b49c255b3cdd627387ece64",
+      "sourcePath": "lanes/astra-snapback4/m7/poll-ui.png"
+    },
+    {
+      "bytes": 44795,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Persona snapshot data remains external; the hash manifest and aggregate comparison are copied.",
+      "sha256": "ee28f0588e90fc5c2d1a3d3c90dc0d08ba48c14fda333801c026dcdba6adbe0c",
+      "sourcePath": "lanes/astra-snapback4/m7/post-snapshot/alice.json"
+    },
+    {
+      "bytes": 44791,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Persona snapshot data remains external; the hash manifest and aggregate comparison are copied.",
+      "sha256": "cdd660c716654e3ea7972d933149e093f457c7dae319f7852d3bb49eb01a55af",
+      "sourcePath": "lanes/astra-snapback4/m7/post-snapshot/bob.json"
+    },
+    {
+      "bytes": 42028,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Persona snapshot data remains external; the hash manifest and aggregate comparison are copied.",
+      "sha256": "28ec8c4209aaab3fa5785f936b81f3ebbfaa3963fcf1d873aa1a6a9b5e5be656",
+      "sourcePath": "lanes/astra-snapback4/m7/post-snapshot/carol.json"
+    },
+    {
+      "bytes": 37880,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Persona snapshot data remains external; the hash manifest and aggregate comparison are copied.",
+      "sha256": "4d84be80b56b455d063aa532ef83185b66a82e80e0aad4bd2497cd0438d578a4",
+      "sourcePath": "lanes/astra-snapback4/m7/post-snapshot/dave.json"
+    },
+    {
+      "bytes": 37880,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Persona snapshot data remains external; the hash manifest and aggregate comparison are copied.",
+      "sha256": "e9acb48f6ef053281af51f8a54a657bfabd78c313db29e105d6a61c5fb6d5ab6",
+      "sourcePath": "lanes/astra-snapback4/m7/post-snapshot/erin.json"
+    },
+    {
+      "bytes": 37881,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Persona snapshot data remains external; the hash manifest and aggregate comparison are copied.",
+      "sha256": "45bd7ae7aa2a05adfb540855f033726d2e4d58647d5dc4bc579fcac6274b303f",
+      "sourcePath": "lanes/astra-snapback4/m7/post-snapshot/frank.json"
+    },
+    {
+      "bytes": 37881,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Persona snapshot data remains external; the hash manifest and aggregate comparison are copied.",
+      "sha256": "8ce3dfadfed0d969a3b75918dfcc1cf85e7f18f5761018f7c47db0ec0bf6167f",
+      "sourcePath": "lanes/astra-snapback4/m7/post-snapshot/grace.json"
+    },
+    {
+      "bytes": 37880,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Persona snapshot data remains external; the hash manifest and aggregate comparison are copied.",
+      "sha256": "37599db7a16956c092b72a5f849e7558d9913f2d56f135eb3352576174ab030d",
+      "sourcePath": "lanes/astra-snapback4/m7/post-snapshot/henry.json"
+    },
+    {
+      "bytes": 44795,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Persona snapshot data remains external; the hash manifest and aggregate comparison are copied.",
+      "sha256": "ee28f0588e90fc5c2d1a3d3c90dc0d08ba48c14fda333801c026dcdba6adbe0c",
+      "sourcePath": "lanes/astra-snapback4/m7/pre-snapshot/alice.json"
+    },
+    {
+      "bytes": 44791,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Persona snapshot data remains external; the hash manifest and aggregate comparison are copied.",
+      "sha256": "cdd660c716654e3ea7972d933149e093f457c7dae319f7852d3bb49eb01a55af",
+      "sourcePath": "lanes/astra-snapback4/m7/pre-snapshot/bob.json"
+    },
+    {
+      "bytes": 42028,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Persona snapshot data remains external; the hash manifest and aggregate comparison are copied.",
+      "sha256": "28ec8c4209aaab3fa5785f936b81f3ebbfaa3963fcf1d873aa1a6a9b5e5be656",
+      "sourcePath": "lanes/astra-snapback4/m7/pre-snapshot/carol.json"
+    },
+    {
+      "bytes": 37880,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Persona snapshot data remains external; the hash manifest and aggregate comparison are copied.",
+      "sha256": "4d84be80b56b455d063aa532ef83185b66a82e80e0aad4bd2497cd0438d578a4",
+      "sourcePath": "lanes/astra-snapback4/m7/pre-snapshot/dave.json"
+    },
+    {
+      "bytes": 37880,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Persona snapshot data remains external; the hash manifest and aggregate comparison are copied.",
+      "sha256": "e9acb48f6ef053281af51f8a54a657bfabd78c313db29e105d6a61c5fb6d5ab6",
+      "sourcePath": "lanes/astra-snapback4/m7/pre-snapshot/erin.json"
+    },
+    {
+      "bytes": 37881,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Persona snapshot data remains external; the hash manifest and aggregate comparison are copied.",
+      "sha256": "45bd7ae7aa2a05adfb540855f033726d2e4d58647d5dc4bc579fcac6274b303f",
+      "sourcePath": "lanes/astra-snapback4/m7/pre-snapshot/frank.json"
+    },
+    {
+      "bytes": 37881,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Persona snapshot data remains external; the hash manifest and aggregate comparison are copied.",
+      "sha256": "8ce3dfadfed0d969a3b75918dfcc1cf85e7f18f5761018f7c47db0ec0bf6167f",
+      "sourcePath": "lanes/astra-snapback4/m7/pre-snapshot/grace.json"
+    },
+    {
+      "bytes": 37880,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during this curation",
+      "reasonNotCopied": "Persona snapshot data remains external; the hash manifest and aggregate comparison are copied.",
+      "sha256": "37599db7a16956c092b72a5f849e7558d9913f2d56f135eb3352576174ab030d",
+      "sourcePath": "lanes/astra-snapback4/m7/pre-snapshot/henry.json"
+    },
+    {
+      "bytes": 577171,
+      "category": "raw-cli-log",
+      "contentInspection": "bytes hashed only; contents not inspected for this curation",
+      "reasonNotCopied": "Raw CLI output remains private and external; the archive retains only its path, size, and digest.",
+      "sha256": "2a4f5dbacbb5f625203d565a0b38773b645dbfb7d32e146561a792657ea86672",
+      "sourcePath": "logs/astra-snapback4.m7.ndjson"
+    },
+    {
+      "bytes": 0,
+      "category": "raw-cli-log",
+      "contentInspection": "bytes hashed only; contents not inspected for this curation",
+      "reasonNotCopied": "Raw CLI output remains private and external; the archive retains only its path, size, and digest.",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourcePath": "logs/astra-snapback4.m7.stderr.log"
+    },
+    {
+      "bytes": 2201,
+      "category": "first-failure-raw-log",
+      "contentInspection": "bytes hashed only; contents not inspected for this curation",
+      "reasonNotCopied": "Raw failed-regression log remains private pending screening; the structured suite receipt and prefix capture are copied.",
+      "sha256": "a0c29796c22eb065139d32367a0da140ec10d8730fb1daf92f8b584e35fa3c47",
+      "sourcePath": "observed-milestones/astra-m7-regression-prefix/m6.log"
+    },
+    {
+      "bytes": 3658,
+      "category": "first-failure-raw-log",
+      "contentInspection": "bytes hashed only; contents not inspected for this curation",
+      "reasonNotCopied": "Raw failed-regression log remains private pending screening; the structured suite receipt and prefix capture are copied.",
+      "sha256": "af9638a5344a56661825ebd65f5934115927c91bbeb8377acfa72b8ceb56c484",
+      "sourcePath": "observed-milestones/astra-m7-regression-prefix/m8.log"
+    },
+    {
+      "bytes": 9794,
+      "category": "orchestration-preflight",
+      "contentInspection": "read in full before curation as required",
+      "reasonNotCopied": "Packet-level preflight remains with the orchestration record; this archive copies the actual Astra lifecycle records.",
+      "sha256": "e67bcab484966d988b6ad831ea96822d21e87bb4d37f00f99c13d67d5404b71e",
+      "sourcePath": "observed-milestones/m7-lifecycle-and-custody-preflight.md"
+    }
+  ],
+  "schemaVersion": 1,
+  "sourceRoot": "/Users/ccheever/clique-sb4-20260913-full-3models"
+}

@@ -1,0 +1,35 @@
+{
+  "milestone": "m3",
+  "pass": true,
+  "results": [
+    {
+      "id": "m3-a03",
+      "pass": true
+    },
+    {
+      "id": "m3-a04",
+      "pass": true
+    },
+    {
+      "id": "m3-a05",
+      "pass": true
+    },
+    {
+      "id": "m3-a14",
+      "pass": true
+    },
+    {
+      "id": "m3-a15",
+      "pass": true
+    },
+    {
+      "id": "m3-a10",
+      "pass": true
+    },
+    {
+      "id": "m3-a11",
+      "pass": true
+    }
+  ],
+  "at": 1789373887506
+}

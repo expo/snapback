@@ -1,0 +1,93 @@
+{
+  "milestone": "m2",
+  "assertions": {
+    "m2-a01": {
+      "test": "m2/m2-a01",
+      "status": "pass"
+    },
+    "m2-a02": {
+      "test": "m2/m2-a02",
+      "status": "pass"
+    },
+    "m2-a03": {
+      "test": "m2/m2-a03",
+      "status": "pass"
+    },
+    "m2-a06": {
+      "test": "m2/m2-a06",
+      "status": "pass"
+    },
+    "m2-a08": {
+      "test": "m2/m2-a08",
+      "status": "pass"
+    },
+    "m2-a09": {
+      "test": "m2/m2-a09",
+      "status": "pass"
+    },
+    "m2-a10": {
+      "test": "m2/m2-a10",
+      "status": "pass"
+    },
+    "m2-a11": {
+      "test": "m2/m2-a11",
+      "status": "pass"
+    },
+    "m2-a12": {
+      "test": "m2/m2-a12",
+      "status": "pass"
+    },
+    "m2-a13": {
+      "test": "m2/m2-a13",
+      "status": "pass"
+    },
+    "m2-a15": {
+      "test": "m2/m2-a15",
+      "status": "pass"
+    },
+    "m2-a16": {
+      "test": "m2/m2-a16",
+      "status": "pass"
+    },
+    "m2-a17": {
+      "test": "m2/m2-a17",
+      "status": "pass"
+    },
+    "m2-a18": {
+      "test": "m2/m2-a18",
+      "status": "pass"
+    },
+    "m2-a20": {
+      "test": "m2/m2-a20",
+      "status": "pass"
+    },
+    "m2-a21": {
+      "test": "m2/m2-a21",
+      "status": "pass"
+    },
+    "m2-a22": {
+      "test": "m2/m2-a22",
+      "status": "pass"
+    },
+    "m2-a23": {
+      "test": "m2/m2-a23",
+      "status": "pass"
+    },
+    "m2-a24": {
+      "test": "m2/m2-a24",
+      "status": "pass"
+    },
+    "m2-a25": {
+      "test": "m2/m2-a25",
+      "status": "pass"
+    },
+    "m2-a26": {
+      "test": "m2/m2-a26",
+      "status": "pass"
+    },
+    "m2-a27": {
+      "test": "m2/m2-a27",
+      "status": "pass"
+    }
+  }
+}

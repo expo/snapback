@@ -1,0 +1,4 @@
+(node:80482) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./scripts/instrument-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+CHOREOGRAPHY OUTCOME {"schemaVersion":"social-messenger.choreography-outcome.v1","outcomeClass":null,"phase":"segment-summary","segment":"m7","green":true,"nonGreenCause":null}

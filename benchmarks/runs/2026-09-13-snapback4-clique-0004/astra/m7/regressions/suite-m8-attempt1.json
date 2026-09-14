@@ -1,0 +1,32 @@
+{
+  "milestone": "m8",
+  "pass": false,
+  "results": [
+    {
+      "id": "m8-a05",
+      "pass": true,
+      "detail": {
+        "rankOne": "e36c5fb1-c178-429a-99ad-04b26dbe5237",
+        "likes": 4
+      }
+    },
+    {
+      "id": "m8-a07",
+      "pass": true,
+      "detail": {
+        "tieLikes": 4,
+        "newerFirst": true
+      }
+    },
+    {
+      "id": "m8-a06",
+      "pass": false,
+      "error": "AssertionError [ERR_ASSERTION]: node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\n[TypeError: fetch failed] {\n  [cause]: Error: connect ECONNREFUSED 127.0.0.1:49304\n      at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16) {\n    errno: -61,\n    code: 'ECONNREFUSED',\n    syscall: 'connect',\n    address: '127.0.0.1',\n    port: 49304\n  }\n}\n\nNode.js v25.9.0\n\n\n1 !== 0\n\n    at file:///Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/scripts/acceptance-m8.mjs:86:12\n    at check (file:///Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/scripts/acceptance-m8.mjs:24:26)\n    at file:///Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/scripts/acceptance-m8.mjs:76:9\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)"
+    },
+    {
+      "pass": false,
+      "error": "AssertionError [ERR_ASSERTION]: node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\n[TypeError: fetch failed] {\n  [cause]: Error: connect ECONNREFUSED 127.0.0.1:49304\n      at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16) {\n    errno: -61,\n    code: 'ECONNREFUSED',\n    syscall: 'connect',\n    address: '127.0.0.1',\n    port: 49304\n  }\n}\n\nNode.js v25.9.0\n\n\n1 !== 0\n\n    at file:///Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/scripts/acceptance-m8.mjs:86:12\n    at check (file:///Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/scripts/acceptance-m8.mjs:24:26)\n    at file:///Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/scripts/acceptance-m8.mjs:76:9\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)"
+    }
+  ],
+  "at": 1789373297933
+}

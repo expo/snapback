@@ -1,0 +1,47 @@
+[
+  {
+    "attribution": "agent-error",
+    "event": "Missing vote audience index and nullable sum rejected; add index and use staged optional/backfill/required migration",
+    "evidence": "m7/check-1.log"
+  },
+  {
+    "attribution": "agent-error",
+    "event": "Deployment was still live; stop recorded PIDs before deploy",
+    "evidence": "m7/deploy-expand.log"
+  },
+  {
+    "attribution": "agent-error",
+    "event": "Local run in an unserved release created an empty store; archive it. Deployment run then refused; use scheduled Quarry backfill",
+    "evidence": "m7/backfill.log; m7/backfill-retry.log; m7/backend-migrated.log"
+  },
+  {
+    "attribution": "agent-error",
+    "event": "Unqualified module job not resolved by schedule",
+    "evidence": "m7/deploy-backfill-schedule.log"
+  },
+  {
+    "attribution": "agent-error",
+    "event": "Qualified job name not valid schedule syntax; move scheduled job to root schema",
+    "evidence": "m7/deploy-schedule-retry.log"
+  },
+  {
+    "attribution": "agent-error",
+    "event": "Deploy did not regenerate root client types; check regenerated them and typecheck passed",
+    "evidence": "m7/tsc-final.log; m7/tsc-final-2.log"
+  },
+  {
+    "attribution": "agent-error",
+    "event": "M6 stale replay cache referenced the inherited database; archive cache and rerun unchanged suite",
+    "evidence": "m7/regressions/suite-m6-attempt1.json"
+  },
+  {
+    "attribution": "agent-error",
+    "event": "M8 isolated aging server missing; start fresh helper on 49304 and rerun unchanged suite",
+    "evidence": "m7/regressions/suite-m8-attempt1.json"
+  },
+  {
+    "attribution": "agent-error",
+    "event": "Review caught caption-edit bypass of poll question bound; guard legacy endpoint and hide unsupported Edit action",
+    "evidence": "m7/harden.py; m7/suite-m7.json"
+  }
+]

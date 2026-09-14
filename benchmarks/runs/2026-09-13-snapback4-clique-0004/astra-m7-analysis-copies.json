@@ -1,0 +1,17 @@
+{
+  "createdAt": "2026-09-14T08:39:30.576400+00:00",
+  "copies": [
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/observed-milestones/astra-m7-outcome-audit.md",
+      "destination": "astra-m7-outcome-audit.md",
+      "bytes": 12489,
+      "sha256": "160174ac03804c34e30891fc4666d817e45db782a84e30fd5482f98a5cba7674"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/observed-milestones/astra-m7-source-delta-audit.md",
+      "destination": "astra-m7-source-delta-audit.md",
+      "bytes": 12530,
+      "sha256": "55b41dc10b99404354f955cf318b1e13cbf6fde89485b4815ca061f3a9b21f4e"
+    }
+  ]
+}

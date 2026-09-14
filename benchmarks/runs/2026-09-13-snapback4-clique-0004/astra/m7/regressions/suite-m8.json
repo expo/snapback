@@ -1,0 +1,185 @@
+{
+  "milestone": "m8",
+  "pass": true,
+  "results": [
+    {
+      "id": "m8-a05",
+      "pass": true,
+      "detail": {
+        "rankOne": "ce0dd76e-ac83-4a7b-825c-45e2719c0597",
+        "likes": 4
+      }
+    },
+    {
+      "id": "m8-a07",
+      "pass": true,
+      "detail": {
+        "tieLikes": 4,
+        "newerFirst": true
+      }
+    },
+    {
+      "id": "m8-a06",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "isolatedBackend": "http://127.0.0.1:49304",
+        "fixtureMethod": "documented development /seed for synthetic historical row and expired rank; five likes and fresh control through normal mutations; no replay action timestamps modified",
+        "oldId": "31f5cb04-4002-4da7-a880-819da169125d",
+        "oldAt": 1789201129070,
+        "oldLikes": 5,
+        "freshId": "946165f8-4a14-4248-aae9-a4064fd9da32",
+        "at": 1789373929159
+      }
+    },
+    {
+      "id": "m8-a01",
+      "pass": true,
+      "detail": {
+        "expected": {
+          "posts": 95,
+          "likesReceived": 6,
+          "repostsReceived": 1,
+          "repliesReceived": 7,
+          "followers": 4,
+          "following": 2
+        },
+        "actual": {
+          "days": [
+            {
+              "day": 20704,
+              "likesReceived": 0,
+              "posts": 0
+            },
+            {
+              "day": 20705,
+              "likesReceived": 0,
+              "posts": 0
+            },
+            {
+              "day": 20706,
+              "likesReceived": 0,
+              "posts": 0
+            },
+            {
+              "day": 20707,
+              "likesReceived": 0,
+              "posts": 0
+            },
+            {
+              "day": 20708,
+              "likesReceived": 0,
+              "posts": 0
+            },
+            {
+              "day": 20709,
+              "likesReceived": 0,
+              "posts": 0
+            },
+            {
+              "day": 20710,
+              "likesReceived": 6,
+              "posts": 95
+            }
+          ],
+          "followers": 4,
+          "following": 2,
+          "likesReceived": 6,
+          "posts": 95,
+          "repliesReceived": 7,
+          "repostsReceived": 1,
+          "serverTime": 1789373929164
+        }
+      }
+    },
+    {
+      "id": "m8-a03",
+      "pass": true,
+      "detail": {
+        "day": 20710,
+        "days": [
+          {
+            "day": 20704,
+            "likesReceived": 0,
+            "posts": 0
+          },
+          {
+            "day": 20705,
+            "likesReceived": 0,
+            "posts": 0
+          },
+          {
+            "day": 20706,
+            "likesReceived": 0,
+            "posts": 0
+          },
+          {
+            "day": 20707,
+            "likesReceived": 0,
+            "posts": 0
+          },
+          {
+            "day": 20708,
+            "likesReceived": 0,
+            "posts": 0
+          },
+          {
+            "day": 20709,
+            "likesReceived": 0,
+            "posts": 0
+          },
+          {
+            "day": 20710,
+            "likesReceived": 6,
+            "posts": 95
+          }
+        ]
+      }
+    },
+    {
+      "id": "m8-a04",
+      "pass": true,
+      "detail": {
+        "day": 20710,
+        "days": [
+          {
+            "day": 20704,
+            "likesReceived": 0,
+            "posts": 0
+          },
+          {
+            "day": 20705,
+            "likesReceived": 0,
+            "posts": 0
+          },
+          {
+            "day": 20706,
+            "likesReceived": 0,
+            "posts": 0
+          },
+          {
+            "day": 20707,
+            "likesReceived": 0,
+            "posts": 0
+          },
+          {
+            "day": 20708,
+            "likesReceived": 0,
+            "posts": 0
+          },
+          {
+            "day": 20709,
+            "likesReceived": 0,
+            "posts": 0
+          },
+          {
+            "day": 20710,
+            "likesReceived": 6,
+            "posts": 95
+          }
+        ]
+      }
+    }
+  ],
+  "at": 1789373930353
+}

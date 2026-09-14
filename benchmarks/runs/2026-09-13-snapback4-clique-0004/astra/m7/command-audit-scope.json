@@ -1,0 +1,11 @@
+{
+  "claimBoundary": "No conclusion about source access, command content, or unrelated process content is made from this curation.",
+  "createdAt": "2026-09-14T08:32:13Z",
+  "preservedSelfReport": "lanes/astra-snapback4/m7/run-log.md is copied verbatim and contains the builder-authored disclosure about the broad process diagnostic.",
+  "processListBoundary": "No public command arguments or process-list output were inspected. In particular, the archive does not inspect or reproduce unrelated process arguments that the builder reports were surfaced by a global process diagnostic.",
+  "publicCommandAudit": "not performed for this archive",
+  "rawCliLog": "logs/astra-snapback4.m7.ndjson",
+  "rawCliLogInspection": "not inspected",
+  "schemaVersion": 1,
+  "scope": "Astra M7 repository evidence curation"
+}

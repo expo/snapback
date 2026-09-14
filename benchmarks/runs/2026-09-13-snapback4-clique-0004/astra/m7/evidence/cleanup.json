@@ -1,0 +1,118 @@
+[
+  {
+    "pid": 43370,
+    "cwd": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4",
+    "stopped": true
+  },
+  {
+    "pid": 43368,
+    "cwd": "",
+    "skipped": true,
+    "reason": "already-exited"
+  },
+  {
+    "pid": 87494,
+    "cwd": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4/m7/aging",
+    "stopped": true
+  },
+  {
+    "pid": 87491,
+    "cwd": "",
+    "skipped": true,
+    "reason": "already-exited"
+  },
+  {
+    "pid": 78186,
+    "cwd": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4",
+    "stopped": true
+  },
+  {
+    "pid": 73372,
+    "cwd": "",
+    "skipped": true,
+    "reason": "already-exited"
+  },
+  {
+    "pid": 73347,
+    "cwd": "",
+    "skipped": true,
+    "reason": "already-exited"
+  },
+  {
+    "pid": 60776,
+    "cwd": "",
+    "skipped": true,
+    "reason": "already-exited"
+  },
+  {
+    "pid": 60708,
+    "cwd": "",
+    "skipped": true,
+    "reason": "already-exited"
+  },
+  {
+    "pid": 56315,
+    "cwd": "",
+    "skipped": true,
+    "reason": "already-exited"
+  },
+  {
+    "pid": 56301,
+    "cwd": "",
+    "skipped": true,
+    "reason": "already-exited"
+  },
+  {
+    "pid": 51386,
+    "cwd": "",
+    "skipped": true,
+    "reason": "already-exited"
+  },
+  {
+    "pid": 51288,
+    "cwd": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/astra-snapback4",
+    "stopped": true
+  },
+  {
+    "pid": 51218,
+    "cwd": "",
+    "skipped": true,
+    "reason": "already-exited"
+  },
+  {
+    "pid": 51135,
+    "cwd": "",
+    "skipped": true,
+    "reason": "already-exited"
+  },
+  {
+    "pid": 47077,
+    "cwd": "",
+    "skipped": true,
+    "reason": "already-exited"
+  },
+  {
+    "pid": 47047,
+    "cwd": "",
+    "skipped": true,
+    "reason": "already-exited"
+  },
+  {
+    "pid": 41874,
+    "cwd": "",
+    "skipped": true,
+    "reason": "already-exited"
+  },
+  {
+    "pid": 11329,
+    "cwd": "",
+    "skipped": true,
+    "reason": "already-exited"
+  },
+  {
+    "pid": 11319,
+    "cwd": "",
+    "skipped": true,
+    "reason": "already-exited"
+  }
+]

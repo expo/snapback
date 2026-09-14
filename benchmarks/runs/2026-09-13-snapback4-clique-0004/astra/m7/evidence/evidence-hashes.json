@@ -1,0 +1,54 @@
+{
+  "snapback/chat.q": {
+    "sha256": "f73bcc2c01343434835f9d2ee7fa5afc988bd1421b9735e05d3fd34ea15ec7a1",
+    "bytes": 15943
+  },
+  "snapback/polls.q": {
+    "sha256": "bf468d4d438cca28980e311f17ba1be18fe5bbe887630c4823e97edfd536b909",
+    "bytes": 1894
+  },
+  "snapback/custom.q": {
+    "sha256": "2507fa9a18f69f1803d02823569d961d64634196f632bf5fa559e0f3f24a9636",
+    "bytes": 1354
+  },
+  "snapback/schema.q": {
+    "sha256": "b869e9c791847b402c50c9ad16b1ced1fba4a5ec9843451ffc48e0004417422c",
+    "bytes": 11556
+  },
+  "lib/chat.tsx": {
+    "sha256": "6da9a2ff122c0d26d9a588f69b5d6df2ab0a0644b7ada3fff69f6a76c7c0f456",
+    "bytes": 24273
+  },
+  "scripts/acceptance-m7.mjs": {
+    "sha256": "76fdac5770f7e024b1a9582567e2cec7ce81f4883519bae385c54737e83f9d1c",
+    "bytes": 7663
+  },
+  "m7/suite-m7.json": {
+    "sha256": "3f7bffa4fde1649a9b6242a9afcc17dd80b0cf10eeff37c6dd46f3174bd7f98a",
+    "bytes": 4384
+  },
+  "m7/coverage-m7.json": {
+    "sha256": "f873b5638440d8f2112dab8a3451b3b8e032532fd6f8204dbb14b09b4edc9540",
+    "bytes": 483
+  },
+  "m7/choreography.jsonl": {
+    "sha256": "dcac36114b00c2b9bd28170f7b99a4e95b30a7de1c6f5ff88fa8d908ec947466",
+    "bytes": 3758
+  },
+  "m7/regression-results.json": {
+    "sha256": "0999b9f073feae19918c162e8312bf3f8805ef62fba02237db369eb038b69e57",
+    "bytes": 1288
+  },
+  "m7/pre-snapshot/manifest.json": {
+    "sha256": "ae6069d9622043ea00ae69acf5f4f05441f9d23a4e9f3b633834c9c339090259",
+    "bytes": 1529
+  },
+  "m7/snapshot-comparison.json": {
+    "sha256": "f0e21936c88290860eb6f995cc8284c10012bf5c8dd07eaa83703619e7a2dea4",
+    "bytes": 834
+  },
+  "artifacts/m7-ios/_expo/static/js/ios/entry-6aab987ef3ca43e1f6b71a91962035b8.hbc": {
+    "sha256": "7095e4ca67db544231ae9a0a2a457c7d6d8159d5cccb9df7c60d0a9b122ebb4d",
+    "bytes": 2794166
+  }
+}

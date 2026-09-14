@@ -1,0 +1,409 @@
+{
+  "authoredFilesExcluded": [
+    "README.md",
+    "COPIED_FILES.json",
+    "external-artifacts.json",
+    "command-audit-scope.json"
+  ],
+  "copiedBytes": 89689,
+  "copiedFileCount": 49,
+  "copyVerification": "Each destination was exclusively created, then its byte length and SHA-256 were compared with the source.",
+  "createdAt": "2026-09-14T08:32:13Z",
+  "destinationRoot": "benchmarks/runs/2026-09-13-snapback4-clique-0004/astra/m7",
+  "files": [
+    {
+      "bytes": 310,
+      "category": "builder-report",
+      "destination": "FINAL.md",
+      "sha256": "f5395384013455f114b71b3103f09656b4fb56abd12253710e718fff0deaa3e3",
+      "sourcePath": "lanes/astra-snapback4/m7/FINAL.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 4189,
+      "category": "builder-report",
+      "destination": "builder-README.md",
+      "sha256": "5dc95c72447de7941eb2cc3d25a851d07ed850c81ffaca5f8f2ac24e256efdcb",
+      "sourcePath": "lanes/astra-snapback4/m7/README.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 4625,
+      "category": "builder-report",
+      "destination": "final-report.md",
+      "sha256": "6716541b8100deeb6ce366c8772c4c740b8ad392e938e50826f44586155a933f",
+      "sourcePath": "lanes/astra-snapback4/m7/final-report.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 4764,
+      "category": "builder-report",
+      "destination": "final-report.json",
+      "sha256": "afd9d85c57d63bad492747d838b93e30bfdd197a8faf17cb866bc7ecd662d5c0",
+      "sourcePath": "lanes/astra-snapback4/m7/final-report.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 14869,
+      "category": "builder-report",
+      "destination": "run-log.md",
+      "sha256": "2a37f3a5292496c52ee17996d7b987b754141be6e4aa207d462bc11b165fadc9",
+      "sourcePath": "lanes/astra-snapback4/m7/run-log.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 4049,
+      "category": "builder-report",
+      "destination": "diary.md",
+      "sha256": "692bda7e7f818b7ad0c771b40dee609da0f0dc5280ef895387f7820daef524fb",
+      "sourcePath": "lanes/astra-snapback4/m7/diary.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 2602,
+      "category": "builder-report",
+      "destination": "essay-paragraphs.md",
+      "sha256": "40ce008353b5ea7c8a50ba5e9889e59b2b2f978b2d61050e4e58f10c6132c48b",
+      "sourcePath": "lanes/astra-snapback4/m7/essay-paragraphs.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 4384,
+      "category": "m7-suite",
+      "destination": "evidence/suite-m7.json",
+      "sha256": "3f7bffa4fde1649a9b6242a9afcc17dd80b0cf10eeff37c6dd46f3174bd7f98a",
+      "sourcePath": "lanes/astra-snapback4/m7/suite-m7.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 483,
+      "category": "m7-suite",
+      "destination": "evidence/coverage-m7.json",
+      "sha256": "f873b5638440d8f2112dab8a3451b3b8e032532fd6f8204dbb14b09b4edc9540",
+      "sourcePath": "lanes/astra-snapback4/m7/coverage-m7.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 4384,
+      "category": "m7-suite-first-attempt",
+      "destination": "evidence/suite-m7-attempt1.json",
+      "sha256": "5e7e817e6fbadc625efaa619d8ee24833a903a9c21abf4b6f95e3a5cc7bda616",
+      "sourcePath": "lanes/astra-snapback4/m7/suite-m7-attempt1.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 483,
+      "category": "m7-suite-first-attempt",
+      "destination": "evidence/coverage-m7-attempt1.json",
+      "sha256": "f873b5638440d8f2112dab8a3451b3b8e032532fd6f8204dbb14b09b4edc9540",
+      "sourcePath": "lanes/astra-snapback4/m7/coverage-m7-attempt1.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 3758,
+      "category": "m7-choreography",
+      "destination": "evidence/choreography.jsonl",
+      "sha256": "dcac36114b00c2b9bd28170f7b99a4e95b30a7de1c6f5ff88fa8d908ec947466",
+      "sourcePath": "lanes/astra-snapback4/m7/choreography.jsonl",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1419,
+      "category": "m7-choreography",
+      "destination": "evidence/choreography.jsonl.observations.jsonl",
+      "sha256": "631fea814030ab0d4f45f5ca16cba83e8fd7a60da2eedc9acf4168e7b6011c1d",
+      "sourcePath": "lanes/astra-snapback4/m7/choreography.jsonl.observations.jsonl",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 3757,
+      "category": "m7-choreography-first-attempt",
+      "destination": "evidence/choreography-attempt1.jsonl",
+      "sha256": "d675998d9240aad4ac9a543c965294e2ad1adfa8a10f3723abd22fbe4082fbf1",
+      "sourcePath": "lanes/astra-snapback4/m7/choreography-attempt1.jsonl",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1419,
+      "category": "m7-choreography-first-attempt",
+      "destination": "evidence/choreography-attempt1.observations.jsonl",
+      "sha256": "b9122efe4c6698284e8e0413a71bc8a0006e3ad47a99b4727fc3d3d3df7876d9",
+      "sourcePath": "lanes/astra-snapback4/m7/choreography-attempt1.observations.jsonl",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 543,
+      "category": "m7-choreography-log",
+      "destination": "evidence/choreography-console.log",
+      "sha256": "629f40734852246849ed570d5bdafb9b3146467bde012a5cc9976668a69b49d6",
+      "sourcePath": "lanes/astra-snapback4/m7/choreography-console.log",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 834,
+      "category": "snapshot-summary",
+      "destination": "snapshot/snapshot-comparison.json",
+      "sha256": "f0e21936c88290860eb6f995cc8284c10012bf5c8dd07eaa83703619e7a2dea4",
+      "sourcePath": "lanes/astra-snapback4/m7/snapshot-comparison.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1529,
+      "category": "snapshot-metadata",
+      "destination": "snapshot/pre-manifest.json",
+      "sha256": "ae6069d9622043ea00ae69acf5f4f05441f9d23a4e9f3b633834c9c339090259",
+      "sourcePath": "lanes/astra-snapback4/m7/pre-snapshot/manifest.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1529,
+      "category": "snapshot-metadata",
+      "destination": "snapshot/post-manifest.json",
+      "sha256": "b1295d63f9015e88690b20ea7def0e6f499125229e6513e05850c8587f6267a3",
+      "sourcePath": "lanes/astra-snapback4/m7/post-snapshot/manifest.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 600,
+      "category": "migration-evidence",
+      "destination": "evidence/migration-verification.json",
+      "sha256": "0c42eda1c70dd1e9c3a1ebbe81240d306543de6a9847fb33ab22dc31ef127f13",
+      "sourcePath": "lanes/astra-snapback4/m7/migration-verification.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1288,
+      "category": "regression-summary",
+      "destination": "evidence/regression-results.json",
+      "sha256": "0999b9f073feae19918c162e8312bf3f8805ef62fba02237db369eb038b69e57",
+      "sourcePath": "lanes/astra-snapback4/m7/regression-results.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1290,
+      "category": "regression-summary",
+      "destination": "evidence/regression-first-attempt.json",
+      "sha256": "1f599e01c97f98a6f9017e7a3227ee2ece767fbdff0389b653ace30e7a8dd5fc",
+      "sourcePath": "lanes/astra-snapback4/m7/regression-first-attempt.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1820,
+      "category": "correction-log",
+      "destination": "evidence/correction-loops.json",
+      "sha256": "c5e20445df34ed1b83ad28063dcff8ed729b623d0a509b507c3703b2422e4afa",
+      "sourcePath": "lanes/astra-snapback4/m7/correction-loops.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1794,
+      "category": "custody-hashes",
+      "destination": "evidence/evidence-hashes.json",
+      "sha256": "594c686a4056aed54f04a7eb1ef04ca6c352c4ddf1c38690a079c95bef3f87c2",
+      "sourcePath": "lanes/astra-snapback4/m7/evidence-hashes.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 2043,
+      "category": "cleanup-receipt",
+      "destination": "evidence/cleanup.json",
+      "sha256": "efd71ed3a83335de09d7222fe619d679fb01a82fc2dfcdaad2aad2b5d420ea81",
+      "sourcePath": "lanes/astra-snapback4/m7/cleanup.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 123,
+      "category": "ui-receipt",
+      "destination": "evidence/poll-ui.json",
+      "sha256": "65cf0371e37f59cce69eadc131b45239fe43dda77db61710d1306ac6d756e5a3",
+      "sourcePath": "lanes/astra-snapback4/m7/poll-ui.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 443,
+      "category": "choreography-metadata",
+      "destination": "evidence/choreo-adapter.json",
+      "sha256": "a2082ba4d010c344ddc6ef8e6ec039d4eb62497dc148420d490eeafd180746f2",
+      "sourcePath": "lanes/astra-snapback4/m7/choreo-adapter.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 83,
+      "category": "choreography-metadata",
+      "destination": "evidence/choreo-fixture.json",
+      "sha256": "2232c234ca246318f4b672788a136e841f1327dcdd31b627ece7ceb8ea41f14c",
+      "sourcePath": "lanes/astra-snapback4/m7/choreo-fixture.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1256,
+      "category": "native-export-log",
+      "destination": "evidence/ios-export-final.log",
+      "sha256": "24816f47fe4273a70d28647e72f62c9e4072cb97ea6bf9bfe89cbda4110f43b3",
+      "sourcePath": "lanes/astra-snapback4/m7/ios-export-final.log",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 0,
+      "category": "typecheck-log",
+      "destination": "evidence/tsc-hardened.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourcePath": "lanes/astra-snapback4/m7/tsc-hardened.log",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 459,
+      "category": "m7-era-regression-suite",
+      "destination": "regressions/suite-m1.json",
+      "sha256": "9b7eac6748c1524a577bc6ac36e2e7d6d1e0922edb5be6f0a1a3da14e748393c",
+      "sourcePath": "lanes/astra-snapback4/m7/regressions/suite-m1.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 556,
+      "category": "m7-era-regression-coverage",
+      "destination": "regressions/coverage-m1.json",
+      "sha256": "4de4d483df7a4130796de0aafcefb9e2ec145cf13a459aa9b4e325fbb381af0b",
+      "sourcePath": "lanes/astra-snapback4/m7/regressions/coverage-m1.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1269,
+      "category": "m7-era-regression-suite",
+      "destination": "regressions/suite-m2.json",
+      "sha256": "f4ae1a02277287b92b5d907e0ba5fa9a9a1bee62e982bb2b7124fabcce9b8143",
+      "sourcePath": "lanes/astra-snapback4/m7/regressions/suite-m2.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1651,
+      "category": "m7-era-regression-coverage",
+      "destination": "regressions/coverage-m2.json",
+      "sha256": "d31623cd80599c60ed72591a1cf58ca6d90a545fe7d15ae793ba470e8db0ac04",
+      "sourcePath": "lanes/astra-snapback4/m7/regressions/coverage-m2.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 459,
+      "category": "m7-era-regression-suite",
+      "destination": "regressions/suite-m3.json",
+      "sha256": "66f4004196505ce471c9ea87fca78de2df5ec17d8ad46d3c7987f14da7e9e9ee",
+      "sourcePath": "lanes/astra-snapback4/m7/regressions/suite-m3.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 556,
+      "category": "m7-era-regression-coverage",
+      "destination": "regressions/coverage-m3.json",
+      "sha256": "bc581d96fa6958f6680dbdbbbe671fd629cd7adbfc42d51084ef76fedb0944c3",
+      "sourcePath": "lanes/astra-snapback4/m7/regressions/coverage-m3.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 431,
+      "category": "m7-era-regression-suite",
+      "destination": "regressions/suite-m4.json",
+      "sha256": "86d90209a08611dc27412cb80e53de698b1c37d3e000810f6c34198a772ded4a",
+      "sourcePath": "lanes/astra-snapback4/m7/regressions/suite-m4.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 410,
+      "category": "m7-era-regression-coverage",
+      "destination": "regressions/coverage-m4.json",
+      "sha256": "4f6d4b4ed477dd8bd1115ebca5b8110e30cced2c6b306b9f674315839e5b53da",
+      "sourcePath": "lanes/astra-snapback4/m7/regressions/coverage-m4.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 459,
+      "category": "m7-era-regression-suite",
+      "destination": "regressions/suite-m5.json",
+      "sha256": "20b9d004151cd5ea73657213c58082ee673542b41afe4459373645a574329d10",
+      "sourcePath": "lanes/astra-snapback4/m7/regressions/suite-m5.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 483,
+      "category": "m7-era-regression-coverage",
+      "destination": "regressions/coverage-m5.json",
+      "sha256": "323f0f7a1a5a6140ca1aef20ec135a9557fece128b2f248ce38b33d0433509f0",
+      "sourcePath": "lanes/astra-snapback4/m7/regressions/coverage-m5.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 933,
+      "category": "m7-era-regression-suite",
+      "destination": "regressions/suite-m6.json",
+      "sha256": "b243bbeec9c77acf6a2d475fd505b99442eb774099ebf036df70ac6c2ea465e8",
+      "sourcePath": "lanes/astra-snapback4/m7/regressions/suite-m6.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 410,
+      "category": "m7-era-regression-coverage",
+      "destination": "regressions/coverage-m6.json",
+      "sha256": "293ee85440203783aadadc35f3ca73950185832c17c559c514757ea66f917290",
+      "sourcePath": "lanes/astra-snapback4/m7/regressions/coverage-m6.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 4032,
+      "category": "m7-era-regression-suite",
+      "destination": "regressions/suite-m8.json",
+      "sha256": "25c2b59da23524c4f2095032ea534c116bcb519a5af46002e875bec6382b2f01",
+      "sourcePath": "lanes/astra-snapback4/m7/regressions/suite-m8.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 483,
+      "category": "m7-era-regression-coverage",
+      "destination": "regressions/coverage-m8.json",
+      "sha256": "f908ce7544890cced0ad60076107446e9592232ab881282b15bb4c68ecda8417",
+      "sourcePath": "lanes/astra-snapback4/m7/regressions/coverage-m8.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1128,
+      "category": "m7-era-regression-first-failure",
+      "destination": "regressions/suite-m6-attempt1.json",
+      "sha256": "55a2ce26c9835c036f8da26248a2f28a6c279ae104f27f84b0539b87efc3d985",
+      "sourcePath": "lanes/astra-snapback4/m7/regressions/suite-m6-attempt1.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 2230,
+      "category": "m7-era-regression-first-failure",
+      "destination": "regressions/suite-m8-attempt1.json",
+      "sha256": "e2658ca6ca2e9afc53a3644e0c6d7c75717bdb806ec969c9e65b6cf7a5bb7671",
+      "sourcePath": "lanes/astra-snapback4/m7/regressions/suite-m8-attempt1.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1116,
+      "category": "runner-lifecycle",
+      "destination": "lifecycle/astra-snapback4.m7.start.json",
+      "sha256": "bfae707f3eac09b7e22c6d5dd68e91059230efcebecc29b9d0ed02764fff2ae2",
+      "sourcePath": "logs/astra-snapback4.m7.start.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 368,
+      "category": "runner-lifecycle",
+      "destination": "lifecycle/astra-snapback4.m7.end.json",
+      "sha256": "8200eaed3e5b64b91c6ccaf241a5df8ff6a2ae34686645c9dd9a895f8de33e79",
+      "sourcePath": "logs/astra-snapback4.m7.end.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1586,
+      "category": "orchestrator-qualification",
+      "destination": "qualifications/astra-m7-regression-prefix-capture.json",
+      "sha256": "95ea7603c084ec3b462f888a41f5710067447eff64b6bdb657b55fa50c3c7d09",
+      "sourcePath": "observed-milestones/astra-m7-regression-prefix/capture.json",
+      "verifiedByteIdentical": true
+    }
+  ],
+  "schemaVersion": 1,
+  "sourceRoot": "/Users/ccheever/clique-sb4-20260913-full-3models"
+}

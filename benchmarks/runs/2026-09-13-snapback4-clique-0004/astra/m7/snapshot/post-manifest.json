@@ -1,0 +1,61 @@
+{
+  "at": 1789373228696,
+  "base": "http://127.0.0.1:49300",
+  "fields": [
+    "id",
+    "conversationId",
+    "senderId",
+    "serverTimestamp",
+    "sequence",
+    "type",
+    "text",
+    "media",
+    "edited",
+    "tombstone",
+    "replyToId",
+    "reactions",
+    "receipt"
+  ],
+  "personas": {
+    "alice": {
+      "file": "alice.json",
+      "sha256": "ee28f0588e90fc5c2d1a3d3c90dc0d08ba48c14fda333801c026dcdba6adbe0c",
+      "messages": 15
+    },
+    "bob": {
+      "file": "bob.json",
+      "sha256": "cdd660c716654e3ea7972d933149e093f457c7dae319f7852d3bb49eb01a55af",
+      "messages": 15
+    },
+    "carol": {
+      "file": "carol.json",
+      "sha256": "28ec8c4209aaab3fa5785f936b81f3ebbfaa3963fcf1d873aa1a6a9b5e5be656",
+      "messages": 9
+    },
+    "dave": {
+      "file": "dave.json",
+      "sha256": "4d84be80b56b455d063aa532ef83185b66a82e80e0aad4bd2497cd0438d578a4",
+      "messages": 0
+    },
+    "erin": {
+      "file": "erin.json",
+      "sha256": "e9acb48f6ef053281af51f8a54a657bfabd78c313db29e105d6a61c5fb6d5ab6",
+      "messages": 0
+    },
+    "frank": {
+      "file": "frank.json",
+      "sha256": "45bd7ae7aa2a05adfb540855f033726d2e4d58647d5dc4bc579fcac6274b303f",
+      "messages": 0
+    },
+    "grace": {
+      "file": "grace.json",
+      "sha256": "8ce3dfadfed0d969a3b75918dfcc1cf85e7f18f5761018f7c47db0ec0bf6167f",
+      "messages": 0
+    },
+    "henry": {
+      "file": "henry.json",
+      "sha256": "37599db7a16956c092b72a5f849e7558d9913f2d56f135eb3352576174ab030d",
+      "messages": 0
+    }
+  }
+}
