@@ -72,6 +72,7 @@ impl Runner<'_> {
                     let rows = self.tx.scan(&maintain.source, name, &prefix, &bounds, Dir::Asc, 32)?;
                     let count = rows.len();
                     for (candidate, stored) in rows {
+                        let candidate = crate::schema::row_image(&candidate, source);
                         bounds.after = crate::key::decode(&stored).map(|v| v.into_iter().skip(prefix.len()).collect());
                         if !self.expired(source, &candidate) && crate::schema::maintained_key(&candidate, &maintain.by) == group {
                             self.note_expiry(source, &candidate);

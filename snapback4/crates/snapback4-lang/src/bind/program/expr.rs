@@ -230,6 +230,15 @@ impl Binder<'_> {
                 Some(field) => field.clone(),
                 None => return Err(unknown(site, format!("this object has no field {name}"), name_rewrite(name, fields.keys().map(String::as_str), None))),
             },
+            Ty::Ref(table) => {
+                // @ref LLP 3000.007#18.5 — a reference needs an explicit row lookup or the shape's implicit row parameter.
+                let reference = match &base {
+                    Expr::Variable(runtime) => self.scopes.iter().rev().find_map(|scope| scope.iter().find(|(_, binding)| &binding.runtime == runtime).map(|(name, _)| name.as_str())).unwrap_or("reference"),
+                    _ => "reference",
+                };
+                return Err(type_error(site, format!("a {table} reference has no fields"),
+                    format!("{table}[{reference}] ! else NOT_FOUND — read the row, or use the shape's row parameter: {table}[{reference}] {{ {name}: .{name} }}")).guide("shapes"));
+            }
             Ty::Image | Ty::Video => match name {
                 "id" => Ty::Id,
                 "width" | "height" | "duration" => Ty::Int.optional(),

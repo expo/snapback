@@ -3,7 +3,7 @@
 use super::{Options, project_or_exit};
 use rusqlite::{Connection, OpenFlags, hooks::{AuthAction, AuthContext, Authorization}, types::ValueRef};
 use serde_json::{Value, json};
-use snapback4_core::schema::{ColumnType, Schema};
+use snapback4_core::schema::{ColumnDefault, ColumnType, Schema};
 use std::collections::BTreeSet;
 use std::path::Path;
 use std::sync::{Arc, atomic::{AtomicU8, Ordering}};
@@ -57,7 +57,20 @@ fn inspect(options: &Options) -> Result<()> {
                 _ => "", // Compound values remain canonical tagged JSON, as stored.
             };
             let path = format!("$.Row.{}{tag}", ident(column));
-            let value = format!("json_extract(data, {})", literal(&path));
+            let mut value = format!("json_extract(data, {})", literal(&path));
+            // @ref LLP 3000.007#18.3 — inspection projects required literal defaults, while optional absence remains SQL null.
+            if !kind.is_optional() && let Some(ColumnDefault::Literal(default)) = table.defaults.get(column) {
+                let default = match default {
+                    snapback4_core::Value::Bool(value) => i32::from(*value).to_string(),
+                    snapback4_core::Value::Int(value) => value.to_string(),
+                    snapback4_core::Value::Id(value) | snapback4_core::Value::String(value) => literal(value),
+                    snapback4_core::Value::Null => "NULL".into(),
+                    snapback4_core::Value::Bytes(value) => literal(&snapback4_core::value::canonical_json(value)),
+                    _ => literal(&snapback4_core::value::canonical_json(default)),
+                };
+                let field = literal(&format!("$.Row.{}", ident(column)));
+                value = format!("CASE WHEN json_type(data, {field}) IS NULL THEN {default} ELSE {value} END");
+            }
             columns.push(format!("{} AS {}", if tag.is_empty() { format!("nullif({value}, 'Null')") } else { value }, ident(column)));
         }
         // The private backing name cannot occur in submitted SQL. A public

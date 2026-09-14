@@ -42,12 +42,23 @@ fn table_typed_helpers_bind_at_each_call_as_rows_or_references() {
         assert_eq!(result.metered.examined, 1, "{query}: exactly one explicit lookup, no implicit helper lookup");
         println!("{query}: examined={}", result.metered.examined);
     }
+    let shaped = compile(&[("schema.q".into(), format!("{source}query shapeArg(id: messages):\n  return messages[id] {{ body: .body }}\n"))]);
+    assert!(shaped.diagnostics.is_empty(), "{:?}", shaped.diagnostics);
+    assert!(shaped.notes.is_empty(), "{:?}", shaped.notes);
+    engine.adopt(shaped.schema, shaped.programs.into_iter().map(|p| p.program)).unwrap();
+    assert_eq!(engine.query("shapeArg", context()).unwrap().data.field("body").unwrap(), &Value::String("hello".into()));
     let both = engine.query("both", context()).unwrap();
     assert_eq!(both.data.field("row"), both.data.field("ref"));
     assert_eq!(both.metered.examined, 2);
     // A reference still has no fields, and a row of another table does not fit.
     let bad = compile(&[("schema.q".into(), format!("{source}\nquery bad(id: messages):\n  return body(id)\n"))]);
-    assert_eq!(bad.diagnostics[0].message, "a messages reference has no fields");
+    assert_eq!(bad.diagnostics.len(), 1);
+    assert_eq!(bad.diagnostics[0].to_string(), "schema.q:5:24 — E_QUARRY_TYPE: a messages reference has no fields\n  rewrite: messages[m] ! else NOT_FOUND — read the row, or use the shape's row parameter: messages[m] { body: .body }\n  guide: shapes");
+    assert_eq!(serde_json::to_value(&bad.diagnostics[0]).unwrap(), serde_json::json!({
+        "site": {"file":"schema.q", "line":5, "col":24}, "code":"E_QUARRY_TYPE", "message":"a messages reference has no fields",
+        "rewrite":"messages[m] ! else NOT_FOUND — read the row, or use the shape's row parameter: messages[m] { body: .body }", "guide":"shapes", "mechanical":false
+    }));
+    println!("{}", bad.diagnostics[0]);
     let wrong = compile(&[("schema.q".into(), format!("{source}\ntable other:\n  public 'other'\nquery wrong(id: other):\n  return body(other[id] ! else NOT_FOUND)\n"))]);
     assert!(wrong.diagnostics.iter().any(|d| d.message == "body's m is a messages reference; got a other row"));
 }

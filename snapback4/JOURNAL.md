@@ -4620,3 +4620,57 @@ prefix scans for every mutation page read. Earlier question and review
 text remains intact. No code or status line changes; the existing guards
 are the accepted behavior. The 0.2.10 Clique cell continues unchanged,
 and the SQL-read choice remains pending its §10.3 finding.
+
+## 2026-09-14 — R1b: default interpretation, store assessment, inspection and repair races
+
+Lane R1b started clean at `db1173ca2c612b1603894756623e8c05fd7369b6` and read
+both integration reviews in full. The governing context is LLP 3000 §6–§7
+and LLP 3000.007 §18.3–§18.5 under §14's rulings. Seven assigned findings
+reproduced before their fixes; the WAL durable-content hypothesis did not.
+The regression-first evidence and final summaries are in `/tmp/r1b-*.log`
+in this lane's environment; the lead owns the commit and outside-sandbox run.
+
+| Finding | Base observation | Built and verified |
+| --- | --- | --- |
+| GPT 4 | `defaulted_membership_group_agrees_with_rules_snapshot_and_stream_{sqlite,memory}`: rule admits 1 row but `held` is `[]`, expected `[["r"]]` | Partition row consumers use the existing `row_image` helper before audience/group/lifetime extraction, including interval reconstruction and join images. Alice/Bob: admitted 1/0, held groups 1/0, snapshots 1/0; a later put streams 2 rows to Alice. Leaving emits a scope, retains 2 device rows, and serves 0 online. |
+| GPT 5 | `defaulted_sum_keeps_zero_candidate_through_expiry_{sqlite,memory}` returns `Int(0)`, expected `Int(-1)`; `rule_probe_materializes_defaulted_maintain_source_groups` returns `Null` for the live group | Materialize before source-presence grouping and the rule-probe source comparison. Three sources (+1, -1, +1), deletion, then expiry give 1 → 0 → -1; 1 candidate remains and both device stores read -1 before and after a replacement snapshot. The probe has live/expired controls with and without a grouping index. |
+| GPT 6 / Grok H3 | Inspection fixture: SQL returns seven nulls; `data` returns only `{"body":"old","id":"m0"}` | Six required defaults appear as 0, -7, O'Reilly, member, 125 and r in SQL; the optional default stays null. `data` uses the stored generation in one read transaction. Explicit true/zero/empty-text/enum/id/optional-false values win. SQL uses absence-specific CASE so an explicit value is never replaced. Device persistence exports remain raw storage images, now named on the cards and README. |
+| GPT 7 | `changed_default_rechecks_unchanged_{unique_index,cap}`: check exits 0; dev refuses `E_CONSTRAINT: cannot activate messages.byFlag: existing group exceeds a unique key` / `cap 1` | A changed column rechecks dependent unique indexes, caps and text constraints. Both checks exit 1 at schema.q:3:3 and activation uses its existing shared `Step::refusal` E_ADOPT path. Non-colliding controls check and adopt successfully. No blanket conversion of unrelated store errors. |
+| GPT 8 | `check_preserves_database_and_wal_bytes_with_live_and_stopped_dev` passes at the base | No open-mode change. With live dev, stopped dev, and stopped dev with shm removed: database 143360 B, WAL 8272 B, SHA-256 before/after equal in all 3 cases, 0 durable bytes changed. A normal SQLite WAL reader recreates `-shm` and participates in its shared-memory read-lock protocol. |
+| GPT 10 | Changed query and last-moment destination saves are accepted; stale final compile has 0 diagnostics, expected 1. The earlier destination-save control already refuses. | Every compiled source is checked before a repair, destination bytes re-read immediately before writing, and final compile reads the project again. Deterministic observer boundaries interleave editor saves without sleeps; subprocesses use check's shared I/O-error mapping and exit 2 naming queries.q or tables.q with no edit. These checks are not an atomic compare-and-write lock against arbitrary editors. |
+| GPT 11 | `processDevice requires its directory synchronously before spawning`: `Missing expected exception (Error).` | Empty and whitespace-only dir refuse synchronously with the existing sentence. The injected-host and actual Node-opening controls pass; the 16-test periphery suite passes. |
+| GPT 12 (helper half) | `table_typed_helpers_bind_at_each_call_as_rows_or_references` has the generic rewrite and guide types | Exact text and JSON envelopes now name messages[m] and the shape's implicit row parameter, guide shapes. Quarry has no declared shape-typed helper parameter, so the alternative is the working projection `messages[m] { body: .body }`, compiled and run. Row and reference helper paths each examine 1 row; the combined call examines 2. |
+
+Targeted results: core 52/52 (29 unit, 16 corpus-adapter, 7 meter);
+simulator adoption 5/5; device adoption 6/6; language repairs 3/3;
+guide 9/9; CLI check 9/9 and fix 15/15; client periphery 16/16.
+The base WAL control is 1/1. The initial failed tests are recorded separately
+from fixture-authoring corrections, and only failures of valid compiled
+fixtures above are attributed to the base. The fixer base run adds only
+observer calls at compile/write boundaries, without changing behavior.
+
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` followed by
+`bash snapback4/scripts/test.sh` completed with `== 1 failure(s) in 138 s`:
+Rust 437 passed, 0 failed, 1 explicitly ignored; fixture wrappers 9/9;
+client 128/129. All build/typecheck steps and lifecycle tests passed.
+The sole client failure is `React hooks and reference-app lifetimes`:
+Chromium exits with SIGABRT during launch, before application execution.
+`node --test packages/snapback4/test/react.test.mjs` alone repeats it (0/1).
+This is the sandbox launch limitation named in the lane brief; no claim of
+verification against an unchanged base build is made for that failure.
+The wasm build reports 1597346 B raw and 443040 B gzip.
+
+The personas/inspection card moved to `guide/personas.rs` before the guide
+was extended (guide.rs 1470 lines). README was already 1525 lines at the
+base; tightening the affected client, check, inspection and evolution prose
+brings it to 1499, with its Queries bullet untouched. The append-only
+journal retains its existing history. No new diagnostic codes, ceilings,
+serialized value forms or existing corpus cases changed. The only edit
+in R1a's `engine/read.rs` is the authorized single source-materialization
+line outside search; its other owned files were not edited. No commit,
+push, tag, publication, new agent or remote machine was used.
+
+Final reference check: `ref-check: ok — 474 LLP docs, 8837 refs in 22770 files,
+0 errors, 0 unchecked`; `git diff --check` passes. Standalone
+`cargo test -p snapback4-lang --test guide` also passes 9/9 after the README
+was shortened. HEAD remains the base; only the intended lane changes remain.

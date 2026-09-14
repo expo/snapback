@@ -10,6 +10,8 @@
 /// The keyword cards, in the order `snapback4 guide` lists them.
 #[path = "guide/actions.rs"]
 mod actions;
+#[path = "guide/personas.rs"]
+mod personas;
 pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "rules", "sync", "residency", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "services", "presence", "bounds", "refusals", "personas"];
 
 /// The contents of every ```quarry block in a card or a README.
@@ -394,6 +396,8 @@ with `return [value]`, or with its last expression, or with its final write.
 - `while` and recursion → `for` over a page, list, `range(a, b)` with int expressions, or `tokens(text)`; `walk` for a chain.
 - Floats → integer minor units in `decimal S` and `money CUR S`, or a native job.
 - A typed map with dynamic keys → `group(list, 'col')`, whose result is a list of `{ key, items }` groups in first-seen order.
+Before editing, `check --fix` verifies every compiled source; an editor save refuses the repair with its filename. Its final compile re-reads the project.
+
 - Guessed spellings are refused with a canonical rewrite; `snapback4 check --fix` applies mechanical repairs (including missing indexes, argument `once`, repeated wildcard fields and empty operation parentheses): `cond ? a : b` → `a if cond else b`; `a?.b` → `a.b if a != null else null`; `len(x)` → `count(x)`; `elif` → `else if`; `proc` → `fn`; `//` and `#` → `--`.
 
 Cards: `snapback4 guide <keyword>` — types, indexes, rules, sync, residency, expire,
@@ -454,6 +458,8 @@ fields take their defaults before rules run; explicit values, including null
 on an optional column, win. `now` and `viewer` use the writing host's context.
 An added required column with a literal default also fills absent fields in
 old images on every host, without rewriting rows or logging partition events.
+Changing a required default rechecks its existing unique indexes and caps too.
+`data` and `sql` show that interpretation; device persistence exports are raw storage images.
 Optional columns still read null when absent. New required `default now` or
 `default viewer` columns adopt only an empty table; otherwise use an optional
 column or a literal default. `check` reads `.snapback4/store.sqlite` when it
@@ -794,6 +800,10 @@ The table and shape names are the language card's. A shape over a page is
 a bounded loop; its fields are the row's columns by bare name, `*` for all
 of them, `...shape` for a named shape's fields, and `name: expr` with `.`
 as the row. A shape is the only projection: there is no `select`.
+A table-typed helper accepts that table's row or reference. A reference has no
+fields: read `messages[m] ! else NOT_FOUND` first, or select through the shape's
+implicit row parameter, `messages[m] { body: .body }`. Shapes are projections,
+not declared helper-argument types.
 A row-based shape keeps `pending?: boolean` from its base, including `*`, named
 spreads and subsequent shapes. It is this device's unconfirmed change, absent
 after confirmation; it is not a schema column or metadata on a containing record."##,
@@ -1449,47 +1459,7 @@ INT, TERM and HUP report immediately; with an application worker they clean
 it up and exit 128 + signal. Otherwise, and for fatal signals, the process
 terminates immediately with its OS signal status. SIGKILL,
 power loss and an unwritable stderr cannot report from inside the process."##,
-        "personas" => r##"# Personas
-
-`use personas alice, bob` declares a development cast. `snapback4 run send
-'{..}' --as alice` (the default persona is alice) and the
-`x-snapback-persona: alice` header in development act as `dev:alice`;
-`persona: "alice"` on the client sends the header. Personas are a
-development door: the socket peer, `Host`, and optional browser `Origin` must
-all be literal loopback/local http(s) values. Foreign, opaque, malformed and
-duplicate Origins are refused before routing, and CORS reflects only an
-admitted local Origin. A deployed server (`snapback4 serve`) refuses personas
-and seed, defaults to `127.0.0.1`, and requires
-`--i-understand-cleartext` for a non-loopback HTTP bind. Put a TLS terminator
-in front, preserve `Authorization` and `Origin`, strip persona headers, and
-rate-limit there by the actual client address; the binary trusts only its
-socket peer.
-
-`GET /auth/config` is the small public advertisement for guest/password
-support. Catalog, schema, generated API, native module and changes require a
-live principal. Signup accepts 8–1,024 password bytes and login at most 1,024;
-password hashing runs in bounded concurrent slots outside the engine mutex.
-Under `serve`, guest, login and signup share 30 attempts per socket peer per
-minute, while login and signup also share 10 per normalized email per minute
-(E_RATE_LIMIT). Under `dev`, loopback peers have neither minute counter; their
-Argon2 slots equal the host's available cores, capped at 16 and never below 2.
-Startup prints the slot count and the lifted counters once. `serve` and
-non-loopback peers keep two slots and the minute counters; full slots refuse
-with retryable E_RATE_LIMIT. Connection/worker caps remain. Unknown emails
-perform the same Argon2 verification work.
-
-Ordinary guest and password sessions last seven days. `refreshSession`
-atomically exchanges a live token; `logoutAll` revokes every session for the
-principal. The client refreshes near expiry and uses an in-memory session
-store by default. `localStorageSessionStore()` is an explicit compatibility
-choice whose token can be read by same-origin script; native apps should pass
-their secure store.
-
-`snapback4 sql "SELECT * FROM messages" [--limit N] [--json]` inspects
-the developer's own dev store; `--release dir` selects a deployment. It
-opens read-only alongside the running server and is never rule-filtered.
-Only application-table views are exposed; internal tables and raw r/i are
-refused. The default limit is 200, with a notice when more rows exist."##,
+        "personas" => personas::CARD,
         _ => return None,
     })
 }
