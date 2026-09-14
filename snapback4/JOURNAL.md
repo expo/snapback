@@ -7026,3 +7026,44 @@ lease new work; with `dev`'s per-child session (`0380b3ae6`) the fixture runs
 the reference worker's production defaults again (worker tests 5 of 5, three
 runs), so the test guards the fix instead of hiding the race.
 
+
+## 2026-09-14 — Expo target audit holds the first 0.2.5 candidate
+
+The final artifact inventory found deployment-target warnings in the earlier
+successful C-link logs: bundled SQLite targeted iOS/iOS Simulator 26.5 while
+the podspec promises 16.4. Those original bytes remain unpublished. Inspection
+of the pinned cc and rustc implementations established that both consume
+`IPHONEOS_DEPLOYMENT_TARGET` for both Apple iOS targets. Astra added the explicit
+16.4 setting to the existing XCFramework script and is rebuilding the slices
+for object-metadata and real C/Swift consumer checks. The runtime source is
+unchanged; already qualified and landed 0.2.14 CLI/browser inputs are unaffected.
+The earlier successful-link receipt is retained with this qualification limit.
+
+
+## 2026-09-14 — LLP 3000.008 selected increment delivered
+
+The four-family RFC panel (Astra, Grok, Muse, Claude) and author pass selected
+bounded residual work; Astra implemented it. Independent Sol/Grok code reviews
+accepted the combined changes and the focused follow-ups. Replayed writes now
+expose execution-only receipts, generation acquisition guards local knowledge,
+browser persistence/runtime installation recovers from real injected failures,
+stopped copies stay attached to their own store, and TCP_NODELAY repairs the
+measured response-body delay. The bounded ranking counterexample passes.
+
+The final 0.2.14 publication dry-run passed with zero failures in a 110 s
+canonical suite; installed-consumer checks passed. Actual production Chrome
+acquisition reached first useful data in 11.28 s and offline reopen in 675 ms
+on the named 40×500×10 fixture, with exact identities and zero runtime fetches.
+These timings are not a full-application/native/floor claim. The target-corrected
+Expo 0.2.5 has 374 valid deployment records per slice and warning-free C/Swift
+links at 16.4. Exact qualified client/platform 0.2.14 and Expo 0.2.5 tarballs
+are published with matching registry hashes. Native apps need a rebuild.
+
+The [run record](../benchmarks/runs/2026-09-14-snapback4-excellence/README.md)
+retains the original failures, the held old Expo artifact, source/host/toolchain
+identities and the remaining gaps. The short-lease worker fixture was a
+workaround: subsequent §19 source gives dead children revocable sessions and
+restores production test defaults. That stronger repair corrects the earlier
+review diagnosis and belongs to 0.2.15, with its own evidence. Neither release
+history nor test results are rewritten across those snapshots. The six RFC
+working-set links are retired; the outcome standards and broader gaps remain.
