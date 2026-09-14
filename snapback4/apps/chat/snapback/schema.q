@@ -9,6 +9,8 @@
 use identity
 use personas alice, bob, charlie
 
+action invite(email: text <=200)
+
 table profiles:
   principal: principal
   displayName: text 1..50
@@ -76,7 +78,7 @@ query inbox():
   return memberships[viewer] first 50 by byPrincipalConversation
     { conversationId, conversation: conversations[.conversationId], count: messageCounts[.conversationId] }
 
-mutation invite(conversationId: conversations, principal: principal):
+mutation addMember(conversationId: conversations, principal: principal):
   require exists memberships[conversationId, viewer, 'admin'] else NOT_ADMIN
   return insert memberships { conversationId, principal, role: 'member', joinedAt: now } if absent
 

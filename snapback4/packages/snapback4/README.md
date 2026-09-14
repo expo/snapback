@@ -26,6 +26,7 @@ promises a form the compiler refuses.
 ```
 my-app/
   snapback/schema.q          the backend: tables, rules, sync, queries, mutations
+  snapback/worker.ts          optional Node worker: effects and actions (dev starts it)
   snapback/generated/api.ts  written by `check`; never edited, never committed
   src/                       your client: React on the web, React Native on Expo
 ```
@@ -50,7 +51,7 @@ starter, selecting the native tier when available and online in Expo Go.
 ## 2. Quarry
 
 Comments start with `--`. Blocks indent with two spaces. A file holds
-directives, tables, maintains, shapes, helpers, queries, mutations, jobs
+directives, tables, maintains, shapes, helpers, queries, mutations, actions, jobs
 and schedules, in any order. `snapback4 guide` prints the language card:
 every form in one file that compiles and runs, and the idiom for each
 thing the language leaves out on purpose.
@@ -199,6 +200,21 @@ another. `fn isBrief(ttl: int ?): ttl != null` is a helper expression and
 each expanded where it is called (`isBrief(ttl)`; `stamp(r.id)` as a
 statement or expression), at most eight levels deep. A helper can write only
 when its caller can; a query's diagnostic names the write at the call site.
+
+### Actions
+
+```quarry
+action invite(email: text <=200)
+action refreshModel() <- viewer = 'service:ranker'
+```
+
+An action has typed arguments and no Quarry body: the application's
+TypeScript worker performs it and returns a JSON result. `<- allow` is
+the default (any signed-in principal); `deny` pauses it, and a rule over
+`viewer` can admit a named service. It cannot read tables or arguments.
+The generated operation is `Action<A, R = unknown>`, `kind: "action"`,
+server-run and never predicted. See `guide actions`; its declaration is
+compiled on that card beside the language card.
 
 ### Queries, mutations and jobs
 
@@ -710,6 +726,7 @@ import { api } from "../snapback/generated/api";
 const client = await createLocalClient({ url: "http://127.0.0.1:4400", persona: "alice", device: webDevice() });
 const thread = await client.query(api.thread, { conversationId });
 const write = await client.mutate(api.send, { conversationId, body: "hi" });
+const invitation = await client.act(api.invite, { email: "friend@example.com" });
 ```
 
 The local-first client opens the device — the Rust module, the same
@@ -730,14 +747,14 @@ and restored for this JavaScript runtime by default), or `guest: true`
 (mint one when none is kept); `sessionStore`; `fetch`; `waitSeconds`. It
 has `query(op, args) → Read`, `observe(op, args) → { getSnapshot(), subscribe(listener) →
 unsubscribe, close() }` (a live read; React's `useSyncExternalStore`
-shape), `mutate(op, args) → Write`, `link()`, `onLink`, `viewer()`,
+shape), `mutate(op, args) → Write`, `act(op, args, options?) → Act`, `link()`, `onLink`, `viewer()`,
 `onViewer`, `onWrite`, `session()`, `onSession`, `refreshSession()`,
 `logoutAll()`, `signOut()`, `sync()`,
 `close()`. `onWrite` reports the terminal `sent` or `failed` outcome of a
 write that first returned `pending`; it is a live-client notification, while
 the durable outbox remains the authority across a restart. A restored or
 provided session within 24 hours of
-expiry rotates before the protected backend is fetched; a running client
+expiry rotates before the protected backend is fetched (temporary action sessions cannot refresh); a running client
 schedules the same rotation. A successful rotation replaces the stored
 session and the Authorization bearer before `onSession` receives it. After
 `signOut()` the client is closed and `session()` is null, as it is once
@@ -924,6 +941,22 @@ talks to the server directly with `createLocalClient({ url, session })`;
 the principal is the application's own name for the account
 (`member:42`), outside the engine's namespaces.
 
+### Action results
+
+`client.act(op, args)` returns `Act<R>`: `{ state: "done", id, result }`,
+`{ state: "failed", id, why }`, or `{ state: "pending", id }`. A denial
+before admission is `{ denied, id }`: offline is retryable `E_OFFLINE`.
+The request is durable before the server waits up to 25 seconds; if its
+handler has not settled, the wire answers HTTP 202 with retryable
+`E_ACTION_PENDING`. Pass `{ id: previous.id }` as the third argument to
+collect the recorded result; the server marks a replay `replayed: true`.
+A lost transport response also returns pending because admission may
+have succeeded. Actions never enter a device outbox or predict rows.
+`{ waitSeconds: 0 }` only admits or collects; the maximum/default is 25.
+`useAction(op)` returns `{ run, last, inFlight }`, mirroring `useMutation`.
+`Act`, including its pre-admission denial, is a new card word needing the
+author's ruling (LLP 2000.000 §8).
+
 ### Workers and services (`snapback4/worker`)
 
 ```ts
@@ -944,6 +977,25 @@ kept beside the effect — and mints or revokes the sessions of the
 accounts the application authenticates itself. `meta.id` is the
 idempotency key a provider should see.
 
+The same worker handles `actions: { invite: async (args, meta) => result }`.
+Its `meta.session` is client-ready: `createClient({ url, session: meta.session })`
+runs reads and writes under the REQUEST's principal, never the worker's.
+The session cannot refresh or enter worker/minting routes, and dies on
+settlement or lease expiry. It lasts 60 seconds by default; set
+`actionSessions: { invite: 120 }` and `lease: 120` per handler (the shorter
+wins; maximum 900). Thrown errors retry after 2 seconds, doubling to
+5 minutes and at most 8 attempts; `GiveUp` fails at once. Action results
+are JSON, bounded by the unchanged 1 MiB output ceiling. The worker only
+claims supplied handler names; effects and actions wait independently.
+
+With `snapback/worker.ts` (or `.mjs`), `dev` starts Node 24 and supplies
+`SNAPBACK_URL` and `SNAPBACK_SERVICE_TOKEN`, a `service:worker` token
+printed once. It restarts after crashes with 250 ms to 5 s backoff and
+stops the child when dev exits. `doctor` shows the worker file and the
+request queue by state. Production workers are ordinary Node processes
+you supervise. `apps/chat/snapback/worker.ts` is the invitation example:
+it mints a session for `member:<email>` and returns only `{ principal }`.
+
 ### The mock (`snapback4/mock`)
 
 `createMockClient({ viewer, tables, ops })` is a client with the same
@@ -960,7 +1012,7 @@ PNG and `asset` is always denied.
 - **`snapback4 init [dir] [--online|--expo]`** starts a project without
   overwriting existing files. The default writes the local-first todo
   schema and `.gitignore`; `--online` adds an online client, package.json
-  and README. `--expo` copies the chat starter with its backend, screens,
+  and README. `--expo` copies the chat starter with its backend, invitation worker, screens,
   secure session store and native/online tier selection. Its toolchain
   matches the reference app: Expo **57.0.22**, React Native **0.86.3**,
   React **19.2.3**, expo-sqlite **57.0.3**, babel-preset-expo **57.0.11**.
@@ -1041,7 +1093,7 @@ PNG and `asset` is always denied.
   the effects by state and the failed ones;
   **`guide [keyword]`** prints the language card or one card: language,
   types, indexes, rules, sync, residency, expire, assets, reads, shapes, writes,
-  programs, jobs, native, feeds, search, effects, services, presence,
+  programs, jobs, native, feeds, search, effects, actions, services, presence,
   bounds, refusals, personas (`guide <E_CODE>` explains a code);
   **`--version`** prints the binary's version, which equals the
   package's. Every flag may be spelled `--flag=value`.
@@ -1095,7 +1147,18 @@ last two in seconds; `wait` long-polls until something is due) answers
 (`{ "error", "retry" }`) settle one (`E_EFFECT_LEASE` when this worker
 does not hold it, 404 `E_EFFECT_UNKNOWN` when no such effect is queued),
 and `GET /effects?state=queued` lists them; a user's token at any of these
-is 401 `E_AUTH`. Authorization:
+is 401 `E_AUTH`.
+
+`POST /a/<name> { id, args }` is the viewer's action door (`?wait=0..25`).
+Workers use `POST /actions/claim { action?, limit?, lease?, wait?, session? }`
+and receive `{ requests: [{ id, action, args, principal, session, attempt, at }] }`.
+They settle via `POST /actions/<id>/done { result }` or `/failed { error, retry }`,
+with the service bearer and the claim's `session.token` in
+`x-snapback-action-lease`. This fences an expired attempt even if its
+successor uses the same service token (`E_ACTION_LEASE`). `runWorker`
+sends it. A user token at these worker doors is 401 `E_AUTH`.
+
+Authorization:
 `x-snapback-persona` (dev, same machine, `[A-Za-z0-9_-]+`) or
 `Authorization: Bearer <token>`; a bearer wins when both are sent. Status
 codes: 401 with no or a dead credential, 404 `E_OP` for an unknown

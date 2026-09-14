@@ -870,3 +870,32 @@ query post(postId: posts):
     assert!(e.store().rows("votes").unwrap().iter().any(|r| r.field("postId") == Ok(&id("visible"))), "deleting a target does not cascade to references");
     assert_eq!(query(&mut e, "post", &[("postId", id("visible"))]), Value::Null);
 }
+
+
+#[test]
+fn actions_declare_typed_admission_and_unknown_results_without_a_quarry_body() {
+    let sources = [("schema.q".into(), "action invite(email: text <=200, tags: [text <=10] <=3 ?)\naction rank() <- viewer = 'service:ranker'\naction paused() <- deny\n".into()), ("mail.q".into(), "action send(to: text <=100) <- not (viewer = 'dev:blocked')\n".into())];
+    let bound = compile(&sources);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+    assert_eq!(bound.programs.len(), 4);
+    for p in &bound.programs {
+        assert_eq!(p.program.kind, snapback4_core::ProgramKind::Action);
+        assert_eq!(p.result, Ty::Unknown);
+        assert_eq!(bound.schema.operations[&p.program.name].runs.as_deref(), Some("server"));
+        assert_eq!(bound.schema.operations[&p.program.name].predicts.as_deref(), Some("never"));
+    }
+    let api = snapback4_lang::emit::typescript(&bound);
+    assert!(api.contains("invite: Action<{ email: string; tags?: string[] | null }, unknown>"), "{api}");
+    assert!(api.contains("name: \"mail.send\""), "{api}");
+    assert!(api.contains("kind: \"action\""), "{api}");
+    for source in ["action x():\n  return 1\n", "action x(a: int, a: int)\n", "action x() <- exists profiles[viewer]\n", "action x(n: int) <- n = 1\n", "action x()\naction x()\n", "query x():\n  return 1\naction x()\n", "action x(item: missing)\n"] {
+        assert!(!compile(&[("schema.q".into(), source.into())]).diagnostics.is_empty(), "accepted {source}");
+    }
+    let conflict = compile(&[("schema.q".into(), "action mail()\n".into()), ("mail.q".into(), "query inbox():\n  return 1\n".into())]);
+    assert!(!conflict.diagnostics.is_empty());
+    // The parser recovers to the new declaration after an unrelated bad line.
+    let (document, diagnostics) = snapback4_lang::parser::parse_document("schema.q", "wat\naction recovered()\n");
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(document.actions[0].name, "recovered");
+}

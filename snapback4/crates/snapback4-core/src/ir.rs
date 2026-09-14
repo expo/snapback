@@ -36,6 +36,8 @@ pub enum ProgramKind {
     Mutation,
     #[serde(rename = "job")]
     Job,
+    #[serde(rename = "action")]
+    Action,
 }
 
 impl ProgramKind {
@@ -44,6 +46,7 @@ impl ProgramKind {
             Self::Query => "query",
             Self::Mutation => "mutation",
             Self::Job => "job",
+            Self::Action => "action",
         }
     }
 }

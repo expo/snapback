@@ -6,6 +6,8 @@
 #[cfg(feature = "sqlite")]
 pub mod effects;
 #[cfg(feature = "sqlite")]
+pub mod actions;
+#[cfg(feature = "sqlite")]
 pub mod job;
 #[cfg(feature = "wasm-host")]
 pub mod native;
@@ -707,6 +709,9 @@ impl Engine {
         let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
         if program.kind == ProgramKind::Query {
             return Err(RuntimeError::UnknownOp(format!("{name} is a query, not a mutation")));
+        }
+        if program.kind == ProgramKind::Action {
+            return Err(RuntimeError::UnknownOp(format!("{name} is an action: call it with client.act")));
         }
         if program.kind == ProgramKind::Job {
             return Err(RuntimeError::UnknownOp(format!("{name} is a job: a schedule fires it, or `snapback4 run {name}` does; no caller can")));

@@ -18,6 +18,9 @@ use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 use tiny_http::{Header, Method, Request, Response, Server};
 
+#[path = "actions.rs"]
+mod actions;
+
 #[cfg(test)]
 #[path = "serve_tests.rs"]
 mod tests;
@@ -182,6 +185,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     let server = Server::http_with_limits((bind, port), tiny_http::ConnectionLimits::default()).map_err(|e| format!("cannot listen on {bind}:{port}: {e}"))?;
     let server = Arc::new(server);
     let address = server.server_addr();
+    let mut worker = if dev { crate::dev_worker::DevWorker::start(&project, shared.clone(), format!("http://{address}"))? } else { None };
     match &generated {
         Some(generated) => println!("snapback4 dev: http://{address}  (schema: snapback/, types: {})", generated.display()),
         None => println!("snapback4 serve: http://{address}  (release {}, generation {generation}, tokens only)", project.root.display()),
@@ -199,8 +203,13 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     // @ref LLP 3000#7-decisions-during-execution — bound HTTP admission while reserving short requests
     let admission = Arc::new(RequestAdmission::default());
     loop {
-        let request = server.recv().map_err(|error| format!("HTTP listener stopped: {error}"))?;
-        dispatch(request, shared.clone(), admission.clone());
+        if let Some(worker) = &mut worker {
+            if worker.stopping() { return Ok(()); }
+            worker.tick();
+        }
+        if let Some(request) = server.recv_timeout(Duration::from_millis(100)).map_err(|error| format!("HTTP listener stopped: {error}"))? {
+            dispatch(request, shared.clone(), admission.clone());
+        }
     }
 }
 
@@ -232,7 +241,7 @@ fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmissi
 
 fn is_waiter(method: &Method, path: &str) -> bool {
     (method == &Method::Get && path == "/changes")
-        || (method == &Method::Post && path == "/effects/claim")
+        || (method == &Method::Post && (path == "/effects/claim" || path == "/actions/claim" || path.starts_with("/a/")))
 }
 
 fn watch_sources(project: Project, shared: Arc<Shared>) {
@@ -361,6 +370,11 @@ fn maintain(shared: Arc<Shared>) {
             }
         }
         if tick % 5 == 0 {
+            match lock(&shared.engine).requeue_expired_actions(now) {
+                Ok(n) if n > 0 => shared.committed.notify_all(),
+                Err(error) => eprintln!("snapback4: the action lease sweep failed: {error}"),
+                _ => {}
+            }
             let requeued = lock(&shared.engine).requeue_expired_effects(now);
             match requeued {
                 Ok(0) => {}
@@ -391,7 +405,8 @@ fn maintain(shared: Arc<Shared>) {
 /// A worker's seat: a bearer session of a service principal.
 fn service_of(request: &Request, shared: &Shared) -> Result<String, Refusal> {
     let principal = principal_of(request, shared)?;
-    if !snapback4_core::identity::is_service(&principal) {
+    let kind = single_header(request, "authorization").ok().flatten().and_then(|h| h.strip_prefix("Bearer ")).and_then(|token| snapback4_core::identity::resolve(lock(&shared.engine).store(), token.trim(), snapback4_core::now_ms()).ok().flatten()).map(|(_, kind)| kind);
+    if !snapback4_core::identity::is_service(&principal) || kind.as_deref() != Some("service") {
         return Err(Refusal::new("E_AUTH", "auth", "this is a worker's door: send a service token (`snapback4 token --service <name>`)").guide("effects"));
     }
     Ok(principal)
@@ -632,13 +647,13 @@ fn handle(mut request: Request, shared: &Shared) {
     // Check identity before upload admission or allocating any large body.
     // The route rechecks after reading, so expiry/revocation during a slow
     // upload cannot retain the authority held at its start.
-    if method == Method::Post && (path == "/assets" || path.starts_with("/q/") || path.starts_with("/m/")
+    if method == Method::Post && (path == "/assets" || path.starts_with("/q/") || path.starts_with("/m/") || path.starts_with("/a/")
         || matches!(path.as_str(), "/auth/refresh" | "/auth/logout" | "/auth/logout-all")) {
         if let Err(refusal) = principal_of(&request, shared) {
             return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
         }
     }
-    if method == Method::Post && (matches!(path.as_str(), "/auth/session" | "/auth/revoke") || path.starts_with("/effects/")) {
+    if method == Method::Post && (matches!(path.as_str(), "/auth/session" | "/auth/revoke") || path.starts_with("/effects/") || path.starts_with("/actions/")) {
         if let Err(refusal) = service_of(&request, shared) {
             return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
         }
@@ -693,6 +708,9 @@ fn handle(mut request: Request, shared: &Shared) {
         Err(_) => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "a JSON request body must be valid UTF-8")) })),
     };
     match (method, path.as_str()) {
+        (Method::Post, path) if path.starts_with("/a/") => actions::call(request, shared, path.trim_start_matches("/a/"), &body),
+        (Method::Post, "/actions/claim") => actions::claim(request, shared, &body),
+        (Method::Post, path) if path.starts_with("/actions/") => actions::settle(request, shared, path, &body),
         (Method::Get, "/probe") => match principal_of(&request, shared) {
             Ok(_) => respond(request, 200, json!({ "ok": true })),
             Err(refusal) => respond(request, 401, json!({ "denied": refusal_json(&refusal) })),

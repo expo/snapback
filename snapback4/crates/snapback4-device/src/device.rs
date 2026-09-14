@@ -561,6 +561,7 @@ impl<S: DeviceStore> Device<S> {
     /// submission order, in one transaction.
     pub fn admit(&mut self, mut entry: Queued) -> Result<Queued, RuntimeError> {
         let program = self.programs.get(&entry.op).ok_or_else(|| RuntimeError::UnknownOp(entry.op.clone()))?;
+        if program.kind == snapback4_core::ProgramKind::Action { return Err(RuntimeError::UnknownOp("an action cannot enter the device outbox; call client.act".into())); }
         let tx = self.store.transaction()?;
         if entry.predictable {
             tx.savepoint("admit")?;
@@ -607,6 +608,7 @@ impl<S: DeviceStore> Device<S> {
     /// Queue a write as given (no prediction); a duplicate submission
     /// number or id is refused.
     pub fn enqueue(&mut self, entry: &Queued) -> Result<(), RuntimeError> {
+        if self.programs.get(&entry.op).is_some_and(|p| p.kind == snapback4_core::ProgramKind::Action) { return Err(RuntimeError::UnknownOp("an action cannot enter the device outbox; call client.act".into())); }
         let tx = self.store.transaction()?;
         tx.outbox_insert(entry.seq, &entry.id, &encoded(entry)?)?;
         tx.commit()

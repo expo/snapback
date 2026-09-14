@@ -8,6 +8,7 @@ mod auth;
 mod native;
 mod project;
 mod serve;
+mod dev_worker;
 mod verbs;
 
 use snapback4_lang::guide;

@@ -319,6 +319,14 @@ pub struct ArgDecl {
     pub site: Site,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ActionDecl {
+    pub name: String,
+    pub args: Vec<ArgDecl>,
+    pub rule: Expr,
+    pub site: Site,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ProgramKind {
     Query,
@@ -369,6 +377,7 @@ pub struct Document {
     pub shapes: Vec<ShapeDecl>,
     pub functions: Vec<FunctionDecl>,
     pub programs: Vec<ProgramDecl>,
+    pub actions: Vec<ActionDecl>,
     pub schedules: Vec<ScheduleDecl>,
     /// Personas declared with `use personas alice, bob`.
     pub personas: Vec<String>,

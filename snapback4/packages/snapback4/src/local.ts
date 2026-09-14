@@ -13,6 +13,7 @@ export type { MediaStorage, AssetRetention } from "./local-assets.ts";
 import { mintId } from "./client.ts";
 import { operationTables, type BackendJson, type ProgramJson, type SchemaJson } from "./backend.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
+import { act } from "./actions.ts";
 import {
   defaultSessionStore,
   forgetSession,
@@ -137,7 +138,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       session = signedIn.session;
     }
     if (!session) throw new Error(`createLocalClient: no session for ${base}; pass one from guest(), login() or signup(), or say guest: true`);
-    if (session.expiresAt - Date.now() <= REFRESH_BEFORE_EXPIRY_MS) {
+    if (session.kind !== "action" && session.expiresAt - Date.now() <= REFRESH_BEFORE_EXPIRY_MS) {
       const refreshed = await rotateSession(base, session.token, doFetch);
       if (refreshed.ok) {
         if (refreshed.session.principal !== session.principal) {
@@ -324,7 +325,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const scheduleRefresh = (retryAfter?: number) => {
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = undefined;
-    if (closed || sessionDead || options.persona || !session) return;
+    if (closed || sessionDead || options.persona || !session || session.kind === "action") return;
     const untilDue = Math.max(0, session.expiresAt - Date.now() - REFRESH_BEFORE_EXPIRY_MS);
     const requested = retryAfter ?? (untilDue === 0 ? 60_000 : untilDue);
     const delay = Math.min(Math.max(1, requested), 2_147_000_000);
@@ -775,6 +776,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
 
   const client: LocalClient = {
+    act(op, args, options) {
+      return act(op, args, options, options?.id ?? mintId(), post, () => unavailable() ?? (link !== "online" ? offline() : undefined));
+    },
     async query(op, args) {
       return (await runLocal(op, args)).read;
     },

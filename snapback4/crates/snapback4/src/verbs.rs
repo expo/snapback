@@ -407,6 +407,7 @@ pub fn doctor(options: &Options) -> i32 {
         return 1;
     };
     lines.push(format!("project   {}", project.root.display()));
+    lines.push(format!("worker    {}", crate::dev_worker::source(&project).map(|p| format!("{} (supervised by dev)", p.display())).unwrap_or_else(|| "absent (add snapback/worker.ts or .mjs)".into())));
     let (personas, native_jobs) = match project.compile() {
         Ok(bound) if bound.diagnostics.is_empty() => {
             lines.push(format!("schema    ok: {} tables, {} synced, {} operations", bound.schema.tables.len(), bound.schema.synced().count(), bound.programs.len()));
@@ -456,6 +457,9 @@ pub fn doctor(options: &Options) -> i32 {
             }
             match snapback4_core::Engine::open(store) {
                 Ok(engine) => {
+                    if let Ok(counts) = engine.action_counts() {
+                        lines.push(format!("requests  {}", ["queued", "running", "done", "failed"].into_iter().map(|state| format!("{} {state}", counts.get(state).copied().unwrap_or(0))).collect::<Vec<_>>().join(", ")));
+                    }
                     for schedule in &engine.schema().schedules {
                         let last = engine.store().meta(&format!("schedule:{}", schedule.name)).ok().flatten();
                         lines.push(format!("schedule  {} every {}{} → {}; {}", schedule.name, human_period(schedule.every_ms), if schedule.offset_ms > 0 { format!(" at {:02}:{:02}", schedule.offset_ms / 3_600_000, schedule.offset_ms % 3_600_000 / 60_000) } else { String::new() }, schedule.target, match last { Some(at) => format!("last boundary {at}"), None => "not yet started (a running server starts it)".into() }));

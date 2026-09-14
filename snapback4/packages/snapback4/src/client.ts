@@ -7,6 +7,7 @@
 import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import type { Session } from "./auth.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
+import { act } from "./actions.ts";
 
 export interface ClientOptions {
   /** The server, e.g. `http://127.0.0.1:4400`. */
@@ -339,6 +340,9 @@ export function createClient(options: ClientOptions): Client {
   }
 
   const client: Client = {
+    act(op, args, options) {
+      return act(op, args, options, options?.id ?? mintId(), post, () => closed ? ended() : !credentials || link === "signed-out" ? auth() : link !== "online" ? offline() : undefined);
+    },
     async query(op, args) {
       return (await runQuery(op, args)).read;
     },

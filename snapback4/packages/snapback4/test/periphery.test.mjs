@@ -75,6 +75,7 @@ test("Expo starter copies reference pins, parses configs, and carries both clien
   vm.runInNewContext(read(join(dir, "metro.config.js")), metro);
   assert.equal(metro.module.exports.resolver.unstable_enablePackageExports, true);
   assert.equal(read(join(dir, "src/client.ts")), read(join(reference, "src/client.ts")));
+  assert.equal(read(join(dir, "snapback/worker.ts")), read(join(root, "apps/chat/snapback/worker.ts")));
   assert.match(read(join(dir, "src/client.ts")), /nativeAvailable\(\) \? "native" : "online"/);
   assert.doesNotMatch(read(join(dir, "App.tsx")), /runWitness|EXPO_PUBLIC_WITNESS/);
   for (const screen of ["Inbox", "Thread"]) assert.match(read(join(dir, `src/${screen}.tsx`)), /\.\.\/snapback\/generated\/api/);

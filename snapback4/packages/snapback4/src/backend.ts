@@ -5,7 +5,7 @@
 
 export interface ProgramJson {
   name: string;
-  kind: "Query" | "Mutation" | "job";
+  kind: "Query" | "Mutation" | "job" | "action";
   args: Record<string, unknown>;
   body: unknown[];
   /** The body is the app's native module (LLP 3000.005). */

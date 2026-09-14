@@ -32,7 +32,7 @@ async function until(check, ms = 10_000) {
 
 test("the native module follows the server, predicts, queues, and starts cold offline", { timeout: 90_000 }, async () => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-native-"));
-  cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true });
+  cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true, filter: (path) => !/\/worker\.(ts|mjs)$/.test(path) });
   rmSync(join(dir, "snapback/generated"), { recursive: true, force: true });
   const server = spawn(binary, ["dev", "--port", String(port), "--no-watch", "--fresh"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
   let log = "";

@@ -8,7 +8,9 @@
 //! on its own; one that does not compiles beside the language card's schema.
 
 /// The keyword cards, in the order `snapback4 guide` lists them.
-pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "rules", "sync", "residency", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "services", "presence", "bounds", "refusals", "personas"];
+#[path = "guide/actions.rs"]
+mod actions;
+pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "rules", "sync", "residency", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "services", "presence", "bounds", "refusals", "personas"];
 
 /// The contents of every ```quarry block in a card or a README.
 pub fn quarry(text: &str) -> Vec<String> {
@@ -388,7 +390,7 @@ with `return [value]`, or with its last expression, or with its final write.
 
 Cards: `snapback4 guide <keyword>` — types, indexes, rules, sync, residency, expire,
 assets, reads, shapes, writes, programs, jobs, native, feeds, search,
-effects, services, presence, bounds, refusals, personas. `snapback4 why
+effects, actions, services, presence, bounds, refusals, personas. `snapback4 why
 <CODE>` explains a refusal.
 "##;
 
@@ -1181,6 +1183,7 @@ costs one verdict per word; the unscoped `byWords` under a per-room rule
 checks the rule per row and is never `complete` (`N_NEVER_COMPLETE` names
 it) — search across every room on the device instead, where the
 partition holds exactly what the viewer may read, offline included."##,
+        "actions" => actions::CARD,
         "effects" => r##"# Effects: the outside world, performed by a worker
 
 ```quarry
@@ -1310,7 +1313,7 @@ retryable? }`: `code` and `family` are stable, `rewrite` compiles, `guide`
 names a card, `rule` is the program's own code on a `require` refusal, and
 `retryable` says the same request may succeed later. The engine's families:
 input, schema, auth, rule (your `require` codes), constraint, bound, op,
-asset, prediction, generation, store; the client adds link (the server is
+asset, action, prediction, generation, store; the client adds link (the server is
 unreachable) and client (the client itself refused, as after `close()`).
 `snapback4 why <CODE>` explains one. Reads never raise a rule refusal: a
 hidden row is null, and a page omits it."##,
@@ -1359,6 +1362,10 @@ refused. The default limit is 200, with a notice when more rows exist."##,
 /// Every refusal code `why` explains, with its family. A program's own
 /// `require` codes are the author's and are explained by the program.
 pub const CODES: &[(&str, &str)] = &[
+    ("E_ACTION_PENDING", "family action, retryable — the request is durable but the handler has not settled within the wait; repeat client.act with the same id (guide actions)."),
+    ("E_ACTION_UNKNOWN", "family action — no declared action or recorded request is available under this name and id for this viewer (guide actions)."),
+    ("E_ACTION_LEASE", "family action — this claim expired or no longer owns the request; settle with the current claim's session.token in x-snapback-action-lease (guide actions)."),
+    ("E_ACTION_FAILED", "family action — the handler gave up or exhausted eight attempts; why.message is its error (guide actions)."),
     ("E_SQL_READ_ONLY", "developer SQL accepts exactly one SELECT or WITH … SELECT. Writes, attachment, pragmas and side effects are refused; guide personas."),
     ("E_SQL_INTERNAL", "developer SQL reads only generated application-table views. Raw r/i, internal tables and SQLite metadata are refused; guide personas."),
     ("N_NOW_SERVER", "a query now reads a server-only site; why names it and the rewrite. See guide residency."),

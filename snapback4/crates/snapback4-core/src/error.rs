@@ -158,11 +158,12 @@ impl RuntimeError {
     }
 
     /// Every family `family()` answers, for the guide's refusals card.
-    pub const FAMILIES: &'static [&'static str] = &["input", "schema", "auth", "rule", "constraint", "bound", "op", "asset", "prediction", "generation", "store"];
+    pub const FAMILIES: &'static [&'static str] = &["input", "schema", "auth", "rule", "constraint", "bound", "op", "asset", "action", "prediction", "generation", "store"];
 
     pub fn family(&self) -> &'static str {
         match self {
             Self::Input(_) | Self::Value(_) => "input",
+            Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE") => "action",
             Self::Schema(_) | Self::Structural { .. } => "schema",
             Self::Rule { .. } | Self::Auth(_) => "auth",
             Self::Require { .. } => "rule",
@@ -202,6 +203,7 @@ impl RuntimeError {
                 refusal.message = format!("the program refused with {code}");
                 refusal.guide = Some("programs".into());
             }
+            Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE") => refusal.guide = Some("actions".into()),
             Self::Bound { kind, ceiling, site, .. } => {
                 // The ceiling, never the count: the count would measure rows
                 // the viewer may not read.

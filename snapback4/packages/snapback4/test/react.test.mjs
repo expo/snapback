@@ -95,7 +95,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
 const harness = `
 import { StrictMode, act, createElement as h } from "react";
 import { createRoot } from "react-dom/client";
-import { SnapbackProvider, useQuery, usePage, useMutation, useViewer, useAsset } from "snapback4/react";
+import { SnapbackProvider, useQuery, usePage, useMutation, useAction, useViewer, useAsset } from "snapback4/react";
 import { Composer } from "web-composer";
 import { Thread } from "expo-thread";
 import { App as WebApp } from "web-app";
@@ -239,6 +239,39 @@ const cases = {
     await act(async () => { abandoned = latest.run({ n: 6 }); });
     await unmount();
     replacement.writes[0].resolve(sent("after-unmount")); await abandoned;
+  },
+  async "useAction tracks concurrent results, retry ids and obsolete lifetimes"() {
+    const client = controlled(), calls = [];
+    client.act = (_, args, options) => { const call = deferred(); calls.push({ ...call, args, options }); return call.promise; };
+    const op = { kind: "action", name: "invite" };
+    let latest;
+    function Probe() { latest = useAction(op); return null; }
+    await mount(h(Probe), client);
+    let first, second;
+    await act(async () => { first = latest.run({ email: "one" }); second = latest.run({ email: "two" }); });
+    check(latest.inFlight, "concurrent actions are in flight");
+    const done = { state: "done", id: "two", result: { principal: "member:two" } };
+    await act(async () => { calls[1].resolve(done); await second; });
+    equal(latest.last, done, "latest action's result");
+    await act(async () => { calls[0].resolve({ state: "failed", id: "one", why: { code: "E_ACTION_FAILED" } }); await first; });
+    equal(latest.last, done, "older failure cannot overwrite the newest result");
+    check(!latest.inFlight, "both settled");
+    let pending;
+    await act(async () => { pending = latest.run({}, { id: "same" }); });
+    equal(calls[2].options, { id: "same" }, "the retry id is forwarded");
+    await act(async () => { calls[2].resolve({ state: "pending", id: "same" }); await pending; });
+    check(latest.last.state === "pending", "pending is visible");
+    let denied;
+    await act(async () => { denied = latest.run({}); });
+    await act(async () => { calls[3].resolve({ denied: { code: "E_OFFLINE" }, id: "offline" }); await denied; });
+    check(latest.last.denied.code === "E_OFFLINE", "offline denial is visible");
+    let obsolete;
+    await act(async () => { obsolete = latest.run({}); });
+    const replacement = controlled(); replacement.act = async () => done;
+    await render(h(Probe), replacement);
+    await act(async () => { calls[4].resolve(done); await obsolete; });
+    check(latest.last === undefined && !latest.inFlight, "old action cannot enter a new lifetime");
+    await unmount();
   },
   async "useViewer subscribes and useAsset has empty and failed outcomes"() {
     const client = controlled();

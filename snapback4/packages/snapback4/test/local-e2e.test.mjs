@@ -23,7 +23,7 @@ const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_devi
 const device = (persist = memoryPersistence()) => webDevice({ wasm, persist });
 const port = 4470 + (process.pid % 20);
 const url = `http://127.0.0.1:${port}`;
-const api = { thread: { kind: "query", name: "thread" }, inbox: { kind: "query", name: "inbox" }, send: { kind: "mutation", name: "send" }, invite: { kind: "mutation", name: "invite" } };
+const api = { thread: { kind: "query", name: "thread" }, inbox: { kind: "query", name: "inbox" }, send: { kind: "mutation", name: "send" }, addMember: { kind: "mutation", name: "addMember" } };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function until(check, ms = 8000) {
@@ -38,7 +38,7 @@ async function until(check, ms = 8000) {
 
 test("two devices converge through the partition stream", { timeout: 60_000 }, async () => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-chat-"));
-  cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true });
+  cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true, filter: (path) => !/\/worker\.(ts|mjs)$/.test(path) });
   rmSync(join(dir, "snapback/generated"), { recursive: true, force: true });
   const server = spawn(binary, ["dev", "--port", String(port), "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
   let log = "";
@@ -116,7 +116,7 @@ test("two devices converge through the partition stream", { timeout: 60_000 }, a
 
 test("queued writes flush in the order they were submitted", { timeout: 60_000 }, async () => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-fifo-"));
-  cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true });
+  cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true, filter: (path) => !/\/worker\.(ts|mjs)$/.test(path) });
   rmSync(join(dir, "snapback/generated"), { recursive: true, force: true });
   const fifoPort = port + 40;
   const fifoUrl = `http://127.0.0.1:${fifoPort}`;
@@ -160,7 +160,7 @@ test("queued writes flush in the order they were submitted", { timeout: 60_000 }
 
 test("a device restores its session on its own", { timeout: 60_000 }, async () => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-chat-"));
-  cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true });
+  cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true, filter: (path) => !/\/worker\.(ts|mjs)$/.test(path) });
   rmSync(join(dir, "snapback/generated"), { recursive: true, force: true });
   const port2 = port + 20;
   const url2 = `http://127.0.0.1:${port2}`;
@@ -220,7 +220,7 @@ test("a device restores its session on its own", { timeout: 60_000 }, async () =
 
 test("an upload is placed once and served by the home row's read rule", { timeout: 60_000 }, async () => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-assets-"));
-  cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true });
+  cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true, filter: (path) => !/\/worker\.(ts|mjs)$/.test(path) });
   rmSync(join(dir, "snapback/generated"), { recursive: true, force: true });
   const assetPort = port + 20;
   const assetUrl = `http://127.0.0.1:${assetPort}`;

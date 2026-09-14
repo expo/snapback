@@ -45,6 +45,7 @@ pub fn execution(schema: &Schema, program: &Program) -> Execution {
         ProgramKind::Query => fact.runs = Some(if server { "server" } else { "device" }.into()),
         ProgramKind::Mutation => fact.predicts = Some(if server { "never" } else { "eligible" }.into()),
         ProgramKind::Job => fact.runs = Some("server".into()),
+        ProgramKind::Action => { fact.runs = Some("server".into()); fact.predicts = Some("never".into()); }
     }
     fact
 }

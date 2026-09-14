@@ -956,3 +956,134 @@ fn a_ranked_feed_is_scored_by_a_job_and_composed_on_the_device() {
     engine.fire_schedules(300_000).unwrap();
     assert_eq!(engine.fire_schedules(600_000).unwrap(), vec!["rescoreEvery".to_owned()]);
 }
+
+
+const ACTIONS: &str = r#"
+action invite(email: text <=200, label: text <=20 ?)
+action rank() <- viewer = 'service:ranker'
+action paused() <- deny
+table privateNotes:
+  owner: principal
+  body: text <=200
+  read <- .owner = viewer
+  insert <- .owner = viewer
+query note(id: privateNotes):
+  return privateNotes[id]
+mutation save(body: text <=200):
+  return insert privateNotes { owner: viewer, body }
+"#;
+
+fn action_engine() -> Engine {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), ACTIONS.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap()
+}
+fn action_context(principal: &str, at: i64) -> Context {
+    Context::new(principal, args(&[("email", Value::String("bob@example.com".into()))])).at(at)
+}
+
+#[test]
+fn actions_queue_once_check_rules_and_validate_inputs() {
+    let mut engine = action_engine();
+    let (run, replayed) = engine.request_action("invite", "request1", action_context("dev:alice", 1_000)).unwrap();
+    assert_eq!((run.state.as_str(), run.principal.as_str(), run.at, replayed), ("queued", "dev:alice", 1_000, false));
+    assert_eq!(run.args["label"], Value::Null);
+    assert!(engine.request_action("invite", "request1", Context::new("dev:alice", BTreeMap::new()).at(2_000)).unwrap().1);
+    assert_eq!(engine.action_counts().unwrap()["queued"], 1);
+    assert_eq!(engine.request_action("invite", "request1", action_context("dev:bob", 1_000)).unwrap_err().code(), "E_ACTION_UNKNOWN");
+    assert_eq!(engine.request_action("rank", "r2", Context::new("dev:alice", BTreeMap::new())).unwrap_err().code(), "E_RULE");
+    assert!(engine.request_action("rank", "r3", Context::new("service:ranker", BTreeMap::new())).is_ok());
+    assert_eq!(engine.request_action("paused", "r4", Context::new("service:ranker", BTreeMap::new())).unwrap_err().code(), "E_RULE");
+    assert_eq!(engine.request_action("invite", "r5", Context::new("dev:alice", BTreeMap::new())).unwrap_err().code(), "E_INPUT");
+    let long = Context::new("dev:alice", args(&[("email", Value::String("x".repeat(201)))]));
+    assert_eq!(engine.request_action("invite", "r6", long).unwrap_err().code(), "E_INPUT");
+    assert_eq!(engine.request_action("save", "r7", Context::new("dev:alice", args(&[("body", Value::String("x".into()))]))).unwrap_err().code(), "E_ACTION_UNKNOWN");
+    assert_eq!(engine.mutate("invite", None, action_context("dev:alice", 1_000)).unwrap_err().code(), "E_OP");
+    assert_eq!(engine.request_action("invite", "r8", action_context("system", 1_000)).unwrap_err().code(), "E_AUTH");
+    assert_eq!(engine.claim_actions("dev:alice", None, 1, 60_000, 60, 2_000).unwrap_err().code(), "E_AUTH");
+    assert!(engine.store().rows("privateNotes").unwrap().is_empty(), "admission does not execute the action");
+}
+
+#[test]
+fn actions_claim_viewer_sessions_expire_fence_and_revoke_on_settlement() {
+    use snapback4_core::{identity, engine::actions::ActionSettled};
+    let mut engine = action_engine();
+    engine.request_action("invite", "r1", action_context("dev:alice", 1_000)).unwrap();
+    let first = engine.claim_actions("service:worker", Some("invite"), 1, 900_000, 60, 2_000).unwrap().remove(0);
+    assert_eq!(first.session.principal, "dev:alice");
+    assert_eq!(first.session.expires_at, 62_000);
+    assert_eq!(first.request.attempt, 1);
+    assert!(engine.claim_actions("service:other", None, 1, 60_000, 60, 2_001).unwrap().is_empty());
+    assert_eq!(identity::resolve(engine.store(), &first.session.token, 2_001).unwrap().unwrap().0, "dev:alice");
+    assert_eq!(identity::rotate_session(engine.store(), &first.session.token, 2_001).unwrap_err().code(), "E_AUTH");
+    // A claimed handler's data work obeys the caller's rule, never the worker's.
+    let saved = engine.mutate("save", Some("handler-r1"), Context::new(&first.session.principal, args(&[("body", Value::String("private".into()))])).at(2_001)).unwrap();
+    let WriteState::Sent { result, .. } = saved.state else { panic!("save refused") };
+    let row = result.field("id").unwrap().clone();
+    assert_eq!(engine.query("note", Context::new("service:worker", args(&[("id", row.clone())]))).unwrap().data, Value::Null);
+    assert_ne!(engine.query("note", Context::new(&first.session.principal, args(&[("id", row)]))).unwrap().data, Value::Null);
+    assert!(identity::resolve(engine.store(), &first.session.token, 62_000).unwrap().is_none());
+    assert_eq!(engine.settle_action("r1", "service:worker", &first.session.token, ActionSettled::Done(serde_json::json!(1)), 62_000).unwrap_err().code(), "E_ACTION_LEASE");
+    // Claim itself requeues an expired lease without waiting for maintenance.
+    let second = engine.claim_actions("service:worker", None, 1, 120_000, 120, 62_000).unwrap().remove(0);
+    assert_eq!(second.request.attempt, 2);
+    assert_eq!(second.session.expires_at, 182_000);
+    assert_ne!(second.session.token, first.session.token);
+    assert_eq!(engine.settle_action("r1", "service:worker", &first.session.token, ActionSettled::Done(serde_json::json!(1)), 62_001).unwrap_err().code(), "E_ACTION_LEASE");
+    assert_eq!(engine.settle_action("r1", "service:other", &second.session.token, ActionSettled::Done(serde_json::json!(1)), 62_001).unwrap_err().code(), "E_ACTION_LEASE");
+    let run = engine.settle_action("r1", "service:worker", &second.session.token, ActionSettled::Done(serde_json::json!({ "score": 1.25 })), 62_001).unwrap();
+    assert_eq!(run.state, "done");
+    assert_eq!(run.result.unwrap()["score"], 1.25, "action JSON does not change Quarry's integer value model");
+    assert!(identity::resolve(engine.store(), &second.session.token, 62_002).unwrap().is_none());
+    assert_eq!(engine.request_action("invite", "r1", action_context("dev:alice", 63_000)).unwrap().0.state, "done");
+    assert!(engine.claim_actions("service:worker", None, 1, 60_000, 60, 200_000).unwrap().is_empty());
+}
+
+#[test]
+fn actions_retry_backoff_give_up_and_the_eighth_expired_lease_are_terminal() {
+    use snapback4_core::engine::actions::ActionSettled;
+    let mut engine = action_engine();
+    engine.request_action("invite", "retry", action_context("dev:alice", 0)).unwrap();
+    let first = engine.claim_actions("service:worker", None, 1, 60_000, 60, 1).unwrap().remove(0);
+    let run = engine.settle_action("retry", "service:worker", &first.session.token, ActionSettled::Failed { error: "provider down".into(), retry: true }, 2).unwrap();
+    assert_eq!(run.state, "queued");
+    assert!(engine.claim_actions("service:worker", None, 1, 60_000, 60, 2_001).unwrap().is_empty());
+    let next = engine.claim_actions("service:worker", None, 1, 60_000, 60, 2_002).unwrap().remove(0);
+    assert_eq!(next.request.attempt, 2);
+    let run = engine.settle_action("retry", "service:worker", &next.session.token, ActionSettled::Failed { error: "bad address".into(), retry: false }, 2_003).unwrap();
+    assert_eq!(run.state, "failed");
+    assert_eq!(engine.request_action("invite", "retry", action_context("dev:alice", 3_000)).unwrap().0.error.as_deref(), Some("bad address"));
+    engine.request_action("invite", "crash", action_context("dev:alice", 0)).unwrap();
+    for attempt in 1..=8 {
+        let claim = engine.claim_actions("service:worker", None, 1, 1_000, 1, attempt * 1_000).unwrap().remove(0);
+        assert_eq!(claim.request.attempt, attempt as u32);
+    }
+    assert_eq!(engine.requeue_expired_actions(9_000).unwrap(), 1);
+    assert_eq!(engine.action_request("crash", "dev:alice").unwrap().state, "failed");
+    assert!(engine.claim_actions("service:worker", None, 1, 60_000, 60, 20_000).unwrap().is_empty());
+}
+
+#[test]
+fn actions_durable_replay_survives_reopen_and_result_bounds_keep_the_lease() {
+    use snapback4_core::{Store, engine::actions::ActionSettled};
+    let path = std::env::temp_dir().join(format!("sb4-action-{}-{}", std::process::id(), snapback4_core::now_ms()));
+    std::fs::create_dir_all(&path).unwrap();
+    let file = path.join("store.sqlite");
+    let bound = snapback4_lang::compile(&[("schema.q".into(), ACTIONS.into())]);
+    let mut engine = Engine::new(Store::open(&file).unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.request_action("invite", "durable", action_context("dev:alice", 0)).unwrap();
+    drop(engine);
+    let mut engine = Engine::open(Store::open(&file).unwrap()).unwrap();
+    let claim = engine.claim_actions("service:worker", None, 1, 60_000, 60, 1).unwrap().remove(0);
+    let huge = serde_json::json!("x".repeat(snapback4_core::Ceilings::default().output_bytes as usize));
+    assert_eq!(engine.settle_action("durable", "service:worker", &claim.session.token, ActionSettled::Done(huge), 2).unwrap_err().code(), "E_BOUND");
+    engine.settle_action("durable", "service:worker", &claim.session.token, ActionSettled::Done(serde_json::json!({ "ok": true })), 3).unwrap();
+    drop(engine);
+    let mut engine = Engine::open(Store::open(&file).unwrap()).unwrap();
+    let (run, replayed) = engine.request_action("invite", "durable", action_context("dev:alice", 4)).unwrap();
+    assert!(replayed);
+    assert_eq!(run.result.unwrap(), serde_json::json!({ "ok": true }));
+    assert_eq!(run.attempt, 1);
+    drop(engine);
+    std::fs::remove_dir_all(path).unwrap();
+}

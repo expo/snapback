@@ -9,6 +9,7 @@ use crate::print;
 
 mod expr;
 mod programs;
+mod actions;
 
 fn precedence(op: &str) -> Option<u8> {
     Some(match op {
@@ -36,7 +37,7 @@ struct Parser {
     document: Document,
 }
 
-const TOP_LEVEL: [&str; 16] = ["use", "table", "maintain", "channel", "query", "mutation", "job", "effect", "shape", "fn", "proc", "cursor", "schedule", "index", "unique", "deliver"];
+const TOP_LEVEL: [&str; 17] = ["use", "table", "maintain", "channel", "query", "mutation", "job", "action", "effect", "shape", "fn", "proc", "cursor", "schedule", "index", "unique", "deliver"];
 
 impl Parser {
     fn document(&mut self) {
@@ -56,6 +57,7 @@ impl Parser {
     fn top_level(&mut self) -> Fallible<()> {
         let token = self.peek().clone();
         match token.value.as_str() {
+            "action" => self.parse_action(),
             "use" => self.parse_use(),
             "table" => {
                 let table = self.parse_table()?;

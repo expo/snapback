@@ -53,7 +53,7 @@ export function scaleSeed({ groups, messages, members }) {
 /** A `snapback4 dev` on the chat backend in a temporary project, seeded. */
 export async function devServer({ seed, extraSource = "", port = 4460 + (process.pid % 20) }) {
   const app = mkdtempSync(join(tmpdir(), "sb4-witness-app-"));
-  cpSync(join(root, "apps/chat/snapback"), join(app, "snapback"), { recursive: true });
+  cpSync(join(root, "apps/chat/snapback"), join(app, "snapback"), { recursive: true, filter: (path) => !/\/worker\.(ts|mjs)$/.test(path) });
   rmSync(join(app, "snapback/generated"), { recursive: true, force: true });
   if (extraSource) writeFileSync(join(app, "snapback/media.q"), extraSource);
   const api = `http://127.0.0.1:${port}`;

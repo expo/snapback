@@ -5,6 +5,7 @@ pub mod catalog;
 pub mod program;
 pub mod schema;
 pub mod residency;
+mod actions;
 
 use crate::ast::Document;
 use crate::diag::Diagnostic;
@@ -53,6 +54,7 @@ pub fn bind(documents: Vec<Document>) -> Bound {
             }
         }
     }
+    actions::bind(&catalog, &mut programs, &mut diagnostics);
     if diagnostics.is_empty() {
         programs.retain(|bound| match snapback4_core::engine::admission::check(&schema, &bound.program) {
             Ok(()) => true,

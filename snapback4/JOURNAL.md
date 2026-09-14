@@ -2695,3 +2695,94 @@ membership row read by the viewer's own principal is its own witness for
 yet. Record: `benchmarks/runs/2026-09-13-snapback4-ceremonybar-before/`;
 metrics: `metrics/ceremonybar.jsonl` (three lines).
 
+## 2026-09-13 — Lane X: durable worker actions
+
+Implemented LLP 3000.007 §9.2, ruling 11, phase C2. Quarry declares
+`action name(args)` with typed arguments and an optional viewer rule; the
+application supplies the TypeScript body. The generated API exposes
+`Action<A, unknown>`. Admission records `_requests` transactionally once
+per client id, keeps results private to the original principal and action,
+and returns a settled result or a pending id after at most 25 seconds.
+Replays survive store reopen and ignore replacement arguments. Action
+results are bounded JSON outside Quarry's value model; no serialized value
+form, meter ceiling or existing corpus case changed.
+
+Service workers claim requests with a fresh non-renewable session for the
+REQUEST's principal. The session ends at the shorter of its configured
+lifetime and lease, defaults to 60 seconds, and is revoked on settlement.
+A delegated session cannot become a worker credential, even when its
+principal is a service seat. Settlement requires the claim's session token
+in `x-snapback-action-lease`: this additional wire header fences a stale
+attempt when the next worker uses the same service token. Expired leases
+requeue; errors back off from 2 seconds to 5 minutes, at most 8 attempts;
+`GiveUp` fails immediately. A lost settlement response leaves the lease
+recoverable; invalid JSON results fail without repeatedly running the handler.
+
+Both clients expose `act` without prediction, mutation receipts or device
+outbox entries. A known offline client returns `denied: E_OFFLINE`; an
+uncertain transport response preserves a pending id for an explicit retry.
+React's `useAction` keeps `last` on the newest invocation and respects its
+client/component lifetime. **`Act<R>` is a new card word needing the author's
+ruling under LLP 2000.000 §8**, as the lane brief requires. Its done/failed/
+pending union also has `{ denied, id }` for refusal before admission. The
+implementation and the actions card expose that choice for review; no
+ruling on the new word is implied by this entry.
+
+`dev` supervises `snapback/worker.ts` or `.mjs` with Node 24 and one printed
+`service:worker` token, restarts crashes with backoff and stops its own child
+on exit. `doctor` reports the worker file and queue counts. Chat's action
+`invite(email: text <=200)` mints a session for `member:<email>` and returns
+only the principal. Its old membership mutation is now `addMember`, with
+all callers updated. The Expo starter copies the worker together with the
+schema. Data-only chat fixtures and witnesses exclude the worker file;
+copying it into temporary projects without its dependencies had introduced
+an unwanted worker and a server-shutdown race in those tests.
+
+Measurements: the final isolated Mac worker suite passed 8 tests in
+15,787.616125 ms. Its action round trips, including a viewer write and read,
+were 10.44 ms online and 11.07 ms through the process device; a one-second
+pending wait took 1,004.26 ms. In the final Linux suite those measurements
+were 20.33 ms, 14.22 ms and 1,003.64 ms. These are individual observations,
+not percentiles or improvement claims. The core proves 60,000 ms default
+and 120,000 ms configured viewer lifetimes, terminal expiry on attempt 8,
+and exactly 2 attempts after a lost settlement. Offline action POSTs and
+queued device entries are both 0. The dev probe observes 1 crash/restart,
+1 printed service token, and doctor counts 0 queued / 0 running / 2 done /
+1 failed. Local wasm: 1,441,096 B raw / 405,953 B gzip; Linux wasm:
+1,440,852 B raw / 406,361 B gzip, both optimized with wasm-opt 132.
+
+Verification: targeted Rust tests pass (4 action engine/simulator, 1 both-
+store device, 1 frontend action test, 8 compiled-guide tests); 4 local
+end-to-end and 7 periphery tests pass. The final complete blocking suite on
+Minisforum, with Node 24.18.0, passes in 36 seconds: 277 Rust passes,
+0 Rust failures, 1 declared ignored Rust test; 9 fixture passes; 117 client
+passes including the browser tests; 0 failures overall. Its log is
+`/tmp/sb4-lane-x-suite-linux-final.log`, SHA-256
+`28d04b6a92556b2adc7ba015e4da65d4a4bff6b92deb79e30e8a2fd9b14fcb59`.
+The local and Linux changed-source digest before this append is
+`1a4cfcc4d5eede8308e38882704046035c74f19cc4522e347d51da52efe5e22d`,
+based on `cf2d13eea1858f5e89093d70562841f7296cab0c`.
+
+A completed local suite before the final starter-copy seam passed all 277
+Rust and 9 fixture tests, with 106 client passes and 1 Chromium startup
+failure in 26 seconds. The isolated browser failure (SIGABRT / kill EPERM)
+was reproduced with untouched sources from that exact base commit; the
+isolated Linux React suite passed all 11 tests. Later Mac reruns hit
+executable startup stalls, even for `--version`; the periphery tests passed
+alone afterward. No pre-existing attribution is made for those stalls.
+The remote setup needed its shared `benchmarks/fixtures/social-messenger`
+input and removal of macOS `._` transfer metadata; neither required a
+product change. The final successful run includes the complete fixture tree.
+
+Scope seams: parser/binder implementations live in new `actions.rs` modules;
+the AST, parser registration/recovery keyword, IR kind and emitter need
+small registrations. `bind/residency.rs` has one exhaustive-match arm for
+server-only, never-predicted execution. The language card's program is
+untouched; declarations compile in the new actions card. Local engine and
+device dispatchers refuse execution through query/mutation/prediction.
+The starter, existing renamed chat callers, data-only fixture copies and
+the libc dependency for child termination are the other integration seams.
+The largest changed source is guide.rs at 1,439 lines. This required
+append preserves the already-long journal's history. SQL application reads
+remain unimplemented as ruled; NOT-DOING records the trade. No commit,
+push, tag or publication was made; the lead owns integration.
