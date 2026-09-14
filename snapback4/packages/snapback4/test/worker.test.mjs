@@ -342,9 +342,14 @@ test("actions are denied offline on both tiers without entering the device queue
 test("chat's real TypeScript invite worker is supervised by dev, restarts and stops with it", { timeout: 20_000 }, async t => {
   const reference = readFileSync(join(root, "apps/chat/snapback/worker.ts"), "utf8");
   const source = readFileSync(join(root, "apps/chat/snapback/schema.q"), "utf8");
+  // A killed worker's outstanding claim can still lease new work. Keep
+  // lease expiry inside this intentional-crash fixture's deadline; the
+  // reference worker's production defaults remain 60 s lease / 25 s poll.
+  const worker = reference.replace("runWorker({ url, token,", "runWorker({ url, token, lease: 1, wait: 1,");
+  assert.notEqual(worker, reference, "the fixture must set its bounded lease and poll");
   // Exercise the actual reference after one intentional crash; only this
   // fixture's worker PID is ever signalled by the test.
-  const f = await actionFixture(t, { source, worker: { text: reference } });
+  const f = await actionFixture(t, { source, worker: { text: worker } });
   const client = createClient({ url: f.url, persona: "alice" }); f.clients.push(client);
   const result = await client.act(action("invite"), { email: "friend@example.com" });
   assert.equal(result.state, "done", JSON.stringify(result) + f.log());
