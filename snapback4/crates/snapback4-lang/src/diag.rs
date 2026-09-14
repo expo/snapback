@@ -56,7 +56,8 @@ impl Diagnostic {
 
 impl fmt::Display for Diagnostic {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} — {}: {}\n  rewrite: {}\n  guide: {}", self.site, self.code, self.message, self.rewrite, self.guide)
+        let discovery = if self.mechanical { " — check --fix applies it" } else { "" };
+        write!(f, "{} — {}: {}\n  rewrite: {}{discovery}\n  guide: {}", self.site, self.code, self.message, self.rewrite, self.guide)
     }
 }
 
@@ -78,7 +79,9 @@ pub fn unsupported(site: &Site, construct: &str, alternative: impl Into<String>)
 
 pub fn unknown(site: &Site, message: impl Into<String>, rewrite: impl Into<String>) -> Diagnostic {
     let diagnostic = Diagnostic::new(site, "E_QUARRY_UNKNOWN", message, rewrite);
-    if diagnostic.message.starts_with("index ") && diagnostic.message.ends_with("cannot carry a cursor: it neither ends in id nor is unique") && diagnostic.rewrite.starts_with("by ") {
+    if diagnostic.message.contains(" has no index ") && diagnostic.rewrite.starts_with("by ") && !diagnostic.rewrite.contains('<') {
+        diagnostic.mechanical()
+    } else if diagnostic.message.starts_with("index ") && diagnostic.message.ends_with("cannot carry a cursor: it neither ends in id nor is unique") && diagnostic.rewrite.starts_with("by ") {
         diagnostic.mechanical()
     } else {
         diagnostic

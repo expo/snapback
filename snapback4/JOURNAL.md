@@ -3793,3 +3793,141 @@ that those supplemental failures predate this lane is made.
 ## 2026-09-14 — the 0.2.9 calibration scored; the catch-up program opens (LLP 3000.007 §18)
 
 The Astra calibration on 0.2.9 scored 85 overall and behind the September 5 Convex and Supabase cells on setup_and_docs (78), data_modeling (88) and queries_and_live (74). The scorer's notes charge four things the published surface did: `processDevice()` named without a signature, retained history lost under a horizon on removal, an unscoped authorized search that is never complete on the server, and a defaulted column that refused adoption while `check` stayed green; the rest is learning cost. LLP 3000.007 §18 records the five decisions and their lanes: a merge of matching lanes over the viewer's groups (CU1), retained history kept whatever the horizon (CU2), the Node device's directory argument and a README example check (CU3), literal defaults materialized wherever absent and `check` reading the dev store (CU4), four more mechanical rewrites with the Trending recipe (CU5). The 0.2.10 three-model cell keeps running unchanged; the pin after these landings is 0.2.11.
+
+## 2026-09-14 — CU5: a guess costs a command, and Trending is on the feeds card
+
+Implemented LLP 3000.007 §18.5: four mechanical repair families, with the
+missing-index family covering named range reads and named rule probes. The
+fixer inserts a concrete `by` line after the table’s last declared index
+(or its last column when it has no declared indexes), preserving indentation
+and line endings across files. It leaves placeholder columns, conflicting
+index names, explicit wildcard-field expressions, column `once` errors and
+malformed operation headers manual. The repeated wildcard field can be
+before or after `*`; an explicit expression is never discarded. A marked
+rewrite now ends with ` — check --fix applies it`; JSON retains the existing
+`mechanical: true` field. No new diagnostic code or parser alias was added.
+
+Helpers are expanded at each call in `helper_arguments`/`fn_call`, not bound
+once. A parameter typed by a table now binds a same-table row argument as a
+row, keeping its fields without a lookup; references keep their current
+meaning. The language card compiles and runs both forms, and a single
+identity helper is exercised with both kinds of argument in one query.
+The feeds card has a `likes` table, `likeCounts` maintain and `trending()`
+query, seeking the trailing day at the unchanged 8,192 examined ceiling,
+sorting by likes and time, and slicing ten. Its warning names the incomplete
+set past the ceiling and points to the adjacent maintained ranking. The
+README mirrors that explanation.
+
+Baseline diagnostic reproductions on 518891fd1cc67b969a6f57b683e80efadc89b612
+(the five source fixtures are in `snapback4-lang/tests/fixtures/repair-*.q`):
+
+```text
+schema.q:7:10 — E_QUARRY_UNKNOWN: members has no index whose prefix takes 2 keys; its indexes are byId (id), byRoom (room, id)
+  rewrite: by byRoomPrincipal: room, principal, id
+  guide: language
+schema.q:8:11 — E_QUARRY_UNKNOWN: chats has no index with 2 columns matching this key
+  rewrite: declare `unique byC: <columns>` on chats; its indexes are byId: id; byKey: key, id; an index is needed when the named equalities do not cover a total unique key
+  guide: language
+schema.q:1:22 — E_QUARRY_SYNTAX: once is a column modifier, not an argument constraint
+  rewrite: remove once from this argument; declare image <=10000000 once on the owning table column
+  guide: language
+schema.q:5:41 — E_QUARRY_UNKNOWN: shape repeats field tombstone
+  rewrite: keep one
+  guide: language
+schema.q:1:15 — E_QUARRY_SYNTAX: expected "(", got ":"
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+```
+
+After, from the same source fixtures:
+
+```text
+schema.q:7:10 — E_QUARRY_UNKNOWN: members has no index whose prefix takes 2 keys; its indexes are byId (id), byRoom (room, id)
+  rewrite: by byRoomPrincipal: room, principal, id — check --fix applies it
+  guide: indexes
+schema.q:8:11 — E_QUARRY_UNKNOWN: chats has no index with 2 columns matching this key
+  rewrite: by byKeyAdmin: key, admin — check --fix applies it
+  guide: indexes
+schema.q:1:15 — E_QUARRY_SYNTAX: once is a column modifier, not an argument constraint; declare it on the owning table column
+  rewrite: photo: image <=10000000 ? — check --fix applies it
+  guide: language
+schema.q:5:41 — E_QUARRY_UNKNOWN: shape wildcard already includes field tombstone
+  rewrite: { * } — check --fix applies it
+  guide: shapes
+schema.q:1:1 — E_QUARRY_SYNTAX: an operation with no arguments still needs parentheses
+  rewrite: query trending(): — check --fix applies it
+  guide: language
+```
+
+Measured on the authored fixtures: **5 exact diagnostic envelopes** across **4 repair families**; helper `rowArg` **1 examined**, `refArg` **1 examined**, and the combined query **2 examined**. Trending over the complete trailing-day fixture returns **2 rows**, **4 examined**, `complete: true`; with **8,202 posts** in the day it returns **10 rows**, **16,385 examined attempts**, `complete: false`. The configured ceiling remains **8,192**; the meter records subsequent attempts after a capped read, so its reported attempted count is not a raised ceiling. No meter or serialized value/IR form changed. The lesson is to keep the completeness flag beside a ranking and to distinguish an already-read row from its reference during inline helper binding.
+
+Verification on this worktree: **59 targeted tests passed / 0 failed**
+(37 frontend, 9 guide, 3 repair/runtime, 10 CLI fix); the standalone requested
+guide command also passed **9 / 0**. Exact commands and final summary lines
+follow; Cargo commands ran from `snapback4/`. The final CLI, standalone guide,
+full script and isolated React commands used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+
+```text
+cargo test -p snapback4-lang --test repairs --test guide --test frontend_regressions --no-fail-fast -- --nocapture
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.69s
+
+cargo test -p snapback4 --test fix -- --nocapture
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.72s
+
+cargo test -p snapback4-lang --test guide
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+bash snapback4/scripts/test.sh
+-- ok: cargo test (257 s)
+-- ok: fixture wrapper tests (38 s)
+ℹ tests 122
+ℹ pass 121
+ℹ fail 1
+-- FAIL: client tests (69 s)
+== 1 failure(s) in 771 s
+
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+```
+
+The full script ran **381 Rust passes / 0 failures / 1 ignored**, **9 fixture
+passes / 0 failures**, **121 client passes / 1 failure**. All builds and
+package/chat/Expo typechecks passed. WASM measured **1,523,587 B raw /
+427,302 B gzip**; its build took **502 s** on the shared machine, and the
+script took **771 s**, **711 s** beyond its 60-second budget. A separate
+`--version` startup probe also timed out after **90 s**; no product-latency
+claim is made from this loaded run.
+
+The sole remaining failure is the React witness's Chromium startup
+**SIGABRT**, before any browser assertion. The isolated rerun reproduced it
+(**0 passed / 1 failed**). Its **43 tracked input files**—the test, client
+sources, app sources, witness helper and package/toolchain manifests—were
+byte-verified against base **518891fd1cc67b969a6f57b683e80efadc89b612**, with
+**0 differences**. This test launches no backend and stubs its generated API
+and local client, so its reproduction uses the base's unchanged inputs. The
+lead must rerun the browser witness in a host that can launch Chromium; no
+skip or gate was weakened here. Full-suite green is the one unmet acceptance
+item.
+
+Earlier development runs caught an introduced Rust compile error (calling a
+map method on the row-field vector), the language-card operation inventory
+(**8 passed / 1 failed**), and two CLI fixture defects: colliding temporary
+directory names (**6 / 4**) and a missing empty `schema.q` project marker
+(**9 / 1**). All were corrected before the final passing targeted runs and
+the full script's Rust pass. Two early Cargo commands were accidentally
+issued from the repository root and failed before tests; subsequent commands
+used the fenced workspace. No root file changed. The build refreshed five
+workspace versions in `snapback4/Cargo.lock`; that incidental file was
+restored byte-for-byte to the base, leaving no out-of-scope change.
+
+`./ref-check --verbose` passed before this append: **474 LLP docs, 8816 refs
+in 22735 files, 0 errors, 0 unchecked**. Every changed source/test file is
+below 1,500 lines; the largest is `guide.rs`, **1,474 lines**. The existing
+journal remains append-only. No commit, push, tag or publication was made.
+
+Post-append verification: `ref-check: ok — 474 LLP docs, 8816 refs in 22741 files, 0 errors, 0 unchecked`. `git diff --check` is clean; the intended change set is **19 files**, including the five regression fixtures and this journal.

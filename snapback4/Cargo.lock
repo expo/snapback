@@ -438,7 +438,7 @@ dependencies = [
 
 [[package]]
 name = "snapback4-core"
-version = "0.2.9"
+version = "0.2.10"
 dependencies = [
  "argon2",
  "getrandom",
@@ -453,7 +453,7 @@ dependencies = [
 
 [[package]]
 name = "snapback4-device"
-version = "0.2.9"
+version = "0.2.10"
 dependencies = [
  "rusqlite",
  "serde",
@@ -466,7 +466,7 @@ dependencies = [
 
 [[package]]
 name = "snapback4-lang"
-version = "0.2.9"
+version = "0.2.10"
 dependencies = [
  "serde",
  "serde_json",
@@ -475,7 +475,7 @@ dependencies = [
 
 [[package]]
 name = "snapback4-native"
-version = "0.2.9"
+version = "0.2.10"
 dependencies = [
  "serde",
  "serde_json",
@@ -483,7 +483,7 @@ dependencies = [
 
 [[package]]
 name = "snapback4-sim"
-version = "0.2.9"
+version = "0.2.10"
 dependencies = [
  "serde_json",
  "snapback4-core",

@@ -66,7 +66,7 @@ fn the_language_card_compiles_and_runs() {
     let source = language();
     let bound = clean("the language card", &source);
     let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).collect();
-    assert_eq!(names, ["room", "thread", "inbox", "following", "ancestors", "digest", "mentions", "search", "online", "pagePass", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative"]);
+    assert_eq!(names, ["room", "helperRows", "thread", "inbox", "following", "ancestors", "digest", "mentions", "search", "online", "pagePass", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative"]);
     assert_eq!(bound.schema.effects, ["notify"]);
     assert_eq!(bound.schema.schedules.len(), 1);
     assert_eq!(bound.personas, ["alice", "bob", "carol"]);
@@ -104,6 +104,9 @@ fn the_language_card_compiles_and_runs() {
     assert!(thread.complete);
     assert_eq!(engine.query("thread", Context::new(alice, args(&[("roomId", id("r1"))])).at(2_600)).unwrap().data.as_array().unwrap().len(), 1, "the brief message expired at 2,500");
     assert_eq!(engine.query("thread", Context::new("dev:mallory", args(&[("roomId", id("r1"))])).at(2_200)).unwrap_err().code, "NOT_MEMBER");
+    let helper = engine.query("helperRows", Context::new(bob, args(&[("messageId", id("msg2"))])).at(2_200)).unwrap();
+    assert_eq!(helper.data.field("body"), helper.data.field("byId"));
+    assert_eq!(helper.data.field("body").unwrap(), &text("keep"));
     // inbox and room: shapes over a page and over a row.
     let inbox = engine.query("inbox", Context::new(bob, args(&[])).at(2_200)).unwrap();
     assert_eq!(inbox.data.as_array().unwrap()[0].field("unread").unwrap(), &Value::Int(2));

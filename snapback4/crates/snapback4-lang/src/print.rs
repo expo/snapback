@@ -85,7 +85,7 @@ fn object_fields(fields: &[ObjectField]) -> String {
         .join(", ")
 }
 
-fn shape_fields(fields: &[ShapeField]) -> String {
+pub(crate) fn shape_fields(fields: &[ShapeField]) -> String {
     fields
         .iter()
         .map(|field| match field {
