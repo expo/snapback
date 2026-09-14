@@ -113,3 +113,20 @@ Orchestrator records, outside the frozen packet:
 Fetched origin/main and searched Snapback 4 issues, the governing RFC
 (including §18), and recent commits before filing. No duplicate report was
 found. CU1–CU5 cover different observations; their work was not modified.
+
+## Resolution — 2026-09-14
+
+Closed as a retained non-reproduction, not as a product-code fix. Two exact
+published-0.2.10 controls cover both client routes implicated by the report:
+the process-device route and the online `createClient` route. In each control,
+an unsynced public likes prefix changed from an empty result to the committed
+row, and the online-only count returned one. Neither control added a sync
+declaration, manual polling, or an explicit refresh.
+
+The original pre-workaround failing result was not retained, while the full
+application changed several independent inputs between its red and green M2
+receipts. That evidence cannot isolate a Snapback defect or justify changing
+runtime routing or teaching “No sync, no tick.” The builder report, exact
+controls, source custody, and the unresolved attribution remain preserved
+above. Reopen only with a reproducible failing answer and route on a named
+source/package identity.
