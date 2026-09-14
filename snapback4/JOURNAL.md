@@ -7002,3 +7002,14 @@ settings action followed by navigation before admission; its evidence is
 added to the existing navigation follow-up. No received grade, frozen
 instrument or product code changed. Grok's independent grade is running;
 Muse's grade and all fresh M7 sessions remain to be completed.
+
+## 2026-09-14 — release numbering: the §19 landing is 0.2.15 / snapback4-expo 0.2.6 (lead, LLP 3000.007)
+
+Two programs landed on main within the hour. The LLP 3000.008 excellence
+program prepared and qualified 0.2.14 / snapback4-expo 0.2.5 (`a0ee114aa`,
+dry run 23:17Z) before publishing it; the LLP 3000.007 §19 landing (presence
+option C, a helper's return and the caller's page, `==`, the dev worker's
+per-child session) merges after it and takes 0.2.15 / snapback4-expo 0.2.6,
+published only after 0.2.14 is on npm. 0.2.14 is that program's qualified
+commit, not main after this merge.
+
