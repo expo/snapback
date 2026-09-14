@@ -18,6 +18,33 @@ const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
 const SCHEMA: &str = "use personas alice\nquery alive():\n  return true\n";
 static SERIAL: AtomicUsize = AtomicUsize::new(0);
 
+#[test]
+fn service_read_disjunct_admits_a_service_token_over_q_and_keeps_the_namespace_reserved() {
+    let source = "use identity\ntable members:\n  room: text <=30\n  principal: principal\n  unique byRoomPrincipal: room, principal\n  by byPrincipalRoom: principal, room, id\n  immutable room, principal\n  read <- .principal = viewer\n  sync\ntable messages:\n  room: text <=30\n  body: text <=100\n  by byRoom: room, id\n  read <- exists members[.room, viewer] or viewer = 'service:pusher'\n  sync\nquery all(room: text <=30):\n  return messages[room] first 10 by byRoom\n";
+    let dir = Directory::new();
+    fs::write(dir.0.join("snapback/schema.q"), source).unwrap();
+    fs::create_dir_all(dir.0.join(".snapback4")).unwrap();
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let token = {
+        let store = snapback4_core::Store::open(&dir.0.join(".snapback4/store.sqlite")).unwrap();
+        let mut engine = snapback4_core::Engine::new(store, bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+        let row = snapback4_core::wire::row_from_json(&engine.schema().tables["messages"], &json!({"id":"m1","room":"r1","body":"private"})).unwrap();
+        engine.seed([("messages".into(), row)]).unwrap();
+        assert!(snapback4_core::identity::custom_session(engine.store(), "service:pusher", "ordinary", snapback4_core::now_ms(), 1).is_err());
+        snapback4_core::identity::service_session(engine.store(), "pusher", snapback4_core::now_ms(), 1).unwrap().token
+    };
+    let host = Host::start(&dir, &["dev"]);
+    let mut stream = TcpStream::connect(("127.0.0.1", host.port)).unwrap();
+    stream.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+    let input = r#"{"args":{"room":"r1"}}"#;
+    write!(stream, "POST /q/all HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nAuthorization: Bearer {token}\r\nContent-Length: {}\r\n\r\n{input}", input.len()).unwrap();
+    let mut answer = String::new(); stream.read_to_string(&mut answer).unwrap();
+    assert!(answer.starts_with("HTTP/1.1 200 "), "{answer}");
+    let body: Value = serde_json::from_str(answer.split_once("\r\n\r\n").unwrap().1).unwrap();
+    assert_eq!(body["data"], json!([{"id":"m1","room":"r1","body":"private"}]));
+}
+
 struct Directory(PathBuf);
 impl Directory {
     fn new() -> Self {

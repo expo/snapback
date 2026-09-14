@@ -520,6 +520,29 @@ impl RuleExpr {
         }
     }
 
+    // @ref LLP 3000.007#20.6 — service seats read on the server and never enlarge a device's audience.
+    pub fn service_grant(&self) -> Option<&str> {
+        match self {
+            Self::Eq(RuleTerm::Viewer, RuleTerm::Literal(Value::Id(principal)))
+            | Self::Eq(RuleTerm::Literal(Value::Id(principal)), RuleTerm::Viewer)
+                if principal.strip_prefix("service:").is_some_and(|name| !name.is_empty()) => Some(principal),
+            _ => None,
+        }
+    }
+
+    /// Remove only entire service disjuncts; a conjunct, negation or ordinary
+    /// principal equality must still pass the ordinary exact-audience check.
+    pub fn device_audience_rule(&self) -> std::borrow::Cow<'_, RuleExpr> {
+        let terms = self.disjuncts();
+        if !terms.iter().any(|term| term.service_grant().is_some()) { return std::borrow::Cow::Borrowed(self); }
+        let mut audience: Vec<_> = terms.into_iter().filter(|term| term.service_grant().is_none()).cloned().collect();
+        std::borrow::Cow::Owned(match audience.len() {
+            0 => Self::Deny,
+            1 => audience.pop().expect("one audience"),
+            _ => Self::Or(audience),
+        })
+    }
+
     /// The rule as Quarry text, for diagnostics and rewrites.
     pub fn quarry(&self) -> String {
         fn term(term: &RuleTerm) -> String {
@@ -903,9 +926,10 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
 /// Why a `sync` line cannot be honoured, as the term the author must change.
 fn validate_sync(schema: &Schema, table_name: &str, table: &Table, sync: &Sync, path: &str, issues: &mut Vec<SchemaIssue>) {
     let issue = |issues: &mut Vec<SchemaIssue>, message: String| issues.push(SchemaIssue { path: path.to_owned(), message });
+    let audience_rule = table.rules.read.device_audience_rule();
     match &sync.audience {
         Audience::Public => {
-            if !table.rules.read.is_uniformly_readable() {
+            if !audience_rule.is_uniformly_readable() {
                 issue(issues, format!("sync public needs a public read rule; {table_name} reads under `{}`", table.rules.read.quarry()));
             }
         }
@@ -920,7 +944,7 @@ fn validate_sync(schema: &Schema, table_name: &str, table: &Table, sync: &Sync, 
             // The rule is exactly the audience: a second disjunct would admit
             // viewers the partition never delivers to; a conjunct would deliver
             // rows the rule denies.
-            if !table.rules.read.is_uniformly_readable() && table.rules.read != implied && table.rules.read != implied_flipped {
+            if !audience_rule.is_uniformly_readable() && *audience_rule != implied && *audience_rule != implied_flipped {
                 issue(issues, format!("sync to .{column} is only sound when the read rule is exactly `.{column} = viewer`; it reads under `{}`", table.rules.read.quarry()));
             }
         }
@@ -939,7 +963,7 @@ fn validate_sync(schema: &Schema, table_name: &str, table: &Table, sync: &Sync, 
             }
             match audience_binding(schema, table_name, table, sync) {
                 Err(why) => issue(issues, why),
-                Ok(binding) if !table.rules.read.is_uniformly_readable() => {
+                Ok(binding) if !audience_rule.is_uniformly_readable() => {
                     if !grant_guard(
                         &target.rules.insert,
                         &binding.columns,
@@ -1095,7 +1119,8 @@ pub fn audience_binding(schema: &Schema, table_name: &str, table: &Table, sync: 
     let mut want = prefix.iter().map(|column| RuleTerm::Field(column.clone())).collect::<Vec<_>>();
     want.push(RuleTerm::Viewer);
     let spelled_want = want.iter().map(|t| match t { RuleTerm::Field(f) => format!(".{f}"), _ => "viewer".into() }).collect::<Vec<_>>().join(", ");
-    let columns = if table.rules.read.is_uniformly_readable() {
+    let audience_rule = table.rules.read.device_audience_rule();
+    let columns = if audience_rule.is_uniformly_readable() {
         // A public table may sync to any audience; the mapping is by name and type.
         target_prefix_columns(table_name, table, target, prefix, principal).ok_or_else(|| format!("sync to {target_name}[{spelled_prefix}]: {target_name} has no column matching {} (same name and type, or one reference to the same table)", prefix.iter().map(|c| format!("{table_name}.{c}")).collect::<Vec<_>>().join(", ")))?
     } else {
@@ -1103,7 +1128,7 @@ pub fn audience_binding(schema: &Schema, table_name: &str, table: &Table, sync: 
         // would admit viewers the partition never delivers to; a conjunct
         // or a literal in the key would deliver rows the rule denies.
         let exact = format!("sync to {target_name}[{spelled_prefix}] is only sound when the read rule is exactly `exists {target_name}[{spelled_want}]`; it reads under `{}`", table.rules.read.quarry());
-        let RuleExpr::Exists { table: probed, index, key, equalities, .. } = &table.rules.read else { return Err(exact) };
+        let RuleExpr::Exists { table: probed, index, key, equalities, .. } = audience_rule.as_ref() else { return Err(exact) };
         if probed != target_name || *key != want || !equalities.is_empty() {
             return Err(exact);
         }

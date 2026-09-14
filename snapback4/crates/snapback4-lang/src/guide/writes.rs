@@ -67,8 +67,10 @@ On the web, admission waits for the IndexedDB commit; pagehide or becoming
 hidden sends queued writes with keepalive within the browser's shared 64 KiB
 body budget. Unsent/unconfirmed writes stay durable for retry on reopen with
 the same mutation id, so replay cannot apply a write twice.
-A device write-target miss, by id or unique key with any horizon, queues
-without a predicted row; it still sends `/m`. A reference column checks the id's shape, not that
+A missing `upsert` predicts its insert when the synced group has no horizon
+and the key proves readability (public rows, or a viewer-keyed rule); otherwise
+a device write-target miss queues without a predicted row and still sends `/m`.
+A reference column checks the id's shape, not that
 its target exists: when a mutation needs a visible target, guard first —
 `require exists prompts[promptId] else PROMPT_NOT_FOUND` — a metered point
 read that is false for an absent or hidden row; deleting a target neither

@@ -25,6 +25,22 @@ pub fn scan_visibility(schema: &Schema, scan: &Scan) -> Visibility {
     prefix_visibility(&scan.table, table, &table.rules.read, &pinned)
 }
 
+// @ref LLP 3000.007#20.5 — a missing upsert may insert only when the complete held group and its key decide that no hidden target can exist.
+pub fn upsert_absence(schema: &Schema, name: &str, index: &str, key: &[Expr]) -> Result<Visibility, &'static str> {
+    let table = schema.table(name).ok_or("the target is online only")?;
+    let sync = table.sync.as_ref().ok_or("the target is online only")?;
+    if sync.horizon.is_some() { return Err("the target has a horizon"); }
+    let rule = table.rules.read.device_audience_rule();
+    // Public subset sync has no whole-table absence proof. Its group coverage
+    // is a separate decision; do not infer it merely from the public read rule.
+    if rule.is_uniformly_readable() && sync.audience != crate::schema::Audience::Public { return Err("the key's synced group is not established"); }
+    let index = table.index(index).ok_or("the key does not pin readability")?;
+    let pinned = index.components.iter().zip(key).filter_map(|(part, expression)| part.column().map(|column| (column, expression))).collect();
+    let visibility = prefix_visibility(name, table, &rule, &pinned);
+    if !visibility.uniform { return Err("the key does not pin readability"); }
+    Ok(visibility)
+}
+
 // @ref LLP 3000.007#18.1 — simplify self-witnesses, then pre-check only the leading conjuncts whose fields the scope pins, in evaluation order.
 pub(super) fn prefix_decision(schema: &Schema, scan: &Scan) -> Option<RuleExpr> {
     let table = schema.table(&scan.table)?;

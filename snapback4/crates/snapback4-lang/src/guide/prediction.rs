@@ -84,11 +84,13 @@ work such as `falliblePost`, even inside an emit. See `guide presence`.
 
 ## Set-state writes: likes and reactions
 
-`upsert` predicts an update of a row the device holds, never an insert of a
-row it lacks, even on an unbounded synced table. A first like or reaction
-written with upsert therefore queues without a predicted row. For boolean
-membership use `insert ... if absent` to set and `delete` to clear; with the
-whole viewer partition held, the device can predict both. For a multi-valued
+`upsert` predicts an update of a row the device holds. It predicts the insert
+of a row the device lacks only when the synced group has no horizon and the
+key proves readability (public rows, or a viewer-keyed rule), as for `likes`
+below; with a horizon, or a key that does not decide readability, a first like
+or reaction written with upsert queues without a predicted row. For boolean
+membership `insert ... if absent` to set and `delete` to clear read most
+plainly; with the whole viewer partition held, the device can predict both. For a multi-valued
 reaction, explicitly insert when absent and update the held row when present.
 An existence branch needs a whole partition; a horizon miss is still unknown.
 
