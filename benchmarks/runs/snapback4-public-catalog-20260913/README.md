@@ -1990,3 +1990,194 @@ Each table cell is **fetch / node:http**, in milliseconds, pooling 4,000 success
 Node HTTP had lower pooled means/p50s in four of six cases and lower pooled p95/p99/max in all six, but C8 point and thread means were higher. Across 24 matched round/case pairs, HTTP was lower in 17 means/p50s, 22 p95s/p99s and 21 maxima. C8 point p50 was higher in all four rounds; point and thread means were higher in three of four. Remaining tail regressions are retained: round 2 C8 point max +27.08%; round 1 C8 thread p99 +11.45% and max +0.53%; round 2 C8 thread p95 +4.20%; round 3 C8 feed mean +1.97%, p95 +19.23%, p99 +23.66% and max +0.82%. The largest successful observation was fetch C1 thread at 19.0320 ms. This complete diagnostic does not erase the earlier failed server-tracing attempts or identify their socket-close cause.
 
 The four rounds selected 4,000 unique point rows and 1,111 feed pages from domains of 30,000/1,500; thread requests repeat the first page of `g020`. The clients have different native pooling, framing and decoding, and separate pool histories; fetch alone performed preparation, while both received block warmups. OS cache was retained without resets, residency unmeasured. These are complete client-path observations on one host, not isolated network/server/decoder costs or a general adoption, comparator, browser/device, write, durability or WAN conclusion.
+
+### 0.2.8 fetch lifecycle diagnosis — instrumented client observations
+
+One Durand M4 Pro run completed on 2026-09-14 at 00:54:57 UTC using the unchanged published 0.2.8 CLI (`92db0d86…`, 6,967,520 B), Node 24.18.0 and its bundled Undici 7.28.0. Eight rounds alternated C1/C8 order for point, first-thread-page and working-feed-page queries: all 48 blocks × 1,000 selected requests passed exact response checks. All 48,000 IDs had exactly one of each five captured events (240,000 observations, captureErrors 0); observed order was create, sendHeaders, bodySent, responseHeaders, trailers throughout. The validator did not require that order. Load completion, capture validation and same-process/same-session after-verification each passed separately; owned server cleanup and outer exit were successful.
+
+Pooled mean milliseconds from local library observations (8,000 selected requests per row):
+
+| Case | Start→create | Create→sendHeaders | SendHeaders→responseHeaders | ResponseHeaders→trailers | Trailers→JSON endpoint | Complete JSON endpoint |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| pointC1 | 0.1168 | 1.2720 | 1.5437 | 0.0218 | 0.1017 | 3.0561 |
+| threadC1 | 0.1240 | 1.2848 | 2.3827 | 0.0255 | 0.1530 | 3.9700 |
+| feedC1 | 0.0519 | 1.2737 | 3.9385 | 0.0102 | 0.0604 | 5.3347 |
+| pointC8 | 0.0169 | 0.8358 | 1.5380 | 0.0031 | 0.0142 | 2.4079 |
+| threadC8 | 0.0163 | 0.9106 | 2.6671 | 0.0032 | 0.0237 | 3.6209 |
+| feedC8 | 0.0182 | 1.0258 | 5.1004 | 0.0034 | 0.0210 | 6.1688 |
+
+The separate sendHeaders→bodySent means were 0.1415/0.1570/0.0509 ms for C1 point/thread/feed and 0.0153/0.0152/0.0166 ms for C8. ResponseHeaders→the fetch-headers endpoint means were 0.0697/0.0777/0.0316 ms for C1 and 0.0097/0.0099/0.0104 ms for C8; this is a separate branch from response-body completion. Signed differences were retained without clamping. Complete JSON endpoint maxima were 19.226/36.298/34.403 ms for C1 point/thread/feed and 14.980/8.678/13.120 ms for C8. The record retains all per-block and pooled p50/p95/p99/max observations, including the 36.298 ms thread C1 request in round 5.
+
+The 1,440 warmups and 1,500 preparation feed pages were excluded from selected counts. Selected requests visited 5,555 of 30,000 point keys and 1,259 of 1,500 feed pages; the thread case repeated one 50-row page. Before and after verifiers added 18 untimed complete walks/3,730 pages plus auth/cursor checks, using the same previously issued sessions. This restored a previously verified logical 100,000-message fixture; it did not perform a new physical full-database scan or leave/regrant exercise.
+
+Callbacks and in-memory event collection perturb the load, including unselected preparation/warmups. Timers end after JSON decoding and before projection/oracle checks. These intervals locate local client-library boundaries; they are not network-only, CPU or server duration, and the observed create→sendHeaders interval does not identify any particular timer or scheduler cause. No server instrumentation, retry, package change, comparator, device, WAN, write, durability or adoption result is claimed. The raw load is `11fe41d7…`, receipt `92c935dd…`, frozen controller `4e8a23bc…`, and loader `3c6e75cd…`; the independently computed summary is `cdfe820c…`.
+
+### 0.2.8 dispatcher comparison using the same runtime — mixed C1/C8 outcome
+
+On Durand M4 Pro, one run ending 2026-09-14 01:12:13 UTC held the published 0.2.8 server (`92db0d86…`) and Node 24.18.0 fixed. Both paths used built-in fetch: its bundled Undici 7.28.0 dispatcher, or an explicit per-call Agent from the complete unmodified npm Undici 7.29.1 package. The package index/global-dispatcher setter was not loaded. Four rounds alternated which client led; C1/C8 order reversed after round 1. All 48 blocks × 1,000 selected requests passed exact response checks, and every ID had one of each five events (240,000 observations, captureErrors 0). Response, process-exit, agent-cleanup, package-before/after and same-process/same-session after-verification outcomes all passed independently.
+
+Pooled milliseconds, **bundled→updated**, with 4,000 requests per client/case. Endpoint times end after JSON decoding; quantiles are nearest-rank individual-request quantiles.
+
+| Case | Body mean | p50 | p95 | p99 | Max | Create→sendHeaders mean |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| pointC1 | 3.085→0.226 | 3.128→0.212 | 4.456→0.271 | 5.935→0.372 | 27.543→3.016 | 1.293→0.006 |
+| threadC1 | 3.798→0.371 | 3.847→0.351 | 5.287→0.432 | 6.778→0.583 | 31.085→5.737 | 1.276→0.005 |
+| feedC1 | 5.344→1.526 | 5.543→1.510 | 7.020→1.606 | 8.087→1.839 | 13.736→5.004 | 1.265→0.005 |
+| pointC8 | 2.396→2.615 | 2.151→2.589 | 4.159→3.235 | 5.808→3.915 | 11.240→7.630 | 0.839→0.015 |
+| threadC8 | 3.553→3.972 | 3.654→3.931 | 4.755→4.694 | 5.572→5.679 | 7.985→9.843 | 0.916→0.014 |
+| feedC8 | 6.140→5.848 | 6.084→5.744 | 7.517→7.048 | 8.200→8.364 | 14.806→9.494 | 1.019→0.009 |
+
+Across 24 matched round/case pairs, updated body mean/p50/p95/p99/max were lower in **16/16/21/22/20** pairs. C8 point and thread means **and p50s were higher in every round**: point mean increases were 6.86–11.68%, thread 8.01–15.67%. The create→sendHeaders mean/p50/p95/p99 were lower in all 24 pairs, but its maximum was higher for thread C8 round 1 (3.182→3.372 ms) and feed C8 round 2 (2.658→3.200 ms). A smaller local stage interval therefore did not guarantee a smaller complete response time.
+
+Every body tail loss remains: p95 was higher for thread C8 rounds 1 and 3 and feed C8 round 2; p99 for thread C8 round 3 and feed C8 round 2; maxima for thread C8 rounds 0–2 and feed C8 round 2. Pooled thread C8 p99/max and feed C8 p99 were also higher, as the table shows. The largest individual observations were 31.085 ms bundled (thread C1, round 1) and 9.843 ms updated (thread C8, round 1). All 48 blocks, signed stage deltas and losses remain in the record.
+
+Each client visited the same 4,000 point keys and 1,111 of 1,500 feed pages; the thread case repeated one 50-row page. The 1,440 warmups and 1,500 feed preparation pages were excluded from selected counts. Preparation used only the bundled client, and both pools retained their separate histories. Before/after checks added 18 untimed complete walks/3,730 pages plus auth/cursor checks using the same previously issued sessions; this was not a new physical full-database scan or leave/regrant exercise. All 210 npm files and archive/registry integrity were checked before and after; no lifecycle script or product package installation was involved.
+
+This instrumented comparison includes callback/collection overhead and the entire dispatcher-version/defaults delta. It does not isolate any particular timer, network time, CPU time or server duration, or qualify a Node runtime upgrade, first-party client change, comparator, device/WAN, write/durability result or adoption. Server source and build were unchanged, and there were no retries. Raw load `366de1b8…`, receipt `ca9648fb…`, controller `14ce2e88…`, loader `5391661c…` and independently frozen summary `f6197a5e…` bind the observations.
+
+### SQLite memory-accounting follow-up using Node 24.21.0
+
+On 2026-09-14 UTC, three paired rounds on the prepared Durand M4 Pro compared the same retained 0.2.8 production binaries: baseline `92db0d86…` (the published CLI) and experimental `93fa3b16…`, whose only additional SQLite input is `-DSQLITE_DEFAULT_MEMSTATUS=0`. Both retain `-USQLITE_ENABLE_MEMORY_MANAGEMENT`, thread safety and configured cache size. Both clients used the same official Node 24.21.0 binary `e4b5a3af…`, bundled Undici 7.29.1 and ordinary built-in fetch, with no lifecycle hooks or custom dispatcher. This compares the SQLite variants under that runtime; it is not an isolated Node-upgrade experiment.
+
+Trials 61–63 ran B/C, C/B, B/C with identical logical inputs within each pair. Six runs completed all 39 cases × 500 samples: **117,000 case calls**, plus 7,020 excluded case warmups. Separate initial/after-leave/regrant traversals contributed **33,510 timed page requests across 162 walks**. Two earlier 50-sample smokes passed and are excluded from the formal comparisons. Every run restored the same 100,000-message snapshot, checked all three physical application tables, verified full authorized feeds/threads and denial/cursor behavior, left one group, checked the current authorized union, restored that membership and reverified with the same previously issued sessions on the same server. All reported errors were zero; owned processes stopped successfully.
+
+Counts below compare medians of three **per-run statistics**, not pooled request quantiles. Case throughput is requests/second; traversal throughput is pages/second. Individual latency timers include HTTP/JSON/projection; throughput includes exact oracle checks.
+
+| Comparison | Lower p50 | Lower p95 | Lower p99 | Lower maximum | Higher throughput |
+|---|---:|---:|---:|---:|---:|
+| All case medians / 39 | 38 | 30 | 26 | 25 | 34 |
+| C1 case medians / 21 | 20 | 12 | 9 | 8 | 16 |
+| C8 case medians / 18 | 18 | 18 | 17 | 17 | 18 |
+| All paired case values / 117 | 97 | 88 | 80 | 82 | 91 |
+| Traversal medians / 27 | 16 | 18 | 16 | 16 | 19 |
+| Paired traversal values / 81 | 48 | 46 | 44 | 40 | 48 |
+
+In all 54 C8 paired cases, p50/p95 were lower and throughput was higher; C8 p50 medians were 30.48–82.03% lower. C1 retained substantial tail variation: 12/21 p99 and 13/21 maximum medians were higher, and 20/63 paired p50 values were higher. The sole higher case p50 median was five-group `FeedWorkingSetC1`, 0.509→0.510 ms. Median throughput fell for five-group `ThreadFirstC1`, `FeedNextC1`, `FeedWorkingSetC1`, and 30-/150-group `FeedFirstC1`. Selected tail regressions include five-group `FeedNextC1` maximum median 3.448→7.790 ms and 30-group `PointWorkingSetC8` p99 3.548→4.167 ms / maximum 3.885→4.723 ms. The largest individual case observations were 18.871 ms baseline and 15.777 ms candidate; neither is omitted.
+
+Traversal behavior was mixed. The initial 150-group feed's p50/p95 medians were 1.648/1.804→1.695/1.949 ms; its after-leave maximum median rose 3.195→10.363 ms. The largest individual traversal page observations were 17.826 ms baseline and 22.254 ms candidate. Paired traversal p99 and maximum each have one tie; all remaining comparisons not counted as lower in those columns are losses. One-page empty controls and four-page threads provide few observations for tail percentiles. All raw values, every case/traversal median loss and every loss in a matched pair are retained in the [appended records](../../../snapback4/metrics/storage.jsonl).
+
+Bindings: source `8a81eb855…`, historical build qualification `90b7637b…`, frozen instrument `ebe5b64d…`, controller `26f8c62f…`, Node download receipt `bf507238…`; independent summary `e37d2f44…`. Fresh server/client processes and full proofs/traversals preceded repeated cases; OS cache was retained without resets, residency unmeasured. Earlier Node 24.18 observations remain intact. This evidence makes no adoption, general platform, comparator, device, memory-pressure, write-throughput or durability claim.
+
+### Node 24.21 client compatibility follow-up (2026-09-14 UTC)
+
+On Durand, the archived 0.2.8 source (`8a81eb855`) completed the wasm/package build and **89 client tests with zero failures or skips** under Node 24.21.0 / Undici 7.29.1. The helper supplied the retained experimental MEMSTATUS-off CLI (`93fa3b16…`) for tests honoring `SNAPBACK4_BIN`; five tests in `local-e2e` and `native-e2e` instead use a shared debug executable whose digest this receipt does not identify. This is scoped client compatibility evidence, not a full suite, publication or performance result.
+
+Both unsuccessful preparation attempts remain recorded. V1 omitted generated wasm: the package build failed, two client files could not load the module, and React initialization timed out after Vite reported the same missing import (29 passes, 3 failures). V2 added the wasm step but could not find `wasm-bindgen`, then retained the same client failures. V3 used the hash-verified, previously prepared publication tools and passed on the unchanged archived source. The **nine fixture-wrapper tests passed in V1** and were retained explicitly, not rerun in V3. All three raw receipts, exit codes, logs and test-source hashes are preserved in the metrics record; no prior failure was reclassified as a pass.
+
+### ARM Linux MEMSTATUS comparison with Node 24.21 (2026-09-14 UTC)
+
+Office M1 Max / ARM Linux Colima (4 CPUs, 12 GiB) ran three paired rounds, 71–73, in baseline/candidate, candidate/baseline, baseline/candidate order. Both use Node 24.21.0 / bundled Undici 7.29.1 and ordinary built-in fetch, the unchanged historical membership instrument (`36f4026b…`), and archived 0.2.8 source (`8a81eb855`). Retained production CLIs `33bd0c0b…` and `8c47c6a5…` differ by candidate `-DSQLITE_DEFAULT_MEMSTATUS=0` beside the existing `-USQLITE_ENABLE_MEMORY_MANAGEMENT`; they are source-built Linux artifacts.
+
+All **117,000 case requests** (39 cases × 500 samples × six runs) passed exact-result checks with zero reported errors; **7,020 warmups** are excluded. Fresh processes restore the same pristine snapshot and previously issued guest sessions, check all 501 groups / 186 memberships / 100,000 messages, exercise denial, leave and old-cursor checks, then regrant and verify using unchanged sessions. All **162 complete walks / 33,510 page requests are untimed**. Separate two-variant smoke results are preserved and excluded from the comparison.
+
+Counts below compare medians of three per-run statistics; paired counts compare the same logical trial inputs. Lower is better for latency; higher is better for RPS.
+
+| Scope | Lower p50 | Lower p95 | Lower p99 | Lower max | Higher RPS |
+|---|---:|---:|---:|---:|---:|
+| Case medians (39) | 26 | 23 | 19 | 20 | 26 |
+| Paired case statistics (117) | 78 | 69 | 56 | 56 | 76 |
+
+The candidate has lower p50 medians in all 18 C8 cases, but **13 of 21 C1 cases regress** (37 of 63 paired C1 p50 values are worse). Representative medians, in milliseconds:
+
+| Case | p50 baseline → candidate | p95 baseline → candidate |
+|---|---:|---:|
+| 30-group hot point C1 | 1.692 → 2.480 | 2.706 → 8.013 |
+| 30-group thread first C1 | 2.396 → 3.449 | 3.166 → 10.545 |
+| 150-group feed next C1 | 7.229 → 7.471 | 8.757 → 13.092 |
+| 150-group feed first C8 | 29.376 → 22.158 | 75.039 → 47.329 |
+
+Hot-point and 150-group feed-next C1 p50 regress in all three pairs; thread-first C1 regresses in two. C8 retains five p99-median losses, including 150-group feed working set, 61.705 → 63.858 ms. The largest individual observations are 306.769 ms baseline and 193.058 ms candidate, in different cases. Every raw statistic and median/paired loss remains in the evidence records.
+
+The candidate remains experimental; no setting was adopted after these serial-read regressions. OS cache was retained without resets and residency was unmeasured; full proofs/walks preceded the repeated cases. It does not isolate a Node upgrade from the earlier runs, pool per-request quantiles, rerun comparators, or establish a Darwin, device, write, memory-pressure, durability or universal performance result.
+
+### Bounded request-worker reuse on Darwin, Node 24.21.0
+
+On Durand M4 Pro, three alternating pairs (84–86, baseline/candidate, candidate/baseline, baseline/candidate) compared the retained published Darwin 0.2.8 CLI with an isolated candidate that reuses bounded request workers. Both used Node 24.21.0/Undici 7.29.1, ordinary built-in fetch, identical SQLite flags (`-USQLITE_ENABLE_MEMORY_MANAGEMENT`) and MEMSTATUS on. The same 100,000-message fixture and original guest sessions were restored for each fresh server. All 117,000 case calls, 7,020 excluded warmups and 162 complete walks/33,510 separately timed pages passed exact results, auth/denial, full fixture, leave/old-cursor and same-session regrant checks; reported errors were zero. Smoke samples are excluded.
+
+These counts compare medians of three reported run statistics, not pooled request percentiles:
+
+| Candidate improvement | Case medians /39 | Paired cases /117 | Traversal medians /27 |
+| --- | ---: | ---: | ---: |
+| Lower p50 | 39 | 116 | 25 |
+| Lower p95 | 38 | 102 | 24 |
+| Lower p99 | 32 | 85 | 25 |
+| Lower max | 22 | 65 | 22 |
+| Higher throughput | 38 | 106 | 25 |
+
+One case p99 median tied; the other uncounted comparisons are losses. The 150-group PointWorkingSet C1 p95 rose **0.236→0.285 ms**, with throughput **4,642.8→4,555.7 requests/s**. Five-group FeedNext C8 p99 rose **4.863→9.999 ms**. Seventeen case median maxima rose; 150-group hot-point C1 max rose **0.333→2.894 ms**. The only paired p50 loss was 150-group ThreadFirst C1 in trial 85 (**0.343→0.351 ms**). Worst individual case observations were 20.375 ms baseline and 19.360 ms candidate. Every statistic and regression remains in the annotated records. Traversal timing is separate; one-page empty controls and four-page thread walks provide few tail observations, and walk throughput includes exact checks outside individual request timers.
+
+After all measurements/proofs and a 6.5-second quiet interval, idle medians were **3→11 total threads** and **21,584→24,688 KiB RSS** (+3,104 KiB); virtual size rose 17,840 KiB. These are whole-process point observations, not peak memory or pure worker-stack attribution. Background maintenance remained active; OS cache was retained without measured residency.
+
+The original build's unsupported method and stale-timestamp test reuse, and the first smoke's idle ps-parser failure, are preserved separately and excluded. They were corrected before formal timing. The corrected build passed 27 CLI tests, a separate rerun of the focused reuse witness, one existing store-policy test and production compilation; it did not run the full workspace/client/publication path. Panic recovery is evidenced only in unwinding tests; production still uses `panic=abort`. At this checkpoint the candidate remains unadopted pending Linux evidence. No comparator, cross-platform, device, write, durability, memory-pressure or universal improvement claim follows.
+
+The appended storage records retain both platform build qualifications and their failed first receipts, followed by all six Darwin formal records. The Darwin candidate is `bc8d2fc79b05d5065265684b11cd4d4dc7c925d89e88fd684d6ceb680dee37bb` (6,984,080 bytes), built from archived 0.2.8 with the two recorded source overrides; qualification `7e1b6a9ba2b89cec505dd04ef4688ecf4f2c2fdec5d00faea35857b84956cf12`. Controller `3c2beb6c3fcc0301c1e0375e218e1dda7b4b4011338037e971d29313a1a41840`, independent summary `f37be13fc326d61a9717640e07e67019efb6f02993051361451ef937fa2a60c1`, and reviewed raw records bind the results. Retained public artifacts are under `.llp/ship-runs/sb4-performance-20260913/request-workers-node2421-http/`; the first failed smoke and build rounds have separate directories under the same ship-run root.
+
+### Corrected worker source: complete suite qualification
+
+On Durand, the existing `scripts/test.sh` completed with **238 Rust passes and one existing ignored test, 89 client passes and 9 fixture-wrapper passes**, zero failures and no JavaScript skips. All ten script stages succeeded in 58.811 seconds of subprocess wall time (the script reports 59 seconds), after a frozen dependency install. The source remains the same isolated corrected 0.2.8 worker candidate, with Node 24.21.0, Rust 1.97.0 and the published SQLite build input.
+
+The suite first built the debug workspace and generated wasm/package outputs. With `SNAPBACK4_BIN` absent, CLI-spawning client tests—including those hardcoding the debug path—used that fresh debug build (`100447c8…`, 41,559,096 bytes). This is separate from the retained production candidate `bc8d2fc7…`, whose hash remained unchanged. The helper checked all 615 archived source files before/after, allowing only the exact worker source and test overrides. This qualifies the existing source/debug suite; it is not a claim that tests ran against production, a publication/installed-consumer receipt, or another HTTP performance measurement. Production still uses `panic=abort`.
+
+### Request-worker reuse on ARM Linux: prototype not adopted
+
+The MPSC worker prototype is **not adopted**, globally or as platform-specific behavior; the published dispatcher remains unchanged. On Office ARM Linux/Colima, three alternating pairs (87–89) compared retained baseline `33bd0c0b…` with corrected candidate `e3abf8f0…`, both source-built from archived 0.2.8 with the same SQLite input, MEMSTATUS on and Node 24.21.0. The historical instrument, 100,000-message fixture and original 90-day guest sessions remained fixed. All **117,000 case calls**, 7,020 excluded warmups and **162 untimed complete walks/33,510 pages** passed exact results, auth/denial, full fixture, leave/old-cursor and same-session regrant checks; reported errors were zero. Smoke results are excluded.
+
+| Candidate improvement | Case medians /39 | Matched pairs /117 |
+| --- | ---: | ---: |
+| Lower p50 | 22 | 67 |
+| Lower p95 | 18 | 54 |
+| Lower p99 | 16 | 52 |
+| Lower max | 20 | 54 |
+| Higher requests/s | 21 | 63 |
+
+These are medians of three reported run statistics, not pooled quantiles. There were no ties; all uncounted comparisons were losses. C1 p50 medians worsened in 11/21 cases and p95 in 14/21. Thirty-group ThreadNext C1 p50 rose **2.922→3.526 ms**, p95 **5.268→11.144 ms**, while throughput fell **304.3→200.5 requests/s**. Five-group FeedNext C8 p50 rose **10.949→14.175 ms** and p99 **24.256→51.550 ms**. Improvements are retained too, including 150-group FeedFirst C1 p50 **7.674→6.013 ms**. Worst individual observations were **173.761 ms baseline and 205.363 ms candidate**. Every case, tail and throughput loss remains in the annotated records.
+
+After all measurements/proofs and a 6.5-second quiet interval, total idle threads were **3→13** in every pair; median RSS was **12,644→25,672 KiB** (+13,028 KiB). Median virtual size fell 1,955,556→1,905,020 KiB, with one pair increasing. These are whole-process `/proc/status` point observations, not peak memory, pure stack allocation or memory-pressure evidence. OS cache was retained without measured residency. The favorable Darwin p50 results do not override these Linux regressions and resource costs. No causal mechanism, cross-platform timing comparability, traversal timing, comparator, device, write, durability or production panic-recovery claim follows; production still uses `panic=abort`.
+
+The suite receipt is `b061ed1535f3b0ec8770e883573d0cf8e0d9dd713d99ae9cc01842bdb95e79a7`. Linux qualification `0ab085c1f9b77307550b3943147509004478f63388b984d104c2930c788746d1` binds candidate `e3abf8f0403b3f9e9314165375cd86812ebef9c6da24cb90de63061b7b69d640` (7,491,088 bytes). The controller is `31d8dd9e8a40b6f498b89e3c08ee9f69342834d06eec55f2e15038aadd7861f0`; independent summary `ffc607589ff9554ecc05a327204fda8cbe479fe165f94720ea11475671cc1024` retains all comparisons and artifact hashes. Public evidence remains under the same ship-run root in `request-workers-full-suite/` and `request-workers-node2421-linux-http/`; the appended records preserve the raw suite receipt and all six Linux records.
+
+### Condvar request-worker prototype: source qualification
+
+A separate bounded prototype replaces per-request thread creation with reusable workers consuming a mutex/condition-variable queue. Admission remains 32 short requests plus 32 waiting requests, queued tasks retain their permits, and the two lanes stay separate. Source `ad5c1ff7…` and the unchanged focused test `d1639787…` are the only overrides to archived 0.2.8. Both Darwin and ARM Linux qualifications recompiled the baseline test and observed the intended worker-reuse assertion failure, then passed the recompiled candidate test, all 27 CLI tests, the existing SQLite policy/refresh test and production compilation. SQLite flags remain `-USQLITE_ENABLE_MEMORY_MANAGEMENT`, with MEMSTATUS on. The tests exercise unwinding; production retains `panic=abort`.
+
+On Durand, the existing complete suite subsequently passed all ten stages: **238 Rust tests, one existing ignored Rust test, 89 client tests and 9 fixture tests**, with zero failures or JavaScript skips. Subprocess wall time was 44.760 seconds (the script reports 45 seconds). The suite built the debug workspace before client tests with `SNAPBACK4_BIN` absent, so CLI-spawning clients used fresh debug binary `4b5425b1…` (41,472,456 bytes). The retained production candidate remained unchanged. This is source/debug qualification, separate from production, publication and performance evidence; no corpus-case counts are inferred from the quiet suite output.
+
+Darwin qualification `e184e860…` binds production candidate `1f72258e…` (6,967,536 bytes); Linux qualification `9c772437…` binds `9cd0d221…` (7,491,088 bytes). Full-suite receipt `b92b69de…` and the appended build/suite records retain all source, tool and log hashes. Public artifacts remain under `.llp/ship-runs/sb4-performance-20260913/` in `request-workers-condvar-darwin/`, `request-workers-condvar-office/` and `request-workers-condvar-full-suite/`.
+
+### Condvar worker experiment: ARM Darwin, Node 24.21.0
+
+A separate `Mutex<VecDeque<RequestTask>>`/`Condvar` candidate was compared with retained published 0.2.8 on the M4 Pro. It preserves the existing 32 short/32 wait permits and SQLite settings; this is an isolated experiment, with no adoption conclusion. Source `8a81eb855` plus patch `3482b542…` produced candidate `1f72258e…` (6,967,536 B), versus published baseline `92db0d86…` (6,967,520 B). Both used Node 24.21.0 / bundled Undici 7.29.1, ordinary built-in fetch, and `-USQLITE_ENABLE_MEMORY_MANAGEMENT` with MEMSTATUS enabled.
+
+Three alternating pairs (trials 90–92: B/C, C/B, B/C) completed all 39 cases × 500 samples: 117,000 case calls plus 7,020 excluded warmups. Full fixture/auth/leave/old-cursor checks and regrant with the original sessions passed; 162 complete walks supplied another 33,510 timed pages. All reported errors were zero; the two 50-sample smokes are excluded.
+
+| Candidate result | p50 | p95 | p99 | max | RPS |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Better case medians / 39 | 37 | 36 | 28 | 27 | 38 |
+| Worse case medians / 39 | 2 | 2 | 9 | 12 | 1 |
+| Better paired cases / 117 | 111 | 100 | 84 | 75 | 109 |
+| Worse paired cases / 117 | 6 | 16 | 32 | 42 | 8 |
+
+Lower latency and higher RPS count as better; p95 has one median/paired tie, and p99 has two median ties and one paired tie. These are medians of three reported run statistics, not pooled percentiles. For example, 150-group working-feed C8 p50/p95 fell 5.601/7.305→4.472/5.051 ms, with RPS 1,379.3→1,781.7. Retained losses include 5-group hot/working point C1 p50 0.294/0.296→0.297/0.297 ms, 30-group hot-point C1 p95 0.254→0.279 ms and RPS 4,521.4→4,499.7, 5-group feed-next C8 p99 4.782→7.954 ms, and working-feed C1 max median 3.660→14.400 ms. Worst individual case observations were 22.686 ms baseline and 16.542 ms candidate. All per-run metrics and paired losses remain in the annotated records.
+
+Separate traversal medians improved p50/p95/p99/max in 24/25/23/20 of 27 identities; losses were 2/2/4/7, with one p50 tie. Page RPS improved in 25 and worsened in two. One-page empty controls and four-page threads have few tail observations; page timers include HTTP/JSON projection, while walk wall time/RPS also include oracle checks.
+
+After measurements/proofs and 6.5 seconds without harness HTTP work, idle thread counts were 3→11 in each pair. Median whole-process RSS was 21,568→24,592 KiB (+3,024), and virtual size rose 18,000 KiB. These are point samples, not peak memory or pure worker-stack costs. Fresh processes and full checks precede each run; OS cache is retained without resets, residency unmeasured. The prior MPSC failures/results remain separate. The Condvar build passed the focused reuse test, 27 CLI cases and existing store-policy test; production panic=abort is unchanged. No comparator, device, write, durability, memory-pressure, cross-platform or universal-win claim is made.
+
+### Condvar worker experiment: ARM Linux, not adopted
+
+The Condvar worker prototype is **not adopted globally or per platform**. The bounded worker-pool experiment ends here; the existing production dispatcher remains. Despite improvements in many cases, this Office M1 Max/Colima comparison retained substantial Linux regressions and higher idle RSS. Positive build/full-suite qualification is separate from that performance decision.
+
+Trials 93–95 used alternating B/C, C/B, B/C orders, retained Linux baseline `33bd0c0b…` and Condvar candidate `9cd0d221…` from archived 0.2.8 source plus patch `3482b542…`. Both used Node 24.21.0 / Undici 7.29.1 and the same SQLite settings with MEMSTATUS enabled. All six runs passed 39 cases × 500 samples: 117,000 timed calls plus 7,020 excluded warmups, with zero reported errors. Full fixture/auth/leave/old-cursor checks and original-session regrant passed; 162 complete walks / 33,510 pages were **untimed**. Smoke 984 is excluded.
+
+| Candidate result | p50 | p95 | p99 | max | RPS |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Better case medians / 39 | 27 | 22 | 22 | 22 | 24 |
+| Worse case medians / 39 | 12 | 17 | 17 | 17 | 15 |
+| Better paired cases / 117 | 84 | 71 | 69 | 69 | 77 |
+| Worse paired cases / 117 | 33 | 46 | 48 | 48 | 40 |
+
+There were no ties. These are medians of three per-run statistics; lower latency/higher RPS count as better. The 150-group working-feed C1 lost p50, p95 and RPS in **all three pairs**: median p50/p95 8.022/9.951→8.679/17.377 ms, RPS 125.0→99.7. Working-feed C8 median p50/p95 24.055/44.423→29.812/62.526 ms and RPS 292.3→223.1 also regressed, with mixed paired directions. Five-group hot-point C1 p95/p99 rose 2.176/2.483→5.238/12.307 ms. An improvement was 150-group first-feed C1 p50/p95 8.277/14.791→6.708/8.895 ms and RPS 106.9→145.3. Worst individual case observations were 248.502 ms baseline and 272.597 ms candidate; every metric and paired loss remains in the annotated records.
+
+After measurements/proofs plus 6.5 quiet seconds, idle thread observations were [3,3,3]→[12,13,13], median whole-process RSS 12,796→25,652 KiB (+12,856), and median virtual size decreased 50,544 KiB. These are process points, not peak memory, pure stack costs or memory-pressure proof. Fresh processes and full checks precede each run; OS cache is retained without resets, residency unmeasured. No comparator, direct Darwin, device, write, durability, causal queue or universal-win claim follows; production panic=abort remains unchanged.
+
+The independent analyzer was frozen before data access. The separate root analyzer initially stopped on two stale MPSC hash pins before processing run statistics; its preserved revision corrected only those pins after the independent counts were reported. Both analyses agree, and no workload was rerun.

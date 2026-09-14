@@ -6,8 +6,8 @@
 **Systems:** Everything under `snapback4/` once it exists; the bakeoff protocol shared with Snapback 3 (LLP 2000) and Snapback 2 (LLP 1000)
 **Author:** Charlie Cheever / Claude Fable 5.1
 **Date:** 2026-09-12
-**Revised:** 2026-09-13 (§7: qualified packaged SQLite page-cache policy); 2026-09-13 (ticket repair qualification: logical device expiry and generation-bound native cache); 2026-09-13 (§7: SQLite plan reuse across bound inputs); 2026-09-13 (§7 and §9: security boundary and remediation); 2026-09-13 (§7: the device-side twin — native reads, LLP 3000.005 §9); 2026-09-13 (search, effects, services, presence, the ranked feed: §7, §8); 2026-09-13 (§7: production compiler trade); 2026-09-13 (§7: native jobs — the app's Rust in the data plane, hosted as wasm, metered like a job; §8: LLP 3000.005); 2026-09-13 (§7: the guide is compiled); 2026-09-13 (§7: explicit reference-ID semantics; remaining open-ticket corrections); 2026-09-13 (§7: borrowed query serialization, shared chat observations and HTTP worker reservation); 2026-09-13 (§9: implementation of the review corrections); 2026-09-12 (§9: architecture review and 37 correction tickets); 2026-09-13 (§7: feeds — the serving half is the substrate's, the model half is the app's; LLP 3000.004); 2026-09-13 (§7: one interpreter hosted two ways, the wasm measurement, ordered merge heads and measured performance work); 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
-**Related:** [LLP 2000](./2000-snapback3.rfc.md) (Snapback 3, the sibling candidate), [LLP 2000.000](./2000.000-keep-the-core-flip-two-substrates.rfc.md) (the design brief this corpus builds), [LLP 1000](./1000-snapback2.explainer.md) (Snapback 2, the incumbent and the control), LLP 0000, LLP 0329, LLP 0329.014.004, LLP 0329.016, LLP 1001, LLP 1002, LLP 1012, LLP 1016, LLP 1019, LLP 1020, [LLP 1023](./1023-clique-builder-jump.rfc.md), [LLP 3000.004](./3000.004-feeds-and-the-interview-reference-app.rfc.md) (feeds; Interview as the second reference application), [LLP 3000.005](./3000.005-native-jobs.rfc.md) (native jobs), `rules/RULES.md`, `rules/NOT-DOING.md`, [`benchmarks/protocol.md`](../benchmarks/protocol.md), [`benchmarks/briefs/social-messenger.md`](../benchmarks/briefs/social-messenger.md), [`benchmarks/briefs/messaging-day2-evolution.md`](../benchmarks/briefs/messaging-day2-evolution.md)
+**Revised:** 2026-09-13 (§7: LLP 3000.007 accepted as ruled — every §14 question; the blind review of write authority commissioned; `sql` a fifth verb); 2026-09-13 (§7: the first ruling on LLP 3000.007 — the SDK media cache lands with the language); 2026-09-13 (§7: LLP 3000.007 rev 2 — pushed further after the Grok and Muse lanes; LLP 3000.006 absorbed and superseded); 2026-09-13 (§7: relaxed Quarry and explicit residency proposed in LLP 3000.007); 2026-09-13 (§7: explicit data residency and server execution proposed in LLP 3000.006); 2026-09-13 (§7: qualified packaged SQLite page-cache policy); 2026-09-13 (ticket repair qualification: logical device expiry and generation-bound native cache); 2026-09-13 (§7: SQLite plan reuse across bound inputs); 2026-09-13 (§7 and §9: security boundary and remediation); 2026-09-13 (§7: the device-side twin — native reads, LLP 3000.005 §9); 2026-09-13 (search, effects, services, presence, the ranked feed: §7, §8); 2026-09-13 (§7: production compiler trade); 2026-09-13 (§7: native jobs — the app's Rust in the data plane, hosted as wasm, metered like a job; §8: LLP 3000.005); 2026-09-13 (§7: the guide is compiled); 2026-09-13 (§7: explicit reference-ID semantics; remaining open-ticket corrections); 2026-09-13 (§7: borrowed query serialization, shared chat observations and HTTP worker reservation); 2026-09-13 (§9: implementation of the review corrections); 2026-09-12 (§9: architecture review and 37 correction tickets); 2026-09-13 (§7: feeds — the serving half is the substrate's, the model half is the app's; LLP 3000.004); 2026-09-13 (§7: one interpreter hosted two ways, the wasm measurement, ordered merge heads and measured performance work); 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
+**Related:** [LLP 2000](./2000-snapback3.rfc.md) (Snapback 3, the sibling candidate), [LLP 2000.000](./2000.000-keep-the-core-flip-two-substrates.rfc.md) (the design brief this corpus builds), [LLP 1000](./1000-snapback2.explainer.md) (Snapback 2, the incumbent and the control), LLP 0000, LLP 0329, LLP 0329.014.004, LLP 0329.016, LLP 1001, LLP 1002, LLP 1012, LLP 1016, LLP 1019, LLP 1020, [LLP 1023](./1023-clique-builder-jump.rfc.md), [LLP 3000.004](./3000.004-feeds-and-the-interview-reference-app.rfc.md) (feeds; Interview as the second reference application), [LLP 3000.005](./3000.005-native-jobs.rfc.md) (native jobs), [LLP 3000.006](./3000.006-explicit-data-residency-and-server-execution.rfc.md) (explicit online-only data, execution classification and synced projections), [LLP 3000.007](./3000.007-relaxed-quarry-and-explicit-residency.rfc.md) (relaxed Quarry and explicit residency: the language's constraints re-derived under the meter), `rules/RULES.md`, `rules/NOT-DOING.md`, [`benchmarks/protocol.md`](../benchmarks/protocol.md), [`benchmarks/briefs/social-messenger.md`](../benchmarks/briefs/social-messenger.md), [`benchmarks/briefs/messaging-day2-evolution.md`](../benchmarks/briefs/messaging-day2-evolution.md)
 
 ## Summary
 
@@ -749,6 +749,73 @@ time-ordered 128-bit form.
   workload equivalence. The existing store regression checks the linked
   SQLite options when built with the publisher's input, before exercising
   plan rebinding, changed rows and schema invalidation.
+
+- **2026-09-13 — explicit data residency is the proposed escape hatch,
+  not an untyped server side channel (author question; draft in
+  [LLP 3000.006](./3000.006-explicit-data-residency-and-server-execution.rfc.md)).**
+  Snapback 4 already makes `sync` opt-in: a table without it is online-only,
+  and rows beyond a horizon remain readable from the server. The proposed
+  ergonomic refinement makes that choice explicit in source, classifies every
+  query and mutation by where it can run, gives a fully server-dependent read
+  a typed offline outcome rather than plausible empty data, and makes a
+  compact synced projection the ordinary answer to a large or sensitive
+  server-only source. It preserves rules, metering, types and transactions;
+  it does not introduce arbitrary code or a second API plane. The RFC remains
+  Draft and this paragraph records direction, not implementation or acceptance.
+
+- **2026-09-13 — relaxed Quarry and explicit residency (the author's
+  thesis after building Clique; proposed in
+  [LLP 3000.007](./3000.007-relaxed-quarry-and-explicit-residency.rfc.md)).**
+  The author observed that Quarry is "great except too constraining," that
+  its value is one language over data synced locally and in the cloud, and
+  that without that need Convex or Supabase looked easier for agents. The
+  analysis of the four Snapback 4 Clique lanes and the September
+  three-backend wave agrees that the language is too constraining and
+  disagrees about why: the constraints that cost builders loops — a local
+  binds once, no accumulators, no `continue`, no `else if`, no `where`, no
+  text `+`, no `/` — are Snapback 2's static pricing carried into the
+  binder, not device requirements, and the one interpreter on every host
+  already runs the forms the binder refuses (`Assign`, `Push`, `Continue`,
+  `Concat`). The proposal finishes the flip LLP 2000.000 §4.1 asked for:
+  admit the seven forms everywhere under the meter; compute and print where
+  each operation runs and whether each mutation predicts (`check
+  --residency`, `api.ts`, `why`, two notes when a class moves); pave the
+  online-only mode with `init --online`; close the client seams the lanes
+  hit (a mutation's result on the card, `pending` through shapes, the wasm
+  persisted by the opener, `dev`'s loopback identity limits); and specify
+  SQL reads and worker actions as hatches to rule on after a rerun. Its
+  second revision, at the author's request to push further, read the
+  Grok and Muse 0.2.6 lanes and found the two frictions that stopped
+  the weaker builders were restatements, not program forms: the
+  audience spelled twice (rule and `sync`) and counters one principal
+  keeps in another's row, refused as hidden collisions until the tables
+  were made world-readable. It proposes the audience inferred from the
+  read rule, write authority decided by the write rule (through the
+  blind security review), helpers with bodies, job preludes, range
+  seeks, `group`, defaults, an `upsert` that patches, the guessed
+  spellings, `data --sql`, `check --fix`, `init --expo`, and a ceremony
+  bar that measures the five shapes every lane paid for. It absorbs
+  LLP 3000.006, now Superseded. The author's first ruling on it,
+  2026-09-13: the SDK media cache (§8.13) lands with the language. The
+  remaining rulings are the next entry.
+
+- **2026-09-13 — LLP 3000.007 is Accepted as ruled (author).** The
+  author ruled on every question of its §14: the seven forms and the six
+  additions whole, after the meter is made to charge what they allocate,
+  with the note that any form found to cause problems can come back out;
+  the language stays one spelling — guessed spellings are not admitted,
+  the diagnostic names the canonical form and `check --fix` applies it;
+  reads inside `where` from the start; the sync audience inferred from
+  the read rule; the blind security review commissioned for write
+  authority (§8.7) and the non-predicting mutation's page pass (§5.9),
+  which land only when it returns; `online only` optional until the
+  rerun; `result` on a sent write and nothing else on the card; `dev`'s
+  loopback identity limits lifted to what the host can carry; `sql` as a
+  fifth named observability verb, with its Moves line in `NOT-DOING.md`;
+  worker actions commissioned with the seams, Interview proving them,
+  while SQL reads wait for the reporting gap to be measured; LLP 3000.006
+  stays superseded; the media cache with the language. The meter (§5.0)
+  is the first landing.
 
 ## 8. Implementation map
 
