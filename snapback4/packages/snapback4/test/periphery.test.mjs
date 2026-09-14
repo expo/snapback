@@ -28,6 +28,80 @@ function fixture(t) {
   return { dir, invoke, run };
 }
 
+for (const mode of ["dev", "serve"]) test(`${mode}: piped token stdout is one usable bearer, and server stdout is one URL`, { timeout: 20000 }, async (t) => {
+  const { dir, run, invoke } = fixture(t);
+  run("init", "--online");
+  const schema = join(dir, "snapback/schema.q");
+  writeFileSync(schema, read(schema) + "\nquery who():\n  return viewer\n");
+  const release = join(dir, "release");
+  if (mode === "serve") {
+    run("deploy", release);
+    rmSync(join(dir, "snapback"), { recursive: true });
+  } else {
+    writeFileSync(join(dir, "snapback/worker.mjs"), 'console.log("worker stdout witness"); console.error("worker stderr witness"); setInterval(() => {}, 1000);\n');
+  }
+  const args = mode === "serve" ? ["serve", release, "--port", "0"] : ["dev", "--port", "0"];
+  const child = spawn(binary, args, { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const exited = once(child, "exit");
+  let stdout = "", stderr = "";
+  child.stdout.on("data", data => { stdout += data; });
+  child.stderr.on("data", data => { stderr += data; });
+  const until = async (predicate) => {
+    const deadline = Date.now() + 5000;
+    while (!predicate() && child.exitCode == null && child.signalCode == null && Date.now() < deadline) await delay(10);
+    assert.ok(predicate(), stdout + stderr);
+  };
+  try {
+    await until(() => stdout.includes("\n"));
+    const url = stdout.trim();
+    assert.match(url, /^http:\/\/127\.0\.0\.1:\d+$/);
+    assert.equal(stdout, `${url}\n`);
+    await until(() => stderr.includes(`snapback4 ${mode}: ${url}`));
+    if (mode === "dev") {
+      await until(() => stderr.includes("worker stdout witness") && stderr.includes("worker stderr witness"));
+      writeFileSync(schema, read(schema) + "\nquery alive():\n  return true\n");
+      await until(() => stderr.includes("schema adopted as generation 2"));
+    }
+    const post = async (path, token, body) => {
+      const response = await fetch(url + path, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${token}` }, body: JSON.stringify(body), signal: AbortSignal.timeout(3000) });
+      assert.equal(response.status, 200, await response.clone().text());
+      return response.json();
+    };
+    for (const flags of [[], ["--days", "1"], ["--days=2", "--service=worker"], ["--json"]]) {
+      const releaseFlags = mode === "serve" ? ["--release", release] : [];
+      const minted = run("token", "--service", "worker", ...releaseFlags, ...flags);
+      const match = minted.stdout.match(/^([A-Za-z0-9_-]{43})\n$/);
+      assert.ok(match, "stdout must contain only the base64url token and one newline");
+      const token = match[1];
+      assert.equal(minted.stdout, `${token}\n`);
+      assert.match(minted.stderr, /^token: a session for service:worker until \d+ — printed once; keep it where the worker keeps secrets\n$/);
+      assert.ok(!minted.stderr.includes(token), "the token is printed only once");
+      const { session } = await post("/auth/session", token, { principal: "member:captured", kind: "member", days: 1 });
+      assert.equal(session.principal, "member:captured");
+      assert.equal((await post("/q/who", session.token, { args: {} })).data, "member:captured");
+      t.diagnostic(`token ${mode} ${flags.join(" ") || "default"}: stdout ${Buffer.byteLength(minted.stdout)} B; redeemed session queried as ${session.principal}`);
+    }
+    const refused = invoke("token", "--service", "bad name", ...(mode === "serve" ? ["--release", release] : []));
+    assert.equal(refused.status, 1);
+    assert.equal(refused.stdout, "");
+    assert.match(refused.stderr, /^token:/);
+    assert.equal(stdout, `${url}\n`, "worker output, schema adoption and request handling must not contaminate stdout");
+  } finally {
+    if (child.exitCode == null && child.signalCode == null) child.kill("SIGTERM");
+    await exited;
+  }
+});
+
+test("types prints a capturable generated path with its status on stderr", (t) => {
+  const { run } = fixture(t);
+  run("init");
+  const result = run("types");
+  assert.equal(result.stdout, `${result.stdout.trim()}\n`);
+  assert.ok(existsSync(result.stdout.trim()));
+  assert.match(read(result.stdout.trim()), /export/);
+  assert.equal(result.stderr, `types: wrote ${result.stdout}`);
+});
+
 test("init keeps the local default and makes a compiled online starter without sync", (t) => {
   const { dir, run, invoke } = fixture(t);
   run("init", "local");
@@ -179,7 +253,17 @@ test("SQL reads chat views while dev writes in WAL, refuses raw access, and boun
     assert.deepEqual(answer("/* comment */ WITH selected AS (SELECT body FROM messages WHERE at = 0) SELECT * FROM selected; -- trailing").rows, [["Null"]]);
     assert.deepEqual(answer("SELECT ';--literal' AS text").rows, [[";--literal"]]);
     assert.equal(answer("SELECT id FROM messages", "--limit=205").more, false);
-    assert.match(run("sql", "SELECT body FROM messages", "--limit", "1").stdout, /1 row\(s\) — more rows exist/);
+    const table = run("sql", "SELECT body FROM messages ORDER BY at", "--limit", "1");
+    assert.equal(table.stdout, "body\n----\nNull\n");
+    assert.match(table.stderr, /developer's own store.*read-only, not rule-filtered/);
+    assert.match(table.stderr, /1 row\(s\) — more rows exist/);
+    const data = run("data", "messages", "--limit", "1");
+    assert.equal(data.stdout.trim().split("\n").length, 1);
+    assert.equal(typeof JSON.parse(data.stdout).body, "string");
+    assert.match(data.stderr, /… more rows \(increase --limit\)/);
+    const allData = run("data", "messages", "--limit", "205");
+    assert.equal(allData.stdout.trim().split("\n").map(line => JSON.parse(line)).length, 205);
+    assert.equal(allData.stderr, "");
     for (const [statement, code] of [
       ["UPDATE messages SET body = 'bad'", "E_SQL_READ_ONLY"],
       ["WITH chosen AS (SELECT 1) UPDATE r SET data = '{}'", "E_SQL_READ_ONLY"],
@@ -255,4 +339,8 @@ test("check --cost describes expression ranges, filtered probes, pages and seeks
   writeFileSync(join(dir, "snapback/schema.q"), "table items:\n  n: int\n  by byN: n, id\n  read <- allow\nquery scan(n: int, c: cursor ?):\n  total = 0\n  for i in range(0, n + 1):\n    total = total + i\n  return items[] after c first 10 by byN where .n > total and exists items[.id]\nquery seek(n: int, c: cursor ?):\n  return items[n > n] after c first 10 by byN\n");
   const output = run("check", "--cost").stdout;
   for (const text of ["steps ≤ meter", "filter over ≤ examined ceiling", "probe × examined", "prefix seek", "consume this page"]) assert.ok(output.includes(text), output);
+  const structured = run("check", "--cost", "--json");
+  assert.equal(JSON.parse(structured.stdout).ok, true);
+  assert.match(structured.stderr, /steps ≤ meter/);
+  assert.ok(output.endsWith(structured.stderr));
 });

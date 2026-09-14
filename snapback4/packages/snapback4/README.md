@@ -991,7 +991,9 @@ await revokeSessions(url, token, "member:42");
 
 A service is a principal `service:<name>` with a bearer session of its
 own: `snapback4 token --service pusher` prints it once (`--release <dir>`
-for a deployment). Rules admit it like any principal (`insert <- viewer =
+for a deployment). The token and one newline are the whole of stdout, with
+prose on stderr, so capture it with `TOKEN=$(npx snapback4 token --service pusher)`.
+Rules admit it like any principal (`insert <- viewer =
 'service:ranker'`); with its token a worker claims what the backend
 `emit`s under a lease, performs it, and settles it — a thrown handler
 retries with backoff, `GiveUp` fails it at once, the returned value is
@@ -1056,6 +1058,8 @@ PNG and `asset` is always denied.
   per-peer and per-email minute counters and prints that fact once at startup.
   The two Argon2 slots and connection/worker caps remain; `serve` keeps the
   30-per-peer and 10-per-email limits.
+  `dev` and `serve` print only the listening URL and one newline on stdout;
+  startup explanations, lifecycle messages and supervised worker logs go to stderr.
 - **`POST /seed`** (dev only, same machine) takes `[{ "table": "t",
   "row": { "id": "..", .. } }, ..]`, writes the rows as the system
   principal in one commit (rules bypassed; validation, constraints,
@@ -1085,8 +1089,10 @@ PNG and `asset` is always denied.
   ambiguous key's `by`, a cursor index's missing `id`, and exact canonical
   spelling rewrites. It prints one `fix:` line per change to stderr,
   recompiles, and reports the remaining diagnostics normally (`--json`
-  remains one JSON result on stdout). Unmarked design suggestions are
-  left for the author. **`snapback4 types`** writes `api.ts` alone.
+  remains one JSON result on stdout; `--cost` prose goes to stderr when
+  combined with `--json`). Unmarked design suggestions are
+  left for the author. **`snapback4 types`** writes `api.ts` alone and prints
+  its path plus one newline on stdout, with its status on stderr.
 - **`snapback4 sql "<SELECT …>" [--release dir] [--limit N] [--json]`**
   inspects the developer's own store, **never rule-filtered**. It opens
   `.snapback4/store.sqlite` read-only alongside `dev`, or a deployment's
@@ -1096,7 +1102,8 @@ PNG and `asset` is always denied.
   canonical tagged JSON. Only one `SELECT` or `WITH … SELECT` is allowed:
   writes refuse `E_SQL_READ_ONLY`, and internal tables (including raw
   `r`/`i` and SQLite metadata) refuse `E_SQL_INTERNAL`. The result is bounded
-  to 200 rows by default and says when more exist. `--json` returns
+  to 200 rows by default and says when more exist. The table is stdout;
+  the inspection header and row-count/truncation notice go to stderr. `--json` returns
   `columns`, positional `rows` (retaining every selected column), `limit`,
   `more`, `ruleFiltered: false`, and the same inspection header. For example:
   `snapback4 sql "SELECT conversationId, count(*) FROM messages GROUP BY conversationId"`.
@@ -1107,10 +1114,13 @@ PNG and `asset` is always denied.
 - **`snapback4 token --service <name> [--days N] [--release <dir>]`**
   mints a service's bearer token into the project's store (or a
   deployment's) and prints it once.
+  The token and one newline are the whole of stdout (even with `--json`),
+  with prose on stderr, so capture it with `TOKEN=$(npx snapback4 token --service worker)`.
 - **`snapback4 why <E_CODE | op | table>`** explains a refusal code, an
   operation's arguments, result and cost, or a table's rules, sync line,
   expire column and indexes; **`data <table> [--limit N]`** prints rows
-  (50 by default); **`doctor [--json]`** says what is in place: the
+  as one JSON object per stdout line (50 by default), with any truncation
+  hint on stderr; **`doctor [--json]`** says what is in place: the
   store, its size, schedules and their last boundary, the last job runs,
   the effects by state and the failed ones;
   **`guide [keyword]`** prints the language card or one card: language,

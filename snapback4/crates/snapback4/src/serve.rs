@@ -186,9 +186,11 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     let server = Arc::new(server);
     let address = server.server_addr();
     let mut worker = if dev { crate::dev_worker::DevWorker::start(&project, shared.clone(), format!("http://{address}"))? } else { None };
+    // The listening URL is the whole of stdout; lifecycle and worker logs use stderr.
+    println!("http://{address}");
     match &generated {
-        Some(generated) => println!("snapback4 dev: http://{address}  (schema: snapback/, types: {})", generated.display()),
-        None => println!("snapback4 serve: http://{address}  (release {}, generation {generation}, tokens only)", project.root.display()),
+        Some(generated) => eprintln!("snapback4 dev: http://{address}  (schema: snapback/, types: {})", generated.display()),
+        None => eprintln!("snapback4 serve: http://{address}  (release {}, generation {generation}, tokens only)", project.root.display()),
     }
     if let Mode::Dev { watch: true, .. } = mode {
         let shared = shared.clone();
@@ -280,7 +282,7 @@ fn watch_sources(project: Project, shared: Arc<Shared>) {
                             match crate::native::install(&mut engine, &project) {
                                 Ok(installed) => {
                                     *lock(&shared.native) = installed;
-                                    println!("snapback4 dev: native module rebuilt ({} B, {} ms): {}", built.bytes, built.ms, built.jobs.join(", "));
+                                    eprintln!("snapback4 dev: native module rebuilt ({} B, {} ms): {}", built.bytes, built.ms, built.jobs.join(", "));
                                 }
                                 Err(problem) => eprintln!("snapback4 dev: {problem}"),
                             }
@@ -289,13 +291,13 @@ fn watch_sources(project: Project, shared: Arc<Shared>) {
                         // /schema takes these guards in the same order.
                         let mut active = lock(&shared.bound);
                         let mut generation = lock(&shared.generation);
-                        for note in &residency_notes { println!("note: {note}"); }
-                        for note in &bound.notes { println!("note: {note}"); }
+                        for note in &residency_notes { eprintln!("note: {note}"); }
+                        for note in &bound.notes { eprintln!("note: {note}"); }
                         *active = bound;
                         *generation = next;
-                        println!("snapback4 dev: schema adopted as generation {} ({:?}) in {} ms; types: {}", *generation, worst, started.elapsed().as_millis(), generated.display());
+                        eprintln!("snapback4 dev: schema adopted as generation {} ({:?}) in {} ms; types: {}", *generation, worst, started.elapsed().as_millis(), generated.display());
                         for step in steps {
-                            println!("  {:?}: {}", step.change, step.message);
+                            eprintln!("  {:?}: {}", step.change, step.message);
                         }
                         shared.committed.notify_all();
                     }
@@ -338,7 +340,7 @@ fn maintain(shared: Arc<Shared>) {
         match lock(&shared.engine).fire_schedules(now) {
             Ok(fired) => {
                 for name in fired {
-                    println!("snapback4: schedule {name} fired");
+                    eprintln!("snapback4: schedule {name} fired");
                 }
             }
             Err(error) => eprintln!("snapback4: schedules failed: {error}"),
@@ -352,10 +354,10 @@ fn maintain(shared: Arc<Shared>) {
                 Ok(Some(run)) => {
                     bump_seq(&shared);
                     for line in lock(&shared.engine).take_native_logs() {
-                        println!("snapback4: native {line}");
+                        eprintln!("snapback4: native {line}");
                     }
                     match run.state {
-                        snapback4_core::JobState::Done => println!("snapback4: job {} done: {} chunk{}, {} row{} written", run.name, run.chunks, if run.chunks == 1 { "" } else { "s" }, run.rows_written, if run.rows_written == 1 { "" } else { "s" }),
+                        snapback4_core::JobState::Done => eprintln!("snapback4: job {} done: {} chunk{}, {} row{} written", run.name, run.chunks, if run.chunks == 1 { "" } else { "s" }, run.rows_written, if run.rows_written == 1 { "" } else { "s" }),
                         snapback4_core::JobState::Parked => eprintln!("snapback4: job {} parked after {} chunks: {}", run.name, run.chunks, run.error.as_deref().unwrap_or("")),
                         _ => {}
                     }
@@ -379,7 +381,7 @@ fn maintain(shared: Arc<Shared>) {
             match requeued {
                 Ok(0) => {}
                 Ok(n) => {
-                    println!("snapback4: {n} effect lease{} expired; queued again", if n == 1 { "" } else { "s" });
+                    eprintln!("snapback4: {n} effect lease{} expired; queued again", if n == 1 { "" } else { "s" });
                     shared.committed.notify_all();
                 }
                 Err(error) => eprintln!("snapback4: the effect lease sweep failed: {error}"),

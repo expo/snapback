@@ -3000,3 +3000,55 @@ and the token on one stdout); lane T is fixing the P3 ticket. The packet
 hashes: the brief, the probes and the process helper identical to the
 before; the runner and the metrics helper differ by two `@ref` comment
 lines (`c82b22824`).
+
+## 2026-09-14 — Lane T: captured CLI values own stdout
+
+Closed [the token-output P3](../issues/closed/20260913-snapback4-token-prints-prose-with-the-token.md).
+`token` has one stdout form: the bearer token and one newline, including
+when the shared `--json` flag is present; principal, expiry and custody
+prose are on stderr. It mints service tokens for the project or a release;
+viewer sessions still come from `/auth/session`. The README and services
+card now pave `TOKEN=$(npx snapback4 token --service worker)`.
+
+The adjacent audit separated `dev`/`serve`'s listening URL from startup,
+schema-reload, native/job/schedule and lease logs, including stdout from
+the supervised Node worker. `types` prints only the generated path;
+`data` keeps JSON lines on stdout and its truncation hint on stderr; SQL
+keeps its table on stdout and its inspection header/row-count footer on
+stderr. SQL `--json` remains one JSON result. `check --json --cost` now
+sends cost prose to stderr so its JSON remains parseable. `init`, deploy,
+rollback, help/guide/why/test and other human reports are unchanged;
+`run`'s successful JSON, `check --json`, `doctor --json` and `device`'s
+JSON protocol were already separate. No chat-app or fixture token parser
+needed an update; the ceremony instrument is untouched.
+
+Measured a local `token --service worker` before and after on base
+`30cf4ce809d68eb8f99c770a7cf6b98d3193708a`: **44 B → 44 B** on stdout,
+**113 B → 113 B** on stderr. The default was already clean on this base;
+with `--json`, stdout is **128 B → 44 B**, stderr **0 B → 113 B**.
+All eight regression calls (default, days, equals flags and `--json`, on
+each of the project/release stores) produced a 43-character base64url
+token plus newline, minted a session over `/auth/session`, and queried
+as `member:captured` using that session. Worker output and a live schema
+adoption also preserved the single URL on stdout. SQL/data tests cover
+both truncation and the full 205-row result; types resolves to a readable
+file. Targeted periphery: **12 passed, 0 failed**; compiled guide:
+**8 passed, 0 failed**.
+
+The final blocking suite took **46 s** (the first run, before the final
+`check --json --cost` correction, took **106 s**): **301 Rust passed,
+0 failed, 1 ignored; 9 fixture tests passed; 111 client tests passed,
+1 failed**. All builds/typechecks passed. The sole failure is Chromium
+SIGABRT before the React assertions, reproduced alone and from an
+untouched archive of the base above (60 tracked files verified
+byte-identical), using Node **24.18.0**. This is not a green local-suite
+claim; the lead's outside-sandbox rerun remains necessary. Full commands
+and verbatim summaries are in `/private/tmp/lane-t-verification.md`.
+
+Learned: the capture contract needs to cover optional flags, truncation,
+and inherited child descriptors; separating the ordinary token print
+alone did not establish it. No engine, language form, meter, serialized
+value, existing corpus case or client TypeScript changed. Modified source
+files stay under 1,500 lines (maximum **1,461**, the guide); this journal
+was already **2,969** lines and its append-only instruction is preserved.
+No commit, push, tag or publication.
