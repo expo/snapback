@@ -82,3 +82,9 @@ test("README TypeScript examples compile and call every public function", (t) =>
   t.diagnostic(`${blocks.length} README blocks; ${functions.length} public functions; ${(performance.now() - started).toFixed(2)} ms`);
   assert.deepEqual([...diagnostics, ...missing.map(name => `${name} needs a call in a README ts/tsx block`)], []);
 });
+
+test("R1a Queries lists matching merges over scope lanes", () => {
+  const queries = (read(join(root, "README.md")).split("- **Reads:")[1]?.split("- **")[0] ?? "").replace(/\s+/g, " ");
+  assert.ok(queries.includes("merge t matching q [after c] last N by wordsIndex:"), "Queries must spell the matching merge");
+  assert.ok(queries.includes("scope lanes"));
+});

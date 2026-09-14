@@ -77,13 +77,8 @@ pub struct Runner<'a> {
     /// The device touched an online-only table or a horizon: `complete: false`.
     pub(crate) beyond_horizon: bool,
     pub(crate) missing_fact: Option<String>,
-    /// While a search page runs: the words columns and the terms after the
-    /// first, which every row of the page must also carry.
+    /// Reads inside a where filter share the query's rule-probe budget.
     pub(crate) filter_depth: u32,
-    pub(crate) word_filter: Option<(Vec<String>, Vec<String>)>,
-    /// The currently running search's scope has one admitted verdict; only
-    /// its own word scans may reuse it, never a read nested in a filter.
-    pub(crate) word_verdict: Option<String>,
     /// The program read `connected[p]` where no registry answers (a
     /// device): a query's result is not `complete`; the compiled execution
     /// fact excludes a mutation with this site from prediction.
@@ -126,8 +121,6 @@ impl<'a> Runner<'a> {
             device: false,
             beyond_horizon: false,
             missing_fact: None,
-            word_filter: None,
-            word_verdict: None,
             filter_depth: 0,
             presence_unknown: false,
             seq,

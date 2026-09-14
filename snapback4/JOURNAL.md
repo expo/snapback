@@ -4620,3 +4620,63 @@ prefix scans for every mutation page read. Earlier question and review
 text remains intact. No code or status line changes; the existing guards
 are the accepted behavior. The 0.2.10 Clique cell continues unchanged,
 and the SQL-read choice remains pending its §10.3 finding.
+
+## 2026-09-14 — R1a: search verdict dependencies, nested reads, and retained coverage
+
+Reproduced the review findings against `db1173ca2c612b1603894756623e8c05fd7369b6`
+before repairing them (and reran the expanded regressions with that commit's
+implementation files restored). Rule dependencies now include every possible
+probe table, including an expiring maintain's source, independently of executed
+branches. A pinned conjunct can deny a non-uniform scope before word discovery
+or candidate reads, at the whole rule's static allowance; admitted scopes keep
+per-row authority and their never-complete class. Search terms and verdicts are
+passed only to the generated word merge's direct lanes: nested reads cannot
+inherit them, including hand-built IR that repeats a site or an error exit.
+Empty matching reads establish horizon coverage before returning. Retained
+history suppresses fallback only in the absence of another unknown/incomplete
+reason; a complete held site alone does not invalidate the retained answer.
+
+The core covers **32 paired observations** (and the same 32 with dependencies
+removed to isolate W5's already-correct meter/error behavior): `and`/`or`,
+denied/admitted, matching merge/plain page, Cap/Abort, 8192/1 remaining probes.
+Every pair compares rows, completeness, cursor, cap, all **7 meters**, dependencies,
+next expiry and refusal. W5 already charged **2**, or **8193** after the
+8191-probe prelude; no allowance repair was needed. Four additional pairs put
+**0/33** hidden words before an admitted scope with one visible and one hidden
+row. Matching Cap observes examined **2**, index entries **2**, probes **4**,
+steps **10**, heap **431 B**, output **121 B**, writes **0** in both worlds;
+Abort differs only at examined **5**. The existing **2 scopes × 3 words × 20 rows**
+fixture remains 50 returned, examined **122**, index entries **8**, probes **2**,
+steps **244**, heap **19,664 B**, output **4,941 B**, writes **0**.
+
+Both device stores cover nested filters and a repeated-site scan whose audience
+expires. The real wasm and process clients each changed the held empty-search
+answer from **0 to 1** (server fallback), keep the left empty search **0 rows,
+complete false**, and changed the mixed left/held read from **25 to 26**; its
+watch also returns **26**. Existing retained history stays **25**, including
+online/offline watches. Exact N_NEVER_COMPLETE-envelope coverage extends the
+matching-merge suggestion to a scope-decided conjunction and refuses that
+suggestion when a row field is unpinned. No new diagnostic code or wire form.
+The README's Queries/Reads bullet now spells matching merges. The search card
+moved to `guide/search.rs`; guide.rs is **1436** lines. Reflowing only the affected
+README prose preserves every word and leaves it **1496** lines.
+
+Targeted results: core **5/0**, simulator search **10/0**, device search **5/0**,
+existing device retention **16/0**, diagnostic envelope **1/0**, guide **9/0**,
+real client retention **6/0**, README **2/0**. The blocking script completed in
+**109 s**: Rust **434 passed, 0 failed, 1 ignored**; fixture wrapper **9/0**;
+client **133/1**. Its sole red is the sandbox's Chromium launch (`SIGABRT`) in
+`react.test.mjs`, also red alone before running any browser assertions; the lead
+must rerun that witness outside. No lifecycle timeout reproduced in this run.
+Wasm measures **1,598,034 B raw / 443,173 B gzip**, versus the base's
+**1,596,940 / 442,873 B** (**+1,094 / +300 B**); no ceiling changed. These are
+within-tree measurements on a shared host, not a performance claim. No R1b
+file, existing corpus case, commit, push, tag, or publication was touched.
+
+The isolated React witness also aborts `SIGABRT` with tracked implementation
+sources restored to **db1173ca2c612b1603894756623e8c05fd7369b6** (**0 passed,
+1 failed**); it launches no backend and uses no compiled Rust/wasm artifact.
+Every R1a file was restored afterward. Final `./ref-check --verbose`: **474 LLP
+docs, 8833 refs in 22772 files, 0 errors, 0 unchecked**. `git diff --check`
+passes, and all **15** changed source/test/README files are at most **1496**
+lines (the existing append-only journal is separate).

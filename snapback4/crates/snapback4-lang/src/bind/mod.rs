@@ -248,16 +248,24 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
 fn matching_merge_rewrite(schema: &Schema, scan: &snapback4_core::ir::Scan, table: &snapback4_core::schema::Table) -> Option<String> {
     use snapback4_core::{ir::IndexKeyExpr, schema::{RuleExpr, RuleTerm}};
     if !scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_))) { return None; }
-    let RuleExpr::Exists { table: members, index: membership_index, key, .. } = &table.rules.read else { return None; };
-    let membership = schema.table(members)?;
-    let columns = membership.index(membership_index)?.columns();
-    let principal = key.iter().position(|term| matches!(term, RuleTerm::Viewer))?;
-    let scope: Vec<_> = key.iter().filter_map(|term| if let RuleTerm::Field(field) = term { Some(field.clone()) } else { None }).collect();
-    let fields = table.index(&scan.index)?.word_component()?.1;
-    let (words_index, _) = table.indexes.iter().find(|(_, index)| index.word_component().is_some_and(|(position, text)| index.columns()[..position] == scope && text == fields))?;
-    let (source_index, _) = membership.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().first() == columns.get(principal) && index.columns().last().is_some_and(|column| column == "id"))?;
-    let prefix = key.iter().zip(&columns).filter_map(|(term, column)| matches!(term, RuleTerm::Field(_)).then(|| format!("m.{column}"))).collect::<Vec<_>>().join(", ");
-    Some(format!("merge {} matching q last {} by {words_index}: [{prefix}] for m in {members}[viewer] first 50 by {source_index} — one verdict per scope and a complete page; or read the page on the device", scan.table, scan.take.maximum()))
+    // @ref LLP 3000.007#18.1 — a membership conjunct supplies lanes when their scope decides the whole rule.
+    fn conjuncts(rule: &RuleExpr) -> Vec<&RuleExpr> {
+        match rule { RuleExpr::And(terms) => terms.iter().flat_map(conjuncts).collect(), other => vec![other] }
+    }
+    conjuncts(&table.rules.read).into_iter().find_map(|rule| {
+        let RuleExpr::Exists { table: members, index: membership_index, key, .. } = rule else { return None; };
+        let membership = schema.table(members)?;
+        let columns = membership.index(membership_index)?.columns();
+        let principal = key.iter().position(|term| matches!(term, RuleTerm::Viewer))?;
+        let scope: Vec<_> = key.iter().filter_map(|term| if let RuleTerm::Field(field) = term { Some(field.clone()) } else { None }).collect();
+        let deciding = snapback4_core::engine::rules::deciding_fields(&scan.table, table, &table.rules.read);
+        if !deciding.iter().all(|field| scope.contains(field)) { return None; }
+        let fields = table.index(&scan.index)?.word_component()?.1;
+        let (words_index, _) = table.indexes.iter().find(|(_, index)| index.word_component().is_some_and(|(position, text)| index.columns()[..position] == scope && text == fields))?;
+        let (source_index, _) = membership.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().first() == columns.get(principal) && index.columns().last().is_some_and(|column| column == "id"))?;
+        let prefix = key.iter().zip(&columns).filter_map(|(term, column)| matches!(term, RuleTerm::Field(_)).then(|| format!("m.{column}"))).collect::<Vec<_>>().join(", ");
+        Some(format!("merge {} matching q last {} by {words_index}: [{prefix}] for m in {members}[viewer] first 50 by {source_index} — one verdict per scope and a complete page; or read the page on the device", scan.table, scan.take.maximum()))
+    })
 }
 
 /// Every merge a program's body evaluates.

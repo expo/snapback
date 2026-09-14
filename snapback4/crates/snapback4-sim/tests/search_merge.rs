@@ -172,3 +172,40 @@ fn empty_scopes_and_named_scopes_use_the_same_matching_form() {
     assert_eq!(ids(&first), ["hidden", "d"]);
     assert_eq!(ids(&read(&mut unscoped, "unscoped", "cof", first.next)), ["c", "b"]);
 }
+
+#[test]
+fn r1a_prefix_denied_nonuniform_scope_never_discovers_hidden_words() {
+    let source = SCHEMA.replace("  sync to members[.roomId]\n", "")
+        .replace("  read <- exists members[.roomId, viewer]\n  insert <- allow", "  read <- exists members[.roomId, viewer] and .body != 'hidden'\n  insert <- allow")
+        .replace("    ['r1']\n    ['r2']\n    ['r3']", "    ['r3']\n    ['r1']\n    ['r2']");
+    let source = format!("{source}\nquery scoped(q: text <=100, c: cursor ?):\n  return messages['r3'] matching q after c last 2 by byRoomWords\nquery plain(q: text <=100, c: cursor ?):\n  return messages['r3'] after c last 2 by byRoomTime\n");
+    for op in ["explicit", "scoped", "plain"] {
+        let mut worlds = Vec::new();
+        for population in [0, 33] {
+            let mut engine = fixture(&source);
+            for n in 0..population { seed_message(&mut engine, "r3", &format!("extra{n}"), &format!("cof{n:02}"), n); }
+            let mut page = read(&mut engine, op, "cof", None);
+            page.seq = 0; // Same logical world; fixture seeding uses separate commits.
+            worlds.push(page);
+        }
+        assert_eq!(worlds[0], worlds[1], "{op}: a non-member scope contributes nothing");
+        assert_eq!(ids(&worlds[0]), if op == "explicit" { vec!["d", "c"] } else { vec![] });
+        assert!(!worlds[0].complete, "non-uniform class remains incomplete");
+    }
+    let mut admitted = fixture(&source);
+    seed_member(&mut admitted, "r3", "dev:alice");
+    seed_message(&mut admitted, "r3", "filtered", "hidden", 101);
+    assert_eq!(ids(&read(&mut admitted, "plain", "cof", None)), ["hidden"]);
+}
+
+#[test]
+fn r1a_search_where_reads_an_independent_members_page() {
+    for words in [1, 12] {
+        let source = format!("{SCHEMA}\nquery filtered(q: text <=100, c: cursor ?):\n  return messages['r1'] matching q after c last 50 by byRoomWords where count(members['r1'] first 50 by byRoomPrincipal) > 0\n");
+        let mut engine = engine(&source);
+        seed_member(&mut engine, "r1", "dev:alice");
+        for n in 0..words { seed_message(&mut engine, "r1", &format!("m{n}"), &format!("cof{n:02} car"), n); }
+        assert_eq!(ids(&read(&mut engine, "filtered", "cof car", None)).len(), words as usize);
+        assert_eq!(ids(&read(&mut engine, "filtered", "cof boat", None)).len(), 0);
+    }
+}

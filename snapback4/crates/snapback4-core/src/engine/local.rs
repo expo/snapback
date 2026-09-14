@@ -21,10 +21,10 @@ pub fn query(rows: &dyn Rows, schema: &Schema, program: &Program, context: Conte
     query_with_coverage(rows, schema, program, context, ceilings).0
 }
 
-/// Preserve coverage even when a require/unwrap refused after a missing row.
-pub fn query_with_coverage(rows: &dyn Rows, schema: &Schema, program: &Program, mut context: Context, ceilings: Ceilings) -> (Result<QueryOutcome, Refusal>, bool) {
-    if program.kind == crate::ir::ProgramKind::Action { return (Err(RuntimeError::UnknownOp("an action runs only through client.act".into()).refusal()), false); }
-    if let Err(error) = validate_inputs(schema, program, &mut context.args) { return (Err(error.refusal()), false); }
+/// Preserve unknown coverage and whether incompleteness is exclusively retained history, even after a require/unwrap refusal.
+pub fn query_with_coverage(rows: &dyn Rows, schema: &Schema, program: &Program, mut context: Context, ceilings: Ceilings) -> (Result<QueryOutcome, Refusal>, bool, bool) {
+    if program.kind == crate::ir::ProgramKind::Action { return (Err(RuntimeError::UnknownOp("an action runs only through client.act".into()).refusal()), false, false); }
+    if let Err(error) = validate_inputs(schema, program, &mut context.args) { return (Err(error.refusal()), false, false); }
     let mut runner = Runner::new(rows, schema, context, Meter::new(ceilings, Cut::Cap), 0);
     runner.device = true;
     let result = (|| {
@@ -42,7 +42,7 @@ pub fn query_with_coverage(rows: &dyn Rows, schema: &Schema, program: &Program, 
         next_expiry: runner.next_expiry,
     })
     })();
-    (result, runner.missing_fact.is_some())
+    (result, runner.missing_fact.is_some(), runner.only_retained_incomplete())
 }
 
 /// What a mutation predicts on the device: its result, and the tables it
@@ -79,9 +79,9 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
 /// device's words — a page at the horizon or an online-only table is
 /// `complete: false`, and the second is the coverage the host falls back on.
 #[cfg(feature = "wasm-host")]
-pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Module, program: &Program, mut context: Context, ceilings: Ceilings) -> (Result<QueryOutcome, Refusal>, bool) {
+pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Module, program: &Program, mut context: Context, ceilings: Ceilings) -> (Result<QueryOutcome, Refusal>, bool, bool) {
     if let Err(error) = validate_inputs(schema, program, &mut context.args) {
-        return (Err(error.refusal()), false);
+        return (Err(error.refusal()), false, false);
     }
     let args = context.args.clone();
     let now = context.now.unwrap_or(0);
@@ -102,11 +102,16 @@ pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Mo
             next_expiry: runner.next_expiry,
         })
     })();
-    (result, runner.missing_fact.is_some())
+    (result, runner.missing_fact.is_some(), runner.only_retained_incomplete())
 }
 
 
 impl Runner<'_> {
+    // @ref LLP 3000.007#18.2 — retained history suppresses fallback only when no independent unknown or incomplete reason remains.
+    fn only_retained_incomplete(&self) -> bool {
+        self.missing_fact.is_none() && self.meter.capped_at.is_none() && !self.non_uniform && !self.page_overflow && !self.presence_unknown
+    }
+
     // @ref LLP 3000.007#6.2 — preserve the first undecidable site's evaluated key.
     pub(crate) fn unknown_fact(&mut self, table: &str, index: &str, key: &[Value], site: &str) {
         self.beyond_horizon = true;
