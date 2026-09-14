@@ -1925,3 +1925,26 @@ repeated-case timing. No competitors were rerun, and these results do not
 establish adoption, a general/platform win, device throughput, memory-pressure,
 write or durability behavior. Controller `6d2a2f7e…`, setup `a53df17e…` and
 qualification `25a61327…` are fully bound in every annotation.
+
+## HTTP request-stage diagnostic
+
+An HTTP stage diagnostic used the 0.2.8 source `8a81eb855`, the published build input `-USQLITE_ENABLE_MEMORY_MANAGEMENT`, and one instrumented `serve.rs` on Durand (M4 Pro/macOS). The experimental CLI `b512a52a…` is distinct from the published artifact. Its build receipt records 26 CLI tests and one production-profile independent-reader test passed, zero failed/ignored; 614 of 615 archived files were unchanged. The extra logging is diagnostic overhead.
+
+The first load (23:35:25–23:36:14 UTC) exited 1 after 18 completed 1,000-request blocks with `UND_ERR_SOCKET: other side closed`. It retained 18,548 server traces but no final client JSON or after-load verifier; those extra traces do not establish successful client responses. Its build qualification and failed load remain separate. The cause is unestablished. V2 retained the same executable and request plan, added partial client/error preservation, stopped new scheduling after failure and awaited in-flight workers; it added no retry.
+
+V2 completed at 23:47:15 UTC (receipt start 23:45:19), exit 0. All 48,000 selected requests matched the expected responses and exact 15-stage server traces: eight rounds × C1/C8 × point/thread/feed × 1,000 requests. It excluded 1,440 warmups and 1,500 preparation feed pages. Full before/after authorized verification used the same server and previously issued seven-day guest sessions: another 18 untimed walks/3,730 pages plus auth and cursor checks. The hash-bound pristine fixture, activation identity and owned-process teardown reconcile. This diagnostic made no new physical full-database scan or leave/regrant exercise.
+
+Each row below pools eight equal 1,000-request blocks. Values are milliseconds; percentiles use nearest rank. The complete record preserves all 48 blocks, all phase distributions, and raw client/server hashes.
+
+| Case | Client body mean | Server flushed mean | Signed residual mean | Client p95 | Client p99 | Client max |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| C1/point | 2.4875 | 0.7527 | 1.7348 | 3.3348 | 3.9989 | 16.1651 |
+| C1/thread | 2.9417 | 1.1800 | 1.7616 | 4.0056 | 4.7304 | 14.7078 |
+| C1/feed | 5.0039 | 3.4692 | 1.5347 | 5.7341 | 6.2666 | 15.9127 |
+| C8/point | 2.5627 | 1.5796 | 0.9831 | 3.8882 | 5.3759 | 17.5993 |
+| C8/thread | 3.9655 | 2.8725 | 1.0930 | 5.2290 | 6.1259 | 8.4934 |
+| C8/feed | 6.3309 | 5.1489 | 1.1821 | 7.6643 | 8.4798 | 12.1909 |
+
+For C1 point reads, body completion after headers averaged 0.0341 ms. The elapsed query interval was the largest mean measured server phase in each group, but these intervals include scheduling and waits. Server timing starts at dispatch, after unobserved accept/parser work; `flushed` means the write/flush call returned, not acknowledgement. Stderr formatting/I/O happens after the last stage while the request permit is still held and can affect later admission. The signed client-minus-server residual is neither network time nor CPU time.
+
+The prepared domain contains all 1,500 feed pages. Selected requests visit 1,259 unique feed pages and 5,555 of the 150-group reader's 30,000 point rows across eight rounds (1,000 unique inputs per corresponding block); C1/C8 use the same selections. Thread requests repeat the first page of group `g020`. This is an instrumented single-host diagnostic, with no optimization adoption, comparator, device, write, durability, WAN or unsampled-performance conclusion.
