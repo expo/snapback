@@ -4,6 +4,7 @@
 // and applies at most once, and waits as `pending` while the link is down.
 // Every word a screen reads is on the card (contract.ts).
 
+import { changeFeed } from "./changes.ts";
 import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import type { Session } from "./auth.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
@@ -251,6 +252,8 @@ export function createClient(options: ClientOptions): Client {
     } catch {}
   }
 
+  const changes = changeFeed(doFetch, base, aborter.signal, () => { if (!closed && credentials) setLink("offline"); }, () => { if (!closed && credentials && link === "offline") void probe(); });
+
   async function poll() {
     if (polling) return;
     polling = true;
@@ -261,13 +264,12 @@ export function createClient(options: ClientOptions): Client {
         continue;
       }
       try {
-        const response = await doFetch(`${base}/changes?since=${seq}&wait=${options.waitSeconds ?? 25}`, { headers, signal: aborter.signal });
-        const json = (await response.json()) as { seq: number; tables: string[]; generation?: number; denied?: Refusal };
+        const { response, json } = await changes(seq, options.waitSeconds ?? 25, headers);
         if (json.denied?.code === "E_AUTH") {
           endCredentials();
           break;
         }
-        if (!response.ok) throw new Error(`changes: HTTP ${response.status}`);
+        if (!response.ok || json.denied) throw new Error(`changes: HTTP ${response.status}`);
         const changedGeneration = generation !== undefined && json.generation !== undefined && generation !== json.generation;
         generation = json.generation;
         if (json.seq > seq || changedGeneration) {

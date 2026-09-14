@@ -491,6 +491,28 @@ impl Request {
         }
     }
 
+    /// Write and flush one complete application-framed streaming response
+    /// frame. Each frame has the ordinary absolute write deadline; waiting
+    /// between frames spends none of the next frame's write budget. The
+    /// caller must bound the whole stream and call `finish_stream` only after
+    /// writing its complete HTTP framing, or `abort` on any error.
+    pub fn write_response_frame(&mut self, frame: &[u8]) -> Result<(), IoError> {
+        let writer = self.response_writer.as_mut().expect("response already finished");
+        writer.write_all(frame)?;
+        writer.flush()?;
+        if let Some(limits) = &self.limits { limits.continued(); }
+        Ok(())
+    }
+
+    /// Complete a response written with `write_response_frame`. Retain the
+    /// request reader until now so a pipelined request cannot start the next
+    /// header deadline while this response is still waiting between frames.
+    pub fn finish_stream(mut self) {
+        drop(self.response_writer.take());
+        drop(self.data_reader.take());
+        if let Some(sender) = self.notify_when_responded.take() { let _ = sender.send(()); }
+    }
+
     /// Extract the response `Writer` object from the Request, dropping this `Writer` has the same side effects
     /// as the object returned by `into_writer` above.
     ///

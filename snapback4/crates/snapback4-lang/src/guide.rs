@@ -562,7 +562,13 @@ every group a device holds, at every cold start, as the table grows;
 `check` notes it (N_NO_HORIZON) unless the group cannot grow (one row per
 group, or a `cap` over the group). A snapshot arrives in pages the client
 asks for 4,000 events at a time (2,000 by default on the wire, 10,000 at
-most), each applied in its own transaction. Joining a group delivers its
+most), each applied in its own transaction. `POST /sync` takes JSON
+`{ from, limit, after, stream, pending }`: up to 256 pending write IDs of
+1–128 UTF-8 bytes, with the cursor, in at most 262,144 body bytes (256 KiB).
+Oversize bodies, including chunked ones, return HTTP 413 `E_INPUT`; malformed
+fields return HTTP 400 `E_INPUT`. Continue snapshots with `after: next`;
+`stream: true` follows the log even from zero. There is no GET sync route.
+Joining a group delivers its
 rows; leaving it delivers one scope tombstone, and `retain` says whether the
 device keeps what it was given (`delivered-history`) or drops it
 (`until-revoked`, the default). What it keeps it can still read locally
@@ -1299,8 +1305,13 @@ query connections(p: principal):
 
 `connected[p]` is how many connections a principal holds open on the
 server now: a device following the stream keeps a long poll open
-(`GET /changes?wait=25`), and a poll that answered a moment ago still
-counts for 35 seconds, the gap before the next. It is not a table: nothing
+(`GET /changes?wait=25&heartbeat=1`), and a poll that answered a moment ago still
+counts for 35 seconds, the gap before the next. Heartbeats are JSON whitespace
+every 2 seconds before the final object. On a running host, 4 seconds of
+silence marks the link offline within 5 seconds; native fetch without streams
+uses at most 2-second polls. Browser connectivity events give immediate hints;
+authenticated `/probe` confirms recovery. Suspended hosts notify on resume.
+It is not a table: nothing
 syncs, nothing is written. A mutation reads it to notify only those with
 no connected client (guide effects); a query reads it for an online mark.
 On a device the word is unknown: a query that reads it is `complete:
@@ -1392,7 +1403,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("N_NOW_SERVER", "a query now reads a server-only site; why names it and the rewrite. See guide residency."),
     ("N_NOT_PREDICTABLE", "a mutation lost eligibility, or gained a horizon site that may queue without a row; the note names which. See guide residency."),
     ("N_MAINTAIN_SYNCED", "a maintain inherits public sync or a group audience with unbounded recipients or multiple values per group; online only opts out. test --residency measures its rows."),
-    ("E_INPUT", "family input — an argument or a row value does not fit its declared type. The message names the field; fix the value or the declaration. A table reference validates the id's shape, not the target's existence: the string \"null\" is an id, while JSON null needs an optional type; `require exists t[id] else CODE` checks for a visible target (guide writes)."),
+    ("E_INPUT", "family input — an argument or a row value does not fit its declared type, or an HTTP request exceeds its body bound (sync: 256 KiB, HTTP 413). The message names the field; fix the value or the declaration. A table reference validates the id's shape, not the target's existence: the string \"null\" is an id, while JSON null needs an optional type; `require exists t[id] else CODE` checks for a visible target (guide writes)."),
     ("E_TYPE", "family input — a value has the wrong type for its position at run time (a Quarry program that binds cannot raise it; a seed or a wire argument can); the message names both types."),
     ("E_OVERFLOW", "family input — integer arithmetic left ±(2^53 − 1), the value model's range. Store minor units in a decimal or money column, or narrow the operands."),
     ("E_DIV_ZERO", "family input — divmod, / or % by zero. Check the divisor first: `require n != 0 else EMPTY`."),

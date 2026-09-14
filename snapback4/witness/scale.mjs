@@ -14,7 +14,7 @@ const witness = await launch({ seed });
 const out = { at: new Date().toISOString(), witness: "chromium-scale", binary: process.env.SNAPBACK4_BIN ? "release" : "debug", chromium: witness.chromium, groups, messages, members, seeded: witness.seeded, seedMs: witness.seedMs };
 try {
   // The snapshot's size on the wire, as the client will receive it.
-  const snapshot = await fetch(`${witness.api}/sync?from=0`, { headers: { "x-snapback-persona": "bob" } }).then((r) => r.text());
+  const snapshot = await fetch(`${witness.api}/sync`, { method: "POST", body: JSON.stringify({ from: 0 }), headers: { "x-snapback-persona": "bob" } }).then((r) => r.text());
   out.snapshotBytes = Buffer.byteLength(snapshot);
   out.snapshotEvents = JSON.parse(snapshot).events.length;
   const heapBefore = await witness.heapMb();

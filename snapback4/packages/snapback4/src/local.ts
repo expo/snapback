@@ -7,6 +7,7 @@
 // web (`snapback4/web`), the Expo module (`snapback4-expo`) and the
 // `snapback4 device` process for Node (`snapback4/native`) all fit.
 
+import { changeFeed } from "./changes.ts";
 import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import { MediaCache, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { MediaStorage, AssetRetention } from "./local-assets.ts";
@@ -443,7 +444,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (captured.denied) return false;
           const { pending_ids: pending, send_revision } = captured.ok as { pending_ids: string[]; send_revision: number };
           const request = requestCredentials();
-          const response = await doFetch(`${base}/sync?from=${watermark}&limit=${PAGE}${after ? `&after=${encodeURIComponent(after)}` : ""}${catchingUp ? "&stream=1" : ""}${pending.length ? `&pending=${encodeURIComponent(JSON.stringify(pending))}` : ""}`, { headers: request.headers, signal: aborter.signal });
+          const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify({ from: watermark, limit: PAGE, after: after ?? null, stream: catchingUp, pending }), signal: aborter.signal });
           if (response.status >= 500) { setLink("offline"); return false; }
           page = (await response.json()) as Record<string, unknown>;
           page.send_revision = send_revision;
@@ -539,6 +540,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     } catch {}
   }
 
+  const changes = changeFeed(doFetch, base, aborter.signal, () => setLink("offline"), () => { if (!closed && !sessionDead && link === "offline") void network(probe); });
+
   async function waitForChange(): Promise<boolean> {
     if (link !== "online") {
       await new Promise((r) => setTimeout(r, 1000));
@@ -547,8 +550,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     try {
       const request = requestCredentials();
-      const response = await doFetch(`${base}/changes?since=${seq}&wait=${options.waitSeconds ?? 25}`, { headers: request.headers, signal: aborter.signal });
-      const json = (await response.json()) as { seq: number; tables?: string[]; generation?: number; denied?: Refusal };
+      const { response, json } = await changes(seq, options.waitSeconds ?? 25, request.headers);
       if (!response.ok || json.denied) {
         await refusedSession(json.denied, request.revision);
         if (json.denied?.code === "E_AUTH") return false;
@@ -950,6 +952,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   scheduleRefresh();
   return client;
   } catch (error) {
+    aborter.abort();
     // Opening the device transfers its lifetime to this constructor. Until a
     // client is returned, every later startup failure must release it here.
     try { await media?.close(); await core.close(); } catch {}

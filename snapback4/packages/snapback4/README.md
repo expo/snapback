@@ -797,6 +797,18 @@ wasm as a URL, a Response, bytes or a compiled module when a bundler
 cannot resolve the default beside the module; `webDevice({ persist:
 memoryPersistence() })` keeps nothing, for tests.
 
+While a change poll is active, **link loss is reported within 5 seconds**
+on a running browser or native host: heartbeats arrive every 2 seconds,
+and 4 seconds without response bytes marks the link `offline` and aborts
+that poll. Native fetch hosts without response streams use polls of at
+most 2 seconds with the same 4-second watchdog. Browser `offline` events
+are an immediate hint; `online` events trigger the authenticated `/probe`
+recovery check. The local client polls while open; the online tier polls
+while it has observed reads. Suspended hosts cannot run timers or deliver
+notifications until resumed. Closing a client removes timers and event
+listeners. Custom fetch transports must honor abort and forward response
+chunks promptly when exposing streams.
+
 ### The card
 
 Every word a screen reads is on the card (`snapback4/contract`):
@@ -1147,17 +1159,27 @@ the visible read encountered, or null. `POST /m/<op>` with `{ "id", "args",
 "failed", id, why, current? }` (a client-minted `id` makes the write
 apply at most once, and a replay adds `replayed: true`; `current` is the
 live row on `E_CONFLICT`); a job is refused over the wire (`E_OP`).
-`GET /sync?from=0` is the snapshot, paged: `{ snapshot: true, events:
-[{ table, kind, id, data }], watermark, more, next, generation,
-acknowledged }`, continued with `after=<next>` (`limit` up to 10,000;
-2,000 by default), and `pending=[ids]` (at most 256) reports which
-queued writes the server has applied; `GET /sync?from=W` (or `stream=1`)
-is the stream from a watermark: `{ snapshot: false, events: [{ seq,
-table, kind, id, data }], watermark, more, generation, acknowledged }`.
+`POST /sync` takes JSON `{ from, limit, after, stream, pending }` (defaults:
+`0`, `2000`, `null`, `false`, `[]`). With `from: 0` it returns the paged
+snapshot: `{ snapshot: true, events: [{ table, kind, id, data }], watermark,
+more, next, generation, acknowledged }`. Continue with `after: next`;
+`limit` is clamped to 1–10,000. `pending` holds at most 256 write IDs,
+each 1–128 UTF-8 bytes, and reports which queued writes the server applied.
+The request body is at most **262,144 bytes (256 KiB)**, including the
+cursor and JSON escaping; this accommodates all 256 maximum-length IDs
+even with six-byte escapes. A larger body is HTTP 413 with `denied: E_INPUT`,
+including chunked bodies; malformed fields are HTTP 400 with `E_INPUT`.
+With `from: W` or `stream: true` it returns the stream from a watermark:
+`{ snapshot: false, events: [{ seq, table, kind, id, data }], watermark,
+more, generation, acknowledged }`. There is no GET `/sync` route.
 `GET /changes?since=S&wait=N` requires the same principal and answers
 `{ seq, tables, generation }` when a commit lands or after N seconds (25
 at most; 0 answers at once; at most
-500 commits are summarised). `POST /assets` (the
+500 commits are summarised). With `heartbeat=1`, an idle HTTP/1.1 response
+starts immediately and sends JSON whitespace every 2 seconds before the
+final JSON object. Proxies must forward chunks without buffering. Once
+streaming starts, the status is 200; check the final object for `denied`,
+including `E_AUTH` if the session ended while waiting. `POST /assets` (the
 file's bytes as the body, 64 MiB at most) answers `{ asset }`; `GET
 /assets/<id>` serves them (404 hidden or gone, 410 viewed; `Range`
 works on ordinary assets, returns 416 when unsatisfiable, and is refused on

@@ -3052,3 +3052,77 @@ value, existing corpus case or client TypeScript changed. Modified source
 files stay under 1,500 lines (maximum **1,461**, the guide); this journal
 was already **2,969** lines and its append-only instruction is preserved.
 No commit, push, tag or publication.
+
+
+## 2026-09-14 — lane U: sync bodies and bounded link-loss detection
+
+Moved the shared client's sync request to `POST /sync` with JSON
+`{ from, limit, after, stream, pending }`, removed the GET route, and
+updated the scale witness and HTTP/cursor fixtures. The native opener
+already delegates HTTP to the shared client; the labelled mock has no
+wire request to migrate. The body ceiling is **262,144 B** with one
+oversize outcome, **HTTP 413 / E_INPUT**, including chunked requests and
+CORS. That allows **256 × 128-byte IDs** even at **6 encoded bytes per
+byte**, plus a cursor; malformed fields use **400 / E_INPUT**. No request-line
+or meter ceiling was raised, no serialized value form or engine changed.
+
+At watermark **1091**, the old request lines for **232 / 233 / 256**
+ordinary 26-byte IDs were **8,171 / 8,206 / 9,011 B**; at 128 bytes they
+were **31,835 / 31,972 / 35,123 B**. Every POST line is **19 B**; its
+bodies are **6,794 / 6,823 / 7,490 B** for ordinary IDs and
+**30,458 / 30,589 / 33,602 B** for maximum-length IDs. The real host
+regression checks both lengths, the old parser boundary, **262,144 B**
+admitted and **262,145 B** refused, declared/chunked bodies and malformed
+fields. On each device store it correlates and terminally acknowledges
+**232, 233, and 273** writes (the last has a **256-ID** window and a
+**17-ID** tail), with **37** snapshot rows over **6** pages and **5**
+cursors, no dropped/duplicate IDs, one terminal notification per write,
+and an empty outbox. Across the two stores: **1,476** receipts and
+**1,476** terminal writes.
+
+Held change responses now send JSON-whitespace heartbeats every **2 s**;
+both client tiers race response progress against **4 s** of silence.
+Native fetch without response streaming uses polls of at most **2 s**
+with the same watchdog. Browser offline/online hints are registered and
+removed with the client; authenticated `/probe` remains the recovery
+condition. README, `Link`, and the guide document detection within **5 s**
+while polling on a running host, with notifications deferred during host
+suspension. The real TCP proxy drops bytes without closing the held poll;
+final-suite detection times after cuts at **500 / 5,000 / 15,000 ms**:
+wasm **3,503.941 / 3,007.609 / 3,023.060 ms**, native
+**3,502.317 / 3,006.491 / 3,028.957 ms**. The test retains request start,
+cut, rejection and notification times and checks recovery. Healthy idle
+polls, a buffered native response, a fetch that ignores abort, browser
+hints, cleanup, and revocation after the first heartbeat are covered.
+
+Learned: tiny_http's absolute **5 s** write phase cannot include an idle
+**25 s** response. The minimal vendor addition (**22 lines**) writes and
+flushes complete frames with the existing deadline, retaining the request
+until its terminator so a later request cannot start the next header
+phase too early. It aborts incomplete streams. Two Rust HTTP tests prove
+healthy pipelining across idle frames and refusal of a stalled frame;
+auth is rechecked before final JSON, including after heartbeats started.
+The early regression run caught that phase mismatch; fixture repairs used
+unique native outbox sequences, avoided closing a wasm core twice, and
+explicitly enabled identity for the revocation test.
+
+Verification on base **0d7b77bb3c577366ac81bf159e57524c613c9e12**:
+targeted host **17 passed**, framing **2 passed**, compiled guide
+**8 passed**, lifecycle/auth/HTTP **62 passed**. The final blocking suite
+ran in **71 s**: **303 Rust passed, 0 failed, 1 ignored; 9 fixture tests
+passed; 117 client tests passed, 1 failed**. Every new transport test
+passed. All builds and typechecks passed. The only final failure is
+Chromium **SIGABRT** before the React assertions; it reproduces alone and
+from an untouched archive of the base (**33** relevant tracked files
+verified byte-identical, installed dependencies shared). The IndexedDB
+witness fails at the same launch boundary, so its offline scenario needs
+the lead's outside-sandbox run. This is not a green browser-suite claim.
+The first full run took **114 s** and also caught the now-fixed identity
+fixture. Exact commands, verbatim summaries and timing records are in
+`/private/tmp/lane-u-verification.md`.
+
+Both transport tickets moved to `issues/closed/` with resolutions and
+measured numbers. Changed source files remain at most **1,472 lines**;
+this append-only journal was already **3,054 lines** and was not split or
+rewritten. No commit, push, tag or publication; the existing untracked
+`LANE-BRIEF.md` is untouched.

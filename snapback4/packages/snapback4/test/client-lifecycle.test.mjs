@@ -795,16 +795,17 @@ for (const tier of ["wasm", "native"]) {
       const url = new URL(input);
       if (url.pathname === "/m/increment") await held(reply, init.signal);
       if (url.pathname !== "/sync") return fetch(input, init);
-      if (catchups === 0 && url.searchParams.get("stream") !== "1") url.searchParams.set("from", "0");
-      url.searchParams.set("limit", "1");
-      const response = await fetch(url, init), page = await response.clone().json();
+      const body = JSON.parse(init.body);
+      if (catchups === 0 && !body.stream) body.from = 0;
+      body.limit = 1;
+      const response = await fetch(url, { ...init, body: JSON.stringify(body) }), page = await response.clone().json();
       if (page.snapshot) {
         if (snapshots++ === 0) {
           pinned = page.watermark;
           assert.equal(page.more, true, "the real server snapshot is paged");
           releaseSend.resolve(); await committed.promise;
         } else assert.equal(page.watermark, pinned);
-      } else if (url.searchParams.get("stream") === "1") {
+      } else if (body.stream) {
         catchups++;
         assert.ok(page.watermark >= pinned);
       }

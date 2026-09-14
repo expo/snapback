@@ -1,5 +1,5 @@
 //! The wire: one HTTP server over the engine. Operations are `POST /q/<op>`
-//! and `POST /m/<op>` with plain JSON; a device follows `GET /sync` from its
+//! and `POST /m/<op>` with plain JSON; a device follows `POST /sync` from its
 //! watermark; the online tier long-polls `GET /changes`. Typed states, no
 //! silent state (LLP 2000.000 §8). Development personas ride a header on
 //! loopback; `dev` re-compiles the schema when a `.q` file changes.
@@ -20,6 +20,9 @@ use tiny_http::{Header, Method, Request, Response, Server};
 
 #[path = "actions.rs"]
 mod actions;
+
+#[path = "serve_changes.rs"]
+mod changes;
 
 #[cfg(test)]
 #[path = "serve_tests.rs"]
@@ -487,6 +490,9 @@ pub(crate) fn cors(request: &Request) -> Vec<Header> {
 }
 
 const JSON_REQUEST_CEILING: usize = 1 << 20;
+// Even six-byte JSON escapes for all 256 × 128 id bytes leave room
+// for a snapshot cursor, without changing the general JSON body ceiling.
+const SYNC_REQUEST_CEILING: usize = 256 << 10;
 const SEED_REQUEST_CEILING: usize = 16 << 20;
 const JSON_RESPONSE_CEILING: usize = 16 << 20;
 
@@ -649,7 +655,7 @@ fn handle(mut request: Request, shared: &Shared) {
     // Check identity before upload admission or allocating any large body.
     // The route rechecks after reading, so expiry/revocation during a slow
     // upload cannot retain the authority held at its start.
-    if method == Method::Post && (path == "/assets" || path.starts_with("/q/") || path.starts_with("/m/") || path.starts_with("/a/")
+    if method == Method::Post && (path == "/assets" || path == "/sync" || path.starts_with("/q/") || path.starts_with("/m/") || path.starts_with("/a/")
         || matches!(path.as_str(), "/auth/refresh" | "/auth/logout" | "/auth/logout-all")) {
         if let Err(refusal) = principal_of(&request, shared) {
             return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
@@ -676,6 +682,7 @@ fn handle(mut request: Request, shared: &Shared) {
         let ceiling = match path.as_str() {
             "/assets" => crate::assets::UPLOAD_CEILING,
             "/seed" => SEED_REQUEST_CEILING,
+            "/sync" => SYNC_REQUEST_CEILING,
             path if path.starts_with("/auth/") => crate::auth::BODY_CEILING,
             _ => JSON_REQUEST_CEILING,
         };
@@ -890,48 +897,8 @@ fn handle(mut request: Request, shared: &Shared) {
                 }
             }
         }
-        (Method::Get, "/changes") => {
-            let params = query_params(&url);
-            let since: u64 = params.get("since").and_then(|s| s.parse().ok()).unwrap_or(0);
-            let wait: u64 = params.get("wait").and_then(|s| s.parse().ok()).unwrap_or(0).min(25);
-            let deadline = Instant::now() + Duration::from_secs(wait);
-            // A poll held open is a connection: `connected[p]` counts it
-            // while it waits, and for a grace after it answers.
-            let connected = match principal_of(&request, shared) {
-                Ok(principal) => principal,
-                Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
-            };
-            shared.presence.enter(&connected);
-            {
-                let mut seq = lock(&shared.seq);
-                while *seq <= since && Instant::now() < deadline {
-                    let remaining = deadline.saturating_duration_since(Instant::now());
-                    let (guard, _) = shared.committed.wait_timeout(seq, remaining).unwrap_or_else(|poisoned| poisoned.into_inner());
-                    seq = guard;
-                }
-            }
-            shared.presence.leave(&connected);
-            if let Err(refusal) = principal_of(&request, shared) {
-                return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
-            }
-            let reader = { lock(&shared.engine).reader() };
-            let changes = match reader {
-                Ok(mut reader) => reader.changes(since, 500),
-                Err(_) => lock(&shared.engine).changes(since, 500),
-            };
-            match changes {
-                Ok(changes) => {
-                    let seq = changes.last().map(|(seq, _)| *seq).unwrap_or(since);
-                    let mut tables: Vec<String> = changes.into_iter().flat_map(|(_, tables)| tables).collect();
-                    tables.sort();
-                    tables.dedup();
-                    let generation = *lock(&shared.generation);
-                    respond(request, 200, json!({ "seq": seq, "tables": tables, "generation": generation }));
-                }
-                Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
-            }
-        }
-        (Method::Get, "/sync") => {
+        (Method::Get, "/changes") => changes::serve(request, shared, &url),
+        (Method::Post, "/sync") => {
             let principal = match principal_of(&request, shared) {
                 Ok(principal) => principal,
                 Err(refusal) => {
@@ -939,17 +906,14 @@ fn handle(mut request: Request, shared: &Shared) {
                     return;
                 }
             };
-            let params = query_params(&url);
-            let from: u64 = params.get("from").and_then(|s| s.parse().ok()).unwrap_or(0);
-            let limit: usize = params.get("limit").and_then(|s| s.parse().ok()).unwrap_or(2_000).min(10_000);
-            let pending: Vec<String> = match params.get("pending").map(|s| serde_json::from_str::<Vec<String>>(s)).transpose() {
-                Ok(ids) if ids.as_ref().is_none_or(|ids| ids.len() <= 256 && ids.iter().all(|id| id.len() <= 128)) => ids.unwrap_or_default(),
-                _ => { respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "sync pending must contain at most 256 short ids")) })); return; }
+            let input = match serde_json::from_str::<SyncRequest>(&body) {
+                Ok(input) if input.pending.len() <= 256 && input.pending.iter().all(|id| !id.is_empty() && id.len() <= 128) => input,
+                _ => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "sync needs { from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes")) })),
             };
-            if from == 0 && params.get("stream").is_none_or(|value| value != "1") {
-                // A snapshot comes in pages: `after` is the token the previous
-                // page returned; `next` is the one for the following page.
-                let after = params.get("after").cloned();
+            let SyncRequest { from, limit, after, stream, pending } = input;
+            let limit = limit.clamp(1, 10_000);
+            if from == 0 && !stream {
+                // `after` is the previous snapshot page's opaque `next` token.
                 let (outcome, generation) = {
                     let reader = { lock(&shared.engine).reader() };
                     match reader {
@@ -1194,3 +1158,19 @@ mod poison_tests {
         assert!(!shared.engine.is_poisoned());
     }
 }
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SyncRequest {
+    #[serde(default)]
+    from: u64,
+    #[serde(default = "sync_limit")]
+    limit: usize,
+    #[serde(default)]
+    after: Option<String>,
+    #[serde(default)]
+    stream: bool,
+    #[serde(default)]
+    pending: Vec<String>,
+}
+fn sync_limit() -> usize { 2_000 }
