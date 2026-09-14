@@ -3254,3 +3254,59 @@ surface, with an assertion outside the server crate. Modified source files
 remain below 1,500 lines (maximum 1,464); this journal was already 3,054
 lines, and its prior entries are preserved verbatim. No commit, push, tag
 or publication.
+
+## 2026-09-14 — Lane D: the silent dev exit was a lost SQLite shared-memory lock
+
+Closed [the schema/backfill exit ticket](../issues/closed/20260913-snapback4-dev-exits-without-diagnostic-during-schema-change.md).
+The original macOS crash report identifies PID 62517, parent 62515, as
+SIGBUS in a writable 32 KiB mapped file, with `FS pagein error: 22 Invalid
+argument`. The two recorded PIDs were a launcher and its binary, not evidence
+of two independent binary crashes. The permission helper opened and closed
+SQLite's SHM file after SQLite had locked it; POSIX discarded the process's
+locks, allowing the CLI backfill's SQLite opener to truncate a mapping the
+server still used. Existing files now get chmod by path; new databases still
+start at 0600. The only store change is its permission-setup call. No engine
+write path, value form, ceiling, client implementation or language form changed.
+
+Seven fresh SQLite reproduction attempts used the retained Clique scale
+log's 49,200 post/set-repost feed entries, changing the public counter to a
+repost-only source at 24,600 entries, with replay, reads and CLI backfill
+concurrent. Two unchanged-base and two published 0.2.6 attempts crashed with
+SIGBUS; three fixed attempts completed, with zero request failures and 1,000
+backfilled rows each, in 9.237, 10.765 and 9.143 s. The first 0.2.6 attempt
+looked for the adoption line on stderr when that pin printed it on stdout;
+the retained line and the corrected repeat confirm generation 2. These are
+focused host reproductions, not a replay of all 167,157 app/auth/media actions.
+Commands and raw logs remain under `/private/tmp/lane-d/`.
+
+Eleven Rust regressions cover cross-process database/SHM lock retention with
+0600 permissions, memory and SQLite adoption waiting behind replay, the real
+watcher and CLI backfill, a backfill parking after 200 committed chunks then
+completing after correction, invalid source keeping the old generation,
+startup refusals, off-thread unwind and abort panics, a real truncated-mapping
+SIGBUS while holding a mutex, signals for both verbs, and app-worker cleanup.
+The watcher also takes its initial stamp before compilation so an edit just
+after the listening URL is not missed. `dev`/`serve` now print generation,
+reason and a stable code on stderr for exits, panics, signals and background
+thread stops; fatal signal reporting does not lock the engine or allocate.
+The README and refusals card explain these codes and the limits for SIGKILL,
+power loss or unwritable stderr. Without a worker, signals retain immediate
+OS termination; with a worker, INT/TERM/HUP allow the existing child cleanup.
+
+Targeted checks: lifecycle 11 passed; compiled guide 8 passed; local-client
+and periphery 16 passed. Final blocking suite: 45 s; 312 Rust passed, 0 failed,
+1 ignored; 9 fixture tests passed; 111 client tests passed, 1 failed. Chromium
+SIGABRT before React assertions reproduces alone and on 60 tracked files
+verified byte-identical to base `0d7b77bb3c577366ac81bf159e57524c613c9e12`,
+Node 24.18.0. Earlier full runs took 122 and 38 s and exposed an introduced
+100 ms shutdown delay in workerless servers; a reused-port test reached the
+exiting server. Restoring immediate termination fixed that regression; no
+client test was edited. The lead's outside-sandbox Chromium rerun remains.
+`ref-check` is green. Modified source stays under 1,500 lines; this journal
+was already 3,054 lines and remains append-only. No commit, push, tag or publish.
+
+Learned: a Rust mutex cannot replace the OS locks SQLite uses across processes.
+Permission tightening must preserve descriptor ownership, and a native signal
+needs its own diagnostic path; a panic hook alone would not have explained this
+crash. The original report could be attributed from the OS receipt before any
+engine change was necessary.

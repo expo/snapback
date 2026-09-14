@@ -1082,6 +1082,17 @@ PNG and `asset` is always denied.
   30-per-peer and 10-per-email limits.
   `dev` and `serve` print only the listening URL and one newline on stdout;
   startup explanations, lifecycle messages and supervised worker logs go to stderr.
+  Process exits carry a one-line stderr diagnostic with the verb, serving
+  generation and reason: `SNAPBACK4_EXIT` for returned errors/stops,
+  `SNAPBACK4_PANIC` for panics on any thread (including abort builds),
+  `SNAPBACK4_SIGNAL` for signals, and `SNAPBACK4_THREAD_EXIT` if the watcher
+  or maintenance thread stops. An unexpected background stop ends the server.
+  Generation `0` means this process has not served yet. `SIGINT`, `SIGTERM`
+  and `SIGHUP` report immediately; with an application worker they clean it
+  up and exit `128 + signal`. Otherwise, and for fatal signals such as
+  `SIGBUS`, termination is immediate with the OS signal status.
+  `SIGKILL`, power loss and an unwritable stderr cannot be reported
+  from inside the process. `snapback4 why SNAPBACK4_SIGNAL` explains the code.
 - **`POST /seed`** (dev only, same machine) takes `[{ "table": "t",
   "row": { "id": "..", .. } }, ..]`, writes the rows as the system
   principal in one commit (rules bypassed; validation, constraints,
