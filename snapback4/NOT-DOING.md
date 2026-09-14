@@ -27,7 +27,7 @@ on the hub fixture. Everything not required to pass them does not exist yet.
 - **Observability beyond `why`, `trace`, `logs`, `data`, `sql`.** `sql` is read-only inspection of the developer's own store (LLP 3000.007 §8.8, the Moves line below), never an application surface.
 - **A guide corpus.** The compiler's facts, one language card and keyword cards, as Snapback 2; no freshness dates. Every card's Quarry is compiled by the suite and the language card is run, so a card cannot promise a form the parser refuses.
 
-- **Union audiences.** One `sync` line per table. A read rule with a second disjunct is refused with the rewrite, never partially delivered; `retain delivered-history` covers the author who keeps their own rows. Several `sync` lines per table wait for an app that needs them.
+- **Union audiences.** One `sync` line per table. A read rule with a second non-service disjunct is refused with the rewrite, never partially delivered; service grants add no device audience (LLP 3000.007 §20.6). `retain delivered-history` covers the author who keeps their own rows. Several `sync` lines per table wait for an app that needs them.
 - **Exact horizon maintenance.** The horizon bounds acquisition (a snapshot, a bootstrap); the log never evicts or back-fills to hold a device's group at exactly N rows. A local read past the horizon says `complete: false`.
 
 - **Time in rules.** A read rule compares with `=` and `!=` only; `.expiresAt > now` is not a rule, because a rule that varies with time is not an audience a partition can hold. A row's life ends by the table line `expire at .col` instead: absent to every reader on every host from that time, swept by the server, the deletion streamed (see Moves).

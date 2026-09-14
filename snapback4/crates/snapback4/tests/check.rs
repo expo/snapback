@@ -33,6 +33,22 @@ impl Drop for Project { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0)
 fn parsed(output: &Output) -> Value { serde_json::from_slice(&output.stdout).unwrap_or_else(|_| panic!("{output:?}")) }
 
 #[test]
+fn upsert_insert_proof_and_service_grants_reach_check_and_why() {
+    let p = Project::new();
+    p.source("table likes:\n  post: text <=30\n  principal: principal\n  on: bool\n  unique byPostPrincipal: post, principal\n  by byPrincipal: principal, post, id\n  read <- .principal = viewer or viewer = 'service:pusher'\n  insert <- .principal = viewer\n  update <- .principal = viewer\n  sync\nmutation vote(post: text <=30):\n  upsert likes[post, viewer] {on: true}\n");
+    for (args, words) in [
+        (vec!["check", "--residency"], vec!["predicts: eligible", "upsert inserts predict: absence is provable", "service grants: service:pusher"]),
+        (vec!["why", "vote"], vec!["predicts: eligible", "upsert inserts predict: absence is provable"]),
+        (vec!["why", "likes"], vec!["service grants: service:pusher"]),
+    ] {
+        let output = p.run(&args);
+        assert!(output.status.success(), "{output:?}");
+        let text = String::from_utf8(output.stdout).unwrap();
+        for word in words { assert!(text.contains(word), "{text}"); }
+    }
+}
+
+#[test]
 fn r3_cost_and_why_name_the_lane_local_word_bound() {
     let p = Project::new();
     p.source(include_str!("../../snapback4-sim/tests/search_merge/round3.q"));

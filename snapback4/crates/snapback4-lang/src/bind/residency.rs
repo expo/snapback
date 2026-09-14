@@ -33,15 +33,15 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
         }
     }
     let mut requires = BTreeSet::new();
-    let mut presence_sites = Vec::new();
-    inspect(&program.body, &mut requires, &mut presence_sites);
+    let mut inspected_sites = Vec::new();
+    inspect(schema, &program.body, &mut requires, &mut inspected_sites);
     if program.kind == ProgramKind::Mutation {
         let presence = presence.cloned().unwrap_or_else(|| presence_facts(program, &BTreeMap::new()));
         fact.connected_effects_only = presence.connected_effects_only;
         fact.prediction_guards = presence.prediction_guards;
         fact.sites.extend(presence.sites);
     }
-    else { fact.sites.extend(presence_sites); }
+    fact.sites.extend(inspected_sites.into_iter().filter(|site| if program.kind == ProgramKind::Mutation { site.kind != "presence" } else { site.kind == "presence" }));
     fact.requires = requires.into_iter().collect();
     if program.native {
         fact.sites.push(ResidencySite { site: program.name.clone(), table: "native".into(), index: program.name.clone(), kind: "native".into(), class: SiteClass::Server, reason: "native read needs the app's module; held on a device with the module".into(), rewrite: "install the app's native module on this device".into() });
@@ -79,6 +79,17 @@ fn site(schema: &Schema, location: &str, table: &str, index: &str, kind: &str) -
     ResidencySite { site: location.into(), table: table.into(), index: index.into(), kind: kind.into(), class, reason, rewrite }
 }
 
+fn upsert_site(schema: &Schema, location: &str, table: &str, index: &str, key: &[Expr]) -> ResidencySite {
+    let mut fact = site(schema, location, table, index, "upsert insert");
+    let reason = match snapback4_core::engine::rules::upsert_absence(schema, table, index, key) {
+        Ok(visibility) if visibility.decided_true => "upsert inserts predict: absence is provable".into(),
+        Ok(_) => "upsert inserts predict only when the key's read rule is true on this device; otherwise queue without a row".into(),
+        Err(reason) => format!("upsert inserts do not predict: {reason}; queue without a row"),
+    };
+    fact.reason = format!("{reason} ({table} by {index})");
+    fact
+}
+
 fn rule_sites(schema: &Schema, rule: &RuleExpr, location: &str, sites: &mut Vec<ResidencySite>, seen: &mut BTreeSet<String>) {
     match rule {
         RuleExpr::Exists { table, index, .. } => {
@@ -91,59 +102,63 @@ fn rule_sites(schema: &Schema, rule: &RuleExpr, location: &str, sites: &mut Vec<
     }
 }
 
-fn inspect(stmts: &[Stmt], codes: &mut BTreeSet<String>, sites: &mut Vec<ResidencySite>) {
+fn inspect(schema: &Schema, stmts: &[Stmt], codes: &mut BTreeSet<String>, sites: &mut Vec<ResidencySite>) {
     for stmt in stmts {
         match stmt {
-            Stmt::Require { condition, code, .. } => { codes.insert(code.clone()); expr(condition, codes, sites); }
-            Stmt::If { condition, then_body, else_body } => { expr(condition, codes, sites); inspect(then_body, codes, sites); inspect(else_body, codes, sites); }
+            Stmt::Require { condition, code, .. } => { codes.insert(code.clone()); expr(schema, condition, codes, sites); }
+            Stmt::If { condition, then_body, else_body } => { expr(schema, condition, codes, sites); inspect(schema, then_body, codes, sites); inspect(schema, else_body, codes, sites); }
             Stmt::For { domain, body, .. } => {
                 match domain {
-                    LoopDomain::Page(scan) => scan_exprs(scan, codes, sites),
-                    LoopDomain::ExpressionRange { start, end_exclusive } => { expr(start, codes, sites); expr(end_exclusive, codes, sites); }
-                    LoopDomain::DerivedArray { value, .. } => expr(value, codes, sites),
-                    LoopDomain::Recurse(recurse) => expr(&recurse.seed, codes, sites),
+                    LoopDomain::Page(scan) => scan_exprs(schema, scan, codes, sites),
+                    LoopDomain::ExpressionRange { start, end_exclusive } => { expr(schema, start, codes, sites); expr(schema, end_exclusive, codes, sites); }
+                    LoopDomain::DerivedArray { value, .. } => expr(schema, value, codes, sites),
+                    LoopDomain::Recurse(recurse) => expr(schema, &recurse.seed, codes, sites),
                     _ => {}
                 }
-                inspect(body, codes, sites);
+                inspect(schema, body, codes, sites);
             }
-            Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) | Stmt::Emit { payload: value, .. } => expr(value, codes, sites),
-            Stmt::Check { condition, current } => { expr(condition, codes, sites); for key in &current.key { expr(key, codes, sites); } }
-            Stmt::Insert { row, .. } | Stmt::InsertIfAbsent { row, .. } => expr(row, codes, sites),
-            Stmt::Update { key, patch, .. } => { expr(key, codes, sites); expr(patch, codes, sites); }
-            Stmt::Upsert { key, row, .. } => { expr(key, codes, sites); expr(row, codes, sites); }
-            Stmt::WriteTarget { target, patch, condition, .. } => {
-                for key in &target.key { expr(key, codes, sites); }
-                expr(patch, codes, sites);
-                if let Some(condition) = condition { inspect(&condition.setup, codes, sites); expr(&condition.value, codes, sites); }
+            Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) | Stmt::Emit { payload: value, .. } => expr(schema, value, codes, sites),
+            Stmt::Check { condition, current } => { expr(schema, condition, codes, sites); for key in &current.key { expr(schema, key, codes, sites); } }
+            Stmt::Insert { row, .. } | Stmt::InsertIfAbsent { row, .. } => expr(schema, row, codes, sites),
+            Stmt::Update { key, patch, .. } => { expr(schema, key, codes, sites); expr(schema, patch, codes, sites); }
+            Stmt::Upsert { table, key, row } => {
+                sites.push(upsert_site(schema, "upsert", table, "byId", std::slice::from_ref(key)));
+                expr(schema, key, codes, sites); expr(schema, row, codes, sites);
             }
-            Stmt::Delete { key, .. } => expr(key, codes, sites),
+            Stmt::WriteTarget { target, patch, condition, upsert, .. } => {
+                if *upsert { sites.push(upsert_site(schema, &target.site, &target.table, &target.index, &target.key)); }
+                for key in &target.key { expr(schema, key, codes, sites); }
+                expr(schema, patch, codes, sites);
+                if let Some(condition) = condition { inspect(schema, &condition.setup, codes, sites); expr(schema, &condition.value, codes, sites); }
+            }
+            Stmt::Delete { key, .. } => expr(schema, key, codes, sites),
             _ => {}
         }
     }
 }
-fn scan_exprs(scan: &ir::Scan, codes: &mut BTreeSet<String>, sites: &mut Vec<ResidencySite>) {
-    if let Some(filter) = &scan.filter { expr(filter, codes, sites); }
-    for key in &scan.prefix { let (ir::IndexKeyExpr::Scalar(value) | ir::IndexKeyExpr::WordPrefix(value)) = key; expr(value, codes, sites); }
-    if let Some(after) = &scan.after { expr(after, codes, sites); }
+fn scan_exprs(schema: &Schema, scan: &ir::Scan, codes: &mut BTreeSet<String>, sites: &mut Vec<ResidencySite>) {
+    if let Some(filter) = &scan.filter { expr(schema, filter, codes, sites); }
+    for key in &scan.prefix { let (ir::IndexKeyExpr::Scalar(value) | ir::IndexKeyExpr::WordPrefix(value)) = key; expr(schema, value, codes, sites); }
+    if let Some(after) = &scan.after { expr(schema, after, codes, sites); }
     if let Some(range) = &scan.range {
-        for value in [&range.gt, &range.gte, &range.lt, &range.lte].into_iter().flatten() { expr(value, codes, sites); }
+        for value in [&range.gt, &range.gte, &range.lt, &range.lte].into_iter().flatten() { expr(schema, value, codes, sites); }
     }
 }
-fn expr(value: &Expr, codes: &mut BTreeSet<String>, sites: &mut Vec<ResidencySite>) {
+fn expr(schema: &Schema, value: &Expr, codes: &mut BTreeSet<String>, sites: &mut Vec<ResidencySite>) {
     match value {
-        Expr::Block { body, value } => { inspect(body, codes, sites); expr(value, codes, sites); }
+        Expr::Block { body, value } => { inspect(schema, body, codes, sites); expr(schema, value, codes, sites); }
         Expr::Builtin { builtin, args } => {
             if *builtin == ir::Builtin::Connected { sites.push(ResidencySite { site: "connected".into(), table: "connected".into(), index: "principal".into(), kind: "presence".into(), class: SiteClass::Server, reason: "connected[principal] is known only by the server".into(), rewrite: "remove connected from this query; observe presence separately online".into() }); }
-            for value in args { expr(value, codes, sites); }
+            for value in args { expr(schema, value, codes, sites); }
         }
-        Expr::Field { base, .. } | Expr::Unary { value: base, .. } => expr(base, codes, sites),
-        Expr::Array(values) => for value in values { expr(value, codes, sites); },
-        Expr::Object(fields) => for value in fields.values() { expr(value, codes, sites); },
-        Expr::Shape { base, fields } => { expr(base, codes, sites); for value in fields.values() { expr(value, codes, sites); } }
-        Expr::Binary { left, right, .. } => { expr(left, codes, sites); expr(right, codes, sites); }
-        Expr::Get(read) | Expr::Exists(read) => for key in &read.key { expr(key, codes, sites); },
-        Expr::Scan(scan) => scan_exprs(scan, codes, sites),
-        Expr::Merge(merge) => for lane in &merge.lanes { inspect(&lane.setup, codes, sites); scan_exprs(&lane.scan, codes, sites); if let Some(source) = &lane.source { scan_exprs(source, codes, sites); } },
+        Expr::Field { base, .. } | Expr::Unary { value: base, .. } => expr(schema, base, codes, sites),
+        Expr::Array(values) => for value in values { expr(schema, value, codes, sites); },
+        Expr::Object(fields) => for value in fields.values() { expr(schema, value, codes, sites); },
+        Expr::Shape { base, fields } => { expr(schema, base, codes, sites); for value in fields.values() { expr(schema, value, codes, sites); } }
+        Expr::Binary { left, right, .. } => { expr(schema, left, codes, sites); expr(schema, right, codes, sites); }
+        Expr::Get(read) | Expr::Exists(read) => for key in &read.key { expr(schema, key, codes, sites); },
+        Expr::Scan(scan) => scan_exprs(schema, scan, codes, sites),
+        Expr::Merge(merge) => for lane in &merge.lanes { inspect(schema, &lane.setup, codes, sites); scan_exprs(schema, &lane.scan, codes, sites); if let Some(source) = &lane.source { scan_exprs(schema, source, codes, sites); } },
         _ => {}
     }
 }
@@ -227,10 +242,13 @@ pub fn change_notes(bound: &Bound, previous: &BTreeMap<String, Execution>) -> Ve
 
 pub fn table_line(schema: &Schema, name: &str) -> String {
     let table = &schema.tables[name];
-    match &table.sync {
+    let mut line = match &table.sync {
         Some(sync) => format!("{}{}{}", sync.line(), if table.residency.inferred { " (from the read rule)" } else { "" }, table.residency.inherited_from.as_ref().map(|source| format!(" (inherited from {source})")).unwrap_or_default()),
         None => format!("online only{}", if table.residency.online_only { "" } else { " (no sync line)" }),
-    }
+    };
+    let grants: BTreeSet<_> = table.rules.read.disjuncts().into_iter().filter_map(RuleExpr::service_grant).collect();
+    if !grants.is_empty() { line.push_str(&format!("; service grants: {}", grants.into_iter().collect::<Vec<_>>().join(", "))); }
+    line
 }
 
 pub fn operation_lines(name: &str, fact: &Execution) -> String {

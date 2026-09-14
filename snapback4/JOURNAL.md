@@ -6356,3 +6356,162 @@ ref-check: ok — 474 LLP docs, 8849 refs in 22825 files, 0 errors, 0 unchecked
 No implementation work is deferred; the remaining external verification is
 Chromium outside this sandbox. The inherited root caps overflow remains
 untouched. The final working tree contains only the 19 intended lane files.
+
+## 2026-09-14 — Lane F: provable upsert absence and service read grants
+
+Built LLP 3000.007 §20.5 and §20.6 on base
+`56cdedba6a8ff343c8d297b246b7431824ef0241`. A device now predicts the
+insert arm of an absent upsert when its synced group has no horizon and
+its key proves readability. The shared prefix/deciding-field analysis
+proves public and viewer-keyed rows directly; a pinned membership rule
+also needs a positive local witness. The synthetic proof row is never
+passed through the held-row read shortcut, and retained groups cannot
+supply whole-group absence. Horizons, unpinned readability, online-only
+targets and an unestablished membership still queue without a row.
+Both engine upsert paths use the proof; update misses keep their existing
+behavior. No meter ceiling or serialized value form changed.
+
+Service equality disjuncts are removed only for audience inference and
+validation, in the shared core rule helper also used by partition binding.
+The original read rule still admits the service on the server. Other
+extra disjuncts retain E_SYNC and its rewrite. Residency and why report
+insert-arm eligibility and service grants. No prediction card was on this
+base, so the writes, rules and services cards carry the new sentences.
+The feeds vote recipe now holds its full vote group, capped at 1,000 votes
+per principal, and predicts a first offline vote when the post is held.
+README sync/services/write text follows the cards. The one neighboring
+scope edit is NOT-DOING's clarification that service grants are not union
+device audiences. No client implementation, presence analysis, corpus
+case, unrelated lane file, commit, push, tag or publication was changed.
+
+Measured: a first offline like changes from 0 predicted rows to 1 on both
+SQLite and memory, with identical application fields at the server (the
+local row additionally has `pending: true`), including reopen and
+settlement. The five public/owner/horizon/unpinned/online cases run on both
+stores (10 scenarios); pinned membership has held/unheld controls on both
+stores (4 scenarios). Two admitted hidden worlds compare the complete
+existing observation helper, including all seven meter fields, first and
+retry bodies, receipt, committed changes, effects, snapshots, streams and
+both device lifecycles; the earlier absent/hidden device pairs also pass.
+The feeds card predicts 2 rows: the vote and its maintained score. Service
+reads change from 0 to 1 visible message; three ordinary viewers under
+one and two service grants have 0 byte differences in full snapshots,
+paginated snapshots and streams. The namespace refusal is retained and
+the service bearer reads the private message over `/q`.
+
+Regression evidence (Cargo commands run from `snapback4/`). The final
+regressions were also run with the changed production sources temporarily
+restored from the exact base above, then all lane files restored. Their
+red summaries were:
+
+```text
+cargo test -p snapback4-device --test device upsert -- --nocapture
+test result: FAILED. 2 passed; 3 failed; 0 ignored; 0 measured; 44 filtered out; finished in 0.08s
+cargo test -p snapback4-sim --test residency -- --nocapture
+test result: FAILED. 7 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+cargo test -p snapback4 --test check upsert_insert_proof -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11 filtered out; finished in 2.19s
+cargo test -p snapback4 --test lifecycle service_read_disjunct -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+```
+
+The lifecycle red was captured before the implementation, at the same
+base. Green targeted summaries:
+
+```text
+cargo test -p snapback4-device --test device upsert -- --nocapture
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 44 filtered out; finished in 0.18s
+cargo test -p snapback4-sim --test residency -- --nocapture
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+cargo test -p snapback4 --test check upsert_insert_proof -- --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 2.06s
+cargo test -p snapback4 --test lifecycle service_read_disjunct -- --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 3.30s
+cargo test -p snapback4-lang --test guide
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+cargo test -p snapback4-device --test device --test write_authority
+test result: ok. 49 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.61s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.29s
+cargo test -p snapback4-sim --test residency --test write_authority
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.67s
+```
+
+From the repository root, with the required pinned Node runtime:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+-- ok: cargo build (8 s)
+-- ok: wasm build (18 s)
+-- ok: package typecheck (2 s)
+-- ok: package build (3 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (184 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (2 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (14 s)
+ℹ tests 137
+ℹ pass 136
+ℹ fail 1
+-- FAIL: client tests (49 s)
+== 1 failure(s) in 216 s
+```
+
+All 576 Rust tests passed, 1 ignored. The only failure was the known
+Chromium SIGABRT at browser launch in `react.test.mjs`, before the browser
+loaded application code. The isolated command (from `snapback4/`, same
+Node export), `node --test packages/snapback4/test/react.test.mjs`, was run
+on both the lane and with all tracked edits temporarily restored from base
+`56cdedba6a8ff343c8d297b246b7431824ef0241`; both report verbatim:
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+```
+
+Both browser logs report `signal=SIGABRT`. The lead's outside-sandbox
+browser run remains. No lifecycle or other client test failed, so no
+concurrency workaround was needed. The built wasm measures 1,616,497 B
+raw / 448,730 B gzip. All 12 changed code files are under 1,500 lines;
+the maximum is `tests/device.rs` at 1,449. Root `./ref-check --verbose`
+and `git diff --check` passed; ref-check reported:
+
+```text
+ref-check: ok — 474 LLP docs, 8854 refs in 22820 files, 0 errors, 0 unchecked
+```
+
+Exact diagnostic/fact changes: the first-like operation previously had
+`predicts: eligible` and only its held write-target site, with no insert
+explanation. It retains eligibility and adds:
+
+```text
+upsert inserts predict: absence is provable (likes by byPostPrincipal)
+upsert inserts do not predict: the target has a horizon; queue without a row (likes by byPostPrincipal)
+upsert inserts do not predict: the key does not pin readability; queue without a row (likes by byPostPrincipal)
+```
+
+Those are the three respective fixture variants, not simultaneous claims.
+The service fixture previously refused with code `E_SYNC` and message:
+
+```text
+sync cannot infer an audience from `exists members[.room, viewer] or viewer = 'service:pusher'`; use public, `.column = viewer`, or `exists target[.columns, viewer]`
+```
+
+Its rewrite was, and remains for non-service extra disjuncts:
+
+```text
+use one invertible read rule, or remove sync (online only)
+```
+
+The service fixture now compiles without E_SYNC. Residency adds the
+verbatim fact `service grants: service:pusher`. No E_/N_ code was added,
+so `guide::CODES` needs no new entry. The lesson is that row holdings
+and absence are different proofs: reusing the held-row read shortcut for
+a synthetic key row would incorrectly predict into an unreadable group.
+Likewise, the service exception belongs in the one audience-binding
+function used by snapshots and streams, not only in compiler acceptance.

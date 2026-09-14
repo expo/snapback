@@ -248,3 +248,63 @@ fn server_sites_prevent_prediction_and_explicit_online_only_never_syncs() {
         assert!(snapback4_lang::compile(&[("schema.q".into(), source.into())]).diagnostics.iter().any(|d| d.code == "E_SYNC"));
     }
 }
+
+#[test]
+fn service_read_grants_preserve_the_device_audience_snapshot_and_stream_bytes() {
+    let plain = inferred();
+    for grants in [" or viewer = 'service:pusher'", " or viewer = 'service:pusher' or viewer = 'service:archive'"] {
+        let extended = plain.replace("read <- exists memberships[.conversationId, viewer]", &format!("read <- exists memberships[.conversationId, viewer]{grants}"));
+        let (before, after) = (compile(&plain), compile(&extended));
+        let line = residency::table_line(&after.schema, "messages");
+        assert!(line.contains("service grants:") && line.contains("service:pusher"), "{line}");
+        for table in before.schema.tables.keys() { assert_eq!(before.schema.tables[table].sync, after.schema.tables[table].sync); }
+        let (mut a, mut b) = (engine(&before), engine(&after));
+        let seed = vec![
+            ("conversations".into(), object([("id", id("c1")), ("creatorId", id("dev:alice"))])),
+            ("memberships".into(), object([("id", id("member")), ("conversationId", id("c1")), ("principal", id("dev:alice")), ("role", Value::String("admin".into()))])),
+            ("messages".into(), object([("id", id("m1")), ("conversationId", id("c1")), ("senderId", id("dev:alice")), ("text", Value::String("hi".into())), ("sequence", Value::Int(1)), ("at", Value::Int(1))])),
+        ];
+        a.seed(seed.clone()).unwrap(); b.seed(seed).unwrap();
+        for viewer in ["dev:alice", "dev:bob", "dev:outsider"] {
+            assert_eq!(serde_json::to_vec(&a.snapshot_at(viewer, 1000).unwrap()).unwrap(), serde_json::to_vec(&b.snapshot_at(viewer, 1000).unwrap()).unwrap());
+            assert_eq!(serde_json::to_vec(&a.stream(viewer, 0, 1000).unwrap()).unwrap(), serde_json::to_vec(&b.stream(viewer, 0, 1000).unwrap()).unwrap());
+            let mut cursor = None;
+            loop {
+                let left = a.snapshot_page_with_groups_at(viewer, cursor.as_deref(), 1, 1000).unwrap();
+                let right = b.snapshot_page_with_groups_at(viewer, cursor.as_deref(), 1, 1000).unwrap();
+                assert_eq!(serde_json::to_vec(&left).unwrap(), serde_json::to_vec(&right).unwrap());
+                cursor = left.2;
+                if cursor.is_none() { break; }
+            }
+        }
+        assert!(!a.stream("dev:alice", 0, 1000).unwrap().events.is_empty());
+        let args = BTreeMap::from([("conversationId".into(), id("c1")), ("c".into(), Value::Null)]);
+        assert_eq!(a.query("history", Context::new("service:pusher", args.clone()).at(1000)).unwrap().data, Value::Array(vec![]));
+        assert!(!b.query("history", Context::new("service:pusher", args).at(1000)).unwrap().data.as_array().unwrap().is_empty());
+    }
+    let invalid = plain.replace("read <- exists memberships[.conversationId, viewer]", "read <- exists memberships[.conversationId, viewer] or viewer = 'dev:pusher'");
+    let bound = snapback4_lang::compile(&[("schema.q".into(), invalid)]);
+    assert!(bound.diagnostics.iter().any(|d| d.code == "E_SYNC" && d.rewrite == "use one invertible read rule, or remove sync (online only)"));
+    for (rule, explicit) in [("public", "sync public"), (".principal = viewer", "sync to .principal")] {
+        for sync in ["sync", explicit] {
+            for extra in ["viewer = 'service:a'", "'service:a' = viewer or viewer = 'service:b'"] {
+                compile(&format!("table t:\n  principal: principal\n  by byPrincipal: principal, id\n  read <- {rule} or {extra}\n  {sync}\n"));
+            }
+        }
+    }
+}
+
+#[test]
+fn upsert_residency_explains_insert_prediction_without_changing_eligibility() {
+    let source = "table likes:\n  post: text <=30\n  principal: principal\n  on: bool\n  unique byPostPrincipal: post, principal\n  by byPrincipal: principal, post, id\n  read <- .principal = viewer\n  insert <- .principal = viewer\n  update <- .principal = viewer\n  sync\nmutation vote(post: text <=30):\n  upsert likes[post, viewer] {on: true}\n";
+    for (source, reason) in [
+        (source.to_owned(), "upsert inserts predict: absence is provable"),
+        (source.replace("  sync\n", "  sync last 1 by byPrincipal\n"), "upsert inserts do not predict: the target has a horizon"),
+        (source.replace("post, principal\n", "post\n").replace("likes[post, viewer]", "likes[post]").replace("{on: true}", "{principal: viewer, on: true}"), "upsert inserts do not predict: the key does not pin readability"),
+    ] {
+        let bound = compile(&source);
+        let fact = &bound.schema.operations["vote"];
+        assert_eq!(fact.predicts.as_deref(), Some("eligible"));
+        assert!(residency::operation_lines("vote", fact).contains(reason), "{}", residency::operation_lines("vote", fact));
+    }
+}

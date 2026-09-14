@@ -218,8 +218,9 @@ keep their placement. An explicit asset id on a row you cannot read must be your
 own upload, even if it equals the retained id. Update authority is checked
 before asset diagnostics. A readable maintain is an explicit delta read channel;
 `N_MAINTAIN_DELTA` notes potentially wider source update authority.
-A device missing a write target, on any synced table with or without a
-horizon, queues without a predicted row and still sends `/m`.
+A missing `upsert` predicts its insert when the synced group has no horizon
+and the key proves readability (public rows, or a viewer-keyed rule); otherwise
+a device missing a write target queues without a predicted row and still sends `/m`.
 The at-most-once record stores the replay body, with value-free diagnostic
 messages and no `result` or `current`. Replay returns
 execution identity only, with `replayed: true`; historical `result` and
@@ -720,9 +721,11 @@ sync to t[.a, .b] [by .col] [last N by index]    each row reaches every principa
 `sync` infers the audience from the read rule; an explicit `to` must agree.
 The read rule must be exactly the audience — `public`, `.col = viewer` or
 `exists t[.a, .b, viewer]` — so a device never holds a row it may not read,
-and never misses one it may. A second disjunct or an extra conjunct is a
+and never misses one it may. A non-service second disjunct or an extra conjunct is a
 compile error with the rewrite. The target table needs a unique index
 over `(a, b, principal)` and an index leading with `(principal, a, b)`.
+Read rules may add `or viewer = 'service:pusher'` (or several service grants);
+sync infers its audience without them, so device snapshots and streams stay the same.
 Every insert-rule branch on that audience table must prove the caller already
 has the matching grant, or that the mutation created the referenced group;
 `.principal = viewer` alone is a self-grant and fails `check`. Audience group
@@ -861,6 +864,8 @@ into a public `ranked` table every device holds, the viewer's own signals
 composes the two; the external ranker writes its per-reader word through a
 service seat (`insert <- viewer = 'service:ranker'`). The whole card, both
 shapes: `snapback4 guide feeds`. The card also shows `trending()`: seek the trailing day up to the 8,192-row examined ceiling, read `likeCounts` from a maintain, then `sort` and `slice` the top ten. A day past the ceiling is `complete: false`, so the top ten is of an incomplete set; use the maintained `ranked` recipe when the day outgrows that ceiling.
+The card's `vote` predicts its first offline upsert when the post is held;
+the viewer's votes have no horizon and are capped at 1,000 per viewer.
 
 ## 4. The client
 
@@ -1212,6 +1217,8 @@ retries with backoff, `GiveUp` fails it at once, the returned value is
 kept beside the effect — and mints or revokes the sessions of the
 accounts the application authenticates itself. `meta.id` is the
 idempotency key a provider should see.
+A read rule may grant `viewer = 'service:pusher'` beside its sync audience;
+`check --residency` lists the service grants, which admit server reads without adding device partitions.
 
 The same worker handles `actions: { invite: async (args, meta) => result }`.
 Its `meta.session` is client-ready: `createClient({ url, session: meta.session })`

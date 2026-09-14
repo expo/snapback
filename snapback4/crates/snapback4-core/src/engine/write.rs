@@ -104,7 +104,7 @@ impl Runner<'_> {
                 let new = self.merge_patch(&old, &row)?;
                 self.replace(table_name, old, new, readable, &row)
             }
-            None if self.device => Err(self.write_miss(table_name, "byId", &[key.clone()])),
+            None if self.device && !self.upsert_absence_proven(table_name, "byId", &[key.clone()])? => Err(self.write_miss(table_name, "byId", &[key.clone()])),
             None => self.insert_upsert(table_name, row),
         }
     }

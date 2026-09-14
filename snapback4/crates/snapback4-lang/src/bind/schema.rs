@@ -248,7 +248,7 @@ fn bind_sync(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, rule: &RuleEx
 // @ref LLP 3000.007#6.6 — omitted audiences invert exactly the same three read rules.
 fn infer_audience(catalog: &Catalog, sync: &SyncDecl, rule: &RuleExpr, named: Option<&str>) -> Fallible<Audience> {
     let refusal = || sync_error(&sync.site, format!("sync cannot infer an audience from `{}`; use public, `.column = viewer`, or `exists target[.columns, viewer]`", rule.quarry()), "use one invertible read rule, or remove sync (online only)");
-    match rule {
+    match rule.device_audience_rule().as_ref() {
         RuleExpr::Public { .. } | RuleExpr::Allow if named.is_none() => Ok(Audience::Public),
         RuleExpr::Eq(RuleTerm::Field(column), RuleTerm::Viewer) | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(column)) if named.is_none() => Ok(Audience::Column(column.clone())),
         RuleExpr::Exists { table, index, key, equalities, .. } if equalities.is_empty() && key.last() == Some(&RuleTerm::Viewer) => {

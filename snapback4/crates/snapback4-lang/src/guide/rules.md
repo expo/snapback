@@ -32,6 +32,8 @@ compare with `=` and `!=` alone: a rule that varies with time is not an
 audience a partition can hold (use `expire`). A read rule that is exactly
 `exists t[.a, .b, viewer]`, `.col = viewer` or `public` can be synced (guide
 sync). The system principal consults no rules, so `system` is never a rule word.
+An audience read rule may add `or viewer = 'service:pusher'` (or several
+service grants); sync infers its audience without them, and ordinary extra disjuncts still refuse.
 
 For update/upsert, "readable" means the read rule admits the old row in the
 pre-write state, before the patch or any of its effects. The engine resolves

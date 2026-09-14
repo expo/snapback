@@ -45,13 +45,33 @@ impl Runner<'_> {
         RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".into() }
     }
 
-    // @ref LLP 3000.007#8 — item 7: any unheld write target queues, including a no-horizon unique-key miss.
+    // @ref LLP 3000.007#8 — item 7: an unheld write target without an absence proof queues.
     pub(super) fn write_miss(&mut self, table: &str, index: &str, key: &[Value]) -> RuntimeError {
         if self.device {
             self.unknown_fact(table, index, key, &self.statement_site.clone());
             if let Some(message) = &mut self.missing_fact { *message = message.replace("the row or its absence is past the acquired horizon or online only", "the write target is not held on this device; only the server can resolve it"); }
             RuntimeError::Prediction(self.missing_fact.clone().expect("missing site recorded"))
         } else { self.no_write_target() }
+    }
+
+    pub(super) fn upsert_absence_proven(&mut self, table: &str, index: &str, key: &[Value]) -> Result<bool, RuntimeError> {
+        let expressions: Vec<_> = key.iter().map(|value| {
+            if *value == Value::Id(self.context.viewer.clone()) { Expr::Input(Input::Viewer) } else { Expr::Literal(value.clone()) }
+        }).collect();
+        let Ok(visibility) = super::rules::upsert_absence(self.schema, table, index, &expressions) else { return Ok(false) };
+        if self.tx.retained_group(table, index, key)? { return Ok(false); }
+        if visibility.decided_true { return Ok(true); }
+        // A uniform key can still name somebody else's private group. Evaluate
+        // the rule over only its pinned columns, never using trust_synced_read:
+        // the synthetic row was not delivered. A positive membership witness
+        // may establish readability; an unknown probe must still queue.
+        let definition = &self.schema.tables[table];
+        let rule = definition.rules.read.device_audience_rule().into_owned();
+        let row = Value::Row(definition.index(index).expect("checked index").columns().into_iter().zip(key.iter().cloned()).collect());
+        let viewer = self.context.viewer.clone();
+        self.meter.heap(row.heap_bytes())?;
+        let readable = super::rules::evaluate(&rule, &viewer, None, &row, false, self)?;
+        Ok(readable && !self.beyond_horizon)
     }
 
     pub(super) fn write_target(&mut self, target: &Read, patch: &Expr, upsert: bool, condition: Option<&WriteCondition>, valued: bool) -> Result<Value, RuntimeError> {
@@ -71,7 +91,9 @@ impl Runner<'_> {
         self.read_tables.insert(target.table.clone());
         self.reserve_target_resolution(&definition, &patch, upsert)?;
         let old = self.lookup_live(&target.table, &target.index, index, &key, false)?;
-        if self.device && (old.is_none() || definition.sync.is_none()) { return Err(self.write_miss(&target.table, &target.index, &key)); }
+        if self.device && (definition.sync.is_none() || (old.is_none() && (!upsert || !self.upsert_absence_proven(&target.table, &target.index, &key)?))) {
+            return Err(self.write_miss(&target.table, &target.index, &key));
+        }
         let id = if let Some(mut old) = old {
             materialize_optional_fields(&mut old, &definition);
             let readable = self.check_rule(&target.table, Effect::Read, None, &old)?;

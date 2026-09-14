@@ -551,7 +551,7 @@ table threads:
 `sync public` and `sync to ...` remain valid and must agree with that rule.
 The read rule must be exactly the audience — `public`, `.col = viewer`, or
 `exists t[.a, .b, viewer]` — so a device never holds a row it may not read
-and never misses one it may; a second disjunct or an extra conjunct is
+and never misses one it may; a non-service second disjunct or an extra conjunct is
 refused with the rewrite. The target table needs a unique index over
 `(a, b, principal)` and an index leading with `(principal, a, b)`; when it
 has several principal columns, `by .col` names the recipient. Every insert
@@ -881,8 +881,10 @@ The recorded body is the replay body, with value-free diagnostic messages
 and no `result` or `current`. Retries return only
 execution identity (`sent`/`failed`, `seq`/`why`, `replayed`), withholding
 historical `result` and `current`, including scalar results after a lost reply.
-A device write-target miss, by id or unique key with any horizon, queues
-without a predicted row; it still sends `/m`. A reference column checks the id's shape, not that
+A missing `upsert` predicts its insert when the synced group has no horizon
+and the key proves readability (public rows, or a viewer-keyed rule); otherwise
+a device write-target miss queues without a predicted row and still sends `/m`.
+A reference column checks the id's shape, not that
 its target exists: when a mutation needs a visible target, guard first —
 `require exists prompts[promptId] else PROMPT_NOT_FOUND` — a metered point
 read that is false for an absent or hidden row; deleting a target neither
@@ -1161,10 +1163,11 @@ table votes:
   direction: int
   unique byPostPrincipal: postId, principal
   by byPrincipal: principal, id
+  cap 1000 by principal
   read <- .principal = viewer
   insert <- .principal = viewer
   update (old, next) <- old.principal = viewer and next.principal = viewer
-  sync to .principal last 1000 by byPrincipal
+  sync to .principal
 
 maintain postScore: sum votes of direction by postId
   read <- allow
@@ -1229,7 +1232,7 @@ query home(c: cursor ?):
 mutation vote(postId: posts, direction: int):
   require exists posts[postId] else POST_NOT_FOUND
   require direction = -1 or direction = 0 or direction = 1 else INVALID_VOTE
-  upsert votes[postId, viewer] { postId, principal: viewer, direction }
+  upsert votes[postId, viewer] { postId, principal: viewer, direction } -- predicts the first offline vote when the post is held
 
 mutation markSeen(postId: posts):
   require exists posts[postId] else POST_NOT_FOUND
@@ -1331,6 +1334,8 @@ Rules name it
 like any principal, so the ranker is admitted and nobody else is; with
 its token a worker claims effects (guide effects) and runs any operation
 a rule admits it to.
+An audience read rule may add `or viewer = 'service:ranker'`; sync ignores
+service grants, and `check --residency` lists them without changing any device's partition.
 
 An application that authenticates its own accounts — a phone number it
 verified, a member of its own directory — mints their sessions through its
