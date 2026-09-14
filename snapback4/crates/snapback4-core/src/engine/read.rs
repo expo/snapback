@@ -36,7 +36,7 @@ impl PartialEq for MergeHead { fn eq(&self, other: &Self) -> bool { self.cmp(oth
 impl Eq for MergeHead {}
 
 impl Probe for Runner<'_> {
-    fn exists(&mut self, table: &str, index: &str, key: &[Value]) -> Result<bool, RuntimeError> {
+    fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         if !self.meter.charge(MeterKind::RuleProbes, 1)? {
             // Cut: no lookup and no verdict; the site stops on `capped_at`.
             return Ok(false);
@@ -52,7 +52,8 @@ impl Probe for Runner<'_> {
         Ok(found.is_some_and(|row| {
             let live = !self.expired(definition, &row);
             if live { self.note_expiry(definition, &row); }
-            live
+            // @ref LLP 3000.007#10 — the total unique probe reads once, then tests the remaining named equalities.
+            live && equalities.iter().all(|(column, value)| row.field(column).unwrap_or(&Value::Null) == value)
         }))
     }
 

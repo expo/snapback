@@ -113,7 +113,11 @@ fn bind_schedule(decl: &crate::ast::ScheduleDecl, programs: &[BoundProgram]) -> 
     use snapback4_core::ir::{ArgType, ProgramKind};
     let rewrite = format!("job {}(periodStart: time, periodEnd: time):\n  chunk p in profiles first 100 by byId:\n    ...", decl.target);
     let Some(target) = programs.iter().find(|p| p.program.name == decl.target) else {
-        return Err(crate::diag::unknown(&decl.site, format!("schedule {} names no job {}", decl.name, decl.target), rewrite));
+        let candidates: Vec<_> = programs.iter().filter(|p| p.program.kind == ProgramKind::Job && p.program.name.rsplit_once('.').is_some_and(|(_, name)| name == decl.target)).collect();
+        if let [target] = candidates.as_slice() {
+            return Err(crate::diag::unknown(&decl.site, format!("schedule {} names bare job {}; {} declares it as {}", decl.name, decl.target, target.site.file, target.program.name), target.program.name.clone()).guide("jobs").mechanical());
+        }
+        return Err(crate::diag::unknown(&decl.site, format!("schedule {} names no job {}; jobs outside schema.q are named <module>.<job>", decl.name, decl.target), crate::diag::name_rewrite(&decl.target, programs.iter().filter(|p| p.program.kind == ProgramKind::Job).map(|p| p.program.name.as_str()), None)).guide("jobs"));
     };
     if target.program.kind != ProgramKind::Job {
         return Err(Diagnostic::new(&decl.site, "E_SCHEDULE", format!("schedule {} names {}, which is a {}; a schedule fires a job", decl.name, decl.target, target.program.kind.word()), rewrite));

@@ -3126,3 +3126,68 @@ measured numbers. Changed source files remain at most **1,472 lines**;
 this append-only journal was already **3,054 lines** and was not split or
 rewritten. No commit, push, tag or publication; the existing untracked
 `LANE-BRIEF.md` is untouched.
+
+## 2026-09-14 — Lane V: unique probes, qualified schedules and snapshot-field null guards
+
+Implemented the three remaining cold-start loops of LLP 3000.007 §10,
+under §5.5's one-spelling rule. Named equalities that cover a total unique
+key use that index and check the other columns on the returned row, in
+program point reads/exists and ordinary effect-rule exists/created probes.
+The schema carries optional residual equalities; existing value forms and
+corpus cases are unchanged. A rule's focal residual terms participate in
+`deciding_fields`; self-witness absorption and `rule_true` also check the
+residuals, and a filtered probe cannot silently widen a sync audience.
+Final-insert obligations retain their exact-index contract: their write
+path belongs to W2 and is untouched.
+
+The ceremony run-2 insert rule is verbatim in the regression, without
+`byKeyAdmin`. With 100 chats seeded, it uses **1 rule probe without that
+index and 1 with it**; the program get/exists each examines **1 row** for a
+hit, mismatch and miss. `check --cost` prints `rule probe chats.byKey — one
+point read, then 1 extra equality check(s) when this branch runs`. The full
+recorded schema, minus that index, checks with **10 bound tables, 14
+operations, 0 problems and 0 notes**. Non-unique prefixes and nullable
+unique keys do not acquire the relaxation. The original roster remains
+uniform; an unpinned residual focal field remains non-uniform, a pinned
+one gives one probe for the whole page, and an admin test cannot disappear
+behind a self-probe. Both device stores exercise the read and rule paths.
+
+The 0.2.6 M8 logs reveal a two-step module failure: the bare
+`backfillTimeline` did not resolve, and `timeline.backfillTimeline` then
+failed to parse. Schedules now accept the operation's qualified name;
+the bare-name diagnostic names that exact target, and `check --fix`
+replaces only the target, retaining the period, offset and comment. The
+null loop was a binder gap, not a bad program: `readiness = null or
+readiness.changedAt = null or readiness.changedAt < periodStart` now
+compiles. Null guards refine fields of lexical snapshots across short
+circuits, conditional arms and surviving branches, with reassignment and
+loop backedges clearing stale facts. The language/reads/rules/types/jobs
+cards, compiled module-card regression, README and stale AGENTS hint now
+agree. No new diagnostic code was needed.
+
+Targeted suites: frontend **37/0**, compiled guide **9/0**, Clique **29/0**,
+membership **5/0**, device **27/0** (each scenario on SQLite and memory),
+CLI fix/cost **6/0** (passed/failed). The final blocking suite on Node
+**24.18.0** took **73 s**: Rust **311 passed, 0 failed, 1 ignored**;
+fixtures **9 passed, 0 failed**; client **111 passed, 1 failed**. Builds
+and all typechecks passed. The one failure is Chromium SIGABRT before the
+React assertions, reproduced alone and against **57 tracked files**
+verified byte-identical to base `0d7b77bb3c577366ac81bf159e57524c613c9e12`.
+This is not a green local full-suite claim; the lead's outside-sandbox
+rerun remains necessary. The first full run took **144 s** with the same
+sole failure; two initial regression-test mistakes (inline-if syntax and
+the device dispatcher's nested refusal envelope) were corrected, not
+classified as inherited failures. One initial `cargo check` was mistakenly
+launched at repository root and failed before compilation on the missing
+Ibex submodule; it was immediately rerun inside `snapback4/`, with no root
+files changed. Commands, verbatim summaries, before/after diagnostic text
+and measurement logs are in `/private/tmp/lane-v-verification.md`.
+
+Learned: the unique key decides which row, not whether its remaining
+fields match; both static hoisting and runtime probes must retain that
+distinction. Narrowing likewise belongs to a particular local snapshot,
+not to an arbitrary repeated read expression. Changed source files stay
+under **1,500 lines** (largest **1,476**, the guide); this append-only
+journal was already **3,054** lines. No ceiling, engine write-path file,
+existing corpus case or ceremony instrument changed. No commit, push,
+tag or publication.

@@ -60,6 +60,7 @@ impl Binder<'_> {
                     // @ref LLP 3000.007#5.1 — append in place; the heap meter is the accumulated list's bound.
                     binding.ty = Ty::List(Box::new(item.join(&ty)), u32::MAX);
                     binding.declared = binding.ty.clone();
+                    binding.fields.clear();
                     binding.revision += 1;
                     out.push(Stmt::Push { target: binding.runtime.clone(), value });
                     self.scopes.last_mut().expect("a scope").insert(name.clone(), binding);
@@ -77,6 +78,7 @@ impl Binder<'_> {
                     let joined = binding.declared.join(&ty);
                     binding.declared = if self.loops > 0 { joined.rebound() } else { joined };
                     binding.ty = if self.loops > 0 { ty.rebound() } else { ty };
+                    binding.fields.clear();
                     binding.revision += 1;
                     out.push(Stmt::Assign { name: binding.runtime.clone(), value: expr });
                     self.scopes.last_mut().expect("a scope").insert(name.clone(), binding);
@@ -128,6 +130,14 @@ impl Binder<'_> {
                         (false, true) => then_ty.clone(),
                         (true, false) => else_ty.clone(),
                         (true, true) => binding.ty.clone(),
+                    };
+                    let then_fields = if then_bindings[&name].runtime == binding.runtime { &then_bindings[&name].fields } else { &binding.fields };
+                    let else_fields = if else_bindings[&name].runtime == binding.runtime { &else_bindings[&name].fields } else { &binding.fields };
+                    binding.fields = match (exits(&then_out), exits(&else_out)) {
+                        (false, false) => then_fields.iter().filter_map(|(path, ty)| else_fields.get(path).map(|other| (path.clone(), ty.join(other)))).collect(),
+                        (false, true) => then_fields.clone(),
+                        (true, false) => else_fields.clone(),
+                        (true, true) => binding.fields.clone(),
                     };
                     binding.declared = then_bindings[&name].declared.join(&else_bindings[&name].declared);
                     binding.revision = then_bindings[&name].revision.max(else_bindings[&name].revision);
@@ -257,7 +267,8 @@ impl Binder<'_> {
                 }
                 let declared = old.declared.join(&new.declared);
                 let ty = old.ty.join(&declared);
-                changed |= old.ty != ty || old.declared != declared;
+                changed |= old.ty != ty || old.declared != declared || !old.fields.is_empty();
+                old.fields.clear();
                 old.ty = ty;
                 old.declared = declared;
                 old.revision = new.revision;
@@ -289,10 +300,25 @@ impl Binder<'_> {
                 {
                     binding.ty = if (op == "!=") == then_branch { binding.ty.required() } else { Ty::Null };
                     self.scopes.last_mut().expect("a scope").insert(name.clone(), binding);
+                } else if let Some((name, path)) = field_path(candidate)
+                    && !path.is_empty()
+                    && let Some(mut binding) = self.binding(name).cloned()
+                    && let Ok((_, ty)) = self.expr(candidate, &mut Vec::new())
+                {
+                    // @ref LLP 3000.007#10 — null guards refine fields of lexical snapshots, through short circuits and surviving branches.
+                    let present = (op == "!=") == then_branch;
+                    if present { binding.ty = binding.ty.required(); }
+                    binding.fields.insert(path, if present { ty.required() } else { Ty::Null });
+                    self.scopes.last_mut().expect("a scope").insert(name.to_owned(), binding);
                 }
             }
             _ => {}
         }
+    }
+
+    pub(super) fn field_refinement(&self, expr: &A) -> Option<Ty> {
+        let (name, path) = field_path(expr)?;
+        self.binding(name)?.fields.get(&path).cloned()
     }
 
     pub(super) fn loop_domain(&mut self, domain: &A, out: &mut Vec<Stmt>) -> Fallible<(LoopDomain, Ty)> {
@@ -363,7 +389,7 @@ impl Binder<'_> {
             }
             let runtime = self.temp(&declared.name);
             out.push(Stmt::Let { name: runtime.clone(), value: expr });
-            bindings.insert(declared.name.clone(), Binding { runtime, ty: expected.clone(), declared: expected, parameter: true, revision: 0 });
+            bindings.insert(declared.name.clone(), Binding { runtime, ty: expected.clone(), declared: expected, parameter: true, revision: 0, fields: BTreeMap::new() });
         }
         Ok(bindings)
     }
@@ -463,4 +489,17 @@ pub(super) fn exits(statements: &[Stmt]) -> bool {
         Stmt::If { then_body, else_body, .. } => exits(then_body) && exits(else_body),
         _ => false,
     })
+}
+
+/// Only lexical snapshots have stable fields; repeated database reads do not.
+fn field_path(expr: &A) -> Option<(&str, Vec<String>)> {
+    match expr {
+        A::Name { name, .. } => Some((name, Vec::new())),
+        A::Member { base, name, .. } => {
+            let (root, mut path) = field_path(base)?;
+            path.push(name.clone());
+            Some((root, path))
+        }
+        _ => None,
+    }
 }

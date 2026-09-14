@@ -251,7 +251,7 @@ fn infer_audience(catalog: &Catalog, sync: &SyncDecl, rule: &RuleExpr, named: Op
     match rule {
         RuleExpr::Public { .. } | RuleExpr::Allow if named.is_none() => Ok(Audience::Public),
         RuleExpr::Eq(RuleTerm::Field(column), RuleTerm::Viewer) | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(column)) if named.is_none() => Ok(Audience::Column(column.clone())),
-        RuleExpr::Exists { table, index, key, .. } if key.last() == Some(&RuleTerm::Viewer) => {
+        RuleExpr::Exists { table, index, key, equalities, .. } if equalities.is_empty() && key.last() == Some(&RuleTerm::Viewer) => {
             let prefix = key[..key.len() - 1].iter().map(|term| match term { RuleTerm::Field(column) => Some(column.clone()), _ => None }).collect::<Option<Vec<_>>>().ok_or_else(refusal)?;
             let target = catalog.tables.get(table).ok_or_else(refusal)?;
             let probe = target.indexes.iter().find(|i| &i.name == index).ok_or_else(refusal)?;
@@ -333,15 +333,15 @@ fn rule_expr(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
         },
         Expr::Unary { op, value, .. } if op == "not" => Ok(RuleExpr::Not(Box::new(rule_expr(catalog, info, value, bindings)?))),
         Expr::Exists { read, site } => {
-            let (table, index, key) = bind_probe(catalog, info, read, site, bindings.update)?;
-            Ok(RuleExpr::Exists { table, index, key, provenance: KeyProvenance::Shape })
+            let (table, index, key, equalities) = probe(catalog, info, read, site, bindings, true)?;
+            Ok(RuleExpr::Exists { table, index, key, equalities, provenance: KeyProvenance::Shape })
         }
         Expr::Created { read, site } => {
             if !bindings.insert {
                 return Err(unknown(site, "created is valid only in an insert rule", "use exists in read, update and delete rules"));
             }
-            let (table, index, key) = bind_probe(catalog, info, read, site, false)?;
-            Ok(RuleExpr::Created { table, index, key, provenance: KeyProvenance::Shape })
+            let (table, index, key, equalities) = probe(catalog, info, read, site, bindings, true)?;
+            Ok(RuleExpr::Created { table, index, key, equalities, provenance: KeyProvenance::Shape })
         }
         Expr::Literal { value: Literal::Bool(b), .. } => Ok(if *b { RuleExpr::Allow } else { RuleExpr::Deny }),
         other => Err(unknown(site, format!("`{}` is not a rule", crate::print::expression(other)), "read <- exists memberships[.conversationId, viewer]")),
@@ -399,23 +399,39 @@ fn column_ty(info: &TableInfo, name: &str) -> Option<Ty> {
     info.columns.get(name).map(Ty::from_scalar)
 }
 
-/// Bind `exists t[keys]` inside a rule: the target's index by key arity and
-/// names, the terms over the focal row.
+/// Final-insert obligations retain their exact-index write-path contract.
+/// Ordinary effect rules use `probe` with residual equalities enabled.
 pub fn bind_probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, update: bool) -> Fallible<(String, String, Vec<RuleTerm>)> {
+    let bindings = RuleBindings { old: None, next: None, update, insert: false };
+    let (table, index, key, _) = probe(catalog, info, read, site, &bindings, false)?;
+    Ok((table, index, key))
+}
+
+fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bindings: &RuleBindings, extras: bool) -> Fallible<(String, String, Vec<RuleTerm>, Vec<(String, RuleTerm)>)> {
     super::validate_key_names(read)?;
+    if read.range.is_some() || !read.seeks.is_empty() { return Err(unknown(site, "a rule probe takes equalities, not a range", "exists t[key = .key]")); }
     let Some(target) = catalog.tables.get(&read.table) else {
         return Err(unknown(site, format!("exists probes unknown table {}", read.table), name_rewrite(&read.table, catalog.tables.keys().map(String::as_str), None)));
     };
-    let bindings = RuleBindings { old: None, next: None, update, insert: false };
     let mut terms = Vec::new();
     let mut types = Vec::new();
     for key in &read.keys {
-        let (term, ty) = rule_term(catalog, info, &key.value, &bindings)?;
+        let (term, ty) = rule_term(catalog, info, &key.value, bindings)?;
         terms.push((key.column.clone(), term));
         types.push(ty);
     }
     let named: Option<Vec<String>> = if terms.iter().all(|(c, _)| c.is_some()) && !terms.is_empty() { Some(terms.iter().map(|(c, _)| c.clone().unwrap()).collect()) } else { None };
-    let candidates: Vec<&IndexDecl> = target
+    if let Some(names) = &named {
+        for ((_, term), (column, ty)) in terms.iter_mut().zip(names.iter().zip(&types)) {
+            let expected = column_ty(target, column).ok_or_else(|| unknown(site, format!("{} has no column {column}", read.table), name_rewrite(column, target.columns.keys().map(String::as_str).chain(["id"]), None)))?;
+            if !ty.comparable(&expected) { return Err(type_error(site, format!("{column} is {}; {}.{column} is {}", ty.name(), read.table, expected.name()), format!("use {} for {column}", expected.name()))); }
+            if expected.required().is_identity() && let RuleTerm::Literal(Value::String(text)) = term { *term = RuleTerm::Literal(Value::Id(text.clone())); }
+            if let (Ty::Enum(variants), RuleTerm::Literal(Value::String(text))) = (expected.required(), &*term) {
+                if !variants.contains(text) { return Err(type_error(site, format!("'{text}' is not one of {}.{column}'s variants {}", read.table, variants.join(", ")), format!("'{}'", variants[0]))); }
+            }
+        }
+    }
+    let mut candidates: Vec<&IndexDecl> = target
         .indexes
         .iter()
         .filter(|index| index.is_plain())
@@ -424,7 +440,7 @@ pub fn bind_probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &S
             None => true,
         })
         .filter(|index| match &named {
-            Some(names) => index.columns.len() == names.len() && names.iter().all(|n| index.columns.contains(n)),
+            Some(names) => (index.columns.len() == names.len() && names.iter().all(|n| index.columns.contains(n))) || (extras && target.total_unique(index) && index.columns.iter().all(|column| names.contains(column))),
             None => index.columns.len() == terms.len(),
         })
         .filter(|index| {
@@ -438,17 +454,21 @@ pub fn bind_probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &S
             })
         })
         .collect();
+    if extras && named.is_some() {
+        if let Some(width) = candidates.iter().filter(|i| target.total_unique(i)).map(|i| i.columns.len()).min() { candidates.retain(|i| target.total_unique(i) && i.columns.len() == width); }
+    }
     let index = match candidates.as_slice() {
         [one] => (*one).clone(),
         [] => {
             let declared: Vec<String> = target.indexes.iter().map(|i| format!("{}: {}", i.name, i.columns.join(", "))).collect();
-            return Err(unknown(site, format!("{} has no index with {} column{} matching this key", read.table, terms.len(), if terms.len() == 1 { "" } else { "s" }), format!("declare `unique by{}: <columns>` on {}; its indexes are {}", read.table.chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_default(), read.table, if declared.is_empty() { "none".to_owned() } else { declared.join("; ") })));
+            return Err(unknown(site, format!("{} has no index with {} column{} matching this key", read.table, terms.len(), if terms.len() == 1 { "" } else { "s" }), format!("declare `unique by{}: <columns>` on {}; its indexes are {}", read.table.chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_default(), read.table, if declared.is_empty() { "none".to_owned() } else { declared.join("; ") }) + if extras && named.is_some() { "; an index is needed when the named equalities do not cover a total unique key" } else { "" }));
         }
         many => {
             let names: Vec<&str> = many.iter().map(|i| i.name.as_str()).collect();
             return Err(ambiguous(site, format!("{} has {} indexes matching this key: {}", read.table, many.len(), names.join(", ")), format!("{} by {}", crate::print::read_expr(read), names[0])));
         }
     };
+    let equalities = terms.iter().filter_map(|(column, term)| column.as_ref().filter(|col| !index.columns.contains(col)).map(|col| (col.clone(), term.clone()))).collect();
     let mut ordered: Vec<RuleTerm> = match &named {
         Some(names) => index.columns.iter().map(|column| {
             let position = names.iter().position(|n| n == column).ok_or_else(|| unknown(site, format!("key omits column {column} of {}.{}", read.table, index.name), format!("name each column once: {}", index.columns.join(", "))))?;
@@ -470,7 +490,7 @@ pub fn bind_probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &S
             }
         }
     }
-    Ok((read.table.clone(), index.name, ordered))
+    Ok((read.table.clone(), index.name, ordered, equalities))
 }
 
 fn title(value: &str) -> String {

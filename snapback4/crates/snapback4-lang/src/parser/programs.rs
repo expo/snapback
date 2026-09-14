@@ -42,7 +42,9 @@ impl Parser {
             }
         }
         self.take(":")?;
-        let target = self.word()?.value;
+        // @ref LLP 3000.007#10 — module jobs use the same qualified name in schedules as in the compiled program.
+        let mut target = self.word()?.value;
+        if self.maybe(".") { target.push('.'); target.push_str(&self.word()?.value); }
         self.end_line(&site)?;
         Ok(ScheduleDecl { name, every_ms, offset_ms, target, site })
     }

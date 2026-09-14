@@ -143,8 +143,9 @@ mutation edit(messageId: messages, body: text <=4000):
   alike. Target deletion and dependent-row cleanup are the application's
   policy, expressed in mutations and rules.
 - **Indexes:** `by name: cols` orders rows; `unique name: cols` also
-  constrains them. A point read needs a unique index over exactly its key;
-  `exists` needs any index over exactly its key; a scan needs an index whose
+  constrains them. A point read needs a unique index over its key;
+  `exists` needs any index over its key. Named equalities covering a total
+  unique key check extra columns on the one row, with no extra index; a scan needs an index whose
   leading columns are the scan's prefix, and pages in the order of the
   remaining columns; a cursor needs an index ending in `id` or a unique one.
   `by index` names one when two match. `by name: scope, words(text cols),
@@ -226,7 +227,8 @@ charged to that chunk's meter. Writes belong inside a chunk.
 - **Arguments** are typed like columns; `c: cursor ?` is an opaque page
   cursor. An omitted optional argument reads as null.
 - **Reads:** `t[key]` (one row by a unique key, null if absent or
-  hidden), `t[key] ! else CODE` (or refuse), `exists t[key]`,
+  hidden), `t[key] ! else CODE` (or refuse), `exists t[key]`; named extra
+  equalities (`t[key = x, col = y]`) return null/false on a mismatch,
   `t[prefix] first N by index` (ascending; `t first N by index` is the
   whole table's page), `t[prefix] after c last N by index` (descending,
   from a cursor; the modifiers come in that order), `merge t [after c]
@@ -293,7 +295,9 @@ charged to that chunk's meter. Writes belong inside a chunk.
   zero refuses `E_DIV_ZERO`. `divmod` binds both parts at once. Text `+` concatenates present texts;
   interpolation and formatting stay in the client. A bare `return` returns null.
   `=` and `!=` are total (null equals null); `<` and friends need present
-  operands — narrow with `if x != null:` or `x ! else CODE`. `not` binds
+  operands — narrow with `if x != null:` or `x ! else CODE`. Guards also
+  narrow bound row fields through short circuits and surviving branches;
+  rebinding the local clears its field facts. `not` binds
   tightest: `a != b`, not `not a = b`.
 - **Refusals** a program raises with `require .. else CODE` reach the
   client as `{ code: "CODE", family: "rule", rule: "CODE", .. }`; `CODE` is
@@ -338,7 +342,9 @@ it once per period boundary of the server's clock (`every 2m`, `every
 1h`, `every 1d at 08:00`; the shortest period is 1m), exactly once per
 boundary across restarts, passing `periodStart` and `periodEnd` when the
 job declares them (and nothing else); a schedule first seen fires from
-its next boundary. `snapback4 run <job> '{..}'` runs one here and now.
+its next boundary. A job in `snapback/jobs.q` is named `jobs.<name>` in
+every schedule; `schema.q` jobs use bare names. `check --fix` qualifies an
+unambiguous bare module job. `snapback4 run <job> '{..}'` runs one here and now.
 Jobs are not on `api.ts`.
 
 ### Native jobs and reads

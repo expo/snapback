@@ -1422,3 +1422,24 @@ fn actions_never_predict_query_or_enter_either_device_outbox() {
         device.close();
     });
 }
+
+#[test]
+fn extra_probe_equalities_run_on_both_device_stores() {
+    on_both(|host| {
+        let source = include_str!("../../snapback4-sim/tests/fixtures/probe-equalities.q").replace("  read <- allow", "  read <- allow\n  sync public");
+        let (_, backend) = compile(&source);
+        let mut device = host.open("probe-equalities", Some(backend)).unwrap();
+        ok(device.call(serde_json::json!({"op":"apply", "first":true, "page":{"snapshot":true,"events":[{"table":"chats","id":"c0","kind":"put","data":{"id":"c0","key":"c0","admin":"dev:alice"}}],"watermark":1,"more":false}})));
+        for (admin, present) in [("dev:alice", true), ("dev:bob", false)] {
+            let args = serde_json::json!({"chatKey":"c0","admin":admin});
+            assert_eq!(query(&mut *device, "probe", "dev:alice", args.clone(), 1)["data"], present);
+            assert_eq!(!query(&mut *device, "get", "dev:alice", args, 1)["data"].is_null(), present);
+        }
+        for (viewer, admitted) in [("dev:alice", true), ("dev:bob", false)] {
+            let result = ok(device.call(serde_json::json!({"op":"predict","name":"add","args":{"chatKey":"c0","principal":"dev:carol"},"viewer":viewer,"now":1,"ids":["member"]})));
+            if admitted { assert!(result.get("denied").is_none(), "{result}"); ok(device.call(serde_json::json!({"op":"withdraw","predicted":result["predicted"]}))); }
+            else { assert!(result.get("denied").is_some(), "{result}"); }
+        }
+        device.close();
+    });
+}

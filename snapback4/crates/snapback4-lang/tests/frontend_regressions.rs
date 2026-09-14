@@ -1040,3 +1040,90 @@ fn guessed_spellings_are_mechanical_refusals_with_exact_rewrites() {
     assert_eq!(result.field("member").unwrap(), &Value::Int(1));
     assert_eq!(result.field("count").unwrap(), &Value::Int(2));
 }
+
+#[test]
+fn named_probe_equalities_need_only_a_total_unique_key() {
+    let source = include_str!("../../snapback4-sim/tests/fixtures/probe-equalities.q");
+    for extra_index in ["", "  by byKeyAdmin: key, admin\n"] {
+        let compiled = bound(&source.replace("  unique byKey: key\n", &format!("  unique byKey: key\n{extra_index}")));
+        let rule = &compiled.schema.tables["members"].rules.insert;
+        let snapback4_core::schema::RuleExpr::Or(terms) = rule else { panic!("{rule:?}") };
+        let snapback4_core::schema::RuleExpr::Exists { index, key, equalities, .. } = &terms[1] else { panic!("{rule:?}") };
+        assert_eq!(index, "byKey");
+        assert_eq!((key.len(), equalities.len()), (1, 1));
+        for name in ["get", "probe"] {
+            let sites = snapback4_core::ir::read_sites(&compiled.programs.iter().find(|p| p.program.name == name).unwrap().program);
+            assert_eq!(sites.len(), 1);
+            assert_eq!((sites[0].kind, sites[0].index.as_str()), ("point", "byKey"));
+        }
+    }
+    for replacement in ["by byKey: key", "unique byKey: key"] {
+        let source = source.replace("unique byKey: key", replacement);
+        let source = if replacement.starts_with("unique") { source.replace("key: text 1..64", "key: text 1..64 ?") } else { source };
+        let bad = compile(&[("schema.q".into(), source)]);
+        assert!(bad.diagnostics.iter().any(|d| d.code == "E_QUARRY_UNKNOWN" && d.rewrite.contains("do not cover a total unique key")), "{:?}", bad.diagnostics);
+    }
+    for extra in ["missing = viewer", "admin = 2", "admin = unknown"] {
+        let bad = compile(&[("schema.q".into(), source.replace("admin = viewer", extra))]);
+        assert!(!bad.diagnostics.is_empty(), "{extra}");
+    }
+    let roster = include_str!("../../snapback4-sim/tests/fixtures/membership.q");
+    let plain = "exists memberships[chatKey = .chatKey, principal = viewer]";
+    for sync in ["sync", "sync to memberships[.chatKey]"] {
+        let source = roster.replace(".principal = viewer or exists memberships[.chatKey, viewer]", &format!("{plain}\n  {sync}"));
+        bound(&source);
+        let bad = compile(&[("schema.q".into(), source.replace(plain, "exists memberships[chatKey = .chatKey, principal = viewer, role = 'admin']"))]);
+        assert!(bad.diagnostics.iter().any(|d| d.code == "E_SYNC"), "{:?}", bad.diagnostics);
+    }
+
+}
+
+#[test]
+fn module_schedule_diagnostic_names_the_canonical_job() {
+    let source = "table profiles:\n  public 'profiles'\njob backfillTimeline():\n  chunk p in profiles first 100 by byId:\n    return\nschedule repairTimeline every 1m: backfillTimeline\n";
+    let bad = compile(&[("timeline.q".into(), source.into())]);
+    assert_eq!(bad.diagnostics.len(), 1, "{:?}", bad.diagnostics);
+    let diagnostic = &bad.diagnostics[0];
+    assert_eq!(diagnostic.code, "E_QUARRY_UNKNOWN");
+    assert_eq!(diagnostic.message, "schedule repairTimeline names bare job backfillTimeline; timeline.q declares it as timeline.backfillTimeline");
+    assert_eq!(diagnostic.rewrite, "timeline.backfillTimeline");
+    assert!(diagnostic.mechanical);
+    let good = compile(&[("timeline.q".into(), source.replace(": backfillTimeline\n", ": timeline.backfillTimeline\n"))]);
+    assert!(good.diagnostics.is_empty(), "{:?}", good.diagnostics);
+    assert_eq!(good.schema.schedules[0].target, "timeline.backfillTimeline");
+    let root = bound(source);
+    assert_eq!(root.schema.schedules[0].target, "backfillTimeline");
+    let ambiguous = compile(&[("timeline.q".into(), source.into()), ("other.q".into(), "job backfillTimeline():\n  chunk p in profiles first 100 by byId:\n    return\n".into())]);
+    assert!(ambiguous.diagnostics.iter().all(|d| !d.mechanical));
+}
+
+#[test]
+fn null_checks_narrow_snapshot_fields_and_surviving_paths() {
+    let schema = "table feedReady:\n  principal: principal\n  changedAt: time ?\n  unique byPrincipal: principal\n  public 'readiness'\n";
+    for body in [
+        "return readiness = null or readiness.changedAt = null or readiness.changedAt < periodStart",
+        "if readiness = null:\n    return false\n  if readiness.changedAt = null:\n    return false\n  return readiness.changedAt < periodStart",
+        "require readiness != null and readiness.changedAt != null else NOT_READY\n  return readiness.changedAt < periodStart",
+        "return readiness.changedAt < periodStart if readiness != null and readiness.changedAt != null else false",
+        "return not (readiness = null or readiness.changedAt = null) and readiness.changedAt < periodStart",
+    ] {
+        let compiled = bound(&format!("{schema}query repair(periodStart: time):\n  readiness = feedReady[viewer]\n  {body}\n"));
+        let mut engine = Engine::memory(compiled.schema, compiled.programs.into_iter().map(|p| p.program)).unwrap();
+        for (at, expected) in [(None, false), (Some(0), true), (Some(20), false)] {
+            engine.seed([("feedReady".into(), snapback4_core::value::object([("id", Value::Id("r".into())), ("principal", Value::Id("alice".into())), ("changedAt", at.map_or(Value::Null, Value::Int))]))]).unwrap();
+            let result = engine.query("repair", Context::new("alice", BTreeMap::from([("periodStart".into(), Value::Int(10))])));
+            if body.starts_with("require") && at.is_none() { assert!(result.is_err()); }
+            else { assert_eq!(result.unwrap().data, Value::Bool(if body.starts_with("return readiness =") && at.is_none() { true } else { expected })); }
+        }
+    }
+    for body in [
+        "if readiness.changedAt != null:\n    return true\n  return readiness.changedAt < periodStart",
+        "if readiness.changedAt != null:\n    readiness = feedReady[viewer]\n    return readiness.changedAt < periodStart",
+        "if readiness.changedAt != null:\n    for i in range(0, 2):\n      x = readiness.changedAt < periodStart\n      readiness = feedReady[viewer]\n  return false",
+        "if readiness.changedAt != null:\n    if periodStart > 0:\n      readiness = feedReady[viewer]\n    return readiness.changedAt < periodStart",
+        "if feedReady[viewer].changedAt != null:\n    return feedReady[viewer].changedAt < periodStart",
+    ] {
+        let bad = compile(&[("schema.q".into(), format!("{schema}query repair(periodStart: time):\n  readiness = feedReady[viewer] ! else MISSING\n  {body}\n"))]);
+        assert!(bad.diagnostics.iter().any(|d| d.code == "E_QUARRY_TYPE"), "{body}: {:?}", bad.diagnostics);
+    }
+}

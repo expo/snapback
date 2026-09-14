@@ -171,3 +171,37 @@ fn absorption_is_local_to_or_and_requires_a_total_unique_plain_self_key() {
         assert_eq!(deciding_fields("memberships", &table, &table.rules.read), raw, "{variant}");
     }
 }
+
+#[test]
+fn extra_equalities_are_deciding_fields_and_cannot_bless_a_self_probe() {
+    for (rule, expected_fields, roster_uniform, directory_true) in [
+        (".principal = viewer or exists memberships[chatKey = .chatKey, principal = viewer]", vec!["chatKey"], true, true),
+        (".principal = viewer or exists memberships[chatKey = .chatKey, principal = viewer, role = 'admin']", vec!["chatKey", "principal"], false, true),
+        ("exists memberships[chatKey = .chatKey, principal = viewer, role = 'admin']", vec!["chatKey"], true, false),
+        ("exists memberships[chatKey = .chatKey, principal = viewer, role = .role]", vec!["chatKey", "role"], false, true),
+    ] {
+        let compiled = bound(&SOURCE.replace(RULE, rule));
+        assert_eq!(fields(&compiled), expected_fields.into_iter().map(String::from).collect());
+        assert_eq!(visibility(&compiled, "roster").uniform, roster_uniform, "{rule}");
+        assert_eq!(visibility(&compiled, "directory").decided_true, directory_true, "{rule}");
+        let mut engine = engine(&compiled);
+        for viewer in ["dev:alice", "dev:bob", "dev:nobody"] {
+            let result = engine.query("roster", context(viewer, &[("chatKey", text("alpha"))])).unwrap();
+            assert_eq!(result.complete, roster_uniform, "{rule}: {result:?}");
+            let directory = engine.query("directory", context(viewer, &[])).unwrap();
+            assert_eq!(directory.complete, directory_true, "{rule}: {directory:?}");
+            if rule.ends_with("role = 'admin']") && !rule.starts_with(".principal") && viewer == "dev:bob" {
+                assert!(directory.data.as_array().unwrap().is_empty(), "the total unique key must not skip the admin equality");
+            }
+        }
+    }
+    let source = SOURCE.replace(RULE, "exists memberships[chatKey = .chatKey, principal = viewer, role = .role]")
+        .replace("  by byPrincipalChat:", "  by byChatRole: chatKey, role, id\n  by byPrincipalChat:")
+        .replace("query roster(chatKey: text 1..40):\n  return memberships[chatKey] first 16 by byChatPrincipal", "query roster(chatKey: text 1..40):\n  return memberships[chatKey, 'member'] first 16 by byChatRole");
+    let compiled = bound(&source);
+    assert!(visibility(&compiled, "roster").uniform);
+    let result = engine(&compiled).query("roster", context("dev:bob", &[("chatKey", text("alpha"))])).unwrap();
+    assert!(result.complete);
+    assert_eq!(result.data.as_array().unwrap().len(), 2);
+    assert_eq!(result.metered.rule_probes, 1);
+}

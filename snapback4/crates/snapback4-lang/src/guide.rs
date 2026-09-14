@@ -106,7 +106,9 @@ pub const LANGUAGE: &str = r##"# Quarry — the language card
 
 One file, `snapback/schema.q`, holds tables, maintains, shapes, helpers,
 programs and schedules, in any order; more `.q` files beside it are modules
-(their operations are `<module>.<name>`) sharing one namespace. Comments
+(their operations are `<module>.<name>`) sharing one namespace. Schedules use that
+qualified job name too: `schedule repair every 1m: timeline.repair`; an unambiguous
+bare module job gets this rewrite from `check --fix`. Comments
 start with `--`. Blocks indent with two spaces. Everything the compiler
 accepts is below, once; the suite compiles and runs this file.
 
@@ -141,7 +143,7 @@ table members:
   cap 100 by roomId                                    -- at most N rows per group; needs an index leading with the group
   immutable roomId, principal                          -- columns no update may change
   read <- exists members[.roomId, viewer]
-  insert <- exists members[.roomId, viewer, 'admin'] or created rooms[.roomId]   -- created: this mutation inserted the probed row
+  insert <- exists members[roomId = .roomId, principal = viewer, role = 'admin'] or created rooms[.roomId]   -- created: this mutation inserted the probed row
   delete <- .principal = viewer or exists members[.roomId, viewer, 'admin']
   sync to members[.roomId]
 
@@ -282,6 +284,9 @@ query digest(roomId: rooms):
   quotient = counter / 7
   doubled = tally(counter)                                          -- a helper body also yields a value in an expression
   remainder = counter % 7                                          -- the same Euclidean parts as divmod; zero refuses E_DIV_ZERO
+  head = first(page)
+  if head != null and head.body != null:
+    bodySize = count(head.body)                                     -- a null guard narrows the snapshot field through the rest of this block
   sum = sum(page, .at)
   grouped = group(page, 'authorId') { author: .key, count: count(.items) }
   return { sum, grouped, first: first(page), last: last(page), at: at(page, 1), total: messageCounts[roomId], counter, offsets, label, labelSize: count(label), doubled, quotient, remainder, weeks, days, lo, hi, brief: isBrief(null), oldest: sort(slice(page, 0, 10), 'at') { id, at }, smaller: min(weeks, days), larger: max(weeks, days) }
@@ -356,7 +361,8 @@ instant), `new` (an id, mutations only), `true`, `false`, `null`, integers,
 `{ a, b: c }` (an object; a bare name is `name: name`). `=` and `!=` are total
 (null equals null); `<` and friends, `+`, `-` and `*` need present operands:
 narrow with `if x != null:`, `x ! else CODE`, `x ?? default`, or `require x
-!= null else CODE`. `time - time` is an int of milliseconds; `time + int` a
+!= null else CODE`. Guards narrow fields of a bound row too, through `and`/`or`,
+conditional arms and the paths that survive an early return; rebinding clears the fact. `time - time` is an int of milliseconds; `time + int` a
 time. Text `+` concatenates two present texts. `count(text | page | list)` counts characters or items; `lower(text)`, `trim(text)`, `join(list, separator)`, `sum(page, .col)`, `sum(list)`, `min(a, b)`,
 `max(a, b)`, `slice(text | list, start, end)`, `sort(list, 'col', '-col')`,
 `group(list, 'col')`, `first(list)`, `last(list)`, `at(list, index)` (element or null),
@@ -419,7 +425,8 @@ delete cascade: the string `"null"` is an id, and JSON null only fits an
 optional type; when a target must be visible, `require exists t[id] else
 CODE` before the write (guide writes). `=`
 and `!=` are total (null equals null); `<` and friends need present operands:
-narrow with `if x != null:`, `x ! else CODE`, or `x ?? default`. `time`
+narrow with `if x != null:`, `x ! else CODE`, or `x ?? default`. A null guard
+also narrows a bound row's field (`r.changedAt != null`), until the local is rebound. `time`
 arithmetic: `time - time` is an int, `time + int` a time. `/` and `%` give
 the Euclidean quotient and remainder of ints or times; zero refuses `E_DIV_ZERO`.
 Text `+` concatenates; `count(text)` counts characters. Loop-built strings and
@@ -487,9 +494,10 @@ table editors:
 Each of `read`, `insert`, `update` and `delete` takes one rule over the row
 (`.col`), `viewer` and literals. A table without a rule for an effect denies
 it. `public 'why'` on its own line is the read rule. An `exists` probe needs
-an index over exactly the probed columns (`by index` names one when two
-match); a probe over the target's own unique key is uniform, and one verdict
-serves a whole page. `created t[..]` is valid in insert rules only. Rules
+an index over the probed columns (`by index` names one when two match); named
+equalities may cover a total unique key and check extra columns on that one row,
+for both `exists` and `created`, without an extra index. Every focal field used
+by the key or extra tests must be pinned for one verdict to serve a whole page. `created t[..]` is valid in insert rules only. Rules
 compare with `=` and `!=` alone: a rule that varies with time is not an
 audience a partition can hold (use `expire`). A read rule that is exactly
 `exists t[.a, .b, viewer]`, `.col = viewer` or `public` can be synced (guide
@@ -719,12 +727,16 @@ viewer. At most two uploads run at once, and their disk writes happen outside
 the engine mutex. Uploads are online only; there is nothing to queue."##,
         "reads" => r##"# Reads
 
+Named equalities covering a total unique key read one row and check any extra
+columns there: `t[key = x, col = y]` returns null on a mismatch, and
+`exists t[key = x, col = y]` returns false. A non-unique prefix still needs an index.
+
 ```quarry
 query readForms(roomId: rooms, messageId: messages, c: cursor ?):
   one = messages[messageId]                                  -- one row by a unique key: null if absent or hidden
   must = messages[messageId] ! else NOT_FOUND                 -- the row, or refuse with the code
-  member = exists members[roomId, viewer]                    -- true or false; needs an index over exactly these columns
-  admin = exists members[roomId = roomId, principal = viewer, role = 'admin'] by byRoomPrincipalRole   -- named keys; `by` names the index when two match
+  member = exists members[roomId, viewer]                    -- true or false; positional keys match the index columns
+  admin = exists members[roomId = roomId, principal = viewer, role = 'admin']   -- named keys; `by` names the index when two match
   oldest = messages[roomId, at < must.at] last 20 by byRoomTime           -- the nearest earlier rows
   newest = messages[roomId] after c last 20 by byRoomTime where .body != null    -- a page, descending, from a cursor
   everyone = profiles first 50 by byHandle                   -- the whole table's page: the empty prefix, spelled without brackets
@@ -841,6 +853,9 @@ A helper return exits only the helper, and its locals cannot capture the caller'
 Queries cannot write or mint ids, including through a helper; the call site names
 the write that does not belong."##,
         "jobs" => r##"# Jobs and schedules: the server's own work, on its own clock
+
+Jobs in `snapback/jobs.q` are named `jobs.<name>` even in that file's schedules;
+`schema.q` jobs use their bare names. `check --fix` qualifies an unambiguous bare module job.
 
 ```quarry
 table invites:

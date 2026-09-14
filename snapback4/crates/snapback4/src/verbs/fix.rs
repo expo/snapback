@@ -58,6 +58,17 @@ pub(super) fn edit(sources: &[(String, String)], index: usize, diagnostic: &Diag
         }
         return None;
     }
+    if diagnostic.code == "E_QUARRY_UNKNOWN" && diagnostic.message.starts_with("schedule ") && diagnostic.message.contains(" names bare job ") {
+        let (module, job) = diagnostic.rewrite.split_once('.')?;
+        if [module, job].iter().any(|part| part.is_empty() || !part.chars().all(|c| c.is_alphanumeric() || c == '_')) { return None; }
+        let line = source[start..].split(['\r', '\n']).next()?;
+        let actual = tokens(line);
+        let colon = actual.iter().rposition(|t| t.value == ":")?;
+        let target = actual.get(colon + 1)?;
+        if actual.first()?.value != "schedule" || colon + 2 != actual.len() || target.value != job { return None; }
+        let at = start + offset(line, target.site.line, target.site.col)?;
+        return Some((index, at, at + job.len(), diagnostic.rewrite.clone()));
+    }
     if diagnostic.code != "E_QUARRY_UNSUPPORTED" { return None; }
     // These exact token substitutions also work when the compiler's rewrite
     // shows the whole corrected expression or comment.

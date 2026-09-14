@@ -145,7 +145,7 @@ fn prove_probe_row_readable(rule: &RuleExpr, table: &str, index: &str, index_col
         RuleExpr::Eq(left, right) => substitute(left).zip(substitute(right)).is_some_and(|(left, right)| left == right),
         RuleExpr::And(rules) => !rules.is_empty() && rules.iter().all(|rule| prove_probe_row_readable(rule, table, index, index_columns, probe_key)),
         RuleExpr::Or(rules) => rules.iter().any(|rule| prove_probe_row_readable(rule, table, index, index_columns, probe_key)),
-        RuleExpr::Exists { table: target, index: target_index, key, .. } if target == table && target_index == index => {
+        RuleExpr::Exists { table: target, index: target_index, key, equalities, .. } if target == table && target_index == index && equalities.is_empty() => {
             key.iter().map(substitute).collect::<Option<Vec<_>>>().is_some_and(|key| key == probe_key)
         }
         RuleExpr::Deny | RuleExpr::Ne(_, _) | RuleExpr::Not(_) | RuleExpr::Exists { .. } | RuleExpr::Created { .. } => false,
@@ -463,10 +463,18 @@ pub enum RuleExpr {
     And(Vec<RuleExpr>),
     Or(Vec<RuleExpr>),
     Not(Box<RuleExpr>),
-    Exists { table: String, index: String, key: Vec<RuleTerm>, provenance: KeyProvenance },
+    Exists {
+        table: String, index: String, key: Vec<RuleTerm>, provenance: KeyProvenance,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        equalities: Vec<(String, RuleTerm)>,
+    },
     /// True only when the indexed target row was inserted earlier in this
     /// same transaction; insert rules only.
-    Created { table: String, index: String, key: Vec<RuleTerm>, provenance: KeyProvenance },
+    Created {
+        table: String, index: String, key: Vec<RuleTerm>, provenance: KeyProvenance,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        equalities: Vec<(String, RuleTerm)>,
+    },
 }
 
 impl RuleExpr {
@@ -493,7 +501,9 @@ impl RuleExpr {
             }
             Self::And(items) | Self::Or(items) => items.iter().for_each(|item| item.fields(out)),
             Self::Not(inner) => inner.fields(out),
-            Self::Exists { key, .. } | Self::Created { key, .. } => key.iter().for_each(|item| term(item, out)),
+            Self::Exists { key, equalities, .. } | Self::Created { key, equalities, .. } => {
+                key.iter().chain(equalities.iter().map(|(_, term)| term)).for_each(|item| term(item, out));
+            }
         }
     }
 
@@ -527,8 +537,8 @@ impl RuleExpr {
             Self::And(items) => items.iter().map(|i| i.quarry()).collect::<Vec<_>>().join(" and "),
             Self::Or(items) => items.iter().map(|i| i.quarry()).collect::<Vec<_>>().join(" or "),
             Self::Not(inner) => format!("not ({})", inner.quarry()),
-            Self::Exists { table, key, .. } => format!("exists {table}[{}]", key.iter().map(term).collect::<Vec<_>>().join(", ")),
-            Self::Created { table, key, .. } => format!("created {table}[{}]", key.iter().map(term).collect::<Vec<_>>().join(", ")),
+            Self::Exists { table, key, equalities, .. } => format!("exists {table}[{}]", key.iter().map(term).chain(equalities.iter().map(|(col, value)| format!("{col} = {}", term(value)))).collect::<Vec<_>>().join(", ")),
+            Self::Created { table, key, equalities, .. } => format!("created {table}[{}]", key.iter().map(term).chain(equalities.iter().map(|(col, value)| format!("{col} = {}", term(value)))).collect::<Vec<_>>().join(", ")),
         }
     }
 }
@@ -785,7 +795,7 @@ fn validate_rule(schema: &Schema, table: &Table, rule: &RuleExpr, update: bool, 
         }
         RuleExpr::And(items) | RuleExpr::Or(items) => items.iter().for_each(|item| validate_rule(schema, table, item, update, insert, path, issues)),
         RuleExpr::Not(inner) => validate_rule(schema, table, inner, update, insert, path, issues),
-        RuleExpr::Exists { table: target, index, key, .. } | RuleExpr::Created { table: target, index, key, .. } => {
+        RuleExpr::Exists { table: target, index, key, equalities, .. } | RuleExpr::Created { table: target, index, key, equalities, .. } => {
             if matches!(rule, RuleExpr::Created { .. }) && !insert {
                 issues.push(SchemaIssue { path: path.to_owned(), message: "created probes are valid only in insert rules".into() });
             }
@@ -802,6 +812,17 @@ fn validate_rule(schema: &Schema, table: &Table, rule: &RuleExpr, update: bool, 
                     }
                 }
                 None => issues.push(SchemaIssue { path: path.to_owned(), message: format!("rule probes unknown {target}.{index}") }),
+            }
+            if !equalities.is_empty() {
+                if !schema.table(target).is_some_and(|table| table.index(index).is_some_and(|index| index.unique && index.columns().iter().all(|col| table.columns.get(col).is_some_and(|ty| !ty.is_optional())))) {
+                    issues.push(SchemaIssue { path: path.to_owned(), message: "extra probe equalities need a total unique key".into() });
+                }
+                for (column, term) in equalities {
+                    if !schema.table(target).is_some_and(|table| table.columns.contains_key(column)) {
+                        issues.push(SchemaIssue { path: path.to_owned(), message: format!("probe checks undeclared column {target}.{column}") });
+                    }
+                    check_term(term, issues);
+                }
             }
             key.iter().for_each(|term| check_term(term, issues));
         }
@@ -1077,8 +1098,8 @@ pub fn audience_binding(schema: &Schema, table_name: &str, table: &Table, sync: 
         // would admit viewers the partition never delivers to; a conjunct
         // or a literal in the key would deliver rows the rule denies.
         let exact = format!("sync to {target_name}[{spelled_prefix}] is only sound when the read rule is exactly `exists {target_name}[{spelled_want}]`; it reads under `{}`", table.rules.read.quarry());
-        let RuleExpr::Exists { table: probed, index, key, .. } = &table.rules.read else { return Err(exact) };
-        if probed != target_name || *key != want {
+        let RuleExpr::Exists { table: probed, index, key, equalities, .. } = &table.rules.read else { return Err(exact) };
+        if probed != target_name || *key != want || !equalities.is_empty() {
             return Err(exact);
         }
         let index_def = target.index(index).ok_or_else(|| format!("the read rule probes unknown index {target_name}.{index}"))?;

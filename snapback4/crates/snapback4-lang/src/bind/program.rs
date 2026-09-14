@@ -53,6 +53,7 @@ struct Binding {
     declared: Ty,
     parameter: bool,
     revision: u32,
+    fields: BTreeMap<Vec<String>, Ty>,
 }
 
 const MAX_EXPANSION_DEPTH: u32 = 8;
@@ -75,7 +76,7 @@ impl<'a> Binder<'a> {
                 return None;
             }
             let ty = Ty::from_scalar(&arg.type_);
-            binder.scopes[0].insert(arg.name.clone(), Binding { runtime: arg.name.clone(), ty: ty.clone(), declared: ty.clone(), parameter: true, revision: 0 });
+            binder.scopes[0].insert(arg.name.clone(), Binding { runtime: arg.name.clone(), ty: ty.clone(), declared: ty.clone(), parameter: true, revision: 0, fields: BTreeMap::new() });
             args.insert(arg.name.clone(), scalar_to_arg(&arg.type_));
             arg_types.push((arg.name.clone(), ty));
         }
@@ -171,7 +172,7 @@ impl<'a> Binder<'a> {
 
     fn declare(&mut self, name: &str, ty: Ty) -> String {
         let runtime = if name.starts_with('$') { name.to_owned() } else { self.temp(name) };
-        self.scopes.last_mut().expect("a scope").insert(name.to_owned(), Binding { runtime: runtime.clone(), declared: ty.clone(), ty, parameter: false, revision: 0 });
+        self.scopes.last_mut().expect("a scope").insert(name.to_owned(), Binding { runtime: runtime.clone(), declared: ty.clone(), ty, parameter: false, revision: 0, fields: BTreeMap::new() });
         runtime
     }
 
@@ -195,12 +196,12 @@ impl<'a> Binder<'a> {
             return Ok((Expr::Scan(scan), Ty::Page(read.table.clone(), take)));
         }
         let info = self.table(&read.table, &read.site)?;
-        let (point, _) = self.point(read, ReadMode::Point, out)?;
+        let value = self.read_value(read, ReadMode::FilteredPoint, out)?;
         if let Some(maintain) = &info.maintained {
             // A maintained point read is the typed value: zero when absent.
             let tmp = self.temp("total");
             let zero = Expr::Literal(Value::Int(0));
-            out.push(Stmt::Let { name: tmp.clone(), value: Expr::Get(point) });
+            out.push(Stmt::Let { name: tmp.clone(), value });
             out.push(Stmt::If {
                 condition: Expr::Binary { op: BinaryOp::Eq, left: Box::new(ir::var(&tmp)), right: Box::new(Expr::Literal(Value::Null)) },
                 then_body: vec![Stmt::Assign { name: tmp.clone(), value: zero }],
@@ -210,20 +211,7 @@ impl<'a> Binder<'a> {
             let _ = maintain;
             return Ok((ir::var(&tmp), ty));
         }
-        Ok((Expr::Get(point), Ty::Row(read.table.clone()).optional()))
-    }
-
-    /// Bind a point read: a full unique key, its index chosen by arity,
-    /// names, and types.
-    fn point(&mut self, read: &ReadExpr, mode: ReadMode, out: &mut Vec<Stmt>) -> Fallible<(Read, &'a TableInfo)> {
-        let info = self.table(&read.table, &read.site)?;
-        if !read.seeks.is_empty() { return Err(type_error(&read.site, "a seek needs a bounded page", "t[prefix, col >= start] first 50 by index")); }
-        if read.keys.is_empty() {
-            return Err(unknown(&read.site, format!("{}[] reads nothing; a point read needs a key", read.table), format!("{}[id]", read.table)));
-        }
-        let (keys, index) = self.select_index(info, read, mode, out)?;
-        let key = self.order_keys(info, &index, keys)?;
-        Ok((Read { site: self.site(), table: read.table.clone(), index: index.name, key, provenance: KeyProvenance::Shape }, info))
+        Ok((value, Ty::Row(read.table.clone()).optional()))
     }
 
     fn scan(&mut self, read: &ReadExpr, out: &mut Vec<Stmt>) -> Fallible<(Scan, u32)> {
@@ -315,18 +303,23 @@ impl<'a> Binder<'a> {
             .filter(|index| read.seeks.iter().all(|b| index.columns.get(keys.len()) == Some(&b.column)))
             .filter(|index| if searching { index.searches_after(keys.len()) } else { index.is_plain() })
             .filter(|index| match mode {
-                ReadMode::Point => index.unique && index.columns.len() == keys.len(),
-                ReadMode::Exists => index.columns.len() == keys.len(),
+                ReadMode::Point | ReadMode::FilteredPoint => index.unique && (index.columns.len() == keys.len() || (named && mode == ReadMode::FilteredPoint && info.total_unique(index) && index.columns.len() < keys.len())),
+                ReadMode::Exists => index.columns.len() == keys.len() || (named && info.total_unique(index) && index.columns.len() < keys.len()),
                 ReadMode::Range => index.columns.len() > keys.len(),
             })
             .filter(|index| {
                 if named {
-                    keys.iter().all(|(c, _, _)| index.columns[..keys.len()].contains(c.as_ref().unwrap()))
+                    if index.columns.len() < keys.len() { index.columns.iter().all(|column| keys.iter().any(|(c, _, _)| c.as_ref() == Some(column))) } else { keys.iter().all(|(c, _, _)| index.columns[..keys.len()].contains(c.as_ref().unwrap())) }
                 } else {
                     true
                 }
             })
             .collect();
+        if named && matches!(mode, ReadMode::FilteredPoint | ReadMode::Exists) {
+            if let Some(width) = candidates.iter().filter(|i| info.total_unique(i)).map(|i| i.columns.len()).min() {
+                candidates.retain(|i| info.total_unique(i) && i.columns.len() == width);
+            }
+        }
         // Positional keys select by type; a text literal may meet an
         // identity column (it becomes an id once the index is chosen).
         if !named {
@@ -372,7 +365,7 @@ impl<'a> Binder<'a> {
                     let scope: Vec<String> = keys.iter().map(|(c, _, _)| c.clone().unwrap_or_else(|| "<column>".into())).collect();
                     Err(unknown(&read.site, format!("{} has no words index after {} key{}; its indexes are {}", read.table, keys.len(), if keys.len() == 1 { "" } else { "s" }, declared.join(", ")), format!("by by{}Words: {}words(<text column>), at, id", scope.iter().map(|c| title(c)).collect::<String>(), scope.iter().map(|c| format!("{c}, ")).collect::<String>())))
                 } else if point {
-                    Err(unknown(&read.site, format!("{} has no unique index over {} column{} matching this key; its indexes are {}", read.table, keys.len(), if keys.len() == 1 { "" } else { "s" }, declared.join(", ")), format!("unique by{}: {}", keys.iter().map(|(c, _, _)| c.clone().unwrap_or_else(|| "Column".into())).map(|c| title(&c)).collect::<String>(), keys.iter().map(|(c, _, _)| c.clone().unwrap_or_else(|| "<column>".into())).collect::<Vec<_>>().join(", "))))
+                    Err(unknown(&read.site, format!("{} has no unique index over {} column{} matching this key; its indexes are {}", read.table, keys.len(), if keys.len() == 1 { "" } else { "s" }, declared.join(", ")), format!("unique by{}: {}", keys.iter().map(|(c, _, _)| c.clone().unwrap_or_else(|| "Column".into())).map(|c| title(&c)).collect::<String>(), keys.iter().map(|(c, _, _)| c.clone().unwrap_or_else(|| "<column>".into())).collect::<Vec<_>>().join(", ")) + if named && mode != ReadMode::Point { "  -- an index is needed when the named equalities do not cover a total unique key" } else { "" }))
                 } else {
                     Err(unknown(&read.site, format!("{} has no index whose prefix takes {} key{}; its indexes are {}", read.table, keys.len(), if keys.len() == 1 { "" } else { "s" }, declared.join(", ")), format!("by by{}: {}, id", keys.iter().map(|(c, _, _)| c.clone().unwrap_or_else(|| "Column".into())).map(|c| title(&c)).collect::<String>(), keys.iter().map(|(c, _, _)| c.clone().unwrap_or_else(|| "<column>".into())).collect::<Vec<_>>().join(", "))))
                 }
@@ -852,6 +845,8 @@ impl<'a> Binder<'a> {
 enum ReadMode {
     /// A full unique key: one row.
     Point,
+    /// A read may check extra equalities after a total unique lookup.
+    FilteredPoint,
     /// A full key of any index: presence.
     Exists,
     /// A strict prefix: a page.

@@ -155,7 +155,7 @@ fn cost_report(bound: &Bound, program: &ir::Program) -> String {
     let scans = ir::scans(program);
     let sites = ir::read_sites(program);
     if sites.is_empty() {
-        lines.push("    reads nothing".into());
+        lines.push("    no explicit reads".into());
     }
     for site in &sites {
         let hoist = match site.kind {
@@ -189,8 +189,30 @@ fn cost_report(bound: &Bound, program: &ir::Program) -> String {
     for (table, kind) in &writes {
         let audience = bound.schema.tables.get(table).and_then(|t| t.sync.as_ref()).map(|s| format!(", fans out to {}", match &s.audience { Audience::Public => "everyone".to_owned(), Audience::Column(c) => format!(".{c}"), Audience::Target { table, .. } => format!("the members in {table}") })).unwrap_or_default();
         lines.push(format!("    {kind} {table}{audience}"));
+        if let Some(table) = bound.schema.tables.get(table) {
+            match *kind {
+                "insert" => probe_costs(&table.rules.insert, &mut lines),
+                "update" => probe_costs(&table.rules.update, &mut lines),
+                "delete" => probe_costs(&table.rules.delete, &mut lines),
+                "upsert" => { probe_costs(&table.rules.insert, &mut lines); probe_costs(&table.rules.update, &mut lines); }
+                _ => {}
+            }
+        }
     }
     lines.join("\n")
+}
+
+/// Residual equalities do not add a read site to a total unique rule probe.
+fn probe_costs(rule: &snapback4_core::schema::RuleExpr, lines: &mut Vec<String>) {
+    use snapback4_core::schema::RuleExpr;
+    match rule {
+        RuleExpr::Exists { table, index, equalities, .. } | RuleExpr::Created { table, index, equalities, .. } if !equalities.is_empty() => {
+            lines.push(format!("      rule probe {table}.{index} — one point read, then {} extra equality check(s) when this branch runs", equalities.len()));
+        }
+        RuleExpr::And(rules) | RuleExpr::Or(rules) => rules.iter().for_each(|rule| probe_costs(rule, lines)),
+        RuleExpr::Not(rule) => probe_costs(rule, lines),
+        _ => {}
+    }
 }
 
 // @ref LLP 3000.007#5.7 — expression ranges have an intended bound and are priced by the step meter.
