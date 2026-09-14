@@ -42,7 +42,7 @@ on the hub fixture. Everything not required to pass them does not exist yet.
 - **No drift registries, inventories, line-pinned diagnostics registries, claim digests or frozen-record gates.** Generated projections are built, not committed.
 - **No gate bound to an exact commit; no push gated on a battery.** Five blocking checks in sixty seconds, run before push; everything slower on a schedule with bounded tickets.
 - **No ceiling raised in slice one.** Budgets are anchored to a competitor's measured number and recorded once in the journal.
-- **No panel** except the two blind reviews LLP 3000 decision 4 names (partition inversion; the meter's cut on non-uniform scans).
+- **No standing panel** except the two blind reviews LLP 3000 decision 4 names (partition inversion; the meter's cut on non-uniform scans). The author explicitly commissioned the one-off LLP 3000.008 panel and disjoint Astra implementation lanes on 2026-09-14; its bounded disposition is recorded in that umbrella and LLP 3000 §7.
 - **No new LLP number** without first extending LLP 3000 or LLP 2000.000; no spec without running code (`rules/RULES.md`: only implemented specs bind).
 - **No second session on the core** during slice one; lanes take the periphery.
 - **No test matrix as the primary harness.** The simulator is; real-browser and device witnesses cover only what it cannot reach.
