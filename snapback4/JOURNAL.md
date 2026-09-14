@@ -2967,3 +2967,36 @@ The ceremony instrument, other lanes' engine files, meter, value forms and
 client TypeScript are untouched. No commit, push, tag or publication. Every
 changed source file stays below 1,500 lines; this journal was already 2,869
 lines and its explicit append-only instruction is preserved.
+
+## 2026-09-14 — the ceremony bar's "after" on 0.2.9: eleven loops became six, and the tenth table became a public roster
+
+Three serial runs on the published 0.2.9, launched by the publish chain
+the moment npm served the pin, from the lead's shell (`node
+loopbar/ceremony.mjs --n 3 --version 0.2.9`); the record is
+`benchmarks/runs/2026-09-13-snapback4-ceremonybar-after/`, the metrics
+lines 4–6 of `metrics/ceremonybar.jsonl`. All three green and reverified,
+5/5 probes each: 494, 403 and 535 s wall; loops 3, 2 and 1, none
+Snapback-attributed; nine tables each; maintains 0, 1 and 6; the
+`digestPeriods` guard in every run; no world-readable counter line.
+
+Against the "before" on 0.2.8 (510, 407, 456 s; loops 3, 5, 3 with one
+Snapback-attributed; ten tables each): the loops the bar exists to count
+fell from eleven to six and the Snapback-attributed one to none; the wall
+is the same within the noise of a heavier host (run 1 started at load
+31.8 under the xcframework build). The tenth table — the private
+restatement of membership every "before" agent wrote — is gone from every
+run. In its place every "after" agent made the roster public to silence
+`N_NEVER_COMPLETE` on the chat-pinned roster scan ("explicit public
+roster policy so both principal and chat scans are uniform"), two of them
+after paying the loop, one without logging it. On this seed harmless; on
+a product, a disclosure where the before had a duplicate. The note was
+wrong both times: the row is its own witness on the unique key. Lane S
+landed the absorption at `30cf4ce80`, after this pin, and the bar runs a
+third time on the pin that carries S and W; the roster's read rule in
+each `schema.q` is the sentence to read.
+
+`snapback4 token` cost a loop for the fourth time in six runs (the prose
+and the token on one stdout); lane T is fixing the P3 ticket. The packet
+hashes: the brief, the probes and the process helper identical to the
+before; the runner and the metrics helper differ by two `@ref` comment
+lines (`c82b22824`).
