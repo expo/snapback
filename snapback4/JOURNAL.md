@@ -7636,3 +7636,24 @@ Regression `directReturn` at 4/1/0 rows on the server and both device stores:
 the return as unread, not lost: 896 generated cases pass. E is accepted as
 conservative (§19.2): it errs toward `complete: false` only, and removing it
 needs per-value provenance. This closes the three-round limit for §19.
+
+
+
+## 2026-09-14 — a restarted dev worker's orphaned claim poll (lead)
+
+`chat's real TypeScript invite worker is supervised by dev, restarts and stops
+with it` went red 4 of 4 on `ba40649ef` and on the wave-2 integration (it had
+passed in the `4c1e825bc` suite): after the test SIGKILLs the worker, the second
+`invite` stays `pending` for the whole 25 s wait. `/actions/claim` and
+`/effects/claim` long-poll up to 25 s and cannot see that the killed child's
+connection closed; when the next request commits, the orphaned poll can win
+the claim and lease the work to nobody for the claim's 60 s lease. Which poll
+wins is a race, so it passed before. Agents meet the same stall in `dev`
+whenever the supervised worker crashes or restarts.
+
+Fix in `dev_worker.rs`: each child gets its own `service:worker` session,
+closed when that child exits (and on drop). The claim loops already
+reauthenticate after every wait, so an orphaned poll answers 401 instead of
+claiming. The printed token stays valid for the developer. After: the worker
+tests 5 of 5, three runs in a row. External `serve` workers still recover
+through lease expiry, as documented.
