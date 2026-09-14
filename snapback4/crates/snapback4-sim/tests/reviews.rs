@@ -213,7 +213,10 @@ fn h1_check_notes_a_page_that_is_never_complete() {
 #[test]
 fn h4_a_miss_and_a_hidden_hit_cost_the_same() {
     let mut engine = notes_engine(&[("b1", "dev:bob", 1)]);
-    let miss = engine.query("one", Context::new("dev:alice", args(&[("noteId", id("nope"))]))).unwrap();
+    // Caller-owned argument copies are charged too. Keep the input identical
+    // and vary only the store, so the comparison measures hidden state alone.
+    let mut empty = notes_engine(&[]);
+    let miss = empty.query("one", Context::new("dev:alice", args(&[("noteId", id("b1"))]))).unwrap();
     let hidden = engine.query("one", Context::new("dev:alice", args(&[("noteId", id("b1"))]))).unwrap();
     assert_eq!(miss.data, Value::Null);
     assert_eq!(hidden.data, Value::Null);
@@ -228,7 +231,8 @@ fn m1_a_hoisted_false_range_costs_what_an_empty_one_costs() {
     let bobs_ref: Vec<(&str, &str, i64)> = bobs.iter().map(|(a, b, c)| (a.as_str(), b.as_str(), *c)).collect();
     let mut engine = notes_engine(&bobs_ref);
     let theirs = engine.query("theirs", Context::new("dev:alice", args(&[("owner", id("dev:bob")), ("c", Value::Null)]))).unwrap();
-    let nobody = engine.query("theirs", Context::new("dev:alice", args(&[("owner", id("dev:nobody")), ("c", Value::Null)]))).unwrap();
+    let mut empty = notes_engine(&[]);
+    let nobody = empty.query("theirs", Context::new("dev:alice", args(&[("owner", id("dev:bob")), ("c", Value::Null)]))).unwrap();
     assert_eq!(theirs.data, Value::Array(Vec::new()));
     assert_eq!(theirs.complete, nobody.complete);
     assert_eq!(theirs.next, nobody.next);

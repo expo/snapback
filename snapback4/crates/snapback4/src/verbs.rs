@@ -623,8 +623,8 @@ pub fn test(options: &Options) -> i32 {
     };
     let ceilings = engine.ceilings();
     let mut failures = 0;
-    println!("test: {:<28} {:>8} {:>8} {:>8} {:>8} {:>10}", "operation (persona)", "examined", "entries", "probes", "steps", "output B");
-    println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10}", "ceilings", ceilings.examined, ceilings.index_entries, ceilings.rule_probes, ceilings.steps, ceilings.output_bytes);
+    println!("test: {:<28} {:>8} {:>8} {:>8} {:>8} {:>10} {:>10}", "operation (persona)", "examined", "entries", "probes", "steps", "heap B", "output B");
+    println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10} {:>10}", "ceilings", ceilings.examined, ceilings.index_entries, ceilings.rule_probes, ceilings.steps, ceilings.heap_bytes, ceilings.output_bytes);
     let mut skipped = Vec::new();
     for program in &bound.programs {
         if program.program.kind != ProgramKind::Query {
@@ -656,7 +656,7 @@ pub fn test(options: &Options) -> i32 {
                 Ok(outcome) => {
                     let m = outcome.metered;
                     let state = if outcome.complete { "complete" } else { "capped" };
-                    println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10}  {state} in {:.1} ms{shown}", format!("{} ({persona})", program.program.name), m.examined, m.index_entries, m.rule_probes, m.steps, m.output_bytes, started.elapsed().as_secs_f64() * 1000.0);
+                    println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10} {:>10}  {state} in {:.1} ms{shown}", format!("{} ({persona})", program.program.name), m.examined, m.index_entries, m.rule_probes, m.steps, m.heap_bytes, m.output_bytes, started.elapsed().as_secs_f64() * 1000.0);
                 }
                 Err(refusal) if refusal.family == "rule" && derived => {
                     // A program's own `require` refusing a derived argument

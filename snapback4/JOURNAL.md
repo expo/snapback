@@ -2353,3 +2353,143 @@ only, because abort versus success at the examined ceiling is the
 meter-cut oracle. Both artifacts are under `llp/reviews/`; the
 dispositions, the narrowed §8.7/§5.9 and the regression list are LLP
 3000.007 §15; ruling 15 is the author's. Neither section lands before it.
+
+
+## 2026-09-13 — Lane M: the heap meter owns accumulation (LLP 3000.007 §5.0)
+
+Implemented allocation charging in the interpreter without changing a ceiling,
+serialized value, binder, or client implementation. Concat, Slice, Sort,
+MentionTokens, Divmod and Share charge their result or workspace; bindings
+(including Const, Let and Assign), owned variable/literal/field copies, page
+loop materialization, literal ranges and recursive results count too. Push
+keeps its value charge and uses the actual Value slot width (32 B here)
+instead of 16 B. Argument/viewer copies now count. Sort and derived loops
+consume owned arrays instead of copying again; text concatenation borrows
+its string operands instead of making temporary string copies. Shared
+Arc row/map images still do not allocate on Clone. The byte model remains
+conservative: binding a compound value charges its retained image even
+when that image was also charged during construction; it is not a live-RSS
+measurement.
+
+Compared charging every owned variable read with borrowing pure field
+accesses and Len/Count/CountCapped/Sum inputs. Kept borrowing plus charging
+every residual owned clone. This preserves the existing Value API and wire;
+it avoids changing String/Array to Arc across other lanes. On the IR
+workloads, it saves 32,000 / 2,064,384 / 400,000 B against clone charging,
+and the measured execution medians fall from 362 / 915 / 143 us to
+291 / 636 / 87 us. The chat queries do not exercise those scalar inspectors;
+their heap counters are identical between the two candidates. The fixture
+wall times are small and noisy; the seeded chat run was slower with the
+chosen candidate, so this is an allocation win, not a claim of universally
+lower query latency.
+
+Heap cuts now record capped_at through Meter::charge and immediately unwind.
+A query whose scalar/shape cannot be finished returns data: null,
+complete: false, next: null; neither a partial value of the wrong shape nor
+a continuation past unprocessed work is invented. The cut and counts remain
+private to the engine, as LLP 3000 §7 requires. A mutation still aborts
+E_BOUND and rolls back the entire transaction. The package README records
+this outcome. The bounds guide needs the same wording when the lead
+integrates the binder lane: its file was explicitly protected from Lane M.
+No new diagnostic code was added.
+
+Measurements use base 4e8e3efefeac6e313d40e5556c45d378b4fdb807. The baseline
+runtime was measured with only the CLI heap-column instrumentation and the
+IR measurement test added; neither changes its execution. For each variant,
+build once, warm each command once, then measure three sequential runs;
+wall times below are medians in seconds, including process startup and the
+warm Cargo invocation, excluding builds. Raw logs and the timer script are
+in /tmp/lane-m-{baseline,charge,borrow}-* and /tmp/lane-m-measure.py on this
+machine. They are development evidence, not committed benchmark apparatus.
+
+| Command/workload | Baseline s | Charge copies s | Borrow + charge s |
+|---|---:|---:|---:|
+| cargo test -p snapback4-core --test corpus -- --nocapture | 1.196233 | 1.141561 | 1.191866 |
+| chat: snapback4 test --fixture ../../fixtures | 0.012059 | 0.010793 | 0.011400 |
+| chat: snapback4 test (empty dev store) | 0.010677 | 0.010184 | 0.009983 |
+| chat: snapback4 test --fixture /tmp/lane-m-chat-fixture | 0.018311 | 0.018182 | 0.024483 |
+| cargo test -p snapback4-core --test meter measured_ir_programs -- --nocapture | 0.080390 | 0.080400 | 0.081147 |
+
+The requested ../../fixtures directory contains the Clique wrapper, not
+chat JSONL: that command loaded 0 rows, ran inbox for all three personas,
+and explicitly skipped thread for missing conversationId. Also launched
+snapback4 dev --fresh --no-watch --port 4499, stopped that recorded process,
+and ran test on the empty dev store. --fresh serves an in-memory store;
+test independently opens the project's empty dev store. To avoid calling
+that a representative data fixture, separately measured a temporary chat
+sample matching the device suite: one conversation, two memberships and
+120 messages (123 rows). Its queries and byte deltas are below. Charlie's
+thread is refused MEMBERSHIP_REQUIRED on the derived conversation in every
+variant, so no successful-program heap counter exists for that row.
+
+| Program/persona and data | Baseline heap B | Charge copies B | Borrow + charge B | Final delta B |
+|---|---:|---:|---:|---:|
+| Empty inbox alice | 0 | 9 | 9 | +9 |
+| Empty inbox bob | 0 | 7 | 7 | +7 |
+| Empty inbox charlie | 0 | 11 | 11 | +11 |
+| 123-row thread alice | 33,120 | 33,135 | 33,135 | +15 |
+| 123-row thread bob | 33,120 | 33,133 | 33,133 | +13 |
+| 123-row inbox alice | 739 | 2,584 | 2,584 | +1,845 |
+| 123-row inbox bob | 739 | 2,581 | 2,581 | +1,842 |
+| 123-row inbox charlie | 0 | 11 | 11 | +11 |
+| IR concat_page_8 | 0 | 666,640 | 634,640 | +634,640 |
+| IR push_page_8 | 2,056,192 | 6,227,792 | 4,163,408 | +2,107,216 |
+| IR count_text_100 | 0 | 411,200 | 11,200 | +11,200 |
+
+The empty-query deltas are exactly the newly charged viewer string copies.
+Thread adds its argument and viewer copies. Inbox also materializes a page,
+point-read row and shaped object, binds locals and copies field values that
+previously went uncharged. Output bytes and query results remain unchanged.
+The three IR execution medians, baseline / charge / borrow in microseconds,
+are 428 / 362 / 291 (concat), 921 / 915 / 636 (push), and 124 / 143 / 87
+(count text). The concat workload folds eight 4,000-character bodies; push
+appends each of those bodies 64 times; count reads a 4,000-character local
+100 times.
+
+Stress fixtures use a complete, schema-capped 128-row page of 4,000-character
+bodies so accumulation, not an examined-row or output cut, reaches the heap
+ceiling. Concat cuts at 16,806,240 B; push at 16,780,160 B; ceiling
+16,777,216 B. Both stores report the same query counts; server mutations
+reach the same counts at 212 and 6,075 steps respectively. Two-row positive
+runs produce 8,000 characters or 128 items and commit successfully. Failed
+server and device mutations leave their pre-loop write absent. A separate
+meter test accepts exactly 16,777,216 B and refuses the next byte, recording
+the first cut under Cap. Builtin tests check returned values and smaller
+heap ceilings; the corpus is unchanged. The CLI test table previously
+omitted heap entirely; verbs.rs now prints heap B beside its ceiling.
+The unmerged binder does not yet emit source text concat, so its end-to-end
+source-to-CLI demonstration belongs to that lane; the IR execution and the
+CLI's real heap counters are independently exercised here.
+
+Verification (commands run from snapback4 unless noted):
+
+- cargo test -p snapback4-core --test meter -- --nocapture:
+  test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+- cargo test -p snapback4-device --test device heap_cuts_and_successful_accumulators_on_both_stores -- --nocapture:
+  test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.44s
+- cargo test -p snapback4-sim --test reviews:
+  test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+- cargo test -p snapback4-core --test corpus -- --nocapture: every candidate
+  passes all 16 tests; corpus (Rust server only; no TypeScript/replica conformance claim): 211 passed, 82 skipped, 0 failed.
+- From repository root, with PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH,
+  bash snapback4/scripts/test.sh: first run 2 failure(s) in 60 s; final run
+  == 1 failure(s) in 57 s. Final Rust totals: 245 passed, 0 failed, 1 ignored;
+  fixture wrapper: 9 passed, 0 failed; client: 79 passed, 1 failed.
+
+The first suite exposed two introduced assertions comparing meters for
+unequal-length caller IDs. Updated the simulator review scenarios to use
+identical caller inputs against empty versus hidden stores; all 11 reviews
+pass, preserving the privacy invariant rather than subtracting its heap
+counter. The remaining full-suite failure is Chromium SIGABRT during launch
+in React hooks and reference-app lifetimes, before any browser assertion.
+node --test packages/snapback4/test/react.test.mjs reproduces alone (0 pass,
+1 fail) and in an untouched git archive of baseline
+4e8e3efefeac6e313d40e5556c45d378b4fdb807 at /tmp/lane-m-base/snapback4
+(0 pass, 1 fail), using the same installed dependencies and Node 24. The
+final suite log is /tmp/lane-m-suite-final.log; baseline browser evidence
+is /tmp/lane-m-baseline-react.log. No browser/client source was changed.
+
+Out of the core/tests scope, only the explicitly allowed missing CLI column
+in crates/snapback4/src/verbs.rs, the required meter documentation in the
+package README, and this required journal entry changed. No commit, push,
+tag or publication was made. Existing LANE-BRIEF.md was left untouched.

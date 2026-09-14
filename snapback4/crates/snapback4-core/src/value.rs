@@ -177,6 +177,17 @@ impl Value {
     }
 
     /// Approximate heap footprint, charged by the meter (LLP 2000.000 §6).
+    /// Bytes copied by `Clone`: row/map images already share an Arc, while
+    /// strings, bytes and array slots are owned copies (with tight capacity).
+    pub fn clone_heap_bytes(&self) -> u64 {
+        match self {
+            Self::String(s) | Self::Id(s) => s.len() as u64,
+            Self::Bytes(bytes) => bytes.len() as u64,
+            Self::Array(values) => values.len() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Self::clone_heap_bytes).sum::<u64>(),
+            _ => 0,
+        }
+    }
+
     pub fn heap_bytes(&self) -> u64 {
         match self {
             Value::String(s) | Value::Id(s) => s.capacity() as u64,

@@ -1258,3 +1258,57 @@ fn pending_metadata_survives_repeated_updates_and_an_offline_reopen_on_both_host
         device.close();
     });
 }
+
+#[path = "../../snapback4-core/tests/common/meter.rs"]
+mod meter_fixture;
+
+#[test]
+fn heap_cuts_and_successful_accumulators_on_both_stores() {
+    use snapback4_core::ir::ProgramKind;
+    use snapback4_core::meter::Ceilings;
+    use snapback4_core::error::{MeterKind, RuntimeError};
+    use snapback4_device::device::Backend;
+
+    fn scenario<H: Host>(host: &mut H) {
+        for push in [false, true] {
+            for count in [2, 128] {
+                let programs = vec![
+                    meter_fixture::growing("read", ProgramKind::Query, push, 128),
+                    meter_fixture::growing("write", ProgramKind::Mutation, push, 128),
+                    meter_fixture::written(),
+                ];
+                let mut engine = meter_fixture::engine(programs.clone(), count);
+                let backend = Backend { generation: engine.generation(), schema: engine.schema().clone(), programs };
+                let name = format!("meter-{push}-{count}");
+                let mut device = Host::open(host, &name, Some(backend)).unwrap();
+                for (i, page) in snapshot_pages(&mut engine, "alice", 256).iter().enumerate() {
+                    device.apply(page, i == 0).unwrap();
+                }
+                let result = device.query("read", "alice", &serde_json::json!({}), 1).unwrap();
+                let prediction = device.predict("write", "alice", &serde_json::json!({}), 1, Vec::new(), 1);
+                if count == 2 {
+                    assert!(result.complete, "{}: {result:?}", Host::label(host));
+                    assert_eq!(result.data, Value::Int(if push { 128 } else { 8000 }));
+                    assert!(prediction.is_ok(), "{}: {prediction:?}", Host::label(host));
+                    assert_eq!(device.query("written", "alice", &serde_json::json!({}), 1).unwrap().data, Value::Bool(true));
+                } else {
+                    assert!(!result.complete, "{}", Host::label(host));
+                    assert_eq!(result.data, Value::Null);
+                    assert_eq!(result.next, None);
+                    assert_eq!(result.capped_at.as_ref().map(|cut| cut.0), Some(MeterKind::HeapBytes));
+                    assert!(result.metered.heap_bytes > Ceilings::default().heap_bytes);
+                    let error = prediction.unwrap_err();
+                    assert!(matches!(error, RuntimeError::Bound { kind: MeterKind::HeapBytes, ceiling: 16_777_216, .. }), "{error:?}");
+                    assert_eq!(error.code(), "E_BOUND");
+                    // The prediction wrote before its loop. Its aborted commit
+                    // must leave neither that row nor a pending overlay behind.
+                    assert_eq!(device.query("written", "alice", &serde_json::json!({}), 1).unwrap().data, Value::Bool(false));
+                    println!("{} {} query cut: heap={} B", Host::label(host), if push { "push" } else { "concat" }, result.metered.heap_bytes);
+                }
+                Host::close(host, &name, device);
+            }
+        }
+    }
+    scenario(&mut Sqlite::new("meter"));
+    scenario(&mut Memory::new());
+}

@@ -510,7 +510,15 @@ index entries, 8,192 probes, 1,000,000 steps, 16 MiB heap, 1 MiB output,
 and write 8,192). A query past a ceiling returns what it found with
 `complete: false`; a mutation aborts with `E_BOUND` naming the ceiling
 and the site. `snapback4 check --cost` prints each site's structural
-class; `snapback4 test` prints the numbers on your data.
+class; `snapback4 test` prints the numbers, including heap bytes, on your data.
+
+Heap is a cumulative allocation and binding budget: constructed values,
+concatenation and other allocating builtins, local bindings, and owned
+copies count. Inspecting a held value's length or sum borrows it; row and
+map clones share their immutable image. A heap cut stops a query immediately
+with `data: null`, `complete: false`, and no continuation, since an interrupted
+scalar or shape has no valid partial answer. Its meter and cut site remain
+internal; a mutation rolls back with `E_BOUND` as above.
 
 A page whose read rule the prefix does not decide (the rule reads a
 column the scan does not pin) is never `complete`: the device cannot tell
