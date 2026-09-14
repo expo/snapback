@@ -873,8 +873,8 @@ and catches up when the link returns. A device needs a kept backend to open
 offline. Merely installing that backend does not acquire its partition: until
 a snapshot and catch-up finish, partition-dependent reads fall back to the
 server or return `E_OFFLINE`, and writes queue without invented predictions.
-A successfully acquired empty partition is still known data. Older stores
-without acquisition metadata need one completed online sync after upgrading;
+A successfully acquired empty partition is still known data. When upgrading a pre-0.2.13 store, the missing acquisition metadata requires
+one completed online sync;
 existing durable writes remain queued. Safe literal-default-only schema
 widening keeps acquired images readable; a reset or newly added table requires
 acquisition again.
@@ -1585,9 +1585,11 @@ reads and a send, a reopen that finds the rows, a cold start with the
 server unreachable that opens on what the store holds and answers with
 `fresh: false`, and two writes composed offline that survive a restart of
 the app still offline and flush in order on reconnect; the cold sync of
-303 rows takes 31 ms. The Chromium witness (`witness/idb.mjs`) proves the
-same on the wasm device over IndexedDB. An app proves the same the same
-way: gate the client's `fetch` option to
+303 rows took 31 ms in that recorded simulator run. The Chromium witness
+(`witness/idb.mjs`) separately checks local reads, one offline write landing
+after reopen, fresh-realm offline runtime startup, and persistence/cache
+failure recovery on the wasm device over IndexedDB. An app can model these
+boundaries by gating the client's `fetch` option to
 model the link (the server never has to die), close and reopen the
 client to model a restart, and read the outcomes off the card.
 

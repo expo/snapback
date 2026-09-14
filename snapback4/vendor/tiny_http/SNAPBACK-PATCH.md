@@ -79,8 +79,9 @@ Evidence: `/tmp/sb4-excellence-native-boundary-http.log` (original deadline
 failure plus eventual completion) and
 `/tmp/sb4-excellence-native-boundary-nodelay-instrumented.log` (same instrument,
 socket option enabled), retained on the EPYC test host and the controlling
-machine. Both builds used Rust 1.93.1, with `LIBSQLITE3_FLAGS` and `RUSTFLAGS`
-unset. This correction was selected from measured whole-client delay under
+machine. Both builds used repository-selected Rust 1.97.0 (2d8144b78, LLVM 22.1.6),
+with `LIBSQLITE3_FLAGS` and `RUSTFLAGS` unset. Direct ELF/compiler receipts
+corrected an initial report of the home-shell default, Rust 1.93.1. This correction was selected from measured whole-client delay under
 LLP 3000.008.003; it does not add result-history delivery or change the outbox.
 The unmodified `transport-http.test.mjs` and adjacent `client-seams.test.mjs`
 passed 15 tests with zero failures or skips in 40.83 seconds. All three native

@@ -5084,3 +5084,24 @@ regular files. Twelve release and 30 CLI tests passed; the package now documents
 a stopped whole-directory backup and isolated restore with fresh devices.
 Built-in jobs/schedules resume on serve; external workers remain disconnected
 for the exercise. This is not production rewind or power-loss qualification.
+
+### 2026-09-14 — LLP 3000.008 integrated evidence and code review
+
+Fresh Sol and Grok code reviews both returned READY with no must-fix code
+defects. Their source-only scope and documentation dispositions are retained
+with the panel under `llp/reviews/`. The worker-crash fixture's 60 s lease
+could not fit its 20 s deadline; an explicit 1 s fixture lease/poll preserves
+the real worker, action and supervision assertions and the production defaults.
+
+The final affected Linux checks pass: 71 Rust and 26 Node tests. Real Chrome
+IDB fault/reopen and production scale witnesses also pass. First useful local
+content for 20,000 messages takes 11.66 s; a new offline realm reopens in
+622 ms. Instrument overhead, seed, source, bytes and runtime hashes are kept
+in the existing metrics and `benchmarks/runs/2026-09-14-snapback4-excellence/`.
+A separately measured TCP_NODELAY correction reduces a 273-write replay drain
+from 20.25 s to 4.61 s; the original 15 s assertion is unchanged.
+
+The initial integrated Linux suite's 116 s red and the cold Office M1
+publication dry-run's 656 s refusal remain recorded. The latter encountered
+five deadline failures during high host load; it published nothing. These
+observations do not close the suite-budget ticket or prove holistic excellence.
