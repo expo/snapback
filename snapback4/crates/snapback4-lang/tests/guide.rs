@@ -66,7 +66,7 @@ fn the_language_card_compiles_and_runs() {
     let source = language();
     let bound = clean("the language card", &source);
     let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).collect();
-    assert_eq!(names, ["room", "thread", "inbox", "following", "ancestors", "digest", "mentions", "search", "online", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative"]);
+    assert_eq!(names, ["room", "thread", "inbox", "following", "ancestors", "digest", "mentions", "search", "online", "pagePass", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative"]);
     assert_eq!(bound.schema.effects, ["notify"]);
     assert_eq!(bound.schema.schedules.len(), 1);
     assert_eq!(bound.personas, ["alice", "bob", "carol"]);
@@ -91,6 +91,9 @@ fn the_language_card_compiles_and_runs() {
     assert_eq!(sent(&brief).field("mentions").unwrap(), &Value::Int(1));
     let kept = engine.mutate("sendBrief", Some("s2"), Context::new(bob, args(&[("roomId", id("r1")), ("body", text("keep"))])).at(2_100).with_ids(["msg2".to_owned()])).unwrap();
     assert_eq!(sent(&kept).field("brief").unwrap(), &Value::Bool(false));
+    let pass = engine.mutate("pagePass", Some("pass"), Context::new(bob, args(&[("roomId", id("r1"))])).at(2_200)).unwrap();
+    assert_eq!(sent(&pass), &Value::Int(2));
+    assert_eq!(bound.schema.operations["pagePass"].predicts.as_deref(), Some("never"));
     // thread: a cursor page with a shape, the maintain as a number, expiry as absence.
     let thread = engine.query("thread", Context::new(alice, args(&[("roomId", id("r1"))])).at(2_200)).unwrap();
     let rows = thread.data.as_array().unwrap();

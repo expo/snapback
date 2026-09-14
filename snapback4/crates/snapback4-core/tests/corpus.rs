@@ -443,6 +443,8 @@ fn outer_page_limit(body: &[snapback4_core::ir::Stmt], expected: &Expected) -> b
         Stmt::InsertIfAbsent { row, .. } | Stmt::Insert { row, .. } => expression_page_limit(row, expected),
         Stmt::Update { key, patch, .. } => expression_page_limit(key, expected) || expression_page_limit(patch, expected),
         Stmt::Upsert { key, row, .. } => expression_page_limit(key, expected) || expression_page_limit(row, expected),
+        Stmt::WriteTarget { target, patch, condition, .. } => target.key.iter().any(|key| expression_page_limit(key, expected)) || expression_page_limit(patch, expected)
+            || condition.as_ref().is_some_and(|c| outer_page_limit(&c.setup, expected) || expression_page_limit(&c.value, expected)),
         Stmt::Delete { key, .. } => expression_page_limit(key, expected),
         Stmt::Break | Stmt::Continue => false,
     })

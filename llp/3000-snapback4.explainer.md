@@ -876,6 +876,22 @@ time-ordered 128-bit form.
   recommendation on ruling 17 (a) moves from refusing to ignoring
   immutable columns on an unreadable target.
 
+- **2026-09-14 — the fourth pass on §8.7 and §5.9: Grok READY, GPT NOT
+  READY on three narrower corners.** LLP 3000.007 §17's fourth-pass table
+  disposes them (a page attempt charged before its verdict; `created`
+  with equalities in the reservation; value equalities on a maintain
+  over an expiring source refused at `check`); lane W4 builds them and
+  the implementation lands on four passes where ruling 15 asked for two,
+  with a final GPT-only check against the landed commit.
+
+- **2026-09-14 — write authority landed on four passes; a fifth GPT-only
+  check against the landed commit found one channel W4's repair introduced
+  (short-circuit probe counts on a denied verdict).** LLP 3000.007 §17
+  records it and its fix, a schema-derived probe allowance for the
+  verdict; lane W5 builds it forward on main. Published as 0.2.10 with
+  `snapback4-expo@0.2.3`; the ceremony bar's third run and the three-model
+  Clique cell run on that pin.
+
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal

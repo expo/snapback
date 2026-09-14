@@ -41,20 +41,7 @@ impl Probe for Runner<'_> {
             // Cut: no lookup and no verdict; the site stops on `capped_at`.
             return Ok(false);
         }
-        let definition = self.schema.table(table).ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
-        let index_def = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
-        self.read_tables.insert(table.to_owned());
-        let found = match self.live_lookup(table, index, index_def, key)? {
-            Some(row) => self.live_aggregate(table, row)?,
-            None => None,
-        };
-        if self.device && (definition.sync.is_none() || (found.is_none() && definition.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.unknown_fact(table, index, key, "rule probe"); }
-        Ok(found.is_some_and(|row| {
-            let live = !self.expired(definition, &row);
-            if live { self.note_expiry(definition, &row); }
-            // @ref LLP 3000.007#10 — the total unique probe reads once, then tests the remaining named equalities.
-            live && equalities.iter().all(|(column, value)| row.field(column).unwrap_or(&Value::Null) == value)
-        }))
+        self.rule_probe_exists(table, index, key, equalities)
     }
 
     fn created(&mut self, table: &str, index: &str, key: &[Value]) -> bool {
@@ -63,9 +50,51 @@ impl Probe for Runner<'_> {
 }
 
 impl Runner<'_> {
+    // @ref LLP 3000.007#17 — one rule probe, regardless of expired siblings or an expiring maintain's sources.
+    fn rule_probe_exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
+        let definition = self.schema.table(table).ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
+        let index_def = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
+        self.read_tables.insert(table.to_owned());
+        let found = self.lookup_live(table, index, index_def, key, false)?;
+        let mut live = found.is_some();
+        if let Some(row) = &found {
+            self.note_expiry(definition, row);
+            if let Some(maintain) = self.schema.maintain_for(table)
+                && let Some(source) = self.schema.table(&maintain.source).filter(|source| source.expire.is_some()) {
+                self.read_tables.insert(maintain.source.clone());
+                let group = crate::schema::maintained_key(row, &maintain.by);
+                let (name, prefix) = source.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(&maintain.by))
+                    .map(|(name, _)| (name.as_str(), group.clone())).unwrap_or(("byId", Vec::new()));
+                if self.device && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some()) { self.unknown_fact(&maintain.source, name, &prefix, "rule probe"); }
+                let mut bounds = Bounds::default();
+                live = false;
+                'sources: loop {
+                    let rows = self.tx.scan(&maintain.source, name, &prefix, &bounds, Dir::Asc, 32)?;
+                    let count = rows.len();
+                    for (candidate, stored) in rows {
+                        bounds.after = crate::key::decode(&stored).map(|v| v.into_iter().skip(prefix.len()).collect());
+                        if !self.expired(source, &candidate) && crate::schema::maintained_key(&candidate, &maintain.by) == group {
+                            self.note_expiry(source, &candidate);
+                            live = true;
+                            break 'sources;
+                        }
+                    }
+                    if count < 32 { break; }
+                }
+            }
+        }
+        if self.device && (definition.sync.is_none() || (!live && definition.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.unknown_fact(table, index, key, "rule probe"); }
+        // @ref LLP 3000.007#10 — the total unique probe reads once, then tests the remaining named equalities.
+        Ok(live && found.as_ref().is_some_and(|row| equalities.iter().all(|(column, value)| row.field(column).unwrap_or(&Value::Null) == value)))
+    }
+
     /// Point lookups must pass expired siblings, even on an index whose
     /// logical uniqueness no longer counts those rows.
     pub(super) fn live_lookup(&mut self, table_name: &str, name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
+        self.lookup_live(table_name, name, index, key, true)
+    }
+
+    pub(super) fn lookup_live(&mut self, table_name: &str, name: &str, index: &Index, key: &[Value], charge: bool) -> Result<Option<Value>, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
         if table.expire.is_none() { return self.tx.lookup(table_name, name, index, key); }
         let mut bounds = Bounds::default();
@@ -73,7 +102,7 @@ impl Runner<'_> {
             let rows = self.tx.scan(table_name, name, key, &bounds, Dir::Asc, 32)?;
             let count = rows.len();
             for (row, stored) in rows {
-                if !self.meter.charge(MeterKind::Examined, 1)? { return Ok(None); }
+                if charge && !self.meter.charge(MeterKind::Examined, 1)? { return Ok(None); }
                 bounds.after = crate::key::decode(&stored).map(|values| values.into_iter().skip(key.len()).collect());
                 if !self.expired(table, &row) { return Ok(Some(row)); }
             }
@@ -113,7 +142,7 @@ impl Runner<'_> {
         }
         if !any { return Ok(None); }
         if !(crate::value::I53_MIN as i128..=crate::value::I53_MAX as i128).contains(&total) {
-            return Err(crate::value::ValueError::Overflow(total).into());
+            return Err(super::write::aggregate_overflow(&maintain));
         }
         let mut fields = row.as_object()?.clone();
         fields.insert("value".into(), Value::Int(total as i64));
@@ -436,13 +465,27 @@ impl Runner<'_> {
         let mut has_more = false;
         let mut capped = false;
         let mut uniform_verdict: Option<bool> = always_visible.then_some(true);
-        // Fetch in batches so a hidden run costs examined rows, never a
-        // materialized table. A uniform rule needs one verdict, so one
-        // batch of take + 1 decides the page.
+        // @ref LLP 3000.007#17 — an aborting page pass costs one examined unit before its verdict in every world; capped queries retain their cut contract.
+        let aborting = self.meter.cut == crate::meter::Cut::Abort;
+        if aborting && !self.meter.charge(MeterKind::Examined, 1)? { return Ok((Vec::new(), Vec::new())); }
+        if visibility.uniform && !always_visible {
+            let probe_row = Value::Row(index.components.iter().zip(&prefix).filter_map(|(part, value)| part.column().map(|name| (name.clone(), value.clone()))).collect::<std::collections::BTreeMap<_, _>>().into());
+            let viewer = self.context.viewer.clone();
+            let expiry = self.next_expiry;
+            let mut probe = PrefixProbe { runner: self, count: 0 };
+            let verdict = rules::evaluate(&table.rules.read, &viewer, None, &probe_row, false, &mut probe)?;
+            let count = probe.count;
+            if (aborting || verdict) && !self.meter.charge(MeterKind::RuleProbes, count)? { return Ok((Vec::new(), Vec::new())); }
+            if !verdict {
+                self.next_expiry = expiry;
+                return Ok((Vec::new(), Vec::new()));
+            }
+            uniform_verdict = Some(true);
+        }
+        // Non-uniform hidden runs cost examined rows, never a materialized
+        // table. A uniform page already has its verdict before fetching.
         let mut cursor = bounds.clone();
         let batch = if visibility.uniform { take + 1 } else { (take + 1).max(32) };
-        let mark = self.meter.mark();
-        let expiry_mark = self.next_expiry;
         'outer: loop {
             let fetched = self.tx.scan(&scan.table, &scan.index, &prefix, &cursor, dir, batch)?;
             if fetched.is_empty() {
@@ -474,9 +517,6 @@ impl Runner<'_> {
                     Some(verdict) => verdict,
                     None => {
                         let verdict = self.check_rule(&scan.table, Effect::Read, None, &row)?;
-                        if visibility.uniform {
-                            uniform_verdict = Some(verdict);
-                        }
                         verdict
                     }
                 };
@@ -517,12 +557,6 @@ impl Runner<'_> {
                     visible.push(row);
                     keys.push(key.clone());
                     if scan.filter.is_some() && visible.len() == take { has_more = true; break 'outer; }
-                } else if visibility.uniform {
-                    // One hidden row hides the prefix: stop without reading
-                    // it, and at the cost of an empty range.
-                    self.next_expiry = expiry_mark;
-                    self.meter.restore(mark);
-                    break 'outer;
                 } else {
                     self.next_expiry = row_expiry_mark;
                 }
@@ -725,4 +759,13 @@ impl Runner<'_> {
         }
         Ok(page)
     }
+}
+
+struct PrefixProbe<'a, 'b> { runner: &'a mut Runner<'b>, count: u64 }
+impl Probe for PrefixProbe<'_, '_> {
+    fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
+        self.count += 1;
+        self.runner.rule_probe_exists(table, index, key, equalities)
+    }
+    fn created(&mut self, table: &str, index: &str, key: &[Value]) -> bool { self.runner.created(table, index, key) }
 }

@@ -1198,6 +1198,7 @@ fn pending_metadata_survives_repeated_updates_and_an_offline_reopen_on_both_host
         let source = include_str!("fixtures/pending-metadata.q");
         let (mut engine, backend) = compile(source);
         engine.seed([("people".into(), snapback4_core::value::object([("id", id("alice")), ("name", Value::String("Alice".into())), ("bio", Value::String("Confirmed bio".into()))]))]).unwrap();
+        engine.seed([("votes".into(), snapback4_core::value::object([("id", id("held-vote")), ("person", id("alice")), ("answer", Value::String("answer".into())), ("direction", Value::Int(0))]))]).unwrap();
         let backend = snapback4_device::device::Backend { generation: engine.generation(), ..backend };
         let mut device = host.open("alice", Some(backend)).unwrap();
         for (n, page) in snapshot_pages(&mut engine, "dev:alice", 10).iter().enumerate() {

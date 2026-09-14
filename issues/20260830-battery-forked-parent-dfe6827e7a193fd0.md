@@ -1,7 +1,7 @@
 # complete battery red: forked-parent
 
-**Status:** Closed
-**Reopened by battery run:** `local.20260912T132006Z.195ccc9b90d5`
+**Status:** Open
+**Reopened by battery run:** `local.20260914T104118Z.86928d068765`
 **Closure:** `signature absent from determinate FAIL`
 **Closed at revision:** `9e930482fe7538d1a5dc3bda71dcfd870744790e`
 **Impact:** 5
@@ -13,10 +13,10 @@
 **Battery gate:** `forked-parent`
 **Failure signature:** `sha256:dfe6827e7a193fd03ac7a088aaebfc047bb87db1734f4137a1ab70ef5afe10dc`
 **First observed run:** `local.20260830T072833Z.94397bad48fa`
-**Last observed run:** `local.20260912T132006Z.195ccc9b90d5`
-**Last processed run:** `local.20260912T231718Z.9e930482fe75`
+**Last observed run:** `local.20260914T104118Z.86928d068765`
+**Last processed run:** `local.20260914T104118Z.86928d068765`
 **Detected at revision:** `94397bad48fae267548eb0547316a8267dcd1f66`
-**Last observed revision:** `195ccc9b90d5816f4cdc6145b29b5215bd348579`
+**Last observed revision:** `86928d068765e3d57c68747e4f2359950b8ff7d1`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3

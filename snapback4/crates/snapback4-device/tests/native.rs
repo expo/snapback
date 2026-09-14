@@ -181,6 +181,7 @@ fn pending_metadata_reprediction_survives_updates_upserts_scans_and_offline_reop
     engine.seed([("people".into(), snapback4_core::value::object([
         ("id", id("alice")), ("name", Value::String("Alice".into())), ("bio", Value::String("Confirmed bio".into())),
     ]))]).unwrap();
+    engine.seed([("votes".into(), snapback4_core::value::object([("id", id("held-vote")), ("person", id("alice")), ("answer", Value::String("answer".into())), ("direction", Value::Int(0))]))]).unwrap();
     let backend = Backend { generation: engine.generation(), schema: bound.schema, programs: bound.programs.into_iter().map(|p| p.program).collect() };
     let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
     let dir = std::env::temp_dir().join(format!("sb4-pending-metadata-{}-{nonce}", std::process::id()));

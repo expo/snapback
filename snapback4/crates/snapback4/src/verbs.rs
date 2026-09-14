@@ -169,6 +169,7 @@ fn cost_report(bound: &Bound, program: &ir::Program) -> String {
                 }
             }
             "point" => "one row, one rule check",
+            "write target" => "engine-private lookup; the update rule decides",
             _ => "bounded walk",
         };
         let take = if site.kind == "scan" { format!(" first {}", site.take) } else { String::new() };
@@ -183,6 +184,16 @@ fn cost_report(bound: &Bound, program: &ir::Program) -> String {
                 let filter_program = ir::Program { body: vec![ir::Stmt::Return(*filter.clone())], ..program.clone() };
                 if !ir::read_sites(&filter_program).is_empty() { lines.push("      probe × examined".into()); }
             }
+        }
+        if site.kind == "scan" && program.kind == ProgramKind::Mutation && bound.schema.operations.get(&program.name).is_some_and(|fact| fact.predicts.as_deref() == Some("never")) {
+            // @ref LLP 3000.007#5.9 — a never-predicting mutation's pass over a uniformly authorized page, priced as one.
+            let prefix = scan.map(|scan| scan.prefix.iter().map(|key| match key.scalar() {
+                Some(ir::Expr::Variable(name)) => name.clone(),
+                Some(ir::Expr::Input(ir::Input::Viewer)) => "viewer".into(),
+                Some(ir::Expr::Literal(value)) => snapback4_core::wire::to_json(value).to_string(),
+                _ => "<computed>".into(),
+            }).collect::<Vec<_>>().join(", ")).unwrap_or_else(|| "..".into());
+            lines.push(format!("    a pass over the first {} rows of {}[{prefix}] by {}; examined ceiling {}", site.take, site.table, site.index, snapback4_core::Ceilings::default().examined));
         }
     }
     let writes = ir::write_tables(program);

@@ -705,7 +705,10 @@ for (const tier of ["wasm", "native"]) {
   test(`${tier}: pending metadata survives repeated profile/vote updates and offline replay`, { timeout: 20_000 }, async (t) => {
     const source = readFileSync(join(root, "crates/snapback4-device/tests/fixtures/pending-metadata.q"), "utf8");
     const f = await fixture(t, source);
-    await f.seed([{ table: "people", row: { id: "alice", name: "Alice", bio: "Confirmed bio" } }]);
+    await f.seed([
+      { table: "people", row: { id: "alice", name: "Alice", bio: "Confirmed bio" } },
+      { table: "votes", row: { id: "held-vote", person: "alice", answer: "answer", direction: 0 } },
+    ]);
     let offline = false;
     const transport = (input, init) => offline ? Promise.reject(new TypeError("offline")) : fetch(input, init);
     let core;

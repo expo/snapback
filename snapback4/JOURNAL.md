@@ -3310,3 +3310,482 @@ Permission tightening must preserve descriptor ownership, and a native signal
 needs its own diagnostic path; a panic hook alone would not have explained this
 crash. The original report could be attributed from the OS receipt before any
 engine change was necessary.
+
+## 2026-09-13 — Lane W: private write authority and uniform server page passes
+
+Implemented LLP 3000.007 §8 item 7 and §5.9 as revised by §15, against
+base `2bc7b01a204ddece01a7f03512ab20067fcb7fd9`. The implementation is
+uncommitted for the lead and the required second blind review. No publication
+or compatibility transition was attempted. Below, simulator test names refer
+to `crates/snapback4-sim/tests/write_authority.rs` unless another path is given.
+
+- (a) `crates/snapback4-lang/src/bind/program.rs` lowers id/unique update and
+  upsert to `Stmt::WriteTarget`; `crates/snapback4-core/src/engine/write_target.rs`
+  resolves the complete unique key privately and checks the update rule over
+  engine old/next images. `s05_upsert_on_a_hidden_row_succeeds_when_the_update_rule_admits_and_returns_no_row`
+  proves hidden success; `w1_not_found_and_e_rule_are_one_word_on_an_unreadable_row`
+  exercises both id and unique addressing. The key-once/helper regression
+  proves one key evaluation and isolated condition bindings.
+- (b) `engine/write_target.rs` and `engine/write.rs` define readability at the
+  pre-write read authority. `w1_not_found_and_e_rule_are_one_word_on_an_unreadable_row`,
+  `w1_e_conflict_current_is_withheld_and_the_code_does_not_tell_hidden_from_absent`,
+  `w1_an_immutable_mismatch_on_a_hidden_row_is_not_a_searchable_constraint`, and
+  `w1_incomplete_patch_upsert_does_not_tell_hidden_deny_from_absent` compare
+  complete replies, durable retries, state, effects, snapshots and streams.
+  The incomplete case includes a supplied foreign asset: completeness is
+  established before asset diagnostics. Readable controls retain detailed
+  errors. The historical test name
+  `s05_upsert_on_a_hidden_row_is_e_rule_when_the_update_rule_refuses` is kept,
+  but its assertion is `NOT_FOUND`, as the revised contract requires.
+- (c) `engine/write_target.rs` re-reads valued update/upsert results; conditions
+  run after update authorization in an isolated engine scope whose locals are
+  restored, with writes refused even inside nested expression setup. Condition
+  helper loops still undergo structural admission. `engine/write.rs` preserves
+  unchanged asset facts and checks update authority before assets.
+  `w1_the_merged_image_is_not_in_result_current_or_the_program`,
+  `wa3_hidden_patch_preserves_foreign_asset_without_disclosing_id`, and
+  `a_unique_upsert_evaluates_its_key_once_and_conditions_keep_helper_bindings_private`
+  prove these paths. `w1_the_writers_stream_and_snapshot_do_not_gain_the_row`
+  proves that hidden success does not extend the writer's partition.
+- (d) `crates/snapback4-core/src/engine/receipt.rs`, `engine/mod.rs`, and only
+  the `/m` arms of `crates/snapback4/src/serve.rs` share one reply serializer:
+  `_ops` records the exact original body, without meters/tables/events.
+  Every replay omits result/current, including scalars, and keeps execution
+  identity. `w1_replayed_ops_returns_the_withheld_body`,
+  `wa5_hidden_write_replay_returns_only_sanitized_receipt`, and
+  `wa5_revoked_result_and_conflict_current_are_not_retrievable` cover hidden
+  content, revoked authority, dropped originals and principal-scoped ids.
+  `packages/snapback4/test/write-authority.test.mjs` exercises the actual HTTP
+  replies too. The replay ticket was resolved and moved into `issues/closed/`.
+- (e) `engine/write_target.rs`, `engine/write.rs`, and
+  `crates/snapback4-device/src/device.rs` queue every unheld update/upsert
+  target with the existing site/key-specific `unknown_fact` word. Admission
+  clears stale predictions. `crates/snapback4-device/tests/write_authority.rs`'s
+  `w1_a_device_queues_without_a_row_and_does_not_predict_not_found_or_insert`
+  compares both stores: 4 operations × 2 horizon policies × 2 hidden/absent
+  worlds × 2 stores = 32 scenarios, each with reopen and no pending row.
+  A held target still predicts, one positive per store. The separate server
+  page-pass test queues even a held target across reopen on both stores.
+  The package HTTP/client test proves an offline queued upsert still sends
+  `/m` and settles through an empty writer stream.
+- (f) `engine/write.rs` retains S05 insert and if-absent refusals and collapses
+  an update's secondary hidden clash without transferring target authority.
+  `s05_insert_and_insert_if_absent_on_a_hidden_unique_clash_stay_e_rule`,
+  `s05_a_readable_clash_still_names_the_index`,
+  `wa2_secondary_hidden_collision_does_not_borrow_target_authority`, and
+  `wa2_retained_composite_key_never_enters_refusal` cover this split.
+  `tests/security.rs` now has an admitted/denied hidden `put` pair,
+  `hidden_put_uses_update_authority_and_old_owner_can_deny_it`.
+- (g) `crates/snapback4-lang/src/bind/residency.rs` emits `N_MAINTAIN_DELTA`,
+  registered in `guide::CODES`, for potentially wider source update authority
+  beneath a readable maintain. It uses sufficient implication proofs and
+  says "may disclose" when implication cannot be proved, not a satisfiability
+  claim. `a_readable_maintain_notes_the_declared_hidden_delta_channel` holds
+  the initial readable sum at 30 in both worlds, then observes 23 versus 11
+  after removing hidden contributions 7 versus 19. A denied update has no note.
+- (h) The engine delete implementation and binder delete lowering are
+  unchanged. The retained delete/rule/cascade coverage in the existing
+  security, reviews, review_corrections and workspace suites remains green.
+
+For §5.9, `engine/admission.rs` retains uniformity and rejects merge/unknown
+origins, while removing complete-group/cap requirements for `predicts: never`.
+`bind/mod.rs` computes the operation class before admission; the AST and one
+parser dispatch recognize `: server`. The language card both compiles and runs
+that marker. `m3_a_non_predicting_pass_over_a_hidden_prefix_does_not_abort_when_a_query_would_not`
+refuses non-uniform passes at admission, including loops in private helpers.
+Uniform hidden prefixes with 0, 100 and 10,000 hidden rows each return 0 and
+write 0 rows; the readable-prefix test returns and writes 3 with either 0 or
+10,000 hidden rows, agreeing with the query. Inferred never prediction is
+also covered. `p2_a_predicting_mutation_still_refuses_e_structural_fanout`
+retains the predicting requirement and a positive capped control.
+`p2_rows_written_still_aborts_at_1024` commits 1,024 writes, then refuses the
+1,025th attempted write with 0 committed changes. `p2_the_pass_is_atomic`
+rolls back rows, maintains, effects and partition events together; its positive
+control commits 2 rows and 2 effects. The existing
+`h1_a_non_uniform_scan_is_capped_whatever_the_meter_found` remains green.
+`crates/snapback4/src/verbs.rs` prints the tested line:
+`a pass over the first 10 rows of counters[owner] by byOwner; examined ceiling 8192`.
+
+The README §2 and rules/writes/programs cards state the authority table, S05
+split, upsert idiom, private old image, replay policy and uniform page pass.
+The feeds card and its Clique fixture now guard both old and next vote owner;
+otherwise their readable maintain legitimately attracts the new note. Existing
+pending-metadata fixtures now seed a held vote before testing prediction.
+The only change in `crates/snapback4-core/tests/corpus.rs` teaches its exhaustive
+walker the added statement; no existing `corpus/` case, read loop, value
+serialization or ceiling was changed. No L2 read binding or X action route
+was edited. Largest changed Rust file: `guide.rs`, 1,490 lines; this journal
+was already over the source limit and has only this required append.
+
+Verification: targeted simulator suites passed 93 tests (17 Clique, 32 review
+corrections, 11 reviews, 10 security, 23 write authority); language/frontend
+passed 34 (8 guide, 26 frontend); device/native/write-authority passed 29
+(22/5/2); the targeted package and lifecycle run passed 49. Final full suite
+on isolated Linux passed 297 Rust tests (1 declared ignore), 9 fixture tests,
+and 112 client tests, including browser/wasm coverage: `== 0 failure(s) in 55 s`.
+Its input archive SHA-256 was
+`c46d79094f7e6be062340571380a535c44e2873e25523654e3e467b0fee6edb3`;
+it contains the final code, tests, README and guide plus the unchanged
+social-messenger fixture dependency. This append and ticket disposition are
+subsequent documentation only. Linux used Node 24.13.1, Bun 1.3.14; local JS
+used the requested Node 24.18.0 prefix. The final Linux wasm measured
+1,465,805 B raw / 414,296 B gzip; local final build measured
+1,466,057 B raw / 414,387 B gzip. No size improvement is claimed.
+
+The completed local full suite before the last asset/helper hardening passed
+297 Rust and 9 fixture tests and 102 client tests, with Chromium aborting
+before the React test could start: `== 1 failure(s) in 93 s`. The same isolated
+Chromium SIGABRT/EPERM launch failure was verified against an archived exact
+base `2bc7b01a204ddece01a7f03512ab20067fcb7fd9`. The additional local final
+rerun stalled launching new native executables (even `snapback4 --help`
+timed out after 8 s); it and the additional language rerun were interrupted,
+exit 130. No assertion failure or base-precedence claim is made for that
+startup stall. The final Linux full suite covers the final semantic changes.
+Logs: `/private/tmp/lane-w-sim-final2.log`, `lane-w-lang-final.log`,
+`lane-w-device-final.log`, `lane-w-client1.log`, `lane-w-suite-final.log`,
+`lane-w-suite-final2.log`, `lane-w-base-react.log`, and
+`lane-w-suite-remote-final.log` in the same directory.
+
+Learned: old-image authority must be a write operation in the engine, not a
+read-filtered temporary in lowering. Completeness checks can themselves reveal
+which upsert branch ran unless they precede asset lookup and share the refusal
+word. A durable execution receipt must not confer permanent historical read
+authority. This implements the declared channels, not constant time or general
+noninterference: cap/postcondition outcomes, near-ceiling budget aborts, timing,
+and the explicitly noted maintain delta retain the RFC's stated limitations.
+
+
+## 2026-09-14 — Lane W2: second blind-pass dispositions on write authority and mutation pages
+
+Built LLP 3000.007 §17 on lane W HEAD
+`604dd6c3c5c9fa8269eb123993bd3cf14db3ef2b`, leaving the work uncommitted for
+the lead and the third blind pass. Read both reviews in full; §14's ruling
+text is byte-for-byte unchanged. No commit, push, tag, publication, meter
+ceiling, serialized value form, existing corpus case or ceremony instrument
+changed. Delete's authority remains unchanged; the shared runtime write guard
+also prevents a delete inside a condition, as §17 requires.
+
+The repair map follows the brief's order:
+
+1. `engine/write.rs::check_constraints` preserves generic S05 `E_RULE` for
+   a secondary hidden collision on a readable target; unreadable targets get
+   `NOT_FOUND`. The paired regression covers update and upsert-patch, both
+   target visibilities, and a successful control.
+2. `insert_upsert` decides insert authority before asset or constraint
+   diagnostics. `write_target.rs::target_attempt` marks before target
+   resolution and restores every meter field on `NOT_FOUND`, also for legacy
+   IR update/upsert. The complete-patch test covers an unknown upload and a
+   recorded foreign upload, both hidden/absent worlds, an admitted foreign
+   asset refusal, and a successful owned-asset insertion. Another pair
+   exercises a read rule's probe work.
+3. Cap refusals name columns and size, never group values, on readable and
+   unreadable targets. The hidden cap pair varies only the retained group key;
+   the readable controls check the same value-free diagnostic.
+4. Every expression, statement, loop domain and builtin in condition purity
+   has an explicit disposition. Blocks, both shape positions, scan filters,
+   merge setup, expression-range bounds, id minting and the side-effecting
+   divmod builtin are exercised via serialized IR, alongside a successful
+   pure-block condition. Eighteen scenarios (9 forms × 2 visibilities) write
+   no copies of `old`; a runtime flag independently forbids writes while a
+   condition holds the old image.
+5. `engine/receipt.rs::receipt` stores the replay-shaped body: no result or
+   current, a value-free diagnostic message, and the original code, site,
+   rewrite, guide and other refusal identity. Re-encoding `from_receipt` is
+   identical to the stored body. Readable composite-key collision followed by
+   revocation is tested through `Engine::replay`, mutation retry and real `/m`,
+   including a lost first response. The closed replay ticket records this
+   additional coverage.
+6. Never-predicting mutation reads are plain prefix scans only. Word scans,
+   merges and expiring tables are refused even without a loop. Tests compare
+   0/40 hidden matching words and 0/9,000 expired rows at check. A plain
+   uniformly false page following 100 iterations of metered work is admitted
+   with identical observations at 0/10,000 hidden rows.
+7. `refuse_hidden_immutable_patch` isolates ruling 17 (a): presence refuses
+   without comparing, including matching guesses; readable mismatch keeps
+   named E_CONSTRAINT.
+8. `require_readable_condition` isolates ruling 17 (b): a hidden author
+   condition is not evaluated. The README and cards say: a condition needs a
+   row you can read; a blind patch needs none.
+9. `require_uniform_mutation_pages` isolates ruling 17 (c), with the existing
+   E_STRUCTURAL_FANOUT and the exact rewrite "read it in a query, or pin the
+   deciding columns". Census: 4 checked-in `.q` files / 26 operations, the
+   loopbar fixture (3 queries), 21 guide blocks and 8 README blocks; **0**
+   programs newly refused by (c). The separate expiry narrowing refused **2**
+   documentation examples, language `pagePass` and README `recentPass`; both
+   now scan members. No app or fixture program needed a rewrite.
+10. `snapback4-sim/tests/common/write_observation.rs` is shared with the
+    device crate: first and retry /m serializer bytes, durable receipt,
+    every meter, complete before/after source and maintain rows, committed
+    changes, effects, writer stream page/snapshot, and both stores' initial,
+    pending, reopened and settled observations. Paired equality compares
+    committed changes rather than equating intentionally different retained
+    hidden images; each refusal also asserts full rollback. Real HTTP is
+    separately exercised in the package suite. The device regression remains
+    in the device crate and now covers 64 scenarios (4 ops × 2 horizons ×
+    2 worlds × 2 authority classes × 2 stores), plus held-target controls.
+    Both renamed tests say what they prove; the retained composite-key case
+    gains a non-colliding world and explicitly preserves the ruled outcome
+    residual.
+11. Rules/writes/programs cards, README and RFC §5.9/§8/§15/§17 record the
+    narrowed surface. The rules card moved to `guide/rules.md` to keep source
+    under the cap. Largest changed source: `guide.rs`, **1,471** lines;
+    `write.rs` is **612**. The pre-existing 3,145-line append-only journal and
+    1,517-line RFC are documentation exceptions to an all-files reading of
+    1,500; this required entry and the RFC's dated record extend them, without
+    rewriting history or splitting the author's rulings.
+
+Measured acceptance: the final isolated Linux blocking suite passed **335 Rust
+tests** (1 declared ignore), **9 fixture tests**, and **123 client tests**, with
+`== 0 failure(s) in 84 s`. Node 24.18.0 and Bun 1.3.12; wasm-opt was on PATH.
+The input archive SHA-256 was
+`555f65c38b64a7a3d635f62d3b710ee09f16c949d3b64323301bf5cd020f8d5e`;
+all **661** regular input files were hash-checked remotely, **0** mismatches,
+and no temporary census test remained. Subsequent edits are this journal and
+RFC records only. Wasm measured **1,507,842 B raw / 423,385 B gzip** on Linux,
+**1,508,078 B raw / 423,233 B gzip** locally. No size improvement is claimed.
+The seven compared meters are examined, index_entries, rule_probes, steps,
+heap_bytes, output_bytes and rows_written. The unchanged write ceiling still
+commits **1,024** source writes and aborts attempted write **1,025**, with
+no committed delta; rollback coverage also includes maintains and effects.
+
+Targeted commands run from `snapback4/` (Node commands always used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`):
+
+- `cargo test -p snapback4-core --test corpus`: `test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.27s`.
+- `cargo test -p snapback4-sim --test write_authority --test condition_authority --test page_admission --no-fail-fast`: condition **1/0**, pages **3/0**, write authority **27/0**; the final local summaries are in `/private/tmp/lane-w2-sim-final2.log`.
+- `cargo test -p snapback4-device --test write_authority`: `test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.93s`.
+- `cargo test -p snapback4-lang --test guide`: `test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s`.
+- `node --test snapback4/packages/snapback4/test/write-authority.test.mjs` (repo root): **4 passed / 0 failed** (`lane-w2-http-alone.log`).
+- `node --test --test-name-pattern='online watches retain' snapback4/packages/snapback4/test/client-lifecycle.test.mjs`: **1/0**; the same command with pattern `wasm:`: **12/0** (`lane-w2-flake-online.log`, `lane-w2-flake-wasm.log`).
+- `bash snapback4/scripts/test.sh` (repo root), both local and on the isolated Linux input above; Linux output in `/private/tmp/lane-w2-suite-linux.log`.
+- `./ref-check --verbose` (repo root) and `git diff --check`.
+
+The first local full run reported `== 2 failure(s) in 400 s`: the introduced
+sibling diagnostic code broke 3 corpus expectations, fixed by retaining
+E_STRUCTURAL_FANOUT (no corpus edits), and concurrent client launches timed out.
+The isolated HTTP/lifecycle retries above pass. Chromium's launch SIGABRT/EPERM
+was reproduced against the exact archived base
+`604dd6c3c5c9fa8269eb123993bd3cf14db3ef2b` with
+`node --test /private/tmp/lane-w2-base-604dd6c/snapback4/packages/snapback4/test/react.test.mjs`
+(**0 passed / 1 failed**, `/private/tmp/lane-w2-base-react.log`). No other
+failure is labeled pre-existing. The Linux suite includes Chromium and passes.
+
+Learned: normalization must cover the complete absent branch and the meter,
+not only the final error word. Purity checks need an exhaustive allowlist and
+an independent runtime guard. Historical diagnostic text has the same custody
+problem as a cached row. A mutation binding a page has the same population
+abort risk as looping over it. This is the ruled disclosure contract, not a
+claim of constant-time execution or elimination of the explicitly retained
+constraint-outcome and maintained-delta channels.
+
+Final local verification: `bash snapback4/scripts/test.sh` reported
+`== 1 failure(s) in 304 s`: **335 Rust passed / 0 failed / 1 ignored**,
+**9 fixture tests passed**, and the concurrent client run **57 passed / 48
+failed** from startup deadlines and Chromium. The follow-up command, from
+`snapback4/`, `node --test --test-concurrency=1 'packages/snapback4/test/*.test.mjs'`
+reported `ℹ tests 113`, `ℹ pass 112`, `ℹ fail 1`; its only failure was the
+base-reproduced Chromium SIGABRT. All startup-deadline failures passed on this
+serial run. The Linux full suite above is completely green, browser included.
+Logs: `/private/tmp/lane-w2-suite-final.log` and
+`/private/tmp/lane-w2-client-serial.log`. Final reference check:
+`ref-check: ok — 474 LLP docs, 8796 refs in 22437 files, 0 errors, 0 unchecked`.
+`git diff --check` is clean; the journal's entire base is an unchanged prefix,
+§14 is unchanged, and the existing corpus, meter ceilings and ceremony
+instrument have no diff. The pre-existing untracked `LANE-BRIEF.md` is untouched.
+
+## 2026-09-14 — lane W3: third-pass write authority and uniform-page repairs
+
+Built LLP 3000.007 §17's third-pass dispositions in this worktree, starting at
+`b80ad0cb60582c08ed1fb5cc6cad60b4947b90c9`. The nine dated built lines under
+that table map its rows to this repair; §14 is byte-for-byte unchanged from
+this lane's supplied RFC. The governing constraints are LLP 3000 §6–§7 and
+LLP 3000.007 §5.9, §8 item 7, and §17. No ceiling, serialized value form,
+existing corpus case, delete implementation, or ceremony instrument changed.
+
+1. Uniform pages decide their read rule from pinned prefix values before
+   fetching a candidate. A false verdict returns an empty complete page
+   with **0 examined / 0 rule probes**, including after **8,192 examined**
+   or **8,192 probes**. Complete observations match across **0 / 1 / 10,000**
+   hidden rows. A rule probe costs **1** logical unit regardless of expired
+   siblings; existence of a live maintain needs a live source witness, not
+   its sum. The expiry regression compares **0 / 9,000** expired probe
+   targets on false and true verdicts: **0 / 0** and **1 / 1** examined/probes
+   respectively. This is logical accounting, not a physical-time claim.
+2. Before an ID or unique-key target lookup, resolution checks available
+   room for twice the read rule's probe sites, the update rule's, and (for
+   upsert) twice the insert rule's; short-circuit branches cannot exceed
+   that static count. Heap room covers two schema-maximum copied row images
+   plus twice the supplied patch's measured heap. Merges charge the memory
+   they actually copy; retained map/asset Arcs are shared, and overwritten
+   hidden columns are never copied just to discard them. A non-fitting
+   reservation refuses E_BOUND before lookup in both worlds. The exhaustion
+   fixture reserves **3 probes**, a **17,561 B** maximum copied row, and
+   **35,374 B** for an amount patch or **35,384 B** for its immutable patch.
+   Its heap prelude uses **16,004,012 B**; the refused amount target reaches
+   **16,004,156 B** with a test ceiling of **16,005,036 B** (lower than the
+   unchanged **16,777,216 B** default). Its other prelude uses the full
+   **8,192** probes. **16 paired scenarios / 32 worlds** cover ID update,
+   unique update and upsert, with immutable and conditional updates; the
+   existing ample-budget and readable-admitted controls remain.
+3. Physical and live maintained-sum overflow share a value-free E_OVERFLOW:
+   the maintain name and `value` column, never the computed total. Retained
+   contributions **1 / 2** overflow identically in both paths; a total of
+   **9,007,199,254,740,991** still succeeds. The live fixture seeds its
+   cancelling expired contribution first so setup stays within range.
+4. An explicit asset ID on an unreadable target proves upload ownership
+   before any equality-preservation shortcut. Both **G / H** hidden worlds
+   refuse the same foreign G; omitted-column controls retain the old
+   placement, and a writer-owned upload succeeds.
+5. The scan traversal records structural Expr::Merge, independent of
+   merge_site. A serialized non-looping merge without that marker refuses;
+   the corresponding plain bound page succeeds. Plain, non-expiring,
+   non-merge pages are required in **every** mutation, predicting or not,
+   looped or bound. The predicting matching-page pair refuses equally for
+   **0 / 8,193** hidden words.
+6. The shared helper retains the serializer's exact first-body bytes; it
+   does not claim an actual HTTP transport/status capture. It compares all
+   **7** meter fields (examined, index_entries, rule_probes, steps,
+   heap_bytes, output_bytes, rows_written), receipt, retry, committed source
+   and maintain deltas, effects, stream, snapshot and **2** device stores,
+   including admission, pending, reopen and settlement. An intervention
+   now revokes before retry and both stores' settlement. Readable clash
+   asserts `byKey` with a no-clash control; failed receipts, revocations,
+   matching conditions and serialized-condition runtime cases use the
+   helper. Structural/compiler refusals are explicitly the no-receipt
+   exception. Pure readable conditions retain a successful control.
+7. from_receipt re-sanitizes historical why.message; a W-shaped historical
+   response with current and row-derived diagnostic text cannot recover
+   either after revocation. No published W receipts exist, so no migration
+   was added.
+8. The binder refuses upsert conditions with **1** population-independent
+   diagnostic and the rewrite “a condition belongs on update; an upsert
+   inserts or patches”. The parser consumes the form so it reaches that
+   single refusal rather than two parser-recovery errors. Serialized IR
+   receives the same pre-lookup runtime prohibition. The named
+   ignore_hidden_immutable_patch drops immutable fields without comparison
+   on hidden update/upsert hits; readable mismatches still name the column.
+   Matching/mismatching update worlds agree. Profile upsert inserts its
+   supplied immutable fields on a miss and preserves them on a hidden hit;
+   both send. Its explicit owner change grants read authority, so the test
+   preserves and checks the legitimately returned, streamed and settled
+   row differences instead of redacting them in the helper. Admitted-work
+   meters and physical insert/update deltas remain the ruled residuals.
+9. README, rules/writes/programs cards and CODES describe these forms and
+   refusals. Census correction to W2: **5** tracked Quarry files contain
+   **38** operations, including the native fixture's **12**. No application,
+   fixture or loopbar caller needed a rewrite for these changes. The largest
+   changed source is guide.rs, **1,479 lines**. The already oversized RFC
+   and this required append-only journal remain documentation, not source.
+
+Learned: restoring a meter after a refusal is too late if deciding that
+refusal can exhaust it. The reservation must precede lookup, and a uniform
+page needs no first row to establish its verdict. Omitted versus explicit
+patch fields carry different authority. Ignoring hidden immutables keeps the
+ordinary upsert insert branch usable; refusing only the hit reopens existence.
+The recorded residuals (caps, after-insert, admitted-write budget outcomes,
+retained-unique match and physical timing) remain; no constant-time claim.
+
+The broad suite also required a minimal update to the existing membership
+regression (`snapback4-sim/tests/membership.rs`): a readable roster now uses
+**1 probe** for the first member too, because its verdict precedes every
+candidate. Its old **0-probe** expectation depended on sampling that member's
+own row first. Only that assertion and its comment changed; the membership
+fixture, application, self-witness analysis and ceremony instrument did not.
+
+Verification: the final focused simulator run passes **40 / 0** (condition
+**1**, page admission **7**, write authority **32**); guide **8 / 0**, device
+write authority **2 / 0**, and the adjusted membership suite **4 / 0**. The
+complete blocking script passes on the fleet Linux host in **71 s**:
+**344 Rust passes / 0 failures / 1 ignored**, **9 fixture passes / 0 failures**,
+and **126 client passes / 0 failures**, including Chromium. This exceeds the
+script's 60-second budget by **11 s**; no test or timing threshold was changed.
+The isolated copy's **661** tracked input files had **0** hash mismatches,
+manifest SHA256
+`0ae4b7b6c9b63924588bd154e824fa8808339629ea7cce1991e242d3f43e0fcd`;
+only this verification paragraph was appended afterward. Linux wasm measured
+**1,517,613 B raw / 425,787 B gzip** (Binaryen 132); the local macOS build
+measured **1,517,859 B raw / 426,105 B gzip**.
+
+The first local complete run reported **2 failing steps in 827 s**: Rust
+included the now-fixed membership expectation and a live-overflow regression
+whose seed order itself overflowed; concurrent client launches hit startup
+deadlines under local load. A serial client rerun passed **115 / 116**, with
+only Chromium's sandbox SIGABRT left. That exact browser failure was reproduced
+on base **b80ad0cb60582c08ed1fb5cc6cad60b4947b90c9** (**0 / 1** browser tests).
+The first isolated Linux run passed all **126** client tests but still had
+the old membership assertion and lacked the shared social-messenger fixture
+inputs; the final complete rerun above includes both corrections. These
+setup/test corrections are not labelled inherited product failures. No commit,
+push, tag, or publication was performed.
+
+
+### 2026-09-14 — lane W4: normalize the page attempt, reserve created equalities, refuse expired maintained-value probes
+
+Built the fourth-pass dispositions of LLP 3000.007 §17. An aborting page
+pass charges **1 examined unit** before its prefix verdict and charges the
+verdict's probes for both outcomes. This is scoped to the aborting pass of
+§5.9: applying the extra charge to capped queries changed the immutable
+corpus's wide-merge pages and filter continuation boundaries. Capped queries
+keep their existing contract; no corpus case or meter ceiling changed.
+`Created` with residual equalities now contributes **1 probe** to the static
+worst case before target lookup. A rule equality on the `value` of a maintain
+over an expiring source produces **1 E_QUARRY_LIVE_MAINTAIN_PROBE** at check,
+with the rewrite “read the maintain in the program; its live value cannot be
+probed at one unit”. Existence and non-expiring equality probes stay supported.
+The guide's code explanations were split into `guide/codes.rs` to keep the
+edited guide below **1,500 lines**; the public `guide::CODES` API is unchanged.
+
+Measured paired observations through the shared helper: the negated self
+probe has `(examined, rule_probes)` **(1, 1)** with ample budget,
+**(8193, 8192)** after the ordinary **8192**-probe/examined prelude (both
+E_BOUND), and **(5, 5)** with a deliberately lowered **4**-probe ceiling
+that isolates probe exhaustion (both E_BOUND). All **7 meter fields** and
+the complete observation agree in each pair. Literal reference IDs for
+that exact rule are supplied through schema IR, because Quarry's rule
+comparison requires a typed reference. Created-equality upserts compare
+absent and hidden denied targets on **2 entry points**, at **0** and
+**8192** prior probes: NOT_FOUND with room, E_BOUND at the ceiling; an
+allowed insertion succeeds and uses **2 probes** for its two authority
+checks. The existing **16** target-exhaustion pairs remain covered.
+
+Live-maintain existence probes compare **0** with **9000** expired sources
+for both verdicts: `(rule_probes, examined)` is **(1, 1)** for false and
+**(1, 2)** for true. Non-expiring maintained-value equality controls over
+**1** and **9001** sources admit the page and update at **1 probe** each.
+Historical raw receipts and scalar results now have paired revocation
+lifecycles, including replay, queued admission, reopen and settlement on
+**2 device stores**. Ignored immutable patches match the patch without that
+field on ordinary and expiring sources: amount **7 → 0**, aggregate
+**10 → 3**, immutable value retained, identical committed rows, maintain
+deltas, reply/receipt, effects, stream, snapshot and both devices. Different
+caller-authored expressions may cost different evaluation work; that test
+compares the requested state and delivery boundary without pretending the
+programs are identical. The exhaustion fixture's debug print is removed.
+
+The lesson from these repairs is that deciding before a population-dependent
+charge still needs a common attempt cost, and an equality on a created or
+maintained fact must account for how that fact is actually obtained. The
+maintain refusal keeps a one-unit existence contract without testing a stale
+physical total. No commit, push, tag or publication was performed.
+
+Final verification: focused simulator **50 passed / 0 failed** (condition
+**1**, membership **5**, page admission **10**, write authority **34**),
+guide **9 / 0**, corpus harness **16 / 0** with **211 cases passed /
+82 skipped / 0 failed**. The final local blocking script reports **1 failing
+step in 142 s**: **374 Rust passes / 0 failures / 1 ignored**, **9 fixture
+passes / 0 failures**, **121 client passes / 1 failure**. All builds and
+typechecks pass. The only failure is Chromium startup SIGABRT inside the
+sandbox, reproduced by the isolated React test on untouched base
+**e3187c87ff0f4b6db2ae03bc19beea433f8a8d86** (**0 passed / 1 failed**);
+the lead reruns that witness outside. Local wasm is **1,523,579 B raw /
+427,369 B gzip**. Runtime is **82 s** above the script's 60-second budget;
+no threshold was changed. `ref-check --verbose`: **474 LLP docs, 8812 refs,
+22590 files, 0 errors, 0 unchecked**. All **8 changed Rust source/test files**
+are below 1,500 lines; the largest is **1449**.
+
+The first local blocking run was **2 failing steps / 162 s** while the
+query-wide attempt charge and two fixture mistakes were still present; the
+final run above fixes those introduced failures. A supplemental Linux run
+on a **669-file, 0-mismatch** snapshot was interrupted after
+client cleanup stalled and is not counted as passing evidence. No claim
+that those supplemental failures predate this lane is made.

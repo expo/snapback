@@ -28,7 +28,7 @@ pub fn bind(documents: Vec<Document>) -> Bound {
     let mut diagnostics = Vec::new();
     let personas: Vec<String> = documents.iter().flat_map(|d| d.personas.iter().cloned()).collect();
     let catalog = Catalog::build(documents, &mut diagnostics);
-    let schema = schema::bind_schema(&catalog, &mut diagnostics);
+    let mut schema = schema::bind_schema(&catalog, &mut diagnostics);
     let mut programs = Vec::new();
     let mut names = std::collections::BTreeMap::new();
     let mut api_roots = std::collections::BTreeMap::new();
@@ -56,6 +56,17 @@ pub fn bind(documents: Vec<Document>) -> Bound {
         }
     }
     actions::bind(&catalog, &mut programs, &mut diagnostics);
+    // The residency facts come before admission: a never-predicting mutation may pass over a uniformly authorized page (LLP 3000.007 §5.9), and admission reads that class here.
+    schema.operations = programs.iter().map(|bound| (bound.program.name.clone(), residency::execution(&schema, &bound.program))).collect();
+    for doc in &catalog.documents {
+        let module = std::path::Path::new(&doc.file).file_stem().unwrap().to_string_lossy();
+        for decl in &doc.programs {
+            if decl.server && let Some(fact) = schema.operations.get_mut(&operation_name(&module, &decl.name)) {
+                fact.predicts = Some("never".into());
+                fact.sites.push(snapback4_core::schema::ResidencySite { site: decl.site.to_string(), table: "server".into(), index: "".into(), kind: "dispatch".into(), class: snapback4_core::schema::SiteClass::Server, reason: "author marked this mutation : server".into(), rewrite: "remove : server to allow prediction when every site is held".into() });
+            }
+        }
+    }
     if diagnostics.is_empty() {
         programs.retain(|bound| match snapback4_core::engine::admission::check(&schema, &bound.program) {
             Ok(()) => true,
@@ -66,7 +77,6 @@ pub fn bind(documents: Vec<Document>) -> Bound {
             }
         });
     }
-    let mut schema = schema;
     for doc in &catalog.documents {
         for decl in &doc.schedules {
             match bind_schedule(decl, &programs) {
@@ -75,7 +85,7 @@ pub fn bind(documents: Vec<Document>) -> Bound {
             }
         }
     }
-    schema.operations = programs.iter().map(|bound| (bound.program.name.clone(), residency::execution(&schema, &bound.program))).collect();
+    schema.operations.retain(|name, _| programs.iter().any(|bound| &bound.program.name == name));
     let mut notes: Vec<_> = programs.iter().flat_map(|p| p.notes.clone()).collect();
     notes.extend(completeness_notes(&catalog, &schema, &programs));
     notes.extend(residency::maintain_notes(&catalog, &schema));

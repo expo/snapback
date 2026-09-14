@@ -159,8 +159,8 @@ mutation absent():
     let mut e = engine(source);
     let absent = e.mutate("absent", None, context(&[])).unwrap();
     let WriteState::Failed { why, .. } = absent.state else { panic!("missing required column must refuse") };
-    assert_eq!(why.code, "E_INPUT");
-    assert!(why.message.contains("profiles.name"), "{why:?}");
+    assert_eq!(why.code, "NOT_FOUND");
+    assert!(!why.message.contains("profiles.name"), "{why:?}");
     assert!(e.store().rows("profiles").unwrap().is_empty());
     let created = mutation(&mut e, "create", &[]);
     let id = created.field("id").unwrap().clone();
@@ -802,7 +802,7 @@ fn asset_metadata_narrowing_matches_nullable_server_facts() {
 
 #[test]
 fn structural_population_refusals_surface_during_authored_compilation() {
-    let schema = "table members:\n  group: id\n  seen: bool\n  by byGroup: group, id\n  read <- allow\n  update <- allow\n";
+    let schema = "table members:\n  group: id\n  seen: bool\n  by byGroup: group, id\n  read <- allow\n  update <- allow\n  sync public\n";
     let operation = "mutation visit(group: id):\n  page = members[group] first 10 by byGroup\n  for row in page:\n    update members[row.id] { seen: true }\n  return true\n";
     let refused = compile(&[("fanout.q".into(), format!("{schema}{operation}"))]);
     assert_eq!(refused.diagnostics.len(), 1, "{:?}", refused.diagnostics);

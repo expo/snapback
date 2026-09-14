@@ -92,6 +92,11 @@ fn inspect(stmts: &[Stmt], codes: &mut BTreeSet<String>, sites: &mut Vec<Residen
             Stmt::Insert { row, .. } | Stmt::InsertIfAbsent { row, .. } => expr(row, codes, sites),
             Stmt::Update { key, patch, .. } => { expr(key, codes, sites); expr(patch, codes, sites); }
             Stmt::Upsert { key, row, .. } => { expr(key, codes, sites); expr(row, codes, sites); }
+            Stmt::WriteTarget { target, patch, condition, .. } => {
+                for key in &target.key { expr(key, codes, sites); }
+                expr(patch, codes, sites);
+                if let Some(condition) = condition { inspect(&condition.setup, codes, sites); expr(&condition.value, codes, sites); }
+            }
             Stmt::Delete { key, .. } => expr(key, codes, sites),
             _ => {}
         }
@@ -125,7 +130,7 @@ fn expr(value: &Expr, codes: &mut BTreeSet<String>, sites: &mut Vec<ResidencySit
 }
 
 pub(super) fn maintain_notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
-    schema.synced().filter_map(|(name, table, sync)| {
+    let mut notes: Vec<_> = schema.synced().filter_map(|(name, table, sync)| {
         let source = table.residency.inherited_from.as_ref()?;
         match &sync.audience {
             Audience::Column(_) => return None,
@@ -136,7 +141,47 @@ pub(super) fn maintain_notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnost
             Audience::Public => {}
         }
         Some(Diagnostic::new(&catalog.site_for(&format!("tables.{name}")), "N_MAINTAIN_SYNCED", format!("maintain {name}: {} inherited from {source}; one value row per {} reaches {}", sync.line(), schema.maintain_for(name)?.by.join(", "), if sync.audience == Audience::Public { "every device" } else { "every member of the group" }), "add `online only` to the maintain to opt out of inherited sync; measure with `test --residency`").guide("residency"))
-    }).collect()
+    }).collect();
+    // @ref LLP 3000.007#8 — item 7: a readable maintain can disclose a hidden source's write delta.
+    for maintain in &schema.maintains {
+        let (Some(source), Some(target)) = (schema.table(&maintain.source), schema.table(&maintain.target)) else { continue };
+        if source.rules.read.is_uniformly_readable() || source.rules.update == RuleExpr::Deny || target.rules.read == RuleExpr::Deny { continue; }
+        // Same read predicate over the grouped fields cannot give a hidden writer this aggregate.
+        let mut fields = BTreeSet::new();
+        source.rules.read.fields(&mut fields);
+        if target.rules.read == source.rules.read && !fields.contains("id") && fields.iter().all(|field| maintain.by.contains(field)) { continue; }
+        // An old-image guard that entails the source read rule does not widen write authority.
+        if implies(&source.rules.update, &old_read(&source.rules.read)) { continue; }
+        notes.push(Diagnostic::new(&catalog.site_for(&format!("tables.{}", maintain.target)), "N_MAINTAIN_DELTA", format!("maintain {} may disclose the delta of a hidden {} row: its update rule can be wider than its read rule, and the maintain has its own readable audience", maintain.target, maintain.source), "treat the maintain as a declared read channel; restrict its read rule or the source update rule if the delta is private").guide("rules"));
+    }
+    notes
+}
+
+fn old_read(rule: &RuleExpr) -> RuleExpr {
+    use snapback4_core::schema::RuleTerm;
+    fn old(term: &RuleTerm) -> RuleTerm { match term { RuleTerm::Field(field) => RuleTerm::OldField(field.clone()), other => other.clone() } }
+    match rule {
+        RuleExpr::Eq(a, b) => RuleExpr::Eq(old(a), old(b)),
+        RuleExpr::Ne(a, b) => RuleExpr::Ne(old(a), old(b)),
+        RuleExpr::And(rules) => RuleExpr::And(rules.iter().map(old_read).collect()),
+        RuleExpr::Or(rules) => RuleExpr::Or(rules.iter().map(old_read).collect()),
+        RuleExpr::Not(rule) => RuleExpr::Not(Box::new(old_read(rule))),
+        RuleExpr::Exists { table, index, key, provenance, equalities } => RuleExpr::Exists { table: table.clone(), index: index.clone(), key: key.iter().map(old).collect(), provenance: *provenance, equalities: equalities.iter().map(|(column, term)| (column.clone(), old(term))).collect() },
+        other => other.clone(),
+    }
+}
+
+// A sufficient implication proof, not a rule satisfiability solver. Unproved
+// cases carry a "may disclose" note, so a complex author policy remains visible.
+fn implies(update: &RuleExpr, read: &RuleExpr) -> bool {
+    if update == read || read.is_uniformly_readable() || *update == RuleExpr::Deny { return true; }
+    match (update, read) {
+        (_, RuleExpr::And(rules)) => rules.iter().all(|r| implies(update, r)),
+        (RuleExpr::Or(rules), _) => rules.iter().all(|r| implies(r, read)),
+        (RuleExpr::And(rules), _) => rules.iter().any(|r| implies(r, read)),
+        (_, RuleExpr::Or(rules)) => rules.iter().any(|r| implies(update, r)),
+        _ => false,
+    }
 }
 
 // @ref LLP 3000.007#6.4 — compare facts with the last successful generation, never a failed edit.

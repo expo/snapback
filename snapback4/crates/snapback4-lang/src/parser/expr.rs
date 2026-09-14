@@ -428,7 +428,7 @@ impl Parser {
                     self.take("absent")?;
                     if_absent = true;
                 }
-                WriteOp::Update => condition = Some(Box::new(self.expression(0, &["<newline>"])?)),
+                WriteOp::Update | WriteOp::Upsert => condition = Some(Box::new(self.expression(0, &["<newline>"])?)),
                 _ => return Err(syntax_with(&op_token.site, "if follows insert or update", "use insert ... if absent or update ... if condition")),
             }
         }

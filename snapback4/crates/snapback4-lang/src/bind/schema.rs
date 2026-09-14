@@ -421,6 +421,12 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
         types.push(ty);
     }
     let named: Option<Vec<String>> = if terms.iter().all(|(c, _)| c.is_some()) && !terms.is_empty() { Some(terms.iter().map(|(c, _)| c.clone().unwrap()).collect()) } else { None };
+    // @ref LLP 3000.007#17 — an expiring maintain's physical value is not its live fact; only existence is a one-unit rule probe.
+    if named.as_ref().is_some_and(|names| names.iter().any(|name| name == "value"))
+        && catalog.maintains.get(&read.table).and_then(|maintain| catalog.tables.get(&maintain.source)).is_some_and(|source| source.decl.expire.is_some()) {
+        return Err(Diagnostic::new(site, "E_QUARRY_LIVE_MAINTAIN_PROBE", format!("a rule cannot probe {}.value because its source expires", read.table),
+            "read the maintain in the program; its live value cannot be probed at one unit").guide("expire"));
+    }
     if let Some(names) = &named {
         for ((_, term), (column, ty)) in terms.iter_mut().zip(names.iter().zip(&types)) {
             let expected = column_ty(target, column).ok_or_else(|| unknown(site, format!("{} has no column {column}", read.table), name_rewrite(column, target.columns.keys().map(String::as_str).chain(["id"]), None)))?;

@@ -103,6 +103,8 @@ pub enum RuntimeError {
     Conflict { current: crate::ir::Read },
     #[error("E_CONSTRAINT: {0}")]
     Constraint(String),
+    #[error("E_OVERFLOW: maintain {maintain}.{column} overflowed")]
+    AggregateOverflow { maintain: String, column: String },
     #[error("E_FANOUT: a bounded loop received more items than its bound")]
     Fanout,
     #[error("E_BOUND: {kind:?} reached {actual} against the ceiling {ceiling} at {site}")]
@@ -134,7 +136,7 @@ impl RuntimeError {
             Self::Structural { code, .. } => (*code).into(),
             Self::Input(_) => "E_INPUT".into(),
             Self::Schema(_) => "E_SCHEMA".into(),
-            Self::Value(ValueError::Overflow(_)) => "E_OVERFLOW".into(),
+            Self::Value(ValueError::Overflow(_)) | Self::AggregateOverflow { .. } => "E_OVERFLOW".into(),
             Self::Value(ValueError::DivideByZero) => "E_DIV_ZERO".into(),
             Self::Value(ValueError::Type { .. }) => "E_TYPE".into(),
             Self::Value(ValueError::MissingField(_)) => "E_FIELD".into(),
@@ -162,7 +164,7 @@ impl RuntimeError {
 
     pub fn family(&self) -> &'static str {
         match self {
-            Self::Input(_) | Self::Value(_) => "input",
+            Self::Input(_) | Self::Value(_) | Self::AggregateOverflow { .. } => "input",
             Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE") => "action",
             Self::Schema(_) | Self::Structural { .. } => "schema",
             Self::Rule { .. } | Self::Auth(_) => "auth",
@@ -201,6 +203,10 @@ impl RuntimeError {
                 refusal.rule = Some(code.clone());
                 refusal.site = site.clone();
                 refusal.message = format!("the program refused with {code}");
+                refusal.guide = Some("programs".into());
+            }
+            Self::Structural { code: "E_STRUCTURAL_FANOUT", message } => {
+                refusal.rewrite = Some(if message.contains("read it in a query, or pin the deciding columns") { "read it in a query, or pin the deciding columns".into() } else { message.clone() });
                 refusal.guide = Some("programs".into());
             }
             Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE") => refusal.guide = Some("actions".into()),

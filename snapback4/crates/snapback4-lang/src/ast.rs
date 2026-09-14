@@ -347,6 +347,7 @@ pub enum ProgramKind {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProgramDecl {
+    pub server: bool,
     pub kind: ProgramKind,
     pub name: String,
     pub args: Vec<ArgDecl>,

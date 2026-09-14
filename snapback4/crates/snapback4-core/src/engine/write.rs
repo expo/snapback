@@ -10,7 +10,7 @@ use crate::partition;
 use crate::schema::{ColumnType, Constraint, Effect, Maintain, MaintainKind, Table, maintained_id, maintained_key, materialize_optional_fields};
 use crate::rows::{Bounds, Dir};
 use crate::rows::index_values;
-use crate::value::{I53_MAX, I53_MIN, Value, ValueError, canonical_json};
+use crate::value::{I53_MAX, I53_MIN, Value, canonical_json};
 use std::collections::BTreeMap;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -30,25 +30,12 @@ impl Runner<'_> {
 
     fn insert_mode(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
         self.refuse_engine_owned(table_name)?;
-        // @ref LLP 3000.007#5.4 — omitted defaults use the clock and viewer of the host running the insert.
-        let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
-        let row = if table.defaults.keys().any(|name| row.as_object().is_ok_and(|fields| !fields.contains_key(name))) {
-            let mut fields = row.as_object()?.clone();
-            for (name, default) in &table.defaults {
-                if !fields.contains_key(name) {
-                    let value = default.value(self.context.now.ok_or_else(|| RuntimeError::Input("write clock is not pinned".into()))?, &self.context.viewer);
-                    fields.insert(name.clone(), value);
-                }
-            }
-            let row = Value::Row(fields.into());
-            self.meter.heap(row.heap_bytes())?;
-            row
-        } else { row };
-        let row = self.with_asset_facts(table_name, row)?;
-        validate_row(self.schema, table_name, &row)?;
+        let row = self.with_defaults(table_name, row)?;
         if !self.check_rule(table_name, Effect::Insert, None, &row)? {
             return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Insert });
         }
+        let row = self.with_asset_facts(table_name, row, None, None)?;
+        validate_row(self.schema, table_name, &row)?;
         let table = self.schema.table(table_name).expect("validated").clone();
         if if_absent {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
@@ -78,46 +65,81 @@ impl Runner<'_> {
     }
 
     pub(super) fn update(&mut self, table_name: &str, key: &Value, patch: Value) -> Result<(), RuntimeError> {
+        self.target_attempt(|runner| runner.update_attempt(table_name, key, patch))
+    }
+
+    fn update_attempt(&mut self, table_name: &str, key: &Value, patch: Value) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name)?;
         if patch.as_object()?.contains_key("id") {
             return Err(RuntimeError::Input(format!("{table_name} update patch cannot change id")));
         }
         let id = key.as_str()?;
+        self.reserve_target_resolution(self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?, &patch, false)?;
         let Some(old) = self.fetch(table_name, id)? else {
-            return Err(RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".to_owned() });
+            return Err(self.write_miss(table_name, "byId", &[key.clone()]));
         };
-        let mut new = old.as_object()?.clone();
-        for (name, value) in patch.as_object()? {
-            new.insert(name.clone(), value.clone());
-        }
-        self.replace(table_name, old, Value::Row(new.into()))
+        if self.device && self.schema.tables[table_name].sync.is_none() { return Err(self.write_miss(table_name, "byId", &[key.clone()])); }
+        let readable = self.check_rule(table_name, Effect::Read, None, &old)?;
+        let patch = self.ignore_hidden_immutable_patch(table_name, patch, readable)?;
+        let new = self.merge_patch(&old, &patch)?;
+        self.replace(table_name, old, new, readable, &patch)
     }
 
     pub(super) fn upsert(&mut self, table_name: &str, key: &Value, row: Value) -> Result<(), RuntimeError> {
+        self.target_attempt(|runner| runner.upsert_attempt(table_name, key, row))
+    }
+
+    fn upsert_attempt(&mut self, table_name: &str, key: &Value, row: Value) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name)?;
         let id = key.as_str()?;
         if row.field("id")?.as_str()? != id {
             return Err(RuntimeError::Input(format!("{table_name} upsert row id must equal its key")));
         }
+        self.reserve_target_resolution(self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?, &row, true)?;
         match self.fetch(table_name, id)? {
             Some(old) => {
+                let readable = self.check_rule(table_name, Effect::Read, None, &old)?;
+                let row = self.ignore_hidden_immutable_patch(table_name, row, readable)?;
                 // @ref LLP 3000.007#5.4 — an existing row receives a patch; omitted columns keep their values.
-                let mut fields = old.as_object()?.clone();
-                fields.extend(row.as_object()?.iter().map(|(name, value)| (name.clone(), value.clone())));
-                let row = Value::Row(fields.into());
-                self.meter.heap(row.heap_bytes())?;
-                self.replace(table_name, old, row)
+                let new = self.merge_patch(&old, &row)?;
+                self.replace(table_name, old, new, readable, &row)
             }
-            None => self.insert(table_name, row),
+            None if self.device => Err(self.write_miss(table_name, "byId", &[key.clone()])),
+            None => self.insert_upsert(table_name, row),
         }
     }
 
-    fn replace(&mut self, table_name: &str, old: Value, new: Value) -> Result<(), RuntimeError> {
-        let new = self.with_asset_facts(table_name, new)?;
-        validate_row(self.schema, table_name, &new)?;
-        if !self.check_rule(table_name, Effect::Update, Some(&old), &new)? {
-            return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Update });
+    pub(super) fn insert_upsert(&mut self, table_name: &str, row: Value) -> Result<(), RuntimeError> {
+        // Defaults fill first, so a patch that leaves a defaulted column out is a complete row here.
+        let row = self.with_defaults(table_name, row)?;
+        // @ref LLP 3000.007#17 — absent upserts decide insert authority before asset or constraint diagnostics.
+        if !self.check_rule(table_name, Effect::Insert, None, &row)? { return Err(self.no_write_target()); }
+        // An incomplete insert patch has the same word as a refused hidden target.
+        if let Err(error) = validate_row(self.schema, table_name, &row) {
+            return Err(if matches!(error, RuntimeError::Input(_)) { self.no_write_target() } else { error });
         }
+        match self.insert(table_name, row) {
+            Err(RuntimeError::Input(_)) => Err(self.no_write_target()),
+            result => result,
+        }
+    }
+
+    fn replace(&mut self, table_name: &str, old: Value, new: Value, readable: bool, patch: &Value) -> Result<(), RuntimeError> {
+        self.authorize_update(table_name, &old, &new, readable)?;
+        self.replace_authorized(table_name, old, new, readable, patch)
+    }
+
+    // @ref LLP 3000.007#8 — item 7: pre-write read authority controls details; update authority precedes asset diagnostics.
+    pub(super) fn authorize_update(&mut self, table: &str, old: &Value, new: &Value, readable: bool) -> Result<(), RuntimeError> {
+        if !self.check_rule(table, Effect::Update, Some(old), new)? {
+            return Err(if readable { RuntimeError::Rule { table: table.into(), effect: Effect::Update } } else { self.no_write_target() });
+        }
+        Ok(())
+    }
+
+    pub(super) fn replace_authorized(&mut self, table_name: &str, old: Value, new: Value, readable: bool, patch: &Value) -> Result<(), RuntimeError> {
+        let new = self.with_asset_facts(table_name, new, Some(&old), (!readable).then_some(patch))?;
+        if let Err(error) = validate_row(self.schema, table_name, &new) { return Err(if readable { error } else { self.no_write_target() }); }
         self.check_constraints(table_name, Some(&old), &new, Effect::Update)?;
         let table = self.schema.table(table_name).expect("validated").clone();
         let entries = self.tx.put(table_name, &table, &new, Some(&old))?;
@@ -150,13 +172,34 @@ impl Runner<'_> {
         self.row_changed(table_name, Some(old), None, Origin::Source)
     }
 
+    /// A column with a declared default takes it when the written row leaves
+    /// it out, before validation and before the asset facts, so the row the
+    /// rules and the constraints see is the complete one.
+    // @ref LLP 3000.007#5.4 — omitted defaults use the clock and viewer of the host running the insert.
+    fn with_defaults(&mut self, table_name: &str, row: Value) -> Result<Value, RuntimeError> {
+        let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
+        if !table.defaults.keys().any(|name| row.as_object().is_ok_and(|fields| !fields.contains_key(name))) {
+            return Ok(row);
+        }
+        let mut fields = row.as_object()?.clone();
+        for (name, default) in &table.defaults {
+            if !fields.contains_key(name) {
+                let value = default.value(self.context.now.ok_or_else(|| RuntimeError::Input("write clock is not pinned".into()))?, &self.context.viewer);
+                fields.insert(name.clone(), value);
+            }
+        }
+        let row = Value::Row(fields.into());
+        self.meter.heap(row.heap_bytes())?;
+        Ok(row)
+    }
+
     /// An `image`/`video` column names an upload by id; the row carries the
     /// facts the server established about it (type, bytes, dimensions,
     /// duration), never the client's word for them. The upload must be the
     /// writer's own and of the column's kind and size. The system principal
     /// may name an asset that was never uploaded: a fixture's placeholder,
     /// metadata only, never served.
-    fn with_asset_facts(&mut self, table_name: &str, row: Value) -> Result<Value, RuntimeError> {
+    fn with_asset_facts(&mut self, table_name: &str, row: Value, old: Option<&Value>, hidden_patch: Option<&Value>) -> Result<Value, RuntimeError> {
         if !self.tx.holds_assets() {
             // A device: the row keeps the asset value as sent; the server
             // establishes the facts when the write arrives.
@@ -173,6 +216,13 @@ impl Runner<'_> {
                 ColumnType::Video { max } => (AssetKind::Video, *max),
                 _ => continue,
             };
+            // @ref LLP 3000.007#17 — omitted placements survive; an explicit hidden assignment proves upload ownership even when its id matches.
+            let explicit = hidden_patch.is_some_and(|patch| patch.as_object().is_ok_and(|fields| fields.contains_key(column)));
+            if let Some(before) = old.and_then(|row| row.field(column).ok())
+                && !explicit && asset_id(Some(before)).is_some() && asset_id(Some(before)) == asset_id(fields.get(column)) {
+                fields.insert(column.clone(), before.clone());
+                continue;
+            }
             let Some(id) = asset_id(fields.get(column)).map(str::to_owned) else { continue };
             let Some(asset) = self.tx.asset(&id)? else {
                 if self.context.is_system() {
@@ -215,6 +265,7 @@ impl Runner<'_> {
             }
             let before = asset_id(old.and_then(|old| old.field(column).ok())).map(str::to_owned);
             let after = asset_id(new.and_then(|new| new.field(column).ok())).map(str::to_owned);
+            // Equal explicit hidden assignments already passed with_asset_facts ownership validation.
             if before == after {
                 continue;
             }
@@ -232,7 +283,8 @@ impl Runner<'_> {
     }
 
     /// Programs never write a maintained target; the engine does.
-    fn refuse_engine_owned(&self, table: &str) -> Result<(), RuntimeError> {
+    pub(super) fn refuse_engine_owned(&self, table: &str) -> Result<(), RuntimeError> {
+        self.refuse_condition_write()?;
         if self.schema.maintain_for(table).is_some() {
             return Err(RuntimeError::Schema(format!("{table} is a maintained aggregate; write its source rows instead")));
         }
@@ -242,6 +294,7 @@ impl Runner<'_> {
     fn check_constraints(&mut self, table_name: &str, old: Option<&Value>, new: &Value, effect: Effect) -> Result<(), RuntimeError> {
         let table = self.schema.table(table_name).expect("validated").clone();
         let id = new.field("id")?.as_str()?.to_owned();
+        let readable = match old { Some(old) if effect == Effect::Update => self.check_rule(table_name, Effect::Read, None, old)?, _ => true };
         if effect != Effect::Delete {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
                 let key = index_values(index, new);
@@ -251,8 +304,9 @@ impl Runner<'_> {
                 if let Some(existing) = self.live_lookup(table_name, name, index, &key)?
                     && existing.field("id")?.as_str()? != id
                 {
+                    if effect == Effect::Update && !readable { return Err(self.no_write_target()); }
                     self.visible_collision(table_name, &existing, effect)?;
-                    return Err(RuntimeError::Constraint(format!("{table_name} already has a row where {} = {}", index.columns().join(", "), key.iter().map(describe).collect::<Vec<_>>().join(", "))));
+                    return Err(RuntimeError::Constraint(format!("{table_name}.{name} already has a row where {} = {}", index.columns().join(", "), key.iter().map(describe).collect::<Vec<_>>().join(", "))));
                 }
             }
         }
@@ -265,6 +319,9 @@ impl Runner<'_> {
                     }
                 }
                 Constraint::Immutable { fields } => {
+                    // Hidden patch fields were removed by ignore_hidden_immutable_patch;
+                    // do not turn this constraint into a second value comparison.
+                    if effect == Effect::Update && !readable { continue; }
                     if let Some(old) = old
                         && effect == Effect::Update
                     {
@@ -274,7 +331,7 @@ impl Runner<'_> {
                         materialize_optional_fields(&mut new_image, &table);
                         for field in fields {
                             if old_image.field(field).ok() != new_image.field(field).ok() {
-                                return Err(RuntimeError::Constraint(format!("{table_name}.{field} is immutable")));
+                                return Err(if readable { RuntimeError::Constraint(format!("{table_name}.{field} is immutable")) } else { self.no_write_target() });
                             }
                         }
                     }
@@ -309,7 +366,8 @@ impl Runner<'_> {
                         count
                     };
                     if count >= *max as u64 {
-                        return Err(RuntimeError::Constraint(format!("{table_name} holds at most {max} rows where {} = {}", by.join(", "), group.iter().map(describe).collect::<Vec<_>>().join(", "))));
+                        // @ref LLP 3000.007#17 — cap diagnostics describe the schema, never retained group values.
+                        return Err(RuntimeError::Constraint(format!("{table_name} holds at most {max} rows per group by {}", by.join(", "))));
                     }
                 }
             }
@@ -473,7 +531,7 @@ impl Runner<'_> {
                 let key = maintained_key(&image, &maintain.by);
                 let change = delta(maintain, &image, 1)?;
                 let entry = totals.entry(canonical_json(&key)).or_insert((key, 0));
-                entry.1 = entry.1.checked_add(change).ok_or_else(|| RuntimeError::Constraint("aggregate overflow".into()))?;
+                entry.1 = entry.1.checked_add(change).ok_or_else(|| aggregate_overflow(maintain))?;
             }
         }
         for (_, (key, change)) in totals {
@@ -515,7 +573,7 @@ impl Runner<'_> {
         let old_value = existing.as_ref().and_then(|row| row.field("value").ok()).map(Value::as_int).transpose()?.unwrap_or(0);
         let next = i128::from(old_value) + change;
         if !(I53_MIN as i128..=I53_MAX as i128).contains(&next) {
-            return Err(ValueError::Overflow(next).into());
+            return Err(aggregate_overflow(maintain));
         }
         let keep_zero = next == 0 && self.live_sum(maintain) && match source_present {
             Some(present) => present,
@@ -543,7 +601,7 @@ impl Runner<'_> {
 fn delta(maintain: &Maintain, source: &Value, direction: i64) -> Result<i128, RuntimeError> {
     Ok(match &maintain.kind {
         MaintainKind::Count => i128::from(direction),
-        MaintainKind::Sum { of } => i128::from(direction).checked_mul(i128::from(source.field(of)?.as_int()?)).ok_or_else(|| RuntimeError::Constraint("aggregate multiplication overflow".to_owned()))?,
+        MaintainKind::Sum { of } => i128::from(direction).checked_mul(i128::from(source.field(of)?.as_int()?)).ok_or_else(|| aggregate_overflow(maintain))?,
     })
 }
 
@@ -552,4 +610,9 @@ fn describe(value: &Value) -> String {
         Value::String(s) | Value::Id(s) => format!("'{s}'"),
         other => canonical_json(other),
     }
+}
+
+// @ref LLP 3000.007#17 — an internal sum names its maintain and column, never a retained contribution or computed value.
+pub(super) fn aggregate_overflow(maintain: &Maintain) -> RuntimeError {
+    RuntimeError::AggregateOverflow { maintain: maintain.target.clone(), column: "value".into() }
 }

@@ -113,11 +113,20 @@ pub enum Stmt {
     Insert { table: String, row: Expr },
     Update { table: String, key: Expr, patch: Expr },
     Upsert { table: String, key: Expr, row: Expr },
+    /// Target lookup and the old image stay inside the engine. Only a read-filtered result is bound.
+    WriteTarget { target: Read, patch: Expr, upsert: bool, condition: Option<WriteCondition>, result: Option<String> },
     Delete { table: String, key: Expr },
     Emit { effect: String, payload: Expr },
     Return(Expr),
     Break,
     Continue,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WriteCondition {
+    pub old: String,
+    pub setup: Vec<Stmt>,
+    pub value: Expr,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -431,6 +440,12 @@ fn stmts_read_sites(stmts: &[Stmt], out: &mut Vec<ReadSite>) {
                 expr_read_sites(key, out);
                 expr_read_sites(row, out);
             }
+            Stmt::WriteTarget { target, patch, condition, .. } => {
+                out.push(ReadSite { site: target.site.clone(), table: target.table.clone(), index: target.index.clone(), kind: "write target", take: 1 });
+                for key in &target.key { expr_read_sites(key, out); }
+                expr_read_sites(patch, out);
+                if let Some(condition) = condition { stmts_read_sites(&condition.setup, out); expr_read_sites(&condition.value, out); }
+            }
             Stmt::Delete { key, .. } => expr_read_sites(key, out),
             Stmt::Break | Stmt::Continue => {}
         }
@@ -487,92 +502,99 @@ fn expr_read_sites(expr: &Expr, out: &mut Vec<ReadSite>) {
 /// Every page scan in a program body, including merge lanes and their
 /// sources: what the compiler's completeness note looks at.
 pub fn scans(program: &Program) -> Vec<&Scan> {
-    let mut out = Vec::new();
-    stmts_scans(&program.body, &mut out);
-    out
+    read_structure(program).0
 }
 
-fn stmts_scans<'a>(stmts: &'a [Stmt], out: &mut Vec<&'a Scan>) {
+pub(crate) fn read_structure(program: &Program) -> (Vec<&Scan>, bool) {
+    let mut out = Vec::new();
+    let mut has_merge = false;
+    stmts_scans(&program.body, &mut out, &mut has_merge);
+    (out, has_merge)
+}
+
+fn stmts_scans<'a>(stmts: &'a [Stmt], out: &mut Vec<&'a Scan>, has_merge: &mut bool) {
     for stmt in stmts {
         match stmt {
-            Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) | Stmt::Emit { payload: value, .. } => expr_scans(value, out),
+            Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) | Stmt::Emit { payload: value, .. } => expr_scans(value, out, has_merge),
             Stmt::If { condition, then_body, else_body } => {
-                expr_scans(condition, out);
-                stmts_scans(then_body, out);
-                stmts_scans(else_body, out);
+                expr_scans(condition, out, has_merge);
+                stmts_scans(then_body, out, has_merge);
+                stmts_scans(else_body, out, has_merge);
             }
             Stmt::For { domain, body, .. } => {
                 match domain {
                     LoopDomain::Page(scan) => {
-                        expr_scans_of_scan(scan, out);
+                        expr_scans_of_scan(scan, out, has_merge);
                         out.push(scan);
                     }
-                    LoopDomain::ExpressionRange { start, end_exclusive } => { expr_scans(start, out); expr_scans(end_exclusive, out); }
-                    LoopDomain::DerivedArray { value, .. } => expr_scans(value, out),
-                    LoopDomain::Recurse(recurse) => expr_scans(&recurse.seed, out),
+                    LoopDomain::ExpressionRange { start, end_exclusive } => { expr_scans(start, out, has_merge); expr_scans(end_exclusive, out, has_merge); }
+                    LoopDomain::DerivedArray { value, .. } => expr_scans(value, out, has_merge),
+                    LoopDomain::Recurse(recurse) => expr_scans(&recurse.seed, out, has_merge),
                     LoopDomain::LiteralRange { .. } | LoopDomain::ArgList { .. } => {}
                 }
-                stmts_scans(body, out);
+                stmts_scans(body, out, has_merge);
             }
-            Stmt::Require { condition, .. } => expr_scans(condition, out),
-            Stmt::Check { condition, .. } => expr_scans(condition, out),
-            Stmt::InsertIfAbsent { row, .. } | Stmt::Insert { row, .. } => expr_scans(row, out),
+            Stmt::Require { condition, .. } => expr_scans(condition, out, has_merge),
+            Stmt::Check { condition, current } => { expr_scans(condition, out, has_merge); for key in &current.key { expr_scans(key, out, has_merge); } }
+            Stmt::InsertIfAbsent { row, .. } | Stmt::Insert { row, .. } => expr_scans(row, out, has_merge),
             Stmt::Update { key, patch, .. } => {
-                expr_scans(key, out);
-                expr_scans(patch, out);
+                expr_scans(key, out, has_merge);
+                expr_scans(patch, out, has_merge);
             }
             Stmt::Upsert { key, row, .. } => {
-                expr_scans(key, out);
-                expr_scans(row, out);
+                expr_scans(key, out, has_merge);
+                expr_scans(row, out, has_merge);
             }
-            Stmt::Delete { key, .. } => expr_scans(key, out),
+            Stmt::WriteTarget { target, patch, condition, .. } => {
+                for key in &target.key { expr_scans(key, out, has_merge); }
+                expr_scans(patch, out, has_merge);
+                if let Some(condition) = condition { stmts_scans(&condition.setup, out, has_merge); expr_scans(&condition.value, out, has_merge); }
+            }
+            Stmt::Delete { key, .. } => expr_scans(key, out, has_merge),
             Stmt::Break | Stmt::Continue => {}
         }
     }
 }
 
-fn expr_scans_of_scan<'a>(scan: &'a Scan, out: &mut Vec<&'a Scan>) {
-    if let Some(filter) = &scan.filter { expr_scans(filter, out); }
+fn expr_scans_of_scan<'a>(scan: &'a Scan, out: &mut Vec<&'a Scan>, has_merge: &mut bool) {
+    if let Some(filter) = &scan.filter { expr_scans(filter, out, has_merge); }
     if let Some(range) = &scan.range {
-        for bound in [&range.gt, &range.gte, &range.lt, &range.lte].into_iter().flatten() { expr_scans(bound, out); }
+        for bound in [&range.gt, &range.gte, &range.lt, &range.lte].into_iter().flatten() { expr_scans(bound, out, has_merge); }
     }
     for key in &scan.prefix {
-        if let Some(expr) = key.scalar() {
-            expr_scans(expr, out);
-        }
+        match key { IndexKeyExpr::Scalar(expr) | IndexKeyExpr::WordPrefix(expr) => expr_scans(expr, out, has_merge) }
     }
-    if let Some(after) = &scan.after {
-        expr_scans(after, out);
-    }
+    for cursor in [&scan.after, &scan.before].into_iter().flatten() { expr_scans(cursor, out, has_merge); }
 }
 
-fn expr_scans<'a>(expr: &'a Expr, out: &mut Vec<&'a Scan>) {
+fn expr_scans<'a>(expr: &'a Expr, out: &mut Vec<&'a Scan>, has_merge: &mut bool) {
     match expr {
         Expr::Literal(_) | Expr::Variable(_) | Expr::Input(_) => {}
-        Expr::Field { base, .. } => expr_scans(base, out),
-        Expr::Array(items) => items.iter().for_each(|item| expr_scans(item, out)),
-        Expr::Object(fields) => fields.values().for_each(|item| expr_scans(item, out)),
-        Expr::Shape { base, fields } => { expr_scans(base, out); fields.values().for_each(|item| expr_scans(item, out)); }
+        Expr::Field { base, .. } => expr_scans(base, out, has_merge),
+        Expr::Array(items) => items.iter().for_each(|item| expr_scans(item, out, has_merge)),
+        Expr::Object(fields) => fields.values().for_each(|item| expr_scans(item, out, has_merge)),
+        Expr::Shape { base, fields } => { expr_scans(base, out, has_merge); fields.values().for_each(|item| expr_scans(item, out, has_merge)); }
         Expr::Binary { left, right, .. } => {
-            expr_scans(left, out);
-            expr_scans(right, out);
+            expr_scans(left, out, has_merge);
+            expr_scans(right, out, has_merge);
         }
-        Expr::Unary { value, .. } => expr_scans(value, out),
-        Expr::Builtin { args, .. } => args.iter().for_each(|item| expr_scans(item, out)),
-        Expr::Get(read) | Expr::Exists(read) => read.key.iter().for_each(|item| expr_scans(item, out)),
-        Expr::Block { body, value } => { stmts_scans(body, out); expr_scans(value, out); }
+        Expr::Unary { value, .. } => expr_scans(value, out, has_merge),
+        Expr::Builtin { args, .. } => args.iter().for_each(|item| expr_scans(item, out, has_merge)),
+        Expr::Get(read) | Expr::Exists(read) => read.key.iter().for_each(|item| expr_scans(item, out, has_merge)),
+        Expr::Block { body, value } => { stmts_scans(body, out, has_merge); expr_scans(value, out, has_merge); }
         Expr::Scan(scan) => {
-            expr_scans_of_scan(scan, out);
+            expr_scans_of_scan(scan, out, has_merge);
             out.push(scan);
         }
         Expr::Merge(merge) => {
+            *has_merge = true;
             for lane in &merge.lanes {
-                stmts_scans(&lane.setup, out);
+                stmts_scans(&lane.setup, out, has_merge);
                 if let Some(source) = &lane.source {
-                    expr_scans_of_scan(source, out);
+                    expr_scans_of_scan(source, out, has_merge);
                     out.push(source);
                 }
-                expr_scans_of_scan(&lane.scan, out);
+                expr_scans_of_scan(&lane.scan, out, has_merge);
                 out.push(&lane.scan);
             }
         }
@@ -592,6 +614,7 @@ fn stmts_write_tables(stmts: &[Stmt], out: &mut Vec<(String, &'static str)>) {
             Stmt::Insert { table, .. } | Stmt::InsertIfAbsent { table, .. } => out.push((table.clone(), "insert")),
             Stmt::Update { table, .. } => out.push((table.clone(), "update")),
             Stmt::Upsert { table, .. } => out.push((table.clone(), "upsert")),
+            Stmt::WriteTarget { target, upsert, .. } => out.push((target.table.clone(), if *upsert { "upsert" } else { "update" })),
             Stmt::Delete { table, .. } => out.push((table.clone(), "delete")),
             Stmt::If { then_body, else_body, .. } => {
                 stmts_write_tables(then_body, out);

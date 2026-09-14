@@ -163,10 +163,13 @@ mutation edit(messageId: messages, body: text <=4000):
   `exists t[id = .docId, ownerId = viewer]`), `created t[..]` (insert rules
   only: true when this mutation inserted the probed row), `and`, `or`,
   `not`. `update (old, next) <- old.x = next.x` names both images. A table
-  with no rule for an effect denies it. Rules compare with `=` and `!=`
-  only; the system principal consults no rules. A unique-key or id collision
-  with a row the writer cannot read returns the generic `E_RULE`, including
-  insert-if-absent and upsert; only a readable collision names its key.
+  with no rule for an effect denies it. A rule may probe existence on a maintain
+  over an expiring source at one unit, but `check` refuses an equality on its
+  `value` (E_QUARRY_LIVE_MAINTAIN_PROBE): read the maintain in the program;
+  its live value cannot be probed at one unit. Equalities on non-expiring
+  maintains and ordinary tables are unchanged. Rules compare with `=` and `!=`
+  only; the system principal consults no rules. Write authority and refusal
+  disclosure are separate, as the write contract below states.
 - **Sync** (§3) and **retain**: `retain until-revoked` (the default: a
   device drops a group's rows when it leaves the group) or
   `retain delivered-history` (it keeps what it was given).
@@ -179,6 +182,48 @@ mutation edit(messageId: messages, body: text <=4000):
   null` with `ttl: int ?`; nothing else to write. A `maintain` over an
   expiring table counts a row until the sweep removes it (exact within a
   second), while a read of the row is null at once.
+
+### Write authority
+
+For update/upsert, "readable" means the read rule admits the old row in the
+pre-write state, before the patch or any of its effects. The engine resolves
+id and unique-key targets privately; the update rule judges old and next.
+
+| Target before the write | Refusal details |
+| --- | --- |
+| Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_CONSTRAINT`; `E_INPUT` |
+| Unreadable or absent | `NOT_FOUND` for rule denial, an `update` condition, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |
+
+A hidden collision on ordinary insert or `insert ... if absent` stays
+`E_RULE`; a readable collision names its index (if-absent returns null).
+An update or upsert-patch colliding with a different hidden row returns generic
+`E_RULE` when its target is readable and `NOT_FOUND` when its target is unreadable.
+Use `upsert counters[recipient] { count: 1 }` under an `update` rule to
+write another principal's row. Success discloses the admitted row's existence
+and the update rule predicates. It grants no extra stream or snapshot row.
+A condition belongs on `update`; an upsert inserts or patches. A condition
+needs a row you can read; a blind patch needs none. On a row you cannot read,
+immutable columns in a patch are ignored. A readable immutable mismatch still
+names the column. Before target lookup, the engine reserves room for the rule
+probes and the largest merged image allowed by the schema and supplied patch;
+if it cannot fit, `E_BOUND` refuses equally for a hidden or absent target.
+
+`old` in a rule and the conditional update's `if` are evaluated inside the
+engine. An update/upsert result and conflict `current` are read-rule gets,
+never the merged patch image: null or withheld when hidden at that read.
+A patch can grant read authority and then return its row. Omitted asset columns
+keep their placement. An explicit asset id on a row you cannot read must be your
+own upload, even if it equals the retained id. Update authority is checked
+before asset diagnostics. A readable maintain is an explicit delta read channel;
+`N_MAINTAIN_DELTA` notes potentially wider source update authority.
+A device missing a write target, on any synced table with or without a
+horizon, queues without a predicted row and still sends `/m`.
+The at-most-once record stores the replay body, with value-free diagnostic
+messages and no `result` or `current`. Replay returns
+execution identity only, with `replayed: true`; historical `result` and
+`current` are withheld, including after revocation or a dropped response.
+The same operation id under another principal has no access to that receipt.
+`delete` keeps its own existing rule and behavior.
 
 ### Maintains
 
@@ -219,6 +264,26 @@ server-run and never predicted. See `guide actions`; its declaration is
 compiled on that card beside the language card.
 
 ### Queries, mutations and jobs
+
+A mutation classified `predicts: "never"`, from a server site or an author's
+`: server` marker, may iterate a bounded plain prefix page when its read rule
+is uniform over the prefix. `matching`, merges and tables with expiry are
+refused for every mutation page (`E_STRUCTURAL_FANOUT`), predicting or not,
+looped or only bound. Prediction still needs a complete
+schema-capped group. Every page a mutation reads, including a page it only
+binds, must be uniformly decided by its prefix (`E_STRUCTURAL_FANOUT`): read it in
+a query, or pin the deciding columns.
+The pass is atomic and remains subject to 1,024 rows written per mutation.
+`check --cost` prints "a pass over the first N rows of <prefix>; examined
+ceiling <n>". It never commits a partial pass after a budget abort.
+
+```quarry
+mutation recentPass(roomId: rooms): server
+  n = 0
+  for row in members[roomId] first 10 by byRoomPrincipal:
+    n = n + 1
+  return n
+```
 
 A job may put a read-only prelude before its first `chunk`. It runs again
 at the start of every chunk, with its bindings visible there and its work
@@ -271,7 +336,8 @@ charged to that chunk's meter. Writes belong inside a chunk.
   expected` makes it conditional, refusing `E_CONFLICT` with the current
   row; `NOT_FOUND` when the row is missing), `upsert t[key] { fields }`
   (insert or patch: omitted columns keep their values on an existing row;
-  an absent row fills defaults and then refuses `E_INPUT` for any missing required column),
+  an absent row fills defaults and then, for any required column still
+  missing, refuses `NOT_FOUND`, the one word an unreadable target gets),
   `delete t[key]`; the key is an id, a row you hold, or a full unique key.
   A final write is the implicit return; bind it to use it (`row = insert
   ..`). Writes check the rule, unique indexes, caps, immutables, text
@@ -302,9 +368,9 @@ charged to that chunk's meter. Writes belong inside a chunk.
 - **Refusals** a program raises with `require .. else CODE` reach the
   client as `{ code: "CODE", family: "rule", rule: "CODE", .. }`; `CODE` is
   UPPER_SNAKE and never starts with `E_`.
-- A mutation may loop over a page only when it is one complete
-  schema-capped group (`cap N by cols` and `first N`); anything wider is a
-  job's `chunk` (`E_STRUCTURAL_FANOUT` says so).
+- A predicting mutation loops over one complete schema-capped group
+  (`cap N by cols` and `first N`). A never-predicting mutation can pass a
+  bounded uniform page, as described above; a larger sweep is a job's `chunk`.
 
 ### Jobs and schedules
 
