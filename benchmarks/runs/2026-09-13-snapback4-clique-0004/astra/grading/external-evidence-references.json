@@ -1,0 +1,476 @@
+{
+  "createdAt": "2026-09-14T06:42:02Z",
+  "externalRoot": "/Users/ccheever/clique-sb4-20260913-full-3models",
+  "originalBuilderReceipts": {
+    "custodyDetail": "grader-access-source-custody-final.json sourceCustody.archivedEvidence",
+    "repositoryPath": "benchmarks/runs/2026-09-13-snapback4-clique-0004/astra/evidence",
+    "result": "53 of 53 archived builder evidence files matched the canonical snapshot; all 14 original choreography receipt/observation files matched."
+  },
+  "referenceCount": 76,
+  "references": [
+    {
+      "bytes": 8193,
+      "group": "grader-authored-independent-evidence",
+      "path": "lanes/astra-snapback4/grading/evidence/api-probes-49300.json",
+      "sha256": "21bdb83a048209bd466fc1f6ff2e59374b1bf093b9706b51fb78065517544370"
+    },
+    {
+      "bytes": 4328,
+      "group": "grader-authored-independent-evidence",
+      "path": "lanes/astra-snapback4/grading/evidence/digest-probe-rerun.json",
+      "sha256": "1bc89ff32f878f48386c8b618ed717995d25de64c6c5bb207bc0db03311adda2"
+    },
+    {
+      "bytes": 1806,
+      "group": "grader-authored-independent-evidence",
+      "path": "lanes/astra-snapback4/grading/evidence/expiry-probe.json",
+      "sha256": "2ed8d766c1f19fbb02cf6854dcec99da4977b81affb269a223f218b62a4c5b9d"
+    },
+    {
+      "bytes": 1955,
+      "group": "grader-authored-independent-evidence",
+      "path": "lanes/astra-snapback4/grading/evidence/follower-count-diagnostic.json",
+      "sha256": "5fdc10cf1f58fd39ce3fab41685c7fbca739132f872cb6f9c4b11fe108d887c4"
+    },
+    {
+      "bytes": 444,
+      "group": "grader-authored-independent-evidence",
+      "path": "lanes/astra-snapback4/grading/evidence/follower-count-live.json",
+      "sha256": "4819a146b318a5f9fa5788773a813159d3609726724c87b7a51197587c98e639"
+    },
+    {
+      "bytes": 834,
+      "group": "grader-authored-independent-evidence",
+      "path": "lanes/astra-snapback4/grading/evidence/insights-semantics.json",
+      "sha256": "5b34763c5938644ff93e89b5bf591a50388f6e30b0f9d8b5dbecc237425e97e9"
+    },
+    {
+      "bytes": 621,
+      "group": "grader-authored-independent-evidence",
+      "path": "lanes/astra-snapback4/grading/evidence/offline-latency.json",
+      "sha256": "1951ae8b14375f1188644abd5a65a82223f056aad0dd270cd0d9243ba9c0ab1b"
+    },
+    {
+      "bytes": 29321,
+      "group": "grader-authored-independent-evidence",
+      "path": "lanes/astra-snapback4/grading/evidence/screens/expiry-a1-relaunch.png",
+      "sha256": "fc7bf7c087067d3a6f592c14011bbeccf6f990c96ded0e90fb8171a33aff3d50"
+    },
+    {
+      "bytes": 29841,
+      "group": "grader-authored-independent-evidence",
+      "path": "lanes/astra-snapback4/grading/evidence/screens/expiry-b1-relaunch.png",
+      "sha256": "b397c839418c96d3fc558e6389b40fcba01595786843474352354b62bb73eaa2"
+    },
+    {
+      "bytes": 30084,
+      "group": "grader-authored-independent-evidence",
+      "path": "lanes/astra-snapback4/grading/evidence/screens/expiry-connected-after.png",
+      "sha256": "a7036fe6a70f74c27dce17c8024aedd517d7956b5ef9b3ca04c7a36c8046d409"
+    },
+    {
+      "bytes": 16887,
+      "group": "grader-authored-independent-evidence",
+      "path": "lanes/astra-snapback4/grading/evidence/screens/expiry-offline-search.png",
+      "sha256": "caf8d7f0cbb08b6877464bb7eb8d80f1277e8c068127d9b727745fee7942d57d"
+    },
+    {
+      "bytes": 116340,
+      "group": "grader-authored-independent-evidence",
+      "path": "lanes/astra-snapback4/grading/evidence/screens/m2-a07-alice-profile.png",
+      "sha256": "aa0c48d7256312dc776411a0ed6839e8ffdfa7bf85bda7b3a4f5862cd0322e7b"
+    },
+    {
+      "bytes": 31881,
+      "group": "grader-authored-independent-evidence",
+      "path": "lanes/astra-snapback4/grading/evidence/screens/offline-latency-1.png",
+      "sha256": "0fa32e87142e7f3d8164b661ae38cc056c06c5691b81bb08fe24181797b1ce65"
+    },
+    {
+      "bytes": 22013,
+      "group": "grader-authored-independent-evidence",
+      "path": "lanes/astra-snapback4/grading/evidence/screens/offline-latency-2.png",
+      "sha256": "41a878b93b19f52b3833744acd7f031411cd902bdd054aabe411257ef8a37327"
+    },
+    {
+      "bytes": 31881,
+      "group": "grader-authored-independent-evidence",
+      "path": "lanes/astra-snapback4/grading/evidence/screens/offline-latency-3.png",
+      "sha256": "0fa32e87142e7f3d8164b661ae38cc056c06c5691b81bb08fe24181797b1ce65"
+    },
+    {
+      "bytes": 95481,
+      "group": "grader-authored-independent-evidence",
+      "path": "lanes/astra-snapback4/grading/evidence/screens/search-route-dm-recheck.png",
+      "sha256": "3b05f65131cc60a8815779c4cbe802440636f2b893f016a082df42d5aba63a05"
+    },
+    {
+      "bytes": 104455,
+      "group": "grader-authored-independent-evidence",
+      "path": "lanes/astra-snapback4/grading/evidence/screens/search-route-dm.png",
+      "sha256": "a408f464be2394b03c14b4cba21da4ee3895994c85ebd0157fb21353955d345d"
+    },
+    {
+      "bytes": 104922,
+      "group": "grader-authored-independent-evidence",
+      "path": "lanes/astra-snapback4/grading/evidence/screens/search-route-group.png",
+      "sha256": "93a38f06ae8d2fcaf8cbba30ae1a2dbc269a9983b532ad90dfd006abe09f2df5"
+    },
+    {
+      "bytes": 477,
+      "group": "grader-authored-independent-evidence",
+      "path": "lanes/astra-snapback4/grading/evidence/search-route-check.json",
+      "sha256": "a0c3ecfc73a7d87fe7491010cf8efdf3bb202da4d5b07a82214bdccbf49a8176"
+    },
+    {
+      "bytes": 186,
+      "group": "grader-authored-independent-evidence",
+      "path": "lanes/astra-snapback4/grading/evidence/search-route-recheck.json",
+      "sha256": "73a3f20c252d888bbe1f50754a588f10a65d054b947663330a1d34cc1aac3ffb"
+    },
+    {
+      "bytes": 658,
+      "group": "grader-authored-independent-evidence",
+      "path": "lanes/astra-snapback4/grading/evidence/seed-idempotency.json",
+      "sha256": "a3e6aff75e36e848f09fdb2513c1ab0ea779beb313a08a3b867449ffbdae8cde"
+    },
+    {
+      "bytes": 4141,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/choreo-m1.jsonl",
+      "sha256": "efb8852d51bc245d89817a39596373166c170f157d370e5e0399fc12bbc0fc83"
+    },
+    {
+      "bytes": 1732,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/choreo-m1.jsonl.observations.jsonl",
+      "sha256": "62213c5f0c65f0980aa272b64424789b5df959a318b22ab43b97288bbab182bc"
+    },
+    {
+      "bytes": 9964,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/choreo-m2.jsonl",
+      "sha256": "02fa5b4195e92141c268a2a2ea0cf2ffaf640a978cc05bf48380a2df06cc5f68"
+    },
+    {
+      "bytes": 7565,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/choreo-m2.jsonl.observations.jsonl",
+      "sha256": "0db238a9727dbff759931047210f22e5f066e528273a5e648b7c8dd60f7d4ec5"
+    },
+    {
+      "bytes": 7862,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/choreo-m3-grader-attempt1.jsonl",
+      "sha256": "c253ba29e086d89312f51d935ed3124c7dc090ac4b67700425da089b2110e5a4"
+    },
+    {
+      "bytes": 7872,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/choreo-m3-grader-attempt2.jsonl",
+      "sha256": "982287496ea795d5d2b5ebb41b0322649caa967133992ab6a5842b7ef8bacff0"
+    },
+    {
+      "bytes": 7874,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/choreo-m3-grader-attempt3.jsonl",
+      "sha256": "1b233c06840bded89d0f7de61105dd09569435437fc4ac8a1e9ecb45b12d04cd"
+    },
+    {
+      "bytes": 7874,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/choreo-m3.jsonl",
+      "sha256": "1b233c06840bded89d0f7de61105dd09569435437fc4ac8a1e9ecb45b12d04cd"
+    },
+    {
+      "bytes": 4136,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/choreo-m3.jsonl.observations.jsonl",
+      "sha256": "e0ef273a8c2dfe728451f1788f503bacdd8f4326d2032eeb59f091f42a289a01"
+    },
+    {
+      "bytes": 5488,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/choreo-m4.jsonl",
+      "sha256": "0e2edb734ee9a8186c8df6b541ad776209534c55da356ab18053eb4d31ff6ff6"
+    },
+    {
+      "bytes": 3438,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/choreo-m4.jsonl.observations.jsonl",
+      "sha256": "b0b9c5422d349e137d1691fe54b59976e992f19a45fee517bec8755792944ae1"
+    },
+    {
+      "bytes": 4339,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/choreo-m5-grader-attempt1.jsonl",
+      "sha256": "5f6bd58a9a4625687653cdcb4c6c326e08a20f836946e21e3733927dfbbf4876"
+    },
+    {
+      "bytes": 1459,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/choreo-m5-grader-attempt1.jsonl.observations.jsonl",
+      "sha256": "f8cc850148dbd6f364283f4d18ea3f30f0a3b5cd5316304734dbd7b0d16d3c32"
+    },
+    {
+      "bytes": 4339,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/choreo-m5.jsonl",
+      "sha256": "d5515179ac5032358f69a8f106e42eaa5428cff78c38364c812e5f7bb64131cc"
+    },
+    {
+      "bytes": 1459,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/choreo-m5.jsonl.observations.jsonl",
+      "sha256": "999828b2797c694fa329adaa52d88b496c3ede3686173146e61324d44af77a82"
+    },
+    {
+      "bytes": 2758,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/choreo-m6.jsonl",
+      "sha256": "8a785ff51f7f80218b468f71d9501a27ac1fb998b8c752b38487deb62d431c09"
+    },
+    {
+      "bytes": 564,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/choreo-m6.jsonl.observations.jsonl",
+      "sha256": "0343249f5fd2ec701918af00dd8aca7243190cf089a7c86c3e633602b84c14c5"
+    },
+    {
+      "bytes": 4877,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/choreo-m8.jsonl",
+      "sha256": "0927d587f685091f83b4eb20e6043d6fa392fd8176398549f60a20cf502811d8"
+    },
+    {
+      "bytes": 1731,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/choreo-m8.jsonl.observations.jsonl",
+      "sha256": "d5f3c0e65b9429d6cd3cf1873aeb31d1f7c00a05106cddcf95b4a2446025c7c2"
+    },
+    {
+      "bytes": 556,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/coverage-m1.json",
+      "sha256": "4de4d483df7a4130796de0aafcefb9e2ec145cf13a459aa9b4e325fbb381af0b"
+    },
+    {
+      "bytes": 1651,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/coverage-m2.json",
+      "sha256": "d31623cd80599c60ed72591a1cf58ca6d90a545fe7d15ae793ba470e8db0ac04"
+    },
+    {
+      "bytes": 556,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/coverage-m3.json",
+      "sha256": "bc581d96fa6958f6680dbdbbbe671fd629cd7adbfc42d51084ef76fedb0944c3"
+    },
+    {
+      "bytes": 410,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/coverage-m4.json",
+      "sha256": "4f6d4b4ed477dd8bd1115ebca5b8110e30cced2c6b306b9f674315839e5b53da"
+    },
+    {
+      "bytes": 483,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/coverage-m5.json",
+      "sha256": "323f0f7a1a5a6140ca1aef20ec135a9557fece128b2f248ce38b33d0433509f0"
+    },
+    {
+      "bytes": 410,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/coverage-m6.json",
+      "sha256": "293ee85440203783aadadc35f3ca73950185832c17c559c514757ea66f917290"
+    },
+    {
+      "bytes": 483,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/coverage-m8.json",
+      "sha256": "f908ce7544890cced0ad60076107446e9592232ab881282b15bb4c68ecda8417"
+    },
+    {
+      "bytes": 543,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/grader-choreo-m1.log",
+      "sha256": "88deafd89b64f500cf56205db46f908b016186eacd8bdae0c1155a738f7ac402"
+    },
+    {
+      "bytes": 543,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/grader-choreo-m2.log",
+      "sha256": "80f764875b5fb5e9a231744f17a0489ed00f873573dc97d11d98d6e2d5357d84"
+    },
+    {
+      "bytes": 543,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/grader-choreo-m3-run2.log",
+      "sha256": "b1d8d1d06260bcbc4eafd819006344683791bccd03b5d11823693869c001d976"
+    },
+    {
+      "bytes": 541,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/grader-choreo-m3-run3.log",
+      "sha256": "6e66c5b13ed179a26bc76d9aa0cfee5b3cad6a47707cf569094c92c99dfe7621"
+    },
+    {
+      "bytes": 543,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/grader-choreo-m3.log",
+      "sha256": "d69355b4fbda59868acfdaef7764b48b722fca83fb738636dc451da1d69e4d91"
+    },
+    {
+      "bytes": 543,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/grader-choreo-m4.log",
+      "sha256": "daae6f8ffacb69a31a4e226ca2d81d3d72b3b452e4e9b826b46fd10a69a37c28"
+    },
+    {
+      "bytes": 1236,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/grader-choreo-m5-rerun.log",
+      "sha256": "048b6f837eb11fcd344e79404565e5a58f61cc33674dfa26730e4007dfbff22c"
+    },
+    {
+      "bytes": 1236,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/grader-choreo-m5.log",
+      "sha256": "34b204ee5b2b575def3f4efa7feea832f523db24788646e9a10d7e2773b43fe0"
+    },
+    {
+      "bytes": 543,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/grader-choreo-m6.log",
+      "sha256": "711408aa50d79bc35b8e8915d46aa0fca32395b9e0ed07d2b0cf2e5fbad39476"
+    },
+    {
+      "bytes": 543,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/grader-choreo-m8.log",
+      "sha256": "8f688c27e3c1e9038d873c31afa7d3b6425ca9a5a3ee0e424f21766629c85faf"
+    },
+    {
+      "bytes": 571,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/grader-suite-m1-rerun.log",
+      "sha256": "a71f55c89e5f025071287787b2300840ab06a556e94cd277a498e156bbefcd49"
+    },
+    {
+      "bytes": 749,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/grader-suite-m1.log",
+      "sha256": "c03d83e8887d18af4e5d92a6098c5102cae266ec1a9bf2775672ddec0543f6ac"
+    },
+    {
+      "bytes": 883,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/grader-suite-m2.log",
+      "sha256": "bab240dc385e6d5cee5b0e4d80be113f696f443c9ef0acaeeacad94fb53921a5"
+    },
+    {
+      "bytes": 373,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/grader-suite-m3.log",
+      "sha256": "faeedaebeab377d4fec77566d916c671e76c6bdaa6525c9323b84216238810fd"
+    },
+    {
+      "bytes": 365,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/grader-suite-m4.log",
+      "sha256": "74ba78b2a5a7870d5d225cd3b74ad33090dedd92907a519147aada591b261e45"
+    },
+    {
+      "bytes": 373,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/grader-suite-m5.log",
+      "sha256": "b391da240de3fe7436a61ef5a55b3a7b26ceccf30eb918c316162d00d2df7151"
+    },
+    {
+      "bytes": 395,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/grader-suite-m6.log",
+      "sha256": "4f9a50b4a8606cfbda83389c50fe0022b5b7554f216a01c674388e5997c65b38"
+    },
+    {
+      "bytes": 447,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/grader-suite-m8.log",
+      "sha256": "dbcb1c470265656ac07455c8d425c22b7c3491df59fe19a1a32f6b0fa8b2888e"
+    },
+    {
+      "bytes": 425,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/m8-trending-aging.json",
+      "sha256": "63410c7a68c959dd1ba3304d19b0456df0775428fa246a08b198135d0d2ac289"
+    },
+    {
+      "bytes": 459,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/suite-m1.json",
+      "sha256": "81f6d6b6ecec8cf9ffb6cd7e0a2ad33e2b2432edd4c556ae4da66260f266de12"
+    },
+    {
+      "bytes": 1269,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/suite-m2.json",
+      "sha256": "a3b79710af7b3d5185e6c893496cb76733d5d6326e798229ed156bde9b460031"
+    },
+    {
+      "bytes": 459,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/suite-m3.json",
+      "sha256": "7e219091e23b41cae27ccf9ed3bc03e4a2337daba571ffcdd6256b67f2da6689"
+    },
+    {
+      "bytes": 431,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/suite-m4.json",
+      "sha256": "39049fbf221bcf27cbcb59f5c2461ea189437224b29d089815c71d8753d3b010"
+    },
+    {
+      "bytes": 459,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/suite-m5.json",
+      "sha256": "d8c69ac718a404f42170462a17f118081b57f111ad723e9cb4c634ec9a070b17"
+    },
+    {
+      "bytes": 933,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/suite-m6.json",
+      "sha256": "15e26bc8f36fec03a1742b281f3c4ef7149b17cc2574febb53e38a70965ce476"
+    },
+    {
+      "bytes": 4032,
+      "group": "grader-checkout-receipt-or-log",
+      "path": "lanes/astra-snapback4/grading/checkout/evidence/suite-m8.json",
+      "sha256": "56a7321a729ec9ec8ddbf059d27045206d54fa6b5b0609cf76857a2467ce903e"
+    },
+    {
+      "bytes": 12377,
+      "group": "grader-checkout-push-receipt",
+      "path": "lanes/astra-snapback4/grading/checkout/grader-instance/evidence/digest-push.jsonl",
+      "sha256": "1ae3faeca3588a65ce0537054ea8fa02c482f56954d064835663717fe51ee792"
+    },
+    {
+      "bytes": 2661095,
+      "group": "raw-grader-cli-log",
+      "path": "logs/astra-snapback4.grade.ndjson",
+      "sha256": "3f8633510de5063e5a7c18a765ae47e872aabdfc369c9b2bcd77b7fe8403a9af"
+    },
+    {
+      "bytes": 0,
+      "group": "grader-cli-stderr",
+      "path": "logs/astra-snapback4.grade.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "schemaVersion": 1,
+  "selection": {
+    "contentsCopied": false,
+    "credentialValuesCopied": false,
+    "description": "Selected grader-created artifacts referenced by the received report or trace, plus the complete grading/evidence tree and raw CLI custody hashes.",
+    "notExhaustive": "The grading checkout, runtime state, server logs, dependency trees and other bulky or potentially sensitive files remain external and are not inventoried here."
+  },
+  "status": "hash references only"
+}

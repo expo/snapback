@@ -1,0 +1,70 @@
+{
+  "authoredFilesExcluded": [
+    "README.md",
+    "COPIED_FILES.json",
+    "external-evidence-references.json"
+  ],
+  "copiedFileCount": 8,
+  "createdAt": "2026-09-14T06:42:02Z",
+  "destinationRoot": "benchmarks/runs/2026-09-13-snapback4-clique-0004/astra/grading",
+  "files": [
+    {
+      "bytes": 44228,
+      "destination": "grader-report.json",
+      "sha256": "410c4cd24f4e13539692c96f4f1776fc0241d6214a163623c2591ff37a636e9f",
+      "sourcePath": "lanes/astra-snapback4/grading/grader-report.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 5712,
+      "destination": "m8-assertion-results.json",
+      "sha256": "64a9f62500f52c625576f602c8941f4d6ab7e86c4acf3cf421d58e5e29694b38",
+      "sourcePath": "lanes/astra-snapback4/grading/m8-assertion-results.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 31291,
+      "destination": "trace.md",
+      "sha256": "ad54165759fc870ab0f00f4ae5a4f8b1eb084d17bab1ffc86beac38fd44f7156",
+      "sourcePath": "lanes/astra-snapback4/grading/trace.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 15,
+      "destination": "DONE",
+      "sha256": "17197ddc2688f481fc9e8e30640303b41d9ba18d46c787c728e5001a8ae822ca",
+      "sourcePath": "lanes/astra-snapback4/grading/DONE",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1734,
+      "destination": "validation.json",
+      "sha256": "f59f626220267dfb655c3235a3001b6f3aab7d0915b91fb202527551a43bee6c",
+      "sourcePath": "observed-milestones/astra-received-grade-validation.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 962,
+      "destination": "astra-snapback4.grade.start.json",
+      "sha256": "aa175e0658cee9b18d1c2b6e591f19eb3031b1c7fb2043fd4bd5d06b5e4eba3f",
+      "sourcePath": "logs/astra-snapback4.grade.start.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 377,
+      "destination": "astra-snapback4.grade.end.json",
+      "sha256": "dd4f3ed6145f7200286e58c49c2164893703cc731914c5068d831cdc18a4c753",
+      "sourcePath": "logs/astra-snapback4.grade.end.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 39163,
+      "destination": "grader-access-source-custody-final.json",
+      "sha256": "d0458b254e5b5e32173bc1227058007168d999a16cbaebd9b6bfcd46bfe5ebd4",
+      "sourcePath": "observed-milestones/astra-grader-access-source-custody-final.json",
+      "verifiedByteIdentical": true
+    }
+  ],
+  "schemaVersion": 1,
+  "sourceRoot": "/Users/ccheever/clique-sb4-20260913-full-3models"
+}

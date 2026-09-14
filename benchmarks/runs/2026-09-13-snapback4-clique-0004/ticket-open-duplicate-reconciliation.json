@@ -1,0 +1,545 @@
+{
+  "observedAt": "2026-09-14T06:55:23.637986+00:00",
+  "revisionBeforeCleanup": "2890a42d4bedfbd7baec85a35b25fe54f1b5aa14",
+  "originalTickets": 36,
+  "staleTrackedOpenDuplicates": 33,
+  "alreadyOnlyClosed": 3,
+  "review": "Independent read-only host agent audit confirmed core problem/reproduction/suggestion text survives all 33. Twenty-two preserve the full pre-resolution text after status/link normalization. Eleven contain source-annotation edits or removed cross-ticket context; their exact changed original lines and original Git blob IDs are retained here. Three historical cross-ticket relationships were restored to closed records. Two incoming Markdown links were repaired.",
+  "restoredHistoricalContext": {
+    "stream-poll-query-amplification": "Historical scope: the [sync stream per-group ticket](20260913-snapback4-sync-stream-is-per-group.md) is the parent bundle covering locks, IMMEDIATE transactions, and threads. This ticket owns its per-group `read_log` amplification slice.",
+    "view-once-records-before-bytes": "Historical scope: [S12 asset-once and pixel bounds](../20260913-snapback4-asset-once-and-pixel-bounds.md) covers uploader exemption and pixel caps; this ticket owns the commit-before-bytes remainder.",
+    "react-useviewer-non-reactive": "Historical overlap: [useAsset and startup lifecycle](20260913-snapback4-useviewer-and-useasset-lifecycle.md) owns the same `useViewer` hole plus `useAsset(null)` and open-without-close."
+  },
+  "rows": [
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-join-expansion-dropped-on-later-leave.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-join-expansion-dropped-on-later-leave.md",
+      "openSha256": "b8b1c89402b4378f0ecd9bac83ef1c4895b43b4a28b33fe138436cd4134c1f77",
+      "closedSha256BeforeCleanup": "3d5b0f7b6f6434ee8785e66f214f252f1e9d8a229e8bc9d10c9ad7c80d4a251f",
+      "originalGitBlob": "909e82f5b9d4a72840106fbc36305006b605ee8b",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [],
+      "verbatimOriginalLinesChanged": [
+        "Related: [LLP 3000.001](../llp/3000.001-durable-replica-and-write-lifecycle.research.md), [partition.rs](../snapback4/crates/snapback4-core/src/partition.rs)"
+      ],
+      "closedSha256AfterCleanup": "3d5b0f7b6f6434ee8785e66f214f252f1e9d8a229e8bc9d10c9ad7c80d4a251f"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-expired-rows-fill-sync-horizon.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-expired-rows-fill-sync-horizon.md",
+      "openSha256": "6d0e6902d88fe464781466e343cab8fe79b93e25cfeb5068e7b448e2e7813ec7",
+      "closedSha256BeforeCleanup": "ecd28f4496a036510ea904216896d8e0a601ab95cd2d5bd05e3341f189616b88",
+      "originalGitBlob": "088877f5e9fbf0d717ec68d331c491c81cb558cc",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [],
+      "verbatimOriginalLinesChanged": [
+        "Related: Clique M5, [LLP 3000](../llp/3000-snapback4.explainer.md) \u00a77 (expire as a lifetime), NOT-DOING (no exact horizon backfill)",
+        "- [snapback4/crates/snapback4-core/src/partition.rs](../snapback4/crates/snapback4-core/src/partition.rs) (`group_rows`, `group_rows_from`, `groups_now`)",
+        "- [snapback4/crates/snapback4-core/src/engine/mod.rs](../snapback4/crates/snapback4-core/src/engine/mod.rs) (`sweep_expired`, `asset_access`)",
+        "- [snapback4/crates/snapback4-core/src/engine/write.rs](../snapback4/crates/snapback4-core/src/engine/write.rs) (`check_constraints`, `check_final_exists`, maintains)"
+      ],
+      "closedSha256AfterCleanup": "ecd28f4496a036510ea904216896d8e0a601ab95cd2d5bd05e3341f189616b88"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-scan-skips-siblings-after-expired.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-scan-skips-siblings-after-expired.md",
+      "openSha256": "7faadcd320b94ade864c6394417b1874647bf101186ffd8762a9c704c562f7aa",
+      "closedSha256BeforeCleanup": "359acc4ff0dd9e7d79fd785dd757725fba896534e748bd4d7bb0f7819af1f26d",
+      "originalGitBlob": "1535758cc7af7d4e8e39d5f1b605d04ba8577f7c",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [],
+      "verbatimOriginalLinesChanged": [
+        "- [snapback4/crates/snapback4-core/src/engine/read.rs](../snapback4/crates/snapback4-core/src/engine/read.rs) (~259)",
+        "- [snapback4/crates/snapback4-core/src/store.rs](../snapback4/crates/snapback4-core/src/store.rs) (`Tx::scan`)",
+        "- [snapback4/crates/snapback4-core/src/engine/job.rs](../snapback4/crates/snapback4-core/src/engine/job.rs) (the working form)"
+      ],
+      "closedSha256AfterCleanup": "359acc4ff0dd9e7d79fd785dd757725fba896534e748bd4d7bb0f7819af1f26d"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-stream-interval-truncation-inversion.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-stream-interval-truncation-inversion.md",
+      "openSha256": "2451726ac92df4c7bb068921cf5a8f078a168f872d77dd86fdd0ffbee717681f",
+      "closedSha256BeforeCleanup": "15cfc360c8fc0a3542c8cc6ee747794fc2c56893b18b84d2225cc671c1f25c5c",
+      "originalGitBlob": "0f33339e467f5372ce6bf8ee998324712ba9ed72",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [],
+      "verbatimOriginalLinesChanged": [
+        "Related: [LLP 3000.001](../llp/3000.001-durable-replica-and-write-lifecycle.research.md), [partition.rs](../snapback4/crates/snapback4-core/src/partition.rs)"
+      ],
+      "closedSha256AfterCleanup": "15cfc360c8fc0a3542c8cc6ee747794fc2c56893b18b84d2225cc671c1f25c5c"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-engine-mutex-poison-wedges-server.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-engine-mutex-poison-wedges-server.md",
+      "openSha256": "047406ba0c2ee6f70aabe35cea34de13bfb5a17c623cfeeddafe04b99b87826b",
+      "closedSha256BeforeCleanup": "c069b668bf1e3972db9b638202788b1fd87f7b480a22cbc51cb8f2abda9c61d6",
+      "originalGitBlob": "3aef00489ad203ceb8ae4571845b3d564eb22c3a",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [],
+      "verbatimOriginalLinesChanged": [
+        "([serve.rs](../snapback4/crates/snapback4/src/serve.rs):98,100-108,145,151,162,187,279,503,",
+        "[assets.rs](../snapback4/crates/snapback4/src/assets.rs):25,43), and",
+        "[serve.rs](../snapback4/crates/snapback4/src/serve.rs):79-82 spawns one OS",
+        "- [crates/snapback4/src/serve.rs](../snapback4/crates/snapback4/src/serve.rs) (`Mutex<Engine>`, per-request `lock().unwrap()`)",
+        "- [crates/snapback4/src/assets.rs](../snapback4/crates/snapback4/src/assets.rs) (`lock().unwrap()`)",
+        "- [crates/snapback4-core/src/partition.rs](../snapback4/crates/snapback4-core/src/partition.rs) (panic sites reachable under the lock)"
+      ],
+      "closedSha256AfterCleanup": "c069b668bf1e3972db9b638202788b1fd87f7b480a22cbc51cb8f2abda9c61d6"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-device-meter-missing-ceilings.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-device-meter-missing-ceilings.md",
+      "openSha256": "2575576deaed1310a55805bc83707bdd86bbb329b4eb57b175dd2a918724f150",
+      "closedSha256BeforeCleanup": "4cc5a4ebe670c9a043aa9cb1000e6a2b40c4c7c04c6597abe0f5d8c5528f6ba9",
+      "originalGitBlob": "d35b300bc21c2228331b146427dd2d72f5715738",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [
+        "- [interpreter.ts](TARGET):44-45",
+        "+ retired `packages/snapback4/src/replica/interpreter.ts`:44-45",
+        "- - [packages/snapback4/src/replica/interpreter.ts](TARGET) (`Ceilings`, `charge`, merge/scan materialization)",
+        "+ - Retired `packages/snapback4/src/replica/interpreter.ts` (`Ceilings`, `charge`, merge/scan materialization)"
+      ],
+      "verbatimOriginalLinesChanged": [
+        "([meter.rs](../snapback4/crates/snapback4-core/src/meter.rs):16-23,42-46,",
+        "[interpreter.ts](../snapback4/packages/snapback4/src/replica/interpreter.ts):44-45",
+        "- [packages/snapback4/src/replica/interpreter.ts](../snapback4/packages/snapback4/src/replica/interpreter.ts) (`Ceilings`, `charge`, merge/scan materialization)",
+        "- [crates/snapback4-core/src/meter.rs](../snapback4/crates/snapback4-core/src/meter.rs) (reference ceilings)"
+      ],
+      "closedSha256AfterCleanup": "4cc5a4ebe670c9a043aa9cb1000e6a2b40c4c7c04c6597abe0f5d8c5528f6ba9"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-mutate-pending-drops-terminal-outcome.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-mutate-pending-drops-terminal-outcome.md",
+      "openSha256": "dd4af22a1008b9a7c88900292bbd2473b2f5e0341bd4fb2b2619c62bd52370cb",
+      "closedSha256BeforeCleanup": "b860607e748747ca59d5e3d5ffdb239d629bf6c449acc9561f4426a9547e3b38",
+      "originalGitBlob": "d0d7d98693ad6df1d286966a11dbb7e2756895ff",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [],
+      "verbatimOriginalLinesChanged": [
+        "Related: [LLP 3000.001](../llp/3000.001-durable-replica-and-write-lifecycle.research.md) (durable discovery of a write\u2019s terminal outcome)",
+        "- [snapback4/packages/snapback4/src/local.ts](../snapback4/packages/snapback4/src/local.ts) (~541)",
+        "- [snapback4/packages/snapback4/src/native.ts](../snapback4/packages/snapback4/src/native.ts) (~528)",
+        "- [snapback4/packages/snapback4/src/client.ts](../snapback4/packages/snapback4/src/client.ts) (~318)",
+        "- [snapback4/packages/snapback4/src/react.tsx](../snapback4/packages/snapback4/src/react.tsx) (`useMutation`)",
+        "- [snapback4/apps/chat/src/Composer.tsx](../snapback4/apps/chat/src/Composer.tsx)"
+      ],
+      "closedSha256AfterCleanup": "b860607e748747ca59d5e3d5ffdb239d629bf6c449acc9561f4426a9547e3b38"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-sync-stream-is-per-group.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-sync-stream-is-per-group.md",
+      "openSha256": "05736be52db8257cca681fd94ed4b18d48fccb780a84d41d1504089b44bcab4b",
+      "closedSha256BeforeCleanup": "01e1f75d017c9365b51b66188c75a20c6497410ea44d50ad46b1edeb68471aa9",
+      "originalGitBlob": "34e861f12819ea191d0ea9c779bedf14ef10647c",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [],
+      "verbatimOriginalLinesChanged": [
+        "Related: [LLP 3000.002](../llp/3000.002-end-to-end-resource-bounds.research.md); overlaps [per-group log reads](20260913-snapback4-stream-poll-query-amplification.md) and [unbounded threads](20260913-snapback4-unbounded-http-threads-and-timeouts.md)",
+        "- [snapback4/crates/snapback4-core/src/partition.rs](../snapback4/crates/snapback4-core/src/partition.rs) (`stream`, `expand_joins`)",
+        "- [snapback4/crates/snapback4-core/src/store.rs](../snapback4/crates/snapback4-core/src/store.rs) (`transaction`)",
+        "- [snapback4/crates/snapback4/src/serve.rs](../snapback4/crates/snapback4/src/serve.rs) (`/sync`, `maintain`, `incoming_requests`)",
+        "- [snapback4/vendor/tiny_http/src/client.rs](../snapback4/vendor/tiny_http/src/client.rs) (`read_next_line`)"
+      ],
+      "closedSha256AfterCleanup": "01e1f75d017c9365b51b66188c75a20c6497410ea44d50ad46b1edeb68471aa9"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-stream-poll-query-amplification.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-stream-poll-query-amplification.md",
+      "openSha256": "804971a919238b06ec267768e842f10efe8a71ab5d6f5f9251f85ae7273a4ade",
+      "closedSha256BeforeCleanup": "b905114f0726f8affdd064d39313e09b68b7539583a5b905a6be293b23fbb9af",
+      "originalGitBlob": "15fb21c58cf13980ea3199b336e7793e69830bb4",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [
+        "- Related: [partition.rs](TARGET), [store.rs](TARGET); parent bundle [sync stream is per-group](TARGET) (lock + IMMEDIATE + threads). This ticket is the per-group `read_log` amplification slice.",
+        "+ Related: [partition.rs](TARGET), [store.rs](TARGET)"
+      ],
+      "verbatimOriginalLinesChanged": [
+        "Related: [partition.rs](../snapback4/crates/snapback4-core/src/partition.rs), [store.rs](../snapback4/crates/snapback4-core/src/store.rs); parent bundle [sync stream is per-group](20260913-snapback4-sync-stream-is-per-group.md) (lock + IMMEDIATE + threads). This ticket is the per-group `read_log` amplification slice."
+      ],
+      "closedSha256AfterCleanup": "beedd88e522dd8aaf2e6d9a2c21efc6c01f7955d5518872d31d7c5a2f8196f26"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-replica-apply-quadratic.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-replica-apply-quadratic.md",
+      "openSha256": "221f7a05bb4b998fbcddc8d2a1628cb34bede666700326cc5945e76de93d2eb5",
+      "closedSha256BeforeCleanup": "389476ab873ba1d02cd6e66e42dff72edfda2193d94913d8f52d349272ffa0fb",
+      "originalGitBlob": "0f3fad3505b31f812e5d3c7b4a03332fd0eaee6f",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [
+        "- `put` in [store.ts](TARGET)",
+        "+ `put` in `packages/snapback4/src/replica/store.ts`",
+        "- - [packages/snapback4/src/replica/store.ts](TARGET) (`put`, `page`, `scan`, `lookup`)",
+        "+ - `packages/snapback4/src/replica/store.ts` (`put`, `page`, `scan`, `lookup`; removed)"
+      ],
+      "verbatimOriginalLinesChanged": [
+        "`put` in [store.ts](../snapback4/packages/snapback4/src/replica/store.ts)",
+        "- [packages/snapback4/src/replica/store.ts](../snapback4/packages/snapback4/src/replica/store.ts) (`put`, `page`, `scan`, `lookup`)"
+      ],
+      "closedSha256AfterCleanup": "389476ab873ba1d02cd6e66e42dff72edfda2193d94913d8f52d349272ffa0fb"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-sim-group-membership-fidelity.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-sim-group-membership-fidelity.md",
+      "openSha256": "042d90b34a7d3362e7607a3efd878c2c5b7a53804fe664d3b5dca80a8d120537",
+      "closedSha256BeforeCleanup": "1d1276587dda6fe78522a6c058bcc0264a70eeace6b24650ffe83a0123afc89a",
+      "originalGitBlob": "0f3e593ef2c0d42d22e92112ce296ef229e60087",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [],
+      "verbatimOriginalLinesChanged": [
+        "[replica.rs](../snapback4/crates/snapback4-sim/src/replica.rs):164-169:",
+        "- [crates/snapback4-sim/src/replica.rs](../snapback4/crates/snapback4-sim/src/replica.rs) (`matches_group`, `Host for Replica`)"
+      ],
+      "closedSha256AfterCleanup": "1d1276587dda6fe78522a6c058bcc0264a70eeace6b24650ffe83a0123afc89a"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-rule-equality-id-string-divergence.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-rule-equality-id-string-divergence.md",
+      "openSha256": "ac2dcb558efe69e2e4c86b6daa3fee352d77d02a3ca50c747fb7cad846c1667f",
+      "closedSha256BeforeCleanup": "acc423ad12b9e6bcc59afb081a5ec48eb5109559b1f2572fa67fec26244b4108",
+      "originalGitBlob": "e2156dbbd694c13f5cfd8dca7016d520bf627157",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [
+        "- [interpreter.ts](TARGET):94-95",
+        "+ retired `packages/snapback4/src/replica/interpreter.ts`:94-95",
+        "- - [packages/snapback4/src/replica/interpreter.ts](TARGET) (`tagOf`, `equal`, Binary and rule `Eq` arms)",
+        "+ - Retired `packages/snapback4/src/replica/interpreter.ts` (`tagOf`, `equal`, Binary and rule `Eq` arms)"
+      ],
+      "verbatimOriginalLinesChanged": [
+        "([rules.rs](../snapback4/crates/snapback4-core/src/engine/rules.rs):110,",
+        "[runner.rs](../snapback4/crates/snapback4-core/src/engine/runner.rs):514",
+        "String('u1')` ([value.rs](../snapback4/crates/snapback4-core/src/value.rs):204-242",
+        "[interpreter.ts](../snapback4/packages/snapback4/src/replica/interpreter.ts):94-95",
+        "([schema.rs](../snapback4/crates/snapback4-core/src/schema.rs):662-665 only",
+        "- [packages/snapback4/src/replica/interpreter.ts](../snapback4/packages/snapback4/src/replica/interpreter.ts) (`tagOf`, `equal`, Binary and rule `Eq` arms)",
+        "- [crates/snapback4-core/src/engine/runner.rs](../snapback4/crates/snapback4-core/src/engine/runner.rs) (`BinaryOp::Eq`)",
+        "- [crates/snapback4-core/src/engine/rules.rs](../snapback4/crates/snapback4-core/src/engine/rules.rs) (`evaluate` Eq/Ne)",
+        "- [crates/snapback4-core/src/schema.rs](../snapback4/crates/snapback4-core/src/schema.rs) (rule validation)"
+      ],
+      "closedSha256AfterCleanup": "acc423ad12b9e6bcc59afb081a5ec48eb5109559b1f2572fa67fec26244b4108"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-asset-move-refused-after-release.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-asset-move-refused-after-release.md",
+      "openSha256": "23d985dd30fe09ade1627ad3e4be44978efa33e3f48aad9b63cddbd22993a5ab",
+      "closedSha256BeforeCleanup": "3e283d64f0a2af6340f3686925e319ba41f49e4b4c409a5f5387d2317d716cad",
+      "originalGitBlob": "b47d961c3e6b851272ac1ca19bf668b271d82f96",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [],
+      "verbatimOriginalLinesChanged": [
+        "([assets.rs](../snapback4/crates/snapback4-core/src/assets.rs):354-371)",
+        "- [crates/snapback4-core/src/assets.rs](../snapback4/crates/snapback4-core/src/assets.rs) (`claim_asset`, `release_asset`)",
+        "- [crates/snapback4-core/src/engine/write.rs](../snapback4/crates/snapback4-core/src/engine/write.rs) (release-before-claim order)"
+      ],
+      "closedSha256AfterCleanup": "3e283d64f0a2af6340f3686925e319ba41f49e4b4c409a5f5387d2317d716cad"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-schedule-silently-stops-on-missing-program.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-schedule-silently-stops-on-missing-program.md",
+      "openSha256": "5e2d39d677de53d70564c6097e7ce9f5f8cfea9f16c22b0296d74fc001e63947",
+      "closedSha256BeforeCleanup": "762219bdbb664d2c4af68ce4e4faeaf02a584bc61852942c1ddd78b0f8b7e20c",
+      "originalGitBlob": "2ad853ac492c1858ae3a0cdfc2c793e57e76b203",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [],
+      "verbatimOriginalLinesChanged": [
+        "In [job.rs](../snapback4/crates/snapback4-core/src/engine/job.rs):288-293,",
+        "- [crates/snapback4-core/src/engine/job.rs](../snapback4/crates/snapback4-core/src/engine/job.rs) (`fire_schedules`)"
+      ],
+      "closedSha256AfterCleanup": "762219bdbb664d2c4af68ce4e4faeaf02a584bc61852942c1ddd78b0f8b7e20c"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-view-once-records-before-bytes.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-view-once-records-before-bytes.md",
+      "openSha256": "cd64f889cc6e4fe00e6b498e27adfb3baa0643f602a7b8e877f07990dc6bdfc7",
+      "closedSha256BeforeCleanup": "345a65bf134504067815cbdf0e55af964cce06c3bde971eed0def2b792123ac8",
+      "originalGitBlob": "5a22af64c2d5f291a389934dcbc3edd789743cc9",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [
+        "- Related: Clique M5 (view-once), [LLP 3000](TARGET) \u00a77, [S12 view-once owner bypass](TARGET) (uploader exemption and pixel caps; this ticket is the commit-before-bytes remainder)",
+        "+ Related: Clique M5 (view-once), [LLP 3000](TARGET) \u00a77"
+      ],
+      "verbatimOriginalLinesChanged": [
+        "Related: Clique M5 (view-once), [LLP 3000](../llp/3000-snapback4.explainer.md) \u00a77, [S12 view-once owner bypass](20260913-snapback4-asset-once-and-pixel-bounds.md) (uploader exemption and pixel caps; this ticket is the commit-before-bytes remainder)",
+        "- [snapback4/crates/snapback4-core/src/engine/mod.rs](../snapback4/crates/snapback4-core/src/engine/mod.rs) (`asset_access`, `record_asset_view` then `commit`)",
+        "- [snapback4/crates/snapback4/src/assets.rs](../snapback4/crates/snapback4/src/assets.rs) (`serve`)"
+      ],
+      "closedSha256AfterCleanup": "2ee36c85579f0213d1ec534cc7b3d830959f862d7912dfa1bb2e7115bc696852"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-interpreter-binary-default-and-concat-tag.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-interpreter-binary-default-and-concat-tag.md",
+      "openSha256": "688db1fa13db6ead1e2c70283b529a853b51f12800447be164d69f3504149de5",
+      "closedSha256BeforeCleanup": "13550c020a71e77aa2c31aa3aa8e4362b7d7139284c0432be098a8c8646d1560",
+      "originalGitBlob": "db675cfbba606398bcfa26c840d66bad78ebde44",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [
+        "-    ([interpreter.ts](TARGET):343-363),",
+        "+    (retired `packages/snapback4/src/replica/interpreter.ts`:343-363),",
+        "-    ([interpreter.ts](TARGET):383",
+        "+    (retired `packages/snapback4/src/replica/interpreter.ts`:383",
+        "- - [packages/snapback4/src/replica/interpreter.ts](TARGET) (Binary dispatch, `builtin` Concat)",
+        "+ - Retired `packages/snapback4/src/replica/interpreter.ts` (Binary dispatch, `builtin` Concat)"
+      ],
+      "verbatimOriginalLinesChanged": [
+        "   ([interpreter.ts](../snapback4/packages/snapback4/src/replica/interpreter.ts):343-363),",
+        "   ([runner.rs](../snapback4/crates/snapback4-core/src/engine/runner.rs):529-540)",
+        "   ([interpreter.ts](../snapback4/packages/snapback4/src/replica/interpreter.ts):383",
+        "   ([runner.rs](../snapback4/crates/snapback4-core/src/engine/runner.rs):407-416).",
+        "- [packages/snapback4/src/replica/interpreter.ts](../snapback4/packages/snapback4/src/replica/interpreter.ts) (Binary dispatch, `builtin` Concat)",
+        "- [crates/snapback4-core/src/engine/runner.rs](../snapback4/crates/snapback4-core/src/engine/runner.rs) (`same_value_zero`, `Builtin::Concat`)"
+      ],
+      "closedSha256AfterCleanup": "13550c020a71e77aa2c31aa3aa8e4362b7d7139284c0432be098a8c8646d1560"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-interpreter-readtime-and-unhandled-inputs.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-interpreter-readtime-and-unhandled-inputs.md",
+      "openSha256": "83ba9958da42ac0fb2584431b239e1e6228f3165db3f9c4066e7870aa1311f8e",
+      "closedSha256BeforeCleanup": "7825db3debefe108102872ee14be8079dcc6eede83c3a53057a1aed29069c7ef",
+      "originalGitBlob": "360b7d5b4030c3ff438975fbc30d51816bb72a6d",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [
+        "- Related: [ir.rs](TARGET), [runner.rs](TARGET), [interpreter.ts](TARGET)",
+        "+ Related: [ir.rs](TARGET), [runner.rs](TARGET), retired `packages/snapback4/src/replica/interpreter.ts`",
+        "- - [packages/snapback4/src/replica/interpreter.ts](TARGET) (`expr`)",
+        "+ - Retired `packages/snapback4/src/replica/interpreter.ts` (`expr`)",
+        "- - [crates/snapback4-core/src/engine/runner.rs](TARGET)",
+        "+ - [crates/snapback4-core/src/engine/runner.rs](TARGET) (`Input::ReadTime`)"
+      ],
+      "verbatimOriginalLinesChanged": [
+        "Related: [ir.rs](../snapback4/crates/snapback4-core/src/ir.rs), [runner.rs](../snapback4/crates/snapback4-core/src/engine/runner.rs), [interpreter.ts](../snapback4/packages/snapback4/src/replica/interpreter.ts)",
+        "- [packages/snapback4/src/replica/interpreter.ts](file:///Users/ccheever/projects/snapback/snapback4/packages/snapback4/src/replica/interpreter.ts#L325-L331) (`expr`)",
+        "- [crates/snapback4-core/src/engine/runner.rs](file:///Users/ccheever/projects/snapback/snapback4/crates/snapback4-core/src/engine/runner.rs#L380)"
+      ],
+      "closedSha256AfterCleanup": "7825db3debefe108102872ee14be8079dcc6eede83c3a53057a1aed29069c7ef"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-jobs-skip-after-insert.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-jobs-skip-after-insert.md",
+      "openSha256": "bdbbd6700d0005a63e7497e15c4e3cfdfd8b44741aeb3e04c4ad99b3542a6247",
+      "closedSha256BeforeCleanup": "fd9d567839af1286c1ea04d801d2492304a6d378c7466254214f4e57928f9b66",
+      "originalGitBlob": "ca1682eafc67c70679b901a9bc48a603e3710360",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [],
+      "verbatimOriginalLinesChanged": [
+        "- [snapback4/crates/snapback4-core/src/engine/job.rs](../snapback4/crates/snapback4-core/src/engine/job.rs) (`run_job_chunk`)",
+        "- [snapback4/crates/snapback4-core/src/engine/mod.rs](../snapback4/crates/snapback4-core/src/engine/mod.rs) (mutation path that does call it)",
+        "- [snapback4/crates/snapback4-core/src/engine/local.rs](../snapback4/crates/snapback4-core/src/engine/local.rs)"
+      ],
+      "closedSha256AfterCleanup": "fd9d567839af1286c1ea04d801d2492304a6d378c7466254214f4e57928f9b66"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-schedule-rewinds-double-fire.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-schedule-rewinds-double-fire.md",
+      "openSha256": "90fae8c0bfb33db5c43c6a5b7913af4fcf11a4864787bd4249bdb54732e22d86",
+      "closedSha256BeforeCleanup": "8da25308f1328ef3924dda3315bc461ceb1b2b35149b471d54a627f351343560",
+      "originalGitBlob": "08fd5194c2b1079ddcfd917e0225841d4eeaed41",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [],
+      "verbatimOriginalLinesChanged": [
+        "- [snapback4/crates/snapback4-core/src/engine/job.rs](../snapback4/crates/snapback4-core/src/engine/job.rs) (`fire_schedules`)"
+      ],
+      "closedSha256AfterCleanup": "8da25308f1328ef3924dda3315bc461ceb1b2b35149b471d54a627f351343560"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-emit-outbox-never-drained.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-emit-outbox-never-drained.md",
+      "openSha256": "5db56689a2f8426fc20cac01d281f70e0a57b4d030965cb27171a36207dbe663",
+      "closedSha256BeforeCleanup": "bd89b4887a6a74b373548436212c7129fa8fa9d31b09fd7c76e80af837bb3c6d",
+      "originalGitBlob": "a9525b1698e7af97e0e9f078f0c258757aedd71b",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [],
+      "verbatimOriginalLinesChanged": [
+        "- [snapback4/crates/snapback4-lang/src/bind/program/control.rs](../snapback4/crates/snapback4-lang/src/bind/program/control.rs) (`Emit`)",
+        "- [snapback4/crates/snapback4-core/src/engine/runner.rs](../snapback4/crates/snapback4-core/src/engine/runner.rs)",
+        "- [snapback4/crates/snapback4-core/src/engine/mod.rs](../snapback4/crates/snapback4-core/src/engine/mod.rs) (`INSERT INTO _outbox`)",
+        "- [snapback4/crates/snapback4-core/src/store.rs](../snapback4/crates/snapback4-core/src/store.rs)"
+      ],
+      "closedSha256AfterCleanup": "bd89b4887a6a74b373548436212c7129fa8fa9d31b09fd7c76e80af837bb3c6d"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-fallthrough-query-typed-without-null.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-fallthrough-query-typed-without-null.md",
+      "openSha256": "c182e61bf3f3669ffd1f9f4a679a78042f0140bfdb76cc2d0da14102d229dcf2",
+      "closedSha256BeforeCleanup": "b59f3994f991593ef82f0173a3e81701f5921d4e9b99ddb954241e9aa8c3f02c",
+      "originalGitBlob": "febc42e1708e82c93ab9b3e902100822bead9261",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [],
+      "verbatimOriginalLinesChanged": [
+        "- [snapback4/crates/snapback4-lang/src/bind/program.rs](../snapback4/crates/snapback4-lang/src/bind/program.rs)",
+        "- [snapback4/crates/snapback4-core/src/engine/runner.rs](../snapback4/crates/snapback4-core/src/engine/runner.rs) (`run` fall-through `Ok(Value::Null)`)",
+        "- [snapback4/crates/snapback4-lang/src/bind/catalog.rs](../snapback4/crates/snapback4-lang/src/bind/catalog.rs)",
+        "- [snapback4/crates/snapback4-lang/src/bind/schema.rs](../snapback4/crates/snapback4-lang/src/bind/schema.rs)",
+        "- [snapback4/crates/snapback4-lang/src/emit.rs](../snapback4/crates/snapback4-lang/src/emit.rs)"
+      ],
+      "closedSha256AfterCleanup": "b59f3994f991593ef82f0173a3e81701f5921d4e9b99ddb954241e9aa8c3f02c"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-webp-sniffer-ignores-chunk-length.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-webp-sniffer-ignores-chunk-length.md",
+      "openSha256": "190b3ec477703e5b008c110065be86f160e349ad3e41fb38d2c1670f34b7c5f7",
+      "closedSha256BeforeCleanup": "badd4f9635668e015bb5c7e0d5defae9063eaa92ff960a0600be6ec7f84d9a9b",
+      "originalGitBlob": "6b4d87421ccc79b571b3ea37638d1dff38de91ab",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [],
+      "verbatimOriginalLinesChanged": [
+        "- [snapback4/crates/snapback4-core/src/assets.rs](../snapback4/crates/snapback4-core/src/assets.rs) (`webp_dimensions`, MP4 branch of `sniff`)"
+      ],
+      "closedSha256AfterCleanup": "badd4f9635668e015bb5c7e0d5defae9063eaa92ff960a0600be6ec7f84d9a9b"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-word-prefix-search-unserved.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-word-prefix-search-unserved.md",
+      "openSha256": "11c19c9a947ba6f3f46cb9907813b46b751835bd6d8b1998a2abf09837232e3c",
+      "closedSha256BeforeCleanup": "0f94950e72364712495310109cb83fa9bd34eb6fe3b403722599f17464f35f06",
+      "originalGitBlob": "cd246fddc5dfae6946fec21a71498c9ece17a02e",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [],
+      "verbatimOriginalLinesChanged": [
+        "- [snapback4/crates/snapback4-core/src/schema.rs](../snapback4/crates/snapback4-core/src/schema.rs)",
+        "- [snapback4/crates/snapback4-core/src/engine/read.rs](../snapback4/crates/snapback4-core/src/engine/read.rs)",
+        "- [snapback4/packages/snapback4/README.md](../snapback4/packages/snapback4/README.md) \u00a78"
+      ],
+      "closedSha256AfterCleanup": "0f94950e72364712495310109cb83fa9bd34eb6fe3b403722599f17464f35f06"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-live-serve-ignores-deploy.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-live-serve-ignores-deploy.md",
+      "openSha256": "01fdd72c55553babbf3d854805e92f8357280b81147f7abe1aba6b30694c4843",
+      "closedSha256BeforeCleanup": "ece2cf28ae95aedf715415db2a7439b503afd1456bd3925e12f5ed8e62075ef1",
+      "originalGitBlob": "782350f4870e24aa1f00ecb96dcfa254e862cbe2",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [],
+      "verbatimOriginalLinesChanged": [
+        "Related: [LLP 3000.000](../llp/3000.000-atomic-schema-and-release-activation.research.md) (remaining: what `deploy` promises to an already-running `serve`)",
+        "- [snapback4/crates/snapback4/src/verbs/releases.rs](../snapback4/crates/snapback4/src/verbs/releases.rs)",
+        "- [snapback4/crates/snapback4/src/serve.rs](../snapback4/crates/snapback4/src/serve.rs)",
+        "- [snapback4/crates/snapback4-core/src/store.rs](../snapback4/crates/snapback4-core/src/store.rs) (`transaction` identity check)"
+      ],
+      "closedSha256AfterCleanup": "ece2cf28ae95aedf715415db2a7439b503afd1456bd3925e12f5ed8e62075ef1"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-options-204-content-length-stall.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-options-204-content-length-stall.md",
+      "openSha256": "2fb543207d8ebd43c8d3e0674bd20543a2c338266475fe568697025eb3ffd14b",
+      "closedSha256BeforeCleanup": "22b2fbe7d7abfa4dd475e237321caf12a663a0a7ac9e77e927a172bc3b0fd816",
+      "originalGitBlob": "ccf580d083e05e69b2e02b7b31a209664a812874",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [],
+      "verbatimOriginalLinesChanged": [
+        "- [snapback4/crates/snapback4/src/serve.rs](../snapback4/crates/snapback4/src/serve.rs) (`handle` OPTIONS \u2192 `respond`)",
+        "- [snapback4/vendor/tiny_http/src/response.rs](../snapback4/vendor/tiny_http/src/response.rs)"
+      ],
+      "closedSha256AfterCleanup": "22b2fbe7d7abfa4dd475e237321caf12a663a0a7ac9e77e927a172bc3b0fd816"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-offline-probe-route-contract.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-offline-probe-route-contract.md",
+      "openSha256": "f80f05b2f78607e4b52f755e626b688af7bc472891696847734b3ab5f3b8b64c",
+      "closedSha256BeforeCleanup": "6122676d9751b5070c8df40974b2e7a97f7099d5b423db88120f94c15ce50952",
+      "originalGitBlob": "2267bb31802601e4e59316760a193a6a39dd1677",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [
+        "- - [packages/snapback4/src/native.ts](TARGET) (`waitForChange`)",
+        "+ - [packages/snapback4/src/native.ts](TARGET)"
+      ],
+      "verbatimOriginalLinesChanged": [
+        "Related: [local.ts](../snapback4/packages/snapback4/src/local.ts), [client.ts](../snapback4/packages/snapback4/src/client.ts), [native.ts](../snapback4/packages/snapback4/src/native.ts), [serve.rs](../snapback4/crates/snapback4/src/serve.rs)",
+        "- [crates/snapback4/src/serve.rs](file:///Users/ccheever/projects/snapback/snapback4/crates/snapback4/src/serve.rs) (`handle_request`)",
+        "- [packages/snapback4/src/local.ts](file:///Users/ccheever/projects/snapback/snapback4/packages/snapback4/src/local.ts#L263-L268) (`waitForChange`)",
+        "- [packages/snapback4/src/client.ts](file:///Users/ccheever/projects/snapback/snapback4/packages/snapback4/src/client.ts#L198-L203) (`poll`)",
+        "- [packages/snapback4/src/native.ts](file:///Users/ccheever/projects/snapback/snapback4/packages/snapback4/src/native.ts#L300-L305) (`waitForChange`)"
+      ],
+      "closedSha256AfterCleanup": "6122676d9751b5070c8df40974b2e7a97f7099d5b423db88120f94c15ce50952"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-live-queries-rerun-on-idle-poll.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-live-queries-rerun-on-idle-poll.md",
+      "openSha256": "81c86427ad3b1145e674d41dd73a11c28c41d57588b8039ab1e3caa37fbf4bce",
+      "closedSha256BeforeCleanup": "7a648fc91f7ee9aab65ddc2c8bdb7b2f56a91043e2bed57c8b95bc59eb18e223",
+      "originalGitBlob": "8bb431e75c063172bac98d2b67a22df5f9b9f705",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [
+        "- - [snapback4/packages/snapback4/src/local.ts](TARGET) (`waitForChange`, `onChange`, `observe`)",
+        "+ - [snapback4/packages/snapback4/src/local.ts](TARGET) (`waitForChange`, `observe`)",
+        "- - [snapback4/packages/snapback4/src/native.ts](TARGET)",
+        "+ - [snapback4/packages/snapback4/src/client.ts](TARGET) (`poll`, `observe`)",
+        "- - [snapback4/packages/snapback4/src/replica/replica.ts](TARGET) (`follow`, `syncRound`)",
+        "+ - `snapback4/packages/snapback4/src/replica/replica.ts` (`follow`, `syncRound`; removed in 0.2.0)"
+      ],
+      "verbatimOriginalLinesChanged": [
+        "- [snapback4/packages/snapback4/src/local.ts](../snapback4/packages/snapback4/src/local.ts) (`waitForChange`, `onChange`, `observe`)",
+        "- [snapback4/packages/snapback4/src/native.ts](../snapback4/packages/snapback4/src/native.ts)",
+        "- [snapback4/packages/snapback4/src/replica/replica.ts](../snapback4/packages/snapback4/src/replica/replica.ts) (`follow`, `syncRound`)"
+      ],
+      "closedSha256AfterCleanup": "7a648fc91f7ee9aab65ddc2c8bdb7b2f56a91043e2bed57c8b95bc59eb18e223"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-react-useviewer-non-reactive.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-react-useviewer-non-reactive.md",
+      "openSha256": "0c2205df92efb438a672d0df6fcb5e6c289cc140dfea730444fdd04dd26fa026",
+      "closedSha256BeforeCleanup": "9457fd3129afbfff77561b7d93e9ce3b01501d553e7a4a7202f22b11f497a745",
+      "originalGitBlob": "10a5721c48cbcc68e75660d22e31f1ef1b7295a4",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [
+        "- Related: [react.tsx](TARGET), [contract.ts](TARGET), [client.ts](TARGET), [local.ts](TARGET); [useAsset / startup lifecycle](TARGET) owns the same `useViewer` hole plus `useAsset(null)` and open-without-close",
+        "+ Related: [react.tsx](TARGET), [contract.ts](TARGET), [client.ts](TARGET), [local.ts](TARGET)"
+      ],
+      "verbatimOriginalLinesChanged": [
+        "Related: [react.tsx](../snapback4/packages/snapback4/src/react.tsx), [contract.ts](../snapback4/packages/snapback4/src/contract.ts), [client.ts](../snapback4/packages/snapback4/src/client.ts), [local.ts](../snapback4/packages/snapback4/src/local.ts); [useAsset / startup lifecycle](20260913-snapback4-useviewer-and-useasset-lifecycle.md) owns the same `useViewer` hole plus `useAsset(null)` and open-without-close",
+        "- [packages/snapback4/src/contract.ts](file:///Users/ccheever/projects/snapback/snapback4/packages/snapback4/src/contract.ts#L103) (`Client`)",
+        "- [packages/snapback4/src/react.tsx](file:///Users/ccheever/projects/snapback/snapback4/packages/snapback4/src/react.tsx#L197-L199) (`useViewer`)",
+        "- [packages/snapback4/src/client.ts](file:///Users/ccheever/projects/snapback/snapback4/packages/snapback4/src/client.ts)",
+        "- [packages/snapback4/src/local.ts](file:///Users/ccheever/projects/snapback/snapback4/packages/snapback4/src/local.ts)"
+      ],
+      "closedSha256AfterCleanup": "d25565c849ba79513f684a563f50c2371b01494940e6cdc4cf6bab0dcfb150cd"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-useviewer-and-useasset-lifecycle.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-useviewer-and-useasset-lifecycle.md",
+      "openSha256": "561ced3cd4b25bd71a45341affda5cd7e185539a18a0ef421497bd1850b2ef29",
+      "closedSha256BeforeCleanup": "fe6dca4ed645d4666eb06c8d8b45de7286063e3c9dc7bc575a2f63021c3d0cb7",
+      "originalGitBlob": "c2a0ff1234b9270847685e0d1899065a983703e6",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [],
+      "verbatimOriginalLinesChanged": [
+        "- [snapback4/packages/snapback4/src/react.tsx](../snapback4/packages/snapback4/src/react.tsx) (`useViewer`, `useAsset`)",
+        "- [snapback4/packages/snapback4/src/local.ts](../snapback4/packages/snapback4/src/local.ts) (startup `sync`, generation adopt)",
+        "- [snapback4/packages/snapback4/src/native.ts](../snapback4/packages/snapback4/src/native.ts)"
+      ],
+      "closedSha256AfterCleanup": "fe6dca4ed645d4666eb06c8d8b45de7286063e3c9dc7bc575a2f63021c3d0cb7"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-native-ffi-withdraw-and-apply-first.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-native-ffi-withdraw-and-apply-first.md",
+      "openSha256": "783a9c4d50d9936afc8fe57e0f6e266bbe1323ea1a6269ca3afee0e3110274ea",
+      "closedSha256BeforeCleanup": "223ca94c99d9b476bfc3e7012a1c8617155ab9952773fe0b527fddce3c9e1d97",
+      "originalGitBlob": "d92a87e163e77a262ee81b75307d57290c0a5b4e",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [],
+      "verbatimOriginalLinesChanged": [
+        "- [snapback4/crates/snapback4-device/src/native.rs](../snapback4/crates/snapback4-device/src/native.rs) (`withdraw`, `apply`)",
+        "- [snapback4/crates/snapback4-device/src/ffi.rs](../snapback4/crates/snapback4-device/src/ffi.rs)",
+        "- [snapback4/crates/snapback4-device/include/snapback4.h](../snapback4/crates/snapback4-device/include/snapback4.h)",
+        "- [snapback4/packages/snapback4-expo/ios/Snapback4Module.swift](../snapback4/packages/snapback4-expo/ios/Snapback4Module.swift)"
+      ],
+      "closedSha256AfterCleanup": "223ca94c99d9b476bfc3e7012a1c8617155ab9952773fe0b527fddce3c9e1d97"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-ffi-panic-boundary.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-ffi-panic-boundary.md",
+      "openSha256": "81cb788a0c79dab8a3081767dc12a5752bff0bd96bae43918ff9de7542be9fc8",
+      "closedSha256BeforeCleanup": "ad5206cc482610c443b32c3df96105c3079f01a94deab78375968221d4138e24",
+      "originalGitBlob": "6d72a4aebaa92713f23f408854129bf5de61b9d3",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [],
+      "verbatimOriginalLinesChanged": [
+        "[ffi.rs](../snapback4/crates/snapback4-device/src/ffi.rs) (e.g. `sb4_open`",
+        "- [crates/snapback4-device/src/ffi.rs](../snapback4/crates/snapback4-device/src/ffi.rs) (all `extern \"C\"` entry points)"
+      ],
+      "closedSha256AfterCleanup": "ad5206cc482610c443b32c3df96105c3079f01a94deab78375968221d4138e24"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-check-ok-without-generated-types.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-check-ok-without-generated-types.md",
+      "openSha256": "ad268db12eaaa6f5572c9dd00666b44f378518c884c8e87333066779f16ac267",
+      "closedSha256BeforeCleanup": "4644e1415a057408b3ac2faf7dc110abdffea02950494c9d05eeb4b399cf331b",
+      "originalGitBlob": "c1d26b54668f4eacd156515b2af45b1493444af6",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [],
+      "verbatimOriginalLinesChanged": [
+        "- [snapback4/crates/snapback4/src/verbs.rs](../snapback4/crates/snapback4/src/verbs.rs) (`check` ~96, `data` ~308)",
+        "- [snapback4/crates/snapback4/src/serve.rs](../snapback4/crates/snapback4/src/serve.rs) (watch `write_generated`)",
+        "- [snapback4/crates/snapback4-core/src/store.rs](../snapback4/crates/snapback4-core/src/store.rs) (`rows`)"
+      ],
+      "closedSha256AfterCleanup": "4644e1415a057408b3ac2faf7dc110abdffea02950494c9d05eeb4b399cf331b"
+    },
+    {
+      "removedStaleOpen": "issues/20260913-snapback4-cli-help-guide-drift.md",
+      "retainedClosed": "issues/closed/20260913-snapback4-cli-help-guide-drift.md",
+      "openSha256": "35f3633eda64142811af72d5507060a46ca0858748a7e24fa1c1b190d91a68e3",
+      "closedSha256BeforeCleanup": "f1a4938188d5ea7fc21f9c0cfde38f74728fbee55470ae6a30bfe1ef40cb030a",
+      "originalGitBlob": "4e42f37086850e7d9188f58af82017cac3110c13",
+      "preResolutionEditorialDeltaIgnoringStatusAndMarkdownTargets": [
+        "- - [crates/snapback4/src/guide.rs](TARGET) (`CODES`, `explain_code`, cards)",
+        "+ - [crates/snapback4-lang/src/guide.rs](TARGET) (`CODES`, `explain_code`, cards)"
+      ],
+      "verbatimOriginalLinesChanged": [
+        "1. `HELP` omits the `types` verb: [main.rs](../snapback4/crates/snapback4/src/main.rs):14-29",
+        "   ([guide.rs](../snapback4/crates/snapback4/src/guide.rs):131,147,165,187).",
+        "3. `CODES` ([guide.rs](../snapback4/crates/snapback4/src/guide.rs):331) omits",
+        "4. `run` defaults to `--as alice` ([verbs.rs](../snapback4/crates/snapback4/src/verbs.rs):237)",
+        "- [crates/snapback4/src/main.rs](../snapback4/crates/snapback4/src/main.rs) (`HELP`, `guide` error)",
+        "- [crates/snapback4/src/guide.rs](../snapback4/crates/snapback4/src/guide.rs) (`CODES`, `explain_code`, cards)",
+        "- [crates/snapback4/src/verbs.rs](../snapback4/crates/snapback4/src/verbs.rs) (`run`, `data`)"
+      ],
+      "closedSha256AfterCleanup": "f1a4938188d5ea7fc21f9c0cfde38f74728fbee55470ae6a30bfe1ef40cb030a"
+    }
+  ]
+}

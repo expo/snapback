@@ -46,6 +46,8 @@ does not declare an `onViewer` event listener.
 - [packages/snapback4/src/client.ts](../../snapback4/packages/snapback4/src/client.ts)
 - [packages/snapback4/src/local.ts](../../snapback4/packages/snapback4/src/local.ts)
 
+Historical overlap: [useAsset and startup lifecycle](20260913-snapback4-useviewer-and-useasset-lifecycle.md) owns the same `useViewer` hole plus `useAsset(null)` and open-without-close.
+
 ## Resolution
 
 `Client.onViewer` is now part of the card. The online client emits when a

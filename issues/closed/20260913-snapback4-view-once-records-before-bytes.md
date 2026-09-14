@@ -26,6 +26,8 @@ Clique M5 is “expiry with no client open” plus view-once photos. An interrup
 
 Open (or `dup`) the file inside the grant transaction. Record the view only after a successful send of a full 200, or refuse `Range` on `once` and always send the whole body. Serialize overlapping GETs per `(asset, principal)` so two in-flight views cannot both succeed.
 
+Historical scope: [S12 asset-once and pixel bounds](../20260913-snapback4-asset-once-and-pixel-bounds.md) covers uploader exemption and pixel caps; this ticket owns the commit-before-bytes remainder.
+
 ## Resolution — 2026-09-13
 
 Authorization and finalization are now separate engine operations. The HTTP

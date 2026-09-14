@@ -1,0 +1,48 @@
+{
+  "validatedAt": "2026-09-14T06:30:53.693Z",
+  "wave": "astra",
+  "validator": {
+    "path": "observed-milestones/helpers/validate-received-grade.cjs",
+    "sha256": "2a86cb34fb0e14107180dcca36a580721a3379e4b41e8bea8adee646741f7285",
+    "ajvVersion": "8.20.0"
+  },
+  "sources": [
+    {
+      "path": "instrument/grader/grader-report.schema.json",
+      "sha256": "82d213374eecdbf47438193a7213dc4e8532b1a1db37204d6c21f352bfac0c30"
+    },
+    {
+      "path": "instrument/schema/social-messenger/assertions.json",
+      "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+    },
+    {
+      "path": "lanes/astra-snapback4/grading/grader-report.json",
+      "sha256": "410c4cd24f4e13539692c96f4f1776fc0241d6214a163623c2591ff37a636e9f"
+    },
+    {
+      "path": "lanes/astra-snapback4/grading/m8-assertion-results.json",
+      "sha256": "64a9f62500f52c625576f602c8941f4d6ab7e86c4acf3cf421d58e5e29694b38"
+    },
+    {
+      "path": "logs/astra-snapback4.grade.end.json",
+      "sha256": "dd4f3ed6145f7200286e58c49c2164893703cc731914c5068d831cdc18a4c753"
+    },
+    {
+      "path": "lanes/astra-snapback4/grading/DONE",
+      "sha256": "17197ddc2688f481fc9e8e30640303b41d9ba18d46c787c728e5001a8ae822ca"
+    },
+    {
+      "path": "lanes/astra-snapback4/grading/trace.md",
+      "sha256": "ad54165759fc870ab0f00f4ae5a4f8b1eb084d17bab1ffc86beac38fd44f7156"
+    }
+  ],
+  "schemaValid": true,
+  "exactAssertionPartition": {
+    "prior": 101,
+    "m8": 18,
+    "complete": 119
+  },
+  "graderSessionOutcome": "completed",
+  "contaminated": false,
+  "qualification": "Structural validation only; all verdicts remain exactly as received. Grader is uncalibrated N=1, and session outcome/contamination remain explicit."
+}

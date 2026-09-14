@@ -8,8 +8,9 @@ submitting empty follow-up turns for background terminals. The orchestrator
 interrupted that loop at `2026-09-14T05:34:59Z`; the actual exit code is **130**
 and driver wall time is 17,657.686 seconds, including the continuation tail.
 [Holistic scores](./holistic/README.md) are complete: Astra 84, Grok 70, Muse 80
-(mean 78). Astra's independent grade is active; the other grades and fresh M7
-runs remain pending.
+(mean 78). Astra's received independent grade is 100 pass / 10 fail / 9 not-run
+across 119 assertions; Grok grading is active. Muse's grade and fresh M7 runs
+remain pending.
 All three lanes are frozen to published `snapback4@0.2.6` and
 `snapback4-expo@0.2.1`. `REGISTRY_RECEIPTS.json` confirms that registry integrity
 matches the exact qualified tarballs, including the platform binary.
@@ -20,7 +21,7 @@ existing policy. The repairs landed at `342c53d306d7484cd64e820ee27a151e02eb4b0b
 The publisher reran the full suite in 30 seconds: 236 Rust, 9 fixture and
 89 client passes, zero failures and one declared ignored test. Its installed
 consumer checks passed. `release-qualification.json` retains the package,
-binary and raw-log digests. Astra reports all seven continuous milestones green; independent grading has not started.
+binary and raw-log digests. Astra reports all seven continuous milestones green; its received independent grade and methodological limits are recorded below.
 
 ## Frozen run
 
@@ -94,7 +95,7 @@ frozen log that the builder did not select and the copied choreography it did
 not execute. A [clock observation](./muse-runlog-clock-observation.json)
 records handwritten epochs ahead of observer wall time. Receipt clocks,
 builder-written times, and driver time including the runtime continuation loop
-remain separate. Independent grades and fresh M7 sessions remain pending.
+remain separate. Independent grading and fresh M7 sessions remain incomplete.
 
 The separate [Grok client attribution audit](./grok-client-attribution-audit.md)
 identifies mutation return values as a documented client limitation. Static
@@ -111,9 +112,39 @@ that ticket retains the builder evidence with attribution still unresolved.
 
 | Lane | M1 | M2 | M3 | M4 | M5 | M6 | M8 | Continuous wall | Holistic score | Independent 119 | Comparable 101 subtotal | Fresh M7 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Astra medium | builder green | builder green | builder green | builder green | builder green | builder green | builder green | 9,614.013 s | 84 | pending | pending | pending |
+| Astra medium | builder green | builder green | builder green | builder green | builder green | builder green | builder green | 9,614.013 s | 84 | 100 pass / 10 fail / 9 not-run | 84 pass / 8 fail / 9 not-run | pending |
 | Grok 4.6 xhigh | web green | web green | capability failure | blocked; partial API suite | blocked; partial API suite | blocked; scale incomplete | blocked; partial API suite | 12,499.350 s | 70 | pending | pending | pending |
 | Muse Spark 1.3 xhigh | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | 17,657.686 s; includes interrupted runtime continuation | 80 | pending | pending | pending |
+
+Astra's grade passed the frozen schema and exact 101+18 assertion partition.
+Its 18 M8 results are 16 pass / 2 fail; all nine not-run results are pre-evolution
+M7 assertions. The grader found one checklist functional failure: follower
+counts stay stale on the followed user's client. The other nine failures
+represent absent native simulator proofs. On the prior 101 assertions, its 84
+passes match the previous Snapback4 run. The [exact assertion comparison](./astra-grade-comparison.md)
+records one pass→fail (live follower counts), one fail→pass (quoted-reply
+navigation), seven not-run→fail classifications for the same absent native
+proofs, and nine unchanged not-run M7 assertions.
+
+The grader reports O1=74, O2=76, O3=null, O4=35, O5 band=30. Its O4 justification
+explicitly uses grader-run choreography. The frozen schema calls for retained
+choreography receipts, while the prompt also calls for web re-execution and
+best-of-three timing checks. This methodology qualification remains attached
+to the received results; O4 is not presented as a score from original builder
+receipts. The [completed grade archive and audit](./astra/grading/README.md)
+found no explicit excluded narrative or other-lane read in public tool
+arguments, and original source and evidence hashes remained unchanged. It also
+records one nonexistent receipt filename in the received report; the named
+assertion passes in the actual retained receipts. The grader remains
+uncalibrated N=1.
+
+The [client attribution audit](./astra-grade-client-attribution.md) traces the
+stale follower count to 0.2.6 discarding server changed-table invalidations when
+the device receives no matching row. Later main commit `047862694` repairs this
+class and adds a regression; this benchmark does not measure that fix. The
+grader also observed delayed offline indication despite 1 ms local search.
+That separate [link-detection follow-up](../../../issues/20260913-snapback4-offline-link-detection-can-lag-during-held-poll.md)
+retains the three samples and the inferred long-poll mechanism.
 
 The [holistic scorers](./holistic/summary.md) use their own builders' narratives, so their diagnoses are
 not independent technical findings. Astra charged pending metadata loss that
@@ -122,7 +153,7 @@ raw-row boundary. Grok charged Hermes failure that the
 [client attribution audit](./grok-client-attribution-audit.md) traces statically
 to its Expo/Babel mismatch. Received scores remain verbatim.
 
-The Astra M4 builder reproduced a new [video prediction defect](../../../issues/closed/20260913-snapback4-video-id-only-prediction-refuses.md): passing the documented asset `{ id }` fails locally when the mutation reads `.duration`. Passing the complete upload response let it continue. This is a received builder reproduction; independent grading is pending, and the published pins remain unchanged.
+The Astra M4 builder reproduced a new [video prediction defect](../../../issues/closed/20260913-snapback4-video-id-only-prediction-refuses.md): passing the documented asset `{ id }` fails locally when the mutation reads `.duration`. Passing the complete upload response let it continue. This is received builder evidence; the auditor did not independently reproduce it, and the published pins remain unchanged.
 
 A separate main-branch change, `7b2b8fc65`, has since closed that ticket by persisting authenticated upload facts for device prediction and degrading safely when they are unavailable. That resolution is outside the frozen 0.2.6 benchmark; the results here do not qualify it.
 

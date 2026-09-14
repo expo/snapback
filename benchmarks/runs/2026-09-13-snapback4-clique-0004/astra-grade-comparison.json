@@ -1,0 +1,2631 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-09-14T06:38:27.280263Z",
+  "recordKind": "astra-grade-comparison",
+  "scope": {
+    "primary": "Exact machine-comparable 101-assertion transition comparison: September 12 Snapback4 Astra structured assertionResults versus September 13/14 Snapback4 Astra structured assertionResults.",
+    "secondary": "Current structured M8 addendum reported separately; prior M8 narrative used only as qualitative context. Contextual September 5 Snapback2 structured 101 comparison.",
+    "constraints": [
+      "Read-only evidence comparison; no grade, lane, prompt, instrument, or grader input changed.",
+      "No tests, probes, agents, clones, or remote commands were run.",
+      "Received grader classifications are preserved verbatim; classification differences are annotated, not rewritten."
+    ],
+    "calibration": "All compared reports identify the Claude grader as uncalibrated and the runs as N=1/non-claim-eligible.",
+    "comparisonPolicy": [
+      "Only the 101 IDs present in both grader-report assertionResults objects are treated as a machine-comparable prior/current grade.",
+      "The prior Sep 12 grader-report schema omitted all 18 M8 IDs. Its prose is not reconstructed or pooled into a prior structured 119 total.",
+      "Current M8 results are displayed separately from the 101-ID comparison."
+    ]
+  },
+  "sources": {
+    "priorResults": {
+      "path": "benchmarks/runs/2026-09-13-snapback4-clique-0004/prior-results.json",
+      "bytes": 22087,
+      "lineCount": 647,
+      "sha256": "68902e4a760fa7ffd2b32a37d0399955db5d5e6ec5240d9fcf737f238423f2ae"
+    },
+    "currentGrade101": {
+      "path": "lanes/astra-snapback4/grading/grader-report.json",
+      "bytes": 44228,
+      "lineCount": 1024,
+      "sha256": "410c4cd24f4e13539692c96f4f1776fc0241d6214a163623c2591ff37a636e9f"
+    },
+    "currentM8": {
+      "path": "lanes/astra-snapback4/grading/m8-assertion-results.json",
+      "bytes": 5712,
+      "lineCount": 133,
+      "sha256": "64a9f62500f52c625576f602c8941f4d6ab7e86c4acf3cf421d58e5e29694b38"
+    },
+    "priorSep12Snapback4Grade": {
+      "path": "benchmarks/runs/2026-09-13-snapback4-clique-0003/grading-astra-snapback4.json",
+      "bytes": 45162,
+      "lineCount": 837,
+      "sha256": "6938a190b797cdf4c92100d7aca0eb1fe3092882c02f1a6c7fc86f4de0b801ba"
+    },
+    "priorSep05Snapback2Grade": {
+      "path": "benchmarks/runs/2026-09-05-clique-full-3x3/grading-astra-snapback2.json",
+      "bytes": 51718,
+      "lineCount": 947,
+      "sha256": "39170e2a7865d674b0740f0474c4b4370f394de302f00617313d19fb1a5df4cd"
+    },
+    "currentBuilderStart": {
+      "path": "logs/astra-snapback4.start.json",
+      "bytes": 1109,
+      "lineCount": 36,
+      "sha256": "88a0200296064b99ca7c40ecccfb20d25ff6ab795e6771afe58c6189e6c86826"
+    },
+    "currentBuilderEnd": {
+      "path": "logs/astra-snapback4.end.json",
+      "bytes": 367,
+      "lineCount": 11,
+      "sha256": "9e7d88715e65aff3a64c574159dc6387662bc49d5a5a42fd2205822b99037774"
+    },
+    "currentIndependentGradeStart": {
+      "path": "logs/astra-snapback4.grade.start.json",
+      "bytes": 962,
+      "lineCount": 30,
+      "sha256": "aa175e0658cee9b18d1c2b6e591f19eb3031b1c7fb2043fd4bd5d06b5e4eba3f"
+    },
+    "currentIndependentGradeEnd": {
+      "path": "logs/astra-snapback4.grade.end.json",
+      "bytes": 377,
+      "lineCount": 11,
+      "sha256": "dd4f3ed6145f7200286e58c49c2164893703cc731914c5068d831cdc18a4c753"
+    },
+    "graderPrompt": {
+      "path": "instrument/grader/grader-prompt.md",
+      "bytes": 7286,
+      "lineCount": 144,
+      "sha256": "97ce0e44d219c48b7a9dfe16ce26e9f0b90d47b00e09b43acc678cc9e2dfded6"
+    },
+    "graderReportSchema": {
+      "path": "instrument/grader/grader-report.schema.json",
+      "bytes": 15983,
+      "lineCount": 529,
+      "sha256": "82d213374eecdbf47438193a7213dc4e8532b1a1db37204d6c21f352bfac0c30"
+    },
+    "applicability": {
+      "path": "instrument/schema/social-messenger/applicability.json",
+      "bytes": 13861,
+      "lineCount": 420,
+      "sha256": "b3d45805202375949b657cc30609e9d1de51da6a188469e9bf2c60f8fd1e37a1"
+    },
+    "currentGradeWrapperPrompt": {
+      "path": "prompts/astra-snapback4.grade.md",
+      "bytes": 6606,
+      "lineCount": 52,
+      "sha256": "54826fe2ebd30c9364b835da66cfe9537f18ecd704f015958a4780594733d8ed"
+    },
+    "currentGradeTrace": {
+      "path": "lanes/astra-snapback4/grading/trace.md",
+      "bytes": 31291,
+      "lineCount": 446,
+      "sha256": "ad54165759fc870ab0f00f4ae5a4f8b1eb084d17bab1ffc86beac38fd44f7156"
+    }
+  },
+  "identity": {
+    "assertionManifest": {
+      "version": "0.3.0-m8",
+      "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04",
+      "sameAcrossAllThree101Reports": true
+    },
+    "current": {
+      "product": "Snapback 4",
+      "packages": {
+        "snapback4": "0.2.6",
+        "snapback4-expo": "0.2.1"
+      },
+      "builderModel": "gpt-6-astra",
+      "builderEffort": "medium",
+      "graderModel": "claude-opus-5",
+      "graderEffort": "provider-default"
+    },
+    "priorSep12": {
+      "product": "Snapback 4",
+      "packages": {
+        "snapback4": "0.1.0",
+        "snapback4-darwin-arm64": "0.1.0"
+      },
+      "coreVersion": "0.0.16",
+      "builderModel": "gpt-6-astra",
+      "builderEffort": "medium",
+      "graderModel": "claude-opus-5"
+    },
+    "priorSep05": {
+      "product": "Snapback 2",
+      "packages": {
+        "snapback2": "0.0.4",
+        "snapback2-darwin-arm64": "0.0.4"
+      },
+      "builderModel": "gpt-6-astra",
+      "builderEffort": "medium",
+      "graderModel": "claude-opus-5"
+    }
+  },
+  "headlineCounts": {
+    "currentStructured101": {
+      "pass": 84,
+      "fail": 8,
+      "not-run": 9,
+      "not-applicable": 0,
+      "total": 101
+    },
+    "priorSep12Structured101": {
+      "pass": 84,
+      "fail": 1,
+      "not-run": 16,
+      "not-applicable": 0,
+      "total": 101
+    },
+    "currentStructuredM8Separate": {
+      "pass": 16,
+      "fail": 2,
+      "not-run": 0,
+      "not-applicable": 0,
+      "total": 18
+    },
+    "priorSep05Structured101Context": {
+      "pass": 81,
+      "fail": 11,
+      "not-run": 9,
+      "not-applicable": 0,
+      "total": 101
+    },
+    "explicitNonPoolingRule": "No prior 119 total is reported or derived. Current M8 is not pooled into the machine-comparable 101 transition."
+  },
+  "sep12Snapback4ToCurrent101": {
+    "matrix": [
+      {
+        "prior": "fail",
+        "current": "pass",
+        "count": 1,
+        "ids": [
+          "m3-a11"
+        ]
+      },
+      {
+        "prior": "not-run",
+        "current": "fail",
+        "count": 7,
+        "ids": [
+          "m6-a01",
+          "m6-a02",
+          "m6-a03",
+          "m6-a04",
+          "m6-a05",
+          "m6-a06",
+          "m6-a07"
+        ]
+      },
+      {
+        "prior": "not-run",
+        "current": "not-run",
+        "count": 9,
+        "ids": [
+          "m7-a01",
+          "m7-a02",
+          "m7-a03",
+          "m7-a04",
+          "m7-a05",
+          "m7-a06",
+          "m7-a07",
+          "m7-a08",
+          "m7-a09"
+        ]
+      },
+      {
+        "prior": "pass",
+        "current": "fail",
+        "count": 1,
+        "ids": [
+          "m2-a07"
+        ]
+      },
+      {
+        "prior": "pass",
+        "current": "pass",
+        "count": 83,
+        "ids": [
+          "m1-a01",
+          "m1-a02",
+          "m1-a03",
+          "m1-a04",
+          "m1-a05",
+          "m1-a06",
+          "m1-a07",
+          "m1-a08",
+          "m1-a09",
+          "m1-a10",
+          "m1-a11",
+          "m1-a12",
+          "m1-a13",
+          "m2-a01",
+          "m2-a02",
+          "m2-a03",
+          "m2-a04",
+          "m2-a05",
+          "m2-a06",
+          "m2-a08",
+          "m2-a09",
+          "m2-a10",
+          "m2-a11",
+          "m2-a12",
+          "m2-a13",
+          "m2-a14",
+          "m2-a15",
+          "m2-a16",
+          "m2-a17",
+          "m2-a18",
+          "m2-a19",
+          "m2-a20",
+          "m2-a21",
+          "m2-a22",
+          "m2-a23",
+          "m2-a24",
+          "m2-a25",
+          "m2-a26",
+          "m2-a27",
+          "m3-a01",
+          "m3-a02",
+          "m3-a03",
+          "m3-a04",
+          "m3-a05",
+          "m3-a06",
+          "m3-a07",
+          "m3-a08",
+          "m3-a09",
+          "m3-a10",
+          "m3-a12",
+          "m3-a13",
+          "m3-a14",
+          "m3-a15",
+          "m4-a01",
+          "m4-a02",
+          "m4-a03",
+          "m4-a04",
+          "m4-a05",
+          "m4-a06",
+          "m4-a07",
+          "m4-a08",
+          "m4-a09",
+          "m4-a10",
+          "m4-a11",
+          "m4-a12",
+          "m5-a01",
+          "m5-a02",
+          "m5-a03",
+          "m5-a04",
+          "m5-a05",
+          "m5-a06",
+          "m5-a07",
+          "m5-a08",
+          "m5-a09",
+          "m5-a10",
+          "m5-a11",
+          "m5-a12",
+          "m6-a08",
+          "m6-a09",
+          "m6-a10",
+          "m6-a11",
+          "m6-a12",
+          "m6-a13"
+        ]
+      }
+    ],
+    "byId": {
+      "m1-a01": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "api",
+        "priorEvidence": "trace.md \u00a72, \u00a74.3 (suite runs 1-2 pass; grader web sign-up flows logs/web-grader.jsonl)",
+        "currentEvidence": "trace.md \u00a73 (grading/checkout/evidence/suite-m1.json) and \u00a75.2 (grading/evidence/api-probes-49300.json: setup, x-short-password-refused)"
+      },
+      "m1-a02": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72, \u00a74.3 (suite runs 1-2 pass; grader sign-up lands on authenticated onboarding)",
+        "currentEvidence": "trace.md \u00a73; grading/checkout/evidence/suite-m1.json"
+      },
+      "m1-a03": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a74.3 (logs/web-grader.jsonl dupHandleErrorText; shots/dup-handle.png)",
+        "currentEvidence": "trace.md \u00a73; suite-m1.json; \u00a75.2 x-duplicate-handle-server-side"
+      },
+      "m1-a04": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72, \u00a74.3 (logs/web-grader2.jsonl m1-a04-fresh-1..3; suite-run1 and suite-run2 m1-suite.json)",
+        "currentEvidence": "trace.md \u00a73; grading/checkout/evidence/suite-m1.json"
+      },
+      "m1-a05": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m1-choreo.jsonl: session-persists-on-relaunch)",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m1.jsonl assertion 'session-persists-on-relaunch'"
+      },
+      "m1-a06": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m1-choreo.jsonl: logout-remains-signed-out-on-relaunch)",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m1.jsonl assertion 'logout-remains-signed-out-on-relaunch'"
+      },
+      "m1-a07": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "api",
+        "priorEvidence": "trace.md \u00a74.2 (logs/api-probes.jsonl m1-a07; logs/web-grader2.jsonl ui-logout-revocation)",
+        "currentEvidence": "trace.md \u00a75.2; grading/evidence/api-probes-49300.json results m1-a07, x-refresh-invalidates-old, x-logout-all"
+      },
+      "m1-a08": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m1-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; grading/checkout/evidence/suite-m1.json"
+      },
+      "m1-a09": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m1-choreo.jsonl: profile-edit-live-visibility)",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m1.jsonl assertion 'profile-edit-live-visibility'"
+      },
+      "m1-a10": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m1-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; grading/checkout/evidence/suite-m1.json"
+      },
+      "m1-a11": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m1-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; grading/checkout/evidence/suite-m1.json, m1-avatar.png"
+      },
+      "m1-a12": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "source-inspection",
+        "currentMethod": "source-inspection",
+        "priorEvidence": "trace.md \u00a74.1 (snapback/schema.q:1 `use identity password`; _credentials hash prefix $argon2id$v=19$m=19456,t=2,p=1)",
+        "currentEvidence": "trace.md \u00a75.7; snapback/schema.q:1 'use identity password'; node_modules/snapback4/README.md \u00a74 Sign-in; grader-instance store hash prefix $argon2id$v=19$m=19456,t=2,p=1"
+      },
+      "m1-a13": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "source-inspection",
+        "currentMethod": "source-inspection",
+        "priorEvidence": "trace.md \u00a74.1 (fixture-password byte search over lane store+WAL, lane logs, iOS bundles, src/app/ui, grader-run stores and logs: 0 hits; sessions stored as token digests)",
+        "currentEvidence": "trace.md \u00a75.7"
+      },
+      "m2-a01": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m2-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; grading/checkout/evidence/suite-m2.json"
+      },
+      "m2-a02": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m2-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json; \u00a75.1 feed-image-post-live-update"
+      },
+      "m2-a03": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m2-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json; \u00a75.1 feed-video-post-live-update"
+      },
+      "m2-a04": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m2-choreo.jsonl: feed-text-post-live-update / feed-image-post-live-update / feed-video-post-live-update)",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m2.jsonl assertion 'feed-text-post-live-update'"
+      },
+      "m2-a05": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m2-choreo.jsonl: feed-author-avatar-and-display-name)",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m2.jsonl assertion 'feed-author-avatar-and-display-name'"
+      },
+      "m2-a06": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m2-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json; \u00a75.1 follow-unfollow-live-projection"
+      },
+      "m2-a07": {
+        "prior": "pass",
+        "current": "fail",
+        "classification": "genuine-graded-status-change",
+        "priorMethod": "web-automation",
+        "currentMethod": "web-automation",
+        "priorEvidence": "trace.md \u00a74.3, \u00a78 (logs/web-grader3.jsonl m2-a07-follower-count-live)",
+        "currentEvidence": "trace.md \u00a75.6; grading/evidence/follower-count-live.json, follower-count-diagnostic.json"
+      },
+      "m2-a08": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m2-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json; \u00a75.1 follow-unfollow-live-projection"
+      },
+      "m2-a09": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m2-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json; \u00a75.1 follow-unfollow-live-projection"
+      },
+      "m2-a10": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m2-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; grading/checkout/evidence/suite-m2.json"
+      },
+      "m2-a11": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m2-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; grading/checkout/evidence/suite-m2.json"
+      },
+      "m2-a12": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m2-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json"
+      },
+      "m2-a13": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m2-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json"
+      },
+      "m2-a14": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m2-choreo.jsonl: like-unlike-live-count)",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m2.jsonl assertion 'like-unlike-live-count'"
+      },
+      "m2-a15": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72, \u00a74.2 (suite pass; logs/api-probes.jsonl idempotency-validation likes=1 after two set intents)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json; \u00a75.1 like-unlike-live-count"
+      },
+      "m2-a16": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m2-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json; \u00a75.1 repost-toggle-live-attribution"
+      },
+      "m2-a17": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m2-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json; \u00a75.1 repost-toggle-live-attribution"
+      },
+      "m2-a18": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m2-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json; \u00a75.1 repost-following-feed-surface"
+      },
+      "m2-a19": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m2-choreo.jsonl: reply-live-thread-projection)",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m2.jsonl assertion 'reply-live-thread-projection'"
+      },
+      "m2-a20": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m2-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json"
+      },
+      "m2-a21": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m2-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json"
+      },
+      "m2-a22": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m2-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json"
+      },
+      "m2-a23": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m2-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json"
+      },
+      "m2-a24": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m2-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json"
+      },
+      "m2-a25": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m2-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json"
+      },
+      "m2-a26": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m2-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json"
+      },
+      "m2-a27": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m2-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json"
+      },
+      "m3-a01": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m3-choreo.jsonl: dm-live-messages)",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'dm-live-messages'"
+      },
+      "m3-a02": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m3-choreo.jsonl: sender-avatar-identity-when-rendered)",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'sender-avatar-identity-when-rendered'"
+      },
+      "m3-a03": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m3-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m3.json; \u00a75.2 x-dm-dedupe"
+      },
+      "m3-a04": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m3-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m3.json"
+      },
+      "m3-a05": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m3-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m3.json"
+      },
+      "m3-a06": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m3-choreo.jsonl: typing-indicator-within-2s-expires-within-5s)",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'typing-indicator-within-2s-expires-within-5s'"
+      },
+      "m3-a07": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m3-choreo.jsonl: typing-indicator-within-2s-expires-within-5s)",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'typing-indicator-within-2s-expires-within-5s'"
+      },
+      "m3-a08": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m3-choreo.jsonl: receipt-sent-delivered-read-transitions)",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'receipt-sent-delivered-read-transitions'"
+      },
+      "m3-a09": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m3-choreo.jsonl: group-receipt-waits-for-slowest-member)",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'group-receipt-waits-for-slowest-member'"
+      },
+      "m3-a10": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a74.3 (shots/screen-dm-bob.png, shots/quote-jump4-group-offscreen.png: excerpt rendered)",
+        "currentEvidence": "trace.md \u00a73; suite-m3.json; \u00a75.1 quoted-reply-excerpt-and-jump"
+      },
+      "m3-a11": {
+        "prior": "fail",
+        "current": "pass",
+        "classification": "genuine-graded-status-change",
+        "priorMethod": "web-automation",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a73, \u00a74.3 (logs/web-grader3.jsonl, logs/web-grader4.jsonl m3-a11-quote-jump-locator; shots/quote-jump4-group-offscreen.png; src/chat.tsx:306,346-351)",
+        "currentEvidence": "trace.md \u00a73; suite-m3.json; \u00a75.1 quoted-reply-excerpt-and-jump"
+      },
+      "m3-a12": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m3-choreo.jsonl: member-add-promote-remove-leave-and-live-cutoff)",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'member-add-promote-remove-leave-and-live-cutoff'"
+      },
+      "m3-a13": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m3-choreo.jsonl: member-add-promote-remove-leave-and-live-cutoff)",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'member-add-promote-remove-leave-and-live-cutoff'"
+      },
+      "m3-a14": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m3-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m3.json; \u00a75.2 x-group-non-admin"
+      },
+      "m3-a15": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "api",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m3-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a75.5; grading/evidence/seed-idempotency.json"
+      },
+      "m4-a01": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m4-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m4.json"
+      },
+      "m4-a02": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m4-choreo.jsonl: photo-message-live-render)",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m4.jsonl assertion 'photo-message-live-render'"
+      },
+      "m4-a03": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m4-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m4.json"
+      },
+      "m4-a04": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m4-choreo.jsonl: video-message-live-playback)",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m4.jsonl assertion 'video-message-live-playback'"
+      },
+      "m4-a05": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m4-choreo.jsonl: reaction-live-replace-remove)",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m4.jsonl assertion 'reaction-live-replace-remove'"
+      },
+      "m4-a06": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m4-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m4.json; \u00a75.1 reaction-live-replace-remove"
+      },
+      "m4-a07": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m4-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m4.json; \u00a75.1 reaction-live-replace-remove"
+      },
+      "m4-a08": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m4-choreo.jsonl: edit-live-visibility)",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m4.jsonl assertion 'edit-live-visibility'"
+      },
+      "m4-a09": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m4-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m4.json"
+      },
+      "m4-a10": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "api",
+        "priorEvidence": "trace.md \u00a74.2 (logs/api-probes.jsonl m4-a10)",
+        "currentEvidence": "trace.md \u00a75.2; grading/evidence/api-probes-49300.json results m4-a10, x-delete-window"
+      },
+      "m4-a11": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m4-choreo.jsonl: delete-live-tombstone)",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m4.jsonl assertion 'delete-live-tombstone'"
+      },
+      "m4-a12": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "api",
+        "priorEvidence": "trace.md \u00a74.2 (logs/api-probes.jsonl m4-a12)",
+        "currentEvidence": "trace.md \u00a75.2; api-probes-49300.json results m4-a12, x-tombstone-immutable"
+      },
+      "m5-a01": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "api",
+        "priorEvidence": "trace.md \u00a74.2 (logs/api-probes.jsonl m5-a01-setup, m5-a01)",
+        "currentEvidence": "trace.md \u00a75.3; grading/evidence/expiry-probe.json"
+      },
+      "m5-a02": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "web-automation",
+        "priorEvidence": "trace.md \u00a74.3 (logs/web-grader.jsonl m5-a02-a03-web; shots/expiry-P-*.png, shots/expiry-Q-relaunch.png)",
+        "currentEvidence": "trace.md \u00a75.3; expiry-probe.json; evidence/screens/expiry-*.png"
+      },
+      "m5-a03": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "web-automation",
+        "priorEvidence": "trace.md \u00a74.3 (logs/web-grader.jsonl m5-a02-a03-web offlineSearchP/offlineSearchQ; shots/offline-search-*.png)",
+        "currentEvidence": "trace.md \u00a75.3; expiry-probe.json; evidence/screens/expiry-offline-search.png"
+      },
+      "m5-a04": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m5-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m5.json; \u00a75.1 view-once-single-view-and-refusal"
+      },
+      "m5-a05": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m5-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m5.json; \u00a75.1 view-once-single-view-and-refusal"
+      },
+      "m5-a06": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "api",
+        "priorEvidence": "trace.md \u00a74.2 (logs/api-probes.jsonl m5-a06, trust-viewonce-concurrent)",
+        "currentEvidence": "trace.md \u00a75.2; api-probes-49300.json results m5-a06, x-group-view-once-per-member"
+      },
+      "m5-a07": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m5-choreo.jsonl: chat-color-background-sync)",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m5b.jsonl assertion 'chat-color-background-sync'"
+      },
+      "m5-a08": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m5-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m5.json; \u00a75.2 x-group-non-admin"
+      },
+      "m5-a09": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m5-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m5.json"
+      },
+      "m5-a10": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m5-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m5.json"
+      },
+      "m5-a11": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m5-suite.json, grader runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m5.json"
+      },
+      "m5-a12": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "web-automation",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m5-choreo.jsonl: warm-offline-search-over-synced-messages)",
+        "currentEvidence": "trace.md \u00a75.1 and \u00a75.9; grading/checkout/evidence/choreo-m5-grader-attempt1.jsonl, choreo-m5.jsonl; grading/evidence/offline-latency.json"
+      },
+      "m6-a01": {
+        "prior": "not-run",
+        "current": "fail",
+        "classification": "classification-only-native-proof-absent-in-both",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m6-choreo.jsonl segment summary: ios-simulator-m6 status not-recorded; artifacts/ holds only iOS Hermes bundle exports)",
+        "currentEvidence": "trace.md \u00a75.10; grading/checkout/evidence/choreo-m6.jsonl segment-summary supplementalExternal ios-simulator-m6 status not-recorded; lane artifacts/m6-ios holds only a Hermes export"
+      },
+      "m6-a02": {
+        "prior": "not-run",
+        "current": "fail",
+        "classification": "classification-only-native-proof-absent-in-both",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m6-choreo.jsonl segment summary: ios-simulator-m6 status not-recorded; artifacts/ holds only iOS Hermes bundle exports)",
+        "currentEvidence": "trace.md \u00a75.10; choreo-m6.jsonl supplementalExternal ios-simulator-m6 not-recorded"
+      },
+      "m6-a03": {
+        "prior": "not-run",
+        "current": "fail",
+        "classification": "classification-only-native-proof-absent-in-both",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m6-choreo.jsonl segment summary: ios-simulator-m6 status not-recorded; artifacts/ holds only iOS Hermes bundle exports)",
+        "currentEvidence": "trace.md \u00a75.10; choreo-m6.jsonl supplementalExternal ios-simulator-m6 not-recorded"
+      },
+      "m6-a04": {
+        "prior": "not-run",
+        "current": "fail",
+        "classification": "classification-only-native-proof-absent-in-both",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m6-choreo.jsonl segment summary: ios-simulator-m6 status not-recorded; artifacts/ holds only iOS Hermes bundle exports)",
+        "currentEvidence": "trace.md \u00a75.10; choreo-m6.jsonl supplementalExternal ios-simulator-m6 not-recorded"
+      },
+      "m6-a05": {
+        "prior": "not-run",
+        "current": "fail",
+        "classification": "classification-only-native-proof-absent-in-both",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m6-choreo.jsonl segment summary: ios-simulator-m6 status not-recorded; artifacts/ holds only iOS Hermes bundle exports)",
+        "currentEvidence": "trace.md \u00a75.10; choreo-m6.jsonl supplementalExternal ios-simulator-m6 not-recorded"
+      },
+      "m6-a06": {
+        "prior": "not-run",
+        "current": "fail",
+        "classification": "classification-only-native-proof-absent-in-both",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m6-choreo.jsonl segment summary: ios-simulator-m6 status not-recorded; artifacts/ holds only iOS Hermes bundle exports)",
+        "currentEvidence": "trace.md \u00a75.10; choreo-m6.jsonl supplementalExternal ios-simulator-m6 not-recorded"
+      },
+      "m6-a07": {
+        "prior": "not-run",
+        "current": "fail",
+        "classification": "classification-only-native-proof-absent-in-both",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a74.5 (lane evidence/m6-choreo.jsonl segment summary: ios-simulator-m6 status not-recorded; artifacts/ holds only iOS Hermes bundle exports)",
+        "currentEvidence": "trace.md \u00a75.10; choreo-m6.jsonl supplementalExternal ios-simulator-m6 not-recorded"
+      },
+      "m6-a08": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72, \u00a74.2 (suite-run2 m6-suite.json; logs/api-probes.jsonl m6-push-payloads)",
+        "currentEvidence": "trace.md \u00a73 (suite-m6.json) and \u00a75.4 (grader-instance push-seam log)"
+      },
+      "m6-a09": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72, \u00a74.2 (suite-run2 m6-suite.json; logs/api-probes.jsonl m6-push-payloads viewOncePreview)",
+        "currentEvidence": "trace.md \u00a73; suite-m6.json"
+      },
+      "m6-a10": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m6-demo.txt; suite runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m6.json; grading/checkout/evidence/custom-client-clean-*/result.log"
+      },
+      "m6-a11": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (scripts/custom-client-demo.mjs performs login, inbox, two history pages, send, poll; suite runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73 and \u00a74; scripts/custom-client-demo.mjs"
+      },
+      "m6-a12": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "api",
+        "priorEvidence": "trace.md \u00a74.2 (logs/api-probes.jsonl m6-a12)",
+        "currentEvidence": "trace.md \u00a75.2; api-probes-49300.json results m6-a12"
+      },
+      "m6-a13": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a72 (grading/checkout/evidence/m6-sample-conformance.json; validate.mjs over sample-50.log; suite runs 1 and 2)",
+        "currentEvidence": "trace.md \u00a73; suite-m6.json; grading/checkout/evidence/m6-sample-schema.log"
+      },
+      "m7-a01": {
+        "prior": "not-run",
+        "current": "not-run",
+        "classification": "m7-remains-not-run",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a70 (ENVIRONMENT.md: M7 is a separate fresh session run after grading)",
+        "currentEvidence": "trace.md \u00a710"
+      },
+      "m7-a02": {
+        "prior": "not-run",
+        "current": "not-run",
+        "classification": "m7-remains-not-run",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a70 (ENVIRONMENT.md: M7 is a separate fresh session run after grading)",
+        "currentEvidence": "trace.md \u00a710"
+      },
+      "m7-a03": {
+        "prior": "not-run",
+        "current": "not-run",
+        "classification": "m7-remains-not-run",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a70 (ENVIRONMENT.md: M7 is a separate fresh session run after grading)",
+        "currentEvidence": "trace.md \u00a710"
+      },
+      "m7-a04": {
+        "prior": "not-run",
+        "current": "not-run",
+        "classification": "m7-remains-not-run",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a70 (ENVIRONMENT.md: M7 is a separate fresh session run after grading)",
+        "currentEvidence": "trace.md \u00a710"
+      },
+      "m7-a05": {
+        "prior": "not-run",
+        "current": "not-run",
+        "classification": "m7-remains-not-run",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "trace.md \u00a70 (ENVIRONMENT.md: M7 is a separate fresh session run after grading)",
+        "currentEvidence": "trace.md \u00a710"
+      },
+      "m7-a06": {
+        "prior": "not-run",
+        "current": "not-run",
+        "classification": "m7-remains-not-run",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a70 (ENVIRONMENT.md: M7 is a separate fresh session run after grading)",
+        "currentEvidence": "trace.md \u00a710"
+      },
+      "m7-a07": {
+        "prior": "not-run",
+        "current": "not-run",
+        "classification": "m7-remains-not-run",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a70 (ENVIRONMENT.md: M7 is a separate fresh session run after grading)",
+        "currentEvidence": "trace.md \u00a710"
+      },
+      "m7-a08": {
+        "prior": "not-run",
+        "current": "not-run",
+        "classification": "m7-remains-not-run",
+        "priorMethod": "snapshot-comparison",
+        "currentMethod": "snapshot-comparison",
+        "priorEvidence": "trace.md \u00a70 (ENVIRONMENT.md: M7 is a separate fresh session run after grading)",
+        "currentEvidence": "trace.md \u00a710"
+      },
+      "m7-a09": {
+        "prior": "not-run",
+        "current": "not-run",
+        "classification": "m7-remains-not-run",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "trace.md \u00a70 (ENVIRONMENT.md: M7 is a separate fresh session run after grading)",
+        "currentEvidence": "trace.md \u00a710"
+      }
+    },
+    "changedIds": [
+      "m2-a07",
+      "m3-a11",
+      "m6-a01",
+      "m6-a02",
+      "m6-a03",
+      "m6-a04",
+      "m6-a05",
+      "m6-a06",
+      "m6-a07"
+    ],
+    "classificationOnlyNativeIds": [
+      "m6-a01",
+      "m6-a02",
+      "m6-a03",
+      "m6-a04",
+      "m6-a05",
+      "m6-a06",
+      "m6-a07"
+    ],
+    "genuineChangedPassFailIds": [
+      "m2-a07",
+      "m3-a11"
+    ],
+    "m7NotRunIds": [
+      "m7-a01",
+      "m7-a02",
+      "m7-a03",
+      "m7-a04",
+      "m7-a05",
+      "m7-a06",
+      "m7-a07",
+      "m7-a08",
+      "m7-a09"
+    ],
+    "interpretation": {
+      "m6NativeNotRunToFail": "m6-a01..a07 cite absent native simulator artifacts in both grades. The status change is grading classification of unchanged missing proof, not evidence of seven newly regressed native behaviors.",
+      "m2A07": "pass -> fail. Prior grader observed Alice follower-count live update in 3/3; current grader observed no update within 10 s in 3/3 nor 15 s diagnostic, then update after reload.",
+      "m3A11": "fail -> pass. Prior independent web execution found quoted-reply jump a no-op; current builder-suite and grader-run choreography evidence records pass.",
+      "m7": "All nine IDs remain not-run in the continuous graded session. Current report says M7 is a separate later fresh session; no current M7 outcome or duration is inferred."
+    }
+  },
+  "currentM8Separate": {
+    "source": "currentM8",
+    "counts": {
+      "pass": 16,
+      "fail": 2,
+      "not-run": 0,
+      "not-applicable": 0,
+      "total": 18
+    },
+    "byId": {
+      "m8-a01": {
+        "current": "pass",
+        "currentMethod": "builder-suite",
+        "currentEvidence": "trace.md \u00a73; suite-m8.json"
+      },
+      "m8-a02": {
+        "current": "pass",
+        "currentMethod": "choreography-artifacts",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m8.jsonl assertion 'm8-a02-insights-like-refresh'"
+      },
+      "m8-a03": {
+        "current": "pass",
+        "currentMethod": "builder-suite",
+        "currentEvidence": "trace.md \u00a73; suite-m8.json; \u00a75.8 insights-semantics.json"
+      },
+      "m8-a04": {
+        "current": "pass",
+        "currentMethod": "builder-suite",
+        "currentEvidence": "trace.md \u00a73; suite-m8.json; \u00a75.8 insights-semantics.json"
+      },
+      "m8-a05": {
+        "current": "pass",
+        "currentMethod": "builder-suite",
+        "currentEvidence": "trace.md \u00a73; suite-m8.json"
+      },
+      "m8-a06": {
+        "current": "pass",
+        "currentMethod": "builder-suite",
+        "currentEvidence": "trace.md \u00a73 and \u00a74; suite-m8.json; grading/checkout/evidence/m8-trending-aging.json; snapback/insights.q trending expire at postedAt+24h"
+      },
+      "m8-a07": {
+        "current": "pass",
+        "currentMethod": "builder-suite",
+        "currentEvidence": "trace.md \u00a73; suite-m8.json; snapback/insights.q byRank(score, postedAt, sequence)"
+      },
+      "m8-a08": {
+        "current": "pass",
+        "currentMethod": "api",
+        "currentEvidence": "trace.md \u00a75.4; grading/checkout/grader-instance/evidence/digest-push.jsonl; grading/evidence/digest-probe-rerun.json"
+      },
+      "m8-a09": {
+        "current": "pass",
+        "currentMethod": "api",
+        "currentEvidence": "trace.md \u00a75.4; digest-push.jsonl; digest-probe-rerun.json"
+      },
+      "m8-a10": {
+        "current": "pass",
+        "currentMethod": "api",
+        "currentEvidence": "trace.md \u00a75.4; digest-push.jsonl; digest-probe-rerun.json"
+      },
+      "m8-a11": {
+        "current": "pass",
+        "currentMethod": "api",
+        "currentEvidence": "trace.md \u00a75.4; digest-push.jsonl; digest-probe-rerun.json"
+      },
+      "m8-a12": {
+        "current": "pass",
+        "currentMethod": "api",
+        "currentEvidence": "trace.md \u00a75.4; digest-probe-rerun.json"
+      },
+      "m8-a13": {
+        "current": "pass",
+        "currentMethod": "choreography-artifacts",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m8.jsonl assertion 'm8-a13-same-account-message-live'"
+      },
+      "m8-a14": {
+        "current": "pass",
+        "currentMethod": "choreography-artifacts",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m8.jsonl assertion 'm8-a14-cross-device-read-state'"
+      },
+      "m8-a15": {
+        "current": "pass",
+        "currentMethod": "choreography-artifacts",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m8.jsonl assertion 'm8-a15-dual-offline-convergence'"
+      },
+      "m8-a16": {
+        "current": "pass",
+        "currentMethod": "choreography-artifacts",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m8.jsonl assertion 'm8-a16-dual-offline-receipts'"
+      },
+      "m8-a17": {
+        "current": "fail",
+        "currentMethod": "choreography-artifacts",
+        "currentEvidence": "trace.md \u00a75.10; grading/checkout/evidence/choreo-m8.jsonl segment-summary supplementalExternal ios-simulator-m8 status not-recorded; lane artifacts/m8-ios holds only a Hermes export"
+      },
+      "m8-a18": {
+        "current": "fail",
+        "currentMethod": "choreography-artifacts",
+        "currentEvidence": "trace.md \u00a75.10; choreo-m8.jsonl supplementalExternal ios-simulator-m8 not-recorded"
+      }
+    },
+    "qualitativePriorNarrative": {
+      "source": "priorSep12Snapback4Grade notes field; no prior structured M8 assertionResults entries exist",
+      "statement": "The prior narrative says m8-a17 and m8-a18 were not-run because no native simulator artifact existed; the current structured addendum labels those IDs fail for the same missing artifact.",
+      "nativeProofAbsentIds": [
+        "m8-a17",
+        "m8-a18"
+      ],
+      "qualification": "This is qualitative classification context only. It is not an exact structured transition, a prior M8 subtotal, or part of a reconstructed prior 119 grade."
+    },
+    "comparisonUse": "Report current M8 as 16 pass / 2 fail separately. Do not pool against prior narrative statuses."
+  },
+  "sep05Snapback2ToCurrent101Context": {
+    "matrix": [
+      {
+        "prior": "fail",
+        "current": "fail",
+        "count": 7,
+        "ids": [
+          "m6-a01",
+          "m6-a02",
+          "m6-a03",
+          "m6-a04",
+          "m6-a05",
+          "m6-a06",
+          "m6-a07"
+        ]
+      },
+      {
+        "prior": "fail",
+        "current": "pass",
+        "count": 4,
+        "ids": [
+          "m1-a09",
+          "m2-a04",
+          "m2-a22",
+          "m5-a07"
+        ]
+      },
+      {
+        "prior": "not-run",
+        "current": "not-run",
+        "count": 9,
+        "ids": [
+          "m7-a01",
+          "m7-a02",
+          "m7-a03",
+          "m7-a04",
+          "m7-a05",
+          "m7-a06",
+          "m7-a07",
+          "m7-a08",
+          "m7-a09"
+        ]
+      },
+      {
+        "prior": "pass",
+        "current": "fail",
+        "count": 1,
+        "ids": [
+          "m2-a07"
+        ]
+      },
+      {
+        "prior": "pass",
+        "current": "pass",
+        "count": 80,
+        "ids": [
+          "m1-a01",
+          "m1-a02",
+          "m1-a03",
+          "m1-a04",
+          "m1-a05",
+          "m1-a06",
+          "m1-a07",
+          "m1-a08",
+          "m1-a10",
+          "m1-a11",
+          "m1-a12",
+          "m1-a13",
+          "m2-a01",
+          "m2-a02",
+          "m2-a03",
+          "m2-a05",
+          "m2-a06",
+          "m2-a08",
+          "m2-a09",
+          "m2-a10",
+          "m2-a11",
+          "m2-a12",
+          "m2-a13",
+          "m2-a14",
+          "m2-a15",
+          "m2-a16",
+          "m2-a17",
+          "m2-a18",
+          "m2-a19",
+          "m2-a20",
+          "m2-a21",
+          "m2-a23",
+          "m2-a24",
+          "m2-a25",
+          "m2-a26",
+          "m2-a27",
+          "m3-a01",
+          "m3-a02",
+          "m3-a03",
+          "m3-a04",
+          "m3-a05",
+          "m3-a06",
+          "m3-a07",
+          "m3-a08",
+          "m3-a09",
+          "m3-a10",
+          "m3-a11",
+          "m3-a12",
+          "m3-a13",
+          "m3-a14",
+          "m3-a15",
+          "m4-a01",
+          "m4-a02",
+          "m4-a03",
+          "m4-a04",
+          "m4-a05",
+          "m4-a06",
+          "m4-a07",
+          "m4-a08",
+          "m4-a09",
+          "m4-a10",
+          "m4-a11",
+          "m4-a12",
+          "m5-a01",
+          "m5-a02",
+          "m5-a03",
+          "m5-a04",
+          "m5-a05",
+          "m5-a06",
+          "m5-a08",
+          "m5-a09",
+          "m5-a10",
+          "m5-a11",
+          "m5-a12",
+          "m6-a08",
+          "m6-a09",
+          "m6-a10",
+          "m6-a11",
+          "m6-a12",
+          "m6-a13"
+        ]
+      }
+    ],
+    "byId": {
+      "m1-a01": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "api",
+        "priorEvidence": "trace.md#phase-1--builder-suite; grading/evidence/g4-web.json m1-a01",
+        "currentEvidence": "trace.md \u00a73 (grading/checkout/evidence/suite-m1.json) and \u00a75.2 (grading/evidence/api-probes-49300.json: setup, x-short-password-refused)"
+      },
+      "m1-a02": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g4-web.json m1-a02 (auth form gone after signup)",
+        "currentEvidence": "trace.md \u00a73; grading/checkout/evidence/suite-m1.json"
+      },
+      "m1-a03": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g4-web.json m1-a03",
+        "currentEvidence": "trace.md \u00a73; suite-m1.json; \u00a75.2 x-duplicate-handle-server-side"
+      },
+      "m1-a04": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g4-web.json m1-a04 (E_AUTH_EMAIL_TAKEN shown in sm-auth-error)",
+        "currentEvidence": "trace.md \u00a73; grading/checkout/evidence/suite-m1.json"
+      },
+      "m1-a05": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "evidence/m1-choreography-reconciled.jsonl session-persists-on-relaunch, status passed, 371 ms",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m1.jsonl assertion 'session-persists-on-relaunch'"
+      },
+      "m1-a06": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "evidence/m1-choreography-reconciled.jsonl logout-remains-signed-out-on-relaunch, status passed, 683 ms",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m1.jsonl assertion 'logout-remains-signed-out-on-relaunch'"
+      },
+      "m1-a07": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "api",
+        "priorEvidence": "grading/evidence/g1-api-probes.json m1-a07",
+        "currentEvidence": "trace.md \u00a75.2; grading/evidence/api-probes-49300.json results m1-a07, x-refresh-invalidates-old, x-logout-all"
+      },
+      "m1-a08": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g4-web.json m1-a08; grading/evidence/g7-profile-race.json",
+        "currentEvidence": "trace.md \u00a73; grading/checkout/evidence/suite-m1.json"
+      },
+      "m1-a09": {
+        "prior": "fail",
+        "current": "pass",
+        "classification": "genuine-graded-status-change",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "evidence/m1-choreography-reconciled.jsonl profile-edit-live-visibility, failed 3/3 against a 10 s window; grading/evidence/g5-web-retry.json",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m1.jsonl assertion 'profile-edit-live-visibility'"
+      },
+      "m1-a10": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g4-web.json m1-a10 (fixture avatar upload committed)",
+        "currentEvidence": "trace.md \u00a73; grading/checkout/evidence/suite-m1.json"
+      },
+      "m1-a11": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g4-web.json m1-a11 (profile img complete with naturalWidth > 0)",
+        "currentEvidence": "trace.md \u00a73; grading/checkout/evidence/suite-m1.json, m1-avatar.png"
+      },
+      "m1-a12": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "source-inspection",
+        "currentMethod": "source-inspection",
+        "priorEvidence": "snapback/schema.q:1 \"use identity password\"; stored material in .snapback/store.sqlite is $argon2id$v=19$m=19456,t=2,p=1$...",
+        "currentEvidence": "trace.md \u00a75.7; snapback/schema.q:1 'use identity password'; node_modules/snapback4/README.md \u00a74 Sign-in; grader-instance store hash prefix $argon2id$v=19$m=19456,t=2,p=1"
+      },
+      "m1-a13": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "source-inspection",
+        "currentMethod": "source-inspection",
+        "priorEvidence": "trace.md#grader-class-assertions",
+        "currentEvidence": "trace.md \u00a75.7"
+      },
+      "m2-a01": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m2-a01",
+        "currentEvidence": "trace.md \u00a73; grading/checkout/evidence/suite-m2.json"
+      },
+      "m2-a02": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m2-a02 (2 fixture images on the feed row)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json; \u00a75.1 feed-image-post-live-update"
+      },
+      "m2-a03": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m2-a03 (video asset id present)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json; \u00a75.1 feed-video-post-live-update"
+      },
+      "m2-a04": {
+        "prior": "fail",
+        "current": "pass",
+        "classification": "genuine-graded-status-change",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "evidence/m2-choreography-reconciled.jsonl feed-image-post-live-update and feed-video-post-live-update failed 3/3; feed-text-post-live-update passed",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m2.jsonl assertion 'feed-text-post-live-update'"
+      },
+      "m2-a05": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "evidence/m2-choreography-reconciled.jsonl feed-author-avatar-and-display-name, status passed",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m2.jsonl assertion 'feed-author-avatar-and-display-name'"
+      },
+      "m2-a06": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m2-a06",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json; \u00a75.1 follow-unfollow-live-projection"
+      },
+      "m2-a07": {
+        "prior": "pass",
+        "current": "fail",
+        "classification": "genuine-graded-status-change",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "web-automation",
+        "priorEvidence": "evidence/m2-choreography-reconciled.jsonl follow-unfollow-live-projection, status passed",
+        "currentEvidence": "trace.md \u00a75.6; grading/evidence/follower-count-live.json, follower-count-diagnostic.json"
+      },
+      "m2-a08": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m2-a08",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json; \u00a75.1 follow-unfollow-live-projection"
+      },
+      "m2-a09": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m2-a09",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json; \u00a75.1 follow-unfollow-live-projection"
+      },
+      "m2-a10": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m2-a10",
+        "currentEvidence": "trace.md \u00a73; grading/checkout/evidence/suite-m2.json"
+      },
+      "m2-a11": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m2-a11",
+        "currentEvidence": "trace.md \u00a73; grading/checkout/evidence/suite-m2.json"
+      },
+      "m2-a12": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g4-web.json m2-a12 (role=link, click opens a popup at the target URL)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json"
+      },
+      "m2-a13": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g6-probe.json m2-a13",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json"
+      },
+      "m2-a14": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "evidence/m2-choreography-reconciled.jsonl like-unlike-live-count, status passed",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m2.jsonl assertion 'like-unlike-live-count'"
+      },
+      "m2-a15": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m2-a15 (double like -> 1, unlike -> 0)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json; \u00a75.1 like-unlike-live-count"
+      },
+      "m2-a16": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m2-a16 and g4-web.json m2-a16 (\"Reposted by Bob Bennett\" in the feed)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json; \u00a75.1 repost-toggle-live-attribution"
+      },
+      "m2-a17": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m2-a17",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json; \u00a75.1 repost-toggle-live-attribution"
+      },
+      "m2-a18": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m2-a18",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json; \u00a75.1 repost-following-feed-surface"
+      },
+      "m2-a19": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "evidence/m2-choreography-reconciled.jsonl reply-live-thread-projection, status passed",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m2.jsonl assertion 'reply-live-thread-projection'"
+      },
+      "m2-a20": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m2-a20 (parent + two direct replies chronological, nested reply excluded)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json"
+      },
+      "m2-a21": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m2-a21",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json"
+      },
+      "m2-a22": {
+        "prior": "fail",
+        "current": "pass",
+        "classification": "genuine-graded-status-change",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m2-a22; snapback/posts.q:8",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json"
+      },
+      "m2-a23": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m2-a23 (20 per page, all 25 probe posts present)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json"
+      },
+      "m2-a24": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m2-a24 (516 and 542 rows, all ids distinct, all 25 probe posts present in both tabs)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json"
+      },
+      "m2-a25": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m2-a25",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json"
+      },
+      "m2-a26": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m2-a26",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json"
+      },
+      "m2-a27": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m2-a27 (counts identical before and after the self-repost)",
+        "currentEvidence": "trace.md \u00a73; suite-m2.json"
+      },
+      "m3-a01": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "evidence/m3-choreography-carrier.jsonl dm-live-messages, status passed (visibleMs 1385/459/418)",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'dm-live-messages'"
+      },
+      "m3-a02": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "grading/evidence/g5-web-retry.json m3-a02 (5 of 20 DM bubbles carry a loaded sender avatar image)",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'sender-avatar-identity-when-rendered'"
+      },
+      "m3-a03": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m3-a03 (both sides resolve to d-alice-bob)",
+        "currentEvidence": "trace.md \u00a73; suite-m3.json; \u00a75.2 x-dm-dedupe"
+      },
+      "m3-a04": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m3-a04",
+        "currentEvidence": "trace.md \u00a73; suite-m3.json"
+      },
+      "m3-a05": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m3-a05 (distinct ids, identical rosters)",
+        "currentEvidence": "trace.md \u00a73; suite-m3.json"
+      },
+      "m3-a06": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "evidence/m3-choreography-carrier.jsonl typing-indicator, visibleAfterLastKeystrokeMs, boundary version v2",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'typing-indicator-within-2s-expires-within-5s'"
+      },
+      "m3-a07": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "evidence/m3-choreography-carrier.jsonl typing-indicator, expiresAfterLastKeystrokeMs against the 5 s bound",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'typing-indicator-within-2s-expires-within-5s'"
+      },
+      "m3-a08": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "evidence/m3-choreography-carrier.jsonl receipt-sent-delivered-read-transitions, status passed",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'receipt-sent-delivered-read-transitions'"
+      },
+      "m3-a09": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "evidence/m3-choreography-carrier.jsonl group-receipt-waits-for-slowest-member, status passed",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'group-receipt-waits-for-slowest-member'"
+      },
+      "m3-a10": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g5-web-retry.json m3-a10 (reply bubble carries the quoted excerpt)",
+        "currentEvidence": "trace.md \u00a73; suite-m3.json; \u00a75.1 quoted-reply-excerpt-and-jump"
+      },
+      "m3-a11": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g5-web-retry.json m3-a11 (tapping sm-convo-quote-preview brings the original back into view)",
+        "currentEvidence": "trace.md \u00a73; suite-m3.json; \u00a75.1 quoted-reply-excerpt-and-jump"
+      },
+      "m3-a12": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "evidence/m3-choreography-carrier.jsonl member-add-promote-remove-leave-and-live-cutoff; the check fails if the removed member receives a post-removal message",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'member-add-promote-remove-leave-and-live-cutoff'"
+      },
+      "m3-a13": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "same assertion: it also fails unless the removed member still holds exactly one copy of the pre-removal message",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'member-add-promote-remove-leave-and-live-cutoff'"
+      },
+      "m3-a14": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m3-a14 (ADMIN_REQUIRED, roster unchanged)",
+        "currentEvidence": "trace.md \u00a73; suite-m3.json; \u00a75.2 x-group-non-admin"
+      },
+      "m3-a15": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "api",
+        "priorEvidence": "grading/evidence/g8-staging-and-seed.json m3-a15",
+        "currentEvidence": "trace.md \u00a75.5; grading/evidence/seed-idempotency.json"
+      },
+      "m4-a01": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m4-a01 (asset fetched, 2125 bytes)",
+        "currentEvidence": "trace.md \u00a73; suite-m4.json"
+      },
+      "m4-a02": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "evidence/m4-choreography-complete.jsonl photo-message-live-render, status passed",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m4.jsonl assertion 'photo-message-live-render'"
+      },
+      "m4-a03": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m4-a03",
+        "currentEvidence": "trace.md \u00a73; suite-m4.json"
+      },
+      "m4-a04": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "evidence/m4-choreography-complete.jsonl video-message-live-playback, status passed",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m4.jsonl assertion 'video-message-live-playback'"
+      },
+      "m4-a05": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "evidence/m4-choreography-complete.jsonl reaction-live-replace-remove, status passed",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m4.jsonl assertion 'reaction-live-replace-remove'"
+      },
+      "m4-a06": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m4-a06 (thumbs-up replaced by heart, exactly one reaction)",
+        "currentEvidence": "trace.md \u00a73; suite-m4.json; \u00a75.1 reaction-live-replace-remove"
+      },
+      "m4-a07": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m4-a07",
+        "currentEvidence": "trace.md \u00a73; suite-m4.json; \u00a75.1 reaction-live-replace-remove"
+      },
+      "m4-a08": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "evidence/m4-choreography-complete.jsonl edit-live-visibility, status passed",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m4.jsonl assertion 'edit-live-visibility'"
+      },
+      "m4-a09": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g4-web.json m4-a09 (recipient bubble reads \"... edited\")",
+        "currentEvidence": "trace.md \u00a73; suite-m4.json"
+      },
+      "m4-a10": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "api",
+        "priorEvidence": "grading/evidence/g1-api-probes.json m4-a10",
+        "currentEvidence": "trace.md \u00a75.2; grading/evidence/api-probes-49300.json results m4-a10, x-delete-window"
+      },
+      "m4-a11": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "evidence/m4-choreography-complete.jsonl delete-live-tombstone, status passed",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m4.jsonl assertion 'delete-live-tombstone'"
+      },
+      "m4-a12": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "api",
+        "priorEvidence": "grading/evidence/g1-api-probes.json m4-a12",
+        "currentEvidence": "trace.md \u00a75.2; api-probes-49300.json results m4-a12, x-tombstone-immutable"
+      },
+      "m5-a01": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "api",
+        "priorEvidence": "grading/evidence/g2-disappearing.json m5-a01",
+        "currentEvidence": "trace.md \u00a75.3; grading/evidence/expiry-probe.json"
+      },
+      "m5-a02": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "web-automation",
+        "priorEvidence": "grading/evidence/g2-disappearing.json m5-a02 and g2-after-expiry-conversation.png (1 bubble before expiry, 0 after relaunch)",
+        "currentEvidence": "trace.md \u00a75.3; expiry-probe.json; evidence/screens/expiry-*.png"
+      },
+      "m5-a03": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "web-automation",
+        "priorEvidence": "grading/evidence/g2-disappearing.json m5-a03 (1 search hit before expiry; 0 online and 0 offline after)",
+        "currentEvidence": "trace.md \u00a75.3; expiry-probe.json; evidence/screens/expiry-offline-search.png"
+      },
+      "m5-a04": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g1-api-probes.json m5-a04 (first open serves 2119 bytes)",
+        "currentEvidence": "trace.md \u00a73; suite-m5.json; \u00a75.1 view-once-single-view-and-refusal"
+      },
+      "m5-a05": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g1-api-probes.json m5-a05 (second open rejected ALREADY_VIEWED)",
+        "currentEvidence": "trace.md \u00a73; suite-m5.json; \u00a75.1 view-once-single-view-and-refusal"
+      },
+      "m5-a06": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "api",
+        "priorEvidence": "grading/evidence/g1-api-probes.json m5-a06 (asset refused E_ASSET_NOT_READY; unauthenticated raw fetch 404)",
+        "currentEvidence": "trace.md \u00a75.2; api-probes-49300.json results m5-a06, x-group-view-once-per-member"
+      },
+      "m5-a07": {
+        "prior": "fail",
+        "current": "pass",
+        "classification": "genuine-graded-status-change",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "evidence/m5-choreography-reconciled.jsonl chat-color-background-sync failed (\"Carol\u2019s synchronized chat background did not become observable within 10000ms\")",
+        "currentEvidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m5b.jsonl assertion 'chat-color-background-sync'"
+      },
+      "m5-a08": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m5-a08 (ADMIN_REQUIRED, title unchanged)",
+        "currentEvidence": "trace.md \u00a73; suite-m5.json; \u00a75.2 x-group-non-admin"
+      },
+      "m5-a09": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g4-web.json m5-a09 (car / CAR / Car each return Carol)",
+        "currentEvidence": "trace.md \u00a73; suite-m5.json"
+      },
+      "m5-a10": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g3-api-checklist.json m5-a10",
+        "currentEvidence": "trace.md \u00a73; suite-m5.json"
+      },
+      "m5-a11": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "web-automation",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/g5-web-retry.json m5-a11 (results carry both the \"Direct message\" and \"Weekend Plans\" chat groupings)",
+        "currentEvidence": "trace.md \u00a73; suite-m5.json"
+      },
+      "m5-a12": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "web-automation",
+        "priorEvidence": "evidence/m5-choreography-reconciled.jsonl warm-offline-search-over-synced-messages, status passed",
+        "currentEvidence": "trace.md \u00a75.1 and \u00a75.9; grading/checkout/evidence/choreo-m5-grader-attempt1.jsonl, choreo-m5.jsonl; grading/evidence/offline-latency.json"
+      },
+      "m6-a01": {
+        "prior": "fail",
+        "current": "fail",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "run-record.json socialMessenger.native.m6 (attempted true, releaseBuild true, launched true, proof false); evidence/m6-native-launch.png is a launch screenshot only",
+        "currentEvidence": "trace.md \u00a75.10; grading/checkout/evidence/choreo-m6.jsonl segment-summary supplementalExternal ios-simulator-m6 status not-recorded; lane artifacts/m6-ios holds only a Hermes export"
+      },
+      "m6-a02": {
+        "prior": "fail",
+        "current": "fail",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "run-record.json socialMessenger.native.m6 (attempted true, releaseBuild true, launched true, proof false); evidence/m6-native-launch.png is a launch screenshot only",
+        "currentEvidence": "trace.md \u00a75.10; choreo-m6.jsonl supplementalExternal ios-simulator-m6 not-recorded"
+      },
+      "m6-a03": {
+        "prior": "fail",
+        "current": "fail",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "run-record.json socialMessenger.native.m6 (attempted true, releaseBuild true, launched true, proof false); evidence/m6-native-launch.png is a launch screenshot only",
+        "currentEvidence": "trace.md \u00a75.10; choreo-m6.jsonl supplementalExternal ios-simulator-m6 not-recorded"
+      },
+      "m6-a04": {
+        "prior": "fail",
+        "current": "fail",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "run-record.json socialMessenger.native.m6 (attempted true, releaseBuild true, launched true, proof false); evidence/m6-native-launch.png is a launch screenshot only",
+        "currentEvidence": "trace.md \u00a75.10; choreo-m6.jsonl supplementalExternal ios-simulator-m6 not-recorded"
+      },
+      "m6-a05": {
+        "prior": "fail",
+        "current": "fail",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "run-record.json socialMessenger.native.m6 (attempted true, releaseBuild true, launched true, proof false); evidence/m6-native-launch.png is a launch screenshot only",
+        "currentEvidence": "trace.md \u00a75.10; choreo-m6.jsonl supplementalExternal ios-simulator-m6 not-recorded"
+      },
+      "m6-a06": {
+        "prior": "fail",
+        "current": "fail",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "run-record.json socialMessenger.native.m6 (attempted true, releaseBuild true, launched true, proof false); evidence/m6-native-launch.png is a launch screenshot only",
+        "currentEvidence": "trace.md \u00a75.10; choreo-m6.jsonl supplementalExternal ios-simulator-m6 not-recorded"
+      },
+      "m6-a07": {
+        "prior": "fail",
+        "current": "fail",
+        "classification": "unchanged",
+        "priorMethod": "choreography-artifacts",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "run-record.json socialMessenger.native.m6 (attempted true, releaseBuild true, launched true, proof false); evidence/m6-native-launch.png is a launch screenshot only",
+        "currentEvidence": "trace.md \u00a75.10; choreo-m6.jsonl supplementalExternal ios-simulator-m6 not-recorded"
+      },
+      "m6-a08": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "evidence/m6-suite-1788636726916.json closed-client-text-push pass; evidence/push-payloads.jsonl",
+        "currentEvidence": "trace.md \u00a73 (suite-m6.json) and \u00a75.4 (grader-instance push-seam log)"
+      },
+      "m6-a09": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "evidence/m6-suite-1788634409857.json view-once-push-preview pass (also 1788631877436, 1788634204344, 1788636441585)",
+        "currentEvidence": "trace.md \u00a73; suite-m6.json"
+      },
+      "m6-a10": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/clean-client/ - fresh npm install of snapback2@0.0.4, then the documented custom-client-demo.mjs ran green",
+        "currentEvidence": "trace.md \u00a73; suite-m6.json; grading/checkout/evidence/custom-client-clean-*/result.log"
+      },
+      "m6-a11": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/custom-client-demo.json (authenticate, list, first page 20, second page 20, send, poll-receive)",
+        "currentEvidence": "trace.md \u00a73 and \u00a74; scripts/custom-client-demo.mjs"
+      },
+      "m6-a12": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "api",
+        "currentMethod": "api",
+        "priorEvidence": "grading/clean-client/grader-variation.mjs output",
+        "currentEvidence": "trace.md \u00a75.2; api-probes-49300.json results m6-a12"
+      },
+      "m6-a13": {
+        "prior": "pass",
+        "current": "pass",
+        "classification": "unchanged",
+        "priorMethod": "builder-suite",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "grading/evidence/m6-suite-*.json all-50-action-conformance pass on re-run; grading/evidence/sample-state-verification.json",
+        "currentEvidence": "trace.md \u00a73; suite-m6.json; grading/checkout/evidence/m6-sample-schema.log"
+      },
+      "m7-a01": {
+        "prior": "not-run",
+        "current": "not-run",
+        "classification": "m7-remains-not-run",
+        "priorMethod": "source-inspection",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "run-record.json socialMessenger.milestones[6] (m7, status not-run); no m7 evidence, coverage entry, or choreography receipt exists",
+        "currentEvidence": "trace.md \u00a710"
+      },
+      "m7-a02": {
+        "prior": "not-run",
+        "current": "not-run",
+        "classification": "m7-remains-not-run",
+        "priorMethod": "source-inspection",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "run-record.json socialMessenger.milestones[6] (m7, status not-run); no m7 evidence, coverage entry, or choreography receipt exists",
+        "currentEvidence": "trace.md \u00a710"
+      },
+      "m7-a03": {
+        "prior": "not-run",
+        "current": "not-run",
+        "classification": "m7-remains-not-run",
+        "priorMethod": "source-inspection",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "run-record.json socialMessenger.milestones[6] (m7, status not-run); no m7 evidence, coverage entry, or choreography receipt exists",
+        "currentEvidence": "trace.md \u00a710"
+      },
+      "m7-a04": {
+        "prior": "not-run",
+        "current": "not-run",
+        "classification": "m7-remains-not-run",
+        "priorMethod": "source-inspection",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "run-record.json socialMessenger.milestones[6] (m7, status not-run); no m7 evidence, coverage entry, or choreography receipt exists",
+        "currentEvidence": "trace.md \u00a710"
+      },
+      "m7-a05": {
+        "prior": "not-run",
+        "current": "not-run",
+        "classification": "m7-remains-not-run",
+        "priorMethod": "source-inspection",
+        "currentMethod": "choreography-artifacts",
+        "priorEvidence": "run-record.json socialMessenger.milestones[6] (m7, status not-run); no m7 evidence, coverage entry, or choreography receipt exists",
+        "currentEvidence": "trace.md \u00a710"
+      },
+      "m7-a06": {
+        "prior": "not-run",
+        "current": "not-run",
+        "classification": "m7-remains-not-run",
+        "priorMethod": "source-inspection",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "run-record.json socialMessenger.milestones[6] (m7, status not-run); no m7 evidence, coverage entry, or choreography receipt exists",
+        "currentEvidence": "trace.md \u00a710"
+      },
+      "m7-a07": {
+        "prior": "not-run",
+        "current": "not-run",
+        "classification": "m7-remains-not-run",
+        "priorMethod": "source-inspection",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "run-record.json socialMessenger.milestones[6] (m7, status not-run); no m7 evidence, coverage entry, or choreography receipt exists",
+        "currentEvidence": "trace.md \u00a710"
+      },
+      "m7-a08": {
+        "prior": "not-run",
+        "current": "not-run",
+        "classification": "m7-remains-not-run",
+        "priorMethod": "source-inspection",
+        "currentMethod": "snapshot-comparison",
+        "priorEvidence": "run-record.json socialMessenger.milestones[6] (m7, status not-run); no m7 evidence, coverage entry, or choreography receipt exists",
+        "currentEvidence": "trace.md \u00a710"
+      },
+      "m7-a09": {
+        "prior": "not-run",
+        "current": "not-run",
+        "classification": "m7-remains-not-run",
+        "priorMethod": "source-inspection",
+        "currentMethod": "builder-suite",
+        "priorEvidence": "run-record.json socialMessenger.milestones[6] (m7, status not-run); no m7 evidence, coverage entry, or choreography receipt exists",
+        "currentEvidence": "trace.md \u00a710"
+      }
+    },
+    "changedIds": [
+      "m1-a09",
+      "m2-a04",
+      "m2-a07",
+      "m2-a22",
+      "m5-a07"
+    ],
+    "changedSummary": {
+      "failToPass": [
+        "m1-a09",
+        "m2-a04",
+        "m2-a22",
+        "m5-a07"
+      ],
+      "passToFail": [
+        "m2-a07"
+      ],
+      "nativeM6FailRemainsFail": [
+        "m6-a01",
+        "m6-a02",
+        "m6-a03",
+        "m6-a04",
+        "m6-a05",
+        "m6-a06",
+        "m6-a07"
+      ],
+      "m7NotRunRemainsNotRun": [
+        "m7-a01",
+        "m7-a02",
+        "m7-a03",
+        "m7-a04",
+        "m7-a05",
+        "m7-a06",
+        "m7-a07",
+        "m7-a08",
+        "m7-a09"
+      ]
+    },
+    "comparisonLimit": "Assertion IDs and manifest hash are identical, but September 5 used a materially different instrument/runtime environment and parallel contended scheduling. Treat this as contextual, per prior-results.json comparisonLimits."
+  },
+  "scores": {
+    "current": {
+      "O1": 74,
+      "O2": 76,
+      "O3": null,
+      "O4": 35,
+      "O5": 30
+    },
+    "priorSep12Snapback4": {
+      "O1": 62,
+      "O2": 48,
+      "O3": null,
+      "O4": 35,
+      "O5": 30
+    },
+    "deltaCurrentMinusSep12": {
+      "O1": 12,
+      "O2": 28,
+      "O3": null,
+      "O4": 0,
+      "O5": 0
+    },
+    "priorSep05Snapback2": {
+      "O1": 40,
+      "O2": 30,
+      "O3": null,
+      "O4": null,
+      "O5": 30
+    },
+    "deltaCurrentMinusSep05": {
+      "O1": 34,
+      "O2": 46,
+      "O3": null,
+      "O4": null,
+      "O5": 0
+    },
+    "notes": [
+      "O5 is a band; O1/O2/O4 are scores.",
+      "O3 remains null because no committed holdout probes exist.",
+      "The O4 methodology tension below is recorded without changing the received score.",
+      "O-dimension values are copied from each grader\u2019s own full-scope rationale; they are not produced by pooling a reconstructed prior 119 assertion total."
+    ]
+  },
+  "timing": {
+    "currentBuilder": {
+      "wallSeconds": 9614.013,
+      "display": "2 h 40 min 14 s",
+      "exitCode": 0,
+      "startEpoch": 1789324236,
+      "endEpoch": 1789333850
+    },
+    "currentIndependentGrade": {
+      "wallSeconds": 2576.906,
+      "display": "0 h 42 min 57 s",
+      "exitCode": 0,
+      "startEpoch": 1789364864,
+      "endEpoch": 1789367441
+    },
+    "priorSep12Builder": {
+      "seconds": 7002,
+      "display": "1 h 56 min 42 s",
+      "startEpoch": 1789255852,
+      "endEpoch": 1789262854,
+      "method": "raw lane start to continuous builder end from the retained run log; excludes the 70-second report-closure tail (the run record reports 7,072 seconds through report close)",
+      "sourceIds": [
+        "sep12_campaign_readme",
+        "sep12_builder_run_log",
+        "sep12_builder_report",
+        "sep12_run_record"
+      ]
+    },
+    "priorSep12SeparateM7": {
+      "outcome": "capability-failure",
+      "seconds": 1386,
+      "display": "23 min 6 s",
+      "startEpoch": 1789265724,
+      "endEpoch": 1789267110,
+      "capSeconds": 14400,
+      "withinCap": true,
+      "method": "M7 report raw first-line start to end",
+      "sourceIds": [
+        "sep12_m7_astra_snapback4"
+      ]
+    },
+    "priorSep05Builder": {
+      "seconds": 14614,
+      "display": "4 h 3 min 34 s",
+      "startEpoch": 1788625794,
+      "endEpoch": 1788640408,
+      "method": "builder final report's raw start/reportEnd interval; includes the resumed continuation after the original session ended abruptly",
+      "sourceIds": [
+        "sep05_builder_astra_report",
+        "sep05_campaign_readme"
+      ]
+    },
+    "priorSep05SeparateM7": {
+      "outcome": "green",
+      "seconds": 1156,
+      "display": "19 min 16 s",
+      "startEpoch": 1788744775,
+      "endEpoch": 1788745931,
+      "capSeconds": 14400,
+      "withinCap": true,
+      "method": "M7 report raw first-line start to end",
+      "note": null,
+      "sourceIds": [
+        "sep05_m7_astra_snapback2"
+      ]
+    },
+    "currentM7": {
+      "outcome": "not-run-in-current-grade",
+      "seconds": null
+    },
+    "deltas": {
+      "currentBuilderMinusPriorSep12Seconds": 2612.013,
+      "currentBuilderMinusPriorSep05Seconds": -4999.987
+    },
+    "limits": [
+      "No prior independent-grader process wall is present in prior-results.json, so the current 2,576.906 s grade runtime has no prior runtime delta.",
+      "September 5 wall is contextual because instrument, scheduling and load differed.",
+      "M7 assertion status in each continuous grade is separate from any later M7 run artifact.",
+      "The prior Sep 12 separate M7 capability-failure artifact belongs to a later fresh M7 session, not the prior structured 101 baseline or its continuous grade."
+    ]
+  },
+  "o4MethodologyTension": {
+    "receivedCurrentO4": 35,
+    "currentReportStatement": {
+      "source": "currentGrade101",
+      "line": 859,
+      "text": "Scored only from grader-run harness receipts."
+    },
+    "currentTraceStatement": {
+      "source": "currentGradeTrace",
+      "line": 97,
+      "text": "Web choreography, grader-run harness."
+    },
+    "frozenSchemaWording": {
+      "source": "graderReportSchema",
+      "line": 171,
+      "text": "[choreo] assertions are scored from harness recordings/receipts ... never re-driven by the grader."
+    },
+    "frozenApplicabilityWording": {
+      "source": "applicability",
+      "line": 113,
+      "text": "O4 is scored from mechanically checkable simulator choreography artifacts (recordings plus structured receipts)."
+    },
+    "frozenPromptWording": {
+      "source": "graderPrompt",
+      "lines": "37-39,84-87",
+      "text": "Choreography receipts/recordings are the only O4 basis; native simulator proofs are never grader-driven."
+    },
+    "wrapperAndPhaseTension": {
+      "sources": [
+        "currentGradeWrapperPrompt:15",
+        "graderPrompt:74-87"
+      ],
+      "text": "The wrapper permits installing a choreography copy if needed and the independent phase orders browser re-execution, while the report schema says [choreo] assertions are never re-driven. The current report explicitly uses grader-run web choreography receipts in its O4 rationale."
+    },
+    "auditDisposition": "Methodological scope tension recorded for host-owned full audit. This comparison does not alter, invalidate, or recompute the received O4 score."
+  },
+  "revisedAt": "2026-09-14T06:41:07.743718Z"
+}

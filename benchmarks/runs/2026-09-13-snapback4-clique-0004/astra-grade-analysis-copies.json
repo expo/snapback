@@ -1,0 +1,23 @@
+{
+  "observedAt": "2026-09-14T06:51:34.600545+00:00",
+  "copies": [
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/observed-milestones/astra-grade-client-attribution.md",
+      "destination": "astra-grade-client-attribution.md",
+      "bytes": 9509,
+      "sha256": "7b4a1c4c206bdae0f9f0d3869e8ed2ce199991e4b286dff938da5243d1b91178"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/observed-milestones/astra-grade-comparison.json",
+      "destination": "astra-grade-comparison.json",
+      "bytes": 110251,
+      "sha256": "f0957af70fdde63c425b159b1e0cb3ef7a26a36bf0d73d2f79c531eb08b1ca29"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/observed-milestones/astra-grade-comparison.md",
+      "destination": "astra-grade-comparison.md",
+      "bytes": 6253,
+      "sha256": "21d0bd1e77a24c5d80b91844d76ffc66a3005e95aa9d1d0925804c94f8ce8a81"
+    }
+  ]
+}

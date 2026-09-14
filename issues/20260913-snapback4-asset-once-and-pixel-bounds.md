@@ -6,7 +6,7 @@ Observed: 2026-09-13
 Review finding: S12
 Evidence: Code-traced
 Baseline: `6918cccbc264cf000982b03a5a11a2cf5563f885` / Snapback 4 0.1.15
-Related: [security review](../llp/reviews/3000-security-review-20260913.md); [view-once recorded before bytes](20260913-snapback4-view-once-records-before-bytes.md) is the commit-before-stream remainder; [WebP sniffer](20260913-snapback4-webp-sniffer-ignores-chunk-length.md) is a separate header-parse hole that feeds stored dimensions
+Related: [security review](../llp/reviews/3000-security-review-20260913.md); [view-once recorded before bytes](closed/20260913-snapback4-view-once-records-before-bytes.md) is the commit-before-stream remainder; [WebP sniffer](closed/20260913-snapback4-webp-sniffer-ignores-chunk-length.md) is a separate header-parse hole that feeds stored dimensions
 
 ## Problem and reproduction
 

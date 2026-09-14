@@ -1,0 +1,972 @@
+{
+  "accessAudit": {
+    "excludedBuilderNarrativeAccessEvents": [],
+    "excludedBuilderNarrativeTargets": [
+      "diary.md",
+      "essay.md",
+      "final-report.md",
+      "FINAL.md",
+      "run-log.md"
+    ],
+    "method": "Only tool_use public input arguments were inspected; the receipt stores no raw command or credential value.",
+    "otherLaneOrPriorRunAccessEvents": [],
+    "verdict": "No public tool-use argument accessed the excluded Astra builder narratives or named another lane/prior-run source."
+  },
+  "assertionEvidenceReliance": {
+    "citationPathQualification": {
+      "assertionIds": [
+        "m5-a07"
+      ],
+      "count": 1,
+      "finding": "The received report cites nonexistent grading/checkout/evidence/choreo-m5b.jsonl. The named chat-color-background-sync assertion is present and passing in choreo-m5-grader-attempt1.jsonl and choreo-m5.jsonl; the received grade is preserved without repairing its citation."
+    },
+    "graderRunChoreographyMixed": {
+      "assertions": [
+        {
+          "evidence": "trace.md \u00a75.1 and \u00a75.9; grading/checkout/evidence/choreo-m5-grader-attempt1.jsonl, choreo-m5.jsonl; grading/evidence/offline-latency.json",
+          "id": "m5-a12",
+          "method": "web-automation",
+          "partition": "prior101",
+          "qualification": "Uses grader-run M5 choreography receipts alongside independent web latency/expiry evidence and contrasts them with original builder receipts.",
+          "result": "pass"
+        }
+      ],
+      "count": 1
+    },
+    "graderRunChoreographyPrimary": {
+      "assertions": [
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m1.jsonl assertion 'session-persists-on-relaunch'",
+          "id": "m1-a05",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m1.jsonl assertion 'logout-remains-signed-out-on-relaunch'",
+          "id": "m1-a06",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m1.jsonl assertion 'profile-edit-live-visibility'",
+          "id": "m1-a09",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m2.jsonl assertion 'feed-text-post-live-update'",
+          "id": "m2-a04",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m2.jsonl assertion 'feed-author-avatar-and-display-name'",
+          "id": "m2-a05",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m2.jsonl assertion 'like-unlike-live-count'",
+          "id": "m2-a14",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m2.jsonl assertion 'reply-live-thread-projection'",
+          "id": "m2-a19",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'dm-live-messages'",
+          "id": "m3-a01",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'sender-avatar-identity-when-rendered'",
+          "id": "m3-a02",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'typing-indicator-within-2s-expires-within-5s'",
+          "id": "m3-a06",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'typing-indicator-within-2s-expires-within-5s'",
+          "id": "m3-a07",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'receipt-sent-delivered-read-transitions'",
+          "id": "m3-a08",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'group-receipt-waits-for-slowest-member'",
+          "id": "m3-a09",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'member-add-promote-remove-leave-and-live-cutoff'",
+          "id": "m3-a12",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m3.jsonl assertion 'member-add-promote-remove-leave-and-live-cutoff'",
+          "id": "m3-a13",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m4.jsonl assertion 'photo-message-live-render'",
+          "id": "m4-a02",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m4.jsonl assertion 'video-message-live-playback'",
+          "id": "m4-a04",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m4.jsonl assertion 'reaction-live-replace-remove'",
+          "id": "m4-a05",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m4.jsonl assertion 'edit-live-visibility'",
+          "id": "m4-a08",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m4.jsonl assertion 'delete-live-tombstone'",
+          "id": "m4-a11",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m5b.jsonl assertion 'chat-color-background-sync'",
+          "id": "m5-a07",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "pathResolution": {
+            "actualReceipts": [
+              {
+                "assertion": "chat-color-background-sync",
+                "path": "grading/checkout/evidence/choreo-m5-grader-attempt1.jsonl",
+                "status": "passed"
+              },
+              {
+                "assertion": "chat-color-background-sync",
+                "path": "grading/checkout/evidence/choreo-m5.jsonl",
+                "status": "passed"
+              }
+            ],
+            "qualification": "The report citation has an unresolved filename, while the named assertion is present and passing in both actual grader-run M5 receipts. This is a traceability defect and does not change the grader-run method classification.",
+            "reportedPath": "grading/checkout/evidence/choreo-m5b.jsonl",
+            "reportedPathExists": false
+          },
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.10; grading/checkout/evidence/choreo-m6.jsonl segment-summary supplementalExternal ios-simulator-m6 status not-recorded; lane artifacts/m6-ios holds only a Hermes export",
+          "id": "m6-a01",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "fail"
+        },
+        {
+          "evidence": "trace.md \u00a75.10; choreo-m6.jsonl supplementalExternal ios-simulator-m6 not-recorded",
+          "id": "m6-a02",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "fail"
+        },
+        {
+          "evidence": "trace.md \u00a75.10; choreo-m6.jsonl supplementalExternal ios-simulator-m6 not-recorded",
+          "id": "m6-a03",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "fail"
+        },
+        {
+          "evidence": "trace.md \u00a75.10; choreo-m6.jsonl supplementalExternal ios-simulator-m6 not-recorded",
+          "id": "m6-a04",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "fail"
+        },
+        {
+          "evidence": "trace.md \u00a75.10; choreo-m6.jsonl supplementalExternal ios-simulator-m6 not-recorded",
+          "id": "m6-a05",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "fail"
+        },
+        {
+          "evidence": "trace.md \u00a75.10; choreo-m6.jsonl supplementalExternal ios-simulator-m6 not-recorded",
+          "id": "m6-a06",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "fail"
+        },
+        {
+          "evidence": "trace.md \u00a75.10; choreo-m6.jsonl supplementalExternal ios-simulator-m6 not-recorded",
+          "id": "m6-a07",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "fail"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m8.jsonl assertion 'm8-a02-insights-like-refresh'",
+          "id": "m8-a02",
+          "method": "choreography-artifacts",
+          "partition": "m8Supplemental",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m8.jsonl assertion 'm8-a13-same-account-message-live'",
+          "id": "m8-a13",
+          "method": "choreography-artifacts",
+          "partition": "m8Supplemental",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m8.jsonl assertion 'm8-a14-cross-device-read-state'",
+          "id": "m8-a14",
+          "method": "choreography-artifacts",
+          "partition": "m8Supplemental",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m8.jsonl assertion 'm8-a15-dual-offline-convergence'",
+          "id": "m8-a15",
+          "method": "choreography-artifacts",
+          "partition": "m8Supplemental",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.1; grading/checkout/evidence/choreo-m8.jsonl assertion 'm8-a16-dual-offline-receipts'",
+          "id": "m8-a16",
+          "method": "choreography-artifacts",
+          "partition": "m8Supplemental",
+          "result": "pass"
+        },
+        {
+          "evidence": "trace.md \u00a75.10; grading/checkout/evidence/choreo-m8.jsonl segment-summary supplementalExternal ios-simulator-m8 status not-recorded; lane artifacts/m8-ios holds only a Hermes export",
+          "id": "m8-a17",
+          "method": "choreography-artifacts",
+          "partition": "m8Supplemental",
+          "result": "fail"
+        },
+        {
+          "evidence": "trace.md \u00a75.10; choreo-m8.jsonl supplementalExternal ios-simulator-m8 not-recorded",
+          "id": "m8-a18",
+          "method": "choreography-artifacts",
+          "partition": "m8Supplemental",
+          "result": "fail"
+        }
+      ],
+      "count": 35,
+      "results": {
+        "fail": 9,
+        "pass": 26
+      }
+    },
+    "notRunChoreographyMethodWithoutExecutionEvidence": {
+      "assertions": [
+        {
+          "evidence": "trace.md \u00a710",
+          "id": "m7-a02",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "not-run"
+        },
+        {
+          "evidence": "trace.md \u00a710",
+          "id": "m7-a05",
+          "method": "choreography-artifacts",
+          "partition": "prior101",
+          "result": "not-run"
+        }
+      ],
+      "count": 2
+    },
+    "o4": {
+      "builderReceiptUse": "Original builder M5 receipt is used only as a comparison in trace \u00a75.1/\u00a75.9; no assertion or O4 statement names an original builder receipt as its sole basis.",
+      "graderRunEvidence": [
+        "grading/checkout/evidence/choreo-m5-grader-attempt1.jsonl",
+        "grading/checkout/evidence/choreo-m5.jsonl",
+        "grading/checkout/evidence/choreo-m6.jsonl",
+        "grading/checkout/evidence/choreo-m8.jsonl"
+      ],
+      "qualification": "The O4 basis is explicitly the new grader-run receipts, so O4 carries the receipt-method qualification.",
+      "reportStatement": "Scored only from grader-run harness receipts.",
+      "score": 35
+    },
+    "originalBuilderReceiptSoleBasis": {
+      "assertionIds": [],
+      "count": 0
+    }
+  },
+  "choreographyReceiptComparison": {
+    "checkoutArtifacts": [
+      {
+        "bytes": 4141,
+        "kind": "grader-receipt",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/choreo-m1.jsonl",
+        "sha256": "efb8852d51bc245d89817a39596373166c170f157d370e5e0399fc12bbc0fc83"
+      },
+      {
+        "bytes": 1732,
+        "kind": "grader-receipt",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/choreo-m1.jsonl.observations.jsonl",
+        "sha256": "62213c5f0c65f0980aa272b64424789b5df959a318b22ab43b97288bbab182bc"
+      },
+      {
+        "bytes": 9964,
+        "kind": "grader-receipt",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/choreo-m2.jsonl",
+        "sha256": "02fa5b4195e92141c268a2a2ea0cf2ffaf640a978cc05bf48380a2df06cc5f68"
+      },
+      {
+        "bytes": 7565,
+        "kind": "grader-receipt",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/choreo-m2.jsonl.observations.jsonl",
+        "sha256": "0db238a9727dbff759931047210f22e5f066e528273a5e648b7c8dd60f7d4ec5"
+      },
+      {
+        "bytes": 7862,
+        "kind": "grader-attempt-copy",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/choreo-m3-grader-attempt1.jsonl",
+        "sha256": "c253ba29e086d89312f51d935ed3124c7dc090ac4b67700425da089b2110e5a4"
+      },
+      {
+        "bytes": 7872,
+        "kind": "grader-attempt-copy",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/choreo-m3-grader-attempt2.jsonl",
+        "sha256": "982287496ea795d5d2b5ebb41b0322649caa967133992ab6a5842b7ef8bacff0"
+      },
+      {
+        "bytes": 7874,
+        "kind": "grader-attempt-copy",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/choreo-m3-grader-attempt3.jsonl",
+        "sha256": "1b233c06840bded89d0f7de61105dd09569435437fc4ac8a1e9ecb45b12d04cd"
+      },
+      {
+        "bytes": 7874,
+        "kind": "grader-receipt",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/choreo-m3.jsonl",
+        "sha256": "1b233c06840bded89d0f7de61105dd09569435437fc4ac8a1e9ecb45b12d04cd"
+      },
+      {
+        "bytes": 4136,
+        "kind": "grader-receipt",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/choreo-m3.jsonl.observations.jsonl",
+        "sha256": "e0ef273a8c2dfe728451f1788f503bacdd8f4326d2032eeb59f091f42a289a01"
+      },
+      {
+        "bytes": 5488,
+        "kind": "grader-receipt",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/choreo-m4.jsonl",
+        "sha256": "0e2edb734ee9a8186c8df6b541ad776209534c55da356ab18053eb4d31ff6ff6"
+      },
+      {
+        "bytes": 3438,
+        "kind": "grader-receipt",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/choreo-m4.jsonl.observations.jsonl",
+        "sha256": "b0b9c5422d349e137d1691fe54b59976e992f19a45fee517bec8755792944ae1"
+      },
+      {
+        "bytes": 4339,
+        "kind": "grader-attempt-copy",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/choreo-m5-grader-attempt1.jsonl",
+        "sha256": "5f6bd58a9a4625687653cdcb4c6c326e08a20f836946e21e3733927dfbbf4876"
+      },
+      {
+        "bytes": 1459,
+        "kind": "grader-attempt-copy",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/choreo-m5-grader-attempt1.jsonl.observations.jsonl",
+        "sha256": "f8cc850148dbd6f364283f4d18ea3f30f0a3b5cd5316304734dbd7b0d16d3c32"
+      },
+      {
+        "bytes": 4339,
+        "kind": "grader-receipt",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/choreo-m5.jsonl",
+        "sha256": "d5515179ac5032358f69a8f106e42eaa5428cff78c38364c812e5f7bb64131cc"
+      },
+      {
+        "bytes": 1459,
+        "kind": "grader-receipt",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/choreo-m5.jsonl.observations.jsonl",
+        "sha256": "999828b2797c694fa329adaa52d88b496c3ede3686173146e61324d44af77a82"
+      },
+      {
+        "bytes": 2758,
+        "kind": "grader-receipt",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/choreo-m6.jsonl",
+        "sha256": "8a785ff51f7f80218b468f71d9501a27ac1fb998b8c752b38487deb62d431c09"
+      },
+      {
+        "bytes": 564,
+        "kind": "grader-receipt",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/choreo-m6.jsonl.observations.jsonl",
+        "sha256": "0343249f5fd2ec701918af00dd8aca7243190cf089a7c86c3e633602b84c14c5"
+      },
+      {
+        "bytes": 4877,
+        "kind": "grader-receipt",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/choreo-m8.jsonl",
+        "sha256": "0927d587f685091f83b4eb20e6043d6fa392fd8176398549f60a20cf502811d8"
+      },
+      {
+        "bytes": 1731,
+        "kind": "grader-receipt",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/choreo-m8.jsonl.observations.jsonl",
+        "sha256": "d5f3c0e65b9429d6cd3cf1873aeb31d1f7c00a05106cddcf95b4a2446025c7c2"
+      },
+      {
+        "bytes": 543,
+        "kind": "grader-log",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/grader-choreo-m1.log",
+        "sha256": "88deafd89b64f500cf56205db46f908b016186eacd8bdae0c1155a738f7ac402"
+      },
+      {
+        "bytes": 543,
+        "kind": "grader-log",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/grader-choreo-m2.log",
+        "sha256": "80f764875b5fb5e9a231744f17a0489ed00f873573dc97d11d98d6e2d5357d84"
+      },
+      {
+        "bytes": 543,
+        "kind": "grader-log",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/grader-choreo-m3-run2.log",
+        "sha256": "b1d8d1d06260bcbc4eafd819006344683791bccd03b5d11823693869c001d976"
+      },
+      {
+        "bytes": 541,
+        "kind": "grader-log",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/grader-choreo-m3-run3.log",
+        "sha256": "6e66c5b13ed179a26bc76d9aa0cfee5b3cad6a47707cf569094c92c99dfe7621"
+      },
+      {
+        "bytes": 543,
+        "kind": "grader-log",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/grader-choreo-m3.log",
+        "sha256": "d69355b4fbda59868acfdaef7764b48b722fca83fb738636dc451da1d69e4d91"
+      },
+      {
+        "bytes": 543,
+        "kind": "grader-log",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/grader-choreo-m4.log",
+        "sha256": "daae6f8ffacb69a31a4e226ca2d81d3d72b3b452e4e9b826b46fd10a69a37c28"
+      },
+      {
+        "bytes": 1236,
+        "kind": "grader-log",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/grader-choreo-m5-rerun.log",
+        "sha256": "048b6f837eb11fcd344e79404565e5a58f61cc33674dfa26730e4007dfbff22c"
+      },
+      {
+        "bytes": 1236,
+        "kind": "grader-log",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/grader-choreo-m5.log",
+        "sha256": "34b204ee5b2b575def3f4efa7feea832f523db24788646e9a10d7e2773b43fe0"
+      },
+      {
+        "bytes": 543,
+        "kind": "grader-log",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/grader-choreo-m6.log",
+        "sha256": "711408aa50d79bc35b8e8915d46aa0fca32395b9e0ed07d2b0cf2e5fbad39476"
+      },
+      {
+        "bytes": 543,
+        "kind": "grader-log",
+        "path": "$PACKET/lanes/astra-snapback4/grading/checkout/evidence/grader-choreo-m8.log",
+        "sha256": "8f688c27e3c1e9038d873c31afa7d3b6425ca9a5a3ee0e424f21766629c85faf"
+      }
+    ],
+    "onlyAssertionPassDifference": [
+      {
+        "assertion": "warm-offline-search-over-synced-messages",
+        "builderPass": true,
+        "graderPass": false,
+        "segment": "m5"
+      }
+    ],
+    "segments": [
+      {
+        "builderAssertionCount": 3,
+        "differences": [],
+        "graderAssertionCount": 3,
+        "samePassValues": 3,
+        "segment": "m1",
+        "supplementalExternalSame": true
+      },
+      {
+        "builderAssertionCount": 9,
+        "differences": [],
+        "graderAssertionCount": 9,
+        "samePassValues": 9,
+        "segment": "m2",
+        "supplementalExternalSame": true
+      },
+      {
+        "builderAssertionCount": 7,
+        "differences": [],
+        "graderAssertionCount": 7,
+        "samePassValues": 7,
+        "segment": "m3",
+        "supplementalExternalSame": true
+      },
+      {
+        "builderAssertionCount": 5,
+        "differences": [],
+        "graderAssertionCount": 5,
+        "samePassValues": 5,
+        "segment": "m4",
+        "supplementalExternalSame": true
+      },
+      {
+        "builderAssertionCount": 4,
+        "differences": [
+          {
+            "assertion": "warm-offline-search-over-synced-messages",
+            "builderPass": true,
+            "graderPass": false
+          }
+        ],
+        "graderAssertionCount": 4,
+        "samePassValues": 3,
+        "segment": "m5",
+        "supplementalExternalSame": true
+      },
+      {
+        "builderAssertionCount": 1,
+        "differences": [],
+        "graderAssertionCount": 1,
+        "samePassValues": 1,
+        "segment": "m6",
+        "supplementalExternalSame": true
+      },
+      {
+        "builderAssertionCount": 5,
+        "differences": [],
+        "graderAssertionCount": 5,
+        "samePassValues": 5,
+        "segment": "m8",
+        "supplementalExternalSame": true
+      }
+    ],
+    "supplementalExternalComparison": [
+      {
+        "builder": [],
+        "grader": [],
+        "same": true,
+        "segment": "m1"
+      },
+      {
+        "builder": [],
+        "grader": [],
+        "same": true,
+        "segment": "m2"
+      },
+      {
+        "builder": [],
+        "grader": [],
+        "same": true,
+        "segment": "m3"
+      },
+      {
+        "builder": [],
+        "grader": [],
+        "same": true,
+        "segment": "m4"
+      },
+      {
+        "builder": [],
+        "grader": [],
+        "same": true,
+        "segment": "m5"
+      },
+      {
+        "builder": [
+          {
+            "id": "ios-simulator-m6",
+            "pass": null,
+            "reason": "M6 simulator evidence is recorded separately from web green",
+            "receipt": null,
+            "requiredForGreen": false,
+            "status": "not-recorded"
+          }
+        ],
+        "grader": [
+          {
+            "id": "ios-simulator-m6",
+            "pass": null,
+            "reason": "M6 simulator evidence is recorded separately from web green",
+            "receipt": null,
+            "requiredForGreen": false,
+            "status": "not-recorded"
+          }
+        ],
+        "same": true,
+        "segment": "m6"
+      },
+      {
+        "builder": [
+          {
+            "id": "ios-simulator-m8",
+            "pass": null,
+            "reason": "M8 simulator evidence is recorded separately from web green",
+            "receipt": null,
+            "requiredForGreen": false,
+            "status": "not-recorded"
+          }
+        ],
+        "grader": [
+          {
+            "id": "ios-simulator-m8",
+            "pass": null,
+            "reason": "M8 simulator evidence is recorded separately from web green",
+            "receipt": null,
+            "requiredForGreen": false,
+            "status": "not-recorded"
+          }
+        ],
+        "same": true,
+        "segment": "m8"
+      }
+    ],
+    "verdict": "Original and final grader receipts have the same pass values for 33 of 34 shared web choreography assertions. The sole difference is warm-offline-search-over-synced-messages: original builder true, both grader M5 runs false. M6 and M8 supplemental native statuses are identically not-recorded."
+  },
+  "finalVerdict": "The received grade is schema-valid with the exact 119-ID partition and remains preserved unchanged. No excluded-context contamination, package-pin drift, original-source mutation, or original-receipt mutation was found. Thirty-five pass/fail assertion results use grader-run choreography as their primary method, m5-a12 uses it as mixed evidence, and O4 explicitly uses grader-run receipts. Those parts carry a methodology qualification under the frozen schema and prompt/schema scope tension; this audit does not repair scores or declare the whole grade invalid.",
+  "governingInstructionScope": {
+    "graderPrompt": {
+      "classScope": {
+        "exactText": "`[grader]`-class assertions are yours alone (source inspection, API probing, snapshot comparison \u2014 e.g. m1-a07 on full runs, m1-a12/a13, m4-a10/a12, m5-a01..a03/a06, m6-a12, m7-a08).",
+        "lines": "77-79"
+      },
+      "executionOrder3": {
+        "exactText": "3. **Independent checklist execution.** Re-execute the checklist yourself via the **custom-client API** and **browser automation on the web build**, assertion by assertion, per `assertions.json`.",
+        "lines": "74-76"
+      },
+      "nativeScope": {
+        "exactText": "Native (simulator) proofs are **not grader-driven**: score `[choreo]` simulator assertions and O4 from the harness's recordings and structured receipts, never from builder assertions and never by re-running the simulator yourself.",
+        "lines": "84-87"
+      },
+      "o4Basis": {
+        "exactText": "The harness's **choreography receipts and recordings** (two-client and simulator artifacts, structured receipts) \u2014 these are the only basis for scoring O4.",
+        "lines": "37-39"
+      },
+      "path": "instrument/grader/grader-prompt.md",
+      "sha256": "97ce0e44d219c48b7a9dfe16ce26e9f0b90d47b00e09b43acc678cc9e2dfded6"
+    },
+    "graderReportSchema": {
+      "methodDescription": {
+        "exactText": "How the grader verified it. [choreo] assertions are scored from harness recordings/receipts (choreography-artifacts), never re-driven by the grader.",
+        "line": 171
+      },
+      "path": "instrument/grader/grader-report.schema.json",
+      "sha256": "82d213374eecdbf47438193a7213dc4e8532b1a1db37204d6c21f352bfac0c30"
+    },
+    "scopeAssessment": "The prompt positively directs independent web/API checklist execution and explicitly forbids re-running native simulator proofs. The schema applies a broader receipt-only rule to every [choreo] assertion, and the prompt separately makes choreography artifacts the only O4 basis. Fresh web choreography reruns are inconsistent with the schema method instruction. This is prompt/schema scope tension, not excluded-context contamination or automatic invalidation of the whole grade."
+  },
+  "graderLifecycle": {
+    "end": {
+      "endedAt": "2026-09-14T06:30:41Z",
+      "exitCode": 0,
+      "path": "logs/astra-snapback4.grade.end.json",
+      "sha256": "dd4f3ed6145f7200286e58c49c2164893703cc731914c5068d831cdc18a4c753",
+      "startedAt": null,
+      "wallSeconds": 2576.906
+    },
+    "start": {
+      "path": "logs/astra-snapback4.grade.start.json",
+      "sha256": "aa175e0658cee9b18d1c2b6e591f19eb3031b1c7fb2043fd4bd5d06b5e4eba3f"
+    },
+    "stderr": {
+      "bytes": 0,
+      "path": "logs/astra-snapback4.grade.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "observedAt": "2026-09-14T06:41:26Z",
+  "packagePins": {
+    "checkoutInstalled": {
+      "snapback4": "0.2.6",
+      "snapback4-expo": "0.2.1"
+    },
+    "checkoutLock": {
+      "snapback4": "0.2.6",
+      "snapback4-expo": "0.2.1"
+    },
+    "checkoutManifest": {
+      "snapback4": "0.2.6",
+      "snapback4-expo": "0.2.1"
+    },
+    "expected": {
+      "snapback4": "0.2.6",
+      "snapback4-expo": "0.2.1"
+    },
+    "fileHashes": {
+      "lanes/astra-snapback4/grading/checkout/node_modules/snapback4-expo/package.json": "8b1c763ebd53d577fed529d2c403181cbbdb214cd3cbe77f60078c0b8945951c",
+      "lanes/astra-snapback4/grading/checkout/node_modules/snapback4/package.json": "367937e9d198cfc3f1c949cd3b1de2b2e3262e9a3df085048669331c7012f097",
+      "lanes/astra-snapback4/grading/checkout/package-lock.json": "0a2c0efac1aee054c8edc1c75c52cbc2605f3badfcab937fdf178d2035136f67",
+      "lanes/astra-snapback4/grading/checkout/package.json": "2a5b4f0e86c8d29d7ae73f5886687bca08184681ee11db5595c701ff330670ca",
+      "lanes/astra-snapback4/node_modules/snapback4-expo/package.json": "8b1c763ebd53d577fed529d2c403181cbbdb214cd3cbe77f60078c0b8945951c",
+      "lanes/astra-snapback4/node_modules/snapback4/package.json": "367937e9d198cfc3f1c949cd3b1de2b2e3262e9a3df085048669331c7012f097",
+      "lanes/astra-snapback4/package-lock.json": "0a2c0efac1aee054c8edc1c75c52cbc2605f3badfcab937fdf178d2035136f67",
+      "lanes/astra-snapback4/package.json": "2a5b4f0e86c8d29d7ae73f5886687bca08184681ee11db5595c701ff330670ca"
+    },
+    "gradeStartReceipt": {
+      "snapback4": "0.2.6",
+      "snapback4-expo": "0.2.1"
+    },
+    "originalLaneInstalled": {
+      "snapback4": "0.2.6",
+      "snapback4-expo": "0.2.1"
+    },
+    "originalLaneLock": {
+      "snapback4": "0.2.6",
+      "snapback4-expo": "0.2.1"
+    },
+    "originalLaneManifest": {
+      "snapback4": "0.2.6",
+      "snapback4-expo": "0.2.1"
+    },
+    "verdict": "Grade start receipt, original lane, copied checkout, lockfiles and installed metadata all resolve exactly to snapback4 0.2.6 and snapback4-expo 0.2.1."
+  },
+  "publicChoreographyActions": {
+    "executionRequests": [
+      {
+        "classification": "grader wrapper execution",
+        "eventSha256IncludingTerminator": "e0f4f735c1780ae745757699622d06259c63cab163804dfeb2305924b6524a1e",
+        "line": 870,
+        "normalizedPath": "$PACKET/lanes/astra-snapback4/grading/checkout/scripts/choreo.mjs",
+        "segments": [
+          "m1",
+          "m2",
+          "m3",
+          "m4",
+          "m5",
+          "m6",
+          "m8"
+        ]
+      },
+      {
+        "classification": "grader wrapper rerun",
+        "eventSha256IncludingTerminator": "51c082eda73994bf0f050463665b4914179934e424557727859f7bc0d2fd97f6",
+        "line": 1454,
+        "normalizedPath": "$PACKET/lanes/astra-snapback4/grading/checkout/scripts/choreo.mjs",
+        "segments": [
+          "m5"
+        ]
+      },
+      {
+        "classification": "grader wrapper reruns plus observed child wait",
+        "eventSha256IncludingTerminator": "1a1246dbbea2098d76e460695f8506c3bdd54b5537ac13a6284ce5fa5de7e453",
+        "line": 1628,
+        "normalizedPath": "$PACKET/lanes/astra-snapback4/grading/checkout/scripts/choreo.mjs",
+        "observedChild": "choreography/choreography.mjs m5",
+        "segments": [
+          "m3",
+          "m3"
+        ]
+      }
+    ],
+    "qualification": "These are actual public execution requests, distinct from reads of builder receipts and choreography source. Tool output was not inspected; completed checkout receipts and the received trace independently record the resulting reruns."
+  },
+  "purpose": "Final read-only audit of public Claude tool-use access, source/package custody, and choreography evidence provenance for the received Astra grade.",
+  "rawLog": {
+    "bytes": 2661095,
+    "endsWithNewline": true,
+    "eventCounts": {
+      "malformedLines": [],
+      "publicToolUsesByName": {
+        "Bash": 108,
+        "Edit": 3,
+        "Read": 12,
+        "Write": 9
+      },
+      "topLevelByType": {
+        "assistant": 216,
+        "rate_limit_event": 14,
+        "result": 1,
+        "system": 1929,
+        "tool_progress": 5,
+        "user": 132
+      }
+    },
+    "lineCount": 2297,
+    "modelMetadata": {
+      "assistantMessageCount": 216,
+      "assistantMessageModels": {
+        "claude-opus-5": 216
+      },
+      "result": "all assistant message.model values agree with the system init model",
+      "source": "public system init metadata and assistant message.model fields only; assistant message bodies were not inspected for this check",
+      "systemInit": {
+        "claudeCodeVersion": "2.1.270",
+        "model": "claude-opus-5"
+      }
+    },
+    "path": "logs/astra-snapback4.grade.ndjson",
+    "retention": "external hash reference only; raw stream is not copied into repository evidence",
+    "sha256": "3f8633510de5063e5a7c18a765ae47e872aabdfc369c9b2bcd77b7fe8403a9af"
+  },
+  "receivedGrade": {
+    "done": {
+      "path": "lanes/astra-snapback4/grading/DONE",
+      "sha256": "17197ddc2688f481fc9e8e30640303b41d9ba18d46c787c728e5001a8ae822ca"
+    },
+    "m8Supplement": {
+      "path": "lanes/astra-snapback4/grading/m8-assertion-results.json",
+      "sha256": "64a9f62500f52c625576f602c8941f4d6ab7e86c4acf3cf421d58e5e29694b38"
+    },
+    "receivedCounts": {
+      "complete119": {
+        "fail": 10,
+        "notRun": 9,
+        "pass": 100
+      },
+      "m8Supplement18": {
+        "fail": 2,
+        "notRun": 0,
+        "pass": 16
+      },
+      "prior101": {
+        "fail": 8,
+        "notRun": 9,
+        "pass": 84
+      }
+    },
+    "receivedO4": {
+      "exactLead": "Scored only from grader-run harness receipts.",
+      "score": 35
+    },
+    "report": {
+      "path": "lanes/astra-snapback4/grading/grader-report.json",
+      "sha256": "410c4cd24f4e13539692c96f4f1776fc0241d6214a163623c2591ff37a636e9f"
+    },
+    "trace": {
+      "path": "lanes/astra-snapback4/grading/trace.md",
+      "sha256": "ad54165759fc870ab0f00f4ae5a4f8b1eb084d17bab1ffc86beac38fd44f7156"
+    },
+    "validation": {
+      "exactAssertionPartition": {
+        "complete": 119,
+        "m8": 18,
+        "prior": 101
+      },
+      "path": "observed-milestones/astra-received-grade-validation.json",
+      "schemaValid": true,
+      "sha256": "f59f626220267dfb655c3235a3001b6f3aab7d0915b91fb202527551a43bee6c"
+    }
+  },
+  "schemaVersion": "clique-astra-grader-access-source-custody-final.v1",
+  "scope": {
+    "inspected": "Public Claude tool-use names and input arguments; received sanitized report/M8/trace; structured choreography receipt status fields; filesystem hashes and package version metadata.",
+    "noExecution": "No probe, test, application process, grader, or model was run or contacted.",
+    "notInspected": [
+      "thinking blocks",
+      "assistant model bodies",
+      "tool-result content",
+      "raw tool output",
+      "private model internals"
+    ]
+  },
+  "sourceCustody": {
+    "canonicalSourceInventory": {
+      "changedOrMissing": [],
+      "expectedFiles": 261,
+      "matchingOriginalLaneFiles": 261,
+      "path": "snapshots/astra-continuous/source-inventory.sha256",
+      "sha256": "181788eeb85c48f3092072229e590a21c6dbaf8e05d4397484cc4413f535387d"
+    },
+    "excludedBuilderReports": {
+      "baselineManifest": "snapshots/astra-continuous/snapshot-manifest.json",
+      "baselineManifestSha256": "026ffd67685d418192d8ca698819e78b08a1b715db7ca4b4a602a0aa6dbc2123",
+      "files": [
+        {
+          "baselineSha256": "3e27aa4d0f630f7e347d719f01633f6936de6958400e44a92a1a40f606572534",
+          "currentSha256": "3e27aa4d0f630f7e347d719f01633f6936de6958400e44a92a1a40f606572534",
+          "path": "final-report.md",
+          "status": "match"
+        },
+        {
+          "baselineSha256": "268c7d071137337fd5a0846e92c2137443045bbf33319daed04047ee01a471f3",
+          "currentSha256": "268c7d071137337fd5a0846e92c2137443045bbf33319daed04047ee01a471f3",
+          "path": "diary.md",
+          "status": "match"
+        },
+        {
+          "baselineSha256": "fb411ac47ffaf2532ef293a60b8ae65f767a417408849d1c8d7e2b62716da481",
+          "currentSha256": "fb411ac47ffaf2532ef293a60b8ae65f767a417408849d1c8d7e2b62716da481",
+          "path": "essay.md",
+          "status": "match"
+        },
+        {
+          "baselineSha256": "34df3220dbadca3b5ad72d90399b50681d2a2c6cf729117ff9d608b84b964b4b",
+          "currentSha256": "34df3220dbadca3b5ad72d90399b50681d2a2c6cf729117ff9d608b84b964b4b",
+          "path": "run-log.md",
+          "status": "match"
+        },
+        {
+          "baselineSha256": "303d833e454c31a82ffcce466ba2d536fb8b7bbff44ee65a02b656739c13ffa8",
+          "currentSha256": "303d833e454c31a82ffcce466ba2d536fb8b7bbff44ee65a02b656739c13ffa8",
+          "path": "FINAL.md",
+          "status": "match"
+        }
+      ]
+    },
+    "gradingCheckoutPrimarySource": {
+      "changedOrMissing": [],
+      "filesCompared": 224,
+      "matchingFiles": 224,
+      "selection": "The 224 captured app/instrument-adapter files under the explicit grading checkout copy whitelist. Derived aging/scale/mutation instances, run records, setup identity, active config and grader-authored files are outside this comparison."
+    },
+    "originalLaneArchivedEvidence": {
+      "baselineManifest": "delivery/benchmarks/runs/2026-09-13-snapback4-clique-0004/astra/COPIED_FILES.json",
+      "baselineManifestSha256": "3041dbab65a4d17993cd2130da020e7f9feddc2aa1c1952d3cbcf483064914d8",
+      "changedOrMissing": [],
+      "choreographyFilesCompared": 14,
+      "choreographyFilesMatching": 14,
+      "filesCompared": 53,
+      "matchingFiles": 53
+    },
+    "verdict": "All 261 original captured source files, five excluded narratives, 53 archived evidence files, 14 original choreography receipt files, and 224 primary checkout source files remain byte-identical to their baselines. Grader-generated evidence is isolated under grading/checkout and grading/evidence."
+  },
+  "status": "final-post-grader-exit"
+}

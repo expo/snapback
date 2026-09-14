@@ -1,0 +1,133 @@
+{
+  "reportVersion": 1,
+  "lane": "astra-snapback4",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "/Users/ccheever/clique-sb4-20260913-full-3models/instrument/schema/social-messenger/assertions.json",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace.md §3; suite-m8.json",
+      "note": "UI tiles matched totals independently derived by paging authored posts, followers and following."
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md §5.1; grading/checkout/evidence/choreo-m8.jsonl assertion 'm8-a02-insights-like-refresh'"
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace.md §3; suite-m8.json; §5.8 insights-semantics.json",
+      "note": "Grader probe: a post created today incremented days[6].posts."
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace.md §3; suite-m8.json; §5.8 insights-semantics.json",
+      "note": "Grader probe: 7 day rows with zero-filled prior days."
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace.md §3; suite-m8.json"
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace.md §3 and §4; suite-m8.json; grading/checkout/evidence/m8-trending-aging.json; snapback/insights.q trending expire at postedAt+24h",
+      "note": "The suite uses an isolated backend (49304) with a development /seed synthetic two-day-old post; source confirms trending rows expire 24 h after the post's server time."
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace.md §3; suite-m8.json; snapback/insights.q byRank(score, postedAt, sequence)"
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md §5.4; grading/checkout/grader-instance/evidence/digest-push.jsonl; grading/evidence/digest-probe-rerun.json",
+      "note": "No clients connected. Seeded period: exactly 8 digests, one per starter persona, with all four counts matching grader-computed expectations from the starter logs. Two later activity periods matched expectations exactly (5 digests each)."
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md §5.4; digest-push.jsonl; digest-probe-rerun.json",
+      "note": "Personas without activity in a period (bob, carol, erin in activity period 1; bob, carol, dave in activity period 2) received no digest."
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md §5.4; digest-push.jsonl; digest-probe-rerun.json",
+      "note": "Every quiet period following activity emitted 0 digests."
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md §5.4; digest-push.jsonl; digest-probe-rerun.json",
+      "note": "Two activity periods, each with a backend restart mid-period and another right after emission (plus a longer outage from the grader tooling crash): exactly one digest per user per period, and no re-emission of earlier periods."
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md §5.4; digest-probe-rerun.json",
+      "note": "Activity in a private group excluding alice, bob, carol and dave counted only for its members. Alice's unread count reflected only her DM (1). A tombstoned group message was excluded (2, not 3)."
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md §5.1; grading/checkout/evidence/choreo-m8.jsonl assertion 'm8-a13-same-account-message-live'"
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md §5.1; grading/checkout/evidence/choreo-m8.jsonl assertion 'm8-a14-cross-device-read-state'"
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md §5.1; grading/checkout/evidence/choreo-m8.jsonl assertion 'm8-a15-dual-offline-convergence'"
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md §5.1; grading/checkout/evidence/choreo-m8.jsonl assertion 'm8-a16-dual-offline-receipts'"
+    },
+    "m8-a17": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md §5.10; grading/checkout/evidence/choreo-m8.jsonl segment-summary supplementalExternal ios-simulator-m8 status not-recorded; lane artifacts/m8-ios holds only a Hermes export",
+      "note": "No native simulator artifact for the offline-restart durable queue."
+    },
+    "m8-a18": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md §5.10; choreo-m8.jsonl supplementalExternal ios-simulator-m8 not-recorded",
+      "note": "No native simulator artifact."
+    }
+  }
+}

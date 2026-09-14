@@ -57,6 +57,8 @@ With 20 active clients connected via long-polling or regular sync, the server ex
 - [crates/snapback4-core/src/partition.rs](file:///Users/ccheever/projects/snapback/snapback4/crates/snapback4-core/src/partition.rs#L586-L600) (`has_more`)
 - [crates/snapback4-core/src/store.rs](file:///Users/ccheever/projects/snapback/snapback4/crates/snapback4-core/src/store.rs) (`read_log`)
 
+Historical scope: the [sync stream per-group ticket](20260913-snapback4-sync-stream-is-per-group.md) is the parent bundle covering locks, IMMEDIATE transactions, and threads. This ticket owns its per-group `read_log` amplification slice.
+
 ## Resolution — 2026-09-13
 
 The principal, public and authorized group intervals are passed as one JSON relation to a single ordered SQLite log query. Lookahead and whole-commit retries use the same relation; no SELECT is issued per held group on an idle/content poll. A drained watermark returns immediately. Join-time image reconstruction occurs only for actual joins, preserving historical authority.
