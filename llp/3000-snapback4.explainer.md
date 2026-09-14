@@ -866,6 +866,16 @@ time-ordered 128-bit form.
   conservatively by lane W2 until the author relaxes them. The
   implementation returns to both families once more before it lands.
 
+- **2026-09-14 — the third pass on §8.7 and §5.9: NOT READY and READY
+  WITH CHANGES, every §17 row built.** What remains is deeper: the meter
+  charged before a uniform verdict, resolution work that can abort before
+  its one word, an overflow that prints a sum, an explicit asset id as an
+  equality probe, and the two conservative rulings running on the hit arm
+  only, so an `upsert` reopened an existence bit. LLP 3000.007 §17's
+  third-pass table disposes each; lane W3 builds them; the lead's
+  recommendation on ruling 17 (a) moves from refusing to ignoring
+  immutable columns on an unreadable target.
+
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal

@@ -143,8 +143,9 @@ mutation edit(messageId: messages, body: text <=4000):
   alike. Target deletion and dependent-row cleanup are the application's
   policy, expressed in mutations and rules.
 - **Indexes:** `by name: cols` orders rows; `unique name: cols` also
-  constrains them. A point read needs a unique index over exactly its key;
-  `exists` needs any index over exactly its key; a scan needs an index whose
+  constrains them. A point read needs a unique index over its key;
+  `exists` needs any index over its key. Named equalities covering a total
+  unique key check extra columns on the one row, with no extra index; a scan needs an index whose
   leading columns are the scan's prefix, and pages in the order of the
   remaining columns; a cursor needs an index ending in `id` or a unique one.
   `by index` names one when two match. `by name: scope, words(text cols),
@@ -226,7 +227,8 @@ charged to that chunk's meter. Writes belong inside a chunk.
 - **Arguments** are typed like columns; `c: cursor ?` is an opaque page
   cursor. An omitted optional argument reads as null.
 - **Reads:** `t[key]` (one row by a unique key, null if absent or
-  hidden), `t[key] ! else CODE` (or refuse), `exists t[key]`,
+  hidden), `t[key] ! else CODE` (or refuse), `exists t[key]`; named extra
+  equalities (`t[key = x, col = y]`) return null/false on a mismatch,
   `t[prefix] first N by index` (ascending; `t first N by index` is the
   whole table's page), `t[prefix] after c last N by index` (descending,
   from a cursor; the modifiers come in that order), `merge t [after c]
@@ -293,7 +295,9 @@ charged to that chunk's meter. Writes belong inside a chunk.
   zero refuses `E_DIV_ZERO`. `divmod` binds both parts at once. Text `+` concatenates present texts;
   interpolation and formatting stay in the client. A bare `return` returns null.
   `=` and `!=` are total (null equals null); `<` and friends need present
-  operands — narrow with `if x != null:` or `x ! else CODE`. `not` binds
+  operands — narrow with `if x != null:` or `x ! else CODE`. Guards also
+  narrow bound row fields through short circuits and surviving branches;
+  rebinding the local clears its field facts. `not` binds
   tightest: `a != b`, not `not a = b`.
 - **Refusals** a program raises with `require .. else CODE` reach the
   client as `{ code: "CODE", family: "rule", rule: "CODE", .. }`; `CODE` is
@@ -338,7 +342,9 @@ it once per period boundary of the server's clock (`every 2m`, `every
 1h`, `every 1d at 08:00`; the shortest period is 1m), exactly once per
 boundary across restarts, passing `periodStart` and `periodEnd` when the
 job declares them (and nothing else); a schedule first seen fires from
-its next boundary. `snapback4 run <job> '{..}'` runs one here and now.
+its next boundary. A job in `snapback/jobs.q` is named `jobs.<name>` in
+every schedule; `schema.q` jobs use bare names. `check --fix` qualifies an
+unambiguous bare module job. `snapback4 run <job> '{..}'` runs one here and now.
 Jobs are not on `api.ts`.
 
 ### Native jobs and reads
@@ -797,6 +803,18 @@ wasm as a URL, a Response, bytes or a compiled module when a bundler
 cannot resolve the default beside the module; `webDevice({ persist:
 memoryPersistence() })` keeps nothing, for tests.
 
+While a change poll is active, **link loss is reported within 5 seconds**
+on a running browser or native host: heartbeats arrive every 2 seconds,
+and 4 seconds without response bytes marks the link `offline` and aborts
+that poll. Native fetch hosts without response streams use polls of at
+most 2 seconds with the same 4-second watchdog. Browser `offline` events
+are an immediate hint; `online` events trigger the authenticated `/probe`
+recovery check. The local client polls while open; the online tier polls
+while it has observed reads. Suspended hosts cannot run timers or deliver
+notifications until resumed. Closing a client removes timers and event
+listeners. Custom fetch transports must honor abort and forward response
+chunks promptly when exposing streams.
+
 ### The card
 
 Every word a screen reads is on the card (`snapback4/contract`):
@@ -1147,17 +1165,27 @@ the visible read encountered, or null. `POST /m/<op>` with `{ "id", "args",
 "failed", id, why, current? }` (a client-minted `id` makes the write
 apply at most once, and a replay adds `replayed: true`; `current` is the
 live row on `E_CONFLICT`); a job is refused over the wire (`E_OP`).
-`GET /sync?from=0` is the snapshot, paged: `{ snapshot: true, events:
-[{ table, kind, id, data }], watermark, more, next, generation,
-acknowledged }`, continued with `after=<next>` (`limit` up to 10,000;
-2,000 by default), and `pending=[ids]` (at most 256) reports which
-queued writes the server has applied; `GET /sync?from=W` (or `stream=1`)
-is the stream from a watermark: `{ snapshot: false, events: [{ seq,
-table, kind, id, data }], watermark, more, generation, acknowledged }`.
+`POST /sync` takes JSON `{ from, limit, after, stream, pending }` (defaults:
+`0`, `2000`, `null`, `false`, `[]`). With `from: 0` it returns the paged
+snapshot: `{ snapshot: true, events: [{ table, kind, id, data }], watermark,
+more, next, generation, acknowledged }`. Continue with `after: next`;
+`limit` is clamped to 1–10,000. `pending` holds at most 256 write IDs,
+each 1–128 UTF-8 bytes, and reports which queued writes the server applied.
+The request body is at most **262,144 bytes (256 KiB)**, including the
+cursor and JSON escaping; this accommodates all 256 maximum-length IDs
+even with six-byte escapes. A larger body is HTTP 413 with `denied: E_INPUT`,
+including chunked bodies; malformed fields are HTTP 400 with `E_INPUT`.
+With `from: W` or `stream: true` it returns the stream from a watermark:
+`{ snapshot: false, events: [{ seq, table, kind, id, data }], watermark,
+more, generation, acknowledged }`. There is no GET `/sync` route.
 `GET /changes?since=S&wait=N` requires the same principal and answers
 `{ seq, tables, generation }` when a commit lands or after N seconds (25
 at most; 0 answers at once; at most
-500 commits are summarised). `POST /assets` (the
+500 commits are summarised). With `heartbeat=1`, an idle HTTP/1.1 response
+starts immediately and sends JSON whitespace every 2 seconds before the
+final JSON object. Proxies must forward chunks without buffering. Once
+streaming starts, the status is 200; check the final object for `denied`,
+including `E_AUTH` if the session ended while waiting. `POST /assets` (the
 file's bytes as the body, 64 MiB at most) answers `{ asset }`; `GET
 /assets/<id>` serves them (404 hidden or gone, 410 viewed; `Range`
 works on ordinary assets, returns 416 when unsatisfiable, and is refused on

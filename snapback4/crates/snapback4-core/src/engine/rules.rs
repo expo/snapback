@@ -76,11 +76,12 @@ fn self_probe_absorbs(table_name: &str, table: &Table, disjunct: &RuleExpr, othe
         RuleExpr::Eq(RuleTerm::Field(column), RuleTerm::Viewer) | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(column)) => column,
         _ => return false,
     };
-    let RuleExpr::Exists { table: target, index, key, .. } = other else { return false };
+    let RuleExpr::Exists { table: target, index, key, equalities, .. } = other else { return false };
     if target != table_name { return false; }
     let Some(index) = table.index(index) else { return false };
     // @ref LLP 3000.007#16 — the equal row is its own witness on a total unique key; literal key terms cannot absorb it.
     index.unique && index.is_plain() && key.len() == index.components.len()
+        && equalities.iter().all(|(field, term)| matches!(term, RuleTerm::Field(source) if source == field) || (field == column && matches!(term, RuleTerm::Viewer)))
         && index.columns().contains(column)
         && index.columns().iter().zip(key).all(|(component, term)| {
             table.columns.get(component).is_some_and(|kind| !kind.is_optional())
@@ -105,12 +106,16 @@ fn rule_true(rule: &RuleExpr, table_name: &str, table: &Table, pinned: &BTreeMap
         }),
         RuleExpr::Or(rules) => rules.iter().any(|rule| rule_true(rule, table_name, table, pinned)),
         RuleExpr::And(rules) => !rules.is_empty() && rules.iter().all(|rule| rule_true(rule, table_name, table, pinned)),
-        RuleExpr::Exists { table: target, index, key, .. } if target == table_name => {
+        RuleExpr::Exists { table: target, index, key, equalities, .. } if target == table_name => {
             // A self-probe on a total unique key whose every component is
             // either the row's own column or pinned to the probing value is
             // true for every row the prefix selects.
             let Some(index) = table.index(index) else { return false };
-            index.unique
+            // Extra tests must be true on the self-witness too; a unique key alone cannot decide them.
+            equalities.iter().all(|(column, term)| match term {
+                RuleTerm::Field(field) => field == column,
+                _ => pinned.get(column).is_some_and(|expression| pinned_term(term, expression)),
+            }) && index.unique
                 && index.is_plain()
                 && !key.is_empty()
                 && key.len() == index.components.len()
@@ -134,7 +139,7 @@ pub fn pinned_literals(prefix: &[Value]) -> Vec<IndexKeyExpr> {
 
 /// Something that can answer an `exists`/`created` probe while a rule runs.
 pub trait Probe {
-    fn exists(&mut self, table: &str, index: &str, key: &[Value]) -> Result<bool, crate::error::RuntimeError>;
+    fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, crate::error::RuntimeError>;
     fn created(&mut self, table: &str, index: &str, key: &[Value]) -> bool;
 }
 
@@ -162,16 +167,20 @@ pub fn evaluate(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value
             Ok(false)
         }
         RuleExpr::Not(rule) => Ok(!evaluate(rule, viewer, old, next, created_allowed, probe)?),
-        RuleExpr::Exists { table, index, key, .. } => {
+        RuleExpr::Exists { table, index, key, equalities, .. } => {
             let key = key.iter().map(|term| self::term(term, viewer, old, next)).collect::<Result<Vec<_>, _>>()?;
-            probe.exists(table, index, &key)
+            let equalities = equalities.iter().map(|(column, value)| Ok((column.clone(), term(value, viewer, old, next)?))).collect::<Result<Vec<_>, crate::error::RuntimeError>>()?;
+            probe.exists(table, index, &key, &equalities)
         }
-        RuleExpr::Created { table, index, key, .. } => {
+        RuleExpr::Created { table, index, key, equalities, .. } => {
             if !created_allowed {
                 return Err(crate::error::RuntimeError::Schema("created probes are valid only in insert rules".into()));
             }
             let key = key.iter().map(|term| self::term(term, viewer, old, next)).collect::<Result<Vec<_>, _>>()?;
-            Ok(probe.created(table, index, &key))
+            if !probe.created(table, index, &key) { return Ok(false); }
+            if equalities.is_empty() { return Ok(true); }
+            let equalities = equalities.iter().map(|(column, value)| Ok((column.clone(), term(value, viewer, old, next)?))).collect::<Result<Vec<_>, crate::error::RuntimeError>>()?;
+            probe.exists(table, index, &key, &equalities)
         }
     }
 }

@@ -2,6 +2,42 @@
 use super::*;
 
 impl<'a> Binder<'a> {
+    // @ref LLP 3000.007#10 — a covered total unique key reads one row; additional named equalities check that row.
+    pub(super) fn read_value(&mut self, read: &ReadExpr, mode: ReadMode, out: &mut Vec<Stmt>) -> Fallible<Expr> {
+        let info = self.table(&read.table, &read.site)?;
+        if !read.seeks.is_empty() { return Err(type_error(&read.site, "a seek needs a bounded page", "t[prefix, col >= start] first 50 by index")); }
+        if read.keys.is_empty() { return Err(unknown(&read.site, format!("{}[] reads nothing; a point read needs a key", read.table), format!("{}[id]", read.table))); }
+        let (mut keys, index) = self.select_index(info, read, mode, out)?;
+        let extra = keys.len() > index.columns.len();
+        let mut equalities = Vec::new();
+        if extra {
+            for (column, value, ty) in &mut keys {
+                let column = column.as_ref().expect("named key");
+                if column != "id" && !info.columns.contains_key(column) {
+                    return Err(unknown(&read.site, format!("{} has no column {column}", read.table), name_rewrite(column, info.columns.keys().map(String::as_str).chain(["id"]), None)));
+                }
+                let expected = self.column_ty(info, column);
+                if !ty.comparable(&expected) { return Err(type_error(&read.site, format!("{column} is {}; {}.{column} is {}", ty.name(), read.table, expected.name()), format!("use {} for {column}", expected.name()))); }
+                *value = self.snapshot(value.clone(), out);
+                if !index.columns.contains(column) { equalities.push((column.clone(), value.clone())); }
+            }
+            keys.retain(|(column, _, _)| index.columns.contains(column.as_ref().unwrap()));
+        }
+        let key = self.order_keys(info, &index, keys)?;
+        let point = Read { site: self.site(), table: read.table.clone(), index: index.name, key, provenance: KeyProvenance::Shape };
+        if equalities.is_empty() { return Ok(if mode == ReadMode::Exists { Expr::Exists(point) } else { Expr::Get(point) }); }
+        let row = self.temp("probe");
+        out.push(Stmt::Let { name: row.clone(), value: Expr::Get(point) });
+        let mut condition = Expr::Binary { op: BinaryOp::Ne, left: Box::new(ir::var(&row)), right: Box::new(Expr::Literal(Value::Null)) };
+        for (column, value) in equalities {
+            let test = Expr::Binary { op: BinaryOp::Eq, left: Box::new(ir::field(ir::var(&row), &column)), right: Box::new(value) };
+            condition = Expr::Binary { op: BinaryOp::And, left: Box::new(condition), right: Box::new(test) };
+        }
+        if mode == ReadMode::Exists { return Ok(condition); }
+        out.push(Stmt::If { condition, then_body: Vec::new(), else_body: vec![Stmt::Assign { name: row.clone(), value: Expr::Literal(Value::Null) }] });
+        Ok(ir::var(&row))
+    }
+
     // @ref LLP 3000.007#5.3 — a seek constrains the first index column after the pinned prefix.
     pub(super) fn seek(&mut self, info: &'a TableInfo, read: &ReadExpr, index: &ast::IndexDecl, out: &mut Vec<Stmt>) -> Fallible<Option<ir::Range>> {
         if read.seeks.is_empty() { return Ok(None); }

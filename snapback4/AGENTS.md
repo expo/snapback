@@ -68,10 +68,11 @@ Gotchas you cannot derive from the code:
   cannot run is skipped with a named reason, never counted as a pass.
 - `snapback/generated/api.ts` is built by `check` and `dev`, never committed;
   the app's typecheck needs a `check` first (the suite does one).
-- Rule probes and `exists` need an index over exactly the probed columns
+- Positional rule probes and `exists` need an index over exactly the probed columns
   (`by byConversationPrincipalRole: conversationId, principal, role` for
   `exists memberships[.conversationId, viewer, 'admin']`); the diagnostic
-  names the indexes that exist.
+  names the indexes that exist. Named equalities covering a total unique key
+  check any extra columns on that one row without an additional index.
 - The packaged CLI uses `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` during both publication tests and its production build (LLP 3000 §7). A plain production Cargo build retains the dependency's ordinary SQLite policy; use the same build input when comparing with the package. The variable is unnecessary at runtime.
 - `scripts/publish.mjs` runs the suite and refuses on red, builds the production binary, packs `snapback4-darwin-arm64` and verifies the installed digest, then publishes both packages. Bump `version` in `packages/snapback4/package.json` (and its `optionalDependencies`), `packages/snapback4-darwin-arm64/package.json` and `Cargo.toml` together; a test refuses a mismatch.
 - The guide is tested text. Every ```quarry block in `crates/snapback4-lang/src/guide.rs` and in `packages/snapback4/README.md` is compiled by `crates/snapback4-lang/tests/guide.rs` with no diagnostic and no note (the language card is also run against the engine); every refusal code the sources emit must be in `guide::CODES`; every `guide("..")` a diagnostic carries must name a card. Add a form to the language card when you add it to the parser, fence README Quarry as ```quarry, and never fence Quarry as plain text to dodge the test.

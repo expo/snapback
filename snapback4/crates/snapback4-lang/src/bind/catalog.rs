@@ -15,6 +15,12 @@ pub struct TableInfo {
     pub maintained: Option<MaintainDecl>,
 }
 
+impl TableInfo {
+    pub fn total_unique(&self, index: &IndexDecl) -> bool {
+        index.unique && index.is_plain() && index.columns.iter().all(|column| column == "id" || self.columns.get(column).is_some_and(|ty| !ty.optional))
+    }
+}
+
 pub struct Catalog {
     pub documents: Vec<Document>,
     pub tables: BTreeMap<String, TableInfo>,

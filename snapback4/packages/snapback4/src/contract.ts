@@ -60,7 +60,11 @@ export interface ActOptions {
   readonly waitSeconds?: number;
 }
 
-/** The app's relationship to its server. */
+/** The app's relationship to its server. While polling on a running host,
+ * link loss is reported within 5 s: 2 s heartbeats, 4 s silence timeout.
+ * Native fetch without streams uses polls of at most 2 s. Browser events
+ * are immediate hints; authenticated /probe confirms recovery. Suspended
+ * hosts deliver notifications when resumed. */
 export type Link = "online" | "offline" | "signed-out";
 
 /** A named operation. `Args` and `Result` are inferred from the authored program. */

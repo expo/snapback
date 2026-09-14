@@ -200,11 +200,11 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
         const rows = Array.from({ length: 4 }, (_, i) => ({ table: "items", row: { id: `bulk-${batch}-${i}`, body: "x".repeat(400000) } }));
         assert.equal((await (await post("/seed", JSON.stringify(rows))).json()).seeded, 4);
       }
-      const oversized = await fetch(url + "/sync?limit=100", { headers, signal: AbortSignal.timeout(3000) });
+      const oversized = await post("/sync", JSON.stringify({ limit: 100 }));
       const answer = await oversized.text();
       assert.ok(answer.length < 1000, "a large result becomes a small typed refusal");
       assert.equal(JSON.parse(answer).denied?.code, "E_BOUND");
-      const smaller = await (await fetch(url + "/sync?limit=1", { headers })).json();
+      const smaller = await (await post("/sync", JSON.stringify({ limit: 1 }))).json();
       assert.equal(smaller.events.length, 1);
       assert.equal(smaller.more, true);
     });
@@ -212,7 +212,7 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
       const socket = connect({ host: "127.0.0.1", port: Number(new URL(url).port), readableHighWaterMark: 1024 });
       sockets.add(socket);
       await once(socket, "connect");
-      socket.write("GET /sync?limit=38 HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\n\r\n");
+      socket.write('POST /sync HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: 12\r\n\r\n{"limit":38}');
       await once(socket, "readable");
       try {
         const started = Date.now();

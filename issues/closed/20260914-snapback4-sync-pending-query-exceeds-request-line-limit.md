@@ -1,12 +1,12 @@
 # Snapback 4: Supported pending sync IDs exceed the HTTP request-line limit
 
-Status: Open
+Status: Resolved (2026-09-14)
 Severity: major
 Priority: P1
 Area: sync transport
 Reported: 2026-09-14
 Baseline: published `snapback4@0.2.6` at `342c53d306d7484cd64e820ee27a151e02eb4b0b`; still present in inspected delivery `04ed8cab8eeca7decc3a25d46873d5a1fccab11d`
-Related: [Grok client attribution audit](../benchmarks/runs/2026-09-13-snapback4-clique-0004/grok-grade-client-attribution.md), [resolved stream resource bounds](closed/20260913-snapback4-sync-stream-is-per-group.md)
+Related: [Grok client attribution audit](../../benchmarks/runs/2026-09-13-snapback4-clique-0004/grok-grade-client-attribution.md), [resolved stream resource bounds](20260913-snapback4-sync-stream-is-per-group.md)
 
 ## Product mismatch
 
@@ -61,3 +61,38 @@ mismatch is established independently of that attribution.
   and ensure oversized or invalid input has a deliberate bounded outcome.
 - Keep the app's repeated receipt writes separate from the product fix and
   retain the benchmark's original 0.2.6 results unchanged.
+
+## Resolution (2026-09-14, lane U)
+
+`POST /sync` now carries `{ from, limit, after, stream, pending }` as JSON;
+the GET route is removed. The shared local client covers wasm and the native
+opener; the scale witness and HTTP/cursor fixtures speak the new body.
+The dedicated **262,144-byte** ceiling admits all 256 128-byte IDs even
+with six-byte JSON escapes, leaving room for the snapshot cursor. Both
+declared and chunked oversize bodies return **413 / E_INPUT**, with CORS;
+invalid fields return **400 / E_INPUT**. No parser or meter ceiling rose.
+
+Measured with `from=1091`, `limit=4000`, excluding request-line CRLF:
+
+| IDs | Old GET, 26-byte IDs | Old GET, 128-byte IDs | POST line | POST body, 26-byte IDs | POST body, 128-byte IDs |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 232 | 8,171 | 31,835 | 19 | 6,794 | 30,458 |
+| 233 | 8,206 | 31,972 | 19 | 6,823 | 30,589 |
+| 256 | 9,011 | 35,123 | 19 | 7,490 | 33,602 |
+
+`packages/snapback4/test/transport-http.test.mjs` sends both ID lengths
+through the real HTTP host, checks the old parser boundary, the exact new
+body ceiling and one byte over, malformed inputs, and declared/chunked
+refusals. On both wasm/memory and native/SQLite it admits **232, 233, and
+273** already-applied writes with lost replies (the last exposes **256**
+pending IDs plus a **17**-ID tail), syncs a **37**-row snapshot in **6**
+pages using **5** cursors, and checks every sync receipt and every terminal
+`sent` notification exactly once, ending with an empty outbox. No ID drops
+or starvation; the app's repeated receipt writes and frozen benchmark
+records are untouched.
+
+Browser execution remains qualified by the sandbox Chromium launch failure
+(SIGABRT before assertions), reproduced with the unchanged React witness at
+base `0d7b77bb3c577366ac81bf159e57524c613c9e12`. The lead must rerun the
+IndexedDB witness outside the sandbox; these transport tests exercise the
+real wasm device and the real native module through Node 24.18.0.

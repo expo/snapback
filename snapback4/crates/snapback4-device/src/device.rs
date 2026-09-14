@@ -40,7 +40,7 @@ pub struct SyncState {
     pub send_revision: u64,
 }
 
-/// One event of the stream or a snapshot, as `GET /sync` sends it.
+/// One event of the stream or a snapshot, as `POST /sync` sends it.
 #[derive(Clone, Debug, Deserialize)]
 pub struct StreamEvent {
     pub table: String,
@@ -50,7 +50,7 @@ pub struct StreamEvent {
     pub data: Option<serde_json::Value>,
 }
 
-/// One page of `GET /sync`.
+/// One page of `POST /sync`.
 #[derive(Clone, Debug, Deserialize)]
 pub struct StreamPage {
     /// Local receipt captured before transport, not server-supplied metadata.

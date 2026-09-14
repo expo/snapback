@@ -123,7 +123,8 @@ impl Binder<'_> {
             }
             A::Member { base, name, .. } => {
                 let (e, t) = self.expr(base, out)?;
-                self.member(e, t, name, site)
+                let (value, ty) = self.member(e, t, name, site)?;
+                Ok((value, self.field_refinement(expr).unwrap_or(ty)))
             }
             A::Call { name, args, .. } => self.call(name, args, site, out),
             A::Read(read) if read.table == "connected" && !self.catalog.tables.contains_key("connected") => self.connected(read, out),
@@ -134,8 +135,7 @@ impl Binder<'_> {
                 Ok((Expr::Binary { op: BinaryOp::Gt, left: Box::new(count), right: Box::new(Expr::Literal(Value::Int(0))) }, Ty::Bool))
             }
             A::Exists { read, .. } => {
-                let (point, _) = self.point(read, ReadMode::Exists, out)?;
-                Ok((Expr::Exists(point), Ty::Bool))
+                Ok((self.read_value(read, ReadMode::Exists, out)?, Ty::Bool))
             }
             A::Created { .. } => Err(unknown(site, "created is valid only in an insert table rule", "use exists here")),
             A::Assert { value, code, .. } => {

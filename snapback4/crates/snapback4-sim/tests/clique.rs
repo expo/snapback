@@ -1263,3 +1263,56 @@ fn clique_trending_ranks_the_whole_day_and_marks_a_day_past_the_ceiling_incomple
     assert_eq!(cut.capped_at.as_ref().map(|(kind, _)| *kind), Some(snapback4_core::error::MeterKind::Examined));
     assert_eq!(cut.data.as_array().unwrap().len(), 10);
 }
+
+const PROBE_EQUALITIES: &str = include_str!("fixtures/probe-equalities.q");
+
+#[test]
+fn ceremony_run_two_probes_one_row_with_or_without_the_second_index() {
+    for extra in ["", "  by byKeyAdmin: key, admin\n"] {
+        let source = PROBE_EQUALITIES.replace("  unique byKey: key\n", &format!("  unique byKey: key\n{extra}"));
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+        engine.seed((0..100).map(|i| ("chats".into(), row(&[("id", id(&format!("c{i}"))), ("key", Value::String(format!("c{i}"))), ("admin", id(if i == 0 { "dev:alice" } else { "dev:bob" }))])))).unwrap();
+        let added = engine.mutate("add", None, Context::new("dev:alice", args(&[("chatKey", Value::String("c0".into())), ("principal", id("dev:carol"))])).with_ids(["member".into()])).unwrap();
+        assert!(matches!(added.state, WriteState::Sent { .. }), "{added:?}");
+        assert_eq!(added.metered.rule_probes, 1);
+        println!("run-2 second_index={} rule_probes={}", !extra.is_empty(), added.metered.rule_probes);
+        for (viewer, key, allowed) in [("dev:alice", "c0", true), ("dev:bob", "c0", false), ("dev:alice", "missing", false)] {
+            for name in ["get", "probe"] {
+                let result = engine.query(name, Context::new(viewer, args(&[("chatKey", Value::String(key.into())), ("admin", id(viewer))]))).unwrap();
+                assert_eq!(result.metered.examined, 1, "{name}: {result:?}");
+                assert!(result.complete);
+                assert_eq!(if name == "get" { result.data != Value::Null } else { result.data == Value::Bool(true) }, allowed);
+            }
+        }
+        let denied = engine.mutate("add", None, Context::new("dev:bob", args(&[("chatKey", Value::String("c0".into())), ("principal", id("dev:mallory"))]))).unwrap();
+        assert!(matches!(denied.state, WriteState::Failed { .. }));
+        assert_eq!(denied.metered.rule_probes, 1);
+        let bootstrapped = engine.mutate("bootstrap", None, Context::new("dev:carol", args(&[("chatKey", Value::String("new".into()))]))).unwrap();
+        assert!(matches!(bootstrapped.state, WriteState::Sent { .. }));
+        assert_eq!(bootstrapped.metered.rule_probes, 0, "created's key fact short-circuits the exists");
+    }
+}
+
+#[test]
+fn created_equalities_check_the_current_created_row_and_program_reads_stay_authorized() {
+    let source = PROBE_EQUALITIES.replace("created chats[key = .chatKey] or exists chats[key = .chatKey, admin = viewer]", "created chats[key = .chatKey, admin = viewer]")
+        .replace("  read <- allow\n  insert <- allow", "  read <- .admin = viewer\n  insert <- allow");
+    let source = format!("{source}\nmutation changed(chatKey: text 1..64):\n  insert chats {{ key: chatKey, admin: viewer }}\n  update chats[chatKey] {{ admin: 'dev:bob' }}\n  insert members {{ chatKey, principal: viewer }}\n");
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    let input = || args(&[("chatKey", Value::String("new".into()))]);
+    let created = engine.mutate("bootstrap", None, Context::new("dev:alice", input())).unwrap();
+    assert!(matches!(created.state, WriteState::Sent { .. }), "{created:?}");
+    assert_eq!(created.metered.rule_probes, 1);
+    let existing = engine.mutate("add", None, Context::new("dev:alice", args(&[("chatKey", Value::String("new".into())), ("principal", id("dev:bob"))]))).unwrap();
+    assert!(matches!(existing.state, WriteState::Failed { .. }));
+    let changed = engine.mutate("changed", None, Context::new("dev:alice", args(&[("chatKey", Value::String("other".into()))]))).unwrap();
+    assert!(matches!(changed.state, WriteState::Failed { .. }), "{changed:?}");
+    for name in ["get", "probe"] {
+        let hidden = engine.query(name, Context::new("dev:bob", args(&[("chatKey", Value::String("new".into())), ("admin", id("dev:alice"))]))).unwrap();
+        assert_eq!(hidden.data, if name == "get" { Value::Null } else { Value::Bool(false) });
+    }
+}

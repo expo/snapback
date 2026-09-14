@@ -384,3 +384,12 @@ fn the_template_compiles_clean() {
     clean("the init template", guide::TEMPLATE);
     clean("the online init template", guide::TEMPLATE_ONLINE);
 }
+
+#[test]
+fn the_language_card_also_compiles_as_a_module_with_qualified_schedules() {
+    let source = language().replace(": nightly ", ": timeline.nightly ");
+    let bound = snapback4_lang::compile(&[("timeline.q".into(), source)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+    assert_eq!(bound.schema.schedules[0].target, "timeline.nightly");
+}
