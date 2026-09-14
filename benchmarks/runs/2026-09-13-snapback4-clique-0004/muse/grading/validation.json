@@ -1,0 +1,48 @@
+{
+  "validatedAt": "2026-09-14T07:58:04.402Z",
+  "wave": "muse",
+  "validator": {
+    "path": "observed-milestones/helpers/validate-received-grade.cjs",
+    "sha256": "2a86cb34fb0e14107180dcca36a580721a3379e4b41e8bea8adee646741f7285",
+    "ajvVersion": "8.20.0"
+  },
+  "sources": [
+    {
+      "path": "instrument/grader/grader-report.schema.json",
+      "sha256": "82d213374eecdbf47438193a7213dc4e8532b1a1db37204d6c21f352bfac0c30"
+    },
+    {
+      "path": "instrument/schema/social-messenger/assertions.json",
+      "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+    },
+    {
+      "path": "lanes/muse-snapback4/grading/grader-report.json",
+      "sha256": "e4e031cc1757c0a892fd172c9b232588cba2118db6ed55eabd3f6ab517893f88"
+    },
+    {
+      "path": "lanes/muse-snapback4/grading/m8-assertion-results.json",
+      "sha256": "6cc08be217d09b86a57d24ff787f25cdd7bbf6dc8b922cf940c94e6a3af5c030"
+    },
+    {
+      "path": "logs/muse-snapback4.grade.end.json",
+      "sha256": "ad05a9b37c26edf38fd2ec6a5f846392b9db5aafa3ad906c04ff002146fdce4e"
+    },
+    {
+      "path": "lanes/muse-snapback4/grading/DONE",
+      "sha256": "b02b68cef42fb35c5aa75f70d5b83f57c3e64cb6d63e5259d1c740450204be35"
+    },
+    {
+      "path": "lanes/muse-snapback4/grading/trace.md",
+      "sha256": "096712905023f7c081b126ad8ccb22fd5d91f44372916bcefb592ad928d25be6"
+    }
+  ],
+  "schemaValid": true,
+  "exactAssertionPartition": {
+    "prior": 101,
+    "m8": 18,
+    "complete": 119
+  },
+  "graderSessionOutcome": "completed",
+  "contaminated": false,
+  "qualification": "Structural validation only; all verdicts remain exactly as received. Grader is uncalibrated N=1, and session outcome/contamination remain explicit."
+}

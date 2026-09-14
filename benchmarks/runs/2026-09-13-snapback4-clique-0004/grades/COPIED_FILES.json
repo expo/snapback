@@ -1,0 +1,22 @@
+{
+  "createdAt": "2026-09-14T08:02:35.377040+00:00",
+  "copies": [
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/grades/summary.json",
+      "destination": "summary.json",
+      "bytes": 1890,
+      "sha256": "84090576a325d57a83d5648156fae7bc8b92d91b693642a9cee45f332184a1da"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/grades/summary.md",
+      "destination": "summary.md",
+      "bytes": 777,
+      "sha256": "182e9c4d75de77caef131bfca61341be93b2b1b5777b16ff5a26b716373a848d"
+    }
+  ],
+  "summarizer": {
+    "source": "/Users/ccheever/clique-sb4-20260913-full-3models/scripts/summarize_grades.py",
+    "sha256": "afe2432995a4e570b792478296313da96f1b994f3b789c5616beb4c3fc7f6a3c"
+  },
+  "qualification": "Verbatim frozen-script aggregate of three structurally validated receivedgrades. BaselinebeforeM7; readperlaneauditsfor methodology/coverage/custody limitations. No scoreorverdict repaired."
+}

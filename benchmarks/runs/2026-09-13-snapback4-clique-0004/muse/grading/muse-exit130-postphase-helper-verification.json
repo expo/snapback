@@ -1,0 +1,101 @@
+{
+  "artifacts": {
+    "patchSidecar": {
+      "path": "observed-milestones/helpers/run_phase_muse_exit130.provenance.json",
+      "sha256": "1760a5ad1d0fb2e9941ebcce9539dd11cd182d1f14df573153459e7739f9a749"
+    },
+    "patchedRunner": {
+      "path": "observed-milestones/helpers/run_phase_muse_exit130.py",
+      "sha256": "6c98247006a3a0dc033b54a3c36eb441396cac1b08258e47e60c7d46a6240ff3"
+    },
+    "tests": {
+      "path": "observed-milestones/helpers/test_muse_post_interruption_phase.py",
+      "sha256": "a4edbcf77e7871a9728c411005b8d8a55e51b3ede4ad111111e4d4321a05b81d"
+    },
+    "wrapper": {
+      "path": "observed-milestones/helpers/muse_post_interruption_phase.py",
+      "sha256": "c62563f2e5a9c52a5016ff228f19830e4d2be347d383a7ae374ca3ebfdda9bf5"
+    }
+  },
+  "frozenRunner": {
+    "modified": false,
+    "path": "scripts/run_phase.py",
+    "sha256": "a3b3658347f61ee57b9cf13a557fafe4edb9baf385fa59d29e620a1802247b69"
+  },
+  "laterInvocation": [
+    "/Users/ccheever/clique-sb4-20260913-full-3models/observed-milestones/helpers/muse_post_interruption_phase.py",
+    "<score|grade|m7>"
+  ],
+  "laterLifecycle": {
+    "actualModelCommandRecordedInFrozenRunnerStart": true,
+    "externalOverride": "observed-milestones/muse-<phase>-exit130-override.{start,end}.json",
+    "frozenRunner": "logs/muse-snapback4.<phase>.{start,end}.json",
+    "runnerLifecycleHashesAndRecordsCopiedIntoExternalEnd": true
+  },
+  "observedAt": "2026-09-14T05:44:33.624160Z",
+  "packetRoot": "/Users/ccheever/clique-sb4-20260913-full-3models",
+  "purpose": "Permit only Muse score, grade, and M7 past the retained builder exit 130 after hash-bound root-intervention qualification",
+  "qualification": {
+    "builderEndSha256": "b1e1aba56798930e8118481d692355855c1cb4e6349c1f170be0cff64d142b28",
+    "builderExitCode": 130,
+    "builderFinalReportSha256": "db5252070d4fcd3d4df8788a12fdbcd378a02cf85243cdbcf40456cf18d24feb",
+    "builderLogBytes": 23756249,
+    "builderLogSha256": "ed2ac5bbccb18abb8a55bcddb07ec786b483ad20b8da6e79a725f051e6fc9692",
+    "builderPid": 26465,
+    "builderStartSha256": "980b3c552a2e5ed5840493c694634091cff559a42fbec867705c033b5aa70b22",
+    "completedPublicTerminalCount": 3,
+    "completedPublicTerminalSequences": [
+      25168,
+      25330,
+      25611
+    ],
+    "packagePinsSha256": "6c8241a0bed493a7f80dc0af8f22ecb4dfeebe57c7fe9684fe6474a004298814",
+    "postTerminalAuditSha256": "02ebb7fcb2c9fc3ff8bc696d70e73cbe378cb1afc5220e235452c32ac6793cd9",
+    "registryReceiptsSha256": "8276a397f9205edc726661a7234af7d215c334ccbbcaadbb9b108227c33f5064",
+    "rootInterventionReceiptSha256": "5443afd335811bbbec64dd61d9f55b34448a840305abe9c4234de87ed92c2405",
+    "snapback4": "0.2.6",
+    "snapback4Expo": "0.2.1"
+  },
+  "schemaVersion": "clique-muse-exit130-postphase-helper-verification.v1",
+  "scopeProof": {
+    "allowedPhases": [
+      "score",
+      "grade",
+      "m7"
+    ],
+    "allowedWave": "muse",
+    "changedExpression": "builder-completed predicate only",
+    "globalCompletedFunctionUnchanged": true,
+    "modelPromptEffortCommandAndLifecycleCodeUnchanged": true,
+    "nonzeroPhaseExitPropagatedByWrapper": true,
+    "qualificationEnvironmentRemovedFromModelChildEnvironmentByFrozenRunner": true,
+    "scoreAndGradeLifecycleChecksUnchanged": true,
+    "sourceReplacementCount": 1
+  },
+  "status": "qualified-helper-ready; no phase launched",
+  "verification": {
+    "dryRun": {
+      "launchPerformed": false,
+      "log": "/tmp/sb4-36-muse-exit130-helper-dryrun.log",
+      "logSha256": "7e44f3b8a1c9ebe02b59f3e9dfb8a0f6bc64f5743deafb7ccceaa84924c8e1da",
+      "museScoreEndLifecycleAbsentAfterRun": true,
+      "museScoreStartLifecycleAbsentAfterRun": true,
+      "phase": "score"
+    },
+    "pyCompile": "passed",
+    "unitTests": {
+      "cases": [
+        "retained builder qualifies without launch",
+        "wrong builder exit rejected",
+        "wrong builder PID rejected",
+        "semantically unchanged but byte-modified intervention receipt rejected",
+        "only asserted builder predicate changed",
+        "nonzero score/grade/M7 lifecycle remains incomplete",
+        "builder phase and non-Muse waves excluded"
+      ],
+      "log": "/tmp/sb4-36-muse-exit130-helper-tests.log",
+      "logSha256": "f63cf1891c5b5e4eeec6f34a47075fce65329413ec952608769fc6c1dba441b2",
+      "result": "7 passed"
+    }
+  }
+}

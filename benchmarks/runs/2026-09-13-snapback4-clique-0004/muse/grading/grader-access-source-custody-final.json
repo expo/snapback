@@ -1,0 +1,701 @@
+{
+  "accessAudit": {
+    "allowedPublicPackageReads": [
+      {
+        "classification": "Snapback package README and package.json read; dist directory names listed only",
+        "line": 64,
+        "lineSha256": "be278022ab9cbb5c7cef4902dc5055129edec2d2c771da6c4c4b10fe4f5235ff"
+      },
+      {
+        "classification": "Snapback package README continuation read",
+        "line": 84,
+        "lineSha256": "0e469e09e0c0bfb43700e7561f2b90f0e019ae6ed2bdda4a945d6c5636b29fcc"
+      },
+      {
+        "classification": "Snapback package README rate-limit text searched",
+        "line": 1337,
+        "lineSha256": "df37c54677bc64ac6455f8bbbd84caf429a8b395731f391220c7822a70651460"
+      }
+    ],
+    "credentialRuntimeAccessQualification": [
+      {
+        "classification": "worker-token file explicitly read through a redacting filter; no value is copied into this audit or repository",
+        "line": 30,
+        "lineSha256": "79ef2f27ea08944b00840f88779c1ee5931be789440bbdec7966d0172b331d60"
+      },
+      {
+        "classification": "runtime SQLite files copied into isolated grading/work for grading; runtime database bytes remain external",
+        "line": 275,
+        "lineSha256": "fe0ed7e0cad5d21fb8fa98e6c027d2e3a6d29af5cd1944d04902e2c959c019e2"
+      },
+      {
+        "classification": "grader-authored probes used runtime tokens/passwords as required; files and scripts matching credential screens remain external or hash-only"
+      }
+    ],
+    "excludedFilenameMarkersInReadOrBashArguments": 0,
+    "forbiddenContentReadVerdict": "no explicit content read found",
+    "metadataQualification": {
+      "classification": "lane-root directory listing; excluded report filenames may have been listed, but no excluded file content was read",
+      "line": 6,
+      "lineSha256": "9139dbc7d64ac4e4810b2150d5ba8678a5a913e535610d12404c5e08563d9fad"
+    },
+    "otherLaneContentAccesses": 0,
+    "packetSearchQualification": {
+      "classification": "packet-root search explicitly filtered /lanes/ results; no other-lane content access",
+      "line": 1106,
+      "lineSha256": "e3df7e035add2afda674fa55bd4b258960d78098f8b1863b63a68669f88c147e"
+    },
+    "priorRunContentAccesses": 0,
+    "writeEditCustody": {
+      "allExplicitWriteEditPathsUnderLaneGrading": true,
+      "editEvents": 4,
+      "instrumentWriteEditPaths": 0,
+      "writeEvents": 11
+    }
+  },
+  "builderExit130AndOverrideQualification": {
+    "builderActualOutcome": {
+      "end": {
+        "bytes": 367,
+        "path": "snapshots/muse-continuous/muse-snapback4.end.json",
+        "sha256": "b1e1aba56798930e8118481d692355855c1cb4e6349c1f170be0cff64d142b28"
+      },
+      "exitCode": 130,
+      "start": {
+        "bytes": 1113,
+        "path": "snapshots/muse-continuous/muse-snapback4.start.json",
+        "sha256": "980b3c552a2e5ed5840493c694634091cff559a42fbec867705c033b5aa70b22"
+      }
+    },
+    "gradeOverrideEnd": {
+      "bytes": 2348,
+      "path": "observed-milestones/muse-grade-exit130-override.end.json",
+      "sha256": "8a45e3c2c623ce2f76d025d89b91a9a86edd6a7c482a3193935c9b0288be36ca"
+    },
+    "gradeOverrideStart": {
+      "bytes": 2289,
+      "path": "observed-milestones/muse-grade-exit130-override.start.json",
+      "sha256": "d237ca292a2c7f4ebd2bd6fe3130a5f5e99f20482ebff12e7df23a8f01192633"
+    },
+    "helperVerification": {
+      "bytes": 4359,
+      "path": "observed-milestones/muse-exit130-postphase-helper-verification.json",
+      "sha256": "4daf379da26b9646dac44d4320f84d9361714a5d0be690a97ded0eca3c1e908a"
+    },
+    "interventionReceipt": {
+      "bytes": 991,
+      "path": "snapshots/muse-continuous/qualifications/muse-background-loop-interruption.json",
+      "sha256": "5443afd335811bbbec64dd61d9f55b34448a840305abe9c4234de87ed92c2405"
+    },
+    "postTerminalAudit": {
+      "bytes": 19808,
+      "path": "snapshots/muse-continuous/qualifications/muse-post-terminal-lifecycle-audit.json",
+      "sha256": "02ebb7fcb2c9fc3ff8bc696d70e73cbe378cb1afc5220e235452c32ac6793cd9"
+    },
+    "publicTerminalCompletionCount": 3,
+    "qualification": "Builder lifecycle remains exit 130. The hash-bound sidecar allowed this exact builder tuple to continue into grading; the grade itself has its separate genuine exit-0 lifecycle. Neither record is rewritten."
+  },
+  "choreographyMethod": {
+    "choreoAssertionPartition": {
+      "affectedByMethodTensionCount": 28,
+      "graderRedrivenWebAssertionIds": [
+        "m1-a05",
+        "m1-a06",
+        "m1-a09",
+        "m2-a04",
+        "m2-a05",
+        "m2-a07",
+        "m2-a14",
+        "m2-a19",
+        "m3-a01",
+        "m3-a02",
+        "m3-a06",
+        "m3-a07",
+        "m3-a08",
+        "m3-a09",
+        "m3-a12",
+        "m3-a13",
+        "m4-a02",
+        "m4-a04",
+        "m4-a05",
+        "m4-a08",
+        "m4-a11",
+        "m5-a07",
+        "m5-a12",
+        "m8-a02",
+        "m8-a13",
+        "m8-a14",
+        "m8-a15",
+        "m8-a16"
+      ],
+      "methods": {
+        "choreography-artifacts": 11,
+        "web-automation": 28
+      },
+      "receiptMethodAssertionIds": [
+        "m6-a01",
+        "m6-a02",
+        "m6-a03",
+        "m6-a04",
+        "m6-a05",
+        "m6-a06",
+        "m6-a07",
+        "m7-a02",
+        "m7-a05",
+        "m8-a17",
+        "m8-a18"
+      ],
+      "results": {
+        "fail": 10,
+        "not-run": 2,
+        "pass": 27
+      },
+      "total": 39
+    },
+    "frozenHarnessCopy": {
+      "allComparedFilesMatch": true,
+      "copyDifferences": [],
+      "originalNonDependencyFiles": 16
+    },
+    "governingTension": {
+      "classification": "The web reruns follow the prompt execution-order wording but conflict with the schema method description. This is a frozen-instrument scope tension, not excluded-context contamination or an automatic whole-grade invalidity finding.",
+      "prompt": {
+        "lines": "74-87",
+        "meaning": "directs web/API checklist re-execution; specifically prohibits grader-driven native simulator proofs",
+        "path": "instrument/grader/grader-prompt.md",
+        "sha256": "97ce0e44d219c48b7a9dfe16ce26e9f0b90d47b00e09b43acc678cc9e2dfded6"
+      },
+      "schema": {
+        "line": 171,
+        "meaning": "says every [choreo] assertion is receipt-only and never re-driven",
+        "path": "instrument/grader/grader-report.schema.json",
+        "sha256": "82d213374eecdbf47438193a7213dc4e8532b1a1db37204d6c21f352bfac0c30"
+      }
+    },
+    "graderAuthoredWebExecutions": [
+      {
+        "classification": "grader-authored M1 web automation executed",
+        "line": 1758,
+        "lineSha256": "43f81873442039cba29c94083214b7b981a88a1eb9531434fc6da544f069ef99"
+      },
+      {
+        "classification": "grader-authored M2/M3/M4/M5/M8 web automation executed",
+        "line": 1833,
+        "lineSha256": "c941266843d5227bd398197fc3e1d5071cd33283db46c6b9bc41eea4014e2ee9"
+      },
+      {
+        "classification": "grader-authored targeted recheck executed",
+        "line": 2112,
+        "lineSha256": "b6790f0a128be0a7dd6fa208bb97dd5b39193ccda9b40d37cdc3488d1b1ed144"
+      }
+    ],
+    "o4Qualification": "O4 is null because M6 is not green, so O4 does not rely on the grader-authored web reruns. Twenty-eight atomic [choreo] verdicts do.",
+    "originalBuilderChoreographyReceipts": {
+      "classification": "none",
+      "fileCount": 0,
+      "path": "lanes/muse-snapback4/receipts"
+    },
+    "publicHarnessInvocations": [
+      {
+        "classification": "grader wrapper invoked the fresh copied frozen web choreography harness synchronously",
+        "line": 1022,
+        "lineSha256": "f8ca8429416438723b2c73282b33c904c3cb3de32aba09e5b972b07796fcdae5"
+      },
+      {
+        "classification": "grader rebuilt the isolated frozen harness copy and invoked it again as a tracked background job",
+        "line": 1140,
+        "lineSha256": "f4c3d01941b1018abb8aab19a9ce14415ed111e27e078a7875bb1c9361cb841d"
+      }
+    ],
+    "retainedHarnessOutcome": {
+      "classification": "fatal non-green startup; retained choreography receipt and observation JSONL files are empty; no qualifying frozen harness receipt",
+      "observations": {
+        "bytes": 0,
+        "path": "lanes/muse-snapback4/grading/choreo-run/choreo-all.jsonl.observations.jsonl",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "outcomeLog": {
+        "bytes": 805,
+        "path": "lanes/muse-snapback4/grading/logs/choreo-all.log",
+        "sha256": "df5b7bb7ea8d6f39eadf1d9b34ae36a6afdf4d52513093bd3f0905d1bf5794b0"
+      },
+      "receipt": {
+        "bytes": 0,
+        "path": "lanes/muse-snapback4/grading/choreo-run/choreo-all.jsonl",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "runMeta": {
+        "bytes": 100,
+        "path": "lanes/muse-snapback4/grading/logs/choreo-all.meta",
+        "sha256": "5eeea0ee6c9b1164746fd856bdacb35a1ae7a7f1baefd8af94a52c4b27cc10b2"
+      },
+      "suiteStatus": {
+        "bytes": 392,
+        "path": "lanes/muse-snapback4/grading/choreo-run/suite-status.json",
+        "sha256": "97d4ecbb22de02c40b2faabf6d9c8a47ca0c61bf5df7744210ebcbd7b03c1e56"
+      }
+    }
+  },
+  "citationTraceability": {
+    "bracketPathQualification": "app-host/clique/app/post/[id].tsx exists; a glob-based precheck treated brackets specially, then literal-path verification passed.",
+    "emptyReceiptQualification": "M6/M8 native results cite the explicitly empty lane receipts directory.",
+    "explicitDistinctPathStringsChecked": 44,
+    "lineReferencesBeyondFileLength": [],
+    "pathMentionsChecked": 309,
+    "runtimeEvidenceQualification": "m1-a12 cites grading/work/.snapback4/store.sqlite; it exists (4,030,464 bytes) but is runtime database evidence and remains external.",
+    "unresolvedPaths": []
+  },
+  "coverageAndScoring": {
+    "coverageEvidence": {
+      "bytes": 4586,
+      "path": "lanes/muse-snapback4/grading/evidence/coverage-spot-verification.json",
+      "sha256": "b8b4f59d816fcbfc9474906302350633a820b1cacfd82296d8f05608304e1476"
+    },
+    "coverageManifestPresent": false,
+    "dishonestMilestones": [
+      "M2",
+      "M3",
+      "M6",
+      "M8"
+    ],
+    "m8Supplement18": {
+      "fail": 3,
+      "notApplicable": 0,
+      "notRun": 0,
+      "pass": 15
+    },
+    "o1": {
+      "anchorsCited": "~30: \"core features partially work; several checklist items fail\" (credited state after adjudication); below ~60: \"M1-M4 solid, later milestones patchy or failed on cap\" is not reachable because M2 and M3 checklists score not-passed under the dishonest-mapping adjudication; ~90 requires every in-scope milestone green including platform-proof artifacts, and no milestone has a harness-recorded green receipt.",
+      "justification": "Independent grader execution passed 94/119 assertions (M1 13/13, M2 26/27, M3 14/15, M4 12/12, M5 9/12, M6 5/13, M7 0/9, M8 15/18). O1 credit: dishonest coverage mappings adjudicate M2, M3, M6 and M8 to capability-failure (checklists not-passed) and M7 has not run, leaving 34/119 credited (M1, M4, M5). No choreography receipts, coverage manifest, or simulator artifacts exist, so no milestone is evidenced green; M6/M8 native proofs are absent. Evidence: grader-report assertionResults, m8-assertion-results.json, evidence/coverage-spot-verification.json.",
+      "score": 30
+    },
+    "o1Qualification": "The received O1 justification credits 34 of 119 (M1 13 + M4 12 + M5 9) after M2/M3/M6/M8 coverage adjudication and M7 not-run. This is distinct from the raw 94/119 pass count; this audit preserves both and does not repair the score.",
+    "prior101": {
+      "fail": 13,
+      "notApplicable": 1,
+      "notRun": 8,
+      "pass": 79
+    },
+    "raw119": {
+      "fail": 16,
+      "notApplicable": 1,
+      "notRun": 8,
+      "pass": 94
+    },
+    "receivedVerdict": "dishonest",
+    "sourceSupport": [
+      {
+        "assertion": "m2-a20",
+        "finding": "thread-order predicate runs before any reply exists and is vacuous",
+        "milestone": "M2"
+      },
+      {
+        "assertion": "m3-a11",
+        "finding": "suite counts bubbles after click without observing scroll/focus/highlight",
+        "milestone": "M3"
+      },
+      {
+        "assertions": [
+          "m6-a11",
+          "m6-a13"
+        ],
+        "finding": "demo fetches one history page without a cursor; no suite sample-50 replay test",
+        "milestone": "M6"
+      },
+      {
+        "assertions": [
+          "m8-a06",
+          "m8-a07"
+        ],
+        "finding": "labels belong to multi-device/offline tests rather than the declared Trending observables",
+        "milestone": "M8"
+      }
+    ]
+  },
+  "createdAt": "2026-09-14T08:10:32Z",
+  "m3a06TimingAudit": {
+    "corrected": {
+      "evidenceTimingsMs": [
+        23,
+        25,
+        22
+      ],
+      "methodFinding": "The corrected tool starts the peer visibility watcher, records t0 immediately before one keypress, awaits the watcher, and stores seenAt minus t0 before typing remaining characters. The final report and trace cite this corrected evidence.",
+      "toolLines": "65-85"
+    },
+    "finalReceivedResult": {
+      "bestOf3Ms": [
+        23,
+        25,
+        22
+      ],
+      "evidence": "evidence/recheck.json (m3-a06); trace.md \u00a76",
+      "method": "web-automation",
+      "note": "Measured from the first keystroke to the peer's sm-convo-typing being visible (re-check with a concurrent watcher; the first run measured only post-typing polling). Observed: m3-a06: {\"note\":\"ms from the first keystroke to the peer indicator being visible\"}",
+      "result": "pass"
+    },
+    "initial": {
+      "correctedEvidence": {
+        "bytes": 1270,
+        "path": "lanes/muse-snapback4/grading/evidence/recheck.json",
+        "sha256": "749a2ecb7cdd5fc4f35b14a3925759a73d2f72e47057617e5fba8fc7cd3ded5c"
+      },
+      "correctedTool": {
+        "bytes": 8234,
+        "path": "lanes/muse-snapback4/grading/tools/recheck.mjs",
+        "sha256": "9987a76e2b167bfb248e715988b6cdf6ab32e39a1c80e4ccb424bd837828890c"
+      },
+      "evidenceTimingsMs": [
+        1,
+        1,
+        0
+      ],
+      "initialEvidence": {
+        "bytes": 2618,
+        "path": "lanes/muse-snapback4/grading/evidence/choreo-grader-m3.json",
+        "sha256": "44437308e346f5942d68b04e1151c46caf5b76804520bb266aa7f71e81692703"
+      },
+      "initialTool": {
+        "bytes": 40153,
+        "path": "lanes/muse-snapback4/grading/tools/choreo-grader.mjs",
+        "sha256": "26577121d8ae270c2e0d86baadee1a91c4dfd51a72655f5498cce7af29506456"
+      },
+      "methodFinding": "The initial tool records tKey before typing 12 characters at 60 ms each, but waits for all typing to finish before it starts polling. It stores only the post-typing polling duration and explicitly multiplies the typing interval by zero. Its note saying first-keystroke latency is not supported by its 1/1/0 ms measurements.",
+      "toolLines": "291-307"
+    },
+    "status": "final result uses corrected method; no verdict recomputation performed"
+  },
+  "modelAndLifecycle": {
+    "allAssistantModelValuesAgree": true,
+    "calibrationPassed": false,
+    "gradeEnd": {
+      "bytes": 374,
+      "path": "logs/muse-snapback4.grade.end.json",
+      "sha256": "ad05a9b37c26edf38fd2ec6a5f846392b9db5aafa3ad906c04ff002146fdce4e"
+    },
+    "gradeOutcome": {
+      "endedAt": "2026-09-14T07:57:08Z",
+      "exitCode": 0,
+      "startedAt": "2026-09-14T07:18:36Z",
+      "wallSeconds": 2312.379
+    },
+    "gradeStart": {
+      "bytes": 957,
+      "path": "logs/muse-snapback4.grade.start.json",
+      "sha256": "a6d563bd4229bddba78ed8d15ddcee324628d2f8477454881331d3f8bd65e2bc"
+    },
+    "sameFamilyGraded": false,
+    "systemInit": {
+      "claudeCodeVersion": "2.1.270",
+      "line": 1,
+      "lineSha256": "97809a309850d5331ce46abe745578c96b1d5bd0ca57cc587f791299676d6303",
+      "model": "claude-opus-5",
+      "permissionMode": "bypassPermissions"
+    },
+    "uncalibratedN1": true
+  },
+  "packagePins": {
+    "capturedBuilderPinReceipt": {
+      "bytes": 1124,
+      "path": "snapshots/muse-continuous/package-pin-verification.json",
+      "sha256": "226ad3f5281ee097e3925f530d02a2c98c65f175e4a3fc5e4e9761d8333b2cae"
+    },
+    "currentFiles": [
+      {
+        "bytes": 639,
+        "declaredSnapbackDependencies": {
+          "snapback4": "^0.2.6"
+        },
+        "path": "package.json",
+        "sha256": "9ce636cda83d05472d66503e298b6ea71dff49f96e26494bea18a2496214af53",
+        "version": "1.0.0"
+      },
+      {
+        "bytes": 1301,
+        "declaredSnapbackDependencies": {},
+        "path": "package-lock.json",
+        "sha256": "5707103c6a705ee99a902bbf8b78fcadce9c022281edd2a6251bbcb6b3e77402",
+        "version": "1.0.0"
+      },
+      {
+        "bytes": 2044,
+        "declaredSnapbackDependencies": {},
+        "path": "node_modules/snapback4/package.json",
+        "sha256": "367937e9d198cfc3f1c949cd3b1de2b2e3262e9a3df085048669331c7012f097",
+        "version": "0.2.6"
+      },
+      {
+        "bytes": 976,
+        "declaredSnapbackDependencies": {
+          "snapback4": "^0.2.6",
+          "snapback4-expo": "^0.2.1"
+        },
+        "path": "app-host/clique/package.json",
+        "sha256": "f2fff600bfbe2b5e9b1c740b3bc90cbdb76f300605f2d6ca92b15f10949d9f77",
+        "version": "1.0.0"
+      },
+      {
+        "bytes": 287329,
+        "declaredSnapbackDependencies": {},
+        "path": "app-host/clique/package-lock.json",
+        "sha256": "65d7a5ba28d157b22d7105161207a03ebb121ccce48db8830cbe681cb3f2a659",
+        "version": "1.0.0"
+      },
+      {
+        "bytes": 2044,
+        "declaredSnapbackDependencies": {},
+        "path": "app-host/clique/node_modules/snapback4/package.json",
+        "sha256": "367937e9d198cfc3f1c949cd3b1de2b2e3262e9a3df085048669331c7012f097",
+        "version": "0.2.6"
+      },
+      {
+        "bytes": 608,
+        "declaredSnapbackDependencies": {},
+        "path": "app-host/clique/node_modules/snapback4-expo/package.json",
+        "sha256": "8b1c763ebd53d577fed529d2c403181cbbdb214cd3cbe77f60078c0b8945951c",
+        "version": "0.2.1"
+      },
+      {
+        "bytes": 639,
+        "declaredSnapbackDependencies": {
+          "snapback4": "^0.2.6"
+        },
+        "path": "grading/work/package.json",
+        "sha256": "9ce636cda83d05472d66503e298b6ea71dff49f96e26494bea18a2496214af53",
+        "version": "1.0.0"
+      },
+      {
+        "bytes": 2044,
+        "declaredSnapbackDependencies": {},
+        "path": "grading/work/node_modules/snapback4/package.json",
+        "sha256": "367937e9d198cfc3f1c949cd3b1de2b2e3262e9a3df085048669331c7012f097",
+        "version": "0.2.6"
+      }
+    ],
+    "expected": {
+      "snapback4": "0.2.6",
+      "snapback4-expo": "0.2.1"
+    },
+    "verdict": "Builder snapshot, lane lockfiles and installed metadata resolve exact snapback4 0.2.6 and snapback4-expo 0.2.1. The isolated grading work uses the same root manifest and installed snapback4 metadata."
+  },
+  "phase": "independent-grade",
+  "rawCli": {
+    "assistantModelCounts": {
+      "claude-opus-5": 251
+    },
+    "bytes": 2742060,
+    "eventTypeCounts": {
+      "assistant": 251,
+      "rate_limit_event": 7,
+      "result": 1,
+      "system": 1860,
+      "user": 134
+    },
+    "lineCount": 2253,
+    "malformedLineNumbers": [],
+    "newlineComplete": true,
+    "path": "logs/muse-snapback4.grade.ndjson",
+    "publicToolUseCounts": {
+      "Bash": 102,
+      "Edit": 4,
+      "Read": 17,
+      "Write": 11
+    },
+    "sha256": "2b6b88eb2c9f646b1e9e712a0382b8807e08b78a3080e8453c72abe605be14b9"
+  },
+  "receivedFiles": {
+    "builderEnd": {
+      "bytes": 367,
+      "path": "snapshots/muse-continuous/muse-snapback4.end.json",
+      "sha256": "b1e1aba56798930e8118481d692355855c1cb4e6349c1f170be0cff64d142b28"
+    },
+    "builderStart": {
+      "bytes": 1113,
+      "path": "snapshots/muse-continuous/muse-snapback4.start.json",
+      "sha256": "980b3c552a2e5ed5840493c694634091cff559a42fbec867705c033b5aa70b22"
+    },
+    "done": {
+      "bytes": 15,
+      "path": "lanes/muse-snapback4/grading/DONE",
+      "sha256": "b02b68cef42fb35c5aa75f70d5b83f57c3e64cb6d63e5259d1c740450204be35"
+    },
+    "gradeEnd": {
+      "bytes": 374,
+      "path": "logs/muse-snapback4.grade.end.json",
+      "sha256": "ad05a9b37c26edf38fd2ec6a5f846392b9db5aafa3ad906c04ff002146fdce4e"
+    },
+    "gradeStart": {
+      "bytes": 957,
+      "path": "logs/muse-snapback4.grade.start.json",
+      "sha256": "a6d563bd4229bddba78ed8d15ddcee324628d2f8477454881331d3f8bd65e2bc"
+    },
+    "helperVerification": {
+      "bytes": 4359,
+      "path": "observed-milestones/muse-exit130-postphase-helper-verification.json",
+      "sha256": "4daf379da26b9646dac44d4320f84d9361714a5d0be690a97ded0eca3c1e908a"
+    },
+    "intervention": {
+      "bytes": 991,
+      "path": "snapshots/muse-continuous/qualifications/muse-background-loop-interruption.json",
+      "sha256": "5443afd335811bbbec64dd61d9f55b34448a840305abe9c4234de87ed92c2405"
+    },
+    "m8": {
+      "bytes": 7343,
+      "path": "lanes/muse-snapback4/grading/m8-assertion-results.json",
+      "sha256": "6cc08be217d09b86a57d24ff787f25cdd7bbf6dc8b922cf940c94e6a3af5c030"
+    },
+    "overrideEnd": {
+      "bytes": 2348,
+      "path": "observed-milestones/muse-grade-exit130-override.end.json",
+      "sha256": "8a45e3c2c623ce2f76d025d89b91a9a86edd6a7c482a3193935c9b0288be36ca"
+    },
+    "overrideStart": {
+      "bytes": 2289,
+      "path": "observed-milestones/muse-grade-exit130-override.start.json",
+      "sha256": "d237ca292a2c7f4ebd2bd6fe3130a5f5e99f20482ebff12e7df23a8f01192633"
+    },
+    "postTerminalAudit": {
+      "bytes": 19808,
+      "path": "snapshots/muse-continuous/qualifications/muse-post-terminal-lifecycle-audit.json",
+      "sha256": "02ebb7fcb2c9fc3ff8bc696d70e73cbe378cb1afc5220e235452c32ac6793cd9"
+    },
+    "report": {
+      "bytes": 49967,
+      "path": "lanes/muse-snapback4/grading/grader-report.json",
+      "sha256": "e4e031cc1757c0a892fd172c9b232588cba2118db6ed55eabd3f6ab517893f88"
+    },
+    "trace": {
+      "bytes": 24634,
+      "path": "lanes/muse-snapback4/grading/trace.md",
+      "sha256": "096712905023f7c081b126ad8ccb22fd5d91f44372916bcefb592ad928d25be6"
+    },
+    "validation": {
+      "bytes": 1728,
+      "path": "observed-milestones/muse-received-grade-validation.json",
+      "sha256": "518326b62fc69af718142db2e7446e9b5de45ad25084434f418c564335efe2c5"
+    }
+  },
+  "receivedResultSummary": {
+    "dimensions": {
+      "O1": {
+        "anchorsCited": "~30: \"core features partially work; several checklist items fail\" (credited state after adjudication); below ~60: \"M1-M4 solid, later milestones patchy or failed on cap\" is not reachable because M2 and M3 checklists score not-passed under the dishonest-mapping adjudication; ~90 requires every in-scope milestone green including platform-proof artifacts, and no milestone has a harness-recorded green receipt.",
+        "justification": "Independent grader execution passed 94/119 assertions (M1 13/13, M2 26/27, M3 14/15, M4 12/12, M5 9/12, M6 5/13, M7 0/9, M8 15/18). O1 credit: dishonest coverage mappings adjudicate M2, M3, M6 and M8 to capability-failure (checklists not-passed) and M7 has not run, leaving 34/119 credited (M1, M4, M5). No choreography receipts, coverage manifest, or simulator artifacts exist, so no milestone is evidenced green; M6/M8 native proofs are absent. Evidence: grader-report assertionResults, m8-assertion-results.json, evidence/coverage-spot-verification.json.",
+        "score": 30
+      },
+      "O2": {
+        "anchorsCited": "between ~30 (\"multiple high-severity defects in core flows\") and ~60 (\"a few medium defects off the happy path\"), nearer 30.",
+        "justification": "Six major defects: d-01 disappearing TTL in milliseconds (M5 feature unusable), d-02 cross-user digest-counter sync leak, d-03 Trending limited to the newest 200 posts, d-04 digest counts ignore read/tombstone/expiry/removal, d-05 concurrent sign-ins refused by the identity limiter, d-06 scale replay on a self-generated reduced log. Minor: d-07 API.md history order, d-08 suite tally masking unrun checks. The main M1-M4 happy paths (auth, feeds, DMs/groups, receipts, media, reactions, edit/delete, windows) behaved correctly under grading, which keeps this above 30.",
+        "score": 40
+      },
+      "O3": null,
+      "O4": null,
+      "O5": {
+        "band": 0,
+        "bandRationale": "First-match branch \"0\": the invariant manifest does not conform. The attempted replay (coverage/scale-replay.json: 36,804 actions, 713 s) replayed a lane-generated reduced log (scale.log sha256 9680fdc1fc2165ee69f94f478aa996fa0cbd027d67cd2b3fd4491c646f38356b, 36,806 lines) rather than the pinned fixture (sha256 b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9, 167,159 lines), and its own verification shows named-fixture mismatches against the frozen envelope (celebrity followers 270 vs 900, probe-user follows 150 vs 500, probe conversations 30 vs 100, busy-group roster 15 vs 50). No holdout performance probes were committed for this wave, so no later branch could be evaluated in any case."
+      }
+    },
+    "m8Supplement18": {
+      "fail": 3,
+      "notApplicable": 0,
+      "notRun": 0,
+      "pass": 15
+    },
+    "preservation": "verdicts and scores retained exactly; audit adds custody/method qualifications only",
+    "prior101": {
+      "fail": 13,
+      "notApplicable": 1,
+      "notRun": 8,
+      "pass": 79
+    },
+    "raw119": {
+      "fail": 16,
+      "notApplicable": 1,
+      "notRun": 8,
+      "pass": 94
+    },
+    "validator": {
+      "exactAssertionPartition": {
+        "complete": 119,
+        "m8": 18,
+        "prior": 101
+      },
+      "schemaValid": true
+    }
+  },
+  "schemaVersion": "clique-grader-public-access-source-custody-audit.v1",
+  "scope": {
+    "examined": "Public Claude stream event types and public tool-use arguments; received sanitized outputs; frozen prompt/schema; lane/source/package/evidence byte custody.",
+    "noPrivateReasoningRead": true,
+    "notExamined": [
+      "assistant private reasoning/text bodies",
+      "raw tool-result contents except separately retained public evidence files needed for method verification",
+      "builder private model bodies"
+    ]
+  },
+  "sourceAndInstrumentCustody": {
+    "canonicalSnapshot": {
+      "allCanonicalFilesStillMatchCurrentLane": true,
+      "currentLaneDifferences": [],
+      "manifest": {
+        "bytes": 51355,
+        "path": "snapshots/muse-continuous/snapshot-manifest.json",
+        "sha256": "b21980770054a865c85080ee5cda679c872b8d9809f063ad7166f6a2f07be1c1"
+      },
+      "sourceFileCount": 195
+    },
+    "instrument": {
+      "allCurrentFilesReadOnly": true,
+      "criticalFiles": [
+        {
+          "bytes": 7286,
+          "path": "instrument/grader/grader-prompt.md",
+          "sha256": "97ce0e44d219c48b7a9dfe16ce26e9f0b90d47b00e09b43acc678cc9e2dfded6"
+        },
+        {
+          "bytes": 15983,
+          "path": "instrument/grader/grader-report.schema.json",
+          "sha256": "82d213374eecdbf47438193a7213dc4e8532b1a1db37204d6c21f352bfac0c30"
+        },
+        {
+          "bytes": 40419,
+          "path": "instrument/schema/social-messenger/assertions.json",
+          "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+        },
+        {
+          "bytes": 117581,
+          "path": "instrument/choreography/choreography.mjs",
+          "sha256": "cc600295f80d40b89910a1bf01eb3c7d8b9c24625c9741035ca3844f80418fcc"
+        }
+      ],
+      "currentFileCountExcludingDependencies": 177,
+      "preGradeBaselineReceipt": {
+        "bytes": 398,
+        "path": "observed-milestones/grok-instrument-integrity-after-builder.json",
+        "sha256": "46491a3b0d902c33a3ab2ab79cc049150545030a8b59a289bf9bdc7ed8dc8450"
+      },
+      "writablePaths": []
+    },
+    "isolatedGradingWork": {
+      "canonicalCompared": 195,
+      "changed": 1,
+      "changedPaths": [
+        "transcript.json"
+      ],
+      "match": 42,
+      "missing": 152,
+      "qualification": "The work copy intentionally contains a subset; transcript.json is generated grading state."
+    },
+    "repositoryBuilderArchive": {
+      "allSourceAndDestinationHashesMatch": true,
+      "fileCount": 34,
+      "manifest": {
+        "bytes": 11309,
+        "path": "benchmarks/runs/2026-09-13-snapback4-clique-0004/muse/COPIED_FILES.json",
+        "sha256": "0c4854f4a1e1319b83aae3aff7af38979fe8e9d3ed64a4d80e279a3b7a7f6d4e"
+      },
+      "verificationFailures": []
+    }
+  },
+  "status": "complete",
+  "wave": "muse"
+}

@@ -1,0 +1,24 @@
+{
+  "observedAt": "2026-09-14T08:06:00.716825+00:00",
+  "copies": [
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/observed-milestones/muse-grade-comparison.json",
+      "destination": "muse-grade-comparison.json",
+      "bytes": 127567,
+      "sha256": "f0e7a92162bef303015e93a79214a30067a32e290579e84414872f9d6a1c65ab"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/observed-milestones/muse-grade-comparison.md",
+      "destination": "muse-grade-comparison.md",
+      "bytes": 5206,
+      "sha256": "266da309a0277e444085bad8a1491b36cd6aeffef02a9aecd1bd98dfe3fdfc9b"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/observed-milestones/muse-grade-client-attribution.md",
+      "destination": "muse-grade-client-attribution.md",
+      "bytes": 10626,
+      "sha256": "0b64ab5bc1cf3903afe52102b68783eebd3baf056daffdbad0073ceff5cc5ef7"
+    }
+  ],
+  "updatedAt": "2026-09-14T08:09:08.958292+00:00"
+}

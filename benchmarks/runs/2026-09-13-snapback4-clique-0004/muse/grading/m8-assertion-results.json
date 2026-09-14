@@ -1,0 +1,128 @@
+{
+  "reportVersion": 1,
+  "lane": "muse-snapback4",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "/Users/ccheever/clique-sb4-20260913-full-3models/instrument/schema/social-messenger/assertions.json",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "logs/suite-run1.log (+ logs/suite-m6-rerun.log for M6) check 'm8-a01'; trace.md §3",
+      "note": "Wire + UI totals for a fresh account (posts 2, likes 1, followers 2); totals are server-computed maintains."
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "evidence/choreo-grader-m8.json (m8-a02); trace.md §6",
+      "note": "Alice's /insights likes-received increments after Bob's like and sm-insights-refresh. Observed: m8-a02: {\"before\":0,\"afterRefreshMs\":1}"
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "evidence/choreo-grader-m8.json (m8-a03 (UI today bucket)); trace.md §6",
+      "note": "Day rows labelled with server UTC dates; today's row carries the post created today. Observed: m8-a03 (UI today bucket): {\"labels\":[\"2026-09-08: 0 posts, 0 likes received\",\"2026-09-09: 0 posts, 0 likes received\",\"2026-09-10: 0 posts, 0 likes received\",\"2026-09-11: 0 posts, 0 likes received\",\"2026-09-12: 0 posts, 0 likes received\",\"2026-09-"
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "evidence/choreo-grader-m8.json (m8-a04); trace.md §6",
+      "note": "Seven sm-insights-day-row rows; six render \"0 posts, 0 likes received\". Observed: m8-a04: {\"rows\":7,\"zeroDays\":6}"
+    },
+    "m8-a05": {
+      "result": "fail",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "evidence/trending-probe.json; snapback/schema.q:421-422; app-host/clique/app/feed.tsx:276-290; trace.md §4",
+      "note": "Correct at low volume (hot post rank 1), but Trending ranks only the newest 200 posts (trendingPool = posts last 200 by byTime, filtered client-side). After 205 newer posts inside the same 24 h the 3-like post left the pool (hotInPool=false) and Trending's #1 had 0 likes."
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "source-inspection",
+      "suiteResult": "pass",
+      "evidence": "app-host/clique/app/feed.tsx:276-290; trace.md §2",
+      "note": "Posts older than 24 h cannot be created without backdating on a fresh instance; the client filters at >= serverNow - 24h (server clock query) and the pool only holds recent posts, so a >24 h post cannot appear. Suite result recorded under label m8-a06 belongs to an unrelated multi-device test."
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "evidence/trending-probe.json; app-host/clique/app/feed.tsx:286; trace.md §4",
+      "note": "Two posts with equal like counts: the newer ranks 2, the older 3 under the app's sort (likes desc, at desc) over /q/trendingPool. Suite label m8-a07 belongs to an unrelated dual-offline test."
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "evidence/digest-probe-periods.json; work/push.log; trace.md §5",
+      "note": "Shortened digest config (120 s); all clients closed (API-only accounts). Target x: exactly one digest {\"newFollowers\":1,\"newPostsInFollowing\":1,\"unreadMessages\":2,\"unreadChats\":1,\"periodEnd\":true}; group recipient: one digest unread 3 / 1 chat. Counter semantics defects (read/tombstoned messages still counted) filed as d-04."
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "evidence/digest-probe-periods.json; trace.md §5",
+      "note": "Idle account and a sender-only account received no digest."
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "evidence/digest-probe-periods.json; trace.md §5",
+      "note": "No digest for the following period with no new activity; exactly one digest in total for the target across both periods."
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "evidence/digest-probe-restart-check.json; logs/pids.txt; logs/backend.log; trace.md §5",
+      "note": "Activity created with ~117 s left in the period; grader backend killed and restarted ~3 s later; exactly one digest for the user; {\"digestLines\":50,\"distinct\":50,\"duplicatedKeys\":0} across push.log."
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "evidence/digest-probe-periods.json; trace.md §5",
+      "note": "Three messages in a group the target is not a member of did not change the target's counts (unread 2 from its own DM). Observation: a member removed after receiving still gets that chat counted (d-04)."
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "evidence/choreo-grader-m8.json (m8-a13); trace.md §6",
+      "note": "Same account on two browser contexts; client-1 UI send renders on client 2 live. Observed: m8-a13: {\"client2Ms\":183}"
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "evidence/choreo-grader-m8.json (m8-a14); trace.md §6",
+      "note": "Both clients show sm-chats-unread; opening the conversation on client 1 clears client 2. Observed: m8-a14: {\"unreadShownOnBothMs\":153,\"client2ClearedMs\":154}"
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "evidence/choreo-grader-m8.json (m8-a15); trace.md §6",
+      "note": "Both contexts offline, one message each (pending shown), reconnect client 1 then client 2; server history and both DOMs show the same arrival order, one copy each. Observed: m8-a15: {\"pendingBadgesWhileOffline\":2,\"serverArrivalFirst\":\"client1\",\"serverCopies\":2,\"client1Dom\":[1,0,2],\"client2Dom\":[1,0,2],\"note\":\"conversation list renders newest first; server-arrival order = at ascending\"}"
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "evidence/choreo-grader-m8.json (m8-a16); trace.md §6",
+      "note": "Recipient opens the DM; both flushed messages' ticks reach read; receipt rows state 2. Observed: m8-a16: {\"bothTicksReadMs\":510,\"receiptRows\":[2,2]}"
+    },
+    "m8-a17": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "evidence": "lane receipts/ (empty); trace.md §7",
+      "note": "No iOS-simulator durable-queue artifact or receipt exists. The lane suite's web persistent-profile variant (m8-a08-pending/pending2/flush) passed in grader execution but is not the native proof."
+    },
+    "m8-a18": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "evidence": "lane receipts/ (empty); trace.md §7",
+      "note": "No iOS-simulator durable-queue artifact or receipt exists. The lane suite's web persistent-profile variant (m8-a08-pending/pending2/flush) passed in grader execution but is not the native proof."
+    }
+  }
+}

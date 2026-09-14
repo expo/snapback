@@ -1,0 +1,76 @@
+{
+  "assertionPartition": {
+    "complete": 119,
+    "priorComparable": 101,
+    "m8CoverageAdded": 18,
+    "priorGap": "The September 5 and September 12 structured assertionResults omitted every M8 ID; notes could contain unstructured M8 observations."
+  },
+  "lanes": {
+    "astra": {
+      "complete119": {
+        "fail": 10,
+        "not-applicable": 0,
+        "not-run": 9,
+        "pass": 100
+      },
+      "priorComparable101": {
+        "fail": 8,
+        "not-applicable": 0,
+        "not-run": 9,
+        "pass": 84
+      },
+      "m8Only18": {
+        "fail": 2,
+        "not-applicable": 0,
+        "not-run": 0,
+        "pass": 16
+      },
+      "report": "lanes/astra-snapback4/grading/grader-report.json",
+      "m8Supplement": "lanes/astra-snapback4/grading/m8-assertion-results.json"
+    },
+    "grok": {
+      "complete119": {
+        "fail": 18,
+        "not-applicable": 0,
+        "not-run": 31,
+        "pass": 70
+      },
+      "priorComparable101": {
+        "fail": 17,
+        "not-applicable": 0,
+        "not-run": 24,
+        "pass": 60
+      },
+      "m8Only18": {
+        "fail": 1,
+        "not-applicable": 0,
+        "not-run": 7,
+        "pass": 10
+      },
+      "report": "lanes/grok-snapback4/grading/grader-report.json",
+      "m8Supplement": "lanes/grok-snapback4/grading/m8-assertion-results.json"
+    },
+    "muse": {
+      "complete119": {
+        "fail": 16,
+        "not-applicable": 1,
+        "not-run": 8,
+        "pass": 94
+      },
+      "priorComparable101": {
+        "fail": 13,
+        "not-applicable": 1,
+        "not-run": 8,
+        "pass": 79
+      },
+      "m8Only18": {
+        "fail": 3,
+        "not-applicable": 0,
+        "not-run": 0,
+        "pass": 15
+      },
+      "report": "lanes/muse-snapback4/grading/grader-report.json",
+      "m8Supplement": "lanes/muse-snapback4/grading/m8-assertion-results.json"
+    }
+  }
+}

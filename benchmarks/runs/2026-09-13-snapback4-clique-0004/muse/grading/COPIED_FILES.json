@@ -1,0 +1,126 @@
+{
+  "authoredFilesExcluded": [
+    "README.md",
+    "COPIED_FILES.json",
+    "external-evidence-references.json"
+  ],
+  "copiedFileCount": 14,
+  "createdAt": "2026-09-14T08:11:31Z",
+  "destinationRoot": "benchmarks/runs/2026-09-13-snapback4-clique-0004/muse/grading",
+  "files": [
+    {
+      "bytes": 49967,
+      "category": "received-grade",
+      "destination": "grader-report.json",
+      "sha256": "e4e031cc1757c0a892fd172c9b232588cba2118db6ed55eabd3f6ab517893f88",
+      "sourcePath": "lanes/muse-snapback4/grading/grader-report.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 7343,
+      "category": "received-grade",
+      "destination": "m8-assertion-results.json",
+      "sha256": "6cc08be217d09b86a57d24ff787f25cdd7bbf6dc8b922cf940c94e6a3af5c030",
+      "sourcePath": "lanes/muse-snapback4/grading/m8-assertion-results.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 24634,
+      "category": "received-grade",
+      "destination": "trace.md",
+      "sha256": "096712905023f7c081b126ad8ccb22fd5d91f44372916bcefb592ad928d25be6",
+      "sourcePath": "lanes/muse-snapback4/grading/trace.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 15,
+      "category": "received-grade",
+      "destination": "DONE",
+      "sha256": "b02b68cef42fb35c5aa75f70d5b83f57c3e64cb6d63e5259d1c740450204be35",
+      "sourcePath": "lanes/muse-snapback4/grading/DONE",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1728,
+      "category": "external-validation",
+      "destination": "validation.json",
+      "sha256": "518326b62fc69af718142db2e7446e9b5de45ad25084434f418c564335efe2c5",
+      "sourcePath": "observed-milestones/muse-received-grade-validation.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 957,
+      "category": "grade-lifecycle",
+      "destination": "muse-snapback4.grade.start.json",
+      "sha256": "a6d563bd4229bddba78ed8d15ddcee324628d2f8477454881331d3f8bd65e2bc",
+      "sourcePath": "logs/muse-snapback4.grade.start.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 374,
+      "category": "grade-lifecycle",
+      "destination": "muse-snapback4.grade.end.json",
+      "sha256": "ad05a9b37c26edf38fd2ec6a5f846392b9db5aafa3ad906c04ff002146fdce4e",
+      "sourcePath": "logs/muse-snapback4.grade.end.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 2348,
+      "category": "qualified-continuation-lifecycle",
+      "destination": "muse-grade-exit130-override.end.json",
+      "sha256": "8a45e3c2c623ce2f76d025d89b91a9a86edd6a7c482a3193935c9b0288be36ca",
+      "sourcePath": "observed-milestones/muse-grade-exit130-override.end.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1113,
+      "category": "builder-lifecycle-qualification",
+      "destination": "muse-builder.start.json",
+      "sha256": "980b3c552a2e5ed5840493c694634091cff559a42fbec867705c033b5aa70b22",
+      "sourcePath": "snapshots/muse-continuous/muse-snapback4.start.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 367,
+      "category": "builder-lifecycle-qualification",
+      "destination": "muse-builder.end.json",
+      "sha256": "b1e1aba56798930e8118481d692355855c1cb4e6349c1f170be0cff64d142b28",
+      "sourcePath": "snapshots/muse-continuous/muse-snapback4.end.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 991,
+      "category": "builder-lifecycle-qualification",
+      "destination": "muse-builder-background-loop-interruption.json",
+      "sha256": "5443afd335811bbbec64dd61d9f55b34448a840305abe9c4234de87ed92c2405",
+      "sourcePath": "snapshots/muse-continuous/qualifications/muse-background-loop-interruption.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 19808,
+      "category": "builder-lifecycle-qualification",
+      "destination": "muse-builder-post-terminal-lifecycle-audit.json",
+      "sha256": "02ebb7fcb2c9fc3ff8bc696d70e73cbe378cb1afc5220e235452c32ac6793cd9",
+      "sourcePath": "snapshots/muse-continuous/qualifications/muse-post-terminal-lifecycle-audit.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 4359,
+      "category": "qualified-continuation-lifecycle",
+      "destination": "muse-exit130-postphase-helper-verification.json",
+      "sha256": "4daf379da26b9646dac44d4320f84d9361714a5d0be690a97ded0eca3c1e908a",
+      "sourcePath": "observed-milestones/muse-exit130-postphase-helper-verification.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 28623,
+      "category": "audit",
+      "destination": "grader-access-source-custody-final.json",
+      "sha256": "5b6db652cec6ef7c841650ee64aded5320feb6b4b4dfd82d3a544ed93dccabed",
+      "sourcePath": "observed-milestones/muse-grader-access-source-custody-final.json",
+      "verifiedByteIdentical": true
+    }
+  ],
+  "schemaVersion": 1,
+  "sourceRoot": "/Users/ccheever/clique-sb4-20260913-full-3models"
+}

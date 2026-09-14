@@ -1,0 +1,507 @@
+{
+  "schemaVersion": "clique-muse-post-terminal-lifecycle-audit.v1",
+  "observedAt": "2026-09-14T05:33:40.980248Z",
+  "status": "point-in-time while driver remained active",
+  "scope": {
+    "log": "logs/muse-snapback4.ndjson",
+    "observedPrefixBytes": 23756249,
+    "observedThroughLine": 25611,
+    "observedPrefixSha256": "ed2ac5bbccb18abb8a55bcddb07ec786b483ad20b8da6e79a725f051e6fc9692",
+    "fieldsInspected": "event/payload types, record time, IDs, task_kind, lifecycle state, terminal/reason, runtime client/command kind, empty-prompt boolean, and structured background execution/session metadata",
+    "fieldsExcluded": "initial/user prompt content except empty-string test, run output text, terminal text, model response bodies, task output chunks except selected structured lifecycle metadata, tool commands, and tool output"
+  },
+  "terminalRuns": [
+    {
+      "line": 25168,
+      "lineSha256": "09eb1279450ef19eafe716b9ba0254e3d27f22bd6cfa851b27dfef5bd3ff719e",
+      "payloadType": "run.terminal.completed",
+      "recordedAt": 1780531400050332,
+      "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+      "commandId": "16863742-fcfb-407f-bd72-5cdcd415164d",
+      "terminal": "completed",
+      "reason": null,
+      "terminalTextInspected": false
+    },
+    {
+      "line": 25330,
+      "lineSha256": "2c322cf0346a7e27737f487fd1636e6fab408b87aa82998768669cc11ba791cb",
+      "payloadType": "run.terminal.completed",
+      "recordedAt": 1780531400050653,
+      "runStream": "01a09e61-ccda-7c02-a0f7-0372944ae258",
+      "commandId": "01a09e61-ccda-7c02-a0f7-0372944ae258",
+      "terminal": "completed",
+      "reason": null,
+      "terminalTextInspected": false
+    },
+    {
+      "line": 25611,
+      "lineSha256": "c80d9df805761f1f01d4009a4f14b20bdaa2bbed4c28a00a02c320ebdf6e184f",
+      "payloadType": "run.terminal.completed",
+      "recordedAt": 1780531400051212,
+      "runStream": "01a09e65-b215-7ec0-a97c-e6405b84079b",
+      "commandId": "01a09e65-b215-7ec0-a97c-e6405b84079b",
+      "terminal": "completed",
+      "reason": null,
+      "terminalTextInspected": false
+    }
+  ],
+  "automaticBackgroundTerminalSubmissions": [
+    {
+      "line": 25169,
+      "lineSha256": "522bd3ee543cba77d1790d05530482b933df4b00ce10097f20eca7cfbac4bc83",
+      "payloadType": "runtime.command.accepted",
+      "recordedAt": 1780531400050333,
+      "runStream": null,
+      "clientId": "muse-runtime-background-terminal",
+      "commandId": "01a09e61-ccda-7c02-a0f7-0372944ae258",
+      "commandKind": "turn.submit"
+    },
+    {
+      "line": 25331,
+      "lineSha256": "67c83490ef63ce50044c7f1ff51b55864abf6cd75b0d7b8c7731c4ffc036d8e9",
+      "payloadType": "runtime.command.accepted",
+      "recordedAt": 1780531400050654,
+      "runStream": null,
+      "clientId": "muse-runtime-background-terminal",
+      "commandId": "01a09e65-b215-7ec0-a97c-e6405b84079b",
+      "commandKind": "turn.submit"
+    }
+  ],
+  "postTerminalUserTurns": [
+    {
+      "line": 25172,
+      "lineSha256": "515c1e525fade505ed07f21ccda3eb6fcc7dc81acf34a0997e4809138f9876fa",
+      "payloadType": "turn.input.user",
+      "recordedAt": 1780531400050337,
+      "runStream": "01a09e61-ccda-7c02-a0f7-0372944ae258",
+      "commandId": "01a09e61-ccda-7c02-a0f7-0372944ae258",
+      "promptWasEmpty": true,
+      "promptContentRetained": false
+    },
+    {
+      "line": 25334,
+      "lineSha256": "d81bb81159474d3cc5f05a07da5e1d5dad3ebeb9ad158bcbe628ee03cf9becfa",
+      "payloadType": "turn.input.user",
+      "recordedAt": 1780531400050658,
+      "runStream": "01a09e65-b215-7ec0-a97c-e6405b84079b",
+      "commandId": "01a09e65-b215-7ec0-a97c-e6405b84079b",
+      "promptWasEmpty": true,
+      "promptContentRetained": false
+    }
+  ],
+  "backgroundRunningToolReturns": {
+    "count": 17,
+    "events": [
+      {
+        "line": 1633,
+        "lineSha256": "aa9db929e74aed6b8f617595a8a2106f916500c179d3d06b5abef93b92626828",
+        "payloadType": "task.lifecycle.output",
+        "recordedAt": 1780531400003262,
+        "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+        "taskId": "01a09d6c-e3f7-7c52-8f0a-86a1c79ba4f8",
+        "executionState": "background_running",
+        "sessionId": 39,
+        "workId": "work.v1.managed_bash.sha256.a0632f25f04ab177ad0df42f1dda75fd18a753848646e07a6ab707761774a51b"
+      },
+      {
+        "line": 1972,
+        "lineSha256": "02aa26b99e87de2f42be801f420b0f889627f342825f9353aad19b11fb874f83",
+        "payloadType": "task.lifecycle.output",
+        "recordedAt": 1780531400003940,
+        "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+        "taskId": "01a09d6f-30d0-7ff3-8d2d-f3fe5fad91f2",
+        "executionState": "background_running",
+        "sessionId": 49,
+        "workId": "work.v1.managed_bash.sha256.bb222601115f3751a86c12c0d5ffc75634036e53e7c5897a5dd4604658cfbfbb"
+      },
+      {
+        "line": 4643,
+        "lineSha256": "87a1a0b78239a2e901a0fc99fe6fdf9e1c106825d45c12776ce0715517a6c5a0",
+        "payloadType": "task.lifecycle.output",
+        "recordedAt": 1780531400009282,
+        "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+        "taskId": "01a09d7b-9a69-79d2-8b50-dabb19a434b9",
+        "executionState": "background_running",
+        "sessionId": 114,
+        "workId": "work.v1.managed_bash.sha256.f2c5d5045e65edb930675e9dd9c795d901e45b76d075571d60f7521b313adda5"
+      },
+      {
+        "line": 4871,
+        "lineSha256": "a072443f2d15b605af98c9cf88deda728efd8a9751ba8258af97cfcea67c91bf",
+        "payloadType": "task.lifecycle.output",
+        "recordedAt": 1780531400009738,
+        "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+        "taskId": "01a09d7d-276a-75d1-9093-e56d9a1172e1",
+        "executionState": "background_running",
+        "sessionId": 123,
+        "workId": "work.v1.managed_bash.sha256.8384291d49b1778eef9c8ec793105b94cbfec0b54fa2b7987a8882318a5e5350"
+      },
+      {
+        "line": 6721,
+        "lineSha256": "7753a2c987dd59cf31a07ca8195eb16c63908cedaa53e9e9e1ce60812a022dc0",
+        "payloadType": "task.lifecycle.output",
+        "recordedAt": 1780531400013438,
+        "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+        "taskId": "01a09d86-95e7-76b3-a3e9-11a44ff829a5",
+        "executionState": "background_running",
+        "sessionId": 184,
+        "workId": "work.v1.managed_bash.sha256.3a53b05f04be566c59bbb87f356c2acddf55508415cc8bb8bf4412bcf3b663b2"
+      },
+      {
+        "line": 21276,
+        "lineSha256": "d552c90417aa7b20ff32fdb85c9f45571e147fdf5d641410a7ca1531bf5b7bb1",
+        "payloadType": "task.lifecycle.output",
+        "recordedAt": 1780531400042548,
+        "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+        "taskId": "01a09dfb-ac4e-7b32-ac84-8beb5965474a",
+        "executionState": "background_running",
+        "sessionId": 575,
+        "workId": "work.v1.managed_bash.sha256.aedb2678141c4450bc468078a1b39b5e4dbfe1e70e8e858f7748257216dd4bf7"
+      },
+      {
+        "line": 21561,
+        "lineSha256": "5aef78889171331b53ff92c059395fdaeef241437a3bbd3a8d7b009c56c3dbdb",
+        "payloadType": "task.lifecycle.output",
+        "recordedAt": 1780531400043118,
+        "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+        "taskId": "01a09e01-9b85-72a0-affe-e601a1ec7a66",
+        "executionState": "background_running",
+        "sessionId": 585,
+        "workId": "work.v1.managed_bash.sha256.c9db34096558566514a047008f6fa45b3d39b1fbf6d361118ae013cacb138f4d"
+      },
+      {
+        "line": 22031,
+        "lineSha256": "6d4c8b130bc9f47290ec31086bf80e6819d1dfa06ac530d65cbd0f83132f9b59",
+        "payloadType": "task.lifecycle.output",
+        "recordedAt": 1780531400044058,
+        "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+        "taskId": "01a09e0b-8006-7283-bba3-d820bfa4d0de",
+        "executionState": "background_running",
+        "sessionId": 596,
+        "workId": "work.v1.managed_bash.sha256.db354146a1dac21737ed45ddafdc88b73b796c9f31065c75a34f6ddf4f8e0a08"
+      },
+      {
+        "line": 22492,
+        "lineSha256": "66b65a9488c88864cdeed91f8dc30ac0308318191873371a5acf997b7e2f87a1",
+        "payloadType": "task.lifecycle.output",
+        "recordedAt": 1780531400044980,
+        "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+        "taskId": "01a09e1a-3190-7e90-bb72-04897f2b25a6",
+        "executionState": "background_running",
+        "sessionId": 611,
+        "workId": "work.v1.managed_bash.sha256.a6c82eea0a863872bbbdc3a8be90dc2ca0f305d9f6bafb5588f6fda4406d01f6"
+      },
+      {
+        "line": 22699,
+        "lineSha256": "537d2268a2f934ac434626c0175cceb6d5d7d8f2470d465a9f5d455c38d0243b",
+        "payloadType": "task.lifecycle.output",
+        "recordedAt": 1780531400045394,
+        "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+        "taskId": "01a09e28-2ec7-7260-806b-94008a3b234a",
+        "executionState": "background_running",
+        "sessionId": 616,
+        "workId": "work.v1.managed_bash.sha256.a40ad5f32c6436c527bd9ca1aac87c04d6ee3b4d4dca0f5d2af9c10799e60a90"
+      },
+      {
+        "line": 22828,
+        "lineSha256": "738ec23ba818b57bdb8621ef393e9a6f8ba3bfb7c555c2c0bf9da3a4936e1228",
+        "payloadType": "task.lifecycle.output",
+        "recordedAt": 1780531400045652,
+        "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+        "taskId": "01a09e35-a4ec-7c32-a5c0-f7243be90d97",
+        "executionState": "background_running",
+        "sessionId": 620,
+        "workId": "work.v1.managed_bash.sha256.0068005398cb26c3ed2bda69532203aa121a378b4658325bf5f0172f11935ae6"
+      },
+      {
+        "line": 24396,
+        "lineSha256": "465ed996bf4296185acdcdbf84ce23ed1db14b529b1587e6b0e5d661bd76b7e3",
+        "payloadType": "task.lifecycle.output",
+        "recordedAt": 1780531400048788,
+        "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+        "taskId": "01a09e4d-dfdc-7512-b044-cc15d3c75821",
+        "executionState": "background_running",
+        "sessionId": 669,
+        "workId": "work.v1.managed_bash.sha256.94f4c4f139658cb1221de5da4fcb6c45d4a7e69ac27769b2569a1243b47a4002"
+      },
+      {
+        "line": 24453,
+        "lineSha256": "79fdfeb8b552a581550f11da6c2b4eb277024e24b19f4e2f2bc511afcc1e0286",
+        "payloadType": "task.lifecycle.output",
+        "recordedAt": 1780531400048902,
+        "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+        "taskId": "01a09e4e-9663-7751-8fc4-9368dc97f2e6",
+        "executionState": "background_running",
+        "sessionId": 671,
+        "workId": "work.v1.managed_bash.sha256.e596cbfc02e489b38f1448d46f0116f29ca3258a5402a0bfc6b69cf3b7d9e596"
+      },
+      {
+        "line": 24584,
+        "lineSha256": "a5c91c5eee6227da3c04c93cce3a18515ea7066d2438b11fe9b0876996aca1c6",
+        "payloadType": "task.lifecycle.output",
+        "recordedAt": 1780531400049164,
+        "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+        "taskId": "01a09e57-e70c-7530-89af-13362875e356",
+        "executionState": "background_running",
+        "sessionId": 676,
+        "workId": "work.v1.managed_bash.sha256.0d564b4f0782d7e55916681561e4072b8a83822a98b8b5b03f98324e68e79660"
+      },
+      {
+        "line": 25358,
+        "lineSha256": "54948d3b8df767b289ab56b151b9460855bbe3f2ea2b01195d2078cbbabce465",
+        "payloadType": "task.lifecycle.output",
+        "recordedAt": 1780531400050706,
+        "runStream": "01a09e65-b215-7ec0-a97c-e6405b84079b",
+        "taskId": "01a09e65-c52b-7741-b2d6-5a19881882c7",
+        "executionState": "background_running",
+        "sessionId": 685,
+        "workId": "work.v1.managed_bash.sha256.1f61a24d74e57d98cc31c112ddefd76272f3355440e68ca988624dd8774a9449"
+      },
+      {
+        "line": 25383,
+        "lineSha256": "f6d9ac1a53bbe3ebc85745ab724f7c65d9cb588e073bd9c244131e32c84d27c0",
+        "payloadType": "task.lifecycle.output",
+        "recordedAt": 1780531400050756,
+        "runStream": "01a09e65-b215-7ec0-a97c-e6405b84079b",
+        "taskId": "01a09e66-26ae-7753-b7cc-683f080a3229",
+        "executionState": "background_running",
+        "sessionId": 686,
+        "workId": "work.v1.managed_bash.sha256.a4769b6f8cb207da4ab963b4ed26be8c2476a4e47bc2aadea81e4c0e31bb00e2"
+      },
+      {
+        "line": 25433,
+        "lineSha256": "896b2d57c75eb513bc653abcf3c32584203060a5426315552ed74161375c3c90",
+        "payloadType": "task.lifecycle.output",
+        "recordedAt": 1780531400050856,
+        "runStream": "01a09e65-b215-7ec0-a97c-e6405b84079b",
+        "taskId": "01a09e66-c9f7-7680-8777-cf0b73d6e9be",
+        "executionState": "background_running",
+        "sessionId": 688,
+        "workId": "work.v1.managed_bash.sha256.8a3ce902a873b86e44a7a8eb1bdc00287d78eae0916de87ca8e2592d7b64f6a5"
+      }
+    ]
+  },
+  "runTaskFinalStatesAtObservation": [
+    {
+      "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+      "taskKinds": {
+        "model.meta.response": {
+          "completed": 955
+        },
+        "reminder.agent.goal-reminder": {
+          "completed": 2
+        },
+        "reminder.agent.skill-reminder": {
+          "completed": 619,
+          "rejected": 336
+        },
+        "reminder.agent.todo-reminder": {
+          "completed": 188,
+          "rejected": 3
+        },
+        "reminder.agent.verify-reminder": {
+          "completed": 2
+        },
+        "tool.bash": {
+          "completed": 662,
+          "failed": 13,
+          "output": 14
+        },
+        "tool.edit_file": {
+          "completed": 225,
+          "failed": 1
+        },
+        "tool.read_file": {
+          "completed": 34
+        },
+        "tool.read_skill": {
+          "completed": 2
+        },
+        "tool.search": {
+          "completed": 5
+        },
+        "tool.write_file": {
+          "completed": 64
+        },
+        "tool.write_todos": {
+          "completed": 13
+        }
+      }
+    },
+    {
+      "runStream": "01a09e61-ccda-7c02-a0f7-0372944ae258",
+      "taskKinds": {
+        "model.meta.response": {
+          "completed": 3
+        },
+        "reminder.agent.goal-reminder": {
+          "completed": 1
+        },
+        "reminder.agent.skill-reminder": {
+          "completed": 3
+        },
+        "reminder.agent.verify-reminder": {
+          "completed": 1
+        },
+        "tool.bash_input": {
+          "completed": 2
+        }
+      }
+    },
+    {
+      "runStream": "01a09e65-b215-7ec0-a97c-e6405b84079b",
+      "taskKinds": {
+        "model.meta.response": {
+          "completed": 9
+        },
+        "reminder.agent.goal-reminder": {
+          "completed": 1
+        },
+        "reminder.agent.skill-reminder": {
+          "completed": 9
+        },
+        "reminder.agent.todo-reminder": {
+          "completed": 1
+        },
+        "reminder.agent.verify-reminder": {
+          "completed": 1
+        },
+        "tool.bash": {
+          "output": 3,
+          "completed": 4
+        },
+        "tool.bash_input": {
+          "completed": 1
+        }
+      }
+    }
+  ],
+  "nonterminalTasksAtObservation": [
+    {
+      "taskId": "01a09d6c-e3f7-7c52-8f0a-86a1c79ba4f8",
+      "taskKind": "tool.bash",
+      "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+      "lastLifecycleLine": 1633,
+      "lastLifecycleState": "output"
+    },
+    {
+      "taskId": "01a09d6f-30d0-7ff3-8d2d-f3fe5fad91f2",
+      "taskKind": "tool.bash",
+      "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+      "lastLifecycleLine": 1972,
+      "lastLifecycleState": "output"
+    },
+    {
+      "taskId": "01a09d7b-9a69-79d2-8b50-dabb19a434b9",
+      "taskKind": "tool.bash",
+      "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+      "lastLifecycleLine": 4643,
+      "lastLifecycleState": "output"
+    },
+    {
+      "taskId": "01a09d7d-276a-75d1-9093-e56d9a1172e1",
+      "taskKind": "tool.bash",
+      "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+      "lastLifecycleLine": 4871,
+      "lastLifecycleState": "output"
+    },
+    {
+      "taskId": "01a09d86-95e7-76b3-a3e9-11a44ff829a5",
+      "taskKind": "tool.bash",
+      "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+      "lastLifecycleLine": 6721,
+      "lastLifecycleState": "output"
+    },
+    {
+      "taskId": "01a09dfb-ac4e-7b32-ac84-8beb5965474a",
+      "taskKind": "tool.bash",
+      "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+      "lastLifecycleLine": 21276,
+      "lastLifecycleState": "output"
+    },
+    {
+      "taskId": "01a09e01-9b85-72a0-affe-e601a1ec7a66",
+      "taskKind": "tool.bash",
+      "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+      "lastLifecycleLine": 21561,
+      "lastLifecycleState": "output"
+    },
+    {
+      "taskId": "01a09e0b-8006-7283-bba3-d820bfa4d0de",
+      "taskKind": "tool.bash",
+      "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+      "lastLifecycleLine": 22031,
+      "lastLifecycleState": "output"
+    },
+    {
+      "taskId": "01a09e1a-3190-7e90-bb72-04897f2b25a6",
+      "taskKind": "tool.bash",
+      "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+      "lastLifecycleLine": 22492,
+      "lastLifecycleState": "output"
+    },
+    {
+      "taskId": "01a09e28-2ec7-7260-806b-94008a3b234a",
+      "taskKind": "tool.bash",
+      "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+      "lastLifecycleLine": 22699,
+      "lastLifecycleState": "output"
+    },
+    {
+      "taskId": "01a09e35-a4ec-7c32-a5c0-f7243be90d97",
+      "taskKind": "tool.bash",
+      "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+      "lastLifecycleLine": 22828,
+      "lastLifecycleState": "output"
+    },
+    {
+      "taskId": "01a09e4d-dfdc-7512-b044-cc15d3c75821",
+      "taskKind": "tool.bash",
+      "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+      "lastLifecycleLine": 24396,
+      "lastLifecycleState": "output"
+    },
+    {
+      "taskId": "01a09e4e-9663-7751-8fc4-9368dc97f2e6",
+      "taskKind": "tool.bash",
+      "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+      "lastLifecycleLine": 24453,
+      "lastLifecycleState": "output"
+    },
+    {
+      "taskId": "01a09e57-e70c-7530-89af-13362875e356",
+      "taskKind": "tool.bash",
+      "runStream": "16863742-fcfb-407f-bd72-5cdcd415164d",
+      "lastLifecycleLine": 24584,
+      "lastLifecycleState": "output"
+    },
+    {
+      "taskId": "01a09e65-c52b-7741-b2d6-5a19881882c7",
+      "taskKind": "tool.bash",
+      "runStream": "01a09e65-b215-7ec0-a97c-e6405b84079b",
+      "lastLifecycleLine": 25358,
+      "lastLifecycleState": "output"
+    },
+    {
+      "taskId": "01a09e66-26ae-7753-b7cc-683f080a3229",
+      "taskKind": "tool.bash",
+      "runStream": "01a09e65-b215-7ec0-a97c-e6405b84079b",
+      "lastLifecycleLine": 25383,
+      "lastLifecycleState": "output"
+    },
+    {
+      "taskId": "01a09e66-c9f7-7680-8777-cf0b73d6e9be",
+      "taskKind": "tool.bash",
+      "runStream": "01a09e65-b215-7ec0-a97c-e6405b84079b",
+      "lastLifecycleLine": 25433,
+      "lastLifecycleState": "output"
+    }
+  ],
+  "assessment": {
+    "restartCause": "The two runs after terminal completion were submitted by client_id muse-runtime-background-terminal, each as turn.submit with an empty user prompt. They were runtime-managed background-terminal continuations, not a human/root prompt.",
+    "completedWork": "Every model.meta.response task in each already terminal-completed run had a completed final lifecycle state.",
+    "globalQuiescence": "Not reached at this observation: a later background-terminal continuation run existed and had nonterminal task lifecycle state.",
+    "teardownInterpretation": "The metadata is consistent with normal Muse managed-shell continuation behavior after background_running bash returns. Because a continuation was active, PID persistence at this point cannot be classified as a teardown hang.",
+    "captureGate": "Wait for the foreground driver to exit and for its lifecycle end receipt to report exitCode 0."
+  }
+}

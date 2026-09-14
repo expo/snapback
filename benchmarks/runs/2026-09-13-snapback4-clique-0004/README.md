@@ -10,7 +10,9 @@ and driver wall time is 17,657.686 seconds, including the continuation tail.
 [Holistic scores](./holistic/README.md) are complete: Astra 84, Grok 70, Muse 80
 (mean 78). Astra's received independent grade is 100 pass / 10 fail / 9 not-run
 across 119 assertions. Grok's received grade is 70 pass / 18 fail / 31 not-run.
-Muse grading is active; the three fresh M7 runs remain pending.
+Muse's received grade is 94 pass / 16 fail / 8 not-run / 1 not-applicable.
+[All three baseline grades](./grades/summary.md) are complete and structurally
+validated. Astra's fresh M7 is active; Grok and Muse M7 remain pending.
 All three lanes are frozen to published `snapback4@0.2.6` and
 `snapback4-expo@0.2.1`. `REGISTRY_RECEIPTS.json` confirms that registry integrity
 matches the exact qualified tarballs, including the platform binary.
@@ -95,7 +97,8 @@ frozen log that the builder did not select and the copied choreography it did
 not execute. A [clock observation](./muse-runlog-clock-observation.json)
 records handwritten epochs ahead of observer wall time. Receipt clocks,
 builder-written times, and driver time including the runtime continuation loop
-remain separate. Independent grading and fresh M7 sessions remain incomplete.
+remain separate. All three baseline grades are complete; fresh M7 sessions
+remain in progress.
 
 The separate [Grok client attribution audit](./grok-client-attribution-audit.md)
 identifies mutation return values as a documented client limitation. Static
@@ -112,9 +115,9 @@ that ticket retains the builder evidence with attribution still unresolved.
 
 | Lane | M1 | M2 | M3 | M4 | M5 | M6 | M8 | Continuous wall | Holistic score | Independent 119 | Comparable 101 subtotal | Fresh M7 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Astra medium | builder green | builder green | builder green | builder green | builder green | builder green | builder green | 9,614.013 s | 84 | 100 pass / 10 fail / 9 not-run | 84 pass / 8 fail / 9 not-run | pending |
+| Astra medium | builder green | builder green | builder green | builder green | builder green | builder green | builder green | 9,614.013 s | 84 | 100 pass / 10 fail / 9 not-run | 84 pass / 8 fail / 9 not-run | active |
 | Grok 4.6 xhigh | web green | web green | capability failure | blocked; partial API suite | blocked; partial API suite | blocked; scale incomplete | blocked; partial API suite | 12,499.350 s | 70 | 70 pass / 18 fail / 31 not-run | 60 pass / 17 fail / 24 not-run | pending |
-| Muse Spark 1.3 xhigh | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | 17,657.686 s; includes interrupted runtime continuation | 80 | pending | pending | pending |
+| Muse Spark 1.3 xhigh | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | 17,657.686 s; includes interrupted runtime continuation | 80 | 94 pass / 16 fail / 8 not-run / 1 not-applicable | 79 pass / 13 fail / 8 not-run / 1 not-applicable | pending |
 
 Astra's grade passed the frozen schema and exact 101+18 assertion partition.
 Its 18 M8 results are 16 pass / 2 fail; all nine not-run results are pre-evolution
@@ -172,6 +175,31 @@ builder archive instead retains a short real attempt that stopped without
 completing the frozen replay or verifying invariants. Its lack of a qualifying
 scale receipt is established; the received wording and O5=null remain
 unchanged and carry this qualification.
+
+Muse's grader exited zero after 2,312.379 seconds. It reports 79 pass / 13 fail /
+8 not-run / 1 not-applicable on the comparable 101 IDs, plus 15 pass / 3 fail
+for M8. Its O1=30 applies coverage adjudication to M2, M3, M6 and M8, leaving
+34/119 credited separately from 94 raw passes. O2=40, O3/O4=null, and O5 band=0
+because the reduced replay does not meet the frozen corpus invariants. Its
+[exact Muse comparison](./muse-grade-comparison.md) records 79 current passes
+versus 75 on the prior Snapback2 run, plus one conditional M7 classification
+change from not-run to not-applicable. The [completed Muse grade audit](./muse/grading/README.md)
+verifies coverage adjudication, citations, source custody, and package pins.
+It records the use of fresh browser checks when the frozen harness failed at
+sign-in, and the corrected typing measurement used in the final grade.
+All verdicts remain as received.
+
+The [Muse attribution audit](./muse-grade-client-attribution.md) found no new
+product defect in its five reviewed clusters. Private digest metadata was
+exposed because the app explicitly declared those tables `public` and
+`sync public`. Its five-way login failure matches the documented two Argon2
+slots; the app discards structured retryability and the harness does not retry.
+The TTL unit conversion, recent-pool Trending, and unreconciled digest counts
+are application logic defects. These qualifications do not change the grade.
+
+Astra's fresh M7 started at `2026-09-14T07:58:39Z` with the same Astra medium
+model and a single 14,400-second cap. The baseline grades above precede this
+schema-evolution work; M7 evidence and outcome will be retained separately.
 
 The [holistic scorers](./holistic/summary.md) use their own builders' narratives, so their diagnoses are
 not independent technical findings. Astra charged pending metadata loss that
