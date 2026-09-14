@@ -246,3 +246,52 @@ All 669 archived source files matched before/after except the one exact
 reviewed helper override; all owned groups exited zero and were observed
 absent, with no cleanup failure. The unexecuted V1 helper's local archive
 preflight refusal remains separate from these successful V2 test runs.
+
+
+## Remaining setup cost — 2026-09-14: aggregate-presence scan
+
+The performance lane ran all fourteen `page_admission` tests individually
+on the same prepared M4 Pro and pinned 0.2.11 source plus the landed
+observation-helper change. All fourteen passed. Their separate harness
+durations total 32.83 s; the dominant case is
+`w4_live_maintain_existence_walk_has_one_probe_with_zero_or_nine_thousand_expired_sources`
+at **20.44 s**. The target-only Cargo build reported `fresh=false` and
+produced a different debug artifact from the full workspace run. These
+separate-process observations are not a new full-suite measurement.
+
+A five-second stack sample, starting about 34 ms after that test's launch,
+places all 3,667 worker observations inside `Engine::seed`. Of those,
+3,393 (92.53%) are under `aggregate_source_present`; 2,317 are decoding
+rows within its scan. These categories overlap and must not be summed.
+The main thread's 3,667 waits are separate. The exact sampled test passed
+in 20.24 s, and both the target and sampler exited zero with absent owned
+process groups. That observer-affected time is not a speedup comparison;
+the early sample establishes neither whole-test CPU shares nor product
+request latency.
+
+The source requests and eagerly decodes up to 256 rows to establish that
+an expiring zero-sum group still has a physical source, then returns on
+the first matching row. The core-owner follow-up is an exact-prefix or
+first-witness lookup that avoids unnecessary materialization. Preserve
+expired physical sources, typed keys, fallback indexes, last-source
+deletion, post-upsert visibility, errors, meters and the complete paired
+observations. Current main `206650f29` additionally applies
+`schema::row_image` before comparing maintained keys; literal defaults
+must remain effective. That current-source inspection does not relabel
+the sampled 0.2.11 executable or prove a safe implementation. This
+periphery lane has not changed the engine or reduced either privacy world.
+The P0 stays open until the complete warm suite is qualified within budget.
+
+Evidence in `.llp/ship-runs/sb4-performance-20260913/`:
+`write-observation-slow-tests-profile-v1-public/` retains 33 files and the
+fourteen exact passes; independent audit SHA-256
+`801984a85d375a1118b27d2dd39956f6a7c4f1cc4cb77c7b23402e9304894e2f`.
+`write-observation-maintain-sample-v2-public/` retains six files, including
+sample SHA-256
+`42371fd68600d2b2b9dbe989489462bf87f020878521a5112b11a7ffa35a3628`.
+Its independent tree-accounting audit is
+`0fc10522216e2722d4ce585ffaafe128a55990ccd102469be4b39444b1c080f0`.
+All 669 source files were producer-checked before and after each diagnostic.
+The review preserves an initial local calculator failure on zero-weight
+wrapper frames and its accounting-only correction; no workload was rerun
+for that correction. Root rehashed all fifteen sample-audit bindings.

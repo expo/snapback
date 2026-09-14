@@ -4956,3 +4956,16 @@ online write was sent, and an offline write stayed pending. npm served
 xcframework rebuilt in 74 s, and `snapback4-expo@0.2.4` was served at 16:57
 UTC. The receipt line is in `metrics/publish.jsonl`. The ceremony bar's
 fourth run and the Astra calibration run on this pin.
+
+
+## 2026-09-14 — locate the remaining maintained-sum setup cost
+
+The performance lane's fourteen separate page-admission tests all pass;
+one expired-source maintained-sum case takes 20.44 s. An independently
+accounted five-second startup sample puts all 3,667 test-worker observations
+inside seeding, with 3,393 under aggregate-source presence. The presence
+check eagerly decodes a page before returning on its first matching row.
+The [open suite-budget ticket](../issues/20260913-snapback4-blocking-suite-over-60-seconds.md)
+records the exact old-source artifact and the core-owner follow-up,
+including current main's literal-default handling. No core edit, smaller
+privacy world or new full-suite timing follows from this diagnosis.
