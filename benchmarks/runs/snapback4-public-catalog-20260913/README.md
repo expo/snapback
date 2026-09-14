@@ -2089,3 +2089,25 @@ The candidate has lower p50 medians in all 18 C8 cases, but **13 of 21 C1 cases 
 Hot-point and 150-group feed-next C1 p50 regress in all three pairs; thread-first C1 regresses in two. C8 retains five p99-median losses, including 150-group feed working set, 61.705 → 63.858 ms. The largest individual observations are 306.769 ms baseline and 193.058 ms candidate, in different cases. Every raw statistic and median/paired loss remains in the evidence records.
 
 The candidate remains experimental; no setting was adopted after these serial-read regressions. OS cache was retained without resets and residency was unmeasured; full proofs/walks preceded the repeated cases. It does not isolate a Node upgrade from the earlier runs, pool per-request quantiles, rerun comparators, or establish a Darwin, device, write, memory-pressure, durability or universal performance result.
+
+### Bounded request-worker reuse on Darwin, Node 24.21.0
+
+On Durand M4 Pro, three alternating pairs (84–86, baseline/candidate, candidate/baseline, baseline/candidate) compared the retained published Darwin 0.2.8 CLI with an isolated candidate that reuses bounded request workers. Both used Node 24.21.0/Undici 7.29.1, ordinary built-in fetch, identical SQLite flags (`-USQLITE_ENABLE_MEMORY_MANAGEMENT`) and MEMSTATUS on. The same 100,000-message fixture and original guest sessions were restored for each fresh server. All 117,000 case calls, 7,020 excluded warmups and 162 complete walks/33,510 separately timed pages passed exact results, auth/denial, full fixture, leave/old-cursor and same-session regrant checks; reported errors were zero. Smoke samples are excluded.
+
+These counts compare medians of three reported run statistics, not pooled request percentiles:
+
+| Candidate improvement | Case medians /39 | Paired cases /117 | Traversal medians /27 |
+| --- | ---: | ---: | ---: |
+| Lower p50 | 39 | 116 | 25 |
+| Lower p95 | 38 | 102 | 24 |
+| Lower p99 | 32 | 85 | 25 |
+| Lower max | 22 | 65 | 22 |
+| Higher throughput | 38 | 106 | 25 |
+
+One case p99 median tied; the other uncounted comparisons are losses. The 150-group PointWorkingSet C1 p95 rose **0.236→0.285 ms**, with throughput **4,642.8→4,555.7 requests/s**. Five-group FeedNext C8 p99 rose **4.863→9.999 ms**. Seventeen case median maxima rose; 150-group hot-point C1 max rose **0.333→2.894 ms**. The only paired p50 loss was 150-group ThreadFirst C1 in trial 85 (**0.343→0.351 ms**). Worst individual case observations were 20.375 ms baseline and 19.360 ms candidate. Every statistic and regression remains in the annotated records. Traversal timing is separate; one-page empty controls and four-page thread walks provide few tail observations, and walk throughput includes exact checks outside individual request timers.
+
+After all measurements/proofs and a 6.5-second quiet interval, idle medians were **3→11 total threads** and **21,584→24,688 KiB RSS** (+3,104 KiB); virtual size rose 17,840 KiB. These are whole-process point observations, not peak memory or pure worker-stack attribution. Background maintenance remained active; OS cache was retained without measured residency.
+
+The original build's unsupported method and stale-timestamp test reuse, and the first smoke's idle ps-parser failure, are preserved separately and excluded. They were corrected before formal timing. The corrected build passed 27 CLI tests, a separate rerun of the focused reuse witness, one existing store-policy test and production compilation; it did not run the full workspace/client/publication path. Panic recovery is evidenced only in unwinding tests; production still uses `panic=abort`. At this checkpoint the candidate remains unadopted pending Linux evidence. No comparator, cross-platform, device, write, durability, memory-pressure or universal improvement claim follows.
+
+The appended storage records retain both platform build qualifications and their failed first receipts, followed by all six Darwin formal records. The Darwin candidate is `bc8d2fc79b05d5065265684b11cd4d4dc7c925d89e88fd684d6ceb680dee37bb` (6,984,080 bytes), built from archived 0.2.8 with the two recorded source overrides; qualification `7e1b6a9ba2b89cec505dd04ef4688ecf4f2c2fdec5d00faea35857b84956cf12`. Controller `3c2beb6c3fcc0301c1e0375e218e1dda7b4b4011338037e971d29313a1a41840`, independent summary `f37be13fc326d61a9717640e07e67019efb6f02993051361451ef937fa2a60c1`, and reviewed raw records bind the results. Retained public artifacts are under `.llp/ship-runs/sb4-performance-20260913/request-workers-node2421-http/`; the first failed smoke and build rounds have separate directories under the same ship-run root.
