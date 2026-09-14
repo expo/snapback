@@ -61,6 +61,17 @@ pub(super) fn edit(sources: &[(String, String)], index: usize, diagnostic: &Diag
     if !diagnostic.mechanical { return None; }
     let (_, source) = &sources[index];
     let start = offset(source, diagnostic.site.line, diagnostic.site.col)?;
+    // @ref LLP 3000.007#19.3 — replace only the exact two adjacent equality symbols, rechecked outside strings and comments.
+    if diagnostic.code == "E_QUARRY_SYNTAX" && diagnostic.message == "equality is = in Quarry" && diagnostic.rewrite == "=" {
+        let actual = tokens(source);
+        let at = actual.iter().position(|t| offset(source, t.site.line, t.site.col) == Some(start))?;
+        let pair = actual.get(at..at + 2)?;
+        if pair.iter().any(|t| t.kind != Kind::Symbol || t.value != "=")
+            || offset(source, pair[1].site.line, pair[1].site.col) != Some(start + 1)
+            || !source[start..].starts_with("==") || source[start + 2..].starts_with('=')
+            || source[..start].ends_with('=') { return None; }
+        return Some((index, start, start + 2, "=".into()));
+    }
     // @ref LLP 3000.007#18.5 — exact repairs for missing indexes, argument once, wildcard repeats and empty operation parentheses
     if let Some(repair) = discovery_edit(sources, index, diagnostic, start) { return Some(repair); }
     if diagnostic.code == "E_QUARRY_AMBIGUOUS" {

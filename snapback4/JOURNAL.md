@@ -4989,3 +4989,73 @@ promising prediction the binder refuses; it recurred from 0.2.10. The
 other is a helper whose early `return` drops its page's cursor while the
 page reads complete, which I reproduced in 12 rows and filed as P1. Both
 are the next landing's work; §18.7 records the numbers.
+
+## 2026-09-14 — lane N3: guessed equality costs one repair
+
+Implemented LLP 3000.007 §19.3 in the expression parser and `check --fix`.
+The parser records a mechanical refusal at the first of exactly two adjacent
+`=` symbols and continues parsing the comparison and helper. Compilation
+still stops before binding. The fixer rechecks the original symbol tokens
+at that exact site, outside strings and comments, then changes only `==`
+to `=`. Stale sites and `===` receive no equality repair. The language card
+and package README name the spelling; the P3 ticket is closed.
+
+The regression was red on base `ce15819ad71bd24c9d1b9ec228c083330dee3a31`
+(0 passed, 1 failed), then green (1 passed, 0 failed). One guessed operator
+previously produced 3 diagnostics; now it produces 1. The six-line helper
+fixture's before diagnostics, verbatim:
+
+```text
+schema.q:2:9 — E_QUARRY_SYNTAX: expected expression, got "="
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+schema.q:3:1 — E_QUARRY_SYNTAX: expected expression, got "<indent>"
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+schema.q:1:1 — E_QUARRY_SYNTAX: a fn body ends with return
+  rewrite: end the helper with `return expr` or a bare `return`
+  guide: language
+```
+
+After, verbatim:
+
+```text
+schema.q:2:8 — E_QUARRY_SYNTAX: equality is = in Quarry
+  rewrite: = — check --fix applies it
+  guide: language
+```
+
+After `check --fix`, the corrected helper compiles with 0 diagnostics and
+0 notes. Tests cover expression bodies, conditions, bindings, guards,
+objects, arrays, rules and filters, plus 2 comparisons on one line in each
+of 2 files (4 replacements), preserving Unicode, CRLF, strings and comments
+byte-exactly. `!=` still compiles unchanged and its positive runtime control
+returns true. For `query q():` followed by `  return 1 === 1`, the unchanged,
+non-mechanical diagnostics are:
+
+```text
+schema.q:2:13 — E_QUARRY_SYNTAX: expected expression, got "="
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+schema.q:1:1 — E_QUARRY_SYNTAX: query q has an empty body
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+```
+
+Targeted checks: `cargo test -p snapback4-lang --test guide --test repairs`
+passed 9 guide and 6 repair tests; `cargo test -p snapback4 --test fix`
+passed 18. With Node 24.18.0 on PATH, `bash snapback4/scripts/test.sh`
+reported `== 1 failure(s) in 207 s`: Rust passed 477, failed 0, ignored 1;
+fixture tests passed 9; client tests passed 135 and failed 1, Chromium
+SIGABRT in `react.test.mjs`. The isolated command
+`node --test packages/snapback4/test/react.test.mjs` also passed 0 and
+failed 1 with SIGABRT, matching the brief's named sandbox artifact; no
+independent unchanged-base suite was run and no pre-existing-failure claim
+is made. `./ref-check --verbose` passed with 0 errors and 0 unchecked;
+the largest changed code file is 1,407 lines. No meter, serialized value,
+existing corpus case, helper runner or residency code changed.
+
+What I learned: recovery can keep the helper's complete structure while
+the recorded diagnostic still blocks compilation. Rechecking full-source
+tokens matters even for a two-byte edit: matching a source substring alone
+would also match an operator inside a newly edited string or comment.

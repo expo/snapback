@@ -17,6 +17,13 @@ impl Parser {
                 break;
             }
             self.position += 1;
+            // @ref LLP 3000.007#19.3 — recover through guessed equality without admitting an alias or cascading through its block.
+            let adjacent_equals = |next: &Token, col| next.kind == Kind::Symbol && next.value == "=" && next.site.line == token.site.line && next.site.col == col;
+            if token.kind == Kind::Symbol && token.value == "=" && adjacent_equals(self.peek(), token.site.col + 1)
+                && !adjacent_equals(self.peek_at(1), token.site.col + 2) {
+                self.diagnostics.push(syntax_with(&token.site, "equality is = in Quarry", "=").mechanical());
+                self.position += 1;
+            }
             let right = self.expression(precedence + u8::from(token.value != "??"), stops)?;
             left = Expr::Binary { op: token.value, left: Box::new(left), right: Box::new(right), site: token.site };
         }
