@@ -884,6 +884,14 @@ time-ordered 128-bit form.
   the implementation lands on four passes where ruling 15 asked for two,
   with a final GPT-only check against the landed commit.
 
+- **2026-09-14 — write authority landed on four passes; a fifth GPT-only
+  check against the landed commit found one channel W4's repair introduced
+  (short-circuit probe counts on a denied verdict).** LLP 3000.007 §17
+  records it and its fix, a schema-derived probe allowance for the
+  verdict; lane W5 builds it forward on main. Published as 0.2.10 with
+  `snapback4-expo@0.2.3`; the ceremony bar's third run and the three-model
+  Clique cell run on that pin.
+
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal
