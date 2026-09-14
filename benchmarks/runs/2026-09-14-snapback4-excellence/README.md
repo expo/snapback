@@ -1,6 +1,6 @@
 # Snapback 4 excellence increment — 2026-09-14
 
-Source base: `5ec0a75a2db71ba4f7b764eacb89cf1501ec0c14`. Frozen integrated implementation reviewed: `17bde96d80ab5b5b520feb2c0a8ee234bc1d42cd`. The program follows [LLP 3000.008](../../../llp/3000.008-holistic-product-excellence.rfc.md). Later fixture/evidence-only changes and delivered source are identified below.
+Source base: `5ec0a75a2db71ba4f7b764eacb89cf1501ec0c14`. Frozen integrated implementation reviewed: `17bde96d80ab5b5b520feb2c0a8ee234bc1d42cd`. The program follows [LLP 3000.008](../../../llp/3000.008-holistic-product-excellence.rfc.md). Later corrections, qualification snapshots and delivered source are identified below.
 
 Charlie requested the usual panel, including the author, then implementation of directionally sound work using Astra. Independent Astra, Grok4.6, MuseSpark1.3 and ClaudeFable5.1 reviews all returned READY WITH CHANGES. The author pass is separate, not a fifth independent vote. The six RFCs reconcile already shipped work, retain LLP3000.007 ownership and select a finite completion increment. Their review artifacts preserve the received findings and disclose formatting-only normalization.
 
@@ -230,3 +230,52 @@ both returned READY with no must-fix finding. Grok's first attempt exhausted
 its turn limit without a verdict; the fresh completed review is the one
 recorded. The earlier unpublished tarball remains counterevidence and is
 not reused for release. Actual publication follows source landing.
+
+## Later main integration and worker finding corrected
+
+The separately owned LLP 3000.007 §19 program landed at `a300ca605` while
+Expo delivery was completing. Its presence, helper-pagination and `==`
+corrections reserve client 0.2.15 / Expo 0.2.6, preserving this program's
+already qualified 0.2.14 / Expo 0.2.5 snapshots. Its source, tests and independent
+review records are retained as that program's evidence. The final native
+script correction and its receipts landed on that main at `89bebd246`.
+No claim that this program qualified the newer runtime follows from that merge.
+
+That landing also improves the original worker diagnosis. A killed child's
+still-authenticated long poll could claim new work for nobody to receive.
+The short-lease fixture was a diagnostic workaround and is superseded by
+`0380b3ae6`: `dev` gives each child its own service session and revokes it on
+exit, so the orphaned poll fails reauthentication. `a300ca605` restores the
+reference worker's production 60 s lease / 25 s poll in the crash test; the
+owning lane records three passing runs. The earlier review's broad statement
+that the fixture concealed no product defect was too strong. Its received
+words and this program's 0.2.14 measurements are preserved, with this explicit
+correction; the supervision repair belongs to the later 0.2.15 source.
+
+The root integration changes only the already-reviewed native build setting
+relative to that newer product. Its actual artifact qualification remains
+bound to the earlier 0.2.14 runtime, not whichever version main later carries.
+
+## Completion
+
+The target-corrected `snapback4-expo@0.2.5` is published and its registry
+SHA-512/SHA-1 match the qualified tarball. [Its publication receipt](./publication-expo-0.2.5.json)
+binds the 0.2.14 runtime, source/script lineage and actual bytes. Native apps
+must rebuild with this module to receive this increment's acquisition repair.
+The separately owned 0.2.15 / Expo 0.2.6 source includes later language fixes;
+those versions are not relabeled as this program's tested artifacts.
+
+The selected LLP 3000.008 increment is Implemented. Its five children retain
+the accepted scope and evidence, and their six working-set links are removed.
+Broader excellence remains unproven: 11.28 s cold acquisition on this fixture,
+physical/native and complete application coverage, the 60 s suite budget,
+production restore continuity and a concrete second application remain gaps.
+The final qualified suite took 110 s with zero failures; existing ignored
+coverage and the earlier Office failure remain visible in their records.
+
+All eight owned lane/fleet worktrees are removed after preserving unique
+commits, source, metrics, failed-run logs and measured artifacts. Branch refs
+remain. Verified recovery copies also live in the original checkout's ignored
+`.llp/ship-runs/sb4-excellence-20260914-artifacts/`; cleanup never touches
+another session's working tree. The integration worktree is removed only
+after the final documentation lands and the clean original main fast-forwards.
