@@ -6782,3 +6782,142 @@ claiming. The printed token stays valid for the developer. After: the worker
 tests 5 of 5, three runs in a row. External `serve` workers still recover
 through lease expiry, as documented.
 
+## 2026-09-14 — holistic product excellence: an umbrella and five children
+
+Charlie asked whether Snapback 4 was holistically excellent, beautiful,
+ergonomic, elegant and performant, then requested an LLP and a child for each
+of the assessment's five gaps. [LLP 3000.008](../llp/3000.008-holistic-product-excellence.rfc.md)
+records the answer: a coherent implemented foundation and a credible path,
+with whole-application ergonomics and evidence still uneven. Its five Draft
+RFC children cover ordinary Quarry programming, understandable data placement,
+the client experience, whole-application performance, and dependable composition
+and broader usefulness.
+
+The family references the existing residency and relaxed-language drafts rather
+than re-parenting them. It distinguishes static capability from current device
+coverage, flags filtering/cursor disclosure and exact-ranking semantics for
+resolution, treats documented client workarounds as ergonomic evidence, and
+requires actual-client and operational evidence for the claims those models
+cannot establish. Retained benchmark numbers keep their original versions and
+limits. No new benchmark, product test, runtime implementation or publication
+was performed for this documentation task.
+
+All six new drafts are linked into `llp/current/`. The non-hidden working-set
+count was already 60 against the declared 59-document cap and is now 66. This
+requested document family does not raise that cap or archive another session's
+in-progress proposals to make the count green; working-set curation remains
+outstanding. Root LLP 3000 and drafts 3000.006/3000.007 link the new agenda.
+
+Documentation validation: all 76 local Markdown links in the six drafts,
+their anchors, required metadata and current symlinks pass. The existing
+reference checker restricted to tracked source plus the six new drafts reports
+480 LLPs, 8,732 references, zero errors and zero unchecked. The unmodified
+whole-tree `./ref-check --verbose` reports 42 errors in ignored
+`.llp/ship-runs/` logs and retained instrument copies; none is in this change.
+Whitespace validation passes. These are documentation checks, not new product
+qualification.
+
+## 2026-09-14 — membership feed query CPU and wall time
+
+The performance lane completed and independently audited an instrumented
+0.2.10 Office run: 18,432 HTTP calls and all 2,304 selected traces passed.
+At 150 groups/C8, first/rotating feed query CPU averaged 5.898/7.817 ms and
+query wall 10.557/16.154 ms, accounting for 78.9%/85.5% of server wall. The
+residual does not identify an internal lock or I/O cause. The older partial
+capture remains failed; no smoke or partial trace entered these statistics.
+
+The [performance record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
+retains the result and limits. The [core-owner follow-up](../issues/20260914-snapback4-membership-feed-query-cost.md)
+starts with a current-source measurement: 0.2.12 added work on these query
+paths, so the old diagnostic is not a current-release claim. No core edit,
+result/authority cache, ceiling change or new performance win follows yet.
+
+
+## 2026-09-14 — confirm the feed query bottleneck on 0.2.12
+
+The performance lane repeated the bounded Office diagnostic on fixed
+`206650f29` (0.2.12): all 18,432 requests and 2,304 selected traces passed,
+with full fixture/auth checks and independently audited cleanup. At 150
+groups/C8, first/rotating feed query wall averages 11.138/17.293 ms and
+accounts for 84.7%/82.5% of server wall. At C1 the query interval is about
+99.7% thread CPU. The residual does not identify an internal wait cause.
+
+The [performance record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
+preserves the current and historical measurements separately. The
+[core-owner follow-up](../issues/20260914-snapback4-membership-feed-query-cost.md)
+now calls for internal query cost decomposition. No core code, authority
+cache, ceiling or client contract changed, and no new speedup is claimed.
+
+
+## 2026-09-14 — encode sync replies from their existing values
+
+The performance lane extends the existing borrowed query-wire encoding to
+snapshot and stream replies. Each reply owns its original events, borrows
+their plain values during serialization, and drops the rows before socket
+I/O. Full wire fields, explicit nulls, event order, held/joined groups,
+acknowledgements, cursors and the bounded response writer are unchanged.
+No core, reader, transaction, auth or client-contract change is involved.
+
+On fixed 0.2.12 source, six native Linux A/B runs passed all 9,600 timed
+calls and their ordinary-auth/full-page proofs. A 4,000-event first snapshot
+at C1 falls 38.832 → 25.873 ms p50 and 45.992 → 28.541 ms p95. C8 first-page
+p50 is effectively flat, and stream C8 p99/maximum regress about 10%.
+The [comparison record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
+preserves every gain and loss; a [tail follow-up](../issues/20260914-snapback4-sync-concurrent-tail-latency.md)
+remains open. These warm source-built measurements do not establish device,
+realtime, cold-cache or competitor performance.
+
+The actual native production qualification passed 71/73 baseline/candidate
+CLI tests; both variants passed the HTTP bounds suite (nine reported tests,
+including eight nested cases) and 32 normalized ordinary-auth response pairs. Two independent formal calculations reconcile.
+The failed V1 smoke and first independent calculator attempt remain excluded
+and retained. The source and evidence have independent reviews; publication
+qualification and registry verification are separate work.
+
+## 2026-09-14 — Clique's expiry receipt can pass before expiry
+
+Recording the 0.2.10 three-model cell found a false-positive M5 expiry
+receipt. Muse's final choreography passed after 46.459 seconds, but an
+independent read-only inspection found the exact probe message still stored
+with a 24-hour TTL. The frozen packet supplies shortened grading windows;
+the lane used production windows and a 45-second adapter wait. The probe
+checks for absent bubbles after relaunch without establishing that their
+data has loaded. Its original pass is retained and qualified, not rewritten.
+The [benchmark ticket](../issues/20260914-clique-expiry-choreography-can-pass-with-unexpired-row.md)
+and selected-field evidence separate that insufficient measurement from an
+engine expiry defect. No frozen instrument or product code changed;
+independent grading has begun, and the M7 phases remain pending.
+
+## 2026-09-14 — Awaited browser admission survives page closure in a reduced control
+
+Muse's Clique essay attributed a settings/navigation loss to the SDK's
+outbox. A reduced published-0.2.10 Chromium control awaited an offline
+mutation with default IndexedDB persistence, closed the page as its next
+asynchronous action, recovered the one queued mutation from a new page and
+committed one row on reconnect. It used no keepalive or write-through path.
+The [follow-up ticket](../issues/20260914-snapback4-muse-navigation-outbox-loss-needs-reproduction.md)
+retains that counterexample and asks for the full app flow's admission and
+navigation ordering. The received app bug, workaround and scorer's charge
+remain recorded; the broad durability claim is not established. No product
+or frozen benchmark code changed.
+
+
+## 2026-09-14 — published 0.2.13: borrowed sync replies
+
+The performance lane's unchanged publisher completed from `d81381a98` at
+23:10:55 UTC. It passed 474 Rust, 146 reported client and 9 fixture tests,
+zero failures and one existing ignored Rust test, in 130 s. The existing
+suite-budget follow-up remains open; this release is no new timing comparison.
+The production binary is 7,893,696 B, SHA-256
+`096b464f9a9afb3e0ec8b6ad64b0dd29558897b60fba65c2c0847aa97e4963e8`.
+The installed CLI/version/digest and TypeScript checks passed; the mock
+consumer asserted ready/fresh query rows, online sent and offline pending.
+
+Both npm packages' 0.2.13 archives matched the tested bytes by 23:14:28 UTC.
+The first platform metadata request returned 404 and is retained; a read-only
+retry verified it, with no second publication. Both owned process groups
+ended, the temporary credential was removed and the 700-file source check
+passed. The unchanged receipt is in `metrics/publish.jsonl`; the
+[performance record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
+preserves qualification details and the sync A/B's separate measured identities.
+Concurrent stream-tail and many-group-feed follow-ups remain open.

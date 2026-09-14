@@ -7,19 +7,40 @@
 **Scheduled check:** `web`
 **Host:** M1MacBookPro14in2021Office
 **First red:** `3e01ba3e3329f0117d8d4220e756c445676b2311` (2026-09-13)
-**Last red:** `8da50fa4f801320d349cd8d3f754249f60f2fb26` (2026-09-14)
+**Last red:** `ec15bba44ba81cda9ae1c7bbc10569a1c1caba94` (2026-09-14)
 **Last green before it:** `93be9f23614bcc2bdb35d41cefac35baa92f9d5f`
 
 ## Evidence and impact
 
 <!-- scheduled failure -->
-`cd snapback2 && node scripts/witness-web.mjs` exited 1 at `8da50fa4f` on M1MacBookPro14in2021Office; the full output is in `/Users/ccheever/.snapback2-scheduled/logs/web.log` there.
+`cd snapback2 && node scripts/witness-web.mjs` exited 1 at `ec15bba44` on M1MacBookPro14in2021Office; the full output is in `/Users/ccheever/.snapback2-scheduled/logs/web.log` there.
 
-    FAIL witness
-    Error: partial history to coherent composite remounted the pinned bubble
-        at main (file:///Users/ccheever/.snapback2-scheduled/repo/snapback2/scripts/witness-web.mjs:1357:42)
+    FAIL 256/257 live capacity and sustained no-poll delivery
+    page.evaluate: TypeError: Failed to fetch
+        at eval (eval at evaluate (:291:30), <anonymous>:4:28)
+        at UtilityScript.evaluate (<anonymous>:293:16)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+        at sharedSessions (/Users/ccheever/.snapback2-scheduled/repo/snapback2/scripts/witness-web.mjs:581:33)
+        at async main (/Users/ccheever/.snapback2-scheduled/repo/snapback2/scripts/witness-web.mjs:1419:5)
         at async file:///Users/ccheever/.snapback2-scheduled/repo/snapback2/scripts/witness-web.mjs:1440:1
-    {"name":"witness-web","kind":"witness","verdict":"fail","steps":[{"name":"a real account signs in through the starter's form","verdict":"pass","detail":{"principal":"user:1lNJfOmPCJEeuoE3-43b7Q"}},{"name":"seed, drain, and open three chats …
+    ok   a follower's sends are durable rows: queued at once, bubbles in order, the composer still enabled — {"rows":[{"intent":"inbox:1","state":"queued","ids":0,"inbox":1},{"intent":"inbox:2","state":"queued","ids":0,"inbox":2}],"bubbles":["1…
+    ok   a reload shows the device's queued rows from durable state before any network request — {"mutationRequests":0,"rows":["inbox:1","inbox:2"],"bubbles":["1018.004 durable oneSending… · Awaiting confirmation","1018.004 durable twoSending… …
+    ok   the writer admits durable rows in key order; each executes exactly once; the follower reads the ledger entries — {"admitted":[{"intent":"s2id-91d3c87ca9b2b664eb71c1415b9a2cd1-0000000000003c01:417","inbox":1,"state":"committed","body":"…
+    ok   a follower's dismissal is a durable command the writer consumes; both tabs' history agree — {"dismissed":"s2id-91d3c87ca9b2b664eb71c1415b9a2cd1-0000000000003c01:417"}
+    ok   writer readiness before going offline — {"status":{"ready":true,"reason":"ready","action":"none","remaining":0,"fence":"inside"},"post":{"ready":true,"reason":"ready","action":"none","remaining":0,"fence":"inside"},"entries":[{"op":"_d…
+    ok   writer readiness after going offline — {"status":{"ready":true,"reason":"ready","action":"none","remaining":0,"fence":"inside"},"post":{"ready":true,"reason":"ready","action":"none","remaining":0,"fence":"inside"}}
+    ok   both tabs durably enqueue through the one offline writer — {"origins":["writer","follower","writer"],"intents":["s2id-91d3c87ca9b2b664eb71c1415b9a2cd1-0000000000003c01:627","s2id-91d3c87ca9b2b664eb71c1415b9a2cd1-0000000000003c01:731","…
+    ok   takeover observation — {"status":{"ready":true,"reason":"ready","action":"none","remaining":4,"fence":"inside","draining":true},"entries":[{"op":"_delivery.deliveries.ack","args":{"events":["1d7d0b4b7a3a5592c00206dcb59fae7a8e743d3a4a28…
+    ok   closing the writer transfers its Web Lock and one cross-tab FIFO queue; the new writer admits the row left behind and commits — {"replayIntents":["s2id-91d3c87ca9b2b664eb71c1415b9a2cd1-0000000000003c01:627","s2id-91d3c87ca9b2b664eb71c1…
+    FAIL two offline tabs share one durable queue and transfer writer ownership
+    AssertionError [ERR_ASSERTION]: the deletion completed beneath the third tab's connection: its fresh partition holds no ledger
+    
+    1 !== 0
+    
+        at sharedSessions (file:///Users/ccheever/.snapback2-scheduled/repo/snapback2/scripts/witness-web.mjs:885:10)
+        at async main (file:///Users/ccheever/.snapback2-scheduled/repo/snapback2/scripts/witness-web.mjs:1419:5)
+        at async file:///Users/ccheever/.snapback2-scheduled/repo/snapback2/scripts/witness-web.mjs:1440:1
+    {"name":"witness-web","kind":"witness","verdict":"fail","steps":[{"name":"a real account signs in through the starter's form","verdict":"pass","detail":{"principal":"user:AS9yagP3DytP5lIF5yHAGw"}},{"name":"seed, drain, and open three chats …
 <!-- /scheduled failure -->
 
 Commits touching `snapback2/` since that green run, newest first (at most 20):

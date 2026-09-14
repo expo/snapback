@@ -1,0 +1,15 @@
+check: ok — 1 tables (1 synced), 2 operations, no problems, 2 notes, 0.7 ms
+note: schema.q:2:1 — N_NO_HORIZON: table notes: `sync to .principal` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start
+  rewrite: sync to .principal last 500 by byPrincipal
+  guide: sync
+
+note: schema.q:9:1 — N_NO_CURSOR: query mine returns a page of 20 notes rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — mine(.., c: cursor ?): return notes[..] after c last 20 by <index>
+  guide: reads
+
+residency (facts)
+  notes: sync to .principal
+operations (facts)
+  add: predicts: eligible
+  mine: runs: device
+    Held: scan notes by byPrincipal: held, no horizon (site programs.mine.0)
