@@ -91,7 +91,33 @@ The first cold Office M1 publication dry-run refused after 656 s, with five
 deadline failures across Rust and client groups. Host load reached 107 on
 ten CPUs; a sample caught the unchanged large maintained-source test running
 inside seed/upsert, while three controlled CLI launches took 15–25 ms. Those
-observations do not prove a single cause for every failure. No package was
-built or published after that refusal. A warmed, isolated M5 qualification
+observations do not prove a single cause for every failure. No publication tarball was produced and nothing was published by that attempt. A warmed, isolated M5 qualification
 uses four build jobs and a task-local descriptor limit of 4,096; its complete
 result and final delivery receipt are appended when available.
+
+### Qualified Darwin and Expo artifacts
+
+The isolated warm M5 run of `node scripts/publish.mjs --dry-run` passed in
+271.13 s. Its full canonical suite had zero failures in 136 s, including
+166 client tests with zero skips; production build, tarballs and installed
+consumer proof passed. It used Node 24.18.0, Rust 1.97.0, four build jobs,
+`RLIMIT_NOFILE=4096` and the publication SQLite flag. No deadline, assertion
+or test concurrency was changed. The reviewed semantic delta is `17bde96d`
+plus the exact worker fixture, with the final README prose copied before pack.
+The [qualification receipt](./darwin-qualification.json) binds each artifact.
+
+The [Expo artifact receipt](./expo-artifact.json) identifies 0.2.5's two iOS
+arm64 slices, headers/module maps, podspec, packed contents, real C consumer
+links and Swift C-module imports. Apple's `nm` could not read some newer LLVM
+bitcode; actual links on both targets passed, so that inspection limitation
+was not turned into a claimed link failure or a simulator-runtime pass.
+Native apps need `snapback4-expo@0.2.5` and a rebuilt native binary to receive
+the acquisition repair; updating JavaScript alone does not update Rust.
+
+Grok's separate worker-fixture review also returned READY, matching Sol. The
+short fixture lease exercises designed lease-expiry recovery; it does not
+change the production abandoned-claim delay.
+
+The exact qualified tarballs are published after source landing, without
+rebuilding or changing their bytes. Their registry identities and integrity
+checks are recorded in the delivery receipt when publication completes.

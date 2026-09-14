@@ -1,0 +1,33 @@
+{
+  "candidate": "17bde96d80ab5b5b520feb2c0a8ee234bc1d42cd",
+  "fixtureSha256": "978dad03561a07775896e1714b7b506bbfcdb7d8b77ace3e0a83c0affeb6ce53",
+  "package": "snapback4-expo",
+  "version": "0.2.5",
+  "deviceRustVersion": "0.2.13",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "profile": "production opt-level=z, strip -S -x",
+  "sqliteBuildFlags": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+  "slices": [
+    {
+      "identifier": "ios-arm64",
+      "sha256": "f4dda04daf77ef7711e5bc661dfb5be9cfdd8dcfd75f29df0d490d516b848285",
+      "swiftImport": "passed",
+      "fiveFunctionCConsumerLink": "passed",
+      "consumerSha256": "9e78853ded317d581be31b1296221abf0ba8758a5818ef9dbce3d3ac3acae810"
+    },
+    {
+      "identifier": "ios-arm64-simulator",
+      "sha256": "2d96eff89128bb8cccec9c565e66196842658ced89f5a135316740fcd98a49a7",
+      "swiftImport": "passed",
+      "fiveFunctionCConsumerLink": "passed",
+      "consumerSha256": "8a00d069d978c0d585687357dfe2f9c6783bf7a79f6b5e040e38c63ddd679fa3"
+    }
+  ],
+  "tarball": "/tmp/sb4-excellence-release-expo.tYgqLJ/snapback4-expo-0.2.5.tgz",
+  "sha256": "8685703d593a139bdac807c7c9f5d90e2cf42cd903b3e999c02dd14674da3bbb",
+  "integrity": "sha512-9PmMIB0osyGQqaf0cOqo4QQfYigLl+TfFJPYJc3nHFbzhzevxybmBhb+rqofUCD6ijvhg7AsRQK7Xcv46N9CSA==",
+  "bytes": 4948709,
+  "files": 13,
+  "xcodeNm": "Apple LLVM21 cannot inspect some Rust LLVM22 compiler_builtins bitcode; real C consumer links passed on both targets",
+  "limits": "C consumer links, Swift C-module imports, architecture, podspec and packed contents checked; no simulator/device runtime or complete Expo app/module build"
+}
