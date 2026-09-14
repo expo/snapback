@@ -1990,3 +1990,24 @@ Each table cell is **fetch / node:http**, in milliseconds, pooling 4,000 success
 Node HTTP had lower pooled means/p50s in four of six cases and lower pooled p95/p99/max in all six, but C8 point and thread means were higher. Across 24 matched round/case pairs, HTTP was lower in 17 means/p50s, 22 p95s/p99s and 21 maxima. C8 point p50 was higher in all four rounds; point and thread means were higher in three of four. Remaining tail regressions are retained: round 2 C8 point max +27.08%; round 1 C8 thread p99 +11.45% and max +0.53%; round 2 C8 thread p95 +4.20%; round 3 C8 feed mean +1.97%, p95 +19.23%, p99 +23.66% and max +0.82%. The largest successful observation was fetch C1 thread at 19.0320 ms. This complete diagnostic does not erase the earlier failed server-tracing attempts or identify their socket-close cause.
 
 The four rounds selected 4,000 unique point rows and 1,111 feed pages from domains of 30,000/1,500; thread requests repeat the first page of `g020`. The clients have different native pooling, framing and decoding, and separate pool histories; fetch alone performed preparation, while both received block warmups. OS cache was retained without resets, residency unmeasured. These are complete client-path observations on one host, not isolated network/server/decoder costs or a general adoption, comparator, browser/device, write, durability or WAN conclusion.
+
+### 0.2.8 fetch lifecycle diagnosis — instrumented client observations
+
+One Durand M4 Pro run completed on 2026-09-14 at 00:54:57 UTC using the unchanged published 0.2.8 CLI (`92db0d86…`, 6,967,520 B), Node 24.18.0 and its bundled Undici 7.28.0. Eight rounds alternated C1/C8 order for point, first-thread-page and working-feed-page queries: all 48 blocks × 1,000 selected requests passed exact response checks. All 48,000 IDs had exactly one of each five captured events (240,000 observations, captureErrors 0); observed order was create, sendHeaders, bodySent, responseHeaders, trailers throughout. The validator did not require that order. Load completion, capture validation and same-process/same-session after-verification each passed separately; owned server cleanup and outer exit were successful.
+
+Pooled mean milliseconds from local library observations (8,000 selected requests per row):
+
+| Case | Start→create | Create→sendHeaders | SendHeaders→responseHeaders | ResponseHeaders→trailers | Trailers→JSON endpoint | Complete JSON endpoint |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| pointC1 | 0.1168 | 1.2720 | 1.5437 | 0.0218 | 0.1017 | 3.0561 |
+| threadC1 | 0.1240 | 1.2848 | 2.3827 | 0.0255 | 0.1530 | 3.9700 |
+| feedC1 | 0.0519 | 1.2737 | 3.9385 | 0.0102 | 0.0604 | 5.3347 |
+| pointC8 | 0.0169 | 0.8358 | 1.5380 | 0.0031 | 0.0142 | 2.4079 |
+| threadC8 | 0.0163 | 0.9106 | 2.6671 | 0.0032 | 0.0237 | 3.6209 |
+| feedC8 | 0.0182 | 1.0258 | 5.1004 | 0.0034 | 0.0210 | 6.1688 |
+
+The separate sendHeaders→bodySent means were 0.1415/0.1570/0.0509 ms for C1 point/thread/feed and 0.0153/0.0152/0.0166 ms for C8. ResponseHeaders→the fetch-headers endpoint means were 0.0697/0.0777/0.0316 ms for C1 and 0.0097/0.0099/0.0104 ms for C8; this is a separate branch from response-body completion. Signed differences were retained without clamping. Complete JSON endpoint maxima were 19.226/36.298/34.403 ms for C1 point/thread/feed and 14.980/8.678/13.120 ms for C8. The record retains all per-block and pooled p50/p95/p99/max observations, including the 36.298 ms thread C1 request in round 5.
+
+The 1,440 warmups and 1,500 preparation feed pages were excluded from selected counts. Selected requests visited 5,555 of 30,000 point keys and 1,259 of 1,500 feed pages; the thread case repeated one 50-row page. Before and after verifiers added 18 untimed complete walks/3,730 pages plus auth/cursor checks, using the same previously issued sessions. This restored a previously verified logical 100,000-message fixture; it did not perform a new physical full-database scan or leave/regrant exercise.
+
+Callbacks and in-memory event collection perturb the load, including unselected preparation/warmups. Timers end after JSON decoding and before projection/oracle checks. These intervals locate local client-library boundaries; they are not network-only, CPU or server duration, and the observed create→sendHeaders interval does not identify any particular timer or scheduler cause. No server instrumentation, retry, package change, comparator, device, WAN, write, durability or adoption result is claimed. The raw load is `11fe41d7…`, receipt `92c935dd…`, frozen controller `4e8a23bc…`, and loader `3c6e75cd…`; the independently computed summary is `cdfe820c…`.
