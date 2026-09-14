@@ -75,3 +75,16 @@ the documented example. Preserve truthful server-only presence queries,
 server-side notification admission, and the frozen cell's pin/instrument.
 This ticket does not commission a new language form or decide LLP 3000.007
 §9.1's SQL-read question.
+
+## Recurrence on 0.2.12 (2026-09-14, the catch-up calibration)
+
+The 0.2.12 Astra calibration builder hit the same contradiction in M6 and
+logged it as `snapback4-defect` (run-log epoch 1789411480 in
+`~/clique-sb4-20260914-astra-0.2.11/lanes/astra-snapback4/`,
+`evidence/m6-send-why.txt`): "published presence recipe says device treats
+everyone connected, but connected read classifies send predicts never." Its
+workaround again split a durable `notificationRequested` effect from a
+service-only dispatcher. This is one of that lane's two Snapback-attributed
+loops, so either the card or the classification should change before the
+next calibration.
+
