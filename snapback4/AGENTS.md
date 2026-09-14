@@ -11,7 +11,7 @@ before minting a new number).
 ```
 cargo build                          # the binary; no JS engine, no bootstrap; crates.io plus one vendored patch (vendor/tiny_http)
 scripts/test.sh                      # everything blocking (60 s budget); reports every failure, never fail-fast
-./target/debug/snapback4 --help      # init · check · dev · deploy · rollback · serve · run (an op, or a job as the system) · test · why · guide · data · token (a service's seat) · doctor · device · types · --version
+./target/debug/snapback4 --help      # init [--online|--expo] · check [--cost|--residency|--fix|--json] · dev · deploy · rollback · serve · run (an op, or a job as the system) · test · why · guide · data · sql · token (a service's seat) · doctor · device · types · --version
 ./target/debug/snapback4 guide       # the language card; `guide <keyword>` for a card — every card's Quarry is compiled by the suite (crates/snapback4-lang/tests/guide.rs)
 cd apps/chat && ../../target/debug/snapback4 check     # compiles snapback/*.q, writes snapback/generated/api.ts
 cd apps/chat && ../../target/debug/snapback4 dev       # serves 127.0.0.1:4400; re-adopts the schema on save

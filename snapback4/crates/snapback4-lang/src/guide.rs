@@ -67,6 +67,37 @@ mutation remove(todoId: todos):
   return null
 "##;
 
+/// The online starter uses the same private rules with no device partition.
+pub const TEMPLATE_ONLINE: &str = r##"-- Online-only backend. `snapback4 check` compiles it; `snapback4 dev` serves it.
+use personas alice, bob
+
+table todos:
+  title: text <=200
+  done: bool
+  ownerId: principal
+  by byOwner: ownerId, id
+  cap 1000 by ownerId
+  read <- .ownerId = viewer
+  insert <- .ownerId = viewer
+  update <- .ownerId = viewer
+  delete <- .ownerId = viewer
+
+query list(c: cursor ?):
+  return todos[viewer] after c first 100 by byOwner
+
+mutation add(title: text <=200):
+  return insert todos { title, done: false, ownerId: viewer }
+
+mutation toggle(todoId: todos):
+  todo = todos[todoId] ! else NOT_FOUND
+  update todos[todo] { done: not todo.done }
+  return null
+
+mutation remove(todoId: todos):
+  delete todos[todoId]
+  return null
+"##;
+
 /// The language card: the whole grammar in one file that compiles and runs,
 /// then what is left out on purpose and the idiom for each.
 pub const LANGUAGE: &str = r##"# Quarry — the language card
@@ -1202,7 +1233,13 @@ atomically exchanges a live token; `logoutAll` revokes every session for the
 principal. The client refreshes near expiry and uses an in-memory session
 store by default. `localStorageSessionStore()` is an explicit compatibility
 choice whose token can be read by same-origin script; native apps should pass
-their secure store."##,
+their secure store.
+
+`snapback4 sql "SELECT * FROM messages" [--limit N] [--json]` inspects
+the developer's own dev store; `--release dir` selects a deployment. It
+opens read-only alongside the running server and is never rule-filtered.
+Only application-table views are exposed; internal tables and raw r/i are
+refused. The default limit is 200, with a notice when more rows exist."##,
         _ => return None,
     })
 }
@@ -1210,6 +1247,8 @@ their secure store."##,
 /// Every refusal code `why` explains, with its family. A program's own
 /// `require` codes are the author's and are explained by the program.
 pub const CODES: &[(&str, &str)] = &[
+    ("E_SQL_READ_ONLY", "developer SQL accepts exactly one SELECT or WITH … SELECT. Writes, attachment, pragmas and side effects are refused; guide personas."),
+    ("E_SQL_INTERNAL", "developer SQL reads only generated application-table views. Raw r/i, internal tables and SQLite metadata are refused; guide personas."),
     ("E_INPUT", "family input — an argument or a row value does not fit its declared type. The message names the field; fix the value or the declaration. A table reference validates the id's shape, not the target's existence: the string \"null\" is an id, while JSON null needs an optional type; `require exists t[id] else CODE` checks for a visible target (guide writes)."),
     ("E_TYPE", "family input — a value has the wrong type for its position at run time (a Quarry program that binds cannot raise it; a seed or a wire argument can); the message names both types."),
     ("E_OVERFLOW", "family input — integer arithmetic left ±(2^53 − 1), the value model's range. Store minor units in a decimal or money column, or narrow the operands."),

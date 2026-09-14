@@ -425,6 +425,7 @@ checksum = "ba467056f1b547ed52077911161fc86985becbc60e8e1857c8a144dab0def891"
 name = "snapback4"
 version = "0.2.8"
 dependencies = [
+ "rusqlite",
  "serde",
  "serde_json",
  "sha2",

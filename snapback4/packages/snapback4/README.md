@@ -38,6 +38,15 @@ resolvers, no migrations to write, no subscriptions to manage: a table's
 `sync` line says which devices hold its rows, and the client's reads run
 over what the device holds.
 
+**Two ways to run.** `snapback4 init` starts local-first: declare `sync`
+and open `createLocalClient` so the device holds its partition and works
+offline. `snapback4 init --online` writes a schema with no `sync` lines
+and a `src/client.ts` on `createClient`. Its queries run on the server and
+stay live through `/changes`, with no replica. Both tiers use the same
+rules, meter, identity, assets and jobs. Add `sync` and open a local-first
+client when the app needs offline data. `init --expo` adds the phone
+starter, selecting the native tier when available and online in Expo Go.
+
 ## 2. Quarry
 
 Comments start with `--`. Blocks indent with two spaces. A file holds
@@ -873,6 +882,17 @@ PNG and `asset` is always denied.
 
 ## 5. Development
 
+- **`snapback4 init [dir] [--online|--expo]`** starts a project without
+  overwriting existing files. The default writes the local-first todo
+  schema and `.gitignore`; `--online` adds an online client, package.json
+  and README. `--expo` copies the chat starter with its backend, screens,
+  secure session store and native/online tier selection. Its toolchain
+  matches the reference app: Expo **57.0.22**, React Native **0.86.3**,
+  React **19.2.3**, expo-sqlite **57.0.3**, babel-preset-expo **57.0.11**.
+  Keep Expo and its Babel preset on the same major; a mismatch can leave
+  private fields in the bundle that Hermes cannot compile. The generated
+  README gives the install and run commands.
+
 - **`snapback4 dev [--port N] [--no-watch] [--fresh]`** serves
   `snapback/*.q` on `127.0.0.1:4400`, recompiling and re-adopting on
   every save (the watcher polls every 400 ms; a save with problems keeps
@@ -905,10 +925,33 @@ PNG and `asset` is always denied.
   argument cannot be derived). A query's own `require` refusing a
   derived argument (the persona is not in that group) is reported, not
   counted as a failure; run it with your arguments to see its meters.
-- **`snapback4 check [--cost] [--json]`** compiles, writes
+- **`snapback4 check [--cost|--residency|--fix|--json]`** compiles, writes
   `snapback/generated/api.ts` (`Rows`, `Ops`, `api`), and prints every
   diagnostic with its site and rewrite; `--cost` adds each site's
-  structural class. **`snapback4 types`** writes `api.ts` alone.
+  structural class, and `--residency` names where operations run.
+  `--fix` applies only diagnostics explicitly marked `mechanical`: an
+  ambiguous key's `by`, a cursor index's missing `id`, and exact canonical
+  spelling rewrites. It prints one `fix:` line per change to stderr,
+  recompiles, and reports the remaining diagnostics normally (`--json`
+  remains one JSON result on stdout). Unmarked design suggestions are
+  left for the author. **`snapback4 types`** writes `api.ts` alone.
+- **`snapback4 sql "<SELECT …>" [--release dir] [--limit N] [--json]`**
+  inspects the developer's own store, **never rule-filtered**. It opens
+  `.snapback4/store.sqlite` read-only alongside `dev`, or a deployment's
+  store with `--release`; no schema adoption and no writer lock. Temporary
+  views expose each application table's `id` and columns from the active
+  compiled schema. Scalar tags are unwrapped; compound values remain
+  canonical tagged JSON. Only one `SELECT` or `WITH … SELECT` is allowed:
+  writes refuse `E_SQL_READ_ONLY`, and internal tables (including raw
+  `r`/`i` and SQLite metadata) refuse `E_SQL_INTERNAL`. The result is bounded
+  to 200 rows by default and says when more exist. `--json` returns
+  `columns`, positional `rows` (retaining every selected column), `limit`,
+  `more`, `ruleFiltered: false`, and the same inspection header. For example:
+  `snapback4 sql "SELECT conversationId, count(*) FROM messages GROUP BY conversationId"`.
+- **`snapback4 device <store.sqlite> [backend.json]`** runs the native
+  device over stdin/stdout, one JSON request and answer per line.
+- **`snapback4 --help`** lists every verb and its flags; `deploy`,
+  `rollback` and `serve` are described in §6.
 - **`snapback4 token --service <name> [--days N] [--release <dir>]`**
   mints a service's bearer token into the project's store (or a
   deployment's) and prints it once.

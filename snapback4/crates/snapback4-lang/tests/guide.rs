@@ -372,4 +372,5 @@ fn the_cards_state_the_engines_numbers_and_families() {
 #[test]
 fn the_template_compiles_clean() {
     clean("the init template", guide::TEMPLATE);
+    clean("the online init template", guide::TEMPLATE_ONLINE);
 }

@@ -2514,3 +2514,45 @@ to initialize in-process app-server client: Operation not permitted"): a
 nested Codex cannot start under the sandbox. Those attempts are not a
 measurement and are not recorded; the "before" (N = 3, `snapback4@0.2.8`,
 gpt-6-astra at medium) runs from the lead's shell and lands with its record.
+
+## 2026-09-13 — Lane P: read-only SQL, mechanical fixes, online and Expo starters
+
+Implemented LLP 3000.007 §§7, 8.8–8.10 in additive CLI modules. `sql`
+opens the persisted generation read-only, takes one WAL snapshot of its
+schema/catalog/rows, exposes application views and returns a bounded table
+or JSON. Tagged scalar values are unwrapped without changing stored forms.
+An authorizer experiment showed that a CTE can spoof a public view's accessor
+name; private backing views whose names submitted SQL cannot contain close
+that bypass. UPDATE, internal tables and raw r/i are refused with the two
+new SQL codes. The chat witness read 200 of 205 messages at the default
+limit, saw all 205 with an explicit limit, and counted 205 while a WAL writer
+held its lock in 4.97 ms (one targeted observation, not a benchmark). The
+running dev accepted another mutation afterward and SQL counted 206.
+
+`check --fix` applies only the diagnostic's explicit `mechanical` flag,
+recompiles between edits, preserves comments, and can fix ambiguity and then
+a missing cursor tie-break in one invocation, including an index declared
+in another file. Rust contract tests cover seven guessed spellings, quoted
+keywords/delimiters, Unicode/CRLF, and refusal to edit unmarked diagnostics.
+Lane L must use `.mechanical()` on exact spelling diagnostics (the shared
+`unsupported` constructor already marks the seven bare construct names).
+The combined elif/ambiguity integration test is explicitly skipped until
+L's E_QUARRY_UNSUPPORTED elif diagnostic arrives; no parser/binder was edited.
+
+The default template retains 1 synced table; the online template has 0 sync
+lines and 0 notes. The Expo starter embeds 12 files plus `.gitignore`, copies
+the reference configs/client/screens, removes the witness entry point, fixes
+standalone import paths and selects native versus online from availability.
+Pins: Expo 57.0.22, RN 0.86.3, React 19.2.3, expo-sqlite 57.0.3 and Babel
+preset 57.0.11. Its generated API and TypeScript client compile; no iOS export
+was run. The reference chat's inbox still emits its existing N_NO_CURSOR note.
+
+Targeted results: guide 8/8; fixer 4/4; CLI periphery 6 passed, 0 failed,
+1 explicitly skipped. Final blocking suite: 241 Rust tests passed, 1 ignored;
+fixture wrapper 9 passed; client tests 85 passed, 1 failed, 1 skipped;
+`== 1 failure(s) in 28 s`. Chromium aborts with SIGABRT before the React
+hook test can run. The isolated React test also fails 0 passed/1 failed on
+a clean source snapshot of base 0a8775aba95ae73f76b91c16c1b4dbaf7a98a723
+using the same installed dependencies. This is not a green full-suite claim.
+All new source files are below 1,500 lines. This journal was already 2,339
+lines; its explicit append-only rule was preserved. No commit or publication.

@@ -1,7 +1,7 @@
 //! The verbs that do not serve: `check`, `run`, `types`, `why`, `doctor`,
 //! `init`, `data`, `test`. Each prints one honest answer and exits with it.
 
-use crate::project::{GITIGNORE, Project, persona_principal};
+use crate::project::{Project, persona_principal};
 use snapback4_core::engine::rules::scan_visibility;
 use snapback4_core::ir::{self, ProgramKind};
 use snapback4_core::schema::Audience;
@@ -11,6 +11,12 @@ use serde_json::{Value as Json, json};
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::time::Instant;
+
+mod fix;
+mod init;
+mod sql;
+pub use init::init;
+pub use sql::sql;
 
 pub struct Options {
     pub positionals: Vec<String>,
@@ -29,7 +35,7 @@ pub fn parse(args: &[String]) -> Options {
         } else if let Some(flag) = arg.strip_prefix("--") {
             // A switch takes no value; any other flag takes the next token
             // unless that token is itself a flag.
-            const SWITCHES: &[&str] = &["no-watch", "fresh", "cost", "allow-destructive", "i-understand-cleartext"];
+            const SWITCHES: &[&str] = &["no-watch", "fresh", "cost", "residency", "fix", "online", "expo", "allow-destructive", "i-understand-cleartext"];
             let (name, value) = match flag.split_once('=') {
                 Some((name, value)) => (name.to_owned(), value.to_owned()),
                 None if SWITCHES.contains(&flag) || iter.peek().is_none_or(|next| next.starts_with("--")) => (flag.to_owned(), String::new()),
@@ -82,7 +88,7 @@ fn report_diagnostics(bound: &Bound, json: bool) {
 pub fn check(options: &Options) -> i32 {
     let project = project_or_exit();
     let started = Instant::now();
-    let bound = match project.compile() {
+    let bound = match if options.flags.contains_key("fix") { fix::compile(&project) } else { project.compile() } {
         Ok(bound) => bound,
         Err(error) => {
             eprintln!("cannot read snapback/: {error}");
@@ -489,27 +495,6 @@ pub fn doctor(options: &Options) -> i32 {
         println!("  {} in {:.1} ms", if ok { "ok" } else { "not ok" }, started.elapsed().as_secs_f64() * 1000.0);
     }
     if ok { 0 } else { 1 }
-}
-
-pub fn init(options: &Options) -> i32 {
-    let dir = options.positionals.first().map(Path::new).unwrap_or_else(|| Path::new("."));
-    let schema = dir.join("snapback").join("schema.q");
-    if schema.exists() {
-        eprintln!("{} already exists", schema.display());
-        return 1;
-    }
-    if let Err(error) = std::fs::create_dir_all(schema.parent().unwrap()) {
-        eprintln!("cannot create {}: {error}", schema.display());
-        return 2;
-    }
-    std::fs::write(&schema, snapback4_lang::guide::TEMPLATE).expect("write template");
-    let gitignore = dir.join(".gitignore");
-    let existing = std::fs::read_to_string(&gitignore).unwrap_or_default();
-    if !existing.contains(".snapback4/") {
-        let _ = std::fs::write(&gitignore, format!("{existing}{}{GITIGNORE}", if existing.is_empty() || existing.ends_with('\n') { "" } else { "\n" }));
-    }
-    println!("init: wrote {} — next: `snapback4 check`, then `snapback4 dev`", schema.display());
-    0
 }
 
 pub fn why(options: &Options) -> i32 {
