@@ -2644,3 +2644,53 @@ Independent summary `81055afd…`, evidence review `19a4b5b7…` and reconciliat
 values and 2,304 shared group statistics; their p50 conventions differ
 (arithmetic median versus nearest rank), and each was checked against its
 own definition. No failed or smoke sample contributes to formal statistics.
+
+### Query CPU and wall time: instrumented 0.2.12 membership reads
+
+The same Office ARM Linux host completed the fixed `206650f29` (0.2.12)
+diagnostic at 2026-09-14 21:55:52 UTC. The retained production binary is
+`4a380ffd…`, with the packaged SQLite option and MEMSTATUS enabled. Its
+700-file archive has one host-only observer override; all 71 CLI tests,
+production compilation and version checks passed. A separate unmodified
+0.2.12 build also passed those checks; it was not timed here.
+
+All 18,432 HTTP calls, 2,160 excluded warmups, 72 case/round blocks and
+2,304 selected traces passed. The original full before/after verifiers,
+three physical fixture proofs and ordinary-session/outsider/auth checks
+passed; all four owned process groups were absent at completion. There
+were 2,303 reused selected readers and one construction. The successful
+384-call smoke and every historical run remain outside these statistics.
+
+Each row combines 96 selected observations across three rounds. Query
+wall brackets `reader.query`; thread CPU is read on that same worker.
+Ratios divide summed intervals, and p95 uses nearest rank.
+
+| 150-group query | Mean CPU ms | Mean wall ms | Query wall p95 ms | CPU / query wall | Query / server wall |
+|---|---:|---:|---:|---:|---:|
+| First page, C1 | 4.399 | 4.410 | 5.073 | 99.75% | 91.05% |
+| Rotating page, C1 | 5.550 | 5.568 | 6.467 | 99.67% | 92.09% |
+| First page, C8 | 5.585 | 11.138 | 22.781 | 50.14% | 84.72% |
+| Rotating page, C8 | 9.384 | 17.293 | 33.239 | 54.26% | 82.53% |
+
+Query execution remains the main wide-feed cost on this source. At C8,
+first/rotating feed query wall is 84.7%/82.5% of server dispatch-to-handler
+wall. Signed query wall minus thread CPU averages 5.553/7.909 ms; it is
+not attributed to an internal lock, I/O or scheduler. The sum of the five
+outer host mutex waits averages 0.301/0.117 ms, including program and
+reader-pool locks as well as engine locks. At C1 the query interval is
+about 99.7% thread CPU. Nested internal query costs still need decomposition.
+
+The root and independent calculations agree on 23,040 shared per-event
+values and 2,304 shared summary values. Their p50 conventions remain
+explicit: root arithmetic median versus independent nearest rank; the
+432 checked common p50s are each valid under their own definition. This
+is an instrumented diagnostic, not a cross-version speedup, fresh competitor
+comparison or measurement of the published binary. The historical setup
+source in the identity supplies fixture provenance, not the serving code.
+
+The diagnostic ledger retains all 22 original public objects (4,674,403
+bytes), all 72 case/round and 24 combined summaries, and build receipts.
+Bindings: formal transfer `0fffccfc…`, independent summary `1b626d34…`,
+review `f748ffad…`, reconciliation `e5deff38…`, qualification `dff38735…`.
+The [core-owner follow-up](../../../issues/20260914-snapback4-membership-feed-query-cost.md)
+now advances from current-source qualification to internal cost decomposition.

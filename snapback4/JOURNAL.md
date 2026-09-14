@@ -5038,3 +5038,19 @@ retains the result and limits. The [core-owner follow-up](../issues/20260914-sna
 starts with a current-source measurement: 0.2.12 added work on these query
 paths, so the old diagnostic is not a current-release claim. No core edit,
 result/authority cache, ceiling change or new performance win follows yet.
+
+
+## 2026-09-14 — confirm the feed query bottleneck on 0.2.12
+
+The performance lane repeated the bounded Office diagnostic on fixed
+`206650f29` (0.2.12): all 18,432 requests and 2,304 selected traces passed,
+with full fixture/auth checks and independently audited cleanup. At 150
+groups/C8, first/rotating feed query wall averages 11.138/17.293 ms and
+accounts for 84.7%/82.5% of server wall. At C1 the query interval is about
+99.7% thread CPU. The residual does not identify an internal wait cause.
+
+The [performance record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
+preserves the current and historical measurements separately. The
+[core-owner follow-up](../issues/20260914-snapback4-membership-feed-query-cost.md)
+now calls for internal query cost decomposition. No core code, authority
+cache, ceiling or client contract changed, and no new speedup is claimed.
