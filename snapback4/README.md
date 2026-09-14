@@ -58,3 +58,35 @@ old token stops working in the same store transaction. `POST
 the current bearer token. Viewer-authorized asset responses use
 `Cache-Control: private, no-store`; a valid range beyond the file answers
 416 with `Content-Range: bytes */N`, and view-once assets refuse every Range.
+
+## Publishing
+
+From `snapback4/`, `node scripts/publish.mjs` runs the blocking suite,
+builds the production CLI and client, packs them, proves an installed
+consumer and publishes both packages. `--dry-run` does the same work
+through the consumer proof without publishing. Use Node 24 on PATH.
+
+The production darwin CLI in `snapback4-darwin-arm64` is signed with a
+Developer ID Application identity, hardened runtime and a secure timestamp
+before packing. Signing and strict verification must succeed, including
+in a dry run. `SNAPBACK4_SIGN_IDENTITY` chooses the identity; otherwise
+exactly one Developer ID Application identity must be available in the
+keychain. The installed binary's digest must match the signed artifact.
+The publish metrics record its signing authority and team id. Ordinary
+developer builds, the JavaScript client and the Expo xcframework are not
+signed by this publication step.
+
+Set `SNAPBACK4_NOTARY_PROFILE` to a notarytool keychain profile to submit a
+zip of the signed CLI to Apple and require `Accepted` before packing.
+A bare binary cannot be stapled. Until a profile exists, publication
+explicitly reports that the CLI is signed but **not notarized**, and records
+`notarized: false`; accepted submissions record their id in the metrics.
+
+`node scripts/measure-launch.mjs target/production/snapback4 --n 20 --load 2`
+compares ad-hoc and Developer ID signing under two CPU load workers; omit
+`--load` for an unloaded run. Each timed `--version` uses a fresh copy,
+with copying and signing outside the timer. JSON reports all samples and
+p50/p95/max milliseconds for each variant (nearest-rank percentiles).
+`--timeout-ms 60000` bounds each launch; a timeout refuses partial results.
+Fresh paths test fresh-file assessment, not a purge of every macOS cache.
+Signing alone has not yet been shown to remove the `_dyld_start` stall.

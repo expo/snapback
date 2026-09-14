@@ -8,6 +8,7 @@ import { appendFileSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmS
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { signForPublication } from "./signing.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pkg = join(root, "packages/snapback4");
@@ -49,6 +50,16 @@ if (!artifact) throw new Error("cargo did not report the production snapback4 bi
 // Use Cargo's reported path, including CARGO_TARGET_DIR, rather than finding
 // an old release binary beside the one that was actually built.
 const sourceBinary = artifact.executable;
+// @ref LLP 3000.007#20.8 — sign and verify the shipped darwin bytes, including dry runs
+console.log("== sign the production darwin binary");
+let signing;
+try {
+  if (process.platform !== "darwin") throw new Error("Developer ID publication requires macOS");
+  signing = signForPublication(sourceBinary, version);
+} catch (error) {
+  console.error(`publish: ${error.message}; snapback4@${version} is not published`);
+  process.exit(1);
+}
 const expectedVersion = `snapback4 ${version}`;
 const binaryVersion = run(sourceBinary, ["--version"]).trim();
 if (binaryVersion !== expectedVersion) throw new Error(`built binary is ${binaryVersion}; expected ${expectedVersion}`);
@@ -113,7 +124,7 @@ if (dry) {
   console.log(`== npm publish ${packed.filename}`);
   run("npm", ["publish", tarball, "--access", "public"], { cwd: pkg });
 }
-const record = { at: new Date().toISOString(), version, tarballBytes, platformTarballBytes, files: packed.entryCount, binaryBytes, binarySha256, binaryVersion, binaryProfile, sqliteBuildFlags, cargoProfile: artifact.profile, platform: `${process.platform}-${process.arch}`, publish_s: +((Date.now() - t0) / 1000).toFixed(1), dry };
+const record = { at: new Date().toISOString(), version, tarballBytes, platformTarballBytes, files: packed.entryCount, binaryBytes, binarySha256, binaryVersion, binaryProfile, sqliteBuildFlags, cargoProfile: artifact.profile, ...signing, platform: `${process.platform}-${process.arch}`, publish_s: +((Date.now() - t0) / 1000).toFixed(1), dry };
 mkdirSync(join(root, "metrics"), { recursive: true });
 appendFileSync(join(root, "metrics/publish.jsonl"), JSON.stringify(record) + "\n");
 console.log(JSON.stringify(record));
