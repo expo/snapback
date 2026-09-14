@@ -45,6 +45,9 @@ case!(auxiliary_field, "auxiliaryField", 4, 0);
 case!(auxiliary_finishes, "auxiliaryFinishes", 6, 0);
 case!(auxiliary_breaks, "auxiliaryBreaks", 4, 0);
 case!(overwritten_collector, "overwrittenCollector", 4, 0);
+case!(direct_return_4, "directReturn", 4, 0);
+case!(direct_return_1, "directReturn", 1, 0);
+case!(direct_return_0, "directReturn", 0, 0);
 case!(repeated_count_loses_first_cursor, "repeatedCount", 6, 0);
 case!(repeated_count_exhausted, "repeatedCount", 5, 0);
 

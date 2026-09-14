@@ -29,8 +29,8 @@ pub(super) fn plan(program: &Program) -> Plan {
     let mut collectors = BTreeMap::new();
     let returns = returned_origins(program, false, &mut collectors).into_iter().filter_map(|(path, origin)| result_page(&origin).map(|(site, _)| (path, site.to_owned()))).collect();
     if !collectors.is_empty() {
-        let returned = collectors::returned_collectors(program);
-        collectors.retain(|path, _| returned.contains(path));
+        let flow = collectors::returned_collectors(program);
+        collectors.retain(|path, _| flow.returned.contains(path) || !flow.visited.contains(path));
     }
     Plan { returns, collectors }
 }
