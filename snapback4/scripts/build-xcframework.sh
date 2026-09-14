@@ -4,6 +4,10 @@
 # so Swift imports `Snapback4Device`. Writes packages/snapback4-expo/ios/.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# @ref LLP 3000#7-decisions-during-execution — the shipped device must honor the Expo podspec's iOS minimum.
+# rustc and cc (bundled SQLite) both use this for device and simulator;
+# without it cc defaults to the installed SDK's version, not the podspec.
+export IPHONEOS_DEPLOYMENT_TARGET=16.4
 out=packages/snapback4-expo/ios/Snapback4Device.xcframework
 headers=$(mktemp -d)
 cp crates/snapback4-device/include/snapback4.h "$headers/"

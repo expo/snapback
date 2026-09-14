@@ -5194,3 +5194,16 @@ passed. The unchanged receipt is in `metrics/publish.jsonl`; the
 [performance record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
 preserves qualification details and the sync A/B's separate measured identities.
 Concurrent stream-tail and many-group-feed follow-ups remain open.
+
+
+## 2026-09-14 — Expo target audit holds the first 0.2.5 candidate
+
+The final artifact inventory found deployment-target warnings in the earlier
+successful C-link logs: bundled SQLite targeted iOS/iOS Simulator 26.5 while
+the podspec promises 16.4. Those original bytes remain unpublished. Inspection
+of the pinned cc and rustc implementations established that both consume
+`IPHONEOS_DEPLOYMENT_TARGET` for both Apple iOS targets. Astra added the explicit
+16.4 setting to the existing XCFramework script and is rebuilding the slices
+for object-metadata and real C/Swift consumer checks. The runtime source is
+unchanged; already qualified and landed 0.2.14 CLI/browser inputs are unaffected.
+The earlier successful-link receipt is retained with this qualification limit.

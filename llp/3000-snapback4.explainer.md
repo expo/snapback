@@ -990,6 +990,16 @@ time-ordered 128-bit form.
   application, SQL read surface, backup command, seamless restore of old
   device outboxes, new gate or promotion is commissioned.
 
+- **2026-09-14 — native artifacts honor the advertised iOS minimum.**
+  The Expo podspec declares iOS 16.4. The XCFramework build explicitly exports
+  `IPHONEOS_DEPLOYMENT_TARGET=16.4`, which both pinned rustc and the bundled
+  SQLite `cc` build use for device and simulator. An installed SDK version
+  cannot silently become the package's minimum. Actual consumer links against
+  16.4 and object deployment metadata qualify the replacement artifact;
+  successful linking with a newer-object warning is insufficient. This arose
+  in the LLP 3000.008 delivery audit: the first unpublished Expo 0.2.5 candidate
+  contained SQLite objects targeting 26.5 and was held for replacement.
+
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal
