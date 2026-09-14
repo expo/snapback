@@ -42,7 +42,8 @@ fn matching_lanes_authorize_order_deduplicate_and_continue() {
         let first = read(&mut engine, op, "cof", None);
         assert_eq!(ids(&first), ["d", "c"]);
         assert!(first.complete);
-        assert_eq!(first.metered.rule_probes, 2, "one verdict per admitted room, not per word");
+        // @ref LLP 3000.007#17 — every lane charges its rule's static allowance, admitted or denied: two rooms, or three with r3 named.
+        assert_eq!(first.metered.rule_probes, if op == "explicit" { 3 } else { 2 }, "one verdict per lane, not per word");
         let second = read(&mut engine, op, "cof", first.next.clone());
         assert_eq!(ids(&second), ["b", "a"]);
         assert!(second.complete);
@@ -67,9 +68,11 @@ fn further_terms_filter_and_query_expression_is_outside_lane_bindings() {
 #[test]
 fn a_wide_word_lane_is_named_and_incomplete_but_a_denied_lane_cannot_cut() {
     let mut engine = fixture(SCHEMA);
+    let before = read(&mut engine, "explicit", "cof", None);
     for n in 0..33 { seed_message(&mut engine, "r3", &format!("hidden{n}"), &format!("cof{n:02}"), 50); }
     let allowed = read(&mut engine, "explicit", "cof", None);
     assert!(allowed.complete, "denied scope must not discover its 33 words");
+    assert_eq!((ids(&before), before.complete, before.next.clone(), before.capped_at.clone(), before.metered.clone()), (ids(&allowed), allowed.complete, allowed.next.clone(), allowed.capped_at.clone(), allowed.metered.clone()), "hidden rows in a denied lane change no observable");
     for n in 0..33 { seed_message(&mut engine, "r2", &format!("wide{n}"), &format!("cof{n:02}"), n); }
     let page = read(&mut engine, "everywhere", "cof", None);
     assert!(!page.complete);

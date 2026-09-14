@@ -4450,3 +4450,173 @@ changed Rust file is **1456 lines**. The journal was already **3795 lines**
 at the base; its complete original prefix is preserved, as required by the
 append-only instruction. Cargo's automatic workspace-version lockfile edits
 were restored; the handoff contains **21 intended files**, uncommitted.
+
+## 2026-09-14 — lane W5: charge a uniform verdict by rule shape
+
+Built the fifth-check disposition of LLP 3000.007 §17. A page verdict
+from the pinned prefix charges the rule's static probe allowance once on
+both outcomes, including the probes that short-circuit evaluation skipped.
+The counter moved unchanged from write-target reservation into `rules.rs`:
+`exists` costs **1**, `created` with residual equalities **1**, a bare
+`created` fact **0**, `and`/`or` sum their children, and `not` keeps its
+child's allowance. The reviewed two-probe shapes therefore cost **2**.
+W4's aborting-page attempt still costs **1 examined unit** before the
+verdict, with no candidates fetched before an allowed verdict. Capped
+queries gain no attempt charge; a denied verdict restores hidden expiry
+before its allowance can cut the query. No ceiling or serialized form changed.
+
+The named denied regression compares **8 pairs**: `and` and its negated
+`or` mirror, empty/hidden and equality mismatch/match, **0** or **8191**
+prelude probes. Permits are empty in every world; the equality pair keeps
+the same secret and varies only `enabled`. Another **8 pairs** exercise
+true verdicts with a fixed target row. The shared helper compares all
+**7 meters**, first/retry serializer bytes, receipt, committed source and
+maintain deltas, effects, stream, snapshot, and admission/reopen/settlement
+on **2 device stores**. Every world retains its starting source state.
+
+Measured meter vectors, identical within every pair (the `and`/`or` and
+existence/equality variants have the same numbers):
+
+| Verdict and prelude | examined | index_entries | rule_probes | steps | heap_bytes | output_bytes | rows_written |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Denied, 0, sent with constant 7 | 1 | 0 | 2 | 5 | 0 | 9 | 0 |
+| Allowed, 0, sent with constant 7 | 2 | 0 | 2 | 5 | 384 | 9 | 0 |
+| Either, 8191, E_BOUND on rule probes | 8192 | 0 | 8193 | 32767 | 2096896 | 0 | 0 |
+
+The query control covers both verdicts at probe ceilings **1** and **8192**,
+with **2 probes** charged and **0** candidate examinations at the cut;
+with room it examines **0** denied candidates or **1** allowed candidate.
+A hidden expiring probe contributes no `next_expiry` on a denied query,
+even when the allowance exceeds the ceiling. The lesson is that a verdict
+can be uniform while its executed branch count is not: metering must use
+schema shape at this boundary, not pad a state-dependent charge afterward.
+
+The existing membership suite asserted a zero-cost false query verdict;
+its assertion and two-line comment now expect **1 probe** for either
+verdict. This is the one additional test file touched beyond the brief's
+named files. The membership suite passes **5 / 0**; the focused suites
+pass **72 / 0** (corpus harness **16**, guide **9**, page admission **13**,
+write authority **34**), with **211 corpus cases passed / 82 skipped / 0
+failed**. The dedicated W5 run passes **3 / 0**. An initial test assertion
+spelled the diagnostic meter name `rule_probes` instead of `rule probes`;
+that test-only mistake was corrected before these passing runs.
+
+Final blocking verification used serial Rust tests and serial Node test
+files on the shared host, with the script and all assertions/time limits
+unchanged: **377 Rust passed / 0 failed / 1 ignored**, **9 fixture passed /
+0 failed**, **121 client passed / 1 failed / 0 cancelled**. The script's
+verbatim summary is `== 1 failure(s) in 201 s`; the remaining failure is
+Chromium startup **SIGABRT** inside the sandbox. The exact invocation, from
+the repository root under Bash, was:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+node() {
+  if [ "${1:-}" = --test ]; then
+    command node --test-concurrency=1 "$@"
+  else
+    command node "$@"
+  fi
+}
+export -f node
+RUST_TEST_THREADS=1 bash snapback4/scripts/test.sh
+```
+
+Two ordinary parallel invocations of `bash snapback4/scripts/test.sh`
+reported `== 2 failure(s) in 1566 s` and `== 2 failure(s) in 637 s`:
+each had **376 Rust passes / 1 panic-process timeout / 1 ignored**;
+the clients had **61 passes / 52 failures / 1 cancelled** and **81 passes /
+33 failures / 0 cancelled**, mostly server-startup timeouts. These are not
+labelled inherited product failures. `cargo test -p snapback4 --test
+lifecycle abort_profile_reports_an_off_thread_panic_to_redirected_stderr --
+--exact --nocapture` passed **1 / 0** alone; `node --test
+packages/snapback4/test/write-authority.test.mjs` passed **4 / 0** alone;
+`node --test --test-concurrency=1 'packages/snapback4/test/*.test.mjs'`
+passed **121 / 1**, Chromium alone. A redundant macOS base build was stopped
+after the isolated current panic test passed; it provides no baseline claim.
+
+The isolated React test (`node --test packages/snapback4/test/react.test.mjs`)
+reproduced **0 passed / 1 failed**, with Chromium SIGABRT, on untouched
+source archived from **3ffae1e059df22428f03d9d63c94e70a29a7577e**. That
+snapshot also initially warned about the unbuilt package during dependency
+scanning; the failure was at browser launch before visiting a page. The
+lead still needs the browser witness outside the sandbox.
+
+A supplemental Linux snapshot was checked as **669 files / 0 hash
+mismatches** after adding the shared benchmark fixtures omitted from its
+initial transfer. Its full script did not finish client cleanup and is not
+passing evidence. The six Linux signal-handler failures reproduced on an
+untouched base **3ffae1e059df22428f03d9d63c94e70a29a7577e** with
+`CARGO_TARGET_DIR=/tmp/w5-base-target cargo test -p snapback4 --test lifecycle`:
+**5 passed / 6 failed**. The initial base build and a supplemental membership
+rerun ran out of filesystem space, so neither supplies test results; the
+base rerun used available temporary storage. The fixture-only rerun, after
+including its inputs and using temporary storage, passed **9 / 0**. No Linux
+platform repair is part of W5.
+
+All **6 changed Rust source/test files and the README** are below 1,500 lines
+(the largest, `guide.rs`, is **1450**); the existing oversized RFC and
+append-only journal keep their history. RFC §14 and the existing corpus
+are unchanged. Cargo's incidental five workspace-version lockfile refreshes
+were restored. No commit, push, tag or publication was performed.
+
+`./ref-check --verbose` reports **474 LLP docs, 8813 refs in 22609 files,
+0 errors, 0 unchecked**; `git diff --check` passes. Supplemental-host
+handoff: after the SSH run was interrupted, its launcher **817388** and
+script **817389** on **100.126.225.7** still waited for client cleanup;
+that run is unfinished. Its snapshot is
+`/home/ccheever/lanes/w5-snapshot-3ffae1e`; the host filesystem also exhausted
+its available space. Only this task's failed base build files were removed,
+and its named failed incremental directory was moved to
+`/tmp/w5-generated-recovery` for recovery; no source work was removed.
+
+
+## 2026-09-14 — 0.2.10 published; the third ceremony run keeps the membership rule
+
+The publication record is now retained: `snapback4@0.2.10` and its Darwin
+package at 11:02:06 UTC, followed by `snapback4-expo@0.2.3` at 11:14:36.
+The binary is 7,728,288 B (`af4e26be…`); the client tarball 505,169 B.
+The first publisher attempt refused on client startup timeouts under host
+load; the successful attempt's suite passed before publication. npm then
+processed the client package asynchronously for roughly seven minutes,
+outlasting the launcher's five-minute visibility wait; the continuation
+allowed thirty minutes and completed the remaining steps. The package
+version bookkeeping in Cargo.lock and the publish metric land with this
+record. W5 is later than this pin.
+
+The third ceremony run, on that pin, is three green and independently
+reverified, 5/5 runner probes each: walls 437/407/419 s; loops 1/2/1,
+all agent-error; source tables 9/9/9; maintains 1/1/0. Every agent wrote
+and kept `.principal = viewer or exists members[.chatKey, viewer]`, with
+no membership correction, public roster or duplicate membership table.
+Lane S's absorption removed both forms of the ceremony §16 identified.
+The before/after/third totals are 11/6/4 loops, with recorded
+Snapback-attributed totals 1/0/0. Means from raw walls are
+457.4/477.4/421.0 s, N = 3 per pin under shared-host load, not a
+magnitude claim. Search still carries N_NO_CURSOR in runs 1 and 3.
+The Clique builder overlapped the latter part of run 1 and all of runs
+2–3; the full cell remains in flight.
+
+The [third-run record](../benchmarks/runs/2026-09-14-snapback4-ceremonybar-third/README.md)
+keeps the schemas, reports, logs and runner results. A P3
+[ticket](../issues/20260914-snapback4-lifecycle-tests-time-out-under-host-load.md)
+records the loaded-host lifecycle and client startup waits: the prior
+orchestrator observed them across trees including main, and the retained
+serial client control passes 132/132. No timeout is counted as product
+success. This landing changes records and version bookkeeping only;
+validation is the evidence consistency audit and `./ref-check --verbose`.
+The orchestrator still owes the §10.3 finding from the full cell. The
+SQL-read choice and rulings 16, 17 (a)–(c) remain for the author.
+
+
+## 2026-09-14 — the author accepts the four outstanding card and write-authority choices
+
+Charlie accepted the orchestrator's recommendations for LLP 3000.007
+§14 rulings 16 and 17 (a)–(c): "your recs fine." The dated ruling now
+accepts the landed `Act<R>` words, ignored immutable patch fields on
+unreadable targets, conditions refused without evaluation on those
+targets with `upsert … if` refused at check, and uniformly decided plain
+prefix scans for every mutation page read. Earlier question and review
+text remains intact. No code or status line changes; the existing guards
+are the accepted behavior. The 0.2.10 Clique cell continues unchanged,
+and the SQL-read choice remains pending its §10.3 finding.

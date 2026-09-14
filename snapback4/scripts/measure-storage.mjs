@@ -608,6 +608,20 @@ async function measurePrivateCatalog() {
     if (name === "all") return { data: r.value.map(fields), next: r.value.length === 1000 ? r.value.at(-1).sku : null };
     return { data: r.value.slice(0, 50).map(fields), next: r.value.length > 50 ? String(r.value[49].price) : null };
   };
+  const prefix = "private-catalog-" + trial;
+  const receiptKey = (actor, id) => JSON.stringify([actor, id]);
+  const replayKeys = new Set([[0, "first"], [1, "first"], [0, "failed"], [0, "same"],
+    ...(writeRead ? [[0, "write-read-0"], [1, "write-read-1"]] : [])].map(([actor, suffix]) => receiptKey(actor, prefix + "-" + suffix)));
+  const firstResponses = new Map();
+  // @ref LLP 3000.007#17 — a retry proves execution identity, never historical read authority.
+  // Capture first replies only as the oracle; never manufacture a replay result or add an unmeasured read.
+  const replayed = (first, id, actor = 0) => {
+    if (backend !== "snapback4") return first;
+    const receipt = firstResponses.get(receiptKey(actor, id));
+    assert.ok(receipt, "replay needs its captured first response");
+    assert.deepEqual(receipt.state === "sent" ? { state: "sent", result: receipt.result } : { state: "failed", code: receipt.code }, first);
+    return receipt.state === "sent" ? { state: "sent", replayed: true, seq: receipt.seq } : { state: "failed", replayed: true, code: receipt.code };
+  };
   const bump = async (sku, id, actor = 0, extra = {}) => {
     let r;
     if (backend === "snapback4") r = await http("/m/bump", { id, args: { sku, ...extra } }, actor);
@@ -616,7 +630,24 @@ async function measurePrivateCatalog() {
     if (!r.ok) return { state: "refused", status: r.status };
     const value = backend === "convex" ? r.value.value : r.value;
     assert.ok(["sent", "failed"].includes(value.state), "unexpected private mutation state");
-    return value.state === "sent" ? { state: "sent", result: { sku: value.result.sku, revision: Number(value.result.revision) } } : { state: "failed", code: backend === "snapback4" ? value.why?.code : value.code };
+    if (backend === "snapback4") {
+      assert.equal(value.id, id, "mutation acknowledged another operation id");
+      if (value.state === "sent") assert.ok(Number.isSafeInteger(value.seq) && value.seq >= 0, "invalid acknowledged sequence");
+      if (value.replayed === true) {
+        assert.equal(Object.hasOwn(value, "result"), false, "replay disclosed a historical result");
+        assert.equal(Object.hasOwn(value, "current"), false, "replay disclosed a historical current row");
+        if (value.state === "failed") assert.equal(value.why?.message, "the program refused with " + value.why?.code);
+        return value.state === "sent" ? { state: "sent", replayed: true, seq: value.seq } : { state: "failed", replayed: true, code: value.why?.code };
+      }
+      assert.equal(Object.hasOwn(value, "replayed"), false, "unexpected fresh-reply marker");
+    }
+    const outcome = value.state === "sent" ? { state: "sent", result: { sku: value.result.sku, revision: Number(value.result.revision) } } : { state: "failed", code: backend === "snapback4" ? value.why?.code : value.code };
+    const key = receiptKey(actor, id);
+    if (backend === "snapback4" && replayKeys.has(key)) {
+      assert.equal(firstResponses.has(key), false, "the same operation executed freshly twice");
+      firstResponses.set(key, { actor, id, ...outcome, ...(value.state === "sent" ? { seq: value.seq } : {}) });
+    }
+    return outcome;
   };
   const expectedRevisions = new Map();
   const expected = n => ({ ...catalogRow(n), revision: expectedRevisions.get(catalogRow(n).sku) ?? 0 });
@@ -659,7 +690,27 @@ async function measurePrivateCatalog() {
     // Run after the orchestrator restarts the backend, with the same trial
     // and sample count as its completed private-catalog run. Reconstruct
     // that run's exact expected state rather than accepting any extant row.
-    const prefix = "private-catalog-" + trial, ownSku = catalogRow(count - 200).sku, otherSku = catalogRow(count - 100).sku;
+    let replayProofSourceSha256;
+    if (backend === "snapback4") {
+      assert.ok(process.env.SB4_PRIVATE_REPLAY_RECORD, "restart needs the completed main run's first responses");
+      const bytes = readFileSync(process.env.SB4_PRIVATE_REPLAY_RECORD), main = JSON.parse(bytes);
+      replayProofSourceSha256 = createHash("sha256").update(bytes).digest("hex");
+      assert.equal(main.workload, "private-catalog"); assert.equal(main.backend, backend);
+      assert.equal(main.trial, trial); assert.equal(main.rows, count);
+      assert.equal(main.workloadSha256, createHash("sha256").update(readFileSync(new URL(import.meta.url))).digest("hex"));
+      assert.equal(main.measurements.privateReplayHot.samples, samples);
+      assert.equal(main.replayProof.protocol, "execution-identity-v1");
+      assert.equal(main.replayProof.sessionsSha256, createHash("sha256").update(readFileSync(process.env.SB4_PRIVATE_SESSIONS)).digest("hex"));
+      for (const receipt of main.replayProof.firstResponses) {
+        const key = receiptKey(receipt.actor, receipt.id);
+        assert.ok(replayKeys.has(key) && !firstResponses.has(key), "unexpected or duplicate first response");
+        assert.ok(["sent", "failed"].includes(receipt.state));
+        if (receipt.state === "sent") assert.ok(Number.isSafeInteger(receipt.seq) && receipt.seq >= 0);
+        firstResponses.set(key, receipt);
+      }
+      assert.deepEqual([...firstResponses.keys()].sort(), [...replayKeys].sort());
+    }
+    const ownSku = catalogRow(count - 200).sku, otherSku = catalogRow(count - 100).sku;
     expectedRevisions.set(ownSku, 11); expectedRevisions.set(otherSku, 1);
     const writes = shuffle(count / 2 - 200);
     for (let caseIndex = 0; caseIndex < 2; caseIndex++) for (let n = 0; n < samples + 30; n++) {
@@ -672,12 +723,12 @@ async function measurePrivateCatalog() {
       if (n === 0) firstWriteRead = { sku, revision };
     }
     const before = await verify();
-    assert.deepEqual(await bump(otherSku, prefix + "-first"), { state: "sent", result: { sku: ownSku, revision: 1 } });
-    assert.deepEqual(await bump(otherSku, prefix + "-first", 1), { state: "sent", result: { sku: otherSku, revision: 1 } });
-    assert.deepEqual(await bump(ownSku, prefix + "-failed"), { state: "failed", code: "NOT_FOUND" });
-    if (writeRead) assert.deepEqual(await bump(otherSku, prefix + "-write-read-0"), { state: "sent", result: firstWriteRead });
+    assert.deepEqual(await bump(otherSku, prefix + "-first"), replayed({ state: "sent", result: { sku: ownSku, revision: 1 } }, prefix + "-first"));
+    assert.deepEqual(await bump(otherSku, prefix + "-first", 1), replayed({ state: "sent", result: { sku: otherSku, revision: 1 } }, prefix + "-first", 1));
+    assert.deepEqual(await bump(ownSku, prefix + "-failed"), replayed({ state: "failed", code: "NOT_FOUND" }, prefix + "-failed"));
+    if (writeRead) assert.deepEqual(await bump(otherSku, prefix + "-write-read-0"), replayed({ state: "sent", result: firstWriteRead }, prefix + "-write-read-0"));
     const after = await verify(); assert.deepEqual(after, before);
-    console.log(JSON.stringify({ at: new Date().toISOString(), workload: "private-catalog-restart-replay", backend, trial, samples, ...(writeRead ? { writeReadPairs: samples + 30 } : {}), rows: count, before, after, workloadSha256: createHash("sha256").update(readFileSync(new URL(import.meta.url))).digest("hex"), scope: "untimed state/replay check; the orchestrator must record the actual restart separately; no power-loss durability claim" }));
+    console.log(JSON.stringify({ at: new Date().toISOString(), workload: "private-catalog-restart-replay", backend, trial, samples, ...(writeRead ? { writeReadPairs: samples + 30 } : {}), rows: count, before, after, ...(replayProofSourceSha256 ? { replayProofSourceSha256 } : {}), workloadSha256: createHash("sha256").update(readFileSync(new URL(import.meta.url))).digest("hex"), scope: "untimed state/replay check; the orchestrator must record the actual restart separately; no power-loss durability claim" }));
     return;
   }
   const measurements = {};
@@ -747,24 +798,25 @@ async function measurePrivateCatalog() {
   }), 200);
   await run("privateNextHot", 1, timedRead(() => ["category", { category: "c007", c: ownerPage.next }, 0, categoryPage(0, 7, 50)]));
 
-  const prefix = "private-catalog-" + trial, ownSku = catalogRow(count - 200).sku, otherSku = catalogRow(count - 100).sku;
+  const ownSku = catalogRow(count - 200).sku, otherSku = catalogRow(count - 100).sku;
   const sent = (sku, revision) => ({ state: "sent", result: { sku, revision } });
   assert.deepEqual(await bump(ownSku, prefix + "-first"), sent(ownSku, 1)); expectedRevisions.set(ownSku, 1);
   assert.deepEqual(await bump(ownSku, prefix + "-second"), sent(ownSku, 2)); expectedRevisions.set(ownSku, 2);
-  assert.deepEqual(await bump(otherSku, prefix + "-first"), sent(ownSku, 1), "same-ID changed payload must replay its first outcome");
+  assert.deepEqual(await bump(otherSku, prefix + "-first"), replayed(sent(ownSku, 1), prefix + "-first"), "same-ID changed payload must replay its first execution identity");
   assert.deepEqual(await bump(otherSku, prefix + "-first", 1), sent(otherSku, 1)); expectedRevisions.set(otherSku, 1);
   const notFound = { state: "failed", code: "NOT_FOUND" };
   assert.deepEqual(await bump(ownSku, prefix + "-foreign", 2), notFound);
   assert.deepEqual(await bump(otherSku, prefix + "-failed"), notFound);
-  assert.deepEqual(await bump(ownSku, prefix + "-failed"), notFound, "failed operation IDs must replay their original failure");
+  assert.deepEqual(await bump(ownSku, prefix + "-failed"), replayed(notFound, prefix + "-failed"), "failed operation IDs must replay their original failure");
   assert.notEqual((await bump(ownSku, prefix + "-forge", 1, { ownerId: credentials.sessions[0].principal })).state, "sent");
   const contended = await Promise.all(Array.from({ length: 8 }, (_, n) => bump(ownSku, prefix + "-contended-" + n)));
   assert.deepEqual(contended.map(r => { assert.equal(r.state, "sent"); assert.equal(r.result.sku, ownSku); return r.result.revision; }).sort((a, b) => a - b), [3, 4, 5, 6, 7, 8, 9, 10]); expectedRevisions.set(ownSku, 10);
   const retries = await Promise.all(Array.from({ length: 8 }, () => bump(ownSku, prefix + "-same")));
-  for (const r of retries) assert.deepEqual(r, sent(ownSku, 11)); expectedRevisions.set(ownSku, 11);
+  if (backend === "snapback4") assert.equal(retries.filter(r => r.replayed !== true).length, 1, "exactly one same-ID request executes freshly");
+  for (const r of retries) assert.deepEqual(r, r.replayed === true ? replayed(sent(ownSku, 11), prefix + "-same") : sent(ownSku, 11)); expectedRevisions.set(ownSku, 11);
   await run("privateReplayHot", 1, async () => {
     const start = performance.now(), r = await bump(ownSku, prefix + "-first"), ms = performance.now() - start;
-    assert.deepEqual(r, sent(ownSku, 1)); return ms;
+    assert.deepEqual(r, replayed(sent(ownSku, 1), prefix + "-first")); return ms;
   });
   const writeOrder = shuffle(count / 2 - 200);
   for (const [caseIndex, concurrency] of [1, 8].entries()) await run("privateFreshBumpC" + concurrency, concurrency, async n => {
@@ -813,11 +865,17 @@ async function measurePrivateCatalog() {
       scope: "pair/component latency includes HTTP JSON, adapter normalization and envelope checks; exact receipt/page oracles and bookkeeping are outside; throughput includes the whole timed loop; component percentiles are independent summaries of the same pairs; native query caches enabled, one returned row incremented before every read; two requests, not one atomic transaction" };
     console.error(backend + " " + name + ": " + JSON.stringify(measurements[name]));
     // Changed-payload retries of the first pair per owner must leave final state unchanged.
-    for (const actor of [0, 1]) assert.deepEqual(await bump(actor === 0 ? otherSku : ownSku, prefix + "-write-read-" + actor, actor), firstReceipts[actor]);
+    for (const actor of [0, 1]) assert.deepEqual(await bump(actor === 0 ? otherSku : ownSku, prefix + "-write-read-" + actor, actor), replayed(firstReceipts[actor], prefix + "-write-read-" + actor, actor));
   }
   const final = await verify();
   const metadata = process.env.SB4_CATALOG_METADATA ? JSON.parse(readFileSync(process.env.SB4_CATALOG_METADATA, "utf8")) : {};
   const out = { at: new Date().toISOString(), workload: "private-catalog", backend, trial, rows: count, initial, final, measurements, workloadSha256: createHash("sha256").update(readFileSync(new URL(import.meta.url))).digest("hex"), node: process.version, host: `${platform()}-${arch()} ${cpus()[0].model}`, transport: "loopback HTTP; real owner credentials; two owners plus authenticated outsider; no SDK retry wrapper", durability: "default-mode acknowledgement latency; no matched power-loss-durable write claim", auth: { identities: 3, timedIdentities: 2, ...authChecks, expiredTokenChecked: !!credentials.expiredToken, public: credentials.publicMetadata ?? {} }, correctness: { fullPartitionsBeforeAndAfter: true, foreignRowsHidden: true, foreignCursorNoLeak: true, unauthenticatedPrivateDataHidden: true, malformedTamperedAuthRefused: true, immutablePatchRefused: backend === "supabase" ? true : null, ownerArgumentForgeryRefused: true, freshAndFailedReplay: true, contendedDistinctIds: 8, concurrentSameId: 8, processRestartTested: false }, metadata };
+  if (backend === "snapback4") {
+    assert.deepEqual([...firstResponses.keys()].sort(), [...replayKeys].sort());
+    out.replayProof = { protocol: "execution-identity-v1", sessionsSha256: createHash("sha256").update(readFileSync(process.env.SB4_PRIVATE_SESSIONS)).digest("hex"),
+      firstResponses: [...firstResponses.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, response]) => response),
+      scope: "Captured first responses are oracle evidence only. Replays contain id/state/seq or refusal code with replayed=true and no result/current; no result is fabricated and no extra query is issued. Comparator fixtures still return their historical result; replay timing compares those different native response contracts." };
+  }
   if (writeRead) {
     out.extension = { name: "write-then-category-C1", targetCategory: "c007", targetRowDomain: 100,
       timedUniqueTargetRows: Math.min(samples, 100), warmupUniqueTargetRows: 30, totalUniqueTargetRows: Math.min(samples + 30, 100), timedPairs: samples, warmupPairs: 30,

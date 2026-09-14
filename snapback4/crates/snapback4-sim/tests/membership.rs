@@ -52,9 +52,9 @@ fn self_witness_roster_and_directory_are_complete_without_disclosing_other_chats
             let principals: Vec<_> = roster.data.as_array().unwrap().iter().map(|row| row.field("principal").unwrap().as_str().unwrap()).collect();
             assert_eq!(principals, if member { vec!["dev:alice", "dev:bob", "dev:carol"] } else { vec![] }, "{viewer}: {rule}");
             assert!(roster.complete && roster.next.is_none(), "{viewer}: {roster:?}");
-            // The prefix verdict costs one probe for every member, before any
-            // candidate (even the viewer's own first row); false prefixes cost zero.
-            assert_eq!(roster.metered.rule_probes, u64::from(member), "{viewer}: {rule}");
+            // The prefix verdict costs its one static probe on either outcome,
+            // before any candidate (even the viewer's own first row).
+            assert_eq!(roster.metered.rule_probes, 1, "{viewer}: {rule}");
             let empty = engine.query("roster", context(viewer, &[("chatKey", text("empty"))])).unwrap();
             assert!(empty.complete && empty.data.as_array().unwrap().is_empty());
             if !member { assert_eq!(roster.metered.examined, empty.metered.examined); }

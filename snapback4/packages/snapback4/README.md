@@ -275,6 +275,7 @@ looped or only bound. Prediction still needs a complete
 schema-capped group. Every page a mutation reads, including a page it only
 binds, must be uniformly decided by its prefix (`E_STRUCTURAL_FANOUT`): read it in
 a query, or pin the deciding columns.
+A page verdict evaluated from its pinned prefix charges the rule's static probe count on either outcome, including probes skipped by `and`/`or` short-circuiting; an aborting mutation page also costs one examined unit before the verdict.
 The pass is atomic and remains subject to 1,024 rows written per mutation.
 `check --cost` prints "a pass over the first N rows of <prefix>; examined
 ceiling <n>". It never commits a partial pass after a budget abort.

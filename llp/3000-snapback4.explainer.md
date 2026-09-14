@@ -6,7 +6,7 @@
 **Systems:** Everything under `snapback4/` once it exists; the bakeoff protocol shared with Snapback 3 (LLP 2000) and Snapback 2 (LLP 1000)
 **Author:** Charlie Cheever / Claude Fable 5.1
 **Date:** 2026-09-12
-**Revised:** 2026-09-13 (§7: ruling 15 — LLP 3000.007 §8.7 and §5.9 as revised are built); 2026-09-13 (§7: LLP 3000.007 accepted as ruled — every §14 question; the blind review of write authority commissioned; `sql` a fifth verb); 2026-09-13 (§7: the first ruling on LLP 3000.007 — the SDK media cache lands with the language); 2026-09-13 (§7: LLP 3000.007 rev 2 — pushed further after the Grok and Muse lanes; LLP 3000.006 absorbed and superseded); 2026-09-13 (§7: relaxed Quarry and explicit residency proposed in LLP 3000.007); 2026-09-13 (§7: explicit data residency and server execution proposed in LLP 3000.006); 2026-09-13 (§7: qualified packaged SQLite page-cache policy); 2026-09-13 (ticket repair qualification: logical device expiry and generation-bound native cache); 2026-09-13 (§7: SQLite plan reuse across bound inputs); 2026-09-13 (§7 and §9: security boundary and remediation); 2026-09-13 (§7: the device-side twin — native reads, LLP 3000.005 §9); 2026-09-13 (search, effects, services, presence, the ranked feed: §7, §8); 2026-09-13 (§7: production compiler trade); 2026-09-13 (§7: native jobs — the app's Rust in the data plane, hosted as wasm, metered like a job; §8: LLP 3000.005); 2026-09-13 (§7: the guide is compiled); 2026-09-13 (§7: explicit reference-ID semantics; remaining open-ticket corrections); 2026-09-13 (§7: borrowed query serialization, shared chat observations and HTTP worker reservation); 2026-09-13 (§9: implementation of the review corrections); 2026-09-12 (§9: architecture review and 37 correction tickets); 2026-09-13 (§7: feeds — the serving half is the substrate's, the model half is the app's; LLP 3000.004); 2026-09-13 (§7: one interpreter hosted two ways, the wasm measurement, ordered merge heads and measured performance work); 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
+**Revised:** 2026-09-14 (§7: bounded HTTP query reader reuse and signal-stack diagnostics); 2026-09-13 (§7: ruling 15 — LLP 3000.007 §8.7 and §5.9 as revised are built); 2026-09-13 (§7: LLP 3000.007 accepted as ruled — every §14 question; the blind review of write authority commissioned; `sql` a fifth verb); 2026-09-13 (§7: the first ruling on LLP 3000.007 — the SDK media cache lands with the language); 2026-09-13 (§7: LLP 3000.007 rev 2 — pushed further after the Grok and Muse lanes; LLP 3000.006 absorbed and superseded); 2026-09-13 (§7: relaxed Quarry and explicit residency proposed in LLP 3000.007); 2026-09-13 (§7: explicit data residency and server execution proposed in LLP 3000.006); 2026-09-13 (§7: qualified packaged SQLite page-cache policy); 2026-09-13 (ticket repair qualification: logical device expiry and generation-bound native cache); 2026-09-13 (§7: SQLite plan reuse across bound inputs); 2026-09-13 (§7 and §9: security boundary and remediation); 2026-09-13 (§7: the device-side twin — native reads, LLP 3000.005 §9); 2026-09-13 (search, effects, services, presence, the ranked feed: §7, §8); 2026-09-13 (§7: production compiler trade); 2026-09-13 (§7: native jobs — the app's Rust in the data plane, hosted as wasm, metered like a job; §8: LLP 3000.005); 2026-09-13 (§7: the guide is compiled); 2026-09-13 (§7: explicit reference-ID semantics; remaining open-ticket corrections); 2026-09-13 (§7: borrowed query serialization, shared chat observations and HTTP worker reservation); 2026-09-13 (§9: implementation of the review corrections); 2026-09-12 (§9: architecture review and 37 correction tickets); 2026-09-13 (§7: feeds — the serving half is the substrate's, the model half is the app's; LLP 3000.004); 2026-09-13 (§7: one interpreter hosted two ways, the wasm measurement, ordered merge heads and measured performance work); 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
 **Related:** [LLP 2000](./2000-snapback3.rfc.md) (Snapback 3, the sibling candidate), [LLP 2000.000](./2000.000-keep-the-core-flip-two-substrates.rfc.md) (the design brief this corpus builds), [LLP 1000](./1000-snapback2.explainer.md) (Snapback 2, the incumbent and the control), LLP 0000, LLP 0329, LLP 0329.014.004, LLP 0329.016, LLP 1001, LLP 1002, LLP 1012, LLP 1016, LLP 1019, LLP 1020, [LLP 1023](./1023-clique-builder-jump.rfc.md), [LLP 3000.004](./3000.004-feeds-and-the-interview-reference-app.rfc.md) (feeds; Interview as the second reference application), [LLP 3000.005](./3000.005-native-jobs.rfc.md) (native jobs), [LLP 3000.006](./3000.006-explicit-data-residency-and-server-execution.rfc.md) (explicit online-only data, execution classification and synced projections), [LLP 3000.007](./3000.007-relaxed-quarry-and-explicit-residency.rfc.md) (relaxed Quarry and explicit residency: the language's constraints re-derived under the meter), `rules/RULES.md`, `rules/NOT-DOING.md`, [`benchmarks/protocol.md`](../benchmarks/protocol.md), [`benchmarks/briefs/social-messenger.md`](../benchmarks/briefs/social-messenger.md), [`benchmarks/briefs/messaging-day2-evolution.md`](../benchmarks/briefs/messaging-day2-evolution.md)
 
 ## Summary
@@ -424,6 +424,41 @@ time-ordered 128-bit form.
   shapes still need their own measurements. The
   [membership record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
   separates direct statement diagnostics from complete-query evidence.
+
+- **2026-09-14 — reuse successful HTTP query readers.**
+  The HTTP host retains detached read-only engines after successful queries,
+  up to the existing 32-request worker bound. A request checks one out under
+  the owning engine's lock and releases both host locks before executing.
+  Each query still starts and ends its own activation-checked SQLite
+  transaction with the current request's viewer and arguments. Reusing the
+  connection preserves prepared statements and page caches; query results
+  and authorization decisions are evaluated again. A refused or failed
+  query discards its reader. Stores without a detached connection retain
+  their existing query path through the owning engine.
+
+  Every successful backend adoption in this host retires idle readers before native
+  module installation. This includes native-only edits that retain the same
+  schema generation: a pool epoch has its own identity, and a loan from an
+  earlier epoch cannot return to the new pool. Already executing reads keep
+  their existing transaction semantics. Retained connections consume memory
+  between requests; the worker bound limits their count, not their combined
+  physical memory. SQLite cache settings, query ceilings and write
+  acknowledgements are unchanged. The
+  [comparison record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
+  retains the read improvements, concurrent-write regression and observed
+  process memory cost separately from integration qualification.
+
+- **2026-09-14 — signal diagnostics fit the alternate stack.**
+  The host's signal handler uses a 256-byte line buffer for its fixed fields;
+  ordinary panic, thread and exit diagnostics retain their 4 KiB capacity.
+  The main thread's observed alternate signal stack on native x86 Linux is
+  8 KiB, shared with the kernel's signal frame. With the previous handler,
+  standalone TERM, truncated-mapping BUS and abort probes exited with
+  SIGSEGV in both unoptimized and optimized builds. The smaller
+  buffer preserves the complete diagnostic and expected signal in all six
+  probes. Handler installation, errno restoration, direct writes, atomics
+  and worker-cleanup semantics are unchanged; existing lifecycle tests
+  continue to require the original OS status and worker cleanup.
 
 - **2026-09-13 — feeds: the serving half is the substrate's, the model half
   is the app's (lead, proposed; [LLP 3000.004](./3000.004-feeds-and-the-interview-reference-app.rfc.md)).**
@@ -891,6 +926,24 @@ time-ordered 128-bit form.
   verdict; lane W5 builds it forward on main. Published as 0.2.10 with
   `snapback4-expo@0.2.3`; the ceremony bar's third run and the three-model
   Clique cell run on that pin.
+
+- **2026-09-14 — the ceremony bar's third run records lane S's result.**
+  On published `snapback4@0.2.10` (with `snapback4-expo@0.2.3`), three
+  green and independently reverified: 437/407/419 s, loops 1/2/1 all
+  agent-error, nine tables each, and the natural private membership rule
+  retained in every run. The before duplicated membership; the after
+  made its roster public; the third does neither. LLP 3000.007 §16 and
+  its linked record retain the evidence and N = 3 limits; the Clique
+  cell and the author's rulings remain pending.
+
+- **2026-09-14 — rulings 16 and 17 (a)–(c) accepted as landed (author).**
+  Charlie accepted all four recommendations in LLP 3000.007 §14: the
+  `Act<R>` card words; immutable patch columns ignored without comparison
+  on unreadable targets; unreadable author conditions refused without
+  evaluation and `upsert … if` refused at check; every mutation page read
+  restricted to a uniformly decided plain prefix. The dated ruling
+  preserves the earlier review history and changes no implementation.
+  SQL reads still await §10.3's full-cell finding.
 
 ## 8. Implementation map
 

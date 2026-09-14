@@ -16,9 +16,14 @@ struct Host {
 
 impl Host {
     fn new(dev: bool) -> Self {
-        let bound = snapback4_lang::compile(&[("schema.q".into(), SCHEMA.into())]);
+        Self::with_store(dev, snapback4_core::Store::memory().unwrap(), SCHEMA)
+    }
+
+    fn with_store(dev: bool, store: snapback4_core::Store, source: &str) -> Self {
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-        let mut engine = Engine::memory(
+        let mut engine = Engine::new(
+            store,
             bound.schema.clone(),
             bound.programs.iter().map(|p| p.program.clone()),
         )
@@ -28,6 +33,7 @@ impl Host {
         let generation = engine.generation();
         let shared = Arc::new(Shared {
             engine: Mutex::new(engine),
+            readers: Mutex::new(QueryReaders::default()),
             bound: Mutex::new(bound),
             generation: Mutex::new(generation),
             committed: Condvar::new(),
@@ -858,4 +864,127 @@ fn opening_a_development_project_protects_its_data_directory_and_store() {
     }
     drop(engine);
     std::fs::remove_dir_all(project.root).unwrap();
+}
+
+
+struct ReaderTestDirectory(std::path::PathBuf);
+impl ReaderTestDirectory {
+    fn new() -> Self {
+        let unique = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let path = std::env::temp_dir().join(format!("sb4-reader-reuse-{}-{unique}", std::process::id()));
+        std::fs::create_dir(&path).unwrap();
+        Self(path)
+    }
+    fn host(&self) -> Host {
+        Host::with_store(true, snapback4_core::Store::open(&self.0.join("store.sqlite")).unwrap(), READER_SCHEMA)
+    }
+}
+impl Drop for ReaderTestDirectory {
+    fn drop(&mut self) { let _ = std::fs::remove_dir_all(&self.0); }
+}
+
+const READER_SCHEMA: &str = r#"use identity guests
+
+table privateProducts:
+  ownerId: principal
+  sku: text 1..40
+  category: text 1..20
+  price: int
+  title: text <=200
+  revision: int
+  unique byOwnerSku: ownerId, sku
+  unique byOwnerCategoryPrice: ownerId, category, price, sku
+  immutable ownerId, sku, category, price, title
+  read <- .ownerId = viewer
+  insert <- deny
+  update <- .ownerId = viewer
+  delete <- deny
+
+query point(sku: text 1..40):
+  return privateProducts[viewer, sku] by byOwnerSku { sku, category, price, title, revision }
+
+query category(category: text 1..20, c: cursor ?):
+  return privateProducts[viewer, category] after c first 50 by byOwnerCategoryPrice
+    { sku, category, price, title, revision }
+
+query all(c: cursor ?):
+  return privateProducts[viewer] after c first 1000 by byOwnerSku
+    { sku, category, price, title, revision }
+
+mutation bump(sku: text 1..40):
+  row = privateProducts[viewer, sku] by byOwnerSku ! else NOT_FOUND
+  update privateProducts[row] { revision: row.revision + 1 }
+  return { sku: row.sku, revision: row.revision + 1 }
+
+query version():
+  return 1
+"#;
+
+#[test]
+fn pooled_readers_observe_new_commits_and_each_viewer() {
+    let directory = ReaderTestDirectory::new();
+    let host = directory.host();
+    let seed = json!([
+        {"table":"privateProducts","row":{"id":"alice-row","ownerId":"dev:alice","sku":"one","category":"c007","price":1,"title":"Alice","revision":1}},
+        {"table":"privateProducts","row":{"id":"bob-row","ownerId":"dev:bob","sku":"one","category":"c007","price":2,"title":"Bob","revision":700}}
+    ]);
+    assert_eq!(body(&host.request("POST", "/seed", "", &seed.to_string()))["seeded"], 2);
+    let point = |viewer: &str| {
+        let response = host.request("POST", "/q/point", &format!("x-snapback-persona: {viewer}\r\n"), r#"{"args":{"sku":"one"}}"#);
+        assert_eq!(status(&response), 200, "{response}");
+        let reply = body(&response);
+        assert!(reply.get("denied").is_none(), "{reply}");
+        assert_eq!(reply["complete"], true);
+        assert_eq!(reply["viewer"], format!("dev:{viewer}"));
+        assert!(reply.get("data").is_some(), "{reply}");
+        reply
+    };
+    assert_eq!(point("alice")["data"]["revision"], 1);
+    assert_eq!(lock(&host.shared.readers).idle.len(), 1);
+    assert_eq!(point("bob")["data"]["revision"], 700);
+    let written = body(&host.request("POST", "/m/bump", "x-snapback-persona: alice\r\n", r#"{"id":"reader-reuse-bump","args":{"sku":"one"}}"#));
+    assert_eq!(written["state"], "sent", "{written}");
+    assert_eq!(point("alice")["data"]["revision"], 2);
+    assert_eq!(point("bob")["data"]["revision"], 700);
+    assert_eq!(point("outsider")["data"], Json::Null);
+    assert_eq!(lock(&host.shared.readers).idle.len(), 1);
+}
+
+#[test]
+fn pooled_readers_discard_old_loans_after_backend_or_native_epoch_changes() {
+    let directory = ReaderTestDirectory::new();
+    let host = directory.host();
+    let version = || body(&host.request("POST", "/q/version", "x-snapback-persona: alice\r\n", "{}"));
+    assert_eq!(version()["data"], 1);
+    let (epoch, mut old) = {
+        let engine = lock(&host.shared.engine);
+        lock(&host.shared.readers).take(&engine).unwrap()
+    };
+    let bound = snapback4_lang::compile(&[("schema.q".into(), READER_SCHEMA.replace("return 1", "return 2"))]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    {
+        let mut engine = lock(&host.shared.engine);
+        let next = engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
+        lock(&host.shared.readers).invalidate();
+        *lock(&host.shared.bound) = bound;
+        *lock(&host.shared.generation) = next;
+    }
+    let refused = old.query("version", Context::new("dev:alice", BTreeMap::new())).unwrap_err();
+    assert_eq!(refused.code, "E_GENERATION");
+    lock(&host.shared.readers).put(&epoch, old);
+    assert!(lock(&host.shared.readers).idle.is_empty());
+    assert_eq!(version()["data"], 2);
+    let (epoch, reader, generation) = {
+        let engine = lock(&host.shared.engine);
+        let (epoch, reader) = lock(&host.shared.readers).take(&engine).unwrap();
+        (epoch, reader, engine.generation())
+    };
+    // A native-only replacement also invalidates loans even if the stored
+    // schema generation stays equal. This checks the epoch boundary only;
+    // it does not claim to execute a native-module rebuild.
+    lock(&host.shared.readers).invalidate();
+    assert_eq!(lock(&host.shared.engine).generation(), generation);
+    lock(&host.shared.readers).put(&epoch, reader);
+    assert!(lock(&host.shared.readers).idle.is_empty());
+    assert_eq!(version()["data"], 2);
 }
