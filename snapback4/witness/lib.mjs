@@ -75,7 +75,7 @@ export async function launch({ seed, extraSource = "", headless = true }) {
   // beside it (`scripts/build-wasm.sh` first), served from a directory.
   const harness = mkdtempSync(join(tmpdir(), "sb4-witness-"));
   const entry = join(harness, "harness.ts");
-  writeFileSync(entry, `import { createLocalClient } from "${join(root, "packages/snapback4/src/local.ts")}";\nimport { webDevice } from "${join(root, "packages/snapback4/src/web.ts")}";\n(window as any).createLocalClient = (options: any) => createLocalClient({ device: webDevice(), ...options });\n`);
+  writeFileSync(entry, `import { createLocalClient } from "${join(root, "packages/snapback4/src/local.ts")}";\nimport { webDevice, indexedDbPersistence } from "${join(root, "packages/snapback4/src/web.ts")}";\nimport { WebDevice } from "${join(root, "packages/snapback4/src/wasm/snapback4_device.js")}";\nObject.assign(window, { webDevice, indexedDbPersistence, WebDevice });\n(window as any).createLocalClient = (options: any) => createLocalClient({ device: webDevice(), ...options });\n`);
   writeFileSync(join(harness, "index.html"), `<!doctype html><title>witness</title><script type="module" src="./harness.ts"></script>`);
   await build({ root: harness, logLevel: "silent", build: { outDir: join(harness, "dist"), emptyOutDir: true, minify: false, target: "es2022", assetsInlineLimit: 0 } });
 

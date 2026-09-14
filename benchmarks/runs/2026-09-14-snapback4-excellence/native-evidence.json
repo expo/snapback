@@ -1,0 +1,51 @@
+{
+  "cwd": "/home/ccheever/projects/sb4-excellence-replay/snapback4",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)\nbinary: rustc\ncommit-hash: 2d8144b7880597b6e6d3dfd63a9a9efae3f533d3\ncommit-date: 2026-07-07\nhost: x86_64-unknown-linux-gnu\nrelease: 1.97.0\nLLVM version: 22.1.6",
+  "active_toolchain": "1.97.0-x86_64-unknown-linux-gnu (overridden by '/home/ccheever/projects/sb4-excellence-replay/snapback4/rust-toolchain.toml')",
+  "baseline_elf_comment": "String dump of section '.comment':\n  [     0]  rustc version 1.97.0 (2d8144b78 2026-07-07)\n  [    2d]  GCC: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\n  [    5a]  Linker: LLD 22.1.6 (/checkout/src/llvm-project/llvm 08c84e69a84d95936296dfcab0e38b34100725d5)",
+  "candidate_elf_comment": "String dump of section '.comment':\n  [     0]  rustc version 1.97.0 (2d8144b78 2026-07-07)\n  [    2d]  GCC: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\n  [    5a]  Linker: LLD 22.1.6 (/checkout/src/llvm-project/llvm 08c84e69a84d95936296dfcab0e38b34100725d5)",
+  "artifacts": {
+    "/tmp/sb4-excellence-native-boundary-baseline.bin": {
+      "bytes": 157333024,
+      "sha256": "295828fa048ace0576f918415758cb3bf8ad3dbb081c77487de1bde58836de68"
+    },
+    "/tmp/sb4-excellence-native-boundary-candidate.bin": {
+      "bytes": 157336864,
+      "sha256": "0137d2e7568dda6ddd3ad6c0b3f2f3b79980e71af4a841b75d569b9a3e4b93f1"
+    },
+    "/tmp/sb4-excellence-native-boundary-baseline-connection.rs": {
+      "bytes": 5903,
+      "sha256": "c65bc166aae21ba48c4f45aae5f15da976cae98a81bb25d2aacd6d3147bbbcb0"
+    },
+    "/tmp/sb4-excellence-native-boundary-candidate-connection.rs": {
+      "bytes": 6347,
+      "sha256": "892f1a9f645c2f16a5ee8a3a030b9dcb33fd4d33d8874eddb7ac627f87b51ae3"
+    },
+    "/tmp/sb4-excellence-native-boundary-http.log": {
+      "bytes": 77430,
+      "sha256": "4c9ed8d77373c9c95ef09fcd1be52766d4f3453481f564197b5328eb2f49fa4c"
+    },
+    "/tmp/sb4-excellence-native-boundary-nodelay-instrumented.log": {
+      "bytes": 76921,
+      "sha256": "843f3ff48bf6495b459ed3200f549f9a9def45d03bdf1c69c171bbe534ef5766"
+    },
+    "/tmp/sb4-excellence-native-boundary-http-test.mjs": {
+      "bytes": 19417,
+      "sha256": "ba7c761afe02a2ae90c8ce05e7c4673b00aeb4d2c3d42f0a8b657207a88ca326"
+    },
+    "/tmp/sb4-excellence-native-boundary-full-green.log": {
+      "bytes": 4761,
+      "sha256": "ccdfa573370de7d4836f2f38f3b253a30c28678715684c985b58463e93d0c805"
+    },
+    "/tmp/sb4-excellence-native-boundary-build.log": {
+      "bytes": 935,
+      "sha256": "860337c72f9194e101a36d2f36a8ea27f80650e8cd55a3ee104639cc61f4a9e0"
+    }
+  },
+  "correction": "Both Rust builds used repository-selected Rust1.97.0; previous1.93.1 wording confused the home-shell default with the actual build cwd.",
+  "build_flags": {
+    "LIBSQLITE3_FLAGS": null,
+    "RUSTFLAGS": []
+  },
+  "build_flags_evidence": "Identical pre/post libsqlite3 build fingerprint rustc18169182855791486453; LIBSQLITE3_FLAGS val null; rustflags[]"
+}

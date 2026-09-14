@@ -6833,6 +6833,72 @@ paths, so the old diagnostic is not a current-release claim. No core edit,
 result/authority cache, ceiling change or new performance win follows yet.
 
 
+## 2026-09-14 — holistic excellence panel and the residual implementation
+
+Charlie commissioned the usual panel, including this authoring session, and
+Astra implementation of the directions that hold up. Astra (high), Grok 4.6
+(xhigh), Muse Spark 1.3 (xhigh) and Claude Fable 5.1 (high) returned independent
+source reviews at `5ec0a75a2`; all said READY WITH CHANGES. The author critical
+pass is separately labeled, not counted as an independent vote. Each actual
+review is retained under `llp/reviews/3000.008-holistic-product-excellence.*.md`.
+
+The main correction is factual: much of the .008 drafts already shipped under
+.007. The revised family preserves the product outcomes, keeps .006 superseded,
+and accepts a bounded residual increment under Charlie's delegated instruction.
+Three disjoint Astra lanes own replay results, browser persistence and durable
+acquisition. The .007 §19 presence/helper/`==` program already has an owner and
+is not duplicated. Ranking verification, one browser acquisition/offline-reopen
+measurement and a stopped-server disposable recovery procedure complete the
+selected evidence; a second application, broad tuning and seamless restore of
+old device outboxes remain deferred. No promotion claim or new gate follows.
+
+The first reproduced failure is the existing replay type ticket: the server
+correctly withholds a result while the clients return `result: undefined` under
+required `R`. The fix preserves `replayed: true` without a result in both
+clients, hooks and the card. Four real-HTTP baseline failures become green;
+25 focused runtime/type/React/security tests pass on the EPYC host, with the
+existing server disclosure tests unchanged. The acquisition and browser-save
+hypotheses also reproduced; their fixes and integrated evidence follow.
+
+### 2026-09-14 — LLP 3000.008 reproduced-boundary repairs
+
+Astra's four replay regression failures are repaired by an explicit fresh/replayed
+`Write` union, without retaining historical results. Actual wasm/process clients
+also reproduced never-acquired empty answers; readiness now commits with the
+generation's snapshot/catch-up, with a one-sync upgrade boundary for old stores.
+Browser failed saves now discard uncommitted memory and reopen persisted state;
+failed initialization releases locks. A failed runtime-cache save cannot let
+wasm-bindgen's initialized shortcut bless incompatible replacement bytes.
+
+Stopped-release recovery testing found that a copied absolute store symlink
+followed the original deployment, even while serving a new directory. The CLI
+now maintains a relative link under its existing lock and refuses unexpected
+regular files. Twelve release and 30 CLI tests passed; the package now documents
+a stopped whole-directory backup and isolated restore with fresh devices.
+Built-in jobs/schedules resume on serve; external workers remain disconnected
+for the exercise. This is not production rewind or power-loss qualification.
+
+### 2026-09-14 — LLP 3000.008 integrated evidence and code review
+
+Fresh Sol and Grok code reviews both returned READY with no must-fix code
+defects. Their source-only scope and documentation dispositions are retained
+with the panel under `llp/reviews/`. The worker-crash fixture's 60 s lease
+could not fit its 20 s deadline; an explicit 1 s fixture lease/poll preserves
+the real worker, action and supervision assertions and the production defaults.
+
+The final affected Linux checks pass: 71 Rust and 26 Node tests. Real Chrome
+IDB fault/reopen and production scale witnesses also pass. First useful local
+content for 20,000 messages takes 11.66 s; a new offline realm reopens in
+622 ms. Instrument overhead, seed, source, bytes and runtime hashes are kept
+in the existing metrics and `benchmarks/runs/2026-09-14-snapback4-excellence/`.
+A separately measured TCP_NODELAY correction reduces a 273-write replay drain
+from 20.25 s to 4.61 s; the original 15 s assertion is unchanged.
+
+The initial integrated Linux suite's 116 s red and the cold Office M1
+publication dry-run's 656 s refusal remain recorded. The latter encountered
+five deadline failures during high host load; it published nothing. These
+observations do not close the suite-budget ticket or prove holistic excellence.
+
 ## 2026-09-14 — confirm the feed query bottleneck on 0.2.12
 
 The performance lane repeated the bounded Office diagnostic on fixed
@@ -6921,3 +6987,18 @@ passed. The unchanged receipt is in `metrics/publish.jsonl`; the
 [performance record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
 preserves qualification details and the sync A/B's separate measured identities.
 Concurrent stream-tail and many-group-feed follow-ups remain open.
+
+## 2026-09-14 — Clique grading comparison needs an avatar-contract qualification
+
+The completed 0.2.10 Astra independent grade reports 99 pass, 2 fail and
+18 not run. Nine missing native proofs were classified as fail on the
+earlier pins and not run here; the smaller fail count is not a corresponding
+product improvement. One new failure follows conflicting frozen requirements:
+the DM-avatar assertion and brief require avatars, while the contract and
+choreography allow the kit's default no-avatar layout. A [narrow instrument
+ticket](../issues/20260914-clique-dm-avatar-assertion-conflicts-with-conditional-kit-contract.md)
+retains the contradiction and received result. The other failure is a
+settings action followed by navigation before admission; its evidence is
+added to the existing navigation follow-up. No received grade, frozen
+instrument or product code changed. Grok's independent grade is running;
+Muse's grade and all fresh M7 sessions remain to be completed.

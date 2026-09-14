@@ -898,14 +898,29 @@ interpreter the server runs: as wasm on the web (`webDevice()`, the
 partition in memory and kept in IndexedDB behind each call), as the
 native module on Expo (§7), as a process in Node (`processDevice({ dir, binary?, spawn?, writeFile? })` from
 `snapback4/native`) — syncs the viewer's partition into it, runs every
-query on it, queues every mutation durably and predicts its rows, and
-follows the server's stream for the rest. The device keeps the compiled
+query on it, queues every mutation durably and predicts its rows when local
+facts permit, and follows the server's stream for the rest. The device keeps the compiled
 backend too, so a device that starts with no network opens on what it
 holds (`link()` is `"offline"`, reads carry `fresh: false` and `since`)
-and catches up when the link returns; only a device that has never
-synced needs the server to open. The client itself is the session, the
-link, the transport and the observation of reads: about seventeen
-kilobytes over a device of three hundred. Its options: `url`; `device`;
+and catches up when the link returns. A device needs a kept backend to open
+offline. Merely installing that backend does not acquire its partition: until
+a snapshot and catch-up finish, partition-dependent reads fall back to the
+server or return `E_OFFLINE`, and writes queue without invented predictions.
+A successfully acquired empty partition is still known data. When upgrading a store that lacks acquisition metadata, one completed online
+sync is required;
+existing durable writes remain queued. Safe literal-default-only schema
+widening keeps acquired images readable; a reset or newly added table requires
+acquisition again.
+
+On the web, a failed save rejects the call and discards its uncommitted in-memory
+state. The next serialized call reopens the last persisted state; earlier
+durable writes survive. Failed startup releases the store lock. Runtime bytes
+become the offline entry only after initialization and cache persistence; if
+that save fails, the same bytes may retry, while changing the initialized
+runtime requires reloading the page. The application still owns its offline
+HTML/JavaScript shell.
+
+The client owns the session, link, transport and read observation. Its options: `url`; `device`;
 one of `persona` (development), `session` (from `snapback4/auth`, kept
 and restored for this JavaScript runtime by default), or `guest: true`
 (mint one when none is kept); `sessionStore`; `fetch`; `waitSeconds`. It
@@ -981,7 +996,11 @@ type Read<T> =
   | { data: T; complete: boolean; fresh: boolean; since?: number; next?: Cursor | null }
   | { loading: true }
   | { denied: Refusal };
-type Write<R> = { state: "pending"; id: string } | { state: "sent"; id: string; seq: number; result: R } | { state: "failed"; id: string; why: Refusal };
+type Write<R> =
+  | { state: "pending"; id: string }
+  | { state: "sent"; id: string; seq: number; replayed?: false; result: R }
+  | { state: "sent"; id: string; seq: number; replayed: true; result?: never }
+  | { state: "failed"; id: string; why: Refusal };
 type Refusal = { code: string; family: string; message: string; site?: string; rewrite?: string; guide?: string; rule?: string; retryable?: boolean };
 type Link = "online" | "offline" | "signed-out";
 ```
@@ -1009,10 +1028,15 @@ the same id, and `useMutation.last` follows it. `family` is `input`, `schema`, `
 engine, and `link` or `client` from the client itself. `isReady`,
 `isLoading`, `isDenied` narrow a `Read`.
 
-The `sent` outcome carries the server's typed `result`, including reused ids
-and shaped objects. A queued write's eventual `onWrite` event carries that same
-terminal result; `useMutation.last` follows it. Pending writes have no predicted
-result: their predicted rows carry `pending`.
+A fresh `sent` outcome carries the server's typed `result`, including reused ids,
+shaped objects and `null`. If that first reply was lost, the same-id retry returns
+`sent` with `replayed: true` and no `result`: execution was confirmed, but historical
+read authority is not retained. Check `write.state === "sent" && !write.replayed`
+before using `write.result`. For a replay, read the current state through an
+ordinary query if needed; do not issue a new mutation to recover the old result.
+A queued write's eventual `onWrite` event and `useMutation.last` preserve the same
+fresh-or-replayed outcome; `useMutation.run()` returns the outcome of its call.
+Pending writes have no predicted result: their predicted rows carry `pending`.
 
 `webDevice()` stores wasm bytes by SHA-256 digest in IndexedDB and opens from
 them without a network fetch on reload. It also persists the compiled backend
@@ -1405,8 +1429,9 @@ tables, viewer }` or `{ denied }`; `nextExpiry` is the earliest future expiry
 the visible read encountered, or null. `POST /m/<op>` with `{ "id", "args",
 "newIds" }` answers `{ state: "sent", id, seq, result }` or `{ state:
 "failed", id, why, current? }` (a client-minted `id` makes the write
-apply at most once, and a replay adds `replayed: true`; `current` is the
-live row on `E_CONFLICT`); a job is refused over the wire (`E_OP`).
+apply at most once). A replay adds `replayed: true` and omits both `result`
+and `current`; a fresh `E_CONFLICT` may carry the live row in `current`.
+A job is refused over the wire (`E_OP`).
 `POST /sync` takes JSON `{ from, limit, after, stream, pending }` (defaults:
 `0`, `2000`, `null`, `false`, `[]`). With `from: 0` it returns the paged
 snapshot: `{ snapshot: true, events: [{ table, kind, id, data }], watermark,
@@ -1495,6 +1520,36 @@ chunks each tick, and sweeps unplaced assets once a minute.
   not trust forwarded address or scheme headers. It symlinks the release's
   store to the directory's, so the filesystem must support symlinks.
 
+### Stopped backup and isolated restore
+
+This procedure exercises recovery into a disposable, isolated deployment. Its recovery point is the database state after all writers stopped for the backup: committed changes after that point are absent. Record the backup time and active release/generation with the backup. This is not seamless production continuation or a zero-data-loss promise.
+
+First stop the deployment's `snapback4 serve` process and wait for its exit; that stops its built-in scheduler and jobs. Stop external effect workers, worker supervisors and other CLI/database writers too. Keep them stopped through the copy. Do not copy only `store.sqlite` from a live server.
+
+Use new destination paths with existing parent directories. On the supported Unix filesystem, copy the entire deployment, preserving symlinks and file permissions:
+
+```sh
+set -eu
+# Set these to your existing deployment and two NEW destination directories.
+deployment=/srv/myapp
+backup=/srv/backups/myapp-stopped
+restored=/srv/restore/myapp-isolated
+test -d "$deployment"
+test ! -e "$backup"
+test ! -e "$restored"
+cp -a "$deployment" "$backup"
+cp -a "$backup" "$restored"
+snapback4 serve "$restored" --bind 127.0.0.1 --port 0
+```
+
+The copy includes the database and any SQLite sidecars, `assets/`, immutable `releases/` (including any packaged native module), `current`, and `releases.jsonl`. Authentication, deduplication, job and effect records live in that database. Keep the backup itself unserved. Serving repairs the selected release's generated database symlink to the restored deployment; unexpected regular files at that link path refuse startup.
+
+Use the printed isolated URL with a fresh device store and fresh outbox. Check current reads, backed-up identity access and an asset download. Do not attach a device store or pending outbox from the former server. Keep external effect workers disconnected from the restored endpoint. Serving automatically resumes built-in jobs and schedules: they can change the restored data or enqueue effects, so account for them when interpreting the recovered state. The automated exercise uses an actual parked job and a controlled schedule boundary to keep those records stable.
+
+The release-activation test executes this `cp -a` sequence after owned processes exit, verifies sessions, deduplication, queued effects, a parked job, release/program identity and asset bytes, and reads the restored data through a fresh process device. The original remains present with post-backup writes, proving the restored server is independent. It also verifies a permitted schema widening, a refused destructive candidate, and rollback after a new restored write. Rollback selects earlier source; it does not rewind rows.
+
+Production continuation needs an application-specific plan for old device watermarks and pending writes, identity/revocation changes since backup, unfinished or repeated jobs, and external effects that may already have happened. Restored operation IDs only prove deduplication represented in the backup; post-backup IDs and effect settlements may be missing. Reconcile those outcomes before reconnecting production clients or workers. External worker code, credentials and service configuration outside the deployment need separate recovery arrangements. SQLite uses WAL with `synchronous=NORMAL`; this stopped-process exercise does not establish physical-power-loss durability.
+
 ## 7. Expo
 
 The same client runs on React Native over the native module — the
@@ -1563,9 +1618,11 @@ reads and a send, a reopen that finds the rows, a cold start with the
 server unreachable that opens on what the store holds and answers with
 `fresh: false`, and two writes composed offline that survive a restart of
 the app still offline and flush in order on reconnect; the cold sync of
-303 rows takes 31 ms. The Chromium witness (`witness/idb.mjs`) proves the
-same on the wasm device over IndexedDB. An app proves the same the same
-way: gate the client's `fetch` option to
+303 rows took 31 ms in that recorded simulator run. The Chromium witness
+(`witness/idb.mjs`) separately checks local reads, one offline write landing
+after reopen, fresh-realm offline runtime startup, and persistence/cache
+failure recovery on the wasm device over IndexedDB. An app can model these
+boundaries by gating the client's `fetch` option to
 model the link (the server never has to die), close and reopen the
 client to model a restart, and read the outcomes off the card.
 

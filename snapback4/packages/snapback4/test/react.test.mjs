@@ -240,6 +240,36 @@ const cases = {
     await unmount();
     replacement.writes[0].resolve(sent("after-unmount")); await abandoned;
   },
+  async "useMutation preserves fresh null and direct, queued and early replay receipts"() {
+    const client = controlled(); let latest;
+    function Probe() { latest = useMutation(mutation); return null; }
+    await mount(h(Probe), client);
+    const nil = { state: "sent", id: "nil", seq: 1, result: null };
+    let first;
+    await act(async () => { first = latest.run({}); client.writes[0].resolve(nil); await first; });
+    equal(await first, nil, "run keeps fresh null");
+    equal(latest.last, nil, "last keeps fresh null");
+    const replay = { state: "sent", id: "replayed", seq: 2, replayed: true };
+    let direct;
+    await act(async () => { direct = latest.run({}); client.writes[1].resolve(replay); await direct; });
+    equal(await direct, replay, "run keeps direct replay");
+    equal(latest.last, replay, "last keeps direct replay");
+    check(!("result" in latest.last), "a replay never acquires a result property");
+    const queued = { ...replay, id: "queued" };
+    await act(async () => { const pending = latest.run({}); client.writes[2].resolve({ state: "pending", id: queued.id }); await pending; });
+    await act(async () => client.emitWrite(queued));
+    equal(latest.last, queued, "onWrite preserves the queued replay");
+    const early = { ...replay, id: "early" };
+    await act(async () => {
+      const pending = latest.run({});
+      client.emitWrite(early);
+      client.writes[3].resolve({ state: "pending", id: early.id });
+      await pending;
+    });
+    equal(latest.last, early, "early replay notification wins over pending");
+    check(!("result" in latest.last) && !latest.inFlight, "early replay has no invented result");
+    await unmount();
+  },
   async "useAction tracks concurrent results, retry ids and obsolete lifetimes"() {
     const client = controlled(), calls = [];
     client.act = (_, args, options) => { const call = deferred(); calls.push({ ...call, args, options }); return call.promise; };

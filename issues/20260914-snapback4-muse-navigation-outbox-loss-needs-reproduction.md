@@ -76,3 +76,20 @@ pre-grade source has `lib/client.tsx`, `lib/helpers.tsx` and
 `app/chat/[id]/settings.tsx`. This is a follow-up to
 [LLP 3000.007 §10.3](../llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md#10.3),
 not a new author ruling or a change to the frozen benchmark.
+
+## 2026-09-14 — the independent Astra grade observes the same boundary
+
+The separate Astra app's completed independent grade reports membership
+settings loss in 4/6 immediate-navigation attempts, with the member still
+present in the server roster. Eight human-paced attempts passed, as did
+four attempts waiting for removal to settle before navigation; direct API
+removal enforced cutoff. Six immediate-navigation message sends committed.
+These are the grader's observations in `grading/trace.md` §5c and its
+`g-web-removal-*.mjs` evidence, not a new orchestrator reproduction.
+
+This strengthens the case for isolating settings admission and UI
+completion feedback. It still does not demonstrate loss after a successfully
+awaited IndexedDB admission: the grader describes navigation before local
+admission, while the reduced control above tests navigation after it.
+Preserve Astra's received `m3-a12` failure and Muse's builder workaround
+without treating the two different boundaries as contradictory results.

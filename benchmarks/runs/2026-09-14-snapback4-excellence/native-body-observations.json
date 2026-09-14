@@ -1,0 +1,26 @@
+{
+  "baseline": {
+    "rawLogSha256": "4c9ed8d77373c9c95ef09fcd1be52766d4f3453481f564197b5328eb2f49fa4c",
+    "syncResponses": 280,
+    "syncBodyMedianMs": 40.71908950000079,
+    "syncBodyTotalMs": 11093.447452000019,
+    "terminal": 273,
+    "receipts": 273,
+    "queued": 0,
+    "missingTerminal": 0,
+    "missingReceipts": 0,
+    "listenerAtMs": 1103.4652979999998
+  },
+  "candidate": {
+    "rawLogSha256": "843f3ff48bf6495b459ed3200f549f9a9def45d03bdf1c69c171bbe534ef5766",
+    "syncResponses": 280,
+    "syncBodyMedianMs": 0.2716074999993907,
+    "syncBodyTotalMs": 93.23611500000186,
+    "terminal": 273,
+    "receipts": 273,
+    "queued": 0,
+    "missingTerminal": 0,
+    "missingReceipts": 0,
+    "listenerAtMs": 623.352271
+  }
+}

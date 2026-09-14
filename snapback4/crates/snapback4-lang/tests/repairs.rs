@@ -176,3 +176,38 @@ fn trending_card_ranks_the_day_and_reports_a_cut_set() {
     assert_eq!(cut.data.as_array().unwrap().len(), 10);
     println!("trending: complete-day rows={}, examined={}; cut-day population=8202, returned={}, examined={}, complete={}", rows.len(), result.metered.examined, cut.data.as_array().unwrap().len(), cut.metered.examined, cut.complete);
 }
+
+#[test]
+fn trending_card_finds_winners_after_200_and_1000_candidates_without_hiding_its_ceiling() {
+    use snapback4_core::{Context, Engine, Value, error::MeterKind, value::object};
+    use snapback4_lang::guide::{card, quarry};
+    use std::collections::BTreeMap;
+    let block = quarry(card("feeds").unwrap()).into_iter().find(|block| block.contains("query trending()")).unwrap();
+    let bound = compile(&[("schema.q".into(), block)]);
+    assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?} {:?}", bound.diagnostics, bound.notes);
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    let post = |n: i64| ("posts".into(), object([
+        ("id", Value::Id(format!("p{n:05}"))), ("authorId", Value::Id("alice".into())),
+        ("body", Value::String("candidate".into())), ("at", Value::Int(90_000_000 + n)),
+    ]));
+    let likes = |n: i64, count: i64| (0..count).map(move |k| ("likes".into(), object([
+        ("id", Value::Id(format!("l{n}-{k}"))), ("postId", Value::Id(format!("p{n:05}"))),
+        ("principal", Value::Id(format!("reader{k}"))),
+    ])));
+    engine.seed((0..1500).map(post)).unwrap();
+    engine.seed(likes(250, 3).chain(likes(1250, 4))).unwrap();
+    let context = || Context::new("alice", BTreeMap::new()).at(100_000_000);
+    let ids = |data: &Value| data.as_array().unwrap().iter().map(|row| row.field("id").unwrap().clone()).collect::<Vec<_>>();
+    let page = engine.query("trending", context()).unwrap();
+    assert!(page.complete, "{page:?}");
+    let expected = [1250, 250, 1499, 1498, 1497, 1496, 1495, 1494, 1493, 1492].map(|n| Value::Id(format!("p{n:05}")));
+    assert_eq!(ids(&page.data), expected, "first-200 and first-1000 samples both lose the winner; all ties use descending time");
+    engine.seed((1500..8193).map(post)).unwrap();
+    engine.seed(likes(8192, 5)).unwrap();
+    let cut = engine.query("trending", context()).unwrap();
+    assert!(!cut.complete, "sorting and slicing a capped population cannot claim exact ranking");
+    assert_eq!(cut.capped_at.as_ref().map(|(kind, _)| *kind), Some(MeterKind::Examined));
+    assert_eq!(ids(&cut.data).len(), 10);
+    assert!(!ids(&cut.data).contains(&Value::Id("p08192".into())), "the true winner is outside this recipe's examined ceiling");
+    println!("adversarial trending: exact population=1500 ids={:?} examined={}; capped population=8193 missing winner=p08192 examined={} complete={}", ids(&page.data), page.metered.examined, cut.metered.examined, cut.complete);
+}
