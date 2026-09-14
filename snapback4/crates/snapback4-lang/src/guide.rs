@@ -369,7 +369,7 @@ mutation sendBrief(roomId: rooms, body: text <=4000 ?, ttl: int ?):
       emit notify { targetUserId: m.principal, roomId, preview: slice(body ?? '', 0, 80) }   -- kept in this commit; a worker claims and settles it (guide effects)
   return { id: row.id, brief: isBrief(ttl), mentions: count(tokens(body ?? '')) }                                 -- `??` is the value when the left is null
 
-mutation edit(messageId: messages, body: text <=4000, expected: text <=4000 ?):
+mutation edit(messageId: messages, body: text <=4000, expected: text <=4000 ?) predicts:
   msg = messages[messageId] ! else NOT_FOUND                         -- the row, or refuse with the code; `msg` is present from here on
   require msg.authorId = viewer else NOT_AUTHOR
   update messages[msg] { body, editedAt: now } if .body = expected    -- a row as the key; `if` makes the update conditional: E_CONFLICT with the current row when false
@@ -674,10 +674,14 @@ and require codes. check compares with generated/residency.json; dev compares
 with the generation it serves. N_NOW_SERVER names a newly server-run query.
 N_NOT_PREDICTABLE names lost eligibility or an added horizon risk, explicitly
 distinguishing a call that may queue from an operation that never predicts.
+Every check also summarizes all never-predicting mutations. A header such as
+`mutation post(body: text <=200) predicts:` asserts eligibility; a server
+site refuses E_NOT_PREDICTABLE at that header. See `guide prediction`.
 
 N_MAINTAIN_SYNCED names public inherited aggregates and group audiences
-with unbounded recipients or multiple values per group. Add online only
-to opt out. Run
+with unbounded recipients or multiple values per group. It names mutations
+that would stop predicting if the maintain goes online only. When a dev
+store exists, check adds its measured value-row count before adoption. Run
 `test --residency --fixture dir --as alice` to measure cold rows and compact
 JSON row bytes per synced table and persona, plus totals and aggregate row
 counts. Facts are labelled facts; measurements exclude transport framing

@@ -67,12 +67,31 @@ pub fn bind(documents: Vec<Document>) -> Bound {
             }
         }
     }
+    // @ref LLP 3000.007#20 — predicts asserts the existing eligibility decision; it never changes residency.
+    for doc in &catalog.documents {
+        let module = std::path::Path::new(&doc.file).file_stem().unwrap().to_string_lossy();
+        for decl in doc.programs.iter().filter(|decl| decl.predicts) {
+            let name = operation_name(&module, &decl.name);
+            if let Some(fact) = schema.operations.get(&name) && fact.predicts.as_deref() == Some("never")
+                && let Some(site) = fact.sites.iter().find(|site| site.class == snapback4_core::schema::SiteClass::Server) {
+                diagnostics.push(Diagnostic::new(&decl.site, "E_NOT_PREDICTABLE", format!("mutation {name} asserts predicts, but {}", residency::prediction_reason(&schema, site)), &site.rewrite).guide("prediction"));
+            }
+        }
+    }
     if diagnostics.is_empty() {
-        programs.retain(|bound| match snapback4_core::engine::admission::check(&schema, &bound.program) {
+        programs.retain(|bound| match snapback4_core::engine::admission::check_detail(&schema, &bound.program) {
             Ok(()) => true,
             Err(error) => {
-                let why = error.refusal();
-                diagnostics.push(Diagnostic::new(&bound.site, &why.code, why.message, why.rewrite.unwrap_or_else(|| "iterate one complete schema-capped group, or move the pass to a chunk job".into())));
+                let source = bound.sources.get(&error.site).or_else(|| error.page_site.as_ref().and_then(|site| bound.sources.get(site)));
+                let site = source.map_or(&bound.site, |(site, _)| site);
+                let message = if error.site.starts_with("for/") && let Some((_, name)) = source { format!("loop over {name}: {}", error.message) } else { error.message };
+                let mut rewrite = error.rewrite;
+                if rewrite.starts_with("iterate the original group:") && let Some(page) = error.page_site.as_ref().and_then(|site| bound.sources.get(site))
+                    && let Some(scan) = snapback4_core::ir::scans(&bound.program).into_iter().find(|scan| Some(&scan.site) == error.page_site.as_ref()) {
+                    let spelling = format!("{}[..]", scan.table);
+                    rewrite = rewrite.replace(&spelling, &page.1);
+                }
+                diagnostics.push(Diagnostic::new(site, error.code, message, rewrite).guide("programs"));
                 false
             }
         });
@@ -192,18 +211,19 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                 continue;
             }
             let rows = lanes * take;
-            let ceiling = snapback4_core::Ceilings::default().examined;
+            let ceiling = snapback4_core::Ceilings::default().examined.to_string();
+            let ceiling = if ceiling == "8192" { "8,192" } else { &ceiling };
             let work = if snapback4_core::engine::rules::lazy_merge(schema, merge) {
                 format!("up to {lanes} lanes, reading one head per lane and advancing the winning lanes; discovery, lookahead, duplicates and expired rows also consume the meter")
             } else {
-                format!("up to {lanes} lanes, one page of {take} each — {rows} rows per read{}", if rows > ceiling { format!(", past the {ceiling} examined the meter allows, so the page is cut and `complete: false`") } else { "".into() })
+                format!("up to {lanes} lanes, one page of {take} each — up to {rows} rows per read")
             };
             notes.push(
                 Diagnostic::new(
                     &bound.site,
                     "N_WIDE_MERGE",
-                    format!("{} {}: the merge over {} reads {work}", bound.program.kind.word(), bound.program.name, merge.table()),
-                    "keep the lanes under 50 (`first 50` on the lane source), or write the feed on the way in: a table of entries per reader, synced to .reader, read as one page (`snapback4 guide feeds`)",
+                    format!("{} {}: the merge over {} reads {work}; a read past the {ceiling} examined ceiling returns `complete: false`", bound.program.kind.word(), bound.program.name, merge.table()),
+                    "measure with `snapback4 test --cost`; keep the lanes under 50 (`first 50` on the lane source), or write the feed on the way in: a table of entries per reader, synced to .reader, read as one page (`snapback4 guide feeds`)",
                 )
                 .guide("feeds"),
             );

@@ -772,6 +772,9 @@ together with the last, so a device never shows half a snapshot.
 `online only` optionally documents a table with no sync. On a `maintain`,
 it opts out of inherited sync. `N_MAINTAIN_SYNCED` calls out public inherited
 aggregates and group audiences with unbounded recipients or multiple values per group.
+The note names mutations that would stop predicting if the maintain goes
+`online only`; `snapback4 test --residency` measures its cold rows. When a
+dev store exists, `check` includes its measured value-row count before adoption.
 
 `check --residency` lists every table's residency, inferred and inherited
 audiences, and each operation's `runs: device | server` or
@@ -784,6 +787,12 @@ rewrite; `why <table>` includes the rule used for inference. The generated
 `require` codes. `check` compares with `snapback/generated/residency.json`;
 `dev` compares with its served generation. `N_NOW_SERVER` and
 `N_NOT_PREDICTABLE` name changed sites, including added horizon risks.
+Every text `check` also summarizes mutations that never predict, with one
+reason each; JSON checks include `predictionSummary`. Add `predicts` before
+a mutation header's colon (`mutation like(postId: posts) predicts:`) to assert
+eligibility: `check` refuses `E_NOT_PREDICTABLE` at that header if any site
+makes it `never`. This asserts eligibility, not that every call will predict;
+a horizon miss can still queue without a row. See `guide prediction`.
 
 `test --residency --fixture dir [--as persona]` prints measured cold rows and
 compact JSON row bytes per synced table and persona, plus totals and

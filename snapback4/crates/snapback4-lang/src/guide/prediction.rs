@@ -12,6 +12,11 @@ Run `snapback4 check --residency` and `snapback4 why <op>` to see read sites:
 
 `predicts: eligible` requires device-readable sites and synced writes;
 the call still needs its facts on this device and must fit the meter and rules.
+`mutation name(args) predicts:` asserts this eligibility: `check` refuses
+`E_NOT_PREDICTABLE` at the header if a server site makes it `never`, with
+the reason and rewrite. It does not promise prediction on every call.
+Every `check` summarizes mutations that never predict, even on an unchanged
+program; `snapback4 why <op>` explains each site.
 Every mutation can queue on the local client; eligibility is not a promise
 that every call produces a predicted row. Native reads also need their module.
 
@@ -41,11 +46,11 @@ maintain noteCounts: count notes by owner
 
 effect notify
 
-mutation saveDraft(id: drafts, body: text <=200):
+mutation saveDraft(id: drafts, body: text <=200) predicts:
   draft = drafts[id] ! else NOT_FOUND
   update drafts[draft] { body }                 -- held site
 
-mutation post(body: text <=200):
+mutation post(body: text <=200) predicts:
   insert notes { owner: viewer, body, at: now }  -- no existence guard needed
 
 mutation guardedPost(id: notes, body: text <=200):
@@ -58,7 +63,7 @@ mutation countedPost(body: text <=200):
   insert notes { owner: viewer, body, at: now }
   return total
 
-mutation notifyPost(body: text <=200, recipient: principal):
+mutation notifyPost(body: text <=200, recipient: principal) predicts:
   insert notes { owner: viewer, body, at: now }
   if not exists connected[recipient]:           -- presence decides only the emit
     emit notify { recipient }
@@ -105,7 +110,7 @@ table likes:
   delete <- .owner = viewer
   sync to .owner
 
-mutation setLike(postId: id, liked: bool):
+mutation setLike(postId: id, liked: bool) predicts:
   if liked:
     insert likes { owner: viewer, postId } if absent
   else if exists likes[viewer, postId]:

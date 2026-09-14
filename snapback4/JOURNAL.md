@@ -7903,3 +7903,314 @@ fixture to a 1 s lease and poll because a killed worker's orphaned claim could
 lease new work; with `dev`'s per-child session (`0380b3ae6`) the fixture runs
 the reference worker's production defaults again (worker tests 5 of 5, three
 runs), so the test guards the fix instead of hiding the race.
+
+## 2026-09-14 — lane B2: prediction, residency and fanout explanations (§20)
+
+Built S05, S06, S08 and S17 from LLP 3000.007 §20, preserving its §6.2
+site classes, §14/§18 decisions and §19.1 presence analysis. Read the
+inventory's L12 final/m8/m6 checks, generated API and residency facts;
+L10a's m6/m8 checks and fanout explanation; the timestamped L12, L10a and
+A6 horizon/maintain notes; R10g's loop 8; and L12 grader trace §4.9. These
+fixtures reproduce the accumulated recipients, online-only aggregates and
+ranked writes, and a complete wide matching search that the old note said
+was cut. The existing prediction card supplies the horizon and effects-only
+presence controls.
+
+Every successful text check now prints one sorted summary of mutations that
+never predict, including unchanged checks. Failed checks with bound mutation
+facts print it too. Successful JSON checks carry `predictionSummary`.
+`mutation name(args) predicts:` asserts the existing binder result, refusing
+E_NOT_PREDICTABLE at the header when it is never. It neither changes a site
+class nor promises that a horizon miss will predict. The prediction recipes
+and language card compile with the new modifier.
+
+The maintain note names eligible mutation readers before suggesting an
+online-only opt-out. Check observes value-row counts in the current dev
+store (explicitly before adoption); test --residency still measures each
+persona's actual cold partition. A maintain's sync-property refusal explains
+inheritance; its online-only rewrite removes the override instead of asking
+for an invalid sync property.
+
+Fanout admission returns located details for the compiler. A small source
+map beside the bound program maps loops and page reads back to Quarry;
+serialized IR and generated site ids are unchanged. An accumulated list's
+rewrite names its original capped page, a too-small page names the cap,
+and an unpinned read offers a query. Core refusal text also avoids repeating
+the code and message. No admission verdict, meter ceiling or value-model
+serialization changed; no existing corpus case changed. N_WIDE_MERGE now
+states the possible cost conditionally and points to test --cost.
+
+### Measurements
+
+- Summary cases: 0, 1 and 3 never-predicting mutations, each checked twice.
+  The L12-shaped ranked-write/entryCounts case also checks text, JSON and
+  check --residency; operation why names the maintain's actual rewrite.
+- Three likes over two post ids produce 2 maintained value rows. Alice's
+  cold snapshot contains 2 likeCounts rows / 100 bytes, and 5 total rows /
+  223 bytes including the source likes.
+- Matching search: 1,000 possible lanes × 21 rows = 21,000 potential rows;
+  the populated control returns 1 message, examines 2 rows, complete=true.
+  The ceiling remains 8,192.
+- The accumulated recipient loop is reported at 14:3, formerly the header
+  at 9:1. The non-uniform read is at 8:10, formerly the header at 7:1.
+  The small-page control uses 10 against a schema cap of 50; the suggested
+  50-row loop compiles. The corrected recipient loop executes successfully.
+
+### Exact diagnostics before → after
+
+The following are the regression fixtures' output. The always-on summary
+had no before line; after an unchanged three-mutation check it is:
+
+```text
+3 mutations never predict: createPost (reads online-only maintain likeCounts), like (reads online-only maintain likeCounts), repost (reads online-only maintain likeCounts) — snapback4 why <op>
+```
+
+**N_NOT_PREDICTABLE (the existing change note remains; its maintain rewrite is corrected) — before:**
+
+```text
+schema.q:14:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: point likeCounts by byGroup: online only (site programs.like.0)
+  rewrite: sync likeCounts to its read-rule audience, or read a compact synced projection
+  guide: residency
+```
+
+**After:**
+
+```text
+schema.q:14:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: point likeCounts by byGroup: online only (site programs.like.0)
+  rewrite: remove `online only` from maintain likeCounts to inherit its source's sync, or read a compact synced projection
+  guide: residency
+```
+
+**N_MAINTAIN_SYNCED (with a measured current store) — before:**
+
+```text
+schema.q:10:1 — N_MAINTAIN_SYNCED: maintain likeCounts: sync public inherited from likes; one value row per postId reaches every device
+  rewrite: add `online only` to the maintain to opt out of inherited sync; measure with `test --residency`
+  guide: residency
+```
+
+**After:**
+
+```text
+schema.q:10:1 — N_MAINTAIN_SYNCED: maintain likeCounts: sync public inherited from likes; one value row per postId reaches every device; createPost, like, repost would stop predicting if likeCounts goes `online only`; current store measurement: 2 value rows (before adoption; cold rows per viewer: `snapback4 test --residency`)
+  rewrite: keep inherited sync for local readers, or add `online only` to opt out; measure cold rows with `snapback4 test --residency`
+  guide: residency
+```
+
+**A sync property on a maintain — before:**
+
+```text
+schema.q:12:3 — E_QUARRY_SYNTAX: unknown maintain property sync
+  rewrite: read <- rule
+  guide: language
+```
+
+**After:**
+
+```text
+schema.q:12:3 — E_QUARRY_SYNTAX: a maintain inherits its source's sync; `online only` opts out
+  rewrite: remove this sync line to inherit, or replace it with `online only`
+  guide: residency
+```
+
+**The predicts header assertion — before:**
+
+```text
+schema.q:1:21 — E_QUARRY_SYNTAX: expected ":", got "predicts"
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+```
+
+**After:**
+
+```text
+schema.q:1:1 — E_NOT_PREDICTABLE: mutation dispatch asserts predicts, but author marked this mutation : server
+  rewrite: remove : server to allow prediction when every site is held
+  guide: prediction
+```
+
+**E_STRUCTURAL_FANOUT on the accumulated recipients — before:**
+
+```text
+schema.q:9:1 — E_STRUCTURAL_FANOUT: E_STRUCTURAL_FANOUT: send/for/$p3/0: $p3 does not preserve one complete page; pin a schema-capped group with a literal bound at least its cap, or use a job chunk
+  rewrite: send/for/$p3/0: $p3 does not preserve one complete page; pin a schema-capped group with a literal bound at least its cap, or use a job chunk
+  guide: language
+```
+
+**After:**
+
+```text
+schema.q:14:3 — E_STRUCTURAL_FANOUT: loop over recipients: members by byRoom (page bound 50): this list does not preserve one complete page
+  rewrite: iterate the original group: `for row in members[room] first 50 by byRoom:`; put the condition and work inside that loop
+  guide: programs
+```
+
+**E_STRUCTURAL_FANOUT on a non-uniform read — before:**
+
+```text
+schema.q:7:1 — E_STRUCTURAL_FANOUT: E_STRUCTURAL_FANOUT: programs.send.0: the mutation page's read rule is not uniformly decided by its prefix; read it in a query, or pin the deciding columns
+  rewrite: read it in a query, or pin the deciding columns
+  guide: language
+```
+
+**After:**
+
+```text
+schema.q:8:10 — E_STRUCTURAL_FANOUT: members by byRoom (page bound 10): the mutation page's read rule is not uniformly decided by its prefix
+  rewrite: read it in a query, or pin the deciding columns
+  guide: programs
+```
+
+**N_WIDE_MERGE on the completed search — before:**
+
+```text
+schema.q:32:1 — N_WIDE_MERGE: query searchAll: the merge over messages reads up to 1000 lanes, one page of 21 each — 21000 rows per read, past the 8192 examined the meter allows, so the page is cut and `complete: false`
+  rewrite: keep the lanes under 50 (`first 50` on the lane source), or write the feed on the way in: a table of entries per reader, synced to .reader, read as one page (`snapback4 guide feeds`)
+  guide: feeds
+```
+
+**After:**
+
+```text
+schema.q:32:1 — N_WIDE_MERGE: query searchAll: the merge over messages reads up to 1000 lanes, one page of 21 each — up to 21000 rows per read; a read past the 8,192 examined ceiling returns `complete: false`
+  rewrite: measure with `snapback4 test --cost`; keep the lanes under 50 (`first 50` on the lane source), or write the feed on the way in: a table of entries per reader, synced to .reader, read as one page (`snapback4 guide feeds`)
+  guide: feeds
+```
+
+**why E_STRUCTURAL_FANOUT — before:**
+
+```text
+E_STRUCTURAL_FANOUT: family schema — prediction needs a complete schema-capped group; a never-predicting mutation may pass a bounded uniform plain prefix page over a table without expiry. Every mutation page, even without a loop, must be uniformly decided by its prefix. Matching word scans, merges and expiring tables are refused for every mutation page, predicting or not, looped or bound; unknown loop origins are refused too. Pin the read-rule fields and a capped group, use : server for a bounded uniform pass, or move a sweep to a job chunk.
+```
+
+**After:**
+
+```text
+E_STRUCTURAL_FANOUT: a mutation cannot safely iterate this population. Prediction needs a whole capped group; all mutation pages need a uniform plain prefix over a table without expiry. An accumulated or filtered list may lose the proof that it contains the whole group. Iterate the original group, read the page in a query, or sweep it in a job chunk.
+
+Example: declare `cap 50 by room` on members, then iterate `for m in members[room] first 50 by byRoom:` and put the recipient condition and `emit` inside that loop.
+```
+
+### Verification and scope
+
+Base: `6896dfce5ecc949e2260ce1407f7449ebdd83d91`. The new regressions were
+run against that exact implementation (saved edits restored afterward,
+without git reset/checkout/stash), then against the lane. Every new test
+is red before and green after. These are the exact targeted commands,
+run from `snapback4/`, and their verbatim summary lines:
+
+`cargo test -p snapback4-lang --test residency_notes -- --nocapture`
+
+Before:
+
+```text
+test result: FAILED. 0 passed; 9 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+After:
+
+```text
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+```
+
+`cargo test -p snapback4 --test check b2_ -- --nocapture`
+
+Before:
+
+```text
+test result: FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 15 filtered out; finished in 1.80s
+```
+
+After:
+
+```text
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 1.56s
+```
+
+`cargo test -p snapback4-lang --test guide`
+
+```text
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+```
+
+The broader targeted command
+`cargo test -p snapback4-lang --test frontend_regressions --test presence --test lowering`
+passed:
+
+```text
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 76.85s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+```
+
+The initial broader admission command was
+`cargo test -p snapback4-sim --test page_admission --test write_authority --test condition_authority`.
+It caught one existing expectation of rewrite text inside the message; this
+lane intentionally separates them. The assertion now checks the explanation
+in the message; the rewrite is separately asserted by the new regressions.
+The initial command's summary lines were:
+
+```text
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.63s
+test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 34.64s
+```
+
+That target and every other Rust target passed in the full suite on the
+final implementation. From the repository root:
+
+```sh
+export PATH="$HOME/.volta/tools/image/node/24.18.0/bin:$PATH"
+bash snapback4/scripts/test.sh > /tmp/b2-suite.log 2>&1
+```
+
+```text
+-- ok: cargo test (499 s)
+ℹ tests 169
+ℹ pass 168
+ℹ fail 1
+-- FAIL: client tests (63 s)
+== 1 failure(s) in 533 s
+   client tests
+```
+
+The only suite failure is `React hooks and reference-app lifetimes`:
+Chromium exits with SIGABRT inside the sandbox, the environment artifact
+named in the lane rules. It repeats alone, from `snapback4/` with the same
+Node 24 PATH:
+
+`node --test packages/snapback4/test/react.test.mjs`
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 1285.249042
+```
+
+The lead must rerun that browser test outside the sandbox. No other product
+failure is called pre-existing. The root caps check reports `1 violation.`:
+`crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs` is 1,504 lines
+by the checker, byte-identical to the named base (SHA-256
+`1eae485cacf83f8823f2716b33c49e1d4df32fdd1f1e68b8b0e3491338274ad9`).
+All 19 changed/new code files are below 1,500 lines; the largest is
+`guide.rs` at 1,210 newline-terminated lines. No root code file changed.
+
+Necessary supporting edits outside the brief's named files: the AST boolean
+and three header-parser lines in `parser/programs.rs`; the source map in
+`bind/program.rs`, one registration in `bind/program/control.rs`, and empty
+initialization in `bind/actions.rs`; core `error.rs` for the non-repeating
+refusal envelope; and one expectation in the existing simulator
+`page_admission.rs` test. B1's syntax/type diagnostics and `parser/expr.rs`
+are untouched. README prose was extended without reflowing it; this journal
+entry is appended. No feature item was omitted. Nothing was committed,
+pushed, tagged or published.
+
+Root `./ref-check --verbose` passed:
+
+```text
+ref-check: ok — 474 LLP docs, 8870 refs in 22861 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passed; the journal before this entry is byte-identical
+to the base. The full Rust suite reports 684 passed, 0 failed and 2 ignored
+across its 52 result summaries.

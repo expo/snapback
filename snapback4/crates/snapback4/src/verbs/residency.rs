@@ -67,3 +67,19 @@ pub fn measure(engine: &mut Engine, bound: &Bound, personas: &[String]) -> Resul
     }
     Ok(())
 }
+
+/// Store counts are observations of the current generation, not an estimate of
+/// the proposed schema or of a particular viewer's acquired partition.
+pub(super) fn maintain_measurements(project: &crate::project::Project, bound: &mut Bound, explicit: Option<&String>) -> Result<(), String> {
+    if !bound.notes.iter().any(|note| note.code == "N_MAINTAIN_SYNCED") { return Ok(()); }
+    let path = explicit.map(std::path::PathBuf::from).unwrap_or_else(|| project.store_path());
+    if !path.exists() { return Ok(()); }
+    let store = snapback4_core::Store::open_read_only(&path).map_err(|e| e.to_string())?;
+    for maintain in &bound.schema.maintains {
+        if let Some(note) = bound.notes.iter_mut().find(|note| note.code == "N_MAINTAIN_SYNCED" && note.message.starts_with(&format!("maintain {}:", maintain.target))) {
+            let rows = store.count(&maintain.target).map_err(|e| e.to_string())?;
+            note.message.push_str(&format!("; current store measurement: {rows} value rows (before adoption; cold rows per viewer: `snapback4 test --residency`)"));
+        }
+    }
+    Ok(())
+}
