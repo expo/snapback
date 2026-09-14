@@ -131,7 +131,7 @@ pub(super) fn maintain_notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnost
     }).collect()
 }
 
-// @ref LLP 3000.007#6-4 — compare facts with the last successful generation, never a failed edit.
+// @ref LLP 3000.007#6.4 — compare facts with the last successful generation, never a failed edit.
 pub fn change_notes(bound: &Bound, previous: &BTreeMap<String, Execution>) -> Vec<Diagnostic> {
     let mut notes = Vec::new();
     for program in &bound.programs {

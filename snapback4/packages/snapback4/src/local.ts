@@ -590,7 +590,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
   // ----- reads -----
 
-  // @ref LLP 3000.007#6-5 — route from compiled facts; keep server answers only in this client's memory.
+  // @ref LLP 3000.007#6.5 — route from compiled facts; keep server answers only in this client's memory.
   function serverRun(op: Query<unknown, unknown>): boolean {
     const program = backend?.programs.find((program) => program.name === op.name);
     if (program?.native) return !nativeReady;

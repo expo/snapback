@@ -33,7 +33,7 @@ fn inspect(options: &Options) -> Result<()> {
         Some(dir) => Path::new(dir).join("store.sqlite"),
         None => project_or_exit().store_path(),
     };
-    // @ref LLP 3000.007#8-8 — developer SQL is read-only, never rule-filtered
+    // @ref LLP 3000.007#8 — developer SQL is read-only, never rule-filtered
     let conn = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(store_error)?;
     conn.execute_batch("BEGIN DEFERRED").map_err(store_error)?;
     // Catalog, compiled columns and rows all belong to the same WAL snapshot.

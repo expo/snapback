@@ -105,7 +105,7 @@ pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Mo
 
 
 impl Runner<'_> {
-    // @ref LLP 3000.007#6-2 — preserve the first undecidable site's evaluated key.
+    // @ref LLP 3000.007#6.2 — preserve the first undecidable site's evaluated key.
     pub(crate) fn unknown_fact(&mut self, table: &str, index: &str, key: &[Value], site: &str) {
         self.beyond_horizon = true;
         if self.missing_fact.is_none() {

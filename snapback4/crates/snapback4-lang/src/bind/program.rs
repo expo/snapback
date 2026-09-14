@@ -104,7 +104,7 @@ impl<'a> Binder<'a> {
                 }
                 binder.in_prelude = false;
                 if !prelude.is_empty() {
-                    // @ref LLP 3000.007#5-2 — each sweep carries its prelude as setup in the existing serialized statement vocabulary.
+                    // @ref LLP 3000.007#5.2 — each sweep carries its prelude as setup in the existing serialized statement vocabulary.
                     body.push(Stmt::If { condition: Expr::Literal(Value::Bool(true)), then_body: prelude, else_body: Vec::new() });
                 }
             }

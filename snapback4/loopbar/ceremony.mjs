@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// @ref LLP 3000.007#10-3 — the same frozen five-shape packet before and after the language landing.
+// @ref LLP 3000.007#10.3 — the same frozen five-shape packet before and after the language landing.
 // From snapback4/: node loopbar/ceremony.mjs --n 3 --version 0.2.8 --root /private/tmp/ceremony-before
 import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";

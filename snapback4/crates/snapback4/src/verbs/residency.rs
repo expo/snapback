@@ -25,7 +25,7 @@ pub fn remember(project: &crate::project::Project, bound: &Bound) -> std::io::Re
     std::fs::write(project.generated_dir().join("residency.json"), serde_json::to_vec_pretty(&bound.schema.operations)?)
 }
 
-// @ref LLP 3000.007#6-8 — measure the actual cold snapshot, including inherited aggregates and horizons.
+// @ref LLP 3000.007#6.8 — measure the actual cold snapshot, including inherited aggregates and horizons.
 pub fn measure(engine: &mut Engine, bound: &Bound, personas: &[String]) -> Result<(), snapback4_core::error::RuntimeError> {
     println!("{}", facts(bound));
     println!("residency (measurements): cold rows; bytes = compact JSON row payloads, excluding transport framing");

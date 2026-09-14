@@ -42,7 +42,7 @@ impl Diagnostic {
         Self { site: site.clone(), code, message: message.into(), rewrite: rewrite.into(), guide, mechanical: false }
     }
 
-    // @ref LLP 3000.007#8-9 — only explicitly mechanical rewrites may change source
+    // @ref LLP 3000.007#8 — only explicitly mechanical rewrites may change source
     pub fn mechanical(mut self) -> Self {
         self.mechanical = true;
         self

@@ -30,7 +30,7 @@ pub struct Schema {
     pub operations: BTreeMap<String, Execution>,
 }
 
-// @ref LLP 3000.007#6-2 — eligibility is static; prediction and horizon coverage are per call.
+// @ref LLP 3000.007#6.2 — eligibility is static; prediction and horizon coverage are per call.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Execution {
     #[serde(default, skip_serializing_if = "Option::is_none")]

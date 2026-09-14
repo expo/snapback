@@ -322,13 +322,13 @@ impl Binder<'_> {
                 if !matches!(lt, Ty::Int | Ty::Time) || !matches!(rt, Ty::Int | Ty::Time) {
                     return Err(type_error(site, format!("{op} takes present ints or times; got {} and {}", lt.name(), rt.name()), "narrow the operands before division"));
                 }
-                // @ref LLP 3000.007#5-1 — division shares divmod's Euclidean result and zero refusal.
+                // @ref LLP 3000.007#5.1 — division shares divmod's Euclidean result and zero refusal.
                 let divided = Expr::Builtin { builtin: Builtin::Divmod { remainder_sink: "operator".into() }, args: vec![l, r] };
                 return Ok((ir::field(divided, if op == "/" { "quotient" } else { "remainder" }), Ty::Int));
             }
             "+" if matches!((&lt, &rt), (Ty::Text(_), Ty::Text(_))) => {
                 let (Ty::Text(a), Ty::Text(b)) = (lt, rt) else { unreachable!() };
-                // @ref LLP 3000.007#5-1 — text addition uses the shared, heap-metered concatenation builtin.
+                // @ref LLP 3000.007#5.1 — text addition uses the shared, heap-metered concatenation builtin.
                 return Ok((Expr::Builtin { builtin: Builtin::Concat, args: vec![l, r] }, Ty::Text(a.saturating_add(b))));
             }
             "=" | "!=" => {

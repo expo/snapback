@@ -87,7 +87,7 @@ impl Runner<'_> {
         }
         match self.fetch(table_name, id)? {
             Some(old) => {
-                // @ref LLP 3000.007#5-4 — an existing row receives a patch; omitted columns keep their values.
+                // @ref LLP 3000.007#5.4 — an existing row receives a patch; omitted columns keep their values.
                 let mut fields = old.as_object()?.clone();
                 fields.extend(row.as_object()?.iter().map(|(name, value)| (name.clone(), value.clone())));
                 let row = Value::Row(fields.into());

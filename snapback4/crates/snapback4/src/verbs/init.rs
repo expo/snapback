@@ -52,7 +52,7 @@ const TWO_WAYS: &str = "Two ways to run: the default `snapback4 init` declares `
 
 fn pretty(value: &Value) -> String { format!("{}\n", serde_json::to_string_pretty(value).unwrap()) }
 
-// @ref LLP 3000.007#8-10 — the Expo reference app owns the starter's toolchain and tier selection
+// @ref LLP 3000.007#8 — the Expo reference app owns the starter's toolchain and tier selection
 fn expo_files() -> Vec<(&'static str, String)> {
     let mut package: Value = serde_json::from_str(include_str!("../../../../apps/chat-expo/package.json")).unwrap();
     package["name"] = json!("snapback4-expo-starter");

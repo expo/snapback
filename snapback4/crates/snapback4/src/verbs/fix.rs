@@ -3,7 +3,7 @@
 use crate::project::Project;
 use snapback4_lang::{Bound, Diagnostic, lexer::{self, Kind, Token}};
 
-// @ref LLP 3000.007#8-9 — apply mechanical fixes and recompile; leave design choices to the author
+// @ref LLP 3000.007#8 — apply mechanical fixes and recompile; leave design choices to the author
 pub fn compile(project: &Project) -> std::io::Result<Bound> {
     let mut sources = project.sources()?;
     // A spelling repair removes at least one original token's ambiguity.

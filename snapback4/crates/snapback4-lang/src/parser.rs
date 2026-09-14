@@ -796,7 +796,7 @@ impl Parser {
         let mut else_body = Vec::new();
         if self.at("else") {
             self.take("else")?;
-            // @ref LLP 3000.007#5-1 — else if is a nested conditional with the same scope and flow rules.
+            // @ref LLP 3000.007#5.1 — else if is a nested conditional with the same scope and flow rules.
             if self.at("if") {
                 else_body.push(self.parse_if()?);
             } else {

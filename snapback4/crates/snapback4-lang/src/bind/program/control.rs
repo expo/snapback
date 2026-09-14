@@ -57,7 +57,7 @@ impl Binder<'_> {
                     if !ty.assignable_to(item) && !item.assignable_to(&ty) {
                         return Err(type_error(site, format!("{name} holds {}; cannot append {}", item.name(), ty.name()), "append an item of the list's type"));
                     }
-                    // @ref LLP 3000.007#5-1 — append in place; the heap meter is the accumulated list's bound.
+                    // @ref LLP 3000.007#5.1 — append in place; the heap meter is the accumulated list's bound.
                     binding.ty = Ty::List(Box::new(item.join(&ty)), u32::MAX);
                     binding.declared = binding.ty.clone();
                     binding.revision += 1;
@@ -69,7 +69,7 @@ impl Binder<'_> {
                 if matches!(value, A::Write { op: WriteOp::Delete, .. }) {
                     return Err(unknown(site, "delete does not yield a value; return a confirmation value after the write", "delete the row, then `return null`"));
                 }
-                // @ref LLP 3000.007#5-1 — rebinding preserves the local slot and resets its flow refinement.
+                // @ref LLP 3000.007#5.1 — rebinding preserves the local slot and resets its flow refinement.
                 if let Some(mut binding) = self.binding(name).cloned() {
                     if ty != Ty::Null && binding.declared != Ty::Null && !ty.assignable_to(&binding.declared) && !binding.declared.assignable_to(&ty) {
                         return Err(type_error(site, format!("{name} is {}; cannot rebind it to {}", binding.declared.name(), ty.name()), "use a different local for a different type"));
@@ -156,7 +156,7 @@ impl Binder<'_> {
                 if self.loops == 0 {
                     return Err(placement(site, "continue advances the enclosing for or chunk, and there is none here", "delete this line; a program ends with return"));
                 }
-                // @ref LLP 3000.007#5-1 — continue uses the interpreter's existing loop flow.
+                // @ref LLP 3000.007#5.1 — continue uses the interpreter's existing loop flow.
                 out.push(Stmt::Continue);
                 Ok(())
             }
@@ -372,7 +372,7 @@ impl Binder<'_> {
         let loops = std::mem::take(&mut self.loops);
         let returns = std::mem::take(&mut self.returns);
         self.depth += 1;
-        // @ref LLP 3000.007#5-2 — helpers expand in the caller's placement; a return exits only this expansion.
+        // @ref LLP 3000.007#5.2 — helpers expand in the caller's placement; a return exits only this expansion.
         let result = match &function.body {
             ast::FunctionBody::Expression(value) => self.value_of(value, out),
             ast::FunctionBody::Block(statements) => {

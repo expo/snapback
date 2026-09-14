@@ -17,7 +17,7 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
         let table = bind_table(catalog, info, diagnostics);
         schema.tables.insert(info.decl.name.clone(), table);
     }
-    // @ref LLP 3000.007#6-7 — inherit the resolved audience, unless explicitly online only.
+    // @ref LLP 3000.007#6.7 — inherit the resolved audience, unless explicitly online only.
     for maintain in catalog.maintains.values() {
         if maintain.online_only || !schema.tables.contains_key(&maintain.name) { continue; }
         let sync = schema.tables.get(&maintain.source).and_then(|t| t.sync.clone());
@@ -244,7 +244,7 @@ fn bind_sync(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, rule: &RuleEx
     Ok(Sync { audience, horizon })
 }
 
-// @ref LLP 3000.007#6-6 — omitted audiences invert exactly the same three read rules.
+// @ref LLP 3000.007#6.6 — omitted audiences invert exactly the same three read rules.
 fn infer_audience(catalog: &Catalog, sync: &SyncDecl, rule: &RuleExpr, named: Option<&str>) -> Fallible<Audience> {
     let refusal = || sync_error(&sync.site, format!("sync cannot infer an audience from `{}`; use public, `.column = viewer`, or `exists target[.columns, viewer]`", rule.quarry()), "use one invertible read rule, or remove sync (online only)");
     match rule {

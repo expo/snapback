@@ -240,7 +240,7 @@ impl Engine {
         // table ends.
         let site = format!("{}:{}", program.name, sweep + 1);
         let outcome = (|| {
-            // @ref LLP 3000.007#5-2 — replay setup for every chunk, in its transaction and under its meter.
+            // @ref LLP 3000.007#5.2 — replay setup for every chunk, in its transaction and under its meter.
             if let Flow::Return(_) = runner.statements(setup, &format!("{site}:prelude"))? {
                 return Ok((Chunk { last_key: None, visited: 0, ended: true, finished: true }, None));
             }

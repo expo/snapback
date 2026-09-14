@@ -39,7 +39,7 @@ function structural(line) {
   return line.replace(/'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|--.*$/g, (match) => match.startsWith("--") ? "" : "''");
 }
 
-// @ref LLP 3000.007#10-3 — measure the authored ceremony, retaining names and both classifications.
+// @ref LLP 3000.007#10.3 — measure the authored ceremony, retaining names and both classifications.
 export function measureSchema(sources, log) {
   const tables = [], maintains = [], operations = [];
   let quarryLines = 0, quarryCodeLines = 0;

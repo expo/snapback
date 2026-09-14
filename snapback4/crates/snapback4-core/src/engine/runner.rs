@@ -130,7 +130,7 @@ impl<'a> Runner<'a> {
 
     pub fn run(&mut self, program: &Program) -> Result<Value, RuntimeError> {
         self.page_plan = super::pages::plan(program);
-        // @ref LLP 3000.007#5-0 — charge allocations before admitting the relaxed forms.
+        // @ref LLP 3000.007#5.0 — charge allocations before admitting the relaxed forms.
         // A heap cut cannot invent a partial scalar/shape or a continuation.
         // Unwind immediately; both query hosts publish null, incomplete, with
         // the private capped_at recorded by Meter::heap (LLP 3000 §7).
@@ -465,7 +465,7 @@ impl<'a> Runner<'a> {
             Builtin::Lower | Builtin::Trim => {
                 let text = args[0].as_str()?;
                 let value = Value::String(if matches!(builtin, Builtin::Lower) { text.to_lowercase() } else { text.trim().to_owned() });
-                // @ref LLP 3000.007#5-3 — the small text library charges every new result to the heap meter.
+                // @ref LLP 3000.007#5.3 — the small text library charges every new result to the heap meter.
                 self.meter.heap(value.heap_bytes())?;
                 Ok(value)
             }
