@@ -402,3 +402,101 @@ fn the_language_card_also_compiles_as_a_module_with_qualified_schedules() {
     assert!(bound.notes.is_empty(), "{:?}", bound.notes);
     assert_eq!(bound.schema.schedules[0].target, "timeline.nightly");
 }
+
+#[test]
+fn natural_words_find_their_cards() {
+    for (word, target) in [("predict", "prediction"), ("offline", "prediction"), ("pagination", "reads"), ("migration", "evolution"), ("sql", "personas"), ("push", "effects"), ("auth", "personas"), ("upload", "assets"), ("live", "reads"), ("ordinal", "writes")] {
+        assert!(card(word).is_some(), "{word} must find {target}");
+        assert_eq!(card(word), card(target), "{word}");
+    }
+}
+
+#[test]
+fn prediction_card_compiles_clean() {
+    let text = card("prediction").expect("prediction has a card");
+    let blocks = quarry(text);
+    assert!(!blocks.is_empty());
+    for (i, block) in blocks.iter().enumerate() { clean(&format!("prediction block {i}"), &in_context(block)); }
+    let bound = clean("prediction sites", &blocks[0]);
+    for name in ["saveDraft", "post", "guardedPost", "notifyPost"] {
+        assert_eq!(bound.schema.operations[name].predicts.as_deref(), Some("eligible"), "{name}");
+    }
+    for name in ["countedPost", "falliblePost"] {
+        assert_eq!(bound.schema.operations[name].predicts.as_deref(), Some("never"), "{name}");
+    }
+    for (name, class) in [("saveDraft", snapback4_core::schema::SiteClass::Held), ("guardedPost", snapback4_core::schema::SiteClass::Horizon), ("countedPost", snapback4_core::schema::SiteClass::Server)] {
+        assert!(bound.schema.operations[name].sites.iter().any(|site| site.class == class), "{name}");
+    }
+}
+
+#[test]
+fn every_alias_targets_a_keyword_and_nearest_uses_aliases() {
+    let mut seen = std::collections::BTreeSet::new();
+    for &(word, target) in guide::ALIASES {
+        assert!(seen.insert(word), "duplicate alias {word}");
+        assert!(!KEYWORDS.contains(&word), "alias shadows keyword {word}");
+        assert!(KEYWORDS.contains(&target), "{word} targets unknown card {target}");
+        assert_eq!(card(word), card(target));
+    }
+    assert_eq!(guide::nearest("pagintion")[0], "reads");
+    assert_eq!(guide::nearest("redict")[0], "prediction");
+    assert_eq!(guide::nearest("migratio")[0], "evolution");
+    assert_eq!(guide::nearest("σ").len(), 3);
+    assert_eq!(guide::nearest("banana").iter().collect::<std::collections::BTreeSet<_>>().len(), 3);
+}
+
+#[test]
+fn arrival_recipe_orders_ties_and_retries_then_pages() {
+    let source = quarry(card("writes").unwrap()).into_iter().find(|block| block.contains("table conversations:")).unwrap();
+    let bound = clean("arrival recipe", &source);
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    sent(&engine.mutate("createConversation", Some("create"), Context::new("dev:alice", args(&[])).with_ids(["room".into()])).unwrap());
+    for i in 1..=51 {
+        let context = || Context::new("dev:alice", args(&[("conversationId", id("room")), ("body", text("hello"))])).at(1000).with_ids([format!("message-{:03}", 52 - i)]);
+        let write = format!("write-{i}");
+        let first = engine.mutate("send", Some(&write), context()).unwrap();
+        assert_eq!(sent(&first).field("ordinal").unwrap(), &Value::Int(i));
+        let retry = engine.mutate("send", Some(&write), context()).unwrap();
+        assert!(matches!(retry.state, WriteState::Sent { .. }));
+    }
+    let first = engine.query("history", Context::new("dev:alice", args(&[("conversationId", id("room"))]))).unwrap();
+    let Value::Array(rows) = first.data else { panic!("history is a page") };
+    assert_eq!(rows.len(), 50);
+    for (i, row) in rows.iter().enumerate() { assert_eq!(row.field("ordinal").unwrap(), &Value::Int(51 - i as i64)); }
+    let next = first.next.expect("51 rows have a second page");
+    let second = engine.query("history", Context::new("dev:alice", args(&[("conversationId", id("room")), ("c", text(&next))]))).unwrap();
+    let Value::Array(rows) = second.data else { panic!("history is a page") };
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].field("ordinal").unwrap(), &Value::Int(1));
+}
+
+#[test]
+fn onboarding_recipe_recovers_a_taken_handle_for_the_same_principal() {
+    let source = quarry(README).into_iter().find(|block| block.contains("query handleAvailable(")).unwrap();
+    let bound = clean("onboarding recipe", &source);
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    assert_eq!(engine.query("handleAvailable", Context::new("guest:visitor", args(&[("handle", text("alice"))]))).unwrap().data, Value::Bool(true));
+    sent(&engine.mutate("createProfile", Some("alice-profile"), Context::new("user:alice", args(&[("handle", text("alice"))])).with_ids(["a".into()])).unwrap());
+    assert_eq!(engine.query("handleAvailable", Context::new("guest:visitor", args(&[("handle", text("alice"))]))).unwrap().data, Value::Bool(false));
+    let raced = engine.mutate("createProfile", Some("bob-taken"), Context::new("user:bob", args(&[("handle", text("alice"))])).with_ids(["b".into()])).unwrap();
+    assert_eq!(failed(&raced), "E_CONSTRAINT");
+    assert_eq!(engine.query("myProfile", Context::new("user:bob", args(&[]))).unwrap().data, Value::Null);
+    sent(&engine.mutate("createProfile", Some("bob-profile"), Context::new("user:bob", args(&[("handle", text("bobby"))])).with_ids(["b2".into()])).unwrap());
+    assert_eq!(engine.query("myProfile", Context::new("user:bob", args(&[]))).unwrap().data.field("handle").unwrap(), &text("bobby"));
+}
+
+#[test]
+fn set_state_recipe_predicts_first_like_and_repeated_set_and_clear() {
+    let source = quarry(card("prediction").unwrap()).into_iter().find(|block| block.contains("table likes:")).unwrap();
+    let bound = clean("set-state recipe", &source);
+    let program = &bound.programs.iter().find(|p| p.program.name == "setLike").unwrap().program;
+    let rows = snapback4_core::rows::MemoryRows::new();
+    let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
+    for (i, liked) in [false, true, true, false, false, true].into_iter().enumerate() {
+        let context = || Context::new("dev:alice", args(&[("postId", id("post")), ("liked", Value::Bool(liked))])).with_ids([format!("like-{i}")]);
+        snapback4_core::engine::local::predict(&rows, &bound.schema, program, context(), Ceilings::default()).unwrap();
+        assert_eq!(rows.rows("likes").len(), usize::from(liked));
+        sent(&engine.mutate("setLike", Some(&format!("set-{i}")), context()).unwrap());
+        assert_eq!(engine.store().rows("likes").unwrap().len(), usize::from(liked));
+    }
+}

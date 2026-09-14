@@ -28,7 +28,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   run <op> [json] --as <persona>   run one operation against the local store (a job runs whole, as the system)
   test [--fixture dir] [--as p] [--residency]    load a fixture, run every query, print the meters
   why <E_CODE | op | table>        explain a refusal, an operation's cost, or a table's rules
-  guide [keyword]                  the language card, or one keyword card (guide lists them)
+  guide [keyword]                  list cards and aliases, or print one card
   data <table> [--limit N]         inspect stored rows as an administrator (bypasses read rules)
   sql <SELECT> [--release dir] [--limit N] [--json]  read-only inspection of your store (not rule-filtered)
   token --service <name> [--days N] [--release <dir>]  a bearer token for a service principal (a worker's seat), printed once
@@ -65,13 +65,13 @@ fn main() -> ExitCode {
         "device" => verbs::device(&options),
         "guide" => {
             match options.positionals.first().map(String::as_str) {
-                None | Some("grammar") | Some("quarry") | Some("language") => println!("{}", guide::LANGUAGE),
+                None => println!("{}", guide::listing()),
                 Some(keyword) => match guide::card(keyword) {
                     Some(card) => println!("{card}"),
                     None => match guide::explain_code(keyword) {
                         Some(text) => println!("{text}"),
                         None => {
-                            eprintln!("no card for {keyword}; cards: {}", guide::KEYWORDS.join(", "));
+                            println!("no card named {keyword}; nearest: {}\n{}", guide::nearest(keyword).join(", "), guide::listing());
                             return ExitCode::from(1);
                         }
                     },

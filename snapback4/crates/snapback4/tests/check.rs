@@ -288,3 +288,34 @@ fn check_preserves_database_and_wal_bytes_with_live_and_stopped_dev() {
         } else if state == "stopped-without-shm" { assert!(!shm); }
     }
 }
+
+#[test]
+fn guide_prediction_is_a_stdout_card() {
+    let output = Command::new(BIN).args(["guide", "prediction"]).output().unwrap();
+    assert!(output.status.success(), "{output:?}");
+    assert!(String::from_utf8_lossy(&output.stdout).starts_with("# Prediction"));
+    assert!(output.stderr.is_empty());
+}
+
+#[test]
+fn guide_unknown_word_suggests_cards_on_stdout() {
+    let output = Command::new(BIN).args(["guide", "banana"]).output().unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let nearest = stdout.lines().next().unwrap_or("").strip_prefix("no card named banana; nearest: ").expect("nearest list on stdout");
+    assert_eq!(nearest.split(", ").count(), 3);
+    assert!(stdout.contains("cards: language, types"), "{stdout}");
+    assert!(output.stderr.is_empty());
+}
+
+#[test]
+fn guide_lists_aliases_and_resolves_them_on_stdout() {
+    let output = Command::new(BIN).arg("guide").output().unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("cards: language, types"), "{stdout}");
+    assert!(stdout.contains("offline -> prediction"), "{stdout}");
+    let output = Command::new(BIN).args(["guide", "pagination"]).output().unwrap();
+    assert!(output.status.success());
+    assert!(String::from_utf8_lossy(&output.stdout).starts_with("# Reads"));
+}

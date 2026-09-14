@@ -14,7 +14,29 @@ mod actions;
 mod personas;
 #[path = "guide/search.rs"]
 mod search;
-pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "rules", "sync", "residency", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "services", "presence", "bounds", "refusals", "personas"];
+#[path = "guide/writes.rs"]
+mod writes;
+#[path = "guide/prediction.rs"]
+mod prediction;
+#[path = "guide/discovery.rs"]
+mod discovery;
+pub use discovery::{listing, nearest};
+pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "rules", "sync", "residency", "prediction", "evolution", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "services", "presence", "bounds", "refusals", "personas"];
+
+// @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
+pub const ALIASES: &[(&str, &str)] = &[
+    ("grammar", "language"), ("quarry", "language"),
+    ("predict", "prediction"), ("predictable", "prediction"), ("offline", "prediction"),
+    ("optimistic", "prediction"), ("pending", "prediction"),
+    ("pagination", "reads"), ("paging", "reads"), ("cursor", "reads"), ("next", "reads"),
+    ("migration", "evolution"), ("migrate", "evolution"), ("schema-evolution", "evolution"), ("adoption", "evolution"),
+    ("sql", "personas"), ("inspect", "personas"),
+    ("push", "effects"), ("notification", "effects"), ("notify", "effects"), ("worker", "effects"),
+    ("auth", "personas"), ("signin", "personas"), ("login", "personas"), ("session", "personas"),
+    ("upload", "assets"), ("media", "assets"), ("image", "assets"), ("video", "assets"),
+    ("realtime", "reads"), ("live", "reads"), ("subscribe", "reads"),
+    ("order", "writes"), ("ordinal", "writes"), ("arrival", "writes"),
+];
 
 /// The contents of every ```quarry block in a card or a README.
 pub fn quarry(text: &str) -> Vec<String> {
@@ -351,7 +373,7 @@ mutation leave(roomId: rooms):
 
 mutation react(postId: posts, direction: int):
   require direction = 1 or direction = -1 else BAD_DIRECTION         -- =, !=, <, <=, >, >=, +, -, *, unary -, not, and, or
-  upsert reactions[postId, viewer] { direction }                     -- insert or patch; the key names the row; a final write is the implicit return
+  upsert reactions[postId, viewer] { direction }                     -- predicts only an update of a held row; a missing row queues without a prediction
 
 mutation post(bodies: [text <=500] <=10):
   for body in bodies:                                                -- a loop over a bounded list; `for row in page:` and `for i in range(0, 10):` are the other domains
@@ -402,15 +424,18 @@ Before editing, `check --fix` verifies every compiled source; an editor save ref
 
 - Guessed spellings are refused with a canonical rewrite; `snapback4 check --fix` applies mechanical repairs (including missing indexes, argument `once`, repeated wildcard fields and empty operation parentheses): `cond ? a : b` → `a if cond else b`; `a?.b` → `a.b if a != null else null`; `len(x)` → `count(x)`; `elif` → `else if`; `proc` → `fn`; `//` and `#` → `--`; `==` → `=`.
 
-Cards: `snapback4 guide <keyword>` — types, indexes, rules, sync, residency, expire,
+Cards: `snapback4 guide <keyword>` — types, indexes, rules, sync, residency, prediction, evolution, expire,
 assets, reads, shapes, writes, programs, jobs, native, feeds, search,
 effects, actions, services, presence, bounds, refusals, personas. `snapback4 why
 <CODE>` explains a refusal.
 "##;
 
 pub fn card(keyword: &str) -> Option<&'static str> {
+    let keyword = ALIASES.iter().find(|(alias, _)| *alias == keyword).map_or(keyword, |(_, target)| *target);
     Some(match keyword {
-        "language" | "grammar" | "quarry" => LANGUAGE,
+        "language" => LANGUAGE,
+        "prediction" => prediction::CARD,
+        "evolution" => discovery::EVOLUTION,
         "types" => r##"# Types
 
 ```quarry
@@ -821,73 +846,7 @@ equals the bound and the query returns a scalar such as `count(rows)`.
 A row-based shape keeps `pending?: boolean` from its base, including `*`, named
 spreads and subsequent shapes. It is this device's unconfirmed change, absent
 after confirmation; it is not a schema column or metadata on a containing record."##,
-        "writes" => r##"# Writes
-
-```quarry
-mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: text <=4000):
-  a = insert messages { roomId, authorId: viewer, body, at: now }                   -- the row; the id is minted unless given (`id: new`, or one you hold)
-  b = insert reactions { postId, principal: viewer, direction: 1 } if absent        -- the row, or null on a unique clash
-  update messages[messageId] { body, editedAt: now }                                -- by id: NOT_FOUND when the row is missing
-  update messages[a] { editedAt: now } if .editedAt = null                          -- a row as the key; `if` makes it conditional: E_CONFLICT with the current row when false
-  upsert reactions[postId, viewer] { direction: -1 }                                -- insert or patch; the key names the row
-  delete reactions[postId = postId, principal = viewer]                             -- a full unique key, positional or named
-  return { a: a.id, b }
-```
-
-Defaults fill missing insert columns on the writing host, including the insert
-branch of `upsert`; updates and existing-row upserts never reapply defaults.
-`upsert` inserts or patches: on an existing row, unnamed columns keep their
-values. An incomplete insert patch answers `NOT_FOUND`. An explicit null
-clears an optional column. Omitted asset columns keep their placement; an explicit
-asset id on a row you cannot read must be your own upload, even if it equals the
-retained id. The update
-rule runs before asset diagnostics. Conditional `if` sees old only inside
-the engine; neither old nor the merged image is a program binding.
-
-For update/upsert, "readable" means the read rule admits the old row in the
-pre-write state, before the patch or any of its effects. The engine resolves
-id and unique-key targets privately; the update rule judges old and next.
-
-| Target before the write | Refusal details |
-| --- | --- |
-| Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_CONSTRAINT`; `E_INPUT` |
-| Unreadable or absent | `NOT_FOUND` for rule denial, an `update` condition, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |
-
-A hidden collision on ordinary insert or `insert ... if absent` stays
-`E_RULE`; a readable collision names its index (if-absent returns null).
-An update or upsert-patch colliding with a different hidden row returns generic
-`E_RULE` when its target is readable and `NOT_FOUND` when its target is unreadable.
-Use `upsert counters[recipient] { count: 1 }` under an `update` rule to
-write another principal's row. Success discloses the admitted row's existence
-and the update rule predicates. It grants no extra stream or snapshot row.
-A condition belongs on `update`; an upsert inserts or patches. A condition
-needs a row you can read; a blind patch needs none. On a row you cannot read,
-immutable columns in a patch are ignored. A readable immutable mismatch still
-names the column. Before target lookup, the engine reserves room for the rule
-probes and the largest merged image allowed by the schema and supplied patch;
-if it cannot fit, `E_BOUND` refuses equally for a hidden or absent target.
-
-
-The table names are the language card's. A final write is the implicit
-return; bind one to use its row (`row = insert ..`). Writes check the rule,
-then unique indexes, caps, immutable columns, text formats and `after
-insert` postconditions; any refusal rolls the whole mutation back, and a
-maintained aggregate is written through its source rows. Every written row
-fans out to its partitions (guide sync). A mutation applies at most once
-per client-minted id and principal. Valued updates/upserts and conflict
-`current` are ordinary read-rule gets (null or withheld when hidden), evaluated
-at the read's state; a write that grants read authority may return its row.
-The recorded body is the replay body, with value-free diagnostic messages
-and no `result` or `current`. Retries return only
-execution identity (`sent`/`failed`, `seq`/`why`, `replayed`), withholding
-historical `result` and `current`, including scalar results after a lost reply.
-A device write-target miss, by id or unique key with any horizon, queues
-without a predicted row; it still sends `/m`. A reference column checks the id's shape, not that
-its target exists: when a mutation needs a visible target, guard first —
-`require exists prompts[promptId] else PROMPT_NOT_FOUND` — a metered point
-read that is false for an absent or hidden row; deleting a target neither
-deletes nor refuses the rows that reference it, so a lifecycle is the
-application's, in its mutations and rules."##,
+        "writes" => writes::CARD,
         "programs" => r##"# Programs
 
 ```quarry
@@ -1229,7 +1188,7 @@ query home(c: cursor ?):
 mutation vote(postId: posts, direction: int):
   require exists posts[postId] else POST_NOT_FOUND
   require direction = -1 or direction = 0 or direction = 1 else INVALID_VOTE
-  upsert votes[postId, viewer] { postId, principal: viewer, direction }
+  upsert votes[postId, viewer] { postId, principal: viewer, direction }  -- predicts only an update of a held vote; a missing vote queues without a prediction
 
 mutation markSeen(postId: posts):
   require exists posts[postId] else POST_NOT_FOUND
