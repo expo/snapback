@@ -2570,3 +2570,59 @@ Validation: 7 residency Rust tests, 8 guide tests, and the 5 process-device/CLI 
 Integration boundary edits: declaration AST/parser and catalog metadata support the two new table/maintain forms; Runner/read/write carry the missing-fact diagnostic; serve adds only /schema words and served-generation notes; backend.ts declares the additive wire words; main.rs advertises the switches. No program lowering or IR forms changed. The journal was already 2,301 lines; this required append preserves its append-only history. Changed source files remain below 1,500 lines.
 
 The final recovery review added a guard for an already-refused maintain declaration whose generated table is absent, with a regression alongside the positive maintain cases. The same 8 guide and 7 residency tests pass. A complete rerun after that correction reports 244 Rust passes / 0 failures / 1 ignored, 9 fixture passes, and 84 client passes / 1 Chromium launch failure, in 58 s (/tmp/lane-r-suite-last.log); the source and package checks remain green. This is the final verification record for the uncommitted lane.
+
+## 2026-09-13 — Lane C: sent results, dev admission and device-owned media
+
+Implemented LLP 3000.007 §8.1, §8.3–§8.6 and §8.13 under rulings 8, 9
+and 14. `Write<R>.sent.result` reaches both clients, terminal queued-write
+events, and React's `run()`/`last`; pending still has no predicted result.
+The device keeps this uploader's server upload receipts, resolves image/video
+arguments from them during prediction and replay, and queues without
+prediction when a receipt is missing. Caller-supplied facts never replace a
+receipt. The id-only video ticket is closed with both-store and live-process
+regressions. `dev` loopback skips the two minute counters and prints one line;
+the two Argon2 slots and HTTP caps remain, and `serve` keeps its counters.
+`E_RULE` keeps its generic refusal and names the upsert/update/maintain idiom.
+
+`webDevice()` persists and verifies wasm bytes by SHA-256 and retains the
+compiled backend. Explicit `assets: { keep: "viewed" | "none", maxBytes }`
+controls ordinary media retention (default none). Confirmed stream images
+index media homes; the device checks the current row and its lifetime before
+cache use. Apply/adopt and write transitions reconcile retained bytes, and a
+timer handles offline expiry. IndexedDB holds web bytes, the Expo opener
+supplies files in Documents without an Expo import in the client, and the
+process opener uses device metadata. One-view responses never store bytes;
+the server's response flag overrides even a stale device schema. A 501-row
+regression caught the need to retire media beyond one page on a non-unique
+audience index while preserving delivered text history.
+
+Measured: the Chromium offline reload opens in 283.6 ms with 0 wasm fetches,
+2 failed transport probes, and a rendered 1×1, 68-byte image; a viewed once
+photo answers E_OFFLINE. Reopen holds 307 rows; the queued write lands. The
+process cache retains 2 images under maxBytes 136 and 0 after keep:none; once
+bytes and deleted-home bytes are 0. A 60-byte MP4 with duration 1,000 ms
+predicts from an id after offline reopen, agrees with sent.result, and survives
+a second offline reopen. Dev admits 200 guest sign-ins and 200 bounded-invalid
+same-email login attempts with 0 E_RATE_LIMIT; serve refuses peer attempt 31
+and email attempt 11. This admission probe took 578 ms on Linux.
+
+Verification: 21 device and 8 guide tests pass locally; 57 targeted client
+tests pass; Expo TypeScript checks and Swift syntax parsing pass. The final
+blocking suite on expo-build-1000 passes in 43 s: 240 Rust, 9 fixture and
+93 client tests, 0 failures, 1 declared ignored Rust test. Its log SHA-256 is
+`60870ca5fe293fefcaa5d9f925b65d6815e46da5af89dba6b433360fb4aa8c49`. The final independent React run passes
+10 tests. The local full suite takes 35 s with all 240 Rust, 9 fixture and
+83 non-browser client tests passing; Chromium fails at process startup under
+the local sandbox. No pre-existing product-failure claim is made. The Linux
+snapshot and local changed product sources match SHA-256
+`cb2fd7bfdf092a4f4b9f16f42e846f378e3783934c40141b1269b7475006f3ea`
+(before this journal append), based on worktree commit
+`0dc0107e68dd504dbc1311754dd9783ab5477826`. No commit or publication was made.
+
+Scope seams: the host counters actually live in `crates/snapback4/src/auth.rs`;
+`assets.ts` needs the successful-byte callback and `mock.ts` must follow the
+new sent form. `contract.ts` changes only Write and the necessary Client.mutate
+return type, leaving Op alone. The local read evaluator and watches, the
+compiler and core interpreter, write authority (§8.7), ceilings and existing
+corpus cases are untouched. Expo's file methods require rebuilding the native
+app; an iOS binary was not built or exercised in this lane.

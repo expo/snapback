@@ -19,6 +19,7 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 
 mod predictions;
+mod media;
 mod snapshot;
 
 /// The compiled backend, as `GET /schema` sends it.
@@ -432,6 +433,7 @@ impl<S: DeviceStore> Device<S> {
                     let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("unknown table {table_name}")))?;
                     let row: Value = decoded(data)?;
                     tx.put(table_name, table, &row, None)?;
+                    media::remember(&tx, table_name, table, &row, self.generation)?;
                     after = key.clone();
                 }
                 if rows.len() < 500 {
@@ -451,10 +453,13 @@ impl<S: DeviceStore> Device<S> {
                             return Err(RuntimeError::Input("row identity does not match its event".into()));
                         }
                         let old = tx.get(&event.table, &event.id)?;
+                        if let Some(old) = &old { media::forget(&tx, table, old)?; }
                         tx.put(&event.table, table, &row, old.as_ref())?;
+                        media::remember(&tx, &event.table, table, &row, self.generation)?;
                     }
                     "del" => {
                         if let Some(old) = tx.get(&event.table, &event.id)? {
+                            media::forget(&tx, table, &old)?;
                             tx.delete(&event.table, table, &old)?;
                         }
                     }
@@ -523,8 +528,8 @@ impl<S: DeviceStore> Device<S> {
     /// one transaction that a refusal rolls back whole.
     pub fn predict(&mut self, name: &str, viewer: &str, args: &serde_json::Value, now: i64, new_ids: Vec<String>, entropy: u64) -> Result<Predicted, RuntimeError> {
         let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
-        let context = Context::new(viewer, typed_args(&program, args)?).at(now).with_ids(new_ids).with_entropy(entropy.max(1));
         let tx = self.store.transaction()?;
+        let context = Context::new(viewer, media::inputs(&tx, &program, viewer, args)?).at(now).with_ids(new_ids).with_entropy(entropy.max(1));
         let predicting = Predicting { tx: &tx, written: RefCell::new(Vec::new()) };
         match local::predict(&predicting, &self.schema, &program, context, Ceilings::default()) {
             Ok(prediction) => {
@@ -665,9 +670,7 @@ fn scope_group(table: &Table, event: &StreamEvent) -> Result<Vec<Value>, Runtime
 /// was delivered (`delivered-history`).
 fn leave<T: DeviceTx>(tx: &T, schema: &Schema, table_name: &str, group: &[Value]) -> Result<(), RuntimeError> {
     let Some(table) = schema.table(table_name) else { return Ok(()) };
-    if table.leave == LeavePolicy::DeliveredHistory {
-        return Ok(());
-    }
+    if table.leave == LeavePolicy::DeliveredHistory { return media::leave(tx, table_name, table, group); }
     let Some(sync) = &table.sync else { return Ok(()) };
     let prefix = audience_prefix(table);
     let index = sync.horizon.as_ref().map(|h| h.by.clone()).or_else(|| table.indexes.iter().find(|(_, index)| index.columns().starts_with(&prefix)).map(|(name, _)| name.clone()));
@@ -676,6 +679,7 @@ fn leave<T: DeviceTx>(tx: &T, schema: &Schema, table_name: &str, group: &[Value]
         let rows = tx.scan(table_name, &index, group, &Bounds::default(), Dir::Asc, 500)?;
         let count = rows.len();
         for (row, _) in rows {
+            media::forget(tx, table, &row)?;
             tx.delete(table_name, table, &row)?;
         }
         if count < 500 {

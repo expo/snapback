@@ -4,9 +4,16 @@
 // `snapback4 dev`: the wasm device syncs and keeps its partition in
 // IndexedDB behind each call, reads run on it, a queued write survives a
 // reload, and the rows kept are what the server sent. Prints one JSON line.
-import { launch, record } from "./lib.mjs";
+import { launch } from "./lib.mjs";
 
-const witness = await launch({ seed: [
+const witness = await launch({ extraSource: `table secrets:
+  photo: image <=100000 once
+  read <- allow
+  insert <- allow
+  sync public
+mutation attach(photo: image <=100000):
+  return insert secrets { photo }
+`, seed: [
   { table: "conversations", row: { id: "c1", title: "General", creatorId: "dev:alice" } },
   { table: "memberships", row: { id: "m1", conversationId: "c1", principal: "dev:alice", role: "admin", joinedAt: 1 } },
   { table: "memberships", row: { id: "m2", conversationId: "c1", principal: "dev:bob", role: "member", joinedAt: 2 } },
@@ -41,6 +48,43 @@ try {
     return { syncMs: +synced.toFixed(1), threadRows: thread.data.length, threadComplete: thread.complete, next: !!thread.next, count: inbox.data[0].count, write: write.state, pendingLocally: local.data[0].pending === true, localFresh: local.fresh, refused: refused.state === "failed" ? refused.why?.code : refused.state };
   }, api);
   Object.assign(out, { first });
+  // View both kinds online; only the ordinary image enters device storage.
+  const media = await page.evaluate(async api => {
+    const client = await window.createLocalClient({ url: api, persona: "bob", waitSeconds: 1, assets: { keep: "viewed", maxBytes: 1024 } });
+    const bytes = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII="), c => c.charCodeAt(0));
+    const uploaded = await client.upload(bytes), secret = await client.upload(bytes);
+    const photo = await client.mutate({ kind: "mutation", name: "sendPhoto" }, { conversationId: "c1", photo: { id: uploaded.asset.id }, body: "cached image" });
+    const once = await client.mutate({ kind: "mutation", name: "media.attach" }, { photo: { id: secret.asset.id } });
+    if (photo.state !== "sent" || once.state !== "sent") throw new Error(JSON.stringify({ photo, once }));
+    for (const id of [uploaded.asset.id, secret.asset.id]) {
+      const read = await client.asset(id);
+      if (!("url" in read)) throw new Error(JSON.stringify(read));
+      read.revoke();
+    }
+    await client.close();
+    return { ordinary: uploaded.asset.id, once: secret.asset.id, bytes: bytes.length };
+  }, api);
+  // New JS lifetime: deny every fetch before opening. The backend and wasm
+  // must come from IndexedDB, and the viewed ordinary image must render.
+  await witness.reload();
+  out.offline = await page.evaluate(async ({ api, media }) => {
+    let wasmFetches = 0, fetches = 0;
+    const original = window.fetch;
+    window.fetch = input => { fetches++; if (String(input).includes(".wasm")) wasmFetches++; return Promise.reject(new TypeError("offline reload")); };
+    const t0 = performance.now();
+    let client;
+    try {
+      client = await window.createLocalClient({ url: api, persona: "bob", waitSeconds: 1, assets: { keep: "viewed", maxBytes: 1024 } });
+      const read = await client.asset(media.ordinary);
+      if (!("url" in read)) throw new Error(JSON.stringify(read));
+      const img = document.createElement("img"); img.src = read.url; document.body.append(img);
+      await img.decode();
+      const once = await client.asset(media.once);
+      const result = { openMs: +(performance.now() - t0).toFixed(1), wasmFetches, fetches, width: img.naturalWidth, height: img.naturalHeight, bytes: read.bytes, once: once.denied?.code, link: client.link() };
+      read.revoke(); img.remove();
+      return result;
+    } finally { if (client) await client.close(); window.fetch = original; }
+  }, { api, media });
   // Second session: a fresh page on the same origin opens the same
   // IndexedDB; the partition is already there and the queued write lands.
   await witness.reload();
@@ -56,14 +100,14 @@ try {
     let thread;
     for (let i = 0; i < 100; i++) {
       thread = await client.query({ kind: "query", name: "thread" }, { conversationId: "c1" });
-      if (thread.data[0]?.body === "queued while offline" && !thread.data[0].pending) break;
+      if (thread.data.some(row => row.body === "queued while offline" && !row.pending)) break;
       await new Promise((r) => setTimeout(r, 50));
     }
     await client.close();
-    return { rowsInIdbBeforeOpen: rows, reopenMs: +reopened.toFixed(1), landed: thread.data[0]?.body === "queued while offline" && !thread.data[0].pending };
+    return { rowsInIdbBeforeOpen: rows, reopenMs: +reopened.toFixed(1), landed: thread.data.some(row => row.body === "queued while offline" && !row.pending) };
   }, api);
   Object.assign(out, { second });
-  out.ok = first.threadRows === 50 && first.threadComplete && first.next && first.count === 300 && first.write === "pending" && first.pendingLocally && !first.localFresh && first.refused === "NOT_MEMBER" && second.rowsInIdbBeforeOpen > 300 && second.landed && out.pageErrors.length === 0;
+  out.ok = first.threadRows === 50 && first.threadComplete && first.next && first.count === 300 && first.write === "pending" && first.pendingLocally && !first.localFresh && first.refused === "NOT_MEMBER" && second.rowsInIdbBeforeOpen > 300 && second.landed && out.offline.wasmFetches === 0 && out.offline.width === 1 && out.offline.height === 1 && out.offline.bytes === 68 && out.offline.once === "E_OFFLINE" && out.offline.link === "offline" && out.pageErrors.length === 0;
 } finally {
   await witness.close();
 }

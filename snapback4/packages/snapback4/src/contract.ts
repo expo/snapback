@@ -35,10 +35,12 @@ export interface Pending {
   readonly pending?: boolean;
 }
 
-/** A write. Three outcomes, all terminal or durable. `id` is client-minted and stable across replay. */
-export type Write =
+/** A write. `sent.result` is the server answer; pending rows show predictions.
+ * `id` is client-minted and stable across replay. */
+// @ref LLP 3000.007#8 — only sent carries a mutation result
+export type Write<R = unknown> =
   | { readonly state: "pending"; readonly id: string }
-  | { readonly state: "sent"; readonly id: string; readonly seq: number }
+  | { readonly state: "sent"; readonly id: string; readonly seq: number; readonly result: R }
   | { readonly state: "failed"; readonly id: string; readonly why: Refusal };
 
 /** The app's relationship to its server. */
@@ -92,7 +94,7 @@ export type AssetRead =
 export interface Client {
   query<A, R>(op: Query<A, R>, args: A): Promise<Read<R>>;
   observe<A, R>(op: Query<A, R>, args: A): Observed<R>;
-  mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write>;
+  mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write<R>>;
   /** Send the bytes of a photo or video; place `asset.id` in a mutation's
    * `image`/`video` argument. Online only: an upload waits for no link. */
   upload(bytes: Blob | ArrayBuffer | Uint8Array): Promise<Uploaded>;

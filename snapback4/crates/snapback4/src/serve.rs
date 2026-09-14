@@ -195,6 +195,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
         let shared = shared.clone();
         std::thread::spawn(move || maintain(shared));
     }
+    if dev { eprintln!("snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots and connection/worker caps still apply"); }
     // @ref LLP 3000#7-decisions-during-execution — bound HTTP admission while reserving short requests
     let admission = Arc::new(RequestAdmission::default());
     loop {

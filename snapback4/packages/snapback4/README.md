@@ -757,7 +757,7 @@ type Read<T> =
   | { data: T; complete: boolean; fresh: boolean; since?: number; next?: Cursor | null }
   | { loading: true }
   | { denied: Refusal };
-type Write = { state: "pending"; id } | { state: "sent"; id; seq } | { state: "failed"; id; why: Refusal };
+type Write<R> = { state: "pending"; id } | { state: "sent"; id; seq; result: R } | { state: "failed"; id; why: Refusal };
 type Refusal = { code: string; family: string; message: string; site?: string; rewrite?: string; guide?: string; rule?: string; retryable?: boolean };
 type Link = "online" | "offline" | "signed-out";
 ```
@@ -785,6 +785,16 @@ the same id, and `useMutation.last` follows it. `family` is `input`, `schema`, `
 engine, and `link` or `client` from the client itself. `isReady`,
 `isLoading`, `isDenied` narrow a `Read`.
 
+The `sent` outcome carries the server's typed `result`, including reused ids
+and shaped objects. A queued write's eventual `onWrite` event carries that same
+terminal result; `useMutation.last` follows it. Pending writes have no predicted
+result: their predicted rows carry `pending`.
+
+`webDevice()` stores wasm bytes by SHA-256 digest in IndexedDB and opens from
+them without a network fetch on reload. It also persists the compiled backend
+with the device rows, so a device that opened and synced online can reopen
+offline. Custom wasm URLs should identify immutable module versions.
+
 ### React
 
 ```tsx
@@ -793,7 +803,7 @@ import { SnapbackProvider, useClient, useQuery, usePage, useMutation, useLink, u
 <SnapbackProvider client={client}>...</SnapbackProvider>
 const inbox = useQuery(api.inbox, {});                              // Read<...>
 const { items, hasMore, loadMore, read } = usePage(api.thread, { conversationId });
-const send = useMutation(api.send);   // send.run(args) → Write; send.last (the latest Write); send.inFlight
+const send = useMutation(api.send);   // await send.run(args) → Write<R>; sent.result is the server answer; send.last carries it
 const link = useLink();               // "online" | "offline" | "signed-out"
 const viewer = useViewer();           // the principal, or null
 const session = useSession();         // the local client's session, null once it ended
@@ -814,6 +824,28 @@ if (uploaded.ok) await client.mutate(api.sendPhoto, { conversationId, photo: { i
 const photo = useAsset(message.photo?.id);             // { status: "empty" | "loading" | "ready" | "denied", ... }
 ```
 
+The local-first client can retain ordinary viewed images and videos:
+
+```ts
+const client = await createLocalClient({
+  url, session, device: webDevice(),
+  assets: { keep: "viewed", maxBytes: 64 * 1024 * 1024 },
+});
+```
+
+`keep: "none"` is the default and purges previously retained media on open.
+`keep: "viewed"` retains successfully fetched ordinary assets, evicting the
+least recently used to stay within `maxBytes` of payload bytes. Storage belongs
+to this server, principal and device: IndexedDB on the web, files in Documents
+with the Expo opener, and device metadata with the process opener. `client.asset`
+and `useAsset` use retained bytes offline and revalidate every online fetch.
+A home row leaving its partition, being deleted or cleared, or expiring purges
+its bytes (including offline expiry); sign-out purges them too. Stream changes
+are checked before sync completes, and reopening checks lifetimes before reads.
+A `once` response never enters storage. This cache does not change the server's
+`private, no-store` responses. `assetSource` supplies a network URI; use
+`client.asset` or `useAsset` to use SDK retention, including native file URIs.
+
 Passing `null` or `undefined` to `useAsset` returns `{ status: "empty" }`
 without fetching. A client-side fetch or blob-URL failure returns a typed
 `denied` state.
@@ -827,7 +859,10 @@ nonzero dimensions, at most 16,384 pixels per side and 40 million pixels
 total; video must have a positive duration of at most one hour
 (`E_ASSET_BOUNDS`). It then places
 `{ id }` in the mutation. Inside the mutation the argument already
-carries the facts the server established, and the row carries them.
+carries the facts the server established, and the row carries them. The local
+client keeps its upload receipt, so `{ id }` also predicts after an offline
+reopen. Missing receipts queue the write without prediction; argument-supplied
+facts never substitute for a receipt.
 Every fact key is present; `width` and `height` are null for video,
 `duration` for images. Bind `duration = clip.duration`, then `require
 duration != null else DURATION_UNKNOWN` before `require duration <=
@@ -933,7 +968,10 @@ PNG and `asset` is always denied.
   every adoption, and refuses a store that belongs to a deployment
   (`E_GENERATION`). Personas (`use personas ..`) sign requests from the
   same machine with the `x-snapback-persona: alice` header (the client's
-  `persona: "alice"`), acting as `dev:alice`.
+  `persona: "alice"`), acting as `dev:alice`. For loopback identity requests, `dev` removes the
+  per-peer and per-email minute counters and prints that fact once at startup.
+  The two Argon2 slots and connection/worker caps remain; `serve` keeps the
+  30-per-peer and 10-per-email limits.
 - **`POST /seed`** (dev only, same machine) takes `[{ "table": "t",
   "row": { "id": "..", .. } }, ..]`, writes the rows as the system
   principal in one commit (rules bypassed; validation, constraints,
@@ -1100,7 +1138,10 @@ const client = nativeAvailable()
   : createClient({ url, session: await kept() });   // Expo Go
 ```
 
-`snapback4/react` works unchanged.
+`snapback4/react` works unchanged. Pass `assets: { keep: "viewed", maxBytes }`
+to retain ordinary media through `nativeDevice` in the application's Documents
+directory. The module supplies file storage; the client package imports no Expo
+API. Rebuild the native app to include these methods before enabling retention.
 
 ### The native module
 

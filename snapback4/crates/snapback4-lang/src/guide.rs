@@ -643,7 +643,16 @@ to avoid walking unrelated groups. A partial device counts only held live
 sources and says `complete: false`. A meter cut returns the contribution
 examined so far, also incomplete. A zero sum keeps its group while sources
 remain, because one signed contribution can expire before another."##,
-        "assets" => r##"# Assets: upload, place, serve
+        "assets" => r##"# Assets
+
+The local client keeps server upload facts for prediction: `{ id }` works
+offline after upload, including reads of duration and dimensions. Without
+those facts the write queues unpredicted and the server judges it.
+With `createLocalClient({ assets: { keep: "viewed", maxBytes: 67108864 }, ... })`,
+ordinary viewed images and videos survive offline reopen in device storage.
+`keep: "none"` (the default) retains no media. The byte bound evicts least
+recently used assets. Home-row deletion, clearing, expiry and partition leave
+purge the bytes; `once` is never stored. Online reads always revalidate.: upload, place, serve
 
 ```quarry
 table clips:
@@ -1288,9 +1297,11 @@ socket peer.
 support. Catalog, schema, generated API, native module and changes require a
 live principal. Signup accepts 8–1,024 password bytes and login at most 1,024;
 password hashing is limited to two concurrent slots outside the engine mutex.
-Guest, login and signup share 30 attempts per socket peer per minute, while
-login and signup also share 10 per normalized email per minute
-(E_RATE_LIMIT). Unknown emails perform the same Argon2 verification work.
+Under `serve`, guest, login and signup share 30 attempts per socket peer per
+minute, while login and signup also share 10 per normalized email per minute
+(E_RATE_LIMIT). Under `dev`, loopback peers have neither minute counter; startup
+prints this once. The two Argon2 slots and connection/worker caps still bound
+concurrent work. Non-loopback peers retain the counters. Unknown emails perform the same Argon2 verification work.
 
 Ordinary guest and password sessions last seven days. `refreshSession`
 atomically exchanges a live token; `logoutAll` revokes every session for the
@@ -1325,7 +1336,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_SCHEMA_CONSTRAINT", "family schema — a declaration the compiler binds but the core refuses: a cap or an expire without its index, a maintain target without its unique group index, a sync whose aggregate would reveal rows its audience may not read. The message names the declaration; guide indexes."),
     ("E_STRUCTURAL_FANOUT", "family schema — a mutation loops over a page that is not one complete schema-capped group (no `cap` over the pinned prefix, a `first N` under the cap, a cursor, a non-uniform read rule, or a merge). Pin a capped group with a literal bound at least its cap, or move the pass to a job's chunk."),
     ("E_UNBOUND_SCAN", "family schema — a compiled program scans a table or index the schema no longer has. Recompile: `snapback4 check` after the schema change."),
-    ("E_RULE", "family auth — a table's insert, update or delete rule did not admit this viewer, or a constraint collided only with a hidden row. Reads never raise it: a hidden row is null. Read the rule with `snapback4 why <table>`."),
+    ("E_RULE", "family auth — a table's insert, update or delete rule did not admit this viewer, or a unique key collided with a row you cannot read; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count. Reads never raise it: a hidden row is null. Read the rule with `snapback4 why <table>`."),
     ("E_AUTH", "family auth — no principal, a session that is not live, or the wrong kind at a door: send `x-snapback-persona` in development or a bearer token (a persona is refused off loopback and under `serve`); claiming effects and minting sessions take a service token (`snapback4 token --service <name>`), never a user's (guide services)."),
     ("E_CONFLICT", "family constraint — `update .. if` found the row changed; the failed write carries the current row. Read it and retry with a fresh edit. Retryable."),
     ("E_CONSTRAINT", "family constraint — a unique index, a cap, an immutable column, a text format or an after-insert postcondition refused the write. The message names which."),

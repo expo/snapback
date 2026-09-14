@@ -8,6 +8,8 @@
 // `snapback4 device` process for Node (`snapback4/native`) all fit.
 
 import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
+import { MediaCache, type MediaStorage, type AssetRetention } from "./local-assets.ts";
+export type { MediaStorage, AssetRetention } from "./local-assets.ts";
 import { mintId } from "./client.ts";
 import { operationTables, type BackendJson, type ProgramJson, type SchemaJson } from "./backend.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
@@ -28,6 +30,7 @@ import {
 
 /** One JSON call into the device: `{ op, ... }` in, `{ ok } | { denied }` out. */
 export interface DeviceCore {
+  readonly media?: MediaStorage;
   call(request: Record<string, unknown>): Promise<Record<string, unknown>>;
   close(): Promise<void>;
 }
@@ -50,6 +53,8 @@ export interface LocalOptions {
    * `snapback4-expo`, `processDevice()` in Node. */
   readonly device: DeviceOpener;
   readonly waitSeconds?: number;
+  /** Ordinary viewed media only; default is no retained bytes. */
+  readonly assets?: AssetRetention;
 }
 
 export type LocalClient = Client & {
@@ -112,6 +117,8 @@ async function requireSyncProtocol(core: DeviceCore): Promise<void> {
 }
 
 export async function createLocalClient(options: LocalOptions): Promise<LocalClient> {
+  const retention = options.assets ?? { keep: "none", maxBytes: 0 };
+  if (!["none", "viewed"].includes(retention.keep) || !Number.isSafeInteger(retention.maxBytes) || retention.maxBytes < 0) throw new Error("assets needs keep: viewed | none and a nonnegative maxBytes");
   const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
   const base = options.url.replace(/\/$/, "");
   const headers: Record<string, string> = { "content-type": "application/json" };
@@ -182,6 +189,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let closing: Promise<void> | undefined;
   const aborter = new AbortController();
   const core = await options.device.open(storeName, backend);
+  let media: MediaCache | undefined;
   try {
   await requireSyncProtocol(core);
   if (backend) generation = Number(backend.generation ?? 0);
@@ -190,6 +198,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     generation = Number((state.ok as { generation?: number } | undefined)?.generation ?? 0);
   }
   if (!backend) backend = (await call({ op: "backend" })).ok as BackendJson;
+  media = new MediaCache(core, principal, retention);
+  await media.open();
   // The app's native module (LLP 3000.005 §9): fetched once per digest and
   // installed on the device, which keeps it; offline, the device answers
   // native reads with the module it kept, or says it has none.
@@ -264,7 +274,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   async function call(request: Record<string, unknown>): Promise<{ ok?: unknown; denied?: Refusal }> {
     const work = core.call(request);
     active.add(work);
-    try { return (await work) as { ok?: unknown; denied?: Refusal }; }
+    try {
+      const result = (await work) as { ok?: unknown; denied?: Refusal };
+      if (!result.denied && ["apply", "adopt", "clear_rows", "admit", "settle"].includes(String(request.op))) await media?.reconcile();
+      return result;
+    }
     finally { active.delete(work); }
   }
 
@@ -293,10 +307,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     delete headers.authorization;
     delete headers["x-snapback-persona"];
     setLink("signed-out");
-    try { await forgetSession(base, sessions); }
+    try { await media?.clear(); }
     finally {
-      for (const listener of [...sessionListeners]) listener(null);
-      for (const listener of [...viewerListeners]) listener(null);
+      try { await forgetSession(base, sessions); }
+      finally {
+        for (const listener of [...sessionListeners]) listener(null);
+        for (const listener of [...viewerListeners]) listener(null);
+      }
     }
   };
 
@@ -748,7 +765,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const settle = settled.get(entry.id);
       settled.delete(entry.id);
       const outcome: Write = json.state === "sent"
-        ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0) }
+        ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), result: json.result }
         : { state: "failed", id: entry.id, why: (json.why as Refusal | undefined) ?? (json.denied as Refusal | undefined) ?? { code: "E_STORE", family: "store", message: "the server answered without a state", retryable: true } };
       if (outcome.state === "sent") await syncOnce();
       else rerunTables(predictedTables(entry.predicted));
@@ -795,7 +812,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         },
       };
     },
-    async mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write> {
+    async mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write<R>> {
       const id = mintId();
       const unavailableWhy = unavailable();
       if (unavailableWhy) return emitWrite({ state: "failed", id, why: unavailableWhy });
@@ -820,7 +837,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       void flush();
       if (link !== "online") return { state: "pending", id };
       let timer: ReturnType<typeof setTimeout> | undefined;
-      try { return await Promise.race([result, new Promise<Write>((resolve) => { timer = setTimeout(() => resolve({ state: "pending", id }), 4_000); })]); }
+      try { return await Promise.race([result, new Promise<Write>((resolve) => { timer = setTimeout(() => resolve({ state: "pending", id }), 4_000); })]) as Write<R>; }
       finally { clearTimeout(timer); }
     },
     async upload(bytes) {
@@ -829,14 +846,30 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (link !== "online") return { ok: false as const, why: { code: "E_OFFLINE", family: "link", message: "the server is unreachable; uploads wait for no link", retryable: true } };
       const request = requestCredentials();
       const uploaded = await uploadAsset(base, request.headers, doFetch, bytes);
+      if (uploaded.ok && !unavailable() && request.revision === credentialRevision) {
+        // The device keeps only facts received from this uploader's server reply.
+        await call({ op: "upload_facts", viewer: principal, asset: uploaded.asset });
+      }
       if (!uploaded.ok) await refusedSession(uploaded.why, request.revision);
       if (!uploaded.ok && uploaded.why.code === "E_OFFLINE") setLink("offline");
       return uploaded;
     },
     async asset(id) {
+      const denied = unavailable();
+      if (denied) return { denied };
+      if (link !== "online") return media!.read(id);
       const request = requestCredentials();
-      const read = await fetchAsset(base, request.headers, doFetch, id);
-      if ("denied" in read) await refusedSession(read.denied, request.revision);
+      const read = await fetchAsset(base, request.headers, doFetch, id, (blob, response) =>
+        unavailable() || request.revision !== credentialRevision ? Promise.resolve() : media!.viewed(id, blob, response));
+      if ("denied" in read) {
+        await refusedSession(read.denied, request.revision);
+        if (read.denied.code === "E_OFFLINE" && !unavailable()) { setLink("offline"); return media!.read(id); }
+        await media!.invalidate(id);
+      }
+      if (unavailable() || request.revision !== credentialRevision) {
+        if ("url" in read) read.revoke();
+        return { denied: unavailable() ?? offline() };
+      }
       return read;
     },
     assetSource: (id) => assetSource(base, requestCredentials().headers, id),
@@ -899,6 +932,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       for (const [id, resolve] of settled) resolve({ state: "pending", id });
       closing = (async () => {
         await Promise.allSettled([following, syncing, flushing, refreshing, ...active]);
+        await media?.close();
         await core.close();
         settled.clear();
       })();
@@ -914,7 +948,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   } catch (error) {
     // Opening the device transfers its lifetime to this constructor. Until a
     // client is returned, every later startup failure must release it here.
-    try { await core.close(); } catch {}
+    try { await media?.close(); await core.close(); } catch {}
     throw error;
   }
 }

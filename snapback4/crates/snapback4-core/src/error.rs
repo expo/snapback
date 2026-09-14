@@ -216,7 +216,8 @@ impl RuntimeError {
                 refusal.guide = Some("bounds".into());
             }
             Self::Rule { table, effect } => {
-                refusal.message = format!("{table}'s {effect} rule does not admit this viewer");
+                // @ref LLP 3000.007#8 — explain the hidden-collision idiom without disclosing a row
+                refusal.message = format!("{table}'s {effect} rule does not admit this viewer, or a unique key collided with a row you cannot read; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count");
                 refusal.guide = Some("rules".into());
             }
             Self::Constraint(message) => {

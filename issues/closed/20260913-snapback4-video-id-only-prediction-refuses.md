@@ -1,6 +1,6 @@
 # Snapback 4: video `{ id }` argument is refused by local prediction before the server
 
-Status: Open
+Status: Closed
 Priority: P1
 Date: 2026-09-13
 Systems: local client, device prediction, asset arguments
@@ -44,16 +44,16 @@ Confidence: **high from the received differential reproduction plus static
 code trace; not independently reproduced or graded yet.**
 
 The server's mutation path in
-[engine/mod.rs](../snapback4/crates/snapback4-core/src/engine/mod.rs) replaces
+[engine/mod.rs](../../snapback4/crates/snapback4-core/src/engine/mod.rs) replaces
 each image/video argument that names the caller's upload with
 `asset.column_value()` from the authoritative asset record before Quarry runs.
 The device path in
-[engine/local.rs](../snapback4/crates/snapback4-core/src/engine/local.rs) and
-[device/predictions.rs](../snapback4/crates/snapback4-device/src/device/predictions.rs)
+[engine/local.rs](../../snapback4/crates/snapback4-core/src/engine/local.rs) and
+[device/predictions.rs](../../snapback4/crates/snapback4-device/src/device/predictions.rs)
 runs the same program over the submitted argument without access to that server
 asset record. Reading `.duration` from `{ id }` therefore produces `E_FIELD`.
 
-[Device::admit](../snapback4/crates/snapback4-device/src/device.rs) degrades
+[Device::admit](../../snapback4/crates/snapback4-device/src/device.rs) degrades
 `RuntimeError::Prediction` to a durable, unpredicted outbox entry, but propagates
 other errors from prediction. The `E_FIELD` consequently escapes admission and
 the local client returns a terminal failure before its normal HTTP flush can
@@ -104,12 +104,30 @@ instrument, prompt, and package pins were not changed.
 
 ## Relevant contract and implementation
 
-- [package README assets section](../snapback4/packages/snapback4/README.md)
+- [package README assets section](../../snapback4/packages/snapback4/README.md)
   documents upload followed by `{ id }` and server-established facts.
-- [language assets card](../snapback4/crates/snapback4-lang/src/guide.rs)
+- [language assets card](../../snapback4/crates/snapback4-lang/src/guide.rs)
   uses `.duration` while instructing clients to pass `{ id }`.
-- [client contract](../snapback4/packages/snapback4/src/contract.ts) states
+- [client contract](../../snapback4/packages/snapback4/src/contract.ts) states
   that `{ id }` is sufficient for row placement.
-- [server mutation enrichment](../snapback4/crates/snapback4-core/src/engine/mod.rs)
-- [device local prediction](../snapback4/crates/snapback4-core/src/engine/local.rs)
-- [device admission and prediction replay](../snapback4/crates/snapback4-device/src/device.rs)
+- [server mutation enrichment](../../snapback4/crates/snapback4-core/src/engine/mod.rs)
+- [device local prediction](../../snapback4/crates/snapback4-core/src/engine/local.rs)
+- [device admission and prediction replay](../../snapback4/crates/snapback4-device/src/device.rs)
+
+## Resolution — 2026-09-13 (Lane C, LLP 3000.007 §8.4)
+
+The local client records the authenticated `POST /assets` reply on its device,
+under the uploader's principal and asset id. Prediction and durable outbox
+replay replace image/video arguments from that receipt before Quarry runs,
+including after an offline reopen. Without a receipt, admission keeps the
+write durable and unpredicted for the server to judge; arbitrary argument facts
+and another principal's receipts never supply prediction authority. The server
+continues to enforce ownership, kind, size, placement and authoritative facts.
+
+The device suite covers id-only image and video arguments, forged fact fields,
+missing and foreign receipts, and reopened SQLite and memory stores. The live
+process-client regression uploads a 60-byte MP4, reopens offline, predicts its
+id-only mutation with duration 1,000 ms, reconnects, and requires `sent.result`
+to equal the server's upload facts. Its ordinary bytes also survive a second
+offline reopen. Targeted device tests: 21 passed, 0 failed; live client seams:
+4 passed, 0 failed.

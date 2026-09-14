@@ -177,7 +177,7 @@ test("a stale-token mutation refusal remains durable and retries after rotation"
         return Response.json({ denied: { code: "E_AUTH", family: "auth", message: "rotated token" } }, { status: 401 });
       }
       await newReply.promise;
-      return Response.json({ state: "sent", id: queued[0].id, seq: 9 });
+      return Response.json({ state: "sent", id: queued[0].id, seq: 9, result: { saved: true } });
     }
     throw new Error(`unexpected request ${path}`);
   };
@@ -222,7 +222,7 @@ test("a stale-token mutation refusal remains durable and retries after rotation"
     assert.equal(settlements, 0, "an obsolete refusal must not settle the outbox entry");
     assert.deepEqual(terminal, [], "an obsolete refusal is not a terminal write outcome");
     newReply.resolve();
-    assert.deepEqual(await writing, { state: "sent", id: admittedId, seq: 9 });
+    assert.deepEqual(await writing, { state: "sent", id: admittedId, seq: 9, result: { saved: true } });
     assert.equal(queued.length, 0);
     assert.equal(settlements, 1);
     assert.equal(terminal.length, 1);

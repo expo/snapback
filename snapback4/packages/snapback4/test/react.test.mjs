@@ -109,7 +109,7 @@ const ready = (data, next = null, flags = {}) => ({ data, complete: true, fresh:
 const check = (condition, message) => { if (!condition) throw Error(message); };
 const equal = (actual, expected, message) => check(JSON.stringify(actual) === JSON.stringify(expected), message + ": " + JSON.stringify(actual));
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
-const sent = id => ({ state: "sent", id, seq: 1 });
+const sent = id => ({ state: "sent", id, seq: 1, result: { reused: id } });
 const failed = id => ({ state: "failed", id, why: { code: "E_INPUT", family: "input", message: "message refused" } });
 
 function controlled(read = () => ready([])) {
@@ -201,6 +201,8 @@ const cases = {
     await act(async () => { first = latest.run({ n: 1 }); });
     check(latest.inFlight, "write is in flight");
     await act(async () => { client.writes[0].resolve(sent("first")); await first; });
+    equal((await first).result, { reused: "first" }, "run resolves with the server result");
+    equal(latest.last.result, { reused: "first" }, "last carries the server result");
     check(latest.last.id === "first" && !latest.inFlight, "write settles after Strict Mode replay");
     let rejected;
     await act(async () => { rejected = latest.run({ n: 2 }); });
@@ -226,6 +228,7 @@ const cases = {
       await raced;
     });
     check(latest.last.state === "sent" && latest.last.id === "raced", "terminal settlement wins a race with the pending return");
+    equal(latest.last.result, { reused: "raced" }, "queued terminal result reaches last");
     let obsolete;
     await act(async () => { obsolete = latest.run({ n: 5 }); });
     const replacement = controlled();

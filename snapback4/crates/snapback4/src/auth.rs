@@ -93,7 +93,9 @@ pub fn handle(request: Request, shared: &Shared, path: &str, body: &str) {
         .map(|a| a.ip().to_string())
         .unwrap_or_else(|| "unknown".into());
     let rate_route = matches!(path, "/auth/login" | "/auth/signup" | "/auth/guest");
-    if rate_route
+    // @ref LLP 3000.007#8 — dev loopback has no minute counters; KDF slots remain
+    let dev_loopback = shared.personas && request.remote_addr().is_some_and(|peer| peer.ip().is_loopback());
+    if rate_route && !dev_loopback
         && !shared
             .auth
             .attempt(&peer, password_route.then_some(email), Instant::now())

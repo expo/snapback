@@ -1312,3 +1312,88 @@ fn heap_cuts_and_successful_accumulators_on_both_stores() {
     scenario(&mut Sqlite::new("meter"));
     scenario(&mut Memory::new());
 }
+#[test]
+fn upload_receipts_predict_id_only_image_and_video_on_both_stores() {
+    on_both(|host| {
+        let source = "table photos:\n  photo: image <=100000\n  read <- allow\n  insert <- allow\n  sync public\ntable clips:\n  clip: video <=100000\n  read <- allow\n  insert <- allow\n  sync public\nmutation photo(photo: image <=100000):\n  require photo.width = 2 else WRONG_WIDTH\n  return insert photos { photo }\nmutation clip(clip: video <=100000):\n  duration = clip.duration\n  require duration != null else DURATION_UNKNOWN\n  require duration <= 60000 else TOO_LONG\n  return insert clips { clip }\n";
+        let (mut engine, backend) = compile(source);
+        let png = [0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0,0,0,13,0x49,0x48,0x44,0x52,0,0,0,2,0,0,0,3,8,6];
+        let mut mp4 = vec![0u8; 52];
+        mp4[0..4].copy_from_slice(&20u32.to_be_bytes()); mp4[4..8].copy_from_slice(b"ftyp"); mp4[8..12].copy_from_slice(b"isom");
+        mp4[20..24].copy_from_slice(&32u32.to_be_bytes()); mp4[24..28].copy_from_slice(b"moov");
+        mp4[28..32].copy_from_slice(&24u32.to_be_bytes()); mp4[32..36].copy_from_slice(b"mvhd");
+        // Version 0 mvhd: flags, creation, modification, timescale, duration.
+        mp4.resize(60, 0); mp4[20..24].copy_from_slice(&40u32.to_be_bytes()); mp4[28..32].copy_from_slice(&32u32.to_be_bytes());
+        mp4[48..52].copy_from_slice(&1000u32.to_be_bytes()); mp4[52..56].copy_from_slice(&1000u32.to_be_bytes());
+        let mut device = host.open("uploads", Some(backend)).unwrap();
+        for (op, bytes) in [("photo", png.as_slice()), ("clip", mp4.as_slice())] {
+            let asset = engine.store_asset("dev:alice", bytes, 1).unwrap();
+            let facts = snapback4_core::wire::to_json(&asset.column_value());
+            ok(device.call(serde_json::json!({ "op": "upload_facts", "viewer": "dev:alice", "asset": facts })));
+            device.close();
+            device = host.open("uploads", None).unwrap();
+            let submitted = serde_json::json!({ op: { "id": asset.id } });
+            let forged = ok(device.call(serde_json::json!({ "op":"predict", "name":op, "viewer":"dev:alice", "args":{ op: { "id":asset.id, "width":999, "duration":999999 } }, "now":2, "entropy":41 })));
+            assert_eq!(forged["result"][op]["id"], asset.id);
+            assert_eq!(forged["result"][op][if op == "photo" { "width" } else { "duration" }], if op == "photo" { 2 } else { 1000 });
+            ok(device.call(serde_json::json!({"op":"withdraw", "predicted":forged["predicted"]})));
+            let admitted = ok(device.call(serde_json::json!({ "op": "admit", "entry": { "id": op, "seq": if op == "photo" { 1 } else { 2 }, "op": op, "args": submitted, "viewer": "dev:alice", "now": 2, "predictable": true } })));
+            assert_eq!(admitted["predictable"], true, "{admitted}");
+            assert_eq!(admitted["predicted"].as_array().unwrap().len(), 1);
+            let unknown = ok(device.call(serde_json::json!({ "op": "admit", "entry": { "id": format!("unknown-{op}"), "seq": if op == "photo" { 3 } else { 4 }, "op": op, "args": { op: { "id": "missing", "width": 2, "duration": 1000 } }, "viewer": "dev:alice", "now": 3, "predictable": true } })));
+            assert_eq!(unknown["predictable"], false, "caller facts never substitute for a receipt");
+            let foreign = ok(device.call(serde_json::json!({ "op": "admit", "entry": { "id": format!("foreign-{op}"), "seq": if op == "photo" { 5 } else { 6 }, "op": op, "args": { op: { "id": asset.id } }, "viewer": "dev:bob", "now": 3, "predictable": true } })));
+            assert_eq!(foreign["predictable"], false, "receipts belong to the uploader");
+        }
+        device.close();
+    });
+}
+
+#[test]
+fn media_home_follows_stream_clear_delete_expiry_and_scope_on_both_stores() {
+    on_both(|host| {
+        let (_, backend) = compile("table photos:\n  owner: principal\n  photo: image <=100000 ?\n  secret: image <=100000 once ?\n  until: time ?\n  by byExpiry: until\n  expire at .until\n  by byOwner: owner, id\n  read <- .owner = viewer\n  sync to .owner\n");
+        let generation = backend.generation;
+        let mut device = host.open("homes", Some(backend)).unwrap();
+        let facts = serde_json::json!({"id":"image", "type":"image/png", "bytes":26, "width":2, "height":3, "duration":null});
+        let row = serde_json::json!({"id":"home", "owner":"dev:alice", "photo":facts, "secret":{ "id":"once", "type":"image/png", "bytes":26, "width":2, "height":3, "duration":null }, "until":100});
+        let put = |data: serde_json::Value, watermark| serde_json::json!({"op":"apply", "first":true, "page": {"snapshot":true, "events":[{"table":"photos", "id":"home", "kind":"put", "data":data}], "watermark":watermark, "more":false, "generation":generation}});
+        ok(device.call(put(row.clone(), 1)));
+        let home = |id, now| serde_json::json!({"op":"asset_home", "id":id, "viewer":"dev:alice", "now":now});
+        let retained = ok(device.call(home("image", 1)));
+        assert_eq!(retained["row"], "home"); assert_eq!(retained["expiresAt"], 100);
+        assert_eq!(ok(device.call(home("once", 1))), serde_json::Value::Null);
+        assert_eq!(ok(device.call(home("image", 100))), serde_json::Value::Null);
+        let mut cleared = row.clone(); cleared["photo"] = serde_json::Value::Null;
+        ok(device.call(put(cleared, 2)));
+        assert_eq!(ok(device.call(home("image", 1))), serde_json::Value::Null);
+        ok(device.call(put(row.clone(), 3)));
+        ok(device.call(serde_json::json!({"op":"apply", "page":{"snapshot":false,"events":[{"table":"photos","id":"home","kind":"del"}],"watermark":4,"more":false}})));
+        assert_eq!(ok(device.call(home("image", 1))), serde_json::Value::Null);
+        ok(device.call(put(row.clone(), 5)));
+        ok(device.call(serde_json::json!({"op":"apply", "page":{"snapshot":false,"events":[{"table":"photos","id":"scope","kind":"scope","data":["dev:alice"]}],"watermark":6,"more":false}})));
+        assert_eq!(ok(device.call(home("image", 1))), serde_json::Value::Null);
+        ok(device.call(put(row, 7)));
+        ok(device.call(serde_json::json!({"op":"clear_rows"})));
+        assert_eq!(ok(device.call(home("image", 1))), serde_json::Value::Null);
+        device.close();
+    });
+}
+
+#[test]
+fn a_scope_retires_media_past_a_page_while_preserving_delivered_history() {
+    on_both(|host| {
+        let (_, backend) = compile("table photos:\n  owner: principal\n  photo: image <=100000\n  by byOwner: owner\n  read <- .owner = viewer\n  sync to .owner\n  retain delivered-history\nquery photo(id: photos):\n  return photos[id]\n");
+        let mut device = host.open("media-history", Some(backend)).unwrap();
+        let events = (0..501).map(|n| serde_json::json!({"table":"photos", "kind":"put", "id":format!("r{n:03}"), "data":{
+            "id":format!("r{n:03}"), "owner":"dev:alice", "photo":{"id":format!("a{n:03}"),"type":"image/png","bytes":26,"width":2,"height":3,"duration":null}
+        }})).collect::<Vec<_>>();
+        ok(device.call(serde_json::json!({"op":"apply","first":true,"page":{"snapshot":true,"events":events,"watermark":1,"more":false}})));
+        let home = serde_json::json!({"op":"asset_home", "id":"a500", "viewer":"dev:alice", "now":1});
+        assert_eq!(ok(device.call(home.clone()))["row"], "r500");
+        ok(device.call(serde_json::json!({"op":"apply","page":{"snapshot":false,"events":[{"table":"photos","kind":"scope","id":"scope","data":["dev:alice"]}],"watermark":2,"more":false}})));
+        assert_eq!(ok(device.call(home)), serde_json::Value::Null);
+        assert_eq!(query(&mut *device, "photo", "dev:alice", serde_json::json!({"id":"r500"}), 1)["data"]["id"], "r500", "textual history remains held");
+        device.close();
+    });
+}
