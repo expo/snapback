@@ -122,7 +122,9 @@ raw-row boundary. Grok charged Hermes failure that the
 [client attribution audit](./grok-client-attribution-audit.md) traces statically
 to its Expo/Babel mismatch. Received scores remain verbatim.
 
-The Astra M4 builder reproduced a new [video prediction defect](../../../issues/20260913-snapback4-video-id-only-prediction-refuses.md): passing the documented asset `{ id }` fails locally when the mutation reads `.duration`. Passing the complete upload response let it continue. This is a received builder reproduction; independent grading is pending, and the published pins remain unchanged.
+The Astra M4 builder reproduced a new [video prediction defect](../../../issues/closed/20260913-snapback4-video-id-only-prediction-refuses.md): passing the documented asset `{ id }` fails locally when the mutation reads `.duration`. Passing the complete upload response let it continue. This is a received builder reproduction; independent grading is pending, and the published pins remain unchanged.
+
+A separate main-branch change, `7b2b8fc65`, has since closed that ticket by persisting authenticated upload facts for device prediction and degrading safely when they are unavailable. That resolution is outside the frozen 0.2.6 benchmark; the results here do not qualify it.
 
 Muse later supplied a [second compact-video trace](./muse-m4-compact-video-provisional-attribution.md) with the same local `E_FIELD`, authoritative upload duration, and absence of a mutation HTTP request. This corroborates the existing issue; it is not an independent auditor reproduction or grade.
 

@@ -82,7 +82,7 @@ The Muse lane on the same published pins later exhibited the same signature:
 its upload response contained `duration=5000`, but the id-only video send
 reported `E_FIELD` before any `/m/sendVideo` request appeared in a complete
 POST trace. Its application workaround retains the uploaded duration in the
-clip argument. The [public-evidence audit](../benchmarks/runs/2026-09-13-snapback4-clique-0004/muse-m4-compact-video-provisional-attribution.md)
+clip argument. The [public-evidence audit](../../benchmarks/runs/2026-09-13-snapback4-clique-0004/muse-m4-compact-video-provisional-attribution.md)
 retains event and source hashes, including the failed interception excluded
 from attribution and the truncated duration-hint response.
 
