@@ -43,6 +43,9 @@ pub struct Execution {
     pub requires: Vec<String>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub connected_effects_only: bool,
+    /// Pure presence-dependent branches whose untaken arm prediction also charges.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub prediction_guards: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

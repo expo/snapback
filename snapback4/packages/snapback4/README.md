@@ -643,6 +643,9 @@ This send stays eligible to predict because presence decides only effects;
 the server decides who is notified at commit. For dispatch-time presence
 or any other presence-dependent decision, emit unconditionally and have
 the worker call a service mutation that reads `connected`.
+Prediction evaluates the safe untaken presence arms too and discards their
+effects, so it pays at least their server cost. Effect ids never consume
+`new` or an insert's ids.
 
 The data plane never calls out. `emit name { payload }` in a mutation or
 a job keeps the payload durably in the same commit as the rows (a
@@ -665,6 +668,14 @@ device the word is unknown: a query that reads it is `complete: false`,
 and the server answers it online. A mutation stays eligible to predict
 when presence decides only effects, so its rows are independent of
 presence and the server decides who is notified at commit.
+Presence-derived values use comparisons, `exists`, boolean logic and field
+values. Arithmetic, fallible builtins, reads, `new` or refusals controlled
+by presence keep `predicts: never`, as do conditional values without a
+fixed-size proof.
+Prediction charges both safe presence arms, so it may reach a bound even
+when the server would fit.
+If an untaken arm needs a combined guard's value refinement, the device
+queues without a row; put the data guard outside the presence guard.
 
 ### The meter
 

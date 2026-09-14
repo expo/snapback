@@ -5940,6 +5940,167 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
+
+### 2026-09-14 — R1p: presence soundness and analysis-only expression ownership
+
+Implemented review round 1 of LLP 3000.007 §19.1 from base
+`fde9623145bfbaba4c1062e64b756a1e7bdb252e`, after reading both the GPT and
+Grok review artifacts. No commit, push, tag, publication, sub-agent or
+remote machine was used. All Cargo commands that actually built or ran
+these tests used the `snapback4/` workspace. Node and Bun used Node 24.18.0.
+
+Chose route (a): keep the binder's grouping only in its transient analysis
+image, then restore the spilled statements before admission or execution.
+A side map translates analysis paths into original runner statement sites;
+only the resulting prediction charge sites enter additive execution facts.
+This is smaller than teaching every IR consumer a transparent wrapper:
+there is no new runtime expression, admission exception, meter exception
+or special error-site prefix. Authored scan predicates retain their original
+blocks. The original 10-step program again takes 10 steps, rather than 11;
+the two condition failures again identify `probe:2:then:1` and
+`probe:5:then:1`, rather than both identifying `where:2:then:1`.
+
+Effects now use URL-safe commit-sequence/emission-ordinal ids. They never
+consume `Context::mint`, including when `new` appears in the payload;
+payload `new` still consumes its own ordinary value id. Both device stores
+exercise emits before, between and after inserts at connection counts
+0/1/2, reopen and replay the queue, compare returned ids and rows, then
+claim and settle effects. Additional effect-only commits and at-most-once
+write replay retain five distinct, stable effect ids. The full-suite worker
+caught an intermediate colon-delimited spelling: its encoded `%3A` did not
+match the route's literal id. Using hyphens fixes the worker without
+changing the endpoint or the value model.
+
+Presence-derived arguments cannot enter arithmetic, negation, fallible or
+variable-cost builtins, read keys, minting or explicit refusals. Safe
+presence guards carry their original statement sites to prediction, which
+evaluates the untaken total arm too, discards its effects and restores its
+local slots. Thus prediction pays at least the server's cost. Conditional
+values also need a fixed-size proof: otherwise a later clone can vary in
+cost even after both arms paid. The conservative proof admits scalar
+literals, presence counts and booleans; unknown variable widths stay
+`never`. A counterfactual arm requiring a combined data/presence guard's
+nullable-value refinement yields `E_PREDICT` and queues without a row;
+an outer data guard preserves prediction. This is covered positively on
+both stores. `send` and `sendBrief` remain eligible. All 22 original N1
+negative programs remain unchanged and green. Four unsafe N1 positive
+examples are now retained in the totality-negative test, with total
+versions in their original positive test; preserving their old eligibility
+would contradict this lane's soundness requirement. The new 12-case
+negative matrix includes the already-refused require/unwrap as a control.
+
+No existing corpus case was edited. The frozen `named-emit` oracle reserves
+a row id for its effect, so it has the adapter's named
+`shared-effect-id-supply` exclusion. The added `named-emit-independent-ids`
+case keeps the same program and result while supplying only its two row
+ids. Its adapter regression is red against the base and green now. Corpus
+coverage is 211 passed, 83 named exclusions, 0 failed (294 cases).
+
+For the binder comparison, captured 740 compiler input bundles from the
+workspace and client tests, and inventoried all 15 checked-in Quarry files
+in the app/fixture/crate directories plus every guide and README Quarry
+block. The one-time census bound 1,112 mutation instances. It compared
+2,224 admission verdicts (2,192 admitted) and 2,114 fresh-engine executions
+at step ceilings 10 and 2,000, including all seven meter fields and complete
+refusals/sites. Reference lowering used `control.rs` from
+`ce15819ad71bd24c9d1b9ec228c083330dee3a31` with the base compiler, holding
+residency policy fixed so the intended eligibility change is not mistaken
+for an IR change. Both eligible and never admission policies were checked.
+Execution used synthesized arguments, empty stores, fixed time and
+fixed-width ids; this is a repository census, not an exhaustive exploration
+of every input/store/presence world. Every captured mutation's serialized IR
+is identical, with 0 missing instances, 0 admission differences and 0 meter
+or refusal/site differences. The two JSON snapshots have the same SHA-256:
+`45b072efbac7c107686d51057988c32553033c1c014f3d72a6036b1ba9fc0be0`.
+The temporary compiler logger and census test were removed; the source
+bundles, harness and before/after JSON remain in `/tmp/r1p-evidence/`.
+
+The id regression's base results at connection counts 0/1/2 were device
+`[A,B]` versus server `[B,D]`, `[A,B]`, `[A,C]`, on both SQLite and memory.
+All six worlds now return `[A,B]` and consume exactly 2 row ids. The cost
+pair now refuses on both hosts at ceiling 18 and succeeds on both at 19;
+the server's 19 steps are unchanged. The baseline predicted at ceiling 18
+while the server refused. Division now has `predicts: never` in all three
+worlds; at zero connections the server still reports `E_DIV_ZERO` and
+rolls back its row. The device queues without predicting that row.
+
+Regression runs against the exact base production sources (temporarily
+restored with `git show`, then restored from byte-for-byte local backups)
+were followed by the final targeted green runs below. Tests collect
+failures through both device stores instead of stopping at the first
+store's failure. All commands in the following list ran from `snapback4/`.
+
+`cargo test -p snapback4-lang --test presence r1p_ -- --nocapture`
+
+```text
+test result: FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.02s
+```
+
+`cargo test -p snapback4-device --test device r1p_ -- --nocapture`
+
+```text
+test result: FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 38 filtered out; finished in 0.15s
+```
+
+`cargo test -p snapback4-core --test corpus independent_effect_ids_replace_only_the_frozen_shared_supply_oracle -- --nocapture`
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.01s
+```
+
+`cargo test -p snapback4-lang --test presence --test guide -- --nocapture`
+
+```text
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+```
+
+`cargo test -p snapback4-sim --test residency --test clique --test write_authority --test page_admission -- --nocapture`
+
+```text
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.18s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.03s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.84s
+```
+
+`cargo test -p snapback4-device --test device -- --nocapture`
+
+```text
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.63s
+```
+
+`cargo test -p snapback4-core --lib -- --nocapture`
+
+```text
+test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.09s
+```
+
+`cargo test -p snapback4-core --test corpus -- --nocapture`
+
+```text
+corpus (Rust server only; no TypeScript/replica conformance claim): 211 passed, 83 skipped, 0 failed
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s
+```
+
+The one-time comparison commands were
+`R1P_MEASURE=/tmp/r1p-evidence/before.json cargo test -p snapback4-lang --test r1p_census measure -- --nocapture`
+and the same command with `after.json` under the restored implementation.
+Each passed 1 test (1 filtered out), in 8.89 s and 8.85 s respectively.
+The exact shared count line is:
+
+```text
+census: 1112 mutations; 2224 admission verdicts (2192 admitted); 2114 metered executions
+```
+
+The first full `bash snapback4/scripts/test.sh` run reported
+`== 2 failure(s) in 124 s`: the obsolete shared-id corpus oracle and the
+client group (the intermediate effect-id URL bug plus Chromium). The next
+run on the corrected implementation reported 523 Rust passed, 0 failed,
+1 ignored; 9/9 fixtures; 136/137 clients, with only Chromium failing:
+
+```text
+-- ok: cargo test (84 s)
 -- ok: fixture wrapper tests (8 s)
 ℹ tests 137
 ℹ pass 136
@@ -6032,6 +6193,12 @@ export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
 node --test packages/snapback4/test/react.test.mjs
 ```
 
+-- FAIL: client tests (42 s)
+== 1 failure(s) in 103 s
+```
+
+`node --test packages/snapback4/test/react.test.mjs` was retried alone:
+
 ```text
 ℹ tests 1
 ℹ pass 0
@@ -6102,3 +6269,90 @@ ref-check: ok — 474 LLP docs, 8847 refs in 22822 files, 0 errors, 0 unchecked
 `git diff --check` exits 0. All 11 changed code files were counted: zero
 over 1,500 lines, maximum 1,420. The final diff contains only the 13 intended
 files; the corpus cases and lane R1p's named files are unchanged.
+
+```
+
+Its browser again exited `exitCode=null, signal=SIGABRT` while Playwright
+reported `Error: kill EPERM`. This is base-verified at
+`fde9623145bfbaba4c1062e64b756a1e7bdb252e`: the baseline client runs also
+reach that identical Chromium failure. Those exploratory runs additionally
+lacked generated package/wasm artifacts (38 tests: 25 pass, 13 fail; after
+package build, 77 tests: 71 pass, 6 fail); their setup failures are not
+claimed as product failures. The completed suite builds those artifacts.
+The lead's outside-sandbox browser rerun remains necessary. Lifecycle's
+12 tests passed; no lifecycle failure is attributed to the base here.
+The built wasm is 1,607,844 B raw / 446,719 B gzip.
+
+The root caps command `node scripts/caps.mjs` reports `1 violation.`:
+205 oversize files versus the allowed 204, with the smallest overflow
+`crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs` at 1,504 lines.
+A complete `git ls-tree`/`git cat-file` census of base
+`fde9623145bfbaba4c1062e64b756a1e7bdb252e` proves the same 205/204 count and
+identical offending file. No such file was changed. All 15 changed/new
+Rust code files are below 1,500 lines (maximum: guide.rs, 1,418 lines).
+No ceilings, value encodings, R1g files or frozen corpus cases changed.
+The necessary neighboring constructor change in `bind/actions.rs` only
+initializes the new transient presence field. The core corpus adapter and
+new positive corpus case are the additional validation files.
+
+Exact diagnostic changes: the admission counterexamples previously had
+no diagnostic, and now have the message:
+
+```text
+E_STRUCTURAL_FANOUT: probe/for/$r1/0: notes has no cap over the selected group; pin a schema-capped group with a literal bound at least its cap, or use a job chunk
+```
+
+The 10-step regression previously refused with message
+`steps reached the ceiling 10` at `probe:1:then:1`; it now succeeds with
+result `Int(1)`. The two heap cuts retain the verbatim message
+`heap bytes reached the ceiling 40`; their sites change from
+`where:2:then:1` / `where:2:then:1` to
+`probe:2:then:1` / `probe:5:then:1`. Division previously predicted without
+a denial; its new device denial message is:
+
+```text
+E_PREDICT: site programs.probe.body.3: connected[p] decides fallible division at programs.probe.body.3; queued without a predicted row
+```
+
+The server message is unchanged: `E_DIV_ZERO: division by zero`.
+No E_/N_ code was introduced, so `guide::CODES` needs no new entry.
+
+Exploratory command mistakes were corrected: two early Cargo invocations
+used the root and stopped before building because its Ibex dependency was
+unavailable; two output-wrapper commands assigned zsh's read-only `status`
+after their tests completed; an intermediate failure-collection edit hit
+a Rust borrow error and was corrected before the final base and green runs.
+None is reported as a product or inherited failure. The implementation
+lesson is that effect-only dataflow needs three independent proofs:
+persistent outputs, refusal/totality and metered cost. Expression ownership
+belongs to the compiler's analysis; moving it into executed IR silently
+changes consumers that never opted into the new analysis.
+
+Final verification after the complete regression edits repeated
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` and
+`bash snapback4/scripts/test.sh` from the repository root. All 523 Rust
+tests passed (1 ignored); the worker test passed; the only failure remained
+the isolated/base-verified Chromium launch:
+
+```text
+-- ok: cargo test (83 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (7 s)
+ℹ tests 137
+ℹ pass 136
+ℹ fail 1
+-- FAIL: client tests (41 s)
+== 1 failure(s) in 101 s
+```
+
+Root `./ref-check --verbose` and `git diff --check` passed:
+
+```text
+ref-check: ok — 474 LLP docs, 8849 refs in 22825 files, 0 errors, 0 unchecked
+```
+
+No implementation work is deferred; the remaining external verification is
+Chromium outside this sandbox. The inherited root caps overflow remains
+untouched. The final working tree contains only the 19 intended lane files.

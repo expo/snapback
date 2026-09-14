@@ -12,6 +12,7 @@ pub mod job;
 #[cfg(feature = "wasm-host")]
 pub mod native;
 pub mod local;
+pub mod prediction;
 pub mod admission;
 mod pages;
 pub use pages::returned_page_sites;

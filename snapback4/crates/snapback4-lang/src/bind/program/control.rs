@@ -108,8 +108,8 @@ impl Binder<'_> {
                 if !self.catalog.effects.contains_key(effect) {
                     return Err(unknown(site, format!("unknown effect {effect}"), format!("declare `effect {effect}` at the top level; a worker with a service token claims what is emitted (guide effects)")));
                 }
-                // Keep expression setup inside the payload: residency must distinguish
-                // computing an emitted value from statements controlled by presence.
+                // Group only for presence analysis; setup::restore spills this
+                // back out before admission and before the program leaves binding.
                 let mut setup = Vec::new();
                 let (expr, _) = self.expr(payload, &mut setup)?;
                 let expr = if setup.is_empty() { expr } else if self.kind == ProgramKind::Mutation { Expr::Block { body: setup, value: Box::new(expr) } } else { out.extend(setup); expr };

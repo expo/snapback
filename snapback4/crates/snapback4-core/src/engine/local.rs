@@ -70,8 +70,14 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
     if runner.beyond_horizon {
         return Err(RuntimeError::Prediction(runner.missing_fact.clone().unwrap_or_else(|| format!("{}: this device cannot establish a read needed to predict", program.name))));
     }
-    let result = result?;
-    runner.charge_output(&result)?;
+    // @ref LLP 3000.007#19.1 — a meter cut after paying an untaken presence arm is the prediction's, not the write's: the server may skip that arm and succeed, so the write queues without a row.
+    let counterfactual = |error: RuntimeError, charged: bool| match error {
+        RuntimeError::Bound { .. } if charged => RuntimeError::Prediction(format!("{error}; the prediction paid an untaken presence arm the server may skip; queued without a predicted row")),
+        other => other,
+    };
+    let result = result.map_err(|error| counterfactual(error, runner.charged_untaken))?;
+    let charged = runner.charged_untaken;
+    runner.charge_output(&result).map_err(|error| counterfactual(error, charged))?;
     Ok(Prediction { new_ids: runner.context.minted_ids.clone(), result, written: runner.written_tables.iter().cloned().collect(), read: runner.read_tables.iter().cloned().collect() })
 }
 
