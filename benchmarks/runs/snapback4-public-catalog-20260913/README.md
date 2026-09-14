@@ -2057,3 +2057,35 @@ In all 54 C8 paired cases, p50/p95 were lower and throughput was higher; C8 p50 
 Traversal behavior was mixed. The initial 150-group feed's p50/p95 medians were 1.648/1.804→1.695/1.949 ms; its after-leave maximum median rose 3.195→10.363 ms. The largest individual traversal page observations were 17.826 ms baseline and 22.254 ms candidate. Paired traversal p99 and maximum each have one tie; all remaining comparisons not counted as lower in those columns are losses. One-page empty controls and four-page threads provide few observations for tail percentiles. All raw values, every case/traversal median loss and every loss in a matched pair are retained in the [appended records](../../../snapback4/metrics/storage.jsonl).
 
 Bindings: source `8a81eb855…`, historical build qualification `90b7637b…`, frozen instrument `ebe5b64d…`, controller `26f8c62f…`, Node download receipt `bf507238…`; independent summary `e37d2f44…`. Fresh server/client processes and full proofs/traversals preceded repeated cases; OS cache was retained without resets, residency unmeasured. Earlier Node 24.18 observations remain intact. This evidence makes no adoption, general platform, comparator, device, memory-pressure, write-throughput or durability claim.
+
+### Node 24.21 client compatibility follow-up (2026-09-14 UTC)
+
+On Durand, the archived 0.2.8 source (`8a81eb855`) completed the wasm/package build and **89 client tests with zero failures or skips** under Node 24.21.0 / Undici 7.29.1. The helper supplied the retained experimental MEMSTATUS-off CLI (`93fa3b16…`) for tests honoring `SNAPBACK4_BIN`; five tests in `local-e2e` and `native-e2e` instead use a shared debug executable whose digest this receipt does not identify. This is scoped client compatibility evidence, not a full suite, publication or performance result.
+
+Both unsuccessful preparation attempts remain recorded. V1 omitted generated wasm: the package build failed, two client files could not load the module, and React initialization timed out after Vite reported the same missing import (29 passes, 3 failures). V2 added the wasm step but could not find `wasm-bindgen`, then retained the same client failures. V3 used the hash-verified, previously prepared publication tools and passed on the unchanged archived source. The **nine fixture-wrapper tests passed in V1** and were retained explicitly, not rerun in V3. All three raw receipts, exit codes, logs and test-source hashes are preserved in the metrics record; no prior failure was reclassified as a pass.
+
+### ARM Linux MEMSTATUS comparison with Node 24.21 (2026-09-14 UTC)
+
+Office M1 Max / ARM Linux Colima (4 CPUs, 12 GiB) ran three paired rounds, 71–73, in baseline/candidate, candidate/baseline, baseline/candidate order. Both use Node 24.21.0 / bundled Undici 7.29.1 and ordinary built-in fetch, the unchanged historical membership instrument (`36f4026b…`), and archived 0.2.8 source (`8a81eb855`). Retained production CLIs `33bd0c0b…` and `8c47c6a5…` differ by candidate `-DSQLITE_DEFAULT_MEMSTATUS=0` beside the existing `-USQLITE_ENABLE_MEMORY_MANAGEMENT`; they are source-built Linux artifacts.
+
+All **117,000 case requests** (39 cases × 500 samples × six runs) passed exact-result checks with zero reported errors; **7,020 warmups** are excluded. Fresh processes restore the same pristine snapshot and previously issued guest sessions, check all 501 groups / 186 memberships / 100,000 messages, exercise denial, leave and old-cursor checks, then regrant and verify using unchanged sessions. All **162 complete walks / 33,510 page requests are untimed**. Separate two-variant smoke results are preserved and excluded from the comparison.
+
+Counts below compare medians of three per-run statistics; paired counts compare the same logical trial inputs. Lower is better for latency; higher is better for RPS.
+
+| Scope | Lower p50 | Lower p95 | Lower p99 | Lower max | Higher RPS |
+|---|---:|---:|---:|---:|---:|
+| Case medians (39) | 26 | 23 | 19 | 20 | 26 |
+| Paired case statistics (117) | 78 | 69 | 56 | 56 | 76 |
+
+The candidate has lower p50 medians in all 18 C8 cases, but **13 of 21 C1 cases regress** (37 of 63 paired C1 p50 values are worse). Representative medians, in milliseconds:
+
+| Case | p50 baseline → candidate | p95 baseline → candidate |
+|---|---:|---:|
+| 30-group hot point C1 | 1.692 → 2.480 | 2.706 → 8.013 |
+| 30-group thread first C1 | 2.396 → 3.449 | 3.166 → 10.545 |
+| 150-group feed next C1 | 7.229 → 7.471 | 8.757 → 13.092 |
+| 150-group feed first C8 | 29.376 → 22.158 | 75.039 → 47.329 |
+
+Hot-point and 150-group feed-next C1 p50 regress in all three pairs; thread-first C1 regresses in two. C8 retains five p99-median losses, including 150-group feed working set, 61.705 → 63.858 ms. The largest individual observations are 306.769 ms baseline and 193.058 ms candidate, in different cases. Every raw statistic and median/paired loss remains in the evidence records.
+
+The candidate remains experimental; no setting was adopted after these serial-read regressions. OS cache was retained without resets and residency was unmeasured; full proofs/walks preceded the repeated cases. It does not isolate a Node upgrade from the earlier runs, pool per-request quantiles, rerun comparators, or establish a Darwin, device, write, memory-pressure, durability or universal performance result.
