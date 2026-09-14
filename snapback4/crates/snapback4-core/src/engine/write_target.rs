@@ -1,8 +1,9 @@
 //! Engine-private write addressing, conditions and disclosure.
 use super::runner::{Flow, Runner};
+use super::rules::rule_probes;
 use crate::error::{MeterKind, RuntimeError};
 use crate::ir::{Builtin, Expr, IndexKeyExpr, Input, KeyProvenance, LoopDomain, Read, Scan, Stmt, WriteCondition};
-use crate::schema::{ColumnType, Effect, RuleExpr, Table, materialize_optional_fields};
+use crate::schema::{ColumnType, Effect, Table, materialize_optional_fields};
 use crate::value::Value;
 
 impl Runner<'_> {
@@ -205,16 +206,6 @@ fn pure_builtin(builtin: &Builtin) -> bool {
     }
 }
 
-fn rule_probes(rule: &RuleExpr) -> u64 {
-    match rule {
-        RuleExpr::Exists { .. } => 1,
-        // @ref LLP 3000.007#17 — created facts with extra equalities take the metered exists path when the fact holds.
-        RuleExpr::Created { equalities, .. } => u64::from(!equalities.is_empty()),
-        RuleExpr::And(terms) | RuleExpr::Or(terms) => terms.iter().map(rule_probes).fold(0, u64::saturating_add),
-        RuleExpr::Not(inner) => rule_probes(inner),
-        RuleExpr::Allow | RuleExpr::Deny | RuleExpr::Public { .. } | RuleExpr::Eq(..) | RuleExpr::Ne(..) => 0,
-    }
-}
 fn row_copy_ceiling(table: &Table) -> u64 {
     table.columns.iter().fold(40, |total, (name, ty)| total.saturating_add(80 + name.len() as u64).saturating_add(column_copy_ceiling(ty)))
 }

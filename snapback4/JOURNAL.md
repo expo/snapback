@@ -3793,3 +3793,122 @@ that those supplemental failures predate this lane is made.
 ## 2026-09-14 — the 0.2.9 calibration scored; the catch-up program opens (LLP 3000.007 §18)
 
 The Astra calibration on 0.2.9 scored 85 overall and behind the September 5 Convex and Supabase cells on setup_and_docs (78), data_modeling (88) and queries_and_live (74). The scorer's notes charge four things the published surface did: `processDevice()` named without a signature, retained history lost under a horizon on removal, an unscoped authorized search that is never complete on the server, and a defaulted column that refused adoption while `check` stayed green; the rest is learning cost. LLP 3000.007 §18 records the five decisions and their lanes: a merge of matching lanes over the viewer's groups (CU1), retained history kept whatever the horizon (CU2), the Node device's directory argument and a README example check (CU3), literal defaults materialized wherever absent and `check` reading the dev store (CU4), four more mechanical rewrites with the Trending recipe (CU5). The 0.2.10 three-model cell keeps running unchanged; the pin after these landings is 0.2.11.
+
+## 2026-09-14 — lane W5: charge a uniform verdict by rule shape
+
+Built the fifth-check disposition of LLP 3000.007 §17. A page verdict
+from the pinned prefix charges the rule's static probe allowance once on
+both outcomes, including the probes that short-circuit evaluation skipped.
+The counter moved unchanged from write-target reservation into `rules.rs`:
+`exists` costs **1**, `created` with residual equalities **1**, a bare
+`created` fact **0**, `and`/`or` sum their children, and `not` keeps its
+child's allowance. The reviewed two-probe shapes therefore cost **2**.
+W4's aborting-page attempt still costs **1 examined unit** before the
+verdict, with no candidates fetched before an allowed verdict. Capped
+queries gain no attempt charge; a denied verdict restores hidden expiry
+before its allowance can cut the query. No ceiling or serialized form changed.
+
+The named denied regression compares **8 pairs**: `and` and its negated
+`or` mirror, empty/hidden and equality mismatch/match, **0** or **8191**
+prelude probes. Permits are empty in every world; the equality pair keeps
+the same secret and varies only `enabled`. Another **8 pairs** exercise
+true verdicts with a fixed target row. The shared helper compares all
+**7 meters**, first/retry serializer bytes, receipt, committed source and
+maintain deltas, effects, stream, snapshot, and admission/reopen/settlement
+on **2 device stores**. Every world retains its starting source state.
+
+Measured meter vectors, identical within every pair (the `and`/`or` and
+existence/equality variants have the same numbers):
+
+| Verdict and prelude | examined | index_entries | rule_probes | steps | heap_bytes | output_bytes | rows_written |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Denied, 0, sent with constant 7 | 1 | 0 | 2 | 5 | 0 | 9 | 0 |
+| Allowed, 0, sent with constant 7 | 2 | 0 | 2 | 5 | 384 | 9 | 0 |
+| Either, 8191, E_BOUND on rule probes | 8192 | 0 | 8193 | 32767 | 2096896 | 0 | 0 |
+
+The query control covers both verdicts at probe ceilings **1** and **8192**,
+with **2 probes** charged and **0** candidate examinations at the cut;
+with room it examines **0** denied candidates or **1** allowed candidate.
+A hidden expiring probe contributes no `next_expiry` on a denied query,
+even when the allowance exceeds the ceiling. The lesson is that a verdict
+can be uniform while its executed branch count is not: metering must use
+schema shape at this boundary, not pad a state-dependent charge afterward.
+
+The existing membership suite asserted a zero-cost false query verdict;
+its assertion and two-line comment now expect **1 probe** for either
+verdict. This is the one additional test file touched beyond the brief's
+named files. The membership suite passes **5 / 0**; the focused suites
+pass **72 / 0** (corpus harness **16**, guide **9**, page admission **13**,
+write authority **34**), with **211 corpus cases passed / 82 skipped / 0
+failed**. The dedicated W5 run passes **3 / 0**. An initial test assertion
+spelled the diagnostic meter name `rule_probes` instead of `rule probes`;
+that test-only mistake was corrected before these passing runs.
+
+Final blocking verification used serial Rust tests and serial Node test
+files on the shared host, with the script and all assertions/time limits
+unchanged: **377 Rust passed / 0 failed / 1 ignored**, **9 fixture passed /
+0 failed**, **121 client passed / 1 failed / 0 cancelled**. The script's
+verbatim summary is `== 1 failure(s) in 201 s`; the remaining failure is
+Chromium startup **SIGABRT** inside the sandbox. The exact invocation, from
+the repository root under Bash, was:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+node() {
+  if [ "${1:-}" = --test ]; then
+    command node --test-concurrency=1 "$@"
+  else
+    command node "$@"
+  fi
+}
+export -f node
+RUST_TEST_THREADS=1 bash snapback4/scripts/test.sh
+```
+
+Two ordinary parallel invocations of `bash snapback4/scripts/test.sh`
+reported `== 2 failure(s) in 1566 s` and `== 2 failure(s) in 637 s`:
+each had **376 Rust passes / 1 panic-process timeout / 1 ignored**;
+the clients had **61 passes / 52 failures / 1 cancelled** and **81 passes /
+33 failures / 0 cancelled**, mostly server-startup timeouts. These are not
+labelled inherited product failures. `cargo test -p snapback4 --test
+lifecycle abort_profile_reports_an_off_thread_panic_to_redirected_stderr --
+--exact --nocapture` passed **1 / 0** alone; `node --test
+packages/snapback4/test/write-authority.test.mjs` passed **4 / 0** alone;
+`node --test --test-concurrency=1 'packages/snapback4/test/*.test.mjs'`
+passed **121 / 1**, Chromium alone. A redundant macOS base build was stopped
+after the isolated current panic test passed; it provides no baseline claim.
+
+The isolated React test (`node --test packages/snapback4/test/react.test.mjs`)
+reproduced **0 passed / 1 failed**, with Chromium SIGABRT, on untouched
+source archived from **3ffae1e059df22428f03d9d63c94e70a29a7577e**. That
+snapshot also initially warned about the unbuilt package during dependency
+scanning; the failure was at browser launch before visiting a page. The
+lead still needs the browser witness outside the sandbox.
+
+A supplemental Linux snapshot was checked as **669 files / 0 hash
+mismatches** after adding the shared benchmark fixtures omitted from its
+initial transfer. Its full script did not finish client cleanup and is not
+passing evidence. The six Linux signal-handler failures reproduced on an
+untouched base **3ffae1e059df22428f03d9d63c94e70a29a7577e** with
+`CARGO_TARGET_DIR=/tmp/w5-base-target cargo test -p snapback4 --test lifecycle`:
+**5 passed / 6 failed**. The initial base build and a supplemental membership
+rerun ran out of filesystem space, so neither supplies test results; the
+base rerun used available temporary storage. The fixture-only rerun, after
+including its inputs and using temporary storage, passed **9 / 0**. No Linux
+platform repair is part of W5.
+
+All **6 changed Rust source/test files and the README** are below 1,500 lines
+(the largest, `guide.rs`, is **1450**); the existing oversized RFC and
+append-only journal keep their history. RFC §14 and the existing corpus
+are unchanged. Cargo's incidental five workspace-version lockfile refreshes
+were restored. No commit, push, tag or publication was performed.
+
+`./ref-check --verbose` reports **474 LLP docs, 8813 refs in 22609 files,
+0 errors, 0 unchecked**; `git diff --check` passes. Supplemental-host
+handoff: after the SSH run was interrupted, its launcher **817388** and
+script **817389** on **100.126.225.7** still waited for client cleanup;
+that run is unfinished. Its snapshot is
+`/home/ccheever/lanes/w5-snapshot-3ffae1e`; the host filesystem also exhausted
+its available space. Only this task's failed base build files were removed,
+and its named failed incremental directory was moved to
+`/tmp/w5-generated-recovery` for recovery; no source work was removed.

@@ -472,12 +472,12 @@ impl Runner<'_> {
             let probe_row = Value::Row(index.components.iter().zip(&prefix).filter_map(|(part, value)| part.column().map(|name| (name.clone(), value.clone()))).collect::<std::collections::BTreeMap<_, _>>().into());
             let viewer = self.context.viewer.clone();
             let expiry = self.next_expiry;
-            let mut probe = PrefixProbe { runner: self, count: 0 };
+            let mut probe = PrefixProbe { runner: self };
             let verdict = rules::evaluate(&table.rules.read, &viewer, None, &probe_row, false, &mut probe)?;
-            let count = probe.count;
-            if (aborting || verdict) && !self.meter.charge(MeterKind::RuleProbes, count)? { return Ok((Vec::new(), Vec::new())); }
+            if !verdict { self.next_expiry = expiry; }
+            // @ref LLP 3000.007#17 — W5: one static allowance on either verdict; short-circuit answers never determine the charge.
+            if !self.meter.charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? { return Ok((Vec::new(), Vec::new())); }
             if !verdict {
-                self.next_expiry = expiry;
                 return Ok((Vec::new(), Vec::new()));
             }
             uniform_verdict = Some(true);
@@ -761,10 +761,9 @@ impl Runner<'_> {
     }
 }
 
-struct PrefixProbe<'a, 'b> { runner: &'a mut Runner<'b>, count: u64 }
+struct PrefixProbe<'a, 'b> { runner: &'a mut Runner<'b> }
 impl Probe for PrefixProbe<'_, '_> {
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
-        self.count += 1;
         self.runner.rule_probe_exists(table, index, key, equalities)
     }
     fn created(&mut self, table: &str, index: &str, key: &[Value]) -> bool { self.runner.created(table, index, key) }

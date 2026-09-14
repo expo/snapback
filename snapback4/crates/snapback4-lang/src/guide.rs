@@ -731,6 +731,7 @@ the chat alone because the row is its own witness, so a roster page pinned
 by the chat is complete and no second table is needed. An aborting mutation
 page costs one examined unit before its verdict, plus its rule probes on
 both true and false verdicts; a true verdict then examines candidates.
+A page verdict evaluated from its pinned prefix charges the rule's static probe count on either outcome, including probes skipped by `and`/`or` short-circuiting.
 Modifiers come in one order: `after c`,
 then `first N` or `last N`, then `by index`, then optional `where predicate`. A page a query returns without
 a cursor cannot be continued: an unfiltered page with more rows reads

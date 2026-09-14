@@ -20,6 +20,91 @@ query page(owner: principal):
   return items[owner] first 10 by byOwner
 "#;
 fn compile(source: &str) -> snapback4_lang::Bound { snapback4_lang::compile(&[("schema.q".into(), source.into())]) }
+
+fn short_circuit_page_pairs(allowed: bool) {
+    for form in ["and", "or"] {
+        for equality in [false, true] {
+            for work in [0, 8191] {
+                let first = if equality { "exists secrets[owner = viewer, enabled = true]" } else { "exists secrets[owner = viewer]" };
+                // De Morgan's mirror still denies in both worlds, but its inner
+                // `or` short-circuits true at the first or second negated probe.
+                let denied = if form == "and" { format!("{first} and exists permits[owner = viewer]") }
+                    else { format!("not (not {first} or not exists permits[owner = viewer])") };
+                let secret_rule = if allowed { "deny" } else { &denied };
+                let targets = if allowed { format!("table targets:\n  read <- not ({denied})\n") } else { String::new() };
+                let page_table = if allowed { "targets" } else { "secrets" };
+                let source = format!("table secrets:\n  owner: principal\n  enabled: bool\n  unique byOwner: owner\n  read <- {secret_rule}\ntable permits:\n  owner: principal\n  unique byOwner: owner\n  read <- deny\ntable work:\n  read <- exists work[.id]\n{targets}mutation pass(): server\n  for i in range(0, {work}):\n    r = work[id = 'work']\n  rows = {page_table}[] first 1 by byId\n  return 7\nquery one():\n  return null\n");
+                let mut observations = Vec::new();
+                for first_matches in [false, true] {
+                    let b = compile(&source);
+                    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+                    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+                    let mut rows = vec![("work", json!({"id":"work"}))];
+                    if equality || first_matches { rows.push(("secrets", json!({"id":"secret","owner":"bob","enabled":first_matches}))); }
+                    if allowed { rows.push(("targets", json!({"id":"target"}))); }
+                    let rows = rows.into_iter().map(|(table, row)| (table.into(), wire::row_from_json(e.schema().table(table).unwrap(), &row).unwrap())).collect::<Vec<_>>();
+                    e.seed(rows).unwrap();
+                    assert!(e.store().rows("permits").unwrap().is_empty());
+                    assert_eq!(e.store().rows("secrets").unwrap().len(), usize::from(equality || first_matches));
+                    let (result, observed) = observation::observe(&mut e, "pass", "bob", json!({}), "same", ("one", json!({})));
+                    if work == 0 { assert!(matches!(result.state, WriteState::Sent { result: Value::Int(7), .. })); }
+                    else {
+                        assert_eq!(observed.body()["why"]["code"], "E_BOUND");
+                        assert!(matches!(&result.state, WriteState::Failed { why, .. } if why.message == "rule probes reached the ceiling 8192"), "{:?}", result.state);
+                    }
+                    assert_eq!(result.metered.rule_probes, work + 2);
+                    assert_eq!(result.metered.examined, work + 1 + u64::from(allowed && work == 0));
+                    assert_eq!(result.metered.rows_written, 0);
+                    observed.assert_unchanged();
+                    observations.push(observed);
+                }
+                observations[0].assert_same(&observations[1]);
+                println!("W5 allowed={allowed} form={form} equality={equality} prelude={work}: {:?}", observations[0].meter);
+            }
+        }
+    }
+}
+
+#[test]
+fn w5_uniform_denied_short_circuit_pages_have_identical_complete_observations() {
+    short_circuit_page_pairs(false);
+}
+
+#[test]
+fn w5_uniform_allowed_short_circuit_pages_have_identical_complete_observations() {
+    short_circuit_page_pairs(true);
+}
+
+#[test]
+fn w5_query_verdicts_charge_the_allowance_without_the_mutation_attempt() {
+    for allowed in [false, true] {
+        for ceiling in [1, 8192] {
+            let denied = "exists secrets[owner = viewer] and exists permits[owner = viewer]";
+            let rule = if allowed { format!("not ({denied})") } else { denied.to_owned() };
+            let source = format!("table secrets:\n  owner: principal\n  until: time\n  unique byOwner: owner\n  by byExpiry: until\n  expire at .until\n  read <- deny\ntable permits:\n  owner: principal\n  unique byOwner: owner\n  read <- deny\ntable targets:\n  read <- {rule}\nquery page():\n  return targets[] first 1 by byId\n");
+            let mut meters = Vec::new();
+            for hidden in [false, true] {
+                let b = compile(&source);
+                assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+                let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+                let mut rows = vec![("targets", json!({"id":"target"}))];
+                if hidden { rows.push(("secrets", json!({"id":"secret","owner":"bob","until":2000}))); }
+                let rows = rows.into_iter().map(|(table, row)| (table.into(), wire::row_from_json(e.schema().table(table).unwrap(), &row).unwrap())).collect::<Vec<_>>();
+                e.seed(rows).unwrap();
+                e.set_ceilings(snapback4_core::meter::Ceilings { rule_probes: ceiling, ..e.ceilings() });
+                let page = e.query("page", Context::new("bob", [].into()).at(1000)).unwrap();
+                assert_eq!(page.complete, ceiling >= 2);
+                assert_eq!(page.data.as_array().unwrap().len(), usize::from(allowed && ceiling >= 2));
+                assert_eq!(page.metered.rule_probes, 2);
+                assert_eq!(page.metered.examined, u64::from(allowed && ceiling >= 2));
+                if !allowed { assert_eq!(page.next_expiry, None, "a denied verdict withholds hidden expiry even at a cap"); }
+                meters.push(page.metered);
+            }
+            assert_eq!(meters[0], meters[1]);
+        }
+    }
+}
+
 fn world(source: &str, hidden: usize, expired: bool) -> Engine {
     let b = compile(source);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);

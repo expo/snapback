@@ -194,6 +194,18 @@ fn term(term: &RuleTerm, viewer: &str, old: Option<&Value>, next: &Value) -> Res
     })
 }
 
+/// The schema-derived probe allowance, independent of short-circuit answers.
+pub(super) fn rule_probes(rule: &RuleExpr) -> u64 {
+    match rule {
+        RuleExpr::Exists { .. } => 1,
+        // @ref LLP 3000.007#17 — created facts with extra equalities take the metered exists path when the fact holds.
+        RuleExpr::Created { equalities, .. } => u64::from(!equalities.is_empty()),
+        RuleExpr::And(terms) | RuleExpr::Or(terms) => terms.iter().map(rule_probes).fold(0, u64::saturating_add),
+        RuleExpr::Not(inner) => rule_probes(inner),
+        RuleExpr::Allow | RuleExpr::Deny | RuleExpr::Public { .. } | RuleExpr::Eq(..) | RuleExpr::Ne(..) => 0,
+    }
+}
+
 /// A rule's probe sites, as `(table, index)`: what a rule reads besides the
 /// row, for live subscriptions and the partition audience.
 pub fn probe_sites(rule: &RuleExpr, out: &mut Vec<(String, String)>) {
