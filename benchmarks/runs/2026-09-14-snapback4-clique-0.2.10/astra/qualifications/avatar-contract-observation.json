@@ -1,0 +1,49 @@
+{
+  "observedAt": "2026-09-14T23:30:46.554142+00:00",
+  "method": "Read-only comparison of frozen instrument text and received independent grade. Original grade unchanged.",
+  "instrumentCommit": "409954115f151a72dd95e897c5f00f36877f11e0",
+  "assertion": {
+    "id": "m3-a02",
+    "checklistItem": 1,
+    "text": "DM messages render with sender avatars.",
+    "executor": "choreo",
+    "runScope": "all",
+    "tags": [
+      "two-client"
+    ]
+  },
+  "receivedResult": {
+    "result": "fail",
+    "method": "choreography-artifacts",
+    "evidence": "trace.md#8-choreography-receipts (sender-avatar-identity-when-rendered skipped in builder and grader runs); trace.md#5 (m3-a02-dm-avatar); evidence/web/m3-dm.png",
+    "note": "The harness skipped this check (instrument class: the kit hides sender avatars in its default 1:1 layout). Grader web check: DM bubbles render 0 sender avatars (showSender is group-only in src/chat.tsx); groups render them. The assertion as written is not met. Instrument ambiguity noted."
+  },
+  "sourceFiles": {
+    "instrument/CONTRACT.md": {
+      "bytes": 11870,
+      "sha256": "ecb7b0a706703c271f67be81d1899414bfb50c79f85d5b03a585c76ca02085be"
+    },
+    "instrument/social-messenger.md": {
+      "bytes": 56730,
+      "sha256": "129fd79c5a2b19c7312fc41ed931647b79e2c4afc611c3cc431e0e26a452fbc6"
+    },
+    "instrument/schema/social-messenger/assertions.json": {
+      "bytes": 40419,
+      "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+    },
+    "instrument/choreography/choreography.mjs": {
+      "bytes": 117581,
+      "sha256": "cc600295f80d40b89910a1bf01eb3c7d8b9c24625c9741035ca3844f80418fcc"
+    },
+    "lanes/astra-snapback4/grading/grader-report.json": {
+      "bytes": 42992,
+      "sha256": "484346a9dfe388c10e763928fcdd301c4577f8a140c6f84e25cfac9a50b74ef1"
+    },
+    "lanes/astra-snapback4/grading/trace.md": {
+      "bytes": 30525,
+      "sha256": "dec71c913b62b4f2d4e326f20233c721a6fc10d498de7c3e225b47ab1f8615e5"
+    }
+  },
+  "contradiction": "The assertion and brief unconditionally require DM avatars; CONTRACT and choreography make the sender-avatar node conditional and preserve the default no-avatar 1:1 layout.",
+  "limits": "This comparison does not decide which UI requirement should govern future instrument versions, change the frozen receipt or adjust the received grade."
+}
