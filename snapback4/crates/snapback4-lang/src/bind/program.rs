@@ -450,6 +450,9 @@ impl<'a> Binder<'a> {
 
     fn merge(&mut self, merge: &ast::MergeExpr, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         let info = self.table(&merge.table, &merge.site)?;
+        if merge.lanes.first().and_then(|lane| lane.table.as_deref()).is_some_and(|table| table != merge.table) {
+            return Err(type_error(&merge.site, "the first merge lane must use the header table, which owns the cursor", "start with [prefix] for the header table").guide("feeds"));
+        }
         let Some(index) = info.indexes.iter().find(|index| index.name == merge.index).cloned() else {
             return Err(unknown(&merge.site, format!("{} has no index {}", merge.table, merge.index), name_rewrite(&merge.index, info.indexes.iter().map(|i| i.name.as_str()), None)));
         };
@@ -492,6 +495,15 @@ impl<'a> Binder<'a> {
         });
         let mut lanes = Vec::new();
         for lane in &merge.lanes {
+            // @ref LLP 3000.007#20.3 — inbox and public broadcast projections share a row and ordering, not an audience.
+            let table = lane.table.as_deref().unwrap_or(&merge.table);
+            if table != merge.table {
+                let other = self.table(table, &lane.site)?;
+                let other_index = other.indexes.iter().find(|i| i.name == merge.index);
+                if info.columns != other.columns || other_index.is_none_or(|i| i.columns != index.columns || i.unique != index.unique || i.words != index.words) || merge.matching.is_some() {
+                    return Err(type_error(&lane.site, "a named-table merge lane needs the same columns and plain index as its header table", format!("give {table} the columns and {} index of {}, or read it separately", merge.index, merge.table)).guide("feeds"));
+                }
+            }
             self.push_scope();
             let mut setup = setup::Body::default();
             let mut source = None;
@@ -501,7 +513,7 @@ impl<'a> Binder<'a> {
                 source = Some(scan);
                 binding = self.declare(name, Ty::Row(domain.table.clone()));
             }
-            let read = ReadExpr { table: merge.table.clone(), keys: lane.prefix.iter().enumerate().map(|(position, value)| ast::KeyPart { column: lane.columns.as_ref().and_then(|c| c.get(position).cloned().flatten()), value: value.clone(), site: value.site().clone() }).collect(), index: Some(merge.index.clone()), range: Some(ast::RangeSpec { order: merge.order, take: merge.take, cursor: None, site: lane.site.clone() }), matching: matching.clone(), filter: None, seeks: Vec::new(), site: lane.site.clone() };
+            let read = ReadExpr { table: table.to_owned(), keys: lane.prefix.iter().enumerate().map(|(position, value)| ast::KeyPart { column: lane.columns.as_ref().and_then(|c| c.get(position).cloned().flatten()), value: value.clone(), site: value.site().clone() }).collect(), index: Some(merge.index.clone()), range: Some(ast::RangeSpec { order: merge.order, take: merge.take, cursor: None, site: lane.site.clone() }), matching: matching.clone(), filter: None, seeks: Vec::new(), site: lane.site.clone() };
             let (mut scan, _) = self.scan(&read, &mut setup)?;
             self.pop_scope();
             scan.after = cursor_expr.clone().map(Box::new);

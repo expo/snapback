@@ -207,6 +207,17 @@ table posts:
   delete <- .authorId = viewer
   sync public last 200 by byTime      -- everyone holds the same rows
 
+table publicPosts:                    -- a same-shaped public projection for a named-table merge lane
+  authorId: principal
+  body: text <=500
+  score: int
+  at: time
+  by byAuthorTime: authorId, at, id
+  by byTime: at, id
+  cap 200                            -- no by: at most 200 rows in the whole table
+  public 'the shared projection is public'
+  sync public
+
 table follows:
   followerId: principal
   followedId: principal
@@ -291,6 +302,7 @@ query following(c: cursor ?):
   page = merge posts after c last 20 by byAuthorTime:               -- one ordered page over several prefixes of one index
     [viewer]
     [f.followedId] for f in follows[viewer] first 20 by byPair
+    publicPosts[viewer]                                          -- same columns and plain index; its own rule and sync
   return page { *, author: profiles[.authorId], mine: reactions[.id, viewer] }
 
 query ancestors(roomId: rooms):
@@ -1016,203 +1028,7 @@ the table, its rules and its `sync`; a query or mutation cannot be native,
 because a device predicts Quarry and the certificate reads it. Anything
 that needs the network stays outside and writes into a table the job
 reads. A query, not a mutation, can be native too (LLP 3000.005 §9)."##,
-        "feeds" => r##"# Feeds: fan out on write, read one page
-
-A feed can merge followed accounts' ordered lanes. Uniform lanes with a
-unique index or one ending in id read one head each, then advance the
-winning lanes. Discovery, lookahead and expired rows still consume the
-meter; N_WIDE_MERGE describes that work. For frequent reads over many
-accounts, write each reader's entry when the post is made, sync the
-entries to the reader, and read one page:
-
-```quarry
-use identity
-use personas alice, bob
-
-table posts:
-  authorId: principal
-  body: text <=500
-  at: time
-  by byAuthorTime: authorId, at, id
-  public 'posts are public'
-  insert <- .authorId = viewer
-
-table follows:
-  followerId: principal
-  followedId: principal
-  bucket: int                     -- assigned by the app; bucket 0 receives immediate delivery
-  unique byPair: followerId, followedId
-  by byFollowed: followedId, followerId
-  by byFollowedBucket: followedId, bucket, followerId
-  cap 1000 by followedId
-  cap 200 by followedId, bucket
-  public 'follows are public'
-  insert <- .followerId = viewer
-  delete <- .followerId = viewer
-
-table feed:                       -- one row per reader per post
-  readerId: principal
-  postId: posts
-  authorId: principal
-  at: time
-  unique byReaderPost: readerId, postId
-  by byReaderTime: readerId, at, id
-  read <- .readerId = viewer
-  insert <- .authorId = viewer    -- the author writes their readers' entries; the job writes as the system
-  sync to .readerId last 200 by byReaderTime
-
-table fanouts:                    -- the work still to do: a post's readers outside bucket 0
-  postId: posts
-  authorId: principal
-  at: time
-  read <- deny
-  insert <- .authorId = viewer
-
-mutation createPost(body: text <=500):
-  p = insert posts { authorId: viewer, body, at: now }
-  insert feed { readerId: viewer, postId: p.id, authorId: viewer, at: now }
-  for f in follows[viewer, 0] first 200 by byFollowedBucket:
-    insert feed { readerId: f.followerId, postId: p.id, authorId: viewer, at: now }
-  insert fanouts { postId: p.id, authorId: viewer, at: now }
-  return { id: p.id }
-
-job fanOut():                     -- the rest, within a minute
-  chunk w in fanouts first 5 by byId:
-    for f in follows[w.authorId] first 1000 by byFollowed:
-      insert feed { readerId: f.followerId, postId: w.postId, authorId: w.authorId, at: w.at } if absent
-    delete fanouts[w.id]
-schedule fanOutEveryMinute every 1m: fanOut
-
-query following(c: cursor ?):
-  return feed[viewer] after c last 20 by byReaderTime { *, post: posts[.postId] }
-```
-
-The application assigns followers to buckets of at most 200. The mutation
-visits all of bucket 0, a complete schema-capped group; a first-200 slice
-of a larger group is refused. The job covers the whole account, capped at
-1,000 followers, under its own ceilings (5 posts × 1,000 followers a
-chunk). Larger audiences use a separate lane their readers merge on read.
-`insert ... if absent` makes the job's pass idempotent over the rows the
-mutation already wrote. The entries sync to each reader; `following` joins
-`posts`, an online-only table here, so it answers on the server — carry the
-columns the reader renders on the entry itself to answer on the device. At
-500 follows the reader's page examines the rows it examines at 5: one
-prefix of the reader's own lane.
-
-A ranked feed for a community keeps one shared candidate set instead of a
-row per reader: a job on a schedule scores the pool from maintains into a
-public `ranked` table every device holds, the viewer's own signals sync to
-the viewer, and the device composes the two; an external ranker writes its
-per-reader word through a service seat (guide services):
-
-```quarry
-use identity
-use personas alice, bob, marc
-
-table posts:
-  authorId: principal
-  body: text <=6000
-  at: time
-  by byTime: at, id
-  immutable authorId, at
-  public 'posts are public'
-  insert <- .authorId = viewer
-  sync public last 2000 by byTime
-
-table votes:
-  postId: posts
-  principal: principal
-  direction: int
-  unique byPostPrincipal: postId, principal
-  by byPrincipal: principal, id
-  cap 1000 by principal
-  read <- .principal = viewer
-  insert <- .principal = viewer
-  update (old, next) <- old.principal = viewer and next.principal = viewer
-  sync to .principal
-
-maintain postScore: sum votes of direction by postId
-  read <- allow
-
-table likes:
-  postId: posts
-  principal: principal
-  unique byPostPrincipal: postId, principal
-  public 'likes are public'
-  insert <- .principal = viewer
-  delete <- .principal = viewer
-
-maintain likeCounts: count likes by postId
-  read <- allow
-
-query trending():
-  day = posts[at > now - 86400000] first 8192 by byTime { id, at, likes: likeCounts[.id] }
-  return slice(sort(day, '-likes', '-at'), 0, 10)
-
-table ranked:                       -- layer 1: one shared page, scored by the server
-  postId: posts
-  score: int
-  at: time
-  unique byPost: postId
-  by byScore: score, id
-  public 'the ranking is one shared page'
-  insert <- deny
-  update <- deny
-  sync public last 500 by byScore
-
-table seen:                         -- layer 2: the viewer's own signals
-  readerId: principal
-  postId: posts
-  at: time
-  unique byReaderPost: readerId, postId
-  by byReaderTime: readerId, at, id
-  read <- .readerId = viewer
-  insert <- .readerId = viewer
-  sync to .readerId last 1000 by byReaderTime
-
-table affinity:                     -- the ranker's word, per reader
-  readerId: principal
-  postId: posts
-  score: int
-  at: time
-  unique byReaderPost: readerId, postId
-  by byReaderScore: readerId, score, id
-  read <- .readerId = viewer
-  insert <- viewer = 'service:ranker'
-  update <- viewer = 'service:ranker'
-  sync to .readerId last 200 by byReaderScore
-
-job rescore():
-  chunk p in posts first 100 by byId:
-    (ageHours, rem) = divmod(now - p.at, 3600000)
-    upsert ranked[p.id] { postId: p.id, score: postScore[p.id] * 10 - ageHours, at: p.at }
-schedule rescoreEvery every 5m: rescore
-
-query home(c: cursor ?):
-  return ranked after c last 50 by byScore { *, post: posts[.postId], seen: exists seen[viewer, .postId], mine: votes[.postId, viewer], lift: affinity[viewer, .postId] }
-
-mutation vote(postId: posts, direction: int):
-  require exists posts[postId] else POST_NOT_FOUND
-  require direction = -1 or direction = 0 or direction = 1 else INVALID_VOTE
-  upsert votes[postId, viewer] { postId, principal: viewer, direction } -- predicts the first offline vote when the post is held
-
-mutation markSeen(postId: posts):
-  require exists posts[postId] else POST_NOT_FOUND
-  return insert seen { readerId: viewer, postId, at: now } if absent
-
-mutation setAffinity(readerId: principal, postId: posts, score: int):
-  require exists posts[postId] else POST_NOT_FOUND
-  upsert affinity[readerId, postId] { readerId, postId, score, at: now }
-```
-
-`trending()` seeks the trailing day up to the 8,192-row examined ceiling and ranks that set; a day past the ceiling is `complete: false`, so its top ten is of an incomplete set. When the day outgrows the ceiling, use the maintained `ranked` recipe beside it.
-
-A maintain that groups by something other than its source's audience (a
-score by post over private votes) reaches no device as a value; the job's
-`ranked` row is what puts the score on every device. Time decay is the
-cadence: the order refreshes when the job runs. A native job (guide native)
-can score with floats and a real loop; the tables and the sync are the
-same."##,
+        "feeds" => include_str!("guide/feeds.md"),
         "search" => search::CARD,
         "actions" => actions::CARD,
         "effects" => r##"# Effects: the outside world, performed by a worker

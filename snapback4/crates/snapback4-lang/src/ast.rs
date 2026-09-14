@@ -118,6 +118,7 @@ pub struct ReadExpr {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MergeLane {
+    pub table: Option<String>,
     pub prefix: Vec<Expr>,
     pub columns: Option<Vec<Option<String>>>,
     pub loop_: Option<(String, ReadExpr)>,

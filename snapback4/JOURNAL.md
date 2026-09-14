@@ -6448,6 +6448,133 @@ test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fin
 
 `cargo test -p snapback4-lang --test guide -- --nocapture`
 
+
+## 2026-09-14 — Lane C: complete device Following, measured before choosing
+
+Implemented LLP 3000.007 §20.3 (S14/S15) from base
+`33b530d41b00f1d685656f360e37c52ec1255ad6`. The feeds card and package README
+now carry the same complete hybrid recipe: ordinary accounts push private
+entries, the 51st follower promotes future events to a shared public table,
+follow backfills 200 recent events, and unfollow purges private entries and
+the pull lane atomically. Own posts and attributed reposts appear; repeated
+follow, unfollow and repost calls are idempotent. The original ranked-feed
+recipe is unchanged. The recipe's Following operation is certified `device`.
+
+Two small additions support the recipe: a same-shaped named-table merge
+lane with a shared cursor, and `cap N` without `by` for a whole-table cap.
+The language card compiles and runs both forms. The runtime still applies
+each table's read rule; no union audience, exact horizon maintenance, job
+framework, meter increase or serialized value/cursor change was introduced.
+The earlier private-group prototype hit the existing grant guard and was
+rejected without weakening it.
+
+### Measured alternatives
+
+The simulator has 1,000 authors, 50,000 source events, 1,415 follow edges,
+independent 0/1/5/500-follow readers, a celebrity with 900 followers and 200
+posts, a celebrity-plus-four reader, and an ordinary five-follower writer.
+Latencies are nearest-rank p95 of 20 runs after three warm-ups, on the shared
+host. Index entries use the existing meter counter; plain scans charge rows
+examined instead. Fixture acquisition temporarily omits caps for bulk seed,
+then adopts the original schema and validates all constraints before any
+measured operation. Cold counts are actual snapshot rows.
+
+| Candidate | Follows | Examined | Index entries | Fill | Complete | Cold rows | Read p95 ms |
+|---|---:|---:|---:|---:|---|---:|---:|
+| Merge on read | 0 | 22 | 0 | 20/20 | true | 51415 | 0.357 |
+| Merge on read | 1 | 45 | 0 | 20/20 | true | 51415 | 0.544 |
+| Merge on read | 5 | 137 | 0 | 20/20 | true | 51415 | 1.325 |
+| Merge on read | 500 | 1542 | 0 | 20/20 | true | 51415 | 16.690 |
+| Merge on read | 5 (celebrity + 4) | 137 | 0 | 20/20 | true | 51415 | 1.275 |
+| Fan-out on write | 0 | 21 | 0 | 20/20 | true | 50 | 0.499 |
+| Fan-out on write | 1 | 21 | 0 | 20/20 | true | 100 | 0.530 |
+| Fan-out on write | 5 | 21 | 0 | 20/20 | true | 300 | 0.499 |
+| Fan-out on write | 500 | 21 | 0 | 20/20 | true | 25050 | 0.506 |
+| Fan-out on write | 5 (celebrity + 4) | 21 | 0 | 20/20 | true | 450 | 0.399 |
+| Hybrid | 0 | 22 | 0 | 20/20 | true | 250 | 0.550 |
+| Hybrid | 1 | 22 | 0 | 20/20 | true | 300 | 3.775 |
+| Hybrid | 5 | 22 | 0 | 20/20 | true | 500 | 0.570 |
+| Hybrid | 500 | 22 | 0 | 20/20 | true | 25250 | 0.550 |
+| Hybrid | 5 (celebrity + 4) | 45 | 0 | 20/20 | true | 451 | 3.320 |
+
+| Candidate | Followers of writer | Examined | Index entries | Rows written | Acknowledgement p95 ms |
+|---|---:|---:|---:|---:|---:|
+| Merge on read | 5 | 1 | 6 | 1 | 2.800 |
+| Merge on read | 900 | 1 | 6 | 1 | 2.803 |
+| Fan-out on write | 5 | 7 | 47 | 7 | 3.068 |
+| Fan-out on write | 900 | 902 | 6312 | 902 | 244.318 |
+| Hybrid | 5 | 7 | 47 | 7 | 4.556 |
+| Hybrid | 900 | 1 | 11 | 2 | 3.144 |
+
+
+The unscoped filter reproduced the defect: zero follows examined 8,193 rows
+for 4/20 results, one follow 8,193 for 8/20, both `complete: false`; five
+follows needed 7,969 examined to fill 20. Merge-on-read filled pages but the
+500-follow read cost 12.60× the five-follow read; full fan-out made the
+celebrity acknowledgement 79.63× the ordinary acknowledgement. The hybrid
+keeps a dense reader at 22 examined and a celebrity post at two writes.
+
+The first hybrid wall-time set above had host-load outliers, including a
+3.775 ms one-follow read with the same 22 examined as the 0.550 ms dense
+read. Its celebrity ratio did not pass. An isolated hybrid repeat retained
+the same complete pages, cold counts and meter counts, and measured p95
+reads of 0.364 / 0.343 / 0.356 / 0.373 / 0.577 ms for 0 / 1 / 5 / 500 /
+celebrity-plus-four follows. Ordinary/celebrity write p95s were 1.664 /
+0.637 ms. The three ratios were 1.05× dense/5, 1.62× celebrity/5 and 0.38×
+celebrity/ordinary-write. Both the first sample and repeat are retained;
+regressions assert deterministic cost and correctness rather than shared-host
+timing thresholds.
+
+The 220-post lifecycle regression backfilled precisely the latest 200:
+207 examined / 1,405 index entries / 201 written including the follow edge.
+Unfollow purged those 200 entries plus the edge at 204 / 1,003 / 201, while
+preserving the reader's own original and repost. It paged across promotion
+and refollow without duplicates. Both device stores matched server IDs and
+cursors for up to three scale pages, including an empty reader, and consumed
+streamed follow/repost/unfollow changes. Dense cold acquisition of 25,250
+rows took 3,130.977 ms on SQLite and 2,826.078 ms on memory, following a
+765.905 ms server snapshot.
+
+Limits are explicit: 1,000 follows/account, 1,000 source events/actor,
+50,000 private entries/reader, 32 pulled authors/reader and 32,000 broadcast
+entries total. Reaching a cap refuses the write atomically. Devices hold
+private inboxes and the public broadcast table in full; the latter adds 200
+rows at this envelope even to an empty reader. These costs buy complete
+local answers without depending on an exhausted horizon. The 200-event
+backfill is recent history, not unlimited history; archive or redesign
+before exceeding the caps.
+
+### Regression evidence and commands
+
+All Cargo commands below ran from `snapback4/`. Node/Bun and the root suite
+used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+
+`cargo test -p snapback4-lang --test sparse_filter -- --nocapture`, before
+and after:
+
+```text
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+`cargo test -p snapback4-lang --test feed_forms -- --nocapture`, with the
+six affected parser/binder/core implementation files read from the named
+base, then restored (no git reset/checkout):
+
+```text
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+`cargo test -p snapback4-lang --test feed_forms --test sparse_filter --test guide -- --nocapture`, after:
+
+```text
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+`cargo test -p snapback4-lang --test guide`:
+
 ```text
 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
 ```
@@ -6755,6 +6882,75 @@ Verbatim stage and count summaries:
 -- ok: package build (1 s)
 -- ok: chat app check (2 s)
 -- ok: cargo test (163 s)
+
+`cargo test -p snapback4-sim --test clique following -- --nocapture`:
+
+```text
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 29 filtered out; finished in 32.82s
+```
+
+`cargo test -p snapback4-device --test device following -- --nocapture`:
+
+```text
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 44 filtered out; finished in 40.61s
+```
+
+`cargo test -p snapback4-sim --test clique following_candidates_at_scale -- --ignored --nocapture`:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 33 filtered out; finished in 141.50s
+```
+
+`SB4_FEED_CANDIDATE=hybrid cargo test -p snapback4-sim --test clique following_candidates_at_scale -- --ignored --nocapture`:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 33 filtered out; finished in 28.05s
+```
+
+The old feeds card also failed its new positive lifecycle regression before
+the recipe change (`cargo test -p snapback4-sim --test following -- --nocapture`,
+before the test moved into the existing `clique` suite):
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+The failure was `UnknownOp("register")`; the new card's compiled follow
+lifecycle is among the four green Following tests above.
+
+### Exact diagnostics
+
+The unscoped `.actor = viewer` scan previously produced no diagnostic or
+note. It now produces:
+
+```text
+schema.q:9:57 — N_SPARSE_FILTER: entries by byTime: this unscoped `where` pins no index prefix; sparse matches can exhaust the row meter and return short `complete: false` pages
+  rewrite: pin a leading index key, or use the Following recipe in `snapback4 guide feeds` for followed authors, own posts and reposts
+  guide: feeds
+```
+
+The note is registered in `guide::CODES`. Positive scoped, seek, prefix-pinned
+and constant-filter regressions receive no sparse note; the feeds recipes
+and README compile without any note. An OR avoids the note only if both
+branches pin the leading index column. Before the two language additions,
+the parser messages were `cap requires non-empty grouping columns` and
+`expected "[", got "shared"`; the successful forms now have no diagnostic.
+
+
+### Final verification and remaining environment failure
+
+The final root command `bash snapback4/scripts/test.sh` (with the pinned
+Node PATH above) passed all 578 Rust tests (2 ignored), all 9 fixture wrapper
+tests, builds and app/package typechecks. The only remaining failure is the
+Chromium launch in the React test:
+
+```text
+-- ok: cargo build (1 s)
+-- ok: wasm build (1 s)
+-- ok: package typecheck (0 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (160 s)
 -- ok: chat app typecheck (1 s)
 -- ok: expo app typecheck (1 s)
 ℹ tests 9
@@ -7007,6 +7203,21 @@ loaded application code. The isolated command (from `snapback4/`, same
 Node export), `node --test packages/snapback4/test/react.test.mjs`, was run
 on both the lane and with all tracked edits temporarily restored from base
 `56cdedba6a8ff343c8d297b246b7431824ef0241`; both report verbatim:
+
+-- ok: fixture wrapper tests (8 s)
+ℹ tests 137
+ℹ pass 136
+ℹ fail 1
+-- FAIL: client tests (42 s)
+== 1 failure(s) in 164 s
+```
+
+`node --test packages/snapback4/test/react.test.mjs` failed alone at browser
+launch with SIGABRT. The test file read from base
+`33b530d41b00f1d685656f360e37c52ec1255ad6`, temporarily placed beside it as
+`.lane-c-base-react.mjs` to preserve imports, failed the same way under
+`node --test packages/snapback4/test/.lane-c-base-react.mjs`. The temporary
+file was removed. Both commands reported:
 
 ```text
 ℹ tests 1
@@ -7361,3 +7572,45 @@ and team display must be read from stderr, even on success. The remaining
 acceptance work is external qualification, not an unsigned fallback.
 
 **Lead's outside-sandbox measurements (2026-09-14).** `node scripts/publish.mjs --dry-run` ran end to end: the suite had no failure in 105 s; the production binary was built and signed with `Developer ID Application: Charles Cheever (UD2ZVW5WU5)`; the publish printed "signed but NOT notarized"; and the installed-consumer proof passed on the signed bytes (sha256 `5f087f29…`). I then measured launch latency with `node scripts/measure-launch.mjs` on the published `snapback4-darwin-arm64@0.2.12` binary. It ran 30 fresh copies per variant, with 8 load workers on top of a host load of about 16. **Ad-hoc signing:** p50 280 ms, p95 1,174 ms, max 1,678 ms. **Developer ID signing:** p50 293 ms, p95 2,197 ms, max 2,937 ms. Signing does not reduce first-launch assessment latency, and the difference is within noise. It is kept for authenticity (ruling 22), and it is not a fix for the `_dyld_start` stall in `issues/20260914-snapback4-lifecycle-tests-time-out-under-host-load.md`.
+
+Earlier complete runs caught an old feed test still using bucket fields
+and an accidental bucket-field removal in an unrelated digest fixture.
+Both were introduced during this lane and fixed; neither is called
+pre-existing. The final diff leaves the unrelated digest fixture unchanged.
+The second run also caught interleaved address/signal text in a host test.
+`cargo test -p snapback4 --test lifecycle dev_and_serve_report_signals_without_an_application_worker -- --nocapture`
+passed alone, and that test passed in the final whole suite:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 3.47s
+```
+
+The repaired digest regression was checked with
+`cargo test -p snapback4-sim --test clique clique_digest_uses_two_counters_and_push_preview_concatenates_text -- --nocapture`:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 33 filtered out; finished in 0.02s
+```
+
+The first/second full runs respectively reported
+`== 2 failure(s) in 295 s` and `== 2 failure(s) in 186 s`; their introduced
+Rust failures are resolved in the final run above. Complete command logs
+are `/tmp/lane-c-suite.log`, `/tmp/lane-c-suite-final.log` and
+`/tmp/lane-c-suite-verified.log`.
+
+Root `./ref-check --verbose` passed:
+
+```text
+ref-check: ok — 474 LLP docs, 8857 refs in 22831 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passed. All 16 changed/new code files are below 1,500
+lines; the largest is the existing device suite at 1,450. Root
+`node scripts/caps.mjs` reports `1 violation.`: the unchanged
+`crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs` is 1,504 lines
+and produces 205 oversize files against 204 allowed. Its bytes were verified
+identical to the named base. No out-of-scope file was changed. The JOURNAL
+is append-only, README text outside Feeds is unchanged, and the ranked-feed
+card was verified byte-identical after extracting it into `guide/feeds.md`.
+No commit, push or publication was performed. Chromium needs the lead's
+outside-sandbox rerun; no implementation item is deferred.

@@ -339,6 +339,11 @@ impl Parser {
         if !(1..=0xffff_ffff).contains(&max) {
             return Err(syntax_with(&site, "cap requires an integer literal from 1 through 4294967295", rewrite));
         }
+        // @ref LLP 3000.007#20.3 — a whole-table cap bounds a fully replicated public broadcast projection.
+        if self.at_kind(Kind::Newline) {
+            self.newline()?;
+            return Ok(CapDecl { max: max as u32, by: Vec::new(), site });
+        }
         if !self.maybe("by") || !self.at_kind(Kind::Word) {
             return Err(syntax_with(&site, "cap requires non-empty grouping columns", rewrite));
         }
