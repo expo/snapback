@@ -2135,3 +2135,49 @@ These are medians of three reported run statistics, not pooled quantiles. There 
 After all measurements/proofs and a 6.5-second quiet interval, total idle threads were **3→13** in every pair; median RSS was **12,644→25,672 KiB** (+13,028 KiB). Median virtual size fell 1,955,556→1,905,020 KiB, with one pair increasing. These are whole-process `/proc/status` point observations, not peak memory, pure stack allocation or memory-pressure evidence. OS cache was retained without measured residency. The favorable Darwin p50 results do not override these Linux regressions and resource costs. No causal mechanism, cross-platform timing comparability, traversal timing, comparator, device, write, durability or production panic-recovery claim follows; production still uses `panic=abort`.
 
 The suite receipt is `b061ed1535f3b0ec8770e883573d0cf8e0d9dd713d99ae9cc01842bdb95e79a7`. Linux qualification `0ab085c1f9b77307550b3943147509004478f63388b984d104c2930c788746d1` binds candidate `e3abf8f0403b3f9e9314165375cd86812ebef9c6da24cb90de63061b7b69d640` (7,491,088 bytes). The controller is `31d8dd9e8a40b6f498b89e3c08ee9f69342834d06eec55f2e15038aadd7861f0`; independent summary `ffc607589ff9554ecc05a327204fda8cbe479fe165f94720ea11475671cc1024` retains all comparisons and artifact hashes. Public evidence remains under the same ship-run root in `request-workers-full-suite/` and `request-workers-node2421-linux-http/`; the appended records preserve the raw suite receipt and all six Linux records.
+
+### Condvar request-worker prototype: source qualification
+
+A separate bounded prototype replaces per-request thread creation with reusable workers consuming a mutex/condition-variable queue. Admission remains 32 short requests plus 32 waiting requests, queued tasks retain their permits, and the two lanes stay separate. Source `ad5c1ff7…` and the unchanged focused test `d1639787…` are the only overrides to archived 0.2.8. Both Darwin and ARM Linux qualifications recompiled the baseline test and observed the intended worker-reuse assertion failure, then passed the recompiled candidate test, all 27 CLI tests, the existing SQLite policy/refresh test and production compilation. SQLite flags remain `-USQLITE_ENABLE_MEMORY_MANAGEMENT`, with MEMSTATUS on. The tests exercise unwinding; production retains `panic=abort`.
+
+On Durand, the existing complete suite subsequently passed all ten stages: **238 Rust tests, one existing ignored Rust test, 89 client tests and 9 fixture tests**, with zero failures or JavaScript skips. Subprocess wall time was 44.760 seconds (the script reports 45 seconds). The suite built the debug workspace before client tests with `SNAPBACK4_BIN` absent, so CLI-spawning clients used fresh debug binary `4b5425b1…` (41,472,456 bytes). The retained production candidate remained unchanged. This is source/debug qualification, separate from production, publication and performance evidence; no corpus-case counts are inferred from the quiet suite output.
+
+Darwin qualification `e184e860…` binds production candidate `1f72258e…` (6,967,536 bytes); Linux qualification `9c772437…` binds `9cd0d221…` (7,491,088 bytes). Full-suite receipt `b92b69de…` and the appended build/suite records retain all source, tool and log hashes. Public artifacts remain under `.llp/ship-runs/sb4-performance-20260913/` in `request-workers-condvar-darwin/`, `request-workers-condvar-office/` and `request-workers-condvar-full-suite/`.
+
+### Condvar worker experiment: ARM Darwin, Node 24.21.0
+
+A separate `Mutex<VecDeque<RequestTask>>`/`Condvar` candidate was compared with retained published 0.2.8 on the M4 Pro. It preserves the existing 32 short/32 wait permits and SQLite settings; this is an isolated experiment, with no adoption conclusion. Source `8a81eb855` plus patch `3482b542…` produced candidate `1f72258e…` (6,967,536 B), versus published baseline `92db0d86…` (6,967,520 B). Both used Node 24.21.0 / bundled Undici 7.29.1, ordinary built-in fetch, and `-USQLITE_ENABLE_MEMORY_MANAGEMENT` with MEMSTATUS enabled.
+
+Three alternating pairs (trials 90–92: B/C, C/B, B/C) completed all 39 cases × 500 samples: 117,000 case calls plus 7,020 excluded warmups. Full fixture/auth/leave/old-cursor checks and regrant with the original sessions passed; 162 complete walks supplied another 33,510 timed pages. All reported errors were zero; the two 50-sample smokes are excluded.
+
+| Candidate result | p50 | p95 | p99 | max | RPS |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Better case medians / 39 | 37 | 36 | 28 | 27 | 38 |
+| Worse case medians / 39 | 2 | 2 | 9 | 12 | 1 |
+| Better paired cases / 117 | 111 | 100 | 84 | 75 | 109 |
+| Worse paired cases / 117 | 6 | 16 | 32 | 42 | 8 |
+
+Lower latency and higher RPS count as better; p95 has one median/paired tie, and p99 has two median ties and one paired tie. These are medians of three reported run statistics, not pooled percentiles. For example, 150-group working-feed C8 p50/p95 fell 5.601/7.305→4.472/5.051 ms, with RPS 1,379.3→1,781.7. Retained losses include 5-group hot/working point C1 p50 0.294/0.296→0.297/0.297 ms, 30-group hot-point C1 p95 0.254→0.279 ms and RPS 4,521.4→4,499.7, 5-group feed-next C8 p99 4.782→7.954 ms, and working-feed C1 max median 3.660→14.400 ms. Worst individual case observations were 22.686 ms baseline and 16.542 ms candidate. All per-run metrics and paired losses remain in the annotated records.
+
+Separate traversal medians improved p50/p95/p99/max in 24/25/23/20 of 27 identities; losses were 2/2/4/7, with one p50 tie. Page RPS improved in 25 and worsened in two. One-page empty controls and four-page threads have few tail observations; page timers include HTTP/JSON projection, while walk wall time/RPS also include oracle checks.
+
+After measurements/proofs and 6.5 seconds without harness HTTP work, idle thread counts were 3→11 in each pair. Median whole-process RSS was 21,568→24,592 KiB (+3,024), and virtual size rose 18,000 KiB. These are point samples, not peak memory or pure worker-stack costs. Fresh processes and full checks precede each run; OS cache is retained without resets, residency unmeasured. The prior MPSC failures/results remain separate. The Condvar build passed the focused reuse test, 27 CLI cases and existing store-policy test; production panic=abort is unchanged. No comparator, device, write, durability, memory-pressure, cross-platform or universal-win claim is made.
+
+### Condvar worker experiment: ARM Linux, not adopted
+
+The Condvar worker prototype is **not adopted globally or per platform**. The bounded worker-pool experiment ends here; the existing production dispatcher remains. Despite improvements in many cases, this Office M1 Max/Colima comparison retained substantial Linux regressions and higher idle RSS. Positive build/full-suite qualification is separate from that performance decision.
+
+Trials 93–95 used alternating B/C, C/B, B/C orders, retained Linux baseline `33bd0c0b…` and Condvar candidate `9cd0d221…` from archived 0.2.8 source plus patch `3482b542…`. Both used Node 24.21.0 / Undici 7.29.1 and the same SQLite settings with MEMSTATUS enabled. All six runs passed 39 cases × 500 samples: 117,000 timed calls plus 7,020 excluded warmups, with zero reported errors. Full fixture/auth/leave/old-cursor checks and original-session regrant passed; 162 complete walks / 33,510 pages were **untimed**. Smoke 984 is excluded.
+
+| Candidate result | p50 | p95 | p99 | max | RPS |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Better case medians / 39 | 27 | 22 | 22 | 22 | 24 |
+| Worse case medians / 39 | 12 | 17 | 17 | 17 | 15 |
+| Better paired cases / 117 | 84 | 71 | 69 | 69 | 77 |
+| Worse paired cases / 117 | 33 | 46 | 48 | 48 | 40 |
+
+There were no ties. These are medians of three per-run statistics; lower latency/higher RPS count as better. The 150-group working-feed C1 lost p50, p95 and RPS in **all three pairs**: median p50/p95 8.022/9.951→8.679/17.377 ms, RPS 125.0→99.7. Working-feed C8 median p50/p95 24.055/44.423→29.812/62.526 ms and RPS 292.3→223.1 also regressed, with mixed paired directions. Five-group hot-point C1 p95/p99 rose 2.176/2.483→5.238/12.307 ms. An improvement was 150-group first-feed C1 p50/p95 8.277/14.791→6.708/8.895 ms and RPS 106.9→145.3. Worst individual case observations were 248.502 ms baseline and 272.597 ms candidate; every metric and paired loss remains in the annotated records.
+
+After measurements/proofs plus 6.5 quiet seconds, idle thread observations were [3,3,3]→[12,13,13], median whole-process RSS 12,796→25,652 KiB (+12,856), and median virtual size decreased 50,544 KiB. These are process points, not peak memory, pure stack costs or memory-pressure proof. Fresh processes and full checks precede each run; OS cache is retained without resets, residency unmeasured. No comparator, direct Darwin, device, write, durability, causal queue or universal-win claim follows; production panic=abort remains unchanged.
+
+The independent analyzer was frozen before data access. The separate root analyzer initially stopped on two stale MPSC hash pins before processing run statistics; its preserved revision corrected only those pins after the independent counts were reported. Both analyses agree, and no workload was rerun.
