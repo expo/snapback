@@ -3,7 +3,7 @@
 Status: Open — needs reproduction of the app observation
 Priority: P3
 Date: 2026-09-14
-Systems: local client query routing, server-run observations, residency, Clique
+Systems: online and local client observations, query routing, residency, Clique
 Observed package version: published `snapback4@0.2.10`; Grok re-signed its lane binary
 Evidence status: received builder report; reduced independent control does not reproduce
 
@@ -48,6 +48,30 @@ builder's label as received evidence, with technical attribution unresolved.
 Do not turn the reported workaround into guidance that every online-only
 like list must sync. No runtime or guide change is justified by this
 control alone.
+
+### 2026-09-14 — completed builder and online-client control
+
+The builder ended at 16:47:32 UTC. Its final report numbers this observation
+as loop 10, while the chronological run log calls it loop 8; retain both
+identities. The final web application uses `createClient`, with no local
+replica. Its essay generalizes the workaround to “No sync, no tick.” That
+generalization is not established by the app observation.
+
+A second isolated control at the same unmodified published 0.2.10 pin used
+the online `createClient` directly, with the same unsynced likes table and
+online-only maintain. `observe(likesOf)` changed from an empty, complete
+answer to one complete row after Bob's separate HTTP mutation; `countOf`
+answered 1. There was no device, sync declaration, manual query polling,
+or explicit refresh. The client and owned server closed afterward.
+This passes on the client tier the builder actually shipped, while leaving
+the full-app symptom unresolved.
+
+Evidence: `~/projects/snapback-lanebriefs/online-client-likes-probe-20260914/`
+contains `probe.mjs`, `snapback/schema.q`, `check.txt`, `result.json`
+(16:54:36 UTC), and `server.log`. The builder's final narratives and source
+hashes are now captured before grading/M7 at
+`~/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder/`; selected
+source and final receipts are copied in `builder-supplement/` beside it.
 
 ## Next investigation
 
