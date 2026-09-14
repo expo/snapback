@@ -626,7 +626,8 @@ Queries run on the device unless a site is server-only. Mutations predict
 when eligible; every mutation can queue. An eligible mutation's horizon
 sites say "may queue without a row past the horizon"; E_PREDICT names the
 site, table, index and key the device could not establish. Native reads
-need the app's module on the device; connected is known only by the server.
+need the app's module on the device.
+Queries reading `connected` run on the server; mutations stay eligible when presence decides only effects.
 
 `why notice` names its horizon; `why countNotices` names the online-only
 maintain and the rewrite. `why notices` prints the rule that inferred sync.
@@ -1252,7 +1253,8 @@ table members:
   by byPrincipalRoom: principal, roomId, id
   cap 100 by roomId
   read <- exists members[.roomId, viewer]
-  insert <- allow
+  insert <- exists members[.roomId, viewer]
+  sync
 
 table messages:
   roomId: id
@@ -1262,6 +1264,7 @@ table messages:
   by byRoomTime: roomId, at, id
   read <- exists members[.roomId, viewer]
   insert <- .authorId = viewer and exists members[.roomId, viewer]
+  sync last 500 by byRoomTime
 
 mutation send(roomId: id, body: text <=4000):
   require exists members[roomId, viewer] else NOT_MEMBER
@@ -1271,6 +1274,9 @@ mutation send(roomId: id, body: text <=4000):
       emit notify { targetUserId: m.principal, roomId, preview: slice(body, 0, 80) }
   return { id: msg.id }
 ```
+
+This send stays eligible to predict because presence decides only effects; the server decides who is notified at commit.
+For dispatch-time presence or any other presence-dependent decision, emit unconditionally and have the worker call a service mutation that reads `connected`.
 
 The data plane never calls out. `emit name { payload }` in a mutation or
 a job writes the payload durably in the same commit as the rows (a
@@ -1350,9 +1356,8 @@ authenticated `/probe` confirms recovery. Suspended hosts notify on resume.
 It is not a table: nothing
 syncs, nothing is written. A mutation reads it to notify only those with
 no connected client (guide effects); a query reads it for an online mark.
-On a device the word is unknown: a query that reads it is `complete:
-false`, and a mutation's prediction reads everyone as connected (the
-least speculative rows) — the server decides when the write arrives.
+On a device the word is unknown: a query that reads it is `complete: false`.
+A mutation stays eligible to predict when presence decides only effects, so its rows are independent of presence and the server decides who is notified at commit.
 `snapback4 run` reads nobody as connected."##,
         "bounds" => r##"# Bounds and the meter
 

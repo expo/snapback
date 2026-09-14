@@ -4989,3 +4989,616 @@ promising prediction the binder refuses; it recurred from 0.2.10. The
 other is a helper whose early `return` drops its page's cursor while the
 page reads complete, which I reproduced in 12 rows and filed as P1. Both
 are the next landing's work; §18.7 records the numbers.
+
+## 2026-09-14 — N1: presence that decides only effects keeps prediction
+
+Implemented LLP 3000.007 §19.1 (ruling 18, option C), against base
+`ce15819ad71bd24c9d1b9ec228c083330dee3a31`. No commit, push or publication.
+The bound-IR flow check follows values through locals, assignments, pushes,
+expression blocks, branches and loop back edges. Presence reaching a write,
+refusal, result, read key, loop domain or a non-effect statement arm keeps a
+server site naming its use. Only emitted values and emit-only branches keep
+prediction. Queries and jobs keep their previous classification; the runtime,
+presence registry, parser, fixer, meter ceilings and value serialization are
+unchanged. No diagnostic code was added, so guide::CODES needs no new entry.
+
+The additive `connected_effects_only` execution fact is serialized in
+residency.json; generated api.ts documents it without removing a field.
+`check --residency` and `why` share the explanation. Losing eligibility still
+emits N_NOT_PREDICTABLE, gaining it emits no note, and query-side assertions
+remain. The guide and README carry the three clarified sentences and the
+unconditional emit plus service mutation pattern for dispatch-time presence.
+The presence guide-gap ticket is resolved under issues/closed/.
+
+What I learned: the effects card also lacked sync lines. Its corrected
+members table uses an existing membership grant, and its messages use the
+500-row horizon, so the example both predicts and compiles without a note.
+The language card's sendBrief exposed a second necessary distinction:
+Quarry lowers `and` and `??` into assignments. The minimal additional binder
+change in bind/program/control.rs keeps mutation condition and emit-payload
+setup inside existing Expr::Block values, so expression computation is not
+mistaken for a source assignment controlled by presence. Helpers' writes
+and refusals remain sinks even inside an emitted payload. Query and job
+lowering is unchanged. No N2/N3-owned file was touched.
+
+Measurements: 2 guide operations change from never to eligible (`send`,
+`sendBrief`); 20 negative programs remain never. On each of 2 device stores,
+0/1/2 connected recipients give 1 predicted message row identical to the
+server's row and 2/1/0 server notifications: 6 of 6 row comparisons equal.
+Presence queries remain incomplete on both stores. The chat backend checks
+with 5 synced tables and 9 operations; 0 execution/eligibility changes
+against the base binary. Chat Expo imports that backend and both apps
+pass typecheck. The changed code files number 11, maximum 1,449 lines
+(using caps' split-on-newline count), 0 over 1,500; guide.rs is 1,413.
+The full suite measured 136 s; its wasm build reported 1,603,327 B raw and
+445,115 B gzip. These are one-run observations, not comparative claims.
+
+Validation commands below ran from snapback4/ except the full suite,
+ref-check and caps, which ran from the repository root. Every Node/Bun
+command used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+Two early Cargo invocations mistakenly used the repository-root cwd:
+`cargo build --manifest-path snapback4/Cargo.toml --quiet` selected the right
+workspace; a bare `cargo test -p snapback4-lang --test presence -- --nocapture`
+failed before compiling because root's vendor/ibex was absent, and was rerun
+from snapback4/. No root code/build inputs changed. The first device test
+attempt needed a collect type-inference correction, and the first JS test
+attempt needed the package build; the red regression counts below are the
+subsequent executable assertions on the base implementation.
+
+### Red before, green after
+
+`cargo test -p snapback4-lang --test presence -- --nocapture`
+
+```text
+Before:
+test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+After:
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+`cargo test -p snapback4-device --test device presence_effects -- --nocapture`
+
+```text
+Before:
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 37 filtered out; finished in 0.03s
+After:
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 37 filtered out; finished in 0.11s
+```
+
+`node --test --test-name-pattern='presence effects residency' packages/snapback4/test/residency.test.mjs`
+
+```text
+Before:
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 84.614291
+```
+
+`node --test packages/snapback4/test/residency.test.mjs`
+
+```text
+After (all residency tests, including the new regression):
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3461.648125
+```
+
+### Targeted suites and acceptance
+
+`cargo test -p snapback4-lang --test guide`
+
+```text
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+```
+
+`cargo test -p snapback4-lang --test presence --test guide`
+
+```text
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+`cargo test -p snapback4-device --test device`
+
+```text
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.01s
+```
+
+`cargo test -p snapback4-sim --test residency --test clique`
+
+```text
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.51s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+```
+
+The blocking run reported Rust 476 passed, 1 failed, 1 ignored; the 44
+verbatim Rust summary lines and each phase verdict follow. The single Rust
+failure was startup stderr interleaving with a signal diagnostic in
+`dev_and_serve_report_signals_without_an_application_worker`; it passed
+alone. This is a flaky observation, not a claimed base-proven product defect.
+The only client failure was the user-documented Chromium sandbox SIGABRT,
+reproduced alone; an outside-sandbox rerun remains the lead's. No other
+client test failed, so a lower-concurrency client rerun was not needed.
+
+`bash snapback4/scripts/test.sh`
+
+```text
+-- ok: cargo build (3 s)
+-- ok: wasm build (17 s)
+-- ok: package typecheck (0 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+test result: FAILED. 11 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.34s
+test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.43s
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.27s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.91s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.95s
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.84s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.62s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.53s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.71s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.84s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 6.00s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 29.81s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.59s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+-- FAIL: cargo test (114 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+-- ok: fixture wrapper tests (12 s)
+ℹ tests 137
+ℹ pass 136
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+-- FAIL: client tests (45 s)
+== 2 failure(s) in 136 s
+```
+
+`cargo test -p snapback4 --test lifecycle dev_and_serve_report_signals_without_an_application_worker -- --nocapture`
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 3.59s
+```
+
+`node --test packages/snapback4/test/react.test.mjs`
+
+```text
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 696.540875
+```
+
+`./ref-check --verbose`
+
+```text
+ref-check: ok — 474 LLP docs, 8842 refs in 22819 files, 0 errors, 0 unchecked
+```
+
+`node scripts/caps.mjs`
+
+```text
+caps — budgets declared in rules/RULES.md
+
+  rules/RULES.md: 625 words
+  blocking checks: 5 (caps, ref-check, snapback2/scripts/test.sh, snapback2/scripts/measure.mjs --check, check-inventories)
+  product-latency row: filled
+  working set: 59 of 59
+  foundation: 12 of 12
+  source files: 5291 scanned, 794 skipped as generated, 101 skipped as vendored, 690 skipped as benchmark run records
+  oversize files: 205 of 204 allowed by baseline
+
+  cap:lines
+    crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs is 1504 lines, over the cap of 1500.
+    Baseline allows 204 oversize files; there are 205.
+
+1 violation.
+```
+
+The caps failure is base-proven: `git show
+ce15819ad71bd24c9d1b9ec228c083330dee3a31:crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs`
+is byte-identical to the working file and has 1,504 lines by the checker.
+All changed tracked code files are below 1,500 both at the base and now,
+so the 205-file oversize count is unchanged. All three new code files are
+also below the cap. No out-of-scope file was changed to repair that failure.
+
+### Verbatim residency evidence
+
+The original effects card before the change (its missing sync is visible):
+
+```text
+residency (facts)
+  members: online only (no sync line); cap 100 by roomId
+  messages: online only (no sync line)
+operations (facts)
+  send: predicts: never; queued without a row
+    Server: point members by byRoomPrincipal: online only (site programs.send.0)
+      rewrite: sync members to its read-rule audience, or read a compact synced projection
+    Server: scan members by byRoomPrincipal: online only (site programs.send.1)
+      rewrite: sync members to its read-rule audience, or read a compact synced projection
+    Server: connected[principal] is known only by the server (site connected)
+      rewrite: remove connected from this query; observe presence separately online
+    Server: write messages by byId: online only (site insert messages)
+      rewrite: sync messages to its read-rule audience, or read a compact synced projection
+    Server: rule members by byRoomPrincipal: online only (site insert messages rule)
+      rewrite: sync members to its read-rule audience, or read a compact synced projection
+    Server: rule members by byRoomPrincipal: online only (site insert messages rule)
+      rewrite: sync members to its read-rule audience, or read a compact synced projection
+```
+
+The corrected synced card still failed on the base binary, isolating the
+presence classification from the missing sync declarations:
+
+```text
+operations (facts)
+  send: predicts: never; queued without a row
+    Held: point members by byRoomPrincipal: held, no horizon (site programs.send.0)
+    Held: scan members by byRoomPrincipal: held, no horizon (site programs.send.1)
+    Server: connected[principal] is known only by the server (site connected)
+      rewrite: remove connected from this query; observe presence separately online
+    Held: rule members by byRoomPrincipal: held, no horizon (site insert messages rule)
+    Held: rule members by byRoomPrincipal: held, no horizon (site insert messages rule)
+```
+
+After, `check --residency` on the corrected effects card:
+
+```text
+residency (facts)
+  members: sync to members[.roomId] (from the read rule); cap 100 by roomId
+  messages: sync to members[.roomId] last 500 by byRoomTime (from the read rule)
+operations (facts)
+  send: predicts: eligible
+    connected: decides effects only — the server decides who is notified at commit
+    Held: point members by byRoomPrincipal: held, no horizon (site programs.send.0)
+    Held: scan members by byRoomPrincipal: held, no horizon (site programs.send.1)
+    Held: rule members by byRoomPrincipal: held, no horizon (site insert messages rule)
+    Held: rule members by byRoomPrincipal: held, no horizon (site insert messages rule)
+```
+
+Every negative below previously printed this same presence site and rewrite:
+
+```text
+  probe: predicts: never; queued without a row
+    Server: connected[principal] is known only by the server (site connected)
+      rewrite: remove connected from this query; observe presence separately online
+```
+
+After, the following are the exact presence reason lines for each negative
+from `check --residency`; every operation remains `predicts: never; queued
+without a row`. Every line has this same rewrite:
+
+```text
+      rewrite: decide only the emit with presence; read it on the server in a service mutation for anything else
+```
+
+absent
+
+```text
+    Server: connected[p] decides a write row at programs.probe.body.2 insert notes (site programs.probe.body.2 insert notes)
+    Server: connected[p] decides the returned value at programs.probe.body.3 (site programs.probe.body.3)
+```
+
+alias
+
+```text
+    Server: connected[p] decides a write row at programs.probe.body.3 insert notes (site programs.probe.body.3 insert notes)
+    Server: connected[p] decides the returned value at programs.probe.body.4 (site programs.probe.body.4)
+```
+
+break
+
+```text
+    Server: connected[p] decides break at programs.probe.body.0.loop.0 (site programs.probe.body.0.loop.0)
+    Server: connected[p] decides break at programs.probe.body.0.loop.0.then.0 (site programs.probe.body.0.loop.0.then.0)
+```
+
+condition
+
+```text
+    Server: connected[p] decides the returned value at programs.probe.body.1 (site programs.probe.body.1)
+    Server: connected[p] decides a write condition at schema.q:12:3 (site schema.q:12:3)
+```
+
+continue
+
+```text
+    Server: connected[p] decides continue at programs.probe.body.0.loop.0 (site programs.probe.body.0.loop.0)
+    Server: connected[p] decides continue at programs.probe.body.0.loop.0.then.0 (site programs.probe.body.0.loop.0.then.0)
+```
+
+delete
+
+```text
+    Server: connected[p] decides a read key at programs.probe.0 (site programs.probe.0)
+    Server: connected[p] decides a write key at programs.probe.body.2 delete notes (site programs.probe.body.2 delete notes)
+    Server: connected[p] decides a require NOT_FOUND at schema.q:12:3 (site schema.q:12:3)
+```
+
+effect_assignment
+
+```text
+    Server: connected[p] decides an assignment at programs.probe.body.1 (site programs.probe.body.1)
+```
+
+else_write
+
+```text
+    Server: connected[p] decides a write at programs.probe.body.0 (site programs.probe.body.0)
+    Server: connected[p] decides a write row at programs.probe.body.0.else.2 insert notes (site programs.probe.body.0.else.2 insert notes)
+    Server: connected[p] decides the returned value at programs.probe.body.0.else.3 (site programs.probe.body.0.else.3)
+```
+
+filter
+
+```text
+    Server: connected[p] decides a read condition at programs.probe.0 (site programs.probe.0)
+```
+
+implicit
+
+```text
+    Server: connected[p] decides an assignment at programs.probe.body.1 (site programs.probe.body.1)
+    Server: connected[p] decides a write row at programs.probe.body.4 insert notes (site programs.probe.body.4 insert notes)
+    Server: connected[p] decides the returned value at programs.probe.body.5 (site programs.probe.body.5)
+```
+
+key
+
+```text
+    Server: connected[p] decides a read key at programs.probe.0 (site programs.probe.0)
+```
+
+loop
+
+```text
+    Server: connected[p] decides a loop domain at programs.probe.body.0 (site programs.probe.body.0)
+```
+
+loop_carried
+
+```text
+    Server: connected[p] decides a write row at programs.probe.body.1.loop.2 insert notes (site programs.probe.body.1.loop.2 insert notes)
+```
+
+patch
+
+```text
+    Server: connected[p] decides the returned value at programs.probe.body.1 (site programs.probe.body.1)
+    Server: connected[p] decides a write patch at schema.q:12:3 (site schema.q:12:3)
+```
+
+push
+
+```text
+    Server: connected[p] decides a write row at programs.probe.body.4 insert notes (site programs.probe.body.4 insert notes)
+    Server: connected[p] decides the returned value at programs.probe.body.5 (site programs.probe.body.5)
+```
+
+require
+
+```text
+    Server: connected[p] decides a require X at schema.q:12:3 (site schema.q:12:3)
+```
+
+return
+
+```text
+    Server: connected[p] decides the returned value at programs.probe.body.0 (site programs.probe.body.0)
+```
+
+update
+
+```text
+    Server: connected[p] decides the returned value at programs.probe.body.1 (site programs.probe.body.1)
+    Server: connected[p] decides a write key at schema.q:12:3 (site schema.q:12:3)
+```
+
+upsert
+
+```text
+    Server: connected[p] decides the returned value at programs.probe.body.1 (site programs.probe.body.1)
+    Server: connected[p] decides a write patch at schema.q:12:3 (site schema.q:12:3)
+```
+
+write
+
+```text
+    Server: connected[p] decides a write at programs.probe.body.0 (site programs.probe.body.0)
+    Server: connected[p] decides a write row at programs.probe.body.0.then.2 insert notes (site programs.probe.body.0.then.2 insert notes)
+    Server: connected[p] decides the returned value at programs.probe.body.0.then.3 (site programs.probe.body.0.then.3)
+```
+
+### Final exit-path correction and re-verification
+
+A final review added two negatives: a presence-derived value can survive a
+`break` or `continue` that skips a later overwrite. The first implementation
+joined only ordinary branch tails and incorrectly called the break case
+eligible. The flow now conservatively retains every possible exit image;
+`return`, `break` and `continue` stop their path. This preserves taint into
+both the next iteration and the code after the loop. The final count is
+**22 negative programs**, superseding the 20-case count earlier in this
+entry; all six required negatives' recorded reason lines above are unchanged.
+The full blocking suite was rerun after this last code correction.
+
+`cargo test -p snapback4-lang --test presence presence_non_effect_uses_keep_precise_server_reasons -- --nocapture`
+
+```text
+Before the exit-path correction:
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+After the exit-path correction:
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.02s
+```
+
+`cargo test -p snapback4-lang --test presence -- --nocapture`
+
+```text
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+`cargo test -p snapback4-lang --test guide`
+
+```text
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+```
+
+break_exit — before (base binary), the common server reason printed above; after:
+
+```text
+    Server: connected[p] decides a write row at programs.probe.body.4 insert notes (site programs.probe.body.4 insert notes)
+    Server: connected[p] decides the returned value at programs.probe.body.5 (site programs.probe.body.5)
+```
+
+continue_exit — before (base binary), the common server reason printed above; after:
+
+```text
+    Server: connected[p] decides a write row at programs.probe.body.1.loop.2 insert notes (site programs.probe.body.1.loop.2 insert notes)
+```
+
+Final `bash snapback4/scripts/test.sh` run after the exit-path correction:
+
+```text
+-- ok: cargo build (2 s)
+-- ok: wasm build (2 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.44s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+test result: FAILED. 11 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.97s
+test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.61s
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.13s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.98s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.66s
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.38s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.66s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.83s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.13s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.33s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.93s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.88s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 5.74s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 25.16s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.80s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+-- FAIL: cargo test (176 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+-- ok: fixture wrapper tests (11 s)
+ℹ tests 137
+ℹ pass 136
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+-- FAIL: client tests (46 s)
+== 2 failure(s) in 183 s
+```
+
+Final totals: Rust 476 passed, 1 failed, 1 ignored; fixtures 9/9;
+client 136 passed, 1 failed (Chromium SIGABRT). The repeated lifecycle
+failure was the same startup/signal stderr interleaving, on SIGABRT this
+time. Its isolated retry is:
+
+`cargo test -p snapback4 --test lifecycle dev_and_serve_report_signals_without_an_application_worker -- --nocapture`
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 3.63s
+```
+
+The lifecycle symptom is now **base-proven**, supplementing the earlier
+isolated retry: `python3 /tmp/n1-base-signal.py` deployed and launched the
+unchanged base binary, read its readiness URL, then sent SIGHUP. It
+reproduces the test's signal/startup-line interleaving without any lane
+code. The host's lifecycle.rs, serve.rs and lifecycle test are unchanged
+at base `ce15819ad71bd24c9d1b9ec228c083330dee3a31`.
+
+```text
+base ce15819ad71bd24c9d1b9ec228c083330dee3a31: 36 exact signal lines; 4 interleaved signal lines; 40 expected SIGHUP exits
+'snapback4 serve: http://127.0.0.1:53909  (release /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/n1-base-signal-mla4mmq3/release/releases/1, generation SNAPBACK4_SIGNAL verb=serve generation=1 reason=SIGHUP signal=1\n'
+'snapback4 serve: http://127.0.0.1:53920SNAPBACK4_SIGNAL verb=serve generation=1 reason=SIGHUP signal=1\n'
+```
+
+No implementation work from N1 is deferred. The lead still needs the
+outside-sandbox acceptance rerun; the baseline host log race and repository
+caps overflow remain outside N1. No runtime or other lane file was changed
+to hide either failure. The ticket is closed with the final 22-case count.

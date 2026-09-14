@@ -610,6 +610,7 @@ table memberships:
   cap 50 by conversationId
   read <- exists memberships[.conversationId, viewer]
   insert <- exists memberships[.conversationId, viewer]
+  sync
 
 table messages:
   conversationId: id
@@ -619,6 +620,7 @@ table messages:
   by byConvTime: conversationId, at, id
   read <- exists memberships[.conversationId, viewer]
   insert <- .authorId = viewer and exists memberships[.conversationId, viewer]
+  sync last 500 by byConvTime
 
 mutation send(conversationId: id, body: text <=4000):
   require exists memberships[conversationId, viewer] else NOT_MEMBER
@@ -628,6 +630,9 @@ mutation send(conversationId: id, body: text <=4000):
       emit notify { targetUserId: m.principal, chatId: conversationId, preview: slice(body, 0, 80) }
   return { id: msg.id }
 ```
+
+This send stays eligible to predict because presence decides only effects; the server decides who is notified at commit.
+For dispatch-time presence or any other presence-dependent decision, emit unconditionally and have the worker call a service mutation that reads `connected`.
 
 The data plane never calls out. `emit name { payload }` in a mutation or
 a job keeps the payload durably in the same commit as the rows (a
@@ -647,8 +652,8 @@ connected[p]` is the test. It is not a table: nothing syncs, nothing is
 written. A mutation reads it to notify only those with no connected
 client (Effects, above); a query reads it for an online mark. On a
 device the word is unknown: a query that reads it is `complete: false`,
-and a mutation's prediction reads everyone as connected, the server
-deciding when the write arrives.
+and the server answers it online.
+A mutation stays eligible to predict when presence decides only effects, so its rows are independent of presence and the server decides who is notified at commit.
 
 ### The meter
 
@@ -732,6 +737,7 @@ aggregates and group audiences with unbounded recipients or multiple values per 
 `check --residency` lists every table's residency, inferred and inherited
 audiences, and each operation's `runs: device | server` or
 `predicts: eligible | never`. Read sites are `held`, `horizon` or `server`.
+Queries reading `connected` run on the server; mutations stay eligible when presence decides only effects.
 A horizon site stays eligible but may queue without a row past the horizon;
 `E_PREDICT` names the table, index and key. `why <op>` names the reason and
 rewrite; `why <table>` includes the rule used for inference. The generated
