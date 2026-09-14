@@ -94,6 +94,10 @@ pub struct Runner<'a> {
     pub(crate) seq: u64,
     pub(crate) statement_site: String,
     pub(crate) evaluating_write_condition: bool,
+    prediction_guards: BTreeSet<String>,
+    pub(super) discard_effects: bool,
+    /// The prediction paid for an untaken presence arm the server may skip.
+    pub(crate) charged_untaken: bool,
 }
 
 impl<'a> Runner<'a> {
@@ -133,11 +137,17 @@ impl<'a> Runner<'a> {
             seq,
             statement_site: String::new(),
             evaluating_write_condition: false,
+            prediction_guards: BTreeSet::new(),
+            discard_effects: false,
+            charged_untaken: false,
         }
     }
 
     pub fn run(&mut self, program: &Program) -> Result<Value, RuntimeError> {
         self.page_plan = super::pages::plan(program);
+        self.prediction_guards = self.schema.operations.get(&program.name)
+            .filter(|fact| self.device && fact.connected_effects_only && fact.predicts.as_deref() == Some("eligible"))
+            .map(|fact| fact.prediction_guards.iter().cloned().collect()).unwrap_or_default();
         // @ref LLP 3000.007#5.0 — charge allocations before admitting the relaxed forms.
         // A heap cut cannot invent a partial scalar/shape or a continuation.
         // Unwind immediately; both query hosts publish null, incomplete, with
@@ -192,7 +202,9 @@ impl<'a> Runner<'a> {
                     Flow::Next
                 }
                 Stmt::If { condition, then_body, else_body } => {
-                    let (branch, arm) = if self.expr(condition)?.as_bool()? { (then_body, "then") } else { (else_body, "else") };
+                    let take_then = self.expr(condition)?.as_bool()?;
+                    let (branch, arm, untaken, other) = if take_then { (then_body, "then", else_body, "else") } else { (else_body, "else", then_body, "then") };
+                    if self.prediction_guards.contains(&site) { self.charge_untaken(untaken, &format!("{site}:{other}"))?; }
                     self.statements(branch, &format!("{site}:{arm}"))?
                 }
                 Stmt::For { binding, domain, body } => {
@@ -272,8 +284,11 @@ impl<'a> Runner<'a> {
                     if !self.schema.effects.iter().any(|e| e == effect) {
                         return Err(RuntimeError::Schema(format!("unknown effect {effect}")));
                     }
-                    let id = self.context.mint()?;
-                    self.outbox.push((id, effect.clone(), payload));
+                    // @ref LLP 3000.007#19.1 — effect identity belongs to the commit, never to the row/result id supply.
+                    if !self.discard_effects {
+                        let id = format!("effect-{:016x}-{:016x}", self.seq, self.outbox.len());
+                        self.outbox.push((id, effect.clone(), payload));
+                    }
                     Flow::Next
                 }
                 Stmt::Return(value) => {

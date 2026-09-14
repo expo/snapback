@@ -7,6 +7,16 @@ use std::collections::{BTreeMap, BTreeSet};
 mod presence;
 
 pub fn execution(schema: &Schema, program: &Program) -> Execution {
+    execution_with_presence(schema, program, None)
+}
+
+pub(super) fn presence_facts(program: &Program, paths: &BTreeMap<String, String>) -> Execution {
+    let mut fact = Execution::default();
+    presence::inspect(program, &mut fact, paths);
+    fact
+}
+
+pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presence: Option<&Execution>) -> Execution {
     let mut fact = Execution::default();
     for read in ir::read_sites(program) {
         fact.sites.push(site(schema, &read.site, &read.table, &read.index, read.kind));
@@ -25,7 +35,12 @@ pub fn execution(schema: &Schema, program: &Program) -> Execution {
     let mut requires = BTreeSet::new();
     let mut presence_sites = Vec::new();
     inspect(&program.body, &mut requires, &mut presence_sites);
-    if program.kind == ProgramKind::Mutation { presence::inspect(program, &mut fact); }
+    if program.kind == ProgramKind::Mutation {
+        let presence = presence.cloned().unwrap_or_else(|| presence_facts(program, &BTreeMap::new()));
+        fact.connected_effects_only = presence.connected_effects_only;
+        fact.prediction_guards = presence.prediction_guards;
+        fact.sites.extend(presence.sites);
+    }
     else { fact.sites.extend(presence_sites); }
     fact.requires = requires.into_iter().collect();
     if program.native {

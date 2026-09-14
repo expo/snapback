@@ -1,6 +1,7 @@
 //! Flow of server presence through the bound mutation, including loop back edges.
 use snapback4_core::ir::{self, Expr, LoopDomain, Program, Stmt};
 use snapback4_core::schema::{Execution, ResidencySite, SiteClass};
+use snapback4_core::engine::prediction::{total_body, total_expr};
 use std::collections::{BTreeMap, BTreeSet};
 
 type Origins = BTreeSet<String>;
@@ -8,21 +9,24 @@ type Env = BTreeMap<String, Origins>;
 const REWRITE: &str = "decide only the emit with presence; read it on the server in a service mutation for anything else";
 
 // @ref LLP 3000.007#19.1 — only presence flows ending in effects preserve prediction; every other sink stays server-only.
-pub(super) fn inspect(program: &Program, fact: &mut Execution) {
-    let mut flow = Flow { seen: false, sites: BTreeMap::new(), effect_control: Origins::new(), escaped: Env::new() };
+pub(super) fn inspect(program: &Program, fact: &mut Execution, paths: &BTreeMap<String, String>) {
+    let mut flow = Flow { seen: false, sites: BTreeMap::new(), effect_control: Origins::new(), escaped: Env::new(), paths, guards: BTreeSet::new() };
     flow.body(&program.body, &mut Env::new(), &Origins::new(), &format!("programs.{}.body", program.name), false);
     fact.connected_effects_only = flow.seen && flow.sites.is_empty();
+    if fact.connected_effects_only { fact.prediction_guards = flow.guards.into_iter().collect(); }
     fact.sites.extend(flow.sites.into_values());
 }
 
-struct Flow {
+struct Flow<'a> {
     seen: bool,
     sites: BTreeMap<(String, String, String), ResidencySite>,
     effect_control: Origins,
     escaped: Env,
+    paths: &'a BTreeMap<String, String>,
+    guards: BTreeSet<String>,
 }
 
-impl Flow {
+impl Flow<'_> {
     fn reject(&mut self, origins: &Origins, usage: &str, site: &str) {
         for origin in origins {
             self.sites.entry((site.into(), usage.into(), origin.clone())).or_insert_with(|| ResidencySite {
@@ -50,6 +54,9 @@ impl Flow {
             match stmt {
                 Stmt::Const { name, value } | Stmt::Let { name, value } | Stmt::Assign { name, value } => {
                     let mut origins = self.expr(value, env, control, &site);
+                    // A presence-selected variable-width value could make later
+                    // clones cost more on the server even after both arms paid.
+                    if block_value && !fixed_scalar(value) { self.reject(control, "a variable-size conditional value", &site); }
                     origins.extend(control.iter().cloned());
                     env.insert(name.clone(), origins);
                 }
@@ -60,6 +67,11 @@ impl Flow {
                 }
                 Stmt::If { condition, then_body, else_body } => {
                     let mut branch = self.expr(condition, env, control, &site);
+                    if !branch.is_empty() {
+                        if !total_body(then_body) || !total_body(else_body) { self.reject(&branch, "a fallible or variable-cost arm", &site); }
+                        if let Some(runtime) = self.paths.get(&site) { self.guards.insert(runtime.clone()); }
+                        else { self.reject(&branch, "an arm without a prediction charge plan", &site); }
+                    }
                     branch.extend(control.iter().cloned());
                     // Expression blocks contain lowered short-circuit/coalesce setup.
                     // Their assignments compute values; source statement arms must
@@ -151,6 +163,11 @@ impl Flow {
     }
 
     fn expr(&mut self, value: &Expr, env: &mut Env, control: &Origins, site: &str) -> Origins {
+        if !total_expr(value) {
+            let mut controlled = control.clone();
+            controlled.extend(self.effect_control.iter().cloned());
+            self.reject(&controlled, "a fallible evaluation", site);
+        }
         match value {
             Expr::Variable(name) => env.get(name).cloned().unwrap_or_default(),
             Expr::Literal(_) | Expr::Input(_) => Origins::new(),
@@ -162,9 +179,18 @@ impl Flow {
                     self.reject(&origins, "a presence read key", site);
                     origins.insert(format!("connected[{}]", args.first().map(label).unwrap_or_else(|| "principal".into())));
                 }
+                else {
+                    let usage = match builtin { ir::Builtin::Divmod { .. } => "fallible division", ir::Builtin::Slice => "a variable-size slice", _ => "a fallible or variable-cost builtin" };
+                    self.reject(&origins, usage, site);
+                }
                 origins
             }
-            Expr::Field { base, .. } | Expr::Unary { value: base, .. } => self.expr(base, env, control, site),
+            Expr::Field { base, .. } => self.expr(base, env, control, site),
+            Expr::Unary { op, value: base } => {
+                let origins = self.expr(base, env, control, site);
+                if *op == ir::UnaryOp::Neg { self.reject(&origins, "fallible negation", site); }
+                origins
+            }
             Expr::Array(values) => {
                 let mut origins = Origins::new();
                 for value in values { origins.extend(self.expr(value, env, control, site)); } origins
@@ -177,9 +203,12 @@ impl Flow {
                 let mut origins = self.expr(base, env, control, site);
                 for value in fields.values() { origins.extend(self.expr(value, env, control, site)); } origins
             }
-            Expr::Binary { left, right, .. } => {
+            Expr::Binary { op, left, right } => {
                 let mut origins = self.expr(left, env, control, site);
-                origins.extend(self.expr(right, env, control, site)); origins
+                if matches!(op, ir::BinaryOp::And | ir::BinaryOp::Or) { self.reject(&origins, "short-circuit evaluation without a prediction charge plan", site); }
+                origins.extend(self.expr(right, env, control, site));
+                if matches!(op, ir::BinaryOp::Add | ir::BinaryOp::Sub | ir::BinaryOp::Mul) { self.reject(&origins, "fallible arithmetic", site); }
+                origins
             }
             Expr::Get(read) | Expr::Exists(read) => self.read(read, env, control, "a read key"),
             Expr::Block { body, value } => {
@@ -229,6 +258,15 @@ impl Flow {
             self.reject(&bound, "a read bound", &scan.site); origins.extend(bound);
         }
         origins
+    }
+}
+
+fn fixed_scalar(value: &Expr) -> bool {
+    match value {
+        Expr::Literal(snapback4_core::Value::Int(_) | snapback4_core::Value::Bool(_) | snapback4_core::Value::Null) => true,
+        Expr::Builtin { builtin: ir::Builtin::Connected, .. } | Expr::Unary { op: ir::UnaryOp::Not, .. } => true,
+        Expr::Binary { op, .. } => matches!(op, ir::BinaryOp::Eq | ir::BinaryOp::Ne | ir::BinaryOp::Lt | ir::BinaryOp::Lte | ir::BinaryOp::Gt | ir::BinaryOp::Gte | ir::BinaryOp::And | ir::BinaryOp::Or),
+        _ => false,
     }
 }
 

@@ -1,6 +1,6 @@
 //! The Snapback 2 conformance corpus (LLP 2000.000 §5.1), run against the
 //! Snapback 4 engine as a server with exactly the rows the twin held.
-//! Legacy receipt custody, static pricing, search and asset-record fixtures
+//! Legacy receipt custody, static pricing, search, shared effect ids and asset-record fixtures
 //! have named semantic exclusions. This adapter establishes Rust server
 //! conformance only; it makes no TypeScript interpreter or replica claim.
 
@@ -114,6 +114,10 @@ enum Verdict {
 /// Exclusions name a removed mechanism in the input/oracle, never a
 /// failure observed while executing it. New schema/IR errors stay failures.
 fn exclusion(case: &Case) -> Option<&'static str> {
+    // @ref LLP 3000.007#19.1 — the frozen SB2 oracle reserves a row id for emit; named-emit-independent-ids covers the replacement contract.
+    if case.name == "named-emit" {
+        return Some("shared-effect-id-supply: this frozen oracle spends a row/result id on an effect; SB4 gives effects independent commit/ordinal ids");
+    }
     let tables: Vec<_> = case.schema["tables"].as_object().into_iter().flat_map(|tables| tables.values()).collect();
     let search_index = tables.iter().any(|table| {
         table["indexes"].as_object().into_iter().flat_map(|indexes| indexes.values()).any(|index| index["components"].as_array().is_some_and(|components| components.iter().any(|component| component.get("WordPrefixes").is_some())))
@@ -561,6 +565,15 @@ mod adapter {
     }
     fn case() -> Case {
         serde_json::from_value(fixture()).unwrap()
+    }
+
+    #[test]
+    fn independent_effect_ids_replace_only_the_frozen_shared_supply_oracle() {
+        let legacy: Case = serde_json::from_str(include_str!("../../../corpus/named-emit.json")).unwrap();
+        assert!(matches!(exclusion(&legacy), Some(reason) if reason.starts_with("shared-effect-id-supply:")));
+        let independent: Case = serde_json::from_str(include_str!("../../../corpus/named-emit-independent-ids.json")).unwrap();
+        assert_eq!(exclusion(&independent), None);
+        assert!(matches!(run(&independent), Verdict::Pass));
     }
 
     #[test]

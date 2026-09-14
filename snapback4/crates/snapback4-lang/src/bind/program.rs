@@ -15,11 +15,13 @@ use std::collections::BTreeMap;
 mod control;
 mod expr;
 mod reads;
+mod setup;
 
 /// A bound operation: the IR plus the types the client sees.
 #[derive(Clone, Debug)]
 pub struct BoundProgram {
     pub program: Program,
+    pub(crate) presence: Option<snapback4_core::schema::Execution>,
     pub module: String,
     pub args: Vec<(String, Ty)>,
     pub result: Ty,
@@ -88,7 +90,7 @@ impl<'a> Binder<'a> {
                 ProgramKind::Query => (ir::ProgramKind::Query, Ty::Json),
                 _ => (ir::ProgramKind::Job, Ty::Null),
             };
-            return Some(BoundProgram { program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true }, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
+            return Some(BoundProgram { program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
         }
         let mut body = Vec::new();
         let mut failed = false;
@@ -149,7 +151,13 @@ impl<'a> Binder<'a> {
             ProgramKind::Mutation => ir::ProgramKind::Mutation,
             ProgramKind::Job => ir::ProgramKind::Job,
         };
-        Some(BoundProgram { program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body, native: false }, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
+        let mut program = Program { name: full_name, kind, args, read_time_granularity_ms: None, body, native: false };
+        let presence = if kind == ir::ProgramKind::Mutation {
+            let analysis = program.clone();
+            let paths = setup::restore(&mut program);
+            Some(super::residency::presence_facts(&analysis, &paths))
+        } else { None };
+        Some(BoundProgram { program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
     }
 
     fn site(&mut self) -> String {
