@@ -2468,3 +2468,122 @@ setting after restart. Readback and graceful restart do not establish
 power-loss behavior or the official Convex binary's effective writer policy.
 The subsequent 100,000-row sensitivity experiment needs its own complete
 execution and analysis; this record makes no latency claim.
+
+### Reader reuse on Office ARM Linux: membership comparison, trials 201–203
+
+Nine serial runs on Office M1 Max / ARM Linux Colima (4 CPUs, 12 GiB)
+completed at 2026-09-14 18:41:39 UTC. Orders were Snapback/Convex/Supabase,
+Convex/Supabase/Snapback, then Supabase/Snapback/Convex. Snapback is qualified
+source `beed6a51e1592360a746099de585a049df3808d7` (0.2.10), retained binary
+`9d1ccf5e…`, with the packaged SQLite flag and MEMSTATUS enabled. Clients use
+Node 24.21.0 / Undici 7.29.1 and the original membership instrument
+`36f4026b…`. This is a source-built comparison, not an isolated reader-reuse
+A/B or a measurement of the current published release.
+
+All 175,500 timed case calls passed (39 cases × 500 samples × nine runs),
+with 10,530 excluded warmups. The 243 complete walks / 50,265 traversal
+pages are untimed. Required auth, owner/outsider, cursor, leave and
+same-session regrant checks pass. The 36 complete physical proof records
+match 501 groups, 100,000 messages and 186→185→186 memberships. All 18
+client processes exit zero; three owned Snapback servers stop with SIGTERM.
+The original outer launcher and zero exit marker were also collected.
+
+Counts below are Snapback wins out of 39 medians of three per-run
+statistics. They are not pooled request percentiles or all paired wins.
+
+| Comparator | Lower p50 | Lower p95 | Lower p99 | Lower maximum | Higher requests/s |
+|---|---:|---:|---:|---:|---:|
+| Convex | 11 | 8 | 12 | 10 | 8 |
+| Supabase | 39 | 39 | 35 | 32 | 39 |
+
+Against Convex, p50 wins break down into 8/9 point cases, 3/12 thread cases
+and 0/18 feed cases. The concurrent feed gap remains substantial. Example
+medians below are Snapback / Convex / Supabase, in milliseconds except rate.
+
+| Case | p50 | p95 | Requests/s |
+|---|---:|---:|---:|
+| Five-group rotating point, C1 | 1.014 / 8.689 / 5.059 | — | 882.3 / 101.3 / 159.4 |
+| 150-group rotating feed, C8 | 23.327 / 3.847 / 48.635 | 49.232 / 7.931 / 93.980 | 310.9 / 1742.9 / 153.3 |
+
+All losses remain in the records. Against Supabase, four median p99 and
+seven maximum comparisons are worse; matched rounds also contain two p50,
+eleven p95 and three rate losses. Against Convex, the 117 paired case
+comparisons favor Snapback in 32 p50, 39 p95 and 34 rate values. No ties occur.
+
+Prepared walks visit the timed pages, automatic backend query caches remain
+enabled, and OS residency is unmeasured. Snapback restores a fresh app and
+process each run; Convex/Supabase retain their processes and message/group
+tables. Memberships reset before every run. Convex's regrant performs the
+labelled full 186-row reset; Snapback/Supabase restore the missing row.
+Historical Convex source pins do not prove exact deployed module bytes.
+The independent audit checks the producer's normalized proof records against
+the fixture; it does not reconstruct the remote databases or inspect the
+21 private logs, 12 snapshot ZIPs and six reset JSONLs. These limits preclude
+a universal, hosted/WAN, cold-cache, write, realtime or matched-durability claim.
+
+The nine appended records preserve each original annotated record and its
+raw main object. Public transfer `5af43c96…` covers 164 JSON files; original
+outer receipt transfer is `d963c72a…`. Independent summary `f73c947f…`, review
+`ef9fd089…` and reconciliation `378a61c1…` agree on all 1,755 shared raw
+statistics, 585 medians and 1,560 shared contrasts. The independent result
+also retains elapsed statistics and all three backend pairings. Two
+preserved analysis refusals corrected historical-witness provenance and
+the reset-file inventory; no raw statistic or workload changed. Original
+failed producer attempts and excluded smokes remain separate.
+
+### Actual serving-writer NORMAL/FULL sensitivity: native Linux, trials 301–303
+
+Six serial native loopback runs on Ubuntu 24.04 / AMD EPYC 9454 completed
+at 2026-09-14 18:40:02 UTC. They compare the same qualified 0.2.12 source
+`206650f29b26fa14456d49f33b9e8839b6ac005e` plus the reviewed host diagnostic,
+binary `10557d0f…`. The serving writer itself reports WAL/NORMAL or WAL/FULL;
+the expiration-fixture connection is separately labelled and is not used
+to infer that setting. Node 24.21.0, the packaged SQLite flag, MEMSTATUS,
+query limits and all other captured writer settings are unchanged.
+
+Orders are NORMAL/FULL, FULL/NORMAL, NORMAL/FULL. All 39,000 timed HTTP
+requests, 4,380 excluded warmups and 3,000 timed write/read pairs pass.
+There are 36 additional untimed phase reads and 12 expired-session refusals.
+All 18 complete physical proofs match the expected 100,000-row state.
+Six actual same-app restarts use the original credentials; all 12 server
+processes stop with SIGTERM. Restart checks verify the full state and
+historical replays, not a fresh write after restart. Forty-eight readbacks
+prove phases 0–3 of each serving writer used the selected setting.
+
+Entries below are NORMAL → FULL medians of three per-run statistics.
+Latency is milliseconds; rate is requests/s except the write/read row,
+which is pairs/s. Component percentiles are retained separately and never
+summed.
+
+| Case | p50 | p95 | Rate |
+|---|---:|---:|---:|
+| Fresh write, C1 | 0.667 → 0.794 | 0.843 → 1.085 | 1398.9 → 1253.6 |
+| Fresh write, C8 | 1.823 → 2.311 | 3.596 → 4.364 | 3767.5 → 3216.1 |
+| Write then read, C1 | 1.921 → 2.133 | 2.365 → 2.789 | 492.7 → 433.3 |
+| Rotating point, C32 | 5.779 → 5.433 | 18.067 → 25.852 | 4164.4 → 3984.5 |
+
+FULL fresh-write throughput falls in every pair at both C1 and C8; median
+rate decreases are 10.39% and 14.64%. Write/read pair rate falls 12.06%, with
+p50/p95/p99 and rate worse in every pair. Across all 12 cases, FULL improves
+six p50, three p95, six p99, five maximum and three rate medians. All other
+medians are worse, with no ties. The full record retains all per-run and
+tail losses, including the C32 point-read p95 increase above.
+
+The 18 resource snapshots are untimed point observations, not peak-memory
+or allocation measurements. After-workload RSS medians are 40,916 KiB
+NORMAL and 40,856 KiB FULL, with mixed paired changes. Three pairs on one
+prepared host do not isolate fsync cost or eliminate cache/order/load
+effects. Graceful restart success does not prove power-loss durability;
+this experiment establishes neither a Convex policy match nor a policy
+adoption, release qualification or comparator win.
+
+The six appended main records retain the separately labelled restart,
+state, resource, auth and actual-writer evidence. Public transfer
+`275896cb…` contains 133 JSON files; completion is `d7076409…`, independent
+summary `4ea9fb24…`, review `0cfa574c…`, reconciliation `12d7c70b…`.
+Root and independent calculations agree on all 486 raw statistics, 162
+medians, 81 median and 243 paired contrasts, and 18 resource medians.
+Earlier source refusal, failed V2 smoke and successful excluded smokes are
+preserved. The local/remote exit timestamps differ by 30.5 ms in reverse
+order; zero exit and within-host chronology agree, without a synchronized
+clock assumption.
