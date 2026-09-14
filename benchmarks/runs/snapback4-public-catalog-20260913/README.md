@@ -1969,3 +1969,24 @@ The table summarizes available successful observations in milliseconds, using ne
 For C1 point reads, the added parser interval averaged 0.0187 ms and the following construction/queue/scheduling interval to dispatch 0.0179 ms. These clocks begin only after the parser observes its first byte, including ordinary small-body prebuffering afterward. They exclude waiting for that first byte and prior buffering; neither endpoint is packet arrival. Stages are elapsed intervals, not CPU time. Client-minus-flush remains a signed difference across different boundaries, not network time. Successful calls visited 5,185 point rows and 1,148 feed pages from the 30,000-row/1,500-page domains; thread calls repeat the first page of `g020`.
 
 The source can close before trace emission through connection admission, request admission, or socket/deadline handling. Diagnostic stderr formatting/I/O also retains a request permit after the last timestamp and response flush, so completed client calls need not imply released server permits. These are hypotheses, not an identified failure cause. There is no server close-reason observation, successful complete-run qualification, adoption, comparator, device, write, durability, WAN or unsampled-performance conclusion.
+
+## Published-server client-path comparison
+
+A separate client-path diagnostic completed on Durand from 2026-09-14 00:30:46–00:32:13 UTC, exit 0, using the unchanged published 0.2.8 server bytes (`92db0d86…`, 6,967,520 B; source `8a81eb855`). It compared Node 24.18 built-in fetch (Undici 7.28.0) with `node:http` using `Agent({keepAlive:true,maxSockets:8,maxFreeSockets:8,scheduling:'lifo'})`. No server tracing or product source change was present.
+
+All 48,000 selected calls passed exact response checks: four rounds × two clients × C1/C8 × point/thread/feed × 1,000 samples. Fetch/http order alternated by round; C1/C8 order reversed for the last two rounds. Inputs matched within each round. Each block had 30 excluded warmups (1,440 total). All 1,500 preparation feed pages used fetch only. Before/after verification passed on the same server PID and previously issued sessions: 18 additional untimed walks/3,730 pages plus auth/cursor checks. Fixture, activation, raw-output hashes and owned-process teardown reconcile; no new physical full-database scan or leave/regrant exercise occurred.
+
+Each table cell is **fetch / node:http**, in milliseconds, pooling 4,000 successful calls per client/case. Percentiles use nearest rank. Timers include request construction through JSON parsing and exclude projection/oracle checks; the complete record also retains all 48 block distributions and matched-round comparisons.
+
+| Case | Body mean | p50 | p95 | p99 | Max |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| pointC1 | 3.2250 / 0.1978 | 3.4150 / 0.1919 | 4.1462 / 0.2367 | 5.5146 / 0.2729 | 18.6105 / 2.4324 |
+| threadC1 | 3.9911 / 0.3285 | 4.0109 / 0.3216 | 5.2652 / 0.3517 | 7.1531 / 0.4077 | 19.0320 / 3.0434 |
+| feedC1 | 5.1707 / 1.5273 | 5.2154 / 1.4958 | 6.7528 / 1.7231 | 7.9609 / 1.8258 | 16.1737 / 5.2473 |
+| pointC8 | 2.4534 / 2.6536 | 2.2244 / 2.6105 | 4.2011 / 3.3532 | 6.1765 / 3.9781 | 10.7534 / 7.3589 |
+| threadC8 | 3.7597 / 4.0047 | 3.8233 / 3.9677 | 4.9790 / 4.7560 | 5.6426 / 5.4880 | 8.7190 / 8.5967 |
+| feedC8 | 6.2697 / 5.8030 | 6.1507 / 5.6720 | 8.0058 / 7.1886 | 9.6578 / 8.8225 | 12.8608 / 11.2166 |
+
+Node HTTP had lower pooled means/p50s in four of six cases and lower pooled p95/p99/max in all six, but C8 point and thread means were higher. Across 24 matched round/case pairs, HTTP was lower in 17 means/p50s, 22 p95s/p99s and 21 maxima. C8 point p50 was higher in all four rounds; point and thread means were higher in three of four. Remaining tail regressions are retained: round 2 C8 point max +27.08%; round 1 C8 thread p99 +11.45% and max +0.53%; round 2 C8 thread p95 +4.20%; round 3 C8 feed mean +1.97%, p95 +19.23%, p99 +23.66% and max +0.82%. The largest successful observation was fetch C1 thread at 19.0320 ms. This complete diagnostic does not erase the earlier failed server-tracing attempts or identify their socket-close cause.
+
+The four rounds selected 4,000 unique point rows and 1,111 feed pages from domains of 30,000/1,500; thread requests repeat the first page of `g020`. The clients have different native pooling, framing and decoding, and separate pool histories; fetch alone performed preparation, while both received block warmups. OS cache was retained without resets, residency unmeasured. These are complete client-path observations on one host, not isolated network/server/decoder costs or a general adoption, comparator, browser/device, write, durability or WAN conclusion.
