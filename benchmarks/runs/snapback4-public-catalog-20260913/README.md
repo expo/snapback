@@ -2340,3 +2340,34 @@ The first fresh comparator attempts failed because their trial identifiers excee
 Current Snapback retries return execution identity with `replayed: true`, withholding historical `result` and `current` as required by LLP 3000.007 §17 and the language guide. The private-catalog instrument now distinguishes fresh results from those receipts. Fresh writes still require their exact SKU/revision result; retries must match the captured first response's id, state and sequence or refusal code. Eight simultaneous same-id calls require one fresh execution and seven matching receipts, independent of response arrival order. The six relevant first responses are retained only as oracle evidence. For Snapback `--private-restart`, `SB4_PRIVATE_REPLAY_RECORD` names the completed main raw record; instrument, trial, sample count and session-file bindings are checked before replay, and its digest is recorded. No replay result is fabricated and no extra query is added to a timing interval.
 
 The complete row, authorization, acknowledged-write/read visibility, failed-replay, concurrent-write and actual-process-restart oracles remain. Sample counts and the mutation schedule are unchanged. The Convex fixture continues returning its historical result, so replay timing must disclose this response-contract difference and cannot be described as a same-result recovery speedup. The separate [client type/documentation mismatch](../../../issues/20260914-snapback4-write-result-type-omits-replay-state.md) is an owner follow-up; it does not justify returning historical data from the server.
+
+### Current reader reuse versus native Convex: trials 220–222
+
+Six serial native loopback runs on Ubuntu 24.04 / AMD EPYC 9454 completed at 2026-09-14 14:12:46 UTC. Orders were Snapback/Convex, Convex/Snapback, Snapback/Convex. Snapback is qualified source `beed6a51e…` (0.2.10), native binary `d6dd5f6c…`; Convex is official `precompiled-2026-09-11-157eb19`, binary `36c41a7f…`, reported version `unknown`, CLI 1.45.0. Both use pinned Node 24.21.0 / Undici 7.29.1. Snapback retains the packaged SQLite flag with MEMSTATUS enabled. Instrument `364e3d13…` is a separate input; its landed commit `49742f7e8` is not the measured server source.
+
+All 39,000 timed HTTP calls, 4,380 excluded warmup calls and 3,000 timed two-request write/read pairs passed, with zero reported errors. The 180 warmup pairs are included in the excluded HTTP count. All 100,000-row before/after/restart oracles, auth/owner/outsider/cursor checks, fresh and failed retries and contended writes passed. Six actual process restarts used the original app/instance and unchanged credentials; twelve planned SIGTERM stops and empty owned-process cleanup were verified. The independent audit also compared all 900,000 rows in the nine Convex canonical projections and the 18 retained Snapback first-response identities. Individual retry wire bodies and private receipt contents are not public proof.
+
+Medians of three reported run statistics follow, **Snapback / Convex**. Latencies are milliseconds; rate is HTTP requests/s except the final row, which is pairs/s. These are not pooled percentiles or statistical significance estimates.
+
+| Case | p50 | p95 | p99 | Maximum | Rate |
+|---|---:|---:|---:|---:|---:|
+| `privatePointHot` | 0.472 / 1.166 | 0.638 / 1.406 | 0.968 / 1.772 | 4.071 / 32.345 | 1975.1 / 784.2 |
+| `privatePointRandomC1` | 0.430 / 3.249 | 0.490 / 5.448 | 0.639 / 7.473 | 0.793 / 9.032 | 2202.5 / 269.4 |
+| `privatePointRandomC8` | 1.583 / 3.144 | 2.404 / 6.229 | 15.121 / 13.621 | 17.352 / 16.411 | 3903.4 / 2043.7 |
+| `privatePointRandomC32` | 5.624 / 7.567 | 22.517 / 30.531 | 24.786 / 36.949 | 28.058 / 39.751 | 4110.1 / 3019.1 |
+| `privateMissingDistinct` | 0.375 / 3.549 | 0.438 / 4.972 | 0.609 / 7.634 | 10.039 / 12.243 | 2404.9 / 274.9 |
+| `privateCategoryHotC1` | 0.888 / 1.356 | 1.149 / 1.415 | 1.570 / 1.621 | 7.743 / 7.697 | 966.1 / 685.5 |
+| `privateCategoryHotC8` | 1.706 / 2.198 | 3.164 / 4.393 | 7.760 / 7.965 | 7.855 / 8.413 | 3964.3 / 3133.8 |
+| `privateNextHot` | 0.818 / 1.332 | 1.013 / 1.390 | 1.454 / 1.736 | 6.209 / 9.876 | 1117.6 / 707.9 |
+| `privateReplayHot` | 0.342 / 2.843 | 0.513 / 5.280 | 0.563 / 6.071 | 7.449 / 8.258 | 2504.3 / 309.3 |
+| `privateFreshBumpC1` | 0.653 / 4.156 | 0.884 / 6.454 | 1.113 / 7.545 | 7.253 / 9.831 | 1473.2 / 229.3 |
+| `privateFreshBumpC8` | 1.871 / 9.940 | 4.061 / 14.969 | 6.731 / 16.625 | 8.615 / 19.921 | 3784.1 / 771.6 |
+| `privateWriteThenCategoryC1` | 1.957 / 24.541 | 2.474 / 26.535 | 2.923 / 27.757 | 11.449 / 297.421 | 474.3 / 40.1 |
+
+Excluding the replay row, Snapback has lower p50 and p95 in all **11 case medians and 33 matched case-runs**; p99/max are lower in 10/9 medians and 27/28 matched case-runs. Including replay, counts are 12/12/11/10 case medians for p50/p95/p99/max, and 36/36/30/30 matched case-runs. All ordinary request, pair and pair-HTTP rates favor Snapback here. There are no ties. The pair's separate HTTP-rate medians are 948.7/80.3 requests/s; component percentiles remain separate and are never summed.
+
+Losses remain: random-point C8 median p99 is 15.121/13.621 ms (+11.01%) and maximum 17.352/16.411 ms (+5.73%); category C1 maximum is 7.743/7.697 ms (+0.60%). The six paired p99 and six paired maximum losses are retained, including C8 point p99 +43.89% in trial 221 and +21.78% in 222, and category C1 maximum +72.47% in 220. Largest individual observations are 38.509 ms Snapback and 341.235 ms Convex, in different cases; they do not erase the matched losses.
+
+The replay row compares Snapback's execution identity without historical result/current against the Convex fixture's historical result. It is not a same-result recovery comparison. Prepared full verification warms inputs, native automatic query caches remain enabled, OS cache residency is unmeasured, and write timings compare default acknowledgements (Snapback WAL/NORMAL), not matched power-loss durability. No causal attribution to reader reuse or W5 follows from this cross-backend batch. No registry-artifact, hosted/WAN, Supabase, cold-cache, device, realtime, memory-pressure or universal result follows. Host load/available-memory observations are point samples, with no new process RSS or peak measurement.
+
+The six appended storage records preserve their complete raw main objects and separately labeled restart, lifecycle, state and input evidence. The public bundle under `.llp/ship-runs/sb4-performance-20260913/private-write-read-x64/current0210-v3-formal-220-222/` contains 218 files (archive `a06e8c76…`). Root `b5d6c2ab…` and independent `2955ebf9…` summaries agree on all 486 numeric raw statistics, 162 medians, 81 median contrasts, 243 paired contrasts and six resource-point bindings; reconciliation `b6c071ee…`, independent review `39bc9b42…`. Original invalid-trial and replay-parser failures remain excluded and preserved.
