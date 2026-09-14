@@ -589,7 +589,15 @@ impl Parser {
             let name = self.peek().clone();
             let binding = self.binding_name()?;
             self.take(":")?;
-            let type_ = self.parse_type(false)?;
+            let type_site = self.peek().site.clone();
+            let type_ = self.parse_type(false).map_err(|mut d| {
+                if d.mechanical && d.message.starts_with("once is a column modifier") {
+                    // Nested element types need a whole-list rewrite, not an argument fragment.
+                    if d.site == type_site { d.site = name.site.clone(); d.rewrite = format!("{binding}: {}", d.rewrite); }
+                    else { d.mechanical = false; }
+                }
+                d
+            })?;
             args.push(ArgDecl { name: binding, type_, site: name.site });
             if !self.maybe(",") {
                 break;
@@ -688,7 +696,8 @@ impl Parser {
         }
         if self.maybe("once") {
             if !column {
-                return Err(syntax_with(&site, "once is a column modifier, not an argument constraint", "remove once from this argument; declare image <=10000000 once on the owning table column"));
+                let optional = self.maybe("?");
+                return Err(syntax_with(&site, "once is a column modifier, not an argument constraint; declare it on the owning table column", print::scalar_type(&ScalarType { kind, optional })).mechanical());
             }
             match &mut kind {
                 TypeKind::Image { once, .. } => *once = true,

@@ -466,6 +466,12 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
     let index = match candidates.as_slice() {
         [one] => (*one).clone(),
         [] => {
+            if read.index.is_none() {
+                if let Some(names) = &named {
+                    let name = names.iter().map(|n| { let mut chars = n.chars(); chars.next().map(|c| c.to_uppercase().to_string()).unwrap_or_default() + chars.as_str() }).collect::<String>();
+                    return Err(unknown(site, format!("{} has no index with {} columns matching this key", read.table, names.len()), format!("by by{name}: {}", names.join(", "))).guide("indexes"));
+                }
+            }
             let declared: Vec<String> = target.indexes.iter().map(|i| format!("{}: {}", i.name, i.columns.join(", "))).collect();
             return Err(unknown(site, format!("{} has no index with {} column{} matching this key", read.table, terms.len(), if terms.len() == 1 { "" } else { "s" }), format!("declare `unique by{}: <columns>` on {}; its indexes are {}", read.table.chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_default(), read.table, if declared.is_empty() { "none".to_owned() } else { declared.join("; ") }) + if extras && named.is_some() { "; an index is needed when the named equalities do not cover a total unique key" } else { "" }));
         }

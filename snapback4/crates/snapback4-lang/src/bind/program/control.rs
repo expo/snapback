@@ -384,6 +384,13 @@ impl Binder<'_> {
             }
             let expected = Ty::from_scalar(&declared.type_);
             let (expr, ty) = if expected.required().is_identity() { self.expr_as_identity(given, out, &expected)? } else { self.expr(given, out)? };
+            // @ref LLP 3000.007#18.5 — call-site expansion preserves a same-table row; references keep their existing meaning.
+            let expected = match (expected.required(), ty.required()) {
+                (Ty::Ref(table), Ty::Row(row)) if table == row && (!ty.is_optional() || expected.is_optional()) => {
+                    if expected.is_optional() { Ty::Row(row).optional() } else { Ty::Row(row) }
+                }
+                _ => expected,
+            };
             if !ty.assignable_to(&expected) {
                 return Err(type_error(given.site(), format!("{name}'s {} is {}; got {}", declared.name, expected.name(), ty.name()), format!("pass {} for {}", expected.name(), declared.name)));
             }

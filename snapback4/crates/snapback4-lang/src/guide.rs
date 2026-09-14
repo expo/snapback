@@ -235,6 +235,8 @@ maintain scoreTotals: sum posts of score by authorId   -- count, or sum of an in
   online only                         -- opt out of inheriting public sync
 
 shape card = { id, name, owner: .ownerId, tagCount: count(.tags) }   -- a named shape: `.` is the row; `row card` and `page card` use it
+fn messageBody(m: messages): m.body                                  -- a row argument keeps its fields at this call site
+fn messageById(m: messages): (messages[m] ! else NOT_FOUND).body      -- a reference argument stays a reference
 fn isBrief(ttl: int ?): ttl != null                                  -- a helper expression, expanded where it is called
 fn stamp(roomId: rooms):                                             -- a helper body, expanded with its caller's write authority
   update rooms[roomId] { createdAt: now }
@@ -247,6 +249,10 @@ fn tally(n: int):
 
 query room(roomId: rooms):            -- a query reads; its result type is inferred onto api.ts
   return rooms[roomId] card           -- one row by a unique key: null when absent or hidden; then the named shape
+
+query helperRows(messageId: messages):
+  m = messages[messageId] ! else NOT_FOUND
+  return { body: messageBody(m), byId: messageById(messageId) }
 
 query thread(roomId: rooms, c: cursor ?):                            -- `cursor ?` is the page argument; an omitted optional argument is null
   require exists members[roomId, viewer] else NOT_MEMBER              -- a refusal with the program's own code
@@ -361,6 +367,8 @@ job rescoreNative(): native                                          -- a job wh
 query personalizeNative(first: int): native                          -- a read in the same module: on the server as the viewer, on a device over its rows
 ```
 
+Helpers expand at each call: a table-typed parameter keeps a row argument as a row (fields need no lookup), while a reference argument stays a reference.
+
 Values: `viewer` (a principal), `now` (a time; in a mutation it is the commit's
 instant), `new` (an id, mutations only), `true`, `false`, `null`, integers,
 `'text'` or `"text"` with `\n`, `\t` and `\\`, `[a, b]` (a bounded list),
@@ -382,7 +390,7 @@ with `return [value]`, or with its last expression, or with its final write.
 - `while` and recursion → `for` over a page, list, `range(a, b)` with int expressions, or `tokens(text)`; `walk` for a chain.
 - Floats → integer minor units in `decimal S` and `money CUR S`, or a native job.
 - A typed map with dynamic keys → `group(list, 'col')`, whose result is a list of `{ key, items }` groups in first-seen order.
-- Guessed spellings are refused with `E_QUARRY_UNSUPPORTED`; `check --fix` applies the exact rewrite: `cond ? a : b` → `a if cond else b`; `a?.b` → `a.b if a != null else null`; `len(x)` → `count(x)`; `elif` → `else if`; `proc` → `fn`; `//` and `#` → `--`.
+- Guessed spellings are refused with a canonical rewrite; `snapback4 check --fix` applies mechanical repairs (including missing indexes, argument `once`, repeated wildcard fields and empty operation parentheses): `cond ? a : b` → `a if cond else b`; `a?.b` → `a.b if a != null else null`; `len(x)` → `count(x)`; `elif` → `else if`; `proc` → `fn`; `//` and `#` → `--`.
 
 Cards: `snapback4 guide <keyword>` — types, indexes, rules, sync, residency, expire,
 assets, reads, shapes, writes, programs, jobs, native, feeds, search,
@@ -1118,6 +1126,21 @@ table votes:
 maintain postScore: sum votes of direction by postId
   read <- allow
 
+table likes:
+  postId: posts
+  principal: principal
+  unique byPostPrincipal: postId, principal
+  public 'likes are public'
+  insert <- .principal = viewer
+  delete <- .principal = viewer
+
+maintain likeCounts: count likes by postId
+  read <- allow
+
+query trending():
+  day = posts[at > now - 86400000] first 8192 by byTime { id, at, likes: likeCounts[.id] }
+  return slice(sort(day, '-likes', '-at'), 0, 10)
+
 table ranked:                       -- layer 1: one shared page, scored by the server
   postId: posts
   score: int
@@ -1173,6 +1196,8 @@ mutation setAffinity(readerId: principal, postId: posts, score: int):
   require exists posts[postId] else POST_NOT_FOUND
   upsert affinity[readerId, postId] { readerId, postId, score, at: now }
 ```
+
+`trending()` seeks the trailing day up to the 8,192-row examined ceiling and ranks that set; a day past the ceiling is `complete: false`, so its top ten is of an incomplete set. When the day outgrows the ceiling, use the maintained `ranked` recipe beside it.
 
 A maintain that groups by something other than its source's audience (a
 score by post over private votes) reaches no device as a value; the job's

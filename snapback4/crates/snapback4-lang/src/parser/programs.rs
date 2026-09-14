@@ -57,6 +57,9 @@ impl Parser {
             _ => ProgramKind::Job,
         };
         let name = self.binding_name()?;
+        if self.at(":") {
+            return Err(syntax_with(&kind_token.site, "an operation with no arguments still needs parentheses", format!("{} {name}():", kind_token.value)).mechanical());
+        }
         let args = self.parse_args()?;
         if self.at("->") {
             return Err(unsupported(&self.peek().site.clone(), "result annotations", "results are inferred; remove the annotation"));

@@ -34,6 +34,8 @@ pub(super) fn edit(sources: &[(String, String)], index: usize, diagnostic: &Diag
     if !diagnostic.mechanical { return None; }
     let (_, source) = &sources[index];
     let start = offset(source, diagnostic.site.line, diagnostic.site.col)?;
+    // @ref LLP 3000.007#18.5 — exact repairs for missing indexes, argument once, wildcard repeats and empty operation parentheses
+    if let Some(repair) = discovery_edit(sources, index, diagnostic, start) { return Some(repair); }
     if diagnostic.code == "E_QUARRY_AMBIGUOUS" {
         let (old, by) = diagnostic.rewrite.rsplit_once(" by ")?;
         if by.is_empty() || !by.chars().all(|c| c.is_alphanumeric() || c == '_') { return None; }
@@ -167,6 +169,76 @@ fn token_end(source: &str, at: usize, last: &Token) -> Option<usize> {
         if escaped { escaped = false; }
         else if c == '\\' { escaped = true; }
         else if c == quote { return Some(at + quote.len_utf8() + i + c.len_utf8()); }
+    }
+    None
+}
+
+/// Recheck the canonical tokens before applying a compiler-marked repair.
+fn discovery_edit(sources: &[(String, String)], index: usize, d: &Diagnostic, start: usize) -> Option<(usize, usize, usize, String)> {
+    let source = &sources[index].1;
+    if d.code == "E_QUARRY_UNKNOWN" && d.message.contains(" has no index ") && d.rewrite.starts_with("by ") {
+        let table = d.message.split_once(" has no index ")?.0;
+        let (name, columns) = d.rewrite.strip_prefix("by ")?.split_once(": ")?;
+        let ident = |s: &str| !s.is_empty() && s.chars().enumerate().all(|(i, c)| c == '_' || c.is_alphabetic() || (i > 0 && c.is_ascii_digit()));
+        let columns: Vec<_> = columns.split(", ").collect();
+        if !ident(name) || columns.is_empty() || columns.iter().any(|c| !ident(c)) || columns.iter().collect::<std::collections::BTreeSet<_>>().len() != columns.len() { return None; }
+        for (target, (file, text)) in sources.iter().enumerate() {
+            let (document, _) = snapback4_lang::parse_document(file, text);
+            let Some(decl) = document.tables.iter().find(|decl| decl.name == table) else { continue; };
+            if decl.indexes.iter().any(|i| i.name == name) || columns.iter().any(|c| *c != "id" && !decl.columns.iter().any(|col| col.name == *c)) { return None; }
+            let site = decl.indexes.last().map(|i| &i.site).or_else(|| decl.columns.last().map(|c| &c.site))?;
+            let line = offset(text, site.line, 1)?;
+            let end = line + text[line..].find('\n').map(|n| n + 1).unwrap_or(text.len() - line);
+            let indentation: String = text[line..].chars().take_while(|c| *c == ' ' || *c == '\t').collect();
+            let newline = if text[line..end].ends_with("\r\n") { "\r\n" } else { "\n" };
+            let prefix = if text[line..end].ends_with('\n') { "" } else { newline };
+            return Some((target, end, end, format!("{prefix}{indentation}{}{newline}", d.rewrite)));
+        }
+        return None;
+    }
+    if d.code == "E_QUARRY_SYNTAX" && d.message == "once is a column modifier, not an argument constraint; declare it on the owning table column" {
+        let actual = tokens(&source[start..]);
+        let canonical = tokens(&d.rewrite);
+        let once = actual.iter().position(|t| t.kind == Kind::Word && t.value == "once")?;
+        let mut candidate = actual.get(..canonical.len() + 1)?.to_vec();
+        if once >= candidate.len() { return None; }
+        candidate.remove(once);
+        if !same(&candidate, &canonical) { return None; }
+        let token = &actual[once];
+        let at = start + offset(&source[start..], token.site.line, token.site.col)?;
+        let mut from = at;
+        while from > start && matches!(source.as_bytes()[from - 1], b' ' | b'\t') { from -= 1; }
+        return Some((index, from, at + 4, String::new()));
+    }
+    if d.code == "E_QUARRY_SYNTAX" && d.message == "an operation with no arguments still needs parentheses" {
+        let old = d.rewrite.strip_suffix("():")?;
+        let end = matching_end(source, start, old)?;
+        let colon = tokens(&source[end..]).first()?.clone();
+        if colon.value != ":" { return None; }
+        return Some((index, end, end, "()".into()));
+    }
+    if d.code == "E_QUARRY_UNKNOWN" && d.message.starts_with("shape wildcard already includes field ") {
+        let name = d.message.strip_prefix("shape wildcard already includes field ")?;
+        let actual = tokens(source);
+        let field = actual.iter().position(|t| offset(source, t.site.line, t.site.col) == Some(start))?;
+        if actual[field].value != name || actual.get(field + 1).is_none_or(|t| ![",", "}"].contains(&t.value.as_str())) { return None; }
+        // Verify the entire enclosing shape against the rewrite, so stale or
+        // mismatched sites do not edit. A first field uses its following comma.
+        let preceding = actual.get(field.checked_sub(1)?)?.value == ",";
+        let comma = if preceding { field - 1 } else { field + 1 };
+        if actual.get(comma)?.value != "," { return None; }
+        let mut depth = 0;
+        let open = (0..field).rev().find(|i| { if actual[*i].kind != Kind::Symbol { return false; } match actual[*i].value.as_str() { "}" => depth += 1, "{" if depth == 0 => return true, "{" => depth -= 1, _ => {} } false })?;
+        depth = 0;
+        let close = (open..actual.len()).find(|i| { if actual[*i].kind != Kind::Symbol { return false; } match actual[*i].value.as_str() { "{" => depth += 1, "}" => depth -= 1, _ => {} } depth == 0 })?;
+        let mut candidate = actual[open..=close].to_vec();
+        candidate.drain(field.min(comma) - open..=field.max(comma) - open);
+        if !same(&candidate, &tokens(&d.rewrite)) { return None; }
+        let comma_at = offset(source, actual[comma].site.line, actual[comma].site.col)?;
+        let (from, end, gap) = if preceding { (comma_at, start + name.len(), &source[comma_at + 1..start]) }
+            else { (start, comma_at + 1, &source[start + name.len()..comma_at]) };
+        if gap.chars().any(|c| !c.is_whitespace()) { return None; }
+        return Some((index, from, end, String::new()));
     }
     None
 }

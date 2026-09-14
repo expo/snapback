@@ -93,3 +93,81 @@ fn check_cost_counts_the_rule_probe_and_fix_qualifies_a_module_job() {
     assert_eq!(std::fs::read_to_string(root.join("snapback/timeline.q")).unwrap(), module.replace(": repair --", ": timeline.repair --"));
     std::fs::remove_dir_all(root).unwrap();
 }
+
+const MISSING_INDEX: &str = include_str!("../../snapback4-lang/tests/fixtures/repair-index.q");
+const MISSING_PROBE: &str = include_str!("../../snapback4-lang/tests/fixtures/repair-probe.q");
+const ARG_ONCE: &str = include_str!("../../snapback4-lang/tests/fixtures/repair-once.q");
+const WILDCARD: &str = include_str!("../../snapback4-lang/tests/fixtures/repair-shape.q");
+const EMPTY_ARGS: &str = include_str!("../../snapback4-lang/tests/fixtures/repair-parens.q");
+
+fn check_fix(files: &[(&str, &str, &str)], success: bool) {
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let root = std::env::temp_dir().join(format!("sb4-cu5-{}-{}-{}", std::process::id(), snapback4_core::now_ms(), NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+    std::fs::create_dir_all(root.join("snapback")).unwrap();
+    if !files.iter().any(|(name, _, _)| *name == "schema.q") { std::fs::write(root.join("snapback/schema.q"), "").unwrap(); }
+    for (name, source, _) in files { std::fs::write(root.join("snapback").join(name), source).unwrap(); }
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["check", "--fix"]).current_dir(&root).output().unwrap();
+    assert_eq!(output.status.success(), success, "{}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    if !success { assert_eq!(output.status.code(), Some(1)); }
+    for (name, _, expected) in files { assert_eq!(std::fs::read_to_string(root.join("snapback").join(name)).unwrap(), *expected, "{name}"); }
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn check_fix_applies_the_four_reproduced_repairs_byte_exact() {
+    for (source, corrected) in [
+        (MISSING_INDEX, MISSING_INDEX.replace("  by byRoom: room, id\n", "  by byRoom: room, id\n  by byRoomPrincipal: room, principal, id\n")),
+        (MISSING_PROBE, MISSING_PROBE.replace("  by byKey: key, id\n", "  by byKey: key, id\n  by byKeyAdmin: key, admin\n")),
+        (ARG_ONCE, ARG_ONCE.replace(" once", "")),
+        (WILDCARD, WILDCARD.replace("*, tombstone", "*")),
+        (EMPTY_ARGS, EMPTY_ARGS.replace("trending:", "trending():")),
+    ] { check_fix(&[("schema.q", source, &corrected)], true); }
+}
+
+#[test]
+fn missing_index_inserts_after_last_index_across_files_with_matching_indentation() {
+    let (table, query) = MISSING_INDEX.split_once("query ").unwrap();
+    let table = table.replace("  ", "    ").replace("    public", "    unique byOther: id\n    public").replace('\n', "\r\n");
+    let corrected = table.replace("    unique byOther: id\r\n", "    unique byOther: id\r\n    by byRoomPrincipal: room, principal, id\r\n");
+    let query = format!("query {query}");
+    check_fix(&[("tables.q", &table, &corrected), ("queries.q", &query, &query)], true);
+    let table = table.lines().filter(|line| !line.trim_start().starts_with("by ") && !line.trim_start().starts_with("unique ")).collect::<Vec<_>>().join("\n") + "\n";
+    let corrected = table.replace("    principal: principal\n", "    principal: principal\n    by byRoomPrincipal: room, principal, id\n");
+    check_fix(&[("tables.q", &table, &corrected), ("queries.q", &query, &query)], true);
+}
+
+#[test]
+fn repair_variants_preserve_surrounding_source() {
+    for source in [ARG_ONCE.replace(" ?", ""), ARG_ONCE.replace("photo", "picture"), ARG_ONCE.replace("once ?", "once ? -- comment\n") ] {
+        // A newline inside the argument list is already legal; the comment survives.
+        check_fix(&[("schema.q", &source, &source.replace(" once", ""))], true);
+    }
+    for shape in ["{ tombstone, * }", "{ *, tombstone, extra: 1 }", "{ *, extra: 1, tombstone }", "{ *, tombstone, tombstone }"] {
+        let source = WILDCARD.replace("{ *, tombstone }", shape);
+        let expected = source.replace("tombstone, *", " *").replace(", tombstone", "");
+        check_fix(&[("schema.q", &source, &expected)], true);
+    }
+    for kind in ["query", "mutation"] {
+        let source = EMPTY_ARGS.replace("query", kind).replace("trending:", "trending : -- keep é");
+        check_fix(&[("schema.q", &source, &source.replace("trending :", "trending() :"))], true);
+    }
+}
+
+#[test]
+fn non_applicable_repairs_leave_source_and_exit_unchanged() {
+    for source in [
+        MISSING_INDEX.replace("room = room, principal = p", "room, p"),
+        MISSING_INDEX.replace("  by byRoom: room, id", "  by byRoomPrincipal: room, id"),
+        "table photos:\n  movie: video <=10000000 once\n".into(),
+        WILDCARD.replace("*, tombstone", "*, tombstone: false"),
+        EMPTY_ARGS.replace("trending:", "trending x:"),
+    ] { check_fix(&[("schema.q", &source, &source)], false); }
+    // A stale diagnostic cannot remove a different token or insert parentheses twice.
+    for source in [ARG_ONCE, WILDCARD, EMPTY_ARGS] {
+        let d = snapback4_lang::compile(&[("schema.q".into(), source.into())]).diagnostics.remove(0);
+        let corrected = source.replace(" once", "").replace(", tombstone", "").replace("trending:", "trending():");
+        assert!(fix::edit(&[("schema.q".into(), corrected.clone())], 0, &d).is_none());
+        let later_guess = format!("{corrected}\nmutation later(photo: image <=10000000 once):\n  return photo\n");
+        assert!(fix::edit(&[("schema.q".into(), later_guess)], 0, &d).is_none());
+    }
+}

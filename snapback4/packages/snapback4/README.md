@@ -246,7 +246,7 @@ its source rows.
 another. `fn isBrief(ttl: int ?): ttl != null` is a helper expression and
 `fn stamp(roomId: rooms):` a helper block ending in `return expr` or a bare `return`,
 each expanded where it is called (`isBrief(ttl)`; `stamp(r.id)` as a
-statement or expression), at most eight levels deep. A helper can write only
+statement or expression), at most eight levels deep. A table-typed helper parameter keeps a row argument as a row with fields and no lookup; a reference argument stays a reference. A helper can write only
 when its caller can; a query's diagnostic names the write at the call site.
 
 ### Actions
@@ -801,7 +801,7 @@ into a public `ranked` table every device holds, the viewer's own signals
 (`seen`, votes, a ranker's `affinity`) sync to the viewer, and the device
 composes the two; the external ranker writes its per-reader word through a
 service seat (`insert <- viewer = 'service:ranker'`). The whole card, both
-shapes: `snapback4 guide feeds`.
+shapes: `snapback4 guide feeds`. The card also shows `trending()`: seek the trailing day up to the 8,192-row examined ceiling, read `likeCounts` from a maintain, then `sort` and `slice` the top ten. A day past the ceiling is `complete: false`, so the top ten is of an incomplete set; use the maintained `ranked` recipe when the day outgrows that ceiling.
 
 ## 4. The client
 

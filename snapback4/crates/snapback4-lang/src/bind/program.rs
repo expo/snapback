@@ -367,7 +367,7 @@ impl<'a> Binder<'a> {
                 } else if point {
                     Err(unknown(&read.site, format!("{} has no unique index over {} column{} matching this key; its indexes are {}", read.table, keys.len(), if keys.len() == 1 { "" } else { "s" }, declared.join(", ")), format!("unique by{}: {}", keys.iter().map(|(c, _, _)| c.clone().unwrap_or_else(|| "Column".into())).map(|c| title(&c)).collect::<String>(), keys.iter().map(|(c, _, _)| c.clone().unwrap_or_else(|| "<column>".into())).collect::<Vec<_>>().join(", ")) + if named && mode != ReadMode::Point { "  -- an index is needed when the named equalities do not cover a total unique key" } else { "" }))
                 } else {
-                    Err(unknown(&read.site, format!("{} has no index whose prefix takes {} key{}; its indexes are {}", read.table, keys.len(), if keys.len() == 1 { "" } else { "s" }, declared.join(", ")), format!("by by{}: {}, id", keys.iter().map(|(c, _, _)| c.clone().unwrap_or_else(|| "Column".into())).map(|c| title(&c)).collect::<String>(), keys.iter().map(|(c, _, _)| c.clone().unwrap_or_else(|| "<column>".into())).collect::<Vec<_>>().join(", "))))
+                    Err(unknown(&read.site, format!("{} has no index whose prefix takes {} key{}; its indexes are {}", read.table, keys.len(), if keys.len() == 1 { "" } else { "s" }, declared.join(", ")), format!("by by{}: {}, id", keys.iter().map(|(c, _, _)| c.clone().unwrap_or_else(|| "Column".into())).map(|c| title(&c)).collect::<String>(), keys.iter().map(|(c, _, _)| c.clone().unwrap_or_else(|| "<column>".into())).collect::<Vec<_>>().join(", "))).guide("indexes"))
                 }
             }
             _ => {
@@ -536,6 +536,17 @@ impl<'a> Binder<'a> {
         let prior = self.focal.replace((row_var.to_owned(), row_ty.clone()));
         self.push_scope();
         let result = (|| {
+            if fields.iter().any(|f| matches!(f, ShapeField::Spread { .. })) {
+                let carried = self.row_fields(&row_ty, site)?;
+                for (at, field) in fields.iter().enumerate() {
+                    if let ShapeField::Bare { name, site } = field {
+                        if carried.iter().any(|(column, _)| column == name) {
+                            let kept: Vec<_> = fields.iter().enumerate().filter(|(i, _)| *i != at).map(|(_, f)| f.clone()).collect();
+                            return Err(unknown(site, format!("shape wildcard already includes field {name}"), format!("{{ {} }}", print::shape_fields(&kept))).guide("shapes").mechanical());
+                        }
+                    }
+                }
+            }
             let mut exprs = Vec::<(String, Expr)>::new();
             let mut types = BTreeMap::new();
             let mut add = |binder: &mut Self, name: String, e: Expr, t: Ty, site: &Site, setup: Vec<Stmt>, out: &mut Vec<Stmt>| -> Fallible<()> {
