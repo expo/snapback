@@ -1,0 +1,9 @@
+{
+  "checkedAtEpoch": 1789346755,
+  "instrumentFiles": 177,
+  "allHashesMatchFrozenInventory": true,
+  "allEntriesReadOnly": true,
+  "promptTemplateHashesMatch": true,
+  "inventorySha256": "b495fed56611a6d3fb7e1e592fafb6bfbc224f222ce72039ffbf963ed82548f9",
+  "scope": "Read-only hash and permission check after Grok builder exit, during Muse startup; cold-lane verifier intentionally not rerun."
+}

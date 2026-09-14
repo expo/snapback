@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "clique-builder-raw-log-references.v1",
+  "capturedAt": "2026-09-14T00:43:26.665363Z",
+  "lane": "grok-snapback4",
+  "logs": [
+    {
+      "stream": "stdout",
+      "packetRelativePath": "logs/grok-snapback4.ndjson",
+      "sha256": "dcda8fba530e5b4a4d95678d3b50d0dc844fc56f2e8fa0409ecf630be2feba1a",
+      "bytes": 131085500,
+      "copiedIntoSnapshot": false
+    },
+    {
+      "stream": "stderr",
+      "packetRelativePath": "logs/grok-snapback4.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "copiedIntoSnapshot": false
+    }
+  ]
+}

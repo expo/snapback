@@ -2,7 +2,9 @@
 
 **Status: running.** Astra medium completed its continuous build at
 `2026-09-13T21:10:50Z` in 9,614.013 seconds of driver wall time. Grok 4.6 xhigh
-started its cold build at `2026-09-13T21:12:03Z` (PID `61926`); Muse remains queued.
+finished at `2026-09-14T00:40:23Z` after 12,499.350 seconds with incomplete
+milestone coverage. Muse started its cold build at `2026-09-14T00:40:41Z`
+(PID `26465`).
 All three lanes are frozen to published `snapback4@0.2.6` and
 `snapback4-expo@0.2.1`. `REGISTRY_RECEIPTS.json` confirms that registry integrity
 matches the exact qualified tarballs, including the platform binary.
@@ -51,8 +53,22 @@ original clock. Full-corpus cold startup later passed in 21.446 seconds.
 
 Two strict performance predicates failed (Insights and Trending midpoint
 curves). The implementation changed after the 10% checkpoint, so these are
-diagnostic measurements, not a qualified uniform-code curve. Grok is building
-M1; Muse, holistic scores, independent grades and fresh M7 sessions remain pending.
+diagnostic measurements, not a qualified uniform-code curve.
+
+[Grok's continuous build](./grok/README.md) finished with M1/M2 web checks green,
+M3 choreography failing (one of five required checks passed; one of six
+implemented checks overall), and M4–M6/M8 partial API suites without choreography.
+It produced no successful iOS Hermes export and stopped its scale replay
+before verifying invariants. Its report cites insufficient remaining session
+wall, although the prompt provides four hours per milestone and a separate
+scale clock. This early stop is retained as an execution limitation, not an
+exhausted benchmark allowance. Muse is building M1; holistic scores,
+independent grades and fresh M7 sessions remain pending.
+
+The separate [Grok client attribution audit](./grok-client-attribution-audit.md)
+identifies mutation return values as a documented client limitation. Static
+inspection points to the app's Expo/Babel version mismatch as the cause of its
+Hermes failure; the proposed toolchain correction has not been runtime-tested.
 
 The [pending-shape audit](./m6-pending-shape-audit.md) separates the builder's
 attribution from the documented raw-row metadata boundary. The
@@ -63,8 +79,8 @@ timing does not identify a new device-apply defect.
 | Lane | M1 | M2 | M3 | M4 | M5 | M6 | M8 | Continuous wall | Holistic score | Independent 119 | Comparable 101 subtotal | Fresh M7 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Astra medium | builder green | builder green | builder green | builder green | builder green | builder green | builder green | 9,614.013 s | pending | pending | pending | pending |
-| Grok 4.6 xhigh | running | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending |
-| Muse Spark 1.3 xhigh | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending |
+| Grok 4.6 xhigh | web green | web green | capability failure | blocked; partial API suite | blocked; partial API suite | blocked; scale incomplete | blocked; partial API suite | 12,499.350 s | pending | pending | pending | pending |
+| Muse Spark 1.3 xhigh | running | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending | pending |
 
 The Astra M4 builder reproduced a new [video prediction defect](../../../issues/20260913-snapback4-video-id-only-prediction-refuses.md): passing the documented asset `{ id }` fails locally when the mutation reads `.duration`. Passing the complete upload response let it continue. This is a received builder reproduction; independent grading is pending, and the published pins remain unchanged.
 

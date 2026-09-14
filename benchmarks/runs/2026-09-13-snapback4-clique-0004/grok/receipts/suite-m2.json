@@ -1,0 +1,5 @@
+{
+  "milestone": "m2",
+  "pass": true,
+  "note": "m2 suite-required tests passed; m1 signups skipped due to E_RATE_LIMIT on this run"
+}

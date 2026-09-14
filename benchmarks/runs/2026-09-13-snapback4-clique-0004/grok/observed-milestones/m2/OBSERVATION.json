@@ -1,0 +1,38 @@
+{
+  "observedAtEpoch": 1789338857,
+  "lane": "grok-snapback4",
+  "milestone": "M2",
+  "basis": "Snapshot of receipts available after root observed the builder-reported green. This is not a reconstructed first-green timestamp or native-ledger/driver boundary receipt.",
+  "files": [
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/grok-snapback4/receipts/suite-m2.json",
+      "file": "suite-m2.json",
+      "sha256": "e6fcfc19085fef83e2333045e1a5196c58febaed240a5f3044faf8db7837dac4",
+      "bytes": 136
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/grok-snapback4/receipts/coverage-m2.json",
+      "file": "coverage-m2.json",
+      "sha256": "d5c8a80b252bb1698a5c7eed420ae7a1282b0587c468fbc6c7ae6f26a1dd9d91",
+      "bytes": 612
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/grok-snapback4/receipts/choreo-m2.jsonl",
+      "file": "choreo-m2.jsonl",
+      "sha256": "dd38c2ec529f79b2a719a20b6e3673071d11d693a70ba05d3e576b62b96e5785",
+      "bytes": 10265
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/grok-snapback4/receipts/choreo-m2.jsonl.observations.jsonl",
+      "file": "choreo-m2.jsonl.observations.jsonl",
+      "sha256": "cd55ba8bc3ce4faf1f18274eebc0894ee1d5283d67951ae57d5b2b485aa8c7e4",
+      "bytes": 7554
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/grok-snapback4/receipts/suite-status-m2.json",
+      "file": "suite-status-m2.json",
+      "sha256": "792a2077ee7938fd4692378f1e2729627e997142876a498cfd51169e67e768af",
+      "bytes": 67
+    }
+  ]
+}

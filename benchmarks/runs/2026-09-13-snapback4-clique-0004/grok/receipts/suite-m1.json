@@ -1,0 +1,35 @@
+{
+  "milestone": "m1",
+  "pass": true,
+  "results": [
+    {
+      "id": "m1-a01",
+      "pass": true
+    },
+    {
+      "id": "m1-a02",
+      "pass": true
+    },
+    {
+      "id": "m1-a03",
+      "pass": true
+    },
+    {
+      "id": "m1-a04",
+      "pass": true
+    },
+    {
+      "id": "m1-a08",
+      "pass": true
+    },
+    {
+      "id": "m1-a10",
+      "pass": true
+    },
+    {
+      "id": "m1-a11",
+      "pass": true
+    }
+  ],
+  "coverage": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/grok-snapback4/receipts/coverage-m1.json"
+}

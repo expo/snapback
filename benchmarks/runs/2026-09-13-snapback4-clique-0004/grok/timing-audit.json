@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "clique-builder-timing-audit.v1",
+  "lane": "grok-snapback4",
+  "driverLifecycle": {
+    "startedAt": "2026-09-13T21:12:03Z",
+    "startedEpoch": 1789333923,
+    "endedAt": "2026-09-14T00:40:23Z",
+    "endedEpoch": 1789346423,
+    "wallSeconds": 12499.35,
+    "source": "grok-snapback4.start.json and grok-snapback4.end.json"
+  },
+  "builderInternalClock": {
+    "startEpoch": 1789333935,
+    "endEpoch": 1789346383,
+    "elapsedSeconds": 12448,
+    "source": "run-log.md",
+    "qualification": "Builder-authored clock; distinct from the foreground driver lifecycle."
+  },
+  "milestoneGreenEvidence": {
+    "M1": {
+      "builderAssertedFirstGreenEpoch": 1789336500,
+      "retainedPassingSegmentRecordedAt": "2026-09-13T21:59:25.868Z",
+      "retainedPassingSegmentEpoch": 1789336765.868,
+      "builderAssertionPrecedesRetainedReceiptSeconds": 265.868,
+      "orchestratorObservedAtEpoch": 1789338857,
+      "orchestratorObservedAt": "2026-09-13T22:34:17Z",
+      "receipt": "observed-milestones/m1/choreo-m1.jsonl",
+      "observation": "observed-milestones/m1/OBSERVATION.json",
+      "firstGreenEpoch": null
+    },
+    "M2": {
+      "builderAssertedFirstGreenEpoch": 1789337500,
+      "retainedPassingSegmentRecordedAt": "2026-09-13T22:29:55.219Z",
+      "retainedPassingSegmentEpoch": 1789338595.219,
+      "builderAssertionPrecedesRetainedReceiptSeconds": 1095.219,
+      "orchestratorObservedAtEpoch": 1789338857,
+      "orchestratorObservedAt": "2026-09-13T22:34:17Z",
+      "receipt": "observed-milestones/m2/choreo-m2.jsonl",
+      "observation": "observed-milestones/m2/OBSERVATION.json",
+      "firstGreenEpoch": null
+    }
+  },
+  "firstGreenQualification": "M1 and M2 have retained passing suite/choreography receipts. The handwritten epochs precede those receipts, while the later orchestrator observations explicitly disclaim reconstruction. Exact first-green times are therefore unbound and are not reconstructed here.",
+  "budgetQualification": {
+    "milestoneSafetyLimitSeconds": 14400,
+    "milestoneLimitSource": "prompts/grok-snapback4.md and instrument/ENVIRONMENT.md",
+    "builderAssertedM3StartEpoch": 1789337500,
+    "builderInternalEndEpoch": 1789346383,
+    "maximumIntervalFromAssertedM3StartToInternalEndSeconds": 8883,
+    "scaleReplayBuilderAssertedStartEpoch": 1789346150,
+    "scaleReplayBuilderAssertedStopEpoch": 1789346383,
+    "scaleReplayBuilderReportedIntervalSeconds": 233,
+    "scaleClockContract": "Replay execution has its own recorded clock and wall cap; exhausting it affects O5 rather than milestone completion status.",
+    "conclusion": "The builder stopped M3 and scale without exhausting the frozen allowance. Its references to remaining session wall do not establish a cap-exhausted capability result or full attempted coverage."
+  }
+}
