@@ -63,6 +63,10 @@ The recorded body is the replay body, with value-free diagnostic messages
 and no `result` or `current`. Retries return only
 execution identity (`sent`/`failed`, `seq`/`why`, `replayed`), withholding
 historical `result` and `current`, including scalar results after a lost reply.
+On the web, admission waits for the IndexedDB commit; pagehide or becoming
+hidden sends queued writes with keepalive within the browser's shared 64 KiB
+body budget. Unsent/unconfirmed writes stay durable for retry on reopen with
+the same mutation id, so replay cannot apply a write twice.
 A device write-target miss, by id or unique key with any horizon, queues
 without a predicted row; it still sends `/m`. A reference column checks the id's shape, not that
 its target exists: when a mutation needs a visible target, guard first —

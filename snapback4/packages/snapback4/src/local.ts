@@ -8,6 +8,7 @@
 // `snapback4 device` process for Node (`snapback4/native`) all fit.
 
 import { changeFeed } from "./changes.ts";
+import { exitTransport, type PendingSend } from "./local-exit.ts";
 import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import { MediaCache, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { MediaStorage, AssetRetention } from "./local-assets.ts";
@@ -33,6 +34,8 @@ import {
 /** One JSON call into the device: `{ op, ... }` in, `{ ok } | { denied }` out. */
 export interface DeviceCore {
   readonly media?: MediaStorage;
+  /** Web hosts alone: committed unsent writes at pagehide/hidden, synchronously. */
+  onSuspend?(flush: (entries: readonly PendingSend[], beginSend: () => boolean) => void): () => void;
   call(request: Record<string, unknown>): Promise<Record<string, unknown>>;
   close(): Promise<void>;
 }
@@ -190,6 +193,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let closing: Promise<void> | undefined;
   const aborter = new AbortController();
   const core = await options.device.open(storeName, backend);
+  let stopSuspend: (() => void) | undefined;
   let media: MediaCache | undefined;
   try {
   await requireSyncProtocol(core);
@@ -926,6 +930,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     close() {
       if (closing) return closing;
       closed = true;
+      stopSuspend?.();
       aborter.abort();
       if (retry) clearTimeout(retry);
       if (refreshTimer) clearTimeout(refreshTimer);
@@ -947,11 +952,19 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   };
   if (link === "online") await syncOnce();
   seq = Number(((await call({ op: "state" })).ok as { watermark?: number } | undefined)?.watermark ?? 0);
+  if (core.onSuspend) {
+    const sendOnExit = exitTransport(doFetch, base);
+    stopSuspend = core.onSuspend((entries, beginSend) => {
+      const request = requestCredentials();
+      sendOnExit(entries, request.headers, () => !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend());
+    });
+  }
   follow();
   void flush();
   scheduleRefresh();
   return client;
   } catch (error) {
+    stopSuspend?.();
     aborter.abort();
     // Opening the device transfers its lifetime to this constructor. Until a
     // client is returned, every later startup failure must release it here.
