@@ -2428,3 +2428,43 @@ and benchmark evidence. Source checks passed before/after, all three owned proce
 exited zero and were observed absent, and cleanup reported no remaining
 scoped process or failure. The V1 archive preflight refusal was local and
 preceded any launch; it remains preserved separately.
+
+### Actual serving-writer settings: untimed native qualification (2026-09-14)
+
+The native Linux 0.2.12 experiment uses source `206650f29…` with one reviewed
+host-only diagnostic override; retained binary `10557d0f…` is distinct from
+the registry executable. Its production build, 72 CLI tests and 44 production
+core tests pass. The diagnostic reads the actual Engine-owned writer, applies
+only the selected synchronous setting before listening, and reads it back on
+untimed authenticated, typed query probes. A separate inspection connection
+is not used as evidence for that writer.
+
+| Mode | Startup before → serving writer | Fresh acknowledged writes | Changed-payload replays | Actual same-app restarts |
+|---|---|---:|---:|---:|
+| Observe | WAL/NORMAL → WAL/NORMAL | 34 | 2 | 1 |
+| Full | WAL/NORMAL → WAL/FULL | 34 | 2 | 1 |
+
+Both modes produce the same complete six-row typed-state hashes before work,
+after exercise and after the restart write. Two owners and an outsider retain
+their original sessions. Invalid startup mode, disabled diagnostics, auth and
+argument refusals, invalid/malformed/duplicate phases, complete visibility,
+acknowledgements and replay checks pass. Four enabled server processes each
+emit exactly phases `[0,1,2,3]`, with stable generation and writer settings;
+all five planned server stops are SIGTERM-only with no remaining owned group.
+The two modes report SQLite 3.53.2 and the same 50 compile options, retaining
+the packaged page-cache flag and memory-status accounting.
+
+The successful V5 receipt is `e527a2da…`; independent audit `ced0bb03…` and
+review `a65ecab7…` recheck the public records and independently reconstruct
+all three six-row state hashes. Private wire bodies, databases, credentials
+and logs stay remote; their successful checks are assertions of the pinned
+controller. V4's earlier port-probe failure remains preserved and excluded.
+The corrected probe admits a recently closed connection while still refusing
+a live listener; it does not alter the server binary.
+
+There are **zero timed requests** in this qualification. Project creation and
+schema activation precede the hook; each process re-applies its serving-mode
+setting after restart. Readback and graceful restart do not establish
+power-loss behavior or the official Convex binary's effective writer policy.
+The subsequent 100,000-row sensitivity experiment needs its own complete
+execution and analysis; this record makes no latency claim.
