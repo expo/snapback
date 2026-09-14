@@ -49,6 +49,10 @@ query search(room: text <=40, q: text <=40, c: cursor ?):
 query mixed():
   ignored = messages['left'] last 1 by byTime
   return messages['held'] last 50 by byTime
+query both():
+  leftRows = messages['left'] last 50 by byTime
+  heldRows = messages['held'] last 50 by byTime
+  return {left: leftRows, held: heldRows}
 query across():
   return messages[] first 100 by byId
 mutation join(room: text <=40):
@@ -56,7 +60,7 @@ mutation join(room: text <=40):
 mutation leave(room: text <=40):
   delete members[room = room, principal = 'dev:bob']
 `;
-for (const tier of ["wasm", "process"]) for (const scenario of ["R5 history", "R1a empty search", "R1a mixed reads"]) test(`${scenario} ${tier}: retained history and independent held coverage`, { timeout: 60000 }, async (t) => {
+for (const tier of ["wasm", "process"]) for (const scenario of ["R5 history", "R1a empty search", "R1a mixed reads", "R2 mixed result"]) test(`${scenario} ${tier}: retained history and independent held coverage`, { timeout: 60000 }, async (t) => {
   const directory = mkdtempSync(join(tmpdir(), "sb4-retained-"));
   mkdirSync(join(directory, "snapback"));
   writeFileSync(join(directory, "snapback/schema.q"), source);
@@ -93,6 +97,33 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["R5 history", "R
   await until(() => watch.getSnapshot().data?.length === 26, "held watch missing");
   assert.equal((await post("/m/leave", { args: { room: "left" }, id: "leave-left" })).state, "sent");
   await client.sync();
+  if (scenario === "R2 mixed result") {
+    const both = { kind: "query", name: "both" };
+    const online = await client.query(both, {});
+    assert.equal(online.data.left.length, 0);
+    assert.equal(online.data.held.length, 26);
+    assert.equal(online.complete, true);
+    assert.ok(allRequests.includes("/q/both"));
+    assert.ok(allAnswers.some((answer) => answer.name === "both" && answer.data?.left.length === 25 && answer.data?.held.length === 25 && answer.unknown === true && answer.retained === false));
+    const mixedWatch = client.observe(both, {});
+    t.after(() => mixedWatch.close());
+    const stop = mixedWatch.subscribe(() => {}); t.after(stop);
+    await until(() => mixedWatch.getSnapshot().data?.held.length === 26, "mixed result watch must use the server online");
+    assert.equal(mixedWatch.getSnapshot().data.left.length, 0);
+    offline = true; await client.sync();
+    const local = await client.query(both, {});
+    assert.equal(local.data.left.length, 25);
+    assert.equal(local.data.held.length, 25);
+    assert.equal(local.complete, false);
+    await until(() => mixedWatch.getSnapshot().data?.left.length === 25 && mixedWatch.getSnapshot().fresh === false, "mixed result watch must use the device offline");
+    assert.equal(mixedWatch.getSnapshot().data.held.length, 25);
+    offline = false; await client.sync();
+    await until(() => mixedWatch.getSnapshot().data?.held.length === 26, "mixed result watch must resume server fallback");
+    assert.equal(mixedWatch.getSnapshot().data.left.length, 0);
+    assert.equal((await client.query(query, { room: "left" })).data.length, 25, "keep retained history in its own query");
+    console.log(`R2 ${tier} mixed result: online left=0 held=26; offline left=25 held=25; separate left=25`);
+    return;
+  }
   if (scenario === "R1a empty search") {
     const search = { kind: "query", name: "search" };
     const heldSearch = await client.query(search, { room: "held", q: "needle" });

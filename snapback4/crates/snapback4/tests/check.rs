@@ -141,6 +141,39 @@ fn inspection_materializes_required_literals_but_not_optional_defaults() {
     assert!(lines.contains(&explicit), "explicit values win over defaults");
 }
 
+#[test]
+fn r2_n4_inspection_defaults_equal_stored_values_and_group_together() {
+    use snapback4_core::{schema::{ColumnDefault, ColumnType}, Value as V};
+    let p = Project::new();
+    let mut e = p.seed(&p.store(), 1);
+    let source = SOURCE.replace("  read", "  meta: json <=100 default false\n  null_text: json <=100 default 'Null'\n  number: json <=100 default 7\n  tombstone: bool default false\n  score: int default -7\n  label: text <=20 default \"O'Reilly\"\n  role: enum('member', 'admin') default 'member'\n  amount: decimal 2 default 125\n  price: money USD default 125\n  room: id default 'r'\n  author: principal default 'dev:alice'\n  reference: messages default 'm0'\n  at: time default 100\n  read");
+    let mut b = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    // Bytes have a value-model literal even though Quarry has no byte literal spelling.
+    let table = b.schema.tables.get_mut("messages").unwrap();
+    table.columns.insert("bytes".into(), ColumnType::Bytes { max: 100 });
+    table.defaults.insert("bytes".into(), ColumnDefault::Literal(V::Bytes(vec![0, 255])));
+    e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    let mut stored = std::collections::BTreeMap::from([("id".into(), V::Id("stored".into())), ("body".into(), V::String("old".into()))]);
+    for (name, default) in &e.schema().tables["messages"].defaults { stored.insert(name.clone(), default.value(0, "unused")); }
+    e.seed([("messages".into(), V::Row(stored.into()))]).unwrap();
+    let expected = [("meta", json!("{\"Bool\":false}")), ("null_text", json!("{\"String\":\"Null\"}")), ("number", json!("{\"Int\":7}")),
+        ("tombstone", json!(0)), ("score", json!(-7)), ("label", json!("O'Reilly")), ("role", json!("member")), ("amount", json!(125)), ("price", json!(125)),
+        ("room", json!("r")), ("author", json!("dev:alice")), ("reference", json!("m0")), ("at", json!(100)), ("bytes", json!("00ff"))];
+    let mut failures = Vec::new();
+    for (column, expected) in expected {
+        let sql = p.run(&["sql", &format!("SELECT {column}, count(*) FROM messages GROUP BY {column}"), "--json"]);
+        assert!(sql.status.success(), "{sql:?}");
+        let groups = parsed(&sql)["rows"].clone();
+        let equality = p.run(&["sql", &format!("SELECT a.{column} = b.{column} FROM messages a JOIN messages b ON a.id = 'm0' AND b.id = 'stored'"), "--json"]);
+        assert!(equality.status.success(), "{equality:?}");
+        let equal = parsed(&equality)["rows"].clone();
+        println!("R2 N4 {column}: groups={groups}, equality={equal}");
+        if groups != json!([[expected, 2]]) || equal != json!([[1]]) { failures.push(format!("{column}: groups={groups}, equality={equal}")); }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
 fn invariant_default_project(unique: bool, collides: bool) -> Project {
     let p = Project::new();
     let mut e = p.seed(&p.store(), 1);

@@ -25,23 +25,34 @@ pub fn scan_visibility(schema: &Schema, scan: &Scan) -> Visibility {
     prefix_visibility(&scan.table, table, &table.rules.read, &pinned)
 }
 
-// @ref LLP 3000.007#18.1 — a pinned conjunct can deny a non-uniform scope before its hidden words or rows are discovered.
+// @ref LLP 3000.007#18.1 — simplify self-witnesses, then pre-check only the leading conjuncts whose fields the scope pins, in evaluation order.
 pub(super) fn prefix_decision(schema: &Schema, scan: &Scan) -> Option<RuleExpr> {
     let table = schema.table(&scan.table)?;
     let index = table.index(&scan.index)?;
     let pinned = index.components.iter().zip(&scan.prefix).filter_map(|(part, key)| part.column().zip(key.scalar())).collect();
-    let rule = &table.rules.read;
-    if prefix_visibility(&scan.table, table, rule, &pinned).uniform { return Some(rule.clone()); }
-    let RuleExpr::And(terms) = rule else { return None };
-    fn pinned_conjuncts(terms: &[RuleExpr], table_name: &str, table: &Table, pinned: &BTreeMap<&String, &Expr>, out: &mut Vec<RuleExpr>) {
-        for term in terms {
-            if prefix_visibility(table_name, table, term, pinned).uniform { out.push(term.clone()); }
-            else if let RuleExpr::And(terms) = term { pinned_conjuncts(terms, table_name, table, pinned, out); }
-        }
-    }
-    let mut decided = Vec::new();
-    pinned_conjuncts(terms, &scan.table, table, &pinned, &mut decided);
+    let rule = simplify_prefix(&table.rules.read, &scan.table, table, &pinned);
+    let terms = match rule { RuleExpr::And(terms) => terms, RuleExpr::Allow => return None, rule => vec![rule] };
+    let decided: Vec<_> = terms.into_iter().take_while(|term| {
+        let mut fields = BTreeSet::new();
+        term.fields(&mut fields);
+        fields.iter().all(|field| pinned.contains_key(field))
+    }).collect();
     (!decided.is_empty()).then_some(RuleExpr::And(decided))
+}
+
+fn simplify_prefix(rule: &RuleExpr, name: &str, table: &Table, pinned: &BTreeMap<&String, &Expr>) -> RuleExpr {
+    if rule_true(rule, name, table, pinned) { return RuleExpr::Allow; }
+    match rule {
+        RuleExpr::And(terms) => RuleExpr::And(terms.iter().map(|term| simplify_prefix(term, name, table, pinned)).filter(|term| !matches!(term, RuleExpr::Allow)).collect()),
+        RuleExpr::Or(_) => {
+            // Use the same self-witness absorption as uniformity, but remove
+            // the absorbed field read from the expression we actually run.
+            let terms = rule.disjuncts();
+            RuleExpr::Or(terms.iter().filter(|term| !terms.iter().any(|other| self_probe_absorbs(name, table, term, other))).map(|term| simplify_prefix(term, name, table, pinned)).collect())
+        }
+        RuleExpr::Not(inner) => RuleExpr::Not(Box::new(simplify_prefix(inner, name, table, pinned))),
+        _ => rule.clone(),
+    }
 }
 
 /// Lazy lanes need a position that identifies one row within the lane.

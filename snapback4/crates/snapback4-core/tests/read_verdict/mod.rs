@@ -8,6 +8,8 @@ use crate::value::object;
 use serde_json::{json, Value as Json};
 use std::collections::BTreeMap;
 
+mod round2;
+
 fn table() -> Table {
     Table { residency: Default::default(), defaults: BTreeMap::new(),
         columns: BTreeMap::from([("id".into(), ColumnType::Id), ("roomId".into(), ColumnType::Id), ("principal".into(), ColumnType::Principal), ("body".into(), ColumnType::Text { max: 100 })]),

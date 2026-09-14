@@ -70,12 +70,14 @@ impl Runner<'_> {
         }
     }
 
-    fn prefix_verdict(&mut self, table: &Table, index: &Index, prefix: &[Value], rule: &crate::schema::RuleExpr) -> Result<bool, RuntimeError> {
+    fn prefix_verdict(&mut self, table: &Table, index: &Index, prefix: &[Value], rule: &crate::schema::RuleExpr, uniform: bool) -> Result<bool, RuntimeError> {
         let probe_row = Value::Row(index.components.iter().zip(prefix).filter_map(|(part, value)| part.column().map(|name| (name.clone(), value.clone()))).collect::<std::collections::BTreeMap<_, _>>().into());
         let viewer = self.context.viewer.clone();
         let expiry = self.next_expiry;
-        let verdict = rules::evaluate(rule, &viewer, None, &probe_row, false, &mut PrefixProbe { runner: self })?;
-        if !verdict { self.next_expiry = expiry; }
+        let verdict = rules::evaluate(rule, &viewer, None, &probe_row, false, &mut PrefixProbe { runner: self });
+        // Partial admission says nothing about any returned row's lifetime.
+        if !uniform || !matches!(verdict, Ok(true)) { self.next_expiry = expiry; }
+        let verdict = verdict?;
         // A partial conjunction denial costs the same static allowance as a uniform denial.
         Ok(self.meter.charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? && verdict)
     }
@@ -347,6 +349,10 @@ impl Runner<'_> {
             other => return Err(RuntimeError::Input(format!("matching takes text, not {}", other.kind()))),
         };
         let terms = crate::words::terms(&text);
+        // Validate every scan input before denial or empty word discovery can
+        // return. Generated lanes retain the same bounds and cursor scope.
+        self.bounds(scan, table, index)?;
+        self.take(&scan.take)?;
         self.read_tables.insert(scan.table.clone());
         self.rule_dependencies(&table.rules.read);
         self.meter.at(&scan.site);
@@ -373,7 +379,7 @@ impl Runner<'_> {
         if !admitted && let Some(rule) = rules::prefix_decision(self.schema, scan) {
             let aborting = self.meter.cut == crate::meter::Cut::Abort;
             if aborting && !self.meter.charge(MeterKind::Examined, 1)? { empty_page(self); return Ok(Vec::new()); }
-            if !self.prefix_verdict(table, index, &scope, &rule)? {
+            if !self.prefix_verdict(table, index, &scope, &rule, visibility.uniform)? {
                 empty_page(self);
                 return Ok(Vec::new());
             }
@@ -533,7 +539,7 @@ impl Runner<'_> {
         let aborting = self.meter.cut == crate::meter::Cut::Abort;
         if aborting && !self.meter.charge(MeterKind::Examined, 1)? { return Ok((Vec::new(), Vec::new())); }
         if !always_visible && word.is_none() && let Some(rule) = rules::prefix_decision(self.schema, scan) {
-            if !self.prefix_verdict(table, index, &prefix, &rule)? { return Ok((Vec::new(), Vec::new())); }
+            if !self.prefix_verdict(table, index, &prefix, &rule, visibility.uniform)? { return Ok((Vec::new(), Vec::new())); }
             if visibility.uniform { uniform_verdict = Some(true); }
         }
         // Non-uniform hidden runs cost examined rows, never a materialized
