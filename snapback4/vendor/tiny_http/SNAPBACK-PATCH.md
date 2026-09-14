@@ -54,3 +54,37 @@ admission-refused request immediately without draining its body. The legacy
 entrypoints retain their API and framing. Snapback's binary unit tests cover
 connection overload, idle clients, header/body dribbling, stalled readers,
 bounded pipelining and short requests progressing under saturated polls.
+
+Local change, 2026-09-14 (recovered native outbox latency):
+`src/connection.rs` enables `TCP_NODELAY` on accepted TCP sockets. Response
+headers and body can cross the writer's buffer boundary; Nagle buffering
+otherwise waits for a delayed acknowledgement before releasing the remaining
+body. The socket option is best-effort with a warning on failure; Unix sockets,
+HTTP framing, connection limits and write deadlines keep their existing paths.
+
+The existing real-HTTP/native boundary case exposed this on Linux: 273
+already-committed writes, 128-byte IDs, paged seven-row sync responses, then
+same-ID replay and one live terminal event for each write. All sync receipts
+arrived, but the original 15-second assertion expired while the queue still
+made progress. No notification preceded listener attachment. An isolated
+instrumented baseline eventually drained at 20.25 seconds; `/sync` response
+body reads had a 40.7 ms median and totaled 11.09 seconds. With this socket
+option, the same case drained at 4.61 seconds, with a 0.3 ms body-read median
+and 93 ms total. Adjacent mutation body reads were 0.3 ms before and 0.1 ms
+after. These are descriptive EPYC/Linux debug-build measurements, not a
+universal latency bound or a new gate. The original transport test, all
+acknowledgement/queue assertions and its 15-second deadline remain unchanged.
+
+Evidence: `/tmp/sb4-excellence-native-boundary-http.log` (original deadline
+failure plus eventual completion) and
+`/tmp/sb4-excellence-native-boundary-nodelay-instrumented.log` (same instrument,
+socket option enabled), retained on the EPYC test host and the controlling
+machine. Both builds used Rust 1.93.1, with `LIBSQLITE3_FLAGS` and `RUSTFLAGS`
+unset. This correction was selected from measured whole-client delay under
+LLP 3000.008.003; it does not add result-history delivery or change the outbox.
+The unmodified `transport-http.test.mjs` and adjacent `client-seams.test.mjs`
+passed 15 tests with zero failures or skips in 40.83 seconds. All three native
+pending-boundary cases together finished in 5.02 seconds; the corresponding
+wasm cases finished in 3.39 seconds. Parser/body limits, idle-poll detection,
+heartbeat recovery, revocation, fresh/replayed results and media checks passed.
+The complete output is `/tmp/sb4-excellence-native-boundary-full-green.log`.
