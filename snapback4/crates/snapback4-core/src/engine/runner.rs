@@ -21,14 +21,15 @@ pub(super) enum Flow {
     Return(Value),
 }
 
-/// The page a `next` cursor can continue: the last top-level cursor-bearing
-/// scan the program evaluated before it returned.
+/// One evaluated cursor-bearing page; the return plan selects its owner.
 #[derive(Clone, Debug)]
 pub(crate) struct PagePosition {
     pub table: String,
     pub index: String,
     pub order: Order,
     pub prefix_len: usize,
+    /// A collector exited with rows still unconsumed, even on a short page.
+    pub interrupted: bool,
     /// The suffix values of the last returned row, if another visible row
     /// followed it (else the page is the last one).
     pub next: Option<Vec<Value>>,
@@ -61,7 +62,10 @@ pub struct Runner<'a> {
     pub(crate) page_depth: usize,
     pub(crate) page: Option<PagePosition>,
     pub(crate) pages: BTreeMap<String, PagePosition>,
-    page_plan: BTreeMap<String, String>,
+    /// Loss from replaced executions cannot be repaired by a later page.
+    pub(super) discarded_page_loss: bool,
+    pub(super) page_owner: Option<String>,
+    page_plan: super::pages::Plan,
     /// Whether a scan ran whose read rule the prefix does not decide. Such a
     /// result is `capped` whatever the meter found (LLP 1001 §3): a page
     /// that was `complete` only when few hidden rows were walked would
@@ -91,6 +95,10 @@ pub struct Runner<'a> {
     pub(crate) seq: u64,
     pub(crate) statement_site: String,
     pub(crate) evaluating_write_condition: bool,
+    prediction_guards: BTreeSet<String>,
+    pub(super) discard_effects: bool,
+    /// The prediction paid for an untaken presence arm the server may skip.
+    pub(crate) charged_untaken: bool,
 }
 
 impl<'a> Runner<'a> {
@@ -118,7 +126,9 @@ impl<'a> Runner<'a> {
             page_depth: 0,
             page: None,
             pages: BTreeMap::new(),
-            page_plan: BTreeMap::new(),
+            discarded_page_loss: false,
+            page_owner: None,
+            page_plan: super::pages::Plan::default(),
             non_uniform: false,
             page_overflow: false,
             word_cut_at: None,
@@ -130,11 +140,17 @@ impl<'a> Runner<'a> {
             seq,
             statement_site: String::new(),
             evaluating_write_condition: false,
+            prediction_guards: BTreeSet::new(),
+            discard_effects: false,
+            charged_untaken: false,
         }
     }
 
     pub fn run(&mut self, program: &Program) -> Result<Value, RuntimeError> {
         self.page_plan = super::pages::plan(program);
+        self.prediction_guards = self.schema.operations.get(&program.name)
+            .filter(|fact| self.device && fact.connected_effects_only && fact.predicts.as_deref() == Some("eligible"))
+            .map(|fact| fact.prediction_guards.iter().cloned().collect()).unwrap_or_default();
         // @ref LLP 3000.007#5.0 — charge allocations before admitting the relaxed forms.
         // A heap cut cannot invent a partial scalar/shape or a continuation.
         // Unwind immediately; both query hosts publish null, incomplete, with
@@ -189,20 +205,27 @@ impl<'a> Runner<'a> {
                     Flow::Next
                 }
                 Stmt::If { condition, then_body, else_body } => {
-                    let (branch, arm) = if self.expr(condition)?.as_bool()? { (then_body, "then") } else { (else_body, "else") };
+                    let take_then = self.expr(condition)?.as_bool()?;
+                    let (branch, arm, untaken, other) = if take_then { (then_body, "then", else_body, "else") } else { (else_body, "else", then_body, "then") };
+                    if self.prediction_guards.contains(&site) { self.charge_untaken(untaken, &format!("{site}:{other}"))?; }
                     self.statements(branch, &format!("{site}:{arm}"))?
                 }
                 Stmt::For { binding, domain, body } => {
-                    let values = self.domain(domain)?;
+                    let mut values = self.domain(domain)?;
                     let is_page = matches!(domain, LoopDomain::Page(_) | LoopDomain::Recurse(_));
                     if is_page {
                         self.page_depth += 1;
                     }
                     let mut result = Flow::Next;
-                    for value in values {
+                    while let Some(value) = values.next() {
                         if matches!(domain, LoopDomain::LiteralRange { .. } | LoopDomain::ExpressionRange { .. }) { self.meter.step(1)?; }
                         self.bind(binding, value);
-                        match self.statements(body, &site)? {
+                        let flow = self.statements(body, &site)?;
+                        if matches!(flow, Flow::Break | Flow::Return(_)) && values.size_hint().0 > 0
+                            && let Some(page) = self.page_plan.collectors.get(&site).and_then(|page| self.pages.get_mut(page)) {
+                            page.interrupted = true;
+                        }
+                        match flow {
                             Flow::Next | Flow::Continue => {}
                             Flow::Break => break,
                             returned @ Flow::Return(_) => {
@@ -269,13 +292,17 @@ impl<'a> Runner<'a> {
                     if !self.schema.effects.iter().any(|e| e == effect) {
                         return Err(RuntimeError::Schema(format!("unknown effect {effect}")));
                     }
-                    let id = self.context.mint()?;
-                    self.outbox.push((id, effect.clone(), payload));
+                    // @ref LLP 3000.007#19.1 — effect identity belongs to the commit, never to the row/result id supply.
+                    if !self.discard_effects {
+                        let id = format!("effect-{:016x}-{:016x}", self.seq, self.outbox.len());
+                        self.outbox.push((id, effect.clone(), payload));
+                    }
                     Flow::Next
                 }
                 Stmt::Return(value) => {
                     let value = self.expr(value)?;
-                    self.page = self.page_plan.get(&site).and_then(|owner| self.pages.get(owner)).cloned();
+                    self.page_owner = self.page_plan.returns.get(&site).cloned();
+                    self.page = self.page_owner.as_ref().and_then(|owner| self.pages.get(owner)).cloned();
                     Flow::Return(value)
                 },
                 Stmt::Break => Flow::Break,

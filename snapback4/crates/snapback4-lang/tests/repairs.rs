@@ -7,6 +7,93 @@ const SHAPE: &str = include_str!("fixtures/repair-shape.q");
 const PARENS: &str = include_str!("fixtures/repair-parens.q");
 
 #[test]
+fn double_equals_in_a_helper_has_one_mechanical_diagnostic() {
+    let source = include_str!("fixtures/repair-equality.q");
+    let bound = compile(&[("schema.q".into(), source.into())]);
+    for d in &bound.diagnostics { println!("{d}"); }
+    assert_eq!(bound.diagnostics.len(), 1, "{:?}", bound.diagnostics);
+    assert_eq!(bound.diagnostics[0].to_string(), "schema.q:2:8 — E_QUARRY_SYNTAX: equality is = in Quarry\n  rewrite: = — check --fix applies it\n  guide: language");
+    assert!(bound.diagnostics[0].mechanical);
+    assert!(bound.programs.is_empty(), "the guessed spelling must not compile");
+    let corrected = compile(&[("schema.q".into(), source.replace("==", "="))]);
+    assert!(corrected.diagnostics.is_empty(), "{:?}", corrected.diagnostics);
+    assert!(corrected.notes.is_empty(), "{:?}", corrected.notes);
+}
+
+#[test]
+fn double_equals_recovers_each_comparison_in_expression_contexts() {
+    for source in [
+        "query q():\n  return (1 == 1) and (2==2)\n",
+        "query q():\n  yes = 1 == 1\n  require 2 == 2 else NO\n  return yes\n",
+        "fn equal(a: int, b: int): a == b\nquery q():\n  return equal(1, 1)\n",
+        "query q():\n  return { yes: 1 == 1, values: [2 == 2] }\n",
+        "query q():\n  return true if 1 == 1 else false\n",
+        "table things:\n  owner: principal\n  read <- .owner == viewer\nquery q():\n  return true\n",
+        "table things:\n  public 'things'\nquery q():\n  return things first 2 by byId where .id == 'x'\n",
+    ] {
+        let bound = compile(&[("schema.q".into(), source.into())]);
+        assert_eq!(bound.diagnostics.len(), source.matches("==").count(), "{:?}", bound.diagnostics);
+        assert!(bound.diagnostics.iter().all(|d| d.message == "equality is = in Quarry" && d.rewrite == "=" && d.mechanical));
+        let fixed = compile(&[("schema.q".into(), source.replace("==", "="))]);
+        assert!(fixed.diagnostics.is_empty(), "{source}: {:?}", fixed.diagnostics);
+    }
+    let files = [("one.q".into(), "query q():\n  return 1 == 1\n".into()), ("two.q".into(), "query q():\n  return 2 == 2\n".into())];
+    let bound = compile(&files);
+    assert_eq!(bound.diagnostics.len(), 2);
+    assert_eq!(bound.diagnostics.iter().map(|d| d.site.file.as_str()).collect::<Vec<_>>(), ["one.q", "two.q"]);
+}
+
+#[test]
+fn equality_controls_preserve_strings_comments_and_not_equal_and_refuse_triple_equals() {
+    use snapback4_core::{Context, Engine, Value};
+    let source = "query q():\n  return '==' != '=' -- == stays in a comment\n";
+    let bound = compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    assert_eq!(engine.query("q", Context::new("alice", Default::default())).unwrap().data, Value::Bool(true));
+    let triple = compile(&[("schema.q".into(), "query q():\n  return 1 === 1\n".into())]);
+    assert_eq!(triple.diagnostics.len(), 2, "{:?}", triple.diagnostics);
+    assert_eq!(triple.diagnostics[0].to_string(), "schema.q:2:13 — E_QUARRY_SYNTAX: expected expression, got \"=\"\n  rewrite: fix this Quarry line and rerun snapback4 check\n  guide: language");
+    assert_eq!(triple.diagnostics[1].to_string(), "schema.q:1:1 — E_QUARRY_SYNTAX: query q has an empty body\n  rewrite: fix this Quarry line and rerun snapback4 check\n  guide: language");
+    assert!(triple.diagnostics.iter().all(|d| !d.mechanical));
+    for d in triple.diagnostics { println!("{d}"); }
+}
+
+#[test]
+fn strict_not_equal_is_not_an_equality_repair() {
+    let (tokens, diagnostics) = snapback4_lang::lexer::lex("schema.q", "1 !== 2");
+    assert!(diagnostics.is_empty());
+    assert_eq!(tokens.iter().filter(|t| t.kind == snapback4_lang::lexer::Kind::Symbol).map(|t| t.value.as_str()).collect::<Vec<_>>(), ["!=", "="]);
+    let bound = compile(&[("schema.q".into(), "query q():\n  return 1 !== 2\n".into())]);
+    assert_eq!(bound.diagnostics.iter().map(ToString::to_string).collect::<Vec<_>>(), [
+        "schema.q:2:14 — E_QUARRY_SYNTAX: expected expression, got \"=\"\n  rewrite: fix this Quarry line and rerun snapback4 check\n  guide: language",
+        "schema.q:1:1 — E_QUARRY_SYNTAX: query q has an empty body\n  rewrite: fix this Quarry line and rerun snapback4 check\n  guide: language",
+    ]);
+    assert!(bound.diagnostics.iter().all(|d| !d.mechanical));
+    assert!(bound.programs.is_empty());
+    for d in bound.diagnostics { println!("{d}"); }
+}
+
+#[test]
+fn equality_recovery_preserves_an_independent_syntax_error() {
+    let source = "query q():\n  yes = 1 == 1\n  return :\n";
+    let bound = compile(&[("schema.q".into(), source.into())]);
+    assert_eq!(bound.diagnostics.len(), 2, "{:?}", bound.diagnostics);
+    assert_eq!(bound.diagnostics[0].to_string(), "schema.q:2:11 — E_QUARRY_SYNTAX: equality is = in Quarry\n  rewrite: = — check --fix applies it\n  guide: language");
+    assert_eq!(bound.diagnostics[1].to_string(), "schema.q:3:10 — E_QUARRY_SYNTAX: expected expression, got \":\"\n  rewrite: fix this Quarry line and rerun snapback4 check\n  guide: language");
+    assert!(bound.diagnostics[0].mechanical && !bound.diagnostics[1].mechanical);
+    for d in &bound.diagnostics { println!("before: {d}"); }
+    let fixed = compile(&[("schema.q".into(), source.replace("==", "="))]);
+    assert_eq!(fixed.diagnostics.len(), 1);
+    assert_eq!(fixed.diagnostics[0].to_string(), bound.diagnostics[1].to_string());
+    println!("after: {}", fixed.diagnostics[0]);
+    let valid = compile(&[("schema.q".into(), source.replace("==", "=").replace("return :", "return yes"))]);
+    assert!(valid.diagnostics.is_empty(), "{:?}", valid.diagnostics);
+    let mut engine = snapback4_core::Engine::memory(valid.schema, valid.programs.into_iter().map(|p| p.program)).unwrap();
+    assert_eq!(engine.query("q", snapback4_core::Context::new("alice", Default::default())).unwrap().data, snapback4_core::Value::Bool(true));
+}
+
+#[test]
 fn reproduced_diagnostics() {
     let expected = [
         (INDEX, "schema.q:7:10 — E_QUARRY_UNKNOWN: members has no index whose prefix takes 2 keys; its indexes are byId (id), byRoom (room, id)\n  rewrite: by byRoomPrincipal: room, principal, id — check --fix applies it\n  guide: indexes"),

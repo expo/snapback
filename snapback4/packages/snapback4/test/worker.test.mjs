@@ -342,11 +342,10 @@ test("actions are denied offline on both tiers without entering the device queue
 test("chat's real TypeScript invite worker is supervised by dev, restarts and stops with it", { timeout: 20_000 }, async t => {
   const reference = readFileSync(join(root, "apps/chat/snapback/worker.ts"), "utf8");
   const source = readFileSync(join(root, "apps/chat/snapback/schema.q"), "utf8");
-  // A killed worker's outstanding claim can still lease new work. Keep
-  // lease expiry inside this intentional-crash fixture's deadline; the
-  // reference worker's production defaults remain 60 s lease / 25 s poll.
-  const worker = reference.replace("runWorker({ url, token,", "runWorker({ url, token, lease: 1, wait: 1,");
-  assert.notEqual(worker, reference, "the fixture must set its bounded lease and poll");
+  // The reference worker keeps its production 60 s lease / 25 s poll: dev
+  // closes a killed child's own session, so its orphaned claim poll fails
+  // reauthentication instead of leasing the next request to nobody.
+  const worker = reference;
   // Exercise the actual reference after one intentional crash; only this
   // fixture's worker PID is ever signalled by the test.
   const f = await actionFixture(t, { source, worker: { text: worker } });

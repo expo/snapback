@@ -7,7 +7,7 @@ impl Binder<'_> {
 
     /// An expression whose value is used (bound, returned, or a final
     /// write): writes yield their row.
-    pub(super) fn value_of(&mut self, value: &A, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
+    pub(super) fn value_of(&mut self, value: &A, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         if let A::Write { .. } = value {
             return self.write(value, out, true).map(|opt| opt.expect("a valued write"));
         }
@@ -17,7 +17,7 @@ impl Binder<'_> {
     /// Strict compound children run in source order, before setup emitted by
     /// a later child. Lexical values and their fields cannot change here;
     /// leaving those fields in their object also preserves pending provenance.
-    pub(super) fn snapshot(&mut self, value: Expr, out: &mut Vec<Stmt>) -> Expr {
+    pub(super) fn snapshot(&mut self, value: Expr, out: &mut setup::Body) -> Expr {
         if matches!(value, Expr::Literal(_) | Expr::Input(Input::Viewer | Input::Now)) || lexical_value(&value) {
             return value;
         }
@@ -26,7 +26,7 @@ impl Binder<'_> {
         ir::var(&name)
     }
 
-    pub(super) fn sequence_setup<'e>(&mut self, prior: impl Iterator<Item = &'e mut Expr>, setup: Vec<Stmt>, out: &mut Vec<Stmt>) {
+    pub(super) fn sequence_setup<'e>(&mut self, prior: impl Iterator<Item = &'e mut Expr>, setup: setup::Body, out: &mut setup::Body) {
         if !setup.is_empty() {
             for value in prior {
                 *value = self.snapshot(std::mem::replace(value, Expr::Literal(Value::Null)), out);
@@ -35,10 +35,10 @@ impl Binder<'_> {
         }
     }
 
-    fn strict_args(&mut self, args: &[A], out: &mut Vec<Stmt>) -> Fallible<Vec<(Expr, Ty)>> {
+    fn strict_args(&mut self, args: &[A], out: &mut setup::Body) -> Fallible<Vec<(Expr, Ty)>> {
         let mut values = Vec::<(Expr, Ty)>::new();
         for arg in args {
-            let mut setup = Vec::new();
+            let mut setup = setup::Body::default();
             let value = self.expr(arg, &mut setup)?;
             self.sequence_setup(values.iter_mut().map(|(e, _)| e), setup, out);
             values.push(value);
@@ -46,7 +46,7 @@ impl Binder<'_> {
         Ok(values)
     }
 
-    pub fn expr(&mut self, expr: &A, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
+    pub(super) fn expr(&mut self, expr: &A, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         let site = expr.site();
         match expr {
             A::Name { name, .. } => self.name(name, site),
@@ -96,13 +96,13 @@ impl Binder<'_> {
                 }
                 // Each arm binds under its narrowing and runs only when taken.
                 let temp = self.temp("if");
-                let mut then_out = Vec::new();
+                let mut then_out = setup::Body::default();
                 self.push_scope();
                 self.narrow(condition, true);
                 let then_bound = self.expr(then, &mut then_out);
                 self.pop_scope();
                 let (then_expr, then_ty) = then_bound?;
-                let mut else_out = Vec::new();
+                let mut else_out = setup::Body::default();
                 self.push_scope();
                 self.narrow(condition, false);
                 let else_bound = self.expr(otherwise, &mut else_out);
@@ -111,7 +111,7 @@ impl Binder<'_> {
                 then_out.push(Stmt::Assign { name: temp.clone(), value: then_expr });
                 else_out.push(Stmt::Assign { name: temp.clone(), value: else_expr });
                 out.push(Stmt::Let { name: temp.clone(), value: Expr::Literal(Value::Null) });
-                out.push(Stmt::If { condition: cond, then_body: then_out, else_body: else_out });
+                out.push_if(cond, then_out, else_out);
                 let ty = if then_ty == Ty::Null {
                     else_ty.optional()
                 } else if else_ty == Ty::Null {
@@ -169,7 +169,7 @@ impl Binder<'_> {
     /// server now, an int; `exists connected[p]` is the bool. Not a table:
     /// the server's registry of long polls answers it, a device answers 1
     /// and marks its read, and the server decides the write.
-    fn connected(&mut self, read: &ReadExpr, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
+    fn connected(&mut self, read: &ReadExpr, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         let site = &read.site;
         if read.keys.len() != 1 || read.range.is_some() || read.matching.is_some() || read.index.is_some() {
             return Err(unknown(site, "connected takes one principal: connected[p] counts its connections, exists connected[p] tests", "exists connected[m.principal]"));
@@ -252,11 +252,11 @@ impl Binder<'_> {
         Ok((ir::field(base, name), result_ty))
     }
 
-    pub(super) fn object(&mut self, fields: &[ObjectField], out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
+    pub(super) fn object(&mut self, fields: &[ObjectField], out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         let mut exprs = Vec::<(String, Expr)>::new();
         let mut types = BTreeMap::new();
         for field in fields {
-            let mut setup = Vec::new();
+            let mut setup = setup::Body::default();
             let (e, t) = match &field.value {
                 Some(value) => self.expr(value, &mut setup)?,
                 None => self.name(&field.name, &field.site)?,
@@ -274,17 +274,17 @@ impl Binder<'_> {
         Ok((Expr::Object(exprs.into_iter().collect()), Ty::Object(types)))
     }
 
-    pub(super) fn binary(&mut self, op: &str, left: &A, right: &A, site: &Site, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
+    pub(super) fn binary(&mut self, op: &str, left: &A, right: &A, site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         if op == "??" {
             let (l, lt) = self.expr(left, out)?;
             let tmp = self.temp("or");
             out.push(Stmt::Let { name: tmp.clone(), value: l });
-            let mut fallback = Vec::new();
+            let mut fallback = setup::Body::default();
             // `conversationId ?? 'dm1'`: a text literal after an identity is
             // an id, as it is beside `=` and in a key.
             let (r, rt) = if lt.required().is_identity() { self.expr_as_identity(right, &mut fallback, &lt.required())? } else { self.expr(right, &mut fallback)? };
             fallback.push(Stmt::Assign { name: tmp.clone(), value: r });
-            out.push(Stmt::If { condition: Expr::Binary { op: BinaryOp::Eq, left: Box::new(ir::var(&tmp)), right: Box::new(Expr::Literal(Value::Null)) }, then_body: fallback, else_body: Vec::new() });
+            out.push_if(Expr::Binary { op: BinaryOp::Eq, left: Box::new(ir::var(&tmp)), right: Box::new(Expr::Literal(Value::Null)) }, fallback, setup::Body::default());
             let ty = if rt.is_optional() { lt.required().join(&rt) } else { lt.required().join(&rt).required() };
             return Ok((ir::var(&tmp), ty));
         }
@@ -292,7 +292,7 @@ impl Binder<'_> {
         if op == "and" || op == "or" {
             let result = self.temp("bool");
             out.push(Stmt::Let { name: result.clone(), value: l });
-            let mut branch = Vec::new();
+            let mut branch = setup::Body::default();
             self.push_scope();
             self.narrow(left, op == "and");
             let right = self.expr(right, &mut branch);
@@ -302,12 +302,12 @@ impl Binder<'_> {
                 return Err(type_error(site, format!("{op} needs bool operands; got {} and {}", lt.name(), rt.name()), "compare each side first"));
             }
             branch.push(Stmt::Assign { name: result.clone(), value: r });
-            let (then_body, else_body) = if op == "and" { (branch, Vec::new()) } else { (Vec::new(), branch) };
-            out.push(Stmt::If { condition: ir::var(&result), then_body, else_body });
+            let (then_body, else_body) = if op == "and" { (branch, setup::Body::default()) } else { (setup::Body::default(), branch) };
+            out.push_if(ir::var(&result), then_body, else_body);
             return Ok((ir::var(&result), Ty::Bool));
         }
         let coerce_right = lt.is_identity();
-        let mut right_setup = Vec::new();
+        let mut right_setup = setup::Body::default();
         let (r, rt) = if coerce_right { self.expr_as_identity(right, &mut right_setup, &lt)? } else { self.expr(right, &mut right_setup)? };
         let (l, lt) = if rt.is_identity() && !lt.is_identity() {
             match (left, &l) {
@@ -394,7 +394,7 @@ impl Binder<'_> {
     }
 
     /// An expression in an identity position: a text literal becomes an id.
-    pub(super) fn expr_as_identity(&mut self, expr: &A, out: &mut Vec<Stmt>, expected: &Ty) -> Fallible<(Expr, Ty)> {
+    pub(super) fn expr_as_identity(&mut self, expr: &A, out: &mut setup::Body, expected: &Ty) -> Fallible<(Expr, Ty)> {
         if let A::Literal { value: Literal::Str(text), .. } = expr {
             if text.is_empty() {
                 return Err(type_error(expr.site(), "an empty text literal cannot be an id", "use a non-empty id literal, or null"));
@@ -404,7 +404,7 @@ impl Binder<'_> {
         self.expr(expr, out)
     }
 
-    pub(super) fn call(&mut self, name: &str, args: &[A], site: &Site, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
+    pub(super) fn call(&mut self, name: &str, args: &[A], site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         if let Some(function) = self.catalog.functions.get(name).cloned() {
             return self.fn_call(&function, args, site, out);
         }
@@ -481,7 +481,7 @@ impl Binder<'_> {
                 let list = self.temp("sum");
                 let item = self.temp("row");
                 out.push(Stmt::Let { name: list.clone(), value: Expr::Array(Vec::new()) });
-                let mut body = Vec::new();
+                let mut body = setup::Body::default();
                 self.push_scope();
                 self.declare(&item, item_ty.clone());
                 let saved = self.focal.replace((item.clone(), item_ty));
@@ -497,7 +497,7 @@ impl Binder<'_> {
                     ));
                 }
                 body.push(Stmt::Push { target: list.clone(), value: projection });
-                out.push(Stmt::For { binding: item, domain, body });
+                out.push_for(item, domain, body);
                 Ok((Expr::Builtin { builtin: Builtin::Sum, args: vec![ir::var(&list)] }, projection_ty))
             }
             "sum" => {

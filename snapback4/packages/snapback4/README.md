@@ -249,6 +249,19 @@ another. `fn isBrief(ttl: int ?): ttl != null` is a helper expression and
 each expanded where it is called (`isBrief(ttl)`; `stamp(r.id)` as a
 statement or expression), at most eight levels deep. A table-typed helper parameter keeps a row argument as a row with fields and no lookup; a reference argument stays a reference. A helper can write only
 when its caller can; a query's diagnostic names the write at the call site.
+A helper's `return` ends only that call, including inside a page's shape;
+the page keeps its continuation and completeness.
+A collector building a returned value makes the query incomplete if it exits
+with rows still unconsumed, even on a short final page.
+Every page with more rows needs its own returned
+cursor owner; another field's page cannot cover a lost sibling or auxiliary
+page. A fully consumed, exhausted scan is complete without an owner, including
+an exact-bound scan returned as `count(rows)` (subject to the meter, rules and
+device horizon). An auxiliary loop over an intact returned page does not change
+its completeness, even if that loop breaks. Repeating a page read never clears
+an earlier loss. If an owned page site executes repeatedly, only its final
+execution supplies `next`; a continuation lost by an earlier execution still
+makes the query incomplete.
 
 ### Actions
 
@@ -610,6 +623,7 @@ table memberships:
   cap 50 by conversationId
   read <- exists memberships[.conversationId, viewer]
   insert <- exists memberships[.conversationId, viewer]
+  sync
 
 table messages:
   conversationId: id
@@ -619,6 +633,7 @@ table messages:
   by byConvTime: conversationId, at, id
   read <- exists memberships[.conversationId, viewer]
   insert <- .authorId = viewer and exists memberships[.conversationId, viewer]
+  sync last 500 by byConvTime
 
 mutation send(conversationId: id, body: text <=4000):
   require exists memberships[conversationId, viewer] else NOT_MEMBER
@@ -628,6 +643,14 @@ mutation send(conversationId: id, body: text <=4000):
       emit notify { targetUserId: m.principal, chatId: conversationId, preview: slice(body, 0, 80) }
   return { id: msg.id }
 ```
+
+This send stays eligible to predict because presence decides only effects;
+the server decides who is notified at commit. For dispatch-time presence
+or any other presence-dependent decision, emit unconditionally and have
+the worker call a service mutation that reads `connected`.
+Prediction evaluates the safe untaken presence arms too and discards their
+effects, so it pays at least their server cost. Effect ids never consume
+`new` or an insert's ids.
 
 The data plane never calls out. `emit name { payload }` in a mutation or
 a job keeps the payload durably in the same commit as the rows (a
@@ -647,8 +670,17 @@ connected[p]` is the test. It is not a table: nothing syncs, nothing is
 written. A mutation reads it to notify only those with no connected
 client (Effects, above); a query reads it for an online mark. On a
 device the word is unknown: a query that reads it is `complete: false`,
-and a mutation's prediction reads everyone as connected, the server
-deciding when the write arrives.
+and the server answers it online. A mutation stays eligible to predict
+when presence decides only effects, so its rows are independent of
+presence and the server decides who is notified at commit.
+Presence-derived values use comparisons, `exists`, boolean logic and field
+values. Arithmetic, fallible builtins, reads, `new` or refusals controlled
+by presence keep `predicts: never`, as do conditional values without a
+fixed-size proof.
+Prediction charges both safe presence arms, so it may reach a bound even
+when the server would fit.
+If an untaken arm needs a combined guard's value refinement, the device
+queues without a row; put the data guard outside the presence guard.
 
 ### The meter
 
@@ -732,6 +764,7 @@ aggregates and group audiences with unbounded recipients or multiple values per 
 `check --residency` lists every table's residency, inferred and inherited
 audiences, and each operation's `runs: device | server` or
 `predicts: eligible | never`. Read sites are `held`, `horizon` or `server`.
+Queries reading `connected` run on the server; mutations stay eligible when presence decides only effects.
 A horizon site stays eligible but may queue without a row past the horizon;
 `E_PREDICT` names the table, index and key. `why <op>` names the reason and
 rewrite; `why <table>` includes the rule used for inference. The generated
@@ -1334,7 +1367,7 @@ step.
   structural class, and `--residency` names where operations run.
   `--fix` applies only diagnostics explicitly marked `mechanical`: an
   ambiguous key's `by`, a cursor index's missing `id`, and exact canonical
-  spelling rewrites. Before it edits, every compiled file must be
+  spelling rewrites, including `==` to `=`. Before it edits, every compiled file must be
   unchanged on disk, and every compiled file is read again just before the
   write. This check is best effort: it refuses an edit it observes and names
   the file; a save in the instant before the write can still be overwritten. It prints one

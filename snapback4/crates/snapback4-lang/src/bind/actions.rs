@@ -34,7 +34,7 @@ pub(super) fn bind(catalog: &Catalog, programs: &mut Vec<BoundProgram>, diagnost
                 let condition = rule(&decl.rule)?;
                 // Admission is the only IR body: it cannot read, write or emit.
                 let body = vec![Stmt::Require { condition, code: "E_RULE".into(), site: Some(format!("actions.{name}")) }];
-                Ok(BoundProgram { program: Program { name, kind: ProgramKind::Action, args, read_time_granularity_ms: None, body, native: false }, module: module.into(), args: types, result: Ty::Unknown, notes: Vec::new(), site: decl.site.clone() })
+                Ok(BoundProgram { program: Program { name, kind: ProgramKind::Action, args, read_time_granularity_ms: None, body, native: false }, presence: None, module: module.into(), args: types, result: Ty::Unknown, notes: Vec::new(), site: decl.site.clone() })
             })();
             match result { Ok(program) => programs.push(program), Err(error) => diagnostics.push(error) }
         }

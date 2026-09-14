@@ -57,7 +57,7 @@ pub fn bind(documents: Vec<Document>) -> Bound {
     }
     actions::bind(&catalog, &mut programs, &mut diagnostics);
     // The residency facts come before admission: a never-predicting mutation may pass over a uniformly authorized page (LLP 3000.007 §5.9), and admission reads that class here.
-    schema.operations = programs.iter().map(|bound| (bound.program.name.clone(), residency::execution(&schema, &bound.program))).collect();
+    schema.operations = programs.iter().map(|bound| (bound.program.name.clone(), residency::execution_with_presence(&schema, &bound.program, bound.presence.as_ref()))).collect();
     for doc in &catalog.documents {
         let module = std::path::Path::new(&doc.file).file_stem().unwrap().to_string_lossy();
         for decl in &doc.programs {

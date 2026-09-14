@@ -653,6 +653,8 @@ impl snapback4_core::Presence for Online {
 fn effects_engine() -> Engine {
     let bound = snapback4_lang::compile(&[("schema.q".to_owned(), EFFECTS.to_owned())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert_eq!(bound.schema.operations["send"].predicts.as_deref(), Some("eligible"));
+    assert_eq!(bound.schema.operations["online"].runs.as_deref(), Some("server"));
     let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
     engine.seed(vec![
         ("conversations".to_owned(), snapback4_core::value::object([("id", id("c1")), ("title", Value::String("General".into()))])),

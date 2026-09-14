@@ -10,3 +10,6 @@ description = "Quarry for Snapback 4: lexer, parser, binder to the core IR, diag
 snapback4-core = { path = "../snapback4-core" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+[dev-dependencies]
+sha2 = "0.10"

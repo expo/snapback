@@ -400,7 +400,7 @@ with `return [value]`, or with its last expression, or with its final write.
 - A typed map with dynamic keys → `group(list, 'col')`, whose result is a list of `{ key, items }` groups in first-seen order.
 Before editing, `check --fix` verifies every compiled source; an editor save refuses the repair with its filename. Its final compile re-reads the project.
 
-- Guessed spellings are refused with a canonical rewrite; `snapback4 check --fix` applies mechanical repairs (including missing indexes, argument `once`, repeated wildcard fields and empty operation parentheses): `cond ? a : b` → `a if cond else b`; `a?.b` → `a.b if a != null else null`; `len(x)` → `count(x)`; `elif` → `else if`; `proc` → `fn`; `//` and `#` → `--`.
+- Guessed spellings are refused with a canonical rewrite; `snapback4 check --fix` applies mechanical repairs (including missing indexes, argument `once`, repeated wildcard fields and empty operation parentheses): `cond ? a : b` → `a if cond else b`; `a?.b` → `a.b if a != null else null`; `len(x)` → `count(x)`; `elif` → `else if`; `proc` → `fn`; `//` and `#` → `--`; `==` → `=`.
 
 Cards: `snapback4 guide <keyword>` — types, indexes, rules, sync, residency, expire,
 assets, reads, shapes, writes, programs, jobs, native, feeds, search,
@@ -626,7 +626,9 @@ Queries run on the device unless a site is server-only. Mutations predict
 when eligible; every mutation can queue. An eligible mutation's horizon
 sites say "may queue without a row past the horizon"; E_PREDICT names the
 site, table, index and key the device could not establish. Native reads
-need the app's module on the device; connected is known only by the server.
+need the app's module on the device.
+Queries reading `connected` run on the server; mutations stay eligible when presence decides only effects.
+Presence-derived values use only total comparisons, boolean logic and fixed-size field values; fallible work keeps `never`.
 
 `why notice` names its horizon; `why countNotices` names the online-only
 maintain and the rewrite. `why notices` prints the rule that inferred sync.
@@ -809,6 +811,18 @@ A table-typed helper accepts that table's row or reference. A reference has no
 fields: read `messages[m] ! else NOT_FOUND` first, or select through the shape's
 implicit row parameter, `messages[m] { body: .body }`. Shapes are projections,
 not declared helper-argument types.
+A helper's early `return` inside a page's shape ends only that call; the page
+keeps its `next` cursor and completeness.
+A collector building a returned value makes the query incomplete if it exits
+with rows still unconsumed, even on a short final page.
+Each page needs its own returned owner when it has
+more rows: one field's cursor cannot cover a lost sibling or auxiliary page.
+A fully consumed, exhausted scan needs no cursor owner, even when its row count
+equals the bound and the query returns a scalar such as `count(rows)`.
+An auxiliary traversal of an intact returned page does not affect completeness,
+even if it breaks. Repeating a page read cannot clear earlier loss: only the
+final execution of an owned page site supplies `next`, and an earlier lost
+continuation still makes the query incomplete.
 A row-based shape keeps `pending?: boolean` from its base, including `*`, named
 spreads and subsequent shapes. It is this device's unconfirmed change, absent
 after confirmation; it is not a schema column or metadata on a containing record."##,
@@ -914,6 +928,7 @@ domain:`, `break`, `continue`, `return`, a helper `fn` call, and a write; every 
 expression must be bound or returned. `fn` takes one expression or a body ending
 in `return expr` or a bare `return`; calls work in statements and expressions.
 A helper return exits only the helper, and its locals cannot capture the caller's.
+It never repositions or reclassifies an enclosing page.
 Queries cannot write or mint ids, including through a helper; the call site names
 the write that does not belong."##,
         "jobs" => r##"# Jobs and schedules: the server's own work, on its own clock
@@ -1252,7 +1267,8 @@ table members:
   by byPrincipalRoom: principal, roomId, id
   cap 100 by roomId
   read <- exists members[.roomId, viewer]
-  insert <- allow
+  insert <- exists members[.roomId, viewer]
+  sync
 
 table messages:
   roomId: id
@@ -1262,6 +1278,7 @@ table messages:
   by byRoomTime: roomId, at, id
   read <- exists members[.roomId, viewer]
   insert <- .authorId = viewer and exists members[.roomId, viewer]
+  sync last 500 by byRoomTime
 
 mutation send(roomId: id, body: text <=4000):
   require exists members[roomId, viewer] else NOT_MEMBER
@@ -1271,6 +1288,10 @@ mutation send(roomId: id, body: text <=4000):
       emit notify { targetUserId: m.principal, roomId, preview: slice(body, 0, 80) }
   return { id: msg.id }
 ```
+
+This send stays eligible to predict because presence decides only effects; the server decides who is notified at commit.
+Prediction also evaluates the safe untaken presence arms and discards their effects, so it pays at least their server cost. Effect ids never consume `new` or an insert's ids.
+For dispatch-time presence or any other presence-dependent decision, emit unconditionally and have the worker call a service mutation that reads `connected`.
 
 The data plane never calls out. `emit name { payload }` in a mutation or
 a job writes the payload durably in the same commit as the rows (a
@@ -1350,9 +1371,9 @@ authenticated `/probe` confirms recovery. Suspended hosts notify on resume.
 It is not a table: nothing
 syncs, nothing is written. A mutation reads it to notify only those with
 no connected client (guide effects); a query reads it for an online mark.
-On a device the word is unknown: a query that reads it is `complete:
-false`, and a mutation's prediction reads everyone as connected (the
-least speculative rows) — the server decides when the write arrives.
+On a device the word is unknown: a query that reads it is `complete: false`.
+A mutation stays eligible to predict when presence decides only effects, so its rows are independent of presence and the server decides who is notified at commit.
+Presence-derived values may use comparisons, `exists`, boolean logic and field values. Arithmetic, fallible builtins, reads, `new` or refusals controlled by presence keep `predicts: never`, as do conditional values without a fixed-size proof. Prediction charges both safe presence arms, so it may reach a bound even when the server would fit. If an untaken arm needs a combined guard's value refinement, the device queues without a row; put the data guard outside presence.
 `snapback4 run` reads nobody as connected."##,
         "bounds" => r##"# Bounds and the meter
 

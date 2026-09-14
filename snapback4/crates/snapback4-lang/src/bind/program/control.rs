@@ -5,7 +5,7 @@ use super::*;
 impl Binder<'_> {
     // ----- statements -----
 
-    pub(super) fn block(&mut self, statements: &[S], out: &mut Vec<Stmt>, completes: bool) -> Fallible<()> {
+    pub(super) fn block(&mut self, statements: &[S], out: &mut setup::Body, completes: bool) -> Fallible<()> {
         let before = self.visible_bindings();
         self.push_scope();
         let count = statements.len();
@@ -27,7 +27,7 @@ impl Binder<'_> {
         result
     }
 
-    pub(super) fn statement(&mut self, statement: &S, out: &mut Vec<Stmt>, completes: bool) -> Fallible<()> {
+    pub(super) fn statement(&mut self, statement: &S, out: &mut setup::Body, completes: bool) -> Fallible<()> {
         match statement {
             S::Return { value, site: _ } => {
                 let (expr, ty) = self.value_of(value, out)?;
@@ -108,12 +108,16 @@ impl Binder<'_> {
                 if !self.catalog.effects.contains_key(effect) {
                     return Err(unknown(site, format!("unknown effect {effect}"), format!("declare `effect {effect}` at the top level; a worker with a service token claims what is emitted (guide effects)")));
                 }
+                let start = out.len();
                 let (expr, _) = self.expr(payload, out)?;
+                if self.record_ownership { out.own(start, setup::Owner::Payload); }
                 out.push(Stmt::Emit { effect: effect.clone(), payload: expr });
                 Ok(())
             }
             S::If { condition, then_body, else_body, site: _ } => {
+                let start = out.len();
                 let (expr, ty) = self.expr(condition, out)?;
+                if self.record_ownership { out.own(start, setup::Owner::Condition); }
                 if !ty.is_bool() {
                     return Err(type_error(condition.site(), format!("if needs a bool condition, got {}", ty.name()), "compare the value: `if x != null:`"));
                 }
@@ -143,7 +147,7 @@ impl Binder<'_> {
                     binding.revision = then_bindings[&name].revision.max(else_bindings[&name].revision);
                     self.scopes.last_mut().expect("a scope").insert(name, binding);
                 }
-                out.push(Stmt::If { condition: expr, then_body: then_out, else_body: else_out });
+                out.push_if(expr, then_out, else_out);
                 Ok(())
             }
             S::For { name, domain, body, site } => {
@@ -152,7 +156,7 @@ impl Binder<'_> {
                     return Err(unknown(site, format!("{name} is an argument; locals cannot shadow arguments"), "give the loop item a fresh name"));
                 }
                 let (binding, body_out) = self.loop_body(name, item_ty, body, site)?;
-                out.push(Stmt::For { binding, domain: loop_domain, body: body_out });
+                out.push_for(binding, loop_domain, body_out);
                 Ok(())
             }
             S::Break { site } => {
@@ -194,7 +198,7 @@ impl Binder<'_> {
         }
     }
 
-    pub(super) fn tuple_bind(&mut self, names: &[String], value: &A, site: &Site, out: &mut Vec<Stmt>) -> Fallible<()> {
+    pub(super) fn tuple_bind(&mut self, names: &[String], value: &A, site: &Site, out: &mut setup::Body) -> Fallible<()> {
         let A::Call { name, args, .. } = value else {
             return Err(unknown(site, "tuple bindings take exactly two names and sorted(a, b) or divmod(a, b)", "(quotient, remainder) = divmod(dividend, divisor)"));
         };
@@ -237,7 +241,7 @@ impl Binder<'_> {
 
     /// Join loop-carried writes with the zero-iteration path before accepting
     /// the body. A refinement from the first iteration cannot bless later ones.
-    fn loop_body(&mut self, name: &str, item: Ty, body: &[S], site: &Site) -> Fallible<(String, Vec<Stmt>)> {
+    fn loop_body(&mut self, name: &str, item: Ty, body: &[S], site: &Site) -> Fallible<(String, setup::Body)> {
         let mut header = self.visible_bindings();
         let saved = self.scopes.clone();
         let (temps, sites, returns) = (self.temps, self.sites, self.returns.len());
@@ -253,7 +257,7 @@ impl Binder<'_> {
             self.push_scope();
             let binding = self.declare(name, item.clone());
             self.loops += 1;
-            let mut out = Vec::new();
+            let mut out = setup::Body::default();
             let result = self.block(body, &mut out, false);
             self.loops -= 1;
             let after = self.visible_bindings();
@@ -303,7 +307,7 @@ impl Binder<'_> {
                 } else if let Some((name, path)) = field_path(candidate)
                     && !path.is_empty()
                     && let Some(mut binding) = self.binding(name).cloned()
-                    && let Ok((_, ty)) = self.expr(candidate, &mut Vec::new())
+                    && let Ok((_, ty)) = self.expr(candidate, &mut setup::Body::default())
                 {
                     // @ref LLP 3000.007#10 — null guards refine fields of lexical snapshots, through short circuits and surviving branches.
                     let present = (op == "!=") == then_branch;
@@ -321,7 +325,7 @@ impl Binder<'_> {
         self.binding(name)?.fields.get(&path).cloned()
     }
 
-    pub(super) fn loop_domain(&mut self, domain: &A, out: &mut Vec<Stmt>) -> Fallible<(LoopDomain, Ty)> {
+    pub(super) fn loop_domain(&mut self, domain: &A, out: &mut setup::Body) -> Fallible<(LoopDomain, Ty)> {
         match domain {
             A::Read(read) if read.range.is_some() => {
                 let (scan, _) = self.scan(read, out)?;
@@ -334,7 +338,7 @@ impl Binder<'_> {
             A::Call { name, args, site } if name == "range" => {
                 if args.len() != 2 { return Err(type_error(site, "range takes two int expressions", "for i in range(0, n):")); }
                 let (start, start_ty) = self.expr(&args[0], out)?;
-                let mut setup = Vec::new();
+                let mut setup = setup::Body::default();
                 let (end, end_ty) = self.expr(&args[1], &mut setup)?;
                 let start = if setup.is_empty() { start } else { self.snapshot(start, out) };
                 out.extend(setup);
@@ -370,7 +374,7 @@ impl Binder<'_> {
     /// Arguments belong to the caller: bind and snapshot each one before
     /// introducing any parameter. `new` and reads are evaluated once, in
     /// source order, even when the helper uses the parameter repeatedly.
-    fn helper_arguments(&mut self, name: &str, declared: &[ast::ArgDecl], args: &[A], site: &Site, out: &mut Vec<Stmt>) -> Fallible<BTreeMap<String, Binding>> {
+    fn helper_arguments(&mut self, name: &str, declared: &[ast::ArgDecl], args: &[A], site: &Site, out: &mut setup::Body) -> Fallible<BTreeMap<String, Binding>> {
         if self.depth >= MAX_EXPANSION_DEPTH {
             return Err(unsupported(site, "helpers nested deeper than eight levels", "flatten the helper"));
         }
@@ -401,7 +405,7 @@ impl Binder<'_> {
         Ok(bindings)
     }
 
-    pub(super) fn fn_call(&mut self, function: &ast::FunctionDecl, args: &[A], site: &Site, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
+    pub(super) fn fn_call(&mut self, function: &ast::FunctionDecl, args: &[A], site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         let bindings = self.helper_arguments(&function.name, &function.args, args, site, out)?;
         let caller = std::mem::replace(&mut self.scopes, vec![bindings]);
         let focal = self.focal.take();
@@ -412,14 +416,16 @@ impl Binder<'_> {
         let result = match &function.body {
             ast::FunctionBody::Expression(value) => self.value_of(value, out),
             ast::FunctionBody::Block(statements) => {
-                let mut body = Vec::new();
+                let mut body = setup::Body::default();
                 self.block(statements, &mut body, false).map(|()| {
                     let ty = self.returns.iter().cloned().reduce(|a, b| a.join(&b)).unwrap_or(Ty::Null);
                     let result = self.temp("result");
                     let done = self.temp("returned");
                     out.push(Stmt::Let { name: result.clone(), value: Expr::Literal(Value::Null) });
                     out.push(Stmt::Let { name: done.clone(), value: Expr::Literal(Value::Bool(false)) });
-                    out.extend(helper_returns(body, &result, &done).0);
+                    let ownership = setup::helper_ownership(&body);
+                    let code = helper_returns(body.code, &result, &done).0;
+                    out.extend(setup::Body { code, ownership });
                     (ir::var(&result), ty)
                 })
             }
@@ -440,10 +446,10 @@ impl Binder<'_> {
         self.scopes.iter().flat_map(|scope| scope.iter().map(|(name, binding)| (name.clone(), binding.clone()))).collect()
     }
 
-    fn branch(&mut self, condition: &A, taken: bool, statements: &[S], completes: bool) -> Fallible<(Vec<Stmt>, BTreeMap<String, Binding>)> {
+    fn branch(&mut self, condition: &A, taken: bool, statements: &[S], completes: bool) -> Fallible<(setup::Body, BTreeMap<String, Binding>)> {
         self.push_scope();
         self.narrow(condition, taken);
-        let mut out = Vec::new();
+        let mut out = setup::Body::default();
         let result = (|| {
             for (index, statement) in statements.iter().enumerate() {
                 self.statement(statement, &mut out, completes && index + 1 == statements.len())?;

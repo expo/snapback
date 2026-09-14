@@ -100,7 +100,7 @@ const ARG_ONCE: &str = include_str!("../../snapback4-lang/tests/fixtures/repair-
 const WILDCARD: &str = include_str!("../../snapback4-lang/tests/fixtures/repair-shape.q");
 const EMPTY_ARGS: &str = include_str!("../../snapback4-lang/tests/fixtures/repair-parens.q");
 
-fn check_fix(files: &[(&str, &str, &str)], success: bool) {
+fn check_fix(files: &[(&str, &str, &str)], success: bool) -> std::process::Output {
     static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let root = std::env::temp_dir().join(format!("sb4-cu5-{}-{}-{}", std::process::id(), snapback4_core::now_ms(), NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
     std::fs::create_dir_all(root.join("snapback")).unwrap();
@@ -111,6 +111,32 @@ fn check_fix(files: &[(&str, &str, &str)], success: bool) {
     if !success { assert_eq!(output.status.code(), Some(1)); }
     for (name, _, expected) in files { assert_eq!(std::fs::read_to_string(root.join("snapback").join(name)).unwrap(), *expected, "{name}"); }
     std::fs::remove_dir_all(root).unwrap();
+    output
+}
+
+#[test]
+fn check_fix_leaves_strict_not_equal_unchanged() {
+    let source = "query q():\n  return 1 !== 2\n";
+    let output = check_fix(&[("schema.q", source, source)], false);
+    let text = String::from_utf8(output.stderr).unwrap();
+    assert!(text.contains("expected expression, got \"=\""), "{text}");
+    assert!(text.contains("query q has an empty body"), "{text}");
+    assert!(!text.contains("equality is = in Quarry"), "{text}");
+}
+
+#[test]
+fn check_fix_repairs_equality_and_keeps_the_independent_error() {
+    let source = "query q():\n  yes = 1 == 1\n  return :\n";
+    let expected = source.replace("==", "=");
+    let before = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert_eq!(before.diagnostics.len(), 2);
+    let output = check_fix(&[("schema.q", source, &expected)], false);
+    let text = String::from_utf8(output.stderr).unwrap();
+    assert!(text.contains("expected expression, got \":\""), "{text}");
+    assert!(!text.contains("equality is = in Quarry"), "{text}");
+    let after = snapback4_lang::compile(&[("schema.q".into(), expected)]);
+    assert_eq!(after.diagnostics.len(), 1);
+    assert_eq!(after.diagnostics[0].to_string(), before.diagnostics[1].to_string());
 }
 
 #[test]
@@ -122,6 +148,44 @@ fn check_fix_applies_the_four_reproduced_repairs_byte_exact() {
         (WILDCARD, WILDCARD.replace("*, tombstone", "*")),
         (EMPTY_ARGS, EMPTY_ARGS.replace("trending:", "trending():")),
     ] { check_fix(&[("schema.q", source, &corrected)], true); }
+}
+
+#[test]
+fn check_fix_repairs_double_equals_byte_exact_in_helpers_and_multiple_files() {
+    let helper = include_str!("../../snapback4-lang/tests/fixtures/repair-equality.q");
+    check_fix(&[("schema.q", helper, &helper.replace("==", "="))], true);
+    let source = "query q():\r\n  return ('é'=='é') and (2 == 2) and ('==' != '=') -- == keep café\r\n";
+    let expected = source.replace("'é'=='é'", "'é'='é'").replace("2 == 2", "2 = 2");
+    check_fix(&[("one.q", source, &expected), ("two.q", source, &expected)], true);
+    for source in ["query q():\n  return '==' != '=' -- ==\n", "query q():\n  return 1 != 2\n"] {
+        check_fix(&[("schema.q", source, source)], true);
+    }
+    let triple = "query q():\n  return 1 === 1\n";
+    check_fix(&[("schema.q", triple, triple)], false);
+}
+
+#[test]
+fn double_equals_edit_rechecks_tokens_at_the_exact_site() {
+    let source = "query q():\n  return 1 == 1\n";
+    let d = snapback4_lang::compile(&[("schema.q".into(), source.into())]).diagnostics.remove(0);
+    let sources = vec![("schema.q".into(), source.into())];
+    let (target, start, end, replacement) = fix::edit(&sources, 0, &d).unwrap();
+    assert_eq!(target, 0);
+    assert_eq!(&source[start..end], "==");
+    assert_eq!(replacement, "=");
+    for changed in [
+        source.replace("==", "="), source.replace("==", "!="), source.replace("==", "==="),
+        source.replace("==", "= ="), source.replace("==", "=\n="),
+        "query q():\n  return 1 '=='\n".into(), "query q():\n  return '--=='\n".into(),
+        "query q():\n  return 1--==\n".into(), "query q():\n  return 1//==\n".into(),
+        format!("{}query later():\n  return 1 == 1\n", source.replace("==", "=")),
+    ] { assert!(fix::edit(&[("schema.q".into(), changed.clone())], 0, &d).is_none(), "{changed}"); }
+    let mut unmarked = d.clone();
+    unmarked.mechanical = false;
+    assert!(fix::edit(&sources, 0, &unmarked).is_none());
+    let mut wrong = d;
+    wrong.rewrite = "!=".into();
+    assert!(fix::edit(&sources, 0, &wrong).is_none());
 }
 
 #[test]

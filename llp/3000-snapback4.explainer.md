@@ -682,6 +682,11 @@ time-ordered 128-bit form.
   know and says so: a query is `complete: false`, a prediction reads
   everyone as connected and the server decides.
 
+  **2026-09-14 — prediction clarified by [LLP 3000.007 §19.1](./3000.007-relaxed-quarry-and-explicit-residency.rfc.md#19.1).**
+  Presence may decide only effects in an eligible mutation; a presence-derived
+  write, refusal, result, read key or other control flow keeps it server-only.
+  The server decides notifications at commit; presence queries remain server-run.
+
 - **2026-09-13 — the ranked feed is on the card (lead; LLP 3000.004 §9
   decision 3 taken as "now").** Shape 4.2 — a shared scored partition, the
   viewer's own signals, an external ranker through a service seat — is

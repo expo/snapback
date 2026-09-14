@@ -1,0 +1,467 @@
+{
+  "corpusVersion": 1,
+  "name": "named-emit-independent-ids",
+  "category": "named",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "events": {
+        "columns": {
+          "body": {
+            "Text": {
+              "max": 64
+            }
+          },
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "emit corpus fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "emit corpus fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "emit corpus fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "emit corpus fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": [],
+    "effects": [
+      "notifications.notify"
+    ]
+  },
+  "program": {
+    "name": "emitAfterInsert",
+    "kind": "Mutation",
+    "args": {
+      "body": "Scalar"
+    },
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Const": {
+          "name": "firstId",
+          "value": {
+            "Input": "NewId"
+          }
+        }
+      },
+      {
+        "Insert": {
+          "table": "events",
+          "row": {
+            "Object": {
+              "body": {
+                "Variable": "body"
+              },
+              "id": {
+                "Variable": "firstId"
+              }
+            }
+          }
+        }
+      },
+      {
+        "Emit": {
+          "effect": "notifications.notify",
+          "payload": {
+            "Variable": "firstId"
+          }
+        }
+      },
+      {
+        "Const": {
+          "name": "secondId",
+          "value": {
+            "Input": "NewId"
+          }
+        }
+      },
+      {
+        "Insert": {
+          "table": "events",
+          "row": {
+            "Object": {
+              "body": {
+                "Variable": "body"
+              },
+              "id": {
+                "Variable": "secondId"
+              }
+            }
+          }
+        }
+      },
+      {
+        "Return": {
+          "Array": [
+            {
+              "Variable": "firstId"
+            },
+            {
+              "Variable": "secondId"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "emitAfterInsert",
+    "plan_hash": "abb93e536653fa78c697cc285428921b18224a0618082965f39afcd03ecff06c",
+    "schema_hash": "467c2f49e8469df627de03e8505c99827aca153ce9d0dfa7c4ba15833fcc33a3",
+    "tables": {
+      "events": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "events.insert": "5d3344e720a31c25f61eb50c6ab2dda77417895c8673fb2db99abdce2dd36ac7"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [],
+    "write_sites": [
+      {
+        "table": "events",
+        "kind": "Insert",
+        "max_rows": 1
+      },
+      {
+        "table": "_outbox",
+        "kind": "Emit",
+        "max_rows": 1
+      },
+      {
+        "table": "events",
+        "kind": "Insert",
+        "max_rows": 1
+      }
+    ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "events",
+          "kind": "create",
+          "unresolved": "ambiguous"
+        }
+      ],
+      "complete": false
+    },
+    "maintained_amplification": 0,
+    "constraint_checks": [
+      "events:Unique(byId)"
+    ],
+    "max_examined": 0,
+    "max_index_entries": 0,
+    "max_rule_probes": 0,
+    "max_steps": 33,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 1056,
+    "max_output_bytes": 302,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [],
+    "disclosures": [],
+    "bound_product": null,
+    "cost_terms": [
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "_outbox Emit writes",
+        "site": "emitAfterInsert:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "events Insert writes",
+        "site": "emitAfterInsert:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "events Insert writes",
+        "site": "emitAfterInsert:statement:5"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "emitAfterInsert:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "emitAfterInsert:statement:5"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "emitAfterInsert:statement:6"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "emitAfterInsert:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "emitAfterInsert:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "emitAfterInsert:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "emitAfterInsert:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "emitAfterInsert:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "emitAfterInsert:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "emitAfterInsert:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "emitAfterInsert:statement:5"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "emitAfterInsert:statement:6"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "_outbox Emit writes \u00d7 32",
+        "site": "emitAfterInsert:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "events Insert writes \u00d7 32",
+        "site": "emitAfterInsert:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "events Insert writes \u00d7 32",
+        "site": "emitAfterInsert:statement:5"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions \u00d7 32",
+        "site": "emitAfterInsert:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions \u00d7 32",
+        "site": "emitAfterInsert:statement:5"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions \u00d7 32",
+        "site": "emitAfterInsert:statement:6"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions \u00d7 32",
+        "site": "emitAfterInsert:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions \u00d7 32",
+        "site": "emitAfterInsert:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions \u00d7 32",
+        "site": "emitAfterInsert:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements \u00d7 32",
+        "site": "emitAfterInsert:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements \u00d7 32",
+        "site": "emitAfterInsert:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements \u00d7 32",
+        "site": "emitAfterInsert:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements \u00d7 32",
+        "site": "emitAfterInsert:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements \u00d7 32",
+        "site": "emitAfterInsert:statement:5"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements \u00d7 32",
+        "site": "emitAfterInsert:statement:6"
+      },
+      {
+        "meter": "output bytes",
+        "value": 144,
+        "source": "NewId",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 144,
+        "source": "NewId",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 14,
+        "source": "array: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "events Insert",
+        "site": "emitAfterInsert:statement:2"
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "_outbox Emit",
+        "site": "emitAfterInsert:statement:3"
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "events Insert",
+        "site": "emitAfterInsert:statement:2"
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {
+      "body": {
+        "String": "hello with effect"
+      }
+    },
+    "now": 0,
+    "new_ids": [
+      "named-emit-message",
+      "named-emit-followup"
+    ],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "467c2f49e8469df627de03e8505c99827aca153ce9d0dfa7c4ba15833fcc33a3",
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Array": [
+        {
+          "Id": "named-emit-message"
+        },
+        {
+          "Id": "named-emit-followup"
+        }
+      ]
+    },
+    "errorCode": null,
+    "localState": "predicted",
+    "partialSites": [],
+    "canonicalResult": "{\"Array\":[{\"Id\":\"named-emit-message\"},{\"Id\":\"named-emit-followup\"}]}",
+    "digest": "1996346372f129d467d9984275d51582c8bc86fca5ce566a6f3e47b4b2962ec7",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  },
+  "snapback4Note": "LLP 3000.007 \u00a719.1: effects use independent commit/ordinal ids; the row/result supply contains only the two row ids. Replaces the shared-supply oracle in the untouched named-emit case."
+}

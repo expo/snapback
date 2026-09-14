@@ -365,7 +365,7 @@ impl Runner<'_> {
         }
         let empty_page = |this: &mut Self| {
             if this.page_depth == 0 && scan.opaque_cursor {
-                this.pages.insert(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: position + 1, next: None });
+                this.record_page(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: position + 1, interrupted: false, next: None });
             }
         };
         // @ref LLP 3000.007#18.1 — one verdict per matching scope, before word discovery; the outer merge orders these scoped pages.
@@ -634,9 +634,22 @@ impl Runner<'_> {
             let position = if visible.len() == take { keys.last() } else { last_rule_visible.as_ref().or_else(|| keys.last()) };
             let continues = if capped || self.non_uniform || self.word_cut_at.is_some() { position.is_some() } else { has_more };
             let next = if continues { position.and_then(|key| crate::key::decode(key)).map(|values| values.into_iter().take(components).skip(prefix.len()).collect()) } else { None };
-            self.pages.insert(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: prefix.len(), next });
+            self.record_page(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: prefix.len(), interrupted: false, next });
         }
         Ok((visible, keys))
+    }
+
+    // @ref LLP 3000.007#19.2 — loss is monotone across executions; only the last execution at an owned site carries next.
+    fn record_page(&mut self, site: String, page: PagePosition) {
+        if let Some(previous) = self.pages.insert(site, page) {
+            self.discarded_page_loss |= previous.interrupted || previous.next.is_some();
+        }
+    }
+
+    /// Check every page: another result field's owner cannot carry this one's
+    /// continuation. A consumed, exhausted page needs no owner, at any size.
+    pub(super) fn page_position_lost(&self) -> bool {
+        self.discarded_page_loss || self.pages.iter().any(|(site, page)| page.interrupted || (page.next.is_some() && self.page_owner.as_ref() != Some(site)))
     }
 
     /// The opaque `next` cursor of the program's page, if it has one.
@@ -733,7 +746,7 @@ impl Runner<'_> {
         if self.page_depth == 0 && first.scan.opaque_cursor {
             let continues = if self.meter.capped_at.is_some() || self.non_uniform || self.word_cut_at.is_some() { !candidates.is_empty() } else { has_more };
             let next = if continues { candidates.last().map(|(key, _)| key.clone()) } else { None };
-            self.pages.insert(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, next });
+            self.record_page(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, interrupted: false, next });
         }
         Ok(candidates.into_iter().map(|(_, row)| row).collect())
     }
@@ -810,7 +823,7 @@ impl Runner<'_> {
         if depth == 0 {
             if first.scan.opaque_cursor {
                 let continues = if self.meter.capped_at.is_some() || self.non_uniform || self.word_cut_at.is_some() { !page.is_empty() } else { has_more };
-                self.pages.insert(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, next: if continues { last } else { None } });
+                self.record_page(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, interrupted: false, next: if continues { last } else { None } });
             } else if has_more { self.page_overflow = true; }
         }
         Ok(page)

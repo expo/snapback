@@ -4,8 +4,19 @@ use crate::diag::Diagnostic;
 use snapback4_core::ir::{self, Expr, LoopDomain, Program, ProgramKind, Stmt};
 use snapback4_core::schema::{Audience, Execution, ResidencySite, RuleExpr, Schema, SiteClass};
 use std::collections::{BTreeMap, BTreeSet};
+mod presence;
 
 pub fn execution(schema: &Schema, program: &Program) -> Execution {
+    execution_with_presence(schema, program, None)
+}
+
+pub(super) fn presence_facts(program: &Program, ownership: &super::program::setup::Ownership) -> Execution {
+    let mut fact = Execution::default();
+    presence::inspect(program, &mut fact, ownership);
+    fact
+}
+
+pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presence: Option<&Execution>) -> Execution {
     let mut fact = Execution::default();
     for read in ir::read_sites(program) {
         fact.sites.push(site(schema, &read.site, &read.table, &read.index, read.kind));
@@ -22,7 +33,15 @@ pub fn execution(schema: &Schema, program: &Program) -> Execution {
         }
     }
     let mut requires = BTreeSet::new();
-    inspect(&program.body, &mut requires, &mut fact.sites);
+    let mut presence_sites = Vec::new();
+    inspect(&program.body, &mut requires, &mut presence_sites);
+    if program.kind == ProgramKind::Mutation {
+        let presence = presence.cloned().unwrap_or_else(|| presence_facts(program, &BTreeMap::new()));
+        fact.connected_effects_only = presence.connected_effects_only;
+        fact.prediction_guards = presence.prediction_guards;
+        fact.sites.extend(presence.sites);
+    }
+    else { fact.sites.extend(presence_sites); }
     fact.requires = requires.into_iter().collect();
     if program.native {
         fact.sites.push(ResidencySite { site: program.name.clone(), table: "native".into(), index: program.name.clone(), kind: "native".into(), class: SiteClass::Server, reason: "native read needs the app's module; held on a device with the module".into(), rewrite: "install the app's native module on this device".into() });
@@ -217,9 +236,12 @@ pub fn table_line(schema: &Schema, name: &str) -> String {
 pub fn operation_lines(name: &str, fact: &Execution) -> String {
     let word = match (fact.runs.as_deref(), fact.predicts.as_deref()) { (Some(runs), _) => format!("runs: {runs}"), (_, Some("eligible")) => "predicts: eligible".into(), _ => "predicts: never; queued without a row".into() };
     let mut lines = vec![format!("  {name}: {word}")];
+    if fact.connected_effects_only { lines.push(format!("    {CONNECTED_EFFECTS}")); }
     for site in &fact.sites {
         lines.push(format!("    {:?}: {} (site {}){}", site.class, site.reason, site.site, if site.class == SiteClass::Horizon { if fact.predicts.as_deref() == Some("eligible") { "; may queue without a row past the horizon" } else { "; server past the horizon" } } else { "" }));
         if site.class != SiteClass::Held { lines.push(format!("      rewrite: {}", site.rewrite)); }
     }
     lines.join("\n")
 }
+
+pub const CONNECTED_EFFECTS: &str = "connected: decides effects only — the server decides who is notified at commit";

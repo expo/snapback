@@ -15,11 +15,13 @@ use std::collections::BTreeMap;
 mod control;
 mod expr;
 mod reads;
+pub(crate) mod setup;
 
 /// A bound operation: the IR plus the types the client sees.
 #[derive(Clone, Debug)]
 pub struct BoundProgram {
     pub program: Program,
+    pub(crate) presence: Option<snapback4_core::schema::Execution>,
     pub module: String,
     pub args: Vec<(String, Ty)>,
     pub result: Ty,
@@ -41,6 +43,7 @@ pub struct Binder<'a> {
     /// Enclosing `for` and `chunk` bodies: where `break` may stand.
     loops: u32,
     in_prelude: bool,
+    record_ownership: bool,
     notes: Vec<Diagnostic>,
 }
 
@@ -61,7 +64,13 @@ const MENTION_MAX: u32 = 64;
 
 impl<'a> Binder<'a> {
     pub fn bind(catalog: &'a Catalog, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>) -> Option<BoundProgram> {
-        let mut binder = Binder { catalog, name: decl.name.clone(), kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, notes: Vec::new() };
+        Self::bind_with_ownership(catalog, module, decl, diagnostics, true)
+    }
+
+    /// Differential-test control: lowering is identical with the side map disabled.
+    #[doc(hidden)]
+    pub fn bind_with_ownership(catalog: &'a Catalog, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>, record_ownership: bool) -> Option<BoundProgram> {
+        let mut binder = Binder { catalog, name: decl.name.clone(), kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, notes: Vec::new() };
         let mut args = BTreeMap::new();
         let mut arg_types = Vec::new();
         for arg in &decl.args {
@@ -88,9 +97,9 @@ impl<'a> Binder<'a> {
                 ProgramKind::Query => (ir::ProgramKind::Query, Ty::Json),
                 _ => (ir::ProgramKind::Job, Ty::Null),
             };
-            return Some(BoundProgram { program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true }, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
+            return Some(BoundProgram { program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
         }
-        let mut body = Vec::new();
+        let mut body = setup::Body::default();
         let mut failed = false;
         let count = decl.body.len();
         let arguments = binder.scopes.clone();
@@ -99,7 +108,7 @@ impl<'a> Binder<'a> {
                 binder.scopes = arguments.clone();
                 binder.push_scope();
                 binder.in_prelude = true;
-                let mut prelude = Vec::new();
+                let mut prelude = setup::Body::default();
                 for statement in &decl.prelude {
                     if let Err(diagnostic) = binder.statement(statement, &mut prelude, false) {
                         diagnostics.push(diagnostic);
@@ -109,7 +118,7 @@ impl<'a> Binder<'a> {
                 binder.in_prelude = false;
                 if !prelude.is_empty() {
                     // @ref LLP 3000.007#5.2 — each sweep carries its prelude as setup in the existing serialized statement vocabulary.
-                    body.push(Stmt::If { condition: Expr::Literal(Value::Bool(true)), then_body: prelude, else_body: Vec::new() });
+                    body.push_if(Expr::Literal(Value::Bool(true)), prelude, setup::Body::default());
                 }
             }
             match binder.statement(statement, &mut body, index + 1 == count) {
@@ -149,7 +158,12 @@ impl<'a> Binder<'a> {
             ProgramKind::Mutation => ir::ProgramKind::Mutation,
             ProgramKind::Job => ir::ProgramKind::Job,
         };
-        Some(BoundProgram { program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body, native: false }, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
+        let ownership = body.ownership;
+        let program = Program { name: full_name, kind, args, read_time_granularity_ms: None, body: body.code, native: false };
+        let presence = if kind == ir::ProgramKind::Mutation {
+            Some(super::residency::presence_facts(&program, &ownership))
+        } else { None };
+        Some(BoundProgram { program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
     }
 
     fn site(&mut self) -> String {
@@ -190,7 +204,7 @@ impl<'a> Binder<'a> {
 
     // ----- reads -----
 
-    fn read(&mut self, read: &ReadExpr, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
+    fn read(&mut self, read: &ReadExpr, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         if read.range.is_some() {
             let (scan, take) = self.scan(read, out)?;
             return Ok((Expr::Scan(scan), Ty::Page(read.table.clone(), take)));
@@ -214,7 +228,7 @@ impl<'a> Binder<'a> {
         Ok((value, Ty::Row(read.table.clone()).optional()))
     }
 
-    fn scan(&mut self, read: &ReadExpr, out: &mut Vec<Stmt>) -> Fallible<(Scan, u32)> {
+    fn scan(&mut self, read: &ReadExpr, out: &mut setup::Body) -> Fallible<(Scan, u32)> {
         let info = self.table(&read.table, &read.site)?;
         let range = read.range.as_ref().expect("a range read");
         let (keys, index) = self.select_index(info, read, ReadMode::Range, out)?;
@@ -273,13 +287,13 @@ impl<'a> Binder<'a> {
     /// Evaluate the keys, then choose the index: explicit `by`, else by
     /// key names, count and types. Point reads need a unique full key;
     /// ranges need a strict prefix.
-    fn select_index(&mut self, info: &'a TableInfo, read: &ReadExpr, mode: ReadMode, out: &mut Vec<Stmt>) -> Fallible<(Vec<(Option<String>, Expr, Ty)>, ast::IndexDecl)> {
+    fn select_index(&mut self, info: &'a TableInfo, read: &ReadExpr, mode: ReadMode, out: &mut setup::Body) -> Fallible<(Vec<(Option<String>, Expr, Ty)>, ast::IndexDecl)> {
         super::validate_key_names(read)?;
         let point = mode != ReadMode::Range;
         let mut keys = Vec::<(Option<String>, Expr, Ty)>::new();
         for part in &read.keys {
             let expected_column = part.column.clone();
-            let mut setup = Vec::new();
+            let mut setup = setup::Body::default();
             let (e, t) = match &expected_column {
                 Some(column) if column == "id" => self.expr_as_identity(&part.value, &mut setup, &Ty::Ref(read.table.clone()))?,
                 Some(column) => match info.columns.get(column) {
@@ -419,7 +433,7 @@ impl<'a> Binder<'a> {
         Ok(ordered)
     }
 
-    fn walk(&mut self, table: &str, seed: &A, column: &str, depth: u32, site: &Site, out: &mut Vec<Stmt>) -> Fallible<(Recurse, Ty)> {
+    fn walk(&mut self, table: &str, seed: &A, column: &str, depth: u32, site: &Site, out: &mut setup::Body) -> Fallible<(Recurse, Ty)> {
         let info = self.table(table, site)?;
         let Some(next) = info.columns.get(column) else {
             return Err(unknown(site, format!("{table} has no column {column}"), name_rewrite(column, info.columns.keys().map(String::as_str), None)));
@@ -434,7 +448,7 @@ impl<'a> Binder<'a> {
         Ok((Recurse { site: self.site(), table: table.to_owned(), index: "byId".into(), seed: Box::new(seed_expr), next_field: column.to_owned(), depth, fanout: 1, provenance: KeyProvenance::Computed }, Ty::Row(table.to_owned())))
     }
 
-    fn merge(&mut self, merge: &ast::MergeExpr, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
+    fn merge(&mut self, merge: &ast::MergeExpr, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         let info = self.table(&merge.table, &merge.site)?;
         let Some(index) = info.indexes.iter().find(|index| index.name == merge.index).cloned() else {
             return Err(unknown(&merge.site, format!("{} has no index {}", merge.table, merge.index), name_rewrite(&merge.index, info.indexes.iter().map(|i| i.name.as_str()), None)));
@@ -479,7 +493,7 @@ impl<'a> Binder<'a> {
         let mut lanes = Vec::new();
         for lane in &merge.lanes {
             self.push_scope();
-            let mut setup = Vec::new();
+            let mut setup = setup::Body::default();
             let mut source = None;
             let mut binding = String::new();
             if let Some((name, domain)) = &lane.loop_ {
@@ -493,14 +507,14 @@ impl<'a> Binder<'a> {
             scan.after = cursor_expr.clone().map(Box::new);
             scan.opaque_cursor = cursor_expr.is_some();
             scan.merge_site = Some(merge_site.clone());
-            lanes.push(MergeLane { setup, scan, source, binding });
+            lanes.push(MergeLane { setup: setup.code, scan, source, binding });
         }
         Ok((Expr::Merge(Merge { site: merge_site, lanes }), Ty::Page(merge.table.clone(), merge.take)))
     }
 
     // ----- shapes -----
 
-    fn shape(&mut self, base: &A, fields: &[ShapeField], site: &Site, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
+    fn shape(&mut self, base: &A, fields: &[ShapeField], site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         let (base_expr, base_ty) = self.expr(base, out)?;
         match base_ty.clone() {
             Ty::Page(table, max) => {
@@ -511,20 +525,20 @@ impl<'a> Binder<'a> {
                     Expr::Scan(scan) => LoopDomain::Page(scan),
                     other => LoopDomain::DerivedArray { value: other, max, bound_source: "page".into() },
                 };
-                let mut body = Vec::new();
+                let mut body = setup::Body::default();
                 let (object, object_ty) = self.shape_object(&item, Ty::Row(table.clone()), fields, site, &mut body)?;
                 body.push(Stmt::Push { target: list.clone(), value: object });
-                out.push(Stmt::For { binding: item, domain, body });
+                out.push_for(item, domain, body);
                 Ok((ir::var(&list), Ty::Collection(Box::new(object_ty), max)))
             }
             Ty::Collection(item_ty, max) | Ty::List(item_ty, max) => {
                 let list = self.temp("items");
                 out.push(Stmt::Let { name: list.clone(), value: Expr::Array(Vec::new()) });
                 let item = self.temp("item");
-                let mut body = Vec::new();
+                let mut body = setup::Body::default();
                 let (object, object_ty) = self.shape_object(&item, *item_ty, fields, site, &mut body)?;
                 body.push(Stmt::Push { target: list.clone(), value: object });
-                out.push(Stmt::For { binding: item, domain: LoopDomain::DerivedArray { value: base_expr, max, bound_source: "shape".into() }, body });
+                out.push_for(item, LoopDomain::DerivedArray { value: base_expr, max, bound_source: "shape".into() }, body);
                 Ok((ir::var(&list), Ty::Collection(Box::new(object_ty), max)))
             }
             Ty::Row(_) | Ty::Object(_) | Ty::RowShape(_) => {
@@ -537,10 +551,10 @@ impl<'a> Binder<'a> {
                 out.push(Stmt::Let { name: row.clone(), value: base_expr });
                 let result = self.temp("shaped");
                 out.push(Stmt::Let { name: result.clone(), value: Expr::Literal(Value::Null) });
-                let mut body = Vec::new();
+                let mut body = setup::Body::default();
                 let (object, object_ty) = self.shape_object(&row, *inner, fields, site, &mut body)?;
                 body.push(Stmt::Assign { name: result.clone(), value: object });
-                out.push(Stmt::If { condition: Expr::Binary { op: BinaryOp::Ne, left: Box::new(ir::var(&row)), right: Box::new(Expr::Literal(Value::Null)) }, then_body: body, else_body: Vec::new() });
+                out.push_if(Expr::Binary { op: BinaryOp::Ne, left: Box::new(ir::var(&row)), right: Box::new(Expr::Literal(Value::Null)) }, body, setup::Body::default());
                 Ok((ir::var(&result), object_ty.optional()))
             }
             other => Err(type_error(site, format!("a shape applies to a row, an object or a page; got {}", other.name()), "shape a read: `messages[id] { body }`")),
@@ -548,7 +562,7 @@ impl<'a> Binder<'a> {
     }
 
     /// Build the object of a shape over a focal row variable.
-    fn shape_object(&mut self, row_var: &str, row_ty: Ty, fields: &[ShapeField], site: &Site, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
+    fn shape_object(&mut self, row_var: &str, row_ty: Ty, fields: &[ShapeField], site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         let prior = self.focal.replace((row_var.to_owned(), row_ty.clone()));
         self.push_scope();
         let result = (|| {
@@ -565,7 +579,7 @@ impl<'a> Binder<'a> {
             }
             let mut exprs = Vec::<(String, Expr)>::new();
             let mut types = BTreeMap::new();
-            let mut add = |binder: &mut Self, name: String, e: Expr, t: Ty, site: &Site, setup: Vec<Stmt>, out: &mut Vec<Stmt>| -> Fallible<()> {
+            let mut add = |binder: &mut Self, name: String, e: Expr, t: Ty, site: &Site, setup: setup::Body, out: &mut setup::Body| -> Fallible<()> {
                 binder.sequence_setup(exprs.iter_mut().map(|(_, e)| e), setup, out);
                 let e = if expr::allocates(&e) { binder.snapshot(e, out) } else { e };
                 if types.contains_key(&name) {
@@ -579,14 +593,14 @@ impl<'a> Binder<'a> {
                 match field {
                     ShapeField::Spread { site } => {
                         for (name, ty) in self.row_fields(&row_ty, site)? {
-                            add(self, name.clone(), ir::field(ir::var(row_var), &name), ty, site, Vec::new(), out)?;
+                            add(self, name.clone(), ir::field(ir::var(row_var), &name), ty, site, setup::Body::default(), out)?;
                         }
                     }
                     ShapeField::NamedSpread { name, site } => {
                         let Some(shape) = self.catalog.shapes.get(name).cloned() else {
                             return Err(unknown(site, format!("unknown shape {name}"), name_rewrite(name, self.catalog.shapes.keys().map(String::as_str), None)));
                         };
-                        let mut setup = Vec::new();
+                        let mut setup = setup::Body::default();
                         let (nested, nested_ty) = self.shape_object(row_var, row_ty.clone(), &shape.fields, site, &mut setup)?;
                         if let (Expr::Object(nested_fields) | Expr::Shape { fields: nested_fields, .. }, Ty::Object(nested_types) | Ty::RowShape(nested_types)) = (nested, nested_ty) {
                             for (name, e) in nested_fields {
@@ -597,10 +611,10 @@ impl<'a> Binder<'a> {
                     }
                     ShapeField::Bare { name, site } => {
                         let (e, t) = self.member(ir::var(row_var), row_ty.clone(), name, site)?;
-                        add(self, name.clone(), e, t, site, Vec::new(), out)?;
+                        add(self, name.clone(), e, t, site, setup::Body::default(), out)?;
                     }
                     ShapeField::Field { name, value, site } => {
-                        let mut setup = Vec::new();
+                        let mut setup = setup::Body::default();
                         let (e, t) = self.expr(value, &mut setup)?;
                         add(self, name.clone(), e, t, site, setup, out)?;
                     }
@@ -635,7 +649,7 @@ impl<'a> Binder<'a> {
 
     /// Bind a write. When `valued`, the write yields its row (an insert's
     /// image, an update's or upsert's re-read row, null for a delete).
-    fn write(&mut self, expr: &A, out: &mut Vec<Stmt>, valued: bool) -> Fallible<Option<(Expr, Ty)>> {
+    fn write(&mut self, expr: &A, out: &mut setup::Body, valued: bool) -> Fallible<Option<(Expr, Ty)>> {
         let A::Write { op, table, keys, fields, if_absent, condition, site } = expr else { unreachable!() };
         if self.in_prelude {
             return Err(placement(site, "a write belongs to a chunk", format!("move {} {table} into the chunk body", op.word())));
@@ -675,14 +689,15 @@ impl<'a> Binder<'a> {
                 let condition = if let Some(condition) = condition {
                     let old = self.temp("condition");
                     let prior = self.focal.replace((old.clone(), Ty::Row(table.clone())));
-                    let mut setup = Vec::new();
+                    let mut setup = setup::Body::default();
                     let bound = self.expr(condition, &mut setup);
                     self.focal = prior;
                     let (value, ty) = bound?;
                     if !ty.is_bool() {
                         return Err(type_error(condition.site(), format!("update's condition must be bool, got {}", ty.name()), "update t[key] { body } if .body = expected"));
                     }
-                    Some(ir::WriteCondition { old, setup, value })
+                    out.nest(&format!("{}.condition", out.len()), &setup.ownership);
+                    Some(ir::WriteCondition { old, setup: setup.code, value })
                 } else { None };
                 let result = valued.then(|| self.temp("written"));
                 let target = Read { site: site.to_string(), table: table.clone(), index: key.index, key: key.key, provenance: KeyProvenance::Shape };
@@ -705,13 +720,13 @@ impl<'a> Binder<'a> {
         }
     }
 
-    fn write_key(&mut self, info: &'a TableInfo, keys: &[ast::KeyPart], site: &Site, out: &mut Vec<Stmt>) -> Fallible<WriteKey> {
+    fn write_key(&mut self, info: &'a TableInfo, keys: &[ast::KeyPart], site: &Site, out: &mut setup::Body) -> Fallible<WriteKey> {
         if keys.is_empty() {
             return Err(unknown(site, format!("{} needs a key: which row?", info.decl.name), format!("{}[id]", info.decl.name)));
         }
         // A row value as the key addresses the row by its id.
         if keys.len() == 1 && keys[0].column.is_none() {
-            let mut row_setup = Vec::new();
+            let mut row_setup = setup::Body::default();
             let (e, t) = self.expr(&keys[0].value, &mut row_setup)?;
             if let Ty::Row(table) = t.required()
                 && table == info.decl.name
@@ -733,7 +748,7 @@ impl<'a> Binder<'a> {
         Ok(WriteKey { index: index.name, key, alternate: true })
     }
 
-    fn write_row(&mut self, info: &'a TableInfo, fields: &[ObjectField], current: Option<&str>, site: &Site, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
+    fn write_row(&mut self, info: &'a TableInfo, fields: &[ObjectField], current: Option<&str>, site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         match current {
             None => {
                 if fields.iter().any(|f| f.name == "id") {
@@ -754,7 +769,7 @@ impl<'a> Binder<'a> {
                         return Err(unknown(&field.site, format!("{} has no column {}", info.decl.name, field.name), name_rewrite(&field.name, info.columns.keys().map(String::as_str), None)));
                     };
                     let expected = Ty::from_scalar(scalar);
-                    let mut setup = Vec::new();
+                    let mut setup = setup::Body::default();
                     let (e, t) = self.field_value(field, &expected, &mut setup)?;
                     self.sequence_setup(exprs.iter_mut().map(|(_, e)| e), setup, out);
                     if !t.writable_to(&expected) {
@@ -771,7 +786,7 @@ impl<'a> Binder<'a> {
         }
     }
 
-    fn write_row_with_id(&mut self, info: &'a TableInfo, fields: &[ObjectField], id: Expr, site: &Site, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
+    fn write_row_with_id(&mut self, info: &'a TableInfo, fields: &[ObjectField], id: Expr, site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         let id = self.snapshot(id, out);
         let mut exprs = vec![("id".to_owned(), id)];
         let mut given = std::collections::BTreeSet::new();
@@ -780,7 +795,7 @@ impl<'a> Binder<'a> {
                 return Err(unknown(&field.site, format!("{} has no column {}", info.decl.name, field.name), name_rewrite(&field.name, info.columns.keys().map(String::as_str), None)));
             };
             let expected = Ty::from_scalar(scalar);
-            let mut setup = Vec::new();
+            let mut setup = setup::Body::default();
             let (e, t) = self.field_value(field, &expected, &mut setup)?;
             self.sequence_setup(exprs.iter_mut().map(|(_, e)| e), setup, out);
             if !t.writable_to(&expected) {
@@ -812,7 +827,7 @@ impl<'a> Binder<'a> {
         Ok((Expr::Object(exprs.into_iter().collect()), Ty::Row(info.decl.name.clone())))
     }
 
-    fn field_value(&mut self, field: &ObjectField, expected: &Ty, out: &mut Vec<Stmt>) -> Fallible<(Expr, Ty)> {
+    fn field_value(&mut self, field: &ObjectField, expected: &Ty, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         match &field.value {
             Some(value) if expected.required().is_identity() => self.expr_as_identity(value, out, expected),
             Some(value) => {
