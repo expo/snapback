@@ -554,6 +554,10 @@ query inChat(conversationId: conversations, q: text <=100, c: cursor ?):
   require exists memberships[conversationId, viewer] else NOT_MEMBER
   return messages[conversationId] matching q after c last 50 by byConvWords
 
+query everywhere(q: text <=100, c: cursor ?):
+  return merge messages matching q after c last 50 by byConvWords:
+    [m.conversationId] for m in memberships[viewer] first 50 by byPrincipalConversation
+
 query people(q: text <=100, c: cursor ?):
   return profiles matching q after c first 20 by byNameWords
 ```
@@ -571,11 +575,15 @@ newest first when the index says so; every further term must be a prefix
 of some word of the row ("cof car" finds "COFFEE for Carol"). Mid-word
 text never matches; an empty search matches nothing; an expired row is
 gone at once; an edit re-tokenizes. A scope the rule decides costs one
-verdict per word. An unscoped words index (`by byWords: words(body), at,
+verdict per scope. An unscoped words index (`by byWords: words(body), at,
 id`) under a per-chat rule checks the rule per row and is never
-`complete` (`N_NEVER_COMPLETE`): search across every chat on the device
-(§4), where the partition holds exactly what the viewer may read, offline
-too.
+`complete` (`N_NEVER_COMPLETE`): use `everywhere` to search the viewer's
+chats, or read on the device (§4).
+
+`everywhere` merges matching pages from the viewer's chats, ordered by
+`at` and `id`: each lane is one verdict when its scope decides the rule,
+and the page is complete when all lanes are complete; past 50 lanes
+`check` emits N_WIDE_MERGE, and the device runs the same query over held rows.
 
 ### Effects
 

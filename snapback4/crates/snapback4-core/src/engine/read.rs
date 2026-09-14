@@ -315,9 +315,30 @@ impl Runner<'_> {
                 this.pages.insert(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: position + 1, next: None });
             }
         };
+        // @ref LLP 3000.007#18.1 — one verdict per matching scope, before word discovery; the outer merge orders these scoped pages.
+        let visibility = rules::scan_visibility(self.schema, scan);
+        let mut admitted = self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
+        if !admitted && !visibility.uniform { self.non_uniform = true; }
         if terms.is_empty() {
             empty_page(self);
             return Ok(Vec::new());
+        }
+        if visibility.uniform && !admitted {
+            let aborting = self.meter.cut == crate::meter::Cut::Abort;
+            if aborting && !self.meter.charge(MeterKind::Examined, 1)? { empty_page(self); return Ok(Vec::new()); }
+            let probe_row = Value::Row(index.components.iter().zip(&scope).filter_map(|(part, value)| part.column().map(|name| (name.clone(), value.clone()))).collect::<std::collections::BTreeMap<_, _>>().into());
+            let viewer = self.context.viewer.clone();
+            let expiry = self.next_expiry;
+            let mut probe = PrefixProbe { runner: self, count: 0 };
+            let verdict = rules::evaluate(&table.rules.read, &viewer, None, &probe_row, false, &mut probe)?;
+            let count = probe.count;
+            if (aborting || verdict) && !self.meter.charge(MeterKind::RuleProbes, count)? { empty_page(self); return Ok(Vec::new()); }
+            if !verdict {
+                self.next_expiry = expiry;
+                empty_page(self);
+                return Ok(Vec::new());
+            }
+            admitted = true;
         }
         // The words the first term is a prefix of, one seek per word: the
         // seek lands on the word's first entry, the next seek starts past
@@ -339,7 +360,7 @@ impl Runner<'_> {
                 match self.meter.cut {
                     crate::meter::Cut::Cap => {
                         if self.meter.capped_at.is_none() {
-                            self.meter.capped_at = Some((MeterKind::IndexEntries, scan.site.clone()));
+                            self.meter.capped_at = Some((MeterKind::IndexEntries, format!("{} lane {:?}", scan.site, scope)));
                         }
                     }
                     crate::meter::Cut::Abort => return Err(RuntimeError::Bound { kind: MeterKind::IndexEntries, actual: MAX_WORD_LANES as u64 + 1, ceiling: MAX_WORD_LANES as u64, site: scan.site.clone() }),
@@ -362,9 +383,11 @@ impl Runner<'_> {
             })
             .collect();
         let merge = Merge { site: scan.site.clone(), lanes };
-        self.word_filter = (terms.len() > 1).then(|| (fields, terms[1..].to_vec()));
+        let prior_filter = std::mem::replace(&mut self.word_filter, (terms.len() > 1).then(|| (fields, terms[1..].to_vec())));
+        let prior_verdict = std::mem::replace(&mut self.word_verdict, admitted.then(|| scan.site.clone()));
         let merged = if rules::lazy_merge(self.schema, &merge) { self.merge_lazy(&merge) } else { self.merge(&merge) };
-        self.word_filter = None;
+        self.word_filter = prior_filter;
+        self.word_verdict = prior_verdict;
         merged
     }
 
@@ -455,7 +478,7 @@ impl Runner<'_> {
             Order::Desc => Dir::Desc,
         };
         let visibility = rules::scan_visibility(self.schema, scan);
-        let always_visible = self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
+        let always_visible = self.word_verdict.as_ref() == Some(&scan.site) || self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
         if !visibility.uniform && !always_visible && !(self.device && table.sync.is_some()) {
             self.non_uniform = true;
         }

@@ -222,7 +222,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                 continue;
             }
             let Some(index) = table.index(&scan.index) else { continue };
-            let pinned: std::collections::BTreeSet<String> = index.columns().into_iter().take(scan.prefix.len()).collect();
+            let pinned: std::collections::BTreeSet<String> = index.components.iter().zip(&scan.prefix).filter_map(|(component, key)| key.scalar().and(component.column()).cloned()).collect();
             let used = snapback4_core::engine::rules::deciding_fields(&scan.table, table, &table.rules.read);
             let unpinned: Vec<String> = used.difference(&pinned).cloned().collect();
             let mut leading = unpinned.clone();
@@ -230,22 +230,38 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                 if !leading.contains(&column) { leading.push(column); }
             }
             let leading = leading.join(", ");
+            let search_rewrite = matching_merge_rewrite(schema, scan, table);
             notes.push(
                 Diagnostic::new(
                     &bound.site,
                     "N_NEVER_COMPLETE",
                     format!("{} {}: the page over {}[..] by {} is never `complete` — the read rule `{}` reads {}, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"", bound.program.kind.word(), bound.program.name, scan.table, scan.index, table.rules.read.quarry(), unpinned.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")),
-                    format!("scan by an index leading with {leading} (`by by{}: {leading}`), or read the page on the device, where the partition holds exactly what the viewer may read", unpinned.iter().map(|c| { let mut cs = c.chars(); cs.next().map(|f| f.to_uppercase().collect::<String>() + cs.as_str()).unwrap_or_default() }).collect::<String>()),
+                    search_rewrite.clone().unwrap_or_else(|| format!("scan by an index leading with {leading} (`by by{}: {leading}`), or read the page on the device, where the partition holds exactly what the viewer may read", unpinned.iter().map(|c| { let mut cs = c.chars(); cs.next().map(|f| f.to_uppercase().collect::<String>() + cs.as_str()).unwrap_or_default() }).collect::<String>())),
                 )
-                .guide("reads"),
+                .guide(if search_rewrite.is_some() { "search" } else { "reads" }),
             );
         }
     }
     notes
 }
 
+fn matching_merge_rewrite(schema: &Schema, scan: &snapback4_core::ir::Scan, table: &snapback4_core::schema::Table) -> Option<String> {
+    use snapback4_core::{ir::IndexKeyExpr, schema::{RuleExpr, RuleTerm}};
+    if !scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_))) { return None; }
+    let RuleExpr::Exists { table: members, index: membership_index, key, .. } = &table.rules.read else { return None; };
+    let membership = schema.table(members)?;
+    let columns = membership.index(membership_index)?.columns();
+    let principal = key.iter().position(|term| matches!(term, RuleTerm::Viewer))?;
+    let scope: Vec<_> = key.iter().filter_map(|term| if let RuleTerm::Field(field) = term { Some(field.clone()) } else { None }).collect();
+    let fields = table.index(&scan.index)?.word_component()?.1;
+    let (words_index, _) = table.indexes.iter().find(|(_, index)| index.word_component().is_some_and(|(position, text)| index.columns()[..position] == scope && text == fields))?;
+    let (source_index, _) = membership.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().first() == columns.get(principal) && index.columns().last().is_some_and(|column| column == "id"))?;
+    let prefix = key.iter().zip(&columns).filter_map(|(term, column)| matches!(term, RuleTerm::Field(_)).then(|| format!("m.{column}"))).collect::<Vec<_>>().join(", ");
+    Some(format!("merge {} matching q last {} by {words_index}: [{prefix}] for m in {members}[viewer] first 50 by {source_index} — one verdict per scope and a complete page; or read the page on the device", scan.table, scan.take.maximum()))
+}
+
 /// Every merge a program's body evaluates.
-fn merges(stmts: &[snapback4_core::ir::Stmt]) -> Vec<&snapback4_core::ir::Merge> {
+pub fn merges(stmts: &[snapback4_core::ir::Stmt]) -> Vec<&snapback4_core::ir::Merge> {
     use snapback4_core::ir::{Expr, Stmt};
     fn in_expr<'a>(expr: &'a Expr, out: &mut Vec<&'a snapback4_core::ir::Merge>) {
         match expr {

@@ -439,8 +439,19 @@ impl<'a> Binder<'a> {
         let Some(index) = info.indexes.iter().find(|index| index.name == merge.index).cloned() else {
             return Err(unknown(&merge.site, format!("{} has no index {}", merge.table, merge.index), name_rewrite(&merge.index, info.indexes.iter().map(|i| i.name.as_str()), None)));
         };
-        if !index.is_plain() {
-            return Err(unsupported(&merge.site, "merge over a words index", format!("read {}[..] matching q first {} by {} per lane, or on the device over synced rows", merge.table, merge.take, merge.index)));
+        // @ref LLP 3000.007#18.1 — matching merges lower to scoped matching scans in the existing lane IR.
+        let direction = if merge.order == ast::Order::Asc { "first" } else { "last" };
+        let matching_form = |scope: &[String]| format!("merge {} matching q{} {direction} {} by {}:\n  [{}]", merge.table, if merge.cursor.is_some() { " after c" } else { "" }, merge.take, merge.index, scope.join(", "));
+        if let Some((position, _)) = &index.words {
+            let scope = &index.columns[..*position];
+            if merge.matching.is_none() {
+                return Err(unsupported(&merge.site, "merge over a words index without matching", matching_form(scope)).guide("search"));
+            }
+            if merge.lanes.iter().any(|lane| lane.prefix.len() != *position || lane.columns.as_ref().is_some_and(|columns| columns.iter().flatten().any(|column| !scope.contains(column)))) {
+                return Err(type_error(&merge.site, format!("matching merge lanes must pin exactly the {} scope column(s) before words in {}.{}", position, merge.table, merge.index), matching_form(scope)).guide("search"));
+            }
+        } else if merge.matching.is_some() {
+            return Err(unsupported(&merge.site, "matching on a merge over a plain index", format!("merge {} {direction} {} by {}:\n  [prefix]  -- or merge {} matching q {direction} {} by <wordsIndex>:\n  [scope]", merge.table, merge.take, merge.index, merge.table, merge.take)).guide("search"));
         }
         let width = merge.lanes.first().map(|lane| lane.prefix.len()).unwrap_or(0);
         if width >= index.columns.len() {
@@ -458,7 +469,13 @@ impl<'a> Binder<'a> {
             cursor_expr = Some(e);
         }
         let merge_site = self.site();
-        let order = if merge.order == ast::Order::Asc { Order::Asc } else { Order::Desc };
+        let matching = merge.matching.as_ref().map(|value| self.expr(value, out)).transpose()?;
+        let matching = matching.map(|(value, ty)| {
+            let name = self.temp("matching");
+            let runtime = self.declare(&name, ty);
+            out.push(Stmt::Let { name: runtime, value });
+            Box::new(A::Name { name, site: merge.site.clone() })
+        });
         let mut lanes = Vec::new();
         for lane in &merge.lanes {
             self.push_scope();
@@ -470,7 +487,7 @@ impl<'a> Binder<'a> {
                 source = Some(scan);
                 binding = self.declare(name, Ty::Row(domain.table.clone()));
             }
-            let read = ReadExpr { table: merge.table.clone(), keys: lane.prefix.iter().enumerate().map(|(position, value)| ast::KeyPart { column: lane.columns.as_ref().and_then(|c| c.get(position).cloned().flatten()), value: value.clone(), site: value.site().clone() }).collect(), index: Some(merge.index.clone()), range: Some(ast::RangeSpec { order: merge.order, take: merge.take, cursor: None, site: lane.site.clone() }), matching: None, filter: None, seeks: Vec::new(), site: lane.site.clone() };
+            let read = ReadExpr { table: merge.table.clone(), keys: lane.prefix.iter().enumerate().map(|(position, value)| ast::KeyPart { column: lane.columns.as_ref().and_then(|c| c.get(position).cloned().flatten()), value: value.clone(), site: value.site().clone() }).collect(), index: Some(merge.index.clone()), range: Some(ast::RangeSpec { order: merge.order, take: merge.take, cursor: None, site: lane.site.clone() }), matching: matching.clone(), filter: None, seeks: Vec::new(), site: lane.site.clone() };
             let (mut scan, _) = self.scan(&read, &mut setup)?;
             self.pop_scope();
             scan.after = cursor_expr.clone().map(Box::new);
@@ -478,7 +495,6 @@ impl<'a> Binder<'a> {
             scan.merge_site = Some(merge_site.clone());
             lanes.push(MergeLane { setup, scan, source, binding });
         }
-        let _ = order;
         Ok((Expr::Merge(Merge { site: merge_site, lanes }), Ty::Page(merge.table.clone(), merge.take)))
     }
 
