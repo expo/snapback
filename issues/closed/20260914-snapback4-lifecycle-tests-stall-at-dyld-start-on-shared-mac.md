@@ -1,6 +1,6 @@
 # Snapback 4: lifecycle tests time out when the test binary's child stalls in `_dyld_start`
 
-Status: Open
+Status: Closed — duplicate of issues/20260914-snapback4-lifecycle-tests-time-out-under-host-load.md (filed earlier); evidence folded there
 Priority: P3
 Date: 2026-09-14
 Systems: `snapback4/crates/snapback4/tests/lifecycle.rs`, the blocking suite on shared macOS hosts

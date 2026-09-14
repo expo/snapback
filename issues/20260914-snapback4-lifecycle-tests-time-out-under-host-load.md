@@ -61,3 +61,19 @@ compare ordinary and serial runs. Verify that a deliberately dead child
 still fails promptly with its diagnostic and that the blocking suite and
 publisher retain refusal on actual reds. This ticket commissions no
 change to the frozen Clique packet or its published pin.
+
+## Evidence added 2026-09-14 by the catch-up lead (root cause)
+
+`sample` of the `snapback4 dev --port 0` child during one test's 15 s window
+shows its main thread still at `_dyld_start` after 7 s (process state `SN`).
+The process has not reached `main`. The same binary started from a shell
+printed its URL in under a second, with and without a worker. One shell
+launch of a freshly linked debug binary took 9.7 s, and the next took
+0.03 s, which fits macOS assessment of new ad-hoc-signed binaries under load.
+Lane CU3's worktree, whose `snapback4/crates` did not differ from `518891fd1`,
+failed the same five tests, so they fail on base crates. `TMPDIR=/tmp` did not
+change the result. At load 9–20 later that day the five passed. A readiness
+wait that starts when the child reaches `main` (for example, a first stderr
+marker) would tell a launch stall apart from a server that never listens.
+The duplicate ticket `issues/closed/20260914-snapback4-lifecycle-tests-stall-at-dyld-start-on-shared-mac.md`
+was folded into this one.
