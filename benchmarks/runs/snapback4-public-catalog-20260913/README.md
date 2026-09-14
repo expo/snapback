@@ -2011,3 +2011,26 @@ The separate sendHeaders→bodySent means were 0.1415/0.1570/0.0509 ms for C1 po
 The 1,440 warmups and 1,500 preparation feed pages were excluded from selected counts. Selected requests visited 5,555 of 30,000 point keys and 1,259 of 1,500 feed pages; the thread case repeated one 50-row page. Before and after verifiers added 18 untimed complete walks/3,730 pages plus auth/cursor checks, using the same previously issued sessions. This restored a previously verified logical 100,000-message fixture; it did not perform a new physical full-database scan or leave/regrant exercise.
 
 Callbacks and in-memory event collection perturb the load, including unselected preparation/warmups. Timers end after JSON decoding and before projection/oracle checks. These intervals locate local client-library boundaries; they are not network-only, CPU or server duration, and the observed create→sendHeaders interval does not identify any particular timer or scheduler cause. No server instrumentation, retry, package change, comparator, device, WAN, write, durability or adoption result is claimed. The raw load is `11fe41d7…`, receipt `92c935dd…`, frozen controller `4e8a23bc…`, and loader `3c6e75cd…`; the independently computed summary is `cdfe820c…`.
+
+### 0.2.8 dispatcher comparison using the same runtime — mixed C1/C8 outcome
+
+On Durand M4 Pro, one run ending 2026-09-14 01:12:13 UTC held the published 0.2.8 server (`92db0d86…`) and Node 24.18.0 fixed. Both paths used built-in fetch: its bundled Undici 7.28.0 dispatcher, or an explicit per-call Agent from the complete unmodified npm Undici 7.29.1 package. The package index/global-dispatcher setter was not loaded. Four rounds alternated which client led; C1/C8 order reversed after round 1. All 48 blocks × 1,000 selected requests passed exact response checks, and every ID had one of each five events (240,000 observations, captureErrors 0). Response, process-exit, agent-cleanup, package-before/after and same-process/same-session after-verification outcomes all passed independently.
+
+Pooled milliseconds, **bundled→updated**, with 4,000 requests per client/case. Endpoint times end after JSON decoding; quantiles are nearest-rank individual-request quantiles.
+
+| Case | Body mean | p50 | p95 | p99 | Max | Create→sendHeaders mean |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| pointC1 | 3.085→0.226 | 3.128→0.212 | 4.456→0.271 | 5.935→0.372 | 27.543→3.016 | 1.293→0.006 |
+| threadC1 | 3.798→0.371 | 3.847→0.351 | 5.287→0.432 | 6.778→0.583 | 31.085→5.737 | 1.276→0.005 |
+| feedC1 | 5.344→1.526 | 5.543→1.510 | 7.020→1.606 | 8.087→1.839 | 13.736→5.004 | 1.265→0.005 |
+| pointC8 | 2.396→2.615 | 2.151→2.589 | 4.159→3.235 | 5.808→3.915 | 11.240→7.630 | 0.839→0.015 |
+| threadC8 | 3.553→3.972 | 3.654→3.931 | 4.755→4.694 | 5.572→5.679 | 7.985→9.843 | 0.916→0.014 |
+| feedC8 | 6.140→5.848 | 6.084→5.744 | 7.517→7.048 | 8.200→8.364 | 14.806→9.494 | 1.019→0.009 |
+
+Across 24 matched round/case pairs, updated body mean/p50/p95/p99/max were lower in **16/16/21/22/20** pairs. C8 point and thread means **and p50s were higher in every round**: point mean increases were 6.86–11.68%, thread 8.01–15.67%. The create→sendHeaders mean/p50/p95/p99 were lower in all 24 pairs, but its maximum was higher for thread C8 round 1 (3.182→3.372 ms) and feed C8 round 2 (2.658→3.200 ms). A smaller local stage interval therefore did not guarantee a smaller complete response time.
+
+Every body tail loss remains: p95 was higher for thread C8 rounds 1 and 3 and feed C8 round 2; p99 for thread C8 round 3 and feed C8 round 2; maxima for thread C8 rounds 0–2 and feed C8 round 2. Pooled thread C8 p99/max and feed C8 p99 were also higher, as the table shows. The largest individual observations were 31.085 ms bundled (thread C1, round 1) and 9.843 ms updated (thread C8, round 1). All 48 blocks, signed stage deltas and losses remain in the record.
+
+Each client visited the same 4,000 point keys and 1,111 of 1,500 feed pages; the thread case repeated one 50-row page. The 1,440 warmups and 1,500 feed preparation pages were excluded from selected counts. Preparation used only the bundled client, and both pools retained their separate histories. Before/after checks added 18 untimed complete walks/3,730 pages plus auth/cursor checks using the same previously issued sessions; this was not a new physical full-database scan or leave/regrant exercise. All 210 npm files and archive/registry integrity were checked before and after; no lifecycle script or product package installation was involved.
+
+This instrumented comparison includes callback/collection overhead and the entire dispatcher-version/defaults delta. It does not isolate any particular timer, network time, CPU time or server duration, or qualify a Node runtime upgrade, first-party client change, comparator, device/WAN, write/durability result or adoption. Server source and build were unchanged, and there were no retries. Raw load `366de1b8…`, receipt `ca9648fb…`, controller `14ce2e88…`, loader `5391661c…` and independently frozen summary `f6197a5e…` bind the observations.
