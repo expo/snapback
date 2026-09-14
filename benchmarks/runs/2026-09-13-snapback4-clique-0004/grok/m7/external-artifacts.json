@@ -1,0 +1,209 @@
+{
+  "createdAt": "2026-09-14T09:01:35Z",
+  "credentialPathPolicy": "Names recorded only; credential contents and digests were not read or retained.",
+  "excludedByClass": [
+    "all grading and score material",
+    "continuous narratives and evidence except the three hash-only baseline custody references",
+    "instrument and prompt files",
+    "dependencies, caches, generated build output, uploads, release blobs, and assets",
+    "raw CLI/private reasoning and unselected verbose logs",
+    "credential, token, dotenv, and environment files",
+    "runtime databases except the enumerated hash-only M7 lane store references",
+    "persona snapshot bodies except the enumerated hash-only references"
+  ],
+  "excludedCredentialPathNames": [
+    "lanes/grok-snapback4/.ops-token",
+    "lanes/grok-snapback4/.pusher-token"
+  ],
+  "hashAlgorithm": "sha256",
+  "referenceCount": 21,
+  "referencedBytes": 12227153,
+  "references": [
+    {
+      "bytes": 1818624,
+      "category": "runtime-database",
+      "contentInspection": "bytes hashed only; contents not inspected",
+      "reasonNotCopied": "Runtime database and sidecar remain external.",
+      "sha256": "b5c37715779bba6808f15e3cc12336a97cdf5c055017a460d42db9edc399e561",
+      "sourcePath": "lanes/grok-snapback4/.snapback4/store.sqlite"
+    },
+    {
+      "bytes": 32768,
+      "category": "runtime-database",
+      "contentInspection": "bytes hashed only; contents not inspected",
+      "reasonNotCopied": "Runtime database and sidecar remain external.",
+      "sha256": "edd8fb97d9b3ab22a3012ef9176f7668f9d6711e08aa984c898253dbf91c59a9",
+      "sourcePath": "lanes/grok-snapback4/.snapback4/store.sqlite-shm"
+    },
+    {
+      "bytes": 4264232,
+      "category": "runtime-database",
+      "contentInspection": "bytes hashed only; contents not inspected",
+      "reasonNotCopied": "Runtime database and sidecar remain external.",
+      "sha256": "a2bcbbd02aa0695823cfc3a37ae600edeed8437d1d198cf79ece20cc9c1df96a",
+      "sourcePath": "lanes/grok-snapback4/.snapback4/store.sqlite-wal"
+    },
+    {
+      "bytes": 1983,
+      "category": "runtime-log",
+      "contentInspection": "bytes hashed only; contents not inspected",
+      "reasonNotCopied": "Verbose runtime log remains external.",
+      "sha256": "9f1facb383fb8edaa743e97d86701523c148517829f0b2ffd824dc89116e6f6a",
+      "sourcePath": "lanes/grok-snapback4/m7/logs/backend.log"
+    },
+    {
+      "bytes": 6355,
+      "category": "runtime-log",
+      "contentInspection": "bytes hashed only; contents not inspected",
+      "reasonNotCopied": "Verbose runtime log remains external.",
+      "sha256": "3cefda35d917a99acd4778afd70b0adcf36d2a3f268ff848ce5d3d80b9eff792",
+      "sourcePath": "lanes/grok-snapback4/m7/logs/web.log"
+    },
+    {
+      "bytes": 6,
+      "category": "runtime-process-state",
+      "contentInspection": "bytes hashed only; contents not inspected",
+      "reasonNotCopied": "Ephemeral process-state file remains external.",
+      "sha256": "99ec01b1138bb47033ff8fb8a35eae0a155d823d620e903a0c1d739a18a70f4c",
+      "sourcePath": "lanes/grok-snapback4/m7/pids/backend.pid"
+    },
+    {
+      "bytes": 6,
+      "category": "runtime-process-state",
+      "contentInspection": "bytes hashed only; contents not inspected",
+      "reasonNotCopied": "Ephemeral process-state file remains external.",
+      "sha256": "801589addeb7d70b16f0dd07b2b41f251bcdf55b3fbc671d057ea5eef7e676c5",
+      "sourcePath": "lanes/grok-snapback4/m7/pids/web.pid"
+    },
+    {
+      "bytes": 12356,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during curation",
+      "equivalentPassiveCapturePath": "observed-milestones/grok-m7-postmigration-prefix/pre-snapshot/alice.json",
+      "reasonNotCopied": "Persona body remains external; the aggregate manifest and comparison are copied.",
+      "sha256": "d11efffa10c0fa53cc7c3e9c1ee0267e228ebc3dfa7de60857d4bc32e41710f6",
+      "sourcePath": "lanes/grok-snapback4/m7/pre-snapshot/alice.json",
+      "verifiedEqualToPassiveCapture": true
+    },
+    {
+      "bytes": 12347,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during curation",
+      "equivalentPassiveCapturePath": "observed-milestones/grok-m7-postmigration-prefix/pre-snapshot/bob.json",
+      "reasonNotCopied": "Persona body remains external; the aggregate manifest and comparison are copied.",
+      "sha256": "23165f80e2ed91b2f08cac9bb3c7989b81f01c38b2a231e88d8e1d507236a981",
+      "sourcePath": "lanes/grok-snapback4/m7/pre-snapshot/bob.json",
+      "verifiedEqualToPassiveCapture": true
+    },
+    {
+      "bytes": 8009,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during curation",
+      "equivalentPassiveCapturePath": "observed-milestones/grok-m7-postmigration-prefix/pre-snapshot/carol.json",
+      "reasonNotCopied": "Persona body remains external; the aggregate manifest and comparison are copied.",
+      "sha256": "7056246af068c33a060b29bf553111768de6a18499ffd5c6250f1eba1bbab731",
+      "sourcePath": "lanes/grok-snapback4/m7/pre-snapshot/carol.json",
+      "verifiedEqualToPassiveCapture": true
+    },
+    {
+      "bytes": 369,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during curation",
+      "equivalentPassiveCapturePath": "observed-milestones/grok-m7-postmigration-prefix/pre-snapshot/dave.json",
+      "reasonNotCopied": "Persona body remains external; the aggregate manifest and comparison are copied.",
+      "sha256": "5f0ca72993ca4d2f122bb106937140eccb980e90d9e134eb6badc3cb92245d80",
+      "sourcePath": "lanes/grok-snapback4/m7/pre-snapshot/dave.json",
+      "verifiedEqualToPassiveCapture": true
+    },
+    {
+      "bytes": 374,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during curation",
+      "equivalentPassiveCapturePath": "observed-milestones/grok-m7-postmigration-prefix/pre-snapshot/erin.json",
+      "reasonNotCopied": "Persona body remains external; the aggregate manifest and comparison are copied.",
+      "sha256": "07cfa962c12ac275d785cf467a2320396cf6d6366b234038f67a83e1f6f39b69",
+      "sourcePath": "lanes/grok-snapback4/m7/pre-snapshot/erin.json",
+      "verifiedEqualToPassiveCapture": true
+    },
+    {
+      "bytes": 372,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during curation",
+      "equivalentPassiveCapturePath": "observed-milestones/grok-m7-postmigration-prefix/pre-snapshot/frank.json",
+      "reasonNotCopied": "Persona body remains external; the aggregate manifest and comparison are copied.",
+      "sha256": "2ae9cab18b0f480d9ec05cb10af0db875a1eaa619fdc22939581adfc48f9e7c4",
+      "sourcePath": "lanes/grok-snapback4/m7/pre-snapshot/frank.json",
+      "verifiedEqualToPassiveCapture": true
+    },
+    {
+      "bytes": 376,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during curation",
+      "equivalentPassiveCapturePath": "observed-milestones/grok-m7-postmigration-prefix/pre-snapshot/grace.json",
+      "reasonNotCopied": "Persona body remains external; the aggregate manifest and comparison are copied.",
+      "sha256": "d15e8e78a2580de3b5e494f415756f022b3c056daf0f22b255b2cb866cf96c14",
+      "sourcePath": "lanes/grok-snapback4/m7/pre-snapshot/grace.json",
+      "verifiedEqualToPassiveCapture": true
+    },
+    {
+      "bytes": 370,
+      "category": "persona-snapshot",
+      "contentInspection": "bytes hashed only during curation",
+      "equivalentPassiveCapturePath": "observed-milestones/grok-m7-postmigration-prefix/pre-snapshot/henry.json",
+      "reasonNotCopied": "Persona body remains external; the aggregate manifest and comparison are copied.",
+      "sha256": "57770a6f2c446def93ff4c213f85462cf7e11978d67299066ab1d78ce4ab5505",
+      "sourcePath": "lanes/grok-snapback4/m7/pre-snapshot/henry.json",
+      "verifiedEqualToPassiveCapture": true
+    },
+    {
+      "bytes": 3686724,
+      "category": "raw-cli-log",
+      "contentInspection": "bytes hashed only; contents not inspected",
+      "reasonNotCopied": "Raw CLI output remains private and external.",
+      "sha256": "d813578d13cfbf8fcda5887646d3e6206f192c0b772015715c6a410187086dbe",
+      "sourcePath": "logs/grok-snapback4.m7.ndjson"
+    },
+    {
+      "bytes": 0,
+      "category": "raw-cli-log",
+      "contentInspection": "bytes hashed only; contents not inspected",
+      "reasonNotCopied": "Raw CLI output remains private and external.",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourcePath": "logs/grok-snapback4.m7.stderr.log"
+    },
+    {
+      "bytes": 4436,
+      "category": "orchestration-handoff",
+      "contentInspection": "read before curation",
+      "reasonNotCopied": "Packet-level curation protocol remains external.",
+      "sha256": "7d964413b76eb93e1461c1df1eceed8760818191d17bd294f2f24560c2ae397d",
+      "sourcePath": "observed-milestones/m7-curation-handoff.md"
+    },
+    {
+      "bytes": 53425,
+      "category": "continuous-baseline-manifest",
+      "contentInspection": "structured manifest read to derive the M7 source delta",
+      "reasonNotCopied": "Continuous baseline remains immutable and external.",
+      "sha256": "bdd70d9b0b40ad59e84f1597aab490438c5a40cfa941a2d17c038c57a88fff5e",
+      "sourcePath": "snapshots/grok-continuous/snapshot-manifest.json"
+    },
+    {
+      "bytes": 21933,
+      "category": "continuous-baseline-inventory",
+      "contentInspection": "bytes hashed only; contents not inspected during this curation",
+      "reasonNotCopied": "Continuous source inventory remains external.",
+      "sha256": "90ca6c94a164e4a0eee562f16bfc73b30d021acf0d87df0319c4584cf18233b1",
+      "sourcePath": "snapshots/grok-continuous/source-inventory.sha256"
+    },
+    {
+      "bytes": 2302088,
+      "category": "continuous-baseline-archive",
+      "contentInspection": "bytes hashed only; contents not inspected during this curation",
+      "reasonNotCopied": "Continuous source archive remains external and immutable.",
+      "sha256": "a99a15e1f9464d0185decf06eea30b78bcf39d8459861349f2ba5ac29f43fa7f",
+      "sourcePath": "snapshots/grok-continuous/source-snapshot.tar.gz"
+    }
+  ],
+  "schemaVersion": 1,
+  "sourceRoot": "/Users/ccheever/clique-sb4-20260913-full-3models"
+}

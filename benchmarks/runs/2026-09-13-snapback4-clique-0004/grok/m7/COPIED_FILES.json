@@ -1,0 +1,378 @@
+{
+  "authoredFilesExcluded": [
+    "README.md",
+    "COPIED_FILES.json",
+    "external-artifacts.json",
+    "capture-comparison.json",
+    "source-m7-delta.json"
+  ],
+  "copiedBytes": 267368,
+  "copiedFileCount": 45,
+  "copyVerification": "Each destination was exclusively created, then its byte length and SHA-256 were compared with the source.",
+  "createdAt": "2026-09-14T09:01:35Z",
+  "destinationRoot": "benchmarks/runs/2026-09-13-snapback4-clique-0004/grok/m7",
+  "files": [
+    {
+      "bytes": 5581,
+      "category": "builder-report",
+      "destination": "final-report.md",
+      "sha256": "17e1d85227ccc68a136768ec6b293798e20353db4fcd7a322f61a06bf4371d72",
+      "sourcePath": "lanes/grok-snapback4/m7/final-report.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 3719,
+      "category": "builder-report",
+      "destination": "run-log.md",
+      "sha256": "770da005cb095aeb1d6f477efd6d704702832d52095ad88d9223d3989e2078f7",
+      "sourcePath": "lanes/grok-snapback4/m7/run-log.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 4079,
+      "category": "builder-report",
+      "destination": "diary.md",
+      "sha256": "08e0c79a172b2795667e6b19b57bb05dcc3988bdc7d3bb07ef29559e2845dd23",
+      "sourcePath": "lanes/grok-snapback4/m7/diary.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 2766,
+      "category": "builder-report",
+      "destination": "essay-paragraphs.md",
+      "sha256": "4175fde413098122a52607bc117ec40a9cb1825ce65fabaa0d7e116b21ace244",
+      "sourcePath": "lanes/grok-snapback4/m7/essay-paragraphs.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 37364,
+      "category": "pre-m7-source",
+      "destination": "evidence/pre-m7-schema.q",
+      "sha256": "1c0cd8576cc94e83ec0b4a08cb3b9d70cb1889d5040e8596e05c19c1c971b54a",
+      "sourcePath": "lanes/grok-snapback4/m7/pre-m7-schema.q",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 829,
+      "category": "snapshot-summary",
+      "destination": "snapshot/snapshot-compare.json",
+      "sha256": "d4fa8a08e1ef4274b8845df21d3aed295392689096eccabab1879efae3f6ab2e",
+      "sourcePath": "lanes/grok-snapback4/m7/snapshot-compare.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 3225,
+      "category": "snapshot-metadata",
+      "destination": "snapshot/pre-manifest.json",
+      "sha256": "fd01c832f28f6830cc4cb507723dd770a47d9e20231ef9a718e80a27b56a95cf",
+      "sourcePath": "lanes/grok-snapback4/m7/pre-snapshot/manifest.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 30549,
+      "category": "schema-check",
+      "destination": "evidence/schema-check.txt",
+      "sha256": "768d5fab611dc58b870dde1451b4b435a35bee66c6cf102e166818e4e39addbf",
+      "sourcePath": "lanes/grok-snapback4/m7/logs/schema-check.txt",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 495,
+      "category": "m7-suite",
+      "destination": "evidence/suite-m7.json",
+      "sha256": "acc7b0247573fecde32e23575a4b8c25fe77e4aa0f0e3228a3d248fe4f3af80e",
+      "sourcePath": "lanes/grok-snapback4/receipts/suite-m7.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 226,
+      "category": "m7-suite",
+      "destination": "evidence/coverage-m7.json",
+      "sha256": "86e5af3754fba7ad6e392642c1a3e9fd85ddaf12a50bafb94bd4634fcabf1864",
+      "sourcePath": "lanes/grok-snapback4/receipts/coverage-m7.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 66,
+      "category": "m7-suite",
+      "destination": "evidence/suite-status-m7.json",
+      "sha256": "ea3ed66e09146255a062c4102acef5b032170e1561337a22a5fb0d80ffc70f6a",
+      "sourcePath": "lanes/grok-snapback4/receipts/suite-status-m7.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 3873,
+      "category": "m7-choreography",
+      "destination": "evidence/choreo-m7.jsonl",
+      "sha256": "3cd905378dc54c40876d4684ff4775d4c6e70f61cd3366f97b4479d700376854",
+      "sourcePath": "lanes/grok-snapback4/receipts/choreo-m7.jsonl",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1418,
+      "category": "m7-choreography",
+      "destination": "evidence/choreo-m7.jsonl.observations.jsonl",
+      "sha256": "5c89903c0ed1e6cc9c4ea1ef8ae2ed6f357379d96dd4b8450863010fb39a1147",
+      "sourcePath": "lanes/grok-snapback4/receipts/choreo-m7.jsonl.observations.jsonl",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 549,
+      "category": "m7-era-regression-suite",
+      "destination": "regressions/suite-m1.json",
+      "sha256": "736502beffa1a04989a63fe6e371429567d4565982091615c71c47911cc28c2a",
+      "sourcePath": "lanes/grok-snapback4/receipts/suite-m1.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 242,
+      "category": "m7-era-regression-coverage",
+      "destination": "regressions/coverage-m1.json",
+      "sha256": "7b99889a9ad4b2dc07c7f6d1c41d13f77170450a3c0ad8e63f70e4def865d691",
+      "sourcePath": "lanes/grok-snapback4/receipts/coverage-m1.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 136,
+      "category": "m7-era-regression-suite",
+      "destination": "regressions/suite-m2.json",
+      "sha256": "e6fcfc19085fef83e2333045e1a5196c58febaed240a5f3044faf8db7837dac4",
+      "sourcePath": "lanes/grok-snapback4/receipts/suite-m2.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 612,
+      "category": "m7-era-regression-coverage",
+      "destination": "regressions/coverage-m2.json",
+      "sha256": "d5c8a80b252bb1698a5c7eed420ae7a1282b0587c468fbc6c7ae6f26a1dd9d91",
+      "sourcePath": "lanes/grok-snapback4/receipts/coverage-m2.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 549,
+      "category": "m7-era-regression-suite",
+      "destination": "regressions/suite-m3.json",
+      "sha256": "359e5d81c6c1c0e9a74e5cf3bf61fb4a87566e50a9040506139fddb20319f55b",
+      "sourcePath": "lanes/grok-snapback4/receipts/suite-m3.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 242,
+      "category": "m7-era-regression-coverage",
+      "destination": "regressions/coverage-m3.json",
+      "sha256": "6a619d46c5136c520caca7d0745887ddf9fbee4fe0cdca0e4fedcac2291ae64c",
+      "sourcePath": "lanes/grok-snapback4/receipts/coverage-m3.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 441,
+      "category": "m7-era-regression-suite",
+      "destination": "regressions/suite-m4.json",
+      "sha256": "d950051497dd8920da2cd983ad8d20dde678c5ddec2401e73cf1ac8165aa5cc4",
+      "sourcePath": "lanes/grok-snapback4/receipts/suite-m4.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 210,
+      "category": "m7-era-regression-coverage",
+      "destination": "regressions/coverage-m4.json",
+      "sha256": "4e898c523317b4593f7f319ddd0331f33dd4d06aa9d075e73166a6c20afa06b6",
+      "sourcePath": "lanes/grok-snapback4/receipts/coverage-m4.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 495,
+      "category": "m7-era-regression-suite",
+      "destination": "regressions/suite-m5.json",
+      "sha256": "03ee40989a3fc26151bbb158cc0cd1e6f08005f2565b0a79e77ed2e3d7d70594",
+      "sourcePath": "lanes/grok-snapback4/receipts/suite-m5.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 226,
+      "category": "m7-era-regression-coverage",
+      "destination": "regressions/coverage-m5.json",
+      "sha256": "c571af68dd867af16f1f0aa333416a44a090f940611914f617878976ad4c87ef",
+      "sourcePath": "lanes/grok-snapback4/receipts/coverage-m5.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 441,
+      "category": "m7-era-regression-suite",
+      "destination": "regressions/suite-m6.json",
+      "sha256": "6ee30509e1738ced82ff051c4d2c89b4864deabe8904619966c2bea564cfbaed",
+      "sourcePath": "lanes/grok-snapback4/receipts/suite-m6.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 210,
+      "category": "m7-era-regression-coverage",
+      "destination": "regressions/coverage-m6.json",
+      "sha256": "eff1bc14b92c587d35cef187a6d1d869628f5199ea6f6e1d8ece08d9be3adbd7",
+      "sourcePath": "lanes/grok-snapback4/receipts/coverage-m6.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 495,
+      "category": "m7-era-regression-suite",
+      "destination": "regressions/suite-m8.json",
+      "sha256": "d0e5ce16c4508eb2b0f337b70e951141b302ffcb5e1c75b380ed25604a006592",
+      "sourcePath": "lanes/grok-snapback4/receipts/suite-m8.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 226,
+      "category": "m7-era-regression-coverage",
+      "destination": "regressions/coverage-m8.json",
+      "sha256": "f447c9e46c45a64acafa35344305e1f13c968652adc74b851ab71e842a0b91d8",
+      "sourcePath": "lanes/grok-snapback4/receipts/coverage-m8.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 444,
+      "category": "m7-era-regression-status",
+      "destination": "regressions/suite-status.json",
+      "sha256": "824724ffb406d4444d4eae39163cf78719f623109ab72cd72c11ef1aef49b7bd",
+      "sourcePath": "lanes/grok-snapback4/receipts/suite-status.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1087,
+      "category": "runner-lifecycle",
+      "destination": "lifecycle/grok-snapback4.m7.start.json",
+      "sha256": "5d29579bcce282c32e3f95a2e17077d35197df521bb0abedea462bc5d2380e53",
+      "sourcePath": "logs/grok-snapback4.m7.start.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 365,
+      "category": "runner-lifecycle",
+      "destination": "lifecycle/grok-snapback4.m7.end.json",
+      "sha256": "2ddca60613f64a7291fd236d26b61b2657fef7464712f7838a854a1edcc8536e",
+      "sourcePath": "logs/grok-snapback4.m7.end.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 2289,
+      "category": "orchestrator-prefix-capture",
+      "destination": "qualifications/postmigration-prefix/capture.json",
+      "sha256": "abcc776a0d37d6fce5275b3dc9940ba646bc9a035ff2b98716bc3db7c4b66e70",
+      "sourcePath": "observed-milestones/grok-m7-postmigration-prefix/capture.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1791,
+      "category": "orchestrator-prefix-capture",
+      "destination": "qualifications/postmigration-prefix/run-log.md",
+      "sha256": "43c2a3b2c3cd11f0f7ef8451fefb420076ceea9f06526544fc30713d5c22b20d",
+      "sourcePath": "observed-milestones/grok-m7-postmigration-prefix/run-log.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 829,
+      "category": "orchestrator-prefix-capture",
+      "destination": "qualifications/postmigration-prefix/snapshot-compare.json",
+      "sha256": "494b82be926b838b131d8651d9a56929def4e0435d3336549316a4b110aaf6f8",
+      "sourcePath": "observed-milestones/grok-m7-postmigration-prefix/snapshot-compare.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1169,
+      "category": "orchestrator-first-receipts",
+      "destination": "qualifications/first-receipts/capture.json",
+      "sha256": "83b364055f710367396826513f50a5a3106144bc5ac700043a9cec1e910bb3f0",
+      "sourcePath": "observed-milestones/grok-m7-first-receipts/capture.json",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 2989,
+      "category": "m7-source",
+      "destination": "source-m7/API.md",
+      "sha256": "ab7fcdc6e25004079055b7d93e01b52a7cd2b7213a9719e29e20be3603ad0cfc",
+      "sourcePath": "lanes/grok-snapback4/API.md",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 6115,
+      "category": "m7-source",
+      "destination": "source-m7/components/ChatSettingsScreen.tsx",
+      "sha256": "4150cb36ff5a59c5e2afadc27f108abf6adc1df009d3d6ee56e6919ae2e8f972",
+      "sourcePath": "lanes/grok-snapback4/components/ChatSettingsScreen.tsx",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 25784,
+      "category": "m7-source",
+      "destination": "source-m7/components/ConversationView.tsx",
+      "sha256": "7aa417866ced07ddbf0292404b079a74d66e94103335986c6b83a2b27a17aa6d",
+      "sourcePath": "lanes/grok-snapback4/components/ConversationView.tsx",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 7447,
+      "category": "m7-source",
+      "destination": "source-m7/components/WebConvoSurface.tsx",
+      "sha256": "47d9ff107eaf828c8873cbeea08dfc24502535d1d8e85ebf9d4b1050f40efd14",
+      "sourcePath": "lanes/grok-snapback4/components/WebConvoSurface.tsx",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 33003,
+      "category": "m7-source",
+      "destination": "source-m7/scripts/acceptance.mjs",
+      "sha256": "4f7ac3ca10cf2a6cdcf826a2f5096843608f52e6bd1b800cf55064cd28d7ded3",
+      "sourcePath": "lanes/grok-snapback4/scripts/acceptance.mjs",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 29824,
+      "category": "m7-source",
+      "destination": "source-m7/snapback/generated/api.ts",
+      "sha256": "f77f13d19f325972c1ddc6eea9a7684dc36cf8a209b8f5ab554e1ba36058b7ec",
+      "sourcePath": "lanes/grok-snapback4/snapback/generated/api.ts",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 40761,
+      "category": "m7-source",
+      "destination": "source-m7/snapback/schema.q",
+      "sha256": "8a9f9b7798f34991d7cf9d7dbe40312c04268e991cb2e4bd6a760774ae1c1e7b",
+      "sourcePath": "lanes/grok-snapback4/snapback/schema.q",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 1101,
+      "category": "m7-source",
+      "destination": "source-m7/lib/polls.ts",
+      "sha256": "da9e3f49d0c9218112bf39d4790996133017cd91fc9afc83557dd887cb40763e",
+      "sourcePath": "lanes/grok-snapback4/lib/polls.ts",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 4957,
+      "category": "m7-source",
+      "destination": "source-m7/scripts/compare-m7-snapshot.mjs",
+      "sha256": "2ccc62cdc34152a7456a021b01bdb9515599cbea5f1633f6ed93d4b85f71924f",
+      "sourcePath": "lanes/grok-snapback4/scripts/compare-m7-snapshot.mjs",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 7171,
+      "category": "m7-source",
+      "destination": "source-m7/scripts/export-pre-m7-snapshot.mjs",
+      "sha256": "95bee2486000cf2769538ba9d407db8f7e17bbb92b7a101d8a735daddb453c04",
+      "sourcePath": "lanes/grok-snapback4/scripts/export-pre-m7-snapshot.mjs",
+      "verifiedByteIdentical": true
+    },
+    {
+      "bytes": 978,
+      "category": "m7-source",
+      "destination": "source-m7/scripts/seed-weekend-poll.mjs",
+      "sha256": "3226d323800a8cbe2aeb8d3666c4c6732ee3e20123def279a06357dfcd9e8fc8",
+      "sourcePath": "lanes/grok-snapback4/scripts/seed-weekend-poll.mjs",
+      "verifiedByteIdentical": true
+    }
+  ],
+  "schemaVersion": 1,
+  "sourceRoot": "/Users/ccheever/clique-sb4-20260913-full-3models"
+}

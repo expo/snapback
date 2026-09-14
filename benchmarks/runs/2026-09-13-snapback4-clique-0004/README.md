@@ -14,7 +14,10 @@ Muse's received grade is 94 pass / 16 fail / 8 not-run / 1 not-applicable.
 [All three baseline grades](./grades/summary.md) are complete and structurally
 validated. Astra's fresh M7 completed with a builder green result in 1,345.403
 seconds. Its [evidence audit](./astra-m7-outcome-audit.md) supports that result
-with protocol qualifications below. Grok M7 is active; Muse M7 remains pending.
+with protocol qualifications below. Grok M7 exited zero in 1,658.219 seconds,
+reporting green; its [outcome audit](./grok-m7-outcome-audit.md) is complete,
+and its [source audit](./grok-m7-source-delta-audit.md) identifies material app
+defects despite passing receipts. Muse M7 is active.
 All three lanes are frozen to published `snapback4@0.2.6` and
 `snapback4-expo@0.2.1`. `REGISTRY_RECEIPTS.json` confirms that registry integrity
 matches the exact qualified tarballs, including the platform binary.
@@ -123,8 +126,8 @@ new exit diagnostics are not measured by the frozen run.
 | Lane | M1 | M2 | M3 | M4 | M5 | M6 | M8 | Continuous wall | Holistic score | Independent 119 | Comparable 101 subtotal | Fresh M7 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Astra medium | builder green | builder green | builder green | builder green | builder green | builder green | builder green | 9,614.013 s | 84 | 100 pass / 10 fail / 9 not-run | 84 pass / 8 fail / 9 not-run | builder green; 1,345.403 s; protocol qualifications |
-| Grok 4.6 xhigh | web green | web green | capability failure | blocked; partial API suite | blocked; partial API suite | blocked; scale incomplete | blocked; partial API suite | 12,499.350 s | 70 | 70 pass / 18 fail / 31 not-run | 60 pass / 17 fail / 24 not-run | active |
-| Muse Spark 1.3 xhigh | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | 17,657.686 s; includes interrupted runtime continuation | 80 | 94 pass / 16 fail / 8 not-run / 1 not-applicable | 79 pass / 13 fail / 8 not-run / 1 not-applicable | pending |
+| Grok 4.6 xhigh | web green | web green | capability failure | blocked; partial API suite | blocked; partial API suite | blocked; scale incomplete | blocked; partial API suite | 12,499.350 s | 70 | 70 pass / 18 fail / 31 not-run | 60 pass / 17 fail / 24 not-run | builder green; 1,658.219 s; audited app defects |
+| Muse Spark 1.3 xhigh | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | suite claim; no choreography | 17,657.686 s; includes interrupted runtime continuation | 80 | 94 pass / 16 fail / 8 not-run / 1 not-applicable | 79 pass / 13 fail / 8 not-run / 1 not-applicable | active |
 
 Astra's grade passed the frozen schema and exact 101+18 assertion partition.
 Its 18 M8 results are 16 pass / 2 fail; all nine not-run results are pre-evolution
@@ -230,8 +233,22 @@ confirms a staged, authorized backfill, unchanged original regression suites,
 and unchanged package pins. It found no material migration or count-maintenance
 defect. Two bounded UI issues remain: blank added options can be submitted
 (a supplied UI-kit behavior), and the app integration displays the poll question
-twice. Grok's fresh M7 started
-at `2026-09-14T08:26:02Z` with its own single four-hour cap.
+twice. Grok's fresh M7 ran from `2026-09-14T08:26:02Z` to
+`2026-09-14T08:53:40Z`, exiting zero after 1,658.219 seconds. Its report claims
+green suite, choreography, snapshot preservation, and old-suite regressions;
+the [outcome audit](./grok-m7-outcome-audit.md) verifies the exact six suite
+IDs and two choreography IDs with all successful attempts and a matching suite
+hash. Its preservation evidence is narrower than Astra's: no retained
+post-persona payloads or asset-byte checks, and the snapshot omits an explicit
+message type. The required prior-green subset is M1/M2; reported additional
+suite reruns do not repair inherited milestone failures. The [source audit](./grok-m7-source-delta-audit.md)
+confirms real same-store schema adoption, backfilled counts, and set-state
+voting. It also finds a conversation-wide 200-vote query that can truncate
+later poll tallies and an unreachable native poll composer. New suite mappings
+omit some option-bound, expiry, and rendered-settings checks, while regression
+reruns preserve inherited weak mappings. Grok's received green is therefore
+qualified by these app defects and coverage gaps. Muse's final M7 phase started at
+`2026-09-14T08:54:00Z`, with a single 14,400-second cap.
 
 The frozen packet has two M7 methodology limitations. Its brief calls for a
 pre-session snapshot, while its supplied prompt instructs the fresh builder to

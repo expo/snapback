@@ -1,0 +1,155 @@
+{
+  "createdAt": "2026-09-14T09:01:35Z",
+  "firstReceipts": {
+    "capturePath": "observed-milestones/grok-m7-first-receipts/capture.json",
+    "captureSha256": "83b364055f710367396826513f50a5a3106144bc5ac700043a9cec1e910bb3f0",
+    "files": [
+      {
+        "byteIdenticalToFinal": true,
+        "bytes": 495,
+        "path": "receipts/suite-m7.json",
+        "sha256": "acc7b0247573fecde32e23575a4b8c25fe77e4aa0f0e3228a3d248fe4f3af80e"
+      },
+      {
+        "byteIdenticalToFinal": true,
+        "bytes": 226,
+        "path": "receipts/coverage-m7.json",
+        "sha256": "86e5af3754fba7ad6e392642c1a3e9fd85ddaf12a50bafb94bd4634fcabf1864"
+      },
+      {
+        "byteIdenticalToFinal": true,
+        "bytes": 66,
+        "path": "receipts/suite-status-m7.json",
+        "sha256": "ea3ed66e09146255a062c4102acef5b032170e1561337a22a5fb0d80ffc70f6a"
+      },
+      {
+        "byteIdenticalToFinal": true,
+        "bytes": 3873,
+        "path": "receipts/choreo-m7.jsonl",
+        "sha256": "3cd905378dc54c40876d4684ff4775d4c6e70f61cd3366f97b4479d700376854"
+      },
+      {
+        "byteIdenticalToFinal": true,
+        "bytes": 1418,
+        "path": "receipts/choreo-m7.jsonl.observations.jsonl",
+        "sha256": "5c89903c0ed1e6cc9c4ea1ef8ae2ed6f357379d96dd4b8450863010fb39a1147"
+      }
+    ]
+  },
+  "interpretation": "The passive records are custody evidence. The postmigration run log later gained entries; the final snapshot comparison reran after the suite with the same result and a later comparedAt. All other postmigration-prefix bytes and all five first-receipt bytes match final.",
+  "postmigrationPrefix": {
+    "capturePath": "observed-milestones/grok-m7-postmigration-prefix/capture.json",
+    "captureSha256": "abcc776a0d37d6fce5275b3dc9940ba646bc9a035ff2b98716bc3db7c4b66e70",
+    "files": [
+      {
+        "byteIdentical": true,
+        "capturedBytes": 37364,
+        "capturedSha256": "1c0cd8576cc94e83ec0b4a08cb3b9d70cb1889d5040e8596e05c19c1c971b54a",
+        "classification": "byte-identical",
+        "finalBytes": 37364,
+        "finalSha256": "1c0cd8576cc94e83ec0b4a08cb3b9d70cb1889d5040e8596e05c19c1c971b54a",
+        "path": "pre-m7-schema.q"
+      },
+      {
+        "byteIdentical": false,
+        "capturedBytes": 829,
+        "capturedSha256": "494b82be926b838b131d8651d9a56929def4e0435d3336549316a4b110aaf6f8",
+        "classification": "same comparison result; comparedAt advanced for the post-suite rerun",
+        "finalBytes": 829,
+        "finalSha256": "d4fa8a08e1ef4274b8845df21d3aed295392689096eccabab1879efae3f6ab2e",
+        "path": "snapshot-compare.json"
+      },
+      {
+        "byteIdentical": false,
+        "capturedBytes": 1791,
+        "capturedSha256": "43c2a3b2c3cd11f0f7ef8451fefb420076ceea9f06526544fc30713d5c22b20d",
+        "classification": "captured log text precedes the appended final entries; its extra terminal newline prevents byte-prefix identity",
+        "finalBytes": 3719,
+        "finalSha256": "770da005cb095aeb1d6f477efd6d704702832d52095ad88d9223d3989e2078f7",
+        "path": "run-log.md"
+      },
+      {
+        "byteIdentical": true,
+        "capturedBytes": 12356,
+        "capturedSha256": "d11efffa10c0fa53cc7c3e9c1ee0267e228ebc3dfa7de60857d4bc32e41710f6",
+        "classification": "byte-identical",
+        "finalBytes": 12356,
+        "finalSha256": "d11efffa10c0fa53cc7c3e9c1ee0267e228ebc3dfa7de60857d4bc32e41710f6",
+        "path": "pre-snapshot/alice.json"
+      },
+      {
+        "byteIdentical": true,
+        "capturedBytes": 12347,
+        "capturedSha256": "23165f80e2ed91b2f08cac9bb3c7989b81f01c38b2a231e88d8e1d507236a981",
+        "classification": "byte-identical",
+        "finalBytes": 12347,
+        "finalSha256": "23165f80e2ed91b2f08cac9bb3c7989b81f01c38b2a231e88d8e1d507236a981",
+        "path": "pre-snapshot/bob.json"
+      },
+      {
+        "byteIdentical": true,
+        "capturedBytes": 8009,
+        "capturedSha256": "7056246af068c33a060b29bf553111768de6a18499ffd5c6250f1eba1bbab731",
+        "classification": "byte-identical",
+        "finalBytes": 8009,
+        "finalSha256": "7056246af068c33a060b29bf553111768de6a18499ffd5c6250f1eba1bbab731",
+        "path": "pre-snapshot/carol.json"
+      },
+      {
+        "byteIdentical": true,
+        "capturedBytes": 369,
+        "capturedSha256": "5f0ca72993ca4d2f122bb106937140eccb980e90d9e134eb6badc3cb92245d80",
+        "classification": "byte-identical",
+        "finalBytes": 369,
+        "finalSha256": "5f0ca72993ca4d2f122bb106937140eccb980e90d9e134eb6badc3cb92245d80",
+        "path": "pre-snapshot/dave.json"
+      },
+      {
+        "byteIdentical": true,
+        "capturedBytes": 374,
+        "capturedSha256": "07cfa962c12ac275d785cf467a2320396cf6d6366b234038f67a83e1f6f39b69",
+        "classification": "byte-identical",
+        "finalBytes": 374,
+        "finalSha256": "07cfa962c12ac275d785cf467a2320396cf6d6366b234038f67a83e1f6f39b69",
+        "path": "pre-snapshot/erin.json"
+      },
+      {
+        "byteIdentical": true,
+        "capturedBytes": 372,
+        "capturedSha256": "2ae9cab18b0f480d9ec05cb10af0db875a1eaa619fdc22939581adfc48f9e7c4",
+        "classification": "byte-identical",
+        "finalBytes": 372,
+        "finalSha256": "2ae9cab18b0f480d9ec05cb10af0db875a1eaa619fdc22939581adfc48f9e7c4",
+        "path": "pre-snapshot/frank.json"
+      },
+      {
+        "byteIdentical": true,
+        "capturedBytes": 376,
+        "capturedSha256": "d15e8e78a2580de3b5e494f415756f022b3c056daf0f22b255b2cb866cf96c14",
+        "classification": "byte-identical",
+        "finalBytes": 376,
+        "finalSha256": "d15e8e78a2580de3b5e494f415756f022b3c056daf0f22b255b2cb866cf96c14",
+        "path": "pre-snapshot/grace.json"
+      },
+      {
+        "byteIdentical": true,
+        "capturedBytes": 370,
+        "capturedSha256": "57770a6f2c446def93ff4c213f85462cf7e11978d67299066ab1d78ce4ab5505",
+        "classification": "byte-identical",
+        "finalBytes": 370,
+        "finalSha256": "57770a6f2c446def93ff4c213f85462cf7e11978d67299066ab1d78ce4ab5505",
+        "path": "pre-snapshot/henry.json"
+      },
+      {
+        "byteIdentical": true,
+        "capturedBytes": 3225,
+        "capturedSha256": "fd01c832f28f6830cc4cb507723dd770a47d9e20231ef9a718e80a27b56a95cf",
+        "classification": "byte-identical",
+        "finalBytes": 3225,
+        "finalSha256": "fd01c832f28f6830cc4cb507723dd770a47d9e20231ef9a718e80a27b56a95cf",
+        "path": "pre-snapshot/manifest.json"
+      }
+    ]
+  },
+  "schemaVersion": 1
+}

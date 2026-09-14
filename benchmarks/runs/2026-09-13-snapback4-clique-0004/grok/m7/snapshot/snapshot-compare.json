@@ -1,0 +1,47 @@
+{
+  "ok": true,
+  "mismatches": [],
+  "perPersona": [
+    {
+      "persona": "alice",
+      "preConversations": 2,
+      "preMessages": 15
+    },
+    {
+      "persona": "bob",
+      "preConversations": 2,
+      "preMessages": 15
+    },
+    {
+      "persona": "carol",
+      "preConversations": 1,
+      "preMessages": 9
+    },
+    {
+      "persona": "dave",
+      "preConversations": 0,
+      "preMessages": 0
+    },
+    {
+      "persona": "erin",
+      "preConversations": 0,
+      "preMessages": 0
+    },
+    {
+      "persona": "frank",
+      "preConversations": 0,
+      "preMessages": 0
+    },
+    {
+      "persona": "grace",
+      "preConversations": 0,
+      "preMessages": 0
+    },
+    {
+      "persona": "henry",
+      "preConversations": 0,
+      "preMessages": 0
+    }
+  ],
+  "comparedAt": "2026-09-14T08:46:56.286Z"
+}

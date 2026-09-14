@@ -1,0 +1,33 @@
+{
+  "capturedEpoch": 1789375745.1653051,
+  "sourceRoot": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/grok-snapback4",
+  "role": "orchestrator passive first receipt capture; may be partial while active; private until screening",
+  "activePhasePid": 43570,
+  "files": [
+    {
+      "sourceRelativePath": "receipts/suite-m7.json",
+      "bytes": 495,
+      "sha256": "acc7b0247573fecde32e23575a4b8c25fe77e4aa0f0e3228a3d248fe4f3af80e"
+    },
+    {
+      "sourceRelativePath": "receipts/coverage-m7.json",
+      "bytes": 226,
+      "sha256": "86e5af3754fba7ad6e392642c1a3e9fd85ddaf12a50bafb94bd4634fcabf1864"
+    },
+    {
+      "sourceRelativePath": "receipts/suite-status-m7.json",
+      "bytes": 66,
+      "sha256": "ea3ed66e09146255a062c4102acef5b032170e1561337a22a5fb0d80ffc70f6a"
+    },
+    {
+      "sourceRelativePath": "receipts/choreo-m7.jsonl",
+      "bytes": 3873,
+      "sha256": "3cd905378dc54c40876d4684ff4775d4c6e70f61cd3366f97b4479d700376854"
+    },
+    {
+      "sourceRelativePath": "receipts/choreo-m7.jsonl.observations.jsonl",
+      "bytes": 1418,
+      "sha256": "5c89903c0ed1e6cc9c4ea1ef8ae2ed6f357379d96dd4b8450863010fb39a1147"
+    }
+  ]
+}

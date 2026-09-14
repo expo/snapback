@@ -1,0 +1,13 @@
+{
+  "format": "clique-coverage-manifest.v1",
+  "instrument": "social-messenger@0.3.8-m8",
+  "milestones": {
+    "m6": [
+      "m6-a08",
+      "m6-a09",
+      "m6-a10",
+      "m6-a11",
+      "m6-a13"
+    ]
+  }
+}

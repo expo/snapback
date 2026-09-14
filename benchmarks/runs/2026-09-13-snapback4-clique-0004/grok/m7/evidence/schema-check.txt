@@ -1,0 +1,493 @@
+(node:63044) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+check: ok — 40 tables (33 synced), 61 operations, no problems, 23 notes, 6.7 ms
+note: schema.q:7:1 — N_NO_HORIZON: table runtime: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start
+  rewrite: by byAt: at, id  -- then: sync public last 500 by byAt
+  guide: sync
+
+note: schema.q:335:1 — N_NO_HORIZON: table typing: `sync to memberships[.conversationId]` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start
+  rewrite: sync to memberships[.conversationId] last 500 by byConv
+  guide: sync
+
+note: schema.q:349:1 — N_NO_HORIZON: table unreads: `sync to memberships[.conversationId]` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start
+  rewrite: sync to memberships[.conversationId] last 500 by byConvPrincipal
+  guide: sync
+
+note: schema.q:14:1 — N_NO_HORIZON: table windows: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start
+  rewrite: sync public last 500 by byK
+  guide: sync
+
+note: schema.q:463:1 — N_NO_CURSOR: query trendingFeed returns a page of 10 trending rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — trendingFeed(.., c: cursor ?): return trending[..] after c last 10 by <index>
+  guide: reads
+
+note: schema.q:481:1 — N_NO_CURSOR: query groupByName returns a page of 10 conversations rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — groupByName(.., c: cursor ?): return conversations[..] after c last 10 by <index>
+  guide: reads
+
+note: schema.q:481:1 — N_NEVER_COMPLETE: query groupByName: the page over conversations[..] by byName is never `complete` — the read rule `exists memberships[.id, viewer]` reads .id, which the scan does not pin, so the server cannot tell "no more" from "more you may not read"
+  rewrite: scan by an index leading with id, id (`by byId: id, id`), or read the page on the device, where the partition holds exactly what the viewer may read
+  guide: reads
+
+note: schema.q:484:1 — N_NO_CURSOR: query dmWith returns a page of 50 memberships rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — dmWith(.., c: cursor ?): return memberships[..] after c last 50 by <index>
+  guide: reads
+
+note: schema.q:493:1 — N_NO_CURSOR: query myRecipientRows returns a page of 200 recipients rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — myRecipientRows(.., c: cursor ?): return recipients[..] after c last 200 by <index>
+  guide: reads
+
+note: schema.q:493:1 — N_NEVER_COMPLETE: query myRecipientRows: the page over recipients[..] by byPrincipal is never `complete` — the read rule `exists memberships[.conversationId, viewer]` reads .conversationId, which the scan does not pin, so the server cannot tell "no more" from "more you may not read"
+  rewrite: scan by an index leading with conversationId, id (`by byConversationId: conversationId, id`), or read the page on the device, where the partition holds exactly what the viewer may read
+  guide: reads
+
+note: schema.q:499:1 — N_NO_CURSOR: query messageReactions returns a page of 50 reactions rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — messageReactions(.., c: cursor ?): return reactions[..] after c last 50 by <index>
+  guide: reads
+
+note: schema.q:499:1 — N_NEVER_COMPLETE: query messageReactions: the page over reactions[..] by byMessage is never `complete` — the read rule `exists memberships[.conversationId, viewer]` reads .conversationId, which the scan does not pin, so the server cannot tell "no more" from "more you may not read"
+  rewrite: scan by an index leading with conversationId, principal (`by byConversationId: conversationId, principal`), or read the page on the device, where the partition holds exactly what the viewer may read
+  guide: reads
+
+note: schema.q:502:1 — N_NO_CURSOR: query recipientsOf returns a page of 50 recipients rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — recipientsOf(.., c: cursor ?): return recipients[..] after c last 50 by <index>
+  guide: reads
+
+note: schema.q:502:1 — N_NEVER_COMPLETE: query recipientsOf: the page over recipients[..] by byMessage is never `complete` — the read rule `exists memberships[.conversationId, viewer]` reads .conversationId, which the scan does not pin, so the server cannot tell "no more" from "more you may not read"
+  rewrite: scan by an index leading with conversationId, principal (`by byConversationId: conversationId, principal`), or read the page on the device, where the partition holds exactly what the viewer may read
+  guide: reads
+
+note: schema.q:505:1 — N_NO_CURSOR: query receiptsOf returns a page of 50 receipts rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — receiptsOf(.., c: cursor ?): return receipts[..] after c last 50 by <index>
+  guide: reads
+
+note: schema.q:505:1 — N_NEVER_COMPLETE: query receiptsOf: the page over receipts[..] by byMessagePrincipal is never `complete` — the read rule `exists memberships[.conversationId, viewer]` reads .conversationId, which the scan does not pin, so the server cannot tell "no more" from "more you may not read"
+  rewrite: scan by an index leading with conversationId, principal (`by byConversationId: conversationId, principal`), or read the page on the device, where the partition holds exactly what the viewer may read
+  guide: reads
+
+note: schema.q:508:1 — N_NO_CURSOR: query convReceipts returns a page of 200 receipts rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — convReceipts(.., c: cursor ?): return receipts[..] after c last 200 by <index>
+  guide: reads
+
+note: schema.q:512:1 — N_NO_CURSOR: query convRecipients returns a page of 200 recipients rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — convRecipients(.., c: cursor ?): return recipients[..] after c last 200 by <index>
+  guide: reads
+
+note: schema.q:516:1 — N_NO_CURSOR: query convReactions returns a page of 200 reactions rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — convReactions(.., c: cursor ?): return reactions[..] after c last 200 by <index>
+  guide: reads
+
+note: schema.q:520:1 — N_NO_CURSOR: query convPollVotes returns a page of 200 pollVotes rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — convPollVotes(.., c: cursor ?): return pollVotes[..] after c last 200 by <index>
+  guide: reads
+
+note: schema.q:524:1 — N_NO_CURSOR: query membersOf returns a page of 50 memberships rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — membersOf(.., c: cursor ?): return memberships[..] after c last 50 by <index>
+  guide: reads
+
+note: schema.q:528:1 — N_NO_CURSOR: query typingIn returns a page of 50 typing rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — typingIn(.., c: cursor ?): return typing[..] after c last 50 by <index>
+  guide: reads
+
+note: schema.q:535:1 — N_NEVER_COMPLETE: query allMessageSearch: the page over messages[..] by byWords is never `complete` — the read rule `exists memberships[.conversationId, viewer]` reads .conversationId, which the scan does not pin, so the server cannot tell "no more" from "more you may not read"
+  rewrite: scan by an index leading with conversationId, id (`by byConversationId: conversationId, id`), or read the page on the device, where the partition holds exactly what the viewer may read
+  guide: reads
+
+  query me:
+    point profiles.byPrincipal — one row, one rule check
+    point followerCount.byGroup — one row, one rule check
+    point followingCount.byGroup — one row, one rule check
+    point myPostCount.byGroup — one row, one rule check
+    point likesReceived.byGroup — one row, one rule check
+    point repostsReceived.byGroup — one row, one rule check
+    point repliesReceived.byGroup — one row, one rule check
+  query profileByHandle:
+    point profiles.byHandle — one row, one rule check
+    point followerCount.byGroup — one row, one rule check
+    point followingCount.byGroup — one row, one rule check
+    point follows.byPair — one row, one rule check
+  query profilePosts:
+    scan posts.byAuthorTime first 20 — rule decided by the prefix: no probes
+    point likeCounts.byGroup — one row, one rule check
+    point repostCounts.byGroup — one row, one rule check
+    point replyCounts.byGroup — one row, one rule check
+    point profiles.byPrincipal — one row, one rule check
+    point likes.byPostPrincipal — one row, one rule check
+    point reposts.byPostPrincipal — one row, one rule check
+  query followingFeed:
+    scan feed.byReaderTime first 20 — rule decided by the prefix: no probes
+    point profiles.byPrincipal — one row, one rule check
+    point posts.byId — one row, one rule check
+    point likeCounts.byGroup — one row, one rule check
+    point repostCounts.byGroup — one row, one rule check
+    point replyCounts.byGroup — one row, one rule check
+    point profiles.byPrincipal — one row, one rule check
+    point likes.byPostPrincipal — one row, one rule check
+    point reposts.byPostPrincipal — one row, one rule check
+  query globalFeed:
+    scan timeline.byTime first 20 — rule decided by the prefix: no probes
+    point profiles.byPrincipal — one row, one rule check
+    point posts.byId — one row, one rule check
+    point likeCounts.byGroup — one row, one rule check
+    point repostCounts.byGroup — one row, one rule check
+    point replyCounts.byGroup — one row, one rule check
+    point profiles.byPrincipal — one row, one rule check
+    point likes.byPostPrincipal — one row, one rule check
+    point reposts.byPostPrincipal — one row, one rule check
+  query trendingFeed:
+    scan trending.byLikesAt first 10 — rule decided by the prefix: no probes
+    point posts.byId — one row, one rule check
+    point likeCounts.byGroup — one row, one rule check
+    point repostCounts.byGroup — one row, one rule check
+    point replyCounts.byGroup — one row, one rule check
+    point profiles.byPrincipal — one row, one rule check
+    point likes.byPostPrincipal — one row, one rule check
+    point reposts.byPostPrincipal — one row, one rule check
+  query post:
+    point posts.byId — one row, one rule check
+    point likeCounts.byGroup — one row, one rule check
+    point repostCounts.byGroup — one row, one rule check
+    point replyCounts.byGroup — one row, one rule check
+    point profiles.byPrincipal — one row, one rule check
+    point likes.byPostPrincipal — one row, one rule check
+    point reposts.byPostPrincipal — one row, one rule check
+  query thread:
+    scan replies.byParentTime first 50 — rule decided by the prefix: no probes
+    point profiles.byPrincipal — one row, one rule check
+  query people:
+    scan profiles.byNameWords first 20 — rule decided by the prefix: no probes
+    point followerCount.byGroup — one row, one rule check
+    point followingCount.byGroup — one row, one rule check
+  query allPeople:
+    scan profiles.byId first 50 — rule decided by the prefix: no probes
+    point followerCount.byGroup — one row, one rule check
+    point followingCount.byGroup — one row, one rule check
+  query inbox:
+    scan memberships.byPrincipalConversation first 50 — rule decided by the prefix: no probes
+    point conversations.byId — one row, one rule check
+    point unreads.byConvPrincipal — one row, one rule check
+    point visibleMessageCounts.byGroup — one row, one rule check
+  query groupByName:
+    scan conversations.byName first 10 — rule checked per row
+  query dmWith:
+    scan memberships.byPrincipalConversation first 50 — rule decided by the prefix: no probes
+    point conversations.byId — one row, one rule check
+  query dmByPair:
+    point dmIndex.byPair — one row, one rule check
+  query conversationOf:
+    point conversations.byId — one row, one rule check
+    point visibleMessageCounts.byGroup — one row, one rule check
+  query myRecipientRows:
+    scan recipients.byPrincipal first 200 — rule checked per row
+  query threadMessages:
+    scan messages.byConvTime first 50 — rule uniform over the prefix: one verdict
+    point profiles.byPrincipal — one row, one rule check
+    point reactions.byMessagePrincipal — one row, one rule check
+    point pollVotes.byMessagePrincipal — one row, one rule check
+    point messages.byId — one row, one rule check
+  query messageReactions:
+    scan reactions.byMessage first 50 — rule checked per row
+  query recipientsOf:
+    scan recipients.byMessage first 50 — rule checked per row
+  query receiptsOf:
+    scan receipts.byMessagePrincipal first 50 — rule checked per row
+  query convReceipts:
+    point memberships.byConversationPrincipal — one row, one rule check
+    scan receipts.byConvPrincipal first 200 — rule uniform over the prefix: one verdict
+  query convRecipients:
+    point memberships.byConversationPrincipal — one row, one rule check
+    scan recipients.byConvPrincipal first 200 — rule uniform over the prefix: one verdict
+  query convReactions:
+    point memberships.byConversationPrincipal — one row, one rule check
+    scan reactions.byConv first 200 — rule uniform over the prefix: one verdict
+  query convPollVotes:
+    point memberships.byConversationPrincipal — one row, one rule check
+    scan pollVotes.byConv first 200 — rule uniform over the prefix: one verdict
+  query membersOf:
+    point memberships.byConversationPrincipal — one row, one rule check
+    scan memberships.byConversationPrincipal first 50 — rule uniform over the prefix: one verdict
+    point profiles.byPrincipal — one row, one rule check
+  query typingIn:
+    scan typing.byConv first 50 — rule uniform over the prefix: one verdict
+  query inChatSearch:
+    point memberships.byConversationPrincipal — one row, one rule check
+    scan messages.byConvWords first 50 — rule uniform over the prefix: one verdict
+    point profiles.byPrincipal — one row, one rule check
+  query allMessageSearch:
+    scan messages.byWords first 50 — rule checked per row
+    point profiles.byPrincipal — one row, one rule check
+    point conversations.byId — one row, one rule check
+  query insights:
+    point myPostCount.byGroup — one row, one rule check
+    point likesReceived.byGroup — one row, one rule check
+    point repostsReceived.byGroup — one row, one rule check
+    point repliesReceived.byGroup — one row, one rule check
+    point followerCount.byGroup — one row, one rule check
+    point followingCount.byGroup — one row, one rule check
+    point dailyPostCount.byGroup — one row, one rule check
+    point dailyPostCount.byGroup — one row, one rule check
+    point dailyPostCount.byGroup — one row, one rule check
+    point dailyPostCount.byGroup — one row, one rule check
+    point dailyPostCount.byGroup — one row, one rule check
+    point dailyPostCount.byGroup — one row, one rule check
+    point dailyPostCount.byGroup — one row, one rule check
+    point dailyLikesReceived.byGroup — one row, one rule check
+    point dailyLikesReceived.byGroup — one row, one rule check
+    point dailyLikesReceived.byGroup — one row, one rule check
+    point dailyLikesReceived.byGroup — one row, one rule check
+    point dailyLikesReceived.byGroup — one row, one rule check
+    point dailyLikesReceived.byGroup — one row, one rule check
+    point dailyLikesReceived.byGroup — one row, one rule check
+  query viewOnceOpened:
+    point viewOnceOpens.byMessagePrincipal — one row, one rule check
+  query windowsConfig:
+    point windows.byK — one row, one rule check
+    point windows.byK — one row, one rule check
+    point windows.byK — one row, one rule check
+    point windows.byK — one row, one rule check
+  query runtimeFlag:
+    point runtime.byId — one row, one rule check
+  mutation upsertProfile:
+    point profiles.byPrincipal — one row, one rule check
+    point profiles.byPrincipal — one row, one rule check
+    update profiles, fans out to everyone
+    insert profiles, fans out to everyone
+  mutation setAvatar:
+    point profiles.byPrincipal — one row, one rule check
+    update profiles, fans out to everyone
+  mutation follow:
+    point follows.byPair — one row, one rule check
+    point followerCount.byGroup — one row, one rule check
+    scan posts.byAuthorTime first 500 — rule decided by the prefix: no probes
+    scan reposts.byPrincipalTime first 200 — rule decided by the prefix: no probes
+    point windows.byK — one row, one rule check
+    point digestAcc.byPrincipalPeriod — one row, one rule check
+    point follows.byPair — one row, one rule check
+    scan feed.byReaderKindAuthor first 200 — rule decided by the prefix: no probes
+    scan feed.byReaderKindActor first 200 — rule decided by the prefix: no probes
+    insert follows, fans out to everyone
+    insert feed, fans out to .readerId
+    insert feed, fans out to .readerId
+    insert digestAcc
+    update digestAcc
+    delete follows, fans out to everyone
+    delete feed, fans out to .readerId
+    delete feed, fans out to .readerId
+  mutation createPost:
+    scan follows.byFollowedBucket first 200 — rule decided by the prefix: no probes
+    insert posts, fans out to everyone
+    insert timeline, fans out to everyone
+    insert feed, fans out to .readerId
+    insert feed, fans out to .readerId
+    insert fanouts
+  mutation setLike:
+    point posts.byId — one row, one rule check
+    point likes.byPostPrincipal — one row, one rule check
+    point likeCounts.byGroup — one row, one rule check
+    point windows.byK — one row, one rule check
+    point trending.byPost — one row, one rule check
+    point likes.byPostPrincipal — one row, one rule check
+    point likeCounts.byGroup — one row, one rule check
+    point trending.byPost — one row, one rule check
+    insert likes, fans out to everyone
+    upsert trending, fans out to everyone
+    delete likes, fans out to everyone
+    update trending, fans out to everyone
+  mutation setRepost:
+    point posts.byId — one row, one rule check
+    point reposts.byPostPrincipal — one row, one rule check
+    scan follows.byFollowedBucket first 200 — rule decided by the prefix: no probes
+    point reposts.byPostPrincipal — one row, one rule check
+    point timeline.byPostActorKind — one row, one rule check
+    point feed.byReaderPostKindActor — one row, one rule check
+    scan follows.byFollowed first 1000 — rule decided by the prefix: no probes
+    point feed.byReaderPostKindActor — one row, one rule check
+    insert reposts, fans out to everyone
+    insert timeline, fans out to everyone
+    insert feed, fans out to .readerId
+    insert feed, fans out to .readerId
+    insert fanouts
+    delete reposts, fans out to everyone
+    delete timeline, fans out to everyone
+    delete feed, fans out to .readerId
+    delete feed, fans out to .readerId
+  mutation reply:
+    point posts.byId — one row, one rule check
+    insert replies, fans out to everyone
+  mutation createDm:
+    point dmIndex.byPair — one row, one rule check
+    insert conversations, fans out to the members in memberships
+    insert dmIndex
+    insert memberships, fans out to the members in memberships
+    insert memberships, fans out to the members in memberships
+  mutation createGroup:
+    reads nothing
+    insert conversations, fans out to the members in memberships
+    insert memberships, fans out to the members in memberships
+    insert memberships, fans out to the members in memberships
+  mutation addMember:
+    point memberships.byConversationPrincipalRole — one row, one rule check
+    point conversations.byId — one row, one rule check
+    point memberships.byConversationPrincipal — one row, one rule check
+    insert memberships, fans out to the members in memberships
+  mutation promoteMember:
+    point memberships.byConversationPrincipalRole — one row, one rule check
+    point memberships.byConversationPrincipal — one row, one rule check
+    update memberships, fans out to the members in memberships
+  mutation removeMember:
+    point memberships.byConversationPrincipalRole — one row, one rule check
+    point memberships.byConversationPrincipal — one row, one rule check
+    delete memberships, fans out to the members in memberships
+  mutation leaveChat:
+    point memberships.byConversationPrincipal — one row, one rule check
+    delete memberships, fans out to the members in memberships
+  mutation updateChat:
+    point conversations.byId — one row, one rule check
+    point memberships.byConversationPrincipalRole — one row, one rule check
+    point memberships.byConversationPrincipal — one row, one rule check
+    point conversations.byId — one row, one rule check
+    update conversations, fans out to the members in memberships
+  mutation send:
+    point memberships.byConversationPrincipal — one row, one rule check
+    point conversations.byId — one row, one rule check
+    point windows.byK — one row, one rule check
+    point windows.byK — one row, one rule check
+    scan memberships.byConversationPrincipal first 50 — rule uniform over the prefix: one verdict
+    scan memberships.byConversationPrincipal first 50 — rule uniform over the prefix: one verdict
+    point unreads.byConvPrincipal — one row, one rule check
+    point runtime.byId — one row, one rule check
+    point windows.byK — one row, one rule check
+    scan memberships.byConversationPrincipal first 50 — rule uniform over the prefix: one verdict
+    point digestAcc.byPrincipalPeriod — one row, one rule check
+    point digestAcc.byPrincipalPeriod — one row, one rule check
+    point runtime.byId — one row, one rule check
+    point profiles.byPrincipal — one row, one rule check
+    scan memberships.byConversationPrincipal first 50 — rule uniform over the prefix: one verdict
+    insert messages, fans out to the members in memberships
+    insert recipients, fans out to the members in memberships
+    insert unreads, fans out to the members in memberships
+    update unreads, fans out to the members in memberships
+    insert digestMsgHits
+    insert digestAcc
+    update digestAcc
+    insert digestChatHits
+    update digestAcc
+  mutation sendMedia:
+    point memberships.byConversationPrincipal — one row, one rule check
+    point conversations.byId — one row, one rule check
+    point windows.byK — one row, one rule check
+    point windows.byK — one row, one rule check
+    scan memberships.byConversationPrincipal first 50 — rule uniform over the prefix: one verdict
+    scan memberships.byConversationPrincipal first 50 — rule uniform over the prefix: one verdict
+    point unreads.byConvPrincipal — one row, one rule check
+    point runtime.byId — one row, one rule check
+    point windows.byK — one row, one rule check
+    scan memberships.byConversationPrincipal first 50 — rule uniform over the prefix: one verdict
+    point digestAcc.byPrincipalPeriod — one row, one rule check
+    point digestAcc.byPrincipalPeriod — one row, one rule check
+    point runtime.byId — one row, one rule check
+    point profiles.byPrincipal — one row, one rule check
+    scan memberships.byConversationPrincipal first 50 — rule uniform over the prefix: one verdict
+    insert messages, fans out to the members in memberships
+    insert recipients, fans out to the members in memberships
+    insert unreads, fans out to the members in memberships
+    update unreads, fans out to the members in memberships
+    insert digestMsgHits
+    insert digestAcc
+    update digestAcc
+    insert digestChatHits
+    update digestAcc
+  mutation editMessage:
+    point messages.byId — one row, one rule check
+    point windows.byK — one row, one rule check
+    update messages, fans out to the members in memberships
+  mutation deleteMessage:
+    point messages.byId — one row, one rule check
+    point windows.byK — one row, one rule check
+    update messages, fans out to the members in memberships
+  mutation createPoll:
+    point memberships.byConversationPrincipal — one row, one rule check
+    point conversations.byId — one row, one rule check
+    point windows.byK — one row, one rule check
+    point windows.byK — one row, one rule check
+    scan memberships.byConversationPrincipal first 50 — rule uniform over the prefix: one verdict
+    scan memberships.byConversationPrincipal first 50 — rule uniform over the prefix: one verdict
+    point unreads.byConvPrincipal — one row, one rule check
+    point runtime.byId — one row, one rule check
+    point windows.byK — one row, one rule check
+    scan memberships.byConversationPrincipal first 50 — rule uniform over the prefix: one verdict
+    point digestAcc.byPrincipalPeriod — one row, one rule check
+    point digestAcc.byPrincipalPeriod — one row, one rule check
+    point runtime.byId — one row, one rule check
+    point profiles.byPrincipal — one row, one rule check
+    scan memberships.byConversationPrincipal first 50 — rule uniform over the prefix: one verdict
+    insert messages, fans out to the members in memberships
+    insert recipients, fans out to the members in memberships
+    insert unreads, fans out to the members in memberships
+    update unreads, fans out to the members in memberships
+    insert digestMsgHits
+    insert digestAcc
+    update digestAcc
+    insert digestChatHits
+    update digestAcc
+  mutation setPollVote:
+    point messages.byId — one row, one rule check
+    point memberships.byConversationPrincipal — one row, one rule check
+    point pollVotes.byMessagePrincipal — one row, one rule check
+    point pollVotes.byMessagePrincipal — one row, one rule check
+    insert pollVotes, fans out to the members in memberships
+    update pollVotes, fans out to the members in memberships
+  mutation setReaction:
+    point messages.byId — one row, one rule check
+    point memberships.byConversationPrincipal — one row, one rule check
+    point reactions.byMessagePrincipal — one row, one rule check
+    point reactions.byMessagePrincipal — one row, one rule check
+    insert reactions, fans out to the members in memberships
+    update reactions, fans out to the members in memberships
+    delete reactions, fans out to the members in memberships
+  mutation pingTyping:
+    point memberships.byConversationPrincipal — one row, one rule check
+    point typing.byConvPrincipal — one row, one rule check
+    upsert typing, fans out to the members in memberships
+  mutation markDelivered:
+    point messages.byId — one row, one rule check
+    point recipients.byMessagePrincipal — one row, one rule check
+    point receipts.byMessagePrincipal — one row, one rule check
+    insert receipts, fans out to the members in memberships
+  mutation markRead:
+    point messages.byId — one row, one rule check
+    point memberships.byConversationPrincipal — one row, one rule check
+    point receipts.byMessagePrincipal — one row, one rule check
+    point unreads.byConvPrincipal — one row, one rule check
+    insert receipts, fans out to the members in memberships
+    update receipts, fans out to the members in memberships
+    update unreads, fans out to the members in memberships
+  mutation clearUnreads:
+    point memberships.byConversationPrincipal — one row, one rule check
+    point unreads.byConvPrincipal — one row, one rule check
+    insert unreads, fans out to the members in memberships
+    update unreads, fans out to the members in memberships
+  mutation openViewOnce:
+    point messages.byId — one row, one rule check
+    point memberships.byConversationPrincipal — one row, one rule check
+    point viewOnceOpens.byMessagePrincipal — one row, one rule check
+    insert viewOnceOpens, fans out to .principal
+  mutation setReplayMode:
+    point runtime.byId — one row, one rule check
+    point runtime.byId — one row, one rule check
+    update runtime, fans out to everyone
+  job fanOut:
+    scan fanouts.byId first 5 — rule uniform over the prefix: one verdict
+    scan follows.byFollowed first 1000 — rule decided by the prefix: no probes
+    point runtime.byId — one row, one rule check
+    point windows.byK — one row, one rule check
+    point digestAcc.byPrincipalPeriod — one row, one rule check
+    insert feed, fans out to .readerId
+    insert digestHits
+    insert digestAcc
+    update digestAcc
+    delete fanouts
+  job dailyDigest:
+    scan digestAcc.byPeriod first 50 — rule decided by the prefix: no probes
+    point runtime.byId — one row, one rule check
+    insert digestLog

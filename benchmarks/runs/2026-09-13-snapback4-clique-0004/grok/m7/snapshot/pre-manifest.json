@@ -1,0 +1,128 @@
+{
+  "backend": "http://127.0.0.1:49300",
+  "exportedAt": "2026-09-14T08:36:59.347Z",
+  "fieldManifest": "M6",
+  "files": [
+    {
+      "bytes": 12356,
+      "conversations": 2,
+      "file": "alice.json",
+      "mediaMessages": 0,
+      "messages": 15,
+      "persona": "alice",
+      "reactions": 0,
+      "receipts": 0,
+      "sha256": "sha256:d11efffa10c0fa53cc7c3e9c1ee0267e228ebc3dfa7de60857d4bc32e41710f6"
+    },
+    {
+      "bytes": 12347,
+      "conversations": 2,
+      "file": "bob.json",
+      "mediaMessages": 0,
+      "messages": 15,
+      "persona": "bob",
+      "reactions": 0,
+      "receipts": 0,
+      "sha256": "sha256:23165f80e2ed91b2f08cac9bb3c7989b81f01c38b2a231e88d8e1d507236a981"
+    },
+    {
+      "bytes": 8009,
+      "conversations": 1,
+      "file": "carol.json",
+      "mediaMessages": 0,
+      "messages": 9,
+      "persona": "carol",
+      "reactions": 0,
+      "receipts": 0,
+      "sha256": "sha256:7056246af068c33a060b29bf553111768de6a18499ffd5c6250f1eba1bbab731"
+    },
+    {
+      "bytes": 369,
+      "conversations": 0,
+      "file": "dave.json",
+      "mediaMessages": 0,
+      "messages": 0,
+      "persona": "dave",
+      "reactions": 0,
+      "receipts": 0,
+      "sha256": "sha256:5f0ca72993ca4d2f122bb106937140eccb980e90d9e134eb6badc3cb92245d80"
+    },
+    {
+      "bytes": 374,
+      "conversations": 0,
+      "file": "erin.json",
+      "mediaMessages": 0,
+      "messages": 0,
+      "persona": "erin",
+      "reactions": 0,
+      "receipts": 0,
+      "sha256": "sha256:07cfa962c12ac275d785cf467a2320396cf6d6366b234038f67a83e1f6f39b69"
+    },
+    {
+      "bytes": 372,
+      "conversations": 0,
+      "file": "frank.json",
+      "mediaMessages": 0,
+      "messages": 0,
+      "persona": "frank",
+      "reactions": 0,
+      "receipts": 0,
+      "sha256": "sha256:2ae9cab18b0f480d9ec05cb10af0db875a1eaa619fdc22939581adfc48f9e7c4"
+    },
+    {
+      "bytes": 376,
+      "conversations": 0,
+      "file": "grace.json",
+      "mediaMessages": 0,
+      "messages": 0,
+      "persona": "grace",
+      "reactions": 0,
+      "receipts": 0,
+      "sha256": "sha256:d15e8e78a2580de3b5e494f415756f022b3c056daf0f22b255b2cb866cf96c14"
+    },
+    {
+      "bytes": 370,
+      "conversations": 0,
+      "file": "henry.json",
+      "mediaMessages": 0,
+      "messages": 0,
+      "persona": "henry",
+      "reactions": 0,
+      "receipts": 0,
+      "sha256": "sha256:57770a6f2c446def93ff4c213f85462cf7e11978d67299066ab1d78ce4ab5505"
+    }
+  ],
+  "format": "clique-m7-pre-snapshot.v1",
+  "manifestSha256": "sha256:62a7d4396598d31eb5c96bf43a525a8d59c9df7a651d4b65de5eaa9b830131ac",
+  "messageFields": [
+    "id",
+    "conversationId",
+    "authorId",
+    "at",
+    "body",
+    "caption",
+    "photo",
+    "photoOnce",
+    "clip",
+    "editedAt",
+    "tombstoned",
+    "quoteId",
+    "myReaction",
+    "pending"
+  ],
+  "server": {
+    "generation": null,
+    "ops": [],
+    "snapback4": null,
+    "tables": []
+  },
+  "sources": {
+    "conversation": "query conversationOf",
+    "inbox": "query inbox",
+    "messages": "query threadMessages (paged)",
+    "profile": "query me",
+    "reactions": "query convReactions",
+    "receipts": "query convReceipts",
+    "recipients": "query convRecipients"
+  }
+}

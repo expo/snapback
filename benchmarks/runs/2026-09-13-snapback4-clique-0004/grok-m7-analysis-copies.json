@@ -1,0 +1,17 @@
+{
+  "createdAt": "2026-09-14T09:10:48.299592+00:00",
+  "copies": [
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/observed-milestones/grok-m7-outcome-audit.md",
+      "destination": "grok-m7-outcome-audit.md",
+      "bytes": 11197,
+      "sha256": "55fe63060886bc16a25ebf2465e2dcff05c562ac1c00dad55b1f1fc92e00a419"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-full-3models/observed-milestones/grok-m7-source-delta-audit.md",
+      "destination": "grok-m7-source-delta-audit.md",
+      "bytes": 16170,
+      "sha256": "4b164eaf6bf32fb7a78f9226384de8e6173ec42dc957a759038d969858a7a95a"
+    }
+  ]
+}

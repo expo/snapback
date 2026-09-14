@@ -1,0 +1,68 @@
+{
+  "capturedEpoch": 1789375418.8226318,
+  "sourceRoot": "/Users/ccheever/clique-sb4-20260913-full-3models/lanes/grok-snapback4/m7",
+  "role": "orchestrator passive prefix capture; private until screening",
+  "activePhasePid": 43570,
+  "files": [
+    {
+      "sourceRelativePath": "pre-m7-schema.q",
+      "bytes": 37364,
+      "sha256": "1c0cd8576cc94e83ec0b4a08cb3b9d70cb1889d5040e8596e05c19c1c971b54a"
+    },
+    {
+      "sourceRelativePath": "snapshot-compare.json",
+      "bytes": 829,
+      "sha256": "494b82be926b838b131d8651d9a56929def4e0435d3336549316a4b110aaf6f8"
+    },
+    {
+      "sourceRelativePath": "run-log.md",
+      "bytes": 1791,
+      "sha256": "43c2a3b2c3cd11f0f7ef8451fefb420076ceea9f06526544fc30713d5c22b20d"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/alice.json",
+      "bytes": 12356,
+      "sha256": "d11efffa10c0fa53cc7c3e9c1ee0267e228ebc3dfa7de60857d4bc32e41710f6"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/bob.json",
+      "bytes": 12347,
+      "sha256": "23165f80e2ed91b2f08cac9bb3c7989b81f01c38b2a231e88d8e1d507236a981"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/carol.json",
+      "bytes": 8009,
+      "sha256": "7056246af068c33a060b29bf553111768de6a18499ffd5c6250f1eba1bbab731"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/dave.json",
+      "bytes": 369,
+      "sha256": "5f0ca72993ca4d2f122bb106937140eccb980e90d9e134eb6badc3cb92245d80"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/erin.json",
+      "bytes": 374,
+      "sha256": "07cfa962c12ac275d785cf467a2320396cf6d6366b234038f67a83e1f6f39b69"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/frank.json",
+      "bytes": 372,
+      "sha256": "2ae9cab18b0f480d9ec05cb10af0db875a1eaa619fdc22939581adfc48f9e7c4"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/grace.json",
+      "bytes": 376,
+      "sha256": "d15e8e78a2580de3b5e494f415756f022b3c056daf0f22b255b2cb866cf96c14"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/henry.json",
+      "bytes": 370,
+      "sha256": "57770a6f2c446def93ff4c213f85462cf7e11978d67299066ab1d78ce4ab5505"
+    },
+    {
+      "sourceRelativePath": "pre-snapshot/manifest.json",
+      "bytes": 3225,
+      "sha256": "fd01c832f28f6830cc4cb507723dd770a47d9e20231ef9a718e80a27b56a95cf"
+    }
+  ]
+}

@@ -1,0 +1,148 @@
+{
+  "addedFileCount": 4,
+  "baseline": {
+    "manifestPath": "snapshots/grok-continuous/snapshot-manifest.json",
+    "manifestSha256": "bdd70d9b0b40ad59e84f1597aab490438c5a40cfa941a2d17c038c57a88fff5e",
+    "sourceArchivePath": "source-snapshot.tar.gz",
+    "sourceArchiveSha256": "a99a15e1f9464d0185decf06eea30b78bcf39d8459861349f2ba5ac29f43fa7f",
+    "sourceFileCount": 228
+  },
+  "changedFileCount": 7,
+  "createdAt": "2026-09-14T09:01:35Z",
+  "deletedBaselineFileCount": 0,
+  "files": [
+    {
+      "after": {
+        "bytes": 2989,
+        "sha256": "ab7fcdc6e25004079055b7d93e01b52a7cd2b7213a9719e29e20be3603ad0cfc"
+      },
+      "before": {
+        "bytes": 2336,
+        "sha256": "aea7a96dd5a61cb0eb9f0ba5d5bbb460d67d82ae458ac0f434d59a5e504f2c98"
+      },
+      "change": "changed",
+      "copiedTo": "source-m7/API.md",
+      "path": "API.md"
+    },
+    {
+      "after": {
+        "bytes": 6115,
+        "sha256": "4150cb36ff5a59c5e2afadc27f108abf6adc1df009d3d6ee56e6919ae2e8f972"
+      },
+      "before": {
+        "bytes": 6074,
+        "sha256": "42e3693b1f758fcf1ff961575523c123d481d80286c6128abc1213c03afaa499"
+      },
+      "change": "changed",
+      "copiedTo": "source-m7/components/ChatSettingsScreen.tsx",
+      "path": "components/ChatSettingsScreen.tsx"
+    },
+    {
+      "after": {
+        "bytes": 25784,
+        "sha256": "7aa417866ced07ddbf0292404b079a74d66e94103335986c6b83a2b27a17aa6d"
+      },
+      "before": {
+        "bytes": 20518,
+        "sha256": "06e9d57a35a485980fa28f55ab18251b375e106076009d5ff1bd63158d69c39d"
+      },
+      "change": "changed",
+      "copiedTo": "source-m7/components/ConversationView.tsx",
+      "path": "components/ConversationView.tsx"
+    },
+    {
+      "after": {
+        "bytes": 7447,
+        "sha256": "47d9ff107eaf828c8873cbeea08dfc24502535d1d8e85ebf9d4b1050f40efd14"
+      },
+      "before": {
+        "bytes": 4570,
+        "sha256": "4ae1485aae39a88f9e23ab7e31f09bf9e7e0ba85091692332f547357b72eba77"
+      },
+      "change": "changed",
+      "copiedTo": "source-m7/components/WebConvoSurface.tsx",
+      "path": "components/WebConvoSurface.tsx"
+    },
+    {
+      "after": {
+        "bytes": 33003,
+        "sha256": "4f7ac3ca10cf2a6cdcf826a2f5096843608f52e6bd1b800cf55064cd28d7ded3"
+      },
+      "before": {
+        "bytes": 24155,
+        "sha256": "4ab682dc7060360085343457ce6dd63753b2cada1ca1e57c62e208e58c73f1b4"
+      },
+      "change": "changed",
+      "copiedTo": "source-m7/scripts/acceptance.mjs",
+      "path": "scripts/acceptance.mjs"
+    },
+    {
+      "after": {
+        "bytes": 29824,
+        "sha256": "f77f13d19f325972c1ddc6eea9a7684dc36cf8a209b8f5ab554e1ba36058b7ec"
+      },
+      "before": {
+        "bytes": 27885,
+        "sha256": "07d727bcfd748fb3ef7d7ee0c080c54d675938f8836d283bacdbe89411b7946d"
+      },
+      "change": "changed",
+      "copiedTo": "source-m7/snapback/generated/api.ts",
+      "path": "snapback/generated/api.ts"
+    },
+    {
+      "after": {
+        "bytes": 40761,
+        "sha256": "8a9f9b7798f34991d7cf9d7dbe40312c04268e991cb2e4bd6a760774ae1c1e7b"
+      },
+      "before": {
+        "bytes": 37364,
+        "sha256": "1c0cd8576cc94e83ec0b4a08cb3b9d70cb1889d5040e8596e05c19c1c971b54a"
+      },
+      "change": "changed",
+      "copiedTo": "source-m7/snapback/schema.q",
+      "path": "snapback/schema.q"
+    },
+    {
+      "after": {
+        "bytes": 1101,
+        "sha256": "da9e3f49d0c9218112bf39d4790996133017cd91fc9afc83557dd887cb40763e"
+      },
+      "before": null,
+      "change": "added",
+      "copiedTo": "source-m7/lib/polls.ts",
+      "path": "lib/polls.ts"
+    },
+    {
+      "after": {
+        "bytes": 4957,
+        "sha256": "2ccc62cdc34152a7456a021b01bdb9515599cbea5f1633f6ed93d4b85f71924f"
+      },
+      "before": null,
+      "change": "added",
+      "copiedTo": "source-m7/scripts/compare-m7-snapshot.mjs",
+      "path": "scripts/compare-m7-snapshot.mjs"
+    },
+    {
+      "after": {
+        "bytes": 7171,
+        "sha256": "95bee2486000cf2769538ba9d407db8f7e17bbb92b7a101d8a735daddb453c04"
+      },
+      "before": null,
+      "change": "added",
+      "copiedTo": "source-m7/scripts/export-pre-m7-snapshot.mjs",
+      "path": "scripts/export-pre-m7-snapshot.mjs"
+    },
+    {
+      "after": {
+        "bytes": 978,
+        "sha256": "3226d323800a8cbe2aeb8d3666c4c6732ee3e20123def279a06357dfcd9e8fc8"
+      },
+      "before": null,
+      "change": "added",
+      "copiedTo": "source-m7/scripts/seed-weekend-poll.mjs",
+      "path": "scripts/seed-weekend-poll.mjs"
+    }
+  ],
+  "schemaVersion": 1,
+  "scope": "Files eligible for the continuous source snapshot. Runtime/output receipt changes are excluded. Grading audit had separately found the original lane source unchanged before M7. This is a source-inventory comparison, not a Git diff."
+}

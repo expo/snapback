@@ -1,0 +1,13 @@
+# M7 closing-essay paragraphs
+
+Day-2 on this lane was a schema-first morning, not a product-from-scratch morning. The inherited Clique already had groups, reactions, offline outbox, and a custom-client API. The job was to add a type of message the starter log had never heard of, and to hang a count on every conversation that already existed so the change could not hide in a side table.
+
+The poll itself is small on purpose. A question and two to four labels live on the message row; a vote is one row per member, overwritten when they change their mind. That matches the global ruling: set-state, not flip, and a client mutation id on every write. Live tallies are not a second protocol. They are the same member-scoped sync the reactions table already used. The offline path is the same outbox the local client already had. If M7 had required a new queue, this backend would have been the wrong one to pick.
+
+The count is the part that makes the day a migration. Polls could have been a new table that never touched old rows. A `maintain` over `messages` grouped by conversation and tombstone flag is a statement about the data that is already there. After adoption the two starter chats showed the counts the fixture pack already knew: six in the Alice–Bob DM, nine in Weekend Plans, tombstones excluded, polls included once they exist. Chat settings just renders the number the query already returns.
+
+What this backend is like to evolve is the difference between editing a compiled program and writing `ALTER TABLE`. There is no migration file. Optional columns appear as nulls on old rows. A new aggregate is filled from source rows when the generation is adopted. You trust the engine’s classification (additive versus destructive) instead of rehearsing SQL. That is faster than a hand-written backfill job and less inspectable than a Postgres migration you can `EXPLAIN`. It is also honest: if the pre-M7 schema had already kept a message count, this would have been a no-op with a diary note. It had not.
+
+The inherited web conversation overlay was the only place the platform’s niceness did not reach. Choreography does not see React Native Web bubbles; it sees a lane-owned HTML surface. Polls had to be drawn there with the frozen test IDs, or the two-client proof would have been a screenshot of a blank thread. That is not Snapback’s fault, and it is the kind of Day-2 surprise you only get when you did not write the first six milestones.
+
+Previous failures were left alone. This session’s budget was polls, a backfill, and not “fix the live DM choreography while you are in there.” The previously green suites still pass. The snapshot of messages, media, receipts, and reactions taken before the schema change still matches after it.
