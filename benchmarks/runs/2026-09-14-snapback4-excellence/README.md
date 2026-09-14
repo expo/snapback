@@ -31,7 +31,7 @@ Initial integrated Linux suite (`e589d3aa4`) took116 s:473 Rust passed,1 ignored
 
 A separate open ticket tracks the60-second complete-suite budget. No deadline was raised and no new gate was introduced. The long suite and native/physical application gaps do not become promotion evidence through this completion increment.
 
-## Final Linux observations
+## Earlier 0.2.13 candidate Linux observations
 
 Source `17bde96d` plus the unchanged worker fixture `7284143393`: 71 affected
 Rust tests and 26 affected Node tests passed with no failures, cancellations or
@@ -91,11 +91,11 @@ The first cold Office M1 publication dry-run refused after 656 s, with five
 deadline failures across Rust and client groups. Host load reached 107 on
 ten CPUs; a sample caught the unchanged large maintained-source test running
 inside seed/upsert, while three controlled CLI launches took 15–25 ms. Those
-observations do not prove a single cause for every failure. No publication tarball was produced and nothing was published by that attempt. A warmed, isolated M5 qualification
-uses four build jobs and a task-local descriptor limit of 4,096; its complete
-result and final delivery receipt are appended when available.
+observations do not prove a single cause for every failure. No publication tarball was produced and nothing was published by that attempt. The isolated M5 qualifications below use four build jobs and a task-local
+descriptor limit of 4,096; their passing results do not relabel the Office
+attempt as a pass.
 
-### Qualified Darwin and Expo artifacts
+### Earlier Darwin and Expo candidate qualification
 
 The isolated warm M5 run of `node scripts/publish.mjs --dry-run` passed in
 271.13 s. Its full canonical suite had zero failures in 136 s, including
@@ -118,6 +118,70 @@ Grok's separate worker-fixture review also returned READY, matching Sol. The
 short fixture lease exercises designed lease-expiry recovery; it does not
 change the production abandoned-claim delay.
 
-The exact qualified tarballs are published after source landing, without
-rebuilding or changing their bytes. Their registry identities and integrity
-checks are recorded in the delivery receipt when publication completes.
+The earlier 0.2.13 candidate tarballs were never published by this program.
+Main independently delivered its borrowed sync encoder and 0.2.13 release
+while this program qualified; its code and evidence are preserved in the
+combined 0.2.14 candidate below.
+
+## Combined 0.2.14 qualification
+
+Main's incoming `d81381a98` replaces duplicate sync value trees with borrowed
+serialization and adds byte-equivalence tests. It was merged at `7c25d6839`,
+then versions were advanced to 0.2.14 at `a0ee114aa`. Fresh
+[Sol](../../../llp/reviews/3000.008-holistic-product-excellence-sync-integration.gpt.md)
+and [Grok](../../../llp/reviews/3000.008-holistic-product-excellence-sync-integration.grok.md)
+composition reviews both returned READY with no must-fix finding. The author
+also checked envelope fields, acquired-generation publication, response bounds,
+ownership/drop before I/O and socket framing. The exact-byte regression tests
+pass; Grok's remark about historical object insertion order is not a claim
+that this API promises canonical JSON key ordering. No client here depends on it.
+
+The [final Darwin qualification](./darwin-0.2.14-qualification.json) passed
+`node scripts/publish.mjs --dry-run` in 216.01 s: the canonical suite had zero
+failures in 110 s, including 166 client tests with zero skips. Production pack
+and installed-consumer verification passed. Actual build source `ec4480d2`
+has the same executable inputs as integration `a0ee114aa`.
+[The source comparison](./darwin-0.2.14-source-proof.json) establishes that
+native/core/language source and Expo 0.2.5 package inputs are unchanged, so the
+earlier Expo artifact still has the same runtime source. The subsequent
+deployment-target audit below blocks publishing those bytes. There is no new
+claim of simulator execution or physical-device qualification.
+
+The [final Linux qualification](./linux-0.2.14-verification-summary.json)
+records actual merge `7e1f938`, whose tracked tree equals `a0ee114aa` before its
+single appended metric. All 73 Rust CLI tests and 12 HTTP/acquisition tests
+passed. Native and wasm 273-write drains took 4.977 s and 3.457 s respectively.
+The production Chrome [IndexedDB witness](./idb-0.2.14.jsonl) and scale witness
+passed with actual artifact identities, including the new borrowed encoder.
+
+| Endpoint, same 40 × 500 × 10 fixture | 0.2.14 observation |
+| --- | ---: |
+| Constructor and acquisition | 11,265.2 ms |
+| First useful thread result | 11,278.1 ms |
+| Three required local queries | 20.2 ms |
+| Fresh-realm offline reopen | 674.9 ms |
+| Three required offline queries | 3.2 ms |
+
+Transfer remains 20,480 replica events, six snapshot pages plus catch-up and
+5,204,479 JSON bytes. Required offline identities match and there are zero
+Wasm requests or page errors. All measurement limits above still apply.
+The two production observations are descriptive single runs; their difference
+is not attributed as a new speedup. Subsequent main updates merged at
+`7a3b56618` contain only documentation and receipts, with both append-only
+publication histories preserved. They do not change tested executable inputs.
+
+Only the final 0.2.14 client/platform tarballs are presently selected for
+publication. Expo 0.2.5 awaits the target correction below. Actual registry
+identities and integrity checks will be recorded after publication; a dry-run
+receipt is never a publish claim.
+
+### Expo deployment-target correction in progress
+
+The final cleanup audit inspected the complete C-link logs and found a material
+qualification omission: both links succeeded but warned that bundled SQLite
+objects were built for iOS/iOS Simulator 26.5, while the podspec advertises 16.4.
+The earlier Expo receipt records successful linking, not established 16.4
+runtime compatibility. The original unpublished artifact is held. Astra is
+correcting the native build target and will rebuild both slices, inspect their
+deployment metadata and repeat consumer linking against 16.4. This does not
+change the independently qualified Darwin CLI or browser client inputs.

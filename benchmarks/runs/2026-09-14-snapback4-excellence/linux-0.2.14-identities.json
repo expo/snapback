@@ -1,0 +1,45 @@
+{
+  "sourceCommit": "7e1f938be686fa4b62eba1e03e505147c3a46c39",
+  "sourceTree": "97c5da19777727b54fd331390fa5c6e96c893c7c",
+  "candidateCommit": "a0ee114aa007968e69f513369bad0fc539784739",
+  "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+  "profile": "production",
+  "artifacts": {
+    "target/production/snapback4": {
+      "bytes": 9915128,
+      "sha256": "cdba4fefcc97ec3072b67f4c879e452bca1cf853d4dd0571aea38a63f172a17f"
+    },
+    "target/debug/snapback4": {
+      "bytes": 157675312,
+      "sha256": "4c7476cee6242c3f14897f1a006bb18649952d269b5b14dea247e4afcc6662f4"
+    },
+    "packages/snapback4/src/wasm/snapback4_device_bg.wasm": {
+      "bytes": 1606342,
+      "sha256": "b1ad3f232d7b6f0aa7cb69a74620da69fe1e2db7963c76b3a753a187f3d53ede"
+    },
+    "packages/snapback4/dist/wasm/snapback4_device_bg.wasm": {
+      "bytes": 1606342,
+      "sha256": "b1ad3f232d7b6f0aa7cb69a74620da69fe1e2db7963c76b3a753a187f3d53ede"
+    },
+    "crates/snapback4/src/serve.rs": {
+      "bytes": 65904,
+      "sha256": "7ef77cb9610e8b364f9332685126f5bee1ca7557d7b9e712a99185d44e3f9e4d"
+    },
+    "crates/snapback4/src/serve_tests.rs": {
+      "bytes": 41281,
+      "sha256": "580baa874bdcbb57f922282c6a01ff1fc7f2f3c3682aa33852c954763f130a84"
+    },
+    "Cargo.lock": {
+      "bytes": 18732,
+      "sha256": "2f6fb2d4923678324c8f03cbc9ec3c424dc95410965fd22dc2f1dd02672c1aff"
+    },
+    "Cargo.toml": {
+      "bytes": 834,
+      "sha256": "2bef5910237f023ac903b04492a712d1866076c2cb6c3368877c7836c029306f"
+    },
+    "packages/snapback4/package.json": {
+      "bytes": 2046,
+      "sha256": "69f4bbb12925c18f7ed4c54948f40f40723da1925e539ecae44e8814f5f93263"
+    }
+  }
+}
