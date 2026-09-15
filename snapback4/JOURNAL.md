@@ -16497,3 +16497,14 @@ second platform and evaluate the first-page/tail tradeoff. The Office Linux
 preflight is idle but below the older builder's disk precondition; no Linux
 source transfer, build or measurement has begun. The competitor and broader
 common-workload goals remain open.
+
+## 2026-09-15 — 0.2.19 / expo 0.2.10 published (lead)
+
+Published from main `6856f48fc` (wave 3, LLP 3000.007 §20.12) by
+`scripts/publish.mjs`: suite 0 failures in 301 s; production darwin binary
+8,441,824 B, sha256 `d9bfdc74…`, Developer ID signed (not notarized);
+installed-consumer proof passed; `snapback4@0.2.19` and
+`snapback4-darwin-arm64@0.2.19` at 07:34 UTC; xcframework rebuilt and
+`snapback4-expo@0.2.10` at 07:37 UTC. Next: the fourth Astra-medium
+calibration on these pins.
+
