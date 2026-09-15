@@ -1,0 +1,1023 @@
+{
+  "reportVersion": 1,
+  "lane": {
+    "backend": "snapback4-0.2.16",
+    "runRecordPath": "/Users/ccheever/clique-sb4-20260915-astra-next/lanes/astra-snapback4/run-record.json",
+    "runScope": "full"
+  },
+  "wave": {
+    "id": "full-3models-astra",
+    "probeSetSha256": "none-uncommitted"
+  },
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5",
+    "sameFamilyGraded": false,
+    "calibrationPassed": false,
+    "sessionOutcome": "completed",
+    "rerunsUsed": 1,
+    "contaminated": false
+  },
+  "assertionManifest": {
+    "path": "/Users/ccheever/clique-sb4-20260915-astra-next/instrument/schema/social-messenger/assertions.json",
+    "version": "0.3.0-m8",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m1-a01": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "fail",
+      "evidence": "trace.md#w1 (web-m1.json m1-a01-a02); trace.md#a1 (API signup 8-byte minimum; 7-byte password refused E_AUTH)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m1-a02": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "fail",
+      "evidence": "trace.md#w1 (auth form gone, onboarding then profile heading; reload keeps session)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m1-a03": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "fail",
+      "evidence": "trace.md#w1 (sm-profile-error visible for handle alice; screenshot web-m1-duplicate-handle.png)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1). Error copy is the raw constraint text (d-07)."
+    },
+    "m1-a04": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "fail",
+      "evidence": "trace.md#w1 (sm-auth-error: email already has an account)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m1-a05": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m1-choreo.jsonl session-persists-on-relaunch passed (receipt schema-valid, segment green); trace.md#c1",
+      "note": "Also observed independently: reload after signup stayed signed in (trace.md#w1)."
+    },
+    "m1-a06": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m1-choreo.jsonl logout-remains-signed-out-on-relaunch passed; trace.md#c1",
+      "note": "Also observed independently: logout then reload shows the auth screen (trace.md#w1)."
+    },
+    "m1-a07": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#a1 (API logout: old bearer 401 E_AUTH on /q, /m and /changes; /auth/refresh invalidates old bearer) and trace.md#w1 (UI logout: token read before logout returns 401 after)"
+    },
+    "m1-a08": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "fail",
+      "evidence": "trace.md#w1 (display name and bio persist across reload)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m1-a09": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m1-choreo.jsonl profile-edit-live-visibility passed, best-of-3 visibleMs recorded by the harness; trace.md#c1",
+      "note": "Timings are harness receipts from the build session; that session did not record machine load.",
+      "bestOf3Ms": [
+        85,
+        77.1,
+        70.7
+      ]
+    },
+    "m1-a10": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "fail",
+      "evidence": "trace.md#w1 (fixture avatar via file chooser, save succeeds)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m1-a11": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "fail",
+      "evidence": "trace.md#w1 (256px avatar img rendered in sm-profile after reload; web-m1-profile-avatar.png)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m1-a12": {
+      "result": "pass",
+      "method": "source-inspection",
+      "suiteResult": null,
+      "evidence": "trace.md#s1 (snapback/schema.q `use identity`; snapback4 README documents built-in password accounts with Argon2; store _credentials hashes are $argon2id$v=19$m=19456,t=2,p=1)"
+    },
+    "m1-a13": {
+      "result": "pass",
+      "method": "source-inspection",
+      "suiteResult": null,
+      "evidence": "trace.md#s1 (fixed-string search for every fixture/test password: 0 hits in grader and lane dev stores + WAL, both scale stores, web-dist/scale-web-dist/iOS Hermes exports, lane app logs and push logs; sessions stored as token digests)"
+    },
+    "m2-a01": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "fail",
+      "evidence": "trace.md#w2 (composer text post with URL)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m2-a02": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "fail",
+      "evidence": "trace.md#w2 (composer with two fixture images; API post has photo1+photo2)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m2-a03": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "fail",
+      "evidence": "trace.md#w2 (composer video post; API post has clip)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m2-a04": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m2-choreo.jsonl feed-text/image/video-post-live-update passed (bestOf3 each); trace.md#c1",
+      "note": "bestOf3Ms shown for the text-post check; image [107.4,101.6,104] and video [99.1,99.3,94.2]. Independently the second web context saw all three grader posts without reload (trace.md#w2).",
+      "bestOf3Ms": [
+        99.9,
+        44.4,
+        45.6
+      ]
+    },
+    "m2-a05": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m2-choreo.jsonl feed-author-avatar-and-display-name passed; trace.md#c1"
+    },
+    "m2-a06": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "fail",
+      "evidence": "trace.md#w2 (follow from profile UI, author post appears in Following tab) and trace.md#a2 (older seeded post sp0001 appears after follow)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m2-a07": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": null,
+      "evidence": "trace.md#w2 (author own-profile follower count changed 0->1->0->1 on each follow toggle from the other context)",
+      "note": "The frozen harness has no follower-count check (its follow-unfollow-live-projection check observes the Following projection only), so this [choreo] assertion was observed by grader two-context web automation. Load at each attempt recorded in trace.md#t1.",
+      "bestOf3Ms": [
+        30,
+        31,
+        27
+      ]
+    },
+    "m2-a08": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "fail",
+      "evidence": "trace.md#a2 (after unfollow no alice-actor entries remain across all Following pages, including seeded sp0001)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m2-a09": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "fail",
+      "evidence": "trace.md#a2 (sp0001 still in Global after unfollow)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m2-a10": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "fail",
+      "evidence": "trace.md#a2 (henry post present in Global of a viewer who does not follow henry)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m2-a11": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "fail",
+      "evidence": "trace.md#a2 (same post absent from all Following pages)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m2-a12": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "fail",
+      "evidence": "trace.md#w2 (sm-text-link role=link; click opened the exact https URL in a new browser page)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m2-a13": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "fail",
+      "evidence": "trace.md#w2 (no img/iframe/preview card inside the text post card)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m2-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m2-choreo.jsonl like-unlike-live-count passed; trace.md#c1",
+      "bestOf3Ms": [
+        68.1,
+        56.1,
+        56.6
+      ]
+    },
+    "m2-a15": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "fail",
+      "evidence": "trace.md#a2 (set twice -> 1, same-ID retry replayed, clear twice -> 0)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m2-a16": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "fail",
+      "evidence": "trace.md#w2 (sm-feed-repost-attribution \"Reposted by <display name>\" on reposter and author clients; web-m2-repost-attribution.png)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m2-a17": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "fail",
+      "evidence": "trace.md#w2 (second repost tap removed the attributed item) and trace.md#a2 (clear removes from Following and Global)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m2-a18": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "fail",
+      "evidence": "trace.md#a2 (followed henry repost surfaces alice original, attributed to henry; retried set did not duplicate)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m2-a19": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m2-choreo.jsonl reply-live-thread-projection passed; trace.md#c1",
+      "bestOf3Ms": [
+        54.6,
+        164.8,
+        164.7
+      ]
+    },
+    "m2-a20": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "fail",
+      "evidence": "trace.md#w2 (thread screen DOM order parent,1,2,3) and trace.md#a2 (API replies chronological, nested reply excluded, replyCount 3)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m2-a21": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "fail",
+      "evidence": "trace.md#a2 (replies absent from Global and Following)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m2-a22": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "fail",
+      "evidence": "trace.md#w2 (Following tab: 20 items, wheel-scroll to bottom loaded to 26, no duplicates)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1). The suite test clicks a Load more button; grader verified scrolling itself."
+    },
+    "m2-a23": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "fail",
+      "evidence": "trace.md#w2 (Global tab: 20 items, scroll loaded further pages, no duplicates)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m2-a24": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "fail",
+      "evidence": "trace.md#a2 (45 own posts: Following pages 20/20/5, Global 6 pages; 0 duplicates, 0 missing, reverse-chronological)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m2-a25": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "fail",
+      "evidence": "trace.md#a2 (fresh user following nobody sees own original post in Following)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m2-a26": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "fail",
+      "evidence": "trace.md#a2 (own repost of an unfollowed author appears in own Following, labeled repost)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m2-a27": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "fail",
+      "evidence": "trace.md#a2 (followers/following 0/0 before and after own post and repost; self-follow refused CANNOT_FOLLOW_SELF)",
+      "note": "Clean-checkout suite run aborted at its seed-idempotency step (scripts/seed.mjs TypeError, defect d-01) before this test ran; a diagnostic copy of the same suite with only the seed step removed passed it (trace P1)."
+    },
+    "m3-a01": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m3-choreo.jsonl dm-live-messages passed; trace.md#c1",
+      "bestOf3Ms": [
+        350.9,
+        366.6,
+        406
+      ]
+    },
+    "m3-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m3-choreo.jsonl sender-avatar-identity-when-rendered implemented and passed (app mounts sm-convo-sender-avatar with exact handle); trace.md#c1"
+    },
+    "m3-a03": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md#a3 (createDm from both sides returns d-alice-bob; one DM row for the pair; self-DM refused)"
+    },
+    "m3-a04": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#w3 (group created in New chat UI; roster creator:admin + 2 members)"
+    },
+    "m3-a05": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md#a3 (two groups with the same three members are distinct and both in Bob inbox)"
+    },
+    "m3-a06": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m3-choreo.jsonl typing-indicator-within-2s-expires-within-5s passed (boundary v2); trace.md#c1",
+      "note": "visibleAfterLastKeystrokeMs; bound 2000 ms.",
+      "bestOf3Ms": [
+        17.7,
+        26.3,
+        33.8
+      ]
+    },
+    "m3-a07": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "same receipt as m3-a06; trace.md#c1",
+      "note": "expiresAfterLastKeystrokeMs; bound 5000 ms (server typing TTL is 4 s, snapback/chat.q type).",
+      "bestOf3Ms": [
+        4319.3,
+        4335.1,
+        4343.1
+      ]
+    },
+    "m3-a08": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m3-choreo.jsonl receipt-sent-delivered-read-transitions passed (semantic sent/delivered/read tokens); trace.md#c1",
+      "note": "Single-attempt harness check; no best-of-3 timings recorded."
+    },
+    "m3-a09": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m3-choreo.jsonl group-receipt-waits-for-slowest-member passed; trace.md#c1"
+    },
+    "m3-a10": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#w3 (quoted bubble renders sm-convo-quote-preview with sender and excerpt)"
+    },
+    "m3-a11": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#w3 (origin 46 messages above was outside the viewport; tapping the excerpt scrolled it into view)",
+      "note": "The suite test cannot fail on a missing jump (its original is adjacent); grader verified the jump with the original scrolled out of view."
+    },
+    "m3-a12": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m3-choreo.jsonl member-add-promote-remove-leave-and-live-cutoff passed; trace.md#c1",
+      "note": "Server side independently: removed member history 0, pre-removal asset 404, send NOT_MEMBER (trace.md#a3)."
+    },
+    "m3-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "same receipt (retained pre-removal bubble count exactly 1 on the removed member client); trace.md#c1"
+    },
+    "m3-a14": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md#a3 (non-admin remove/add/promote refused ADMIN_REQUIRED; roster unchanged)"
+    },
+    "m3-a15": {
+      "result": "fail",
+      "method": "builder-suite",
+      "suiteResult": "fail",
+      "evidence": "trace.md#p1 (npm run seed -- --segment m1 on a clean backend: TypeError c.session is not a function, scripts/seed.mjs:8; m1/m2/m3 suite seed steps fail the same way)",
+      "note": "The documented idempotent seed cannot install any segment from a clean checkout, so the per-segment idempotency obligation is not met by the lane's seed. Its earlier receipts show only 0-action re-runs over an already-seeded store. The replay adapter (scripts/replay.mjs) installed the segments for grading. Defect d-01."
+    },
+    "m4-a01": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#w3 (file chooser photo message; sender bubble shows sm-convo-media; API type photo)"
+    },
+    "m4-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m4-choreo.jsonl photo-message-live-render passed; trace.md#c1",
+      "note": "Independently the recipient rendered a 640px image from the query result (trace.md#w3).",
+      "bestOf3Ms": [
+        869.4,
+        635,
+        600.3
+      ]
+    },
+    "m4-a03": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#w3 (file chooser video message) and trace.md#a4 (API type video with media)"
+    },
+    "m4-a04": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m4-choreo.jsonl video-message-live-playback passed; trace.md#c1",
+      "note": "Independently observed recipient playback: readyState 4, currentTime 2.27 s of 5 s, no error (trace.md#w3)."
+    },
+    "m4-a05": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m4-choreo.jsonl reaction-live-replace-remove passed; trace.md#c1",
+      "bestOf3Ms": [
+        337.7,
+        258.2,
+        254.8
+      ]
+    },
+    "m4-a06": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#w3 (UI thumbs-up then heart: API reactions [heart x1], chip shows only heart) and trace.md#a4"
+    },
+    "m4-a07": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#w3 (second heart tap cleared reactions and chips)"
+    },
+    "m4-a08": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m4-choreo.jsonl edit-live-visibility passed; trace.md#c1",
+      "bestOf3Ms": [
+        195.7,
+        86.6,
+        315.7
+      ]
+    },
+    "m4-a09": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#w3 (\"edited\" label on sender and recipient bubbles after UI edit)"
+    },
+    "m4-a10": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#a4 (shortened 60 s window: edit at +0 s sent; edit at ~+62 s failed EDIT_WINDOW_CLOSED, text unchanged; delete at ~+122 s DELETE_WINDOW_CLOSED)"
+    },
+    "m4-a11": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m4-choreo.jsonl delete-live-tombstone passed; trace.md#c1"
+    },
+    "m4-a12": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#a4 (photo asset 200 to recipient before delete; 404 to recipient and sender after; video likewise; tombstone row clears text/media)"
+    },
+    "m5-a01": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#x1 (24h option = 180 s; no client open; at expiry+5 s recipient and sender history empty, server search empty, photo asset 404; control run repeated with a non-expiring control message)"
+    },
+    "m5-a02": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": null,
+      "evidence": "trace.md#x1 (device relaunched online: expired bubbles 0, control 1; device relaunched offline from the durable replica: expired bubbles 0, control 1; still 0 after reconnect)"
+    },
+    "m5-a03": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": null,
+      "evidence": "trace.md#x1 (offline search found the word before expiry on both devices; after sync/relaunch offline search returns 0 hits on both)"
+    },
+    "m5-a04": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#w4 (view-once toggle in UI; recipient first open rendered the image)"
+    },
+    "m5-a05": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#w4 (after close the control is disabled \"already opened\"; forced click opens nothing; same after reload and on a fresh device session)"
+    },
+    "m5-a06": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#a5 (first fetch 200, second 410, other session of same account 410, Range 416, outsider 404)"
+    },
+    "m5-a07": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m5-choreo.jsonl chat-color-background-sync passed; trace.md#c1"
+    },
+    "m5-a08": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md#a5 (non-admin rename/color/background refused ADMIN_REQUIRED; title unchanged)"
+    },
+    "m5-a09": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#w3 (people scope \"car\" -> Carol Chen @carol) and trace.md#a5 (\"CAR\" also matches)"
+    },
+    "m5-a10": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#w3 (Search from the Weekend Plans conversation: \"trail\" -> both seeded trail messages)",
+      "note": "Opening the \"chat\" scope from the Search tab uses a hard-coded fixture conversation (d-04)."
+    },
+    "m5-a11": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#w3 (all-messages \"cof\": results grouped under two chat labels) and trace.md#a5",
+      "note": "DM group label is the generic \"Direct message\" (d-08)."
+    },
+    "m5-a12": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m5-choreo.jsonl warm-offline-search-over-synced-messages passed; trace.md#c1"
+    },
+    "m6-a01": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m6-choreo.jsonl segment-summary; lane evidence/native-artifacts.json (Hermes bundles only); trace.md#c2",
+      "note": "No iOS simulator artifact exists: segment summary supplementalExternal ios-simulator-m6 {pass:null, status:not-recorded}; run-record socialMessenger.nativeProof \"Hermes export only; simulator execution not claimed\". Per simulator.md, native scoring stays failed until the artifact exists; recorded not-run and scored not-passed. Web-only offline evidence (lane m6 web queue check, web cold reload) does not substitute."
+    },
+    "m6-a02": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m6-choreo.jsonl segment-summary; lane evidence/native-artifacts.json (Hermes bundles only); trace.md#c2",
+      "note": "No iOS simulator artifact exists: segment summary supplementalExternal ios-simulator-m6 {pass:null, status:not-recorded}; run-record socialMessenger.nativeProof \"Hermes export only; simulator execution not claimed\". Per simulator.md, native scoring stays failed until the artifact exists; recorded not-run and scored not-passed. Web-only offline evidence (lane m6 web queue check, web cold reload) does not substitute."
+    },
+    "m6-a03": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m6-choreo.jsonl segment-summary; lane evidence/native-artifacts.json (Hermes bundles only); trace.md#c2",
+      "note": "No iOS simulator artifact exists: segment summary supplementalExternal ios-simulator-m6 {pass:null, status:not-recorded}; run-record socialMessenger.nativeProof \"Hermes export only; simulator execution not claimed\". Per simulator.md, native scoring stays failed until the artifact exists; recorded not-run and scored not-passed. Web-only offline evidence (lane m6 web queue check, web cold reload) does not substitute."
+    },
+    "m6-a04": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m6-choreo.jsonl segment-summary; lane evidence/native-artifacts.json (Hermes bundles only); trace.md#c2",
+      "note": "No iOS simulator artifact exists: segment summary supplementalExternal ios-simulator-m6 {pass:null, status:not-recorded}; run-record socialMessenger.nativeProof \"Hermes export only; simulator execution not claimed\". Per simulator.md, native scoring stays failed until the artifact exists; recorded not-run and scored not-passed. Web-only offline evidence (lane m6 web queue check, web cold reload) does not substitute."
+    },
+    "m6-a05": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m6-choreo.jsonl segment-summary; lane evidence/native-artifacts.json (Hermes bundles only); trace.md#c2",
+      "note": "No iOS simulator artifact exists: segment summary supplementalExternal ios-simulator-m6 {pass:null, status:not-recorded}; run-record socialMessenger.nativeProof \"Hermes export only; simulator execution not claimed\". Per simulator.md, native scoring stays failed until the artifact exists; recorded not-run and scored not-passed. Web-only offline evidence (lane m6 web queue check, web cold reload) does not substitute."
+    },
+    "m6-a06": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m6-choreo.jsonl segment-summary; lane evidence/native-artifacts.json (Hermes bundles only); trace.md#c2",
+      "note": "No iOS simulator artifact exists: segment summary supplementalExternal ios-simulator-m6 {pass:null, status:not-recorded}; run-record socialMessenger.nativeProof \"Hermes export only; simulator execution not claimed\". Per simulator.md, native scoring stays failed until the artifact exists; recorded not-run and scored not-passed. Web-only offline evidence (lane m6 web queue check, web cold reload) does not substitute."
+    },
+    "m6-a07": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "lane evidence/m6-choreo.jsonl segment-summary; lane evidence/native-artifacts.json (Hermes bundles only); trace.md#c2",
+      "note": "No iOS simulator artifact exists: segment summary supplementalExternal ios-simulator-m6 {pass:null, status:not-recorded}; run-record socialMessenger.nativeProof \"Hermes export only; simulator execution not claimed\". Per simulator.md, native scoring stays failed until the artifact exists; recorded not-run and scored not-passed. Web-only offline evidence (lane m6 web queue check, web cold reload) does not substitute."
+    },
+    "m6-a08": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md#a6 (never-connected recipient: payload {targetUserId, chatId, senderDisplayName, preview} with preview = first 80 chars of a 120-char text; photo \"Photo\", video \"Video\"; no self-push)",
+      "note": "Clean-checkout suite: first run failed because it started 1 s after the m5 suite closed a Bob browser that still counted as connected; re-run after an idle gap passed (grader sequencing, one re-run used)."
+    },
+    "m6-a09": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md#a6 (view-once photo previews \"Photo\")"
+    },
+    "m6-a10": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md#a7 (scripts/custom-client-demo.mjs from the clean checkout with CLIQUE_TOKEN and with CLIQUE_EMAIL/PASSWORD: pass true)"
+    },
+    "m6-a11": {
+      "result": "pass",
+      "method": "source-inspection",
+      "suiteResult": "pass",
+      "evidence": "trace.md#a7 (demo source + output: use-token/authenticate, chat.inbox, chat.apiHistory with next cursor, chat.send, /changes long-poll then re-read; exercised on a 60-message conversation so paging really occurs)",
+      "note": "The demo pages only when the first page reports next; with fewer than 51 messages page-history is recorded without a second request."
+    },
+    "m6-a12": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#a7 (grader script written from API.md alone: login, page chat.inbox, pick \"Weekend Plans\", chat.apiHistory data[0] = sm0015 \"Locked in. See you Saturday.\", ordinal equals conversation.sequence; newest-first and field manifest as documented; change poll then re-read shows a new send)",
+      "note": "Three inbox rows share the title \"Weekend Plans\" on the grading instance (suite residue); API.md gives no lookup by name, so the script chose the highest-sequence row."
+    },
+    "m6-a13": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace.md#p1 (clean-checkout m6 suite: fixtures/validate.mjs valid, sample-50 replay 50 actions / 13 verbs on the grader dev instance, post-replay API state assertions pass); grading/checkout/evidence/sample-result.json",
+      "note": "The harness-validated receipt is outside grader scope; grader re-ran validation and replay on its own instance."
+    },
+    "m7-a01": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": null,
+      "evidence": "run-record.json socialMessenger.milestones.m7; trace.md#m7",
+      "note": "M7 (day-2 evolution) is a separate fresh session scheduled after this grading (ENVIRONMENT.md; run-record m7 status not-run). Pre-evolution: nothing to execute; scored not-passed in O1."
+    },
+    "m7-a02": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "run-record.json socialMessenger.milestones.m7; trace.md#m7",
+      "note": "M7 (day-2 evolution) is a separate fresh session scheduled after this grading (ENVIRONMENT.md; run-record m7 status not-run). Pre-evolution: nothing to execute; scored not-passed in O1."
+    },
+    "m7-a03": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": null,
+      "evidence": "run-record.json socialMessenger.milestones.m7; trace.md#m7",
+      "note": "M7 (day-2 evolution) is a separate fresh session scheduled after this grading (ENVIRONMENT.md; run-record m7 status not-run). Pre-evolution: nothing to execute; scored not-passed in O1."
+    },
+    "m7-a04": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": null,
+      "evidence": "run-record.json socialMessenger.milestones.m7; trace.md#m7",
+      "note": "M7 (day-2 evolution) is a separate fresh session scheduled after this grading (ENVIRONMENT.md; run-record m7 status not-run). Pre-evolution: nothing to execute; scored not-passed in O1."
+    },
+    "m7-a05": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "run-record.json socialMessenger.milestones.m7; trace.md#m7",
+      "note": "M7 (day-2 evolution) is a separate fresh session scheduled after this grading (ENVIRONMENT.md; run-record m7 status not-run). Pre-evolution: nothing to execute; scored not-passed in O1."
+    },
+    "m7-a06": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": null,
+      "evidence": "run-record.json socialMessenger.milestones.m7; trace.md#m7",
+      "note": "M7 (day-2 evolution) is a separate fresh session scheduled after this grading (ENVIRONMENT.md; run-record m7 status not-run). Pre-evolution: nothing to execute; scored not-passed in O1."
+    },
+    "m7-a07": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": null,
+      "evidence": "run-record.json socialMessenger.milestones.m7; trace.md#m7",
+      "note": "M7 (day-2 evolution) is a separate fresh session scheduled after this grading (ENVIRONMENT.md; run-record m7 status not-run). Pre-evolution: nothing to execute; scored not-passed in O1."
+    },
+    "m7-a08": {
+      "result": "not-run",
+      "method": "snapshot-comparison",
+      "suiteResult": null,
+      "evidence": "trace.md#m7",
+      "note": "M7 (day-2 evolution) is a separate fresh session scheduled after this grading (ENVIRONMENT.md; run-record m7 status not-run). Pre-evolution: nothing to execute; scored not-passed in O1. No pre-M7 snapshot exists yet."
+    },
+    "m7-a09": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": null,
+      "evidence": "trace.md#m7",
+      "note": "M7 (day-2 evolution) is a separate fresh session scheduled after this grading (ENVIRONMENT.md; run-record m7 status not-run). Pre-evolution: nothing to execute; scored not-passed in O1. Conditional regression item: M1-M6 and M8 were previously green, so it applies once M7 runs; not-applicable is not used."
+    }
+  },
+  "coverageSpotVerification": {
+    "verdict": "honest",
+    "sampledAssertionIds": [
+      "m1-a02",
+      "m1-a11",
+      "m2-a12",
+      "m2-a16",
+      "m2-a22",
+      "m2-a24",
+      "m2-a27",
+      "m3-a11",
+      "m3-a15",
+      "m4-a01",
+      "m4-a09",
+      "m5-a05",
+      "m5-a11",
+      "m6-a08",
+      "m6-a11",
+      "m6-a13",
+      "m8-a01",
+      "m8-a04",
+      "m8-a06"
+    ],
+    "dishonestMilestones": [],
+    "detail": "Every sampled mapping points at a test that drives the named observable through the app (web automation, the application API, or the lane store), and every mapped assertion reproduced independently except m3-a15, whose test is real but whose seed is broken on a clean store (d-01). No mapping is fabricated. Several are weak: m2-a16 checks repost attribution in API data, not rendered text. m2-a22/a23 click Load more instead of scrolling. m2-a24 checks duplicates but not gaps. m2-a27 checks followers but not following. m3-a11 cannot detect a missing jump because the original is adjacent. m5-a11 only requires one group label. m6-a08 uses a text shorter than 80 chars. The grader closed each gap by direct observation (trace.md#sv). Clean-checkout suite outcome: m4, m5, m6 (after one sequencing re-run) and m8 passed; m1 and m2 aborted at the seed step; m3 failed only m3-a15."
+  },
+  "defects": [
+    {
+      "id": "d-01",
+      "severity": "major",
+      "milestone": "M3",
+      "summary": "The documented starter seed (`npm run seed -- --segment mN`, scripts/seed.mjs) crashes on its first write against a clean backend: `TypeError: c.session is not a function` (line 8 calls session() on a snapback4/client online client, which has no such method). Starter content cannot be installed from a clean checkout by the documented path. The M1, M2 and M3 acceptance suites fail from a clean checkout at their seed-idempotency steps (M1 and M2 abort before any other test runs).",
+      "evidence": "trace.md#p1; grading/evidence/seed-m1.txt, seed-m1-retry.txt, suite-m1.txt, suite-m2.txt, suite-m3.txt; scripts/seed.mjs:8; node_modules/snapback4/dist/client.d.ts (Client has no session())",
+      "relatedAssertionIds": [
+        "m3-a15",
+        "m1-a01",
+        "m2-a01"
+      ]
+    },
+    {
+      "id": "d-02",
+      "severity": "major",
+      "milestone": "M3",
+      "summary": "A DM can be permanently broken. chat.leave is exposed as \"Leave conversation\" in DM settings, and chat.removeMember has no group check, so the DM creator (stored as admin) can remove the peer. Either way the pair can never talk again: createDm returns the existing dmPairs channel, where the removed/left user gets NOT_MEMBER, and addMember refuses DMs (GROUP_REQUIRED). The remaining party keeps sending into a channel nobody receives. The removal also revokes the peer's server access to shared DM history.",
+      "evidence": "trace.md#a8 (grading/evidence/dm-membership.json); snapback/chat.q removeMember/leave/createDm; ui ChatSettingsForm renders \"Leave conversation\" for non-groups",
+      "relatedAssertionIds": [
+        "m3-a03"
+      ]
+    },
+    {
+      "id": "d-03",
+      "severity": "minor",
+      "milestone": "M8",
+      "summary": "The chat-list unread badge counts the viewer's own messages. ChatRow computes unreadCount = conversation.sequence - readSequence (src/Chats.tsx), so three messages the user sent from another device/API show as \"3\" unread on this device until the chat is opened.",
+      "evidence": "trace.md#w3 (web-m3-m5.json unread-badge-counts-own-messages; screenshot web-unread-own.png)",
+      "relatedAssertionIds": [
+        "m8-a14"
+      ]
+    },
+    {
+      "id": "d-04",
+      "severity": "minor",
+      "milestone": "M5",
+      "summary": "Opening the \"chat\" scope from the Search tab (not from a conversation) silently searches the hard-coded fixture conversation d-alice-bob (src/Chats.tsx Search: params.conversationId ?? 'd-alice-bob'). Bob gets unrelated d-alice-bob hits; any user outside that DM (e.g. Carol) always sees \"No results\".",
+      "evidence": "trace.md#w3 (bob 5 hits, carol 0 hits + empty state)",
+      "relatedAssertionIds": [
+        "m5-a10"
+      ]
+    },
+    {
+      "id": "d-05",
+      "severity": "minor",
+      "milestone": "M6",
+      "summary": "The delivered backend runs `snapback4 dev`. That exposes an unauthenticated loopback POST /seed which writes arbitrary rows as the system principal with every rule bypassed (HTTP 200 with no credentials), and it accepts x-snapback-persona dev identities. Any local process can write around the app's authorization. The lane's own M8 suite relies on this route. Loopback-only, so minor, but it is the delivered posture, not `deploy`/`serve`.",
+      "evidence": "trace.md#a8 (api-checks.json tb-dev-surfaces); package.json backend script; README \"This delivered benchmark instance\"",
+      "relatedAssertionIds": []
+    },
+    {
+      "id": "d-06",
+      "severity": "minor",
+      "milestone": "M4",
+      "summary": "Reactions accept arbitrary non-emoji text (`emoji: text 1..64`, no emoji validation; the UI also offers a free-text \"Any emoji\" field). \"not an emoji\" was stored and aggregated as a reaction.",
+      "evidence": "trace.md#a4 (api-checks.json m4-reactions nonEmojiReaction: sent); snapback/chat.q react",
+      "relatedAssertionIds": [
+        "m4-a06"
+      ]
+    },
+    {
+      "id": "d-07",
+      "severity": "cosmetic",
+      "milestone": "M1",
+      "summary": "The duplicate-handle error shows raw storage-constraint text (\"profiles.byHandle already has a row where handle = 'alice'\") instead of user-facing copy.",
+      "evidence": "trace.md#w1 (web-m1-duplicate-handle.png)",
+      "relatedAssertionIds": [
+        "m1-a03"
+      ]
+    },
+    {
+      "id": "d-08",
+      "severity": "cosmetic",
+      "milestone": "M5",
+      "summary": "DMs are titled with the generic \"Direct message\" in the conversation header and as the global-search group label, so different DMs are indistinguishable in grouped search results.",
+      "evidence": "trace.md#w3 (allGroups [\"Direct message\",\"Weekend Plans\"]); trace.md#x1 screenshot m5-expiry-offline-relaunch.png",
+      "relatedAssertionIds": [
+        "m5-a11"
+      ]
+    },
+    {
+      "id": "d-09",
+      "severity": "cosmetic",
+      "milestone": "M2",
+      "summary": "Tapping media on a multi-image post always opens the first image (PostCard passes images[0] to MediaViewer), so later images cannot be viewed full-size.",
+      "evidence": "src/Posts.tsx PostCard MediaViewer uri; trace.md#s2",
+      "relatedAssertionIds": [
+        "m2-a02"
+      ]
+    }
+  ],
+  "probeResults": [],
+  "oDimensionScores": {
+    "O1": {
+      "score": 75,
+      "anchorsCited": "Between 60 (\"M1-M4 solid, later milestones patchy or failed on cap\") and 90 (\"every in-scope milestone green, including platform-proof artifacts\"), nearer 90 on behavior but held down by missing artifacts and a whole milestone.",
+      "justification": "100 of 119 in-scope assertions pass under independent execution. M1-M5 and M8 web behavior is solid; M6 passes every non-native assertion. Not passed: m3-a15 (seed broken from a clean checkout, d-01); all 7 M6 and 2 M8 iOS-simulator native-artifact assertions (no simulator artifact recorded); all 9 M7 assertions (M7 not run, but in the full-run denominator). The 90 anchor needs platform-proof artifacts and every milestone green, neither of which holds."
+    },
+    "O2": {
+      "score": 55,
+      "anchorsCited": "Just below 60 (\"a few medium defects off the happy path\"), above 30 (\"multiple high-severity defects in core flows\").",
+      "justification": "Two major defects. d-01: the documented seed crashes on a clean store, breaking clean-checkout acceptance for M1-M3. d-02: a DM \"Leave conversation\" or creator removal permanently breaks the pair. Four minor defects: d-03 own messages counted unread, d-04 hard-coded search conversation, d-05 unauthenticated dev /seed in the delivered posture, d-06 non-emoji reactions. Three cosmetic: d-07, d-08, d-09. No crashes or data loss in core messaging, feeds, media, expiry or digest flows."
+    },
+    "O3": {
+      "score": 78,
+      "anchorsCited": "Between 60 (\"core reads protected; a secondary probe succeeds when it shouldn't\") and 90 (\"every probe correctly denied, including asset access after view-once/delete\").",
+      "justification": "DEVIATION: no holdout probe set was committed for this wave, so this score cannot follow the frozen rule (rotated probes only). It comes from the grader-class trust assertions plus grader authorization checks and is not comparable to probe-based O3. All denied: non-member history/search/settings/send/react/edit/delete/ack/typing/self-add; cross-chat quotes; foreign asset attachment; asset after delete, view-once (410 on every session), expiry and member removal; expired edit/delete windows server-side; logout and refresh token revocation; non-admin rename/color/background/add/remove/promote; digest excludes non-member and departed chats. Held below 90 by d-02 (a DM participant can remove the peer and revoke their server access to shared history) and d-05 (the delivered dev server exposes an unauthenticated rule-bypassing /seed on loopback). trace.md#a1-a8, #x1, #g1."
+    },
+    "O4": {
+      "score": 10,
+      "anchorsCited": "Below 30 (\"cold-start offline shows an empty or broken app\"); nothing approaches 60 (\"reads work; offline writes lost or mis-ordered\") or 90 (\"... on the native proof, including M8's durable-queue restart and multi-device convergence evidence\").",
+      "justification": "O4 is applicable (M6 web-green) but is scored only from native simulator choreography artifacts, and none exist. Both segment summaries record ios-simulator-m6/m8 pass:null, status not-recorded; artifacts/ holds Hermes bundle exports only; choreography/simulator.md says native scoring \"remains null or failed until this artifact exists\". Nothing native was demonstrated. The small non-zero score credits honest disclosure: the run record and README state no simulator proof is claimed, and web-only offline evidence is labeled supplemental. trace.md#c2."
+    },
+    "O5": {
+      "band": 75,
+      "bandRationale": "First-match order 0,30,60,90,75 over the lane's recorded replay (attempt 2 on a fresh instance; attempt 1 aborted on socket exhaustion and showed Following500/Following5 = 4.08 before the feed architecture changed). 0: not fired. The invariant manifest conforms at 10%, 50% and final (3141/3141 checks each, including the named O5 fixtures), and a grader spot check of a clone of the scale store matched the combined manifest: 1008 profiles, 50228 posts, 100015 messages, 5921 follows, g0001 10000 messages, u0500 500 follows and 100 conversations, u0900 900 followers. The replay wall cap is uncalibrated, so it cannot have been exhausted. 30: not fired. All 10 lane-measured degradation rules pass: max ratio 1.28 search final/10%, following 1.03, celebrity read 1.14, celebrity write 0.95, history p50/p1 0.98, insights and trending flat, both mid-curve rules satisfied. No probe timed out or errored; cold sync of 100 conversations took 1421 ms with flat heap. 60: not fired. No absolute ceilings are calibrated, so none is exceeded, and >80% of an uncalibrated cap cannot be established. 90: not established, because per-probe ceiling utilization and cap fraction are undefined without calibrated ceilings or cap. 75 fires. Caveat: no wave probe set was committed, so inputs are the lane's own k=20 p95 probes (evidence/scale-performance.json, scale-*-probes.json), not grader-run rotated probes (trace.md#o5)."
+    }
+  },
+  "timingRecords": [
+    {
+      "subject": "m1-a09",
+      "measurementsMs": [
+        85,
+        77.1,
+        70.7
+      ],
+      "bestMs": 70.7,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m2-a04",
+      "measurementsMs": [
+        99.9,
+        44.4,
+        45.6
+      ],
+      "bestMs": 44.4,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m2-a07",
+      "measurementsMs": [
+        30,
+        31,
+        27
+      ],
+      "bestMs": 27,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m2-a14",
+      "measurementsMs": [
+        68.1,
+        56.1,
+        56.6
+      ],
+      "bestMs": 56.1,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m2-a19",
+      "measurementsMs": [
+        54.6,
+        164.8,
+        164.7
+      ],
+      "bestMs": 54.6,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m3-a01",
+      "measurementsMs": [
+        350.9,
+        366.6,
+        406
+      ],
+      "bestMs": 350.9,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m3-a06",
+      "measurementsMs": [
+        17.7,
+        26.3,
+        33.8
+      ],
+      "bestMs": 17.7,
+      "boundMs": 2000,
+      "passed": true
+    },
+    {
+      "subject": "m3-a07",
+      "measurementsMs": [
+        4319.3,
+        4335.1,
+        4343.1
+      ],
+      "bestMs": 4319.3,
+      "boundMs": 5000,
+      "passed": true
+    },
+    {
+      "subject": "m4-a02",
+      "measurementsMs": [
+        869.4,
+        635,
+        600.3
+      ],
+      "bestMs": 600.3,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m4-a05",
+      "measurementsMs": [
+        337.7,
+        258.2,
+        254.8
+      ],
+      "bestMs": 254.8,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m4-a08",
+      "measurementsMs": [
+        195.7,
+        86.6,
+        315.7
+      ],
+      "bestMs": 86.6,
+      "boundMs": null,
+      "passed": true
+    }
+  ],
+  "evidenceTracePath": "/Users/ccheever/clique-sb4-20260915-astra-next/lanes/astra-snapback4/grading/trace.md",
+  "notes": "N=1 calibration grading, not claim-eligible; labeled uncalibrated-grader. Deviations: (1) no holdout probe set was committed, so phase 4 was skipped, probeSetSha256 is none-uncommitted, probeResults is empty, and O3 is scored from checklist trust assertions and grader authorization checks, not rotated probes; (2) the Claude family has not passed calibration, so calibrationPassed is false; (3) timing checks are best-of-3 with machine load recorded beside grader timings in trace.md (shared host, load average about 13-22 on 18 cores). The frozen schema permits only m1-m7 IDs, so the 18 M8 results are in grading/m8-assertion-results.json. rerunsUsed=1 is the m6 builder-suite re-run after a grader sequencing artifact (presence lag). Clean-checkout builder suite: m1 fail, m2 fail, m3 fail (m3-a15), m4 pass, m5 pass, m6 pass on re-run, m8 pass. Complete 119-assertion tally: 100 pass, 1 fail, 18 not-run."
+}
