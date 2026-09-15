@@ -28,7 +28,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("clock", "jobs"),
     ("simulator", "witness"), ("offline proof", "witness"),
     ("grammar", "language"), ("quarry", "language"),
-    ("maintain", "maintains"), ("time", "language"), ("clock", "language"),
+    ("maintain", "maintains"), ("time", "language"),
     ("replay", "personas"), ("seed", "personas"),
     ("predict", "prediction"), ("predictable", "prediction"), ("offline", "prediction"),
     ("optimistic", "prediction"), ("pending", "prediction"),

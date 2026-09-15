@@ -594,7 +594,7 @@ fn language_following_uses_private_inbox_and_capped_pulls() {
 
 #[test]
 fn calibration_guide_words_and_replay_holds_are_discoverable() {
-    for (word, target) in [("maintain", "maintains"), ("maintains", "maintains"), ("time", "language"), ("clock", "language"), ("replay", "personas"), ("seed", "personas")] {
+    for (word, target) in [("maintain", "maintains"), ("maintains", "maintains"), ("time", "language"), ("clock", "jobs"), ("replay", "personas"), ("seed", "personas")] {
         assert_eq!(card(word), card(target), "{word}");
     }
     for word in ["divmod", "immutable", "return", "arithmetic", "a"] {
