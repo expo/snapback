@@ -1148,6 +1148,7 @@ jobs); if maintenance fails, time remains advanced and the normal tick retries
 pending work, so do not blindly repeat the advance. The offset belongs to
 this process and resets on restart; supply it again when continuing a test.
 Rows stamped under an offset keep their times after restart; use a fresh store per offset test.
+An advance extends held effect and action leases, including actions' viewer sessions, by its duration; ordinary sessions and retry times stay put.
 Clients receive ordinary row times, nextExpiry and sync deletions; their
 own clocks and the application wire do not change.
 
@@ -1331,8 +1332,11 @@ failed) and `doctor` counts them. A thrown handler retries with backoff
 (2 s, 4 s, ... up to 5 min) until the eighth attempt, then rests as
 `failed`; throw `GiveUp` to fail at once. A worker that dies loses its
 lease and the effect is claimed again (E_EFFECT_LEASE for the one that
-settles late; `runWorker` reports "lease expired; the effect was requeued"
-as information); two workers never hold one effect. `meta.id` is the
+settles late). `runWorker` includes the server's code and message; only a
+recorded `queued` state is informational and says requeued. Other states
+and unknown outcomes go to `onError` (or stderr). A handler error whose
+settlement cannot be recorded is reported separately with its original stack.
+Two workers never hold one effect. `meta.id` is the
 idempotency key a provider should see. A scheduled job that `emit`s once
 per period is the digest recipe."##,
         "services" => r##"# Services: a worker's seat, and accounts the application authenticates

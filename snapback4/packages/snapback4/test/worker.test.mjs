@@ -408,23 +408,81 @@ test("a lost action settlement retries its lease; a non-JSON result fails once",
   assert.deepEqual(await client.act(action("fail"), {}, { id: invalid.id }), invalid);
 });
 
-for (const failed of [false, true]) test(`lost effect lease settlement is informational after handler ${failed ? "failure" : "success"}`, async t => {
+for (const state of ["queued", "failed", "sent", "running"]) test(`lost effect lease on the wire reports ${state}`, { timeout: 30_000 }, async t => {
+  const f = await actionFixture(t, { source: `${actionSource}\nmutation notify():\n  emit notify { message: 'hello' }\n` });
+  const info = t.mock.method(console, "info", () => {}), errors = [];
+  const other = spawnSync(binary, ["token", "--service", "other"], { cwd: f.directory, encoding: "utf8" });
+  assert.equal(other.status, 0, other.stderr);
+  const otherToken = other.stdout.trim();
+  const expire = async effect => {
+    await until(() => Date.now() > effect.leaseUntil);
+    assert.equal((await f.post("/dev/clock/advance", { duration: "1ms" })).advancedMs, 1);
+  };
+  assert.equal((await f.post("/m/notify", { args: {} })).state, "sent");
+  if (state === "failed") for (let attempt = 1; attempt < 8; attempt++) {
+    const claim = (await f.post("/effects/claim", { effect: "notify", lease: 1 }, f.token)).effects[0];
+    assert.equal(claim.attempt, attempt);
+    await expire(claim);
+  }
+  let claim, refused;
+  const handlerError = new Error("provider unavailable");
+  const worker = f.launch({ lease: 1, onError: error => errors.push(error), effects: { notify: async () => {
+    await expire(claim);
+    if (state === "sent" || state === "running") {
+      const next = (await f.post("/effects/claim", { effect: "notify" }, otherToken)).effects[0];
+      assert.equal(next.id, claim.id);
+      assert.equal(next.attempt, 2);
+      if (state === "sent") assert.equal((await f.post(`/effects/${claim.id}/done`, { result: "other worker" }, otherToken)).ok, true);
+    }
+    if (state === "queued") throw handlerError;
+    return "original worker";
+  } }, fetch: async (url, options) => {
+    const response = await fetch(url, options), body = await response.json();
+    if (url.endsWith("/claim")) claim = body.effects[0];
+    else { refused = body.denied; f.stop.abort(); }
+    return Response.json(body, { status: response.status });
+  } });
+  await worker.done;
+  assert.equal(refused?.code, "E_EFFECT_LEASE");
+  assert.match(refused.message, new RegExp(`is ${state} and not claimed by this worker`));
+  const recorded = (await listEffects(f.url, f.token))[0];
+  assert.equal(recorded.state, state);
+  assert.equal(recorded.attempt, state === "failed" ? 8 : state === "queued" ? 1 : 2);
+  if (state === "queued") {
+    assert.deepEqual(errors, [handlerError]);
+    assert.equal(recorded.error, "the lease expired", "the refused handler error must be reported separately");
+    assert.match(info.mock.calls[0]?.arguments[0] ?? "", /the effect was requeued/);
+    assert.ok(info.mock.calls[0].arguments[0].includes(refused.message));
+  } else {
+    assert.equal(info.mock.calls.length, 0);
+    assert.equal(errors.length, 1);
+    assert.ok(errors[0].message.includes(refused.message));
+    assert.doesNotMatch(errors[0].message, /requeued/);
+  }
+});
+
+for (const state of ["queued", "failed", "sent", "running", "unknown"]) for (const failed of [false, true]) test(`lost effect lease reports ${state} after handler ${failed ? "failure" : "success"}`, async t => {
   const stop = new AbortController(), errors = [], requests = [];
   const info = t.mock.method(console, "info", () => {});
+  const handlerError = new Error("provider unavailable");
+  const message = state === "unknown" ? "the claim is no longer available" : `E_EFFECT_LEASE: effect effect-test is ${state} and not claimed by this worker; claim it first`;
+  const refusal = `effect effect-test settlement refused (E_EFFECT_LEASE): ${message}`;
   const worker = runWorker({ url: "http://worker.test", token: "service-token", signal: stop.signal, onError: error => errors.push(error),
-    effects: { notify: () => { if (failed) throw new Error("provider unavailable"); return "sent"; } },
+    effects: { notify: () => { if (failed) throw handlerError; return "sent"; } },
     fetch: async (url, options) => {
       requests.push({ path: new URL(url).pathname, body: JSON.parse(options.body) });
-      if (url.endsWith("/claim")) return Response.json({ effects: [{ id: "effect-test", effect: "notify", payload: {}, attempt: 1, seq: 1, at: 0 }] });
+      if (url.endsWith("/claim")) return Response.json({ effects: [{ id: "effect-test", effect: "notify", payload: {}, attempt: state === "failed" ? 8 : 1, seq: 1, at: 0 }] });
       stop.abort();
-      return Response.json({ denied: { code: "E_EFFECT_LEASE", message: "E_EFFECT_LEASE: effect effect-test is queued and not claimed by this worker; claim it first" } });
+      return Response.json({ denied: { code: "E_EFFECT_LEASE", message } });
     },
   });
   await worker.done;
-  assert.deepEqual(errors, []);
-  assert.deepEqual(info.mock.calls.map(call => call.arguments), [["snapback4 worker: effect effect-test lease expired; the effect was requeued"]]);
+  assert.deepEqual(errors.map(error => error.message), [...(state === "queued" ? [] : [refusal]), ...(failed ? [handlerError.message] : [])]);
+  if (failed) assert.equal(errors.at(-1), handlerError, "the handler's original error and stack survive a refused settlement");
+  assert.deepEqual(info.mock.calls.map(call => call.arguments), state === "queued" ? [[`snapback4 worker: ${refusal}; the effect was requeued`]] : []);
   assert.equal(requests.length, 2, "a lost claim must not provoke a second settlement");
   assert.equal(requests[1].path, `/effects/effect-test/${failed ? "failed" : "done"}`);
+  if (failed) assert.deepEqual(requests[1].body, { error: "provider unavailable", retry: true });
 });
 
 test("effect settlement still reports a refusal other than lease loss", async () => {

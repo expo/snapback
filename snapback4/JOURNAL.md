@@ -19070,3 +19070,92 @@ known Chromium sandbox SIGABRT in `react.test.mjs`; rerunning
 failure is claimed reproduced against the base commit. Reference validation
 passed with 0 errors and 0 unchecked; changed code tops out at **1,448 lines**.
 The tree is left uncommitted, with no push, tag or publication.
+
+
+## 2026-09-15 — W6R1c: truthful lost-effect reports and action claims across clock advances
+
+Base: `3bfef6725f2c12b860a81ec866c8560416f85645`. Reproduced both wave-6
+review findings before their fixes. The worker's 10 mocked outcome cases
+reported `ℹ pass 0` / `ℹ fail 10`; four real-wire cases reported
+`ℹ pass 0` / `ℹ fail 4`. The real wire expired a throwing handler's lease,
+exhausted the eighth attempt, let another service settle the effect, and let
+another service retain its claim. The action regression reported
+`test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.32s`:
+a 120,000 ms advance had swept the live action into `queued`.
+
+`runWorker` now reports the server's code and full message. Only the exact
+queued-state refusal is informational and says requeued; sent, running,
+failed and unknown outcomes still call `onError` (or the stderr fallback).
+Matching the complete refusal avoids an extra listing whose state could
+belong to a newer attempt, and unfamiliar wording stays an error. If a
+handler threw and settlement is refused or throws, a `finally` reports the
+original error object and stack separately. Successful failure settlement
+still records the provider error through the ordinary retry path. The final
+worker diff keeps the existing handler execution and serialization path.
+The 14 lost-lease cases passed after the fix; the complete final worker
+suite passed 24/24 in 28,703.581042 ms.
+
+The shared development advance now shifts held action deadlines and their
+delegated viewer-session expiries in the same transaction as effect leases.
+Its helper is renamed `advance_worker_leases`; the only simulator edits are
+the two existing callers. The clock is published only after that transaction
+commits. A test-forced failure of its last update leaves the effect deadline,
+action deadline, viewer-session expiry and clock unchanged. Invalid advance
+input also leaves deadlines unchanged. Ordinary service credentials keep
+their expiry; retry timestamps stay put; overdue sessions stay overdue;
+settlement still revokes the original action token. Production clock and
+expiry paths are unchanged. No meter, serialized value or existing corpus
+case changed; no new diagnostic code or language form was added.
+
+Measurements (N=1, this shared host): two 120,000 ms advances extend the held
+60,000 ms action lease and viewer session by exactly 240,000 ms, preserve
+a concurrently held effect, requeue 0 actions, and settle the original claim
+at attempt 1, in 78 ms wall time. A real 1,000 ms action lease expires and is
+reclaimed at attempt 2 in both dev and serve (1,012 ms and 1,004 ms observed).
+A queued action's 4,000 ms backoff is made due by a 4,000 ms advance with
+0 ms change to `next_at`, and attempt 3 settles. The real effect exhaustion
+case records `failed` at attempt 8. The largest changed source has 1,456
+lines; Markdown is not reflowed to meet a source-file cap.
+
+Targeted commands run from `snapback4/`, with Node 24.18.0 on PATH for JS:
+`cargo test -p snapback4 --test clock -- --nocapture` passed 14/14 in 11.31 s;
+`cargo test -p snapback4-sim --test clique effect -- --nocapture` passed 1/1;
+`cargo test -p snapback4-lang --test guide -- --nocapture` passed 25/25;
+`node --test packages/snapback4/test/worker.test.mjs` passed 24/24.
+The initial package build lacked generated wasm bindings; the existing
+`bash scripts/build-wasm.sh` supplied them (1,751,309 B raw / 487,926 B gzip)
+and `bun run --cwd packages/snapback4 build` then passed.
+
+The published README, effects/clock/actions cards and the existing RFC's
+§20.12 describe the corrected behavior. These minimal documentation edits
+and the two simulator caller renames are outside the lane's primary file
+list. The worker's prior line, for `effect-test`, was exactly:
+
+```text
+snapback4 worker: effect effect-test lease expired; the effect was requeued
+```
+
+The queued-state informational line is now exactly:
+
+```text
+snapback4 worker: effect effect-test settlement refused (E_EFFECT_LEASE): E_EFFECT_LEASE: effect effect-test is queued and not claimed by this worker; claim it first; the effect was requeued
+```
+
+A throwing handler separately reports its original `Error: provider unavailable`.
+For `failed`, `sent` and `running`, the Error's message uses the server's
+actual state and never adds requeued. Unknown refusal wording remains loud.
+No commit, push, tag or publication is performed; the lead owns landing.
+
+Blocking verification, repository root with Node 24.18.0 on PATH:
+`bash snapback4/scripts/test.sh` completed twice. The first run reported
+`== 1 failure(s) in 545 s`; the second, on the final smaller worker diff,
+reported `== 1 failure(s) in 441 s`. Each run passed 973 Rust tests across
+62 targets, with 0 failed and 4 ignored; fixtures passed 9/9; clients reported
+`ℹ tests 344`, `ℹ pass 343`, `ℹ fail 1`. All builds and typechecks passed.
+Only the brief's known Chromium sandbox `SIGABRT` in `react.test.mjs` remains.
+`node --test packages/snapback4/test/react.test.mjs` reproduced
+`ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1` in 411.288334 ms, with Chromium exiting
+before browser assertions. The lead's outside-sandbox browser run is still
+needed. No unrelated failure is claimed verified against the base commit.
+`./ref-check --verbose` passed with `0 errors, 0 unchecked`; `git diff --check`
+is clean. The final reference check is repeated after this append.

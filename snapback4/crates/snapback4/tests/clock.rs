@@ -291,6 +291,102 @@ fn clock_advance_preserves_a_live_effect_claim_and_settlement() {
 }
 
 #[test]
+fn clock_advance_preserves_a_live_action_claim_session_and_settlement() {
+    let f = Fixture::new("action-live");
+    fs::write(f.0.join("snapback/schema.q"), format!("{SOURCE}\naction notify()\neffect ping\nmutation ping():\n  emit ping {{}}\n")).unwrap();
+    let host = f.start(&["dev", "--no-watch", "--hold-schedules", "--clock-offset", "+25h"]);
+    let auth = effect_token(&f, false);
+    assert_eq!(host.post("/a/notify?wait=0", json!({"id":"action-live", "args":{}}))["state"], "pending");
+    let claimed = host.auth_request("POST", "/actions/claim", json!({"lease":120, "session":60}), &auth);
+    let action = &claimed["requests"][0];
+    assert_eq!(action["attempt"], 1);
+    let token = action["session"]["token"].as_str().unwrap();
+    let viewer = format!("Authorization: Bearer {token}");
+    let settle_auth = format!("{auth}\r\nx-snapback-action-lease: {token}");
+    let original_expiry = action["session"]["expiresAt"].as_i64().unwrap();
+    let conn = rusqlite::Connection::open(f.0.join(".snapback4/store.sqlite")).unwrap();
+    assert_eq!(host.post("/m/ping", json!({"args":{}}))["state"], "sent");
+    let effect = host.auth_request("POST", "/effects/claim", json!({"lease":60}), &auth)["effects"][0].clone();
+    let effect_deadline = || conn.query_row("SELECT lease_until FROM _outbox", [], |row| row.get::<_, i64>(0)).unwrap();
+    let original_effect_expiry = effect_deadline();
+    let deadlines = || conn.query_row("SELECT r.lease_until, s.expires_at FROM _requests r JOIN _sessions s ON s.token_digest = r.session_digest WHERE r.id = 'action-live'", [], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?))).unwrap();
+    assert_eq!(deadlines(), (original_expiry, original_expiry));
+    let service_expiry = || conn.query_row("SELECT expires_at FROM _sessions WHERE kind = 'service'", [], |row| row.get::<_, i64>(0)).unwrap();
+    let original_service_expiry = service_expiry();
+    assert_eq!(host.post("/dev/clock/advance", json!({"duration":"9007199254740991ms"}))["denied"]["code"], "E_CLOCK_INPUT");
+    assert_eq!(deadlines(), (original_expiry, original_expiry), "invalid advances leave every deadline untouched");
+    // Force the last lease update to fail: sessions, effects and the clock
+    // must all retain their earlier deadlines before an ordinary retry.
+    conn.execute_batch("CREATE TRIGGER refuse_action_shift BEFORE UPDATE OF lease_until ON _requests BEGIN SELECT RAISE(ABORT, 'test refuses action shift'); END;").unwrap();
+    let before = host.query("time").as_i64().unwrap();
+    let wall = snapback4_core::now_ms();
+    assert_eq!(host.post("/dev/clock/advance", json!({"duration":"120s"}))["denied"]["code"], "E_STORE");
+    assert_eq!(deadlines(), (original_expiry, original_expiry));
+    assert_eq!(effect_deadline(), original_effect_expiry);
+    assert!(host.query("time").as_i64().unwrap() - before <= snapback4_core::now_ms() - wall + 5, "a refused lease transaction must not advance the clock");
+    conn.execute_batch("DROP TRIGGER refuse_action_shift;").unwrap();
+    let start = Instant::now();
+    let port = host.address.rsplit(':').next().unwrap();
+    let advanced = output_json(f.command(&["clock", "advance", "120s", "--port", port]));
+    assert_eq!(advanced["advancedMs"], 120_000);
+    let state: String = conn.query_row("SELECT state FROM _requests WHERE id = 'action-live'", [], |row| row.get(0)).unwrap();
+    println!("action clock: after_advance_state={state}");
+    assert_eq!(state, "running", "clock advance must not sweep the worker's live action claim");
+    assert_eq!(deadlines(), (original_expiry + 120_000, original_expiry + 120_000));
+    assert_eq!(host.post("/dev/clock/advance", json!({"duration":"120s"}))["advancedMs"], 120_000);
+    assert_eq!(deadlines(), (original_expiry + 240_000, original_expiry + 240_000));
+    assert_eq!(effect_deadline(), original_effect_expiry + 240_000);
+    assert_eq!(service_expiry(), original_service_expiry, "an advance does not renew ordinary service credentials");
+    assert!(host.auth_request("POST", "/q/time", json!({"args":{}}), &viewer)["data"].is_number(), "the original viewer session remains usable");
+    assert_eq!(host.auth_request("POST", "/actions/claim", json!({}), &auth)["requests"], json!([]), "another claim cannot steal the running request");
+    let settled = host.auth_request("POST", "/actions/action-live/done", json!({"result":"sent once"}), &settle_auth);
+    assert_eq!(settled["ok"], true, "{settled}");
+    assert_eq!(settled["request"]["state"], "done");
+    assert_eq!(settled["request"]["result"], "sent once");
+    assert_eq!(host.auth_request("POST", "/q/time", json!({"args":{}}), &viewer)["denied"]["code"], "E_AUTH", "settlement still revokes the original viewer session");
+    assert_eq!(host.auth_request("POST", &format!("/effects/{}/done", effect["id"].as_str().unwrap()), json!({}), &auth)["ok"], true);
+    println!("action clock: advances=2 advanced_ms=240000 lease_ms=60000 session_extension_ms=240000 requeues=0 attempts=1 wall_ms={}", start.elapsed().as_millis());
+}
+
+#[test]
+fn action_retry_times_follow_dev_clock_and_real_expiry_still_fences_dev_and_serve() {
+    for release in [false, true] {
+        let f = Fixture::new(if release { "action-expiry-release" } else { "action-expiry-dev" });
+        fs::write(f.0.join("snapback/schema.q"), format!("{SOURCE}\naction notify()\n")).unwrap();
+        if release { assert!(f.command(&["deploy", "deployment"]).status.success()); }
+        let host = f.start(if release { &["serve", "deployment"] } else { &["dev", "--no-watch", "--hold-schedules"] });
+        let auth = effect_token(&f, release);
+        assert_eq!(host.auth_request("POST", "/a/notify?wait=0", json!({"id":"expiry", "args":{}}), &auth)["state"], "pending");
+        let first = host.auth_request("POST", "/actions/claim", json!({"lease":1, "session":1}), &auth)["requests"][0].clone();
+        let token = first["session"]["token"].as_str().unwrap();
+        let expiry = first["session"]["expiresAt"].as_i64().unwrap();
+        let start = Instant::now();
+        while snapback4_core::now_ms() <= expiry { std::thread::sleep(Duration::from_millis(10)); }
+        if !release { assert_eq!(host.post("/dev/clock/advance", json!({"duration":"120s"}))["advancedMs"], 120_000); }
+        assert_eq!(host.auth_request("POST", "/q/time", json!({"args":{}}), &format!("Authorization: Bearer {token}"))["denied"]["code"], "E_AUTH", "an overdue action session stays overdue after an advance");
+        let second = host.auth_request("POST", "/actions/claim", json!({}), &auth)["requests"][0].clone();
+        assert_eq!(second["attempt"], 2);
+        let refused = host.auth_request("POST", "/actions/expiry/done", json!({}), &format!("{auth}\r\nx-snapback-action-lease: {token}"));
+        assert_eq!(refused["denied"]["code"], "E_ACTION_LEASE");
+        let second_auth = format!("{auth}\r\nx-snapback-action-lease: {}", second["session"]["token"].as_str().unwrap());
+        println!("action expiry: release={release} lease_ms=1000 requeues=1 attempts=2 wall_ms={}", start.elapsed().as_millis());
+        if release { assert_eq!(host.auth_request("POST", "/actions/expiry/done", json!({}), &second_auth)["ok"], true); }
+        else {
+            assert_eq!(host.auth_request("POST", "/actions/expiry/failed", json!({"error":"provider unavailable", "retry":true}), &second_auth)["ok"], true);
+            let conn = rusqlite::Connection::open(f.0.join(".snapback4/store.sqlite")).unwrap();
+            let next_at = || conn.query_row("SELECT next_at FROM _requests WHERE id = 'expiry'", [], |row| row.get::<_, i64>(0)).unwrap();
+            let next = next_at();
+            assert_eq!(host.post("/dev/clock/advance", json!({"duration":"4s"}))["advancedMs"], 4_000);
+            assert_eq!(next_at(), next, "an advance does not postpone a queued retry");
+            let third = host.auth_request("POST", "/actions/claim", json!({}), &auth)["requests"][0].clone();
+            assert_eq!(third["attempt"], 3);
+            assert_eq!(host.auth_request("POST", "/actions/expiry/done", json!({}), &format!("{auth}\r\nx-snapback-action-lease: {}", third["session"]["token"].as_str().unwrap()))["ok"], true);
+            println!("action retry: advanced_ms=4000 attempts=3 next_at_shift_ms=0");
+        }
+    }
+}
+
+#[test]
 fn effect_retry_next_at_still_follows_the_dev_clock() {
     let f = effect_fixture("effect-retry");
     let host = f.start(&["dev", "--no-watch", "--hold-schedules", "--clock-offset", "+25h"]);
