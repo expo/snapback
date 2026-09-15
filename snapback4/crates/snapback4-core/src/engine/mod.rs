@@ -43,8 +43,6 @@ use crate::schema::{ColumnType, Effect, Schema, materialize_optional_fields};
 use crate::store::Store;
 use crate::value::Value;
 #[cfg(feature = "sqlite")]
-use crate::value::canonical_json;
-#[cfg(feature = "sqlite")]
 use runner::Runner;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, VecDeque};
@@ -796,12 +794,7 @@ impl Engine {
                 read_tables.extend(tables.iter().cloned());
                 tx.record_commit(seq, now, name, &viewer, program.kind.word(), &tables, rows_written)?;
                 partition::append(&tx, seq, &events)?;
-                for (id, effect, payload) in &outbox {
-                    tx.conn().execute(
-                        "INSERT INTO _outbox(id, seq, effect, payload, state, attempts, at) VALUES (?1, ?2, ?3, ?4, 'queued', 0, ?5)",
-                        rusqlite::params![id, seq as i64, effect, canonical_json(payload), now],
-                    )?;
-                }
+                effects::record(&tx, &outbox, seq, now)?;
                 MutationOutcome { state: WriteState::Sent { seq, result }, metered, tables, events: events.len(), replayed: false }
             }
             Err(error) if error.is_refusal() => {

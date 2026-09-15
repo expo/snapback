@@ -54,6 +54,20 @@ pub enum Settled {
 
 const COLUMNS: &str = "id, effect, payload, state, attempts, seq, at, next_at, lease_until, claimed_by, result, error";
 
+// @ref LLP 3000.007#20.2 — dev replay counts committed emits without retaining a deliverable payload.
+pub(super) fn record(tx: &crate::store::Tx<'_>, outbox: &[(String, String, Value)], seq: u64, now: i64) -> Result<(), RuntimeError> {
+    if outbox.is_empty() { return Ok(()); }
+    let replay: bool = tx.conn().prepare_cached("SELECT EXISTS(SELECT 1 FROM _meta WHERE key = 'dev:replay' AND value = 'true')")?.query_row([], |row| row.get(0))?;
+    if replay {
+        tx.conn().execute("INSERT INTO _meta(key, value) VALUES ('dev:suppressed-effects', ?1) ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + CAST(excluded.value AS INTEGER)", [outbox.len().to_string()])?;
+    } else {
+        for (id, effect, payload) in outbox {
+            tx.conn().execute("INSERT INTO _outbox(id, seq, effect, payload, state, attempts, at) VALUES (?1, ?2, ?3, ?4, 'queued', 0, ?5)", params![id, seq as i64, effect, canonical_json(payload), now])?;
+        }
+    }
+    Ok(())
+}
+
 fn read_run(row: &rusqlite::Row<'_>) -> rusqlite::Result<EffectRun> {
     let payload: String = row.get(2)?;
     let result: Option<String> = row.get(10)?;
@@ -158,10 +172,12 @@ impl Engine {
         Ok(runs)
     }
 
-    /// How many effects sit in each state.
+    /// How many effects sit in each state, plus the durable dev replay suppression count.
     pub fn effect_counts(&self) -> Result<BTreeMap<String, u64>, RuntimeError> {
         let mut statement = self.store.conn().prepare("SELECT state, COUNT(*) FROM _outbox GROUP BY state")?;
-        let counts = statement.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)? as u64)))?.collect::<Result<BTreeMap<_, _>, _>>()?;
+        let mut counts = statement.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)? as u64)))?.collect::<Result<BTreeMap<_, _>, _>>()?;
+        let suppressed: i64 = self.store.conn().query_row("SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'dev:suppressed-effects'", [], |row| row.get(0)).optional()?.unwrap_or(0);
+        if suppressed > 0 { counts.insert("suppressed".into(), suppressed as u64); }
         Ok(counts)
     }
 }

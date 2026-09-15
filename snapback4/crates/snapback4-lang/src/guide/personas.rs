@@ -1,9 +1,24 @@
 //! Identity and developer inspection.
 pub(super) const CARD: &str = r##"# Personas
 
-For seeding or recorded-action replay, run
-`snapback4 dev --hold-effects --hold-schedules` to hold effect claims and
-scheduled jobs without an app replay flag.
+For a replay mode that must not emit notifications, run `snapback4 dev --replay`.
+New emits are counted as `suppressed` by `doctor`, with no queued payload:
+they are never delivered, including after restarting with or without `--replay`.
+Mutations and explicitly run jobs keep their writes, results and meters.
+Replay holds schedule admission; restart without it resumes at the next
+boundary, skipping held periods. Already queued jobs still run, with their
+new emits suppressed. Effects queued before replay keep their ordinary lifecycle.
+
+`--hold-effects` only pauses worker claims: effects stay durable and become
+claimable after restarting without the flag. `--hold-schedules` only holds
+schedule admission, skipping held periods on restart. Use `--replay` when
+new effects must never be delivered; use the effect hold to keep them queued.
+The suppression policy stays on the dev store for local `run` invocations
+until the next host start; a restart without `--replay` restores normal
+emission for new writes and keeps the count. `serve` and release commands
+refuse `--replay` with E_REPLAY_DEV_ONLY; production always emits normally.
+With `--fresh`, the count dies with the in-memory store; `doctor` and local
+`run` inspect the separate on-disk store.
 
 `use personas alice, bob` declares a development cast. `snapback4 run send
 '{..}' --as alice` (the default persona is alice) and the
