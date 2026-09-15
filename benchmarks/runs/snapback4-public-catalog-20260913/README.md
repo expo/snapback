@@ -3116,3 +3116,59 @@ independent summary `b5f05db8…`. Supporting files use ignored-run prefix
 `membership-borrowed-scan-0216-v1-http-v1`. The existing
 [core-owner follow-up](../../../issues/20260914-snapback4-membership-feed-query-cost.md)
 remains open for the larger repeated-scan/materialization cost.
+
+
+### Unmodified 0.2.18 membership feed stack diagnostic
+
+Four external sampling runs completed on the shared Durand Apple M4 Pro at
+2026-09-15 05:34:31–05:36:29 UTC. Source is `053a5b288…` (0.2.18),
+retained native binary `93c2dc5c…`. The production profile retains function
+symbols with `strip=none`; Cargo reports `debuginfo:0`. The packaged SQLite
+flag, MEMSTATUS enabled, Node 24.21.0 and the original membership verifier
+remain pinned. This measures one fixed source and prepared fixture.
+
+All **158,243 active-load responses** and **6,120 preparation/warmup
+responses** passed exact viewer, completeness, ordered-row and continuation
+checks. The original five-reader logical feed/thread and credential checks
+passed before and after. The 150-group reader's first/rotating pages ran at
+one/eight concurrent clients, each for 25 seconds; every ten-second sample
+invocation stayed inside its active window. Ten verifier/loader/sampler
+children exited zero; the owned server exited -15. All eleven recorded
+groups are absent, with no cleanup or sanitization errors. No new
+leave/regrant, restart or physical-all-table proof ran.
+
+The following are inclusive unions of **request-subtree stack observations**.
+Categories overlap and cannot be added; they are not CPU time, call counts,
+latency or cache misses.
+
+| Case | Active responses | Request | Engine query | Store scan | SQLite step | Cursor | Kernel mutex wait |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| First page, C1 | 21,995 | 1,203 | 1,174 | 677 | 307 | 1 | 0 |
+| Rotating page, C1 | 16,765 | 1,266 | 1,243 | 555 | 242 | 308 | 0 |
+| First page, C8 | 65,553 | 11,353 | 11,194 | 5,163 | 1,706 | 3 | 4 |
+| Rotating page, C8 | 53,930 | 11,387 | 11,289 | 4,013 | 1,458 | 2,974 | 4 |
+
+Most request observations lie under the query engine. Rotating pages show
+cursor parsing/encoding ancestry; allocation/free and SQL index work also
+appear. Source inspection finds a successful initial cursor validation
+followed by bounds decoding for each expanded lazy-merge lane. This suggests
+an experiment retaining one decoded token during one request, while keeping
+canonical, descriptor, live-authority, scope, meter and result semantics.
+No such runtime change is adopted by this record. The earlier rejected
+canonical-re-encoding-removal experiment remains separate.
+
+Two independent call-tree implementations agree on all structural counts,
+scope unions, exclusive partitions, matched symbols and reported top frames.
+Every exclusive residual is nonnegative and the residual sum equals the
+thread-root sum. Wait-symbol lists are incomplete classifications; zero
+kernel-mutex observations cannot establish absence of contention. Inlining,
+unresolved symbols, shared-host activity and sampling affect attribution.
+No new unsampled speedup, comparator, current-release, device, write or
+durability result follows.
+
+The ignored run retains 49 public payload files / 36,196,185 bytes, all
+hash-verified, plus the transfer manifest. Private sessions, DB and raw logs
+were not transferred. The failed first collector parse/empty archive are
+preserved; the profile ran once. Transfer is `d1b5b811…`, final receipt
+`bb6c82f5…`, root analysis `dde31de2…`, independent audit `3de9cebe…`,
+parser reconciliation `9db47dd9…` and independent review `9951d0ce…`.

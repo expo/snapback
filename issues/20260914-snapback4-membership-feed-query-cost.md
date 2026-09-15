@@ -193,3 +193,29 @@ The 0.2.16 borrowed-text A/B uses ignored-run prefix
 `membership-borrowed-scan-0216-v1-http-v1`: formal transfer `7d3ea92e…`,
 completion `e71e95fe…`, root summary `0a9cc815…`, independent summary
 `b5f05db8…`; six exact original formal records are appended to the ledger.
+
+
+## 2026-09-15 — current-source external stack diagnostic
+
+The unmodified 0.2.18 source `053a5b288…` completed four externally sampled
+150-group first/rotating-page loads at C1/C8. All 158,243 active responses,
+6,120 preparation/warmup responses and before/after logical/auth checks
+passed; all owned groups stopped. Independent call-tree analysis agrees with
+the root calculation. Request/query observation counts are 1,203/1,174,
+1,266/1,243, 11,353/11,194 and 11,387/11,289. Rotating-page cursor ancestry
+accounts for 308 and 2,974 request-subtree observations; kernel mutex waits
+are 0/0/4/4. These are overlapping sampled stacks, not CPU percentages,
+latency components or evidence that contention is absent.
+
+The next concrete experiment is reuse of a successfully decoded cursor
+within one lazy merge when later lanes present the identical token and
+descriptor. Initial validation before discovery, all expression evaluations,
+canonical encoding, scope/generation checks, meter charges and live row/rule
+reads must remain. An ignored candidate exists for review and qualification;
+no runtime adoption or speedup is claimed. This is distinct from the old
+rejected experiment that removed canonical re-encoding. The cursor and scan
+work remain open until ordinary unsampled HTTP results justify a change.
+
+Full scope and provenance are in the benchmark README's 0.2.18 stack section;
+independent review `9951d0ce…`, audit `3de9cebe…`, parser reconciliation
+`9db47dd9…`. No current comparator batch ran here.

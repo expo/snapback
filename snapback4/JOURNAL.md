@@ -14066,3 +14066,28 @@ not been timed by this fixed 0.2.16 A/B. The existing core-owner ticket stays
 open: address repeated indexed collections and row materialization with
 coarse or sampled attribution, preserving live authority, meters and exact
 results. This batch adds no current competitor or publication claim.
+
+
+## 2026-09-15 — membership request stacks on unchanged 0.2.18
+
+The performance lane sampled four 150-group first/rotating feed workloads
+at one/eight concurrent clients on Durand. Source `053a5b288…` retains the
+production settings and packaged SQLite flag, with function symbols kept.
+All 158,243 active and 6,120 preparation/warmup responses passed exact
+oracles; original logical/auth verification passed before and after. Four
+sample windows fit inside their loads, and all eleven owned groups stopped.
+
+Independent recomputation confirms query-engine ancestry for almost all
+request observations. Rotating pages show substantial cursor parsing/encoding
+ancestry (308/1,266 C1 and 2,974/11,387 C8 observations). These are overlapping
+stack observations, not CPU time or a new latency result. The benchmark
+README and storage record retain the complete scope and hashes; independent
+review `9951d0ce…` finds no material evidence/parser issue.
+
+Proposal for the core owner: retain the first validated cursor during one
+lazy merge and reuse its decoded values only for identical token/descriptor
+inputs. Keep initial validation before discovery, every expression and meter
+charge, canonical encoding, scope checks and current rule/row reads. The
+ignored experiment changes only read.rs plus two simulator regressions;
+compilation, qualification and ordinary HTTP comparison are still pending
+at this entry. No tracked core change is adopted by this performance lane.
