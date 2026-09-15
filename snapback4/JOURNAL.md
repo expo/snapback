@@ -16018,3 +16018,221 @@ ref-check: ok — 480 LLP docs, 8929 refs in 23702 files, 0 errors, 0 unchecked
 
 `git diff --check` passes. HEAD remains the base hash above, and a byte-prefix
 comparison confirms every prior journal entry is unchanged.
+
+
+## 2026-09-14 — W3R3e: cut authorization is unknown; a later heap cut still unwinds
+
+Base: `96d5be3bc95523e3b3abd388265fab7cbd85bd62`. Read findings A and D in
+`/Users/ccheever/projects/snapback-w3-review/recheck-gpt.out.md`, W3R1f's
+entry and `git show bb28c8716`. Used `llp-orient` for the Snapback 4 fence,
+LLP 3000 §6–§7 and LLP 3000.007 §14–§15, §17–§18; the published reads card
+and README supplied the current surface. No commit, push, tag or publication.
+
+**Built.** A metered rule probe unwinds as unknown before `not` or a
+short-circuit operator can use a false sentinel. For a capped point read,
+the rule's schema-derived worst-case probe count must fit before looking
+for the target. If it cannot, both hidden and absent worlds record the same
+cut and unwind to null/incomplete/no continuation; a hidden denial cannot
+restore that cut away. With room, the existing probe charges and hidden/miss
+normalization remain. System authority and trusted synced reads need no
+probe allowance. Writes and predictions still use `Cut::Abort`; this new
+point check applies only to `Cut::Cap`.
+
+The runner also unwinds a query's heap bound when the first recorded cut
+used another meter. The first cut remains recorded. The unknown-lookup
+unwind, heap-first behavior, mutation rollback, step-limit refusal and live
+aggregate partial-count contract remain. Production changes are confined to
+`engine/read.rs` and one condition in `engine/runner.rs`; no meter ceiling,
+serialized form, existing corpus case, parser form, code or note changed.
+The reads card, README and LLP 3000.007 §17 state the final rule.
+
+**Red before green.** Each defect failed with the production files still at
+the base above on the server and both stores. The initial authorization
+fixture accidentally redeclared the built-in `byId` index; that setup error
+was removed before the valid red runs recorded below. Positive probe cuts
+returned null with no cut marker (and `complete: true` on the server).
+Negated probe cuts exposed one protected body on every host. The later heap
+cut returned `E_BOUND` on every host, with the verbatim message:
+
+```text
+heap bytes reached the ceiling 100
+```
+
+After the fix it returns null, incomplete and no continuation, without a
+refusal. No diagnostic text itself was edited.
+
+**Measured.** The authorization fixture runs six forms (point, not-exists,
+point shape, exists shape, filter and required point), both probe signs,
+one- and two-probe rules, and hidden/absent/visible worlds. Across three
+hosts: **216 cut outcomes**, **216 ample-budget controls**, **144 paired
+hidden/absent observations** comparing responses, all seven meter fields,
+completeness, cursors, dependencies, expiry, sequence and errors. The required
+point's hidden/absent ample-budget controls retain `RECORD_MISSING`; its cut
+never invents that refusal. Completed page controls retain their source
+cursor. The device authorization tests deliberately install adversarial
+online-only rows in each real `DeviceStore` to exercise its shared read-rule
+path; coverage correctly remains incomplete. They are not a sync-delivery
+claim, and the existing trusted-partition point tests still pass.
+
+At probe ceiling **0**, the direct protected point on each host now records
+**0 examined**, **1 rule probe**, **3 steps**, **12 heap bytes**, **6 output
+bytes**, with the other meters **0**; hidden and absent match. Protected
+bodies exposed by the negated direct point go from **1 to 0** on each host.
+
+Finding D uses **2 rows × 4,000 body bytes**, examined ceiling **1**, heap
+ceiling **100**. Afterward each host records **2 examined** and preserves
+`Examined` at `messages.page` as its first cut. Heap is **4,298 bytes** on
+the server and SQLite device, **4,300 bytes** on the memory device; all
+return null/incomplete/no next with **0 refusals**. The existing heap-first
+and rollback suite passes, as do both partial-aggregate controls.
+
+**Targeted commands and verbatim summary lines.** From `snapback4/`; where
+two lines appear, the first is the valid base reproduction and the second
+the repaired run. Full logs are `/tmp/w3r3e-*.log`.
+
+```text
+cargo test -p snapback4-sim --test filters rule_probe_cuts -- --nocapture
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.01s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.05s
+```
+
+```text
+cargo test -p snapback4-device --test device rule_probe_cuts -- --nocapture
+test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 124 filtered out; finished in 0.03s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 124 filtered out; finished in 0.05s
+```
+
+```text
+cargo test -p snapback4-core --test meter heap_cut_after_examined_cut -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.01s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.01s
+```
+
+```text
+cargo test -p snapback4-device --test device heap_cut_after_examined_cut -- --nocapture
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 126 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 126 filtered out; finished in 0.01s
+```
+
+```text
+cargo test -p snapback4-sim --test filters -- --nocapture
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+```
+
+```text
+cargo test -p snapback4-core --test meter -- --nocapture
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+```
+
+```text
+cargo test -p snapback4-device --test device point_read_cut -- --nocapture
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 120 filtered out; finished in 0.06s
+```
+
+```text
+cargo test -p snapback4-sim --test review_corrections a_capped_maintained -- --nocapture
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 30 filtered out; finished in 0.02s
+```
+
+**Scope and limitations.** No out-of-scope file was touched. No requested
+implementation or regression was omitted. No failure is called pre-existing
+without a base comparison. No timing or constant-time security claim is made.
+All changed code files fit the cap; the largest is the reads-card container,
+`guide.rs`, at **1,377 lines**. The final blocking-suite and reference results
+follow below.
+
+The first full `bash snapback4/scripts/test.sh` ran with
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` from the repository
+root. It found one introduced regression: the initial probe guard checked
+any existing cut, so a successful authorization probe after an index-entry
+cut changed an established word scan's empty partial page to null. The
+existing R3 word-bound control refused that change. The guard now unwinds
+only when the probe's own charge fails; other scan cuts keep their prior
+page behavior. No existing test expectation was changed. The initial
+full-suite summaries were:
+
+```text
+test result: FAILED. 43 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.12s
+ℹ tests 275
+ℹ pass 274
+ℹ fail 1
+ℹ cancelled 0
+== 2 failure(s) in 337 s
+   cargo test
+   client tests
+```
+
+Across that run's 60 Rust targets: **891 passed, 1 failed, 4 ignored**;
+fixture wrappers: **9 passed, 0 failed**. The client failure was Chromium
+SIGABRT at `react.test.mjs:74`, the sandbox artifact identified in the lane
+brief. It repeated alone, from `snapback4/` with the same Node PATH:
+
+```text
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ duration_ms 368.459917
+```
+
+The narrowed probe guard's targeted confirmations, from `snapback4/`:
+
+```text
+cargo test -p snapback4-core --lib r3_admitted_word_bound_both_cuts_and_real_meter_ceiling -- --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 43 filtered out; finished in 0.09s
+```
+
+```text
+cargo test -p snapback4-sim --test filters rule_probe_cuts -- --nocapture
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.06s
+```
+
+```text
+cargo test -p snapback4-device --test device rule_probe_cuts -- --nocapture
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 124 filtered out; finished in 0.04s
+```
+
+The final full run used the same root command and Node PATH:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+ℹ tests 275
+ℹ pass 274
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ duration_ms 43644.587042
+== 1 failure(s) in 291 s
+   client tests
+```
+
+All **60 Rust targets** completed: **892 passed, 0 failed, 4 ignored**.
+Fixture wrappers reported:
+
+```text
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ duration_ms 7767.90875
+```
+
+The final suite is red only for the same Chromium sandbox launch abort.
+The lead must rerun that browser test outside the sandbox. No lifecycle or
+client timeout was observed, and no failure is attributed to the base
+without verification. Logs: `/tmp/w3r3e-suite.log`,
+`/tmp/w3r3e-suite-final.log`, `/tmp/w3r3e-react.log`.
+
+At the repository root, with the same Node PATH:
+
+```text
+./ref-check --verbose
+ref-check: ok — 480 LLP docs, 8931 refs in 23704 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passes. The journal retains its complete original byte
+prefix and exactly one new dated entry. No commits, pushes, tags,
+publications, sub-agents or remote-machine work were performed.

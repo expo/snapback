@@ -459,6 +459,9 @@ charged to that chunk's meter. Writes belong inside a chunk.
   never null or false. This includes `exists`, page shapes, helpers and
   `where`: the whole query returns `data: null`, `complete: false`, with no
   `next` past unchecked work. Completed hidden and absent lookups still agree.
+  Positive and negated `exists` probes in a read rule follow the same rule:
+  the point read checks the rule's worst-case probe allowance before looking
+  for the row, so insufficient room withholds hidden and absent targets alike.
   Live aggregate reads keep their observed partial-count contract once their
   row is established; `exists` still needs a completed lookup.
 - **List operations:** pages, lists, and shaped collections share `sort`,
@@ -841,6 +844,8 @@ map clones share their immutable image. A heap cut stops a query immediately
 with `data: null`, `complete: false`, and no continuation, since an interrupted
 scalar or shape has no valid partial answer. Its meter and cut site remain
 internal; a mutation rolls back with `E_BOUND` as above.
+The same query unwind applies when an earlier cut used another meter; the
+first cut's kind and site remain recorded internally.
 
 A page whose read rule the prefix does not decide (the deciding fields include a
 column the scan does not pin) is never `complete`: the server cannot tell

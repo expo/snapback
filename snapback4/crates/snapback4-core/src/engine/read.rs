@@ -45,8 +45,7 @@ impl Eq for MergeHead {}
 impl Probe for Runner<'_> {
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
         if !self.meter.charge(MeterKind::RuleProbes, 1)? {
-            // Cut: no lookup and no verdict; the site stops on `capped_at`.
-            return Ok(false);
+            self.meter.require_uncapped()?;
         }
         self.rule_probe_exists(table, index, key, equalities)
     }
@@ -293,6 +292,14 @@ impl Runner<'_> {
         if key.iter().any(|value| *value == Value::Null) && !index.columns().iter().zip(&key).all(|(column, value)| *value != Value::Null || table.columns.get(column).is_some_and(|kind| kind.is_optional())) {
             // A null key on a required column addresses nothing.
             return Ok(Value::Null);
+        }
+        // @ref LLP 3000.007#17 — before looking up a capped point, its rule's worst-case probes must fit in every world; a cut is unknown, never a denial to restore away.
+        if self.meter.cut == crate::meter::Cut::Cap && !self.context.is_system() && !self.trust_synced_read(table) {
+            let probes = rules::rule_probes(&table.rules.read);
+            if probes > 0 && !self.meter.room(MeterKind::RuleProbes, probes) {
+                self.meter.charge(MeterKind::RuleProbes, probes)?;
+                self.meter.require_uncapped()?;
+            }
         }
         // Absent, hidden or visible: one examined row, so the meter says the
         // same of a miss and of a row the viewer may not read; the probes
