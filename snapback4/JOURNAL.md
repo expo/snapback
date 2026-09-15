@@ -16508,3 +16508,157 @@ installed-consumer proof passed; `snapback4@0.2.19` and
 `snapback4-expo@0.2.10` at 07:37 UTC. Next: the fourth Astra-medium
 calibration on these pins.
 
+
+## 2026-09-15 — W4a: synchronous admission custody across immediate web navigation
+
+Built against `118de1c72dd53801426ba2660e12151eca0c1ee8` (0.2.19).
+The Node model now destroys the document before the admission save completes,
+with both same-turn teardown and an explicitly held save, one and two writes.
+Its real wasm device and real server run a non-idempotent application counter
+and decimal order audit. The four regressions failed on that unchanged base:
+zero applications after reopen. They pass with the synchronous journal.
+
+`web.ts` receives `call({ op: "admit", ... })` synchronously inside `mutate`,
+before its first await, so this lane needs no change to `local.ts`,
+`local-exit.ts`, the server, or the public client card. `web-journal.ts`
+captures the operation, mutation id, arguments, minted row ids, viewer, time
+and submission order in localStorage. I chose localStorage because its
+synchronous `setItem` completes in that call stack and its same-origin
+contents survive navigation. The claimed device-store name (including the
+existing tab suffix) and backend store identity scope each journal key.
+The captured JSON is also the ordinary admission's body, so a caller changing
+its arguments after `mutate` returns cannot change that write.
+
+On open, journal records enter the existing outbox through ordinary device
+admission, in order before new writes. A surviving page whose save fails also
+recovers older records before its next admission. Live admissions stay with
+their original calls, preserving their typed refusal outcomes. The ordinary
+outbox is the only sender: no new server route, unadmitted keepalive, terminal
+server receipt, or exposure tracking exists. There is no new ordering
+obligation between sends: the journal creates no send, and the existing
+outbox serializes every recovered write with its original mutation id.
+
+An IDB transfer marker (`j`, private to the web host and never loaded into
+wasm) commits atomically with admission. It records only local transfer and
+origin, not a server result or terminal outcome. If localStorage removal
+fails, the marker dedupes the id even after its outbox receipt has retired;
+it is collected once cleanup succeeds. Locally refused prediction and
+validation remove the record and return the ordinary failure. Self-review
+found that saving a marker for an already-known refusal could mask it as
+`E_STORE` during an IDB outage; a red regression drove synchronous refusal
+cleanup before that bookkeeping, preserving `WRONG_DIGIT`.
+
+Closed tabs use the existing Web Lock and orphan adoption rule. Live-tab
+journals are not adopted. The brief's literal "never sent to a replaced
+backend" is stricter than §18.2's existing rule for already-admitted unknown
+outbox writes: recovered, previously unadmitted writes retain their source
+identity until retirement, and an authenticated replacement removes them
+without a send. Ordinary already-admitted writes retain §18.2's behavior.
+The tests cover an immediate mismatch, replacement discovered from the
+server, and an offline recovery followed by replacement. A same-store
+restore still uses the existing halt.
+
+Bounds are **65,536 bytes per serialized record**, **262,144 bytes of UTF-8
+keys and values per device journal**, and **32 records**. Over-budget writes,
+unavailable/throwing/full localStorage, an unidentified backend, and browser
+storage clearing retain best-effort unawaited navigation; ordinary admission
+still runs without a synchronous throw. A journal-only write needs another
+client to open. The README, writes card and LLP 3000.007 §20.4 state these
+limits and keep `await client.mutate(...)` as the strongest durable boundary.
+This is a navigation model, not physical-power-loss or real-Chromium evidence.
+
+Measurements from the final affected run:
+
+- One-write same-turn/held-save recovery: **1/1 applications**, order **1/1**,
+  **17/18 ms**, **609/609 journal-value bytes**.
+- Two-write same-turn/held-save recovery: **2/2 applications**, order **12/12**,
+  **35/22 ms**, **1,218/1,218 journal-value bytes**.
+- **0 duplicate applications** in all four; original minted row ids preserved.
+- Surviving-journal controls, queued and retired receipt: **1 admission,
+  1 send, 1 application, 0 duplicates** each.
+- UTF-8 record control: **56,612-byte record** journaled, **56,758 bytes**
+  including its key; the oversized record falls back and **2/2 writes apply**.
+- Total-byte control: **4 of 5 records** journaled, **227,032 bytes** including
+  keys; **5/5 writes apply**. Count control: **32 of 33 records** journaled,
+  **24,279 bytes**; **33/33 writes apply**.
+- Closed-tab recovery plus successor: **3 applications**, order **123**.
+  A still-locked tab: **0 applications** from adoption, then **1** from its owner.
+- Replacement controls: **0 sends, 0 applications** across all **3** cases.
+
+Commands used Node 24.18.0 via
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+Commands run from `snapback4/` unless the repository root is specified.
+Logs are `/tmp/w4a-*.log`.
+
+- Setup: `cargo build --workspace --quiet && bash scripts/build-wasm.sh && bun run --cwd packages/snapback4 build`, exit 0.
+  The generated bindings were initially absent: the first package build
+  reported TS2307 and the first Node invocation could not import wasm.
+  The initial audit fixture also used the invalid `sync all`; changing that
+  test-only draft to `sync public` preceded the genuine red comparison.
+  No implementation had changed at the genuine red run.
+- `bun run --cwd packages/snapback4 build`, repeated after TypeScript changes:
+  exit 0 after setup.
+- `node --test --test-name-pattern='pre-admission journal:' packages/snapback4/test/navigation-model.test.mjs`:
+  base red `ℹ tests 4`, `ℹ pass 0`, `ℹ fail 4`, `ℹ cancelled 0`;
+  immediate green `ℹ tests 4`, `ℹ pass 4`, `ℹ fail 0`, `ℹ cancelled 0`;
+  expanded runs `ℹ tests 15`, `ℹ pass 15`, `ℹ fail 0`, then
+  `ℹ tests 21`, `ℹ pass 21`, `ℹ fail 0` (both `ℹ cancelled 0`).
+- `node --test --test-name-pattern='known refusal survives' packages/snapback4/test/navigation-model.test.mjs`:
+  before the self-review fix `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`;
+  after `ℹ tests 1`, `ℹ pass 1`, `ℹ fail 0` (both `ℹ cancelled 0`).
+- `node --test --test-concurrency=2 packages/snapback4/test/navigation-model.test.mjs packages/snapback4/test/web-navigation.test.mjs packages/snapback4/test/store-reset-review.test.mjs packages/snapback4/test/local-e2e.test.mjs packages/snapback4/test/client-lifecycle.test.mjs`:
+  `ℹ tests 110`, `ℹ pass 110`, `ℹ fail 0`, `ℹ cancelled 0`,
+  `ℹ duration_ms 31576.73`.
+- `cargo test -p snapback4-lang --test guide -- --nocapture`:
+  `test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s`.
+- Repository root, `bash snapback4/scripts/test.sh`: exit 1;
+  Rust totals **872 passed, 1 failed, 4 ignored**. Verbatim summaries:
+
+```text
+-- ok: cargo build (2 s)
+-- ok: wasm build (1 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- FAIL: cargo test (328 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (0 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+-- ok: fixture wrapper tests (9 s)
+ℹ tests 275
+ℹ pass 274
+ℹ fail 1
+ℹ cancelled 0
+-- FAIL: client tests (47 s)
+== 2 failure(s) in 334 s
+```
+
+The Rust failure was `driver::cli_rejects_failure_in_the_milestone_batch`:
+`E_WITNESS_PORT: 127.0.0.1:63660 is unavailable: Address already in use (os error 48); choose a free --port; no existing process was stopped`.
+Its full target reported
+`test result: FAILED. 19 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.12s`.
+Isolated rerun,
+`cargo test -p snapback4 --test witness driver::cli_rejects_failure_in_the_milestone_batch -- --nocapture`, passed:
+`test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 3.45s`.
+No other process was stopped to free the port.
+
+The client failure is the supplied sandbox Chromium launch artifact in
+`react.test.mjs`: `exitCode=null, signal=SIGABRT`. The isolated
+`node --test packages/snapback4/test/react.test.mjs` repeats it:
+`ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`, `ℹ cancelled 0`.
+There were no lifecycle or default-concurrency client timeouts. I do not
+attribute any failing product test to an independently verified pre-existing
+base; the collision cleared on rerun, and Chromium needs the lead's environment.
+
+Repository-root `./ref-check --verbose` before this append:
+`ref-check: ok — 480 LLP docs, 8927 refs in 23698 files, 0 errors, 0 unchecked`.
+`git diff --check` passes. All earlier journal content is unchanged; this is
+one appended entry. The largest changed code file is `web.ts`, **447 lines**.
+No diagnostic text comparison was requested, and no diagnostic code or note
+was added or changed. No out-of-scope file was touched. No commit, push, tag,
+publication, dependency install, sub-agent, clone or remote machine was used.
+The lead owns `node witness/navigation-immediate.mjs` outside the sandbox:
+**10/10 is the target; the Chromium after-result is not measured by this lane**.
