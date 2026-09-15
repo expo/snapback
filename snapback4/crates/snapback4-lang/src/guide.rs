@@ -343,6 +343,7 @@ query chips(postId: posts, c: cursor ?):
   return reactionCounts[viewer, postId] after c first 50 by byGroup { emoji, count: .value }
 
 fn kindLabel(value: text <=6): value                               -- every enum variant fits the text bound
+shape messageCard = { *, room: rooms[.roomId], count: messageCounts[.roomId] }
 shape card = { id, name, kind: kindLabel(.kind), owner: .ownerId, tagCount: count(.tags) }   -- a named shape: `.` is the row; `row card` and `page card` use it
 fn messageBody(m: messages): m.body                                  -- a row argument keeps its fields at this call site
 fn messageById(m: messages): (messages[m] ! else NOT_FOUND).body      -- a reference argument stays a reference
@@ -365,7 +366,7 @@ query helperRows(messageId: messages):
 
 query thread(roomId: rooms, c: cursor ?):                            -- `cursor ?` is the page argument; an omitted optional argument is null
   require exists members[roomId, viewer] else NOT_MEMBER              -- a refusal with the program's own code
-  return messages[roomId] after c last 50 by byRoomTime where .body != null and exists members[.roomId, viewer] { *, room: rooms[.roomId], count: messageCounts[.roomId] }   -- a page from a cursor, shaped: `*` spreads the row; a point read inside is null for a hidden row
+  return messages[roomId] by byRoomTime last 50 after c where .body != null and exists members[.roomId, viewer] messageCard   -- a page from a cursor, shaped: `*` spreads the row; a point read inside is null for a hidden row
 
 query inbox(c: cursor ?):
   return members[viewer] after c first 50 by byPrincipalRoom { roomId, room: rooms[.roomId], unread: messageCounts[.roomId] }
@@ -485,9 +486,10 @@ An enum fits `text <=N` when every variant has at most N characters and
 contains no control characters except tab, LF and CR. This is
 static and total: no variant is truncated or converted at runtime. If one
 variant is too long, declare the helper parameter with the enum instead.
-After `where`, apply a named page shape with `{ ...card }`; a bare shape
-name attaches inside the predicate. `check --fix` repairs that spelling when
-it mistakenly shapes a scalar predicate operand.
+After a scalar `where` predicate, a declared shape name shapes the page:
+`where not .hidden card` and `where not .hidden { ...card }` agree. A valid
+row/object shape inside a predicate keeps its meaning; parenthesize it to
+make that scope explicit, or use `{ ...card }` explicitly for the page.
 
 Values: `viewer` (a principal), `now` (a time; in a mutation it is the commit's
 instant), `new` (an id, mutations only), `true`, `false`, `null`, integers,
@@ -512,7 +514,11 @@ with `return [value]`, or with its last expression, or with its final write.
 - A typed map with dynamic keys → `group(list, 'col')`, whose result is a list of `{ key, items }` groups in first-seen order.
 Before editing, `check --fix` verifies every compiled source; an editor save refuses the repair with its filename. Its final compile re-reads the project.
 
-- Guessed spellings are refused with a canonical rewrite; `snapback4 check --fix` applies mechanical repairs (including missing indexes, argument `once`, repeated wildcard fields and empty operation parentheses): `cond ? a : b` → `a if cond else b`; `a?.b` → `a.b if a != null else null`; `len(x)` → `count(x)`; `elif` → `else if`; `proc` → `fn`; `//` and `#` → `--`; `==` → `=`.
+Ordinary field access propagates null: `row.body` is null when `row` is null.
+`check --fix` removes only the `?` in `a?.b`, preserving the base expression
+and evaluating it once, including when it is a call or read.
+
+- Guessed spellings are refused with a canonical rewrite; `snapback4 check --fix` applies mechanical repairs (including missing indexes, argument `once`, repeated wildcard fields and empty operation parentheses): `cond ? a : b` → `a if cond else b`; `a?.b` → `a.b`; `len(x)` → `count(x)`; `elif` → `else if`; `proc` → `fn`; `//` and `#` → `--`; `==` → `=`.
 
 Cards: `snapback4 guide <keyword>` — types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,
 assets, reads, shapes, writes, programs, jobs, native, feeds, search,
@@ -918,7 +924,9 @@ the engine mutex. Uploads are online only; there is nothing to queue."##,
 
 Named equalities covering a total unique key read one row and check any extra
 columns there: `t[key = x, col = y]` returns null on a mismatch, and
-`exists t[key = x, col = y]` returns false. A non-unique prefix still needs an index.
+`exists t[key = x, col = y]` returns false. A non-unique prefix still needs an index. When several indexes match a positional
+key, exactly one unique index covering the whole key wins; otherwise name `by index`
+(the ambiguity diagnostic carries a mechanical `check --fix` rewrite).
 
 ```quarry
 query readForms(roomId: rooms, messageId: messages, c: cursor ?):
@@ -946,8 +954,12 @@ by the chat is complete and no second table is needed. An aborting mutation
 page costs one examined unit before its verdict, plus its rule probes on
 both true and false verdicts; a true verdict then examines candidates.
 A page verdict evaluated from its pinned prefix charges the rule's static probe count on either outcome, including probes skipped by `and`/`or` short-circuiting.
-Modifiers come in one order: `after c`,
-then `first N` or `last N`, then `by index`, then optional `where predicate`. A page a query returns without
+A table page accepts its modifiers in any order, once each. The printed order
+is `[matching q]`, `after c`, `first N` or `last N`, `by index`, `where predicate`.
+At the predicate's level, a modifier ends `where` and belongs to that outer
+read: `posts[viewer] where exists follows[viewer, .authorId] last 20 by byAuthorTime`.
+Parenthesize an inner read that needs its own modifiers:
+`where (exists follows[viewer, .authorId] by byPair)`. A page a query returns without
 a cursor cannot be continued: an unfiltered page with more rows reads
 `complete: false` with no `next` (N_NO_CURSOR); declare `c: cursor ?` and
 page with `after c`. A single-group page omits this note only when its bound

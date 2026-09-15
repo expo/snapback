@@ -465,6 +465,10 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
     if extras && named.is_some() {
         if let Some(width) = candidates.iter().filter(|i| target.total_unique(i)).map(|i| i.columns.len()).min() { candidates.retain(|i| target.total_unique(i) && i.columns.len() == width); }
     }
+    if named.is_none() {
+        let unique: Vec<_> = candidates.iter().copied().filter(|index| index.unique && index.columns.len() == terms.len()).collect();
+        if unique.len() == 1 { candidates = unique; }
+    }
     let index = match candidates.as_slice() {
         [one] => (*one).clone(),
         [] => {

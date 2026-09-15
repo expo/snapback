@@ -1024,7 +1024,7 @@ fn expression_ranges_evaluate_bounds_once_and_stop_at_the_step_meter() {
 fn guessed_spellings_are_mechanical_refusals_with_exact_rewrites() {
     for (source, expected) in [
         ("query q(cond: bool, a: int, b: int):\n  return cond ? a : b\n", "a if cond else b"),
-        ("query q():\n  a = { b: 1 }\n  return a?.b\n", "a.b if a != null else null"),
+        ("query q():\n  a = { b: 1 }\n  return a?.b\n", "."),
         ("query q(x: [int] <=10):\n  return len(x)\n", "count(x)"),
         ("// guessed\nquery q():\n  return 1\n", "--"),
         ("# guessed\nquery q():\n  return 1\n", "--"),

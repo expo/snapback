@@ -68,14 +68,16 @@ impl Parser {
         }
         if token.value == "exists" || token.value == "created" {
             self.position += 1;
-            let value = self.prefix(stops)?;
+            let mut probe_stops = stops.to_vec();
+            probe_stops.push("<probe-shape>");
+            let value = self.prefix(&probe_stops)?;
             let Expr::Read(read) = value else {
                 return Err(syntax(value.site(), format!("{} requires an indexed read t[key]", token.value)));
             };
             if read.range.is_some() || !read.seeks.is_empty() || read.filter.is_some() {
                 return Err(syntax(&read.site, format!("{} requires an indexed read t[key]", token.value)));
             }
-            return Ok(if token.value == "exists" { Expr::Exists { read, site: token.site } } else { Expr::Created { read, site: token.site } });
+            return self.postfix(if token.value == "exists" { Expr::Exists { read, site: token.site } } else { Expr::Created { read, site: token.site } }, stops);
         }
         if token.value == "walk" {
             return self.parse_walk();
@@ -165,9 +167,9 @@ impl Parser {
             if self.at("?") && self.peek_at(1).value == "." {
                 let site = self.take("?")?.site;
                 self.take(".")?;
-                let name = self.word()?.value;
-                let base = print::expression(&value);
-                return Err(unsupported(&site, "?.", format!("{base}.{name} if {base} != null else null")));
+                self.word()?;
+                // @ref LLP 3000.007#5.5 — ordinary field access is null-propagating and evaluates its base once.
+                return Err(Diagnostic::new(&site, "E_QUARRY_UNSUPPORTED", "?. is not part of Snapback 4; field access already returns null for a null base", ".").mechanical());
             } else if self.at(".") && self.peek_at(1).kind == Kind::Word {
                 let site = self.take(".")?.site;
                 let name = self.word()?.value;
@@ -190,22 +192,14 @@ impl Parser {
             } else if self.at("[") && matches!(value, Expr::Name { .. }) {
                 let Expr::Name { name, site } = value else { unreachable!() };
                 value = Expr::Read(self.parse_read(&name, &site)?);
-            } else if matches!(value, Expr::Name { .. }) && matches!(self.peek().value.as_str(), "first" | "after" | "last" | "matching") && !stops.contains(&self.peek().value.as_str()) {
+            } else if matches!(value, Expr::Name { .. }) && matches!(self.peek().value.as_str(), "first" | "after" | "last" | "matching" | "by" | "where") && !stops.contains(&self.peek().value.as_str()) {
                 // `t first N by index`: the whole table's page, the empty
                 // prefix spelled without brackets, as `chunk` takes it.
                 let Expr::Name { name, site } = value else { unreachable!() };
                 value = Expr::Read(ReadExpr { table: name, keys: Vec::new(), index: None, range: None, matching: None, filter: None, seeks: Vec::new(), site });
-            } else if matches!(value, Expr::Read(_)) && self.at("where") {
-                let site = self.take("where")?.site;
-                let predicate = self.expression(0, &["<newline>", "{", ",", "}", ")", ":"])?;
-                let Expr::Read(read) = &mut value else { unreachable!() };
-                if read.range.is_none() || read.filter.is_some() {
-                    return Err(syntax_with(&site, "where follows one bounded page", "t[prefix] first 50 by index where .col = value"));
-                }
-                read.filter = Some(Box::new(predicate));
             } else if matches!(value, Expr::Read(_)) && self.at("before") {
                 return Err(unsupported(&self.peek().site.clone(), "before", "use after c; reverse display order in the client when needed"));
-            } else if matches!(value, Expr::Read(_)) && matches!(self.peek().value.as_str(), "matching" | "after" | "first" | "last" | "by") {
+            } else if matches!(value, Expr::Read(_)) && matches!(self.peek().value.as_str(), "matching" | "after" | "first" | "last" | "by" | "where") {
                 let Expr::Read(read) = value else { unreachable!() };
                 value = Expr::Read(self.parse_range(read)?);
             } else if self.maybe("!") {
@@ -220,7 +214,7 @@ impl Parser {
                 let fields = self.parse_shape_fields()?;
                 self.take("}")?;
                 value = Expr::Shape { base: Box::new(value), fields, site };
-            } else if self.at_kind(Kind::Word) && precedence(&self.peek().value).is_none() && !stops.contains(&self.peek().value.as_str()) && !matches!(self.peek().value.as_str(), "else" | "for" | "in" | "if" | "absent") {
+            } else if self.at_kind(Kind::Word) && !stops.contains(&"<probe-shape>") && precedence(&self.peek().value).is_none() && !stops.contains(&self.peek().value.as_str()) && !matches!(self.peek().value.as_str(), "else" | "for" | "in" | "if" | "absent") {
                 let named = self.word()?;
                 value = Expr::ShapeUse { base: Box::new(value), name: named.value, site: named.site };
             } else {
@@ -265,33 +259,40 @@ impl Parser {
         let mut take = None;
         let mut cursor: Option<Box<Expr>> = None;
         let site = self.peek().site.clone();
-        let mut highest: i32 = -1;
         let mut seen = std::collections::BTreeSet::new();
         let mut violation: Option<Token> = None;
-        while matches!(self.peek().value.as_str(), "matching" | "after" | "first" | "last" | "by") {
+        // @ref LLP 3000.007#5.6 — modifiers delimit the outer predicate; parentheses give a nested read its own modifier scope.
+        let stops = ["matching", "after", "first", "last", "by", "where", "<newline>", ":", "{", ",", "}", ")", "]"];
+        let mut value_stops = stops.to_vec();
+        value_stops.push("<probe-shape>");
+        while matches!(self.peek().value.as_str(), "matching" | "after" | "first" | "last" | "by" | "where") {
             let key = self.word()?;
             let rank = match key.value.as_str() {
                 "matching" => -1,
                 "after" => 0,
                 "first" | "last" => 1,
-                _ => 2,
+                "by" => 2,
+                _ => 3,
             };
-            if violation.is_none() && (seen.contains(&rank) || rank < highest) {
+            if violation.is_none() && seen.contains(&rank) {
                 violation = Some(key.clone());
             }
             seen.insert(rank);
-            highest = highest.max(rank);
             match key.value.as_str() {
+                "where" => {
+                    let predicate = self.expression(0, &stops)?;
+                    if read.filter.is_none() { read.filter = Some(Box::new(predicate)); }
+                }
                 "matching" => {
                     // The search text: a page over the words of a `words(..)`
                     // index the text's terms are prefixes of.
-                    let candidate = self.expression(0, &["after", "first", "last", "by", "where", "<newline>", ":", "{", ",", "}"])?;
+                    let candidate = self.expression(0, &value_stops)?;
                     if read.matching.is_none() {
                         read.matching = Some(Box::new(candidate));
                     }
                 }
                 "after" => {
-                    let candidate = self.expression(0, &["after", "first", "last", "by", "where", "<newline>", ":", "{", ",", "}"])?;
+                    let candidate = self.expression(0, &value_stops)?;
                     if cursor.is_none() {
                         cursor = Some(Box::new(candidate));
                     }
@@ -311,19 +312,16 @@ impl Parser {
                 }
             }
         }
-        if take.is_none() && cursor.is_none() && read.matching.is_none() {
-            if let Some(violation) = violation {
-                return Err(syntax_with(&violation.site, "read modifiers may appear once and only in canonical order", print::read_expr(&read)));
-            }
+        if let Some(violation) = violation {
+            return Err(syntax_with(&violation.site, format!("read modifier {} is repeated; choose one value", violation.value), "write each modifier once: [matching q] [after c] first|last N by index [where predicate]"));
+        }
+        if take.is_none() && cursor.is_none() && read.matching.is_none() && read.filter.is_none() {
             return Ok(read);
         }
         let (Some(take), Some(order)) = (take, order) else {
             return Err(syntax_with(&site, "range reads require first N or last N", format!("{} first 50", print::read_expr(&read))));
         };
         read.range = Some(RangeSpec { order, take, cursor, site: site.clone() });
-        if let Some(violation) = violation {
-            return Err(syntax_with(&violation.site, "read modifiers may appear once and only in canonical order", print::read_expr(&read)));
-        }
         Ok(read)
     }
 

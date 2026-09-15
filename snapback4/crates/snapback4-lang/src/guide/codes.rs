@@ -74,7 +74,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_QUARRY_UNSUPPORTED", "a form Snapback 4 does not have; the rewrite names the one it does. The language card lists every form left out and its idiom."),
     ("E_QUARRY_UNKNOWN", "a name is not declared; the rewrite suggests the nearest one."),
     ("E_QUARRY_TYPE", "a value meets a declaration of another type; the message names both."),
-    ("E_QUARRY_AMBIGUOUS", "two indexes match a key; add `by index`."),
+    ("E_QUARRY_AMBIGUOUS", "several indexes match a key without a single full unique positional-key choice; add `by index`, or apply the diagnostic's rewrite with `check --fix`."),
     ("E_QUARRY_PLACEMENT", "a statement stands where it cannot: a write or `new` in a query, `break` outside a loop. The rewrite says where it belongs."),
     ("E_QUARRY_RETAIN", "a table has more than one `retain` line, or its policy word is not `until-revoked` or `delivered-history`."),
     ("E_SYNC", "a sync line cannot be honoured; the message names the rule term, column or index to change."),

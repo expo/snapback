@@ -31,6 +31,7 @@ pub struct BoundProgram {
     pub site: Site,
 }
 
+#[derive(Clone)]
 pub struct Binder<'a> {
     sources: BTreeMap<String, (Site, String)>,
     presence_sources: Vec<(Expr, Site, String)>,
@@ -214,6 +215,7 @@ impl<'a> Binder<'a> {
     // ----- reads -----
 
     fn read(&mut self, read: &ReadExpr, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        if let Some(shaped) = self.page_shape(read) { return self.expr(&shaped, out); }
         if read.range.is_some() {
             let (scan, take) = self.scan(read, out)?;
             return Ok((Expr::Scan(scan), Ty::Page(read.table.clone(), take)));
@@ -369,6 +371,10 @@ impl<'a> Binder<'a> {
                     })
                 })
             });
+            // A full unique positional key wins over a non-unique probe with the same arity.
+            // Filter before the one-candidate arm so identity literals still receive their index's type.
+            let unique: Vec<_> = candidates.iter().copied().filter(|index| index.unique && index.columns.len() == keys.len()).collect();
+            if unique.len() == 1 { candidates = unique; }
         }
         if let Some(explicit) = &read.index
             && candidates.is_empty()

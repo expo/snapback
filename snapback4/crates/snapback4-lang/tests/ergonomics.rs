@@ -22,13 +22,7 @@ fn seeded(bound: Bound) -> Engine {
 fn shape_case(argument: &str, index: &str, line: usize, name: &str) {
     let query = format!("query {name}({argument}: principal, c: cursor ?):\n  return posts[{argument}] after c last 20 by {index} where .parentId = null postCard");
     let source = at_line(POSTS, line - 1, &query);
-    let bound = bind("social.q", &source);
-    println!("{}", texts(&bound).join("\n\n"));
-    assert_eq!(bound.diagnostics.len(), 1);
-    let d = &bound.diagnostics[0];
-    let column = match (argument, index) { ("authorId", _) => 81, (_, "byAuthor") => 78, _ => 82 };
-    assert_eq!(d.to_string(), format!("social.q:{line}:{column} — E_QUARRY_TYPE: shape postCard after where attaches to null inside the predicate; apply it to the page with {{ ...postCard }}\n  rewrite: {{ ...postCard }} — check --fix applies it\n  guide: shapes"));
-    assert!(d.mechanical);
+    clean("social.q", &source);
     let mut engine = seeded(clean("social.q", &source.replace("null postCard", "null { ...postCard }")));
     let result = engine.query(&format!("social.{name}"), Context::new("alice", BTreeMap::from([(argument.into(), Value::Id("alice".into()))]))).unwrap();
     assert_eq!(result.data.as_array().unwrap().len(), 1);
