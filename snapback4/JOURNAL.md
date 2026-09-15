@@ -15294,3 +15294,18 @@ additive server, tests, published docs and journal scope. No commit, push,
 tag or publication was made. `witness/navigation-immediate.mjs` remains
 unchanged for the lead to run with `node witness/navigation-immediate.mjs`
 outside the sandbox; its actual Chromium after-result is not measured here.
+
+## 2026-09-15 — real Chromium witnesses after W3a2 (lead)
+
+Run outside the lane sandbox on the W3a2 branch (`4eacb45b6`) and again on
+the wave-3 integration (`34c4bb9d0`), chromium-1243:
+`node witness/navigation-immediate.mjs` — 10 of 10 on both (at W3a
+`092baded2` it was 8 of 10: `unawaited-0ms` and `two-unawaited-0ms` lost their
+writes). Per case on `4eacb45b6`: awaited-pending-0ms applied 1 (147 ms);
+awaited-sent-5ms 1 (125 ms); unawaited-0ms 1 (4 ms); unawaited-5ms 1 (125 ms);
+two-unawaited-0ms 2 (4 ms); two-unawaited-5ms 2 (113 ms); ordinary-inflight-0ms
+1 (108 ms); awaited-inflight-pending-0ms 1 (6 ms); reopen-before-slow-sync 1
+(108 ms); no-client-for-10s 1 (applied before the client reopened, 5 ms).
+`node witness/navigation.mjs`: `{"durableWrites":2,"rowsBeforeReopen":1,"rowsAfterReopen":2}`.
+Raw output: `~/projects/snapback-next-20260914/w3a2-witness.log`.
+
