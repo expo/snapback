@@ -19862,3 +19862,14 @@ causal gain, current-main or hosted/WAN ranking, CPU/RSS, write, cold-start,
 device, realtime or power-loss durability result. Core adoption and the
 broader performance objective remain open. No runtime change or publication
 is part of this evidence update.
+
+## 2026-09-15 — 0.2.22 / expo 0.2.13 published (lead)
+
+Published from main `2b11da7d1` (wave 6, LLP 3000.007 §20.15) with `scripts/publish.mjs`:
+- **Suite:** 0 failures.
+- **Binary:** production darwin binary, 8,606,160 B, sha256 `e7f4cdfc…`, Developer ID signed, not notarized.
+- **Proof:** installed-consumer proof passed.
+- **npm:** `snapback4@0.2.22` and `snapback4-darwin-arm64@0.2.22` at 19:00 UTC (visible 19:05); xcframework rebuilt; `snapback4-expo@0.2.13` at 19:06 UTC (visible 19:10).
+
+Next: the sixth Astra-medium calibration on these pins.
+
