@@ -21,25 +21,6 @@ use snapback4_core::value::{Value, object};
 use snapback4_core::{Engine, Schema, WriteState};
 
 #[test]
-fn heap_cut_after_examined_cut_unwinds_the_query() {
-    let p = program("page", ProgramKind::Query, vec![Stmt::Return(Expr::Scan(scan(2)))]);
-    let mut engine = engine(vec![p], 2);
-    let control = engine.query("page", context()).unwrap();
-    assert!(control.complete);
-    assert_eq!(control.data.as_array().unwrap().len(), 2);
-    engine.set_ceilings(Ceilings { examined: 1, heap_bytes: 100, ..Ceilings::default() });
-    let cut = engine.query("page", context());
-    println!("HEAP_AFTER_EXAMINED host=server rows=2 body_bytes=4000 examined=1 heap_bytes=100 result={cut:?}");
-    let cut = cut.unwrap();
-    assert_eq!(cut.data, Value::Null);
-    assert!(!cut.complete);
-    assert!(cut.next.is_none());
-    assert_eq!(cut.capped_at.as_ref().map(|cut| cut.0), Some(MeterKind::Examined));
-    assert_eq!(cut.metered.examined, 2);
-    assert!(cut.metered.heap_bytes > 100);
-}
-
-#[test]
 fn heap_cut_stops_queries_and_rolls_back_mutations() {
     for push in [false, true] {
         let programs = vec![

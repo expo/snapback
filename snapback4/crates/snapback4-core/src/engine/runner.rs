@@ -167,7 +167,7 @@ impl<'a> Runner<'a> {
         match result {
             Ok(Flow::Return(value)) => Ok(value),
             Ok(_) => Ok(Value::Null),
-            Err(RuntimeError::Bound { kind, .. }) if self.meter.cut == Cut::Cap && (kind == MeterKind::HeapBytes || self.meter.capped_at.as_ref().is_some_and(|(cut, _)| *cut == kind)) => {
+            Err(RuntimeError::Bound { kind, .. }) if self.meter.cut == Cut::Cap && self.meter.capped_at.as_ref().is_some_and(|(cut, _)| *cut == kind) => {
                 self.page = None;
                 Ok(Value::Null)
             }

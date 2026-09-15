@@ -942,12 +942,6 @@ is unknown, never null or false. This includes `exists` and lookups inside a
 page shape, helper or `where`: evaluation stops and the whole query returns
 `data: null`, `complete: false`, with no `next` past the unchecked work.
 Completed hidden and absent lookups still return the same null/false result.
-This also covers positive and negated `exists` probes in the row's read rule:
-the point read checks that the rule's worst-case probe allowance fits before
-looking for the row, so hidden and absent targets produce identical unknown
-results when it does not fit. A cut probe cannot authorize a row or become
-a denial whose meter is restored. A later heap cut also withholds the whole
-query without a continuation, even when another meter cut happened first.
 Live aggregate reads keep their observed partial-count contract once the
 aggregate row is established; `exists` still needs a completed lookup.
 `t[prefix, col >= start, col < end]` seeks on the first unpinned index column;

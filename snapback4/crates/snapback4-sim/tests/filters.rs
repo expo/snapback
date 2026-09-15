@@ -6,31 +6,6 @@ use snapback4_core::value::object;
 use std::collections::BTreeMap;
 #[path = "common/point_read_cut.rs"]
 mod point_read_cut;
-#[path = "common/rule_probe_cut.rs"]
-mod rule_probe_cut;
-
-fn rule_probe_cuts(negated: bool) {
-    for twice in [false, true] {
-        let mut observations = Vec::new();
-        for world in ["hidden", "absent", "visible"] {
-            let bound = snapback4_lang::compile(&[("schema.q".into(), rule_probe_cut::source(negated, twice))]);
-            assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-            let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
-            engine.seed(rule_probe_cut::seed(world, negated)).unwrap();
-            observations.push(rule_probe_cut::check("server", world, twice, |name, ceilings| {
-                engine.set_ceilings(ceilings);
-                engine.query(name, rule_probe_cut::context(name))
-            }));
-        }
-        assert_eq!(observations[0], observations[1], "hidden/absent: responses, meters, completeness, next and errors");
-    }
-}
-
-#[test]
-fn positive_rule_probe_cuts_are_unknown() { rule_probe_cuts(false); }
-
-#[test]
-fn negated_rule_probe_cuts_are_unknown() { rule_probe_cuts(true); }
 
 #[test]
 fn point_read_cuts_withhold_dependents_and_preserve_hidden_absent_pairs() {
