@@ -17683,3 +17683,89 @@ remain. This matches the supplied environment artifact, but is not claimed
 as a failure verified on an unmodified base build. The lead must run the
 browser test outside the sandbox. Reference validation and diff whitespace
 checks pass. Changes remain uncommitted for the lead.
+
+## 2026-09-15 — W5e: scheduled Trending preserves like prediction (G5, M2; S25)
+
+Built option 2 from the lane brief, on base
+`2862bfdadd6cf846029628151d2fb6a39006d2ed`. The investigation of LLP
+3000.007 §20.9 found that D1's refusal is necessary for the existing value
+index reader. The expiry sweep already subtracts physical contributions
+transactionally with target/index/log changes. Before the sweep, live reads
+recompute contributions, but scan candidates and cursor keys are selected
+in physical order first. Counts can lose their stored winner; a sum can
+gain a winner when a negative contribution expires. Checking only winners
+cannot restore the order or continuation. A bounded full live fold/sort
+remains the immediate-query alternative; a new expiry reindexing or ranked
+read protocol is not claimed. Device horizons and independent clocks give
+no additional proof that the stored rank is current.
+
+The feeds card now has a complete scheduled Trending recipe. `create`
+writes only its post; `like`/`unlike` write only the viewer's private source
+row, with an online-only non-expiring `likeCounts` maintained as an engine
+side effect. The system schedule alone writes `ranked`; application insert,
+update and delete there are denied. There is no `posts.score` or
+`update <- allow`. Ranking is like count, post time, id, including zero-like
+posts. The window is explicitly posts younger than 24 hours, not recent
+likes on arbitrarily old posts. Scores and new candidates lag by one
+one-minute period when the job runs promptly; queue, chunk and sync delay
+add latency, and chunks do not form an atomic ranking snapshot. Candidate
+expiry at post time plus 24 hours is live on every host before a sweep.
+The immediate card query is now `trendingNow`; both existing card consumers
+were updated. The expiry/maintains cards, README, diagnostic registry and
+governing RFC record the same limits. The README's stale claim that live
+counts wait for the sweep is corrected.
+
+Measured in deterministic tests, not a production throughput benchmark:
+105 candidates, 11 pages of at most 10, two 100-post chunks per scoring pass;
+60,000 ms cadence and 59,999 ms observed like-to-score lag. A like writes
+two total rows (source and maintained count), zero ranked rows, and leaves
+the author's post unchanged. Each device store predicted 4/4 like-state
+operations (like, repeat, unlike, like) and 1/1 create; zero ranked overlay
+writes. Authoritative delivery settled all five queued writes and delivered
+score 1. Boundary tests cover candidate expiry before/after the sweep and
+future-post admission. The retained immediate-query regressions find the
+correct winners among 1,500 candidates (3,000 examinations), and report
+incomplete at 8,193 candidates (16,385 charged examinations including nested
+reads and the refused charge). No meter ceiling or serialized value changed.
+
+Regression proof before the recipe/rewrite: language 0 passed / 1 failed,
+simulator 0 / 2, device 0 / 2. Afterward: the same language filter 1 / 0;
+guide 23 / 0 and maintains 6 / 0; simulator 2 / 0; device 2 / 0; repairs
+9 / 0. The initial card attempt had guide 22 / 1 because public subset sync
+was refused; the final recipe uses the viewer's own read audience. The
+largest changed code file is 1,458 lines.
+
+All commands ran from `snapback4/` except the root suite/ref-check, with
+Node 24.18.0 on PATH for Node/Bun:
+
+- `cargo test -p snapback4-lang --test maintains expiring_rank_rewrite -- --nocapture`
+- `cargo test -p snapback4-lang --test maintains --test guide --no-fail-fast -- --nocapture`
+- `cargo test -p snapback4-sim --test clique trending_recipe -- --nocapture`
+- `cargo test -p snapback4-device --test device trending_recipe -- --nocapture`
+- `cargo test -p snapback4-lang --test repairs -- --nocapture`
+- `bash snapback4/scripts/test.sh` three times: `2 failure(s) in 78 s`,
+  `2 failure(s) in 413 s`, `2 failure(s) in 276 s`. Run 1 caught my test
+  modules being discovered as standalone integration targets; moved them
+  under `tests/trending/mod.rs`. Run 2 caught the two old card query names
+  (894 Rust passes, 2 failures, 4 ignored); those callers are repaired.
+  Run 3 has 895 Rust passes, 1 failure, 4 ignored: the witness selected an
+  occupied port (`E_WITNESS_PORT`, 63929). Fixtures passed 9/9 and client
+  tests passed 286/287, with the documented Chromium launch SIGABRT in all
+  three runs. Every build and typecheck passed.
+- `cargo test -p snapback4 --test witness driver::cli_rejects_milestone_appended_after_done -- --exact --nocapture`
+  reran the port collision alone: 1 passed, 0 failed, 19 filtered out,
+  3.73 s. The entire CLI crate is unchanged from the base hash above.
+- `node --test packages/snapback4/test/react.test.mjs` reproduced Chromium
+  SIGABRT alone: 1 test, 0 passes, 1 failure, 0 skipped, 1,136.312125 ms.
+  The test, launch helper, client/reference-app sources and JS dependency
+  manifests were verified unchanged from that same base. No pre-existing
+  product failure is inferred from an unverified baseline.
+- `./ref-check --verbose` and `git diff --check` pass. Raw command logs are
+  under `/tmp/sb4-w5e-*.log` in this lane's session.
+
+The important distinction learned here is that predicting a source write
+does not require predicting its online-only derived side effect. Moving
+scoring to the schedule restores that separation without widening another
+author's write rules, but it must also remove the old diagnostic's claim
+of exact rolling-window Trending. Full-suite exit remains red for the
+recorded environment artifacts; no commit, push, tag or publication was made.

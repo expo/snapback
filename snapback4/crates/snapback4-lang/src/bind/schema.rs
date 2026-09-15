@@ -541,7 +541,8 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
     for index in &maintain.indexes {
         if !names.insert(index.name.clone()) { return Err(super::maintains::refusal(&index.site, format!("duplicate maintain index {}", index.name), "use a distinct index name; byGroup and byId are generated")); }
         if index.columns.contains(&"value".into()) {
-            if source.decl.expire.is_some() { return Err(Diagnostic::new(&index.site, "E_QUARRY_MAINTAIN_EXPIRE", format!("maintain {} cannot order by value because source {} expires", maintain.name, maintain.source), "use a live bounded query, or the scheduled ranked-table recipe for exact rolling-window Trending").guide("expire")); }
+            // @ref LLP 3000.007#20.9 — stored expiry rank stays refused; the scheduled alternative names its prediction and freshness contract.
+            if source.decl.expire.is_some() { return Err(Diagnostic::new(&index.site, "E_QUARRY_MAINTAIN_EXPIRE", format!("maintain {} cannot order by value because source {} expires", maintain.name, maintain.source), "use a live bounded query, or guide feeds' scheduled Trending recipe: like writes only likes; the schedule scores ranked from non-expiring likeCounts and post time, with one-period score lag").guide("feeds")); }
             let prefix = index.columns.len().saturating_sub(2);
             if index.columns.get(prefix..).is_none_or(|tail| tail != ["value", "id"]) || !index.columns[..prefix].iter().all(|field| maintain.by.contains(field)) {
                 return Err(super::maintains::refusal(&index.site, "a maintain value index is group fields followed by value, id", "by byCount: value, id"));

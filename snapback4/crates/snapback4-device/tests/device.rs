@@ -12,6 +12,7 @@ mod following;
 mod maintains;
 mod merge_cursor;
 mod store_reset;
+mod trending;
 
 use common::*;
 use snapback4_core::engine::WriteState;
