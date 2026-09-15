@@ -1,6 +1,6 @@
 # Snapback 4: requalify and reduce membership-feed query cost
 
-Status: Open — query execution dominates on qualified 0.2.12; internal cost decomposition pending
+Status: Open — fixed 0.2.13 repeated scan/decode work quantified; current-source optimization and uninstrumented validation pending
 Priority: P1
 Systems: Snapback 4 online membership feeds, query execution
 Implementation owner: Snapback 4 core lead (LLP 3000 decision 4)
@@ -65,19 +65,56 @@ I/O or scheduler attribution follows. The current measurements confirm
 that query execution warrants the next investigation. They do not qualify
 an uninstrumented improvement or a current competitor comparison.
 
+Fixed-source core decomposition, completed 2026-09-15 00:09:22 UTC:
+
+The d81381a98 0.2.13 snapshot plus temporary probes passed 73 CLI tests,
+18,432 timed queries, 2,160 warmups and all 2,304 selected traces. The two
+calculators agree on every core counter and the shared case summaries;
+full fixture/auth proofs and cleanup passed. This adds no runtime change.
+
+| Groups | Prepared scans | Live rule probes | Indexed scan collections | Row JSON decodes |
+|---|---:|---:|---:|---:|
+| 5 | 6 | 5 | 11 | 120 |
+| 30 | 51 | 50 | 101 | 180 |
+| 150 | 171 | 170 | 341 | 660 |
+
+Those exact first-page counts hold in every selected C1/C8 query. At 150
+groups, one discovery plus 170 message scans and their 170 live membership
+lookups produce 341 indexed collections. Decoding covers 150 discovery
+memberships, 170 proof rows and 340 fetched message rows for 20 outputs.
+Rotating pages keep the scan counts but average 659.479 decodes as some
+lanes fetch fewer rows. Counts may revisit rows and do not represent disk
+reads, all SQL statements, meter units or unique returned data.
+
+The measured first-page core CPU is 14.364 ms at C1 and 16.146 ms at C8,
+but these are heavily instrumented queries with 5,024 scope guards each.
+Do not compare these numbers with the earlier host-only observer as a
+regression or use their exact partitions as uninstrumented CPU attribution.
+The source/counters justify investigating repeated work; an ordinary A/B
+must establish any gain. Static dependency preparation repeats per scan,
+and scan/rule/index/row work remains live inside each query transaction.
+
+Source drift: origin66a7c976 (manifest version 0.2.15) changed query/read/runner/pages and
+TCP_NODELAY while this immutable run was in flight. Rules/store and host
+serve match d813, but that is insufficient to claim current-source timing.
+The next candidate must incorporate the newer cursor/completeness semantics.
+
 Next work:
 
-1. Split query CPU cost among transaction
-   setup, membership enumeration, per-lane rule/metadata preparation, SQL
-   stepping, row/key decoding, merge work and result/cursor construction.
-   The unchanged lazy merge initializes every lane and uses one-row batches
-   above eight groups; its repeated work is a source lead, not attribution.
-2. Let the core owner choose a measured optimization. Pure schema/IR
-   preparation reuse is a candidate; live authority or result caching is not
-   permitted. Preserve fresh transactions, membership/expiry checks, static
-   dependency/probe accounting, all meters/cut/refusal order, typed cursors,
-   defaults and exact ordered results. Re-run affected differential and
-   privacy regressions, then the scoped HTTP comparison.
+1. Requalify the proposed candidate on a fixed current source, including
+   the new page/cursor/completeness changes. Use coarse or sampled timing
+   if more attribution is needed; the detailed observer's shares cannot
+   substitute for ordinary query performance.
+2. Let the core owner measure a reduction in repeated scan preparation,
+   collections or materialization. Pure schema/IR preparation reuse and
+   bounded batching are candidates, not established wins. Live authority
+   or result caching is not permitted. Preserve fresh transactions,
+   membership/expiry checks, static dependency/probe accounting, all
+   meters/cut/refusal order, typed cursors, defaults and exact ordered results.
+3. Run affected differential/privacy regressions and the ordinary scoped
+   HTTP A/B, including membership leave/regrant and concurrent feeds. Retain
+   tails, memory/write costs and all losses; compare current competitors
+   separately after the candidate is qualified.
 
 Evidence: [benchmark record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md),
 including original result objects in `snapback4/metrics/storage.jsonl`.
@@ -92,3 +129,8 @@ No core code, policy, ceiling or client contract is changed by this ticket.
 Current-source bindings under the same local run: formal transfer
 `0fffccfc…`, independent summary `1b626d34…`, review `f748ffad…`,
 reconciliation `e5deff38…`, and build qualification `dff38735…`.
+
+The core-scope record is the ledger workload
+`membership-http-core-scope-diagnostic`: V2 qualification `a3dedaef…`,
+V3 formal transfer `c23f67d0…`, independent summary `29b6fa3b…`,
+reconciliation `4483be1c…`, and source-drift mapping `070c5afe…`.

@@ -7067,3 +7067,27 @@ restores production test defaults. That stronger repair corrects the earlier
 review diagnosis and belongs to 0.2.15, with its own evidence. Neither release
 history nor test results are rewritten across those snapshots. The six RFC
 working-set links are retired; the outcome standards and broader gaps remain.
+
+
+## 2026-09-14 — membership feeds: repeated work measured inside the query
+
+The fixed d81381a98 0.2.13 diagnostic completed 18,432 HTTP queries and
+2,304 selected core wall/thread-CPU traces on Office ARM Linux. Both
+independent calculations agree on every recorded scope component and the
+shared case sums/means/shares. All full fixture/auth checks, the 73-test
+CLI qualification, and owned-process cleanup passed; smoke is excluded.
+
+A 20-row first feed performs 11/101/341 indexed scan collections and
+120/180/660 row JSON decodes at 5/30/150 groups. The 150-group path
+initializes every lane, then refills after each emitted row; its 170 message
+scans repeat 170 live membership lookups. This is a concrete core-owner
+target for reducing repeated work while preserving live authority, meters,
+typed cursors and exact complete results.
+
+The probes are deliberately detailed and expensive: 5,024 scope guards for
+the 150-group first page. Their exact partitions do not establish ordinary
+CPU shares or pure SQLite cost. The benchmark record retains instrumented
+times, counts, raw objects and the full limits. No new latency gain is claimed.
+Main advanced through 0.2.14 to 0.2.15 with page/cursor and socket changes;
+any candidate needs qualification and ordinary A/B on its current inputs.
+The existing membership-feed ticket is updated. No core implementation changed.

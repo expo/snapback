@@ -2828,3 +2828,89 @@ public files), `sync-wire-0213-registry-verification.json` and
 This is release and correctness evidence; the preceding native sync
 measurements retain their original 0.2.12 A/B source and binary identities.
 No new latency, hosted, competitor, device or durability result follows.
+
+
+### Fixed 0.2.13 core-scope diagnostic: membership lane work
+
+The Office ARM Linux run completed at **2026-09-15 00:09:22 UTC** using
+source `d81381a98f56478f8e5d776f0d1b36d234145112` plus seven ignored
+diagnostic source overrides. V2's production build and **73 CLI tests**
+passed with zero failed/ignored/filtered tests. The retained binary is
+`08c4c062…`, 8,474,128 B; Node is 24.21.0 / Undici 7.29.1, Rust 1.97.0,
+with the packaged SQLite flag and MEMSTATUS enabled. V3 corrects an
+unexecuted controller's port mismatch with the unchanged loader.
+
+All **18,432 timed calls**, 2,160 excluded warmups, 2,304 selected traces
+and 72 blocks passed. Each of 24 degree/query/concurrency cases has 96
+selected queries across three rounds. The two original full HTTP verifiers,
+three physical fixture proofs, ordinary authorization/cursor checks and
+same-session checks passed. The selected readers include 2,303 reused and
+one constructed reader. The planned SIGTERM and all four owned group
+lifetimes ended as expected. The 384-call smoke is excluded.
+
+The useful finding is repeated work per returned 20-row feed. Every selected
+first-page query at both C1 and C8 has the following counts:
+
+| Groups | Prepared scans | Live rule probes | Indexed scan collections | Row JSON decodes |
+|---|---:|---:|---:|---:|
+| 5 | 6 | 5 | 11 | 120 |
+| 30 | 51 | 50 | 101 | 180 |
+| 150 | 171 | 170 | 341 | 660 |
+
+The source explains the counts. It discovers N memberships, initializes all
+N message lanes, and performs a live membership lookup for each initial scan
+or refill. Above eight lanes it buffers one visible message per lane and
+requests two for lookahead; these full pages refill after each of 20 emitted
+rows. With L=N+20 message scans, indexed scan collections are **1+2L**:
+one discovery, L message scans and L membership lookups. Five-group pages
+buffer 21 visible messages per lane and request 22, so need no refill here.
+At 150 groups the first page decodes 150 discovery membership rows,
+170 membership-proof rows and 340 fetched message rows: 660 decodes for
+20 outputs. These may revisit rows; they are not unique rows, disk reads,
+meter units, all SQL statements or individual SQLite-step calls.
+
+The rotating 150-group cases retain 171 prepared scans, 170 rule probes and
+341 indexed collections per selected query; mean row decodes are 659.479
+because some cursor-positioned lanes fetch fewer messages. Rule dependency
+preparation also repeats 171 times. `metadata_numbers` is in-memory catalog
+lookup/name formatting, not another SQL read.
+
+The following are **instrumented** means for the 150-group cases, not
+uninstrumented release latency or a speedup. The last two columns divide by
+the recorded core query CPU sum; initial-head time is inclusive, whereas
+step/collect time excludes nested JSON decoding.
+
+| Query | Core CPU ms | Core wall ms | Initial heads / core CPU | Step/collect exclusive / core CPU |
+|---|---:|---:|---:|---:|
+| First page, C1 | 14.364 | 14.383 | 72.16% | 20.34% |
+| Rotating page, C1 | 15.674 | 16.010 | 68.66% | 21.17% |
+| First page, C8 | 16.146 | 28.628 | 73.74% | 22.45% |
+| Rotating page, C8 | 19.291 | 34.730 | 68.31% | 22.20% |
+
+All 31 scopes' exclusive wall and CPU counters partition the core query
+root exactly. **That proves accounting, not negligible probe overhead.**
+The 150-group first page executes 5,024 scope guards. Clock reads, TLS,
+counter/drop bookkeeping and later trace logging perturb the workload;
+bookkeeping can fall in a parent's exclusive remainder. The percentages
+must not be promoted to uninstrumented CPU shares or pure SQLite costs.
+`step_collect` includes SQLite iteration, row copying, Rust iterator/error
+work and vector allocation; JSON decoding is a nested scope. No specific
+internal lock, filesystem, scheduler or VM cause follows from CPU/wall gaps.
+
+Both calculators were frozen before formal execution. Independent checks
+and reconciliation agree on **357,120 raw scope components**, 6,912 outer
+intervals, 3,720 case-sum components, 3,720 means and 1,488 shares. The
+storage ledger appends all 22 original public objects (8,082,457 transferred
+bytes), all 24 case counter summaries, qualification, source mappings and
+limits. Transfer `c23f67d0…`, completion `62f8048f…`, independent summary
+`29b6fa3b…` and reconciliation `4483be1c…` bind the retained local evidence.
+
+Main advanced through **0.2.14 to 0.2.15** during this fixed-source experiment.
+The manifests at observed origin `66a7c976` say 0.2.15. Rules/store/host-query
+source is identical, but query/read/
+runner/page logic and accepted-socket behavior differ. These are not 0.2.14
+or 0.2.15 measurements. The [core-owner follow-up](../../../issues/20260914-snapback4-membership-feed-query-cost.md)
+now targets repeated scan/preparation/materialization work, with current-source
+qualification and ordinary uninstrumented A/B required before adopting a
+change. No runtime code, authority cache, ceiling or client contract changes
+in this evidence landing; no new competitor win is claimed.
