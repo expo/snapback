@@ -2,6 +2,32 @@ use super::*;
 #[path = "../../../snapback4-sim/tests/common/following_removal.rs"]
 mod case;
 
+fn removal_cut<S: snapback4_device::store::DeviceStore>(mut store: S, host: &str) {
+    use snapback4_core::rows::Rows;
+    let (mut engine, backend) = compile(&world::source());
+    case::seed_cut_page(&mut engine);
+    store.install(&backend.schema, &Default::default(), false).unwrap();
+    let tx = store.transaction().unwrap();
+    // Use the reader's actual snapshot, then the device interpreter's
+    // metered entry point: the public dispatcher keeps default ceilings.
+    for page in snapshot_pages(&mut engine, &case::reader(0), 1000) {
+        for event in page.events {
+            if let Some(data) = event.data {
+                let table = &backend.schema.tables[&event.table];
+                tx.put(&event.table, table, &snapback4_core::wire::row_from_json(table, &data).unwrap(), None).unwrap();
+            }
+        }
+    }
+    let program = backend.programs.iter().find(|p| p.name == "following").unwrap();
+    case::check_cut_page(host, |ceilings| snapback4_core::engine::local::query(&tx, &backend.schema, program, context(&case::reader(0), &[]).at(300), ceilings).unwrap());
+}
+
+#[test]
+fn following_removal_cut_memory() { removal_cut(snapback4_device::memory::MemoryStore::new(), "memory"); }
+
+#[test]
+fn following_removal_cut_sqlite() { removal_cut(snapback4_core::Store::memory().unwrap(), "sqlite"); }
+
 #[test]
 fn following_removal_reaches_every_reader_before_purge_on_both_stores() {
     for followers in [5, 900] {

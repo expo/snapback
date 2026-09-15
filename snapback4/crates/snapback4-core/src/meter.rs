@@ -114,6 +114,16 @@ impl Meter {
         &self.site
     }
 
+    /// Unwind an expression that needs an established read, not a partial
+    /// scan. Preserve the original cut's counters and site without charging.
+    pub(crate) fn require_uncapped(&self) -> Result<(), RuntimeError> {
+        if let Some((kind, site)) = &self.capped_at {
+            let mut used = self.used;
+            return Err(RuntimeError::Bound { kind: *kind, actual: *used.slot(*kind), ceiling: self.ceilings.of(*kind), site: site.clone() });
+        }
+        Ok(())
+    }
+
     /// Charge `amount` of `kind`. Under `Cut::Abort` an exceeded ceiling is an
     /// error; under `Cut::Cap` it records the cut and returns `false`, and
     /// the read site stops examining.

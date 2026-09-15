@@ -1256,7 +1256,8 @@ fn clique_trending_ranks_the_whole_day_and_marks_a_day_past_the_ceiling_incomple
     let cut = large.query("trending", Context::new("dev:alice", args(&[])).at(now)).unwrap();
     assert!(!cut.complete, "an incomplete population cannot claim the true top ten");
     assert_eq!(cut.capped_at.as_ref().map(|(kind, _)| *kind), Some(snapback4_core::error::MeterKind::Examined));
-    assert_eq!(cut.data.as_array().unwrap().len(), 10);
+    assert_eq!(cut.data, Value::Null, "cut score lookups cannot rank the scanned rows");
+    assert!(cut.next.is_none());
 }
 
 const PROBE_EQUALITIES: &str = include_str!("fixtures/probe-equalities.q");

@@ -15453,3 +15453,197 @@ ref-check: ok — 480 LLP docs, 8927 refs in 23700 files, 0 errors, 0 unchecked
 
 Final standalone worker control, `node --test --test-name-pattern='dev also starts a worker.mts' packages/snapback4/test/worker.test.mjs`: `ℹ tests 1`, `ℹ pass 1`, `ℹ fail 0`, `ℹ cancelled 0`, `ℹ duration_ms 4138.123`.
 
+## 2026-09-14 — W3R1f: a cut Following tombstone lookup withholds the result
+
+Base: `6acb5a5bf89eeabed1e89b40ad52e25bf2bdffa5`. Reproduced GPT review
+finding 1 from `/Users/ccheever/projects/snapback-w3-review/gpt.md` before
+changing the engine. No commit, push, tag or publication. Orientation used
+`llp-orient`, the Snapback 4 fence and NOT-DOING, `rules/RULES.md`, LLP 3000
+§6–§7, LLP 3000.007 §5.6, §14, §18 and §20.3, W3b2's entry above, and the
+published reads/feeds cards and README.
+
+**Built.** Quarry `exists` does not turn a cut lookup into false, and a
+point expression does not use null from a cut as established absence.
+The existing query unwind now returns `data: null`, `complete: false`,
+without a continuation past the unknown work. The meter helper raises its
+existing bound value without charging again or changing the cut site.
+Only the expression consumer changes; the native lookup API and the raw
+point-read visibility normalization remain unchanged. A materialized live
+aggregate still carries its observed partial count; `exists` must complete
+before it can decide a branch. Both existing partial-count controls pass.
+No ceiling, serialized value form, corpus case, parser form, diagnostic or
+note changed. The two production files are `engine/runner.rs` and `meter.rs`.
+
+The removal recipe remains the same Quarry program. Its prose and README
+now render `(page.data ?? []).filter(row => row !== null)` and distinguish
+an all-null completed page, which retains its source cursor, from an
+unavailable cut result, which has no cursor. The reads card states the same
+rule for point expressions, page shapes, helpers and `where`.
+
+**Measured reproduction, on all three hosts.** Forty pushed events are
+added; the newest twenty are removed. Each device reads an actual reader
+snapshot through the shared local interpreter over its real store, using
+the metered entry point because the public dispatcher fixes the ceilings.
+
+| Host | Examined ceiling | Examined before → after | Removed events/bodies returned before → after | Complete before → after | Has next before → after |
+|---|---:|---:|---:|---|---|
+| Server | 25 | 42 → 26 | 17 → 0 | false → false | true → false |
+| Memory device | 25 | 42 → 26 | 17 → 0 | false → false | true → false |
+| SQLite device | 25 | 42 → 26 | 17 → 0 | false → false | true → false |
+
+With the default ceiling, every host still examines **42**, returns **20**
+null slots, is complete and retains its continuation. Existing ordinary
+removal, fresh repost, cleanup, all-null pagination and the 1,000-person /
+50,000-event envelope pass. The additional expression fixture exercises
+direct points, `not exists`, point shapes, conditional shapes, `where`,
+helper shapes and required lookups. Across the three hosts it checks **66**
+cut outcomes and **57** completed controls; **39** hidden/absent outcome
+pairs match all response fields and all seven meter fields. This is query
+behavior, not a purge-timing claim.
+
+**What the broader suite taught.** Three existing Trending assertions
+expected ten ranked rows after the scan exhausted the budget needed for
+the score lookups. Those scores are unknown under the same rule; the
+ranking is now withheld. The two assertions in
+`snapback4-lang/tests/repairs.rs` and the one in
+`snapback4-sim/tests/clique.rs` now require null, incomplete, no next, while
+retaining their positive ranking and adversarial winner controls. The
+feeds card and README explain that the scan and scores share the ceiling.
+These are the only test changes beyond the new removal/expression cases.
+
+**Targeted evidence.** Commands below run from `snapback4/`. New regression
+fixtures were corrected for index spelling, a missing cap index and query
+argument shape before their valid base comparisons; those setup failures
+were not counted as reproductions. For the expression comparison the two
+production-file changes were reversed with a saved patch, the core diff
+was empty against the base above, and the patch was reapplied afterward.
+
+`cargo test -p snapback4-sim --test clique following_removal_cut -- --nocapture`
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 46 filtered out; finished in 0.08s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 46 filtered out; finished in 0.08s
+```
+
+`cargo test -p snapback4-device --test device following_removal_cut -- --nocapture`
+
+```text
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 116 filtered out; finished in 0.09s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 116 filtered out; finished in 0.10s
+```
+
+`cargo test -p snapback4-sim --test filters point_read_cuts -- --nocapture`
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.01s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.02s
+```
+
+`cargo test -p snapback4-device --test device point_read_cuts -- --nocapture`
+
+```text
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 118 filtered out; finished in 0.01s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 118 filtered out; finished in 0.01s
+```
+
+Final affected runs:
+
+```text
+cargo test -p snapback4-sim --test clique following_remov -- --nocapture
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 41 filtered out; finished in 34.96s
+cargo test -p snapback4-device --test device following_removal -- --nocapture
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 116 filtered out; finished in 19.43s
+cargo test -p snapback4-sim --test filters -- --nocapture
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+cargo test -p snapback4-sim --test review_corrections a_capped_maintained -- --nocapture
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 30 filtered out; finished in 0.02s
+cargo test -p snapback4-lang --test repairs trending_card -- --nocapture
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.64s
+cargo test -p snapback4-sim --test clique clique_trending -- --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 46 filtered out; finished in 0.53s
+cargo test -p snapback4-lang --test guide
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+```
+
+The first `bash snapback4/scripts/test.sh` (from the repository root, with
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`) reported:
+
+```text
+test result: FAILED. 7 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s
+test result: FAILED. 45 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 42.06s
+ℹ tests 261
+ℹ pass 260
+ℹ fail 1
+== 2 failure(s) in 347 s
+   cargo test
+   client tests
+```
+
+The Rust failures were the three now-updated Trending expectations. The
+client failure was Chromium SIGABRT at `react.test.mjs:74`, the environment
+artifact named in the brief. An isolated rerun from `snapback4/`, with the
+same Node PATH, `node --test packages/snapback4/test/react.test.mjs`, again
+failed during Chromium launch:
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 388.142375
+```
+
+No other failure is claimed pre-existing. The final whole-suite and
+post-entry reference results follow below.
+
+Final `bash snapback4/scripts/test.sh`, with the same Node PATH, ran every
+step and reported **one failing step, client tests**. All Rust targets
+passed, including the updated Trending expectations. The client counts
+include the Chromium launch failure and one navigation test whose server
+could not bind its port (`Address already in use`, then `ECONNREFUSED`).
+The exact final script and client summaries are:
+
+```text
+ℹ tests 261
+ℹ pass 259
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+== 1 failure(s) in 297 s
+   client tests
+```
+
+The port-collision test passed alone. From `snapback4/`, with the same
+Node PATH:
+
+```text
+node --test --test-name-pattern='already applied replay' packages/snapback4/test/web-navigation.test.mjs
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+ℹ duration_ms 1343.569625
+```
+
+It observed **2** writes, **2** rows, **0** duplicates and **1,006 ms**
+recovery. The final full run therefore remains red; the isolated navigation
+rerun is not substituted into its counts. The lead must run Chromium
+outside this sandbox. No lifecycle timeout occurred in either full run,
+and no failure is attributed to an unverified base. Full logs remain at
+`/tmp/w3r1f-suite.log`, `/tmp/w3r1f-suite-final.log`,
+`/tmp/w3r1f-react.log` and `/tmp/w3r1f-navigation-retry.log`.
+
+At the repository root, with the same Node PATH:
+
+```text
+./ref-check --verbose
+ref-check: ok — 480 LLP docs, 8926 refs in 23701 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passes. The changed Rust files number **12**, the
+largest is **1,368 lines**, and **0** exceed 1,500. One dated journal entry
+was appended; prior entries are unchanged. All requested implementation,
+regression, guide and reference work is complete; no diagnostic-text
+comparison was requested, and no diagnostic text changed.
+
+Summing the final script's **60** Rust target summary lines gives **876
+passed, 0 failed, 4 ignored**. Fixture wrapper tests report **9 passed,
+0 failed**. These aggregates retain ignored cases separately from passes.

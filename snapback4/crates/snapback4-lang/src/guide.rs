@@ -937,6 +937,13 @@ words index (guide search). Uniform plain merge lanes with a unique index or one
 in `id` read one head each, then advance the winning lanes; `check` notes
 a merge past 50 lanes (N_WIDE_MERGE). The meter counts examined rows and
 probes; a query it cuts returns what it found and `complete: false`.
+If a point lookup is cut before its row or absence is established, its value
+is unknown, never null or false. This includes `exists` and lookups inside a
+page shape, helper or `where`: evaluation stops and the whole query returns
+`data: null`, `complete: false`, with no `next` past the unchecked work.
+Completed hidden and absent lookups still return the same null/false result.
+Live aggregate reads keep their observed partial-count contract once the
+aggregate row is established; `exists` still needs a completed lookup.
 `t[prefix, col >= start, col < end]` seeks on the first unpinned index column;
 its bounds have that column's type. A lone `where .col >= start` on that
 column lowers to the seek and emits N_SEEK naming the key spelling.
@@ -948,8 +955,8 @@ reaches the range's end, including without a cursor; a meter cut is incomplete.
 Direct table and maintain page cursors bind the evaluated prefix and active
 generation. Reusing one under another prefix or after adoption is refused;
 ordinary writes keep it valid, and rows can move between pages.
-A filled page positions `next` after its last returned row. A meter-cut page
-positions after its last rule-visible examined row, even if the filter rejected
+A filled page positions `next` after its last returned row. A scan cut outside
+a point lookup positions after its last rule-visible examined row, even if the filter rejected
 it, never after a hidden row. A non-uniform page stays incomplete; a cut in a
 hidden run with no rule-visible row ends on an empty capped page."##,
         "shapes" => r##"# Shapes

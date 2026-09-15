@@ -157,9 +157,9 @@ impl<'a> Runner<'a> {
             .filter(|fact| self.device && fact.connected_effects_only && fact.predicts.as_deref() == Some("eligible"))
             .map(|fact| fact.prediction_guards.iter().cloned().collect()).unwrap_or_default();
         // @ref LLP 3000.007#5.0 — charge allocations before admitting the relaxed forms.
-        // A heap cut cannot invent a partial scalar/shape or a continuation.
-        // Unwind immediately; both query hosts publish null, incomplete, with
-        // the private capped_at recorded by Meter::heap (LLP 3000 §7).
+        // A heap cut or unknown point lookup cannot invent a scalar/shape or
+        // a continuation. Unwind; both query hosts publish null, incomplete,
+        // with the original private capped_at (LLP 3000 §7).
         let result = (|| {
             for value in self.context.args.values() { self.meter.heap(value.clone_heap_bytes())?; }
             self.statements(&program.body, &program.name)
@@ -167,7 +167,7 @@ impl<'a> Runner<'a> {
         match result {
             Ok(Flow::Return(value)) => Ok(value),
             Ok(_) => Ok(Value::Null),
-            Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, .. }) if self.meter.cut == Cut::Cap => {
+            Err(RuntimeError::Bound { kind, .. }) if self.meter.cut == Cut::Cap && self.meter.capped_at.as_ref().is_some_and(|(cut, _)| *cut == kind) => {
                 self.page = None;
                 Ok(Value::Null)
             }
@@ -486,10 +486,18 @@ impl<'a> Runner<'a> {
             }
             Expr::Get(read) => {
                 let value = self.get(read)?;
+                // @ref LLP 3000.007#18.1 — an unchecked lookup cannot decide a result or advance its shared page cursor.
+                // A live aggregate may carry its observed partial count;
+                // null after a cut establishes neither a row nor absence.
+                if value == Value::Null { self.meter.require_uncapped()?; }
                 self.meter.heap(value.heap_bytes())?;
                 Ok(value)
             }
-            Expr::Exists(read) => Ok(Value::Bool(self.get(read)? != Value::Null)),
+            Expr::Exists(read) => {
+                let value = self.get(read)?;
+                self.meter.require_uncapped()?;
+                Ok(Value::Bool(value != Value::Null))
+            }
             Expr::Scan(scan) => {
                 let values = self.scan(scan)?;
                 self.meter.heap(values.iter().map(Value::heap_bytes).sum::<u64>())?;
