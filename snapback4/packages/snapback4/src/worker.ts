@@ -200,7 +200,8 @@ export function runWorker(options: WorkerOptions): Worker {
 }
 
 /** The effects the server holds, for an operator's script or a test:
- * `state` is `queued`, `running`, `sent` or `failed`. */
+ * `state` is `queued`, `running`, `sent`, `satisfied` or `failed`.
+ * `satisfied` records a presence reconnect without invoking a handler. */
 export async function listEffects(url: string, token: string, state?: string, doFetch: typeof fetch = globalThis.fetch.bind(globalThis)): Promise<Effect[]> {
   const response = await doFetch(`${url.replace(/\/$/, "")}/effects${state ? `?state=${encodeURIComponent(state)}` : ""}`, { headers: { authorization: `Bearer ${token}` } });
   const json = (await response.json()) as ClaimReply;

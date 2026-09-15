@@ -1304,8 +1304,9 @@ mutation send(roomId: id, body: text <=4000):
   return { id: msg.id }
 ```
 
-This send stays eligible to predict because presence decides only effects; the server decides who is notified at commit.
+This send stays eligible to predict because presence decides only effects; the server commits the effects and defers grace-only decisions until their deadline.
 Prediction also evaluates the safe untaken presence arms and discards their effects, so it pays at least their server cost. Effect ids never consume `new` or an insert's ids.
+With no live poll but an unexpired presence grace, an absence-conditioned push is queued for the grace deadline: up to 35 seconds. A reconnect during that window cancels it, even if that poll ends before claim or the server restarts. A live poll at claim also cancels it. The effect is recorded as `satisfied` with `result: { outcome: 'presence_reconnected' }` and zero attempts; it is never handed to a worker. Without a reconnect it becomes claimable once, using the existing lease protocol. No grace means immediate admission; an already live poll still suppresses the push.
 For dispatch-time presence or any other presence-dependent decision, emit unconditionally and have the worker call a service mutation that reads `connected`.
 
 The data plane never calls out. `emit name { payload }` in a mutation or
@@ -1402,7 +1403,8 @@ It is not a table: nothing
 syncs, nothing is written. A mutation reads it to notify only those with
 no connected client (guide effects); a query reads it for an online mark.
 On a device the word is unknown: a query that reads it is `complete: false`.
-A mutation stays eligible to predict when presence decides only effects, so its rows are independent of presence and the server decides who is notified at commit.
+A mutation stays eligible to predict when presence decides only effects, so its rows are independent of presence and the server commits the effects and defers grace-only decisions until their deadline.
+For those effects-only mutations, a live poll counts as connected; grace alone defers the push for up to 35 seconds instead of losing it. A reconnect in the window, or a live poll at claim, cancels the push with the recorded `satisfied` outcome `presence_reconnected` (guide effects). An unrelated emit remains immediate. Grace deadlines and recorded reconnects survive restart; `clock advance` makes a waiting effect due along with its grace.
 Presence-derived values may use comparisons, `exists`, boolean logic and field values. Arithmetic, fallible builtins, reads, `new` or refusals controlled by presence keep `predicts: never`, as do conditional values without a fixed-size proof. Prediction charges both safe presence arms, so it may reach a bound even when the server would fit. If an untaken arm needs a combined guard's value refinement, the device queues without a row; put the data guard outside presence.
 In tests: `snapback4 clock advance 36s` expires the grace after a poll ends; open polls stay connected, and online client queries read the server's updated answer (guide clock).
 `snapback4 run` reads nobody as connected."##,

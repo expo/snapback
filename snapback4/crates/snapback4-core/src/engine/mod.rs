@@ -24,6 +24,7 @@ pub mod write;
 mod maintains;
 mod write_target;
 mod receipt;
+mod presence;
 
 #[cfg(feature = "sqlite")]
 use crate::assets::{self, Asset, AssetKind, asset_id};
@@ -54,6 +55,8 @@ use std::collections::{BTreeMap, VecDeque};
 pub trait Presence: std::fmt::Debug + Send + Sync {
     /// How many connections `principal` holds open now.
     fn connections(&self, principal: &str) -> u64;
+    /// A single observation: (live connections, grace deadline in engine time).
+    fn effect_presence(&self, principal: &str) -> (u64, Option<i64>) { (self.connections(principal), None) }
 }
 
 /// Who runs the program, with what, and when.

@@ -18,7 +18,14 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     };
     let heartbeat = params.get("heartbeat").is_some_and(|s| s == "1") && request.http_version().0 == 1 && request.http_version().1 >= 1;
     let mut response = PollResponse { request: Some(request), started: false };
-    shared.presence.enter(&connected);
+    {
+        let mut engine = lock(&shared.engine);
+        if let Err(error) = engine.presence_reconnected(&connected, shared.now()) {
+            response.finish(500, json!({ "denied": refusal_json(&error.refusal()) }));
+            return;
+        }
+        shared.presence.enter(&connected);
+    }
     let result = (|| -> io::Result<()> {
         let mut beat = Instant::now();
         loop {

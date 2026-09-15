@@ -838,7 +838,8 @@ mutation send(conversationId: id, body: text <=4000):
 ```
 
 This send stays eligible to predict because presence decides only effects;
-the server decides who is notified at commit. For dispatch-time presence
+the server commits the effects and defers grace-only decisions until their
+deadline. For dispatch-time presence
 or any other presence-dependent decision, emit unconditionally and have
 the worker call a service mutation that reads `connected`.
 Prediction evaluates the safe untaken presence arms too and discards their
@@ -853,6 +854,14 @@ A failure retries with backoff up to eight attempts; a worker that dies
 loses its lease and the effect is claimed again; two workers never hold
 one effect. `snapback4 doctor` counts them. A scheduled job that emits
 once per period is the digest recipe.
+When presence decides only effects, no live poll but an unexpired grace
+queues the push for the grace deadline: up to 35 seconds. A reconnect during
+that window cancels it, even if the new poll ends before claim or the server
+restarts. A live poll at claim also cancels it. The recorded effect has state
+`satisfied`, `result: { outcome: 'presence_reconnected' }` and zero attempts;
+it never reaches a worker. Otherwise it becomes claimable once through the
+existing lease protocol. No grace means immediate admission; an already live
+poll still suppresses the push. An unrelated emit remains immediate.
 `clock advance` extends held effect leases by the advanced duration, preserving
 their remaining real-time lifetime; retry `nextAt` still follows the dev clock.
 `runWorker` reports a lost settlement with the server's code and message.
@@ -876,7 +885,12 @@ client (Effects, above); a query reads it for an online mark. On a
 device the word is unknown: a query that reads it is `complete: false`,
 and the server answers it online. A mutation stays eligible to predict
 when presence decides only effects, so its rows are independent of
-presence and the server decides who is notified at commit.
+presence and the server commits the effects. In those effects-only mutations,
+grace alone defers the push for up to 35 seconds instead of losing it. A
+reconnect in the window, or a live poll at claim, cancels it with the recorded
+`satisfied` outcome `presence_reconnected` (Effects, above). Grace deadlines
+and recorded reconnects survive restart; `clock advance` makes a waiting
+effect due along with its grace.
 Presence-derived values use comparisons, `exists`, boolean logic and field
 values. Arithmetic, fallible builtins, reads, `new` or refusals controlled
 by presence keep `predicts: never`, as do conditional values without a
