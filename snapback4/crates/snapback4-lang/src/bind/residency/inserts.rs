@@ -106,25 +106,43 @@ pub(super) fn image(value: &Expr, known: &BTreeMap<String, Expr>) -> Expr {
     }
 }
 
-// Keep straight-line aliases of `new` without treating a mutable local as a
-// permanent mint receipt. Other expressions or control flow may reassign it;
-// immutable $value snapshots already have their own facts in inspect.
+// @ref LLP 3000.007#20.5 — a mint proves primary-key absence until that local may be assigned another value.
+// Immutable $value snapshots already have their own facts in inspect.
 pub(super) fn track_minted_alias(stmt: &Stmt, known: &mut BTreeMap<String, Expr>, aliases: &mut BTreeSet<String>) {
-    fn simple(value: &Expr) -> bool {
-        match value {
-            Expr::Literal(_) | Expr::Input(_) | Expr::Variable(_) => true,
-            Expr::Object(fields) => fields.values().all(simple),
-            _ => false,
-        }
-    }
     let binding = match stmt { Stmt::Let { name, value } | Stmt::Assign { name, value } | Stmt::Const { name, value } => Some((name, value)), _ => None };
-    if binding.is_none_or(|(_, value)| !simple(value)) {
-        for name in std::mem::take(aliases) { known.remove(&name); }
-    }
     if let Some((name, value)) = binding {
         if name.starts_with("$value") || matches!(stmt, Stmt::Const { .. }) { return; }
         let minted = matches!(image(value, known), Expr::Input(Input::NewId));
         if aliases.remove(name) { known.remove(name); }
         if minted { known.insert(name.clone(), Expr::Input(Input::NewId)); aliases.insert(name.clone()); }
+    } else {
+        invalidate_minted_aliases(stmt, known, aliases);
+    }
+}
+
+// A branch or loop may run any of its assignments; retain facts only for the
+// other locals. Reads, emits and writes without a result binding cannot change them.
+fn invalidate_minted_aliases(stmt: &Stmt, known: &mut BTreeMap<String, Expr>, aliases: &mut BTreeSet<String>) {
+    let name = match stmt {
+        Stmt::Let { name, .. } | Stmt::Assign { name, .. } | Stmt::Const { name, .. } | Stmt::Push { target: name, .. }
+            | Stmt::InsertIfAbsent { result: name, .. } => Some(name),
+        Stmt::If { then_body, else_body, .. } => {
+            for stmt in then_body.iter().chain(else_body) { invalidate_minted_aliases(stmt, known, aliases); }
+            None
+        }
+        Stmt::For { binding, body, .. } => {
+            for stmt in body { invalidate_minted_aliases(stmt, known, aliases); }
+            Some(binding)
+        }
+        Stmt::WriteTarget { result, condition, .. } => {
+            if let Some(condition) = condition {
+                for stmt in &condition.setup { invalidate_minted_aliases(stmt, known, aliases); }
+            }
+            result.as_ref()
+        }
+        _ => None,
+    };
+    if let Some(name) = name && aliases.remove(name) {
+        known.remove(name);
     }
 }

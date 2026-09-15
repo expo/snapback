@@ -117,6 +117,9 @@ uncovered unique/cap group; changing the write spelling does not supply that pro
 An id supplied to `insert ... if absent`, including a parameter or helper result,
 also needs the `byId` absence proof. Only an id minted by `new` during the call
 (including the omitted id) can use a covered secondary unique key instead.
+`check` preserves a local's `new` fact across unrelated requires, reads, emits
+and writes. A direct assignment tracks the local's new value; a branch or loop
+that may assign it discards its fact. Other locals keep their mint facts.
 A private viewer-keyed table cannot prove absence by an unrelated caller-supplied id.
 
 Membership-scoped reactions and likes need particular care. With
@@ -152,6 +155,11 @@ table likes:
   insert <- .owner = viewer
   delete <- .owner = viewer
   sync to .owner
+
+mutation guardedLike(postId: id, allowed: bool) predicts:
+  chosen = new
+  require allowed else NOT_ALLOWED
+  insert likes { id: chosen, owner: viewer, postId } if absent
 
 mutation setLike(postId: id, liked: bool) predicts:
   if liked:

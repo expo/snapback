@@ -255,6 +255,9 @@ coverage proof. `insert ... if absent` reports the same insert limitation.
 An id supplied to `insert ... if absent`, including a parameter or helper result,
 needs the `byId` absence proof too. Only an id minted by `new` during the call
 (including an omitted id) can use a covered secondary unique key instead.
+`check` preserves a local's `new` fact across unrelated requires, reads, emits
+and writes. A direct assignment tracks the local's new value; a branch or loop
+that may assign it discards its fact. Other locals keep their mint facts.
 Membership-scoped reactions with `last 500` cannot prove absence outside that
 window; removing it still leaves `(messageId, principal)` unable to decide
 `exists members[.conversationId, viewer]`. A viewer-keyed read rule with no

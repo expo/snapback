@@ -18408,3 +18408,66 @@ Verification, with Node 24.18.0 on PATH and cargo run from `snapback4/`:
   serialized value form or existing corpus case changed. No other lane's
   implementation file changed; the README and this journal are the requested
   shared documentation updates. No commit, push, tag or publication was made.
+
+
+## 2026-09-15 — W5R2b: mint facts survive statements that cannot assign the alias
+
+N2 reproduced against `79013faea0ebd4cf1471974b25f9f1f25509662c`:
+`chosen = new`, followed by an unrelated `require`, made the binder report
+that an insert-if-absent could not predict. Both device stores still predicted
+one row through the fully held private table's `(postId, principal)` unique
+key. Reads, emits, other writes, and non-assigning branches and loops had the
+same mismatch: six forms, 12 binder/runtime mismatches across SQLite and
+memory. The regression uses the base implementation with the final tests;
+its supplied-id and reassignment controls already agreed with the runtime.
+
+The insert residency tracker now retains mint facts across unrelated
+statements. A direct binding replaces only its own fact and can establish a
+new mint or copy an existing mint alias. Branches and loops recursively
+invalidate only names they may write, including nested bodies and result
+bindings; they do not establish facts that depend on which path executes.
+Immutable value snapshots keep their existing treatment. This restores the
+absence proof of LLP 3000.007 §20.5 without changing the device interpreter.
+The package README and prediction card describe the rule, and the card
+compiles a guarded explicit-mint like alongside its set-state recipe.
+
+The binder regression checks 14 forms. The expanded device agreement test
+checks 20 forms on each of two stores (40 cases), with server execution for
+every case and predicted application rows equal to the server's where
+prediction succeeds. After the repair there are 0 binder/runtime mismatches.
+The unrelated require predicts 1 row on each store; a branch or two-iteration
+loop assigning the parameter predicts 0. An unrelated insert plus the final
+insert predicts 2 rows. Copying a mint alias and assigning another local
+preserve the untouched alias's proof. The lesson is that a local's mint fact
+is invalidated by a write to that local, not by an arbitrary statement boundary.
+
+Verification (cargo from `snapback4/`; Node 24.18.0 first on PATH for JS):
+
+- `cargo test -p snapback4-lang --test spelling review_minted_alias -- --nocapture`:
+  before `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.01s`;
+  after `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.01s`.
+- `cargo test -p snapback4-device --test device review_supplied_and_minted_ids -- --nocapture`:
+  before `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 130 filtered out; finished in 0.24s`;
+  after `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 130 filtered out; finished in 0.28s`.
+- `cargo test -p snapback4-lang --test spelling --test guide -- --nocapture`:
+  guide 24 passed / 0 failed (0.06 s); spelling 19 passed / 0 failed (0.19 s).
+- `cargo test -p snapback4-device --test device upsert:: -- --nocapture`:
+  28 passed / 0 failed, 103 filtered out (0.78 s).
+- `bash snapback4/scripts/test.sh`: `== 1 failure(s) in 342 s`.
+  All 61 Rust result groups total 951 passed, 0 failed, 4 ignored;
+  fixtures 9 passed / 0 failed; clients 303 passed / 2 failed. Builds and
+  typechecks pass. The wasm build reports 1,749,000 B raw / 487,241 B gzip;
+  these are build observations, not a performance claim.
+- The navigation-model server-identity test followed an `Address already in
+  use` error, then `ECONNREFUSED`. Rerunning exactly that test with
+  `node --test --test-name-pattern='pre-admission journal: server identity mismatch never sends a recovered write' packages/snapback4/test/navigation-model.test.mjs`
+  passes 1 / 0 in 332.201708 ms. No product change was made for that failure.
+- `node --test packages/snapback4/test/react.test.mjs` alone repeats Chromium
+  SIGABRT: 0 passed / 1 failed in 360.871291 ms. This matches the known sandbox
+  artifact in the lane brief; the lead must rerun the browser outside the
+  sandbox. No claim of a baseline-verified pre-existing suite failure is made.
+- `./ref-check --verbose` passes; `git diff --check` is clean. The largest
+  changed code file is 279 lines. No meter ceiling, serialized form, existing
+  corpus case or diagnostic code changed. The prediction card, README and
+  this append are the required shared documentation changes; all other edits
+  are in the lane's owned files. No commit, push, tag or publication was made.

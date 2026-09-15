@@ -214,11 +214,23 @@ fn review_supplied_and_minted_ids_match_prediction_on_both_stores() {
             ("public-parameter", "", "id, ", true, true),
             ("minted", "", "id: new, ", false, true),
             ("minted-alias", "  chosen = new\n", "id: chosen, ", false, true),
+            ("minted-require", "  chosen = new\n  require allowed else NOT_ALLOWED\n", "id: chosen, ", false, true),
+            ("minted-read", "  chosen = new\n  previous = likes[postId, viewer]\n", "id: chosen, ", false, true),
+            ("minted-emit", "  chosen = new\n  emit notified { postId }\n", "id: chosen, ", false, true),
+            ("minted-write", "  chosen = new\n  insert likes { postId: 'other', principal: viewer, on: true }\n", "id: chosen, ", false, true),
+            ("minted-branch", "  chosen = new\n  if allowed:\n    require allowed else NOT_ALLOWED\n", "id: chosen, ", false, true),
+            ("minted-loop", "  chosen = new\n  for i in range(0, 2):\n    require allowed else NOT_ALLOWED\n", "id: chosen, ", false, true),
+            ("other-alias", "  chosen = new\n  other = chosen\n  other = id\n", "id: chosen, ", false, true),
+            ("copied-alias", "  chosen = new\n  original = chosen\n  chosen = id\n  chosen = original\n", "id: chosen, ", false, true),
             ("reassigned-alias", "  chosen = new\n  chosen = id\n", "id: chosen, ", false, false),
             ("branch-alias", "  chosen = new\n  if id != null:\n    chosen = id\n", "id: chosen, ", false, false),
+            ("else-alias", "  chosen = new\n  if not allowed:\n    require allowed else NOT_ALLOWED\n  else:\n    chosen = id\n", "id: chosen, ", false, false),
+            ("loop-alias", "  chosen = new\n  for i in range(0, 2):\n    chosen = id\n", "id: chosen, ", false, false),
+            ("nested-alias", "  chosen = new\n  if allowed:\n    for i in range(0, 2):\n      chosen = id\n", "id: chosen, ", false, false),
             ("implicit", "", "", false, true),
         ] {
-            let source = LIKES.replace("text <=30", "id").replace("mutation vote(postId: id):", "fn identity(id: id): id\nmutation vote(id: id, postId: id):")
+            let source = LIKES.replace("text <=30", "id")
+                .replace("mutation vote(postId: id):", "effect notified\nfn identity(id: id): id\nmutation vote(id: id, postId: id, allowed: bool):")
                 .replace("  upsert likes[postId, viewer] { on: true }", &format!("{prelude}  insert likes {{ {id_field}postId, principal: viewer, on: true }} if absent"));
             let source = if public { source.replace("read <- .principal = viewer", "read <- public") } else { source };
             let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
@@ -226,17 +238,28 @@ fn review_supplied_and_minted_ids_match_prediction_on_both_stores() {
             let (mut server, backend) = compile(&source);
             let mut device = host.open(case, Some(backend)).unwrap();
             for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
-            let input = json!({"id":"chosen", "postId":"first"});
+            let input = json!({"id":"chosen", "postId":"first", "allowed":true});
             let queued = device.admit(Queued { id: "vote".into(), seq: 1, op: "vote".into(), args: input.clone(), viewer: "bob".into(), now: 1000,
-                new_ids: vec!["minted-like".into()], predicted: vec![], predictable: true, sent_seq: None, observed_seq: None }).unwrap();
+                new_ids: vec!["minted-like".into(), "other-like".into()], predicted: vec![], predictable: true, sent_seq: None, observed_seq: None }).unwrap();
             assert_eq!(queued.predictable, predicts, "{} {case}: {queued:?}", host.label());
-            assert_eq!(queued.predicted.len(), usize::from(predicts));
-            assert_eq!(device.query("one", "bob", &json!({"postId":"first"}), 1000).unwrap().data != Value::Null, predicts);
+            assert_eq!(queued.predicted.len(), if case == "minted-write" { 2 } else { usize::from(predicts) });
+            let pending = device.query("one", "bob", &json!({"postId":"first"}), 1000).unwrap().data;
+            assert_eq!(pending != Value::Null, predicts);
             let lines = snapback4_lang::bind::residency::operation_lines("vote", &bound.schema.operations["vote"]);
             let summary = snapback4_lang::bind::residency::prediction_summary(&bound);
             println!("{} {case}: predicted rows={}, summary={summary:?}", host.label(), queued.predicted.len());
             if summary.is_none() != predicts { mismatches.push(format!("{} {case}: {lines}", host.label())); }
-            if predicts { assert_eq!(lines.lines().next().unwrap(), "  vote: predicts: eligible"); }
+            let expected = if predicts { "  vote: predicts: eligible" } else { "  vote: predicts: inserts queue without a row — insert if absent into likes cannot prove absence" };
+            if lines.lines().next().unwrap() != expected { mismatches.push(format!("{} {case}: expected {expected}", host.label())); }
+            let context = Context::new("bob", args(&[("id", id("chosen")), ("postId", id("first")), ("allowed", Value::Bool(true))]))
+                .at(1000).with_ids(["minted-like".into(), "other-like".into()]);
+            let sent = server.mutate("vote", Some("vote"), context).unwrap();
+            assert!(matches!(sent.state, WriteState::Sent { .. }), "{} {case}: {sent:?}", host.label());
+            if predicts {
+                let mut image = pending.as_object().unwrap().clone(); image.remove("pending");
+                let confirmed = server.query("one", Context::new("bob", args(&[("postId", id("first"))])).at(1000)).unwrap().data;
+                assert_eq!(Value::Row(image.into()), confirmed, "{} {case}", host.label());
+            }
             host.close(case, device);
         }
     }

@@ -234,6 +234,39 @@ fn review_parameter_id_reports_the_primary_key_absence_requirement() {
 }
 
 #[test]
+fn review_minted_alias_survives_only_statements_that_do_not_assign_it() {
+    let schema = "table likes:\n  postId: id\n  principal: principal\n  unique byPostPrincipal: postId, principal\n  by byPrincipal: principal, id\n  read <- .principal = viewer\n  insert <- .principal = viewer\n  sync\neffect notified\n";
+    let mut mismatches = Vec::new();
+    for (case, statements, predicts) in [
+        ("mint", "", true),
+        ("require", "  require allowed else NOT_ALLOWED\n", true),
+        ("read", "  previous = likes[postId, viewer]\n", true),
+        ("emit", "  emit notified { postId }\n", true),
+        ("write", "  insert likes { postId: 'other', principal: viewer }\n", true),
+        ("branch", "  if allowed:\n    require allowed else NOT_ALLOWED\n", true),
+        ("loop", "  for i in range(0, 2):\n    require allowed else NOT_ALLOWED\n", true),
+        ("other-alias", "  other = chosen\n  other = id\n", true),
+        ("copied-alias", "  original = chosen\n  chosen = id\n  chosen = original\n", true),
+        ("assignment", "  chosen = id\n", false),
+        ("branch-assignment", "  if allowed:\n    chosen = id\n", false),
+        ("else-assignment", "  if not allowed:\n    require allowed else NOT_ALLOWED\n  else:\n    chosen = id\n", false),
+        ("loop-assignment", "  for i in range(0, 2):\n    chosen = id\n", false),
+        ("nested-assignment", "  if allowed:\n    for i in range(0, 2):\n      chosen = id\n", false),
+    ] {
+        let b = clean(&format!("{schema}mutation add(id: id, postId: id, allowed: bool):\n  chosen = new\n{statements}  insert likes {{ id: chosen, postId, principal: viewer }} if absent\n"));
+        let lines = snapback4_lang::bind::residency::operation_lines("add", &b.schema.operations["add"]);
+        let summary = snapback4_lang::bind::residency::prediction_summary(&b);
+        println!("{case}:\n{lines}\nsummary: {summary:?}");
+        if summary.is_none() != predicts { mismatches.push(case); }
+        if !predicts {
+            assert_eq!(lines.lines().next().unwrap(), "  add: predicts: inserts queue without a row — insert if absent into likes cannot prove absence");
+            assert_eq!(summary.as_deref(), Some("1 mutation has insert arms that never predict: add (likes read rule `.principal = viewer` is not decided by key byId (id); unpinned: principal) — snapback4 why <op>"));
+        }
+    }
+    assert!(mismatches.is_empty(), "mint fact mismatches: {mismatches:?}");
+}
+
+#[test]
 fn review_manager_report_merge_note_describes_related_principals() {
     let source = "table reporting:\n  manager: principal\n  report: principal\n  unique byPair: manager, report\n  cap 1000 by manager\n  public 'reporting relationships'\n  online only\ntable entries:\n  actor: principal\n  at: time\n  by byActorTime: actor, at, id\n  public 'entries'\n  online only\nquery reports(c: cursor ?):\n  return merge entries after c last 20 by byActorTime:\n    [r.report] for r in reporting[viewer] first 1000 by byPair\n";
     let b = clean(source);
