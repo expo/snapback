@@ -6,7 +6,13 @@
 
 Add it to an existing project, including `init --expo`, or start an empty
 directory with the normal starter plus the recipe. Existing destination
-files refuse before any write. The module's operations are under `api.feed`;
+files and non-directory parents refuse before any write. Init compiles the
+existing `snapback/*.q` sources with the recipe in memory first; colliding
+table or maintain names refuse with both declaration sites and a rename
+instruction. Rename the existing declaration and its references, or copy
+this card and rename the recipe's declarations and references together.
+A write failure removes newly created files and preserves the existing
+`.gitignore`. The module's operations are under `api.feed`;
 its schedule names `feed.purgeRemoved`. The block below is the source copied
 by init, with that schedule target qualified for the module.
 
@@ -459,7 +465,7 @@ table ranked:
   at: time
   expiresAt: time
   unique byPost: postId
-  by byScore: score, at, id
+  by byScore: score, at, postId, id
   by byExpiresAt: expiresAt
   public 'the scheduled ranking is public'
   insert <- deny
@@ -514,7 +520,9 @@ before the physical sweep, even if the next scoring pass has not run.
 `complete` describes the ranked page's coverage, not score freshness; a
 device exhausted past its 500-row acquisition horizon reports incomplete.
 Post bodies outside its post horizon can be null. Cursors traverse stored
-score/time/id order, including ties; a rescore can move rows between pages.
+score/time/postId/id order, including ties; a rescore can move rows between pages.
+The post id breaks score/time ties just as it does in `trendingNow()`;
+the ranked row's separately minted id comes last.
 
 For an immediate answer, the live bounded query `trendingNow()` ranks the
 trailing post day up to the 8,192-row examined ceiling. A day or its nested

@@ -49,3 +49,53 @@ fn run<H: Host>(host: &mut H) {
 
 #[test] fn trending_recipe_predicts_on_sqlite() { run(&mut Sqlite::new("trending")); }
 #[test] fn trending_recipe_predicts_on_memory() { run(&mut Memory::new()); }
+
+fn tied_pages<H: Host>(host: &mut H) {
+    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).into_iter()
+        .find(|source| source.contains("job scoreTrending():")).unwrap();
+    let (mut server, backend) = compile(&source);
+    let now = snapback4_core::now_ms();
+    for n in 0..11 {
+        server.seed([
+            ("posts".into(), snapback4_core::value::object([
+                ("id", id(&format!("p{n:03}"))), ("authorId", id("alice")), ("body", Value::String("tie".into())), ("at", Value::Int(now)),
+            ])),
+            ("ranked".into(), snapback4_core::value::object([
+                ("id", id(&format!("r{:03}", 10 - n))), ("postId", id(&format!("p{n:03}"))),
+                ("score", Value::Int(-1)), ("at", Value::Int(now - 1)), ("expiresAt", Value::Int(now + 86_400_000)),
+            ])),
+        ]).unwrap();
+    }
+    let scored = server.run_job("scoreTrending", args(&[]), now).unwrap();
+    assert_eq!(scored.state, snapback4_core::engine::job::JobState::Done);
+    let immediate = server.query("trendingNow", Context::new("bob", args(&[])).at(now)).unwrap();
+    assert!(immediate.complete);
+    let top = immediate.data.as_array().unwrap().iter().map(|r| r.field("id").unwrap().clone()).collect::<Vec<_>>();
+    let expected = (0..11).rev().map(|n| id(&format!("p{n:03}"))).collect::<Vec<_>>();
+    assert_eq!(top, expected[..10]);
+    let mut device = host.open("trending-ties", Some(backend)).unwrap();
+    for (i, page) in snapshot_pages(&mut server, "bob", 7).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+    let mut cursor = None::<String>;
+    let mut actual = Vec::new();
+    let mut pages = 0;
+    loop {
+        let page = device.query("trending", "bob", &json!({"c":cursor}), now).unwrap();
+        // A filled first page is covered; exhausting a horizon-bound table
+        // keeps the existing incomplete word even when this fixture fits.
+        assert_eq!(page.complete, pages == 0, "{}: {page:?}", host.label());
+        let rows = page.data.as_array().unwrap();
+        assert!(rows.iter().all(|r| r.field("score").unwrap() == &Value::Int(0) && r.field("at").unwrap() == &Value::Int(now)));
+        actual.extend(rows.iter().map(|r| r.field("postId").unwrap().clone()));
+        pages += 1;
+        if pages == 1 { assert_eq!(actual, top, "{} scheduled top ten must equal the immediate server top ten", host.label()); }
+        match page.next { Some(next) => cursor = Some(next), None => break }
+        assert!(pages < 3, "cursor did not finish");
+    }
+    assert_eq!(pages, 2);
+    assert_eq!(actual, expected, "{} loses or duplicates no tied post", host.label());
+    println!("Trending {} ties: 11 candidates; {pages} pages; 10/10 immediate matches; 11 unique posts; score=0; one timestamp", host.label());
+    host.close("trending-ties", device);
+}
+
+#[test] fn trending_equal_score_equal_time_pages_match_immediate_on_sqlite() { tied_pages(&mut Sqlite::new("trending-ties")); }
+#[test] fn trending_equal_score_equal_time_pages_match_immediate_on_memory() { tied_pages(&mut Memory::new()); }
