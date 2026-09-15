@@ -105,6 +105,80 @@ fn feeds_recipe_requires_a_known_name_before_writing() {
 }
 
 #[test]
+fn feeds_recipe_schema_collisions_refuse_before_writing() {
+    for (file, name) in [("schema.q", "posts"), ("social.q", "follows"), ("schema.q", "feed"), ("schema.q", "broadcast")] {
+        let dir = Dir::new();
+        fs::create_dir_all(dir.0.join("snapback")).unwrap();
+        fs::write(dir.0.join("snapback/schema.q"), "").unwrap();
+        let source = format!("table {name}:\n  title: text <=100\n  read <- allow\n");
+        fs::write(dir.0.join("snapback").join(file), &source).unwrap();
+        let output = recipe(&dir, &[]);
+        println!("collision {name}: stdout={}stderr={}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.status.code(), Some(1), "{output:?}");
+        let error = String::from_utf8_lossy(&output.stderr);
+        assert!(error.contains(&format!("table {name}")) && error.contains(&format!("snapback/{file}:1:")) && error.contains("snapback/feed.q:"), "{error}");
+        assert!(error.contains(&format!("rename the existing {name} declaration and its references")), "{error}");
+        assert_eq!(fs::read_to_string(dir.0.join("snapback").join(file)).unwrap(), source);
+        for name in ["snapback/feed.q", "src", ".gitignore"] { assert!(!dir.0.join(name).exists(), "{name} was written"); }
+    }
+}
+
+#[test]
+fn feeds_recipe_non_clashing_app_compiles_before_installing() {
+    let dir = Dir::new();
+    fs::create_dir_all(dir.0.join("snapback")).unwrap();
+    fs::write(dir.0.join("snapback/schema.q"), "table notes:\n  title: text <=100\n  read <- allow\n").unwrap();
+    fs::write(dir.0.join("snapback/extra.q"), "query notes(c: cursor ?):\n  return notes after c first 10\n").unwrap();
+    let output = recipe(&dir, &[]);
+    assert!(output.status.success(), "{output:?}");
+    check_recipe(&dir);
+}
+
+#[test]
+fn feeds_recipe_parent_file_refuses_before_writing() {
+    let dir = Dir::new();
+    fs::create_dir_all(dir.0.join("snapback")).unwrap();
+    fs::write(dir.0.join("snapback/schema.q"), "").unwrap();
+    fs::write(dir.0.join("src"), "kept").unwrap();
+    let output = recipe(&dir, &[]);
+    println!("parent conflict: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(!dir.0.join("snapback/feed.q").exists(), "partial recipe left behind: {output:?}");
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    assert_eq!(String::from_utf8_lossy(&output.stderr), "init: ./src is not a directory; rename it or choose another init directory\n");
+    assert_eq!(fs::read_to_string(dir.0.join("src")).unwrap(), "kept");
+    assert_eq!(fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap(), "");
+    assert!(!dir.0.join(".gitignore").exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn feeds_recipe_late_write_failure_removes_new_files() {
+    use std::os::unix::process::CommandExt;
+    let dir = Dir::new();
+    fs::create_dir_all(dir.0.join("snapback")).unwrap();
+    fs::write(dir.0.join("snapback/schema.q"), "").unwrap();
+    // Both recipe files fit; extending the existing ignore file fails only
+    // after they were written. Inject a real OS write error, without a CLI hook.
+    let before = "# kept\n".repeat(10_000);
+    fs::write(dir.0.join(".gitignore"), &before).unwrap();
+    let mut command = Command::new(BIN);
+    command.args(["init", "--recipe", "feeds"]).current_dir(&dir.0);
+    unsafe { command.pre_exec(|| {
+        let limit = libc::rlimit { rlim_cur: 32_768, rlim_max: 32_768 };
+        if libc::setrlimit(libc::RLIMIT_FSIZE, &limit) != 0 { return Err(std::io::Error::last_os_error()); }
+        libc::signal(libc::SIGXFSZ, libc::SIG_IGN);
+        Ok(())
+    }); }
+    let output = command.output().unwrap();
+    println!("late write failure: {}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    for name in ["snapback/feed.q", "src/following.ts"] { assert!(!dir.0.join(name).exists(), "partial recipe: {name}"); }
+    assert_eq!(fs::read_to_string(dir.0.join(".gitignore")).unwrap(), before);
+    assert_eq!(fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap(), "");
+    assert!(!fs::read_dir(&dir.0).unwrap().any(|e| e.unwrap().file_name().to_string_lossy().ends_with(".tmp")));
+}
+
+#[test]
 fn expo_metro_blocks_store_files_and_preserves_expo_exclusions() {
     let dir = Dir::new();
     fs::write(dir.0.join("package.json"), r#"{"type":"module"}"#).unwrap();

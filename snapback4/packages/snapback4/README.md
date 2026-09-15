@@ -989,7 +989,12 @@ Run `snapback4 init --recipe feeds` to write `snapback/feed.q` and the typed
 client example `src/following.ts`, then `snapback4 check` to generate
 `api.feed`. This adds to an existing project, including `init --expo`, or
 creates the normal starter plus the recipe in an empty directory. Existing
-destination files refuse before any write. Pass your app's client to the
+destination files and non-directory parents refuse before any write. Init
+first compiles the existing `snapback/*.q` sources plus the recipe in memory;
+name clashes report both declarations and files. Rename the existing
+declaration and its references, or copy `guide feeds` and rename the recipe's
+declarations and references together. A write failure removes newly created
+files and preserves the existing `.gitignore`. Pass your app's client to the
 example; call `register` during profile creation. Read-time merges are fine
 when the follow count is bounded small. `N_WIDE_MERGE` explains how a
 follow-driven merge's read cost grows with follow count and names this command;
@@ -1251,7 +1256,9 @@ scores the shared pool into `ranked`, and the device composes it with the
 reader's own signals. Trending's `create` and `like` write only their source
 rows and predict when their required data is held; no mutation updates
 another author's post or ranking row. The schedule alone writes `ranked`
-from non-expiring like counts and post time every minute. Scores and new
+from non-expiring like counts and post time every minute. Both the scheduled
+and immediate queries break equal-score, equal-time ties by post id; the
+ranked row's separately minted id is the final stored ordering key. Scores and new
 candidates lag by one period plus queue, execution and sync delay; chunks
 commit independently. Candidates expire at post time plus 24 hours before
 any sweep. This is a post-time window, not recent likes on older posts.

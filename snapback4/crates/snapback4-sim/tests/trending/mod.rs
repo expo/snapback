@@ -96,3 +96,31 @@ fn trending_recipe_candidate_expiry_is_live_before_and_after_sweep() {
     assert_eq!(engine.run_job("scoreTrending", args(&[]), now + PERIOD).unwrap().state, JobState::Done);
     assert_eq!(rank(&mut engine, now + PERIOD).len(), 2, "the future post enters on the next pass");
 }
+
+// @ref LLP 3000.007#18.5 — scheduled and immediate Trending share the post-id tie-breaker after scoring converges.
+#[test]
+fn trending_equal_score_equal_time_pages_match_immediate() {
+    let mut engine = engine();
+    let now = 2 * DAY;
+    // A ranked row has its own id. Reverse those ids to make the tie-break
+    // independent of random mint order; the real scoring job refreshes them.
+    for n in 0..11 {
+        engine.seed([post(&format!("p{n:03}"), now), ("ranked".into(), row(&[
+            ("id", id(&format!("r{:03}", 10 - n))), ("postId", id(&format!("p{n:03}"))),
+            ("score", Value::Int(-1)), ("at", Value::Int(now - 1)), ("expiresAt", Value::Int(now + DAY)),
+        ]))]).unwrap();
+    }
+    assert_eq!(engine.run_job("scoreTrending", args(&[]), now).unwrap().state, JobState::Done);
+    let immediate = engine.query("trendingNow", Context::new("bob", args(&[])).at(now)).unwrap();
+    assert!(immediate.complete);
+    let expected = (0..11).rev().map(|n| id(&format!("p{n:03}"))).collect::<Vec<_>>();
+    let top = immediate.data.as_array().unwrap().iter().map(|r| r.field("id").unwrap().clone()).collect::<Vec<_>>();
+    assert_eq!(top, expected[..10]);
+    let rows = rank(&mut engine, now);
+    assert_eq!(rows.len(), 11);
+    assert!(rows.iter().all(|r| r.field("score").unwrap() == &Value::Int(0) && r.field("at").unwrap() == &Value::Int(now)));
+    let actual = rows.iter().map(|r| r.field("postId").unwrap().clone()).collect::<Vec<_>>();
+    assert_eq!(actual[..10], top, "converged scheduled top ten must equal the immediate top ten");
+    assert_eq!(actual, expected, "continuation loses or duplicates no tied post");
+    println!("Trending server ties: 11 candidates; 2 pages; 10/10 immediate matches; 11 unique posts; score=0; one timestamp");
+}

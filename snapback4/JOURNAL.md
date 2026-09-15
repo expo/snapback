@@ -18108,3 +18108,72 @@ Verification and measurements:
 - The largest changed code file is the guide at 1,376 lines. No meter ceiling,
   existing conformance case, shared note output or residency/prediction output
   changed. No commit, push, tag or publication was performed.
+
+
+## 2026-09-15 — W5R1z: safe recipe installation and Trending ties
+
+Built from `0246023537b31baed75e06ef08ffdba1621bf49e` for wave 5's first
+review round, findings A–C. `init --recipe feeds` now compiles the existing
+`snapback/*.q` sources plus every proposed Quarry file in memory before any
+write. A table or maintain collision names both declarations and source
+locations, tells the builder to rename the existing declaration and its
+references, and offers copying and consistently renaming the card as the
+alternative. The compiler remains the authority for all other refusals.
+No `--prefix` was added: this repair keeps the tested fixed-name module;
+a prefix facility would additionally need coordinated declaration/reference
+rewriting throughout that module. The typed client example stays unchanged.
+
+Every destination's parents are checked from the root down; only a missing
+path is treated as absent. New files use exclusive creation and are tracked
+before their contents are written, so a later I/O failure removes them,
+including a partially written current file. The package's atomic replacement
+helper is shared with `.gitignore`, preserving its original bytes on failure.
+These shared filesystem helpers also protect ordinary starter installation.
+The injected late-write test lets both recipe files finish, then limits file
+size to 32,768 bytes while replacing a 70,000-byte existing `.gitignore`:
+0 recipe files remain and the 70,000 original bytes survive. The parent-file
+refusal writes 0 files. Four collision cases cover `posts`, `follows`, `feed`
+and `broadcast`, including a declaration outside `schema.q`; all write 0
+files. A non-clashing two-source app installs and checks with 8 tables,
+10 operations, 0 diagnostics and 0 notes. Its installed recipe remains
+200 lines / 6,506 bytes; the observed check time was 5 ms.
+
+Trending's ranked index is `score, at, postId, id`. The post id now breaks
+score/time ties in the same direction as `trendingNow`; the independently
+minted ranked-row id only completes the stored ordering. The deterministic
+regression seeds reversed ranked ids, then runs the real scoring job to
+convergence: all 11 posts share one timestamp and score 0. Server, SQLite
+device and memory device each traverse 2 pages, return all 11 unique posts,
+and match the immediate top ten 10/10. The device's exhausted second page
+retains its existing `complete: false` horizon contract; the filled first
+page is complete. This exposed an overly strong completeness assertion in
+the first version of the test, which was corrected without changing runtime
+coverage semantics. The existing 105-post witness still passes: 11 pages,
+2 chunks/pass, 60,000 ms period, observed like lag 59,999 ms, 2 writes per
+like and 0 ranking writes in a like mutation. The README and feeds card
+now describe installation refusals, cleanup and the shared post-id order.
+
+Verification, with Node 24.18.0 on PATH and cargo run from `snapback4/`:
+
+- Before implementation, `cargo test -p snapback4 --test init feeds_recipe
+  -- --nocapture`: 5 passed / 3 failed; after: 8 passed / 0 failed. The
+  non-clashing positive control passed before and after. Full `--test init`:
+  15 passed / 0 failed.
+- Before the index fix, `cargo test -p snapback4-sim --test clique
+  trending_equal_score_equal_time -- --nocapture`: 0 passed / 1 failed;
+  the corresponding `snapback4-device --test device` filter: 0 passed /
+  2 failed. Afterward, the broader `trending` filter passes 4/0 in each
+  suite. `cargo test -p snapback4-lang --test guide -- --nocapture`: 24/0.
+- `bash snapback4/scripts/test.sh`: `== 1 failure(s) in 361 s`.
+  Its 61 Rust result groups total 939 passed, 0 failed, 4 ignored; fixtures
+  pass 9/0 and clients 295/1. The sole failure is the sandbox Chromium
+  SIGABRT named in the brief. `node --test packages/snapback4/test/react.test.mjs`
+  alone reproduces it: 0 passed / 1 failed, 306.724458 ms. No claim of a
+  baseline-verified product failure is made; the lead reruns the browser
+  outside the sandbox. All builds and typechecks pass. The wasm build
+  reports 1,746,602 B raw / 486,429 B gzip, a build observation only.
+- `./ref-check --verbose` passes; `git diff --check` is clean. The largest
+  changed code file is 344 lines. No new diagnostic code, meter ceiling,
+  serialized value form or existing corpus case changed. No other lane's
+  implementation file changed; the README and this journal are the requested
+  shared documentation updates. No commit, push, tag or publication was made.

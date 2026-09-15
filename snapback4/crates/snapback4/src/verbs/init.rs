@@ -3,7 +3,7 @@
 use super::Options;
 use crate::project::{GENERATED_PACKAGE, GITIGNORE};
 use serde_json::{Value, json};
-use std::path::Path;
+use std::{io::Write, path::Path};
 
 pub fn init(options: &Options) -> i32 {
     let recipe = options.flags.get("recipe");
@@ -51,31 +51,96 @@ pub fn init(options: &Options) -> i32 {
     if !recipe_only { files.push(("snapback/generated/package.json", GENERATED_PACKAGE.into())); }
     // Check every destination before writing any starter file.
     for (name, _) in &files {
+        if let Err(error) = preflight_parents(&dir.join(name)) { eprintln!("init: {error}"); return 1; }
         let alternate = match *name { "metro.config.cjs" => Some("metro.config.js"), "babel.config.cjs" => Some("babel.config.js"), "metro.config.js" => Some("metro.config.cjs"), "babel.config.js" => Some("babel.config.cjs"), _ => None };
         if let Some(alternate) = alternate.filter(|name| dir.join(name).exists()) {
             eprintln!("{} already exists", dir.join(alternate).display());
             return 1;
         }
-        if *name != "package.json" && dir.join(*name).symlink_metadata().is_ok() {
-            eprintln!("{} already exists", dir.join(*name).display());
-            return 1;
+        if *name != "package.json" {
+            match dir.join(*name).symlink_metadata() {
+                Ok(_) => { eprintln!("{} already exists", dir.join(*name).display()); return 1; }
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+                Err(error) => { eprintln!("init: {}: {error}", dir.join(*name).display()); return 1; }
+            }
         }
     }
-    let write = || -> std::io::Result<()> {
+    if let Err(error) = preflight_parents(&dir.join(".gitignore")) { eprintln!("init: {error}"); return 1; }
+    if recipe.is_some() {
+        if let Err(error) = check_recipe(dir, &files) { eprintln!("init: {error}"); return 1; }
+    }
+    let mut created = Vec::new();
+    let mut write = || -> std::io::Result<()> {
         for (name, text) in &files {
             let path = dir.join(*name);
             std::fs::create_dir_all(path.parent().unwrap())?;
-            if *name == "package.json" { replace_package(&path, text)?; } else { std::fs::write(path, text)?; }
+            if *name == "package.json" {
+                let existed = path.symlink_metadata().is_ok();
+                replace_file(&path, text)?;
+                if !existed { created.push(path); }
+            } else {
+                let mut file = std::fs::OpenOptions::new().write(true).create_new(true).open(&path)?;
+                created.push(path);
+                file.write_all(text.as_bytes())?;
+            }
         }
         let gitignore = dir.join(".gitignore");
         let existing = match std::fs::read_to_string(&gitignore) { Ok(text) => text, Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(), Err(e) => return Err(e) };
         let missing = GITIGNORE.lines().filter(|line| !existing.lines().any(|old| old == *line)).collect::<Vec<_>>().join("\n");
-        if !missing.is_empty() { std::fs::write(gitignore, format!("{existing}{}{missing}\n", if existing.is_empty() || existing.ends_with('\n') { "" } else { "\n" }))?; }
+        if !missing.is_empty() { replace_file(&gitignore, &format!("{existing}{}{missing}\n", if existing.is_empty() || existing.ends_with('\n') { "" } else { "\n" }))?; }
         Ok(())
     };
-    if let Err(error) = write() { eprintln!("init: {error}"); return 2; }
+    if let Err(error) = write() {
+        eprintln!("init: {error}");
+        for path in created.iter().rev() {
+            if let Err(error) = std::fs::remove_file(path) { eprintln!("init: could not remove {}: {error}", path.display()); }
+        }
+        return 2;
+    }
     println!("init: wrote {} files in {} — {}{} — next: `snapback4 check`, then `snapback4 dev`{}", files.len(), dir.display(), if recipe_only { "Following recipe" } else if expo { "Expo: native when available, online in Expo Go" } else if online { "online-only" } else { "local-first" }, if recipe.is_some() && !recipe_only { " + Following recipe" } else { "" }, if expo || online { "; see README.md" } else { "" });
     0
+}
+
+fn preflight_parents(path: &Path) -> Result<(), String> {
+    let ancestors = path.ancestors().skip(1).filter(|p| !p.as_os_str().is_empty()).collect::<Vec<_>>();
+    for parent in ancestors.into_iter().rev() {
+        match std::fs::metadata(parent) {
+            Ok(metadata) if metadata.is_dir() => {},
+            Ok(_) => return Err(format!("{} is not a directory; rename it or choose another init directory", parent.display())),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound && parent.symlink_metadata().is_err() => {},
+            Err(error) => return Err(format!("{}: {error}", parent.display())),
+        }
+    }
+    Ok(())
+}
+
+// @ref LLP 3000.007#20.3 — installing the fixed-name Following module must preserve a compilable application.
+fn check_recipe(dir: &Path, files: &[(&str, String)]) -> Result<(), String> {
+    let project = crate::project::Project { root: dir.to_path_buf() };
+    let mut sources = match project.sources() {
+        Ok(sources) => sources,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Vec::new(),
+        Err(error) => return Err(format!("{}: {error}", project.schema_dir().display())),
+    };
+    sources.extend(files.iter().filter(|(name, _)| name.ends_with(".q")).map(|(name, text)| (Path::new(name).file_name().unwrap().to_string_lossy().into_owned(), text.clone())));
+    let bound = snapback4_lang::compile(&sources);
+    if bound.diagnostics.is_empty() { return Ok(()); }
+    // The compiler locates the second declaration. Add both original sites
+    // here, without changing the language lane's diagnostic contract.
+    let mut declarations = std::collections::BTreeMap::new();
+    let mut collisions = Vec::new();
+    for (file, text) in &sources {
+        let (document, _) = snapback4_lang::parse_document(file, text);
+        for (kind, name, site) in document.tables.into_iter().map(|t| ("table", t.name, t.site))
+            .chain(document.maintains.into_iter().map(|m| ("maintain", m.name, m.site))) {
+            let location = format!("{}:{}:{}", project.schema_dir().join(&site.file).display(), site.line, site.col);
+            if let Some((previous_kind, previous)) = declarations.get(&name) {
+                collisions.push(format!("  {previous_kind} {name} in {previous} collides with {kind} {name} in {location}\n  rename the existing {name} declaration and its references before installing, or copy `snapback4 guide feeds` and rename the recipe's declarations and references together"));
+            } else { declarations.insert(name, (kind, location)); }
+        }
+    }
+    let details = if collisions.is_empty() { bound.diagnostics.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n") } else { collisions.join("\n") };
+    Err(format!("recipe cannot be installed; no files written\n{details}"))
 }
 
 // A new package boundary in an existing directory inherits the nearest
@@ -96,11 +161,11 @@ fn inherited_package_type(dir: &Path) -> Result<Option<Value>, String> {
 }
 
 // @ref LLP 3000.007#20.2 — merge an installed package without losing it on a partial write.
-fn replace_package(path: &Path, text: &str) -> std::io::Result<()> {
+fn replace_file(path: &Path, text: &str) -> std::io::Result<()> {
     use std::{fs::OpenOptions, io::Write, sync::atomic::{AtomicU64, Ordering}};
     static SERIAL: AtomicU64 = AtomicU64::new(0);
     let (temporary, mut file) = loop {
-        let temporary = path.with_file_name(format!(".package.json.{}.{}.tmp", std::process::id(), SERIAL.fetch_add(1, Ordering::Relaxed)));
+        let temporary = path.with_file_name(format!(".{}.{}.{}.tmp", path.file_name().unwrap().to_string_lossy(), std::process::id(), SERIAL.fetch_add(1, Ordering::Relaxed)));
         match OpenOptions::new().write(true).create_new(true).open(&temporary) {
             Ok(file) => break (temporary, file),
             Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
