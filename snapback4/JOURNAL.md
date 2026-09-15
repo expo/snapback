@@ -19895,3 +19895,30 @@ Two complete original-evidence records are appended to storage.jsonl; the
 includes every case and the source/host/correctness/timing limits. The
 private comparison continues separately; these results establish no new
 competitor ranking or moving-main speed claim.
+
+
+## 2026-09-15 — all-sync reader reuse has an unresolved memory and tail cost
+
+A fixed 788c21d6 / 0.2.22 native Linux A/B extends the existing HTTP reader
+pool to successful snapshots and streams. It passes 12,000 timed requests,
+1,200 excluded warmups, the ordinary-auth captures and every complete large
+fixture walk. Both original frozen calculations agree. Empty-stream C8
+p50 improves 4.387 → 1.372 ms and throughput 1,708.739 → 5,733.897
+requests/s, while 64-event initial C8 p50 improves 5.596 → 2.970 ms.
+
+The candidate is not adopted. Large next-snapshot C8 loses every median
+metric, and large-stream C8 p95 rises 101.467 → 123.693 ms with rate
+−2.03%. Process RSS after the repeated workload rises by 90,012 KiB in
+medians, with all three pairs higher; lifetime HWM also rises. Two process
+points cannot isolate pool allocation or establish why memory increased.
+The existing sync performance ticket remains open for that diagnosis.
+
+Baseline/candidate production qualifications pass 152/153 CLI tests and
+nine HTTP-bound tests each. The complete evidence record retains 10 median
+and 34 paired metric losses, all resource points, original calculation
+stdout/exit receipts, and the unexecuted test-field and stage-pin preparation
+corrections. The source, tests and proposed LLP extension remain recoverable
+under the ignored ship run; the tracked runtime and decision were restored.
+No runtime release or new competitor result follows. All ten cases and
+measurement limits are in the
+[benchmark record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md).

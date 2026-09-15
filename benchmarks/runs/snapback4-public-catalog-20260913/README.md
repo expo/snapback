@@ -3679,3 +3679,100 @@ The original source-probe compile failure and collector-pin correction
 remain preserved separately from the successful qualification. Root
 calculator invocation custody is its retained tool result; no separate
 original launch/stdout/stderr packet was captured or reconstructed.
+
+
+### Reuse every successful sync reader: fixed 0.2.22 HTTP A/B — not adopted
+
+The host-only candidate extends the existing bounded query-reader pool to
+sync snapshots and streams, returning a reader after the page and separate
+acknowledgement transaction succeed. Fresh identity checks, transaction
+boundaries, epoch invalidation, response bytes, authentication and ceilings
+remain unchanged. The candidate is **not adopted**: small and empty sync
+gains come with large-concurrent workload losses and higher process memory
+observations. Its source, tests and proposed LLP update remain in the
+ignored run; the tracked runtime and governing decision were restored.
+
+Six serial warm loopback runs compare fixed source `788c21d6` / 0.2.22
+against that source plus two host files on native Ubuntu 24.04 / AMD EPYC
+9454, with Node 24.21.0 / Undici 7.29.1, Rust 1.97.0, the production
+profile and packaged SQLite memory-management flag. Orders are B/C, C/B,
+B/C; the middle pair reverses case order. Both production qualifications
+passed: baseline 152 CLI tests, candidate 153, plus nine HTTP-bound tests
+each. The candidate's first test draft had an incorrect event field; that
+unexecuted draft remains separate from the corrected, passing qualification.
+
+All **12,000 timed requests**, 1,200 excluded warmups, 192 ordinary-auth
+captures, 48 complete owner/reader/outsider and stream walks, and 144
+reconstructed page hashes pass. Each of six runs uses fresh ordinary guests
+and a fresh store. All six clients exit zero and all twelve server/client
+groups are absent after planned cleanup. No restart is exercised. The
+320-request smoke is excluded from performance results.
+
+Medians of three per-run statistics, baseline → candidate; latency is ms
+and rate is requests/s. C1/C8 denotes concurrency. Each snapshot returns
+its named event count; the 4,000-request stream returns 3,584 events at the
+fixture's commit boundaries. The empty stream starts at the current watermark.
+
+| Case | p50 | p95 | p99 | Maximum | Rate |
+|---|---:|---:|---:|---:|---:|
+| snapshot64FirstC1 | 1.600 → 1.052 | 2.706 → 1.394 | 3.018 → 2.050 | 5.128 → 4.667 | 560.495 → 849.891 |
+| snapshot64FirstC8 | 5.596 → 2.970 | 9.716 → 6.974 | 16.379 → 11.240 | 22.464 → 13.105 | 1296.330 → 2178.629 |
+| snapshot4000FirstC1 | 29.449 → 27.341 | 33.258 → 30.988 | 34.308 → 33.290 | 36.124 → 34.879 | 29.161 → 32.131 |
+| snapshot4000FirstC8 | 60.257 → 60.940 | 89.446 → 81.717 | 120.199 → 93.213 | 133.031 → 102.605 | 119.883 → 123.759 |
+| snapshot4000NextC1 | 29.727 → 27.634 | 33.226 → 30.948 | 34.444 → 31.741 | 37.482 → 31.952 | 28.990 → 30.229 |
+| snapshot4000NextC8 | 57.637 → 58.313 | 77.745 → 84.177 | 87.114 → 88.911 | 99.407 → 100.093 | 128.519 → 126.177 |
+| stream4000C1 | 49.878 → 48.216 | 52.996 → 51.374 | 54.848 → 52.496 | 56.823 → 53.434 | 18.217 → 18.635 |
+| stream4000C8 | 59.941 → 58.580 | 101.467 → 123.693 | 155.982 → 147.241 | 170.557 → 151.505 | 117.034 → 114.660 |
+| streamEmptyC1 | 0.772 → 0.523 | 0.911 → 0.679 | 1.434 → 0.848 | 1.808 → 1.121 | 1236.611 → 1821.825 |
+| streamEmptyC8 | 4.387 → 1.372 | 7.773 → 1.667 | 9.267 → 1.823 | 10.946 → 1.886 | 1708.739 → 5733.897 |
+
+Median p50, p95 and throughput improve in 8/10 cases; p99 and maximum in
+9/10. Across the 30 same-trial cases, gains are 24/30 for p50 and p95,
+26/30 for p99, 22/30 for maximum and 25/30 for throughput. There are no
+ties. The complete record retains **10 median and 34 paired metric losses**,
+counting elapsed time and its correlated rate separately.
+
+Empty-stream C8 p50 falls **4.387 → 1.372 ms** and rate rises
+1,708.739 → 5,733.897 requests/s. The large next-snapshot C8 case loses
+all six median metrics: p95 **77.745 → 84.177 ms (+8.27%)**, with rate
+−1.82%. Large-stream C8 p95 rises **101.467 → 123.693 ms (+21.90%)**
+and rate falls 2.03%. Initial large-snapshot C8 p50 also rises 1.13%.
+These losses are mixed across pairs; the medians are descriptive, not
+statistical significance estimates or a uniform-win claim.
+
+Two untimed process measurements per run occur after fixture preparation
+and full walks, then after repeated cases and before the final walks.
+Values below are medians of three process points in KiB:
+
+| Phase | Baseline RSS | Candidate RSS | Baseline lifetime HWM | Candidate lifetime HWM |
+|---|---:|---:|---:|---:|
+| Before cases | 22,020 | 23,324 | 24,780 | 25,896 |
+| After cases | 104,748 | 194,760 | 129,488 | 204,416 |
+
+After-case RSS rises **90,012 KiB (87.90 MiB)** and lifetime HWM rises
+74,928 KiB; both are higher in every pair. PIDs and process start ticks are
+bound before and after each observation. These are process points and
+lifetime high-water marks, not continuous peak sampling or isolated reader
+allocation. They do not identify the source of the additional memory. The
+[existing sync follow-up](../../../issues/20260914-snapback4-sync-concurrent-tail-latency.md)
+now includes this unresolved tradeoff.
+
+Both frozen calculators pass their first original formal invocations, with
+actual child launch, stdout, stderr and exit receipts. Their original
+reconciliation agrees on 360 raw values, 120 medians, 180 paired contrasts
+and all 12 memory points. Full originals, every loss, qualifications and
+evidence hashes are retained in the `sync-reader-reuse-0222-v1-perf-formal`
+storage record. A stale formal-wrapper stage pin was corrected before its
+first execution; the original wrapper remains. Formal launch followed the
+successful frozen executable smoke audit and preceded the final manual
+smoke-admission narrative; that chronology is retained.
+
+Latency ends after HTTP/text/JSON parsing; full-response hashing follows
+the timer but remains inside case elapsed/rate and can delay overlapping
+callbacks. Walks prepare inputs, and sequential warmups do not establish
+eight warm connections. The producer checks every full response; public
+exports retain exact reconstructed reference hashes rather than all large
+wire bodies. These results establish no cold-cache, hosted/WAN, concurrent
+query-load, device/realtime, comparator, publication or power-loss durability
+claim. Follow-up work must distinguish connection-retained state from
+allocator retention and overlapping response work before attributing RSS.

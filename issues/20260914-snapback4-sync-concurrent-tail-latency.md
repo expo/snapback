@@ -39,3 +39,28 @@ the response ceiling unchanged; no result or authority cache.
 Close after a reviewed follow-up produces repeated, complete comparable
 results resolving these tails, or records an explicit measured disposition
 with the remaining limitation. Do not count lower medians alone as closure.
+
+
+## 2026-09-15 — all-sync reader reuse remains experimental
+
+The fixed 788c21d6 / 0.2.22 candidate improves small/empty sync, but does
+not close this ticket. Large next-snapshot C8 p95 rises 77.745 → 84.177 ms
+(+8.27%) and throughput falls 1.82%; large-stream C8 p95 rises
+101.467 → 123.693 ms (+21.90%) and throughput falls 2.03%. Every median
+metric for the large next-snapshot C8 case worsens. Across all ten cases,
+10 median and 34 same-trial metric losses remain, with elapsed/rate counted
+separately. The six-run experiment passes all 12,000 timed requests and
+1,200 warmups, full authorized walks and original cleanup checks.
+
+Process RSS after cases has medians 104,748 → 194,760 KiB (+90,012 KiB),
+and lifetime HWM 129,488 → 204,416 KiB. Both increase in every pair. These
+are two untimed observations per process, not isolated cache allocation or
+a continuous peak measurement. The candidate was restored without landing.
+
+Next: measure retained SQLite connection state separately from process
+allocator retention and overlapping owned response buffers. Keep the
+complete ten-case workload, all regressions, fresh authorization/transactions,
+watermark-bound acknowledgements and native-epoch invalidation. The full
+record is storage workload `sync-reader-reuse-0222-v1-perf-formal`; exact
+source and original evidence live in the existing benchmark record and
+`.llp/ship-runs/sb4-performance-20260913/`.
