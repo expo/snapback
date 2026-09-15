@@ -360,7 +360,7 @@ query thread(roomId: rooms, c: cursor ?):                            -- `cursor 
 query inbox(c: cursor ?):
   return members[viewer] after c first 50 by byPrincipalRoom { roomId, room: rooms[.roomId], unread: messageCounts[.roomId] }
 
-query following(c: cursor ?):        -- private inbox plus capped pulled authors; see `snapback4 guide feeds`
+query following(c: cursor ?):        -- private inbox plus capped pulled authors; removal and null slots need the full recipe on `snapback4 guide feeds`
   page = merge feed after c last 20 by byReaderTime:
     [viewer]
     broadcast[p.authorId] for p in pulls[viewer] first 32 by byReaderAuthor

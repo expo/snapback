@@ -15647,3 +15647,241 @@ comparison was requested, and no diagnostic text changed.
 Summing the final script's **60** Rust target summary lines gives **876
 passed, 0 failed, 4 ignored**. Fixture wrapper tests report **9 passed,
 0 failed**. These aggregates retain ignored cases separately from passes.
+
+## 2026-09-14 — W3R2: source-owned removal markers and source-located prediction notes
+
+Base: `f675e01d7b53d15144aef528e650c38b8a7ba6b1` (wave-3 integration HEAD, on lane branch `sb4/w3r2`). No commit, push, tag or publication. Read the Grok review at
+`/Users/ccheever/projects/snapback-w3-review/grok.md`, W3b2 and W3R1f above,
+the Snapback 4 fence and exclusions, `rules/RULES.md`, LLP 3000 §6–§7,
+and LLP 3000.007 §5.6, §14, §18, §20.3 and §20.4 with `llp-orient`.
+
+**Built.** The feeds card and README require a tombstone's actor to be the
+viewer, its ID to equal its event ID, and the existing source event to be
+owned by that viewer. The source check uses the total unique `posts.byId`
+key plus its actor equality. The tombstone's `eventId` is an opaque `id`:
+Quarry refuses equality between nominal references to two different tables,
+so the rule proves the cross-table identity and existence explicitly. No
+value serialization or engine authority changes. `removeEvent` remains the
+only published tombstone insert, called by `deletePost` and `unrepost`,
+before deleting the source in the same transaction. Private inbox rules,
+source residency, purge bounds and null-slot pagination keep their contract.
+
+The language Following example points to the full feeds recipe for removal
+and null slots. Grouped `N_NOT_PREDICTABLE` lists retain distinct roots and
+rewrites and show source `file:line:col`, including inserts and deletes in
+expanded helpers. Read IR paths were already translated on this base; the
+remaining synthetic write labels and helper-delete header fallback reproduced.
+The binder records write source occurrences in its existing side map and
+records the helper delete's point source. Lowered IR and execution decisions
+are unchanged. No new diagnostic or note code was added.
+
+LLP 3000.007 §20.4 now states the shipped writes-card contract: durable
+oldest-head retry, the ordered pre-admission best-effort prefix, the shared
+65,536-byte / 32-write caps, the one-second retry wait, and the writes that
+can still be lost before admission. The Chromium after-results were already
+journaled by the lead; this lane did not rerun them. The forbidden client
+files `local.ts`, `local-exit.ts` and `web.ts` were not changed.
+
+**Regression worlds and numbers.** On the exact base above, a forged marker
+was accepted and changed the victim's Following on all three hosts: server,
+memory device and SQLite device. With the rule fixed, the marker is refused
+`E_RULE`, the victim's page is identical, no private row changes, and a
+purge has zero rows to delete. There are five server attack variants in two
+worlds each: the copied implicit-ID insert, an explicit matching foreign ID,
+a forged actor, the real actor with the wrong marker ID, and a missing source.
+Their complete observation compares first/retry bodies, receipt, all seven
+meters, committed delta, effects, attacker snapshot/stream and admission,
+reopen and settlement on both stores. Each pair differs only in a private
+copy's event identity, which the victim can read and the attacker cannot.
+
+Two separately named device tests each run both worlds. They hold a victim
+device through the attack, its stream and a no-op purge, and hold an attacker
+device through admission, reopen and failed settlement. Prediction changes
+from true on the base to false: the source ownership probe is online-only,
+so admission queues without a tombstone. Every world includes the positive
+control: the real owner can still remove the event, hide the target copy,
+and have the system purge it without deleting the other world's different
+event. Existing ordinary/repost/promotion/envelope and cut tests pass.
+
+The changed-note fixture remains **3 notes / 7 distinct root causes**;
+synthetic insert/delete/upsert site labels fall from **7 to 0**, and the two
+helper-delete header fallbacks become the helper's actual line. The existing
+full-envelope regression still tests **1,000 people / 50,000 events**; the
+1,001-copy purge body measures **1,003 examined / 6,009 index entries /
+0 rule probes / 6,016 steps / 988,196 heap bytes / 6 output bytes /
+1,002 rows written**. No meter ceiling was raised.
+
+**What the implementation taught.** A typed reference checks shape, not
+source existence or ownership. The table rule must enforce ownership even
+when the paved helper already checks it. The first attempted equality used
+`eventId: posts` and was correctly refused as cross-table nominal equality;
+the final opaque-ID form compiles cleanly. The first device test reused one
+store for two independent engines and correctly hit the backwards-watermark
+guard after the first world passed; each world now has its own store. These
+were implementation/test-setup failures, not baseline defects.
+
+### Commands and exact summaries
+
+Cargo commands run from `snapback4/`; the script and ref-check run from the
+repository root. Every Node/Bun command uses:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+`cargo test -p snapback4-sim --test clique following_removal_foreign_tombstone -- --nocapture` — red before, green after:
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 47 filtered out; finished in 0.06s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 47 filtered out; finished in 0.67s
+```
+
+`cargo test -p snapback4-device --test device following_removal_foreign_tombstone -- --nocapture` — red before, green after:
+
+```text
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 120 filtered out; finished in 0.08s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 120 filtered out; finished in 0.11s
+```
+
+`cargo test -p snapback4-lang --test residency_notes never_predict_change_notes -- --nocapture` — red before, green after:
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.01s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.01s
+```
+
+`cargo test -p snapback4-sim --test clique following_remov -- --nocapture`:
+
+```text
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 41 filtered out; finished in 32.75s
+```
+
+`cargo test -p snapback4-device --test device following_removal -- --nocapture`:
+
+```text
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 116 filtered out; finished in 17.47s
+```
+
+`cargo test -p snapback4-lang --test residency_notes --test presence`:
+
+```text
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.47s
+```
+
+`cargo test -p snapback4-lang --test guide`:
+
+```text
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+```
+
+### Exact grouped diagnostics before and after
+
+**Before:**
+
+```text
+schema.q:61:1 — N_NOT_PREDICTABLE: createPost is no longer eligible to predict; queued without a row: online-only maintain likeCounts (sites: schema.q:59:61 (likeCounts[p.id] by byGroup)); online-only table insightFacts (sites: insert insightFacts); online-only table rankedPosts (sites: schema.q:59:5, upsert rankedPosts)
+  rewrite: remove `online only` from maintain likeCounts to inherit its source's sync, or read a compact synced projection; sync insightFacts to its read-rule audience, or read a compact synced projection; sync rankedPosts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:65:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: online-only maintain likeCounts (sites: schema.q:59:61 (likeCounts[p.id] by byGroup)); online-only table insightFacts (sites: delete insightFacts, insert insightFacts, schema.q:39:13 (insightFacts[sourceId, kind]), schema.q:65:1 (insightFacts by bySourceKind)); online-only table rankedPosts (sites: schema.q:59:5, upsert rankedPosts)
+  rewrite: remove `online only` from maintain likeCounts to inherit its source's sync, or read a compact synced projection; sync insightFacts to its read-rule audience, or read a compact synced projection; sync rankedPosts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:76:1 — N_NOT_PREDICTABLE: repost is no longer eligible to predict; queued without a row: online-only table insightFacts (sites: delete insightFacts, insert insightFacts, schema.q:39:13 (insightFacts[sourceId, kind]), schema.q:76:1 (insightFacts by bySourceKind))
+  rewrite: sync insightFacts to its read-rule audience, or read a compact synced projection
+  guide: residency
+```
+
+**After:**
+
+```text
+schema.q:61:1 — N_NOT_PREDICTABLE: createPost is no longer eligible to predict; queued without a row: online-only maintain likeCounts (sites: schema.q:59:61); online-only table insightFacts (sites: schema.q:36:3); online-only table rankedPosts (sites: schema.q:59:5)
+  rewrite: remove `online only` from maintain likeCounts to inherit its source's sync, or read a compact synced projection; sync insightFacts to its read-rule audience, or read a compact synced projection; sync rankedPosts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:65:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: online-only maintain likeCounts (sites: schema.q:59:61); online-only table insightFacts (sites: schema.q:36:3, schema.q:39:13, schema.q:40:5); online-only table rankedPosts (sites: schema.q:59:5)
+  rewrite: remove `online only` from maintain likeCounts to inherit its source's sync, or read a compact synced projection; sync insightFacts to its read-rule audience, or read a compact synced projection; sync rankedPosts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:76:1 — N_NOT_PREDICTABLE: repost is no longer eligible to predict; queued without a row: online-only table insightFacts (sites: schema.q:36:3, schema.q:39:13, schema.q:40:5)
+  rewrite: sync insightFacts to its read-rule audience, or read a compact synced projection
+  guide: residency
+```
+
+### Blocking suite and scope
+
+`bash snapback4/scripts/test.sh`, with the Node 24 PATH above, ran every
+step. Its 60 Rust target summaries total **883 passed, 0 failed, 4 ignored**.
+The fixture wrapper has **9 passed, 0 failed**. Client tests have **261
+passed, 1 failed**: Chromium aborts with SIGABRT while launching for
+`packages/snapback4/test/react.test.mjs`. This is the sandbox artifact named
+in the brief; the full suite remains red. No lifecycle timeout or other
+client failure occurred, so a lower-concurrency rerun was unnecessary.
+The exact step and count summaries are:
+
+```text
+-- ok: cargo build (10 s)
+-- ok: wasm build (13 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (268 s)
+-- ok: chat app typecheck (0 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+-- ok: fixture wrapper tests (7 s)
+ℹ tests 262
+ℹ pass 261
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+-- FAIL: client tests (44 s)
+== 1 failure(s) in 294 s
+   client tests
+```
+
+The isolated rerun from `snapback4/`, with the same PATH, was
+`node --test packages/snapback4/test/react.test.mjs`. It again aborted during
+Chromium launch with SIGABRT, before a browser assertion:
+
+```text
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 285.288292
+```
+
+The lead must run the Chromium check outside this sandbox. No failure is
+classified as pre-existing from an unverified base; the launch abort is
+reported as the explicitly named environment artifact. The authority and
+note regressions above were red against the exact base hash before their
+fixes. Logs are `/tmp/w3r2-suite.log`, `/tmp/w3r2-react.log` and the
+`/tmp/w3r2-{server,device,notes}-{red,green}.log` files; affected-suite logs
+are `/tmp/w3r2-{server,device,lang}-affected.log` and `/tmp/w3r2-guide.log`.
+
+The only additional production file beyond the brief's named targets is
+`crates/snapback4-lang/src/bind/program.rs` (7 added lines, 1 removed):
+it records source locations needed by `bind/residency.rs`. All tests are
+beside existing suites. There are **7 changed code files**, maximum
+**1,371 lines**, **0** over the cap. All requested implementation is done;
+item 2's real Chromium after-results were already the lead's completed work.
+No other lane's files, meter ceilings or existing corpus cases changed.
+No earlier journal entry was edited.
+
+Final repository-root `./ref-check --verbose`, with the same Node PATH:
+
+```text
+ref-check: ok — 480 LLP docs, 8929 refs in 23702 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passes. HEAD remains the base hash above, and a byte-prefix
+comparison confirms every prior journal entry is unchanged.

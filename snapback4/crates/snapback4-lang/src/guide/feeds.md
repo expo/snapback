@@ -71,7 +71,7 @@ table posts:                       -- originals and attributed reposts, one sour
   online only
 
 table removedEvents:               -- compact tombstones for deleted public source events
-  eventId: posts
+  eventId: id                       -- shared identity across source and tombstone tables; checked by the insert rule
   actorId: principal
   unique byEvent: eventId
   by byActor: actorId, id
@@ -79,7 +79,7 @@ table removedEvents:               -- compact tombstones for deleted public sour
   cap 1000 by actorId
   cap 32000
   public 'removal of a public source event is public; id is the eventId'
-  insert <- .actorId = viewer
+  insert <- .actorId = viewer and .id = .eventId and exists posts[id = .eventId, actorId = viewer]
   sync public
 
 table feed:                        -- private inbox, with rendered columns
@@ -242,6 +242,10 @@ insert nothing twice.
 
 `deletePost` and `unrepost` delete the author's own public source event and
 broadcast entry, leaving a compact public tombstone with the same event ID.
+The tombstone's insert rule requires its ID to equal the event ID and the
+writer to own the existing source. Keep `removeEvent`, called by these two mutations,
+as the only tombstone insert: it writes the marker before deleting the source
+in the same transaction. A guessed foreign event ID cannot hide or purge it.
 The immutable inbox `eventId` joins that tombstone on every Following read:
 removal is visible immediately on the server and on a device once it applies
 that commit, before private copies are purged. An offline device sees its

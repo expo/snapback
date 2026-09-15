@@ -108,3 +108,23 @@ pub fn check_cut_page(host: &str, mut query: impl FnMut(snapback4_core::Ceilings
     assert_eq!(cut.data, Value::Null, "withhold the result depending on a cut lookup");
     assert!(cut.next.is_none(), "do not continue past unchecked tombstones");
 }
+
+// An application's additional insert path must obey the recipe's table rule.
+pub fn authority_source() -> String {
+    format!("{}\nmutation forgeRemoval(eventId: posts, markerId: id, actorId: principal):\n  insert removedEvents {{ id: markerId, eventId, actorId }}\nmutation forgeImplicit(eventId: posts):\n  insert removedEvents {{ eventId, actorId: viewer }}\n", super::world::source())
+}
+
+pub const PRIVATE: &str = "dev:private";
+pub const INTRUDER: &str = "dev:intruder";
+
+pub fn seed_authority(engine: &mut Engine, hidden: bool) {
+    seed(engine, 5);
+    // Identical attacker-visible state. The victim can read its own copy;
+    // only the unreadable copy's event identity differs between worlds.
+    engine.seed([("feed".into(), object([
+        ("id", id("private-copy")), ("readerId", id(PRIVATE)),
+        ("eventId", id(if hidden { "new-post" } else { "old-pushed" })),
+        ("actorId", id(AUTHOR)), ("authorId", id(AUTHOR)), ("postId", id("new-post")),
+        ("repost", Value::Bool(false)), ("body", Value::String("private body".into())), ("at", Value::Int(2)),
+    ]))]).unwrap();
+}

@@ -155,3 +155,44 @@ fn following_removal_measures_the_purge_body_under_unchanged_default_meters() {
         assert!(e.store().rows("removedEvents").unwrap().is_empty());
     }
 }
+
+// @ref LLP 3000.007#20.3 — removal authority belongs to the source actor, without widening private inbox rules.
+#[test]
+fn following_removal_foreign_tombstone_preserves_private_worlds() {
+    use serde_json::json;
+    for (op, viewer, input) in [
+        ("forgeImplicit", case::INTRUDER, json!({"eventId":"new-post"})),
+        ("forgeRemoval", case::INTRUDER, json!({"eventId":"new-post", "markerId":"new-post", "actorId":case::INTRUDER})),
+        ("forgeRemoval", case::INTRUDER, json!({"eventId":"new-post", "markerId":"new-post", "actorId":case::AUTHOR})),
+        ("forgeRemoval", case::AUTHOR, json!({"eventId":"new-post", "markerId":"wrong-id", "actorId":case::AUTHOR})),
+        ("forgeRemoval", case::AUTHOR, json!({"eventId":"missing", "markerId":"missing", "actorId":case::AUTHOR})),
+    ] {
+        let mut paired = Vec::new();
+        for hidden in [true, false] {
+            let bound = world::compiled(&case::authority_source());
+            let mut e = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+            case::seed_authority(&mut e, hidden);
+            let before = case::page(&mut e, case::PRIVATE);
+            let (_, observed) = observation::observe(&mut e, op, viewer, input.clone(), "forge", ("following", json!({"c":null})));
+            let after = case::page(&mut e, case::PRIVATE);
+            println!("REMOVAL_AUTHORITY server op={op} viewer={viewer} hidden={hidden} state={} victim_unchanged={}", observed.body()["state"], before.data == after.data);
+            assert_eq!(observed.body()["state"], "failed");
+            assert_eq!(observed.body()["why"]["code"], "E_RULE");
+            observed.assert_unchanged();
+            assert_eq!(serde_json::to_value(&before).unwrap(), serde_json::to_value(&after).unwrap());
+            let inbox = e.store().rows("feed").unwrap();
+            assert_eq!(e.run_job("purgeRemoved", BTreeMap::new(), 1001).unwrap().rows_written, 0);
+            assert_eq!(e.store().rows("feed").unwrap(), inbox);
+            // The failed foreign claim cannot occupy byEvent or block its owner.
+            world::mutate(&mut e, "deletePost", case::AUTHOR, &[("postId", world::id("new-post"))], 1002);
+            assert_eq!(e.store().rows("removedEvents").unwrap().len(), 1);
+            let removed = case::page(&mut e, case::PRIVATE);
+            assert_eq!(removed.data.as_array().unwrap()[0] == Value::Null, hidden);
+            assert_eq!(e.store().rows("feed").unwrap(), inbox, "only the system cleans private copies");
+            e.run_job("purgeRemoved", BTreeMap::new(), 1003).unwrap();
+            assert_eq!(case::event_rows(&e, "new-post"), 0);
+            paired.push(observed);
+        }
+        paired[0].assert_same(&paired[1]);
+    }
+}

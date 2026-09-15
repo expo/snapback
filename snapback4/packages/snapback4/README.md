@@ -946,6 +946,10 @@ future events switch to broadcast; older events retain their delivery mode.
 tombstones immediately after the removal commit is applied, then a scheduled
 system job purges private copies in bounded chunks; the feeds card explains
 short-page completeness, rendering only non-null slots, and fresh re-reposts.
+The tombstone insert rule requires its ID to equal the event ID and its actor
+to own the existing source. Keep `removeEvent`, called by these two mutations,
+as the only insert; it writes the marker before deleting the source in the
+same transaction. A guessed foreign event ID cannot hide or purge it.
 Render `(page.data ?? []).filter(row => row !== null)`. If a tombstone lookup
 is cut, it is unknown, never false: the query returns `data: null`,
 `complete: false` and no `next`, withholding every event and body in that
@@ -1013,7 +1017,7 @@ table posts:                       -- originals and attributed reposts, one sour
   online only
 
 table removedEvents:               -- compact tombstones for deleted public source events
-  eventId: posts
+  eventId: id                       -- shared identity across source and tombstone tables; checked by the insert rule
   actorId: principal
   unique byEvent: eventId
   by byActor: actorId, id
@@ -1021,7 +1025,7 @@ table removedEvents:               -- compact tombstones for deleted public sour
   cap 1000 by actorId
   cap 32000
   public 'removal of a public source event is public; id is the eventId'
-  insert <- .actorId = viewer
+  insert <- .actorId = viewer and .id = .eventId and exists posts[id = .eventId, actorId = viewer]
   sync public
 
 table feed:                        -- private inbox, with rendered columns

@@ -257,13 +257,13 @@ pub fn change_notes(bound: &Bound, previous: &BTreeMap<String, Execution>) -> Ve
             for site in risks { notes.push(Diagnostic::new(&program.site, "N_NOW_SERVER", format!("{name} now runs on the server: {} (site {})", site.reason, site.site), &site.rewrite).guide("residency")); }
         } else if !risks.is_empty() {
             // @ref LLP 3000.007#20 — one changed-mutation note names distinct causes; repeated reads and the upsert's two arms share a cause.
-            let mut causes: BTreeMap<String, BTreeSet<&str>> = BTreeMap::new();
+            let mut causes: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
             let mut rewrites = BTreeSet::new();
             for site in risks {
                 let cause = if site.class == SiteClass::Server && !matches!(site.kind.as_str(), "presence" | "dispatch" | "native") && bound.schema.tables.get(&site.table).is_some_and(|table| table.sync.is_none()) {
                     format!("online-only {} {}", if bound.schema.maintain_for(&site.table).is_some() { "maintain" } else { "table" }, site.table)
                 } else { site.reason.clone() };
-                causes.entry(cause).or_default().insert(&site.site);
+                causes.entry(cause).or_default().extend(note_sites(program, site));
                 if !site.rewrite.is_empty() { rewrites.insert(site.rewrite.as_str()); }
             }
             let reasons = causes.into_iter().map(|(cause, sites)| format!("{cause} (sites: {})", sites.into_iter().collect::<Vec<_>>().join(", "))).collect::<Vec<_>>().join("; ");
@@ -272,6 +272,15 @@ pub fn change_notes(bound: &Bound, previous: &BTreeMap<String, Execution>) -> Ve
         }
     }
     notes
+}
+
+fn note_sites(program: &super::BoundProgram, site: &ResidencySite) -> BTreeSet<String> {
+    let write = site.site.strip_suffix(" insert rule").or_else(|| site.site.strip_suffix(" rule")).unwrap_or(&site.site);
+    let locations: BTreeSet<_> = program.sources.iter().filter(|(key, (_, name))| key.starts_with("write/") && name == write).map(|(_, (location, _))| location.to_string()).collect();
+    if !locations.is_empty() { return locations; }
+    // Read facts already carry their source and spelling. A grouped site list
+    // needs just the location; its root cause names the table or maintain.
+    [site.site.split_once(" (").map_or(site.site.clone(), |(location, _)| location.to_owned())].into()
 }
 
 pub fn table_line(schema: &Schema, name: &str) -> String {
