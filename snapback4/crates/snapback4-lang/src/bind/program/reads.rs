@@ -65,6 +65,23 @@ impl<'a> Binder<'a> {
 }
 
 impl Binder<'_> {
+    // @ref LLP 3000.007#18.5 — a declared page shape after a scalar predicate needs no wrapper or correction loop.
+    pub(super) fn page_shape(&self, read: &ReadExpr) -> Option<A> {
+        let predicate = read.filter.as_ref()?;
+        let (base, name, site) = trailing_shape(predicate)?;
+        self.catalog.shapes.get(name)?;
+        // Type the operand in isolation: no speculative setup, notes or source sites
+        // escape. A valid row/object shape inside the predicate keeps its meaning.
+        let mut probe = self.clone();
+        probe.focal = Some(("$filter".into(), Ty::Row(read.table.clone())));
+        probe.kind = ProgramKind::Query;
+        let (_, ty) = probe.expr(base, &mut setup::Body::default()).ok()?;
+        if matches!(ty.required(), Ty::Row(_) | Ty::Object(_) | Ty::RowShape(_) | Ty::Page(_, _) | Ty::Collection(_, _) | Ty::List(_, _)) { return None; }
+        let mut page = read.clone();
+        remove_trailing_shape(page.filter.as_mut()?);
+        Some(A::ShapeUse { base: Box::new(A::Read(page)), name: name.into(), site: site.clone() })
+    }
+
     pub(super) fn scan_filter(&mut self, read: &ReadExpr, index: &ast::IndexDecl) -> Fallible<(ReadExpr, Option<Box<Expr>>)> {
         let mut read = read.clone();
         let Some(predicate) = read.filter.take() else { return Ok((read, None)); };
@@ -97,17 +114,7 @@ impl Binder<'_> {
         self.pop_scope();
         self.kind = kind;
         self.focal = prior;
-        let (value, ty) = bound.map_err(|error| {
-            if error.message.starts_with("a shape applies to a row, an object or a page; got ") {
-                if let Some((name, site)) = trailing_shape(&predicate) {
-                    if *site == error.site {
-                        let got = error.message.rsplit_once("; got ").unwrap().1;
-                        return type_error(site, format!("shape {name} after where attaches to {got} inside the predicate; apply it to the page with {{ ...{name} }}"), format!("{{ ...{name} }}")).guide("shapes").mechanical();
-                    }
-                }
-            }
-            error
-        })?;
+        let (value, ty) = bound?;
         if !ty.is_bool() { return Err(type_error(predicate.site(), format!("where needs a bool predicate, got {}", ty.name()), "where .col = value")); }
         // @ref LLP 3000.007#5.6 — predicate setup, including lazy reads, runs afresh for each rule-visible row.
         let value = if body.is_empty() { value } else { Expr::Block { body: body.code, value: Box::new(value) } };
@@ -138,13 +145,22 @@ fn has_focal(expr: &A) -> bool {
 }
 
 /// Only the rightmost postfix can be the builder's attempted page shape.
-fn trailing_shape(expr: &A) -> Option<(&str, &Site)> {
+fn trailing_shape(expr: &A) -> Option<(&A, &str, &Site)> {
     match expr {
-        A::ShapeUse { name, site, .. } => Some((name, site)),
-        // @ref LLP 3000.007#18.5 — unary predicates need the same mechanical page-shape repair.
+        A::ShapeUse { base, name, site } => Some((base, name, site)),
         A::Unary { value, .. } => trailing_shape(value),
         A::Binary { right, .. } => trailing_shape(right),
         A::If { otherwise, .. } => trailing_shape(otherwise),
         _ => None,
+    }
+}
+
+fn remove_trailing_shape(expr: &mut A) {
+    match expr {
+        A::ShapeUse { base, .. } => *expr = *base.clone(),
+        A::Unary { value, .. } => remove_trailing_shape(value),
+        A::Binary { right, .. } => remove_trailing_shape(right),
+        A::If { otherwise, .. } => remove_trailing_shape(otherwise),
+        _ => unreachable!("a trailing shape was found"),
     }
 }

@@ -33,8 +33,6 @@ fn conditional_guesses_use_the_exact_expression_span() {
     assert_eq!(repair("  return flag ? 'yes' : 'no', tail\n", 1, 15, "'yes' if flag else 'no'"), "  return ('yes' if flag else 'no'), tail\n");
     assert_eq!(repair("  return flag ? 'if' : 'else'\n", 1, 15, "'if' if flag else 'else'"), "  return ('if' if flag else 'else')\n");
     assert_eq!(repair("  return flag ? '(' : ')'\n", 1, 15, "'(' if flag else ')'"), "  return ('(' if flag else ')')\n");
-    assert_eq!(repair("  return row?.title -- keep\n", 1, 13, "row.title if row != null else null"), "  return (row.title if row != null else null) -- keep\n");
-    assert_eq!(repair("  return row?.title -- keep\n", 1, 10, "(row.title if row != null else null)"), "  return ((row.title if row != null else null)) -- keep\n");
 }
 
 #[test]
@@ -294,34 +292,36 @@ fn concurrent_fix_subprocess() {
 }
 
 #[test]
-fn filtered_page_shape_fix_keeps_comments_strings_and_other_shapes() {
+fn filtered_page_shapes_compile_without_cli_edits() {
     let prefix = "table posts:\n  parentId: posts ?\n  body: text <=100\n  tombstone: bool default false\n  public 'posts'\nshape postCard = { id, body }\n";
-    for (suffix, expected) in [
-        ("where .parentId = null postCard -- café postCard", "where .parentId = null { ...postCard } -- café postCard"),
-        ("where not .tombstone postCard -- keep", "where not .tombstone { ...postCard } -- keep"),
-        ("where (not .tombstone postCard)", "where (not .tombstone ) { ...postCard }"),
-        ("where not (.tombstone postCard)", "where not (.tombstone ) { ...postCard }"),
-        ("where .body = 'postCard' postCard", "where .body = 'postCard' { ...postCard }"),
-        ("where .parentId = null postCard\n", "where .parentId = null { ...postCard }\n"),
-        ("where (.parentId = null postCard)", "where (.parentId = null ) { ...postCard }"),
-        ("where (.parentId = (null postCard))", "where (.parentId = (null )) { ...postCard }"),
-    ] {
+    for suffix in ["where .parentId = null postCard -- café postCard", "where not .tombstone postCard -- keep", "where (not .tombstone postCard)", "where not (.tombstone postCard)", "where .body = 'postCard' postCard", "where (.parentId = (null postCard))"] {
         let source = format!("{prefix}query q(c: cursor ?):\n  return posts after c first 20 by byId {suffix}\n");
-        let expected = source.replace(suffix, expected);
-        let output = check_fix(&[("schema.q", &source, &expected)], true);
-        assert!(String::from_utf8(output.stderr).unwrap().contains("{ ...postCard }"));
+        check_fix(&[("schema.q", &source, &source)], true);
     }
 }
 
 #[test]
-fn calibration_bool_shape_is_fixed_by_cli() {
+fn calibration_bool_shape_compiles_without_cli_edits() {
     let prefix = "table messages:\n  conversationId: id\n  body: text <=2000\n  tombstone: bool default false\n  ordinal: int\n  by byConversationWords: conversationId, words(body), ordinal, id\n  public 'messages'\nshape messageCard = { id, body }\n";
     let source = format!("{prefix}{}query searchChat(conversationId: id, q: text <=100, c: cursor ?):\n  return messages[conversationId] matching q after c last 20 by byConversationWords where not .tombstone messageCard\n", "\n".repeat(257 - prefix.lines().count() - 1));
-    let bad = snapback4_lang::compile(&[("chat.q".into(), source.clone())]);
-    println!("{}", bad.diagnostics[0]);
-    assert!(bad.diagnostics[0].message.starts_with("shape messageCard after where attaches to bool"));
-    assert!(bad.diagnostics[0].mechanical);
-    check_fix(&[("chat.q", &source, &source.replace("where not .tombstone messageCard", "where not .tombstone { ...messageCard }"))], true);
+    check_fix(&[("chat.q", &source, &source)], true);
+}
+
+#[test]
+fn optional_chain_cli_repair_preserves_comments_and_a_second_check_is_clean() {
+    let source = "table posts:\n  body: text <=100\n  public 'posts'\nfn lookup(id: posts): posts[id]\nquery title(id: posts):\n  row = posts[id]\n  return { title: row?.body, literal: 'row?.body', direct: (posts[id])?.body, helper: lookup(id)?.body, parens: ((row))?.body } -- café row?.body\n";
+    let expected = source.replace("title: row?.body", "title: row.body").replace(")?.body", ").body");
+    check_fix(&[("schema.q", source, &expected)], true);
+}
+
+#[test]
+fn unresolved_positional_index_cli_repair_compiles_clean() {
+    let source = "table follows:\n  follower: principal\n  followed: principal\n  unique byPair: follower, followed\n  unique byFollowed: followed, follower\n  public 'follows'\nquery followed():\n  return exists follows[viewer, 'bob'] -- keep\n";
+    let expected = source.replace("follows[viewer, 'bob']", "follows[viewer, 'bob'] by byPair");
+    check_fix(&[("schema.q", source, &expected)], true);
+    let page = source.replace("query followed():\n  return exists follows[viewer, 'bob'] -- keep", "query followed(c: cursor ?):\n  return follows[(viewer)] first 2 where .follower = viewer after c -- keep");
+    let expected = page.replace("after c -- keep", "after c by byPair -- keep");
+    check_fix(&[("schema.q", &page, &expected)], true);
 }
 
 #[test]

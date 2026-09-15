@@ -61,6 +61,14 @@ pub(super) fn edit(sources: &[(String, String)], index: usize, diagnostic: &Diag
     if !diagnostic.mechanical { return None; }
     let (_, source) = &sources[index];
     let start = offset(source, diagnostic.site.line, diagnostic.site.col)?;
+    // @ref LLP 3000.007#5.5 — remove only the optional marker; the existing field access preserves null and single evaluation.
+    if diagnostic.code == "E_QUARRY_UNSUPPORTED" && diagnostic.rewrite == "." {
+        let actual = tokens(source);
+        let at = actual.iter().position(|t| offset(source, t.site.line, t.site.col) == Some(start))?;
+        let pair = actual.get(at..at + 2)?;
+        if pair[0].kind != Kind::Symbol || pair[0].value != "?" || pair[1].kind != Kind::Symbol || pair[1].value != "." { return None; }
+        return Some((index, start, start + 1, String::new()));
+    }
     // @ref LLP 3000.007#19.3 — replace only the exact two adjacent equality symbols, rechecked outside strings and comments.
     if diagnostic.code == "E_QUARRY_SYNTAX" && diagnostic.message == "equality is = in Quarry" && diagnostic.rewrite == "=" {
         let actual = tokens(source);
@@ -72,36 +80,12 @@ pub(super) fn edit(sources: &[(String, String)], index: usize, diagnostic: &Diag
             || source[..start].ends_with('=') { return None; }
         return Some((index, start, start + 2, "=".into()));
     }
-    if diagnostic.code == "E_QUARRY_TYPE" && diagnostic.message.starts_with("shape ") && diagnostic.message.contains(" after where attaches to ") {
-        let name = diagnostic.rewrite.strip_prefix("{ ...")?.strip_suffix(" }")?;
-        let actual = tokens(source);
-        let at = actual.iter().position(|t| offset(source, t.site.line, t.site.col) == Some(start))?;
-        if actual[at].kind != Kind::Word || actual[at].value != name { return None; }
-        let mut depth = 0usize;
-        let mut wheres = Vec::new();
-        for token in &actual[..at] {
-            match (token.kind, token.value.as_str()) {
-                (Kind::Symbol, "(" | "[" | "{") => depth += 1,
-                (Kind::Symbol, ")" | "]" | "}") => { depth = depth.checked_sub(1)?; wheres.retain(|d| *d <= depth); }
-                (Kind::Word, "where") => wheres.push(depth),
-                _ => {}
-            }
-        }
-        // A parenthesized predicate closes before the page shape. Parentheses
-        // surrounding the whole read (e.g. count(page)) close after the shape.
-        let closing = depth.checked_sub(*wheres.last()?)?;
-        if actual.get(at + 1..at + 1 + closing)?.iter().any(|t| t.kind != Kind::Symbol || t.value != ")") { return None; }
-        if closing == 0 { return Some((index, start, start + name.len(), diagnostic.rewrite.clone())); }
-        let last = &actual[at + closing];
-        let end = offset(source, last.site.line, last.site.col)? + 1;
-        return Some((index, start, end, format!("{} {}", &source[start + name.len()..end], diagnostic.rewrite)));
-    }
     // @ref LLP 3000.007#18.5 — exact repairs for missing indexes, argument once, wildcard repeats and empty operation parentheses
     if let Some(repair) = discovery_edit(sources, index, diagnostic, start) { return Some(repair); }
     if diagnostic.code == "E_QUARRY_AMBIGUOUS" {
         let (old, by) = diagnostic.rewrite.rsplit_once(" by ")?;
         if by.is_empty() || !by.chars().all(|c| c.is_alphanumeric() || c == '_') { return None; }
-        let end = matching_end(source, start, old)?;
+        let end = matching_end(source, start, old).or_else(|| matching_read_end(source, start, old))?;
         return Some((index, end, end, format!(" by {by}")));
     }
     if diagnostic.code == "E_CURSOR_INDEX" && diagnostic.rewrite.starts_with("by ") && diagnostic.message.contains("cannot carry a cursor") {
@@ -189,13 +173,7 @@ fn expression_edit(source: &str, site: usize, rewrite: &str) -> Option<(usize, u
     let (yes, condition, no) = (&parts[..a], &parts[a + 1..b], &parts[b + 1..]);
     if yes.is_empty() || condition.is_empty() || no.is_empty() { return None; }
     let symbol = |s: &str| tokens(s).remove(0);
-    let mut guesses = vec![[condition.to_vec(), vec![symbol("?")], yes.to_vec(), vec![symbol(":")], no.to_vec()].concat()];
-    if condition.len() >= 3 && condition[condition.len() - 2].value == "!=" && condition.last()?.value == "null" && no.len() == 1 && no[0].value == "null" {
-        let base = &condition[..condition.len() - 2];
-        if yes.len() == base.len() + 2 && same(&yes[..base.len()], base) && yes[base.len()].value == "." {
-            guesses.push([base.to_vec(), vec![symbol("?"), symbol(".")], vec![yes.last()?.clone()]].concat());
-        }
-    }
+    let guesses = vec![[condition.to_vec(), vec![symbol("?")], yes.to_vec(), vec![symbol(":")], no.to_vec()].concat()];
     let actual = tokens(source);
     for guess in guesses {
         for candidate in actual.windows(guess.len()) {
@@ -221,6 +199,29 @@ fn matching_end(source: &str, start: usize, expected: &str) -> Option<usize> {
     let last = &actual[expected.len() - 1];
     let at = start + offset(&source[start..], last.site.line, last.site.col)?;
     token_end(source, at, last)
+}
+
+/// A read's diagnostic prints canonical modifier order. Reparse candidate
+/// spans to match that read while retaining the author's order and parentheses.
+fn matching_read_end(source: &str, start: usize, expected: &str) -> Option<usize> {
+    let actual = tokens(&source[start..]);
+    let mut depth = 0i32;
+    for (i, last) in actual.iter().enumerate() {
+        if last.kind == Kind::Symbol {
+            match last.value.as_str() { "(" | "[" | "{" => depth += 1, ")" | "]" | "}" => depth -= 1, _ => {} }
+        }
+        if depth < 0 { break; }
+        if depth == 0 {
+            let at = start + offset(&source[start..], last.site.line, last.site.col)?;
+            let end = token_end(source, at, last)?;
+            let (document, diagnostics) = snapback4_lang::parse_document("", &format!("query repair():\n  return {}\n", &source[start..end]));
+            if diagnostics.is_empty() && let Some(program) = document.programs.first()
+                && let [snapback4_lang::ast::Stmt::Return { value: snapback4_lang::ast::Expr::Read(read), .. }] = program.body.as_slice()
+                && snapback4_lang::print::read_expr(read) == expected { return Some(end); }
+            if actual.get(i + 1).is_none_or(|next| next.site.line > last.site.line) { break; }
+        }
+    }
+    None
 }
 
 fn token_end(source: &str, at: usize, last: &Token) -> Option<usize> {

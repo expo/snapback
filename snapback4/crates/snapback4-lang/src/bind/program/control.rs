@@ -355,6 +355,7 @@ impl Binder<'_> {
     }
 
     pub(super) fn loop_domain(&mut self, domain: &A, out: &mut setup::Body) -> Fallible<(LoopDomain, Ty)> {
+        if let A::Read(read) = domain && let Some(shaped) = self.page_shape(read) { return self.loop_domain(&shaped, out); }
         match domain {
             A::Read(read) if read.range.is_some() => {
                 let (scan, _) = self.scan(read, out)?;

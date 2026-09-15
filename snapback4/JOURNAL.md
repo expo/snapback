@@ -17577,3 +17577,82 @@ production benchmark binary. Original inputs, outputs and receipts are under
 is `signal-framing-0219-v1-source-evidence-independent-review.md` (68b3a763).
 The current three-backend comparison still requires a separately qualified
 build and fresh sessions; no timing or new competitor win is claimed here.
+
+## 2026-09-15 — W5f: dense-query spelling and exact repairs
+
+Built from `2862bfdadd6cf846029628151d2fb6a39006d2ed` for calibration
+0.2.19 G4/G11 and S07. Table-page modifiers accept any order, once each:
+`matching`, `after`, `first`/`last`, `by`, `where`. Repeating a modifier
+requires the author to choose its value; the diagnostic prints the complete
+order and does not mechanically discard one. Merge and chunk headers retain
+their existing grammar.
+
+The predicate parser now treats a modifier at the `where` expression's level
+as the end of that predicate, belonging to the outer read. Thus
+`posts['bob'] where exists follows[viewer, .author] after c last 1 by byAuthor`
+reads the outer page, without extracting a helper. Parentheses (or a call's
+argument delimiters) start a separate expression scope: an inner read with
+its own modifiers is `(exists follows[viewer, .author] by byPair)`.
+This is a precedence rule, not a guessed reassignment based on index names;
+there is no refusal or mechanical rewrite for an input the grammar now
+binds unambiguously. Cursor continuation is exercised on actual rows.
+
+A declared shape at the scalar tail of a predicate shapes the outer page,
+including unary and conditional predicates, nested probes, loop domains and
+shapes declared in another file. `where not .hidden card` and the explicit
+spread wrapper compile to the same IR. A valid row/object shape inside a
+predicate keeps its existing meaning; parentheses make that scope explicit,
+and `{ ...card }` explicitly selects the page. The binder checks the tail's
+type in an isolated copy so speculative setup, source sites and notes do not
+leak. The old scalar-shape refusal and CLI wrapper repair were deleted.
+
+A positional key with exactly one full unique-index candidate selects it in
+both program reads and table-rule probes. Explicit `by` still wins. Zero or
+multiple unique candidates keep the ambiguity refusal and mechanical index
+selection. Because diagnostics print canonical modifier order, the CLI's
+index repair now also reparses the read span to recognize reordered modifiers
+and parenthesized keys, preserving the author's source order and comments.
+
+The existing field interpreter already propagates null and evaluates its base
+once. Consequently the smallest meaning-preserving optional-chaining repair
+is to remove the `?`, producing `a.b`, including for a call or point read.
+The diagnostic explains that fact and marks the token rewrite mechanical.
+The old conditional rewrite could repeat the base; it and its obsolete
+matching branch were removed. Actual CLI round trips retain parentheses,
+comments and string literals. This changes no runtime semantics or serialized
+forms. Reading the member binder and the interpreter's null branch exposed
+this simpler answer; a new optional-field form or helper rewrite was unnecessary.
+The language card, reads card, code explanation and package README describe
+the accepted forms; the language card's thread now uses them and still runs.
+
+Verification and measurements:
+
+- The initial six regressions were 1 pass / 5 failures before implementation.
+  The final 13 spelling tests were also run against a temporary snapshot of
+  this base commit's language sources, using the unchanged core: 2 passes /
+  11 failures, versus 13 passes / 0 failures with the candidate. The snapshot
+  included one diagnostic-printing helper test, filtered out for that count;
+  it was extracted from Git, not a repository clone.
+- All 24 permutations of the four page modifiers produce the same selected
+  row. Search with reordered `matching` passes too. An optional read examines
+  exactly 1 row; a writing helper repaired through `?.` inserts exactly 1 row.
+- Targeted ergonomics: 20 passes; frontend regressions: 37; guide: 23;
+  spelling: 13; CLI fix: 26. The reordered-index CLI regression was first
+  0 passes / 1 failure and then passed in the 26-test suite. The package
+  periphery file passes 17 tests after updating its old conditional-rewrite
+  assertion.
+- Ten checks of the small dense query reported 0.9–1.2 ms compiler time,
+  median 1.1 ms; subprocess wall median 4.89 ms. These are local diagnostic
+  timings on this shared host, not a replay of the Clique benchmark.
+- `bash snapback4/scripts/test.sh` ran twice: 1 failed group in 390 s, then
+  1 failed group in 334 s. The latter Rust run passed 906 tests, failed 0,
+  ignored 4; fixture tests passed 9. Its client run passed 285 and failed 2:
+  the old optional-rewrite assertion (subsequently corrected and reverified)
+  and Chromium's sandbox SIGABRT. The final client rerun at concurrency 2
+  passed 286 / failed 1 in 91,556.341542 ms, solely the Chromium launch.
+  React alone also reproduced SIGABRT: 0 passes / 1 failure. This is the
+  environment artifact named in the lane brief; no baseline-product-failure
+  claim is made. The lead still needs the browser run outside the sandbox.
+- The largest changed code file is the guide at 1,376 lines. No meter ceiling,
+  existing conformance case, shared note output or residency/prediction output
+  changed. No commit, push, tag or publication was performed.

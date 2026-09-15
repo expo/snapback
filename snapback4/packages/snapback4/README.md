@@ -357,9 +357,10 @@ and the failed transaction rolls back.
 
 `shape card = { id, name, owner: .ownerId }` names a shape; `row card` and
 `page card` use it, and `{ ...card, extra: 1 }` spreads its fields into
-another. After `where`, use `{ ...card }` to shape the page; a bare shape
-name attaches inside the predicate. If it mistakenly shapes a scalar there,
-`check --fix` inserts the explicit page shape.
+another. After a scalar predicate, `where not .hidden card` shapes the page
+with the declared `card`, as does `where not .hidden { ...card }`. A valid
+row/object shape inside a predicate keeps its meaning; parenthesize that
+operand, or use `{ ...card }` explicitly for the page.
 `fn isBrief(ttl: int ?): ttl != null` is a helper expression and
 `fn stamp(roomId: rooms):` a helper block ending in `return expr` or a bare `return`,
 each expanded where it is called (`isBrief(ttl)`; `stamp(r.id)` as a
@@ -428,7 +429,7 @@ charged to that chunk's meter. Writes belong inside a chunk.
   equalities (`t[key = x, col = y]`) return null/false on a mismatch,
   `t[prefix] first N by index` (ascending; `t first N by index` is the
   whole table's page), `t[prefix] after c last N by index` (descending,
-  from a cursor; the modifiers come in that order), `merge t [after c]
+  from a cursor; table-page modifiers may come in any order, once each), `merge t [after c]
   first N by index [where predicate]:` with `[lane]` lines (one ordered page over several
   prefixes; a lane may be `[f.col] for f in t[prefix] first N by index`;
   uniform lanes with a non-nullable unique index or an index ending in
@@ -439,6 +440,8 @@ charged to that chunk's meter. Writes belong inside a chunk.
   below), `merge t matching q [after c] last N by wordsIndex:` over scope
   lanes (search across groups), `connected[p]` (open connections; `exists connected[p]` tests;
   Presence, below). A key may name its columns: `t[a = x, b = y]`.
+  If several indexes match a positional key and exactly one is unique over
+  the whole key, that unique index wins; otherwise use `by index`.
   With a total unique `(chatKey, principal)` key on t, `.principal = viewer
   or exists t[.chatKey, viewer]` is decided by the chat: each row witnesses
   itself, so the chat's roster page is complete without a second table.
@@ -446,7 +449,9 @@ charged to that chunk's meter. Writes belong inside a chunk.
   seeks on the first unpinned index column. `t[prefix] after c first N by idx
   where predicate` evaluates the read rule then the predicate for each row;
   only rows passing both count toward N. `.` is the row, and indexed reads
-  inside the predicate are metered probes. A lone next-column comparison
+  inside the predicate are metered probes. At that level, `matching`, `after`,
+  `first`/`last` and `by` end the predicate and modify the outer read;
+  parenthesize an inner read that needs its own modifiers. A lone next-column comparison
   lowers to a seek with N_SEEK. A full page's cursor is after its last result;
   a cut page continues after the last rule-visible examined row, including a
   filter rejection, never a hidden row. Non-uniform ranges stay incomplete.
@@ -1893,7 +1898,9 @@ step.
   structural class, and `--residency` names where operations run.
   `--fix` applies only diagnostics explicitly marked `mechanical`: an
   ambiguous key's `by`, a cursor index's missing `id`, and exact canonical
-  spelling rewrites, including `==` to `=`. Before it edits, every compiled file must be
+  spelling rewrites, including `==` to `=` and `a?.b` to
+  `a.b`: ordinary field access already propagates null, and removing only
+  the `?` evaluates the base once even when it is a call or read. Before it edits, every compiled file must be
   unchanged on disk, and every compiled file is read again just before the
   write. This check is best effort: it refuses an edit it observes and names
   the file; a save in the instant before the write can still be overwritten. It prints one
