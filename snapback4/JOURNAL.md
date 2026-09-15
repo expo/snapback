@@ -14037,3 +14037,32 @@ The four §14 decisions already accepted by the author remain settled. Later
 CU/§19/§20 releases receive no credit at this frozen pin.
 
 Validation: all displayed comparison values match their received sources; all twelve lifecycle records, frozen instrument/templates/pins and selected copy hashes check. `python3 ./ref-check --verbose` passes (480 LLP documents, 8,889 refs, zero errors). The final archive carries scoped scan/disposition and cumulative-hash records. No product runtime or independent M7 grade was rerun.
+
+
+## 2026-09-15 — borrowed row-text A/B does not justify adoption
+
+The fixed 009de62842 / 0.2.16 experiment removes one temporary JSON String
+copy from the SQLite indexed-scan path. Its three new differential tests
+and 546 selected Rust test executions pass. All six ordinary HTTP runs pass
+117,000 timed calls, 7,020 excluded warmups, 162 untimed full walks / 33,510
+pages, full physical/auth/leave/regrant checks and owned-group cleanup.
+Both calculators were frozen before smoke timing, passed their first formal
+execution unchanged and reconcile every value, loss, tie and memory snapshot.
+
+This is a second measured candidate that is not recommended for adoption.
+Across 39 cases, median p50 is 19 better / 19 worse / 1 tie, and p95 is
+16 better / 23 worse. The 150-group next feed page at eight clients rises
+21.460 → 28.791 ms p50 and 46.609 → 93.346 ms p95; throughput falls
+333.4 → 206.2 requests/s. Its p95/p99/elapsed/rate worsen in all three
+pairs. Large first/rotating pages have some median gains, but mixed paired
+results and tails. RSS after-workload medians rise 520 KiB, with mixed
+paired differences. The existing benchmark record and six exact original
+ledger objects retain all 357 paired losses and the shared-VM, warm-input
+and untimed-resource limits. No core runtime change is landed.
+
+Main reached 0.2.18 / 826108972 during the measurement. The target scan_keys
+function is unchanged, but the newer read/cursor/schema/host behavior has
+not been timed by this fixed 0.2.16 A/B. The existing core-owner ticket stays
+open: address repeated indexed collections and row materialization with
+coarse or sampled attribution, preserving live authority, meters and exact
+results. This batch adds no current competitor or publication claim.
