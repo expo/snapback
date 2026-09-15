@@ -15309,3 +15309,135 @@ two-unawaited-0ms 2 (4 ms); two-unawaited-5ms 2 (113 ms); ordinary-inflight-0ms
 `node witness/navigation.mjs`: `{"durableWrites":2,"rowsBeforeReopen":1,"rowsAfterReopen":2}`.
 Raw output: `~/projects/snapback-next-20260914/w3a2-witness.log`.
 
+
+## 2026-09-14 — W3R1a: an aborted admission keeps its exit ordering obligation
+
+Reproduced GPT review finding 2 at base
+`6acb5a5bf89eeabed1e89b40ad52e25bf2bdffa5`. With A's admission held,
+pagehide dispatched its keepalive; admission then aborted, B committed, and
+the original keepalive arrived after ordinary flushing sent B. The one- and
+two-predecessor audits were **21 and 312**. Delivered keepalives applied
+A/A1/A2 without a later `onWrite` settlement; dropped keepalives left only
+B. All six initial reproductions failed before the implementation changed.
+
+The exit transport now records exactly the prefix it is about to dispatch,
+before calling fetch. That record is independent of the pending-admission
+map. The ordinary sender reconciles its original mutation ids, arguments and
+minted row ids before sending a successor; repeated exits select that same
+unresolved head. A successful admission keeps the ordinary durable outbox.
+If admission fails, the web host keeps the fallback for the document's
+lifetime, including close/reopen of the same store in that document. A new
+document cannot recover an admission and keepalive that were both lost;
+the existing loss control now explicitly destroys its modeled document.
+The client also rechecks the exposed head after asynchronous queue reads,
+so a previously captured durable queue cannot bypass a newly exposed write.
+
+A `failed` response alone is not always a terminal receipt: input validation
+can refuse before recording the id. An exposed failure therefore needs a
+replay-confirmed refusal before successors proceed. A recorded refusal
+releases the successor, even if the original delayed keepalive arrives
+later. Unknown replies and retryable unrecorded failures retain the head.
+Known receipts retired on store replacement also remove their exposure
+record, preserving LLP 3000.007 §18.2's existing identity fence.
+
+An exposed admission failure now returns retryable `E_EXIT_ADMISSION` and
+later settles through `onWrite` with the same id while the client is open.
+The writes card and README explain that this does not promise non-application
+and that the caller must not resubmit with a fresh id. If retaining the
+ordering record itself fails, sticky `E_EXIT_ORDER` stops the page's
+mutation sending, including when admission also aborts. Both codes are in
+`guide::CODES`. Their messages are:
+
+- `E_EXIT_ADMISSION`: `admission failed after this write was exposed at exit; its server outcome is unknown and this page will retry the same id before later writes`
+- `E_EXIT_ORDER`: `exit write ordering could not be preserved; this page has stopped sending writes`
+
+The old admission exception used `E_STORE` and the interpolated message
+`write ${id} admission outcome is unknown: ${String(error)}`, without a
+retryable flag or later settlement obligation. Unexposed admission failures
+retain that existing behavior. No client card type, server route, meter
+ceiling, serialized value, corpus case or application caller changed.
+
+The final thirteen regressions cover six delivery/admission interleavings,
+four unresolved-receipt controls (retryable/unrecorded, with/without a
+same-page reopen), two record-preservation failures (admission commits or
+aborts), and a recorded terminal refusal that releases B. An isolated
+generated package with the three client implementation files taken from the
+exact base above fails all thirteen; the final implementation passes all
+thirteen. That comparison uses `/tmp` only, no alternate checkout or commit.
+Two additional defects found during implementation were made red before
+repair: an unrecorded failure releasing successors (two controls plus the
+terminal-receipt positive control, 0/3), and an admission abort masking the
+stop-sending refusal as E_STORE (0/1). Both are green in the final run.
+
+Final six-case measurements, in delivered/dropped/delayed order, one then
+two predecessors: recovery **17/28/18/25/1013/1021 ms**; application orders
+**12/123/12/123/12/123**; applications **2/3/2/3/2/3**; ordinary sends and
+sent settlements **2/3/2/3/2/3**; **0 duplicate applications** after the
+original delayed keepalive completes. The failed callers receive **1/2**
+later sent settlements. Record-preservation refusals send **0** exit and
+**0** ordinary requests. The existing bounds remain **65,536 bytes** shared
+keepalive bodies, **32 writes** per batch and a **1,000 ms** exit wait.
+
+Validation uses Node 24.18.0 via
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` before every JS
+command. Commands below run from `snapback4/` unless the repository root is
+named. Evidence is in `/tmp/w3r1a-*.log`.
+
+- `node --test --test-name-pattern='failed admission retains' packages/snapback4/test/navigation-model.test.mjs`:
+  initial base `ℹ tests 6`, `ℹ pass 0`, `ℹ fail 6`, `ℹ cancelled 0`;
+  after `ℹ tests 6`, `ℹ pass 6`, `ℹ fail 0`, `ℹ cancelled 0`.
+- `node --test --test-name-pattern='failed admission retains|unresolved exposure|inability to retain|recorded terminal' packages/snapback4/test/navigation-model.test.mjs`:
+  isolated base package `ℹ tests 13`, `ℹ pass 0`, `ℹ fail 13`, `ℹ cancelled 0`,
+  `ℹ duration_ms 14291.259083`; final `ℹ tests 13`, `ℹ pass 13`,
+  `ℹ fail 0`, `ℹ cancelled 0`, `ℹ duration_ms 14968.04925`.
+- `node --test --test-concurrency=2 packages/snapback4/test/navigation-model.test.mjs packages/snapback4/test/web-navigation.test.mjs packages/snapback4/test/local-e2e.test.mjs packages/snapback4/test/client-lifecycle.test.mjs`:
+  final `ℹ tests 96`, `ℹ pass 96`, `ℹ fail 0`, `ℹ cancelled 0`,
+  `ℹ duration_ms 42259.003125`. Earlier growing-scope runs were 89/89,
+  92/92 and 95/95; no affected failure remains.
+- `cargo test -p snapback4-lang --test guide -- --nocapture`:
+  `test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s`.
+- `cargo test -p snapback4 --test replay -- --nocapture`:
+  `test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.46s`.
+
+- Additional targeted commands during implementation:
+  `node --test --test-name-pattern='unresolved exposure|inability to retain' packages/snapback4/test/navigation-model.test.mjs`
+  reported `ℹ tests 3`, `ℹ pass 0`, `ℹ fail 3` on the isolated base and
+  `ℹ tests 3`, `ℹ pass 3`, `ℹ fail 0` on the implementation;
+  `node --test --test-name-pattern='unrecorded' packages/snapback4/test/navigation-model.test.mjs`
+  reported `ℹ tests 2`, `ℹ pass 0`, `ℹ fail 2` before the receipt correction;
+  `node --test --test-name-pattern='unrecorded|recorded terminal' packages/snapback4/test/navigation-model.test.mjs`
+  reported `ℹ tests 3`, `ℹ pass 0`, `ℹ fail 3` before that correction;
+  `node --test --test-name-pattern='inability to retain.*true' packages/snapback4/test/navigation-model.test.mjs`
+  reported `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1` before preserving the stop-sending
+  refusal through an admission abort. All these cases pass in the final 13-case
+  run above. The terminal-refusal fixture's first draft also tried to consume
+  the keepalive response body twice; the recorded red comparison clones that
+  response and fails on the missing replay confirmation instead.
+- Repository root, `bash snapback4/scripts/test.sh`: first run
+  `-- ok: cargo test (321 s)`, fixture `ℹ tests 9`, `ℹ pass 9`, `ℹ fail 0`,
+  client `ℹ tests 273`, `ℹ pass 272`, `ℹ fail 1`, `ℹ cancelled 0`,
+  `-- FAIL: client tests (49 s)`, `== 1 failure(s) in 325 s`.
+  Repeated after the final refusal correction: `-- ok: cargo test (230 s)`,
+  fixture `ℹ tests 9`, `ℹ pass 9`, `ℹ fail 0`, client `ℹ tests 274`,
+  `ℹ pass 273`, `ℹ fail 1`, `ℹ cancelled 0`,
+  `-- FAIL: client tests (42 s)`, `== 1 failure(s) in 235 s`.
+  Both runs total **870 passed, 0 failed, 4 ignored Rust tests**; builds,
+  wasm, package/app typechecks and all fixture tests passed.
+- `node --test packages/snapback4/test/react.test.mjs`: isolated confirmation
+  `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`, `ℹ cancelled 0`,
+  `ℹ duration_ms 382.062375`. Both full-suite failures and this isolated
+  failure are Chromium `exitCode=null, signal=SIGABRT`, the sandbox artifact
+  specified by the brief. No lifecycle or client-concurrency timeout occurred.
+- Repository root, `./ref-check --verbose`: **480 LLP docs, 8,926 refs,
+  0 errors, 0 unchecked**. `git diff --check` passes. The largest changed
+  code file is `local.ts`, **1,220 lines**; Markdown was not compressed.
+
+No remaining product-test failure is attributed to an unverified base.
+The lead must rerun the Chromium witnesses outside the sandbox:
+`node witness/navigation-immediate.mjs` and `node witness/navigation.mjs`.
+This lane did not run those browser witnesses. The first package build
+found the generated wasm bindings absent; `cargo build --workspace --quiet`
+and `bash scripts/build-wasm.sh` supplied them before the actual base
+regression run. No dependency install, commit, push, tag, publication,
+sub-agent, other worktree or remote machine was used. All eight modified
+files are within the client, tests, published guide/README and journal scope.
