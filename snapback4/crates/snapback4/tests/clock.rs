@@ -26,9 +26,12 @@ struct Host { child: Child, address: String }
 impl Drop for Host { fn drop(&mut self) { let _ = self.child.kill(); let _ = self.child.wait(); } }
 impl Host {
     fn request(&self, method: &str, path: &str, body: Value) -> Value {
+        self.auth_request(method, path, body, "x-snapback-persona: alice")
+    }
+    fn auth_request(&self, method: &str, path: &str, body: Value, auth: &str) -> Value {
         let body = body.to_string();
         let mut stream = TcpStream::connect(&self.address).unwrap(); stream.set_read_timeout(Some(Duration::from_secs(30))).unwrap();
-        write!(stream, "{method} {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: {}\r\n\r\n{body}", body.len()).unwrap();
+        write!(stream, "{method} {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n{auth}\r\nContent-Length: {}\r\n\r\n{body}", body.len()).unwrap();
         let mut answer = String::new(); stream.read_to_string(&mut answer).unwrap();
         serde_json::from_str(answer.split_once("\r\n\r\n").unwrap().1).unwrap_or_else(|e| panic!("{e}: {answer}"))
     }
@@ -248,4 +251,90 @@ fn writes_use_dev_clock_for_timestamps_expiry_and_replay() {
         assert!(replay.get("result").is_none());
     }
     assert_eq!(host.query("stories"), rows, "replay preserves row IDs, timestamps and expiry without another insert");
+}
+
+fn effect_fixture(label: &str) -> Fixture {
+    let f = Fixture::new(label);
+    fs::write(f.0.join("snapback/schema.q"), format!("{SOURCE}\neffect notify\nmutation notify():\n  emit notify {{at: now}}\n  return now\n")).unwrap();
+    f
+}
+
+fn effect_token(f: &Fixture, release: bool) -> String {
+    let args = if release { vec!["token", "--service", "worker", "--release", "deployment"] } else { vec!["token", "--service", "worker"] };
+    let out = f.command(&args);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    format!("Authorization: Bearer {}", String::from_utf8(out.stdout).unwrap().trim())
+}
+
+#[test]
+fn clock_advance_preserves_a_live_effect_claim_and_settlement() {
+    let f = effect_fixture("effect-live");
+    let host = f.start(&["dev", "--no-watch", "--hold-schedules", "--clock-offset", "+25h"]);
+    let auth = effect_token(&f, false);
+    assert_eq!(host.post("/m/notify", json!({"id":"notify", "args":{}}))["state"], "sent");
+    let claimed = host.auth_request("POST", "/effects/claim", json!({"lease":60}), &auth);
+    let effect = &claimed["effects"][0];
+    assert_eq!(effect["state"], "running", "{claimed}");
+    let start = Instant::now();
+    let port = host.address.rsplit(':').next().unwrap();
+    let advanced = output_json(f.command(&["clock", "advance", "120s", "--port", port]));
+    assert_eq!(advanced["advancedMs"], 120_000);
+    let after = host.auth_request("GET", "/effects", json!(null), &auth);
+    let settled = host.auth_request("POST", &format!("/effects/{}/done", effect["id"].as_str().unwrap()), json!({"result":"sent once"}), &auth);
+    println!("effect clock: after_advance={after} settlement={settled}");
+    assert_eq!(settled["ok"], true, "{settled}");
+    assert_eq!(after["effects"][0]["state"], "running", "{after}");
+    assert_eq!(after["effects"][0]["leaseUntil"].as_i64().unwrap() - effect["leaseUntil"].as_i64().unwrap(), 120_000);
+    assert_eq!(settled["effect"]["attempt"], 1);
+    assert_eq!(host.auth_request("POST", "/effects/claim", json!({}), &auth)["effects"], json!([]));
+    println!("effect clock: advanced_ms=120000 lease_ms=60000 requeues=0 attempts=1 wall_ms={}", start.elapsed().as_millis());
+}
+
+#[test]
+fn effect_retry_next_at_still_follows_the_dev_clock() {
+    let f = effect_fixture("effect-retry");
+    let host = f.start(&["dev", "--no-watch", "--hold-schedules", "--clock-offset", "+25h"]);
+    let auth = effect_token(&f, false);
+    host.post("/m/notify", json!({"id":"notify", "args":{}}));
+    let claimed = host.auth_request("POST", "/effects/claim", json!({}), &auth);
+    let id = claimed["effects"][0]["id"].as_str().unwrap();
+    let before = host.query("time").as_i64().unwrap();
+    let failed = host.auth_request("POST", &format!("/effects/{id}/failed"), json!({"error":"try again", "retry":true}), &auth);
+    let next = failed["effect"]["nextAt"].as_i64().unwrap();
+    assert!(next >= before + 4_000 && next <= host.query("time").as_i64().unwrap() + 4_000, "{failed}");
+    assert_eq!(host.auth_request("POST", "/effects/claim", json!({}), &auth)["effects"], json!([]));
+    let start = Instant::now();
+    assert_eq!(host.post("/dev/clock/advance", json!({"duration":"4s"}))["advancedMs"], 4_000);
+    let retry = host.auth_request("POST", "/effects/claim", json!({}), &auth);
+    assert_eq!(retry["effects"][0]["id"], id, "{retry}");
+    assert_eq!(retry["effects"][0]["attempt"], 2);
+    assert_eq!(host.auth_request("POST", &format!("/effects/{id}/done"), json!({}), &auth)["ok"], true);
+    println!("effect retry: backoff_ms=4000 advanced_ms=4000 attempts=2 wall_ms={}", start.elapsed().as_millis());
+}
+
+#[test]
+fn real_time_effect_lease_loss_requeues_in_dev_and_serve() {
+    for release in [false, true] {
+        let f = effect_fixture(if release { "effect-wall-release" } else { "effect-wall-dev" });
+        if release { assert!(f.command(&["deploy", "deployment"]).status.success()); }
+        let host = f.start(if release { &["serve", "deployment"] } else { &["dev", "--no-watch", "--hold-schedules"] });
+        let auth = effect_token(&f, release);
+        assert_eq!(host.auth_request("POST", "/m/notify", json!({"id":"notify", "args":{}}), &auth)["state"], "sent");
+        let claimed = host.auth_request("POST", "/effects/claim", json!({"lease":1}), &auth);
+        let id = claimed["effects"][0]["id"].as_str().unwrap();
+        let start = Instant::now();
+        loop {
+            let effects = host.auth_request("GET", "/effects", json!(null), &auth);
+            if effects["effects"][0]["state"] == "queued" { break; }
+            assert!(start.elapsed() < Duration::from_secs(20), "{effects}");
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        let late = host.auth_request("POST", &format!("/effects/{id}/done"), json!({}), &auth);
+        assert_eq!(late["denied"]["code"], "E_EFFECT_LEASE", "{late}");
+        let retry = host.auth_request("POST", "/effects/claim", json!({}), &auth);
+        assert_eq!(retry["effects"][0]["id"], id);
+        assert_eq!(retry["effects"][0]["attempt"], 2);
+        assert_eq!(host.auth_request("POST", &format!("/effects/{id}/done"), json!({}), &auth)["ok"], true);
+        println!("effect wall: release={release} lease_ms=1000 requeues=1 attempts=2 wall_ms={}", start.elapsed().as_millis());
+    }
 }

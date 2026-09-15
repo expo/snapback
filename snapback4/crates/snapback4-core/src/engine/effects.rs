@@ -144,6 +144,15 @@ impl Engine {
         Ok(run)
     }
 
+    /// Move held leases with an explicit development clock advance. Backoff
+    /// timestamps stay put; a lease already overdue remains overdue afterward.
+    pub fn advance_effect_leases(&mut self, milliseconds: i64) -> Result<(), RuntimeError> {
+        let tx = self.store.transaction()?;
+        tx.conn().execute("UPDATE _outbox SET lease_until = lease_until + ?1 WHERE state = 'running' AND lease_until IS NOT NULL", [milliseconds])?;
+        tx.commit()?;
+        Ok(())
+    }
+
     /// A claim whose lease ran out goes back to the queue: the worker died
     /// or stalled, and the attempt it took stays counted.
     pub fn requeue_expired_effects(&mut self, now: i64) -> Result<u64, RuntimeError> {

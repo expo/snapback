@@ -407,3 +407,36 @@ test("a lost action settlement retries its lease; a non-JSON result fails once",
   assert.equal(invalidCalls, 1);
   assert.deepEqual(await client.act(action("fail"), {}, { id: invalid.id }), invalid);
 });
+
+for (const failed of [false, true]) test(`lost effect lease settlement is informational after handler ${failed ? "failure" : "success"}`, async t => {
+  const stop = new AbortController(), errors = [], requests = [];
+  const info = t.mock.method(console, "info", () => {});
+  const worker = runWorker({ url: "http://worker.test", token: "service-token", signal: stop.signal, onError: error => errors.push(error),
+    effects: { notify: () => { if (failed) throw new Error("provider unavailable"); return "sent"; } },
+    fetch: async (url, options) => {
+      requests.push({ path: new URL(url).pathname, body: JSON.parse(options.body) });
+      if (url.endsWith("/claim")) return Response.json({ effects: [{ id: "effect-test", effect: "notify", payload: {}, attempt: 1, seq: 1, at: 0 }] });
+      stop.abort();
+      return Response.json({ denied: { code: "E_EFFECT_LEASE", message: "E_EFFECT_LEASE: effect effect-test is queued and not claimed by this worker; claim it first" } });
+    },
+  });
+  await worker.done;
+  assert.deepEqual(errors, []);
+  assert.deepEqual(info.mock.calls.map(call => call.arguments), [["snapback4 worker: effect effect-test lease expired; the effect was requeued"]]);
+  assert.equal(requests.length, 2, "a lost claim must not provoke a second settlement");
+  assert.equal(requests[1].path, `/effects/effect-test/${failed ? "failed" : "done"}`);
+});
+
+test("effect settlement still reports a refusal other than lease loss", async () => {
+  const stop = new AbortController(), errors = [];
+  const worker = runWorker({ url: "http://worker.test", token: "service-token", signal: stop.signal, onError: error => errors.push(error),
+    effects: { notify: () => "sent" },
+    fetch: async url => {
+      if (url.endsWith("/claim")) return Response.json({ effects: [{ id: "effect-test", effect: "notify", payload: {}, attempt: 1, seq: 1, at: 0 }] });
+      stop.abort();
+      return Response.json({ denied: { code: "E_AUTH", message: "this session is not live; sign in again" } });
+    },
+  });
+  await worker.done;
+  assert.deepEqual(errors.map(error => error.message), ["E_AUTH: this session is not live; sign in again"]);
+});

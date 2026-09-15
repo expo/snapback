@@ -1320,3 +1320,34 @@ mod following_app;
 
 #[test]
 fn w6a_wired_following_is_bounded_and_removes_app_events() { following_app::server_scenario(); }
+
+#[test]
+fn development_advances_preserve_remaining_effect_lease_time_and_overdue_claims() {
+    let mut engine = effects_engine();
+    engine.mutate("send", Some("advance"), Context::new("dev:alice", args(&[("conversationId", id("c1")), ("body", Value::String("advance".into()))])).at(1_000).with_ids(["msg-advance".to_owned()])).unwrap();
+    let short = engine.claim_effects("service:short", None, 1, 1_000, 2_000).unwrap().remove(0);
+    let long = engine.claim_effects("service:long", None, 1, 60_000, 2_000).unwrap().remove(0);
+    // At time 4,000 the short claim is already overdue. Advancing 120 s
+    // must neither revive that claim nor steal the other one's 58 s left.
+    engine.advance_effect_leases(120_000).unwrap();
+    assert_eq!(engine.requeue_expired_effects(124_000).unwrap(), 1);
+    let queued = engine.effects(Some("queued"), 10).unwrap();
+    assert_eq!(queued[0].id, short.id);
+    assert_eq!(queued[0].next_at, Some(124_000));
+    let running = engine.effects(Some("running"), 10).unwrap();
+    assert_eq!(running[0].id, long.id);
+    assert_eq!(running[0].lease_until, Some(182_000));
+    // Another advance moves only the held lease, never the queued retry.
+    engine.advance_effect_leases(120_000).unwrap();
+    assert_eq!(engine.effects(Some("queued"), 10).unwrap(), queued);
+    assert!(engine.effects_due(None, 244_000).unwrap());
+    assert_eq!(engine.requeue_expired_effects(301_999).unwrap(), 0);
+    assert_eq!(engine.requeue_expired_effects(302_001).unwrap(), 1);
+    assert_eq!(engine.settle_effect(&long.id, "service:long", snapback4_core::Settled::Done { result: None }, 302_001).unwrap_err().code(), "E_EFFECT_LEASE");
+    let retry = engine.claim_effects("service:new", None, 10, 60_000, 302_002).unwrap();
+    assert_eq!(retry.len(), 2);
+    for effect in retry {
+        assert_eq!(effect.attempts, 2);
+        assert_eq!(engine.settle_effect(&effect.id, "service:new", snapback4_core::Settled::Done { result: None }, 302_003).unwrap().state, "sent");
+    }
+}
