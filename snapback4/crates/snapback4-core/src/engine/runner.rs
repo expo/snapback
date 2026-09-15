@@ -28,6 +28,7 @@ pub(crate) struct PagePosition {
     pub index: String,
     pub order: Order,
     pub prefix_len: usize,
+    pub prefix: Option<Vec<Value>>,
     /// A collector exited with rows still unconsumed, even on a short page.
     pub interrupted: bool,
     /// The suffix values of the last returned row, if another visible row
@@ -99,6 +100,8 @@ pub struct Runner<'a> {
     pub(super) discard_effects: bool,
     /// The prediction paid for an untaken presence arm the server may skip.
     pub(crate) charged_untaken: bool,
+    pub(crate) maintain_prepaid: bool,
+    pub(crate) maintain_heap: u64,
 }
 
 impl<'a> Runner<'a> {
@@ -143,6 +146,8 @@ impl<'a> Runner<'a> {
             prediction_guards: BTreeSet::new(),
             discard_effects: false,
             charged_untaken: false,
+            maintain_prepaid: false,
+            maintain_heap: 0,
         }
     }
 
@@ -519,6 +524,10 @@ impl<'a> Runner<'a> {
     fn builtin(&mut self, builtin: &Builtin, mut args: Vec<Value>) -> Result<Value, RuntimeError> {
         let result: Result<Value, RuntimeError> = match builtin {
             Builtin::Len | Builtin::Count | Builtin::CountCapped | Builtin::Sum => scalar_builtin(builtin, &args[0]),
+            Builtin::Calendar { millis } => {
+                if *millis <= 0 { return Err(RuntimeError::Input("calendar duration must be positive".into())); }
+                Ok(Value::Int(args[0].as_int()?.div_euclid(*millis)))
+            }
             Builtin::Lower | Builtin::Trim => {
                 let text = args[0].as_str()?;
                 let value = Value::String(if matches!(builtin, Builtin::Lower) { text.to_lowercase() } else { text.trim().to_owned() });

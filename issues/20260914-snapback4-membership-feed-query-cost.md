@@ -1,6 +1,6 @@
 # Snapback 4: requalify and reduce membership-feed query cost
 
-Status: Open — query execution dominates on qualified 0.2.12; internal cost decomposition pending
+Status: Open — fixed 0.2.15 scan-preparation candidate measured; large concurrent targets regress, candidate not adopted
 Priority: P1
 Systems: Snapback 4 online membership feeds, query execution
 Implementation owner: Snapback 4 core lead (LLP 3000 decision 4)
@@ -65,19 +65,77 @@ I/O or scheduler attribution follows. The current measurements confirm
 that query execution warrants the next investigation. They do not qualify
 an uninstrumented improvement or a current competitor comparison.
 
+Fixed-source core decomposition, completed 2026-09-15 00:09:22 UTC:
+
+The d81381a98 0.2.13 snapshot plus temporary probes passed 73 CLI tests,
+18,432 timed queries, 2,160 warmups and all 2,304 selected traces. The two
+calculators agree on every core counter and the shared case summaries;
+full fixture/auth proofs and cleanup passed. This adds no runtime change.
+
+| Groups | Prepared scans | Live rule probes | Indexed scan collections | Row JSON decodes |
+|---|---:|---:|---:|---:|
+| 5 | 6 | 5 | 11 | 120 |
+| 30 | 51 | 50 | 101 | 180 |
+| 150 | 171 | 170 | 341 | 660 |
+
+Those exact first-page counts hold in every selected C1/C8 query. At 150
+groups, one discovery plus 170 message scans and their 170 live membership
+lookups produce 341 indexed collections. Decoding covers 150 discovery
+memberships, 170 proof rows and 340 fetched message rows for 20 outputs.
+Rotating pages keep the scan counts but average 659.479 decodes as some
+lanes fetch fewer rows. Counts may revisit rows and do not represent disk
+reads, all SQL statements, meter units or unique returned data.
+
+The measured first-page core CPU is 14.364 ms at C1 and 16.146 ms at C8,
+but these are heavily instrumented queries with 5,024 scope guards each.
+Do not compare these numbers with the earlier host-only observer as a
+regression or use their exact partitions as uninstrumented CPU attribution.
+The source/counters justify investigating repeated work; an ordinary A/B
+must establish any gain. Static dependency preparation repeats per scan,
+and scan/rule/index/row work remains live inside each query transaction.
+
+Source drift: origin66a7c976 (manifest version 0.2.15) changed query/read/runner/pages and
+TCP_NODELAY while this immutable run was in flight. Rules/store and host
+serve match d813, but that is insufficient to claim current-source timing.
+The next candidate must incorporate the newer cursor/completeness semantics.
+
+Fixed-source preparation experiment, completed 2026-09-15 02:03:08 UTC:
+
+Both ordinary production binaries use d0ea081923 (0.2.15), incorporating
+the newer page/cursor/socket behavior. The ignored candidate reuses only
+two static schema/IR analyses per original plain-merge template. It passes
+318 selected Rust test executions and all six HTTP runs: 117,000 timed
+case calls, 7,020 excluded warmups, 162 untimed walks / 33,510 pages,
+complete physical/auth/result/leave/regrant checks and owned cleanup.
+The original failed V1 test compilation and excluded smokes remain separate.
+
+Main reached 0.2.16 before this evidence landing. Integration parent
+1a4a50da8 changes core read/rule/admission/schema and host behavior from
+the measured d0ea inputs; this batch does not qualify the newer runtime
+or establish its performance.
+
+**Do not adopt this version from the measured evidence.** The 150-group
+rotating C8 feed's median p50 rises 19.176 → 24.454 ms (+27.52%), p95 rises
+36.245 → 55.225 ms (+52.37%), and throughput falls 375.8 → 282.9 requests/s
+(−24.72%). Its elapsed time worsens in all three pairs, as does the
+150-group next page. Smaller concurrent feeds improve, so the result is
+mixed; no causal attribution or new competitor comparison follows. All
+losses, control variation and RSS/HWM observations remain in the evidence.
+
 Next work:
 
-1. Split query CPU cost among transaction
-   setup, membership enumeration, per-lane rule/metadata preparation, SQL
-   stepping, row/key decoding, merge work and result/cursor construction.
-   The unchanged lazy merge initializes every lane and uses one-row batches
-   above eight groups; its repeated work is a source lead, not attribution.
-2. Let the core owner choose a measured optimization. Pure schema/IR
-   preparation reuse is a candidate; live authority or result caching is not
-   permitted. Preserve fresh transactions, membership/expiry checks, static
-   dependency/probe accounting, all meters/cut/refusal order, typed cursors,
-   defaults and exact ordered results. Re-run affected differential and
-   privacy regressions, then the scoped HTTP comparison.
+1. Target the remaining repeated indexed collections and row materialization,
+   or establish the cause of the large concurrent losses with coarse/sampled
+   attribution. The rejected preparation patch and expensive diagnostic
+   shares must not be presented as a performance win.
+2. Keep core implementation with its owner. Live authority or result caching
+   is not permitted. Preserve fresh transactions, membership/expiry checks,
+   static dependency/probe accounting, all meters/cut/refusal order, typed
+   cursors, defaults and exact ordered results.
+3. Qualify the next candidate on its actual current inputs, with affected
+   differential/privacy tests and ordinary HTTP A/B including leave/regrant
+   and concurrent feeds. Retain tails, memory/write costs and all losses;
+   compare current competitors separately after a candidate is qualified.
 
 Evidence: [benchmark record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md),
 including original result objects in `snapback4/metrics/storage.jsonl`.
@@ -92,3 +150,16 @@ No core code, policy, ceiling or client contract is changed by this ticket.
 Current-source bindings under the same local run: formal transfer
 `0fffccfc…`, independent summary `1b626d34…`, review `f748ffad…`,
 reconciliation `e5deff38…`, and build qualification `dff38735…`.
+
+The core-scope record is the ledger workload
+`membership-http-core-scope-diagnostic`: V2 qualification `a3dedaef…`,
+V3 formal transfer `c23f67d0…`, independent summary `29b6fa3b…`,
+reconciliation `4483be1c…`, and source-drift mapping `070c5afe…`.
+
+The 0.2.15 ordinary A/B uses ignored-run prefix
+`membership-scan-preparation-0215-v2-http-v1`: formal transfer `24400ba3…`,
+completion `4f5cf9ec…`, root summary `1668fa83…`, independent summary
+`ee74ee95…`, reconciliation `0a2cc6bc…`. Both frozen calculators passed
+unchanged; all 1,404 run values, 468 medians, 234 median contrasts,
+702 paired contrasts and twelve memory snapshots reconcile. The six ledger
+objects preserve their full original formal records.

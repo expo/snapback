@@ -87,7 +87,8 @@ fn the_feeds_card_predicts_its_first_vote_on_both_stores() {
         for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
         let input = json!({"postId":"post","direction":1});
         let predicted = device.predict("vote", "bob", &input, 1000, vec!["vote".into()], 1).unwrap();
-        assert_eq!(predicted.predicted, vec!["votes/vote".to_owned(), format!("postScore/{}", snapback4_core::schema::maintained_id(&[id("post")]))]);
+        // The online-only score is a server side effect; the source vote still predicts.
+        assert_eq!(predicted.predicted, vec!["votes/vote".to_owned()]);
         let sent = server.mutate("vote", Some("vote"), Context::new("bob", args(&[("postId", id("post")), ("direction", Value::Int(1))])).at(1000).with_ids(["vote".into()])).unwrap();
         assert!(matches!(sent.state, WriteState::Sent { .. }));
         host.close("feeds", device);
@@ -164,3 +165,4 @@ fn hidden_admitted_upserts_preserve_the_complete_paired_observation() {
 }
 
 mod proof;
+mod final_exists;

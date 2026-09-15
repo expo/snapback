@@ -26,7 +26,16 @@ export function createWitness(container: WitnessContainer | null): Witness | nul
     if (!object || Array.isArray(object) || typeof object !== "object" || "witness" in object) {
       throw new Error("E_WITNESS_RECEIPT: receipt must be an object without the reserved witness key");
     }
-    native.witnessAppend(`${JSON.stringify({ ...object, witness: { at: new Date().toISOString(), step } })}\n`);
+    // Serialize app code before installing the protocol envelope: neither a
+    // getter nor toJSON can run again on the parsed plain object.
+    let serialized: Record<string, unknown>;
+    try {
+      serialized = JSON.parse(JSON.stringify(object));
+      if (!serialized || Array.isArray(serialized) || typeof serialized !== "object" || "witness" in serialized) throw Error();
+    } catch {
+      throw new Error("E_WITNESS_RECEIPT: serialized receipt must be an object without the reserved witness key");
+    }
+    native.witnessAppend(`${JSON.stringify({ ...serialized, witness: { at: new Date().toISOString(), step } })}\n`);
   };
   return {
     segment,

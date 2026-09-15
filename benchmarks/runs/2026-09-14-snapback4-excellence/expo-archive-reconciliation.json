@@ -1,0 +1,48 @@
+{
+  "method": "author read-only verification of exact packed archive members and deployment-record counts; no runtime claim",
+  "tarballSha256": "d2d277186eea20be37a2d8eece3a5827a86a165252c0ce0a099944de3adda50d",
+  "slices": [
+    {
+      "archive": "package/ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a",
+      "archiveSha256": "3fdd5de22dac2b9bb7fea0d0e58e2b6a3ba0aa7991655988cc20a67d6dada80e",
+      "machOMembers": 374,
+      "deploymentRecords": 374,
+      "otherMembers": [
+        "__.SYMDEF SORTED"
+      ],
+      "declaredMinima": [
+        [
+          14,
+          0,
+          0
+        ],
+        [
+          16,
+          4,
+          0
+        ]
+      ]
+    },
+    {
+      "archive": "package/ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a",
+      "archiveSha256": "2389a7d303941acef65b23c7250a77bd17a349187a3744bce406737b44659b7c",
+      "machOMembers": 374,
+      "deploymentRecords": 374,
+      "otherMembers": [
+        "__.SYMDEF SORTED"
+      ],
+      "declaredMinima": [
+        [
+          10,
+          0,
+          0
+        ],
+        [
+          16,
+          4,
+          0
+        ]
+      ]
+    }
+  ]
+}

@@ -20,6 +20,12 @@ secondary unique index or count toward an affected cap. Defaults are part of
 that image. Otherwise it queues without a predicted row, including in a left
 group. See `guide prediction` for the conditions and a set-membership recipe.
 
+For `after insert <- exists t[key]`, a local hit satisfies the postcondition.
+A local miss predicts `E_CONSTRAINT` only when the key proves readability
+and its synced group is fully held without a horizon. Otherwise either an
+ordinary insert or an upsert queues without a predicted row; the server
+decides the postcondition when the write arrives.
+
 Defaults fill missing insert columns on the writing host, including the insert
 branch of `upsert`; updates and existing-row upserts never reapply defaults.
 `upsert` inserts or patches: on an existing row, unnamed columns keep their
@@ -72,6 +78,10 @@ hidden sends only the oldest unconfirmed write with keepalive when no ordinary
 send is in flight. A blocked or oversized head is never skipped; clients share
 the browser's 64 KiB body budget. Unsent/unconfirmed writes stay durable for retry on reopen with
 the same mutation id, so replay cannot apply a write twice.
+If an exit response has not finished after one second, ordinary flushing
+retries that same durable head before advancing; an unknown outcome never
+skips a write. `close()` stops waiting immediately without cancelling the
+keepalive request.
 A device write-target miss that cannot prove the insert conditions above
 queues without a predicted row and still sends `/m`.
 A reference column checks the id's shape, not that

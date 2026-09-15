@@ -251,13 +251,14 @@ impl<S: DeviceStore> Device<S> {
     /// that starts with no network opens on what it holds. The schema is
     /// installed; a literal-default addition can keep older row images.
     pub fn open_store(mut store: S, backend: Option<Backend>) -> Result<Self, RuntimeError> {
-        let backend = match backend {
+        let mut backend = match backend {
             Some(backend) => backend,
             None => {
                 let kept = store.meta(BACKEND)?.ok_or_else(|| RuntimeError::Auth("this device has never synced: the server must be reachable once to open".into()))?;
                 serde_json::from_str(&kept).map_err(|e| RuntimeError::Store(format!("the kept backend does not parse: {e}")))?
             }
         };
+        backend.schema.prepare_contribution_indexes();
         let held = store.meta(GENERATION)?.and_then(|g| g.parse::<u64>().ok()).unwrap_or(0);
         let reset = held != 0 && held != backend.generation;
         let previous = store.meta(BACKEND)?.and_then(|text| serde_json::from_str::<Backend>(&text).ok());
@@ -352,7 +353,8 @@ impl<S: DeviceStore> Device<S> {
         self.adopt_captured(backend, BTreeMap::new())
     }
 
-    pub fn adopt_captured(&mut self, backend: Backend, mut expected: BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
+    pub fn adopt_captured(&mut self, mut backend: Backend, mut expected: BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
+        backend.schema.prepare_contribution_indexes();
         let required = self.store.meta(BACKEND_REQUIRED)?;
         expected.entry(BACKEND_REQUIRED.into()).or_insert(required.clone());
         expected.entry(STORE_ID.into()).or_insert(self.store.meta(STORE_ID)?);
@@ -610,7 +612,7 @@ impl<S: DeviceStore> Device<S> {
         let mut retained = false;
         let result = (|| {
             let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
-            let context = Context::new(viewer, typed_args(&program, args)?).at(now);
+            let context = Context::new(viewer, typed_args(&program, args)?).at(now).with_generation(self.generation);
             let tx = self.store.read_transaction()?;
             if tx.meta(BACKEND_IDENTITY).map_err(|e| e.refusal())?.as_deref() != Some(&self.backend_identity) {
                 unknown = true;
@@ -650,7 +652,7 @@ impl<S: DeviceStore> Device<S> {
         let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
         let tx = self.store.transaction()?;
         require_acquired(&tx, &self.schema, &program)?;
-        let context = Context::new(viewer, media::inputs(&tx, &program, viewer, args)?).at(now).with_ids(new_ids).with_entropy(entropy.max(1));
+        let context = Context::new(viewer, media::inputs(&tx, &program, viewer, args)?).at(now).with_generation(self.generation).with_ids(new_ids).with_entropy(entropy.max(1));
         let predicting = Predicting { tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, written: RefCell::new(Vec::new()) };
         match local::predict(&predicting, &self.schema, &program, context, Ceilings::default()) {
             Ok(prediction) => {

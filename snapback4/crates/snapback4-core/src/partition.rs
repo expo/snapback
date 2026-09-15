@@ -145,7 +145,8 @@ pub fn row_changed(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value
         for partition in before.difference(&after) {
             runner.events.push(Event { partition: partition.clone(), table: table_name.to_owned(), kind: EventKind::Del, id: id.clone(), data: None });
         }
-        runner.meter.charge(MeterKind::Steps, (before.len() + after.len()) as u64)?;
+        if schema.maintain_for(table_name).is_some() { runner.charge_maintain(MeterKind::Steps, (before.len() + after.len()) as u64)?; }
+        else { runner.meter.charge(MeterKind::Steps, (before.len() + after.len()) as u64)?; }
     }
     // This table as the target of other tables' audiences.
     let dependents: Vec<(String, Sync)> = schema

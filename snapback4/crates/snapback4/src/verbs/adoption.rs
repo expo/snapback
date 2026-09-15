@@ -15,6 +15,11 @@ pub(super) fn diagnostics(project: &Project, schema: &Schema, explicit: Option<&
     let mut sites = BTreeMap::new();
     for (file, source) in project.sources().map_err(|e| e.to_string())? {
         let (document, _) = snapback4_lang::parse_document(&file, &source);
+        for maintain in document.maintains {
+            if let Some(position) = schema.maintains.iter().position(|m| m.target == maintain.name) {
+                sites.insert(format!("maintains[{position}]"), maintain.site);
+            }
+        }
         for table in document.tables {
             let path = format!("tables.{}", table.name);
             sites.insert(path.clone(), table.site);

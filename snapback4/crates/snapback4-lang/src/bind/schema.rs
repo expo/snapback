@@ -24,8 +24,8 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
         if let Some(sync) = sync {
             let inherits = match &sync.audience {
                 Audience::Public => true,
-                Audience::Column(column) => maintain.by.contains(column),
-                Audience::Target { prefix, .. } => prefix.iter().all(|column| maintain.by.contains(column)),
+                Audience::Column(column) => maintain.keys.iter().any(|key| matches!(key, Expr::Name { name, .. } if name == column)),
+                Audience::Target { prefix, .. } => prefix.iter().all(|column| maintain.keys.iter().any(|key| matches!(key, Expr::Name { name, .. } if name == column))),
             };
             if inherits {
                 let target = schema.tables.get_mut(&maintain.name).expect("bound maintain");
@@ -42,9 +42,11 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
             Some(column) => core::MaintainKind::Sum { of: column.clone() },
             None => core::MaintainKind::Count,
         };
-        let _ = source;
-        schema.maintains.push(core::Maintain { residency: schema.tables[&maintain.name].residency.clone(), kind, source: maintain.source.clone(), by: maintain.by.clone(), target: maintain.name.clone(), readable: None });
+        let computed = match super::maintains::keys(source, maintain) { Ok(keys) => keys, Err(d) => { diagnostics.push(d); continue; } };
+        let filter = match maintain.filter.as_ref().map(|expr| super::maintains::predicate(source, expr)).transpose() { Ok(p) => p, Err(d) => { diagnostics.push(d); continue; } };
+        schema.maintains.push(core::Maintain { filter, computed, residency: schema.tables[&maintain.name].residency.clone(), kind, source: maintain.source.clone(), by: maintain.by.clone(), target: maintain.name.clone(), readable: None });
     }
+    schema.prepare_contribution_indexes();
     for doc in &catalog.documents {
         for effect in &doc.effects {
             schema.effects.push(effect.name.clone());
@@ -517,6 +519,7 @@ fn title(value: &str) -> String {
 /// columns typed as the source declares them.
 pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<TableDecl> {
     let site = maintain.site.clone();
+    if source.maintained.is_some() { return Err(super::maintains::refusal(&site, "a maintain cannot use another maintain as its source", "maintain directly from application source rows, or use a bounded job")); }
     let mut columns = Vec::new();
     let value_type = match &maintain.column {
         None => ScalarType { kind: TypeKind::Int, optional: false },
@@ -527,18 +530,29 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
         },
     };
     columns.push(ColumnDecl { default: None, name: "value".into(), type_: value_type, site: site.clone() });
-    let mut seen = BTreeSet::new();
+    let computed = super::maintains::keys(source, maintain)?;
+    if let Some(expr) = &maintain.filter { super::maintains::predicate(source, expr)?; }
     for field in &maintain.by {
-        if !seen.insert(field.clone()) {
-            return Err(unknown(&site, format!("maintain by repeats {field}"), format!("maintain {}: {} {} by {}", maintain.name, maintain.aggregate, maintain.source, seen.iter().cloned().collect::<Vec<_>>().join(", "))));
-        }
-        let ty = if field == "id" { ScalarType { kind: TypeKind::Ref { table: maintain.source.clone() }, optional: false } } else { source.columns.get(field).cloned().ok_or_else(|| unknown(&site, format!("maintain names unknown column {}.{field}", maintain.source), name_rewrite(field, source.columns.keys().map(String::as_str), None)))? };
+        let ty = if computed.contains_key(field) { ScalarType { kind: TypeKind::Int, optional: false } } else { source.columns[field].clone() };
         columns.push(ColumnDecl { default: None, name: field.clone(), type_: ty, site: site.clone() });
+    }
+    let mut indexes = vec![IndexDecl { name: "byGroup".into(), columns: maintain.by.clone(), unique: true, words: None, site: site.clone() }];
+    let mut names = BTreeSet::from(["byGroup".to_owned(), "byId".to_owned()]);
+    for index in &maintain.indexes {
+        if !names.insert(index.name.clone()) { return Err(super::maintains::refusal(&index.site, format!("duplicate maintain index {}", index.name), "use a distinct index name; byGroup and byId are generated")); }
+        if index.columns.contains(&"value".into()) {
+            if source.decl.expire.is_some() { return Err(Diagnostic::new(&index.site, "E_QUARRY_MAINTAIN_EXPIRE", format!("maintain {} cannot order by value because source {} expires", maintain.name, maintain.source), "use a live bounded query, or the scheduled ranked-table recipe for exact rolling-window Trending").guide("expire")); }
+            let prefix = index.columns.len().saturating_sub(2);
+            if index.columns.get(prefix..).is_none_or(|tail| tail != ["value", "id"]) || !index.columns[..prefix].iter().all(|field| maintain.by.contains(field)) {
+                return Err(super::maintains::refusal(&index.site, "a maintain value index is group fields followed by value, id", "by byCount: value, id"));
+            }
+        }
+        indexes.push(index.clone());
     }
     Ok(TableDecl {
         name: maintain.name.clone(),
         columns,
-        indexes: vec![IndexDecl { name: "byGroup".into(), columns: maintain.by.clone(), unique: true, words: None, site: site.clone() }],
+        indexes,
         rules: vec![maintain.read.clone()],
         immutable: Vec::new(),
         caps: Vec::new(),

@@ -28,6 +28,7 @@ pub struct Step {
 
 impl Step {
     pub fn rewrite(&self, schema: &Schema) -> String {
+        if self.path.starts_with("maintains[") { return "keep the prior maintain definition, or repair source contributions before adopting this filter, key or sum".into(); }
         let path: Vec<_> = self.path.split('.').collect();
         match path.as_slice() {
             ["tables", table, "columns", column] => {
@@ -58,6 +59,12 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
             steps.push(Step { path, change: Change::Destructive, message: format!("table {name} is removed; its rows are lost") });
             continue;
         };
+        if from.maintain_for(name).is_some() && to.maintain_for(name).is_some() {
+            if old.rules != new.rules || old.sync != new.sync {
+                steps.push(Step { path: format!("{path}.rules"), change: Change::RuleChange, message: format!("{name}'s aggregate audience changes; every device re-derives its partition") });
+            }
+            continue;
+        }
         for (column, old_kind) in &old.columns {
             let cpath = format!("{path}.columns.{column}");
             match new.columns.get(column) {
@@ -124,8 +131,16 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
             steps.push(Step { path: format!("tables.{name}"), change: Change::Additive, message: format!("table {name} is added") });
         }
     }
-    if from.maintains != to.maintains {
-        steps.push(Step { path: "maintains".into(), change: Change::Additive, message: "maintained aggregates change and are rebuilt".into() });
+    // @ref LLP 3000.007#20.9 — derived changes report their declaration; activation still owns the existing atomic rebuild.
+    for (position, maintain) in to.maintains.iter().enumerate() {
+        let old = from.maintain_for(&maintain.target);
+        let defaults_changed = old.is_some_and(|old| maintain.dependencies().iter().any(|column|
+            from.tables[&old.source].defaults.get(column) != to.tables[&maintain.source].defaults.get(column)));
+        let indexes_changed = old.is_some_and(|_| from.tables[&maintain.target].indexes != to.tables[&maintain.target].indexes);
+        if old != Some(maintain) || defaults_changed || indexes_changed {
+            steps.push(Step { path: format!("maintains[{position}]"), change: Change::Additive,
+                message: format!("maintain {} needs a derived rebuild of its filter, keys, totals or indexes; adoption rebuilds from source rows without rewriting them", maintain.target) });
+        }
     }
     if from.schedules != to.schedules {
         steps.push(Step { path: "schedules".into(), change: Change::Additive, message: "schedules change; each fires from its next boundary".into() });

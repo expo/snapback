@@ -11,13 +11,18 @@ impl Runner<'_> {
     // @ref LLP 3000.007#17 — absent and hidden-refused targets restore every logical meter field.
     pub(super) fn target_attempt<T>(&mut self, attempt: impl FnOnce(&mut Self) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
         let mark = self.meter.mark();
+        let prepaid = std::mem::replace(&mut self.maintain_prepaid, false);
+        let previous_heap = std::mem::take(&mut self.maintain_heap);
         let result = attempt(self);
+        self.meter.used.heap_bytes = self.meter.used.heap_bytes.saturating_sub(self.maintain_heap);
+        self.maintain_heap = previous_heap;
+        self.maintain_prepaid = prepaid;
         if matches!(&result, Err(RuntimeError::Require { code, .. }) if code == "NOT_FOUND") { self.meter.restore(mark); }
         result
     }
 
     // @ref LLP 3000.007#17 — reserve resolution's static worst case before the target lookup; no ceiling is changed.
-    pub(super) fn reserve_target_resolution(&self, table: &Table, patch: &Value, upsert: bool) -> Result<(), RuntimeError> {
+    pub(super) fn reserve_target_resolution(&mut self, table_name: &str, table: &Table, patch: &Value, upsert: bool) -> Result<(), RuntimeError> {
         let probes = rule_probes(&table.rules.read).saturating_mul(2).saturating_add(rule_probes(&table.rules.update))
             .saturating_add(if upsert { rule_probes(&table.rules.insert).saturating_mul(2) } else { 0 });
         // Covers the largest cloned row allowed by the schema, the caller's patch
@@ -28,6 +33,7 @@ impl Runner<'_> {
             (MeterKind::HeapBytes, heap, self.meter.used.heap_bytes, self.meter.ceilings.heap_bytes)] {
             if !self.meter.room(kind, amount) { return Err(RuntimeError::Bound { kind, actual: used.saturating_add(amount), ceiling, site: self.meter.site().into() }); }
         }
+        self.reserve_maintains(table_name, table)?;
         Ok(())
     }
 
@@ -119,7 +125,7 @@ impl Runner<'_> {
         if !index.unique || key.len() != index.columns().len() { return Err(RuntimeError::Input("a write target needs one complete unique key".into())); }
         if patch.as_object()?.contains_key("id") { return Err(RuntimeError::Input(format!("{} update patch cannot change id", target.table))); }
         self.read_tables.insert(target.table.clone());
-        self.reserve_target_resolution(&definition, &patch, upsert)?;
+        self.reserve_target_resolution(&target.table, &definition, &patch, upsert)?;
         let old = self.lookup_live(&target.table, &target.index, index, &key, false)?;
         if self.device && (definition.sync.is_none() || (old.is_none() && (!upsert || !self.upsert_absence_proven(&target.table, &target.index, &key)?))) {
             return Err(self.write_miss(&target.table, &target.index, &key));
@@ -252,13 +258,13 @@ fn pure_expr(expr: &Expr) -> bool {
 fn pure_builtin(builtin: &Builtin) -> bool {
     match builtin {
         Builtin::Divmod { .. } | Builtin::Connected => false,
-        Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Join | Builtin::Group { .. }
+        Builtin::Calendar { .. } | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Join | Builtin::Group { .. }
         | Builtin::First | Builtin::Last | Builtin::At | Builtin::Min | Builtin::Max | Builtin::Sort { .. } | Builtin::MentionTokens
         | Builtin::DeterministicShare | Builtin::Count | Builtin::Sum | Builtin::CountCapped => true,
     }
 }
 
-fn row_copy_ceiling(table: &Table) -> u64 {
+pub(super) fn row_copy_ceiling(table: &Table) -> u64 {
     table.columns.iter().fold(40, |total, (name, ty)| total.saturating_add(80 + name.len() as u64).saturating_add(column_copy_ceiling(ty)))
 }
 fn column_copy_ceiling(ty: &ColumnType) -> u64 {
@@ -273,5 +279,37 @@ fn column_copy_ceiling(ty: &ColumnType) -> u64 {
         // depth. Object subtrees, like image/video facts, are shared Arc values.
         ColumnType::Json { max_bytes } => u64::from(*max_bytes) * (std::mem::size_of::<Value>() as u64 + 1),
         ColumnType::Image { .. } | ColumnType::Video { .. } | ColumnType::Int | ColumnType::Decimal { .. } | ColumnType::Money { .. } | ColumnType::Bool | ColumnType::Time => 0,
+    }
+}
+
+impl Runner<'_> {
+    // @ref LLP 3000.007#20.9 — pay for both hidden contributions before the old image; no predicate-dependent success/budget channel.
+    pub(super) fn reserve_maintains(&mut self, table_name: &str, table: &Table) -> Result<(), RuntimeError> {
+        if table.rules.read.is_uniformly_readable() || self.context.is_system() { return Ok(()); }
+        let maintains: Vec<_> = self.schema.maintains.iter().filter(|m| m.source == table_name).collect();
+        if !maintains.iter().any(|m| m.filter.is_some() || !m.computed.is_empty() || table.expire.is_some()) { return Ok(()); }
+        let mut steps = 0_u64;
+        let mut entries = 0_u64;
+        // Two contribution images plus one occupancy image and its encoded key; no source page is exempted.
+        let mut heap = row_copy_ceiling(table).saturating_mul(4);
+        for m in &maintains {
+            let target = &self.schema.tables[&m.target];
+            let evaluations = if table.indexes.contains_key(&m.contribution_index()) { 6 } else { 2 };
+            steps = steps.saturating_add(m.evaluation_steps().saturating_mul(evaluations) + 4);
+            entries = entries.saturating_add(target.indexes.len() as u64 * 4 + 2);
+            // Two transient target images and canonical escaped tuple ids.
+            heap = heap.saturating_add(row_copy_ceiling(target).saturating_mul(16 + 4 * target.indexes.len() as u64));
+        }
+        for (kind, amount) in [(MeterKind::Steps, steps), (MeterKind::Examined, maintains.len() as u64 * 4),
+            (MeterKind::RowsWritten, maintains.len() as u64 * 2), (MeterKind::IndexEntries, entries), (MeterKind::HeapBytes, heap)] {
+            self.meter.charge(kind, amount)?;
+        }
+        self.maintain_heap = heap;
+        self.maintain_prepaid = true;
+        Ok(())
+    }
+    pub(crate) fn charge_maintain(&mut self, kind: MeterKind, amount: u64) -> Result<(), RuntimeError> {
+        if !self.maintain_prepaid { self.meter.charge(kind, amount)?; }
+        Ok(())
     }
 }

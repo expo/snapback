@@ -9,8 +9,9 @@ export interface PendingSend {
 // Fetch's quota is the sum of outstanding keepalive bodies, across clients
 // in this page, not a per-request limit. Other libraries may also consume it.
 const KEEPALIVE_BYTES = 64 * 1024;
+const EXIT_WAIT_MS = 1000;
 let inflightBytes = 0;
-export function exitTransport(doFetch: typeof fetch, base: string) {
+export function exitTransport(doFetch: typeof fetch, base: string, closed?: AbortSignal) {
   let active: Promise<void> | undefined;
   // @ref LLP 3000.007#20.4 — the exit transport preserves durable submission order, sharing ordinary sends' exclusion.
   return (entries: readonly PendingSend[], headers: Record<string, string>, isCurrent = () => true): Promise<void> | undefined => {
@@ -24,13 +25,30 @@ export function exitTransport(doFetch: typeof fetch, base: string) {
     if (bytes + inflightBytes > KEEPALIVE_BYTES || !isCurrent()) return;
     inflightBytes += bytes;
     try {
-      // No page AbortSignal: close() must not cancel this request. Ordinary
-      // flushing waits for it, then replays the durable head to settle it.
-      active = doFetch(`${base}/m/${entry.op}`, { method: "POST", headers: { ...headers }, body, keepalive: true })
+      // No page AbortSignal on fetch: close() stops waiting, not delivery.
+      // A timeout leaves the outcome unknown: ordinary flushing must replay
+      // this same durable head before advancing. Keep the active slot and
+      // quota until actual completion, so another exit cannot overlap it.
+      const done = doFetch(`${base}/m/${entry.op}`, { method: "POST", headers: { ...headers }, body, keepalive: true })
         .then(async response => { await response.arrayBuffer(); })
         .catch(() => {})
         .finally(() => { inflightBytes -= bytes; active = undefined; });
+      active = waitForExit(done, closed);
       return active;
     } catch { inflightBytes -= bytes; }
   };
+}
+
+function waitForExit(done: Promise<void>, closed?: AbortSignal): Promise<void> {
+  if (closed?.aborted) return Promise.resolve();
+  return new Promise(resolve => {
+    const finish = () => {
+      clearTimeout(timer);
+      closed?.removeEventListener("abort", finish);
+      resolve();
+    };
+    const timer = setTimeout(finish, EXIT_WAIT_MS);
+    closed?.addEventListener("abort", finish, { once: true });
+    void done.then(finish);
+  });
 }

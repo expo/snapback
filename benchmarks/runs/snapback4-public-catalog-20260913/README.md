@@ -2828,3 +2828,187 @@ public files), `sync-wire-0213-registry-verification.json` and
 This is release and correctness evidence; the preceding native sync
 measurements retain their original 0.2.12 A/B source and binary identities.
 No new latency, hosted, competitor, device or durability result follows.
+
+
+### Fixed 0.2.13 core-scope diagnostic: membership lane work
+
+The Office ARM Linux run completed at **2026-09-15 00:09:22 UTC** using
+source `d81381a98f56478f8e5d776f0d1b36d234145112` plus seven ignored
+diagnostic source overrides. V2's production build and **73 CLI tests**
+passed with zero failed/ignored/filtered tests. The retained binary is
+`08c4c062…`, 8,474,128 B; Node is 24.21.0 / Undici 7.29.1, Rust 1.97.0,
+with the packaged SQLite flag and MEMSTATUS enabled. V3 corrects an
+unexecuted controller's port mismatch with the unchanged loader.
+
+All **18,432 timed calls**, 2,160 excluded warmups, 2,304 selected traces
+and 72 blocks passed. Each of 24 degree/query/concurrency cases has 96
+selected queries across three rounds. The two original full HTTP verifiers,
+three physical fixture proofs, ordinary authorization/cursor checks and
+same-session checks passed. The selected readers include 2,303 reused and
+one constructed reader. The planned SIGTERM and all four owned group
+lifetimes ended as expected. The 384-call smoke is excluded.
+
+The useful finding is repeated work per returned 20-row feed. Every selected
+first-page query at both C1 and C8 has the following counts:
+
+| Groups | Prepared scans | Live rule probes | Indexed scan collections | Row JSON decodes |
+|---|---:|---:|---:|---:|
+| 5 | 6 | 5 | 11 | 120 |
+| 30 | 51 | 50 | 101 | 180 |
+| 150 | 171 | 170 | 341 | 660 |
+
+The source explains the counts. It discovers N memberships, initializes all
+N message lanes, and performs a live membership lookup for each initial scan
+or refill. Above eight lanes it buffers one visible message per lane and
+requests two for lookahead; these full pages refill after each of 20 emitted
+rows. With L=N+20 message scans, indexed scan collections are **1+2L**:
+one discovery, L message scans and L membership lookups. Five-group pages
+buffer 21 visible messages per lane and request 22, so need no refill here.
+At 150 groups the first page decodes 150 discovery membership rows,
+170 membership-proof rows and 340 fetched message rows: 660 decodes for
+20 outputs. These may revisit rows; they are not unique rows, disk reads,
+meter units, all SQL statements or individual SQLite-step calls.
+
+The rotating 150-group cases retain 171 prepared scans, 170 rule probes and
+341 indexed collections per selected query; mean row decodes are 659.479
+because some cursor-positioned lanes fetch fewer messages. Rule dependency
+preparation also repeats 171 times. `metadata_numbers` is in-memory catalog
+lookup/name formatting, not another SQL read.
+
+The following are **instrumented** means for the 150-group cases, not
+uninstrumented release latency or a speedup. The last two columns divide by
+the recorded core query CPU sum; initial-head time is inclusive, whereas
+step/collect time excludes nested JSON decoding.
+
+| Query | Core CPU ms | Core wall ms | Initial heads / core CPU | Step/collect exclusive / core CPU |
+|---|---:|---:|---:|---:|
+| First page, C1 | 14.364 | 14.383 | 72.16% | 20.34% |
+| Rotating page, C1 | 15.674 | 16.010 | 68.66% | 21.17% |
+| First page, C8 | 16.146 | 28.628 | 73.74% | 22.45% |
+| Rotating page, C8 | 19.291 | 34.730 | 68.31% | 22.20% |
+
+All 31 scopes' exclusive wall and CPU counters partition the core query
+root exactly. **That proves accounting, not negligible probe overhead.**
+The 150-group first page executes 5,024 scope guards. Clock reads, TLS,
+counter/drop bookkeeping and later trace logging perturb the workload;
+bookkeeping can fall in a parent's exclusive remainder. The percentages
+must not be promoted to uninstrumented CPU shares or pure SQLite costs.
+`step_collect` includes SQLite iteration, row copying, Rust iterator/error
+work and vector allocation; JSON decoding is a nested scope. No specific
+internal lock, filesystem, scheduler or VM cause follows from CPU/wall gaps.
+
+Both calculators were frozen before formal execution. Independent checks
+and reconciliation agree on **357,120 raw scope components**, 6,912 outer
+intervals, 3,720 case-sum components, 3,720 means and 1,488 shares. The
+storage ledger appends all 22 original public objects (8,082,457 transferred
+bytes), all 24 case counter summaries, qualification, source mappings and
+limits. Transfer `c23f67d0…`, completion `62f8048f…`, independent summary
+`29b6fa3b…` and reconciliation `4483be1c…` bind the retained local evidence.
+
+Main advanced through **0.2.14 to 0.2.15** during this fixed-source experiment.
+The manifests at observed origin `66a7c976` say 0.2.15. Rules/store/host-query
+source is identical, but query/read/
+runner/page logic and accepted-socket behavior differ. These are not 0.2.14
+or 0.2.15 measurements. The [core-owner follow-up](../../../issues/20260914-snapback4-membership-feed-query-cost.md)
+now targets repeated scan/preparation/materialization work, with current-source
+qualification and ordinary uninstrumented A/B required before adopting a
+change. No runtime code, authority cache, ceiling or client contract changes
+in this evidence landing; no new competitor win is claimed.
+
+### Merge-local scan preparation: fixed 0.2.15 HTTP A/B, not adopted
+
+The candidate passes correctness qualification but is **not recommended for
+adoption**: the targeted 150-group concurrent next and rotating feeds lose
+throughput in every pair. Smaller concurrent feeds improve, so this is a
+mixed result rather than evidence of a uniform regression.
+
+Main reached **0.2.16** before this evidence landing. Integration parent
+`1a4a50da8…` changes core reads/rules/admission/schema and host behavior
+relative to measured d0ea. This batch qualifies neither that newer runtime
+nor its performance; the next candidate needs its own source qualification.
+
+Six serial runs on Office M1 Max / ARM Linux Colima (4 CPUs, 12 GiB)
+completed at **2026-09-15 02:03:08 UTC**. Both production binaries use
+`d0ea081923efb375a00fee97b78ebcd2f836554d` (0.2.15), Rust 1.97.0,
+`-USQLITE_ENABLE_MEMORY_MANAGEMENT` with MEMSTATUS enabled, and Node
+24.21.0 / Undici 7.29.1 with ordinary built-in fetch. Baseline binary
+`7b995328…` and candidate `1f41011f…` are each 8,539,664 B. The candidate's
+only runtime delta is in `engine/read.rs`: two pure schema/IR analyses are
+initialized lazily and reused per original plain-merge lane template. The
+cells die with that merge. Prefix values, live authority, expiry, dependency
+accounting, meters, bounds and page/cursor state remain freshly evaluated.
+
+The V2 candidate passed **318 selected Rust test executions**, including
+three new differential/privacy tests and the affected core, CLI, simulator
+and device groups. Reported groups have zero failures or ignored tests;
+filtered slots and corpus-internal named exclusions remain separate. The
+earlier V1 core-test compile failure is preserved; V2 corrected the test's
+seed-return arm and expiry fixture without changing the runtime patch.
+This is selected source qualification, not a full-workspace, physical-device
+or publication claim.
+
+Formal trials 401–403 use orders B/C, C/B, B/C. All **117,000 timed case
+calls** (39 cases × 500 samples × six runs), **7,020 excluded warmups** and
+**162 untimed complete walks / 33,510 traversal pages** pass. Each run
+starts a fresh server/private fixture copy, compiles the same authored
+schema, and verifies all 501 groups, 100,000 messages and memberships
+186 → 185 after leave → 186 after regrant. Auth, outsider, invalid/expired/
+forged credentials, exact ordered results, old/foreign cursors and regrant
+with the original sessions on the same server pass. The two trial-997
+smokes are excluded. All twelve clients exit zero; all six servers receive
+their planned SIGTERM, and final owned-group cleanup passes.
+
+The following counts compare lower latency/elapsed or higher requests/s.
+Medians use three reported run statistics; request quantiles are not pooled.
+
+| Metric | Better / worse case medians (39) | Better / worse / tied pairs (117) |
+|---|---:|---:|
+| p50 | 21 / 18 | 59 / 58 / 0 |
+| p95 | 24 / 15 | 70 / 47 / 0 |
+| p99 | 23 / 16 | 68 / 49 / 0 |
+| Maximum | 21 / 18 | 63 / 54 / 0 |
+| Elapsed | 21 / 18 | 62 / 54 / 1 |
+| Requests/s | 21 / 18 | 62 / 55 / 0 |
+
+Selected medians are baseline → candidate, milliseconds except rate:
+
+| Feed case | p50 | p95 | p99 | Requests/s |
+|---|---:|---:|---:|---:|
+| 5 groups, next, C1 | 1.778 → 2.503 | 2.509 → 6.977 | 3.588 → 11.395 | 525.9 → 310.1 |
+| 5 groups, first, C8 | 7.656 → 4.729 | 20.991 → 9.500 | 32.044 → 13.058 | 859.9 → 1486.2 |
+| 30 groups, first, C8 | 11.091 → 6.234 | 37.695 → 10.735 | 56.402 → 13.604 | 489.7 → 1221.9 |
+| 150 groups, first, C1 | 5.287 → 4.679 | 6.777 → 6.007 | 7.357 → 6.349 | 188.2 → 203.2 |
+| 150 groups, rotating, C1 | 7.352 → 7.052 | 8.779 → 12.372 | 10.072 → 20.639 | 132.0 → 130.1 |
+| 150 groups, first, C8 | 20.610 → 19.501 | 46.939 → 43.183 | 68.039 → 56.395 | 313.5 → 357.4 |
+| 150 groups, next, C8 | 18.446 → 24.014 | 34.477 → 56.209 | 42.626 → 71.103 | 405.0 → 291.5 |
+| 150 groups, rotating, C8 | 19.176 → 24.454 | 36.245 → 55.225 | 59.378 → 78.369 | 375.8 → 282.9 |
+
+For the 150-group rotating C8 feed, median p50 rises **27.52%**, p95
+**52.37%**, and throughput falls **24.72%**. Its three paired elapsed
+increases are 44.10%, 5.60% and 32.87%. The corresponding next-page elapsed
+increases are 184.18%, 48.25% and 2.68%; p95, p99, maximum and rate worsen
+in all three pairs. Five-group first-page C1 and 30-group rotating C1 p50
+also worsen in every pair. All 317 paired losses across six metrics remain
+in the reconciled summaries; the largest individual observations are
+178.702 ms baseline and 201.963 ms candidate, in different cases.
+
+After-workload RSS medians are 29,968 → 29,120 KiB, but paired differences
+are −3,032, +2,764 and +2,260 KiB. Process-lifetime HWM medians are
+37,860 → 37,312 KiB. These are untimed process observations, not continuous
+peaks or isolated preparation allocation. Full proofs/walks warm the cases;
+OS cache residency is unmeasured. Point/thread controls also vary, and no
+particular allocator, internal lock or scheduler cause is established.
+There is no new comparator, cold-cache, write, durability, device-performance
+or current published-artifact claim.
+
+Both analysis programs were frozen before smoke timing and passed their
+actual calculations unchanged. The original **137-file / 1,115,631-byte**
+public transfer is `24400ba3…`, formal completion `4f5cf9ec…`, root summary
+`1668fa83…`, independent summary `ee74ee95…`, and reconciliation `0a2cc6bc…`.
+They agree on 1,404 run values, 468 median values, 234 median contrasts,
+702 paired contrasts and twelve RSS/HWM snapshots. Six appended ledger
+objects preserve the original formal records and add count/scope annotations.
+Supporting files use the ignored run prefix
+`membership-scan-preparation-0215-v2-http-v1`. The
+[core-owner follow-up](../../../issues/20260914-snapback4-membership-feed-query-cost.md)
+remains open; this landing changes evidence only.

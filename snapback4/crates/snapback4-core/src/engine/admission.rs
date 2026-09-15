@@ -287,7 +287,7 @@ impl Flow<'_> {
             return plain_prefix_problem(self.schema, scan);
         }
         let pinned: Vec<_> = index.columns().into_iter().take(scan.prefix.len()).collect();
-        let cap = table.constraints.iter().filter_map(|c| match c { Constraint::Cap { by, max } if by.iter().all(|key| pinned.contains(key)) => Some(*max), _ => None }).min();
+        let cap = self.schema.group_bound(&scan.table, &pinned);
         let Some(cap) = cap else { return Some(format!("{} has no cap over the selected group", scan.table)); };
         if !scan_visibility(self.schema, scan).uniform { return Some("the read rule is not uniform over the prefix".into()); }
         if !matches!(scan.take, Bound::Literal(n) if n >= cap) { return Some(format!("the literal page bound must cover the schema cap {cap}")); }

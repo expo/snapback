@@ -418,13 +418,14 @@ impl Rows for MemoryTx<'_> {
         let mut written = 0;
         for (index_name, index) in &table.indexes {
             let ti = format!("{table_name}.{index_name}");
-            if let Some(old) = old {
-                for key in stored_index_keys(table, index, old, &id) {
-                    self.set_entry((ti.clone(), key), None);
-                }
+            let before = old.map(|row| stored_index_keys(table, index, row, &id)).unwrap_or_default();
+            let after = stored_index_keys(table, index, row, &id);
+            for key in before.iter().filter(|key| !after.contains(key)) {
+                self.set_entry((ti.clone(), key.clone()), None);
+                written += 1;
             }
-            for key in stored_index_keys(table, index, row, &id) {
-                self.set_entry((ti.clone(), key), Some(id.clone()));
+            for key in after.iter().filter(|key| !before.contains(key)) {
+                self.set_entry((ti.clone(), key.clone()), Some(id.clone()));
                 written += 1;
             }
         }

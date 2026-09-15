@@ -54,6 +54,13 @@ pub fn receipts(bytes: &[u8], final_file: bool) -> Result<Vec<Value>> {
         if lines.peek().is_none() { break; }
         let row: Value = serde_json::from_slice(line).map_err(|e| error("E_WITNESS_RECEIPT", format!("receipt line {} is not JSON: {e}", rows.len() + 1)))?;
         if !row.is_object() { return Err(error("E_WITNESS_RECEIPT", format!("receipt line {} is not an object", rows.len() + 1))); }
+        let envelope = row["witness"].as_object();
+        if !envelope.is_some_and(|w| w.len() == 2 && w.get("at").and_then(Value::as_str).is_some_and(|at| timestamp(at))
+            && w.get("step").and_then(Value::as_str).is_some_and(|step| name(step) || step.strip_suffix(":running").is_some_and(name) || step.strip_suffix(":failed").is_some_and(name))) {
+            return Err(error("E_WITNESS_RECEIPT", format!("receipt line {} has an invalid witness envelope; expected witness: {{ at: ISO timestamp, step: name }}", rows.len() + 1)));
+        }
+        let step = row["witness"]["step"].as_str().unwrap();
+        if step.ends_with(":failed") { return Err(error("E_WITNESS_STEP", format!("app step {step}; see receipts and device log"))); }
         rows.push(row);
     }
     Ok(rows)
@@ -68,4 +75,90 @@ pub fn artifact(path: &Path) -> Result<Value> {
     }
     if bytes == 0 { return Err(error("E_WITNESS_ARTIFACT", format!("empty artifact {}", path.display()))); }
     Ok(json!({ "path": path, "bytes": bytes, "sha256": format!("{:x}", digest.finalize()) }))
+}
+
+
+pub fn milestone(step: &str) -> bool { ["primed", "relaunch", "offline-done", "done"].contains(&step) }
+
+// @ref LLP 3000.007#20.10 — terminal evidence is checked again after the app stops
+pub fn sequence(rows: &[Value], expected: &[&str], final_file: bool) -> Result<()> {
+    let mut next = 0;
+    let mut done = false;
+    for row in rows {
+        let step = row["witness"]["step"].as_str().unwrap(); // receipts validated the envelope
+        if done {
+            // `between-steps` rows come only from receipt() calls, including an empty
+            // receipt; any other step after `done` is a step change.
+            if step != "between-steps" {
+                return Err(error("E_WITNESS_STEP", format!("app changed step after done: {step}")));
+            }
+        } else if milestone(step) {
+            if expected.get(next) != Some(&step) {
+                return Err(error("E_WITNESS_STEP", format!("expected {}, received {step}", expected.get(next).unwrap_or(&"no further milestone"))));
+            }
+            next += 1; done = step == "done";
+        }
+    }
+    if final_file && next != expected.len() { return Err(error("E_WITNESS_STEP", format!("missing milestone {} in final receipts", expected[next]))); }
+    Ok(())
+}
+
+pub const OUTPUTS: &[&str] = &["run.json", "screen.mp4", "receipts.jsonl", "device.log", "video.log", "launch.log", "backend.log", "backend-stdout.log", "log-stderr.log"];
+
+// The marker stays with success and failure artifacts. Creating it, rather
+// than checking for it, is the single winner operation across driver runs.
+pub fn reserve_artifacts(dir: &Path, segment: &str) -> Result<()> {
+    fs::create_dir_all(dir).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+    let marker = dir.join(format!("{segment}-ios-reserved"));
+    fs::OpenOptions::new().write(true).create_new(true).open(&marker)
+        .map_err(|e| error("E_WITNESS_ARTIFACT", format!("cannot reserve {}: {e}; choose a fresh --artifacts directory or --segment", marker.display())))?;
+    for suffix in OUTPUTS {
+        if dir.join(format!("{segment}-ios-{suffix}")).symlink_metadata().is_ok() {
+            return Err(error("E_WITNESS_ARTIFACT", "segment artifacts already exist; choose a fresh --artifacts directory or --segment"));
+        }
+    }
+    Ok(())
+}
+
+pub fn app_pid(list: &str, bundle: &str) -> Result<Option<u32>> {
+    let prefix = format!("UIKitApplication:{bundle}[");
+    if !list.lines().next().is_some_and(|line| line.split_whitespace().eq(["PID", "Status", "Label"])) {
+        return Err(error("E_WITNESS_APP", "cannot inspect running apps: invalid launchctl list output"));
+    }
+    let mut found = None;
+    for line in list.lines().skip(1) {
+        let fields: Vec<_> = line.split_whitespace().collect();
+        if fields.len() != 3 { return Err(error("E_WITNESS_APP", "cannot inspect running apps: invalid launchctl row")); }
+        if fields[2].starts_with(&prefix) && fields[0] != "-" {
+            let pid = fields[0].parse::<u32>().ok().filter(|p| *p > 0).ok_or_else(|| error("E_WITNESS_APP", "invalid running app PID"))?;
+            if found.replace(pid).is_some() { return Err(error("E_WITNESS_APP", "multiple running instances of the named app; quit them before starting the witness")); }
+        }
+    }
+    Ok(found)
+}
+
+
+fn timestamp(at: &str) -> bool {
+    let b = at.as_bytes();
+    if b.len() != 24 || [4, 7, 10, 13, 16, 19, 23].into_iter().zip(b"--T::.Z").any(|(i, c)| b[i] != *c)
+        || b.iter().enumerate().any(|(i, c)| ![4, 7, 10, 13, 16, 19, 23].contains(&i) && !c.is_ascii_digit()) { return false; }
+    let n = |start, end| at[start..end].parse::<u32>().unwrap();
+    let year = n(0, 4); let month = n(5, 7); let day = n(8, 10);
+    let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let days = match month { 2 if leap => 29, 2 => 28, 4 | 6 | 9 | 11 => 30, 1 | 3 | 5 | 7 | 8 | 10 | 12 => 31, _ => 0 };
+    day > 0 && day <= days && n(11, 13) < 24 && n(14, 16) < 60 && n(17, 19) < 60
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn an_empty_receipt_after_done_is_accepted_and_a_step_change_is_not() {
+        let rows = [json!({"witness": {"step": "offline-done"}}), json!({"witness": {"step": "done"}}), json!({"witness": {"step": "between-steps"}})];
+        assert!(sequence(&rows, &["offline-done", "done"], true).is_ok());
+        let changed = [json!({"witness": {"step": "offline-done"}}), json!({"witness": {"step": "done"}}), json!({"witness": {"step": "history:running"}})];
+        assert!(sequence(&changed, &["offline-done", "done"], true).is_err());
+    }
 }

@@ -66,7 +66,7 @@ fn the_language_card_compiles_and_runs() {
     let source = language();
     let bound = clean("the language card", &source);
     let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).collect();
-    assert_eq!(names, ["room", "helperRows", "thread", "inbox", "following", "ancestors", "digest", "mentions", "search", "everywhere", "online", "pagePass", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative"]);
+    assert_eq!(names, ["daily", "today", "calendar", "mostLiked", "chips", "room", "helperRows", "thread", "inbox", "following", "ancestors", "digest", "mentions", "search", "everywhere", "online", "pagePass", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative"]);
     assert_eq!(bound.schema.effects, ["notify"]);
     assert_eq!(bound.schema.schedules.len(), 1);
     assert_eq!(bound.personas, ["alice", "bob", "carol"]);
@@ -147,6 +147,16 @@ fn the_language_card_compiles_and_runs() {
     // post: a loop over a bounded list argument; following: a merge over lanes, shaped.
     let posted = engine.mutate("post", Some("p1"), Context::new(alice, args(&[("bodies", Value::Array(vec![text("a"), text("b")]))])).at(3_000).with_ids(["post1".to_owned(), "post2".to_owned()])).unwrap();
     assert_eq!(sent(&posted), &Value::Int(2));
+    // Calendar maintains share scalar keys with ordinary expressions; pages retain their group fields.
+    assert_eq!(engine.query("today", Context::new(alice, args(&[])).at(3_000)).unwrap().data, Value::Int(2));
+    assert_eq!(engine.query("today", Context::new(alice, args(&[])).at(86_400_000)).unwrap().data, Value::Int(0));
+    let daily = engine.query("daily", Context::new(alice, args(&[])).at(3_000)).unwrap();
+    assert_eq!(daily.data.as_array().unwrap()[0].field("day").unwrap(), &Value::Int(0));
+    assert_eq!(daily.data.as_array().unwrap()[0].field("count").unwrap(), &Value::Int(2));
+    assert!(daily.complete);
+    let calendar = engine.query("calendar", Context::new(alice, args(&[])).at(-1)).unwrap().data;
+    assert_eq!(calendar.field("hour").unwrap(), &Value::Int(-1));
+    assert_eq!(calendar.field("bucket").unwrap(), &Value::Int(-1));
     engine.seed([("follows".to_owned(), snapback4_core::value::object([("id", id("f1")), ("followerId", id(bob)), ("followedId", id(alice))]))]).unwrap();
     let following = engine.query("following", Context::new(bob, args(&[])).at(3_100)).unwrap();
     let posts = following.data.as_array().unwrap();
@@ -156,6 +166,11 @@ fn the_language_card_compiles_and_runs() {
     assert_eq!(failed(&engine.mutate("react", Some("x1"), Context::new(bob, args(&[("postId", id("post1")), ("direction", Value::Int(2))])).at(3_200)).unwrap()), "BAD_DIRECTION");
     let reacted = engine.mutate("react", Some("x2"), Context::new(bob, args(&[("postId", id("post1")), ("direction", Value::Int(-1))])).at(3_300).with_ids(["react1".to_owned()])).unwrap();
     assert_eq!(sent(&reacted).field("direction").unwrap(), &Value::Int(-1));
+    let chips = engine.query("chips", Context::new(bob, args(&[("postId", id("post1"))])).at(3_300)).unwrap();
+    assert_eq!(chips.data.as_array().unwrap()[0].field("emoji").unwrap(), &text("like"));
+    assert_eq!(chips.data.as_array().unwrap()[0].field("count").unwrap(), &Value::Int(1));
+    // A value index grants no read authority over a private vote aggregate.
+    assert!(engine.query("mostLiked", Context::new(bob, args(&[])).at(3_300)).unwrap().data.as_array().unwrap().is_empty());
     let following = engine.query("following", Context::new(bob, args(&[])).at(3_400)).unwrap();
     assert!(following.data.as_array().unwrap().iter().any(|p| p.field("mine").unwrap() != &Value::Null));
     // edit: the presence assertion, a conditional update refused with the current row, then accepted.
@@ -503,10 +518,53 @@ fn set_state_recipe_predicts_first_like_and_repeated_set_and_clear() {
 }
 
 #[test]
+fn expire_card_explains_maintained_value_order_refusal_and_rewrites() {
+    let expire = card("expire").unwrap();
+    for phrase in ["Value-order indexes over expiring sources", "E_QUARRY_MAINTAIN_EXPIRE", "live bounded query", "scheduled ranked-table recipe"] {
+        assert!(expire.contains(phrase), "expiry diagnostic's destination omits {phrase}");
+    }
+}
+
+#[test]
 fn writes_card_explains_the_whole_upsert_insert_proof() {
     let writes = card("writes").unwrap().split_whitespace().collect::<Vec<_>>().join(" ");
     assert!(!writes.contains("predict only updates of rows the device holds"));
     for text in ["held", "no horizon", "insert image", "unique", "cap", "guide prediction"] {
         assert!(writes.contains(text), "writes card omits {text}");
     }
+}
+
+#[test]
+fn direct_and_merged_cursor_generation_contracts_are_distinct() {
+    let source = "table events:\n  owner: principal\n  at: time\n  selected: bool\n  by byOwnerAt: owner, at, id\n  cap 10\n  public 'events'\n  sync\nmaintain daily: count events where .selected by owner, day(.at)\n  read <- allow\n  online only\nquery direct(c: cursor ?):\n  return events[viewer] after c first 1 by byOwnerAt\nquery grouped(c: cursor ?):\n  return daily[viewer] after c first 1 by byGroup\nquery merged(c: cursor ?):\n  return merge events after c first 1 by byOwnerAt:\n    [viewer]\n";
+    let bound = clean("cursor contracts", source);
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed([1, 2].map(|day| ("events".into(), snapback4_core::value::object([
+        ("id", id(&format!("e{day}"))), ("owner", id("alice")), ("at", Value::Int(day * 86_400_000)), ("selected", Value::Bool(true)),
+    ])))).unwrap();
+    let cursors: Vec<_> = ["direct", "grouped", "merged"].into_iter().map(|name| {
+        let read = engine.query(name, Context::new("alice", BTreeMap::new())).unwrap();
+        assert!(read.complete);
+        (name, read.next.unwrap())
+    }).collect();
+    let successor = clean("cursor successor", &source.replace("  selected: bool", "  selected: bool\n  label: text <=10 default 'new'"));
+    engine.adopt(successor.schema, successor.programs.into_iter().map(|p| p.program)).unwrap();
+    for (name, cursor) in cursors {
+        let read = engine.query(name, Context::new("alice", args(&[("c", text(&cursor))])));
+        if name == "merged" {
+            let read = read.unwrap();
+            assert!(read.complete);
+            assert_eq!(read.data.as_array().unwrap()[0].field("id").unwrap(), &id("e2"));
+            assert!(read.next.is_none());
+        } else {
+            let refusal = read.unwrap_err();
+            assert_eq!(refusal.code, "E_INPUT");
+            assert_eq!(refusal.message, "E_INPUT: cursor: cursor token describes a different prefix or generation");
+        }
+    }
+    for (name, doc) in [("feeds", card("feeds").unwrap()), ("README", README)] {
+        assert!(doc.contains("A merge cursor from generation N"), "{name} must scope cross-generation continuation to merge cursors");
+        assert!(!doc.contains("A cursor from generation N"), "{name} must not promise it for direct pages");
+    }
+    assert!(README.contains("A direct page cursor binds the\nevaluated prefix and active generation"));
 }

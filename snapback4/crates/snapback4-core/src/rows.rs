@@ -95,6 +95,9 @@ pub fn index_key(index: &Index, row: &Value, id: &str) -> Vec<u8> {
 /// would be from a point read). Every store writes and deletes exactly
 /// these, on every host.
 pub fn index_keys(index: &Index, row: &Value, id: &str) -> Vec<Vec<u8>> {
+    if let Some(crate::schema::IndexComponent::Contribution(maintain)) = index.components.first() {
+        return if maintain.selected(row) { vec![index_key(index, row, id)] } else { Vec::new() };
+    }
     let Some((position, fields)) = index.word_component() else { return vec![index_key(index, row, id)] };
     let texts: Vec<&str> = fields.iter().filter_map(|field| row.field(field).ok().and_then(|value| value.as_str().ok())).collect();
     let tokens = crate::words::row_tokens(texts);
@@ -119,6 +122,7 @@ pub fn stored_index_keys(table: &Table, index: &Index, row: &Value, id: &str) ->
 /// The index's column values from a row image, in component order, the
 /// word component skipped; absent optionals are null.
 pub fn index_values(index: &Index, row: &Value) -> Vec<Value> {
+    if let Some(crate::schema::IndexComponent::Contribution(maintain)) = index.components.first() { return maintain.source_key(row); }
     index.columns().iter().map(|column| row.field(column).cloned().unwrap_or(Value::Null)).collect()
 }
 
@@ -215,13 +219,14 @@ impl Rows for MemoryRows {
         let mut written = 0;
         for (index_name, index) in &table.indexes {
             let ti = format!("{table_name}.{index_name}");
-            if let Some(old) = old {
-                for key in index_keys(index, old, &id) {
-                    entries.remove(&(ti.clone(), key));
-                }
+            let before = old.map(|row| stored_index_keys(table, index, row, &id)).unwrap_or_default();
+            let after = stored_index_keys(table, index, row, &id);
+            for key in before.iter().filter(|key| !after.contains(key)) {
+                entries.remove(&(ti.clone(), key.clone()));
+                written += 1;
             }
-            for key in index_keys(index, row, &id) {
-                entries.insert((ti.clone(), key), id.clone());
+            for key in after.iter().filter(|key| !before.contains(key)) {
+                entries.insert((ti.clone(), key.clone()), id.clone());
                 written += 1;
             }
         }
@@ -233,7 +238,7 @@ impl Rows for MemoryRows {
         let mut entries = self.entries.borrow_mut();
         let mut removed = 0;
         for (index_name, index) in &table.indexes {
-            for key in index_keys(index, old, &id) {
+            for key in stored_index_keys(table, index, old, &id) {
                 entries.remove(&(format!("{table_name}.{index_name}"), key));
                 removed += 1;
             }

@@ -241,16 +241,110 @@ The same operation id under another principal has no access to that receipt.
 
 ### Maintains
 
-`maintain counts: count messages by conversationId` (or `maintain totals:
-sum posts of score by authorId`, over an `int`, `decimal` or `money`
-column) keeps an aggregate table the engine writes. A program reads it by
-group and gets **the number**: `counts[conversationId]` and
-`counts[.conversationId]` in a shape are an `int`, 0 when the group has no
-row. (On the wire and on a device the table's rows are `{ id, <by
-columns>, value }` with the group's canonical key as the id; that shape
-only matters to sync.) It takes one `read` rule and inherits the source's
-`sync` when it groups by the audience columns; it is written only through
-its source rows.
+A maintain keeps an engine-owned table of rows { id, <group columns>, value }.
+A full-key lookup returns the number, zero when absent. An explicit page
+returns rows; a short key without a page operator is refused. The generated
+byGroup index covers the complete group tuple. Source caps can bound distinct
+groups without a new runtime target cap.
+
+Filters accept typed scalar comparisons, and/or/not and required boolean
+columns, with no reads, viewer, now, helpers or arithmetic. Calendar keys take
+required time columns; day, hour and bucket are UTC epoch floor ordinals,
+including negative timestamps. Duplicate output names and id/value are refused.
+These Clique examples replace stored original-post flags and calendar fields,
+and expose reaction chips and a value ranking:
+
+```quarry
+table posts:
+  authorId: principal
+  parentId: id ?
+  at: time
+  score: int
+  by byAuthor: authorId, id
+  public 'posts are public'
+  online only
+
+table likes:
+  postId: posts
+  authorId: principal
+  principal: principal
+  unique byPostPrincipal: postId, principal
+  public 'likes are public'
+  online only
+
+table reactions:
+  messageId: id
+  emoji: text <=20
+  principal: principal
+  by byMessage: messageId, id
+  cap 50 by messageId
+  public 'reaction counts are public'
+  online only
+
+maintain originalPostCounts: count posts where .parentId = null by authorId
+  read <- allow
+  online only
+maintain dailyPosts: count posts where .parentId = null by authorId, day(.at)
+  read <- allow
+  online only
+maintain hourlyPosts: sum posts of score by authorId, hour(.at)
+  read <- allow
+  online only
+maintain periodPosts: count posts by authorId, bucket(.at, 2m)
+  read <- allow
+  online only
+maintain reactionCounts: count reactions by messageId, emoji
+  read <- allow
+  online only
+maintain postLikes: count likes by postId
+  read <- allow
+  online only
+  by byCount: value, id
+
+query today():
+  return dailyPosts[viewer, day(now)]
+query reactionChips(messageId: id):
+  return reactionCounts[messageId] first 50 by byGroup { emoji, count: .value }
+query mostLiked(c: cursor ?):
+  return postLikes after c last 10 by byCount { postId, count: .value }
+```
+
+Value-order indexes end in value, id, optionally after group fields. last N
+descends by both; ordinary cursors continue it. A direct page cursor binds the
+evaluated prefix and active generation, so another prefix or adoption refuses
+it. Ordinary writes keep it valid; rows can move between pages. Only existing nonzero groups
+appear. Author attribution stays a source field. A value-order page pins
+every group field before value in its index;
+value, id alone gives a global ranking. A UTC day is not a rolling
+24-hour window: exact trailing-day Trending and zero-like candidates keep the
+ranked/expiry recipe. Value ordering over an expiring source is refused; live
+unranked reads still recompute selected, unexpired contributions.
+
+A maintain inherits source sync only when every audience column survives as
+a bare key, with no target horizon. It stays until-revoked even when its source
+retains delivered-history. Public inheritance sends all groups to every device,
+including when a query reads only the top ten. An online-only derived side
+effect does not prevent prediction of a source write; reading it does. Unknown
+aggregate bases queue without a predicted row and are never initialized to zero.
+For an expiring zero sum, a held source witness keeps the candidate; local
+absence requires held source coverage with no horizon. Otherwise the write
+queues without a predicted row. Live scalar misses and empty pages stay
+incomplete under incomplete source coverage. An inherited aggregate over a
+public source with subset delivery runs on the server; its local scalar and
+page coverage stays unknown.
+
+Filtered counts disclose predicate membership; computed keys disclose bucket
+membership and rank discloses relative values to the declared aggregate read
+audience. The filter grants no source-row read. Restrict the maintain's read
+rule when these deltas are private; guide rules shows that form. Adoption
+rebuilds changed derived definitions on populated stores through today's
+atomic activation path; resumable adoption is a separate slice.
+
+Even a hidden aggregate can disclose a constraint outcome: near an integer
+endpoint, a hidden selected contribution can make a write fail with
+E_OVERFLOW while an excluded contribution commits. Work reservation does not
+prevent this overflow bit; the refusal names only the maintain and column,
+and the failed transaction rolls back.
 
 ### Shapes and helpers
 
@@ -381,6 +475,10 @@ charged to that chunk's meter. Writes belong inside a chunk.
   A final write is the implicit return; bind it to use it (`row = insert
   ..`). Writes check the rule, unique indexes, caps, immutables, text
   formats and `after insert`; any refusal rolls the whole mutation back.
+  A device accepts a local hit for `after insert <- exists t[key]`. A miss
+  predicts a refusal only when the key proves readability and the synced
+  group is fully held without a horizon; otherwise the insert or upsert
+  queues without a predicted row for the server to decide.
 - **Statements:** `x = expr` binds or reassigns a local with a compatible type;
   reassignment resets refinements, and arguments cannot be shadowed. `(q, r) = divmod(a, b)`, `(lo, hi) = sorted(a, b)`,
   `xs = []` then `xs = xs + [value]` appends under the heap meter;
@@ -831,7 +929,7 @@ each table keeps its own rule and sync. `cap N` without `by` caps the whole
 table. `N_SPARSE_FILTER` points here when a global timeline filter can spend
 the page meter on unrelated authors.
 
-A cursor from generation N works on N+1 when its table, index, direction
+A merge cursor from generation N works on N+1 when its table, index, direction
 and typed ordering suffix still match; it continues through current data.
 IDs break equal ordering keys and identify copies across projections;
 copies must keep the same ordering fields.
@@ -1131,6 +1229,10 @@ or becoming hidden sends only the oldest unconfirmed write with an authenticated
 keepalive request when no ordinary send is in flight. A blocked or oversized
 head is never skipped. Requests share the browser's 64 KiB body budget; unsent or unconfirmed writes
 stay durable for retry on reopen, with mutation-id dedupe preventing duplicates.
+If an exit response has not finished after one second, ordinary flushing
+retries that same durable head before advancing; an unknown outcome never
+skips a write. `close()` stops waiting immediately without cancelling the
+keepalive request.
 
 On the web one tab is one device: a second tab on the same store opens
 its own, and the writes a tab left queued when it closed are adopted by
@@ -1678,7 +1780,7 @@ step.
   store, its size, schedules and their last boundary, the last job runs,
   the effects by state and the failed ones;
   **`guide [keyword]`** lists cards and aliases, or prints one card: language,
-  types, indexes, rules, sync, residency, prediction, evolution, expire, assets, reads, shapes, writes,
+  types, indexes, maintains, rules, sync, residency, prediction, evolution, expire, assets, reads, shapes, writes,
   programs, jobs, native, feeds, search, effects, actions, services, presence,
   bounds, refusals, personas, witness (`guide <E_CODE>` explains a code);
   Natural words resolve too: `offline` → prediction, `pagination` → reads,
@@ -1987,6 +2089,9 @@ available booted iOS simulator must exist. `--timeout 120` is the default
 number of seconds per driver step. The app's configured origin must be
 `http://127.0.0.1:<port>`; the kit does not change its client configuration.
 A Release build embeds its JavaScript and needs no Metro server.
+Quit the named app before starting: an already running instance is refused
+with `E_WITNESS_APP`, and termination targets only the PID reported by the
+driver's own launch, leaving a replacement instance running.
 
 `--prime` first launches with `segment === "prime"`, waits for the completed
 `primed` step, and terminates the app. It then stops the backend, verifies
@@ -1996,6 +2101,8 @@ segment. Complete `offline-done`, await `waitFor("reconnect")`, then complete
 only if it succeeds. Receipts inside a step carry `name:running`; failure
 records `name:failed`. Steps are sequential. `receipt(object)` preserves the
 object's fields and adds only `witness: { at, step }`; `witness` is reserved.
+The helper serializes the app object before adding that envelope; custom
+`toJSON` results must still be objects without `witness`.
 `at` is an ISO timestamp. The helper appends and syncs each JSONL line in
 Documents. The driver writes a run-specific reconnect file only after its
 backend announces readiness again; container files require no simulator
@@ -2024,6 +2131,12 @@ artifacts, malformed receipts, failed steps, timeouts and backend failures
 exit nonzero with an `E_WITNESS_*` diagnostic. Existing artifacts are never
 overwritten; choose a fresh directory for a retry. Keep the manifest with
 the exact video and receipt files it hashes.
+A persistent `<segment>-ios-reserved` marker exclusively reserves all output
+names; concurrent runs cannot share them, and backend/launch logs append
+across restart and relaunch.
+Every complete receipt is validated, including rows after a milestone and
+again at collection; after `done`, only app receipts with the unchanged
+`between-steps` state are accepted.
 
 The manifest binds this execution's artifacts. It does not independently
 verify the truth of application assertions, prove physical-device behavior,

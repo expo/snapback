@@ -9,6 +9,7 @@ mod search_merge;
 mod presence;
 mod upsert;
 mod following;
+mod maintains;
 mod merge_cursor;
 mod store_reset;
 

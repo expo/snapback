@@ -6575,6 +6575,147 @@ test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 
 `cargo test -p snapback4-lang --test guide`:
 
+
+## 2026-09-14 — lane D-design: filtered, bucketed and ordered maintains (LLP 3000.007 §20.9)
+
+Built a proposal in LLP 3000.007 §20.9 and an opt-in measurement in
+`crates/snapback4-sim/tests/maintain_measurement.rs`; no production code,
+parser, guide, README, value serialization, ceiling or existing corpus case
+changed. Base: `56cdedba6a8ff343c8d297b246b7431824ef0241`.
+
+Orientation: LLP 3000 §6–§7 (seven invariants, current expiry and delivery
+semantics), LLP 3000.007 §6, §8, §14, §18 and §20 (residency, explicit
+aggregate disclosure, accepted rulings and evidence), and LLP 3000.004
+(the rank recipe) govern this proposal. The current maintain schema, write,
+live-read, successor and activation paths were read alongside the language
+card and package README. `NOT-DOING.md` keeps jobs bounded and rules out
+exact horizon maintenance, time in rules, relevance scoring and a second
+language. No review or author acceptance is claimed; the hand-off is to the
+author for the four questions in §20.9.7, then to the implementation lane.
+
+Proposed: a closed row-local filter; UTC day/hour and literal-duration
+buckets; ordinary bounded row pages over multi-column maintains for reaction
+chips; ordinary value indexes for non-expiring maintained groups. The existing
+source cap bounds the number of distinct chip rows. Full-key maintain reads
+stay scalar. The value index reuses the store's existing target-write path;
+`maintain top N` would need that candidate index anyway after a winner falls.
+Exact trailing-day Trending with zero-like candidates, joins for author
+attribution, and per-recipient unread watermarks remain explicit recipes.
+The readable aggregate is still a declared disclosure channel, including
+filter and computed-key membership; a filter is not anonymization.
+
+What I learned: a paged rebuild is not yet bounded adoption. The base scans
+256 rows at a time but keeps all group totals in a map and publishes using an
+unbounded meter in one transaction. The proposal prepares disk-backed target
+state in bounded durable chunks and publishes the generation once, with a
+write pause pending the author's ruling. The other questions are the rank
+scope, incomplete read-only `check` assessment, and whether aggregate retention
+should continue to default to until-revoked when its source retains history.
+No acceptable write-pause duration is inferred from a debug memory store.
+
+The read-only Clique evidence's 366,624 row writes / 1,047 chunks belong to
+`insights.backfill`, including derived writes; they are not distinct source
+rows or the separate reaction-cache job. The shortened digest's 120,000 ms
+period at epoch origin is why the closed key set includes a literal bucket
+rather than just calendar days. Counts do not replace lists of reactors or
+cross-row unread logic.
+
+### Measurement numbers
+
+Command, from `snapback4/`:
+
+```sh
+cargo test -p snapback4-sim --test maintain_measurement -- --ignored --nocapture > /private/tmp/lane-d-maintain-measurement.log 2>&1
+```
+
+One run, debug, SQLite `:memory:`, no sync, 1,000 group ids, small synthetic
+rows, on the shared loaded host (partly concurrent with the full suite).
+Every mode seeds an independent store before timing adoption. `none` adopts
+an identical schema and is an identity/no-op control, not a scan baseline.
+`filter_proxy` uses a stored 0/1 flag (75% true seed rows); `key_proxy` uses
+that flag plus a stored bucket. Neither measures the unimplemented predicate
+or bucket evaluator. Chips have 100,000 distinct groups across 50,000 item
+ids; the value index is added to that existing compiled schema only inside
+the measurement. It does not become a parser feature.
+
+| Source | Source rows | Mode | Target rows | Adoption ms |
+| --- | ---: | --- | ---: | ---: |
+| posts | 50000 | none | 0 | 0.533 |
+| posts | 50000 | count | 1000 | 2337.643 |
+| posts | 50000 | filter_proxy | 750 | 2360.927 |
+| posts | 50000 | key_proxy | 37500 | 4716.384 |
+| messages | 100000 | none | 0 | 0.467 |
+| messages | 100000 | count | 1000 | 4967.736 |
+| messages | 100000 | filter_proxy | 750 | 5272.848 |
+| messages | 100000 | key_proxy | 75000 | 9678.313 |
+| reactions | 100000 | none | 0 | 0.618 |
+| reactions | 100000 | chips | 100000 | 12757.363 |
+| reactions | 100000 | rank_index | 100000 | 12120.141 |
+
+Per-write times are µs, 200 observations per operation/mode. `move` changes
+group, bucket, flag to false, and emoji; for chips it deletes/creates a group,
+not an in-place value increment. The meters below are the last actual sample,
+including source work. Their current aggregate internals are not completely
+charged; §20.9 specifies the additional accounting the new paths need.
+
+| Source | Mode | Operation | p50 µs | p95 µs | Last sample meters |
+| --- | --- | --- | ---: | ---: | --- |
+| posts | none | add | 100.334 | 169.458 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":13,"heap_bytes":1379,"output_bytes":169,"rows_written":1}` |
+| posts | none | move | 132.708 | 200.833 | `{"examined":1,"index_entries":2,"rule_probes":0,"steps":12,"heap_bytes":1788,"output_bytes":170,"rows_written":1}` |
+| posts | none | remove | 63.167 | 102.833 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":6,"heap_bytes":40,"output_bytes":6,"rows_written":1}` |
+| posts | count | add | 114.041 | 153.041 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":13,"heap_bytes":1379,"output_bytes":169,"rows_written":2}` |
+| posts | count | move | 178.125 | 237.167 | `{"examined":1,"index_entries":2,"rule_probes":0,"steps":12,"heap_bytes":1788,"output_bytes":170,"rows_written":3}` |
+| posts | count | remove | 89.791 | 117.750 | `{"examined":0,"index_entries":4,"rule_probes":0,"steps":6,"heap_bytes":40,"output_bytes":6,"rows_written":2}` |
+| posts | filter_proxy | add | 128.083 | 214.209 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":13,"heap_bytes":1379,"output_bytes":169,"rows_written":2}` |
+| posts | filter_proxy | move | 158.417 | 232.625 | `{"examined":1,"index_entries":4,"rule_probes":0,"steps":12,"heap_bytes":1788,"output_bytes":170,"rows_written":2}` |
+| posts | filter_proxy | remove | 70.042 | 118.459 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":6,"heap_bytes":40,"output_bytes":6,"rows_written":1}` |
+| posts | key_proxy | add | 133.917 | 214.917 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":13,"heap_bytes":1379,"output_bytes":169,"rows_written":2}` |
+| posts | key_proxy | move | 173.791 | 278.917 | `{"examined":1,"index_entries":4,"rule_probes":0,"steps":12,"heap_bytes":1788,"output_bytes":170,"rows_written":2}` |
+| posts | key_proxy | remove | 68.625 | 141.125 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":6,"heap_bytes":40,"output_bytes":6,"rows_written":1}` |
+| messages | none | add | 94.000 | 149.833 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":13,"heap_bytes":1379,"output_bytes":169,"rows_written":1}` |
+| messages | none | move | 131.333 | 212.375 | `{"examined":1,"index_entries":2,"rule_probes":0,"steps":12,"heap_bytes":1788,"output_bytes":170,"rows_written":1}` |
+| messages | none | remove | 62.750 | 125.958 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":6,"heap_bytes":40,"output_bytes":6,"rows_written":1}` |
+| messages | count | add | 121.750 | 175.250 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":13,"heap_bytes":1379,"output_bytes":169,"rows_written":2}` |
+| messages | count | move | 179.417 | 264.250 | `{"examined":1,"index_entries":2,"rule_probes":0,"steps":12,"heap_bytes":1788,"output_bytes":170,"rows_written":3}` |
+| messages | count | remove | 82.291 | 148.875 | `{"examined":0,"index_entries":4,"rule_probes":0,"steps":6,"heap_bytes":40,"output_bytes":6,"rows_written":2}` |
+| messages | filter_proxy | add | 129.792 | 225.459 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":13,"heap_bytes":1379,"output_bytes":169,"rows_written":2}` |
+| messages | filter_proxy | move | 165.792 | 251.792 | `{"examined":1,"index_entries":4,"rule_probes":0,"steps":12,"heap_bytes":1788,"output_bytes":170,"rows_written":2}` |
+| messages | filter_proxy | remove | 69.208 | 109.125 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":6,"heap_bytes":40,"output_bytes":6,"rows_written":1}` |
+| messages | key_proxy | add | 167.875 | 279.375 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":13,"heap_bytes":1379,"output_bytes":169,"rows_written":2}` |
+| messages | key_proxy | move | 218.291 | 361.792 | `{"examined":1,"index_entries":4,"rule_probes":0,"steps":12,"heap_bytes":1788,"output_bytes":170,"rows_written":2}` |
+| messages | key_proxy | remove | 77.667 | 99.375 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":6,"heap_bytes":40,"output_bytes":6,"rows_written":1}` |
+| reactions | none | add | 125.667 | 149.208 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":13,"heap_bytes":1379,"output_bytes":169,"rows_written":1}` |
+| reactions | none | move | 162.292 | 199.542 | `{"examined":1,"index_entries":2,"rule_probes":0,"steps":12,"heap_bytes":1788,"output_bytes":170,"rows_written":1}` |
+| reactions | none | remove | 77.542 | 95.709 | `{"examined":0,"index_entries":2,"rule_probes":0,"steps":6,"heap_bytes":40,"output_bytes":6,"rows_written":1}` |
+| reactions | chips | add | 145.500 | 201.541 | `{"examined":0,"index_entries":4,"rule_probes":0,"steps":13,"heap_bytes":1379,"output_bytes":169,"rows_written":2}` |
+| reactions | chips | move | 211.000 | 376.458 | `{"examined":1,"index_entries":6,"rule_probes":0,"steps":12,"heap_bytes":1788,"output_bytes":170,"rows_written":3}` |
+| reactions | chips | remove | 94.625 | 111.917 | `{"examined":0,"index_entries":4,"rule_probes":0,"steps":6,"heap_bytes":40,"output_bytes":6,"rows_written":2}` |
+| reactions | rank_index | add | 158.917 | 257.584 | `{"examined":0,"index_entries":5,"rule_probes":0,"steps":13,"heap_bytes":1379,"output_bytes":169,"rows_written":2}` |
+| reactions | rank_index | move | 227.125 | 474.333 | `{"examined":1,"index_entries":8,"rule_probes":0,"steps":12,"heap_bytes":1788,"output_bytes":170,"rows_written":3}` |
+| reactions | rank_index | remove | 96.333 | 142.875 | `{"examined":0,"index_entries":5,"rule_probes":0,"steps":6,"heap_bytes":40,"output_bytes":6,"rows_written":2}` |
+
+No speedup is claimed from the indexed adoption's lower time in its separate
+trial. The sound measurements are its observed work and its reuse of an
+existing path. Remaining measurements are explicit in §20.9.5: actual new
+forms, value changes, durable/chunk/peak-memory costs, expiry group index,
+full fixture distribution, replicated bytes and both device stores. This
+prototype adds no regression fix; a red-before/green-after regression is not
+applicable to a measurement of unchanged base behavior. The implementation
+lane is required to demonstrate that transition for each new behavior.
+
+### Commands and verbatim summaries
+
+The targeted measurement's summary:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 111.57s
+```
+
+Published-surface control, from `snapback4/`:
+
+```sh
+cargo test -p snapback4-lang --test guide > /private/tmp/lane-d-guide.log 2>&1
+```
 ```text
 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
 ```
@@ -6954,6 +7095,83 @@ Chromium launch in the React test:
 -- ok: chat app typecheck (1 s)
 -- ok: expo app typecheck (1 s)
 ℹ tests 9
+
+Full suite, from the repository root:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh > /private/tmp/lane-d-full-suite.log 2>&1
+```
+
+All Rust test summaries and the script/fixture/client summaries, verbatim:
+
+```text
+== cargo build
+-- ok: cargo build (11 s)
+== wasm build
+-- ok: wasm build (15 s)
+== package typecheck
+-- ok: package typecheck (1 s)
+== package build
+-- ok: package build (1 s)
+== chat app check
+-- ok: chat app check (1 s)
+== cargo test
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.45s
+test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.30s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.17s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.65s
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.80s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.19s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.24s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.82s
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 4.83s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 24.55s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.42s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+-- ok: cargo test (118 s)
+== chat app typecheck
+-- ok: chat app typecheck (1 s)
+== expo app typecheck
+-- ok: expo app typecheck (1 s)
+== fixture wrapper tests
+ℹ tests 9
+ℹ suites 0
 ℹ pass 9
 ℹ fail 0
 ℹ cancelled 0
@@ -7165,6 +7383,13 @@ repository root. No install, commit, push, tag or publication occurred.
 ℹ fail 0
 -- ok: fixture wrapper tests (10 s)
 ℹ tests 137
+
+ℹ todo 0
+ℹ duration_ms 10387.962417
+-- ok: fixture wrapper tests (11 s)
+== client tests
+ℹ tests 137
+ℹ suites 0
 ℹ pass 136
 ℹ fail 1
 ℹ cancelled 0
@@ -7903,6 +8128,1410 @@ fixture to a 1 s lease and poll because a killed worker's orphaned claim could
 lease new work; with `dev`'s per-child session (`0380b3ae6`) the fixture runs
 the reference worker's production defaults again (worker tests 5 of 5, three
 runs), so the test guards the fix instead of hiding the race.
+
+ℹ todo 0
+ℹ duration_ms 44580.211625
+-- FAIL: client tests (45 s)
+== 1 failure(s) in 147 s
+```
+
+Rust totals obtained by summing the individual lines: 567 passed, 0 failed,
+2 ignored (one is this measurement). No lifecycle timeout occurred. The one
+client failure is Chromium SIGABRT in `react.test.mjs`, the known sandbox
+artifact. It reproduced alone, from `snapback4/`:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+node --test packages/snapback4/test/react.test.mjs > /private/tmp/lane-d-react-isolated.log 2>&1
+```
+
+```text
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 646.542083
+```
+
+Base verification: `git diff --exit-code
+56cdedba6a8ff343c8d297b246b7431824ef0241 -- snapback4/packages
+snapback4/crates/snapback4 snapback4/crates/snapback4-core
+snapback4/crates/snapback4-device snapback4/crates/snapback4-lang
+snapback4/scripts snapback4/Cargo.toml snapback4/Cargo.lock` exited 0.
+The runtime and failed client test are byte-identical to that base; the only
+added Rust file is the opt-in simulator measurement. The lead still needs
+the browser witness outside the sandbox. No other failure is attributed to
+the base and no code was changed to avoid this browser failure.
+
+No out-of-scope file was touched. README/guide/CODES are unchanged because
+no form or diagnostic ships from a design lane. The existing
+`N_MAINTAIN_DELTA` text is unchanged; §20.9 proposes its future dependency
+wording and one adoption-availability diagnostic. There is no before/after
+production diagnostic pair in this task. Root `ref-check --verbose` and
+`git diff --check` are the final documentation checks.
+
+Final reference check, from the repository root:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+./ref-check --verbose > /private/tmp/lane-d-ref-check-final.log 2>&1
+```
+
+```text
+ref-check: ok — 474 LLP docs, 8853 refs in 22826 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` exited 0; the journal prefix matches the base byte for
+byte, §20.9 is between §20.8 and Non-claims, and the only code addition is
+the 118-line ignored measurement (below the 1,500-line code cap).
+
+## 2026-09-14 — D1: filtered and calendar maintains, group pages and value order
+
+Implemented LLP 3000.007 §20.9 (a)–(d) from base `397c0a829001f1df4f1e096d9bdee5693a56416d`.
+The source contribution evaluator is shared by server writes, rebuilds,
+expiry and both device stores. It handles restricted typed predicates,
+Euclidean day/hour/literal-duration bucket keys, coalesced key moves and
+wide intermediate sums. Generated group pages and scoped/global value indexes
+use ordinary rows and cursors. An internal selected-source contribution index
+keeps computed expiry groups off the source-wide fallback. Source caps prove
+distinct-group bounds without creating a target constraint.
+
+Prediction preserves ordinary source authority and requires each aggregate
+base or its absence to be known. Online-only aggregate side effects are omitted
+locally. Inherited aggregates have no horizon and remain until-revoked when
+their source retains history. Hidden writes reserve predicate/key, two-group,
+index and transient heap work before inspecting the old image; transient
+buffers are released. The in-memory store now counts actual index removals
+and insertions, matching SQLite's changed-key behavior. The language card runs
+calendar scalars, pages and reaction chips; README and guide cards compile
+without notes. Disclosure diagnostics name the target's filter/key/value
+dependencies, and the rules card includes a restrictive aggregate read rule.
+
+Successor classification reports filter/key/duration/default/index changes at
+the maintain declaration. Read-only assessment checks interpreted source
+images and final sums before today's atomic activation. A failing regression
+showed that a filter change could previously pass assessment and overflow
+during rebuild; check and adoption now agree. No source backfill writes are
+needed. Resumable adoption, a write fence, check exit 2, bounded preparation
+and S26's digest continuation remain outside this slice. There is no claim
+of the complete five-million-row, disk-backed scale qualification or a
+measured durable write pause.
+
+What I learned: ordinary group pages already supplied the chips runtime
+control on the base; the missing work was its paved contract and bound
+propagation, plus the new contribution/key/rank forms. Not-comparison
+precedence needs the maintain's own grammar. A missing scoped-rank prefix
+must be refused instead of accidentally ordering across scopes. A physical
+zero-sum group must survive independent signed expiry. Unknown local bases
+must queue; partial source history cannot reconstruct an authoritative total.
+
+### Measurements
+
+Command, from `snapback4/`:
+
+```sh
+cargo test -p snapback4-sim --test maintain_measurement accepted_maintain_costs -- --ignored --nocapture > /private/tmp/d1-measurements-final.log 2>&1
+```
+
+SQLite in-memory stores, debug Rust, on the shared loaded host. Each of six
+real modes has a separate 50,000-post or 100,000-message store. There are 200
+samples per operation: 14,400 mutation samples and 400 rank reads in total.
+Filter selectivity is 0%, 50% or 100% for both seeded rows and the measured
+add/unrelated batches. Decrease exits selected rows; enter makes every sample
+selected before keyMove/remove. Rank decrease lowers the initially winning
+group one contribution at a time. Calendar/expiry modes have 50,000/100,000
+distinct groups; filter100/rank have 1,000 groups.
+
+Temporary SQLite triggers independently count physical source/target index
+inserts/deletes and target writes. Timings include that instrumentation.
+All seven logical meters are printed as the last sample and as a 200-sample
+sum; heap is the engine's logical accounting, not a peak RSS measurement.
+Adoption timing includes exhaustive assessment and the existing unbounded
+atomic rebuild, with zero resumable chunks. These timings are observations,
+not controlled throughput or disk-backed pause claims.
+
+| Source rows | Mode | Target groups | Adoption ms |
+| --- | --- | ---: | ---: |
+| posts 50000 | filter0 | 0 | 3383.382 |
+| posts 50000 | filter50 | 500 | 2729.744 |
+| posts 50000 | filter100 | 1000 | 2805.781 |
+| posts 50000 | calendar | 50000 | 5884.015 |
+| posts 50000 | rank | 1000 | 3312.036 |
+| posts 50000 | expiry | 50000 | 6596.769 |
+| messages 100000 | filter0 | 0 | 5194.768 |
+| messages 100000 | filter50 | 500 | 5837.429 |
+| messages 100000 | filter100 | 1000 | 6658.824 |
+| messages 100000 | calendar | 100000 | 11899.762 |
+| messages 100000 | rank | 1000 | 5296.803 |
+| messages 100000 | expiry | 100000 | 13675.413 |
+
+| Source | Mode / operation | p50 µs | p95 µs |
+| --- | --- | ---: | ---: |
+| posts | filter0 / add | 109.666 | 263.625 |
+| posts | filter0 / decrease | 121.416 | 374.292 |
+| posts | filter0 / keyMove | 252.208 | 594.208 |
+| posts | filter50 / add | 106.833 | 199.375 |
+| posts | filter50 / decrease | 123.041 | 286.125 |
+| posts | filter50 / keyMove | 162.584 | 217.750 |
+| posts | filter100 / add | 110.166 | 217.000 |
+| posts | filter100 / decrease | 124.583 | 178.583 |
+| posts | filter100 / keyMove | 163.666 | 236.208 |
+| posts | calendar / add | 121.708 | 172.625 |
+| posts | calendar / decrease | 136.458 | 227.459 |
+| posts | calendar / keyMove | 188.292 | 277.125 |
+| posts | rank / add | 128.500 | 192.792 |
+| posts | rank / decrease | 145.958 | 212.208 |
+| posts | rank / keyMove | 196.583 | 235.750 |
+| posts | rank / read | 90.416 | 125.875 |
+| posts | expiry / add | 152.125 | 298.333 |
+| posts | expiry / decrease | 219.417 | 467.625 |
+| posts | expiry / keyMove | 251.375 | 344.584 |
+| messages | filter0 / add | 82.500 | 96.417 |
+| messages | filter0 / decrease | 99.208 | 102.458 |
+| messages | filter0 / keyMove | 166.416 | 215.792 |
+| messages | filter50 / add | 103.500 | 125.000 |
+| messages | filter50 / decrease | 121.958 | 126.125 |
+| messages | filter50 / keyMove | 163.459 | 186.000 |
+| messages | filter100 / add | 109.333 | 175.750 |
+| messages | filter100 / decrease | 125.167 | 176.333 |
+| messages | filter100 / keyMove | 172.292 | 259.875 |
+| messages | calendar / add | 114.583 | 163.833 |
+| messages | calendar / decrease | 130.084 | 183.459 |
+| messages | calendar / keyMove | 171.916 | 188.792 |
+| messages | rank / add | 125.000 | 145.208 |
+| messages | rank / decrease | 141.375 | 154.875 |
+| messages | rank / keyMove | 193.500 | 203.459 |
+| messages | rank / read | 88.958 | 93.083 |
+| messages | expiry / add | 145.250 | 197.500 |
+| messages | expiry / decrease | 163.167 | 176.291 |
+| messages | expiry / keyMove | 236.250 | 404.958 |
+
+The 0/50/100% add batches wrote respectively 0/100/200 target rows for 200
+source writes. The 200 ranked winner decreases deleted 200 and inserted
+200 value-index entries. Calendar key moves wrote 400 target rows; expiry
+key moves additionally deleted 400 and inserted 400 source-index entries
+(the ordinary group index plus the internal contribution index). A live
+computed expiry scalar examined 2 rows over either source size, returned
+1 before expiry and 0 at expiry before sweep, and exposed next_expiry 2000.
+Both rank reads examined 11 target rows, with no source scan.
+
+Full measured records, preserving the seven meters and physical counters:
+
+```text
+REAL adoption source=posts n=50000 mode=filter0 groups=0 ms=3383.382 store=sqlite-memory resumable_chunks=0
+REAL write source=posts mode=filter0 op=add n=200 p50_us=109.666 p95_us=263.625 last_meter={"examined":0,"index_entries":2,"rule_probes":0,"steps":17,"heap_bytes":1363,"output_bytes":165,"rows_written":1} meter_sum_200={"examined":0,"heap_bytes":272600,"index_entries":400,"output_bytes":33000,"rows_written":200,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":400,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=posts mode=filter0 op=unrelated n=200 p50_us=144.708 p95_us=317.125 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1499,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":299800,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=posts mode=filter0 op=decrease n=200 p50_us=121.416 p95_us=374.292 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=posts mode=filter0 op=enter n=200 p50_us=156.042 p95_us=342.292 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":2,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":2,"target_rows":200}
+REAL write source=posts mode=filter0 op=keyMove n=200 p50_us=252.208 p95_us=594.208 last_meter={"examined":3,"index_entries":4,"rule_probes":0,"steps":18,"heap_bytes":1583,"output_bytes":173,"rows_written":3} meter_sum_200={"examined":600,"heap_bytes":316600,"index_entries":404,"output_bytes":34600,"rows_written":600,"rule_probes":0,"steps":3600} physical_200={"source_index_delete":200,"source_index_insert":200,"target_index_delete":2,"target_index_insert":2,"target_rows":400}
+REAL write source=posts mode=filter0 op=remove n=200 p50_us=146.541 p95_us=283.541 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":10,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":402,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":2000} physical_200={"source_index_delete":400,"source_index_insert":0,"target_index_delete":2,"target_index_insert":0,"target_rows":200}
+REAL adoption source=posts n=50000 mode=filter50 groups=500 ms=2729.744 store=sqlite-memory resumable_chunks=0
+REAL write source=posts mode=filter50 op=add n=200 p50_us=106.833 p95_us=199.375 last_meter={"examined":0,"index_entries":2,"rule_probes":0,"steps":17,"heap_bytes":1363,"output_bytes":165,"rows_written":1} meter_sum_200={"examined":100,"heap_bytes":272600,"index_entries":400,"output_bytes":33000,"rows_written":300,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":400,"target_index_delete":0,"target_index_insert":0,"target_rows":100}
+REAL write source=posts mode=filter50 op=unrelated n=200 p50_us=103.166 p95_us=227.500 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1499,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":299800,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=posts mode=filter50 op=decrease n=200 p50_us=123.041 p95_us=286.125 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":300,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":300,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":100}
+REAL write source=posts mode=filter50 op=enter n=200 p50_us=125.583 p95_us=157.875 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=posts mode=filter50 op=keyMove n=200 p50_us=162.584 p95_us=217.750 last_meter={"examined":3,"index_entries":2,"rule_probes":0,"steps":18,"heap_bytes":1583,"output_bytes":173,"rows_written":3} meter_sum_200={"examined":600,"heap_bytes":316600,"index_entries":402,"output_bytes":34600,"rows_written":600,"rule_probes":0,"steps":3600} physical_200={"source_index_delete":200,"source_index_insert":200,"target_index_delete":0,"target_index_insert":2,"target_rows":400}
+REAL write source=posts mode=filter50 op=remove n=200 p50_us=82.334 p95_us=96.625 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":10,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":402,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":2000} physical_200={"source_index_delete":400,"source_index_insert":0,"target_index_delete":2,"target_index_insert":0,"target_rows":200}
+REAL adoption source=posts n=50000 mode=filter100 groups=1000 ms=2805.781 store=sqlite-memory resumable_chunks=0
+REAL write source=posts mode=filter100 op=add n=200 p50_us=110.166 p95_us=217.000 last_meter={"examined":1,"index_entries":2,"rule_probes":0,"steps":17,"heap_bytes":1363,"output_bytes":165,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":272600,"index_entries":400,"output_bytes":33000,"rows_written":400,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":400,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=posts mode=filter100 op=unrelated n=200 p50_us=100.959 p95_us=108.666 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1499,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":299800,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=posts mode=filter100 op=decrease n=200 p50_us=124.583 p95_us=178.583 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=posts mode=filter100 op=enter n=200 p50_us=124.042 p95_us=130.542 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=posts mode=filter100 op=keyMove n=200 p50_us=163.666 p95_us=236.208 last_meter={"examined":3,"index_entries":2,"rule_probes":0,"steps":18,"heap_bytes":1583,"output_bytes":173,"rows_written":3} meter_sum_200={"examined":600,"heap_bytes":316600,"index_entries":402,"output_bytes":34600,"rows_written":600,"rule_probes":0,"steps":3600} physical_200={"source_index_delete":200,"source_index_insert":200,"target_index_delete":0,"target_index_insert":2,"target_rows":400}
+REAL write source=posts mode=filter100 op=remove n=200 p50_us=82.625 p95_us=97.708 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":10,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":402,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":2000} physical_200={"source_index_delete":400,"source_index_insert":0,"target_index_delete":2,"target_index_insert":0,"target_rows":200}
+REAL adoption source=posts n=50000 mode=calendar groups=50000 ms=5884.015 store=sqlite-memory resumable_chunks=0
+REAL write source=posts mode=calendar op=add n=200 p50_us=121.708 p95_us=172.625 last_meter={"examined":1,"index_entries":2,"rule_probes":0,"steps":19,"heap_bytes":1363,"output_bytes":165,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":272600,"index_entries":400,"output_bytes":33000,"rows_written":400,"rule_probes":0,"steps":3800} physical_200={"source_index_delete":0,"source_index_insert":400,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=posts mode=calendar op=unrelated n=200 p50_us=106.084 p95_us=119.459 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":21,"heap_bytes":1499,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":299800,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":4200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=posts mode=calendar op=decrease n=200 p50_us=136.458 p95_us=227.459 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":21,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":4200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=posts mode=calendar op=enter n=200 p50_us=139.500 p95_us=233.541 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":21,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":4200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=posts mode=calendar op=keyMove n=200 p50_us=188.292 p95_us=277.125 last_meter={"examined":3,"index_entries":2,"rule_probes":0,"steps":22,"heap_bytes":1583,"output_bytes":173,"rows_written":3} meter_sum_200={"examined":600,"heap_bytes":316600,"index_entries":402,"output_bytes":34600,"rows_written":600,"rule_probes":0,"steps":4400} physical_200={"source_index_delete":200,"source_index_insert":200,"target_index_delete":0,"target_index_insert":2,"target_rows":400}
+REAL write source=posts mode=calendar op=remove n=200 p50_us=96.166 p95_us=116.750 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":12,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":402,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":2400} physical_200={"source_index_delete":400,"source_index_insert":0,"target_index_delete":2,"target_index_insert":0,"target_rows":200}
+REAL adoption source=posts n=50000 mode=rank groups=1000 ms=3312.036 store=sqlite-memory resumable_chunks=0
+REAL write source=posts mode=rank op=add n=200 p50_us=128.500 p95_us=192.792 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":14,"heap_bytes":1363,"output_bytes":165,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":272600,"index_entries":800,"output_bytes":33000,"rows_written":400,"rule_probes":0,"steps":2800} physical_200={"source_index_delete":0,"source_index_insert":400,"target_index_delete":200,"target_index_insert":200,"target_rows":200}
+REAL write source=posts mode=rank op=unrelated n=200 p50_us=102.167 p95_us=209.042 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":11,"heap_bytes":1499,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":299800,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":2200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=posts mode=rank op=decrease n=200 p50_us=145.958 p95_us=212.208 last_meter={"examined":2,"index_entries":2,"rule_probes":0,"steps":11,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":400,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":2200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":200,"target_index_insert":200,"target_rows":200}
+REAL write source=posts mode=rank op=enter n=200 p50_us=143.792 p95_us=217.542 last_meter={"examined":2,"index_entries":2,"rule_probes":0,"steps":11,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":400,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":2200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":200,"target_index_insert":200,"target_rows":200}
+REAL write source=posts mode=rank op=keyMove n=200 p50_us=196.583 p95_us=235.750 last_meter={"examined":3,"index_entries":6,"rule_probes":0,"steps":12,"heap_bytes":1583,"output_bytes":173,"rows_written":3} meter_sum_200={"examined":600,"heap_bytes":316600,"index_entries":1201,"output_bytes":34600,"rows_written":600,"rule_probes":0,"steps":2400} physical_200={"source_index_delete":200,"source_index_insert":200,"target_index_delete":399,"target_index_insert":402,"target_rows":400}
+REAL write source=posts mode=rank op=remove n=200 p50_us=100.833 p95_us=130.208 last_meter={"examined":1,"index_entries":5,"rule_probes":0,"steps":7,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":801,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":1400} physical_200={"source_index_delete":400,"source_index_insert":0,"target_index_delete":202,"target_index_insert":199,"target_rows":200}
+REAL rank source=posts n=200 p50_us=90.416 p95_us=125.875 last_meter={"examined":11,"index_entries":0,"rule_probes":0,"steps":3,"heap_bytes":3150,"output_bytes":901,"rows_written":0}
+REAL adoption source=posts n=50000 mode=expiry groups=50000 ms=6596.769 store=sqlite-memory resumable_chunks=0
+REAL write source=posts mode=expiry op=add n=200 p50_us=152.125 p95_us=298.333 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":26,"heap_bytes":1533,"output_bytes":186,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":306600,"index_entries":800,"output_bytes":37200,"rows_written":400,"rule_probes":0,"steps":5200} physical_200={"source_index_delete":0,"source_index_insert":800,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=posts mode=expiry op=unrelated n=200 p50_us=133.709 p95_us=219.584 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":33,"heap_bytes":1669,"output_bytes":187,"rows_written":1} meter_sum_200={"examined":400,"heap_bytes":333800,"index_entries":0,"output_bytes":37400,"rows_written":200,"rule_probes":0,"steps":6600} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=posts mode=expiry op=decrease n=200 p50_us=219.417 p95_us=467.625 last_meter={"examined":3,"index_entries":1,"rule_probes":0,"steps":33,"heap_bytes":1662,"output_bytes":187,"rows_written":2} meter_sum_200={"examined":600,"heap_bytes":332400,"index_entries":200,"output_bytes":37400,"rows_written":400,"rule_probes":0,"steps":6600} physical_200={"source_index_delete":200,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=posts mode=expiry op=enter n=200 p50_us=198.917 p95_us=445.500 last_meter={"examined":3,"index_entries":1,"rule_probes":0,"steps":33,"heap_bytes":1662,"output_bytes":187,"rows_written":2} meter_sum_200={"examined":600,"heap_bytes":332400,"index_entries":200,"output_bytes":37400,"rows_written":400,"rule_probes":0,"steps":6600} physical_200={"source_index_delete":0,"source_index_insert":200,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=posts mode=expiry op=keyMove n=200 p50_us=251.375 p95_us=344.584 last_meter={"examined":4,"index_entries":4,"rule_probes":0,"steps":34,"heap_bytes":1753,"output_bytes":194,"rows_written":3} meter_sum_200={"examined":800,"heap_bytes":350600,"index_entries":802,"output_bytes":38800,"rows_written":600,"rule_probes":0,"steps":6800} physical_200={"source_index_delete":400,"source_index_insert":400,"target_index_delete":0,"target_index_insert":2,"target_rows":400}
+REAL write source=posts mode=expiry op=remove n=200 p50_us=143.334 p95_us=262.000 last_meter={"examined":1,"index_entries":6,"rule_probes":0,"steps":18,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":802,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":3600} physical_200={"source_index_delete":800,"source_index_insert":0,"target_index_delete":2,"target_index_insert":0,"target_rows":200}
+REAL expiry source=posts before=1 after=0 next_expiry=Some(2000) before_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":20,"heap_bytes":821,"output_bytes":9,"rows_written":0} after_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":19,"heap_bytes":5,"output_bytes":9,"rows_written":0}
+REAL adoption source=messages n=100000 mode=filter0 groups=0 ms=5194.768 store=sqlite-memory resumable_chunks=0
+REAL write source=messages mode=filter0 op=add n=200 p50_us=82.500 p95_us=96.417 last_meter={"examined":0,"index_entries":2,"rule_probes":0,"steps":17,"heap_bytes":1363,"output_bytes":165,"rows_written":1} meter_sum_200={"examined":0,"heap_bytes":272600,"index_entries":400,"output_bytes":33000,"rows_written":200,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":400,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=messages mode=filter0 op=unrelated n=200 p50_us=100.208 p95_us=106.708 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1499,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":299800,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=messages mode=filter0 op=decrease n=200 p50_us=99.208 p95_us=102.458 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=messages mode=filter0 op=enter n=200 p50_us=124.000 p95_us=138.791 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":2,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":2,"target_rows":200}
+REAL write source=messages mode=filter0 op=keyMove n=200 p50_us=166.416 p95_us=215.792 last_meter={"examined":3,"index_entries":4,"rule_probes":0,"steps":18,"heap_bytes":1583,"output_bytes":173,"rows_written":3} meter_sum_200={"examined":600,"heap_bytes":316600,"index_entries":404,"output_bytes":34600,"rows_written":600,"rule_probes":0,"steps":3600} physical_200={"source_index_delete":200,"source_index_insert":200,"target_index_delete":2,"target_index_insert":2,"target_rows":400}
+REAL write source=messages mode=filter0 op=remove n=200 p50_us=84.583 p95_us=138.917 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":10,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":402,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":2000} physical_200={"source_index_delete":400,"source_index_insert":0,"target_index_delete":2,"target_index_insert":0,"target_rows":200}
+REAL adoption source=messages n=100000 mode=filter50 groups=500 ms=5837.429 store=sqlite-memory resumable_chunks=0
+REAL write source=messages mode=filter50 op=add n=200 p50_us=103.500 p95_us=125.000 last_meter={"examined":0,"index_entries":2,"rule_probes":0,"steps":17,"heap_bytes":1363,"output_bytes":165,"rows_written":1} meter_sum_200={"examined":100,"heap_bytes":272600,"index_entries":400,"output_bytes":33000,"rows_written":300,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":400,"target_index_delete":0,"target_index_insert":0,"target_rows":100}
+REAL write source=messages mode=filter50 op=unrelated n=200 p50_us=100.666 p95_us=104.417 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1499,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":299800,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=messages mode=filter50 op=decrease n=200 p50_us=121.958 p95_us=126.125 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":300,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":300,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":100}
+REAL write source=messages mode=filter50 op=enter n=200 p50_us=123.541 p95_us=126.709 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=messages mode=filter50 op=keyMove n=200 p50_us=163.459 p95_us=186.000 last_meter={"examined":3,"index_entries":2,"rule_probes":0,"steps":18,"heap_bytes":1583,"output_bytes":173,"rows_written":3} meter_sum_200={"examined":600,"heap_bytes":316600,"index_entries":402,"output_bytes":34600,"rows_written":600,"rule_probes":0,"steps":3600} physical_200={"source_index_delete":200,"source_index_insert":200,"target_index_delete":0,"target_index_insert":2,"target_rows":400}
+REAL write source=messages mode=filter50 op=remove n=200 p50_us=83.167 p95_us=105.125 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":10,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":402,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":2000} physical_200={"source_index_delete":400,"source_index_insert":0,"target_index_delete":2,"target_index_insert":0,"target_rows":200}
+REAL adoption source=messages n=100000 mode=filter100 groups=1000 ms=6658.824 store=sqlite-memory resumable_chunks=0
+REAL write source=messages mode=filter100 op=add n=200 p50_us=109.333 p95_us=175.750 last_meter={"examined":1,"index_entries":2,"rule_probes":0,"steps":17,"heap_bytes":1363,"output_bytes":165,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":272600,"index_entries":400,"output_bytes":33000,"rows_written":400,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":400,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=messages mode=filter100 op=unrelated n=200 p50_us=108.958 p95_us=181.500 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1499,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":299800,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=messages mode=filter100 op=decrease n=200 p50_us=125.167 p95_us=176.333 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=messages mode=filter100 op=enter n=200 p50_us=132.292 p95_us=180.333 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=messages mode=filter100 op=keyMove n=200 p50_us=172.292 p95_us=259.875 last_meter={"examined":3,"index_entries":2,"rule_probes":0,"steps":18,"heap_bytes":1583,"output_bytes":173,"rows_written":3} meter_sum_200={"examined":600,"heap_bytes":316600,"index_entries":402,"output_bytes":34600,"rows_written":600,"rule_probes":0,"steps":3600} physical_200={"source_index_delete":200,"source_index_insert":200,"target_index_delete":0,"target_index_insert":2,"target_rows":400}
+REAL write source=messages mode=filter100 op=remove n=200 p50_us=89.083 p95_us=123.417 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":10,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":402,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":2000} physical_200={"source_index_delete":400,"source_index_insert":0,"target_index_delete":2,"target_index_insert":0,"target_rows":200}
+REAL adoption source=messages n=100000 mode=calendar groups=100000 ms=11899.762 store=sqlite-memory resumable_chunks=0
+REAL write source=messages mode=calendar op=add n=200 p50_us=114.583 p95_us=163.833 last_meter={"examined":1,"index_entries":2,"rule_probes":0,"steps":19,"heap_bytes":1363,"output_bytes":165,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":272600,"index_entries":400,"output_bytes":33000,"rows_written":400,"rule_probes":0,"steps":3800} physical_200={"source_index_delete":0,"source_index_insert":400,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=messages mode=calendar op=unrelated n=200 p50_us=104.750 p95_us=188.916 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":21,"heap_bytes":1499,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":299800,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":4200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=messages mode=calendar op=decrease n=200 p50_us=130.084 p95_us=183.459 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":21,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":4200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=messages mode=calendar op=enter n=200 p50_us=128.875 p95_us=143.542 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":21,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":4200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=messages mode=calendar op=keyMove n=200 p50_us=171.916 p95_us=188.792 last_meter={"examined":3,"index_entries":2,"rule_probes":0,"steps":22,"heap_bytes":1583,"output_bytes":173,"rows_written":3} meter_sum_200={"examined":600,"heap_bytes":316600,"index_entries":402,"output_bytes":34600,"rows_written":600,"rule_probes":0,"steps":4400} physical_200={"source_index_delete":200,"source_index_insert":200,"target_index_delete":0,"target_index_insert":2,"target_rows":400}
+REAL write source=messages mode=calendar op=remove n=200 p50_us=87.084 p95_us=95.750 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":12,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":402,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":2400} physical_200={"source_index_delete":400,"source_index_insert":0,"target_index_delete":2,"target_index_insert":0,"target_rows":200}
+REAL adoption source=messages n=100000 mode=rank groups=1000 ms=5296.803 store=sqlite-memory resumable_chunks=0
+REAL write source=messages mode=rank op=add n=200 p50_us=125.000 p95_us=145.208 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":14,"heap_bytes":1363,"output_bytes":165,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":272600,"index_entries":800,"output_bytes":33000,"rows_written":400,"rule_probes":0,"steps":2800} physical_200={"source_index_delete":0,"source_index_insert":400,"target_index_delete":200,"target_index_insert":200,"target_rows":200}
+REAL write source=messages mode=rank op=unrelated n=200 p50_us=100.542 p95_us=107.542 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":11,"heap_bytes":1499,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":299800,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":2200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=messages mode=rank op=decrease n=200 p50_us=141.375 p95_us=154.875 last_meter={"examined":2,"index_entries":2,"rule_probes":0,"steps":11,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":400,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":2200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":200,"target_index_insert":200,"target_rows":200}
+REAL write source=messages mode=rank op=enter n=200 p50_us=139.792 p95_us=145.792 last_meter={"examined":2,"index_entries":2,"rule_probes":0,"steps":11,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":400,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":2200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":200,"target_index_insert":200,"target_rows":200}
+REAL write source=messages mode=rank op=keyMove n=200 p50_us=193.500 p95_us=203.459 last_meter={"examined":3,"index_entries":6,"rule_probes":0,"steps":12,"heap_bytes":1583,"output_bytes":173,"rows_written":3} meter_sum_200={"examined":600,"heap_bytes":316600,"index_entries":1201,"output_bytes":34600,"rows_written":600,"rule_probes":0,"steps":2400} physical_200={"source_index_delete":200,"source_index_insert":200,"target_index_delete":399,"target_index_insert":402,"target_rows":400}
+REAL write source=messages mode=rank op=remove n=200 p50_us=98.500 p95_us=108.500 last_meter={"examined":1,"index_entries":5,"rule_probes":0,"steps":7,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":801,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":1400} physical_200={"source_index_delete":400,"source_index_insert":0,"target_index_delete":202,"target_index_insert":199,"target_rows":200}
+REAL rank source=messages n=200 p50_us=88.958 p95_us=93.083 last_meter={"examined":11,"index_entries":0,"rule_probes":0,"steps":3,"heap_bytes":3150,"output_bytes":911,"rows_written":0}
+REAL adoption source=messages n=100000 mode=expiry groups=100000 ms=13675.413 store=sqlite-memory resumable_chunks=0
+REAL write source=messages mode=expiry op=add n=200 p50_us=145.250 p95_us=197.500 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":26,"heap_bytes":1533,"output_bytes":186,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":306600,"index_entries":800,"output_bytes":37200,"rows_written":400,"rule_probes":0,"steps":5200} physical_200={"source_index_delete":0,"source_index_insert":800,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=messages mode=expiry op=unrelated n=200 p50_us=128.750 p95_us=138.125 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":33,"heap_bytes":1669,"output_bytes":187,"rows_written":1} meter_sum_200={"examined":400,"heap_bytes":333800,"index_entries":0,"output_bytes":37400,"rows_written":200,"rule_probes":0,"steps":6600} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=messages mode=expiry op=decrease n=200 p50_us=163.167 p95_us=176.291 last_meter={"examined":3,"index_entries":1,"rule_probes":0,"steps":33,"heap_bytes":1662,"output_bytes":187,"rows_written":2} meter_sum_200={"examined":600,"heap_bytes":332400,"index_entries":200,"output_bytes":37400,"rows_written":400,"rule_probes":0,"steps":6600} physical_200={"source_index_delete":200,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=messages mode=expiry op=enter n=200 p50_us=165.584 p95_us=212.666 last_meter={"examined":3,"index_entries":1,"rule_probes":0,"steps":33,"heap_bytes":1662,"output_bytes":187,"rows_written":2} meter_sum_200={"examined":600,"heap_bytes":332400,"index_entries":200,"output_bytes":37400,"rows_written":400,"rule_probes":0,"steps":6600} physical_200={"source_index_delete":0,"source_index_insert":200,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=messages mode=expiry op=keyMove n=200 p50_us=236.250 p95_us=404.958 last_meter={"examined":4,"index_entries":4,"rule_probes":0,"steps":34,"heap_bytes":1753,"output_bytes":194,"rows_written":3} meter_sum_200={"examined":800,"heap_bytes":350600,"index_entries":802,"output_bytes":38800,"rows_written":600,"rule_probes":0,"steps":6800} physical_200={"source_index_delete":400,"source_index_insert":400,"target_index_delete":0,"target_index_insert":2,"target_rows":400}
+REAL write source=messages mode=expiry op=remove n=200 p50_us=113.542 p95_us=137.542 last_meter={"examined":1,"index_entries":6,"rule_probes":0,"steps":18,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":802,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":3600} physical_200={"source_index_delete":800,"source_index_insert":0,"target_index_delete":2,"target_index_insert":0,"target_rows":200}
+REAL expiry source=messages before=1 after=0 next_expiry=Some(2000) before_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":20,"heap_bytes":821,"output_bytes":9,"rows_written":0} after_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":19,"heap_bytes":5,"output_bytes":9,"rows_written":0}
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 129.91s
+```
+
+### Validation and regression evidence
+
+The targeted cargo commands reported below ran from snapback4/. An initial
+cargo test invocation at the repository root exited before running tests
+because the package is outside that workspace; it was rerun from snapback4/.
+No root workspace code changed. Node used the pinned Node 24 path:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+```sh
+cargo test -p snapback4-lang --test maintains
+```
+
+Red (`/private/tmp/d1-lang-red.log`):
+
+```text
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+Green (`/private/tmp/d1-final-lang.log`):
+
+```text
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+```sh
+cargo test -p snapback4-sim --test maintains
+```
+
+Red (`/private/tmp/d1-base-sim-regressions.log`):
+
+```text
+test result: FAILED. 2 passed; 9 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+```
+
+Green (`/private/tmp/d1-final-sim.log`):
+
+```text
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.82s
+```
+
+```sh
+cargo test -p snapback4-device --test device maintains
+```
+
+Red (`/private/tmp/d1-base-device-regressions.log`):
+
+```text
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 51 filtered out; finished in 0.00s
+```
+
+Green (`/private/tmp/d1-final-device.log`):
+
+```text
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 51 filtered out; finished in 0.08s
+```
+
+```sh
+cargo test -p snapback4-device --test device the_feeds_card_predicts
+```
+
+Red (`/private/tmp/d1-base-feeds-regression.log`):
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 53 filtered out; finished in 0.03s
+```
+
+Green (`/private/tmp/d1-final-feeds.log`):
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 53 filtered out; finished in 0.03s
+```
+
+```sh
+node --test packages/snapback4/test/maintains.test.mjs
+```
+
+Red (`/private/tmp/d1-base-client-regressions.log`):
+
+```text
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1960.389042
+```
+
+Green (`/private/tmp/d1-final-client.log`):
+
+```text
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 404.836
+```
+
+```sh
+cargo test -p snapback4-lang --test guide
+```
+
+Green (`/private/tmp/d1-final-guide.log`):
+
+```text
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+```
+
+```sh
+cargo test -p snapback4-sim --test maintains hidden_filter_work
+```
+
+Green (`/private/tmp/d1-hidden-final.log`):
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 14.99s
+```
+
+The initial language and simulator regressions were red before implementation
+(0 passed / 3 failed in each). Later isolated regressions caught not-comparison
+precedence, identity literal coercion, missing rank scope and adoption's final
+sum assessment; each was rerun green. The final simulator/device/client
+regressions were also run with production source restored from the exact base
+commit, then restored byte-for-byte to D1. The two passing base simulator
+controls were the shared observation helper and the existing chips runtime.
+No repository clone, branch switch, stash, reset, commit or push was used.
+
+The wider hidden test compares first/retry wire bytes, durable receipts,
+all seven meters, effects, stream/snapshot and both devices through reopen
+and settlement. It also compares server query data, completeness, cursor,
+dependency tables, expiry and cap/error metadata. It covers true/false,
+hidden-refused/absent and expiring/non-expiring worlds at low limits, around
+observed work thresholds, and around 16/64 KiB heap limits.
+
+### Full-suite and base failures
+
+```sh
+bash scripts/test.sh > /private/tmp/d1-suite-first.log 2>&1
+```
+
+```text
+-- FAIL: cargo test (285 s)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9542.980208
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ before acquisition write: {"state":"pending","id":"01M2H6A9TT9GXB48N373WK4WG3"}; durable queue: [{"args":{"body":"queued before acquisition"},"id":"01M2H6A9TT9GXB48N373WK4WG3","new_ids":["01M2H6A9TVP5MABFZ00YKHKEWA","01M2H6A9TWYRDPJ73EWSJSJCE4","01M2H6A9TX7H6TSWPZHS0HDQ5Z","01M2H6A9TY162T1APNZTJEMH6P","01M2H6A9TZRMRQS35WT8RTXS81","01M2H6A9V085YJCNGVD94AQWWB","01M2H6A9V13X20A6J42VY9J9SQ","01M2H6A9V2DK95FBCF52KNKZ3H"],"now":1789430933339,"observed_seq":null,"op":"add","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:alice"}]
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ before acquisition write: {"state":"pending","id":"01M2H6AHVXYZ1EJCTNPB9NWGJY"}; durable queue: [{"args":{"body":"queued before acquisition"},"id":"01M2H6AHVXYZ1EJCTNPB9NWGJY","new_ids":["01M2H6AHVYH6C7FSGZKE8KQTKR","01M2H6AHVZSNR9638KPK927M10","01M2H6AHW0YWK5HT10ME6G9YFS","01M2H6AHW15YZPHGNREDW7CQY9","01M2H6AHW2F1VRKAXGH1ZFX4VA","01M2H6AHW3RVN32BCP34GQ71FG","01M2H6AHW47M43ETHHSNXGMF31","01M2H6AHW5JRYMN3Z0JCMTECKV"],"now":1789430941566,"observed_seq":null,"op":"add","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:alice"}]
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ wire={"id":"01M2H6ADCE7SW3NFXF91SF72FA","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H6ADCE7SW3NFXF91SF72FA","seq":3,"replayed":true}; result key=false
+ℹ wire={"id":"01M2H6ADPJW7YX65CP3BV5FBCW","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H6ADPJW7YX65CP3BV5FBCW","seq":3,"replayed":true}; result key=false
+ℹ wire={"id":"01M2H6AEKA2H9ENZV9CFEE64SK","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H6AEKA2H9ENZV9CFEE64SK","seq":3,"replayed":true}; result key=false
+ℹ wire={"id":"01M2H6AER7H08M4AXZ2ZJVVSF9","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H6AER7H08M4AXZ2ZJVVSF9","seq":3,"replayed":true}; result key=false
+ℹ media: 68 B/image; maxBytes 136; 2 retained then 0 with keep:none; once bytes 0; deleted home bytes 0
+ℹ identity: 200 guest sign-ins + 200 same-email attempts; dev E_RATE_LIMIT=0; serve peer 31 and email 11 refused; 4239 ms
+ℹ video: 60 B retained; duration 1000 ms; id-only pending prediction agrees with sent.result after reopen
+ℹ token dev default: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev --days 1: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev --days=2 --service=worker: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev --json: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve default: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve --days 1: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve --days=2 --service=worker: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve --json: stdout 44 B; redeemed session queried as member:captured
+ℹ SQL count of 205 messages with WAL writer held: 7.18 ms
+ℹ 12 README blocks; 36 public functions; 1695.48 ms
+ℹ recovery point: release 1, generation 1, sequence 1; post-backup original writes excluded; queued effects never delivered
+ℹ action round trip tier=online: 13.29 ms
+ℹ action round trip tier=device: 16.96 ms
+ℹ pending wait: 1011.41 ms
+ℹ tests 188
+ℹ suites 0
+ℹ pass 186
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 46043.808375
+-- FAIL: client tests (46 s)
+== 2 failure(s) in 331 s
+```
+
+```sh
+bash snapback4/scripts/test.sh > /private/tmp/d1-suite-final.log 2>&1
+```
+
+```text
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7808.689083
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ before acquisition write: {"state":"pending","id":"01M2H7MRYWWBK2YFXAZQNFX26P"}; durable queue: [{"args":{"body":"queued before acquisition"},"id":"01M2H7MRYWWBK2YFXAZQNFX26P","new_ids":["01M2H7MRYX3A7AGFZ5QKDP9YZB","01M2H7MRYY5JXX17ZPCED5PZTJ","01M2H7MRYZ8Q4RQ42VPG735Y3P","01M2H7MRZ0JHZFMD49WGSYPBP0","01M2H7MRZ18TZF6K2X4AV2YTCZ","01M2H7MRZ2QY61N3T94EZTEJQB","01M2H7MRZ3ZPK73RSGXPWVC9X6","01M2H7MRZ47F517SZYRBN2BEHJ"],"now":1789432325084,"observed_seq":null,"op":"add","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:alice"}]
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ before acquisition write: {"state":"pending","id":"01M2H7N21QRZT0E6KZ3S88F0FB"}; durable queue: [{"args":{"body":"queued before acquisition"},"id":"01M2H7N21QRZT0E6KZ3S88F0FB","new_ids":["01M2H7N21RRYJBFFG18ZAVXAQF","01M2H7N21S1BFSSNNZVM42M0W0","01M2H7N21TG58K7F0921Z5BXNB","01M2H7N21VCZRT9F8DZR84KEDY","01M2H7N21WTDK35YX6RWSSFNSG","01M2H7N21X6MV09ND3XEHGPQDE","01M2H7N21YKPC73Y07RF6YZQ6A","01M2H7N21Z4S5X0NXZ3R4NM56K"],"now":1789432334391,"observed_seq":null,"op":"add","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:alice"}]
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ wire={"id":"01M2H7MWS5G8QZA1D1ZYPNR4GR","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H7MWS5G8QZA1D1ZYPNR4GR","seq":3,"replayed":true}; result key=false
+ℹ wire={"id":"01M2H7MX3MER1N935FCT1F1BCD","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H7MX3MER1N935FCT1F1BCD","seq":3,"replayed":true}; result key=false
+ℹ wire={"id":"01M2H7MXXPNP62GWFQMT75TJJV","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H7MXXPNP62GWFQMT75TJJV","seq":3,"replayed":true}; result key=false
+ℹ wire={"id":"01M2H7MY0P706JAJ1XEAWTN896","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H7MY0P706JAJ1XEAWTN896","seq":3,"replayed":true}; result key=false
+ℹ media: 68 B/image; maxBytes 136; 2 retained then 0 with keep:none; once bytes 0; deleted home bytes 0
+ℹ identity: 200 guest sign-ins + 200 same-email attempts; dev E_RATE_LIMIT=0; serve peer 31 and email 11 refused; 1194 ms
+ℹ video: 60 B retained; duration 1000 ms; id-only pending prediction agrees with sent.result after reopen
+ℹ token dev default: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev --days 1: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev --days=2 --service=worker: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev --json: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve default: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve --days 1: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve --days=2 --service=worker: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve --json: stdout 44 B; redeemed session queried as member:captured
+ℹ SQL count of 205 messages with WAL writer held: 7.03 ms
+ℹ 12 README blocks; 36 public functions; 1224.32 ms
+ℹ recovery point: release 1, generation 1, sequence 1; post-backup original writes excluded; queued effects never delivered
+ℹ action round trip tier=online: 10.71 ms
+ℹ action round trip tier=device: 13.42 ms
+ℹ pending wait: 1009.38 ms
+ℹ tests 190
+ℹ suites 0
+ℹ pass 188
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 41930.2525
+-- FAIL: client tests (42 s)
+== 1 failure(s) in 251 s
+```
+
+The first run additionally found the feeds-card test expecting an online-only
+aggregate overlay. Its expectation now matches this slice; the targeted
+regression and the second run's entire Rust workspace pass. The remaining
+client failures reproduce in isolated tests built from base
+397c0a829001f1df4f1e096d9bdee5693a56416d: Chromium SIGABRT in react.test.mjs,
+and web-navigation.test.mjs:159 expecting the first device core to reject
+after the injected disk-full save. No lifecycle timeout occurred in these
+runs. The lead must rerun the browser witness outside the sandbox.
+
+```sh
+node --test --test-name-pattern='failed persistence' packages/snapback4/test/web-navigation.test.mjs
+```
+
+```text
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1395.933292
+```
+
+```sh
+node --test packages/snapback4/test/react.test.mjs
+```
+
+```text
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 403.450416
+```
+
+The root caps command reports two unchanged base violations: working set
+65 of 59, and crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs
+at 1504 lines by caps' newline convention (205 oversize files against baseline
+204). The rule file, cap runner, working-set links and offending file are
+byte-identical to the exact base; git diff of those inputs exited 0.
+All 37 changed code files are below 1,500 lines; the largest is 1,456 by
+the cap runner's convention. No meter ceiling or existing corpus case changed.
+
+Minimal changes outside the brief's named files: CLI verbs/adoption.rs
+maps maintains[n] back to its declaration; parser/expr.rs recognizes the
+literal bucket duration for query builtins; device/tests/upsert/mod.rs
+updates the feeds expectation for online-only aggregate side effects.
+Other touched files implement the requested runtime, binding, proof,
+guide or acceptance paths.
+
+### Diagnostic wording
+
+The before fixture has count posts by author; the after fixture adds
+where .selected and day(.at). These are the actual CLI note lines:
+
+Before:
+
+```text
+note: schema.q:11:1 — N_MAINTAIN_DELTA: maintain counts may disclose the delta of a hidden posts row: its update rule can be wider than its read rule, and the maintain has its own readable audience
+  rewrite: treat the maintain as a declared read channel; restrict its read rule or the source update rule if the delta is private
+  guide: rules
+```
+
+After:
+
+```text
+note: schema.q:11:1 — N_MAINTAIN_DELTA: maintain counts may disclose the delta of a hidden posts row: insert/delete and a potentially wider update rule affect this readable target; filter/key/value dependencies: at, author, selected
+  rewrite: treat the maintain as a declared read channel; restrict its read rule or the source update rule if the delta is private
+  guide: rules
+```
+
+New codes E_QUARRY_MAINTAIN and E_QUARRY_MAINTAIN_EXPIRE are registered in
+guide::CODES; expression-specific refusals point to guide maintains and the
+expiring value-index refusal points to guide expire. E_ADOPT is reused for
+invalid interpreted contributions/final sums; no incomplete-adoption code
+is introduced in this slice.
+
+### Final complete run
+
+From the repository root, after the final contribution-buffer reservation:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh > /private/tmp/d1-suite-complete.log 2>&1
+```
+
+```text
+wasm 1695854 B raw, 470041 B gzip
+-- ok: cargo test (448 s)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11652.66225
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ before acquisition write: {"state":"pending","id":"01M2H87EVXE9Q0APXNQHBVC9G8"}; durable queue: [{"args":{"body":"queued before acquisition"},"id":"01M2H87EVXE9Q0APXNQHBVC9G8","new_ids":["01M2H87EVY41WA5AV4JDZXHGRD","01M2H87EVZRMCP3C6PJNGYJ612","01M2H87EW0E9T468D7XZ8351H5","01M2H87EW1XHDGHE3HEA0AN7CE","01M2H87EW28QH2NB54A7V9DWQJ","01M2H87EW38ZXQ9HNB6X0ER9YY","01M2H87EW4Z9ZSY4XHGSVVCPKX","01M2H87EW5NCEFN9YQFTCFV2HX"],"now":1789432937342,"observed_seq":null,"op":"add","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:alice"}]
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ before acquisition write: {"state":"pending","id":"01M2H87PYJ65DTEFH6QX0ZSXCV"}; durable queue: [{"args":{"body":"queued before acquisition"},"id":"01M2H87PYJ65DTEFH6QX0ZSXCV","new_ids":["01M2H87PYKNGBZGRCHB9F9S8TF","01M2H87PYMXPE9EY4P3F55Q3V0","01M2H87PYN5WSVN27ZJBRAG858","01M2H87PYPWH41T0Y3SWZETBE8","01M2H87PYQ1FFHXWKW39D6J1C9","01M2H87PYR7ND4EPG9BQ0B43X6","01M2H87PYS84PAFAWQP2GTJBR1","01M2H87PYTMEY36HWNQ4C4VK0R"],"now":1789432945618,"observed_seq":null,"op":"add","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:alice"}]
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ wire={"id":"01M2H87JNYFCZSVGRGFE77RDC4","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H87JNYFCZSVGRGFE77RDC4","seq":3,"replayed":true}; result key=false
+ℹ wire={"id":"01M2H87K106TMN3TBYQ6HHW2EA","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H87K106TMN3TBYQ6HHW2EA","seq":3,"replayed":true}; result key=false
+ℹ wire={"id":"01M2H87M0WAWFDPHCK1TW0SD6F","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H87M0WAWFDPHCK1TW0SD6F","seq":3,"replayed":true}; result key=false
+ℹ wire={"id":"01M2H87M7H303MH72ANE0R6CTP","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H87M7H303MH72ANE0R6CTP","seq":3,"replayed":true}; result key=false
+ℹ media: 68 B/image; maxBytes 136; 2 retained then 0 with keep:none; once bytes 0; deleted home bytes 0
+ℹ identity: 200 guest sign-ins + 200 same-email attempts; dev E_RATE_LIMIT=0; serve peer 31 and email 11 refused; 3001 ms
+ℹ video: 60 B retained; duration 1000 ms; id-only pending prediction agrees with sent.result after reopen
+ℹ token dev default: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev --days 1: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev --days=2 --service=worker: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev --json: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve default: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve --days 1: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve --days=2 --service=worker: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve --json: stdout 44 B; redeemed session queried as member:captured
+ℹ SQL count of 205 messages with WAL writer held: 7.63 ms
+ℹ 12 README blocks; 36 public functions; 2355.08 ms
+ℹ recovery point: release 1, generation 1, sequence 1; post-backup original writes excluded; queued effects never delivered
+ℹ action round trip tier=online: 28.51 ms
+ℹ action round trip tier=device: 23.91 ms
+ℹ pending wait: 1012.15 ms
+ℹ tests 190
+ℹ suites 0
+ℹ pass 188
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 46969.017167
+-- FAIL: client tests (47 s)
+== 1 failure(s) in 480 s
+```
+
+The Rust workspace totals 692 passed, 0 failed,
+4 ignored. The expanded hidden-boundary matrix ran
+in that suite. The two client failures are the same base-verified Chromium
+and persistence assertions above. There are no failing affected Rust or D1
+client tests. Full suite wall time was 480 s on this loaded host; its Rust
+worker took 448 s. Final wasm is 1,695,854 bytes raw / 470,041 bytes gzip.
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+./ref-check --verbose > /private/tmp/d1-ref-final.log 2>&1
+git diff --check
+```
+
+```text
+ref-check: ok — 480 LLP docs, 8883 refs in 22925 files, 0 errors, 0 unchecked
+D1 code caps: 37 files; max 1456 lines; 0 over 1500
+```
+
+git diff --check exited 0. The base journal prefix is byte-identical.
+The working tree is left for the lead; nothing was committed or published.
+
+## 2026-09-14 — D1R1: maintain occupancy, coverage, admission and cursors
+
+Repaired the GPT review's five findings from
+`b8ca38bbf24d26d5a4f062304ad6a0cb6eaff8e1`, with the worktree initially clean.
+Read `/Users/ccheever/projects/snapback-d1-review/gpt.md` in full. No commit,
+push, tag, publication, sub-agent, repository clone or remote machine was used.
+The full-suite results below are sandbox runs on the shared host.
+
+**What changed.** A zero-sum candidate can be retained by a local positive
+source witness. A local negative needs source coverage with no horizon and a
+currently held group; otherwise the prediction rolls back and queues without
+rows. Live scalar misses and empty pages now check coverage before returning.
+Every expiring maintain, filtered or not, has a selected contribution index;
+physical occupancy uses `count_prefix(..., 1)`, never a source fallback.
+Core and device schema entry points prepare that index for raw schemas too.
+Prepayment covers two contribution images, the one-entry occupancy buffer and
+encoded key, both target groups/indexes, and the source-index evaluations.
+No meter ceiling moved. Actual hidden work remains prepaid; no population-based
+charge is added after the lookup.
+
+Public-subset inherited aggregates are conservatively server-class and unknown
+locally, including a viewer-pinned read. Core validation rejects value indexes
+on expiring maintains on creation and adoption, preserving the binder's
+existing diagnostic. Direct page cursors now bind evaluated prefix values and
+the active generation. Ordinary table pages reproduced the same defect, so
+they use the same fix. Ordinary value changes and deletions keep an old cursor
+valid; rows can move between pages. Query-issued cursors also work in mutations
+and outbox replay under the same generation. Merge/search shared-lane cursor
+semantics were not changed.
+
+**Finding 3 qualification.** The literal public-source `sync to .owner`
+Quarry example does not compile at this base: the binder emits E_SYNC. I did
+not widen that other lane's syntax. Core raw-schema admission already accepts
+the subset, and that admitted form reproduces false completeness on both
+stores. The test compiles public sync, changes the source and inherited target
+to the column subset through the raw schema API, and recomputes execution
+facts. It covers the viewer, another owner and an unpinned page. Server reads
+remain complete; local reads are conservatively unknown after the fix.
+
+**Red before green.** Production code was unchanged for each finding's base
+reproduction. Fixture compile/setup errors were corrected before treating a
+failure as evidence. The first combined device run below also contains the
+initial subset fixture error; the separate subset run supplies finding 3's
+actual runtime reproduction. The baseline physical test's paired observation
+control was already green; its independent scan bound was red.
+
+Commands run from `snapback4/` unless marked root; log paths are under
+`/private/tmp/`. Repeated setup runs with no executing regression are not
+counted as reproductions. One mistaken root-level cargo invocation refused
+before running tests; all executing cargo suites ran inside `snapback4/`.
+
+| Finding | Base command / log | Verbatim summary | Green coverage |
+|---|---|---|---|
+| 1: a/b/c history and clock tick, both stores | `cargo test -p snapback4-device --test device maintains::review -- --nocapture` (`d1r1-red-device.log`) | `test result: FAILED. 0 passed; 10 failed; 0 ignored; 0 measured; 54 filtered out; finished in 0.20s` | both history cases in final device suite; positive complete-history and local-witness controls |
+| 2: hidden filtered sum, 9,000 excluded rows | `cargo test -p snapback4-sim --test maintains_review -- --nocapture` (`d1r1-red-physical.log`) | `test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.07s` | final simulator suite; filtered/unfiltered and 0/9,000 controls; paired complete observations including both devices |
+| 3: raw public-subset inheritance | `cargo test -p snapback4-device --test device maintains::review::review3 -- --nocapture` (`d1r1-red-subset.log`) | `test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 62 filtered out; finished in 0.06s` | both subset cases in final device suite |
+| 4: raw creation and adoption | combined base device command above | `test result: FAILED. 0 passed; 10 failed; 0 ignored; 0 measured; 54 filtered out; finished in 0.20s` | both raw refusal cases; non-expiring ranked and live unranked controls in existing/expanded suites |
+| 5: prefix and generation, maintain and ordinary table pages | `cargo test -p snapback4-device --test device maintains::review::review5 -- --nocapture` (`d1r1-red-cursors.log`) | `test result: FAILED. 0 passed; 8 failed; 0 ignored; 0 measured; 60 filtered out; finished in 0.15s` | all eight cases plus old-cursor decrease/delete and query-to-mutation controls |
+
+The first fix pass was `6 passed; 4 failed` (the remaining four were maintain
+cursor cases); the cursor pass was `14 passed; 0 failed`. A new positive
+query-to-mutation cursor control caught a repair regression: query execution
+used the active generation while mutation execution still used zero. Before
+that correction, `cargo test -p snapback4-device --test device
+maintains::review::review5_query_cursor -- --nocapture` reported:
+
+```text
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 72 filtered out; finished in 0.03s
+```
+
+It is green in the final device suite. The later acceptance fixture also
+initially reused one persisted device name for two different fresh servers;
+that produced watermark refusals, not a product regression. Distinct fixture
+names fixed it. No production changes were made for that setup error.
+
+### Targeted verification
+
+```sh
+# snapback4/
+cargo test -p snapback4-device --test device maintains -- --nocapture
+```
+
+```text
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 51 filtered out; finished in 0.51s
+```
+
+```sh
+cargo test -p snapback4-sim --test maintains --test maintains_review -- --nocapture
+```
+
+```text
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 23.22s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.25s
+```
+
+```sh
+cargo test -p snapback4-lang --test guide --test maintains
+```
+
+```text
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+```sh
+cargo test -p snapback4-core --test corpus -- --nocapture
+```
+
+```text
+corpus (Rust server only; no TypeScript/replica conformance claim): 211 passed, 83 skipped, 0 failed
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.78s
+```
+
+The frozen corpus cases are byte-unchanged. Its existing adapter now wraps
+legacy direct cursor inputs/oracles in the new scope, using fixture prefix
+inputs and initial generation 1, never execution output. This is the necessary
+out-of-scope harness change from fixing the shared ordinary-table cursor bug.
+The cursor descriptor and suffix/value oracle remain exact.
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+node --test packages/snapback4/test/maintains.test.mjs
+```
+
+```text
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 372.269334
+```
+
+The wasm and process client cases reject another prefix and continue from the
+old ranked cursor after a winner decreases. All rank oracles in the maintain
+simulator tests now fold source rows. Both device stores run 28 fold attempts,
+26 commits and two overflow rollbacks; updates, deletes, upsert insertion and
+hits, every filter transition, key moves, no-op patches and signed cancellation
+check target rows, value-index query order and exact target partition events.
+
+### Physical measurements
+
+The counter wraps the real SQLite transaction's Rows interface, independently
+of the interpreter meter. The allocator tracks the runner's peak temporary
+ownership on the calling thread, excluding seeded database state. Source scan
+counts include the two source target-resolution reads. These are bounded-work
+measurements, not latency, RSS or constant-time claims.
+
+| Case | Physical source rows examined | Maximum buffered source rows | Peak source-buffer bytes | Peak temporary allocated bytes | Occupancy lookups |
+|---|---:|---:|---:|---:|---:|
+| Base filtered, 9,000 excluded | 9,003 | 32 | 15,808 | 38,743 | 0 (fallback scan) |
+| Fixed filtered, 9,000 excluded | 2 | 1 | 494 | 17,298 | 1 |
+| Fixed filtered, 0 excluded | 2 | 1 | 494 | 17,298 | 1 |
+| Fixed unfiltered, 9,000 zero contributions | 3 | 1 | 494 | 17,638 | 1 |
+| Fixed unfiltered, 0 additional rows | 3 | 1 | 494 | 17,638 | 1 |
+
+The fixed filtered occupancy miss visits zero source entries; the unfiltered
+positive witness visits one. Its hidden-write logical meter is:
+
+```json
+{"examined":5,"index_entries":10,"rule_probes":0,"steps":25,"heap_bytes":707,"output_bytes":6,"rows_written":3}
+```
+
+`heap_bytes` here is the ending logical meter, not the independent peak above.
+The paired worlds compare response/receipt/retry bytes, all seven meters,
+effects, stream, snapshot and both devices; denied hidden versus absent and
+selected versus excluded worlds are identical at full and tight examined
+budgets. The existing maintain boundary matrix also exercises all seven
+ceiling dimensions. No secret-dependent source scan is exempted by prepayment.
+
+### Diagnostic texts
+
+Finding 4 raw creation/adoption previously succeeded, so there was no refusal.
+After the fix the raw error is:
+
+```text
+E_SCHEMA: maintains[0]: maintain totals cannot order by value because source posts expires
+```
+
+The Quarry diagnostic remains, before and after:
+
+```text
+E_QUARRY_MAINTAIN_EXPIRE: maintain totals cannot order by value because source posts expires
+rewrite: use a live bounded query, or the scheduled ranked-table recipe for exact rolling-window Trending
+guide: expire
+```
+
+Finding 5 previously accepted another prefix/generation without a diagnostic.
+Its new refusal uses existing E_INPUT:
+
+```text
+E_INPUT: cursor: cursor token describes a different prefix or generation
+```
+
+Finding 1's new internal prediction reason is:
+
+```text
+the zero-sum group's source occupancy is not known locally; queued without a predicted row
+```
+
+The public outbox behavior is queueing without predicted rows. No new E_/N_
+code was introduced; existing codes remain registered. The expiry card now
+names E_QUARRY_MAINTAIN_EXPIRE and the maintained-value restriction.
+
+### Full suite, remaining failures and scope
+
+Both root invocations used:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+```
+
+The first run (`d1r1-suite.log`), before the query-to-mutation generation
+correction, accumulated 713 Rust passes, zero failures, four ignored; fixtures
+9/9; client 188/190:
+
+```text
+-- ok: cargo test (366 s)
+ℹ tests 190
+ℹ pass 188
+ℹ fail 2
+-- FAIL: client tests (48 s)
+== 1 failure(s) in 398 s
+```
+
+The final-source run (`d1r1-suite-final.log`) accumulated **715 Rust passes,
+zero failures, four ignored**. Every build/typecheck/app/fixture step passed;
+fixtures 9/9, client 188/190. Final wasm: **1,707,900 bytes raw / 473,904 gzip**.
+
+```text
+-- ok: cargo test (274 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (12 s)
+ℹ tests 190
+ℹ pass 188
+ℹ fail 2
+-- FAIL: client tests (46 s)
+== 1 failure(s) in 309 s
+```
+
+Isolated current-code reruns:
+
+```sh
+# snapback4/, Node 24 PATH as above
+node --test packages/snapback4/test/react.test.mjs
+node --test --test-name-pattern='failed persistence stops' packages/snapback4/test/web-navigation.test.mjs
+```
+
+```text
+# React
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 847.973833
+# persistence
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 431.803667
+```
+
+
+Both client failures were then checked against the exact base
+`b8ca38bbf24d26d5a4f062304ad6a0cb6eaff8e1`. I saved the completed source/card
+and runtime artifacts, restored the base production Rust and included guide
+card with `git show HEAD:<path>` (no branch change or reset), built the base CLI
+and wasm, and ran each failed test alone. Base wasm was 1,695,854 bytes raw /
+470,041 gzip, matching D1's recorded artifact size. The persistence test again
+misses its expected `/disk full/` rejection. The base React log explicitly
+records Chromium `signal=SIGABRT`; current isolated runs reported ENOTEMPTY
+while cleaning up the failed browser. The browser boundary is the supplied
+sandbox artifact; the persistence assertion is also base-reproduced. Neither
+failure was repaired in this maintains lane.
+
+The exact-base replay also reran the completed regression suite. The subset
+case now starts with Bob and records `Int(0), complete: true` on Alice's device
+on both stores. The six positive controls pass while the fourteen refusal/
+coverage regressions fail. These are supplementary base measurements after
+the initial red-before-fix work, not a claim that the final code was still
+unmodified when they ran:
+
+```sh
+# snapback4/, production files at b8ca38bbf24d26d5a4f062304ad6a0cb6eaff8e1
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+cargo build --workspace --quiet
+bash scripts/build-wasm.sh
+bun run --cwd packages/snapback4 build
+node --test --test-name-pattern='failed persistence stops' packages/snapback4/test/web-navigation.test.mjs
+node --test packages/snapback4/test/react.test.mjs
+cargo test -p snapback4-device --test device maintains::review -- --nocapture
+cargo test -p snapback4-sim --test maintains_review -- --nocapture
+```
+
+```text
+# persistence, exact base
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 1211.553542
+# React, exact base
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 274.364042
+# expanded regressions, exact base
+test result: FAILED. 6 passed; 14 failed; 0 ignored; 0 measured; 54 filtered out; finished in 0.21s
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.50s
+```
+
+All 23 saved source/card/artifact files were restored and SHA-256 verified
+against the completed implementation, then targeted device/client checks were
+rerun. No affected Rust or maintains client test remains red. No final source
+change followed the completed full suite except ordering the subset fixture
+to exercise the other-owner miss first; that test passed again after restore.
+
+```sh
+# snapback4/
+cargo test -p snapback4-device --test device maintains -- --nocapture
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+node --test packages/snapback4/test/maintains.test.mjs
+```
+
+```text
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 51 filtered out; finished in 0.27s
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 620.972625
+```
+
+The requested five repairs and added acceptance cases are implemented. The
+public-subset Quarry syntax was not widened because it did not reproduce as
+an admitted form on this base; the raw-schema defect did reproduce and is
+fixed. Durable adoption preparation and digest continuation remain outside
+D1R1, as §20.9's built note already states. No app form changed. Apart from the
+shared ordinary-table cursor and its frozen-corpus adapter, changes stay in
+the maintain/core/device/compiler/tests/docs scope. Twenty changed code files
+have a maximum of 1,262 lines; zero exceed 1,500. The README, cards and §20.9
+built note are updated without reflowing existing prose. This journal entry
+is appended once, preserving every byte of the earlier journal.
+
+Final repository checks:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+./ref-check --verbose > /private/tmp/d1r1-ref-final.log 2>&1
+git diff --check
+```
+
+```text
+ref-check: ok — 480 LLP docs, 8888 refs in 22928 files, 0 errors, 0 unchecked
+D1R1 code caps: 20 files; max 1262 lines; 0 over 1500
+```
+
+The earlier journal is byte-identical, and exactly one dated entry was added.
+The worktree remains on the base commit for the lead; nothing was committed
+or published.
+
+## 2026-09-14 — D1R2: Grok maintain review, hidden deletes and index accounting
+
+Started clean at `fc76b6391a5875d330bd3eacb8076748b8805f88` on
+`sb4/w3-d1`, after reading the D1R1 entry and the complete review at
+`/Users/ccheever/projects/snapback-d1-review/grok.md`. All initial
+reproductions below ran with production code unchanged at that HEAD. No
+commit, push, tag, publication, sub-agent, clone or remote machine was used.
+
+### Findings and starting-HEAD reproductions
+
+Commands in this entry run from `snapback4/` unless explicitly marked root.
+Logs are under `/private/tmp/`; their prefix is `d1r2-`.
+
+1. **Hidden delete: reproduced.** `delete` now calls the same maintain
+   reservation before `fetch`, wrapped in `target_attempt` so prepayment and
+   transient heap end with that attempt. The existing NOT_FOUND/E_RULE delete
+   distinction is retained; it is outside §8.7's one-word update contract.
+   Filter worlds match within each target outcome. If the reservation cannot
+   fit, present/absent and admitted/denied worlds all refuse before lookup.
+   No ceiling changed and actual maintain work is not charged twice.
+
+   `cargo test -p snapback4-sim --test maintains hidden_filter_work_delete -- --nocapture`
+
+   Red (`red-delete.log`):
+   `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.07s`
+
+   First green (`green-delete.log`, 543 pairs):
+   `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 24.38s`
+
+   The final matrix adds actual transient-reservation boundaries and positive
+   assertions for all full-budget outcomes: 659 pairs. It includes both
+   device stores through the existing observation helper, first/retry bytes,
+   durable receipts, all seven meters, effects, stream/snapshot, device
+   admission/reopen/settlement, and server query metadata. Source/target
+   deletions are checked in each successful world; failures roll back.
+
+2. **Expiry card: did not reproduce.** D1R1 already added the paragraph
+   naming E_QUARRY_MAINTAIN_EXPIRE and the live bounded query / scheduled
+   ranked-table rewrites. Added a focused card assertion; no expiry-card or
+   diagnostic implementation change was justified.
+
+   `cargo test -p snapback4-lang --test guide expire_card_explains -- --nocapture`
+
+   Base (`base-expire.log`):
+   `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s`
+
+   It remains green in the final 16-test guide suite below; there is no
+   fabricated red line for an already repaired finding.
+
+3. **Hidden filtered/keyed overflow: reproduced, documented as authorized.**
+   Seed an admitted hidden row with score 1 and another selected row with
+   I53_MAX − 1, grouped by author/day. Changing the hidden score to 2 commits
+   if excluded and fails E_OVERFLOW if selected. Both aggregate and source
+   deny the writer read access. The initial equality hypothesis fails.
+   Per the brief's smaller option, §20.9.3, the maintains card and README
+   now name this §8/§17 constraint-outcome residual. Overflow implementation
+   was not changed. The retained test requires the success control, atomic
+   rollback, value-free first refusal and the stricter replay refusal.
+
+   `cargo test -p snapback4-sim --test maintains hidden_filtered_keyed_overflow -- --nocapture`
+
+   Red (`red-overflow.log`):
+   `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.05s`
+
+   Green for the documented contract (`green-overflow-final.log`):
+   `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.05s`
+
+   A first follow-up assertion incorrectly expected replay's message to
+   equal the first refusal; that test failed 0/1, then was corrected to
+   require the existing sanitized message. No runtime repair was made for
+   this test expectation. An accidental root-level cargo invocation of the
+   same command refused before tests because `vendor/ibex/Cargo.toml` is
+   absent (`green-overflow.log`); it built nothing and was immediately rerun
+   in the fenced workspace. No root bootstrap was attempted.
+
+4. **MemoryRows accounting/defaults: reproduced.** Three core tests cover
+   actual changed-key counts against SQLite, defaulted raw-image indexing,
+   and delete of an interpreted old image without stale-key resurrection.
+   `put` now counts removed and added `stored_index_keys`, like MemoryStore;
+   `delete` also interprets defaults. Raw row storage remains raw.
+
+   `cargo test -p snapback4-core --test rows -- --nocapture`
+
+   Red (`red-rows.log`):
+   `test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s`
+
+   Green (`green-rows.log`, also `target-rows.log`):
+   `test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s`
+
+5. **Adoption fold: test gap confirmed; no rebuild failure reproduced.**
+   Extended the independent fold with an explicit expected predicate,
+   duration and output-field name; it does not call the production
+   contribution evaluator. The adoption test now checks counts and scores
+   after all three definitions, using selected and excluded rows whose UTC
+   day and two-minute bucket differ. Source bytes stay identical. The
+   stronger test already passes at the starting HEAD, so rebuild code was
+   left alone.
+
+   `cargo test -p snapback4-sim --test maintains adoption_rebuilds_filters -- --nocapture`
+
+   Base (`base-adoption.log`):
+   `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.01s`
+
+   It remains green in the final 13-test maintains suite below.
+
+### Targeted suites
+
+`cargo test -p snapback4-core --test rows -- --nocapture` (`target-rows.log`):
+
+```text
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+`cargo test -p snapback4-lang --test guide --test maintains` (`target-lang.log`):
+
+```text
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+`cargo test -p snapback4-sim --test maintains --test maintains_review -- --nocapture` (`target-sim.log`):
+
+```text
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 29.96s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.46s
+```
+
+`cargo test -p snapback4-device --test device maintains -- --nocapture` (`target-device.log`):
+
+```text
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 51 filtered out; finished in 0.30s
+```
+
+### Measurements and diagnostic text
+
+Delete final meters, in `[steps, examined, index entries, rows written,
+heap bytes, rule probes, output bytes]` order:
+
+| World | Filter false | Filter true |
+|---|---|---|
+| Base, no expiry | `[12, 0, 2, 1, 18, 0, 6]` | `[12, 2, 7, 3, 18, 0, 6]` |
+| Fixed, no expiry | `[26, 8, 26, 5, 18, 0, 6]` | same |
+| Fixed, expiring/live | `[50, 8, 23, 5, 18, 0, 6]` | same |
+| Fixed, expired/unswept | `[4, 0, 0, 0, 18, 0, 0]` | same (NOT_FOUND restores the mark) |
+
+Binary-searched minimum non-E_BOUND ceilings in that order are
+`[26, 8, 26, 5, 35566, 0, 6]` without expiry,
+`[50, 8, 23, 5, 33582, 0, 6]` for live expiry and
+`[48, 8, 20, 4, 33582, 0, 0]` for expired/unswept. The matrix tests one below,
+at and one above those boundaries as well as low/zero ceilings. The expired
+attempt still needs reservation room before it can discover NOT_FOUND and
+restore the meter: its final meter is not its peak reservation. That is why
+checking only final counters would miss the actual heap boundary.
+
+MemoryRows and SQLite now both charge `[2, 0, 0, 2]` index entries for insert,
+identical update, unrelated-field update and a group-key move, respectively.
+Before, the second operation charged 2 in MemoryRows and 0 in SQLite.
+The adoption oracle checks 3 published definitions over 2 source rows with
+0 source-image changes. The overflow fixture's endpoint is
+9,007,199,254,740,991. Its success/error bit is retained explicitly, not
+reported as repaired noninterference.
+
+No diagnostic code or text changed. Before and after, the first overflow
+refusal is exactly:
+
+```text
+E_OVERFLOW: maintain totals.value overflowed
+```
+
+The stored/replayed message is exactly:
+
+```text
+the program refused with E_OVERFLOW
+```
+
+The source edit rolls back on overflow; the failed reply carries no current
+row. There is no new E_/N_ registration and no parser form or caller change.
+
+### Full suite and baseline client checks
+
+Before implementation changes, the exact starting HEAD was rebuilt with:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+cargo build --workspace --quiet
+bash scripts/build-wasm.sh
+bun run --cwd packages/snapback4 build
+node --test packages/snapback4/test/react.test.mjs
+node --test --test-name-pattern='failed persistence stops' packages/snapback4/test/web-navigation.test.mjs
+```
+
+Builds succeeded (base wasm 1,707,900 B raw / 473,904 B gzip).
+Both isolated tests failed at the exact base
+`fc76b6391a5875d330bd3eacb8076748b8805f88`: Chromium reports SIGABRT;
+persistence misses the expected `/disk full/` rejection. Base summaries:
+
+```text
+# base-react.log
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 368.505875
+# base-persistence.log
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 1270.860208
+```
+
+Final root invocation (log `suite.log`):
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+```
+
+The full suite accumulated **721 Rust passes, 0 failures, 4 ignored**.
+Every build/typecheck/app step and the 9 fixture tests passed. Its only
+failed step was the client suite: 188/190, precisely the two independently
+base-reproduced failures above. No lifecycle timeout occurred in this run.
+Final wasm: **1,708,421 B raw / 474,117 B gzip**, +521 / +213 B from base.
+Verbatim summary lines:
+
+```text
+-- ok: cargo build (3 s)
+-- ok: wasm build (13 s)
+-- ok: package typecheck (0 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (330 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (0 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (8 s)
+ℹ tests 190
+ℹ pass 188
+ℹ fail 2
+-- FAIL: client tests (43 s)
+== 1 failure(s) in 348 s
+```
+
+Isolated final-code reruns, with Node 24 PATH as above:
+
+```sh
+node --test packages/snapback4/test/react.test.mjs
+node --test --test-name-pattern='failed persistence stops' packages/snapback4/test/web-navigation.test.mjs
+node --test packages/snapback4/test/maintains.test.mjs
+```
+
+```text
+# react.log — Chromium SIGABRT, same as exact base
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 424.778583
+# persistence.log — Missing expected rejection, expected /disk full/, same as exact base
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 327.385166
+# target-client.log — wasm and process devices
+ℹ tests 2
+ℹ pass 2
+ℹ fail 0
+ℹ duration_ms 411.063958
+```
+
+README and card prose was separated into paragraphs while the full suite
+ran, preserving the original prose wrapping. No Quarry fence changed.
+The final docs were rechecked with
+`cargo test -p snapback4-lang --test guide --test maintains`
+(`final-lang.log`); its verbatim summaries are recorded below.
+
+```text
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+### Scope and final repository checks
+
+The two runtime repairs, regression coverage, overflow disclosure and dated
+§20.9 built note are complete. Findings 2 and 5 needed no production change
+because their asserted faulty behavior did not reproduce; both coverage
+improvements remain. A state-independent overflow rejection was deliberately
+not implemented, using the brief's explicitly permitted residual option.
+Durable/resumable adoption and S26 continuation stay in their owning lanes.
+No application form changed, so there were no app, fixture or loopbar callers
+to migrate. No other lane's file was touched. MemoryRows::delete is part of
+finding 4's reproduced default-key defect, not an unrelated refactor.
+
+Six changed code files have a maximum of 525 lines, zero over 1,500.
+The existing corpus, value serialization and meter ceilings are unchanged.
+This is one appended journal entry; all previous journal bytes are preserved.
+
+Root checks (Node 24 PATH as above):
+
+```sh
+./ref-check --verbose
+git diff --check
+```
+
+Before this append, reference validation reported:
+
+```text
+ref-check: ok — 480 LLP docs, 8890 refs in 22929 files, 0 errors, 0 unchecked
+D1R2 code caps: 6 files; max 525 lines; 0 over 1500
+```
+
+The final append is also covered by the root reference check; the worktree is
+left uncommitted for the lead. The lead still needs to rerun the full suite
+outside the sandbox, where Chromium can start, and handle the existing
+persistence-test failure in its owning lane. No new product test remains red.
 
 ## 2026-09-14 — lane B2: prediction, residency and fanout explanations (§20)
 
@@ -11075,6 +12704,155 @@ Second run — **762 Rust passes, 0 failures, 2 ignored**:
 
 Final run — **762 Rust passes, 0 failures, 2 ignored**; **9/9** fixture tests; **222/223** client tests:
 
+## 2026-09-14 — W2R2e: a stalled exit response cannot wedge flushing or close
+
+Implemented re-check finding A and retained finding 4's submission ordering
+at base `bca8bfe70d320c1d466c6a700493465662b2205e` (LLP 3000.007 §20.4).
+The exit transport now bounds its wait to **1,000 ms**, then lets ordinary
+flushing retry the **same durable head, mutation id, arguments and new ids**.
+Only ordinary settlement advances the queue. An exit response arriving late
+never settles a write itself. The still-outstanding keepalive keeps its
+active slot and byte reservation until its body actually finishes, so more
+page events cannot start another exit request or pretend its quota is free.
+Closing aborts only the wait, not the keepalive delivery; the awakened flush
+checks `closed` before reading the device queue. The README and writes card
+state the recovery and close behavior. No client contract, code/note,
+serialized form, meter ceiling or existing corpus case changed.
+
+The regression uses fake page events with the real wasm device and HTTP
+server. Its exit response supplies headers but leaves a ReadableStream body
+open through recovery. Both outcomes are covered: the server never applied
+the exit write, and it already applied it and answers the ordinary retry
+with `replayed: true`. Each queues **2** writes, starts **1** exit request,
+then sends **2** ordinary requests in submission order and leaves exactly
+**2** server rows, **0** duplicates. The ordinary head retry is itself held
+open to check that its successor cannot pass it and another exit cannot
+start. Separate tests close the client with a stalled body and verify that
+the transport wait releases immediately on the close signal without giving
+that signal to fetch.
+
+First ran the three client regressions before changing implementation:
+`node --test --test-name-pattern='stalled exit' packages/snapback4/test/web-navigation.test.mjs`
+reported `ℹ tests 3`, `ℹ pass 0`, `ℹ fail 3`. The first fixed run recovered
+both writes but reported `ℹ tests 3`, `ℹ pass 2`, `ℹ fail 1`: the close
+assertion allowed only 500 ms, while the existing offline follower can
+already be sleeping for one second. That unrelated sleep is unchanged.
+The final close assertion allows 1,500 ms, with a separate 100 ms transport
+assertion proving immediate wait release. All four final regressions were
+rerun against the exact base's `local.ts` and `local-exit.ts`, extracted
+with `git show HEAD:<path>` and transpiled into the ignored package `dist/`
+using the installed TypeScript. The current package was then rebuilt.
+
+Commands below used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+Cargo, Bun and package Node commands ran from `snapback4/`; the blocking
+suite, witness and ref-check commands ran from the repository root.
+
+Final regression command, base then fix:
+`node --test --test-name-pattern='stalled exit' packages/snapback4/test/web-navigation.test.mjs`
+
+```text
+ℹ tests 4
+ℹ pass 0
+ℹ fail 4
+
+## 2026-09-14 — W2R2w: witness receipt validation, process ownership and artifact preservation
+
+Base: `bca8bfe70d320c1d466c6a700493465662b2205e`. Read GPT re-check
+findings B, C and D, including the custom-serialization envelope probe,
+LLP 3000.007 §20.10, and W1's lane and native end-to-end records. Every
+execution regression here uses the fake simctl and the real dev backend;
+there were **0 native simulator end-to-end runs** in this sandbox.
+
+The driver now validates every complete row before advancing, including
+failures later in the same batch, checks the witness envelope and milestone
+order, and validates the full exported file after collection. Previously
+observed rows cannot be replaced. After `done`, only app receipts in the
+helper's `between-steps` state may follow. The helper serializes and parses
+the app object before installing the protocol envelope, rejecting primitive,
+array, null and reserved-key serialization results while accepting benign
+`toJSON` and getters without evaluating them again.
+
+The driver refuses an already running app before starting its backend,
+records each launch's reported PID, checks the current app PID before
+signaling that PID, and leaves replacement instances running. It never
+terminates by bundle ID or launches with `--terminate-running-process`.
+A persistent create-new marker reserves the segment's namespace, and the
+manifest names it and all **9 output files**. Every output is covered by
+preflight. Backend and launch logs append across restarts; readiness reads
+only the new backend's stdout suffix, so an earlier announcement cannot
+satisfy the restarted process's readiness check. The card, README, existing
+witness code explanations and §20.10 document the changed behavior.
+
+Measured fake-driver controls: **2 simultaneous runs, 1 owner and 1 refusal**;
+**2 backend readiness announcements** retained (base: **1**); **3 launch
+stderr groups** retained; **3 launched PIDs**, 7001, 7002 and
+7003, and **3 matching terminations**, with **0 bundle-only terminations**.
+The existing-instance control leaves PID 6999 alone; the replacement
+control leaves PID 9999 alone. All **9 pre-existing output paths** retain
+their exact bytes. The five invalid-receipt scenarios fail, while cold,
+relaunch and harmless post-done app receipts pass.
+
+### Red and green
+
+Cargo and package commands ran from `snapback4/`. Every Node/Bun command
+used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+`cargo test -p snapback4 --test witness` first ran before production edits:
+
+```text
+test result: FAILED. 9 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.69s
+```
+
+The strengthened, separately named regressions were then run against the
+same base's driver and protocol restored with `git show`, with a test-only
+adapter extracting the base's inline check-only artifact preflight for the
+reservation race. That adapter is absent from the delivered code:
+
+```text
+test result: FAILED. 9 passed; 10 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.02s
+```
+
+The same command on the fixed implementation:
+
+```text
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 19.07s
+```
+
+`node --test packages/snapback4/test/witness.test.mjs`, before then after:
+
+```text
+ℹ tests 4
+ℹ pass 3
+ℹ fail 1
+
+ℹ tests 4
+ℹ pass 4
+ℹ fail 0
+```
+
+The fixed run measured recovery **1,010 ms** (not applied) / **1,005 ms**
+(already applied), client close **978 ms** including the follower sleep,
+and the isolated immediate-close test **0.572833 ms** total. There were
+**0** ordinary sends after close. These are shared-host wall times, not a
+latency guarantee beyond the timeout's scheduled release.
+
+`node --test packages/snapback4/test/web-navigation.test.mjs packages/snapback4/test/local-e2e.test.mjs packages/snapback4/test/client-lifecycle.test.mjs`
+
+```text
+ℹ tests 65
+ℹ pass 65
+ℹ fail 0
+```
+
+`cargo test -p snapback4-lang --test guide -- --nocapture`
+
+```text
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+```
+
+`bash snapback4/scripts/test.sh` — Rust totals **750 passed, 0 failed,
+2 ignored**; all builds and typechecks passed. Verbatim group summaries:
+
 ```text
 -- ok: cargo build (2 s)
 -- ok: wasm build (2 s)
@@ -11082,6 +12860,696 @@ Final run — **762 Rust passes, 0 failures, 2 ignored**; **9/9** fixture tests;
 -- ok: package build (1 s)
 -- ok: chat app check (1 s)
 -- ok: cargo test (241 s)
+
+-- ok: cargo test (279 s)
+-- ok: chat app typecheck (1 s)
+
+The first intermediate green Rust run also used
+`cargo test -p snapback4 --test witness`:
+
+```text
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.20s
+```
+
+### Diagnostics
+
+The base accepted the failed batch, late failure, reordered milestone,
+late step change and malformed envelope as success; it also took over the
+existing app. The fixed fixture's refusals include these exact texts:
+
+```text
+E_WITNESS_STEP: app step check:failed; see receipts and device log
+E_WITNESS_STEP: app changed step after done: primed
+E_WITNESS_STEP: app changed step after done: history:running
+E_WITNESS_RECEIPT: receipt line 3 has an invalid witness envelope; expected witness: { at: ISO timestamp, step: name }
+E_WITNESS_APP: dev.test is already running on dedicated; quit it before starting the witness
+E_WITNESS_APP: dev.test on dedicated was replaced by PID 9999; leaving that instance running
+E_WITNESS_RECEIPT: serialized receipt must be an object without the reserved witness key
+```
+
+No meter, value serialization, existing corpus case, native bridge, app
+caller or other lane's client implementation changed. No commit, push, tag,
+publication, sub-agent or remote machine was used. The lead's native rerun
+remains necessary; fake process choreography does not measure native UI,
+process or storage behavior. The useful lesson is that a milestone is not
+a validated batch, a bundle identifier is not process ownership, and an
+existence check is not an exclusive artifact reservation.
+
+
+### Full verification
+
+From the repository root, with the same Node 24 PATH:
+`bash snapback4/scripts/test.sh`:
+
+```text
+-- ok: cargo build (2 s)
+-- ok: wasm build (17 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (2 s)
+-- ok: cargo test (352 s)
+-- ok: chat app typecheck (0 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (10 s)
+ℹ tests 201
+ℹ pass 200
+ℹ fail 1
+-- FAIL: client tests (44 s)
+== 1 failure(s) in 285 s
+```
+
+The sole failure is Chromium `signal=SIGABRT` before the React page opens.
+Isolated rerun: `node --test packages/snapback4/test/react.test.mjs`.
+Verified independently against exact base
+`bca8bfe70d320c1d466c6a700493465662b2205e`: archived its package, app and
+witness sources into `/tmp/w2r2e-base`, linked installed dependencies, and
+ran `node --test /tmp/w2r2e-base/snapback4/packages/snapback4/test/react.test.mjs`.
+Both commands reproduced that launch failure and the same summary:
+
+ℹ tests 198
+ℹ pass 197
+ℹ fail 1
+-- FAIL: client tests (46 s)
+== 1 failure(s) in 374 s
+```
+
+Summing the 54 Rust suite summaries gives **760 passed, 0 failed,
+2 ignored**. All witness regressions pass in that full run. The client
+failure is Chromium `signal=SIGABRT` in `react.test.mjs`, the sandbox
+artifact explicitly named in this lane's brief. The isolated rerun from
+`snapback4/`, `node --test packages/snapback4/test/react.test.mjs`, reproduces
+it:
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+```
+
+`node snapback4/witness/navigation.mjs` also exited **1** at Chromium launch
+with `signal=SIGABRT`, before producing any witness JSON. The real-browser
+witness remains for the lead outside the sandbox; the Node/wasm/HTTP tests
+passed. No other requested implementation work remains, and no out-of-scope
+file was changed. Preparatory `bash scripts/build-wasm.sh`,
+`bun run --cwd packages/snapback4 build` and
+`cargo build --workspace --quiet` all exited **0**; wasm measured
+**1,651,366 B raw / 458,474 B gzip**. No install, commit, push, tag,
+publication, sub-agent or remote machine was used. Changed code files are
+at most **998** lines. Full logs are `/tmp/w2r2e-{red-final,green-final,targeted,guide,suite,react,react-base,witness,ref}.log`.
+
+`./ref-check --verbose` passed after this entry was appended:
+
+```text
+ref-check: ok — 480 LLP docs, 8885 refs in 22933 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passed. The worktree contains only the six intended
+source/test/documentation changes above; HEAD remains the base.
+
+ℹ duration_ms 1158.33125
+```
+
+No lifecycle host test failed and no reduced-concurrency client rerun was
+needed. I do not claim an independently verified pre-existing full-suite
+failure at the base; the Chromium classification follows the author's
+explicit environment ruling, and the lead reruns it outside the sandbox.
+`./ref-check --verbose` from the root passes:
+
+```text
+ref-check: ok — 480 LLP docs, 8887 refs in 22927 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passes. Raw outputs are `/tmp/w2r2w-rust-red.log`,
+`/tmp/w2r2w-rust-red-complete.log`, `/tmp/w2r2w-rust-final.log`,
+`/tmp/w2r2w-js-red.log`, `/tmp/w2r2w-js-final.log`,
+`/tmp/w2r2w-suite.log`, `/tmp/w2r2w-react-alone.log` and
+`/tmp/w2r2w-ref-check.log`.
+
+## 2026-09-14 — W2R2a: final-exists device misses need an absence proof
+
+Base: `bca8bfe70d320c1d466c6a700493465662b2205e` (`sb4/w2-int`). Read
+Grok's re-check finding 4 and section 2, lane F and W2R1u, and the governing
+LLP 3000.007 §20.5, §8.7, §15/§17 and §18 rulings. The shared final-exists
+check now reuses `upsert_absence_proven` on a device miss. A refusal needs
+a key that proves readability and a fully held synced group without a
+horizon; an unproved miss records an unknown fact, which the existing local
+prediction mapping turns into `E_PREDICT`. Admission then queues the write
+without a predicted row. A local hit still satisfies the postcondition.
+The writes and prediction cards and package README state these conditions.
+No new language form, diagnostic code or note was added.
+
+Both ordinary insert and upsert were red at the base: Alice's private
+`targets {name: "x"}` is missing from Bob's device, so both stores refused
+`E_CONSTRAINT` while the server committed Bob's source row. The four named
+store/write-form regressions now queue instead. Eight new tests include
+those four regressions, direct `E_PREDICT` checks, viewer-pinned held-group
+success and refusal controls, and unpinned local-hit controls. The known
+miss still gives exactly the server's complete `E_CONSTRAINT` refusal;
+the successful predicted row, after removing `pending`, equals the server
+result and settled local row. Both stores exercise admission, reopen and
+settlement. No meter ceiling, serialized value form or corpus case changed.
+
+The existing observation helper records full query envelopes, all seven
+meters, all table reads, admission, the outbox, reopen and settlement. Three
+worlds have identical viewer holdings and seed sequence: no target, a hidden
+nonmatching target, and a hidden matching target. Their complete device
+observations match through reopen. The absent and hidden-nonmatching worlds
+also match the complete server observation, including first/retry bodies,
+receipt, meters, committed delta, effects, stream, snapshot and settlement.
+The matching hidden witness legitimately changes the server's postcondition
+outcome; that commit and the other worlds' refusals are each checked instead
+of demanding identical authoritative outcomes. This is an in-process
+observation, not an HTTP or browser-notification measurement.
+
+### Red before, green after
+
+Only the test files were changed for the final red run; production sources
+were still exactly the base above. Cargo commands run from `snapback4/`.
+
+```text
+cargo test -p snapback4-device --test device upsert::final_exists -- --nocapture
+test result: FAILED. 3 passed; 5 failed; 0 ignored; 0 measured; 73 filtered out; finished in 0.26s
+cargo test -p snapback4-device --test device upsert::final_exists -- --nocapture
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 73 filtered out; finished in 0.32s
+cargo test -p snapback4-device --test device -- --nocapture
+test result: ok. 81 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 47.68s
+cargo test -p snapback4-lang --test guide -- --nocapture
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+```
+
+The blocking suite, from the repository root, with the pinned Node PATH:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+-- ok: cargo build (16 s)
+-- ok: wasm build (31 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (301 s)
+-- ok: chat app typecheck (0 s)
+-- ok: expo app typecheck (1 s)
+-- ok: fixture wrapper tests (11 s)
+-- FAIL: client tests (46 s)
+== 1 failure(s) in 351 s
+```
+
+Rust's 54 summary lines total 758 passed, 0 failed, 2 ignored. Fixture and
+client summaries, respectively:
+
+```text
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ skipped 0
+ℹ tests 197
+ℹ pass 196
+ℹ fail 1
+ℹ skipped 0
+```
+
+The sole failure was `React hooks and reference-app lifetimes` in
+`packages/snapback4/test/react.test.mjs`, Chromium `SIGABRT`. Rerun alone
+from `snapback4/`, with the same pinned Node PATH:
+
+```text
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ skipped 0
+ℹ duration_ms 477.062625
+```
+
+The isolated run also reports Chromium `SIGABRT`. This is the sandbox
+artifact explicitly identified by the lane brief, not an independently
+base-verified pre-existing-failure claim. No lifecycle or mass client timeout
+occurred. The lead still needs the browser test outside the sandbox. Logs:
+`/tmp/w2r2a-final-exists-red.log`, `/tmp/w2r2a-final-exists-green.log`,
+`/tmp/w2r2a-device.log`, `/tmp/w2r2a-guide.log`, `/tmp/w2r2a-suite.log`,
+`/tmp/w2r2a-react.log`, `/tmp/w2r2a-ref-check.log`.
+
+Measurements: 4 false local refusals in the primary insert/upsert/store
+reproduction become 0; each uncertain write goes from 0 queued entries to
+1, with 0 predicted rows. Held successes still predict 1 source row. The
+rebuilt wasm is 1,651,659 B raw and 458,591 B gzip; no size improvement is
+claimed. The 5 changed/new code files are all below 1,500 lines (largest:
+`engine/write.rs`, 628). No out-of-scope file was touched. Nothing was
+committed, pushed, tagged or published.
+
+Direct prediction's diagnostic fields for both write forms and stores:
+
+```text
+before code: E_CONSTRAINT
+before message: inserting into sources requires a matching row in targets by the end of the mutation
+after code: E_PREDICT
+after message: E_PREDICT: site after insert: this device cannot establish targets by byName at key ["x"]; the probe key does not establish a fully held, readable group without a horizon
+```
+
+Admission consumes the latter as a queued unpredicted write. The server's
+constraint diagnostic is unchanged. Lesson: whole-table sync metadata does
+not prove that a private probe's key is absent; final postconditions need
+the same viewer-specific absence proof as the insert arm itself.
+
+Final root checks:
+
+```text
+./ref-check --verbose
+ref-check: ok — 480 LLP docs, 8886 refs in 22934 files, 0 errors, 0 unchecked
+git diff --check
+```
+
+`git diff --check` exits 0. The journal's base prefix is byte-identical,
+with exactly this one dated entry appended. HEAD remains the named base;
+the working tree contains only the 7 intended source, test and documentation
+files listed above.
+
+## 2026-09-14 — native end-to-end on the round-2 witness: no `kill` in the simulator runtime (lead)
+
+The round-2 ownership fix (W2R2w) stopped its launched app with
+`xcrun simctl spawn <udid> kill -TERM <pid>`. On a real simulator (iOS 26.5,
+dedicated `sb4-e2e`, `expo run:ios --configuration Release` build) that fails:
+"An error was encountered processing the command (domain=NSPOSIXErrorDomain,
+code=2) … No such file or directory" — the runtime has no `kill`. The fake
+`simctl` accepted it, so the tests could not see it. The driver now confirms
+through `launchctl list` that the running instance is the PID it launched and
+then calls `simctl terminate <udid> <bundle>`; a replaced instance is still
+left running with `E_WITNESS_APP`. The fixture now fails `spawn kill` as the
+runtime does and records the PID each terminate stops (witness tests 19 of 19).
+
+## 2026-09-14 — wave 2 review round 3, settled by the lead (LLP 3000.007 §20.11)
+
+GPT's third check of `e01cc8afa` confirmed A, C (and the `toJSON` envelope)
+and D and left three Medium items; Grok's third check returned READY.
+- An empty `receipt({})` after `done` wrote `{"witness":{"step":"between-steps"}}`
+  and the driver rejected it because it required an application field.
+  `between-steps` rows only come from `receipt()`, so any such row is accepted
+  after `done` and any other step still fails (`protocol.rs` unit test).
+- A device's final-exists coverage proof that exhausts the meter surfaced as a
+  local `E_BOUND` refusal while the server commits. The proof's
+  `RuntimeError::Bound` now means "not proven": the miss is unknown and the
+  write queues. `a_final_exists_proof_that_exhausts_the_meter_queues_instead_of_refusing`
+  (`rule_probes: 0`): red `E_BOUND` at `e01cc8afa`, green `E_PREDICT`.
+- The window between the launched-PID check and `simctl terminate` is accepted
+  and stated in §20.10 (no PID-targeted terminate in the simulator; dedicated
+  simulator).
+
+
+## 2026-09-14 — Expo target audit holds the first 0.2.5 candidate
+
+The final artifact inventory found deployment-target warnings in the earlier
+successful C-link logs: bundled SQLite targeted iOS/iOS Simulator 26.5 while
+the podspec promises 16.4. Those original bytes remain unpublished. Inspection
+of the pinned cc and rustc implementations established that both consume
+`IPHONEOS_DEPLOYMENT_TARGET` for both Apple iOS targets. Astra added the explicit
+16.4 setting to the existing XCFramework script and is rebuilding the slices
+for object-metadata and real C/Swift consumer checks. The runtime source is
+unchanged; already qualified and landed 0.2.14 CLI/browser inputs are unaffected.
+The earlier successful-link receipt is retained with this qualification limit.
+
+
+## 2026-09-14 — LLP 3000.008 selected increment delivered
+
+The four-family RFC panel (Astra, Grok, Muse, Claude) and author pass selected
+bounded residual work; Astra implemented it. Independent Sol/Grok code reviews
+accepted the combined changes and the focused follow-ups. Replayed writes now
+expose execution-only receipts, generation acquisition guards local knowledge,
+browser persistence/runtime installation recovers from real injected failures,
+stopped copies stay attached to their own store, and TCP_NODELAY repairs the
+measured response-body delay. The bounded ranking counterexample passes.
+
+The final 0.2.14 publication dry-run passed with zero failures in a 110 s
+canonical suite; installed-consumer checks passed. Actual production Chrome
+acquisition reached first useful data in 11.28 s and offline reopen in 675 ms
+on the named 40×500×10 fixture, with exact identities and zero runtime fetches.
+These timings are not a full-application/native/floor claim. The target-corrected
+Expo 0.2.5 has 374 valid deployment records per slice and warning-free C/Swift
+links at 16.4. Exact qualified client/platform 0.2.14 and Expo 0.2.5 tarballs
+are published with matching registry hashes. Native apps need a rebuild.
+
+The [run record](../benchmarks/runs/2026-09-14-snapback4-excellence/README.md)
+retains the original failures, the held old Expo artifact, source/host/toolchain
+identities and the remaining gaps. The short-lease worker fixture was a
+workaround: subsequent §19 source gives dead children revocable sessions and
+restores production test defaults. That stronger repair corrects the earlier
+review diagnosis and belongs to 0.2.15, with its own evidence. Neither release
+history nor test results are rewritten across those snapshots. The six RFC
+working-set links are retired; the outcome standards and broader gaps remain.
+
+
+## 2026-09-14 — membership feeds: repeated work measured inside the query
+
+The fixed d81381a98 0.2.13 diagnostic completed 18,432 HTTP queries and
+2,304 selected core wall/thread-CPU traces on Office ARM Linux. Both
+independent calculations agree on every recorded scope component and the
+shared case sums/means/shares. All full fixture/auth checks, the 73-test
+CLI qualification, and owned-process cleanup passed; smoke is excluded.
+
+A 20-row first feed performs 11/101/341 indexed scan collections and
+120/180/660 row JSON decodes at 5/30/150 groups. The 150-group path
+initializes every lane, then refills after each emitted row; its 170 message
+scans repeat 170 live membership lookups. This is a concrete core-owner
+target for reducing repeated work while preserving live authority, meters,
+typed cursors and exact complete results.
+
+The probes are deliberately detailed and expensive: 5,024 scope guards for
+the 150-group first page. Their exact partitions do not establish ordinary
+CPU shares or pure SQLite cost. The benchmark record retains instrumented
+times, counts, raw objects and the full limits. No new latency gain is claimed.
+Main advanced through 0.2.14 to 0.2.15 with page/cursor and socket changes;
+any candidate needs qualification and ordinary A/B on its current inputs.
+The existing membership-feed ticket is updated. No core implementation changed.
+
+
+## 2026-09-15 UTC — Clique M7 exposes a maintained-identity adoption refusal
+
+Astra's fresh 0.2.10 M7 session retained a schema-adoption refusal on an engine-generated poll tally ID and recovered by preserving vote rows while replacing the derived tally. A separate public-CLI reproduction on the unmodified published binary uses fresh stores and no server ports: canonical maintained IDs of 144 bytes accept an unrelated index addition; 145 and 159 bytes refuse store opening with E_INPUT. Restoring the prior schema reads identical source rows. Filed [the P2 adoption ticket](../issues/20260915-snapback4-maintained-identity-blocks-additive-schema-adoption.md) with the exact schemas, command receipts and source explanation. Current-main runtime applicability remains unverified; no product fix or author ruling is made here. All three independent grades are complete; M7 and the final LLP 3000.007 §10.3 record continue.
+
+
+## 2026-09-14 — D1I: integrate 0.2.16 with filtered maintains
+
+Integrated the in-progress merge into lane `sb4/w3-d1`, whose HEAD remains
+`bfad501c53d80f274fc6c245e3962bc6b585155a`; incoming MERGE_HEAD is
+`1a4a50da811c5c4a7544ae11c94ccda4f9f5fefd`. No commit, push, tag,
+publication, sub-agent, clone, remote work or forbidden Git recovery command
+was used. Orientation followed LLP 3000 §6–§7 and LLP 3000.007 §14, §18,
+§19 and §20, especially the §20.9 built notes and §20.11 dispositions,
+alongside both sides' journal records and published cards.
+
+### Integration decisions
+
+- `engine/read.rs` retains D1's evaluated-prefix/active-generation binding
+  for direct table and maintain pages. Both merge implementations retain
+  W2R1m's withholding on non-uniform reads, meter cuts and word-limit cuts.
+  Merged pages keep their shared descriptor and can continue through an
+  additive generation. The feeds card, README and §20.3 now explicitly say
+  **merge cursor** when describing that cross-generation behavior.
+- Direct prediction and queued replay retain D1's generation in Context
+  and W2R1u's persisted held/left-group map in Predicting. The whole-image
+  upsert insert proof, secondary unique/cap coverage, left-group withdrawal
+  and W2R2a's final-exists unknown miss (including a proof meter cut) remain.
+- Residency checks apply D1's subset-inheritance server classification
+  before the other classes, and keep B2's maintain-specific online-only
+  rewrite and mutation-reader consequence in N_MAINTAIN_SYNCED. D1's
+  insert/delete/filter/key/value delta disclosure note remains intact.
+- The parser keeps both the restricted maintain predicate module and B1's
+  expected-token module. Maintain filters, computed keys, index properties,
+  B2's explicit-sync refusal and the predicts modifier all remain. The
+  language card runs D1's maintain examples and B1's enum-to-text helper;
+  maintains and witness cards/codes are both registered. Both device test
+  modules and both final guide tests survive. Main's other reviewed changes
+  remain in the automatically merged files.
+- The journal is ours in full, then main's full append after the common
+  base: 620,214 + 116,459 bytes, independently compared byte-for-byte before
+  this entry. The RFC retains all of §20.9 before §20.10 and §20.11.
+
+No inherited test expectation was changed to suppress a failure. The added
+`direct_and_merged_cursor_generation_contracts_are_distinct` test runs
+three page forms across adoption: direct table and filtered calendar
+maintain tokens refuse E_INPUT; the merged token returns the remaining row
+completely, then ends. Runtime assertions passed before the documentation
+fix; the valid regression failed because the feeds card's wording promised
+cross-generation continuation for an unqualified cursor. It passed after
+the wording correction. Initial fixture drafts needed a whole-table cap to
+avoid N_NO_HORIZON and an assertion on the refusal's message rather than its
+Display wrapper; those setup errors are not product regressions.
+
+### Targeted commands and verbatim summaries
+
+All Cargo and package Node commands below ran from `snapback4/`. Every
+Node/Bun command used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+The repeated focused cursor command records the valid red before the prose
+fix and green after it.
+
+`cargo build` (`/tmp/d1i-build.log`):
+
+```text
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.30s
+```
+
+`cargo test -p snapback4-lang --test guide --test maintains --test ergonomics --test residency_notes --no-fail-fast -- --nocapture` (`/tmp/d1i-lang-first.log`):
+
+```text
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+`cargo test -p snapback4-core --test corpus --test rows --no-fail-fast -- --nocapture` (`/tmp/d1i-core.log`):
+
+```text
+corpus (Rust server only; no TypeScript/replica conformance claim): 211 passed, 83 skipped, 0 failed
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.17s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+```
+
+`cargo test -p snapback4-device --test device -- --nocapture` (`/tmp/d1i-device.log`):
+
+```text
+test result: ok. 104 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 35.97s
+```
+
+`cargo test -p snapback4-sim --test clique --test maintains --test maintains_review --test search_merge --no-fail-fast -- --nocapture` (`/tmp/d1i-sim.log`):
+
+```text
+test result: ok. 39 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 47.80s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 35.96s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.83s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+```
+
+`cargo test -p snapback4-lang --test guide direct_and_merged_cursor_generation_contracts_are_distinct -- --nocapture` (`/tmp/d1i-cursor-doc-red.log`):
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.01s
+```
+
+`cargo test -p snapback4-lang --test guide direct_and_merged_cursor_generation_contracts_are_distinct -- --nocapture` (`/tmp/d1i-cursor-doc-green.log`):
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.01s
+```
+
+`cargo test -p snapback4-lang --test guide` (`/tmp/d1i-guide.log`):
+
+```text
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+```
+
+`cargo test -p snapback4 --test lifecycle dev_and_serve_report_signals_without_an_application_worker -- --nocapture` (`/tmp/d1i-lifecycle-alone.log`):
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 3.53s
+```
+
+`node --test packages/snapback4/test/react.test.mjs` (`/tmp/d1i-react.log`):
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ duration_ms 320.083625
+```
+
+### Full blocking suite
+
+Both runs used the exact root command below, with no source changes between
+them. The shell command's output was retained in `/tmp/d1i-suite.log` and
+`/tmp/d1i-suite-repeat.log`, respectively.
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+```
+
+The first run totals 819 Rust passes, 1 failure and 4 ignored tests. The
+failure was `dev_and_serve_report_signals_without_an_application_worker`:
+startup stderr interrupted its expected standalone signal line. The exact
+observed line was:
+
+```text
+snapback4 serve: http://127.0.0.1:SNAPBACK4_SIGNAL verb=serve generation=1 reason=SIGTERM signal=15
+```
+
+Its isolated command above passed all ten dev/serve signal checks. The
+second complete run totals **820 Rust passes, 0 failures and 4 ignored**;
+its lifecycle suite passes all 13 tests. Both runs pass every build,
+typecheck and all 9 fixture tests. Client results are **203 passed / 1
+failed / 0 cancelled** out of 204 in both runs. The only client failure is
+Chromium SIGABRT before the React page launches; the isolated rerun above
+reproduces it. No client-concurrency rerun was needed: there were no mass
+timeouts. No change was made to the lifecycle or React tests.
+
+These are same-source reruns, not an exact-base reproduction. No failure
+is claimed pre-existing at HEAD. Chromium is classified by the brief's
+explicit environment ruling; its outside-sandbox execution remains the
+lead's acceptance work. The signal-log failure is recorded as intermittent
+and passed both alone and in the final complete suite.
+
+First full run, verbatim summaries:
+
+```text
+-- ok: cargo build (4 s)
+wasm 1712867 B raw, 476145 B gzip
+-- ok: wasm build (12 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (1 s)
+test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: FAILED. 12 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.68s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.32s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.17s
+test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.16s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.14s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 104 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 33.37s
+test result: ok. 90 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.46s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.57s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 41.70s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.07s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 39 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 28.69s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.45s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 33.21s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.54s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.79s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.92s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.13s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+-- FAIL: cargo test (292 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ duration_ms 8803.824208
+-- ok: fixture wrapper tests (10 s)
+ℹ tests 204
+ℹ pass 203
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ duration_ms 43402.29875
+-- FAIL: client tests (43 s)
+== 2 failure(s) in 311 s
+```
+
+Final full run, verbatim summaries:
+
+```text
+-- ok: cargo build (0 s)
+wasm 1712867 B raw, 476145 B gzip
+-- ok: wasm build (1 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (1 s)
+test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.45s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.34s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.94s
+test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.40s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.08s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test result: ok. 104 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 33.30s
+test result: ok. 90 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.58s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.38s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 41.97s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.59s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.20s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 39 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 28.76s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.55s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 32.72s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.79s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.69s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.95s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.91s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+-- ok: cargo test (217 s)
 -- ok: chat app typecheck (1 s)
 -- ok: expo app typecheck (0 s)
 ℹ tests 9
@@ -11117,3 +13585,87 @@ ref-check: ok — 480 LLP docs, 8893 refs in 22939 files, 0 errors, 0 unchecked
 `git diff --check` produced no output (exit 0). Both checks are repeated
 after this append. The starting HEAD is unchanged and all intended changes
 are left uncommitted for the lead.
+
+ℹ skipped 0
+ℹ duration_ms 6035.391292
+-- ok: fixture wrapper tests (6 s)
+ℹ tests 204
+ℹ pass 203
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ duration_ms 40193.903834
+-- FAIL: client tests (40 s)
+== 1 failure(s) in 220 s
+```
+
+### Scope, measurements and final state
+
+Thirteen files were edited for integration: the eleven conflicted files,
+plus `snapback4-lang/src/guide/feeds.md` and the package README for the
+minimal cursor-contract clarification. The latter two are the only edits
+outside the conflict list. All other incoming main changes remain as merged.
+No inherited test expectation was rewritten, no meter ceiling changed and
+zero existing corpus cases changed. No additional diagnostic wording or
+code was introduced; both sides' reviewed diagnostic texts are preserved.
+
+Measurements: 11 of 11 content conflicts resolved; 0 remaining markers;
+9 edited Rust files, maximum 1,457 lines by the cap runner's convention,
+0 above 1,500. The wasm device is 1,712,867 bytes raw / 476,145 bytes gzip
+in both full runs. Full-suite wall times are 311 s and 220 s. No new scale
+benchmark was commissioned or claimed by this integration brief.
+
+The root `./ref-check --verbose`, with Node 24 on PATH, passed before this
+append:
+
+```text
+ref-check: ok — 480 LLP docs, 8903 refs in 22957 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passed. Final reference validation runs after this entry
+and is reported to the lead. All 620,214 ours bytes and 116,459 incoming
+append bytes were verified unchanged immediately before appending this
+one dated entry.
+
+**Index handoff:** the file contents are resolved, but the sandbox forbids
+creating the parent checkout's worktree index lock. `git add` returned:
+
+```text
+fatal: Unable to create '/Users/ccheever/projects/snapback/.git/worktrees/snapback-w3-D1/index.lock': Operation not permitted
+```
+
+Therefore Git still lists the eleven paths as unmerged even though their
+contents contain no markers. The lead must stage the thirteen integration
+files and commit the merge. The failed staging attempt changed no index
+state; no commit or merge-abort was attempted. Nothing else in the brief
+remains unfinished except this sandbox-owned index operation and Chromium
+verification outside the sandbox.
+
+## 2026-09-15 — scan preparation A/B rejects this candidate
+
+The fixed-source experiment on d0ea081923 (0.2.15) is complete. An ignored
+core candidate reuses two pure schema/IR analyses within one plain lazy
+merge, keeping every live verdict, expiry, dependency, meter and page/cursor
+operation fresh. Its corrected test fixture passed 318 selected Rust test
+executions; the earlier test-compile failure remains preserved. All six
+ordinary HTTP runs passed 117,000 timed case calls, 7,020 excluded warmups,
+162 untimed complete walks / 33,510 pages and the complete fixture, auth,
+leave/regrant and owned-process checks. Both frozen calculators passed
+unchanged and their values reconcile.
+
+This version is not recommended for adoption. The 150-group rotating feed
+at eight clients moves 19.176 → 24.454 ms p50 and 36.245 → 55.225 ms p95;
+throughput falls 375.8 → 282.9 requests/s. It loses elapsed/rate in every
+pair, as does the 150-group next page. Smaller concurrent feeds improve,
+and point/thread controls vary; the result does not identify a cause or
+establish a uniform regression. After-workload RSS medians fall 848 KiB,
+but two of three paired RSS observations rise. The benchmark record and
+six raw-preserving ledger entries retain every loss and the measurement
+limits. The next investigation must address the larger repeated scan and
+materialization costs while preserving the live authority contract. Core
+implementation remains with its owner; no candidate runtime is landed.
+
+Main reached 0.2.16 before this evidence landing, with changes to core
+read/rule/admission/schema and host behavior at integration parent
+1a4a50da8. This fixed d0ea batch does not qualify that newer runtime or its
+performance; the next experiment must qualify its own source.

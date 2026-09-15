@@ -11,6 +11,35 @@ pub(super) fn assess(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Step>, RuntimeE
     let previous: Schema = serde_json::from_str(&previous).map_err(|e| RuntimeError::Store(e.to_string()))?;
     let mut steps = crate::successor::classify(&previous, schema);
     for step in &mut steps {
+        if let Some(position) = step.path.strip_prefix("maintains[").and_then(|s| s.strip_suffix(']')).and_then(|s| s.parse::<usize>().ok()) {
+            let maintain = &schema.maintains[position];
+            // Existing activation is atomic and exhaustive. Keep its assessment
+            // read-only and use the same interpreted contribution, without a write.
+            if previous.tables.contains_key(&maintain.source) {
+                let source = &schema.tables[&maintain.source];
+                let mut totals = BTreeMap::<Vec<u8>, i128>::new();
+                let mut fits = true;
+                super::activation::walk(tx, tx.num(&maintain.source)?, |_, row| {
+                    let row = crate::schema::row_image(&row, source);
+                    if validate_row(schema, &maintain.source, &row).is_err() { fits = false; return Ok(()); }
+                    if maintain.selected(&row) {
+                        let value = match &maintain.kind {
+                            crate::schema::MaintainKind::Count => 1,
+                            crate::schema::MaintainKind::Sum { of } => i128::from(row.field(of)?.as_int()?),
+                        };
+                        let total = totals.entry(crate::key::encode(&maintain.source_key(&row))).or_default();
+                        match total.checked_add(value) { Some(next) => *total = next, None => fits = false }
+                    }
+                    Ok(())
+                })?;
+                fits &= totals.values().all(|total| (crate::value::I53_MIN as i128..=crate::value::I53_MAX as i128).contains(total));
+                if !fits {
+                    step.change = Change::Narrowing;
+                    step.message = format!("maintain {} cannot adopt these source rows: an interpreted contribution is invalid or the final value is out of range", maintain.target);
+                } else { step.message.push_str("; assessed source rows fit the derived rebuild"); }
+            }
+            continue;
+        }
         let path: Vec<_> = step.path.split('.').collect();
         let Some(name) = path.get(1).copied() else { continue };
         let Some(table) = schema.table(name) else { continue };

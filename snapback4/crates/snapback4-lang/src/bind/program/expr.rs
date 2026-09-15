@@ -438,6 +438,17 @@ impl Binder<'_> {
             Ok(())
         };
         match name {
+            "day" | "hour" | "bucket" => {
+                arity(if name == "bucket" { 2 } else { 1 }, "day(time), hour(time), bucket(time, 2m)")?;
+                let (value, ty) = self.expr(&args[0], out)?;
+                if ty != Ty::Time { return Err(type_error(args[0].site(), format!("{name} needs a required time, got {}", ty.name()), "pass a required time column or now")); }
+                let millis = match name { "day" => 86_400_000, "hour" => 3_600_000, _ => match &args[1] {
+                    A::Literal { value: ast::Literal::Number(n), site } => super::super::integer_literal(n, site)?,
+                    other => return Err(super::super::maintains::refusal(other.site(), "bucket needs a positive literal duration", "bucket(now, 2m)")),
+                }};
+                if millis <= 0 { return Err(super::super::maintains::refusal(site, "bucket needs a positive literal duration", "bucket(now, 2m)")); }
+                Ok((Expr::Builtin { builtin: Builtin::Calendar { millis }, args: vec![value] }, Ty::Int))
+            }
             "count" => {
                 arity(1, "count(list)")?;
                 let (e, t) = self.expr(&args[0], out)?;

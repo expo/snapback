@@ -8,6 +8,7 @@ use crate::lexer::{Kind, Token, lex};
 use crate::print;
 
 mod expr;
+mod maintains;
 mod expected;
 mod programs;
 mod actions;
@@ -432,13 +433,20 @@ impl Parser {
             self.take("of")?;
             column = Some(self.word()?.value);
         }
+        let filter = if self.maybe("where") { Some(self.maintain_predicate(0)?) } else { None };
         self.take("by")?;
-        let mut by = vec![self.word()?.value];
-        while self.maybe(",") {
-            by.push(self.word()?.value);
+        let mut keys = Vec::new();
+        loop {
+            keys.push(self.expression(0, &[",", "<newline>"])?);
+            if !self.maybe(",") { break; }
         }
+        let by = keys.iter().map(|key| match key {
+            Expr::Name { name, .. } | Expr::Call { name, .. } => name.clone(),
+            _ => print::expression(key),
+        }).collect();
         self.newline()?;
         self.take_kind(Kind::Indent)?;
+        let mut indexes = Vec::new();
         let mut read = None;
         let mut online_only = false;
         while !self.at_kind(Kind::Dedent) && !self.at_kind(Kind::Eof) {
@@ -453,6 +461,15 @@ impl Parser {
                     if online_only { return Err(syntax_with(&effect.site, "duplicate online only", "keep one online only line")); }
                     online_only = true;
                     return self.end_line(&effect.site);
+                }
+                if effect.value == "by" {
+                    let name = self.word()?.value;
+                    self.take(":")?;
+                    let mut columns = vec![self.word()?.value];
+                    while self.maybe(",") { columns.push(self.word()?.value); }
+                    self.newline()?;
+                    indexes.push(IndexDecl { name, columns, unique: false, words: None, site: effect.site });
+                    return Ok(());
                 }
                 if effect.value == "readable" {
                     return Err(unsupported(&effect.site, "readable on a maintain", "read <- rule  -- a maintain has one rule; the engine delivers it to its source's audience"));
@@ -481,7 +498,21 @@ impl Parser {
         let Some(read) = read else {
             return Err(syntax_with(&site, format!("maintain {name} requires read <- rule"), "read <- exists memberships[.conversationId, viewer]"));
         };
-        Ok(MaintainDecl { name, aggregate: aggregate.value, source, column, by, read, online_only, site })
+        Ok(MaintainDecl { filter, keys, indexes, name, aggregate: aggregate.value, source, column, by, read, online_only, site })
+    }
+
+    fn maintain_duration(&mut self) -> Fallible<Expr> {
+        let site = self.peek().site.clone();
+        let negative = self.maybe("-");
+        let number = self.take_kind(Kind::Number)?;
+        let unit = self.word()?;
+        let multiplier: i64 = match unit.value.as_str() { "ms" => 1, "s" => 1_000, "m" => 60_000, "h" => 3_600_000, "d" => 86_400_000, _ => 0 };
+        let value = number.value.parse::<i64>().ok().and_then(|n| n.checked_mul(multiplier))
+            .filter(|n| !negative && *n > 0 && *n <= snapback4_core::value::I53_MAX);
+        let Some(value) = value else {
+            return Err(Diagnostic::new(&site, "E_QUARRY_MAINTAIN", "bucket duration must be a positive representable literal duration", "bucket(.at, 2m)").guide("maintains"));
+        };
+        Ok(Expr::Literal { value: Literal::Number(value.to_string()), site })
     }
 
     /// `effect notify`: a name a mutation or job may `emit` under; the

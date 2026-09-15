@@ -4,6 +4,9 @@
 //! have named semantic exclusions. This adapter establishes Rust server
 //! conformance only; it makes no TypeScript interpreter or replica claim.
 
+#[path = "common/cursors.rs"]
+mod cursors;
+
 use snapback4_core::{Context, Engine, Program, Schema, Value, WriteState};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
@@ -202,10 +205,16 @@ fn run(case: &Case) -> Verdict {
         }
         return Verdict::Fail(format!("schema validation failed: {}: {}", issues[0].path, issues[0].message));
     }
-    let expected = match card_expected(case, &schema, &program) {
+    let mut expected = match card_expected(case, &schema, &program) {
         Ok(expected) => expected,
         Err(error) => return Verdict::Fail(format!("oracle translation failed: {error}")),
     };
+    if let Some(token) = &expected.next {
+        if let Some(scoped) = cursors::scope(token,&schema,&program,&case.context.viewer,&case.context.args) { expected.next = Some(scoped); }
+    }
+    let mut serialized = serde_json::to_value(&program).expect("program");
+    cursors::translate(&mut serialized,&schema,&program,&case.context.viewer,&case.context.args);
+    let program: Program = serde_json::from_value(serialized).expect("scoped program");
     let mut preludes = Vec::new();
     for prelude in &case.prelude {
         match serde_json::from_value::<Program>(prelude.program.clone()) {
@@ -230,6 +239,9 @@ fn run(case: &Case) -> Verdict {
     }).collect();
     let mut context_args = case.context.args.clone();
     legacy_argument_ids(&program, &mut context_args);
+    let mut serialized = serde_json::to_value(&context_args).expect("args");
+    cursors::translate(&mut serialized,&schema,&program,&case.context.viewer,&case.context.args);
+    context_args = serde_json::from_value(serialized).expect("scoped args");
     let mut engine = match Engine::memory(schema, programs) {
         Ok(engine) => engine,
         Err(error) => return Verdict::Fail(format!("engine: {error}")),
@@ -333,7 +345,7 @@ fn card_expected(case: &Case, schema: &Schema, program: &Program) -> Result<Expe
         let row = ids.into_iter().rev().find_map(|id| case.receipt.rows.iter().find(|row| row.table == page.table && row.row.field("id").ok() == Some(&Value::Id(id.to_owned()))));
         if let Some(row) = row {
             let values = page.suffix.iter().map(|column| row.row.field(&column.name).cloned().map_err(|error| error.to_string())).collect::<Result<_, _>>()?;
-            expected.next = Some(encode_cursor(schema, &CursorPosition { table: page.table.clone(), index: page.index.clone(), order: page.order, suffix: page.suffix.clone(), values }).map_err(|error| error.to_string())?);
+            expected.next = Some(encode_cursor(schema, &CursorPosition { table: page.table.clone(), index: page.index.clone(), order: page.order, suffix: page.suffix.clone(), values, scope: None }).map_err(|error| error.to_string())?);
         }
     }
     Ok(expected)

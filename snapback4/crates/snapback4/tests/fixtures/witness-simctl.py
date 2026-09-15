@@ -9,11 +9,12 @@ import time
 
 root = Path(os.environ['WITNESS_TEST_DIR'])
 mode = os.environ['WITNESS_TEST_MODE']
+udid = os.environ.get('WITNESS_TEST_UDID', 'dedicated')
 a = sys.argv[1:]
 assert a[0] == 'simctl'
 a = a[1:]
 if a[0] == 'list':
-    devices = [{'udid': 'dedicated', 'state': 'Booted'}]
+    devices = [{'udid': udid, 'state': 'Booted'}]
     if mode == 'ambiguous':
         devices.append({'udid': 'someone-else', 'state': 'Booted'})
     print(json.dumps({'devices': {'com.apple.CoreSimulator.SimRuntime.iOS-26-5': devices}}))
@@ -23,9 +24,21 @@ elif a[0] == 'get_app_container':
         sys.exit(1)
     print(root / a[-1])
 elif a[0] == 'terminate':
-    pass
+    # Record which instance a terminate stops, as the real simulator would.
+    pid = int((root / 'app-pid').read_text()) if (root / 'app-pid').exists() else None
+    with (root / 'process-events.jsonl').open('a') as f:
+        f.write(json.dumps({'terminate': pid}) + '\n')
+    (root / 'app-pid').unlink(missing_ok=True)
 elif a[0] == 'launch':
-    assert a[1:4] == ['--terminate-running-process', 'dedicated', 'dev.test']
+    assert a[1:] in [['--terminate-running-process', udid, 'dev.test'], [udid, 'dev.test']]
+    count = int((root / 'launch-count').read_text()) + 1 if (root / 'launch-count').exists() else 1
+    (root / 'launch-count').write_text(str(count))
+    pid = 7000 + count
+    (root / 'app-pid').write_text(str(pid))
+    with (root / 'process-events.jsonl').open('a') as f:
+        f.write(json.dumps({'launch': pid, 'args': a}) + '\n')
+    print('dev.test: ' + str(pid), flush=True)
+    print('launch-stderr-' + str(count), file=sys.stderr, flush=True)
     config = json.loads(os.environ['SIMCTL_CHILD_SNAPBACK4_WITNESS'])
     folder = root / 'data/Documents/.snapback4-witness' / config['run']
     receipt = folder / 'receipts.jsonl'
@@ -43,6 +56,11 @@ elif a[0] == 'launch':
         emit('relaunch')
     else:
         emit('offline-done')
+        if mode == 'failed-batch':
+            emit('check:failed')
+        if mode == 'envelope':
+            with receipt.open('a') as f:
+                f.write('{"witness":{"step":"between-steps"}}\n')
         if mode == 'out-of-order':
             emit('done')
         else:
@@ -56,8 +74,30 @@ elif a[0] == 'io':
     signal.signal(signal.SIGINT, lambda *_: sys.exit(0))
     while True:
         time.sleep(.05)
+elif a[0] == 'spawn' and a[2:] == ['launchctl', 'list']:
+    print('PID\tStatus\tLabel')
+    pid = (root / 'app-pid').read_text() if (root / 'app-pid').exists() else ('6999' if mode == 'running' else '-')
+    print(pid + '\t0\tUIKitApplication:dev.test[fixture]')
+elif a[0] == 'spawn' and a[2] == 'kill':
+    # The iOS simulator runtime has no kill binary (observed natively 2026-09-14).
+    print('An error was encountered processing the command (domain=NSPOSIXErrorDomain, code=2):', file=sys.stderr)
+    print('No such file or directory', file=sys.stderr)
+    sys.exit(1)
 elif a[0] == 'spawn':
-    signal.signal(signal.SIGINT, lambda *_: sys.exit(0))
+    def finish(*_):
+        if (root / 'waiting').exists():
+            folder = Path((root / 'waiting').read_text())
+            step = {'failed-after-done': 'check:failed', 'reordered-after-done': 'primed', 'step-after-done': 'history:running'}.get(mode)
+            if step:
+                with (folder / 'receipts.jsonl').open('a') as f:
+                    f.write(json.dumps({'witness': {'at': '2026-09-14T00:00:02.000Z', 'step': step}}) + '\n')
+            if mode in ['normal', 'relaunch']:
+                with (folder / 'receipts.jsonl').open('a') as f:
+                    f.write(json.dumps({'app': 'after done', 'witness': {'at': '2026-09-14T00:00:02.000Z', 'step': 'between-steps'}}) + '\n')
+            if mode == 'replacement':
+                (root / 'app-pid').write_text('9999')
+        sys.exit(0)
+    signal.signal(signal.SIGINT, finish)
     print('{"fake-device-log":true}', flush=True)
     emitted = False
     while True:

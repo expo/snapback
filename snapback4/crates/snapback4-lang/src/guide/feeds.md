@@ -13,9 +13,12 @@ Non-uniform merges withhold the cursor even within budget, so its presence
 cannot reveal hidden rows; pin the columns that decide each lane's rule to
 get a pageable feed. IDs break equal ordering keys and identify copies
 across projections, which must keep the same ordering fields.
-A cursor from generation N is accepted on N+1 when its table, index,
+A merge cursor from generation N is accepted on N+1 when its table, index,
 direction and typed ordering suffix still match; it is a position in the
 current data, not a snapshot or a generation token.
+Direct table and maintain page cursors bind the evaluated prefix and active
+generation; adoption or another prefix refuses them. Ordinary writes keep
+them valid, and rows can move between pages.
 
 ```quarry
 table authors:
