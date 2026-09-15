@@ -18657,3 +18657,79 @@ native leg. The lead then rebuilt the xcframework and published
 `snapback4-expo@0.2.12`, which npm reported at 13:57 UTC. Next: the fifth
 Astra-medium calibration on these pins.
 
+## 2026-09-15 — Wave 6 W6b: password characters and the guest choice
+
+Built against `35886bc2226f8e53b2537132714d6f3e6890f140`, from the 0.2.21
+friction review's H1 and V3 / d-01 and d-02. The shared core signup preparation
+now counts Unicode scalar values for the eight-character minimum. Its
+1,024-byte maximum still runs first, before hashing. Both the direct core
+signup and HTTP signup use this preparation; the repository has no built-in
+password-change or password-reset API. Login retains its byte bound.
+The refusal stays E_AUTH: its wire message changes from
+`E_AUTH: a password needs at least 8 UTF-8 bytes` to
+`E_AUTH: a password needs at least 8 characters`. The maximum's wire message
+remains `E_AUTH: a password is at most 1024 UTF-8 bytes`.
+
+The personas card and package README name Unicode scalar values and explicitly
+tell email-and-password products to declare `use identity password`; plain
+`use identity` also mints guests. The chat schema has that choice on its
+identity line, which `init --expo` embeds. Expo keeps its working guest opener.
+Default and online init are persona-only todo templates with both identity
+methods disabled, not password-only products, so their defaults stay disabled.
+The onboarding paragraph also points password-only products to checking handle
+availability after signup with the new session. No optional declared minimum
+was added: that would extend the parser and schema beyond this policy repair.
+
+Measured through core signup, production HTTP, and the published SDK helpers:
+seven characters at 7 / 14 / 28 UTF-8 bytes refuse; eight at 8 / 16 / 32 bytes
+sign up and log in. Two emoji (2 scalars / 8 bytes) refuse. The core also
+accepts four decomposed accented letters (8 scalars / 12 bytes), distinguishing
+the scalar policy from grapheme counting. The maximum accepts 1,024 ASCII,
+512 accented, or 256 emoji scalars at 1,024 bytes and refuses one more ASCII
+byte on signup and login. The HTTP and SDK witnesses repeat the 512-scalar
+boundary. All three identity forms advertise and enforce their modes: the
+password-only form refuses `/auth/guest`, and the other two mint guests.
+
+Verification, with cargo and JS run from `snapback4/` and Node 24.18.0 on PATH:
+
+- `cargo test -p snapback4-core --test identity -- --nocapture`:
+  before `test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.22s`;
+  after `test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.49s`.
+  The red was seven accented characters creating a session.
+- `cargo test -p snapback4-lang --test guide password_policy_and_guest_choice -- --nocapture`:
+  before `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 24 filtered out; finished in 0.00s`.
+  After, the whole `cargo test -p snapback4-lang --test guide -- --nocapture`:
+  `test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s`.
+- `node --test --test-name-pattern=W6b packages/snapback4/test/client-seams.test.mjs`:
+  before `ℹ pass 1`, `ℹ fail 2`, `ℹ duration_ms 2296.665084`;
+  after `ℹ pass 3`, `ℹ fail 0`, `ℹ duration_ms 5166.841417`.
+  Both the direct HTTP and SDK red cases accepted seven accented characters.
+- `bash snapback4/scripts/test.sh` from the repository root: builds and all
+  typechecks passed; Rust totaled 955 passed, 0 failed, 4 ignored across
+  62 result groups (`-- ok: cargo test (351 s)`); fixtures passed 9 / 0
+  (`-- ok: fixture wrapper tests (9 s)`). The default-concurrency client
+  runner stopped reporting after its acquisition tests. The invocation was
+  interrupted with exit 130 after retaining its component logs in
+  `/tmp/w6b-suite-*.log`; it emitted no aggregate failure-summary line.
+- The prescribed rerun,
+  `node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'`:
+  `ℹ tests 314`, `ℹ pass 313`, `ℹ fail 1`, `ℹ duration_ms 123230.719042`.
+  Only `React hooks and reference-app lifetimes` failed, Chromium SIGABRT.
+- `node --test packages/snapback4/test/react.test.mjs` alone reproduced that
+  sandbox browser failure: `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`,
+  `ℹ duration_ms 313.04575`. It matches the lane brief's known environment
+  artifact; the lead must rerun outside the sandbox. No suite failure is
+  claimed to have been verified against an unmodified baseline.
+- The first package build lacked generated wasm declarations. Running
+  `bash scripts/build-wasm.sh` then `bun run --cwd packages/snapback4 build`
+  repaired that setup precondition. Wasm measured 1,751,309 B raw /
+  487,926 B gzip; this is a build observation, not a change claim.
+- `./ref-check --verbose` passed; `git diff --check` was clean. The largest
+  changed source file is 666 lines. No new diagnostic code, meter ceiling,
+  serialized value form, or existing corpus case changed. Changes remain
+  uncommitted, and no out-of-scope file was edited.
+
+What this taught: a byte limit protects input work but does not express a
+password's minimum length. Keeping those checks distinct closes the direct-SDK
+bypass without adding client-only validation. The guest door already obeyed
+the schema; the missing part was making the product choice visible at setup.

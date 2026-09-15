@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { createClient } from "../dist/client.js";
 import { createLocalClient } from "../dist/local.js";
 import { processDevice } from "../dist/native.js";
+import { guest, signup, login } from "../dist/auth.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
@@ -79,10 +80,10 @@ query photos():
 query clips():
   return clips[] first 10 by byId
 `;
-async function fixture(t, release = false) {
+async function fixture(t, release = false, schema = source) {
   const dir = mkdtempSync(join(tmpdir(), "sb4-seams-"));
   mkdirSync(join(dir, "snapback")); mkdirSync(join(dir, "devices"));
-  writeFileSync(join(dir, "snapback/schema.q"), source);
+  writeFileSync(join(dir, "snapback/schema.q"), schema);
   if (release) {
     const deployed = spawnSync(binary, ["deploy", join(dir, "release")], { cwd: dir, encoding: "utf8" });
     assert.equal(deployed.status, 0, deployed.stdout + deployed.stderr);
@@ -101,6 +102,61 @@ async function fixture(t, release = false) {
   const post = async (path, body, persona = true) => (await fetch(url + path, { method: "POST", headers: persona ? { "x-snapback-persona": "alice" } : {}, body: JSON.stringify(body) })).json();
   return { url, device, cores, clients, post, log: () => log };
 }
+
+for (const transport of ["HTTP", "client"]) test(`W6b password character minimum and byte maximum through ${transport}`, { timeout: 60000 }, async t => {
+  const f = await fixture(t, true, "use identity password\n");
+  const signIn = async (route, email, password) => {
+    if (transport === "client") return (route === "signup" ? signup : login)(f.url, email, password);
+    const result = await f.post(`/auth/${route}`, { email, password }, false);
+    return result.session ? { ok: true, session: result.session } : { ok: false, why: result.denied };
+  };
+  for (const [n, letter] of ["é", "😀", "a"].entries()) {
+    const email = `unicode-${n}@example.com`;
+    const short = await signIn("signup", email, letter.repeat(7));
+    assert.equal(short.ok, false, `${transport}: seven ${letter} characters must be refused`);
+    assert.equal(short.why.code, "E_AUTH");
+    assert.equal(short.why.message, "E_AUTH: a password needs at least 8 characters");
+    const accepted = await signIn("signup", email, letter.repeat(8));
+    assert.equal(accepted.ok, true, JSON.stringify(accepted));
+    assert.equal(accepted.session.kind, "user");
+    const signedIn = await signIn("login", email, letter.repeat(8));
+    assert.equal(signedIn.ok, true, JSON.stringify(signedIn));
+    assert.equal(signedIn.session.principal, accepted.session.principal);
+  }
+  const two = await signIn("signup", "two@example.com", "😀😀");
+  assert.equal(two.ok, false);
+  assert.equal(two.why.code, "E_AUTH");
+  const maximum = "é".repeat(512);
+  const accepted = await signIn("signup", "maximum@example.com", maximum);
+  assert.equal(accepted.ok, true, JSON.stringify(accepted));
+  assert.equal((await signIn("login", "maximum@example.com", maximum)).session?.principal, accepted.session.principal);
+  for (const route of ["signup", "login"]) {
+    const oversized = await signIn(route, "maximum@example.com", maximum + "a");
+    assert.equal(oversized.ok, false);
+    assert.equal(oversized.why.code, "E_AUTH");
+    assert.equal(oversized.why.message, "E_AUTH: a password is at most 1024 UTF-8 bytes");
+  }
+  t.diagnostic(`${transport}: 7 characters refused at 7/14/28 bytes; 8 accepted at 8/16/32 bytes; 2 characters / 8 bytes refused; 512 characters / 1024 bytes accepted; 1025 bytes refused`);
+});
+
+test("W6b identity forms advertise and enforce the guest choice", { timeout: 60000 }, async t => {
+  for (const [form, guests, password] of [["use identity", true, true], ["use identity guests", true, false], ["use identity password", false, true]]) {
+    const f = await fixture(t, true, `${form}\n`);
+    const config = await (await fetch(f.url + "/auth/config")).json();
+    assert.deepEqual(config, { guests, password });
+    const visitor = await guest(f.url);
+    assert.equal(visitor.ok, guests, JSON.stringify(visitor));
+    if (guests) assert.equal(visitor.session.kind, "guest");
+    else {
+      assert.equal(visitor.why.code, "E_AUTH");
+      assert.equal(visitor.why.message, "E_AUTH: this identity method is not enabled in schema.q");
+    }
+    const registered = await signup(f.url, "person@example.com", "é".repeat(8));
+    assert.equal(registered.ok, password, JSON.stringify(registered));
+    if (password) assert.equal(registered.session.kind, "user");
+    else assert.equal(registered.why.code, "E_AUTH");
+  }
+});
 
 test("sent results reach online, process-device and queued-write callers", async t => {
   const f = await fixture(t);

@@ -644,3 +644,23 @@ fn following_language_card_labels_the_syntax_example() {
     assert!(LANGUAGE.contains("syntax example"), "Following's body predicate is syntax, not removal");
     assert!(LANGUAGE.contains("removal recipe"));
 }
+
+#[test]
+fn password_policy_and_guest_choice_are_on_the_card() {
+    for (name, doc) in [("personas", card("personas").unwrap()), ("README", README)] {
+        let prose = doc.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(prose.contains("at least 8 characters (Unicode scalar values)"), "{name}");
+        assert!(prose.contains("at most 1,024 UTF-8 bytes"), "{name}");
+        assert!(prose.contains("An email-and-password product declares `use identity password`; plain `use identity` also mints guest sessions."), "{name}");
+    }
+    let starter = include_str!("../../../apps/chat/snapback/schema.q");
+    assert!(starter.lines().any(|line| line.starts_with("use identity --") && line.contains("use identity password") && line.contains("guest")));
+    let bound = snapback4_lang::compile(&[("schema.q".into(), starter.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.schema.auth.guests && bound.schema.auth.password, "the Expo opener still needs guests");
+    for template in [guide::TEMPLATE, guide::TEMPLATE_ONLINE] {
+        let bound = snapback4_lang::compile(&[("schema.q".into(), template.into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        assert!(!bound.schema.auth.guests && !bound.schema.auth.password, "persona-only starters do not opt into identity");
+    }
+}

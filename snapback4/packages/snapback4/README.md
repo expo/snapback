@@ -1725,8 +1725,9 @@ receive the session from the application. For continuity, pass a
 with the key made filesystem-safe as in §7. `localStorageSessionStore()` is
 an explicit web opt-in when persistence across reloads is worth making the
 bearer readable to every script on the page. Ordinary guest and password
-sessions last seven days. Signup passwords are 8–1,024 UTF-8 bytes and login
-passwords at most 1,024; attempts and concurrent Argon2 work are bounded by the
+sessions last seven days. Signup requires at least 8 characters (Unicode scalar values)
+and at most 1,024 UTF-8 bytes; login accepts at most 1,024 UTF-8 bytes.
+Attempts and concurrent Argon2 work are bounded by the
 host. On loopback, `dev` allows as many concurrent Argon2 slots as the host's
 available cores, capped at 16 and never below 2; `serve` keeps two slots.
 Full slots refuse with retryable `E_RATE_LIMIT`.
@@ -1734,6 +1735,9 @@ The schema opts in with `use identity` (guests and password accounts),
 `use identity guests` or `use identity password`; without it the `/auth`
 routes refuse with `E_AUTH`. `snapback4 dev` also admits personas;
 `snapback4 serve` (a release) admits tokens only.
+
+An email-and-password product declares `use identity password`; plain
+`use identity` also mints guest sessions.
 
 An application that authenticates its own accounts — a phone number it
 verified, a member of its own directory — mints their sessions through a
@@ -1795,7 +1799,9 @@ mutation createProfile(handle: text 3..20 format handle):
 ```
 
 The availability query needs a guest session (`use identity` enables guests)
-or an existing session. Reuse the signed-in client on the profile screen:
+or an existing session. A password-only product uses `use identity password`
+and checks availability after sign-up with that session.
+Reuse the signed-in client on the profile screen:
 
 ```ts
 import { createClient } from "snapback4/client";
