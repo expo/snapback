@@ -102,6 +102,11 @@ eligible mutation's point/exists read, rule probe or insert proof. A rule
 probe against a live aggregate also needs its expiring source without a
 horizon, and that dependency appears in the persistent prediction summary.
 Ordinary pages still get growing-table advice; they do not prove absence.
+If an eligible mutation reads `first N`, or uses a different index from the
+suggested horizon, the note names the mutation that would lose prediction
+instead of offering the horizon rewrite. A `last N` page on the horizon's
+own index may keep the rewrite; a call still queues if its page exhausts
+the acquired horizon.
 
 `why countedPost` identifies the `online only` maintain: opting a maintain
 out of sync makes mutations reading it `predicts: never`. `notifyPost` stays

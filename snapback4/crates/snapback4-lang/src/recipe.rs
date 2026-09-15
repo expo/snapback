@@ -34,9 +34,11 @@ pub fn unrenamed_references(source: &str) -> Result<BTreeSet<String>, String> {
 fn rename_module(source: &str, prefix: &str, module: &str) -> Result<(String, BTreeSet<String>), String> {
     if !prefix.is_empty() && !valid_prefix(prefix) { return Err("--prefix needs a Quarry identifier, for example --prefix feed".into()); }
     let source = source.replace("\r\n", "\n").replace('\r', "\n");
-    let (doc, errors) = crate::parse_document("feed.q", &source);
+    let source_module = "feed";
+    let source_file = format!("{source_module}.q");
+    let (doc, errors) = crate::parse_document(&source_file, &source);
     if !errors.is_empty() { return Err(errors.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n")); }
-    let (tokens, _) = crate::lexer::lex("feed.q", &source);
+    let (tokens, _) = crate::lexer::lex(&source_file, &source);
     let names = doc.tables.iter().map(|d| &d.name).chain(doc.maintains.iter().map(|d| &d.name))
         .chain(doc.functions.iter().map(|d| &d.name)).chain(doc.shapes.iter().map(|d| &d.name))
         .chain(doc.programs.iter().map(|d| &d.name)).chain(doc.schedules.iter().map(|d| &d.name))
@@ -80,9 +82,10 @@ fn rename_module(source: &str, prefix: &str, module: &str) -> Result<(String, BT
     for schedule in &doc.schedules {
         edit.name(&schedule.site, &schedule.name, 1);
         // Qualified targets lex as module, dot, operation. A foreign target
-        // keeps its meaning even when a local operation has the same name.
+        // keeps its meaning even when a local operation has the same name;
+        // the output module (including empty) is not the source's identity.
         let (qualifier, operation) = schedule.target.rsplit_once('.').map_or((None, schedule.target.as_str()), |(module, operation)| (Some(module), operation));
-        if !doc.programs.iter().any(|p| p.name == operation) || qualifier.is_some_and(|q| !module.is_empty() && q != module) {
+        if !doc.programs.iter().any(|p| p.name == operation) || qualifier.is_some_and(|q| q != source_module) {
             edit.unrenamed.insert(schedule.target.clone());
             continue;
         }

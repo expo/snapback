@@ -700,7 +700,10 @@ on the device, older rows are online-only, and a local read past them is
 every group a device holds, at every cold start, as the table grows;
 `check` notes it (N_NO_HORIZON) unless the group cannot grow (one row per
 group, or a `cap` over the group), or its whole partition supplies an eligible
-mutation's reads or insert proof (`guide prediction`). A snapshot arrives in pages the client
+mutation's reads or insert proof (`guide prediction`). For an eligible mutation's
+ascending page or a page on a different index, the note names the prediction
+that a horizon would cost instead of recommending that horizon.
+A snapshot arrives in pages the client
 asks for 4,000 events at a time (2,000 by default on the wire, 10,000 at
 most), each applied in its own transaction. `POST /sync` takes JSON
 `{ from, limit, after, stream, pending, store_id? }`: up to 256 pending write IDs of

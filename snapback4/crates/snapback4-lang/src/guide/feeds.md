@@ -25,6 +25,8 @@ rename a builtin. App helpers named `copy` or `deliver` remain separate
 from the prefixed recipe helpers.
 A write failure removes newly created files and preserves `.gitignore`.
 The block below is the unprefixed source; init qualifies its schedule target.
+Qualified schedule targets in another module keep their names, even when
+a recipe job has the same name.
 
 Small accounts write each reader's private inbox. On the 51st follower,
 future events go into one public broadcast projection; the earlier events

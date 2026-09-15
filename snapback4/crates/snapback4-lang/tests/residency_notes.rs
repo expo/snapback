@@ -515,3 +515,28 @@ fn w6r1_final_exists_live_aggregate_also_keeps_source_coverage() {
     let bounded = clean(&source.replacen("sync public", "sync public last 1 by byExpiry", 1));
     assert!(snapback4_lang::bind::residency::prediction_summary(&bounded).unwrap().contains("sessions by byOwner (after insert)"));
 }
+
+fn mutation_page_horizon_advice(read: &str, rewrite: &str) {
+    let source = include_str!("fixtures/horizon-pages.q").replace("archive first 20 by byTime", read);
+    let b = compile(&[("chat.q".into(), source)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert_eq!(b.schema.operations["chat.copyArchive"].predicts.as_deref(), Some("eligible"));
+    let note = b.notes.iter().find(|n| n.code == "N_NO_HORIZON" && n.message.starts_with("table archive:")).unwrap();
+    println!("{read}:\n{note}");
+    assert_eq!(note.to_string(), format!("chat.q:1:1 — N_NO_HORIZON: table archive: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start\n  rewrite: {rewrite}\n  guide: sync"));
+}
+
+#[test]
+fn w6r2_ascending_page_advice_preserves_prediction() {
+    mutation_page_horizon_advice("archive first 20 by byTime", "a horizon would cost these mutations their prediction: chat.copyArchive; keep `sync public`");
+}
+
+#[test]
+fn w6r2_descending_page_keeps_horizon_rewrite() {
+    mutation_page_horizon_advice("archive last 20 by byTime", "sync public last 500 by byTime");
+}
+
+#[test]
+fn w6r2_different_index_page_advice_preserves_prediction() {
+    mutation_page_horizon_advice("archive last 20 by byTimeOther", "a horizon would cost these mutations their prediction: chat.copyArchive; keep `sync public`");
+}

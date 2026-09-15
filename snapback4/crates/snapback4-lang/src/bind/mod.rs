@@ -204,8 +204,12 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         let ordered = table.indexes.iter().find(|(index_name, index)| *index_name != "byId" && index.columns().starts_with(&prefix) && index.columns().len() > prefix.len()).map(|(index_name, _)| index_name.clone());
         let site = catalog.site_for(&format!("tables.{name}"));
         let rewrite = match ordered {
-            Some(index) => format!("{} last 500 by {index}", sync.line()),
+            Some(ref index) => format!("{} last 500 by {index}", sync.line()),
             None => format!("by by{}At: {}at, id  -- then: {} last 500 by by{}At", if prefix.is_empty() { "".to_owned() } else { "Group".to_owned() }, prefix.iter().map(|c| format!("{c}, ")).collect::<String>(), sync.line(), if prefix.is_empty() { "" } else { "Group" }),
+        };
+        let affected = residency::incompatible_horizon_pages(schema, programs, name, ordered.as_deref());
+        let rewrite = if affected.is_empty() { rewrite } else {
+            format!("a horizon would cost these mutations their prediction: {}; keep `{}`", affected.join(", "), sync.line())
         };
         notes.push(Diagnostic::new(&site, "N_NO_HORIZON", format!("table {name}: `{}` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start", sync.line()), rewrite).guide("sync"));
     }

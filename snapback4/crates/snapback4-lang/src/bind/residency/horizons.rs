@@ -18,6 +18,14 @@ pub(in crate::bind) fn needs_whole_partition(schema: &Schema, name: &str) -> boo
         site.table == name && site.class == SiteClass::Held && matches!(site.kind.as_str(), "point" | "rule" | "aggregate source" | "upsert insert" | "insert if absent")))
 }
 
+// @ref LLP 3000.007#6.2 — eligibility alone does not mean a page can predict under the suggested horizon.
+pub(in crate::bind) fn incompatible_horizon_pages(schema: &Schema, programs: &[super::super::BoundProgram], table: &str, index: Option<&str>) -> Vec<String> {
+    programs.iter().filter(|bound| bound.program.kind == ProgramKind::Mutation
+        && schema.operations.get(&bound.program.name).is_some_and(|fact| fact.predicts.as_deref() == Some("eligible"))
+        && ir::scans(&bound.program).iter().any(|scan| scan.table == table && (scan.order != ir::Order::Desc || Some(scan.index.as_str()) != index)))
+        .map(|bound| bound.program.name.clone()).collect::<BTreeSet<_>>().into_iter().collect()
+}
+
 pub(in crate::bind) fn guard_notes(schema: &Schema, programs: &[super::super::BoundProgram]) -> Vec<Diagnostic> {
     let mut notes = Vec::new();
     for bound in programs.iter().filter(|bound| bound.program.kind == ProgramKind::Mutation) {
