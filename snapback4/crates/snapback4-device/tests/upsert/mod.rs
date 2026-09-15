@@ -164,3 +164,4 @@ fn hidden_admitted_upserts_preserve_the_complete_paired_observation() {
 }
 
 mod proof;
+mod final_exists;

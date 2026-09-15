@@ -420,8 +420,15 @@ impl Runner<'_> {
                     Some(row) => self.live_aggregate(target, row)?,
                     None => None,
                 };
-                if self.device && (definition.sync.is_none() || (found.is_none() && definition.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.unknown_fact(target, index, &key, "after insert"); }
                 if found.is_none() {
+                    // @ref LLP 3000.007#20.5 — a final-exists miss needs the same readable, fully held group proof as upsert absence; a local hit needs no absence proof.
+                    if self.device && !self.upsert_absence_proven(target, index, &key)? {
+                        let first_unknown = self.missing_fact.is_none();
+                        self.unknown_fact(target, index, &key, "after insert");
+                        if first_unknown && let Some(message) = &mut self.missing_fact {
+                            *message = message.replace("the row or its absence is past the acquired horizon or online only", "the probe key does not establish a fully held, readable group without a horizon");
+                        }
+                    }
                     return Err(RuntimeError::Constraint(format!("inserting into {table_name} requires a matching row in {target} by the end of the mutation")));
                 }
             }

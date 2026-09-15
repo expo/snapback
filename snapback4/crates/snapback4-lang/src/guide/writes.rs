@@ -20,6 +20,12 @@ secondary unique index or count toward an affected cap. Defaults are part of
 that image. Otherwise it queues without a predicted row, including in a left
 group. See `guide prediction` for the conditions and a set-membership recipe.
 
+For `after insert <- exists t[key]`, a local hit satisfies the postcondition.
+A local miss predicts `E_CONSTRAINT` only when the key proves readability
+and its synced group is fully held without a horizon. Otherwise either an
+ordinary insert or an upsert queues without a predicted row; the server
+decides the postcondition when the write arrives.
+
 Defaults fill missing insert columns on the writing host, including the insert
 branch of `upsert`; updates and existing-row upserts never reapply defaults.
 `upsert` inserts or patches: on an existing row, unnamed columns keep their

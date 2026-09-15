@@ -103,6 +103,11 @@ plainly; with the whole viewer partition held, the device can predict both. For 
 reaction, explicitly insert when absent and update the held row when present.
 An existence branch needs a whole partition; a horizon miss is still unknown.
 
+An `after insert <- exists t[key]` postcondition accepts a local hit. A miss
+predicts a refusal only when the key proves readability and its synced group
+is fully held without a horizon. Otherwise the insert or upsert queues without
+a predicted row, even if the source row's own insert proof passes.
+
 ```quarry
 table likes:
   owner: principal

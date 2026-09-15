@@ -381,6 +381,10 @@ charged to that chunk's meter. Writes belong inside a chunk.
   A final write is the implicit return; bind it to use it (`row = insert
   ..`). Writes check the rule, unique indexes, caps, immutables, text
   formats and `after insert`; any refusal rolls the whole mutation back.
+  A device accepts a local hit for `after insert <- exists t[key]`. A miss
+  predicts a refusal only when the key proves readability and the synced
+  group is fully held without a horizon; otherwise the insert or upsert
+  queues without a predicted row for the server to decide.
 - **Statements:** `x = expr` binds or reassigns a local with a compatible type;
   reassignment resets refinements, and arguments cannot be shadowed. `(q, r) = divmod(a, b)`, `(lo, hi) = sorted(a, b)`,
   `xs = []` then `xs = xs + [value]` appends under the heap meter;
