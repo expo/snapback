@@ -5,6 +5,7 @@
 mod following;
 mod merge_cursor;
 mod trending;
+mod search_global;
 
 use snapback4_core::engine::{Context, Engine, WriteState};
 use snapback4_core::partition::holdings;

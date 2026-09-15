@@ -262,7 +262,12 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                                 && !pinned.contains(name) && table.columns.get(name) == Some(&snapback4_core::schema::ColumnType::Principal))
                     })
             });
-            let (message, rewrite) = if related_principals {
+            let matching = merge.lanes.iter().any(|lane| lane.scan.prefix.iter().any(|key| matches!(key, snapback4_core::ir::IndexKeyExpr::WordPrefix(_))));
+            let (message, rewrite) = if matching {
+                // @ref LLP 3000.007#18.1 — page scope discovery separately; a matching merge cursor cannot recover an unfinished lane.
+                (format!("{} {}: the merge over {} reads {work}; a read past the {ceiling} examined ceiling returns `complete: false`", bound.program.kind.word(), bound.program.name, merge.table()),
+                    "`snapback4 guide search`, section \"Search every chat I'm in\": search held messages with one unscoped words index, or page memberships 50 at a time and exhaust each matching merge with its own result cursor before advancing the membership cursor; a result cursor alone does not continue undiscovered chats or a meter-cut merge. Measure with `snapback4 test --cost`")
+            } else if related_principals {
                 (format!("{} {}: read cost grows with the number of related principals (up to {lanes} lanes); a read past the {ceiling} examined ceiling returns `complete: false`", bound.program.kind.word(), bound.program.name),
                     "keep read-time merges for a bounded small number of related principals; for Following, `snapback4 init --recipe feeds --prefix feed`; measure with `snapback4 test --cost`")
             } else {
@@ -277,7 +282,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                     message,
                     rewrite,
                 )
-                .guide(if related_principals { "feeds" } else if merge.lanes.iter().any(|lane| lane.scan.prefix.iter().any(|key| matches!(key, snapback4_core::ir::IndexKeyExpr::WordPrefix(_)))) { "search" } else { "reads" }),
+                .guide(if matching { "search" } else if related_principals { "feeds" } else { "reads" }),
             );
         }
         // A job sweeps as the system principal, which every rule admits.

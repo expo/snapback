@@ -803,6 +803,29 @@ Reads inside `where` use their own rules and search terms. An empty
 matching result past a device horizon is incomplete too, so a held group
 can fall back to the server.
 
+**Search every chat I'm in (100–1,000 memberships).** `snapback4 guide
+search`, section "Search every chat I'm in", carries the complete Quarry
+and the two-cursor walk. Search fully synced messages with one unscoped
+words index on the device, or page memberships 50 at a time on the server
+and exhaust each batch's matching result cursor before advancing the
+membership cursor. Group the accumulated results by chat in the client.
+The `everywhere` example above covers its first 50 chats; its result cursor
+does not advance to the next 50 memberships. Batches are each newest first;
+one globally ordered stream needs a merge of all batch heads.
+
+Measured at 100 / 500 / 1,000 chats with 30 messages per chat, 24 matching
+one word prefix, and 20 results per page: both device stores examine 22
+rows on the first page; the bounded server merge examines 1,201. Full walks
+find 2,400 / 12,000 / 24,000 hits across every chat, with complete pages.
+Full sync acquires 3,000 / 15,000 / 30,000 messages. A sync horizon keeps
+search over held messages working but reports `complete: false`, including
+empty searches; online, use the scoped server walk for full history.
+The card records whole-walk costs, horizon measurements, the 32-word
+limit (global on the device, per chat on the server), and the per-reader
+copy cost. A meter-cut matching merge cannot be continued with a result
+cursor alone. The card intentionally documents N_NO_HORIZON for full sync
+and N_NEVER_COMPLETE for the unscoped query's server execution.
+
 ### Effects
 
 ```quarry
