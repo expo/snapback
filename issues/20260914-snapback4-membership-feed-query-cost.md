@@ -1,6 +1,6 @@
 # Snapback 4: requalify and reduce membership-feed query cost
 
-Status: Open — fixed 0.2.16 borrowed-text candidate measured; large continuation tails/throughput regress, candidate not adopted
+Status: Open — fixed 0.2.20 comparison confirms large-feed gap versus Convex; cursor-reuse adoption remains with core owner
 Priority: P1
 Systems: Snapback 4 online membership feeds, query execution
 Implementation owner: Snapback 4 core lead (LLP 3000 decision 4)
@@ -278,9 +278,9 @@ the warm/shared-host limits remain in the complete benchmark record.
 Second-platform replication is now complete. Adoption remains with the
 core owner: assess the replicated continuation gain against the first-page
 and tail tradeoffs before changing current source. No core patch, ceiling,
-live-result/auth cache or comparator claim is adopted by this ticket. A
-current matched comparator run remains needed for the broader goal; the
-latest three-backend membership result is still the earlier 0.2.10 batch.
+live-result/auth cache or comparator claim is adopted by this ticket. The
+subsequent fixed 0.2.20 comparison below supplies the refreshed comparator
+evidence; this cursor experiment remains a separate fixed-source A/B.
 
 Evidence prefix `membership-cursor-reuse-0218-linux-http-v1` binds formal
 transfer `617fd603…`, completion `1f117852…`, independent summary
@@ -289,3 +289,31 @@ rehash. The independent calculator froze before result access, after formal
 launch; the preserved annotation corrects its original timing statement.
 The original failed staging/observation attempts remain distinct from the
 successful build and workloads. No live run remains.
+
+
+## 2026-09-15 — fixed 0.2.20 comparator refresh
+
+The matched Office ARM Linux comparison completed at 16:52:29 UTC on
+68b45b9a / 0.2.20 with retained self-hosted Convex/Supabase. All 175,500
+formal HTTP calls, 10,530 warmups, 243 untimed walks / 50,265 pages and
+36 physical proofs pass across nine runs. Auth, leave and same-session
+regrant checks pass. All owned children stopped; 21 SQL phases have
+positive completion. Both frozen calculators pass unchanged and independent
+audit verifies every value and all 110 median / 370 paired metric losses.
+
+Median p50 wins are 24/39 versus Convex and 39/39 versus Supabase. All
+twelve degree-30/150 first/next/rotating feed cases still lose p50 to Convex
+in every pair. For the 150-group next page at C8, Snapback/Convex/Supabase
+are 21.247/4.758/43.602 ms p50, 48.987/32.400/118.062 ms p99 and
+357.3/1429.8/160.7 requests/s. This supplies a refreshed gap measurement;
+it does not isolate a cross-version improvement or regression.
+
+Keep the repeated-scan/materialization work and cursor tradeoff open with
+the core owner. No runtime or authorization/result cache is adopted.
+Source-built, warm local results do not establish current-main, hosted/WAN,
+cold-start, device, write, realtime or power-loss durability performance.
+Comparator process/cache history and limited schema/deployment assertions
+remain in the benchmark README. Evidence prefix membership-current-0220-v1:
+complete4e5bb86c, transfer9a1d42ac, root8aec8c13, independent807029fe,
+auditc9c6880d and review11cb1a13. Nine full original records are preserved
+in storage.jsonl.
