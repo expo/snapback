@@ -1,6 +1,6 @@
 {
   "name": "snapback4-darwin-arm64",
-  "version": "0.2.21",
+  "version": "0.2.22",
   "description": "The snapback4 binary for macOS on Apple silicon; installed by the snapback4 package.",
   "license": "MIT",
   "os": [
