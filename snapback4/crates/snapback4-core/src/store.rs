@@ -155,6 +155,8 @@ impl Store {
         // the previous catalog, even when every number is monotone.
         let opened = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         opened.execute("INSERT OR IGNORE INTO _meta(key, value) VALUES ('version', ?1)", [STORE_VERSION])?;
+        // @ref LLP 3000.007#18.2 — a database incarnation survives reopen, independently of schema generation.
+        opened.execute("INSERT OR IGNORE INTO _meta(key, value) VALUES ('store_id', lower(hex(randomblob(16))))", [])?;
         let version: String = opened.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| row.get(0))?;
         if version != STORE_VERSION { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}; this data directory belongs to another Snapback"))); }
         let catalog = opened.prepare("SELECT name, num FROM _catalog")?.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)))?.collect::<Result<BTreeMap<_, _>, _>>()?;

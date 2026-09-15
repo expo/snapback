@@ -626,11 +626,16 @@ every group a device holds, at every cold start, as the table grows;
 group, or a `cap` over the group). A snapshot arrives in pages the client
 asks for 4,000 events at a time (2,000 by default on the wire, 10,000 at
 most), each applied in its own transaction. `POST /sync` takes JSON
-`{ from, limit, after, stream, pending }`: up to 256 pending write IDs of
+`{ from, limit, after, stream, pending, store_id? }`: up to 256 pending write IDs of
 1–128 UTF-8 bytes, with the cursor, in at most 262,144 body bytes (256 KiB).
 Oversize bodies, including chunked ones, return HTTP 413 `E_INPUT`; malformed
 fields return HTTP 400 `E_INPUT`. Continue snapshots with `after: next`;
 `stream: true` follows the log even from zero. There is no GET sync route.
+A changed sync `store_id` (echoed from the previous reply), or a backwards
+watermark without one, discards the old partition and held/left history and
+requires acquisition again, keeping unsent writes without their predicted
+rows and retiring known receipts so those writes are never replayed to the
+replacement store.
 Joining a group delivers its
 rows; leaving it delivers one scope tombstone, and `retain` says whether the
 device keeps what it was given (`delivered-history`) or drops it

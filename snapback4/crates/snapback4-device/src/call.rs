@@ -2,7 +2,7 @@
 //! `{"ok": ...}` or `{"denied": {code, family, message, ...}}` out when
 //! the call itself failed; a query's or a prediction's refusal is the
 //! card's `denied` inside `ok`, as a screen reads it. Nothing panics.
-//! Ops: state, sync_state, begin_send, adopt, apply, query, backend,
+//! Ops: state, sync_state, observe_store, begin_send, adopt, apply, query, backend,
 //! admit, settle, predict, withdraw, enqueue, queued, next_submission,
 //! dequeue, meta, set_meta, clear_rows, install_native.
 
@@ -55,6 +55,7 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, request: &Json) -> Json {
                 json!({ "jobs": jobs, "reads": reads })
             }
             "sync_state" => encoded(&device.sync_state()?)?,
+            "observe_store" => encoded(&device.observe_store(&parse::<StreamPage>(arg(request, "page")?)?)?)?,
             "begin_send" => json!({ "send_revision": device.begin_send()? }),
             "adopt" => {
                 device.adopt(parse::<Backend>(arg(request, "backend")?)?)?;

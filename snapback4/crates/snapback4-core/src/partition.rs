@@ -547,7 +547,8 @@ pub fn stream(tx: &Tx<'_>, schema: &Schema, principal: &str, watermark: u64, lim
         Audience::Target { table, .. } => schema.table(table).is_some_and(|target| target.expire.is_some()),
         _ => false,
     });
-    if watermark >= head && !expiring_audience { return Ok(StreamPage { events: Vec::new(), watermark, more: false, joined: BTreeMap::new() }); }
+    // A cursor from a replaced database is not evidence that this store reached it.
+    if watermark > head || (watermark == head && !expiring_audience) { return Ok(StreamPage { events: Vec::new(), watermark: head, more: false, joined: BTreeMap::new() }); }
     let held = intervals(tx, schema, principal, watermark)?;
     let mut spans = vec![(partition_of(principal), watermark.saturating_add(1), None, None), (PUBLIC.to_owned(), watermark.saturating_add(1), None, None)];
     for ((table, group), intervals) in &held {

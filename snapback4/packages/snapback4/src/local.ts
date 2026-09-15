@@ -115,7 +115,7 @@ async function requireSyncProtocol(core: DeviceCore): Promise<void> {
   if (denied && typeof denied.code === "string" && denied.code !== "E_OP") throw new Error(`createLocalClient: ${denied.code}: native startup failed: ${denied.message}`);
   const state = reply?.ok as Record<string, unknown> | undefined;
   const uint = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-  if (denied || !state || !uint(state.watermark) || !uint(state.generation) || !uint(state.send_revision) || !Array.isArray(state.pending_ids) || state.pending_ids.length > 256 || !state.pending_ids.every((id) => typeof id === "string" && id.length > 0)) {
+  if (denied || !state || !(state.store_id === null || typeof state.store_id === "string") || !uint(state.watermark) || !uint(state.generation) || !uint(state.send_revision) || !Array.isArray(state.pending_ids) || state.pending_ids.length > 256 || !state.pending_ids.every((id) => typeof id === "string" && id.length > 0)) {
     throw new Error("createLocalClient: E_DEVICE_VERSION: the device lacks the sync receipt protocol this client speaks. Update the device to match the client: rebuild the app's native binary for snapback4-expo (reloading JavaScript does not update a native module), or serve the wasm this package version ships.");
   }
 }
@@ -275,13 +275,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const settled = new Map<string, (write: Write) => void>();
   let lastSyncAt = Number((await call({ op: "meta", key: "syncedAt" })).ok ?? 0);
   let caughtUp = false;
+  let storeIdentity: string | undefined;
 
   async function call(request: Record<string, unknown>): Promise<{ ok?: unknown; denied?: Refusal }> {
     const work = core.call(request);
     active.add(work);
     try {
       const result = (await work) as { ok?: unknown; denied?: Refusal };
-      if (!result.denied && ["apply", "adopt", "clear_rows", "admit", "settle"].includes(String(request.op))) await media?.reconcile();
+      if (!result.denied && ["apply", "observe_store", "adopt", "clear_rows", "admit", "settle"].includes(String(request.op))) await media?.reconcile();
       return result;
     }
     finally { active.delete(work); }
@@ -442,12 +443,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       for (let pages = 0; pages < 100_000; pages++) {
         let page: Record<string, unknown>;
         let pageRevision = credentialRevision;
+        let requestedStore: string | null | undefined;
         try {
           const captured = await call({ op: "sync_state" });
           if (captured.denied) return false;
-          const { pending_ids: pending, send_revision } = captured.ok as { pending_ids: string[]; send_revision: number };
+          const { pending_ids: pending, send_revision, store_id } = captured.ok as { pending_ids: string[]; send_revision: number; store_id?: string | null };
+          requestedStore = store_id;
           const request = requestCredentials();
-          const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify({ from: watermark, limit: PAGE, after: after ?? null, stream: catchingUp, pending }), signal: aborter.signal });
+          const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify({ from: watermark, limit: PAGE, after: after ?? null, stream: catchingUp, pending, ...(store_id ? { store_id } : {}) }), signal: aborter.signal });
           if (response.status >= 500) { setLink("offline"); return false; }
           page = (await response.json()) as Record<string, unknown>;
           page.send_revision = send_revision;
@@ -466,12 +469,35 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           }
           return false;
         }
+        // @ref LLP 3000.007#18.2 — sync identity retires the old partition before any read or outbox replay.
+        let replacedStore = false;
+        if ((typeof page.store_id === "string" && page.store_id !== requestedStore) || Number(page.watermark) < watermark) {
+          const observed = await call({ op: "observe_store", page });
+          if (observed.denied) return false;
+          const observation = observed.ok as { reset: boolean; send_revision: number; retired: Record<string, number> };
+          page.send_revision = observation.send_revision;
+          if (observation.reset) {
+            serverAnswers.clear();
+            lastSyncAt = 0;
+            await call({ op: "set_meta", key: "syncedAt", value: "0" });
+            adoptedGeneration = true;
+            for (const [id, sentSeq] of Object.entries(observation.retired)) {
+              const receipt: Write = { state: "sent", id: id as Write["id"], seq: sentSeq, replayed: true };
+              settled.get(id)?.(receipt); settled.delete(id);
+              emitWrite(receipt);
+            }
+            for (const watch of watches.values()) void rerun(watch);
+            watermark = 0; seq = 0; after = undefined; catchingUp = false;
+            replacedStore = true;
+          }
+        }
+        if (typeof page.store_id === "string") storeIdentity = page.store_id;
         if (link !== "online") setLink("online");
         partitionDenied = null;
         const pageGeneration = Number(page.generation ?? generation);
-        if (pageGeneration !== generation) {
-          // A new generation: adopt the backend the server now serves; the
-          // device drops its rows and the next round takes a snapshot.
+        if (pageGeneration !== generation || replacedStore) {
+          // Generation counters restart with a new store. Reload the backend
+          // even when its number matches, then acquire its current partition.
           let backendRevision = credentialRevision;
           try {
             const request = requestCredentials();
@@ -511,6 +537,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
       }
       if (!caughtUp) return false;
+      seq = watermark;
       lastSyncAt = Date.now();
       await call({ op: "set_meta", key: "syncedAt", value: String(lastSyncAt) });
       return true;
@@ -559,7 +586,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (json.denied?.code === "E_AUTH") return false;
         throw new Error(`changes: HTTP ${response.status}`);
       }
-      const changed = json.seq > seq || (json.generation !== undefined && json.generation !== generation);
+      const changed = json.seq > seq || (json.generation !== undefined && json.generation !== generation)
+        || (json.store_id !== undefined && json.store_id !== storeIdentity);
       if (changed) {
         seq = Math.max(seq, json.seq);
         const touched = new Set(json.tables ?? []);
@@ -763,18 +791,26 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         const result = await network(async () => {
           await exitDone;
           if (closed || sessionDead) return { ok: false as const };
+          if (!(await queued()).some((current) => current.id === entry.id && current.sent_seq == null)) return { ok: true as const, retired: true as const };
           ordinarySending = true;
           const started = await call({ op: "begin_send" });
           if (started.denied) return { ok: false as const };
-          return post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids });
+          const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids });
+          if (response.ok) {
+            const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined;
+            if (!response.obsoleteAuth && !why?.retryable && (json.state === "sent" || why)) {
+              const applied = await call({ op: "settle", id: entry.id, ...(json.state === "sent" ? { seq: Number(json.seq ?? 0) } : {}) });
+              if (applied.denied) return { ok: false as const };
+            }
+          }
+          return response;
         });
         if (closed) return;
         if (!result.ok) { retryFlush(); return; }
+        if ("retired" in result) continue;
         const json = result.json;
         const why = (json.why ?? json.denied) as Refusal | undefined;
         if (result.obsoleteAuth || why?.retryable || (json.state !== "sent" && !why)) { retryFlush(); return; }
-        const applied = await call({ op: "settle", id: entry.id, ...(json.state === "sent" ? {seq: Number(json.seq ?? 0)} : {}) });
-        if (applied.denied) { retryFlush(); return; }
         retryMs = 250;
         const settle = settled.get(entry.id);
         settled.delete(entry.id);

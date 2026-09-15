@@ -54,7 +54,7 @@ function emptyDevice(overrides = {}) {
         const answer = await overrides.call(request);
         if (answer !== undefined) return answer;
       }
-      if (request.op === "sync_state") return { ok: { watermark: 0, generation: 1, pending_ids: [], send_revision: 0 } };
+      if (request.op === "sync_state") return { ok: { store_id: null, watermark: 0, generation: 1, pending_ids: [], send_revision: 0 } };
       if (request.op === "next_submission") return { ok: 1 };
       if (request.op === "meta") return { ok: null };
       if (request.op === "state") return { ok: { watermark: 0, generation: 1 } };
@@ -264,7 +264,7 @@ test("local generation adoption reruns observations whose dependencies changed",
   let serverGeneration = 1, deviceGeneration = 1, schemas = 0, queryRuns = 0;
   const change = deferred();
   const device = emptyDevice({ call: async (request) => {
-    if (request.op === "sync_state") return { ok: { watermark: 0, generation: deviceGeneration, pending_ids: [], send_revision: 0 } };
+    if (request.op === "sync_state") return { ok: { store_id: null, watermark: 0, generation: deviceGeneration, pending_ids: [], send_revision: 0 } };
     if (request.op === "state") return { ok: { watermark: 0, generation: deviceGeneration } };
     if (request.op === "adopt") { deviceGeneration = request.backend.generation; return { ok: null }; }
     if (request.op === "apply") return { ok: { touched: [] } };
@@ -1146,10 +1146,10 @@ test("device process failures reject opening and pending calls instead of leavin
 });
 
 test("device compatibility rejects old and malformed protocols before online or offline startup", async () => {
-  const valid = { watermark: 0, generation: 1, pending_ids: [], send_revision: 0 };
+  const valid = { store_id: null, watermark: 0, generation: 1, pending_ids: [], send_revision: 0 };
   const replies = [
     { denied: { code: "E_OP", family: "op", message: "unknown op sync_state" } },
-    null, {}, { ok: {} }, { ok: { ...valid, send_revision: undefined } },
+    null, {}, { ok: {} }, { ok: { ...valid, store_id: undefined } }, { ok: { ...valid, send_revision: undefined } },
     { ok: { ...valid, watermark: -1 } }, { ok: { ...valid, generation: 0.5 } },
     { ok: { ...valid, send_revision: Number.MAX_SAFE_INTEGER + 1 } },
     { ok: { ...valid, pending_ids: [1] } }, { ok: { ...valid, pending_ids: [""] } },

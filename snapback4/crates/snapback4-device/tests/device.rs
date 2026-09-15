@@ -10,6 +10,7 @@ mod presence;
 mod upsert;
 mod following;
 mod merge_cursor;
+mod store_reset;
 
 use common::*;
 use snapback4_core::engine::WriteState;

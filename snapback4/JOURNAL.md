@@ -9904,3 +9904,368 @@ diagnostic before/after text for this lane. No application spelling changed.
 `git diff --check` passes, and the journal's prefix is byte-identical to the
 base with this one appended dated entry. Nothing was committed, pushed,
 tagged or published.
+
+## 2026-09-14 — X1: a device outlives two backend stores
+
+Implemented the replacement-store acquisition boundary for
+`20260914-snapback4-device-store-from-a-replaced-backend-never-reacquires`.
+Base: `bca8bfe70d320c1d466c6a700493465662b2205e`. The worktree was clean
+before the reproduction. No commit, push, tag or publication was made.
+
+The first tests were red on that base. Both Rust stores acquired three
+commits from A, queued one prediction, reopened against empty B at the same
+generation, and applied B's stream. B answered watermark **3**, although
+its head was **0**; apply succeeded with no touched tables and the read
+returned **3 old rows + 1 predicted row**, `complete: true`, `unknown: false`.
+The Node/wasm client reproduced the same retained watermark and four rows
+against B at head **1**, with its durable write still predictable. The bug
+was not just a refusal to move backwards: the server's early stream return
+had echoed the supplied watermark, allowing the obsolete partition to look
+caught up. The old sync loop marks such a completed round fresh; the
+reproduction's logged read was the device result, which has no `fresh` field.
+
+The server now creates one random **128-bit / 32-hex-character** identity in
+`_meta.store_id`, independent of generation and durable across database
+reopen. Sync responses and change notifications add `store_id`; sync accepts
+an optional echo and ignores a foreign store's snapshot cursor. The request
+and response extension is additive; legacy requests still work, and the
+client only echoes an identity once learned. A backwards stream request
+returns the server's real head. The decision is recorded in LLP 3000.007
+§18.2, with the README and sync card updated.
+
+On identity change, one device transaction discards confirmed and predicted
+rows, base images, staged pages, acquisition and held/left history; resets
+the watermark; and preserves unsent/unknown-receipt entries in order with
+their operation and row IDs, without predictions. Known sent or stream-
+acknowledged receipts retire without another execution. The existing send
+revision also fences responses captured before replacement. The client
+reloads `/schema` even if its generation number repeats, acquires a fresh
+snapshot and catch-up, clears remembered server answers, and serializes
+write receipt settlement with sync. The native-version probe now requires
+the store-identity protocol; existing mock-device fixtures were updated.
+No value serialization, meter ceiling or existing corpus case changed.
+
+Positive coverage includes both Rust stores, persisted wasm, empty B,
+equal-watermark B/C, a second reset, known/unknown/unsent receipts,
+at-most-once retry, an interrupted snapshot followed by offline reopen,
+left-group history, an obsolete response arriving after reset, unchanged
+store identity across restart, and changed programs at the same generation.
+The wasm pending-write scenario reacquires **2 rows in B**, then **2 in C**,
+with **1 mutation POST**; the receipt scenario sends the known receipt's ID
+**0** times to B and the unknown receipt's ID **1** time, and its next retry
+reports `replayed: true`. The Rust equal-watermark scenario holds **4** B
+rows before its **2** surviving writes and **6** afterwards; C acquires
+**0**. No obsolete rows survive acquisition. During interrupted acquisition,
+the core reports unknown `E_PREDICT`; the offline public client reports
+`E_OFFLINE` without data. Ordinary online fallback can answer from B.
+
+An existing observation test caught my initial approach of syncing after
+every idle heartbeat. The final change notification carries identity so
+idle polls on the same database still do no sync work. An existing exit-send
+test also caught a changed refusal string; the final code keeps the original
+mutation-send message and gives obsolete-store responses their own message.
+These were introduced defects, corrected here, not attributed to the base.
+
+### Verification commands and results
+
+Cargo, Bun and client test commands below ran from `snapback4/`; the full
+script and reference check ran from the repository root. Every Node/Bun
+command used this pinned runtime first:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+Preparation/rebuild commands were `cargo build -p snapback4 --quiet`,
+`bash scripts/build-wasm.sh`, `bun run --cwd packages/snapback4 build`, and
+`bun run --cwd packages/snapback4 typecheck`. The frozen installs were reused.
+During test construction, a mistyped `--test acquisition` target reported
+`error: no test target named `acquisition` in `snapback4-device` package`;
+the correct existing suite is `adoption`. The initial test edits also had
+compile errors (mutation-call signature/type annotations); no pass count is
+claimed for those attempts. The first full-script attempt was interrupted
+while correcting the introduced idle-sync regression, before an aggregate
+summary; its completed build/typecheck steps passed. Subsequent full runs
+are recorded below.
+
+```sh
+cargo test -p snapback4-device --test device replaced_backend -- --nocapture
+```
+
+Before the fix, on the named base:
+
+```text
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 73 filtered out; finished in 0.03s
+```
+
+First green reproduction:
+
+```text
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 73 filtered out; finished in 0.05s
+```
+
+```sh
+cargo test -p snapback4-device --test device store_reset -- --nocapture
+```
+
+Expanded scenarios:
+
+```text
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 73 filtered out; finished in 0.14s
+```
+
+```sh
+cargo test -p snapback4-device --test device --test native --test retained_history --test adoption -- --nocapture
+```
+
+Affected device suites:
+
+```text
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 77 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 33.31s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+```
+
+```sh
+node --test packages/snapback4/test/store-reset.test.mjs
+```
+
+Before the fix, on the named base:
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ duration_ms 1215.162708
+```
+
+Final reset suite:
+
+```text
+ℹ tests 4
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ duration_ms 6819.422375
+```
+
+```sh
+node --test packages/snapback4/test/store-reset.test.mjs packages/snapback4/test/acquisition.test.mjs packages/snapback4/test/client-lifecycle.test.mjs packages/snapback4/test/session-security.test.mjs
+```
+
+Initial broad client run (idle-sync regression; corrected afterwards):
+
+```text
+ℹ tests 62
+ℹ pass 60
+ℹ fail 1
+ℹ cancelled 1
+ℹ duration_ms 224331.370708
+```
+
+```sh
+node --test --test-concurrency=2 packages/snapback4/test/store-reset.test.mjs packages/snapback4/test/acquisition.test.mjs packages/snapback4/test/client-lifecycle.test.mjs packages/snapback4/test/session-security.test.mjs
+```
+
+Broad client rerun (one server-start timeout):
+
+```text
+ℹ tests 63
+ℹ pass 62
+ℹ fail 1
+ℹ cancelled 0
+ℹ duration_ms 29271.317541
+```
+
+```sh
+node --test --test-name-pattern='online watches retain their changes watermark' packages/snapback4/test/client-lifecycle.test.mjs
+```
+
+The timed-out client test, alone:
+
+```text
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ duration_ms 132.856875
+```
+
+```sh
+node --test packages/snapback4/test/http.test.mjs packages/snapback4/test/release-activation.test.mjs
+```
+
+The two full-suite host timeouts, rerun:
+
+```text
+ℹ tests 12
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ duration_ms 1961.801709
+```
+
+```sh
+node --test --test-name-pattern='an exit send invalidates' packages/snapback4/test/web-navigation.test.mjs
+```
+
+Send-overlap message restored; existing regression:
+
+```text
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ duration_ms 1472.872916
+```
+
+```sh
+node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'
+```
+
+All client tests at lower concurrency:
+
+```text
+ℹ tests 201
+ℹ pass 200
+ℹ fail 1
+ℹ cancelled 0
+ℹ duration_ms 82286.877584
+```
+
+```sh
+cargo test -p snapback4-lang --test guide -- --nocapture
+```
+
+Published card and README checks:
+
+```text
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+```
+
+Full blocking script (repository root):
+
+```sh
+bash snapback4/scripts/test.sh
+```
+
+First completed run, before restoring the send-overlap wording. Rust totals across the 54 verbatim
+per-target summaries: **754 passed, 0 failed, 2 ignored**.
+The script's summary lines:
+
+```text
+-- ok: cargo build (0 s)
+wasm 1657764 B raw, 460067 B gzip
+-- ok: wasm build (3 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (1 s)
+-- ok: chat app check (3 s)
+-- ok: cargo test (294 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (9 s)
+ℹ tests 193
+ℹ pass 189
+ℹ fail 4
+-- FAIL: client tests (48 s)
+== 1 failure(s) in 302 s
+```
+
+Final run, after the correction. Rust totals across the 54 verbatim
+per-target summaries: **754 passed, 0 failed, 2 ignored**.
+The script's summary lines:
+
+```text
+-- ok: cargo build (3 s)
+wasm 1657814 B raw, 460125 B gzip
+-- ok: wasm build (1 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (0 s)
+-- ok: cargo test (336 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (8 s)
+ℹ tests 201
+ℹ pass 200
+ℹ fail 1
+-- FAIL: client tests (45 s)
+== 1 failure(s) in 341 s
+```
+
+The final full run's only failure, also the only failure at lower Node
+concurrency, is `React hooks and reference-app lifetimes` in
+`packages/snapback4/test/react.test.mjs`: Chromium exits with `SIGABRT`
+inside the sandbox. This is the environment artifact explicitly identified
+in the lane instructions; the lead reruns it outside the sandbox. The two
+host-start timeouts in the first completed full run passed in the isolated
+HTTP/release rerun (12/0), and the targeted client's server-start timeout
+passed alone (1/0). No failure is called pre-existing without a base run;
+none is claimed to have been verified as pre-existing here. The final Rust
+run had no lifecycle failures.
+
+The wasm build changed from **1,651,366 B raw / 458,474 B gzip** before the
+fix to **1,657,814 B raw / 460,125 B gzip** after it: **+6,448 B raw /
++1,651 B gzip** on the pinned local toolchain. The additive 32-hex-character
+`store_id` costs **46 JSON bytes** per sync/change reply and per sync request
+that echoes it. The largest changed source file is **1,456 lines**; **0**
+changed source files exceed 1,500 lines. The journal's base prefix is
+byte-identical, with **1** new dated entry. The issue moved to
+`issues/closed/20260914-snapback4-device-store-from-a-replaced-backend-never-reacquires.md`.
+All files touched are within the lane's implementation, test, published-doc
+or required bookkeeping scope; `serve_changes.rs` and `changes.ts` carry the
+live identity notification, and the two existing client fixture files carry
+the updated device-version probe.
+
+No new diagnostic code or note was added; `guide::CODES` already covers
+`E_GENERATION` and `E_PREDICT`. The brief does not ask for a diagnostic-text
+comparison, but the reproduction's exact boundary is useful:
+
+Before, apply returned:
+
+```json
+{"ok":{"touched":[]}}
+```
+
+After, direct device apply on discovering a replacement refuses after
+persisting invalidation:
+
+```text
+E_GENERATION: the backend store was replaced; reacquire its partition
+```
+
+A partition-dependent core read until acquisition completes reports:
+
+```text
+E_PREDICT: this generation's partition has not completed acquisition; reconnect to acquire it
+```
+
+The public client's existing offline refusal message is `the server is
+unreachable` (`E_OFFLINE`), with no data. The existing mutation-send overlap
+message remains byte-for-byte `E_GENERATION: a mutation send overlapped the
+sync response; retry sync`; an identified response captured before a reset
+reports `E_GENERATION: the backend store was replaced during sync; retry sync`.
+
+Final reference check, from the repository root with the pinned Node PATH:
+
+```sh
+./ref-check --verbose
+```
+
+```text
+ref-check: ok — 480 LLP docs, 8888 refs in 22936 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passed. All **16** changed source files are within the
+line cap. Required implementation, documentation and issue closure are
+complete; the browser witness is the sole remaining outside-sandbox
+verification for the lead. The working tree contains only these intended,
+uncommitted changes.

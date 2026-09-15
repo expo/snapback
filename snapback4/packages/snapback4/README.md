@@ -1051,6 +1051,10 @@ sync is required;
 existing durable writes remain queued. Safe literal-default-only schema
 widening keeps acquired images readable; a reset or newly added table requires
 acquisition again.
+A replaced backend store also requires acquisition again, even at the same
+schema generation: sync's store identity discards old rows and held/left
+history, keeps unsent writes without their predictions, and never replays a
+write whose receipt is already known.
 
 On the web, a failed save rejects the call and discards its uncommitted in-memory
 state. The next serialized call reopens the last persisted state; earlier
@@ -1681,10 +1685,10 @@ the visible read encountered, or null. `POST /m/<op>` with `{ "id", "args",
 apply at most once). A replay adds `replayed: true` and omits both `result`
 and `current`; a fresh `E_CONFLICT` may carry the live row in `current`.
 A job is refused over the wire (`E_OP`).
-`POST /sync` takes JSON `{ from, limit, after, stream, pending }` (defaults:
-`0`, `2000`, `null`, `false`, `[]`). With `from: 0` it returns the paged
+`POST /sync` takes JSON `{ from, limit, after, stream, pending, store_id? }` (defaults:
+`0`, `2000`, `null`, `false`, `[]`, absent). With `from: 0` it returns the paged
 snapshot: `{ snapshot: true, events: [{ table, kind, id, data }], watermark,
-more, next, generation, acknowledged }`. Continue with `after: next`;
+more, next, generation, store_id, acknowledged }`. Continue with `after: next`;
 `limit` is clamped to 1–10,000. `pending` holds at most 256 write IDs,
 each 1–128 UTF-8 bytes, and reports which queued writes the server applied.
 The request body is at most **262,144 bytes (256 KiB)**, including the
@@ -1693,9 +1697,15 @@ even with six-byte escapes. A larger body is HTTP 413 with `denied: E_INPUT`,
 including chunked bodies; malformed fields are HTTP 400 with `E_INPUT`.
 With `from: W` or `stream: true` it returns the stream from a watermark:
 `{ snapshot: false, events: [{ seq, table, kind, id, data }], watermark,
-more, generation, acknowledged }`. There is no GET `/sync` route.
+more, generation, store_id, acknowledged }`. The optional `store_id` echoes
+the previous reply's database identity; a different identity invalidates old
+snapshot cursors and partition evidence, even if the watermark is equal or
+higher, while a server restart on the same database keeps its identity.
+An older server can omit this additive field; a backwards watermark still
+requires reacquisition, and a device with no stored identity reacquires once
+when it first learns one. There is no GET `/sync` route.
 `GET /changes?since=S&wait=N` requires the same principal and answers
-`{ seq, tables, generation }` when a commit lands or after N seconds (25
+`{ seq, tables, generation, store_id }` when a commit lands or after N seconds (25
 at most; 0 answers at once; at most
 500 commits are summarised). With `heartbeat=1`, an idle HTTP/1.1 response
 starts immediately and sends JSON whitespace every 2 seconds before the

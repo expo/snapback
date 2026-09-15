@@ -4,7 +4,7 @@ import type { Refusal } from "./contract.ts";
 
 const SILENCE_MS = 4000;
 const HEARTBEAT_SECONDS = 2;
-interface Change { seq: number; tables: string[]; generation?: number; denied?: Refusal }
+interface Change { seq: number; tables: string[]; generation?: number; store_id?: string; denied?: Refusal }
 
 export function changeFeed(doFetch: typeof fetch, base: string, lifetime: AbortSignal, offline: () => void, online: () => void) {
   const active = new Set<AbortController>();

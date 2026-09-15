@@ -601,6 +601,7 @@ struct SnapshotReply {
     more: bool,
     next: Option<String>,
     snapshot: bool,
+    store_id: String,
     watermark: u64,
 }
 
@@ -612,6 +613,7 @@ struct StreamReply {
     joined: wire::HeldGroups,
     more: bool,
     snapshot: bool,
+    store_id: String,
     watermark: u64,
 }
 
@@ -1008,7 +1010,13 @@ fn handle(mut request: Request, shared: &Shared) {
                 Ok(input) if input.pending.len() <= 256 && input.pending.iter().all(|id| !id.is_empty() && id.len() <= 128) => input,
                 _ => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "sync needs { from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes")) })),
             };
-            let SyncRequest { from, limit, after, stream, pending } = input;
+            let SyncRequest { from, limit, mut after, stream, pending, store_id: requested_store } = input;
+            let store_id = match lock(&shared.engine).store().meta("store_id") {
+                Ok(Some(id)) => id,
+                _ => return respond(request, 503, json!({ "denied": refusal_json(&snapback4_core::error::RuntimeError::Store("the server store has no identity".into()).refusal()) })),
+            };
+            // An old snapshot cursor belongs to its database, not merely its schema.
+            if requested_store.as_ref().is_some_and(|id| id != &store_id) { after = None; }
             let limit = limit.clamp(1, 10_000);
             if from == 0 && !stream {
                 // `after` is the previous snapshot page's opaque `next` token.
@@ -1028,7 +1036,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 match outcome {
                     Ok((events, watermark, next, held, acknowledged)) => {
                         respond(request, 200, SnapshotReply {
-                            acknowledged, events: SyncEvents::Snapshot(events), generation,
+                            acknowledged, events: SyncEvents::Snapshot(events), generation, store_id,
                             held, more: next.is_some(), next, snapshot: true, watermark,
                         });
                     }
@@ -1051,7 +1059,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 match outcome {
                     Ok((page, acknowledged)) => {
                         respond(request, 200, StreamReply {
-                            acknowledged, events: SyncEvents::Stream(page.events), generation,
+                            acknowledged, events: SyncEvents::Stream(page.events), generation, store_id,
                             joined: page.joined, more: page.more, snapshot: false, watermark: page.watermark,
                         });
                     }
@@ -1277,5 +1285,7 @@ struct SyncRequest {
     stream: bool,
     #[serde(default)]
     pending: Vec<String>,
+    #[serde(default)]
+    store_id: Option<String>,
 }
 fn sync_limit() -> usize { 2_000 }

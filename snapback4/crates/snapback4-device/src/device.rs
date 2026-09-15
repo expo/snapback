@@ -22,6 +22,8 @@ mod predictions;
 mod media;
 mod snapshot;
 mod history;
+mod store_identity;
+pub use store_identity::StoreObservation;
 
 /// The compiled backend, as `GET /schema` sends it.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -35,6 +37,7 @@ pub struct Backend {
 /// no other owner has started a mutation send after this capture.
 #[derive(Clone, Debug, Serialize)]
 pub struct SyncState {
+    pub store_id: Option<String>,
     pub watermark: u64,
     pub generation: u64,
     pub pending_ids: Vec<String>,
@@ -54,6 +57,8 @@ pub struct StreamEvent {
 /// One page of `POST /sync`.
 #[derive(Clone, Debug, Deserialize)]
 pub struct StreamPage {
+    #[serde(default)]
+    pub store_id: Option<String>,
     /// Local receipt captured before transport, not server-supplied metadata.
     #[serde(default)]
     pub send_revision: Option<u64>,
@@ -112,6 +117,7 @@ pub struct Predicted {
     pub predicted: Vec<String>,
 }
 
+const STORE_ID: &str = "device:store_id";
 const WATERMARK: &str = "device:watermark";
 const GENERATION: &str = "device:generation";
 const ACQUIRED: &str = "device:acquired-generation";
@@ -384,7 +390,7 @@ impl<S: DeviceStore> Device<S> {
                 }
             }
         }
-        let state = SyncState { watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, send_revision: meta_u64(&tx, SEND_REVISION)? };
+        let state = SyncState { store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, send_revision: meta_u64(&tx, SEND_REVISION)? };
         tx.rollback()?;
         Ok(state)
     }
@@ -409,10 +415,16 @@ impl<S: DeviceStore> Device<S> {
     /// last page atomically replaces the confirmed partition and rebases
     /// every remaining prediction. Returns the tables touched.
     pub fn apply(&mut self, page: &StreamPage, first: bool) -> Result<Vec<String>, RuntimeError> {
+        let tx = self.store.transaction()?;
+        let observed = store_identity::observe(&tx, page)?;
+        if observed.reset {
+            tx.commit()?;
+            self.snapshot_owner = None;
+            return Err(RuntimeError::Generation("the backend store was replaced; reacquire its partition".into()));
+        }
         if page.generation.is_some_and(|g| g != self.generation) {
             return Err(RuntimeError::Generation("stale device page".into()));
         }
-        let tx = self.store.transaction()?;
         let owner = if page.snapshot && first {
             // A snapshot's owner: a number from the store, so two devices
             // over one store cannot finish each other's snapshots.
@@ -423,7 +435,7 @@ impl<S: DeviceStore> Device<S> {
             self.snapshot_owner.clone()
         };
         let send_revision = meta_u64(&tx, SEND_REVISION)?;
-        if page.send_revision.is_some_and(|expected| expected != send_revision) {
+        if observed.send_revision != send_revision {
             return Err(RuntimeError::Generation("a mutation send overlapped the sync response; retry sync".into()));
         }
         let watermark = meta_u64(&tx, WATERMARK)?;

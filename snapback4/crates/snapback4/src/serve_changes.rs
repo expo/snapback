@@ -43,17 +43,20 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     }
     let reader = { lock(&shared.engine).reader() };
     let changes = match reader {
-        Ok(mut reader) => reader.changes(since, 500),
-        Err(_) => lock(&shared.engine).changes(since, 500),
+        Ok(mut reader) => reader.store().meta("store_id").and_then(|store_id| reader.changes(since, 500).map(|changes| (changes, store_id))),
+        Err(_) => {
+            let mut engine = lock(&shared.engine);
+            engine.store().meta("store_id").and_then(|store_id| engine.changes(since, 500).map(|changes| (changes, store_id)))
+        },
     };
     match changes {
-        Ok(changes) => {
+        Ok((changes, store_id)) => {
             let seq = changes.last().map(|(seq, _)| *seq).unwrap_or(since);
             let mut tables: Vec<String> = changes.into_iter().flat_map(|(_, tables)| tables).collect();
             tables.sort();
             tables.dedup();
             let generation = *lock(&shared.generation);
-            response.finish(200, json!({ "seq": seq, "tables": tables, "generation": generation }));
+            response.finish(200, json!({ "seq": seq, "tables": tables, "generation": generation, "store_id": store_id }));
         }
         Err(error) => {
             let refusal = error.refusal();
