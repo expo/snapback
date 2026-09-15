@@ -46,6 +46,83 @@ fn bound(source: &str) -> snapback4_lang::Bound {
 fn engine(source: &str) -> Engine {
     let b = bound(source); Engine::new(Store::memory().unwrap(), b.schema, b.programs.into_iter().map(|p| p.program)).unwrap()
 }
+
+#[test]
+fn anchored_calendar_keys_match_on_server_memory_and_sqlite() {
+    use snapback4_core::wire;
+    use snapback4_device::{device::{Backend, Device, StreamPage}, memory::MemoryStore, store::DeviceStore};
+    use serde_json::json;
+    let source = SOURCE.replace("online only", "sync public") + &DERIVED.replace("  online only\n", "")
+        .replace("day(.at)", "day(.at, 8h)").replace("day(at)", "day(at, 8h)")
+        .replace("hour(at)", "hour(at, 30m)").replace("bucket(at, 2m)", "bucket(at, 1d, 8h)")
+        + "\nmaintain bucketCounts: count posts by author, bucket(.at, 1d, 8h)\n  read <- allow\nquery bucketScalar(author: principal, at: time):\n  return bucketCounts[author, bucket(at, 1d, 8h)]\n";
+    let mut e = engine(&source);
+    // Epoch, negative time, both I53 endpoints, and the US DST transition
+    // dates. These are UTC millisecond values: every day is exactly 24 h.
+    let times = [-9_007_199_254_740_991, -57_600_001, -57_600_000, -1, 0, 28_799_999, 28_800_000, 28_800_001,
+        115_199_999, 115_200_000, 1_710_057_599_999, 1_710_057_600_000, 1_730_620_799_999, 1_730_620_800_000, 9_007_199_254_740_991];
+    for (n, at) in times.into_iter().enumerate() {
+        let result = e.mutate("add", None, Context::new("a", args(&format!("r{n}"), "a", at, true, 1))).unwrap();
+        assert!(matches!(result.state, WriteState::Sent { .. }), "{result:?}");
+    }
+    let backend = Backend { generation: e.generation(), schema: e.schema().clone(), programs: e.programs().cloned().collect() };
+    let (events, watermark) = e.snapshot_at("a", 1000).unwrap();
+    let page: StreamPage = serde_json::from_value(json!({"snapshot":true,"events":events.iter().map(|event| json!({"table":event.table,"kind":event.kind.word(),"id":event.id,"data":event.data.as_ref().map(wire::to_json)})).collect::<Vec<_>>(),"watermark":watermark,"more":false,"generation":e.generation()})).unwrap();
+    fn check<S: DeviceStore>(mut device: Device<S>, e: &mut Engine, page: &StreamPage, times: &[i64]) {
+        device.apply(page, true).unwrap();
+        for &at in times {
+            let input = BTreeMap::from([("at".into(), Value::Int(at))]);
+            let expected = object([("day", Value::Int((at - 28_800_000).div_euclid(86_400_000))),
+                ("hour", Value::Int((at - 1_800_000).div_euclid(3_600_000))), ("bucket", Value::Int((at - 28_800_000).div_euclid(86_400_000)))]);
+            let server = e.query("calendar", Context::new("a", input)).unwrap();
+            let local = device.query("calendar", "a", &json!({"at":at}), 1000).unwrap();
+            assert!(server.complete && local.complete); assert_eq!(server.data, expected); assert_eq!(local.data, expected);
+            let expected_count = times.iter().filter(|&&t| (t - 28_800_000).div_euclid(86_400_000) == (at - 28_800_000).div_euclid(86_400_000)).count() as i64;
+            let server = e.query("scalar", Context::new("a", BTreeMap::from([("at".into(), Value::Int(at)), ("author".into(), Value::Id("a".into()))]))).unwrap();
+            let local = device.query("scalar", "a", &json!({"at":at,"author":"a"}), 1000).unwrap();
+            assert!(server.complete && local.complete); assert_eq!(server.data, Value::Int(expected_count)); assert_eq!(local.data, server.data);
+            let bucket = device.query("bucketScalar", "a", &json!({"at":at,"author":"a"}), 1000).unwrap();
+            assert!(bucket.complete); assert_eq!(bucket.data, server.data);
+        }
+        for (op, at) in [("add", 28_799_999), ("edit", 28_800_000), ("remove", 28_800_000)] {
+            let input = if op == "remove" { json!({"row":"predicted"}) }
+                else { json!({"row":"predicted","author":"prediction","at":at,"selected":true,"score":1}) };
+            device.predict(op, "a", &input, 1000, vec![], 1).unwrap();
+            let server_args = if op == "remove" { BTreeMap::from([("row".into(), Value::Id("predicted".into()))]) }
+                else { args("predicted", "prediction", at, true, 1) };
+            let result = e.mutate(op, None, Context::new("a", server_args)).unwrap();
+            assert!(matches!(result.state, WriteState::Sent { .. }));
+            for time in [28_799_999, 28_800_000] {
+                let server = e.query("scalar", Context::new("a", BTreeMap::from([("at".into(), Value::Int(time)), ("author".into(), Value::Id("prediction".into()))]))).unwrap();
+                let local = device.query("scalar", "a", &json!({"at":time,"author":"prediction"}), 1000).unwrap();
+                assert!(server.complete && local.complete); assert_eq!(local.data, server.data);
+                assert_eq!(local.data, Value::Int(i64::from(op != "remove" && at == time)));
+            }
+        }
+    }
+    check(Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap(), &mut e, &page, &times);
+    let dir = std::env::temp_dir().join(format!("sb4-anchor-device-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    check(Device::open(&dir.join("store.sqlite"), Some(backend)).unwrap(), &mut e, &page, &times);
+    std::fs::remove_dir_all(dir).unwrap();
+    println!("calendar: hosts=3 boundary_inputs={} offset_ms=28800000 period_ms=86400000", times.len());
+}
+
+#[test]
+fn changing_calendar_offset_rebuilds_keys_without_source_backfill() {
+    let source = SOURCE.to_owned() + &DERIVED.replace("day(.at)", "day(.at, 8h)").replace("day(at)", "day(at, 8h)");
+    let mut e = engine(&source);
+    e.mutate("add", None, Context::new("a", args("r", "a", 28_800_000, true, 1))).unwrap();
+    let before = e.store().rows("posts").unwrap();
+    let old = e.schema().clone();
+    assert_eq!(e.store().rows("counts").unwrap()[0].field("day").unwrap(), &Value::Int(0));
+    let next = bound(&source.replace("8h", "9h"));
+    assert_ne!(serde_json::to_value(&old).unwrap(), serde_json::to_value(&next.schema).unwrap());
+    e.adopt(next.schema, next.programs.into_iter().map(|p| p.program)).unwrap();
+    assert_eq!(e.store().rows("counts").unwrap()[0].field("day").unwrap(), &Value::Int(-1));
+    assert_eq!(e.store().rows("posts").unwrap(), before);
+    println!("calendar adoption: offset_before_ms=28800000 offset_after_ms=32400000 source_rows_rewritten=0");
+}
 fn args(row: &str, author: &str, at: i64, selected: bool, score: i64) -> BTreeMap<String, Value> {
     BTreeMap::from([("row".into(), Value::Id(row.into())), ("author".into(), Value::Id(author.into())), ("at".into(), Value::Int(at)), ("selected".into(), Value::Bool(selected)), ("score".into(), Value::Int(score))])
 }

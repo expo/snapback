@@ -501,16 +501,18 @@ impl Parser {
         Ok(MaintainDecl { filter, keys, indexes, name, aggregate: aggregate.value, source, column, by, read, online_only, site })
     }
 
-    fn maintain_duration(&mut self) -> Fallible<Expr> {
+    fn maintain_duration(&mut self, offset: bool) -> Fallible<Expr> {
         let site = self.peek().site.clone();
         let negative = self.maybe("-");
         let number = self.take_kind(Kind::Number)?;
         let unit = self.word()?;
         let multiplier: i64 = match unit.value.as_str() { "ms" => 1, "s" => 1_000, "m" => 60_000, "h" => 3_600_000, "d" => 86_400_000, _ => 0 };
         let value = number.value.parse::<i64>().ok().and_then(|n| n.checked_mul(multiplier))
-            .filter(|n| !negative && *n > 0 && *n <= snapback4_core::value::I53_MAX);
+            .filter(|n| !negative && multiplier > 0 && (*n > 0 || (offset && *n == 0)) && *n <= snapback4_core::value::I53_MAX);
         let Some(value) = value else {
-            return Err(Diagnostic::new(&site, "E_QUARRY_MAINTAIN", "bucket duration must be a positive representable literal duration", "bucket(.at, 2m)").guide("maintains"));
+            let (message, rewrite) = if offset { ("calendar offset must be a nonnegative representable literal duration", "day(.at, 8h) or bucket(.at, 1d, 8h)") }
+                else { ("bucket duration must be a positive representable literal duration", "bucket(.at, 2m)") };
+            return Err(Diagnostic::new(&site, "E_QUARRY_MAINTAIN", message, rewrite).guide("maintains"));
         };
         Ok(Expr::Literal { value: Literal::Number(value.to_string()), site })
     }

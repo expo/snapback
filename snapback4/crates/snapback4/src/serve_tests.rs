@@ -28,7 +28,8 @@ impl Host {
             bound.programs.iter().map(|p| p.program.clone()),
         )
         .unwrap();
-        let presence = Arc::new(Live::default());
+        let clock = Arc::new(Mutex::new(crate::dev_clock::Clock::new(dev, 0).unwrap()));
+        let presence = Arc::new(Live::new(clock.clone()));
         engine.set_presence(Some(presence.clone()));
         let generation = engine.generation();
         let shared = Arc::new(Shared {
@@ -41,7 +42,7 @@ impl Host {
             personas: dev,
             hold_effects: false,
             hold_schedules: false,
-            clock: Mutex::new(crate::dev_clock::Clock::new(dev, 0).unwrap()), maintenance: Mutex::new(()),
+            clock, maintenance: Mutex::new(()),
             entropy: Mutex::new(1),
             presence,
             asset_transfers: AssetTransfers::default(),

@@ -9,6 +9,15 @@ pub struct CalendarKey {
     pub function: String,
     pub column: String,
     pub millis: i64,
+    #[serde(default, skip_serializing_if = "zero")]
+    pub offset: i64,
+}
+
+fn zero(value: &i64) -> bool { *value == 0 }
+
+// @ref LLP 3000.007#20.9 — anchored UTC ordinals use the existing integer key encoding on every host; zero offsets retain the old serialized form.
+pub fn calendar_ordinal(at: i64, millis: i64, offset: i64) -> i64 {
+    ((i128::from(at) - i128::from(offset)).div_euclid(i128::from(millis))) as i64
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -57,12 +66,12 @@ impl Maintain {
     pub fn selected(&self, image: &Value) -> bool { self.filter.as_ref().is_none_or(|p| p.matches(image)) }
     pub fn source_key(&self, image: &Value) -> Vec<Value> {
         self.by.iter().map(|field| match self.computed.get(field) {
-            Some(key) => Value::Int(image.field(&key.column).ok().and_then(|v| v.as_int().ok()).unwrap_or(0).div_euclid(key.millis)),
+            Some(key) => Value::Int(calendar_ordinal(image.field(&key.column).ok().and_then(|v| v.as_int().ok()).unwrap_or(0), key.millis, key.offset)),
             None => image.field(field).cloned().unwrap_or(Value::Null),
         }).collect()
     }
     pub fn bare_key(&self, field: &str) -> bool { self.by.iter().any(|f| f == field) && !self.computed.contains_key(field) }
-    pub fn evaluation_steps(&self) -> u64 { self.filter.as_ref().map_or(0, Predicate::steps) + self.by.len() as u64 + self.computed.len() as u64 }
+    pub fn evaluation_steps(&self) -> u64 { self.filter.as_ref().map_or(0, Predicate::steps) + self.by.len() as u64 + self.computed.len() as u64 + self.computed.values().filter(|key| key.offset != 0).count() as u64 }
     pub fn dependencies(&self) -> BTreeSet<String> {
         let mut fields = BTreeSet::new();
         if let Some(p) = &self.filter { p.fields(&mut fields); }
@@ -79,10 +88,10 @@ impl Maintain {
     }
     pub fn validate_keys(&self, source: &Table) -> Result<(), String> {
         for key in self.computed.values() {
-            if source.columns.get(&key.column) != Some(&ColumnType::Time) || key.millis <= 0
+            if source.columns.get(&key.column) != Some(&ColumnType::Time) || key.millis <= 0 || key.offset < 0 || key.offset >= key.millis
                 || !matches!(key.function.as_str(), "day" | "hour" | "bucket")
                 || (key.function == "day" && key.millis != 86_400_000) || (key.function == "hour" && key.millis != 3_600_000) {
-                return Err("computed maintain keys need a required time column and a positive calendar duration".into());
+                return Err("computed maintain keys need a required time column, a positive calendar duration and a nonnegative offset smaller than the period".into());
             }
         }
         Ok(())

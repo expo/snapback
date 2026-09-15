@@ -33,7 +33,7 @@ use maintenance::maintain;
 mod tests;
 
 pub struct Shared {
-    pub clock: Mutex<crate::dev_clock::Clock>,
+    pub clock: Arc<Mutex<crate::dev_clock::Clock>>,
     maintenance: Mutex<()>,
     pub engine: Mutex<Engine>,
     readers: Mutex<QueryReaders>,
@@ -152,31 +152,39 @@ const PRESENCE_GRACE: Duration = Duration::from_secs(35);
 /// The registry of open long polls, per principal: how many are open now,
 /// and when the last one ended. A device that holds `/changes?wait` open
 /// (every tier does) is connected; nothing else is.
-#[derive(Debug, Default)]
-pub struct Live(Mutex<BTreeMap<String, (u32, Option<Instant>)>>);
+#[derive(Debug)]
+pub struct Live {
+    polls: Mutex<BTreeMap<String, (u32, Option<i64>)>>,
+    clock: Arc<Mutex<crate::dev_clock::Clock>>,
+}
 
 impl Live {
+    // @ref LLP 3000.007#19.1 — presence remains server knowledge; development grace uses the same clock as the commit deciding effects.
+    fn new(clock: Arc<Mutex<crate::dev_clock::Clock>>) -> Self { Self { polls: Mutex::new(BTreeMap::new()), clock } }
+
     fn enter(&self, principal: &str) {
-        let mut map = lock(&self.0);
+        let mut map = lock(&self.polls);
         map.entry(principal.to_owned()).or_insert((0, None)).0 += 1;
     }
 
     fn leave(&self, principal: &str) {
-        let mut map = lock(&self.0);
+        let mut map = lock(&self.polls);
+        let now = lock(&self.clock).presence_now();
         if let Some(entry) = map.get_mut(principal) {
             entry.0 = entry.0.saturating_sub(1);
-            entry.1 = Some(Instant::now());
+            entry.1 = Some(now);
         }
-        map.retain(|_, (open, last)| *open > 0 || last.is_some_and(|at| at.elapsed() < PRESENCE_GRACE));
+        map.retain(|_, (open, last)| *open > 0 || last.is_some_and(|at| now.saturating_sub(at) < PRESENCE_GRACE.as_millis() as i64));
     }
 }
 
 impl Presence for Live {
     fn connections(&self, principal: &str) -> u64 {
-        let map = lock(&self.0);
+        let map = lock(&self.polls);
+        let now = lock(&self.clock).presence_now();
         match map.get(principal) {
             Some((open, _)) if *open > 0 => u64::from(*open),
-            Some((_, Some(last))) if last.elapsed() < PRESENCE_GRACE => 1,
+            Some((_, Some(last))) if now.saturating_sub(*last) < PRESENCE_GRACE.as_millis() as i64 => 1,
             _ => 0,
         }
     }
@@ -227,12 +235,13 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     crate::dev_replay::schedules(&mut engine, hold_schedules, clock.now()).map_err(|e| e.to_string())?;
     if !hold_schedules { engine.fire_schedules(clock.now()).map_err(|e| e.to_string())?; }
     let installed = crate::native::install(&mut engine, &project).map_err(|p| p.to_string())?;
-    let presence = Arc::new(Live::default());
+    let clock = Arc::new(Mutex::new(clock));
+    let presence = Arc::new(Live::new(clock.clone()));
     engine.set_presence(Some(presence.clone()));
     let seq = engine.seq().map_err(|e| e.to_string())?;
     let generation: u64 = engine.generation();
     let shared = Arc::new(Shared {
-        clock: Mutex::new(clock), maintenance: Mutex::new(()), engine: Mutex::new(engine), readers: Mutex::new(QueryReaders::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
+        clock, maintenance: Mutex::new(()), engine: Mutex::new(engine), readers: Mutex::new(QueryReaders::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
         #[cfg(test)] auth_work: Mutex::new(None),
         #[cfg(test)] upload_work: Mutex::new(None),
         #[cfg(test)] effect_wait: Mutex::new(None),
@@ -1168,6 +1177,7 @@ mod poison_tests {
     #[test]
     fn a_request_after_engine_poison_still_serves() {
         let engine = Engine::memory(Default::default(), Vec::<snapback4_core::ir::Program>::new()).unwrap();
+        let clock = Arc::new(Mutex::new(crate::dev_clock::Clock::new(true, 0).unwrap()));
         let shared = Arc::new(Shared {
             engine: Mutex::new(engine),
             readers: Mutex::new(QueryReaders::default()),
@@ -1178,9 +1188,9 @@ mod poison_tests {
             personas: true,
             hold_effects: false,
             hold_schedules: false,
-            clock: Mutex::new(crate::dev_clock::Clock::new(true, 0).unwrap()), maintenance: Mutex::new(()),
+            clock: clock.clone(), maintenance: Mutex::new(()),
             entropy: Mutex::new(1),
-            presence: Arc::new(Live::default()),
+            presence: Arc::new(Live::new(clock)),
             asset_transfers: AssetTransfers::default(),
             native: Mutex::new(None),
             auth: crate::auth::Admission::default(),

@@ -314,6 +314,12 @@ maintain hourlyPosts: count posts by authorId, hour(.at)
 maintain periodPosts: count posts by authorId, bucket(.at, 2m)
   read <- allow
   online only
+maintain digestPosts: count posts by authorId, day(.at, 8h)
+  read <- allow
+  online only
+maintain anchoredPeriods: count posts by authorId, bucket(.at, 1d, 8h)
+  read <- allow
+  online only
 maintain reactionCounts: count reactions by principal, postId, emoji
   read <- .principal = viewer
 maintain postLikes: count reactions where .direction > 0 by postId
@@ -327,6 +333,10 @@ query today():
   return dailyPosts[viewer, day(now)]
 query calendar():
   return { hour: hour(now), bucket: bucket(now, 2m) }
+query anchoredKeys():
+  return { day: day(now, 8h), hour: hour(now, 30m), bucket: bucket(now, 1d, 8h) }
+query digestToday():
+  return digestPosts[viewer, day(now, 8h)]
 query mostLiked(c: cursor ?):
   return postLikes after c last 10 by byCount { postId, count: .value }
 query chips(postId: posts, c: cursor ?):
@@ -820,6 +830,13 @@ mutation postStory(body: text <=500, ttl: int ?):
   return insert stories { authorId: viewer, body, expiresAt: now + ttl if ttl != null else null }
 ```
 
+In tests, use `snapback4 clock advance <dur>` or `POST /dev/clock/advance`; each example line advances the running dev once.
+
+```sh
+snapback4 clock advance 36s
+curl -X POST http://127.0.0.1:4400/dev/clock/advance -H 'Content-Type: application/json' -d '{"duration":"36s"}'
+```
+
 A row past the time in the column is absent — to every reader, on every
 host, before any rule — from that moment; the server's sweep deletes it
 within a second, and the deletion streams to each device holding it, so it
@@ -1076,6 +1093,13 @@ exactly once across restarts, passing `periodStart` and `periodEnd` when
 the job declares them (and nothing else); a schedule first seen fires from
 its next boundary. `snapback4 run <job> '{..}'` runs one here and now.
 
+In tests, use `snapback4 clock advance <dur>` or `POST /dev/clock/advance`; each example line advances the running dev once.
+
+```sh
+snapback4 clock advance 36s
+curl -X POST http://127.0.0.1:4400/dev/clock/advance -H 'Content-Type: application/json' -d '{"duration":"36s"}'
+```
+
 For development and tests, `snapback4 dev --clock-offset +25h` starts the
 server 25 hours ahead of wall time. Ordinary and ordered batch mutations
 both stamp `now` from this clock. The clock keeps ticking monotonically;
@@ -1237,6 +1261,13 @@ import { runWorker } from "snapback4/worker";
 runWorker({ url, token, effects: { notify: async (payload, meta) => { await push(payload); return { providerId: meta.id }; } } });
 ```
 
+In tests, use `snapback4 clock advance <dur>` or `POST /dev/clock/advance`; each example line advances the running dev once.
+
+```sh
+snapback4 clock advance 36s
+curl -X POST http://127.0.0.1:4400/dev/clock/advance -H 'Content-Type: application/json' -d '{"duration":"36s"}'
+```
+
 The loop is `POST /effects/claim { effect?, limit?, lease?, wait? }` (a
 lease in seconds; `wait` long-polls until something is due), then `POST
 /effects/<id>/done { result? }` or `POST /effects/<id>/failed { error,
@@ -1310,6 +1341,7 @@ no connected client (guide effects); a query reads it for an online mark.
 On a device the word is unknown: a query that reads it is `complete: false`.
 A mutation stays eligible to predict when presence decides only effects, so its rows are independent of presence and the server decides who is notified at commit.
 Presence-derived values may use comparisons, `exists`, boolean logic and field values. Arithmetic, fallible builtins, reads, `new` or refusals controlled by presence keep `predicts: never`, as do conditional values without a fixed-size proof. Prediction charges both safe presence arms, so it may reach a bound even when the server would fit. If an untaken arm needs a combined guard's value refinement, the device queues without a row; put the data guard outside presence.
+In tests: `snapback4 clock advance 36s` expires the grace after a poll ends; open polls stay connected, and online client queries read the server's updated answer (guide clock).
 `snapback4 run` reads nobody as connected."##,
         "bounds" => r##"# Bounds and the meter
 

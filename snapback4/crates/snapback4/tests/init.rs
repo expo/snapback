@@ -11,6 +11,33 @@ impl Dir {
     fn run(&self, flag: &str) -> std::process::Output { Command::new(BIN).args(["init", flag]).current_dir(&self.0).output().unwrap() }
 }
 impl Drop for Dir { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
+
+#[test]
+fn expo_metro_blocks_store_files_and_preserves_expo_exclusions() {
+    let dir = Dir::new();
+    fs::write(dir.0.join("package.json"), r#"{"type":"module"}"#).unwrap();
+    assert!(dir.run("--expo").status.success());
+    let generated = dir.0.join("metro.config.cjs");
+    let reference = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../apps/chat-expo/metro.config.js");
+    // Evaluate the actual configs with Expo's resolver shape, including its
+    // single-RegExp and array forms, without starting Metro on the host.
+    let script = r#"const fs = require('node:fs'), vm = require('node:vm'), path = require('node:path'), assert = require('node:assert/strict');
+for (const file of process.argv.slice(1)) for (const existing of [undefined, /expo-hidden/, [/expo-hidden/]]) {
+  const config = { resolver: { assetExts: [], blockList: existing }, transformer: {} };
+  const req = name => name === 'expo/metro-config' ? { getDefaultConfig: () => config } : require(name);
+  req.resolve = name => name;
+  vm.runInNewContext(fs.readFileSync(file, 'utf8'), { require: req, __dirname: path.dirname(file), module: { exports: {} } });
+  const blocked = file => [].concat(config.resolver.blockList ?? []).some(re => re.test(file));
+  for (const file of ['/app/.snapback4/store.sqlite', '/app/.snapback4/store.sqlite-wal', '/workspace/other/.snapback4/assets/bytes', 'C:\\app\\.snapback4\\store.sqlite-shm']) assert.ok(blocked(file), file);
+  for (const file of ['/app/snapback/schema.q', '/app/src/client.ts', '/app/.snapback4-not-store/file']) assert.ok(!blocked(file), file);
+  if (existing) assert.ok(blocked('/app/expo-hidden/file'));
+  assert.equal(config.resolver.unstable_enablePackageExports, true);
+}
+console.log('Metro: 2 configs, 3 Expo blockList shapes, store paths excluded and source paths watched');"#;
+    let output = Command::new("node").args(["-e", script]).arg(generated).arg(reference).output().unwrap();
+    println!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    assert!(output.status.success());
+}
 #[test]
 fn init_merges_packages_and_preserves_unrelated_metadata() {
     for flag in ["--online", "--expo"] {
