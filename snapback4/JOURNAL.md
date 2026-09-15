@@ -14173,6 +14173,299 @@ The Rust failure is the new unresolved F3 regression, not an inherited
 failure. Client failure: `react.test.mjs` Chromium exits with `SIGABRT`.
 It was rerun alone with `node --test packages/snapback4/test/react.test.mjs`:
 
+## 2026-09-14 — W3c: 0.2.16 diagnostic and CLI calibration repairs
+
+Implemented the lane against base `0c6b0c03cfea21d65eab728035ef87776a4144a3` under
+LLP 3000.007 §18.5 and §20.1–§20.2. The retained calibration report is
+`/Users/ccheever/projects/snapback-next-20260914/FRICTION-0.2.16.md`; its
+builder evidence is under
+`/Users/ccheever/clique-sb4-20260915-astra-next/lanes/astra-snapback4`.
+Read the cited m5/m6/m8 diagnostics, guide lookups, Node seed failure,
+current Quarry modules and the corresponding run-log entries. Tests retain
+the offending expressions in reduced schemas; F4 preserves the builder's
+exact source line and column. The final builder files already contain the
+manual repairs, so the refusals were reconstructed from those expressions
+and the retained diagnostic record, not claimed as an untouched old checkout.
+
+Built: unary `not` now reaches the existing trailing-shape refusal and
+mechanical fix; the CLI actually writes `{ ...messageCard }`. Cursor index
+refusal is `E_CURSOR_INDEX`, linked to `indexes`, with the existing same-file
+and cross-file `, id` repair. `N_NO_CURSOR` is suppressed when the pinned
+ordinary group cap fits a direct page, while smaller pages, unpinned reads
+and merges of separately capped groups keep the note. Five aliases add
+`maintain`, `time`, `clock`, `replay` and `seed`; `maintains` was already a
+card at this base. Card-content search includes the language card for words
+it contains. Effects, jobs, personas and the README now advertise
+`dev --hold-effects --hold-schedules` beside replay and seeding.
+
+Every starter writes `snapback/package.json` with `{"type":"module"}`;
+an existing CommonJS app keeps its root package type and CommonJS Metro
+configuration. A real Node 24.18.0 seed script imports the generated `api`.
+An existing nested package file is a preflight conflict; nothing is written.
+
+Presence keeps the original read spelling and source location beside the
+lowered IR. Its assertion, summary, change notes and residency facts no
+longer print internal body paths. Identical lowered presence keys retain
+all matching source locations instead of guessing one occurrence. Ordinary
+point reads now retain the same source map that page reads already had;
+source locations replace internal sites in published residency facts. No
+executed IR or value serialization, meter ceiling or corpus case changed.
+
+Measured: 7 original regression tests red before their fixes; 9 calibration
+tests green at the end (including the merge guard and six-word CLI lookup).
+For cap 50, `first 49/50/51` produces 1/0/0 cursor notes. Two capped groups
+merged into a page of 50 produce 1 note. Six guide CLI lookups exit 0.
+The CommonJS-generated-API import changes exit 1 → 0. Both shape and index
+repairs compile on the next check, including parenthesized Boolean
+predicates and an index in another source file. No throughput or latency
+benchmark was requested; command wall times below are shared-host test
+observations, not a performance claim.
+
+What I learned: the shape repair was already correct once selected; its AST
+search omitted unary expressions. A per-lane cap cannot justify suppressing
+a merge's cursor note. CLI tests caught an old error-code expectation in the
+package suite after the Rust tests were green. Source provenance belongs
+beside the IR, and the existing published holds needed to be discoverable
+where builders look for replay and seed instructions.
+
+### Validation commands and verbatim summaries
+
+All Node/Bun commands used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+Cargo commands ran from `snapback4/`, except one explicitly identified
+`--manifest-path` invocation below. That invocation selected the correct
+workspace but did not obey the lane's working-directory instruction.
+Full suites and ref-check ran from the repository root. Output redirections
+went to `/tmp/w3c-*.log`; no evidence logs or generated API were committed.
+The following ledger retains intermediate reds as well as the final results.
+
+Before fixes; Cargo stopped after the guide target.
+
+```sh
+cargo test -p snapback4-lang --test guide --test residency_notes calibration -- --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+```
+
+Before fixes; Cargo stopped after the fix target.
+
+```sh
+cargo test -p snapback4 --test fix --test init calibration -- --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+```
+
+Before fixes. The cap regression is valid; the first presence fixture lacked a principal index and was corrected before its valid red below.
+
+```sh
+cargo test -p snapback4-lang --test residency_notes calibration -- --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+```
+
+Before the presence fix, run from the root with the explicit manifest; valid internal-path regression.
+
+```sh
+cargo test --manifest-path snapback4/Cargo.toml -p snapback4-lang --test residency_notes calibration_presence -- --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.01s
+```
+
+Before the init fix; Node 24 reproduces the export failure.
+
+```sh
+cargo test -p snapback4 --test init calibration -- --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 1.21s
+```
+
+First complete targeted pass.
+
+```sh
+cargo test -p snapback4-lang --test guide --test residency_notes --test presence --no-fail-fast
+```
+
+```text
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+First complete CLI pass.
+
+```sh
+cargo test -p snapback4 --test fix --test init --no-fail-fast
+```
+
+```text
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.16s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+```
+
+Original seven regressions green.
+
+```sh
+cargo test -p snapback4-lang --test guide --test residency_notes calibration --no-fail-fast -- --nocapture
+cargo test -p snapback4 --test fix --test init calibration --no-fail-fast -- --nocapture
+```
+
+```text
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 2.27s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.08s
+```
+
+Expanded content-search regression: return missed language.
+
+```sh
+cargo test -p snapback4-lang --test guide calibration_guide -- --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.01s
+```
+
+Regression for the initial cap-note change: two lanes still need a cursor.
+
+```sh
+cargo test -p snapback4-lang --test residency_notes calibration_merge -- --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+```
+
+Intermediate: arithmetic was not a word on the language card; added the explicit time-arithmetic sentence.
+
+```sh
+cargo test -p snapback4-lang --test guide --test residency_notes --test presence --no-fail-fast
+```
+
+```text
+test result: FAILED. 19 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+Expanded CLI suite.
+
+```sh
+cargo test -p snapback4 --test fix --test init --no-fail-fast
+```
+
+```text
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.20s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+```
+
+Guide after time-arithmetic explanation.
+
+```sh
+cargo test -p snapback4-lang --test guide
+```
+
+```text
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+```
+
+Affected suites, in Cargo output order: chat, ergonomics, presence, residency_notes.
+
+```sh
+cargo test -p snapback4-lang --test residency_notes --test presence --test chat --test ergonomics --no-fail-fast
+```
+
+```text
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+```
+
+Final full Rust CLI suites.
+
+```sh
+cargo test -p snapback4 --test fix --test init --no-fail-fast
+```
+
+```text
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.31s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+```
+
+Final language calibration: 2 guide + 3 residency tests.
+
+```sh
+cargo test -p snapback4-lang --test guide --test residency_notes calibration --no-fail-fast -- --nocapture
+```
+
+```text
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.02s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+```
+
+Final CLI calibration: 3 fix/guide + 1 init tests.
+
+```sh
+cargo test -p snapback4 --test fix --test init calibration --no-fail-fast -- --nocapture
+```
+
+```text
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 9.35s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.11s
+```
+
+Final prose formatting verified.
+
+```sh
+cargo test -p snapback4-lang --test guide
+```
+
+```text
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+```
+
+Rerun alone after the first full suite encountered an occupied port.
+
+```sh
+cargo test -p snapback4 --test witness driver::cli_rejects_milestone_appended_after_done -- --nocapture
+```
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 9.20s
+```
+
+After changing two cursor-refusal assertions to the new code.
+
+```sh
+node --test packages/snapback4/test/periphery.test.mjs
+```
+
+```text
+ℹ tests 17
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ duration_ms 3336.900625
+```
+
+Isolated Chromium SIGABRT in the sandbox; still red.
+
+```sh
+node --test packages/snapback4/test/react.test.mjs
+```
+
 ```text
 ℹ tests 1
 ℹ pass 0
@@ -14465,6 +14758,137 @@ test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fin
 -- ok: cargo test (351 s)
 -- ok: chat app typecheck (0 s)
 -- ok: expo app typecheck (1 s)
+
+ℹ duration_ms 455.681875
+```
+
+### Exact diagnostic text
+
+F4 before, verbatim from `evidence/m5-check.txt` (the `--fix` output was
+identical):
+
+```text
+chat.q:258:106 — E_QUARRY_TYPE: a shape applies to a row, an object or a page; got bool
+  rewrite: shape a read: `messages[id] { body }`
+  guide: types
+```
+
+F4 after, from the padded regression fixture at the same location:
+
+```text
+chat.q:258:106 — E_QUARRY_TYPE: shape messageCard after where attaches to bool inside the predicate; apply it to the page with { ...messageCard }
+  rewrite: { ...messageCard } — check --fix applies it
+  guide: shapes
+```
+
+The CLI applies that rewrite and then reports no problems.
+
+F11 before, verbatim from `evidence/m6-check.txt`:
+
+```text
+chat.q:148:1 — E_NOT_PREDICTABLE: mutation chat.send asserts predicts, but connected[recipient] decides a fallible or variable-cost arm at programs.chat.send.body.19.then.0.loop.0
+  rewrite: decide only the emit with presence; read it on the server in a service mutation for anything else
+  guide: prediction
+```
+
+The reduced source reproduced the same refusal with
+`programs.chat.send.body.0`. After:
+
+```text
+chat.q:8:1 — E_NOT_PREDICTABLE: mutation chat.send asserts predicts, but connected[recipient] decides a fallible or variable-cost arm (read at chat.q:9:17)
+  rewrite: decide only the emit with presence; read it on the server in a service mutation for anything else
+  guide: prediction
+```
+
+Hoisting `profiles[viewer].displayName` before the presence arm compiles
+and leaves `predicts: eligible`. The assertion, summary and transition-note
+regression all reject internal paths.
+
+F8 before, verbatim from `evidence/m8-check.txt`:
+
+```text
+insights.q:60:22 — E_QUARRY_UNKNOWN: index rankedPosts.byScore cannot carry a cursor: it neither ends in id nor is unique
+  rewrite: by byScore: score, at, postId, id — check --fix applies it
+  guide: language
+```
+
+F8 after in the reduced index fixture:
+
+```text
+insights.q:8:22 — E_CURSOR_INDEX: index rankedPosts.byScore cannot carry a cursor: it neither ends in id nor is unique
+  rewrite: by byScore: score, at, postId, id — check --fix applies it
+  guide: indexes
+```
+
+L2 before, verbatim from `evidence/m8-check-final.txt`:
+
+```text
+note: chat.q:106:1 — N_NO_CURSOR: query chat.settings returns a page of 50 members rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — chat.settings(.., c: cursor ?): return members[..] after c last 50 by <index>
+  guide: reads
+```
+
+After: no `N_NO_CURSOR` for that cap-50, page-50 read. A page of 49 still
+prints the unchanged note text with its own bound and source name.
+
+F12 before:
+
+```text
+no card named maintain; nearest: evolution, personas, reads
+no card named time; nearest: reads, assets, native
+```
+
+After, the first stdout lines are:
+
+```text
+# Maintains: filtered contributions, calendar groups, pages and rank
+# Quarry — the language card
+```
+
+`clock` returns the language card too; `replay` and `seed` return `# Personas`
+with the hold flags. `maintains` continues to return its existing card.
+
+F14 before, reproduced on Node 24.18.0 as well as recorded on Node 25.9.0:
+
+```text
+SyntaxError: The requested module '../snapback/generated/api.ts' does not provide an export named 'api'
+```
+
+After, the importing script exits 0 and prints:
+
+```text
+api import: ok
+```
+
+### Full-suite disposition
+
+Ran twice from the repository root:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+```
+
+First run: summed Rust pass/fail/ignored = (826, 1, 4). Verbatim stage and JavaScript summaries:
+
+```text
+== cargo build
+-- ok: cargo build (2 s)
+== wasm build
+-- ok: wasm build (14 s)
+== package typecheck
+-- ok: package typecheck (1 s)
+== package build
+-- ok: package build (0 s)
+== chat app check
+-- ok: chat app check (1 s)
+== cargo test
+-- FAIL: cargo test (369 s)
+== chat app typecheck
+-- ok: chat app typecheck (1 s)
+== expo app typecheck
+-- ok: expo app typecheck (1 s)
+== fixture wrapper tests
 ℹ tests 9
 ℹ pass 9
 ℹ fail 0
@@ -14473,6 +14897,46 @@ test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fin
 ℹ todo 0
 ℹ duration_ms 8440.321208
 -- ok: fixture wrapper tests (8 s)
+
+ℹ duration_ms 7927.500625
+-- ok: fixture wrapper tests (8 s)
+== client tests
+ℹ tests 204
+ℹ pass 202
+ℹ fail 2
+ℹ cancelled 0
+ℹ duration_ms 41975.074292
+-- FAIL: client tests (42 s)
+== 2 failure(s) in 387 s
+```
+
+Final run: summed Rust pass/fail/ignored = (829, 0, 4). Verbatim stage and JavaScript summaries:
+
+```text
+== cargo build
+-- ok: cargo build (1 s)
+== wasm build
+-- ok: wasm build (2 s)
+== package typecheck
+-- ok: package typecheck (0 s)
+== package build
+-- ok: package build (1 s)
+== chat app check
+-- ok: chat app check (2 s)
+== cargo test
+-- ok: cargo test (353 s)
+== chat app typecheck
+-- ok: chat app typecheck (1 s)
+== expo app typecheck
+-- ok: expo app typecheck (1 s)
+== fixture wrapper tests
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ duration_ms 8726.37675
+-- ok: fixture wrapper tests (9 s)
+== client tests
 ℹ tests 204
 ℹ pass 203
 ℹ fail 1
@@ -14521,3 +14985,45 @@ code files stay below 1,500 lines; `git diff --check` is clean. The package
 README and feeds card Quarry agree and compile without diagnostics or
 notes. No diagnostic-text change was requested or made; no new `E_` or
 `N_` code needed an entry in `guide::CODES`.
+
+ℹ duration_ms 42846.715583
+-- FAIL: client tests (43 s)
+== 1 failure(s) in 359 s
+```
+
+The first run's Rust failure was
+`driver::cli_rejects_milestone_appended_after_done`: the chosen port 65118
+was already occupied (`E_WITNESS_PORT`). It passed alone (1/0) and in the
+final full suite. The first client run had the obsolete cursor-code assertion
+in `periphery.test.mjs` and the Chromium abort. Both same-file and cross-file
+assertions now require `E_CURSOR_INDEX`; the periphery suite passes 17/0.
+The final full suite's only red is `react.test.mjs`, whose browser exits
+SIGABRT at launch in this sandbox; its isolated rerun is 0/1. This matches
+the lane brief's environment artifact. It is not a claimed product regression
+or a base-verified pre-existing failure; no baseline browser rerun was done.
+The lead still needs the browser check outside this sandbox.
+
+No brief item was dropped. No commits, pushes, tags, publication, sub-agents,
+remote machines, dependency installation or corpus edits were performed.
+Supporting files beyond the named initial read list were
+`bind/program.rs` (cursor code and presence metadata), `bind/program/expr.rs`
+(source capture), `diag.rs` and `guide/codes.rs` (code routing/registry),
+`guide/personas.rs` (seed/replay discovery), the existing Rust test suites,
+and `packages/snapback4/test/periphery.test.mjs` (two error-code assertions).
+These implement the stated lane scope; no other-lane runtime file was touched.
+The largest changed code file is 1,287 lines; Markdown is uncapped.
+
+Final root checks:
+
+```sh
+./ref-check --verbose
+git diff --check
+```
+
+```text
+ref-check: ok — 480 LLP docs, 8906 refs in 23674 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` exits 0 with no output. Working tree: 20 intended files,
+uncommitted. The final reference summary is after appending this entry;
+this closing paragraph adds no reference or file.

@@ -1,5 +1,6 @@
 pub const CODES: &[(&str, &str)] = &[
     ("E_STORE_RESTORE", "family store — the same backend store identity reports a head below this device's watermark. Sync and reads halt; stop the client and use a fresh device store and outbox for the restored backend. A retry or backend adoption does not reacquire the same identity. See `guide sync`."),
+    ("E_CURSOR_INDEX", "a cursor needs an index ending in id or a total unique key. Append id to the named index with check --fix; guide indexes."),
     ("E_QUARRY_MAINTAIN", "maintain predicates use row-local typed scalar comparisons; group keys are bare columns or day/hour/bucket of required time columns; scalar reads need the complete key. Follow the expression-specific rewrite; guide maintains."),
     ("E_QUARRY_MAINTAIN_EXPIRE", "a value-order maintain index cannot stay exact when its source expires without a commit. Use a live bounded query or the scheduled ranked-table recipe; guide expire."),
     ("E_WITNESS_INPUT", "invalid witness arguments, launch configuration or signal label. Use snapback4 guide witness for the flags and app recipe. guide witness."),

@@ -10,9 +10,9 @@ pub fn execution(schema: &Schema, program: &Program) -> Execution {
     execution_with_presence(schema, program, None)
 }
 
-pub(super) fn presence_facts(program: &Program, ownership: &super::program::setup::Ownership) -> Execution {
+pub(super) fn presence_facts(program: &Program, ownership: &super::program::setup::Ownership, sources: &[(Expr, crate::diag::Site, String)]) -> Execution {
     let mut fact = Execution::default();
-    presence::inspect(program, &mut fact, ownership);
+    presence::inspect(program, &mut fact, ownership, sources);
     fact
 }
 
@@ -36,7 +36,7 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
     let mut inspected_sites = Vec::new();
     inspect(schema, &program.body, &mut requires, &mut inspected_sites);
     if program.kind == ProgramKind::Mutation {
-        let presence = presence.cloned().unwrap_or_else(|| presence_facts(program, &BTreeMap::new()));
+        let presence = presence.cloned().unwrap_or_else(|| presence_facts(program, &BTreeMap::new(), &[]));
         fact.connected_effects_only = presence.connected_effects_only;
         fact.prediction_guards = presence.prediction_guards;
         fact.sites.extend(presence.sites);

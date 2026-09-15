@@ -81,8 +81,6 @@ pub fn unknown(site: &Site, message: impl Into<String>, rewrite: impl Into<Strin
     let diagnostic = Diagnostic::new(site, "E_QUARRY_UNKNOWN", message, rewrite);
     if diagnostic.message.contains(" has no index ") && diagnostic.rewrite.starts_with("by ") && !diagnostic.rewrite.contains('<') {
         diagnostic.mechanical()
-    } else if diagnostic.message.starts_with("index ") && diagnostic.message.ends_with("cannot carry a cursor: it neither ends in id nor is unique") && diagnostic.rewrite.starts_with("by ") {
-        diagnostic.mechanical()
     } else {
         diagnostic
     }
@@ -118,7 +116,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_QUARRY_SYNTAX" => "language",
         "E_QUARRY_UNSUPPORTED" => "language",
         "E_QUARRY_TYPE" => "types",
-        "E_QUARRY_AMBIGUOUS" => "indexes",
+        "E_QUARRY_AMBIGUOUS" | "E_CURSOR_INDEX" => "indexes",
         "E_QUARRY_PLACEMENT" => "programs",
         "E_UNBOUND_LOOP" | "E_UNBOUND_SCAN" => "bounds",
         "E_SYNC" => "sync",

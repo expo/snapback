@@ -31,6 +31,7 @@ promises a form the compiler refuses.
 my-app/
   snapback/schema.q          the backend: tables, rules, sync, queries, mutations
   snapback/worker.ts          optional Node worker: effects and actions (dev starts it)
+  snapback/package.json      ESM boundary for Node workers and seed scripts
   snapback/generated/api.ts  written by `check`; never edited, never committed
   src/                       your client: React on the web, React Native on Expo
 ```
@@ -52,6 +53,9 @@ stay live through `/changes`, with no replica. Both tiers use the same
 rules, meter, identity, assets and jobs. Add `sync` and open a local-first
 client when the app needs offline data. `init --expo` adds the phone
 starter, selecting the native tier when available and online in Expo Go.
+Every starter writes `snapback/package.json` with `{"type":"module"}`, so
+Node ESM seed scripts can import `api` from `snapback/generated/api.ts`
+even when the app's package.json says `"type":"commonjs"`.
 
 ## 2. Quarry
 
@@ -1745,7 +1749,9 @@ step.
   the previous generation serving and prints the diagnostics); the store
   lives in `.snapback4/store.sqlite` and persists across runs, and
   `--fresh` uses one in memory that dies with the process (acceptance
-  scripts start from nothing). For recorded-action replays, `--hold-effects`
+  scripts start from nothing). Run `snapback4 dev --hold-effects --hold-schedules`
+  while seeding or replaying recorded actions without an app replay flag.
+  For recorded-action replays, `--hold-effects`
   prevents workers from claiming effects; emitted effects remain durable and
   become claimable after restarting without the flag. `--hold-schedules`
   prevents schedule admission; restart without it resumes at the next boundary,
@@ -1776,6 +1782,9 @@ step.
   "row": { "id": "..", .. } }, ..]`, writes the rows as the system
   principal in one commit (rules bypassed; validation, constraints,
   aggregates and sync apply) and answers `{ "seeded": N }`.
+  For seeding or recorded-action replay, run
+  `snapback4 dev --hold-effects --hold-schedules` to hold effect claims and
+  scheduled jobs without an app replay flag.
 - **`snapback4 run <op> ['<json args>'] [--as alice] [--json]`** runs one
   operation against the local store (the persona defaults to alice) and
   prints the result, the meter and, for a mutation, the partition events;

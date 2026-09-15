@@ -29,6 +29,8 @@ pub fn init(options: &Options) -> i32 {
             *name = match *name { "metro.config.js" => "metro.config.cjs", "babel.config.js" => "babel.config.cjs", other => other };
         }
     }
+    // @ref LLP 3000.007#20.2 — generated TypeScript is ESM even inside an existing CommonJS app.
+    files.push(("snapback/package.json", "{\"type\":\"module\"}\n".into()));
     // Check every destination before writing any starter file.
     for (name, _) in &files {
         let alternate = match *name { "metro.config.cjs" => Some("metro.config.js"), "babel.config.cjs" => Some("babel.config.js"), "metro.config.js" => Some("metro.config.cjs"), "babel.config.js" => Some("babel.config.cjs"), _ => None };

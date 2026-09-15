@@ -27,6 +27,8 @@ pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "maintains", "ru
 pub const ALIASES: &[(&str, &str)] = &[
     ("simulator", "witness"), ("offline proof", "witness"),
     ("grammar", "language"), ("quarry", "language"),
+    ("maintain", "maintains"), ("time", "language"), ("clock", "language"),
+    ("replay", "personas"), ("seed", "personas"),
     ("predict", "prediction"), ("predictable", "prediction"), ("offline", "prediction"),
     ("optimistic", "prediction"), ("pending", "prediction"),
     ("pagination", "reads"), ("paging", "reads"), ("cursor", "reads"), ("next", "reads"),
@@ -138,6 +140,10 @@ qualified job name too: `schedule repair every 1m: timeline.repair`; an unambigu
 bare module job gets this rewrite from `check --fix`. Comments
 start with `--`. Blocks indent with two spaces. Everything the compiler
 accepts is below, once; the suite compiles and runs this file.
+
+Time arithmetic uses milliseconds: `now + 60000` is one minute from now,
+and `now - .at` is elapsed time; `day(now)`, `hour(now)` and `bucket(now, 2m)`
+produce UTC calendar ordinals. See `guide jobs` for scheduled work.
 
 ```quarry
 use identity                          -- guests and password accounts; `use identity guests` or `use identity password` admits one kind
@@ -1019,6 +1025,10 @@ Queries cannot write or mint ids, including through a helper; the call site name
 the write that does not belong."##,
         "jobs" => r##"# Jobs and schedules: the server's own work, on its own clock
 
+For seeding or recorded-action replay, run
+`snapback4 dev --hold-effects --hold-schedules` to hold effect claims and
+scheduled jobs without an app replay flag.
+
 Jobs in `snapback/jobs.q` are named `jobs.<name>` even in that file's schedules;
 `schema.q` jobs use their bare names. `check --fix` qualifies an unambiguous bare module job.
 
@@ -1147,6 +1157,10 @@ reads. A query, not a mutation, can be native too (LLP 3000.005 §9)."##,
         "search" => search::CARD,
         "actions" => actions::CARD,
         "effects" => r##"# Effects: the outside world, performed by a worker
+
+For seeding or recorded-action replay, run
+`snapback4 dev --hold-effects --hold-schedules` to hold effect claims and
+scheduled jobs without an app replay flag.
 
 ```quarry
 effect notify

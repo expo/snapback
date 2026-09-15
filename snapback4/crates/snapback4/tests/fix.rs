@@ -52,7 +52,6 @@ fn an_unmarked_or_inexact_rewrite_cannot_change_source() {
 fn the_mechanical_class_is_explicit_on_constructors() {
     let site = Site::new("schema.q", 1, 1);
     assert!(diag::ambiguous(&site, "choose", "t[x] by byX").mechanical);
-    assert!(diag::unknown(&site, "index t.byOwner cannot carry a cursor: it neither ends in id nor is unique", "by byOwner: owner, id").mechanical);
     for guessed in ["elif", "? :", "?.", "len", "//", "#", "proc"] { assert!(diag::unsupported(&site, guessed, "exact rewrite").mechanical); }
     assert!(!diag::unsupported(&site, "while", "use a bounded for").mechanical);
     assert!(!diag::unknown(&site, "unknown name", "did you mean something else?").mechanical);
@@ -296,9 +295,12 @@ fn concurrent_fix_subprocess() {
 
 #[test]
 fn filtered_page_shape_fix_keeps_comments_strings_and_other_shapes() {
-    let prefix = "table posts:\n  parentId: posts ?\n  body: text <=100\n  public 'posts'\nshape postCard = { id, body }\n";
+    let prefix = "table posts:\n  parentId: posts ?\n  body: text <=100\n  tombstone: bool default false\n  public 'posts'\nshape postCard = { id, body }\n";
     for (suffix, expected) in [
         ("where .parentId = null postCard -- café postCard", "where .parentId = null { ...postCard } -- café postCard"),
+        ("where not .tombstone postCard -- keep", "where not .tombstone { ...postCard } -- keep"),
+        ("where (not .tombstone postCard)", "where (not .tombstone ) { ...postCard }"),
+        ("where not (.tombstone postCard)", "where not (.tombstone ) { ...postCard }"),
         ("where .body = 'postCard' postCard", "where .body = 'postCard' { ...postCard }"),
         ("where .parentId = null postCard\n", "where .parentId = null { ...postCard }\n"),
         ("where (.parentId = null postCard)", "where (.parentId = null ) { ...postCard }"),
@@ -308,5 +310,38 @@ fn filtered_page_shape_fix_keeps_comments_strings_and_other_shapes() {
         let expected = source.replace(suffix, expected);
         let output = check_fix(&[("schema.q", &source, &expected)], true);
         assert!(String::from_utf8(output.stderr).unwrap().contains("{ ...postCard }"));
+    }
+}
+
+#[test]
+fn calibration_bool_shape_is_fixed_by_cli() {
+    let prefix = "table messages:\n  conversationId: id\n  body: text <=2000\n  tombstone: bool default false\n  ordinal: int\n  by byConversationWords: conversationId, words(body), ordinal, id\n  public 'messages'\nshape messageCard = { id, body }\n";
+    let source = format!("{prefix}{}query searchChat(conversationId: id, q: text <=100, c: cursor ?):\n  return messages[conversationId] matching q after c last 20 by byConversationWords where not .tombstone messageCard\n", "\n".repeat(257 - prefix.lines().count() - 1));
+    let bad = snapback4_lang::compile(&[("chat.q".into(), source.clone())]);
+    println!("{}", bad.diagnostics[0]);
+    assert!(bad.diagnostics[0].message.starts_with("shape messageCard after where attaches to bool"));
+    assert!(bad.diagnostics[0].mechanical);
+    check_fix(&[("chat.q", &source, &source.replace("where not .tombstone messageCard", "where not .tombstone { ...messageCard }"))], true);
+}
+
+#[test]
+fn calibration_cursor_index_has_specific_code_and_cli_repair() {
+    let source = "table rankedPosts:\n  score: int\n  at: time\n  postId: id\n  by byScore: score, at, postId\n  public 'Current 24-hour original-post ranking'\nquery trending(c: cursor ?):\n  return rankedPosts after c last 10 by byScore { rankScore: .score }\n";
+    let bad = snapback4_lang::compile(&[("insights.q".into(), source.into())]);
+    println!("{}", bad.diagnostics[0]);
+    assert_eq!(bad.diagnostics[0].code, "E_CURSOR_INDEX");
+    assert_eq!(bad.diagnostics[0].guide, "indexes");
+    check_fix(&[("insights.q", source, &source.replace("by byScore: score, at, postId", "by byScore: score, at, postId, id"))], true);
+    let (schema, query) = source.split_once("query trending").unwrap();
+    let query = format!("query trending{query}");
+    check_fix(&[("schema.q", schema, &schema.replace("by byScore: score, at, postId", "by byScore: score, at, postId, id")), ("insights.q", &query, &query)], true);
+}
+
+#[test]
+fn calibration_guide_cli_resolves_the_builders_words() {
+    for (word, target) in [("maintain", "maintains"), ("maintains", "maintains"), ("time", "language"), ("clock", "language"), ("replay", "personas"), ("seed", "personas")] {
+        let output = std::process::Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["guide", word]).output().unwrap();
+        assert!(output.status.success(), "{word}: {output:?}");
+        assert_eq!(String::from_utf8(output.stdout).unwrap().trim_end(), snapback4_lang::guide::card(target).unwrap().trim_end());
     }
 }

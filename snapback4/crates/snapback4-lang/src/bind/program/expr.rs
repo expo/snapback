@@ -184,6 +184,8 @@ impl Binder<'_> {
         if !matches!(t.required(), Ty::Principal | Ty::Id) {
             return Err(type_error(key.value.site(), format!("connected takes a principal, got {}", t.name()), "connected[m.principal]"));
         }
+        // @ref LLP 3000.007#20.1 — retain the author's deciding read alongside the IR, never in its serialized form.
+        self.presence_sources.push((e.clone(), site.clone(), print::read_expr(read)));
         Ok((Expr::Builtin { builtin: Builtin::Connected, args: vec![e] }, Ty::Int))
     }
 

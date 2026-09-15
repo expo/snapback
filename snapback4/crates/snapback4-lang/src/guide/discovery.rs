@@ -20,16 +20,22 @@ fn distance(a: &str, b: &str) -> usize {
     row[b.len()]
 }
 
-/// Rank each card by its closest keyword or alias; show three distinct cards.
+/// Rank names and aliases first, then exact words in card contents, then typos.
 pub fn nearest(word: &str) -> Vec<&'static str> {
     let word = word.to_lowercase();
     let score = |term: &str| (!term.contains(&word) && !word.contains(term), distance(&word, term));
     let mut cards: Vec<_> = KEYWORDS.iter().map(|&card| {
         let best = ALIASES.iter().filter(|(_, target)| *target == card).map(|(alias, _)| score(alias)).chain([score(card)]).min().unwrap();
-        (best, card)
+        let in_card = super::card(card).is_some_and(|text| text.split(|c: char| !c.is_alphanumeric()).any(|token| token.eq_ignore_ascii_case(&word)));
+        let rank = if !best.0 { 0 } else if in_card { 1 } else { 2 };
+        ((rank, in_card && card != "language", best.1), card)
     }).collect();
     cards.sort_unstable();
-    cards.into_iter().take(3).map(|(_, card)| card).collect()
+    let mut nearest: Vec<_> = cards.into_iter().take(3).map(|(_, card)| card).collect();
+    if super::LANGUAGE.split(|c: char| !c.is_alphanumeric()).any(|token| token.eq_ignore_ascii_case(&word)) && !nearest.contains(&"language") {
+        nearest[2] = "language";
+    }
+    nearest
 }
 
 pub(super) const EVOLUTION: &str = r##"# Evolution: adopting a schema

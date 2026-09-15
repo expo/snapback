@@ -104,7 +104,7 @@ pub(super) fn edit(sources: &[(String, String)], index: usize, diagnostic: &Diag
         let end = matching_end(source, start, old)?;
         return Some((index, end, end, format!(" by {by}")));
     }
-    if diagnostic.code == "E_QUARRY_UNKNOWN" && diagnostic.rewrite.starts_with("by ") && diagnostic.message.contains("cannot carry a cursor") {
+    if diagnostic.code == "E_CURSOR_INDEX" && diagnostic.rewrite.starts_with("by ") && diagnostic.message.contains("cannot carry a cursor") {
         // This diagnostic is at the read site; the repair belongs to its
         // table's index declaration, potentially in a different source file.
         let qualified = diagnostic.message.strip_prefix("index ")?.split_whitespace().next()?;
