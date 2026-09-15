@@ -46,12 +46,7 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
         let filter = match maintain.filter.as_ref().map(|expr| super::maintains::predicate(source, expr)).transpose() { Ok(p) => p, Err(d) => { diagnostics.push(d); continue; } };
         schema.maintains.push(core::Maintain { filter, computed, residency: schema.tables[&maintain.name].residency.clone(), kind, source: maintain.source.clone(), by: maintain.by.clone(), target: maintain.name.clone(), readable: None });
     }
-    for maintain in &schema.maintains {
-        if !maintain.computed.is_empty() && schema.tables[&maintain.source].expire.is_some() {
-            let index = core::Index { components: vec![core::IndexComponent::Contribution(Box::new(maintain.clone()))], unique: false };
-            schema.tables.get_mut(&maintain.source).expect("source").indexes.insert(maintain.contribution_index(), index);
-        }
-    }
+    schema.prepare_contribution_indexes();
     for doc in &catalog.documents {
         for effect in &doc.effects {
             schema.effects.push(effect.name.clone());

@@ -896,6 +896,10 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
         issue(issues, format!("maintain names unknown target table {}", maintain.target));
         return;
     };
+    // @ref LLP 3000.007#20.9 — stored value order cannot rank live sums between expiry and sweep; enforce at every schema entry point.
+    if source.expire.is_some() && target.indexes.values().any(|index| index.columns().iter().any(|column| column == "value")) {
+        issue(issues, format!("maintain {} cannot order by value because source {} expires", maintain.target, maintain.source));
+    }
     if maintain.by.is_empty() {
         issue(issues, "maintain by needs at least one source column".into());
     }

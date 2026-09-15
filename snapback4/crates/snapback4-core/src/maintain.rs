@@ -88,3 +88,25 @@ impl Maintain {
         Ok(())
     }
 }
+
+impl crate::schema::Schema {
+    // @ref LLP 3000.007#20.9 — every expiring maintain has a selected physical contribution index, including raw schema callers.
+    pub fn prepare_contribution_indexes(&mut self) {
+        for table in self.tables.values_mut() {
+            table.indexes.retain(|_, index| !matches!(index.components.first(), Some(crate::schema::IndexComponent::Contribution(_))));
+        }
+        for maintain in &self.maintains {
+            if let Some(source) = self.tables.get_mut(&maintain.source).filter(|source| source.expire.is_some()) {
+                source.indexes.insert(maintain.contribution_index(), crate::schema::Index {
+                    components: vec![crate::schema::IndexComponent::Contribution(Box::new(maintain.clone()))], unique: false,
+                });
+            }
+        }
+    }
+
+    // @ref LLP 3000.007#20.9 — subset delivery is not proof that a public aggregate read is complete.
+    pub fn maintain_subset_unknown(&self, target: &str) -> bool {
+        self.maintain_for(target).and_then(|m| self.table(&m.source)).is_some_and(|source|
+            source.rules.read.is_uniformly_readable() && source.sync.as_ref().is_some_and(|s| s.audience != crate::schema::Audience::Public))
+    }
+}

@@ -82,7 +82,9 @@ query mostLiked(c: cursor ?):
 Value indexes have zero or more distinct group fields, then value, id.
 Pin every scope field before value; use value, id alone for global ranking.
 last N descends by value and then canonical group id on both stores; pass next
-as the cursor. Scores can move between pages. Only existing nonzero groups
+as the cursor. A direct page cursor binds its evaluated prefix and active
+generation; reuse after adoption or under another prefix is refused. It stays
+valid across ordinary writes in that generation; scores can move between pages. Only existing nonzero groups
 appear: an unliked post does not acquire a zero-like candidate. Author
 attribution remains a validated source field, with no automatic join.
 
@@ -90,8 +92,8 @@ A UTC day is not a rolling 24-hour window. Exact trailing-day Trending,
 including zero-like posts, keeps the ranked/expiry recipe on guide feeds.
 A value-order index over an expiring source is refused: use a live bounded
 query or the scheduled ranked-table recipe. Unranked expiring aggregates
-recompute live contributions before the sweep; computed keys use an internal
-group/source-id index. Large live groups can still be incomplete at the meter.
+recompute live contributions before the sweep; every expiring maintain uses
+an internal selected-group/source-id index. Zero-sum occupancy uses one entry. Large live groups can still be incomplete at the meter.
 
 An inherited aggregate has no horizon and remains until-revoked even when its
 source retains delivered-history. After leave, retained source rows are
@@ -99,6 +101,12 @@ history, not a complete aggregate. A public inherited maintain sends every
 group to every device; reading only the top ten does not shrink acquisition.
 An online-only side effect does not prevent source-write prediction; reading
 that aggregate does. An unknown local aggregate base is never assumed zero.
+When a zero sum needs an occupancy decision, a held source witness keeps the
+candidate; local absence needs complete source coverage (held, no horizon).
+Otherwise the write queues without a predicted row. Live scalar misses and
+empty pages remain incomplete when source coverage is incomplete. An inherited
+aggregate over a public source with subset delivery runs on the server;
+its local scalar and page coverage is unknown, including for the viewer.
 
 Filtered counts disclose predicate membership, calendar groups disclose bucket
 membership, and rank discloses relative values to the aggregate's read audience.

@@ -8850,3 +8850,370 @@ D1 code caps: 37 files; max 1456 lines; 0 over 1500
 
 git diff --check exited 0. The base journal prefix is byte-identical.
 The working tree is left for the lead; nothing was committed or published.
+
+## 2026-09-14 — D1R1: maintain occupancy, coverage, admission and cursors
+
+Repaired the GPT review's five findings from
+`b8ca38bbf24d26d5a4f062304ad6a0cb6eaff8e1`, with the worktree initially clean.
+Read `/Users/ccheever/projects/snapback-d1-review/gpt.md` in full. No commit,
+push, tag, publication, sub-agent, repository clone or remote machine was used.
+The full-suite results below are sandbox runs on the shared host.
+
+**What changed.** A zero-sum candidate can be retained by a local positive
+source witness. A local negative needs source coverage with no horizon and a
+currently held group; otherwise the prediction rolls back and queues without
+rows. Live scalar misses and empty pages now check coverage before returning.
+Every expiring maintain, filtered or not, has a selected contribution index;
+physical occupancy uses `count_prefix(..., 1)`, never a source fallback.
+Core and device schema entry points prepare that index for raw schemas too.
+Prepayment covers two contribution images, the one-entry occupancy buffer and
+encoded key, both target groups/indexes, and the source-index evaluations.
+No meter ceiling moved. Actual hidden work remains prepaid; no population-based
+charge is added after the lookup.
+
+Public-subset inherited aggregates are conservatively server-class and unknown
+locally, including a viewer-pinned read. Core validation rejects value indexes
+on expiring maintains on creation and adoption, preserving the binder's
+existing diagnostic. Direct page cursors now bind evaluated prefix values and
+the active generation. Ordinary table pages reproduced the same defect, so
+they use the same fix. Ordinary value changes and deletions keep an old cursor
+valid; rows can move between pages. Query-issued cursors also work in mutations
+and outbox replay under the same generation. Merge/search shared-lane cursor
+semantics were not changed.
+
+**Finding 3 qualification.** The literal public-source `sync to .owner`
+Quarry example does not compile at this base: the binder emits E_SYNC. I did
+not widen that other lane's syntax. Core raw-schema admission already accepts
+the subset, and that admitted form reproduces false completeness on both
+stores. The test compiles public sync, changes the source and inherited target
+to the column subset through the raw schema API, and recomputes execution
+facts. It covers the viewer, another owner and an unpinned page. Server reads
+remain complete; local reads are conservatively unknown after the fix.
+
+**Red before green.** Production code was unchanged for each finding's base
+reproduction. Fixture compile/setup errors were corrected before treating a
+failure as evidence. The first combined device run below also contains the
+initial subset fixture error; the separate subset run supplies finding 3's
+actual runtime reproduction. The baseline physical test's paired observation
+control was already green; its independent scan bound was red.
+
+Commands run from `snapback4/` unless marked root; log paths are under
+`/private/tmp/`. Repeated setup runs with no executing regression are not
+counted as reproductions. One mistaken root-level cargo invocation refused
+before running tests; all executing cargo suites ran inside `snapback4/`.
+
+| Finding | Base command / log | Verbatim summary | Green coverage |
+|---|---|---|---|
+| 1: a/b/c history and clock tick, both stores | `cargo test -p snapback4-device --test device maintains::review -- --nocapture` (`d1r1-red-device.log`) | `test result: FAILED. 0 passed; 10 failed; 0 ignored; 0 measured; 54 filtered out; finished in 0.20s` | both history cases in final device suite; positive complete-history and local-witness controls |
+| 2: hidden filtered sum, 9,000 excluded rows | `cargo test -p snapback4-sim --test maintains_review -- --nocapture` (`d1r1-red-physical.log`) | `test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.07s` | final simulator suite; filtered/unfiltered and 0/9,000 controls; paired complete observations including both devices |
+| 3: raw public-subset inheritance | `cargo test -p snapback4-device --test device maintains::review::review3 -- --nocapture` (`d1r1-red-subset.log`) | `test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 62 filtered out; finished in 0.06s` | both subset cases in final device suite |
+| 4: raw creation and adoption | combined base device command above | `test result: FAILED. 0 passed; 10 failed; 0 ignored; 0 measured; 54 filtered out; finished in 0.20s` | both raw refusal cases; non-expiring ranked and live unranked controls in existing/expanded suites |
+| 5: prefix and generation, maintain and ordinary table pages | `cargo test -p snapback4-device --test device maintains::review::review5 -- --nocapture` (`d1r1-red-cursors.log`) | `test result: FAILED. 0 passed; 8 failed; 0 ignored; 0 measured; 60 filtered out; finished in 0.15s` | all eight cases plus old-cursor decrease/delete and query-to-mutation controls |
+
+The first fix pass was `6 passed; 4 failed` (the remaining four were maintain
+cursor cases); the cursor pass was `14 passed; 0 failed`. A new positive
+query-to-mutation cursor control caught a repair regression: query execution
+used the active generation while mutation execution still used zero. Before
+that correction, `cargo test -p snapback4-device --test device
+maintains::review::review5_query_cursor -- --nocapture` reported:
+
+```text
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 72 filtered out; finished in 0.03s
+```
+
+It is green in the final device suite. The later acceptance fixture also
+initially reused one persisted device name for two different fresh servers;
+that produced watermark refusals, not a product regression. Distinct fixture
+names fixed it. No production changes were made for that setup error.
+
+### Targeted verification
+
+```sh
+# snapback4/
+cargo test -p snapback4-device --test device maintains -- --nocapture
+```
+
+```text
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 51 filtered out; finished in 0.51s
+```
+
+```sh
+cargo test -p snapback4-sim --test maintains --test maintains_review -- --nocapture
+```
+
+```text
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 23.22s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.25s
+```
+
+```sh
+cargo test -p snapback4-lang --test guide --test maintains
+```
+
+```text
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+```sh
+cargo test -p snapback4-core --test corpus -- --nocapture
+```
+
+```text
+corpus (Rust server only; no TypeScript/replica conformance claim): 211 passed, 83 skipped, 0 failed
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.78s
+```
+
+The frozen corpus cases are byte-unchanged. Its existing adapter now wraps
+legacy direct cursor inputs/oracles in the new scope, using fixture prefix
+inputs and initial generation 1, never execution output. This is the necessary
+out-of-scope harness change from fixing the shared ordinary-table cursor bug.
+The cursor descriptor and suffix/value oracle remain exact.
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+node --test packages/snapback4/test/maintains.test.mjs
+```
+
+```text
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 372.269334
+```
+
+The wasm and process client cases reject another prefix and continue from the
+old ranked cursor after a winner decreases. All rank oracles in the maintain
+simulator tests now fold source rows. Both device stores run 28 fold attempts,
+26 commits and two overflow rollbacks; updates, deletes, upsert insertion and
+hits, every filter transition, key moves, no-op patches and signed cancellation
+check target rows, value-index query order and exact target partition events.
+
+### Physical measurements
+
+The counter wraps the real SQLite transaction's Rows interface, independently
+of the interpreter meter. The allocator tracks the runner's peak temporary
+ownership on the calling thread, excluding seeded database state. Source scan
+counts include the two source target-resolution reads. These are bounded-work
+measurements, not latency, RSS or constant-time claims.
+
+| Case | Physical source rows examined | Maximum buffered source rows | Peak source-buffer bytes | Peak temporary allocated bytes | Occupancy lookups |
+|---|---:|---:|---:|---:|---:|
+| Base filtered, 9,000 excluded | 9,003 | 32 | 15,808 | 38,743 | 0 (fallback scan) |
+| Fixed filtered, 9,000 excluded | 2 | 1 | 494 | 17,298 | 1 |
+| Fixed filtered, 0 excluded | 2 | 1 | 494 | 17,298 | 1 |
+| Fixed unfiltered, 9,000 zero contributions | 3 | 1 | 494 | 17,638 | 1 |
+| Fixed unfiltered, 0 additional rows | 3 | 1 | 494 | 17,638 | 1 |
+
+The fixed filtered occupancy miss visits zero source entries; the unfiltered
+positive witness visits one. Its hidden-write logical meter is:
+
+```json
+{"examined":5,"index_entries":10,"rule_probes":0,"steps":25,"heap_bytes":707,"output_bytes":6,"rows_written":3}
+```
+
+`heap_bytes` here is the ending logical meter, not the independent peak above.
+The paired worlds compare response/receipt/retry bytes, all seven meters,
+effects, stream, snapshot and both devices; denied hidden versus absent and
+selected versus excluded worlds are identical at full and tight examined
+budgets. The existing maintain boundary matrix also exercises all seven
+ceiling dimensions. No secret-dependent source scan is exempted by prepayment.
+
+### Diagnostic texts
+
+Finding 4 raw creation/adoption previously succeeded, so there was no refusal.
+After the fix the raw error is:
+
+```text
+E_SCHEMA: maintains[0]: maintain totals cannot order by value because source posts expires
+```
+
+The Quarry diagnostic remains, before and after:
+
+```text
+E_QUARRY_MAINTAIN_EXPIRE: maintain totals cannot order by value because source posts expires
+rewrite: use a live bounded query, or the scheduled ranked-table recipe for exact rolling-window Trending
+guide: expire
+```
+
+Finding 5 previously accepted another prefix/generation without a diagnostic.
+Its new refusal uses existing E_INPUT:
+
+```text
+E_INPUT: cursor: cursor token describes a different prefix or generation
+```
+
+Finding 1's new internal prediction reason is:
+
+```text
+the zero-sum group's source occupancy is not known locally; queued without a predicted row
+```
+
+The public outbox behavior is queueing without predicted rows. No new E_/N_
+code was introduced; existing codes remain registered. The expiry card now
+names E_QUARRY_MAINTAIN_EXPIRE and the maintained-value restriction.
+
+### Full suite, remaining failures and scope
+
+Both root invocations used:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+```
+
+The first run (`d1r1-suite.log`), before the query-to-mutation generation
+correction, accumulated 713 Rust passes, zero failures, four ignored; fixtures
+9/9; client 188/190:
+
+```text
+-- ok: cargo test (366 s)
+ℹ tests 190
+ℹ pass 188
+ℹ fail 2
+-- FAIL: client tests (48 s)
+== 1 failure(s) in 398 s
+```
+
+The final-source run (`d1r1-suite-final.log`) accumulated **715 Rust passes,
+zero failures, four ignored**. Every build/typecheck/app/fixture step passed;
+fixtures 9/9, client 188/190. Final wasm: **1,707,900 bytes raw / 473,904 gzip**.
+
+```text
+-- ok: cargo test (274 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (12 s)
+ℹ tests 190
+ℹ pass 188
+ℹ fail 2
+-- FAIL: client tests (46 s)
+== 1 failure(s) in 309 s
+```
+
+Isolated current-code reruns:
+
+```sh
+# snapback4/, Node 24 PATH as above
+node --test packages/snapback4/test/react.test.mjs
+node --test --test-name-pattern='failed persistence stops' packages/snapback4/test/web-navigation.test.mjs
+```
+
+```text
+# React
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 847.973833
+# persistence
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 431.803667
+```
+
+
+Both client failures were then checked against the exact base
+`b8ca38bbf24d26d5a4f062304ad6a0cb6eaff8e1`. I saved the completed source/card
+and runtime artifacts, restored the base production Rust and included guide
+card with `git show HEAD:<path>` (no branch change or reset), built the base CLI
+and wasm, and ran each failed test alone. Base wasm was 1,695,854 bytes raw /
+470,041 gzip, matching D1's recorded artifact size. The persistence test again
+misses its expected `/disk full/` rejection. The base React log explicitly
+records Chromium `signal=SIGABRT`; current isolated runs reported ENOTEMPTY
+while cleaning up the failed browser. The browser boundary is the supplied
+sandbox artifact; the persistence assertion is also base-reproduced. Neither
+failure was repaired in this maintains lane.
+
+The exact-base replay also reran the completed regression suite. The subset
+case now starts with Bob and records `Int(0), complete: true` on Alice's device
+on both stores. The six positive controls pass while the fourteen refusal/
+coverage regressions fail. These are supplementary base measurements after
+the initial red-before-fix work, not a claim that the final code was still
+unmodified when they ran:
+
+```sh
+# snapback4/, production files at b8ca38bbf24d26d5a4f062304ad6a0cb6eaff8e1
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+cargo build --workspace --quiet
+bash scripts/build-wasm.sh
+bun run --cwd packages/snapback4 build
+node --test --test-name-pattern='failed persistence stops' packages/snapback4/test/web-navigation.test.mjs
+node --test packages/snapback4/test/react.test.mjs
+cargo test -p snapback4-device --test device maintains::review -- --nocapture
+cargo test -p snapback4-sim --test maintains_review -- --nocapture
+```
+
+```text
+# persistence, exact base
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 1211.553542
+# React, exact base
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 274.364042
+# expanded regressions, exact base
+test result: FAILED. 6 passed; 14 failed; 0 ignored; 0 measured; 54 filtered out; finished in 0.21s
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.50s
+```
+
+All 23 saved source/card/artifact files were restored and SHA-256 verified
+against the completed implementation, then targeted device/client checks were
+rerun. No affected Rust or maintains client test remains red. No final source
+change followed the completed full suite except ordering the subset fixture
+to exercise the other-owner miss first; that test passed again after restore.
+
+```sh
+# snapback4/
+cargo test -p snapback4-device --test device maintains -- --nocapture
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+node --test packages/snapback4/test/maintains.test.mjs
+```
+
+```text
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 51 filtered out; finished in 0.27s
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 620.972625
+```
+
+The requested five repairs and added acceptance cases are implemented. The
+public-subset Quarry syntax was not widened because it did not reproduce as
+an admitted form on this base; the raw-schema defect did reproduce and is
+fixed. Durable adoption preparation and digest continuation remain outside
+D1R1, as §20.9's built note already states. No app form changed. Apart from the
+shared ordinary-table cursor and its frozen-corpus adapter, changes stay in
+the maintain/core/device/compiler/tests/docs scope. Twenty changed code files
+have a maximum of 1,262 lines; zero exceed 1,500. The README, cards and §20.9
+built note are updated without reflowing existing prose. This journal entry
+is appended once, preserving every byte of the earlier journal.
+
+Final repository checks:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+./ref-check --verbose > /private/tmp/d1r1-ref-final.log 2>&1
+git diff --check
+```
+
+```text
+ref-check: ok — 480 LLP docs, 8888 refs in 22928 files, 0 errors, 0 unchecked
+D1R1 code caps: 20 files; max 1262 lines; 0 over 1500
+```
+
+The earlier journal is byte-identical, and exactly one dated entry was added.
+The worktree remains on the base commit for the lead; nothing was committed
+or published.

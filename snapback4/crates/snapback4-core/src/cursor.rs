@@ -25,6 +25,14 @@ pub struct CursorPosition {
     pub order: Order,
     pub suffix: Vec<CursorColumn>,
     pub values: Vec<Value>,
+    pub scope: Option<CursorScope>,
+}
+
+// @ref LLP 3000.007#20.9 — direct pages bind evaluated scope and active generation, not mutable row values.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CursorScope {
+    pub generation: u64,
+    pub prefix: Vec<Value>,
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -39,6 +47,8 @@ pub enum CursorError {
     Version(u8),
     #[error("cursor token describes a different table, index, order, or suffix")]
     Descriptor,
+    #[error("cursor token describes a different prefix or generation")]
+    Scope,
     #[error("cursor token values do not match its typed suffix")]
     Values,
 }
@@ -57,7 +67,10 @@ pub fn encode_cursor(schema: &Schema, position: &CursorPosition) -> Result<Strin
         position.suffix.clone(),
         position.values.clone(),
     );
-    let bytes = serde_json::to_vec(&tagged).map_err(|_| CursorError::Encoding)?;
+    let bytes = match &position.scope {
+        Some(scope) => serde_json::to_vec(&(2_u8, tagged.1, tagged.2, tagged.3, tagged.4, tagged.5, scope)),
+        None => serde_json::to_vec(&tagged),
+    }.map_err(|_| CursorError::Encoding)?;
     if bytes.len() > MAX_TOKEN_BYTES {
         return Err(CursorError::TooLarge);
     }
@@ -75,20 +88,15 @@ pub fn decode_cursor(schema: &Schema, token: &str) -> Result<CursorPosition, Cur
     if bytes.len() > MAX_TOKEN_BYTES {
         return Err(CursorError::TooLarge);
     }
-    let tagged: Tagged = serde_json::from_slice(&bytes).map_err(|_| CursorError::Encoding)?;
-    if serde_json::to_vec(&tagged).map_err(|_| CursorError::Encoding)? != bytes {
-        return Err(CursorError::Encoding);
-    }
-    if tagged.0 != VERSION {
-        return Err(CursorError::Version(tagged.0));
-    }
-    let position = CursorPosition {
-        table: tagged.1,
-        index: tagged.2,
-        order: tagged.3,
-        suffix: tagged.4,
-        values: tagged.5,
-    };
+    let raw: serde_json::Value = serde_json::from_slice(&bytes).map_err(|_| CursorError::Encoding)?;
+    let version = raw.get(0).and_then(serde_json::Value::as_u64).ok_or(CursorError::Encoding)?;
+    let (tagged, scope): (Tagged, Option<CursorScope>) = if version == 2 {
+        let (v,t,i,o,s,k,scope): (u8,String,String,Order,Vec<CursorColumn>,Vec<Value>,CursorScope) = serde_json::from_slice(&bytes).map_err(|_| CursorError::Encoding)?;
+        ((v,t,i,o,s,k),Some(scope))
+    } else if version == u64::from(VERSION) {
+        (serde_json::from_slice(&bytes).map_err(|_| CursorError::Encoding)?,None)
+    } else { return Err(CursorError::Version(version.try_into().map_err(|_| CursorError::Encoding)?)); };
+    let position = CursorPosition { table: tagged.1, index: tagged.2, order: tagged.3, suffix: tagged.4, values: tagged.5, scope };
     validate_values(schema, &position.table, &position.suffix, &position.values)?;
     if encode_cursor(schema, &position)? != token {
         return Err(CursorError::Encoding);
@@ -234,6 +242,7 @@ mod tests {
                 },
             ],
             values: vec![Value::Int(41), Value::Id("message-41".to_owned())],
+            scope: None,
         }
     }
 

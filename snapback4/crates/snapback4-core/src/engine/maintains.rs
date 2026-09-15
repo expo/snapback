@@ -5,6 +5,7 @@ use crate::error::{MeterKind, RuntimeError};
 use crate::schema::{Maintain, MaintainKind, maintained_id};
 #[cfg(feature = "sqlite")]
 use crate::schema::materialize_optional_fields;
+#[cfg(feature = "sqlite")]
 use crate::rows::{Bounds, Dir};
 use crate::value::{I53_MAX, I53_MIN, Value};
 #[cfg(feature = "sqlite")]
@@ -124,27 +125,33 @@ impl Runner<'_> {
     /// contribution may expire before the other. Keep its candidate row so
     /// a scan, snapshot and offline replica can discover the later live sum.
     fn aggregate_source_present(&mut self, maintain: &Maintain, key: &[Value]) -> Result<bool, RuntimeError> {
-        let bytes = super::write_target::row_copy_ceiling(&self.schema.tables[&maintain.source]).saturating_mul(32);
-        self.maintain_scratch(bytes, |runner| runner.aggregate_source_present_inner(maintain, key))
+        // One returned source image and its encoded key (MemoryRows also materializes count_prefix).
+        let bytes = super::write_target::row_copy_ceiling(&self.schema.tables[&maintain.source]).saturating_mul(2);
+        self.maintain_scratch(bytes, |runner| {
+            let source = &runner.schema.tables[&maintain.source];
+            let index = maintain.contribution_index();
+            if !source.indexes.contains_key(&index) { return Err(RuntimeError::Schema(format!("maintain {} needs its contribution index", maintain.target))); }
+            runner.charge_maintain(MeterKind::Examined, 1)?;
+            let present = runner.tx.count_prefix(&maintain.source, &index, key, 1)? != 0;
+            // @ref LLP 3000.007#20.9 — a local positive witness keeps zero; absence needs complete, currently held source coverage.
+            if !present && runner.device && !runner.aggregate_source_complete(maintain, key)? {
+                runner.unknown_fact(&maintain.source, &index, key, "zero-sum occupancy");
+                return Err(RuntimeError::Prediction("the zero-sum group's source occupancy is not known locally; queued without a predicted row".into()));
+            }
+            Ok(present)
+        })
     }
 
-    fn aggregate_source_present_inner(&mut self, maintain: &Maintain, key: &[Value]) -> Result<bool, RuntimeError> {
-        let source = self.schema.table(&maintain.source).expect("validated");
-        let (index, prefix) = maintain.source_scan(source, key);
-        let mut bounds = Bounds::default();
-        loop {
-            let rows = self.tx.scan(&maintain.source, index, &prefix, &bounds, Dir::Asc, 32)?;
-            let count = rows.len();
-            for (row, stored) in rows {
-                self.charge_maintain(MeterKind::Examined, 1)?;
-                bounds.after = crate::key::decode(&stored).map(|values| values.into_iter().skip(prefix.len()).collect());
-                // @ref LLP 3000.007#18.3 — old source images group by their literal defaults, including zero-sum candidates.
-                self.charge_maintain(MeterKind::Steps, maintain.evaluation_steps())?;
-                let row = crate::schema::row_image(&row, source);
-                if maintain.selected(&row) && maintain.source_key(&row) == key { return Ok(true); }
-            }
-            if count < 32 { return Ok(false); }
+    fn aggregate_source_complete(&mut self, maintain: &Maintain, key: &[Value]) -> Result<bool, RuntimeError> {
+        let source = &self.schema.tables[&maintain.source];
+        if source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some()) || self.schema.maintain_subset_unknown(&maintain.target) { return Ok(false); }
+        // The target has the same bare audience keys, but no source horizon.
+        if !self.upsert_absence_proven(&maintain.target, "byGroup", key)? { return Ok(false); }
+        for (name, index) in &source.indexes {
+            let values = index.columns().iter().map_while(|column| maintain.by.iter().position(|field| field == column).map(|n| key[n].clone())).collect::<Vec<_>>();
+            if self.tx.retained_group(&maintain.source, name, &values)? { return Ok(false); }
         }
+        Ok(true)
     }
 
     fn apply_aggregate(&mut self, maintain: &Maintain, key: Vec<Value>, change: i128, source_present: Option<bool>) -> Result<(), RuntimeError> {

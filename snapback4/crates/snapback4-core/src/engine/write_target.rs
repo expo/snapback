@@ -257,13 +257,14 @@ impl Runner<'_> {
     fn reserve_maintains(&mut self, table_name: &str, table: &Table) -> Result<(), RuntimeError> {
         if table.rules.read.is_uniformly_readable() || self.context.is_system() { return Ok(()); }
         let maintains: Vec<_> = self.schema.maintains.iter().filter(|m| m.source == table_name).collect();
-        if !maintains.iter().any(|m| m.filter.is_some() || !m.computed.is_empty()) { return Ok(()); }
+        if !maintains.iter().any(|m| m.filter.is_some() || !m.computed.is_empty() || table.expire.is_some()) { return Ok(()); }
         let mut steps = 0_u64;
         let mut entries = 0_u64;
-        let mut heap = row_copy_ceiling(table).saturating_mul(2);
+        // Two contribution images plus one occupancy image and its encoded key; no source page is exempted.
+        let mut heap = row_copy_ceiling(table).saturating_mul(4);
         for m in &maintains {
             let target = &self.schema.tables[&m.target];
-            let evaluations = if table.indexes.contains_key(&m.contribution_index()) { 4 } else { 2 };
+            let evaluations = if table.indexes.contains_key(&m.contribution_index()) { 6 } else { 2 };
             steps = steps.saturating_add(m.evaluation_steps().saturating_mul(evaluations) + 4);
             entries = entries.saturating_add(target.indexes.len() as u64 * 4 + 2);
             // Two transient target images and canonical escaped tuple ids.

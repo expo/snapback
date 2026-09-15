@@ -66,6 +66,7 @@ pub struct Context {
     pub args: BTreeMap<String, Value>,
     pub now: Option<i64>,
     pub read_time: Option<i64>,
+    pub(crate) generation: u64,
     /// Ids the caller minted for this run, consumed in order by `new`.
     pub new_ids: VecDeque<String>,
     entropy: u64,
@@ -77,8 +78,11 @@ pub struct Context {
 
 impl Context {
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
-        Self { viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
+        Self { viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
     }
+
+    /// The host supplies its active backend generation for opaque page cursors.
+    pub fn with_generation(mut self, generation: u64) -> Self { self.generation = generation; self }
 
     pub fn with_presence(mut self, presence: Option<std::sync::Arc<dyn Presence>>) -> Self {
         self.presence = presence;
@@ -190,7 +194,8 @@ pub struct Engine {
 
 #[cfg(feature = "sqlite")]
 impl Engine {
-    pub fn new(mut store: Store, schema: Schema, programs: impl IntoIterator<Item = Program>) -> Result<Self, RuntimeError> {
+    pub fn new(mut store: Store, mut schema: Schema, programs: impl IntoIterator<Item = Program>) -> Result<Self, RuntimeError> {
+        schema.prepare_contribution_indexes();
         let issues = crate::schema::validate(&schema);
         if let Some(issue) = issues.first() {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
@@ -221,7 +226,8 @@ impl Engine {
     /// Activate an immutable source release. Its pointer lives in the same
     /// transaction as rows/programs/generation; the filesystem pointer is a
     /// checked convenience copy, never an independent authority.
-    pub fn new_release(mut store: Store, schema: Schema, programs: impl IntoIterator<Item = Program>, release: u64, expected_previous: Option<u64>) -> Result<Self, RuntimeError> {
+    pub fn new_release(mut store: Store, mut schema: Schema, programs: impl IntoIterator<Item = Program>, release: u64, expected_previous: Option<u64>) -> Result<Self, RuntimeError> {
+        schema.prepare_contribution_indexes();
         if let Some(issue) = crate::schema::validate(&schema).first() { return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message))); }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         let generation = Self::activate(&mut store, &schema, &programs, Some((release, expected_previous)))?;
@@ -334,7 +340,8 @@ impl Engine {
     /// Replace the schema and programs in place (a successor generation);
     /// the store keeps every row and rebuilds changed indexes; the
     /// generation advances so every device re-derives its partition.
-    pub fn adopt(&mut self, schema: Schema, programs: impl IntoIterator<Item = Program>) -> Result<u64, RuntimeError> {
+    pub fn adopt(&mut self, mut schema: Schema, programs: impl IntoIterator<Item = Program>) -> Result<u64, RuntimeError> {
+        schema.prepare_contribution_indexes();
         let issues = crate::schema::validate(&schema);
         if let Some(issue) = issues.first() {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
@@ -617,6 +624,7 @@ impl Engine {
     /// Run a query. Refusals (a `require`, a rule, bad input) are the
     /// card's `denied`; store failures surface as retryable refusals too.
     pub fn query(&mut self, name: &str, mut context: Context) -> Result<QueryOutcome, Refusal> {
+        context.generation = self.generation;
         let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
         if program.kind != ProgramKind::Query {
             return Err(RuntimeError::UnknownOp(format!("{name} is a {}, not a query", program.kind.word())).into());
@@ -709,6 +717,7 @@ impl Engine {
     /// is never re-judged: its row is on the server, and the device that
     /// queued it must learn `sent`, not `failed`.
     pub fn mutate(&mut self, name: &str, op: Option<&str>, mut context: Context) -> Result<MutationOutcome, RuntimeError> {
+        context.generation = self.generation;
         if let Some(op) = op
             && let Some(outcome) = self.replay(&context.viewer, op)?
         {

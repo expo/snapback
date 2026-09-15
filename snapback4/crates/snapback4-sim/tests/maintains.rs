@@ -91,14 +91,14 @@ fn calendar_is_euclidean_and_rank_matches_an_exact_sort_after_changes() {
     for n in 0..15 { let out = e.mutate("add", None, Context::new("a", args(&format!("r{n}"), &format!("a{n}"), 0, true, n / 2 + 1))).unwrap(); assert!(matches!(out.state, WriteState::Sent { .. })); }
     for (n, author, score) in [(14, "a14", 1), (13, "a0", 2), (12, "a12", 0)] {
         let out = e.mutate("edit", None, Context::new("a", args(&format!("r{n}"), author, 0, true, score))).unwrap(); assert!(matches!(out.state, WriteState::Sent { .. }));
-        let mut expected = e.store().rows("scores").unwrap();
+        let mut expected = source_scores(&e);
         expected.sort_by(|a,b| b.field("value").unwrap().total_cmp(a.field("value").unwrap()).then_with(|| b.field("id").unwrap().total_cmp(a.field("id").unwrap())));
         expected.truncate(10);
         assert_eq!(e.query("rank", Context::new("a", BTreeMap::new())).unwrap().data.as_array().unwrap(), &expected);
     }
     for row in ["r11", "r10", "r9"] {
         e.mutate("remove", None, Context::new("a", BTreeMap::from([("row".into(), Value::Id(row.into()))]))).unwrap();
-        let mut expected = e.store().rows("scores").unwrap();
+        let mut expected = source_scores(&e);
         expected.sort_by(|a,b| b.field("value").unwrap().total_cmp(a.field("value").unwrap()).then_with(|| b.field("id").unwrap().total_cmp(a.field("id").unwrap())));
         expected.truncate(10);
         assert_eq!(e.query("rank", Context::new("a", BTreeMap::new())).unwrap().data.as_array().unwrap(), &expected);
@@ -341,7 +341,16 @@ fn scoped_value_order_and_seven_day_scalars_match_the_oracle() {
     for (row, author, at, selected, score) in [("a14", "a", 14 * 86_400_000, true, -100), ("a13", "b", 0, true, 10), ("a12", "a", 12 * 86_400_000, false, 1)] {
         e.mutate("edit", None, Context::new("a", args(row, author, at, selected, score))).unwrap();
         for author in ["a", "b"] {
-            let mut expected: Vec<_> = e.store().rows("scoped").unwrap().into_iter().filter(|r| r.field("author").unwrap() == &Value::Id(author.into())).collect();
+            let mut sums = BTreeMap::<i64,i128>::new();
+            for row in e.store().rows("posts").unwrap() {
+                if row.field("author").unwrap() == &Value::Id(author.into()) && row.field("selected").unwrap().as_bool().unwrap() {
+                    *sums.entry(row.field("at").unwrap().as_int().unwrap().div_euclid(86_400_000)).or_default() += i128::from(row.field("score").unwrap().as_int().unwrap());
+                }
+            }
+            let mut expected: Vec<_> = sums.into_iter().filter(|(_,value)|*value!=0).map(|(day,value)|object([
+                ("id",Value::Id(snapback4_core::schema::maintained_id(&[Value::Id(author.into()),Value::Int(day)]))),
+                ("author",Value::Id(author.into())),("day",Value::Int(day)),("value",Value::Int(value.try_into().unwrap()))
+            ])).collect();
             expected.sort_by(|a,b| b.field("value").unwrap().total_cmp(a.field("value").unwrap()).then_with(|| b.field("id").unwrap().total_cmp(a.field("id").unwrap())));
             expected.truncate(10);
             let read = e.query("scoped", Context::new("a", BTreeMap::from([("author".into(), Value::Id(author.into()))]))).unwrap();
@@ -352,4 +361,16 @@ fn scoped_value_order_and_seven_day_scalars_match_the_oracle() {
         ("author".into(), Value::Id("a".into())), ("at".into(), Value::Int(day * 86_400_000)),
     ]))).unwrap().data).collect();
     assert_eq!(seven, [1, 1, 0, 0, 1, 0, 0].map(Value::Int));
+}
+
+fn source_scores(e: &Engine) -> Vec<Value> {
+    let mut sums = BTreeMap::<String, i128>::new();
+    for row in e.store().rows("posts").unwrap() {
+        if row.field("selected").unwrap().as_bool().unwrap() {
+            *sums.entry(row.field("author").unwrap().as_str().unwrap().into()).or_default() += i128::from(row.field("score").unwrap().as_int().unwrap());
+        }
+    }
+    sums.into_iter().filter(|(_,value)| *value != 0).map(|(author,value)| object([
+        ("id",Value::Id(snapback4_core::schema::maintained_id(&[Value::Id(author.clone())]))), ("author",Value::Id(author)), ("value",Value::Int(value.try_into().unwrap()))
+    ])).collect()
 }

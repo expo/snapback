@@ -303,7 +303,9 @@ query mostLiked(c: cursor ?):
 ```
 
 Value-order indexes end in value, id, optionally after group fields. last N
-descends by both; ordinary cursors continue it. Only existing nonzero groups
+descends by both; ordinary cursors continue it. A direct page cursor binds the
+evaluated prefix and active generation, so another prefix or adoption refuses
+it. Ordinary writes keep it valid; rows can move between pages. Only existing nonzero groups
 appear. Author attribution stays a source field. A value-order page pins
 every group field before value in its index;
 value, id alone gives a global ranking. A UTC day is not a rolling
@@ -317,6 +319,12 @@ retains delivered-history. Public inheritance sends all groups to every device,
 including when a query reads only the top ten. An online-only derived side
 effect does not prevent prediction of a source write; reading it does. Unknown
 aggregate bases queue without a predicted row and are never initialized to zero.
+For an expiring zero sum, a held source witness keeps the candidate; local
+absence requires held source coverage with no horizon. Otherwise the write
+queues without a predicted row. Live scalar misses and empty pages stay
+incomplete under incomplete source coverage. An inherited aggregate over a
+public source with subset delivery runs on the server; its local scalar and
+page coverage stays unknown.
 
 Filtered counts disclose predicate membership; computed keys disclose bucket
 membership and rank discloses relative values to the declared aggregate read

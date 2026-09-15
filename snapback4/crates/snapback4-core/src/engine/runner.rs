@@ -28,6 +28,7 @@ pub(crate) struct PagePosition {
     pub index: String,
     pub order: Order,
     pub prefix_len: usize,
+    pub prefix: Option<Vec<Value>>,
     /// A collector exited with rows still unconsumed, even on a short page.
     pub interrupted: bool,
     /// The suffix values of the last returned row, if another visible row

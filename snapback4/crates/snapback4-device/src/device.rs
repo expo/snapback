@@ -225,13 +225,14 @@ impl<S: DeviceStore> Device<S> {
     /// that starts with no network opens on what it holds. The schema is
     /// installed; a literal-default addition can keep older row images.
     pub fn open_store(mut store: S, backend: Option<Backend>) -> Result<Self, RuntimeError> {
-        let backend = match backend {
+        let mut backend = match backend {
             Some(backend) => backend,
             None => {
                 let kept = store.meta(BACKEND)?.ok_or_else(|| RuntimeError::Auth("this device has never synced: the server must be reachable once to open".into()))?;
                 serde_json::from_str(&kept).map_err(|e| RuntimeError::Store(format!("the kept backend does not parse: {e}")))?
             }
         };
+        backend.schema.prepare_contribution_indexes();
         let held = store.meta(GENERATION)?.and_then(|g| g.parse::<u64>().ok()).unwrap_or(0);
         let reset = held != 0 && held != backend.generation;
         let previous = store.meta(BACKEND)?.and_then(|text| serde_json::from_str::<Backend>(&text).ok());
@@ -320,7 +321,8 @@ impl<S: DeviceStore> Device<S> {
     /// The backend changed (a new generation from `/schema`): adopt it and
     /// keep it; a literal-default addition keeps the old images readable.
     /// A changed generation still requests a fresh snapshot.
-    pub fn adopt(&mut self, backend: Backend) -> Result<(), RuntimeError> {
+    pub fn adopt(&mut self, mut backend: Backend) -> Result<(), RuntimeError> {
+        backend.schema.prepare_contribution_indexes();
         let reset = backend.generation != self.generation;
         let keep_images = snapback4_core::successor::keeps_literal_default_images(&self.schema, &backend.schema);
         // @ref LLP 3000.007#18.3 — literal-default-only evolution keeps already acquired images readable.
@@ -554,7 +556,7 @@ impl<S: DeviceStore> Device<S> {
         let mut retained = false;
         let result = (|| {
             let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
-            let context = Context::new(viewer, typed_args(&program, args)?).at(now);
+            let context = Context::new(viewer, typed_args(&program, args)?).at(now).with_generation(self.generation);
             let tx = self.store.read_transaction()?;
             if let Err(error) = require_acquired(&tx, &self.schema, &program) {
                 unknown = matches!(&error, RuntimeError::Prediction(_));
@@ -590,7 +592,7 @@ impl<S: DeviceStore> Device<S> {
         let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
         let tx = self.store.transaction()?;
         require_acquired(&tx, &self.schema, &program)?;
-        let context = Context::new(viewer, media::inputs(&tx, &program, viewer, args)?).at(now).with_ids(new_ids).with_entropy(entropy.max(1));
+        let context = Context::new(viewer, media::inputs(&tx, &program, viewer, args)?).at(now).with_generation(self.generation).with_ids(new_ids).with_entropy(entropy.max(1));
         let predicting = Predicting { tx: &tx, written: RefCell::new(Vec::new()) };
         match local::predict(&predicting, &self.schema, &program, context, Ceilings::default()) {
             Ok(prediction) => {

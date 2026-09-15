@@ -48,7 +48,7 @@ pub(super) fn run<T: DeviceTx>(tx: &T, schema: &Schema, program: &Program, entry
     // Replay mints past the admitted ids only to discover it needs more (and
     // is then withdrawn): its entropy comes from the entry, never the clock.
     let entropy = entry.id.bytes().fold(entry.seq.wrapping_mul(0x9E37_79B9_7F4A_7C15), |acc, byte| (acc ^ u64::from(byte)).wrapping_mul(0x100_0000_01B3));
-    let context = Context::new(&entry.viewer, media::inputs(tx, program, &entry.viewer, &entry.args)?).at(entry.now).with_ids(entry.new_ids.clone()).with_entropy(entropy | 1);
+    let context = Context::new(&entry.viewer, media::inputs(tx, program, &entry.viewer, &entry.args)?).at(entry.now).with_generation(meta_u64(tx, GENERATION)?).with_ids(entry.new_ids.clone()).with_entropy(entropy | 1);
     let predicting = Predicting { tx, written: RefCell::new(Vec::new()) };
     let prediction = local::predict(&predicting, schema, program, context, Ceilings::default())?;
     Ok((predicting.written.into_inner(), prediction.new_ids))

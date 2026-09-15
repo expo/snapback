@@ -747,12 +747,16 @@ host, before any rule — from that moment; the server's sweep deletes it
 within a second, and the deletion streams to each device holding it, so it
 leaves local stores on the next sync. Disappearing messages are one field on
 insert; there is no purge job to write. A `maintain` over an expiring table
-reads its live source group under the read meter; index the grouping columns
-to avoid walking unrelated groups. A rule may probe whether that live group
+reads its live source group under the read meter through an internal selected
+contribution index. Physical zero-sum occupancy reads at most one index entry. A rule may probe whether that live group
 exists at one rule-probe unit, regardless of expired sources. A rule equality
 on its `value` is refused at `check` (E_QUARRY_LIVE_MAINTAIN_PROBE): read the
 maintain in the program; its live value cannot be probed at one unit. Value
 equalities on non-expiring maintains and ordinary tables remain supported.
+Value-order indexes over expiring sources are refused by check
+(E_QUARRY_MAINTAIN_EXPIRE) and raw schema adoption: use a live bounded query,
+or the scheduled ranked-table recipe. Stored order cannot rank live values
+between expiry and the physical sweep.
 A partial device counts only held live
 sources and says `complete: false`. A meter cut returns the contribution
 examined so far, also incomplete. A zero sum keeps its group while sources
@@ -858,6 +862,9 @@ Comparisons, `and`/`or`/`not`, arguments, `viewer`, literals and indexed reads
 are metered; a predicate read is a probe. Only rows passing both count toward N.
 A uniformly authorized filtered page is complete when it holds N matches or
 reaches the range's end, including without a cursor; a meter cut is incomplete.
+Direct table and maintain page cursors bind the evaluated prefix and active
+generation. Reusing one under another prefix or after adoption is refused;
+ordinary writes keep it valid, and rows can move between pages.
 A filled page positions `next` after its last returned row. A meter-cut page
 positions after its last rule-visible examined row, even if the filter rejected
 it, never after a hidden row. A non-uniform page stays incomplete; a cut in a

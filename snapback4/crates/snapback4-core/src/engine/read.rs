@@ -5,7 +5,7 @@
 
 use super::rules::{self, Probe};
 use super::runner::{PagePosition, Runner};
-use crate::cursor::{CursorColumn, CursorPosition, decode_cursor_for, encode_cursor};
+use crate::cursor::{CursorColumn, CursorPosition, CursorScope, decode_cursor, decode_cursor_for, encode_cursor};
 use crate::error::{MeterKind, RuntimeError};
 use crate::ir::*;
 use crate::schema::{Effect, Index, Table, materialize_optional_fields};
@@ -82,6 +82,17 @@ impl Runner<'_> {
         Ok(self.meter.charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? && verdict)
     }
 
+    // @ref LLP 3000.007#20.9 — coverage applies before a missing candidate or empty page can return zero/complete.
+    fn aggregate_read_coverage(&mut self, table: &str, index: &str, key: &[Value], site: &str) {
+        if !self.device { return; }
+        let Some(maintain) = self.schema.maintain_for(table) else { return };
+        let source = &self.schema.tables[&maintain.source];
+        if self.schema.maintain_subset_unknown(table) || (source.expire.is_some() && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some())) {
+            self.read_tables.insert(maintain.source.clone());
+            self.unknown_fact(table, index, key, site);
+        }
+    }
+
     fn horizon_coverage(&mut self, scan: &Scan, prefix: &[Value], retained: bool) {
         if retained { self.beyond_horizon = true; }
         else { self.unknown_fact(&scan.table, &scan.index, prefix, &scan.site); }
@@ -89,6 +100,7 @@ impl Runner<'_> {
 
     // @ref LLP 3000.007#17 — one rule probe, regardless of expired siblings or an expiring maintain's sources.
     fn rule_probe_exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
+        self.aggregate_read_coverage(table, index, key, "rule probe");
         let definition = self.schema.table(table).ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
         let index_def = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
         self.read_tables.insert(table.to_owned());
@@ -273,6 +285,7 @@ impl Runner<'_> {
         self.read_tables.insert(read.table.clone());
         self.rule_dependencies(&table.rules.read);
         self.meter.at(&read.site);
+        self.aggregate_read_coverage(&read.table, &read.index, &key, &read.site);
         if self.filter_depth > 0 && !self.meter.charge(MeterKind::RuleProbes, 1)? { return Ok(Value::Null); }
         if self.device && table.sync.is_none() {
             self.unknown_fact(&read.table, &read.index, &key, &read.site);
@@ -357,7 +370,7 @@ impl Runner<'_> {
         let terms = crate::words::terms(&text);
         // Validate every scan input before denial or empty word discovery can
         // return. Generated lanes retain the same bounds and cursor scope.
-        self.bounds(scan, table, index)?;
+        self.bounds(scan, table, index, None)?;
         self.take(&scan.take)?;
         self.read_tables.insert(scan.table.clone());
         self.rule_dependencies(&table.rules.read);
@@ -371,7 +384,7 @@ impl Runner<'_> {
         }
         let empty_page = |this: &mut Self| {
             if this.page_depth == 0 && scan.opaque_cursor {
-                this.record_page(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: position + 1, interrupted: false, next: None });
+                this.record_page(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: position + 1, prefix: None, interrupted: false, next: None });
             }
         };
         // @ref LLP 3000.007#18.1 — one verdict per matching scope, before word discovery; the outer merge orders these scoped pages.
@@ -451,7 +464,7 @@ impl Runner<'_> {
     }
 
     /// The bounds of a scan: the cursor position and any value range.
-    fn bounds(&mut self, scan: &Scan, table: &Table, index: &Index) -> Result<Bounds, RuntimeError> {
+    fn bounds(&mut self, scan: &Scan, table: &Table, index: &Index, prefix: Option<&[Value]>) -> Result<Bounds, RuntimeError> {
         let mut bounds = Bounds::default();
         let after = scan.after.as_deref().map(|value| self.expr(value)).transpose()?;
         let before = scan.before.as_deref().map(|value| self.expr(value)).transpose()?;
@@ -465,6 +478,12 @@ impl Runner<'_> {
             Some(Value::String(token)) if scan.opaque_cursor => {
                 let suffix = Self::cursor_suffix(table, index, scan.prefix.len());
                 let values = decode_cursor_for(self.schema, &token, &scan.table, &scan.index, scan.order, &suffix).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
+                if scan.merge_site.is_none() && let Some(prefix) = prefix {
+                    let expected = CursorScope { generation: self.context.generation, prefix: prefix.to_vec() };
+                    if decode_cursor(self.schema, &token).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?.scope.as_ref() != Some(&expected) {
+                        return Err(RuntimeError::Input(format!("cursor: {}", crate::cursor::CursorError::Scope)));
+                    }
+                }
                 bounds.after = Some(values);
             }
             Some(Value::Array(values)) if !scan.opaque_cursor => bounds.after = Some(values),
@@ -500,7 +519,7 @@ impl Runner<'_> {
         let prefix = self.prefix_values(scan)?;
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
-        let bounds = self.bounds(scan, table, index)?;
+        let bounds = self.bounds(scan, table, index, Some(&prefix))?;
         let take = self.take(&scan.take)?;
         self.scan_prepared(scan, prefix, bounds, take, word)
     }
@@ -515,6 +534,7 @@ impl Runner<'_> {
         self.read_tables.insert(scan.table.clone());
         self.rule_dependencies(&table.rules.read);
         self.meter.at(&scan.site);
+        self.aggregate_read_coverage(&scan.table, &scan.index, &prefix, &scan.site);
         if self.device && table.sync.is_none() {
             self.unknown_fact(&scan.table, &scan.index, &prefix, &scan.site);
         }
@@ -640,7 +660,7 @@ impl Runner<'_> {
             let position = if visible.len() == take { keys.last() } else { last_rule_visible.as_ref().or_else(|| keys.last()) };
             let continues = if capped || self.non_uniform || self.word_cut_at.is_some() { position.is_some() } else { has_more };
             let next = if continues { position.and_then(|key| crate::key::decode(key)).map(|values| values.into_iter().take(components).skip(prefix.len()).collect()) } else { None };
-            self.record_page(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: prefix.len(), interrupted: false, next });
+            self.record_page(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: prefix.len(), prefix: (scan.merge_site.is_none() && word.is_none()).then(|| prefix.clone()), interrupted: false, next });
         }
         Ok((visible, keys))
     }
@@ -665,7 +685,7 @@ impl Runner<'_> {
         let table = self.schema.table(&page.table).expect("scanned table");
         let index = table.index(&page.index).expect("scanned index");
         let suffix = Self::cursor_suffix(table, index, page.prefix_len);
-        encode_cursor(self.schema, &CursorPosition { table: page.table.clone(), index: page.index.clone(), order: page.order, suffix, values: values.clone() })
+        encode_cursor(self.schema, &CursorPosition { table: page.table.clone(), index: page.index.clone(), order: page.order, suffix, values: values.clone(), scope: page.prefix.as_ref().map(|prefix| CursorScope { generation: self.context.generation, prefix: prefix.clone() }) })
             .map(Some)
             .map_err(|error| RuntimeError::Input(format!("cursor: {error}")))
     }
@@ -762,7 +782,7 @@ impl Runner<'_> {
         if self.page_depth == 0 && first.scan.opaque_cursor {
             let continues = if self.meter.capped_at.is_some() || self.non_uniform || self.word_cut_at.is_some() { !candidates.is_empty() } else { has_more };
             let next = if continues { candidates.last().map(|(key, _)| key.clone()) } else { None };
-            self.record_page(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, interrupted: false, next });
+            self.record_page(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, prefix: None, interrupted: false, next });
         }
         Ok(candidates.into_iter().map(|(_, row)| row).collect())
     }
@@ -797,7 +817,7 @@ impl Runner<'_> {
                 let prefix = self.prefix_values(&lane.scan)?;
                 let definition = self.schema.table(&lane.scan.table).ok_or_else(|| RuntimeError::Schema("missing merge table".into()))?;
                 let index = definition.index(&lane.scan.index).ok_or_else(|| RuntimeError::Schema("missing merge index".into()))?;
-                let bounds = self.bounds(&lane.scan, definition, index)?;
+                let bounds = self.bounds(&lane.scan, definition, index, None)?;
                 lanes.push((&lane.scan, prefix, bounds, VecDeque::new(), false));
             }
         }
@@ -839,7 +859,7 @@ impl Runner<'_> {
         if depth == 0 {
             if first.scan.opaque_cursor {
                 let continues = if self.meter.capped_at.is_some() || self.non_uniform || self.word_cut_at.is_some() { !page.is_empty() } else { has_more };
-                self.record_page(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, interrupted: false, next: if continues { last } else { None } });
+                self.record_page(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, prefix: None, interrupted: false, next: if continues { last } else { None } });
             } else if has_more { self.page_overflow = true; }
         }
         Ok(page)

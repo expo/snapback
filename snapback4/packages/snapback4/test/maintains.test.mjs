@@ -14,7 +14,7 @@ import { memoryPersistence, webDevice } from "../dist/web.js";
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = join(root, "target/debug/snapback4");
 const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm"));
-const source = "use personas alice, bob\ntable posts:\n  owner: principal\n  item: id\n  at: time\n  selected: bool\n  score: int\n  by byOwner: owner, at, id\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  update <- .owner = viewer\n  sync last 1 by byOwner\nmaintain totals: sum posts of score where .selected by owner, item, day(.at)\n  read <- .owner = viewer\n  by byScore: owner, value, id\nquery groups(c: cursor ?):\n  return totals[viewer] after c first 50 by byGroup\nquery rank(c: cursor ?):\n  return totals[viewer] after c last 10 by byScore\nquery calendar(at: time):\n  return {day: day(at), hour: hour(at), bucket: bucket(at, 2m)}\nmutation lower(row: posts):\n  update posts[row] {score: 1}\n";
+const source = "use personas alice, bob\ntable posts:\n  owner: principal\n  item: id\n  at: time\n  selected: bool\n  score: int\n  by byOwner: owner, at, id\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  update <- .owner = viewer\n  sync last 1 by byOwner\nmaintain totals: sum posts of score where .selected by owner, item, day(.at)\n  read <- .owner = viewer\n  by byScore: owner, value, id\nquery groups(c: cursor ?):\n  return totals[viewer] after c first 50 by byGroup\nquery scoped(owner: principal, c: cursor ?):\n  return totals[owner] after c first 50 by byGroup\nquery rank(c: cursor ?):\n  return totals[viewer] after c last 10 by byScore\nquery calendar(at: time):\n  return {day: day(at), hour: hour(at), bucket: bucket(at, 2m)}\nmutation lower(row: posts):\n  update posts[row] {score: 1}\n";
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 for (const tier of ["wasm", "process"]) test(tier + ": calendar endpoints, full aggregate pages past a source horizon, and rank", { timeout: 60000 }, async t => {
@@ -45,10 +45,15 @@ for (const tier of ["wasm", "process"]) test(tier + ": calendar endpoints, full 
   assert.equal(first.data.length,50); assert.equal(first.complete,true); assert.ok(first.next);
   const last = await query("groups",{c:first.next});
   assert.equal(last.data.length,1); assert.equal(last.complete,true);
+  const wrongScope = await query("scoped",{owner:"dev:alice",c:first.next});
+  assert.equal(wrongScope.denied?.code,"E_INPUT");
   const ranks = await query("rank",{c:null});
   assert.deepEqual(ranks.data.map(r=>r.value),[51,50,49,48,47,46,45,44,43,42]);
   assert.equal((await post("/m/lower",{args:{row:"p50"},id:"lower"})).state,"sent");
   await client.sync();
+  const continued = await query("rank",{c:ranks.next});
+  assert.equal(continued.complete,true);
+  assert.deepEqual(continued.data.map(r=>r.value),[41,40,39,38,37,36,35,34,33,32]);
   const decreased = await query("rank",{c:null});
   assert.deepEqual(decreased.data.map(r=>r.value),[50,49,48,47,46,45,44,43,42,41]);
 });
