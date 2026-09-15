@@ -478,8 +478,10 @@ export function createClient(options: ClientOptions): Client {
     },
     async mutate<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
       const id = options?.id === undefined ? mintId() : options.id;
-      if (closed) return emitWrite({ state: "failed", id, why: ended() });
-      if (!credentials || link === "signed-out") return emitWrite({ state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write" } });
+      if (closed || !credentials || link === "signed-out") {
+        const failed = { state: "failed" as const, id, why: closed ? ended() : { code: "E_AUTH", family: "auth", message: "sign in to write" } };
+        return mutationIds.knows(id) ? failed : emitWrite(failed);
+      }
       return mutationIds.run<R>(id, op.name, args, () => client.write(id), async (args, write) => {
         let settle!: (write: Write) => void;
         const settled = new Promise<Write>((resolve) => { settle = resolve; });

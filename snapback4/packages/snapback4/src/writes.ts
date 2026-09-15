@@ -33,6 +33,8 @@ export class MutationIds {
   private submissions = new Map<string, Submission>();
   private terminal = new Set<string>();
 
+  knows(id: string): boolean { return this.seen.has(id); }
+
   remember(id: string, op?: string, args?: unknown): void {
     if (this.seen.has(id)) return;
     this.seen.add(id);
@@ -61,7 +63,10 @@ export class MutationIds {
       if (!entry) { entry = {}; this.submissions.set(id, entry); }
       const held = entry;
       return (async () => {
-        await held.running;
+        const submitted = await held.running;
+        // Every overlapping caller shares the admission refusal too. Looking
+        // up this id after losing admission would collect the winner's input.
+        if (submitted?.state === "failed" && submitted.why.code === "E_WRITE_ID_REUSE" && submitted.why.family === "input") return submitted;
         const write = await recover();
         if (write?.state === "pending") return held.pending ??= write;
         if (write) { this.finish(id); return write; }
@@ -76,7 +81,13 @@ export class MutationIds {
     const held = entry;
     const running = submit(snapshot, pending);
     held.running = running;
-    void running.then(write => { if (write.state !== "pending") this.finish(id); }, () => {}).finally(() => { delete held.running; });
+    void running.then(write => {
+      if (write.state === "failed" && write.why.code === "E_WRITE_ID_REUSE" && write.why.family === "input") {
+        // Another owner won durable admission. This reservation never owned
+        // the id; the next call must recover/compare the original input.
+        this.seen.delete(id); this.submissions.delete(id);
+      } else if (write.state !== "pending") this.finish(id);
+    }, () => {}).finally(() => { delete held.running; });
     return running;
   }
 }

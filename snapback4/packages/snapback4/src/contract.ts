@@ -76,7 +76,8 @@ export interface ActOptions {
 
 export interface MutateOptions {
   /** A 26-digit uppercase Crockford base32 id, first digit 0–7, as minted by
-   * mintId(). Reuse an intent/fixture id for retries; this is not a row id.
+   * mintId(). Store it with the intent/fixture and reuse it for retries; this
+   * is not a row id. Arbitrary fixture strings need an application ledger.
    * Retries return the pending Write or a receipt without historical results.
    * Conflicting input is refused while this client or its outbox knows it;
    * otherwise a retained receipt or the server's original outcome wins. */
