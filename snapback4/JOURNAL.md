@@ -9904,3 +9904,164 @@ diagnostic before/after text for this lane. No application spelling changed.
 `git diff --check` passes, and the journal's prefix is byte-identical to the
 base with this one appended dated entry. Nothing was committed, pushed,
 tagged or published.
+
+## 2026-09-14 — W2R2w: witness receipt validation, process ownership and artifact preservation
+
+Base: `bca8bfe70d320c1d466c6a700493465662b2205e`. Read GPT re-check
+findings B, C and D, including the custom-serialization envelope probe,
+LLP 3000.007 §20.10, and W1's lane and native end-to-end records. Every
+execution regression here uses the fake simctl and the real dev backend;
+there were **0 native simulator end-to-end runs** in this sandbox.
+
+The driver now validates every complete row before advancing, including
+failures later in the same batch, checks the witness envelope and milestone
+order, and validates the full exported file after collection. Previously
+observed rows cannot be replaced. After `done`, only app receipts in the
+helper's `between-steps` state may follow. The helper serializes and parses
+the app object before installing the protocol envelope, rejecting primitive,
+array, null and reserved-key serialization results while accepting benign
+`toJSON` and getters without evaluating them again.
+
+The driver refuses an already running app before starting its backend,
+records each launch's reported PID, checks the current app PID before
+signaling that PID, and leaves replacement instances running. It never
+terminates by bundle ID or launches with `--terminate-running-process`.
+A persistent create-new marker reserves the segment's namespace, and the
+manifest names it and all **9 output files**. Every output is covered by
+preflight. Backend and launch logs append across restarts; readiness reads
+only the new backend's stdout suffix, so an earlier announcement cannot
+satisfy the restarted process's readiness check. The card, README, existing
+witness code explanations and §20.10 document the changed behavior.
+
+Measured fake-driver controls: **2 simultaneous runs, 1 owner and 1 refusal**;
+**2 backend readiness announcements** retained (base: **1**); **3 launch
+stderr groups** retained; **3 launched PIDs**, 7001, 7002 and
+7003, and **3 matching terminations**, with **0 bundle-only terminations**.
+The existing-instance control leaves PID 6999 alone; the replacement
+control leaves PID 9999 alone. All **9 pre-existing output paths** retain
+their exact bytes. The five invalid-receipt scenarios fail, while cold,
+relaunch and harmless post-done app receipts pass.
+
+### Red and green
+
+Cargo and package commands ran from `snapback4/`. Every Node/Bun command
+used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+`cargo test -p snapback4 --test witness` first ran before production edits:
+
+```text
+test result: FAILED. 9 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.69s
+```
+
+The strengthened, separately named regressions were then run against the
+same base's driver and protocol restored with `git show`, with a test-only
+adapter extracting the base's inline check-only artifact preflight for the
+reservation race. That adapter is absent from the delivered code:
+
+```text
+test result: FAILED. 9 passed; 10 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.02s
+```
+
+The same command on the fixed implementation:
+
+```text
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 19.07s
+```
+
+`node --test packages/snapback4/test/witness.test.mjs`, before then after:
+
+```text
+ℹ tests 4
+ℹ pass 3
+ℹ fail 1
+
+ℹ tests 4
+ℹ pass 4
+ℹ fail 0
+```
+
+The first intermediate green Rust run also used
+`cargo test -p snapback4 --test witness`:
+
+```text
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.20s
+```
+
+### Diagnostics
+
+The base accepted the failed batch, late failure, reordered milestone,
+late step change and malformed envelope as success; it also took over the
+existing app. The fixed fixture's refusals include these exact texts:
+
+```text
+E_WITNESS_STEP: app step check:failed; see receipts and device log
+E_WITNESS_STEP: app changed step after done: primed
+E_WITNESS_STEP: app changed step after done: history:running
+E_WITNESS_RECEIPT: receipt line 3 has an invalid witness envelope; expected witness: { at: ISO timestamp, step: name }
+E_WITNESS_APP: dev.test is already running on dedicated; quit it before starting the witness
+E_WITNESS_APP: dev.test on dedicated was replaced by PID 9999; leaving that instance running
+E_WITNESS_RECEIPT: serialized receipt must be an object without the reserved witness key
+```
+
+No meter, value serialization, existing corpus case, native bridge, app
+caller or other lane's client implementation changed. No commit, push, tag,
+publication, sub-agent or remote machine was used. The lead's native rerun
+remains necessary; fake process choreography does not measure native UI,
+process or storage behavior. The useful lesson is that a milestone is not
+a validated batch, a bundle identifier is not process ownership, and an
+existence check is not an exclusive artifact reservation.
+
+
+### Full verification
+
+From the repository root, with the same Node 24 PATH:
+`bash snapback4/scripts/test.sh`:
+
+```text
+-- ok: cargo build (2 s)
+-- ok: wasm build (17 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (2 s)
+-- ok: cargo test (352 s)
+-- ok: chat app typecheck (0 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (10 s)
+ℹ tests 198
+ℹ pass 197
+ℹ fail 1
+-- FAIL: client tests (46 s)
+== 1 failure(s) in 374 s
+```
+
+Summing the 54 Rust suite summaries gives **760 passed, 0 failed,
+2 ignored**. All witness regressions pass in that full run. The client
+failure is Chromium `signal=SIGABRT` in `react.test.mjs`, the sandbox
+artifact explicitly named in this lane's brief. The isolated rerun from
+`snapback4/`, `node --test packages/snapback4/test/react.test.mjs`, reproduces
+it:
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 1158.33125
+```
+
+No lifecycle host test failed and no reduced-concurrency client rerun was
+needed. I do not claim an independently verified pre-existing full-suite
+failure at the base; the Chromium classification follows the author's
+explicit environment ruling, and the lead reruns it outside the sandbox.
+`./ref-check --verbose` from the root passes:
+
+```text
+ref-check: ok — 480 LLP docs, 8887 refs in 22927 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passes. Raw outputs are `/tmp/w2r2w-rust-red.log`,
+`/tmp/w2r2w-rust-red-complete.log`, `/tmp/w2r2w-rust-final.log`,
+`/tmp/w2r2w-js-red.log`, `/tmp/w2r2w-js-final.log`,
+`/tmp/w2r2w-suite.log`, `/tmp/w2r2w-react-alone.log` and
+`/tmp/w2r2w-ref-check.log`.
