@@ -333,6 +333,12 @@ rule when these deltas are private; guide rules shows that form. Adoption
 rebuilds changed derived definitions on populated stores through today's
 atomic activation path; resumable adoption is a separate slice.
 
+Even a hidden aggregate can disclose a constraint outcome: near an integer
+endpoint, a hidden selected contribution can make a write fail with
+E_OVERFLOW while an excluded contribution commits. Work reservation does not
+prevent this overflow bit; the refusal names only the maintain and column,
+and the failed transaction rolls back.
+
 ### Shapes and helpers
 
 `shape card = { id, name, owner: .ownerId }` names a shape; `row card` and

@@ -9217,3 +9217,318 @@ D1R1 code caps: 20 files; max 1262 lines; 0 over 1500
 The earlier journal is byte-identical, and exactly one dated entry was added.
 The worktree remains on the base commit for the lead; nothing was committed
 or published.
+
+## 2026-09-14 — D1R2: Grok maintain review, hidden deletes and index accounting
+
+Started clean at `fc76b6391a5875d330bd3eacb8076748b8805f88` on
+`sb4/w3-d1`, after reading the D1R1 entry and the complete review at
+`/Users/ccheever/projects/snapback-d1-review/grok.md`. All initial
+reproductions below ran with production code unchanged at that HEAD. No
+commit, push, tag, publication, sub-agent, clone or remote machine was used.
+
+### Findings and starting-HEAD reproductions
+
+Commands in this entry run from `snapback4/` unless explicitly marked root.
+Logs are under `/private/tmp/`; their prefix is `d1r2-`.
+
+1. **Hidden delete: reproduced.** `delete` now calls the same maintain
+   reservation before `fetch`, wrapped in `target_attempt` so prepayment and
+   transient heap end with that attempt. The existing NOT_FOUND/E_RULE delete
+   distinction is retained; it is outside §8.7's one-word update contract.
+   Filter worlds match within each target outcome. If the reservation cannot
+   fit, present/absent and admitted/denied worlds all refuse before lookup.
+   No ceiling changed and actual maintain work is not charged twice.
+
+   `cargo test -p snapback4-sim --test maintains hidden_filter_work_delete -- --nocapture`
+
+   Red (`red-delete.log`):
+   `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.07s`
+
+   First green (`green-delete.log`, 543 pairs):
+   `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 24.38s`
+
+   The final matrix adds actual transient-reservation boundaries and positive
+   assertions for all full-budget outcomes: 659 pairs. It includes both
+   device stores through the existing observation helper, first/retry bytes,
+   durable receipts, all seven meters, effects, stream/snapshot, device
+   admission/reopen/settlement, and server query metadata. Source/target
+   deletions are checked in each successful world; failures roll back.
+
+2. **Expiry card: did not reproduce.** D1R1 already added the paragraph
+   naming E_QUARRY_MAINTAIN_EXPIRE and the live bounded query / scheduled
+   ranked-table rewrites. Added a focused card assertion; no expiry-card or
+   diagnostic implementation change was justified.
+
+   `cargo test -p snapback4-lang --test guide expire_card_explains -- --nocapture`
+
+   Base (`base-expire.log`):
+   `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s`
+
+   It remains green in the final 16-test guide suite below; there is no
+   fabricated red line for an already repaired finding.
+
+3. **Hidden filtered/keyed overflow: reproduced, documented as authorized.**
+   Seed an admitted hidden row with score 1 and another selected row with
+   I53_MAX − 1, grouped by author/day. Changing the hidden score to 2 commits
+   if excluded and fails E_OVERFLOW if selected. Both aggregate and source
+   deny the writer read access. The initial equality hypothesis fails.
+   Per the brief's smaller option, §20.9.3, the maintains card and README
+   now name this §8/§17 constraint-outcome residual. Overflow implementation
+   was not changed. The retained test requires the success control, atomic
+   rollback, value-free first refusal and the stricter replay refusal.
+
+   `cargo test -p snapback4-sim --test maintains hidden_filtered_keyed_overflow -- --nocapture`
+
+   Red (`red-overflow.log`):
+   `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.05s`
+
+   Green for the documented contract (`green-overflow-final.log`):
+   `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.05s`
+
+   A first follow-up assertion incorrectly expected replay's message to
+   equal the first refusal; that test failed 0/1, then was corrected to
+   require the existing sanitized message. No runtime repair was made for
+   this test expectation. An accidental root-level cargo invocation of the
+   same command refused before tests because `vendor/ibex/Cargo.toml` is
+   absent (`green-overflow.log`); it built nothing and was immediately rerun
+   in the fenced workspace. No root bootstrap was attempted.
+
+4. **MemoryRows accounting/defaults: reproduced.** Three core tests cover
+   actual changed-key counts against SQLite, defaulted raw-image indexing,
+   and delete of an interpreted old image without stale-key resurrection.
+   `put` now counts removed and added `stored_index_keys`, like MemoryStore;
+   `delete` also interprets defaults. Raw row storage remains raw.
+
+   `cargo test -p snapback4-core --test rows -- --nocapture`
+
+   Red (`red-rows.log`):
+   `test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s`
+
+   Green (`green-rows.log`, also `target-rows.log`):
+   `test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s`
+
+5. **Adoption fold: test gap confirmed; no rebuild failure reproduced.**
+   Extended the independent fold with an explicit expected predicate,
+   duration and output-field name; it does not call the production
+   contribution evaluator. The adoption test now checks counts and scores
+   after all three definitions, using selected and excluded rows whose UTC
+   day and two-minute bucket differ. Source bytes stay identical. The
+   stronger test already passes at the starting HEAD, so rebuild code was
+   left alone.
+
+   `cargo test -p snapback4-sim --test maintains adoption_rebuilds_filters -- --nocapture`
+
+   Base (`base-adoption.log`):
+   `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.01s`
+
+   It remains green in the final 13-test maintains suite below.
+
+### Targeted suites
+
+`cargo test -p snapback4-core --test rows -- --nocapture` (`target-rows.log`):
+
+```text
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+`cargo test -p snapback4-lang --test guide --test maintains` (`target-lang.log`):
+
+```text
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+`cargo test -p snapback4-sim --test maintains --test maintains_review -- --nocapture` (`target-sim.log`):
+
+```text
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 29.96s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.46s
+```
+
+`cargo test -p snapback4-device --test device maintains -- --nocapture` (`target-device.log`):
+
+```text
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 51 filtered out; finished in 0.30s
+```
+
+### Measurements and diagnostic text
+
+Delete final meters, in `[steps, examined, index entries, rows written,
+heap bytes, rule probes, output bytes]` order:
+
+| World | Filter false | Filter true |
+|---|---|---|
+| Base, no expiry | `[12, 0, 2, 1, 18, 0, 6]` | `[12, 2, 7, 3, 18, 0, 6]` |
+| Fixed, no expiry | `[26, 8, 26, 5, 18, 0, 6]` | same |
+| Fixed, expiring/live | `[50, 8, 23, 5, 18, 0, 6]` | same |
+| Fixed, expired/unswept | `[4, 0, 0, 0, 18, 0, 0]` | same (NOT_FOUND restores the mark) |
+
+Binary-searched minimum non-E_BOUND ceilings in that order are
+`[26, 8, 26, 5, 35566, 0, 6]` without expiry,
+`[50, 8, 23, 5, 33582, 0, 6]` for live expiry and
+`[48, 8, 20, 4, 33582, 0, 0]` for expired/unswept. The matrix tests one below,
+at and one above those boundaries as well as low/zero ceilings. The expired
+attempt still needs reservation room before it can discover NOT_FOUND and
+restore the meter: its final meter is not its peak reservation. That is why
+checking only final counters would miss the actual heap boundary.
+
+MemoryRows and SQLite now both charge `[2, 0, 0, 2]` index entries for insert,
+identical update, unrelated-field update and a group-key move, respectively.
+Before, the second operation charged 2 in MemoryRows and 0 in SQLite.
+The adoption oracle checks 3 published definitions over 2 source rows with
+0 source-image changes. The overflow fixture's endpoint is
+9,007,199,254,740,991. Its success/error bit is retained explicitly, not
+reported as repaired noninterference.
+
+No diagnostic code or text changed. Before and after, the first overflow
+refusal is exactly:
+
+```text
+E_OVERFLOW: maintain totals.value overflowed
+```
+
+The stored/replayed message is exactly:
+
+```text
+the program refused with E_OVERFLOW
+```
+
+The source edit rolls back on overflow; the failed reply carries no current
+row. There is no new E_/N_ registration and no parser form or caller change.
+
+### Full suite and baseline client checks
+
+Before implementation changes, the exact starting HEAD was rebuilt with:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+cargo build --workspace --quiet
+bash scripts/build-wasm.sh
+bun run --cwd packages/snapback4 build
+node --test packages/snapback4/test/react.test.mjs
+node --test --test-name-pattern='failed persistence stops' packages/snapback4/test/web-navigation.test.mjs
+```
+
+Builds succeeded (base wasm 1,707,900 B raw / 473,904 B gzip).
+Both isolated tests failed at the exact base
+`fc76b6391a5875d330bd3eacb8076748b8805f88`: Chromium reports SIGABRT;
+persistence misses the expected `/disk full/` rejection. Base summaries:
+
+```text
+# base-react.log
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 368.505875
+# base-persistence.log
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 1270.860208
+```
+
+Final root invocation (log `suite.log`):
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+```
+
+The full suite accumulated **721 Rust passes, 0 failures, 4 ignored**.
+Every build/typecheck/app step and the 9 fixture tests passed. Its only
+failed step was the client suite: 188/190, precisely the two independently
+base-reproduced failures above. No lifecycle timeout occurred in this run.
+Final wasm: **1,708,421 B raw / 474,117 B gzip**, +521 / +213 B from base.
+Verbatim summary lines:
+
+```text
+-- ok: cargo build (3 s)
+-- ok: wasm build (13 s)
+-- ok: package typecheck (0 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (330 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (0 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (8 s)
+ℹ tests 190
+ℹ pass 188
+ℹ fail 2
+-- FAIL: client tests (43 s)
+== 1 failure(s) in 348 s
+```
+
+Isolated final-code reruns, with Node 24 PATH as above:
+
+```sh
+node --test packages/snapback4/test/react.test.mjs
+node --test --test-name-pattern='failed persistence stops' packages/snapback4/test/web-navigation.test.mjs
+node --test packages/snapback4/test/maintains.test.mjs
+```
+
+```text
+# react.log — Chromium SIGABRT, same as exact base
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 424.778583
+# persistence.log — Missing expected rejection, expected /disk full/, same as exact base
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 327.385166
+# target-client.log — wasm and process devices
+ℹ tests 2
+ℹ pass 2
+ℹ fail 0
+ℹ duration_ms 411.063958
+```
+
+README and card prose was separated into paragraphs while the full suite
+ran, preserving the original prose wrapping. No Quarry fence changed.
+The final docs were rechecked with
+`cargo test -p snapback4-lang --test guide --test maintains`
+(`final-lang.log`); its verbatim summaries are recorded below.
+
+```text
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+### Scope and final repository checks
+
+The two runtime repairs, regression coverage, overflow disclosure and dated
+§20.9 built note are complete. Findings 2 and 5 needed no production change
+because their asserted faulty behavior did not reproduce; both coverage
+improvements remain. A state-independent overflow rejection was deliberately
+not implemented, using the brief's explicitly permitted residual option.
+Durable/resumable adoption and S26 continuation stay in their owning lanes.
+No application form changed, so there were no app, fixture or loopbar callers
+to migrate. No other lane's file was touched. MemoryRows::delete is part of
+finding 4's reproduced default-key defect, not an unrelated refactor.
+
+Six changed code files have a maximum of 525 lines, zero over 1,500.
+The existing corpus, value serialization and meter ceilings are unchanged.
+This is one appended journal entry; all previous journal bytes are preserved.
+
+Root checks (Node 24 PATH as above):
+
+```sh
+./ref-check --verbose
+git diff --check
+```
+
+Before this append, reference validation reported:
+
+```text
+ref-check: ok — 480 LLP docs, 8890 refs in 22929 files, 0 errors, 0 unchecked
+D1R2 code caps: 6 files; max 525 lines; 0 over 1500
+```
+
+The final append is also covered by the root reference check; the worktree is
+left uncommitted for the lead. The lead still needs to rerun the full suite
+outside the sandbox, where Chromium can start, and handle the existing
+persistence-test failure in its owning lane. No new product test remains red.

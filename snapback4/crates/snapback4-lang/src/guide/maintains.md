@@ -113,6 +113,12 @@ membership, and rank discloses relative values to the aggregate's read audience.
 The filter grants no source-row read. N_MAINTAIN_DELTA names dependencies;
 restrict the aggregate read rule when the delta is private (guide rules).
 
+Even a hidden aggregate can disclose a constraint outcome: near an integer
+endpoint, a hidden selected contribution can make a write fail with
+E_OVERFLOW while an excluded contribution commits. Work reservation does not
+prevent this overflow bit; the refusal names only the maintain and column,
+and the failed transaction rolls back.
+
 Adding or changing a filter, key, duration, dependent literal default or index
 is a derived rebuild at its declaration. Today's atomic activation rebuilds
 populated stores before publishing the new generation; it is not resumable.

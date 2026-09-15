@@ -515,3 +515,11 @@ fn set_state_recipe_predicts_first_like_and_repeated_set_and_clear() {
         assert_eq!(engine.store().rows("likes").unwrap().len(), usize::from(liked));
     }
 }
+
+#[test]
+fn expire_card_explains_maintained_value_order_refusal_and_rewrites() {
+    let expire = card("expire").unwrap();
+    for phrase in ["Value-order indexes over expiring sources", "E_QUARRY_MAINTAIN_EXPIRE", "live bounded query", "scheduled ranked-table recipe"] {
+        assert!(expire.contains(phrase), "expiry diagnostic's destination omits {phrase}");
+    }
+}

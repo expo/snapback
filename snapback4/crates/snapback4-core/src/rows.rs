@@ -219,13 +219,14 @@ impl Rows for MemoryRows {
         let mut written = 0;
         for (index_name, index) in &table.indexes {
             let ti = format!("{table_name}.{index_name}");
-            if let Some(old) = old {
-                for key in index_keys(index, old, &id) {
-                    entries.remove(&(ti.clone(), key));
-                }
+            let before = old.map(|row| stored_index_keys(table, index, row, &id)).unwrap_or_default();
+            let after = stored_index_keys(table, index, row, &id);
+            for key in before.iter().filter(|key| !after.contains(key)) {
+                entries.remove(&(ti.clone(), key.clone()));
+                written += 1;
             }
-            for key in index_keys(index, row, &id) {
-                entries.insert((ti.clone(), key), id.clone());
+            for key in after.iter().filter(|key| !before.contains(key)) {
+                entries.insert((ti.clone(), key.clone()), id.clone());
                 written += 1;
             }
         }
@@ -237,7 +238,7 @@ impl Rows for MemoryRows {
         let mut entries = self.entries.borrow_mut();
         let mut removed = 0;
         for (index_name, index) in &table.indexes {
-            for key in index_keys(index, old, &id) {
+            for key in stored_index_keys(table, index, old, &id) {
                 entries.remove(&(format!("{table_name}.{index_name}"), key));
                 removed += 1;
             }

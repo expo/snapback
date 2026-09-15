@@ -49,16 +49,17 @@ fn engine(source: &str) -> Engine {
 fn args(row: &str, author: &str, at: i64, selected: bool, score: i64) -> BTreeMap<String, Value> {
     BTreeMap::from([("row".into(), Value::Id(row.into())), ("author".into(), Value::Id(author.into())), ("at".into(), Value::Int(at)), ("selected".into(), Value::Bool(selected)), ("score".into(), Value::Int(score))])
 }
-fn fold(e: &Engine) {
+fn fold(e: &Engine) { fold_definition(e, true, 86_400_000, "day"); }
+fn fold_definition(e: &Engine, selected: bool, duration: i64, field: &str) {
     let mut counts = BTreeMap::<(String, i64), i64>::new();
     let mut scores = BTreeMap::<String, i64>::new();
     for row in e.store().rows("posts").unwrap() {
-        if !row.field("selected").unwrap().as_bool().unwrap() { continue; }
+        if row.field("selected").unwrap().as_bool().unwrap() != selected { continue; }
         let author = row.field("author").unwrap().as_str().unwrap().to_owned();
-        *counts.entry((author.clone(), row.field("at").unwrap().as_int().unwrap().div_euclid(86_400_000))).or_default() += 1;
+        *counts.entry((author.clone(), row.field("at").unwrap().as_int().unwrap().div_euclid(duration))).or_default() += 1;
         *scores.entry(author).or_default() += row.field("score").unwrap().as_int().unwrap();
     }
-    let actual: BTreeMap<_, _> = e.store().rows("counts").unwrap().iter().map(|r| ((r.field("author").unwrap().as_str().unwrap().to_owned(), r.field("day").unwrap().as_int().unwrap()), r.field("value").unwrap().as_int().unwrap())).collect();
+    let actual: BTreeMap<_, _> = e.store().rows("counts").unwrap().iter().map(|r| ((r.field("author").unwrap().as_str().unwrap().to_owned(), r.field(field).unwrap().as_int().unwrap()), r.field("value").unwrap().as_int().unwrap())).collect();
     assert_eq!(actual, counts);
     let actual: BTreeMap<_, _> = e.store().rows("scores").unwrap().iter().map(|r| (r.field("author").unwrap().as_str().unwrap().to_owned(), r.field("value").unwrap().as_int().unwrap())).collect();
     scores.retain(|_, v| *v != 0); assert_eq!(actual, scores);
@@ -107,12 +108,18 @@ fn calendar_is_euclidean_and_rank_matches_an_exact_sort_after_changes() {
 #[test]
 fn adoption_rebuilds_filters_buckets_and_defaults_without_source_writes() {
     let mut e = engine(SOURCE);
-    e.seed([("posts".into(), object([("id", Value::Id("r".into())), ("author", Value::Id("a".into())), ("at", Value::Int(-1)), ("selected", Value::Bool(true)), ("score", Value::Int(7)), ("extra", Value::Int(0))]))]).unwrap();
+    e.seed([("posts".into(), object([("id", Value::Id("r".into())), ("author", Value::Id("a".into())), ("at", Value::Int(120_001)), ("selected", Value::Bool(true)), ("score", Value::Int(7)), ("extra", Value::Int(0))]))]).unwrap();
+    e.seed([("posts".into(), object([("id", Value::Id("excluded".into())), ("author", Value::Id("b".into())), ("at", Value::Int(-120_001)), ("selected", Value::Bool(false)), ("score", Value::Int(3)), ("extra", Value::Int(0))]))]).unwrap();
     let before = e.store().rows("posts").unwrap();
-    for text in [DERIVED.to_owned(), DERIVED.replace("where .selected", "where not .selected"), DERIVED.replace("day(.at)", "bucket(.at, 2m)").replace("day(at)", "bucket(at, 2m)")] {
+    for (text, selected, duration, field) in [
+        (DERIVED.to_owned(), true, 86_400_000, "day"),
+        (DERIVED.replace("where .selected", "where not .selected"), false, 86_400_000, "day"),
+        (DERIVED.replace("day(.at)", "bucket(.at, 2m)").replace("day(at)", "bucket(at, 2m)"), true, 120_000, "bucket"),
+    ] {
         let next = bound(&(SOURCE.to_owned() + &text));
         e.adopt(next.schema, next.programs.into_iter().map(|p| p.program)).unwrap();
         assert_eq!(before, e.store().rows("posts").unwrap());
+        fold_definition(&e, selected, duration, field);
     }
 }
 
@@ -223,12 +230,17 @@ fn chips_transition_cap_cursor_and_outsider() {
 mod observation;
 
 fn hidden_world(selected: bool, present: bool, denied: bool, expiring: bool) -> Engine {
+    hidden_world_until(selected, present, denied, expiring.then_some(2000))
+}
+fn hidden_world_until(selected: bool, present: bool, denied: bool, until: Option<i64>) -> Engine {
+    let expiring = until.is_some();
     let source = SOURCE.replace("  read <- allow", "  read <- .author = viewer");
     let derived = DERIVED.replace("  read <- allow", "  read <- deny");
-    let source = if denied { source.replace("  update <- allow", "  update <- deny") } else { source };
+    let source = if denied { source.replace("  update <- allow", "  update <- deny").replace("  delete <- allow", "  delete <- deny") } else { source };
     let source = if expiring { source.replace("  extra: int default 0", "  extra: int default 0\n  until: time default 2000\n  by byUntil: until\n  expire at .until") } else { source };
+    let source = if let Some(until) = until { source.replace("time default 2000", &format!("time default {until}")) } else { source };
     let derived = if expiring { derived.replace("  by byScore: value, id\n", "").replace("last 10 by byScore", "first 10 by byGroup") } else { derived };
-    let text = source + &derived + "\nmutation blind():\n  update posts['hidden'] {at: 86400000}\n  return null\nquery hidden():\n  return counts['owner', 0]\n";
+    let text = source + &derived + "\nmutation blind():\n  update posts['hidden'] {at: 86400000}\n  return null\nmutation blindDelete():\n  delete posts['hidden']\n  return null\nquery hidden():\n  return counts['owner', 0]\n";
     let mut e = engine(&text);
     // Every world has exactly one seed commit, so its watermark is comparable.
     e.seed([("posts".into(), object([("id", Value::Id(if present { "hidden" } else { "other" }.into())), ("author", Value::Id("owner".into())), ("at", Value::Int(0)), ("selected", Value::Bool(selected)), ("score", Value::Int(1)), ("extra", Value::Int(0))]))]).unwrap();
@@ -373,4 +385,117 @@ fn source_scores(e: &Engine) -> Vec<Value> {
     sums.into_iter().filter(|(_,value)| *value != 0).map(|(author,value)| object([
         ("id",Value::Id(snapback4_core::schema::maintained_id(&[Value::Id(author.clone())]))), ("author",Value::Id(author)), ("value",Value::Int(value.try_into().unwrap()))
     ])).collect()
+}
+
+#[test]
+fn hidden_filter_work_delete_has_one_observation_per_target_outcome() {
+    let run = |selected, present, denied, expiry, ceilings| {
+        let mut e = hidden_world_until(selected, present, denied, match expiry { 0 => None, 1 => Some(2000), _ => Some(500) });
+        e.set_ceilings(ceilings);
+        let before = serde_json::to_value(e.query("hidden", Context::new("writer", BTreeMap::new()).at(1000))).unwrap();
+        let (out, observed) = observation::observe(&mut e, "blindDelete", "writer", serde_json::json!({}), "delete", ("hidden", serde_json::json!({})));
+        let after = serde_json::to_value(e.query("hidden", Context::new("writer", BTreeMap::new()).at(1000))).unwrap();
+        if matches!(out.state, WriteState::Sent { .. }) {
+            assert!(present && !denied && expiry != 2);
+            assert!(e.store().rows("posts").unwrap().is_empty());
+            assert!(e.store().rows("counts").unwrap().is_empty());
+            assert!(e.store().rows("scores").unwrap().is_empty());
+        } else { observed.assert_unchanged(); }
+        (observed, serde_json::json!({"before": before, "after": after}))
+    };
+    let same = |a: &(observation::Observation, serde_json::Value), b: &(observation::Observation, serde_json::Value)| {
+        assert_eq!(a.1, b.1, "server query: data, completeness, cursor, dependencies, expiry, meters");
+        let (a, b) = (&a.0, &b.0);
+        assert_eq!(a.first_http_body, b.first_http_body, "first reply");
+        assert_eq!(a.receipt, b.receipt); assert_eq!(a.retry_http_body, b.retry_http_body);
+        assert_eq!(a.meter, b.meter, "hidden delete's filter-dependent work");
+        assert_eq!(a.effects, b.effects); assert_eq!(a.stream, b.stream);
+        assert_eq!(a.snapshot, b.snapshot); assert_eq!(a.devices, b.devices);
+    };
+    let full = snapback4_core::Ceilings::default();
+    let ceiling = |kind, limit| {
+        let mut c = full;
+        match kind { 0 => c.steps = limit, 1 => c.examined = limit, 2 => c.index_entries = limit, 3 => c.rows_written = limit, 4 => c.heap_bytes = limit, 5 => c.rule_probes = limit, _ => c.output_bytes = limit }
+        c
+    };
+    let mut pairs = 0;
+    for expiry in 0..3 {
+        let a = run(false, true, false, expiry, full);
+        let b = run(true, true, false, expiry, full);
+        println!("hidden delete expiry={expiry}: excluded={:?}; selected={:?}", a.0.meter, b.0.meter);
+        same(&a, &b); pairs += 1;
+        for (present, denied) in [(true, false), (false, false), (true, true), (false, true)] {
+            let a = run(false, present, denied, expiry, full);
+            let b = run(true, present, denied, expiry, full);
+            same(&a, &b); pairs += 1;
+            let body = a.0.body();
+            if !present || expiry == 2 { assert_eq!(body["why"]["code"], "NOT_FOUND"); }
+            else if denied { assert_eq!(body["why"]["code"], "E_RULE"); }
+            else { assert_eq!(body["state"], "sent"); }
+        }
+        let used = a.0.meter;
+        let mut thresholds = Vec::new();
+        for (kind, amount) in [used.steps, used.examined, used.index_entries, used.rows_written, used.heap_bytes, used.rule_probes, used.output_bytes].into_iter().enumerate() {
+            // Locate the actual admission boundary too: transient reserved heap is released
+            // before the final meter, so that meter alone cannot identify its ceiling.
+            let mut lo = 0;
+            let mut hi = [full.steps, full.examined, full.index_entries, full.rows_written, full.heap_bytes, full.rule_probes, full.output_bytes][kind];
+            while lo < hi {
+                let limit = lo + (hi - lo) / 2;
+                let mut e = hidden_world_until(true, true, false, match expiry { 0 => None, 1 => Some(2000), _ => Some(500) });
+                e.set_ceilings(ceiling(kind, limit));
+                let out = e.mutate("blindDelete", None, Context::new("writer", BTreeMap::new()).at(1000)).unwrap();
+                if matches!(out.state, WriteState::Failed { ref why, .. } if why.code == "E_BOUND") { lo = limit + 1; }
+                else { hi = limit; }
+            }
+            thresholds.push(lo);
+            let mut limits = vec![0, 1, 4, 32, amount.saturating_sub(1), amount, amount + 1, lo.saturating_sub(1), lo, lo + 1];
+            if kind == 4 { limits.extend([16_383, 16_384, 65_535, 65_536]); }
+            limits.sort_unstable(); limits.dedup();
+            for limit in limits {
+                let c = ceiling(kind, limit);
+                for (present, denied) in [(true, false), (false, false), (true, true), (false, true)] {
+                    same(&run(false, present, denied, expiry, c), &run(true, present, denied, expiry, c)); pairs += 1;
+                }
+            }
+        }
+        println!("hidden delete expiry={expiry}: minimum non-bound ceilings [steps, examined, indexes, rows, heap, probes, output]={thresholds:?}");
+        // Below the common reservation, even the existing delete outcome distinctions
+        // have not been inspected yet: absent, denied and admitted targets all E_BOUND.
+        let a = run(false, false, false, expiry, ceiling(0, 10));
+        assert_eq!(a.0.body()["why"]["code"], "E_BOUND");
+        for selected in [false, true] {
+            for (present, denied) in [(true, false), (false, false), (true, true), (false, true)] {
+                same(&a, &run(selected, present, denied, expiry, ceiling(0, 10))); pairs += 1;
+            }
+        }
+    }
+    println!("hidden delete: {pairs} complete-observation pairs, seven ceilings, three expiry states, two device stores");
+}
+
+#[test]
+fn hidden_filtered_keyed_overflow_residual_is_value_free_and_atomic() {
+    let text = SOURCE.replace("  read <- allow", "  read <- .author = viewer") +
+        "\nmaintain totals: sum posts of score where .selected by author, day(.at)\n  read <- deny\n  online only\nmutation blind():\n  update posts['hidden'] {score: 2}\n  return null\nquery hidden():\n  return totals['owner', 0]\n";
+    let run = |selected| {
+        let mut e = engine(&text);
+        e.seed([("base", true, snapback4_core::value::I53_MAX - 1), ("hidden", selected, 1)].map(|(id, selected, score)|
+            ("posts".into(), object([("id", Value::Id(id.into())), ("author", Value::Id("owner".into())), ("at", Value::Int(0)), ("selected", Value::Bool(selected)), ("score", Value::Int(score)), ("extra", Value::Int(0))])))).unwrap();
+        observation::observe(&mut e, "blind", "writer", serde_json::json!({}), "overflow", ("hidden", serde_json::json!({})))
+    };
+    let (a, excluded) = run(false);
+    let (b, selected) = run(true);
+    println!("hidden overflow: excluded={}; selected={}", excluded.body(), selected.body());
+    // @ref LLP 3000.007#20.9 — overflow is a documented constraint-outcome residual, even with both source and aggregate hidden.
+    assert!(matches!(a.state, WriteState::Sent { .. }));
+    let WriteState::Failed { why, current } = b.state else { panic!("selected contribution must overflow") };
+    assert_eq!(why.code, "E_OVERFLOW");
+    assert_eq!(why.message, "E_OVERFLOW: maintain totals.value overflowed");
+    assert!(current.is_none());
+    selected.assert_unchanged();
+    assert_eq!(excluded.committed["posts"].iter().find(|row| row.field("id").unwrap() == &Value::Id("hidden".into())).unwrap().field("score").unwrap(), &Value::Int(2));
+    assert_eq!(excluded.before["totals"], excluded.committed["totals"]);
+    let retry: serde_json::Value = serde_json::from_slice(&selected.retry_http_body).unwrap();
+    assert_eq!(retry["why"]["code"], "E_OVERFLOW");
+    assert_eq!(retry["why"]["message"], "the program refused with E_OVERFLOW");
 }

@@ -147,7 +147,14 @@ impl Runner<'_> {
     }
 
     pub(super) fn delete(&mut self, table_name: &str, id: &str) -> Result<(), RuntimeError> {
+        self.target_attempt(|runner| runner.delete_attempt(table_name, id))
+    }
+
+    fn delete_attempt(&mut self, table_name: &str, id: &str) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name)?;
+        let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?.clone();
+        // @ref LLP 3000.007#20.9 — delete prepays hidden contribution work before fetching its old image, with the same attempt lifetime as update.
+        self.reserve_maintains(table_name, &table)?;
         let Some(old) = self.fetch(table_name, id)? else {
             return Err(RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".to_owned() });
         };
@@ -155,7 +162,6 @@ impl Runner<'_> {
             return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Delete });
         }
         self.check_constraints(table_name, Some(&old), &old, Effect::Delete)?;
-        let table = self.schema.table(table_name).expect("validated").clone();
         let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.delete(table_name, &table, &old))?;
         self.charge_source_indexes(&table, Some(&old), None, entries)?;
         self.row_changed(table_name, Some(&old), None, Origin::Source)
