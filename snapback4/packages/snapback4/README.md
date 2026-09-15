@@ -30,8 +30,8 @@ promises a form the compiler refuses.
 ```
 my-app/
   snapback/schema.q          the backend: tables, rules, sync, queries, mutations
-  snapback/worker.ts          optional Node worker: effects and actions (dev starts it)
-  snapback/package.json      ESM boundary for Node workers and seed scripts
+  snapback/worker.mts        optional Node ESM worker: effects and actions (dev starts it)
+  snapback/generated/package.json  ESM boundary for generated artifacts
   snapback/generated/api.ts  written by `check`; never edited, never committed
   src/                       your client: React on the web, React Native on Expo
 ```
@@ -53,9 +53,12 @@ stay live through `/changes`, with no replica. Both tiers use the same
 rules, meter, identity, assets and jobs. Add `sync` and open a local-first
 client when the app needs offline data. `init --expo` adds the phone
 starter, selecting the native tier when available and online in Expo Go.
-Every starter writes `snapback/package.json` with `{"type":"module"}`, so
-Node ESM seed scripts can import `api` from `snapback/generated/api.ts`
-even when the app's package.json says `"type":"commonjs"`.
+Every starter writes `snapback/generated/package.json` with `{"type":"module"}`,
+so Node ESM seed scripts can import `api` from `snapback/generated/api.ts`
+even when the app's package.json says `"type":"commonjs"`. Existing scripts
+under `snapback/` keep their module interpretation. The Expo starter uses
+`worker.mts` so its generated worker is explicitly ESM in a CommonJS app.
+`check` and `dev` rebuild the generated package boundary alongside `api.ts`.
 
 ## 2. Quarry
 
@@ -839,7 +842,10 @@ the rule's columns, or read the page on the device (§4), where the
 partition holds exactly what the viewer may read. `check` says so
 (`N_NEVER_COMPLETE`), as it notes a query page returned without a cursor
 (`N_NO_CURSOR`), a synced table whose groups can grow with no horizon
-(`N_NO_HORIZON`), and a merge past 50 lanes (`N_WIDE_MERGE`).
+(`N_NO_HORIZON`), and a merge past 50 lanes (`N_WIDE_MERGE`). A single-group
+page omits the cursor note when its bound covers the group cap and that cap
+fits the default 8,192-row examined ceiling. Larger caps still need a cursor;
+other metered work can also cut a read.
 
 ## 3. Sync: the viewer's partition is the unit of sync
 
@@ -1702,7 +1708,7 @@ wins; maximum 900). Thrown errors retry after 2 seconds, doubling to
 are JSON, bounded by the unchanged 1 MiB output ceiling. The worker only
 claims supplied handler names; effects and actions wait independently.
 
-With `snapback/worker.ts` (or `.mjs`), `dev` starts Node 24 and supplies
+With `snapback/worker.ts` (or `.mts` or `.mjs`), `dev` starts Node 24 and supplies
 `SNAPBACK_URL` and `SNAPBACK_SERVICE_TOKEN`, a `service:worker` token
 printed once. It restarts after crashes with 250 ms to 5 s backoff and
 stops the child when dev exits. `doctor` shows the worker file and the
@@ -1811,6 +1817,7 @@ step.
   retries on the normal tick; do not blindly repeat the advance.
   Durations are positive whole numbers with `ms`, `s`, `m`, `h`, `d` or `w`,
   optionally prefixed `+`; the startup offset alone may be negative.
+  Ordinary and ordered batch mutations both stamp `now` from this dev clock.
   The dev clock keeps ticking monotonically and cannot advance backwards.
   Its offset resets on process restart; supply it again to continue a test.
   Devices receive the ordinary sync deletion and row timestamps, and keep

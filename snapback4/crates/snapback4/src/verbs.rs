@@ -468,7 +468,7 @@ pub fn doctor(options: &Options) -> i32 {
         return 1;
     };
     lines.push(format!("project   {}", project.root.display()));
-    lines.push(format!("worker    {}", crate::dev_worker::source(&project).map(|p| format!("{} (supervised by dev)", p.display())).unwrap_or_else(|| "absent (add snapback/worker.ts or .mjs)".into())));
+    lines.push(format!("worker    {}", crate::dev_worker::source(&project).map(|p| format!("{} (supervised by dev)", p.display())).unwrap_or_else(|| "absent (add snapback/worker.ts, .mts or .mjs)".into())));
     let (personas, native_jobs) = match project.compile() {
         Ok(bound) if bound.diagnostics.is_empty() => {
             lines.push(format!("schema    ok: {} tables, {} synced, {} operations", bound.schema.tables.len(), bound.schema.synced().count(), bound.programs.len()));

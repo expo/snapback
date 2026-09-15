@@ -1205,7 +1205,7 @@ fn mutation_batch(request: Request, shared: &Shared, body: &str) {
                         args.insert(name.clone(), wire::from_json(kind, value).map_err(|why| Refusal::new("E_INPUT", "input", format!("argument {name}: {why}")).guide("types"))?);
                     }
                 }
-                let context = Context::new(&principal, args).with_ids(write.new_ids);
+                let context = Context::new(&principal, args).with_ids(write.new_ids).at(shared.now());
                 let outcome = engine.mutate(&write.op, Some(&write.id), context).map_err(|e| e.refusal())?;
                 if let WriteState::Sent { seq, .. } = &outcome.state {
                     let mut current = lock(&shared.seq);

@@ -176,6 +176,7 @@ async function actionFixture(t, { worker, source = actionSource } = {}) {
   mkdirSync(join(directory, "devices"));
   writeFileSync(join(directory, "snapback/schema.q"), source);
   if (worker) {
+    if (worker.packageType) writeFileSync(join(directory, "package.json"), JSON.stringify({ type: worker.packageType }));
     mkdirSync(join(directory, "node_modules"));
     symlinkSync(join(root, "packages/snapback4"), join(directory, "node_modules/snapback4"));
     writeFileSync(join(directory, `snapback/worker.${worker.ext ?? "ts"}`), worker.text);
@@ -372,11 +373,11 @@ test("chat's real TypeScript invite worker is supervised by dev, restarts and st
   assert.throws(() => process.kill(lastPid, 0), { code: "ESRCH" });
 });
 
-test("dev also starts a worker.mjs", { timeout: 15_000 }, async t => {
+for (const ext of ["mjs", "mts"]) test(`dev also starts a worker.${ext}`, { timeout: 15_000 }, async t => {
   const text = `import { runWorker } from 'snapback4/worker';
 const stop = new AbortController(); process.once('SIGTERM', () => stop.abort());
 await runWorker({ url: process.env.SNAPBACK_URL, token: process.env.SNAPBACK_SERVICE_TOKEN, signal: stop.signal, actions: { slow: () => 'mjs' } }).done;`;
-  const f = await actionFixture(t, { worker: { ext: "mjs", text } });
+  const f = await actionFixture(t, { worker: { ext, text, packageType: "commonjs" } });
   const client = createClient({ url: f.url, persona: "alice" }); f.clients.push(client);
   assert.equal((await client.act(action("slow"), {})).result, "mjs");
 });

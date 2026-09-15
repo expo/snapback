@@ -15309,3 +15309,147 @@ two-unawaited-0ms 2 (4 ms); two-unawaited-5ms 2 (113 ms); ordinary-inflight-0ms
 `node witness/navigation.mjs`: `{"durableWrites":2,"rowsBeforeReopen":1,"rowsAfterReopen":2}`.
 Raw output: `~/projects/snapback-next-20260914/w3a2-witness.log`.
 
+## 2026-09-14 — W3R1c: dev-clock batches, bounded cursor notes, preserved module scopes
+
+Reproduced GPT wave-3 findings 3, 4 and 5 before their fixes on base
+`6acb5a5bf89eeabed1e89b40ad52e25bf2bdffa5`. Ordered `/m` writes now pass
+`shared.now()` into each mutation context, as `/m/<op>` already did.
+The schema-cap exemption from N_NO_CURSOR now also requires the cap to fit
+the default examined ceiling: a plain scan charges one examined unit per
+candidate. No meter ceiling or serialized value changed.
+
+`init` writes the ESM boundary at `snapback/generated/package.json`, never
+at `snapback/package.json`. It preserves an existing package's absent type
+as well as an explicit type; a newly created root package in an existing
+directory keeps the nearest ancestor package's type. The generated API's
+package boundary is rebuilt by `check` and `dev` with the API, so deleting
+ignored artifacts does not break the next Node import. The Expo starter's
+worker is `worker.mts`; dev discovers it and doctor names that extension.
+The reference worker remains unchanged. These supporting changes prevent
+the narrower package scope from breaking the starter's own Node worker.
+
+Commands below use Node 24.18.0:
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+Cargo and client commands run from `snapback4/`; suite and ref-check commands
+run from the repository root. Logs are `/tmp/w3r1c-*.log` on this machine.
+
+Red before / green after:
+
+- `cargo test -p snapback4 --test clock ordered_batch_uses_dev_clock -- --nocapture`:
+  red `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 1.02s`;
+  green `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 1.01s`.
+- `cargo test -p snapback4-lang --test residency_notes capped_page_cursor_note -- --nocapture`:
+  red `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 18 filtered out; finished in 2.29s`;
+  green `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 2.30s`.
+  An initial test-authoring compile error used `Value::Text` instead of
+  `Value::String`; that attempt was not counted as the red reproduction.
+- `cargo test -p snapback4 --test init init_preserves_existing_commonjs -- --nocapture`:
+  red `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 1.00s`;
+  final green `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 1.94s`.
+  The test covers default, online and Expo, checks the generated Expo worker
+  with Node, and imports the API again after deleting and rebuilding the
+  generated directory. That last control reproduced a further red before
+  the generator fix:
+  `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 2.02s`.
+- `cargo test -p snapback4 --test init init_preserves_inherited_module_type -- --nocapture`:
+  red `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.94s`;
+  green `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 1.52s`.
+  Both inherited CommonJS and inherited ESM keep the same `typeof require`.
+
+Affected Rust suites:
+
+- `cargo test -p snapback4 --test clock --test init --test replay -- --nocapture`:
+  clock `test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.56s`;
+  init `test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s`;
+  replay `test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.33s`.
+- `cargo test -p snapback4-lang --test residency_notes --test guide -- --nocapture`:
+  guide `test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s`;
+  residency notes `test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.32s`.
+- `node --test --test-concurrency=2 packages/snapback4/test/periphery.test.mjs packages/snapback4/test/worker.test.mjs`:
+  `ℹ tests 26`, `ℹ pass 26`, `ℹ fail 0`, `ℹ cancelled 0`,
+  `ℹ duration_ms 16886.214167`.
+  This includes both `.mjs` and `.mts` workers in a CommonJS application.
+  Before building the wasm artifacts, an attempted package build reported
+  TS2307 for the missing wasm JS wrapper, and an attempted worker test
+  reported a missing dist module. These were setup attempts, not product
+  regression evidence. After TypeScript emitted the package, the old
+  binary's `.mts` discovery test timed out (`ℹ tests 1`, `ℹ pass 0`,
+  `ℹ fail 0`, `ℹ cancelled 1`); the new binary passes it in the affected suite.
+
+Measurements: offset **90,000,000 ms**, TTL **180,000 ms**, ordinary rows **1**,
+batch rows **2**, live rows after both transports **3**, after same-ID replay
+**3**, duplicates **0**. The final affected run stamped the ordinary row at
+**1789540981176**, batch rows at **1789540981178** and **1789540981179**, inside
+the server query bracket **1789540981175–1789540981185**. They use the same
+clock; separate transactions need not have identical millisecond stamps.
+At cap/take **9,000**, the runtime returns **8,192** rows, records **8,193**
+examined including the refused charge, and reports incomplete. A cursor
+continues for **808** more rows, **9,000** total. Cap controls **8,191** and
+**8,192** omit the note; **8,193** and **9,000** retain it. Existing take
+**49/50/51** controls still pass.
+
+No diagnostic text changed and no code was added to guide::CODES. The
+9,000-row program previously had no N_NO_CURSOR; it now receives:
+
+```text
+schema.q:6:1 — N_NO_CURSOR: query list returns a page of 9000 rows rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — list(.., c: cursor ?): return rows[..] after c last 9000 by <index>
+  guide: reads
+```
+
+The original seed failure was
+`ReferenceError: require is not defined in ES module scope, you can use import instead`;
+after init it prints `existing CommonJS seed: ok`, and the generated API
+prints `generated api ESM import: ok`.
+
+Blocking suite and final retries:
+
+- Repository root, `bash snapback4/scripts/test.sh`, first run:
+  `-- ok: cargo test (304 s)` (873 Rust tests passed, 0 failed, 4 ignored,
+  summing its 60 test-summary lines); fixtures `ℹ tests 9`, `ℹ pass 9`,
+  `ℹ fail 0`; clients `ℹ tests 262`, `ℹ pass 261`, `ℹ fail 1`,
+  `ℹ cancelled 0`; `-- FAIL: client tests (44 s)`;
+  `== 1 failure(s) in 321 s`. The client failure was Chromium SIGABRT.
+- The same command, final run including inherited-type preservation and
+  rebuilding the generated package marker:
+  `-- ok: cargo test (267 s)` (874 passed, 0 failed, 4 ignored over 60
+  test-summary lines); fixtures `ℹ tests 9`, `ℹ pass 9`, `ℹ fail 0`,
+  `ℹ cancelled 0`; clients `ℹ tests 262`, `ℹ pass 260`, `ℹ fail 2`,
+  `ℹ cancelled 0`; `-- FAIL: client tests (43 s)`;
+  `== 1 failure(s) in 271 s`.
+  All other blocking stages passed. Besides Chromium, a navigation fixture
+  reported `Address already in use (os error 48)` at startup and then
+  `ECONNREFUSED`. No lifecycle test failed.
+- `node --test --test-name-pattern='stalled exit body recovers in order' packages/snapback4/test/web-navigation.test.mjs`:
+  `ℹ tests 2`, `ℹ pass 2`, `ℹ fail 0`, `ℹ cancelled 0`,
+  `ℹ duration_ms 2457.51525`.
+- `node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'`:
+  `ℹ tests 262`, `ℹ pass 261`, `ℹ fail 1`, `ℹ cancelled 0`,
+  `ℹ duration_ms 96194.755667`. Chromium is the sole failure; the navigation
+  test and the worker/periphery tests pass.
+- `node --test packages/snapback4/test/react.test.mjs`:
+  `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`, `ℹ cancelled 0`,
+  `ℹ duration_ms 374.951917`; Chromium again reports
+  `exitCode=null, signal=SIGABRT`.
+
+The Chromium failure matches the environment artifact supplied in the brief;
+its outside-sandbox acceptance remains the lead's. No product failure is
+claimed pre-existing, and no failing whole-suite baseline was independently
+verified. The base hash above binds the red reproductions, not such a claim.
+The port collision is reported as observed and passes on isolated retry.
+
+Supporting production files beyond the three named implementation files:
+`src/dev_worker.rs` discovers the starter's explicit ESM extension,
+`src/verbs.rs` adds it to doctor's hint, and `src/project.rs` regenerates the
+package boundary. Guide cards, the package README and the existing
+worker/periphery tests track that surface. No other lane's code was changed.
+No requested implementation item was omitted; no commit, push, tag or
+publication was made. The largest changed code file is the guide at
+1,364 lines. `git diff --check` passes. Final reference validation:
+
+```text
+ref-check: ok — 480 LLP docs, 8927 refs in 23700 files, 0 errors, 0 unchecked
+```
+
+Final standalone worker control, `node --test --test-name-pattern='dev also starts a worker.mts' packages/snapback4/test/worker.test.mjs`: `ℹ tests 1`, `ℹ pass 1`, `ℹ fail 0`, `ℹ cancelled 0`, `ℹ duration_ms 4138.123`.
+

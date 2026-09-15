@@ -930,7 +930,9 @@ Modifiers come in one order: `after c`,
 then `first N` or `last N`, then `by index`, then optional `where predicate`. A page a query returns without
 a cursor cannot be continued: an unfiltered page with more rows reads
 `complete: false` with no `next` (N_NO_CURSOR); declare `c: cursor ?` and
-page with `after c`. A merge reads plain lanes, or matching lanes over a
+page with `after c`. A single-group page omits this note only when its bound
+covers the group cap and that cap fits the default 8,192-row examined ceiling.
+Other metered work can still cut a read. A merge reads plain lanes, or matching lanes over a
 words index (guide search). Uniform plain merge lanes with a unique index or one ending
 in `id` read one head each, then advance the winning lanes; `check` notes
 a merge past 50 lanes (N_WIDE_MERGE). The meter counts examined rows and
@@ -1075,7 +1077,8 @@ the job declares them (and nothing else); a schedule first seen fires from
 its next boundary. `snapback4 run <job> '{..}'` runs one here and now.
 
 For development and tests, `snapback4 dev --clock-offset +25h` starts the
-server 25 hours ahead of wall time. The clock keeps ticking monotonically;
+server 25 hours ahead of wall time. Ordinary and ordered batch mutations
+both stamp `now` from this clock. The clock keeps ticking monotonically;
 `snapback4 clock advance 2m [--port N]` moves a running dev forward and waits
 for expiry sweeps and queued job chunks to finish. Missed periods fire once,
 not once per skipped boundary; `--hold-schedules` still holds admission.

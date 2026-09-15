@@ -275,6 +275,32 @@ fn calibration_capped_members_page_needs_no_cursor_note() {
 }
 
 #[test]
+fn capped_page_cursor_note_respects_default_examined_ceiling() {
+    let source = |cap, cursor| format!("table rows:\n  owner: principal\n  by byOwner: owner, id\n  cap {cap} by owner\n  public 'bounded rows'\nquery list({}):\n  return rows[viewer] {}first {cap} by byOwner\n", if cursor { "c: cursor ?" } else { "" }, if cursor { "after c " } else { "" });
+    let b = clean(&source(9000, false));
+    let mut e = Engine::memory(b.schema.clone(), b.programs.iter().map(|p| p.program.clone())).unwrap();
+    e.seed((0..9000).map(|n| ("rows".into(), wire::row_from_json(&b.schema.tables["rows"], &json!({"id":format!("r{n:04}"), "owner":"alice"})).unwrap()))).unwrap();
+    let read = e.query("list", Context::new("alice", Default::default())).unwrap();
+    println!("capped page: cap=9000 returned={} examined={} complete={} next={}", read.data.as_array().unwrap().len(), read.metered.examined, read.complete, read.next.is_some());
+    assert!(!read.complete);
+    assert!(read.next.is_none());
+    let paged = clean(&source(9000, true));
+    e.adopt(paged.schema, paged.programs.into_iter().map(|p| p.program)).unwrap();
+    let first = e.query("list", Context::new("alice", [("c".into(), snapback4_core::Value::Null)].into())).unwrap();
+    let next = first.next.clone().expect("a cursor can continue a meter-cut page");
+    let second = e.query("list", Context::new("alice", [("c".into(), snapback4_core::Value::String(next))].into())).unwrap();
+    assert!(second.complete);
+    assert_eq!(first.data.as_array().unwrap().len() + second.data.as_array().unwrap().len(), 9000);
+    println!("capped continuation: first={} second={} total=9000", first.data.as_array().unwrap().len(), second.data.as_array().unwrap().len());
+    for (cap, expected) in [(9000, true), (8191, false), (8192, false), (8193, true)] {
+        let b = clean(&source(cap, false));
+        let note = b.notes.iter().find(|n| n.code == "N_NO_CURSOR");
+        if let Some(note) = note { println!("{note}"); }
+        assert_eq!(note.is_some(), expected, "cap {cap}");
+    }
+}
+
+#[test]
 fn calibration_presence_refusal_names_source_read_without_internal_paths() {
     let source = "table profiles:\n  principal: principal\n  unique byPrincipal: principal\n  displayName: text <=100\n  public 'profiles'\n  sync\neffect notify\nmutation send(recipient: principal) predicts:\n  if not exists connected[recipient]:\n    emit notify { senderDisplayName: profiles[viewer].displayName }\n";
     let b = compile(&[("chat.q".into(), source.into())]);

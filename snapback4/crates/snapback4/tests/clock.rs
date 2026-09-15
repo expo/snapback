@@ -184,3 +184,39 @@ fn clock_alias_and_refusals_are_discoverable() {
     let help = String::from_utf8(help.stdout).unwrap();
     for form in ["--clock-offset", "--now", "clock advance"] { assert!(help.contains(form)); }
 }
+
+#[test]
+fn ordered_batch_uses_dev_clock_for_timestamps_expiry_and_replay() {
+    let f = Fixture::new("batch-offset");
+    let host = f.start(&["dev", "--no-watch", "--hold-schedules", "--clock-offset", "+25h"]);
+    let before = host.query("time").as_i64().unwrap();
+    let ordinary = host.post("/m/post", json!({"id":"ordinary", "args":{}, "newIds":["ordinary-row"]}));
+    let batch = json!({"writes":[
+        {"id":"batch-one", "op":"post", "args":{}, "newIds":["batch-row-one"]},
+        {"id":"batch-two", "op":"post", "args":{}, "newIds":["batch-row-two"]}
+    ]});
+    let sent = host.post("/m", batch.clone());
+    let after = host.query("time").as_i64().unwrap();
+    let receipts = sent["writes"].as_array().unwrap();
+    assert_eq!(receipts.len(), 2, "{sent}");
+    for receipt in std::iter::once(&ordinary).chain(receipts) {
+        assert_eq!(receipt["state"], "sent", "{receipt}");
+        let at = receipt["result"]["at"].as_i64().unwrap();
+        println!("batch clock: id={} at={at} server_before={before} server_after={after} expires_at={}", receipt["id"], receipt["result"]["expiresAt"]);
+        assert!((before..=after).contains(&at), "every transport must use the same dev clock: {receipt}");
+        assert_eq!(receipt["result"]["expiresAt"], at + 180_000);
+    }
+    let rows = host.query("stories");
+    assert_eq!(rows.as_array().unwrap().len(), 3, "fresh batch rows must not already be expired");
+    let advanced = host.post("/dev/clock/advance", json!({"duration":"1s"}));
+    assert_eq!(advanced["advancedMs"], 1000);
+    let replay = host.post("/m", batch);
+    for (index, receipt) in replay["writes"].as_array().unwrap().iter().enumerate() {
+        assert_eq!(receipt["state"], "sent");
+        assert_eq!(receipt["replayed"], true);
+        assert_eq!(receipt["seq"], receipts[index]["seq"]);
+        assert!(receipt.get("result").is_none());
+    }
+    assert_eq!(host.query("stories"), rows, "replay preserves row IDs, timestamps and expiry without another insert");
+    println!("batch clock: offset_ms=90000000 ordinary_rows=1 batch_rows=2 live_rows=3 replay_rows=3 ttl_ms=180000");
+}

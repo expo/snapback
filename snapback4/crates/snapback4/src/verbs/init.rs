@@ -1,7 +1,7 @@
 //! Starter files are embedded at build time; the packaged binary needs no checkout.
 
 use super::Options;
-use crate::project::GITIGNORE;
+use crate::project::{GENERATED_PACKAGE, GITIGNORE};
 use serde_json::{Value, json};
 use std::path::Path;
 
@@ -21,6 +21,16 @@ pub fn init(options: &Options) -> i32 {
                 Ok(merged) => *text = merged,
                 Err(error) => { eprintln!("init: {error}"); return 1; }
             }
+        } else if *name == "package.json" && dir.is_dir() {
+            match inherited_package_type(dir) {
+                Ok(kind) => {
+                    let mut package: Value = serde_json::from_str(text).unwrap();
+                    package.as_object_mut().unwrap().remove("type");
+                    if let Some(kind) = kind { package["type"] = kind; }
+                    *text = pretty(&package);
+                }
+                Err(error) => { eprintln!("init: {error}"); return 1; }
+            }
         }
     }
     // Preserve an existing ESM package while keeping Metro and Babel's configs CommonJS.
@@ -29,8 +39,8 @@ pub fn init(options: &Options) -> i32 {
             *name = match *name { "metro.config.js" => "metro.config.cjs", "babel.config.js" => "babel.config.cjs", other => other };
         }
     }
-    // @ref LLP 3000.007#20.2 — generated TypeScript is ESM even inside an existing CommonJS app.
-    files.push(("snapback/package.json", "{\"type\":\"module\"}\n".into()));
+    // @ref LLP 3000.007#20.2 — scope generated ESM to its artifacts, preserving existing application scripts' module interpretation.
+    files.push(("snapback/generated/package.json", GENERATED_PACKAGE.into()));
     // Check every destination before writing any starter file.
     for (name, _) in &files {
         let alternate = match *name { "metro.config.cjs" => Some("metro.config.js"), "babel.config.cjs" => Some("babel.config.js"), "metro.config.js" => Some("metro.config.cjs"), "babel.config.js" => Some("babel.config.cjs"), _ => None };
@@ -58,6 +68,23 @@ pub fn init(options: &Options) -> i32 {
     if let Err(error) = write() { eprintln!("init: {error}"); return 2; }
     println!("init: wrote {} files in {} — {} — next: `snapback4 check`, then `snapback4 dev`{}", files.len(), dir.display(), if expo { "Expo: native when available, online in Expo Go" } else if online { "online-only" } else { "local-first" }, if expo || online { "; see README.md" } else { "" });
     0
+}
+
+// A new package boundary in an existing directory inherits the nearest
+// package's type, including its absence, rather than reinterpreting scripts.
+fn inherited_package_type(dir: &Path) -> Result<Option<Value>, String> {
+    let absolute = std::fs::canonicalize(dir).map_err(|e| e.to_string())?;
+    for ancestor in absolute.ancestors().skip(1) {
+        let path = ancestor.join("package.json");
+        let text = match std::fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(format!("{}: {error}", path.display())),
+        };
+        let package: Value = serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
+        return Ok(package.get("type").cloned());
+    }
+    Ok(None)
 }
 
 // @ref LLP 3000.007#20.2 — merge an installed package without losing it on a partial write.
@@ -98,7 +125,8 @@ fn merge_package(path: &Path, starter: &str) -> Result<String, String> {
                     None => { group.insert(name.clone(), needed.clone()); }
                 }
             }
-        } else {
+        } else if key != "type" {
+            // An absent type is itself the existing package's module policy.
             object.entry(key.clone()).or_insert_with(|| value.clone());
         }
     }
@@ -156,7 +184,7 @@ fn expo_files() -> Vec<(&'static str, String)> {
         ("tsconfig.json", include_str!("../../../../apps/chat-expo/tsconfig.json").to_owned()),
         ("App.tsx", app), ("src/client.ts", client.to_owned()), ("src/Inbox.tsx", inbox), ("src/Thread.tsx", thread),
         ("snapback/schema.q", include_str!("../../../../apps/chat/snapback/schema.q").to_owned()),
-        ("snapback/worker.ts", include_str!("../../../../apps/chat/snapback/worker.ts").to_owned()),
+        ("snapback/worker.mts", include_str!("../../../../apps/chat/snapback/worker.ts").to_owned()),
         ("README.md", format!("# Expo chat starter\n\n{TWO_WAYS}\n\nThis starter opens the native Rust device in development and production\nbuilds that carry `snapback4-expo`; Expo Go selects `createClient`, with\nno native module and no wasm. `src/client.ts` exports `tier`.\nFor a web client using `webDevice()`, keep the generated Metro config and\nmetro-wasm-transformer.cjs: Metro then emits the wasm asset URL.\n\nThe reference toolchain is Expo 57.0.22, React Native 0.86.3, React 19.2.3,\nexpo-sqlite 57.0.3 and babel-preset-expo 57.0.11. Keep the Expo and Babel\npreset major versions together; mixing them can fail Hermes compilation.\n\nRun `npm install`, `npx snapback4 check`, then `npx snapback4 dev` in one\nterminal. In another, run `EXPO_PUBLIC_SNAPBACK_PERSONA=alice npm start`\nfor Expo Go, or `EXPO_PUBLIC_SNAPBACK_PERSONA=alice npm run ios:dev` for\nthe native development build. The local server URL defaults to\nhttp://127.0.0.1:4400 (the iOS simulator on this machine). Set\nEXPO_PUBLIC_SNAPBACK_URL to your TLS deployment for a physical phone;\npersonas work on loopback only, and otherwise the client signs in as a guest.\nThe inbox starts empty: seed a conversation and its memberships through\n`POST /seed` during development. Change app.json's bundle IDs before shipping.\n")),
     ]
 }

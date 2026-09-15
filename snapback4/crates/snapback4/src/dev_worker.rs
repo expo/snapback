@@ -3,7 +3,7 @@ use crate::{project::Project, serve::{Shared, lock}};
 use std::{path::PathBuf, process::{Child, Command, Stdio}, sync::Arc, time::{Duration, Instant}};
 
 pub(crate) fn source(project: &Project) -> Option<PathBuf> {
-    ["snapback/worker.ts", "snapback/worker.mjs"].into_iter().map(|p| project.root.join(p)).find(|p| p.is_file())
+    ["snapback/worker.ts", "snapback/worker.mts", "snapback/worker.mjs"].into_iter().map(|p| project.root.join(p)).find(|p| p.is_file())
 }
 
 pub(crate) struct DevWorker {

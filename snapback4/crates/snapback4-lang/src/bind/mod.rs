@@ -210,7 +210,10 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             let site = page.merge_site.as_ref().unwrap_or(&page.site);
             let pinned = schema.tables[&page.table].indexes[&page.index].columns().into_iter().take(page.prefix.len()).collect::<Vec<_>>();
             // A lane cap does not bound the union of a merge. Quarry page takes are literals.
-            let group_complete = page.merge_site.is_none() && schema.group_bound(&page.table, &pinned).is_some_and(|n| u64::from(n) <= page.take.maximum());
+            // @ref LLP 3000.007#5.6 — a meter-cut page still needs continuation; a plain scan charges one examined unit per candidate.
+            let group_complete = page.merge_site.is_none() && schema.group_bound(&page.table, &pinned).is_some_and(|n| {
+                u64::from(n) <= page.take.maximum() && u64::from(n) <= snapback4_core::Ceilings::default().examined
+            });
             if !page.opaque_cursor && !group_complete && returned.contains(site) && noted.insert(site) {
                 let (table, take) = (&page.table, page.take.maximum());
                 notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on", bound.program.kind.word(), bound.program.name), format!("declare `c: cursor ?` and page with `after c` — {}(.., c: cursor ?): return {}[..] after c last {take} by <index>", bound.program.name, table)).guide("reads"));

@@ -58,7 +58,7 @@ attempt even when its successor uses the same service token. Stale claims
 get `E_ACTION_LEASE`; user tokens get HTTP 401 `E_AUTH`. Results are JSON
 bounded by the unchanged 1 MiB output ceiling; they never become Quarry values.
 
-`snapback4 dev` starts `snapback/worker.ts` (or `.mjs`) with Node 24,
+`snapback4 dev` starts `snapback/worker.ts` (or `.mts` or `.mjs`) with Node 24,
 `SNAPBACK_URL` and `SNAPBACK_SERVICE_TOKEN` for `service:worker`, printed
 once. It restarts a crashed worker with backoff and stops it on dev exit.
 `doctor` reports the worker file and counts queued/running/done/failed

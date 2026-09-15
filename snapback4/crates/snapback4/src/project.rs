@@ -113,6 +113,11 @@ impl Project {
         std::fs::create_dir_all(&dir)?;
         let path = dir.join("api.ts");
         let text = snapback4_lang::emit::typescript(bound);
+        // @ref LLP 3000.007#20.2 — the generated API's ESM boundary is rebuilt with its artifacts, not imposed on existing scripts.
+        let package = dir.join("package.json");
+        if std::fs::read_to_string(&package).ok().as_deref() != Some(GENERATED_PACKAGE) {
+            std::fs::write(package, GENERATED_PACKAGE)?;
+        }
         if std::fs::read_to_string(&path).ok().as_deref() != Some(text.as_str()) {
             std::fs::write(&path, text)?;
         }
@@ -165,4 +170,5 @@ pub fn persona_principal(name: &str) -> String {
 }
 
 /// The lines `.gitignore` needs for a project.
+pub const GENERATED_PACKAGE: &str = "{\"type\":\"module\"}\n";
 pub const GITIGNORE: &str = "# snapback4\n.snapback4/\nsnapback/generated/\n";
