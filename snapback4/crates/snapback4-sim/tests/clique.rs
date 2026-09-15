@@ -783,7 +783,8 @@ fn a_feed_read_costs_the_same_at_five_and_five_hundred_follows() {
     assert_eq!((wide.data.as_array().unwrap().len(), narrow.data.as_array().unwrap().len()), (20, 20));
     assert_eq!(wide.metered.examined, narrow.metered.examined, "a page of the reader's own lane: the same rows examined at 500 follows as at 5 ({} vs {})", wide.metered.examined, narrow.metered.examined);
     assert_eq!(wide.metered.rule_probes, narrow.metered.rule_probes);
-    assert!(wide.metered.examined <= 41, "{:?}", wide.metered);
+    // 22 merge examinations plus one compact removal lookup per returned slot.
+    assert_eq!(wide.metered.examined, 42, "{:?}", wide.metered);
     // The newest post first, whoever wrote it; the wide reader's page is
     // from many authors, the narrow reader's from five.
     let authors = |read: &snapback4_core::QueryOutcome| read.data.as_array().unwrap().iter().map(|e| e.field("authorId").unwrap().as_str().unwrap().to_owned()).collect::<std::collections::BTreeSet<_>>();

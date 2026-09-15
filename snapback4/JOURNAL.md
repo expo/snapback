@@ -14037,3 +14037,487 @@ The four §14 decisions already accepted by the author remain settled. Later
 CU/§19/§20 releases receive no credit at this frozen pin.
 
 Validation: all displayed comparison values match their received sources; all twelve lifecycle records, frozen instrument/templates/pins and selected copy hashes check. `python3 ./ref-check --verbose` passes (480 LLP documents, 8,889 refs, zero errors). The final archive carries scoped scan/disposition and cumulative-hash records. No product runtime or independent M7 grade was rerun.
+
+
+## 2026-09-14 — W3b: Following guidance and prediction notes; source removal blocked
+
+Base: `0c6b0c03cfea21d65eab728035ef87776a4144a3`. No commit, push, tag or publication.
+This lane completed F2, the F3 diagnostic rewrite, and L1. It did **not**
+complete the private source-removal recipe; its new acceptance regression
+remains red, so this is not a ready-to-land complete W3b lane.
+
+Orientation: [LLP 3000 §6–§7](../llp/3000-snapback4.explainer.md#6)
+and [LLP 3000.007 §14](../llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md#14),
+[§18](../llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md#18),
+[§20.3](../llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md#20.3)
+and [§20.9](../llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md#20.9)
+govern the scope. The 0.2.16 calibration's F2/F3/L1 evidence was read in
+`/Users/ccheever/projects/snapback-next-20260914/FRICTION-0.2.16.md` and
+`/Users/ccheever/clique-sb4-20260915-astra-next/lanes/astra-snapback4/`:
+`feed.q`, all three feed checks, `guide-feeds.txt`, `m8-check-second.txt`,
+the insights/social source and run-log records 1789439126, 1789442332,
+1789442353 and 1789442550. No external evidence file was modified.
+
+Built: the language card's Following query reads one private inbox plus
+at most 32 pulled-author broadcast lanes; it compiles without notes and
+runs a positive example with both lanes and an excluded private row.
+The maintain's `online only` comment now states its cost to mutations that
+read it. `N_NOT_PREDICTABLE` groups repeated reads, writes and the upsert's
+arms by their online-only table/maintain root, with sorted distinct sites
+and rewrites; distinct non-table causes and horizon indexes are retained.
+`N_NOW_SERVER` keeps its existing site-by-site contract. No execution class,
+authority verdict, meter ceiling, value serialization or corpus case changed.
+The fanout rewrite names the unpinned columns; when the schema has the
+published follower vocabulary and a capped uniform follower prefix, it
+prints that loop and the private key. README, cards and existing code
+explanations carry the same guidance; no new diagnostic code was needed.
+
+**What blocked F3.** A uniformly decided prefix can decide **false**.
+With `.readerId = viewer`, an author looping through `follows[actorId]`
+gets no rows from another reader's pinned inbox. The server regression
+commits that loop with **0 rows written**, leaving the **1** private entry.
+The intended reader sees **1** entry and the author **0**, both complete.
+`delete feedEntries[readerId, eventId]` lowers through a rule-filtered point
+read and returns `NOT_FOUND`, even with `.actorId = viewer` as its delete
+rule. Blind deletion by a known primary id is a different existing path;
+it does not supply an unknown copy's id or prove an absent copy.
+The bound recipe's posts/follows/authors are online-only, so its source
+writes already have `predicts: never`; removal must not promise more.
+After promotion and follow-time backfill, an old pushed event may have
+more than 50 copies, so cleanup must also cover the full 1,000-follower cap.
+
+[LLP 3000.007 §8](../llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md#8),
+item 7(h), explicitly says “`delete` is out of scope.” The lane asked for
+a ruling before extending that authority boundary; no answer was received
+during this work. A working private recipe needs an agreed cleanup-addressing
+or delete-authority design, including absent copies after unfollow/backfill.
+No public escape, untested keyed-delete recipe, or delete-runtime change was
+added. The feeds card and README state the limit. The simulator regression
+requires `deletePost` and `unrepost` and then checks ordinary/broadcast event
+removal on the existing 1,000-person / 50,000-event fixture; it currently
+fails before seeding because `deletePost` is absent. No new both-store
+source-removal result, prediction result, or removal meter number is claimed.
+
+**Measurements.** The captured check has **24 total notes: 17**
+`N_NOT_PREDICTABLE` notes and **7** other advisories (the friction report's
+“18” duplicated-note description is not the literal count). The reduced
+insights/social regression reproduces **17 → 3** changed-mutation notes,
+covering **3** mutations and **7** distinct table/maintain roots across them.
+That is a reduction of **14 notes (82.35%)**, not a change to eligibility.
+The new language query has **1 + 32 = 33** maximum lanes and `runs: device`.
+The complete suite took **448 s** on the shared host. Summing its 59 Rust
+summary lines gives **826 passed / 1 failed / 4 ignored**. The client run
+has **203 passed / 1 failed**, and fixture wrappers **9 passed / 0 failed**.
+Changed Rust files remain below 1,500 lines; `guide.rs` is **1,295** lines,
+`admission.rs` **429**, `residency.rs` **299**, and the note tests **262**.
+
+**Commands and verbatim summaries.** Cargo commands ran from `snapback4/`;
+Node used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+One initial cargo invocation was mistakenly issued at the repository root
+and exited 101 without a test summary; it was immediately rerun from the
+correct workspace. Test-authoring compile/type mistakes were corrected
+before the final targeted checks. An optional cap-script attempt used the
+nonexistent `snapback4/scripts/caps.mjs` path; direct changed-source line
+counts above establish the requested cap.
+
+Before fixes, `cargo test -p snapback4-lang --test residency_notes --test guide -- --nocapture`
+stopped at the guide target:
+
+```text
+test result: FAILED. 18 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+```
+
+Before fixes, `cargo test -p snapback4-lang --test residency_notes -- --nocapture`:
+
+```text
+test result: FAILED. 10 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+After fixes, `cargo test -p snapback4-lang --test guide --test residency_notes -- --nocapture`:
+
+```text
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+```
+
+After fixes, `cargo test -p snapback4-lang --test guide`:
+
+```text
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+```
+
+The incomplete F3 case, `cargo test -p snapback4-sim --test clique following_removes_source_events_at_the_envelope -- --nocapture`:
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 40 filtered out; finished in 0.01s
+```
+
+From the repository root, `bash snapback4/scripts/test.sh`:
+
+```text
+-- ok: cargo build (13 s)
+-- ok: wasm build (14 s)
+-- ok: package typecheck (2 s)
+-- ok: package build (1 s)
+-- ok: chat app check (2 s)
+test result: FAILED. 39 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 33.16s
+-- FAIL: cargo test (416 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+-- ok: fixture wrapper tests (10 s)
+-- FAIL: client tests (47 s)
+== 2 failure(s) in 448 s
+```
+
+The Rust failure is the new unresolved F3 regression, not an inherited
+failure. Client failure: `react.test.mjs` Chromium exits with `SIGABRT`.
+It was rerun alone with `node --test packages/snapback4/test/react.test.mjs`:
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+```
+
+The user identified this Chromium sandbox artifact in the lane brief;
+no independent base-commit run was made, and no additional “pre-existing”
+failure claim is made. The five lifecycle timeout artifacts did not recur.
+There was no mass client timeout requiring the concurrency-2 rerun.
+`./ref-check --verbose` passed before this entry (480 LLP docs, 8,905 refs,
+0 errors); it is rerun after the entry. `git diff --check` is clean.
+No out-of-scope runtime file was touched; the added fixture is beside the
+existing language tests and the red acceptance case beside the feed tests.
+
+**Exact diagnostic texts, before and after (reduced builder fixtures).**
+The original captured fanout diagnostic is also retained here verbatim:
+
+```text
+feed.q:84:14 — E_STRUCTURAL_FANOUT: feedEntries by byEvent (page bound 10000): the mutation page's read rule is not uniformly decided by its prefix
+  rewrite: read it in a query, or pin the deciding columns
+  guide: programs
+```
+
+The before and after for the same reduced regression:
+
+```text
+schema.q:16:14 — E_STRUCTURAL_FANOUT: feedEntries by byEvent (page bound 10000): the mutation page's read rule is not uniformly decided by its prefix
+  rewrite: read it in a query, or pin the deciding columns
+  guide: programs
+```
+
+```text
+schema.q:16:14 — E_STRUCTURAL_FANOUT: feedEntries by byEvent (page bound 10000): the mutation page's read rule is not uniformly decided by its prefix
+  rewrite: pin .readerId in each read's index prefix by iterating the capped group that supplies those values; for example, with actorId and eventId bound: `for f in follows[actorId] first 1000 by byFollowed:`, then address `feedEntries[readerId = f.followerId, eventId = eventId]`; pinning .readerId decides visibility but grants no read authority over another reader's inbox (see `snapback4 guide feeds`)
+  guide: programs
+```
+
+All 17 before prediction notes:
+
+```text
+schema.q:61:1 — N_NOT_PREDICTABLE: createPost is no longer eligible to predict; queued without a row: point likeCounts by byGroup: online only (site programs.createPost.0)
+  rewrite: remove `online only` from maintain likeCounts to inherit its source's sync, or read a compact synced projection
+  guide: residency
+
+schema.q:61:1 — N_NOT_PREDICTABLE: createPost is no longer eligible to predict; queued without a row: write target rankedPosts by byPost: online only (site schema.q:59:5)
+  rewrite: sync rankedPosts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:61:1 — N_NOT_PREDICTABLE: createPost is no longer eligible to predict; queued without a row: upsert inserts do not predict: the target is online only; queue without a row (rankedPosts by byPost) (site schema.q:59:5)
+  rewrite: sync rankedPosts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:61:1 — N_NOT_PREDICTABLE: createPost is no longer eligible to predict; queued without a row: write insightFacts by byId: online only (site insert insightFacts)
+  rewrite: sync insightFacts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:61:1 — N_NOT_PREDICTABLE: createPost is no longer eligible to predict; queued without a row: write rankedPosts by byId: online only (site upsert rankedPosts)
+  rewrite: sync rankedPosts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:65:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: point insightFacts by bySourceKind: online only (site programs.like.3)
+  rewrite: sync insightFacts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:65:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: point insightFacts by bySourceKind: online only (site programs.like.4)
+  rewrite: sync insightFacts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:65:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: point likeCounts by byGroup: online only (site programs.like.6)
+  rewrite: remove `online only` from maintain likeCounts to inherit its source's sync, or read a compact synced projection
+  guide: residency
+
+schema.q:65:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: write target rankedPosts by byPost: online only (site schema.q:59:5)
+  rewrite: sync rankedPosts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:65:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: upsert inserts do not predict: the target is online only; queue without a row (rankedPosts by byPost) (site schema.q:59:5)
+  rewrite: sync rankedPosts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:65:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: write insightFacts by byId: online only (site insert insightFacts)
+  rewrite: sync insightFacts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:65:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: write insightFacts by byId: online only (site delete insightFacts)
+  rewrite: sync insightFacts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:65:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: write rankedPosts by byId: online only (site upsert rankedPosts)
+  rewrite: sync rankedPosts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:76:1 — N_NOT_PREDICTABLE: repost is no longer eligible to predict; queued without a row: point insightFacts by bySourceKind: online only (site programs.repost.0)
+  rewrite: sync insightFacts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:76:1 — N_NOT_PREDICTABLE: repost is no longer eligible to predict; queued without a row: point insightFacts by bySourceKind: online only (site programs.repost.1)
+  rewrite: sync insightFacts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:76:1 — N_NOT_PREDICTABLE: repost is no longer eligible to predict; queued without a row: write insightFacts by byId: online only (site insert insightFacts)
+  rewrite: sync insightFacts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:76:1 — N_NOT_PREDICTABLE: repost is no longer eligible to predict; queued without a row: write insightFacts by byId: online only (site delete insightFacts)
+  rewrite: sync insightFacts to its read-rule audience, or read a compact synced projection
+  guide: residency
+```
+
+All three after prediction notes:
+
+```text
+schema.q:61:1 — N_NOT_PREDICTABLE: createPost is no longer eligible to predict; queued without a row: online-only maintain likeCounts (sites: programs.createPost.0); online-only table insightFacts (sites: insert insightFacts); online-only table rankedPosts (sites: schema.q:59:5, upsert rankedPosts)
+  rewrite: remove `online only` from maintain likeCounts to inherit its source's sync, or read a compact synced projection; sync insightFacts to its read-rule audience, or read a compact synced projection; sync rankedPosts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:65:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: online-only maintain likeCounts (sites: programs.like.6); online-only table insightFacts (sites: delete insightFacts, insert insightFacts, programs.like.3, programs.like.4); online-only table rankedPosts (sites: schema.q:59:5, upsert rankedPosts)
+  rewrite: remove `online only` from maintain likeCounts to inherit its source's sync, or read a compact synced projection; sync insightFacts to its read-rule audience, or read a compact synced projection; sync rankedPosts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:76:1 — N_NOT_PREDICTABLE: repost is no longer eligible to predict; queued without a row: online-only table insightFacts (sites: delete insightFacts, insert insightFacts, programs.repost.0, programs.repost.1)
+  rewrite: sync insightFacts to its read-rule audience, or read a compact synced projection
+  guide: residency
+```
+
+## 2026-09-14 — W3b2: Following source removal with bounded system cleanup
+
+Base: `c416b8568053fec9fd43882f821e70e82c4293d5` (`sb4/w3b`). No commit,
+push, tag or publication. This completes the F3 recipe gap left by W3b's
+entry above, under the lead's tombstone-plus-purge ruling. Orientation:
+[LLP 3000 §6–§7](../llp/3000-snapback4.explainer.md#6),
+[LLP 3000.007 §8](../llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md#8),
+[§14](../llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md#14),
+[§18](../llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md#18) and
+[§20.3](../llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md#20.3),
+the fenced instructions and bounded-jobs exclusions, and F3 in
+`/Users/ccheever/projects/snapback-next-20260914/FRICTION-0.2.16.md`.
+
+Built in the feeds card and its README copy: `deletePost` and `unrepost`
+delete the author's own public source and broadcast rows and insert a
+compact public `removedEvents` tombstone. Private inboxes retain their
+original reader-only read/delete rules. The immutable `eventId` on each
+inbox entry joins its tombstone on the device; raw sources, authors and
+follows keep their existing online-only residency. Both removals retain
+`predicts: never`, matching `createPost` and `repost`; actual admission on
+both stores queues them without predicted rows. Fresh re-reposts get new
+source identities and survive a purge of the previous event, both before
+and after cleanup. A repost remains an independent attributed snapshot;
+removing an original does not remove another actor's repost event.
+
+The one-minute schedule runs `purgeRemoved` as the system, one tombstone
+per chunk. `feed.byEvent` and `cap 1001 by eventId` bound the work by the
+1,000-follower cap plus the author's own copy, including old pushed events
+backfilled after promotion. The chunk deletes the copies and their marker
+atomically. There are at most 32,000 pending markers, capped at 1,000 per
+actor. Source deletion stops later follows from backfilling a removed
+event. The removal mutations enqueue no jobs. No engine code, meter
+ceiling, value serialization, existing corpus case or diagnostic changed.
+This is the lead-authorized cleanup addition to §20.3's earlier job-free
+recipe, not an extension to delete authority under §8.7(h).
+
+**What the page experiment taught.** A conditional collector that drops
+entries loses the merge's cursor: a 20-row result was incomplete with no
+continuation. The final Quarry collector instead keeps exactly one slot
+per source entry, returning null for removed events. Callers render only
+`page.data.filter(row => row !== null)` and continue through `next` even
+when no slots render. `complete: true` means that bounded source page was
+fully checked, not that 20 live entries were found. This is the rare-removal
+tradeoff, on the card. Server and both-store tests prove an all-null first
+page retains the exact source cursor and reaches every remaining entry
+without duplicates. A lowered-meter test proves a cut is incomplete. A
+device observes removal once it applies the removal commit; offline devices
+keep their last synced state until they reconnect.
+
+**Coverage and measurements.** The 1,000-person / 50,000-event fixture
+removes original events from the five-follower and 900-follower authors;
+a focused envelope tests original, old pushed and repost removal for every
+reader and the author, then fresh re-reposting and scheduled purge. Every
+one of the 6 and 901 principals is queried before and after removal and
+cleanup on the server and on both device stores. Both hidden/absent worlds
+match on fresh/retry replies, durable receipts, all seven meter fields,
+committed deltas, effects, snapshots, streams, and both stores through
+admission/reopen/settlement. The author leaves unreadable copies unchanged;
+a direct private-key deletion still answers `NOT_FOUND` in both worlds.
+
+Actual scheduled cleanup of three removed events:
+
+| Followers | Principals checked per host | Private copies purged | Tombstones purged | Chunks | Rows written |
+|---:|---:|---:|---:|---:|---:|
+| 5 | 6 | 18 | 3 | 3 | 21 |
+| 900 | 901 | 901 | 3 | 3 | 904 |
+
+In the full 50,000-event fixture, removing one five-follower original writes
+2 rows (1 examined / 9 index entries), then 1 purge chunk writes 7 rows;
+removing one 900-follower broadcast original writes 3 rows (2 examined /
+14 index entries), then 1 purge chunk writes 1 tombstone deletion. All
+inbox rows for those event IDs are zero after cleanup.
+
+`JobRun` exposes chunk and write counts, not a `Metered` value. The
+measurement test executes the same compiled job IR through the local
+interpreter's metered harness over a real SQLite transaction, as the system
+with all rows held and no horizons, under unchanged ordinary ceilings
+(stricter than the job's). It asserts no cap and the exact deleted-row
+count. These are sweep-body meters including the harness's null-result
+encoding, not scheduler bookkeeping or a new job telemetry surface:
+
+| Followers | Copies in measured chunk | Examined | Index entries | Rule probes | Steps | Heap bytes | Output bytes | Rows written |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 5 | 6 | 8 | 39 | 0 | 46 | 6,454 | 6 | 7 |
+| 900 | 901 | 903 | 5,409 | 0 | 5,416 | 892,796 | 6 | 902 |
+| 1000 | 1001 | 1003 | 6009 | 0 | 6016 | 988196 | 6 | 1002 |
+
+The 5-follower row is the maximum of its three chunks; the terminal chunk
+examines 7 rather than 8. A broadcast-only marker has zero private copies:
+1–2 examined / 3 index entries / 0 rule probes / 10 steps / 482–494 heap
+bytes / 6 output bytes / 1 row written. The all-null 20-slot page measures
+42 examined / 0 index entries / 0 rule probes / 233 steps / 39,400 heap
+bytes / 151 output bytes / 0 rows written. A normal private page also
+examines 42: the previous 22 plus 20 tombstone lookups, independent of the
+number of follows. The existing cost assertion and comparison fixture
+follow the revised recipe. The matched page tests at the full envelope
+retain the ordinary under-100 examined assertion.
+
+**Verification.** All Cargo commands below ran from `snapback4/`; the full
+suite and ref-check ran from the repository root. Every Node/Bun invocation
+used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+One preliminary guide invocation was accidentally issued from the repository
+root and exited 101 before any tests; it was corrected immediately and
+changed no root files.
+
+Before recipe changes: `cargo test -p snapback4-sim --test clique following_removes_source_events_at_the_envelope -- --nocapture`:
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 40 filtered out; finished in 0.01s
+```
+
+Before recipe changes: `cargo test -p snapback4-sim --test clique following_removal -- --nocapture`:
+
+```text
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 41 filtered out; finished in 0.01s
+```
+
+Before recipe changes: `cargo test -p snapback4-device --test device following_removal -- --nocapture`:
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 104 filtered out; finished in 0.02s
+```
+
+After the page fix (before additional privacy/measurement cases): `cargo test -p snapback4-sim --test clique following_removal -- --nocapture`:
+
+```text
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 41 filtered out; finished in 0.74s
+```
+
+Final targeted server run: `cargo test -p snapback4-sim --test clique following_remov -- --nocapture`:
+
+```text
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 41 filtered out; finished in 36.21s
+```
+
+Final targeted device run: `cargo test -p snapback4-device --test device following_removal -- --nocapture`:
+
+```text
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 104 filtered out; finished in 14.24s
+```
+
+Sweep-body measurement: `cargo test -p snapback4-sim --test clique following_removal_measures -- --nocapture`:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 45 filtered out; finished in 0.84s
+```
+
+`cargo test -p snapback4-lang --test guide`:
+
+```text
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+```
+
+`bash snapback4/scripts/test.sh`:
+
+```text
+-- ok: cargo build (4 s)
+-- ok: wasm build (14 s)
+-- ok: package typecheck (0 s)
+-- ok: package build (1 s)
+-- ok: chat app check (3 s)
+-- ok: cargo test (351 s)
+-- ok: chat app typecheck (0 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8440.321208
+-- ok: fixture wrapper tests (8 s)
+ℹ tests 204
+ℹ pass 203
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 42946.728208
+-- FAIL: client tests (43 s)
+== 1 failure(s) in 373 s
+```
+
+Summing the Rust target summaries in that log: 834 passed / 0 failed / 4 ignored.
+
+The only full-suite red is Chromium exiting with SIGABRT in
+`packages/snapback4/test/react.test.mjs`, before browser assertions run.
+The requested isolated rerun, `node --test packages/snapback4/test/react.test.mjs`,
+reproduced that sandbox launch failure:
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 407.740417
+```
+
+This matches the environment artifact named in the lane instructions;
+the lead reruns it outside the sandbox. No clean-base full-suite rerun was
+performed, so this entry makes no independently verified pre-existing
+source-failure claim. The base hash is recorded above. The first F3 red
+was the inherited missing recipe and is now green; no failure of this
+lane's affected tests remains.
+
+`./ref-check --verbose` before appending this entry:
+
+```text
+ref-check: ok — 480 LLP docs, 8906 refs in 23677 files, 0 errors, 0 unchecked
+```
+
+Out-of-scope files: none. The simulator's existing cost assertion and
+candidate-source replacement were minimally updated for the extra 20
+removal lookups and the source's new author-owned delete rule. All changed
+code files stay below 1,500 lines; `git diff --check` is clean. The package
+README and feeds card Quarry agree and compile without diagnostics or
+notes. No diagnostic-text change was requested or made; no new `E_` or
+`N_` code needed an entry in `guide::CODES`.

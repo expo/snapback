@@ -903,6 +903,8 @@ rewrite; `why <table>` includes the rule used for inference. The generated
 `require` codes. `check` compares with `snapback/generated/residency.json`;
 `dev` compares with its served generation. `N_NOW_SERVER` and
 `N_NOT_PREDICTABLE` name changed sites, including added horizon risks.
+Each mutation gets one `N_NOT_PREDICTABLE` note with distinct root causes
+and deduplicated sites and rewrites.
 Every text `check` also summarizes mutations that never predict, with one
 reason each; JSON checks include `predictionSummary`. Add `predicts` before
 a mutation header's colon (`mutation like(postId: posts) predicts:`) to assert
@@ -923,6 +925,10 @@ inboxes for small accounts, one public projection for celebrity posts,
 follow-time backfill, atomic unfollow purge, own posts and attributed
 reposts, and a cursor query that runs on the device. On the 51st follower,
 future events switch to broadcast; older events retain their delivery mode.
+`deletePost` and `unrepost` hide source events through synced removal
+tombstones immediately after the removal commit is applied, then a scheduled
+system job purges private copies in bounded chunks; the feeds card explains
+short-page completeness, rendering only non-null slots, and fresh re-reposts.
 The card lists its schema caps and measured cold-sync tradeoff. A named
 merge lane reads a second table with the same columns and plain index;
 each table keeps its own rule and sync. `cap N` without `by` caps the whole
@@ -981,7 +987,20 @@ table posts:                       -- originals and attributed reposts, one sour
   immutable actorId, authorId, postId, repost, at, shared
   public 'original posts and attributed reposts are public'
   insert <- .actorId = viewer
+  delete <- .actorId = viewer
   online only
+
+table removedEvents:               -- compact tombstones for deleted public source events
+  eventId: posts
+  actorId: principal
+  unique byEvent: eventId
+  by byActor: actorId, id
+  immutable eventId, actorId
+  cap 1000 by actorId
+  cap 32000
+  public 'removal of a public source event is public; id is the eventId'
+  insert <- .actorId = viewer
+  sync public
 
 table feed:                        -- private inbox, with rendered columns
   readerId: principal
@@ -996,9 +1015,11 @@ table feed:                        -- private inbox, with rendered columns
   unique byReaderTime: readerId, at, eventId
   by byReaderActor: readerId, actorId, id
   by byTime: at, eventId
+  by byEvent: eventId, id
   immutable readerId, eventId, actorId, at
   cap 1000 by readerId, actorId
   cap 50000 by readerId
+  cap 1001 by eventId
   read <- .readerId = viewer
   insert <- .actorId = viewer or .readerId = viewer
   delete <- .readerId = viewer
@@ -1021,6 +1042,7 @@ table broadcast:                   -- public celebrity events, stored once
   cap 32000
   public 'celebrity posts and reposts are public'
   insert <- .actorId = viewer
+  delete <- .actorId = viewer
   sync public
 
 fn copy(p: posts, readerId: principal, shared: bool):
@@ -1071,6 +1093,7 @@ fn deliver(p: posts):
   return null
 
 mutation createPost(postId: id, body: text <=500):
+  require not exists removedEvents[eventId = postId] else EVENT_REMOVED
   a = authors[viewer] ! else AUTHOR_NOT_FOUND
   p = insert posts { id: postId, postId, actorId: viewer, authorId: viewer, repost: false, body, at: now, shared: a.shared }
   deliver(p)
@@ -1086,15 +1109,48 @@ mutation repost(postId: posts):
   deliver(p)
   return { id: p.id }
 
+fn removeEvent(p: posts):
+  require p.actorId = viewer else NOT_AUTHOR
+  insert removedEvents { id: p.id, eventId: p.id, actorId: viewer }
+  if p.shared:
+    delete broadcast[viewer, p.id]
+  delete posts[p.id]
+  return null
+
+mutation deletePost(postId: posts):
+  p = posts[postId]
+  if p != null:
+    require not p.repost else ORIGINAL_REQUIRED
+    removeEvent(p)
+  return null
+
+mutation unrepost(postId: id):
+  p = posts[viewer, postId, true]
+  if p != null:
+    removeEvent(p)
+  return null
+
 query following(c: cursor ?):
-  return merge feed after c last 20 by byReaderTime:
+  page = merge feed after c last 20 by byReaderTime:
     [viewer]
     broadcast[p.authorId] for p in pulls[viewer] first 32 by byReaderAuthor
+  visible = []
+  for e in page:
+    visible = visible + [null if exists removedEvents[eventId = e.eventId] else e]
+  return visible
+
+job purgeRemoved():
+  chunk p in removedEvents first 1 by byId:
+    for e in feed[p.eventId] first 1001 by byEvent:
+      delete feed[e.id]
+    delete removedEvents[p.id]
+schedule purgeRemovedEvery every 1m: purgeRemoved
 ```
 
 The caps are explicit: 1,000 follows and source events per account,
 50,000 private entries per reader, 32 pulled authors per reader and
-32,000 public broadcast entries. Follow backfills the last 200 source
+32,000 public broadcast entries plus 32,000 pending removal tombstones
+(1,000 per actor). Follow backfills the last 200 source
 events; caps refuse writes atomically when reached. The full recipe and
 its measured tradeoffs are on the feeds card.
 

@@ -249,12 +249,26 @@ pub fn change_notes(bound: &Bound, previous: &BTreeMap<String, Execution>) -> Ve
         // The acceptance case's added id guard stays statically eligible, but
         // can now queue without a row. Name that new horizon risk as well.
         let new_horizon = old.predicts.as_deref() == Some("eligible") && new.predicts.as_deref() == Some("eligible");
-        for site in &new.sites {
-            let new_risk = new_horizon && site.class == SiteClass::Horizon && !old.sites.iter().any(|before| before.class == site.class && before.table == site.table && before.index == site.index && before.kind == site.kind);
-            if ((lost || moved) && site.class == SiteClass::Server) || new_risk {
-                let message = if new_risk { "remains eligible; may queue without a row past the horizon" } else if moved { "now runs on the server" } else { "is no longer eligible to predict; queued without a row" };
-                notes.push(Diagnostic::new(&program.site, if moved { "N_NOW_SERVER" } else { "N_NOT_PREDICTABLE" }, format!("{name} {message}: {} (site {})", site.reason, site.site), &site.rewrite).guide("residency"));
+        let risks: Vec<_> = new.sites.iter().filter(|site| {
+            ((lost || moved) && site.class == SiteClass::Server)
+                || (new_horizon && site.class == SiteClass::Horizon && !old.sites.iter().any(|before| before.class == site.class && before.table == site.table && before.index == site.index && before.kind == site.kind))
+        }).collect();
+        if moved {
+            for site in risks { notes.push(Diagnostic::new(&program.site, "N_NOW_SERVER", format!("{name} now runs on the server: {} (site {})", site.reason, site.site), &site.rewrite).guide("residency")); }
+        } else if !risks.is_empty() {
+            // @ref LLP 3000.007#20 — one changed-mutation note names distinct causes; repeated reads and the upsert's two arms share a cause.
+            let mut causes: BTreeMap<String, BTreeSet<&str>> = BTreeMap::new();
+            let mut rewrites = BTreeSet::new();
+            for site in risks {
+                let cause = if site.class == SiteClass::Server && !matches!(site.kind.as_str(), "presence" | "dispatch" | "native") && bound.schema.tables.get(&site.table).is_some_and(|table| table.sync.is_none()) {
+                    format!("online-only {} {}", if bound.schema.maintain_for(&site.table).is_some() { "maintain" } else { "table" }, site.table)
+                } else { site.reason.clone() };
+                causes.entry(cause).or_default().insert(&site.site);
+                if !site.rewrite.is_empty() { rewrites.insert(site.rewrite.as_str()); }
             }
+            let reasons = causes.into_iter().map(|(cause, sites)| format!("{cause} (sites: {})", sites.into_iter().collect::<Vec<_>>().join(", "))).collect::<Vec<_>>().join("; ");
+            let message = if lost { "is no longer eligible to predict; queued without a row" } else { "remains eligible; may queue without a row past the horizon" };
+            notes.push(Diagnostic::new(&program.site, "N_NOT_PREDICTABLE", format!("{name} {message}: {reasons}"), rewrites.into_iter().collect::<Vec<_>>().join("; ")).guide("residency"));
         }
     }
     notes

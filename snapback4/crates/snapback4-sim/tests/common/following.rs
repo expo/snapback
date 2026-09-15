@@ -87,7 +87,7 @@ pub fn candidate(mode: &str) -> String {
         text.push_str("query following(c: cursor ?):\n  return feed[viewer] after c last 20 by byReaderTime\n");
     } else if mode == "merge" {
         text = text.replace("  cap 1000 by actorId", "  cap 60000\n  cap 1000 by actorId");
-        text = text.replace("  public 'original posts and attributed reposts are public'\n  insert <- .actorId = viewer\n  online only", "  public 'original posts and attributed reposts are public'\n  insert <- .actorId = viewer\n  sync public");
+        text = text.replace("  public 'original posts and attributed reposts are public'\n  insert <- .actorId = viewer\n  delete <- .actorId = viewer\n  online only", "  public 'original posts and attributed reposts are public'\n  insert <- .actorId = viewer\n  delete <- .actorId = viewer\n  sync public");
         text = text.replace("  cap 1000 by followedId", "  cap 1000 by followedId\n  cap 100000").replace("  delete <- .followerId = viewer\n  online only", "  delete <- .followerId = viewer\n  sync public");
         text = text.replace("  deliver(p)", "  copyUnused = null");
         text.truncate(text.find("query following").unwrap());

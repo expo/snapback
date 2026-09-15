@@ -209,17 +209,37 @@ table posts:
   delete <- .authorId = viewer
   sync public last 200 by byTime      -- everyone holds the same rows
 
-table publicPosts:                    -- a same-shaped public projection for a named-table merge lane
+table feed:                         -- rendered private inbox; `guide feeds` covers delivery and the removal limit
+  readerId: principal
+  eventId: posts
   authorId: principal
   body: text <=500
-  parentId: id ?
-  score: int
   at: time
-  by byAuthorTime: authorId, at, id
-  by byTime: at, id
-  cap 200                            -- no by: at most 200 rows in the whole table
-  public 'the shared projection is public'
+  unique byReaderEvent: readerId, eventId
+  unique byReaderTime: readerId, at, eventId
+  cap 50000 by readerId
+  read <- .readerId = viewer
+  sync
+
+table broadcast:                    -- same rendered columns; one public lane per pulled author
+  readerId: principal
+  eventId: posts
+  authorId: principal
+  body: text <=500
+  at: time
+  unique byReaderEvent: readerId, eventId
+  unique byReaderTime: readerId, at, eventId
+  cap 32000
+  public 'celebrity events are public'
   sync public
+
+table pulls:
+  readerId: principal
+  authorId: principal
+  unique byReaderAuthor: readerId, authorId
+  cap 32 by readerId
+  read <- .readerId = viewer
+  sync
 
 table follows:
   followerId: principal
@@ -273,7 +293,7 @@ maintain messageCounts: count messages by roomId       -- an aggregate the engin
   read <- exists members[.roomId, viewer]
 maintain scoreTotals: sum posts of score by authorId   -- count, or sum of an int, decimal or money column
   read <- allow
-  online only                         -- opt out of inheriting public sync
+  online only                         -- mutations reading this maintain never predict
 
 maintain originalPostCounts: count posts where .parentId = null by authorId
   read <- allow
@@ -333,12 +353,11 @@ query thread(roomId: rooms, c: cursor ?):                            -- `cursor 
 query inbox(c: cursor ?):
   return members[viewer] after c first 50 by byPrincipalRoom { roomId, room: rooms[.roomId], unread: messageCounts[.roomId] }
 
-query following(c: cursor ?):
-  page = merge posts after c last 20 by byAuthorTime:               -- one ordered page over several prefixes of one index
+query following(c: cursor ?):        -- private inbox plus capped pulled authors; see `snapback4 guide feeds`
+  page = merge feed after c last 20 by byReaderTime:
     [viewer]
-    [f.followedId] for f in follows[viewer] first 20 by byPair
-    publicPosts[viewer]                                          -- same columns and plain index; its own rule and sync
-  return page { *, author: profiles[.authorId], mine: reactions[.id, viewer] }
+    broadcast[p.authorId] for p in pulls[viewer] first 32 by byReaderAuthor
+  return page { *, mine: reactions[.eventId, viewer] }
 
 query ancestors(roomId: rooms):
   chain = walk rooms[roomId] up .parentId depth 8                   -- the row, its parent, and so on: at most `depth` rows
@@ -754,7 +773,8 @@ maintain and the rewrite. `why notices` prints the rule that inferred sync.
 Generated api.ts documents arguments, results, runs/predicts, horizon sites
 and require codes. check compares with generated/residency.json; dev compares
 with the generation it serves. N_NOW_SERVER names a newly server-run query.
-N_NOT_PREDICTABLE names lost eligibility or an added horizon risk, explicitly
+N_NOT_PREDICTABLE groups distinct root causes and deduplicated sites into one
+note per mutation for lost eligibility or an added horizon risk, explicitly
 distinguishing a call that may queue from an operation that never predicts.
 Every check also summarizes all never-predicting mutations. A header such as
 `mutation post(body: text <=200) predicts:` asserts eligibility; a server
@@ -975,7 +995,9 @@ without a complete schema-capped group. `matching`, merges and tables with
 expiry are refused for every mutation page, predicting or not, looped or bound (`E_STRUCTURAL_FANOUT`). A predicting mutation
 keeps the complete-group requirement. Every page a mutation reads, even just
 binding it, must be uniformly decided by its prefix (`E_STRUCTURAL_FANOUT`):
-read it in a query, or pin the deciding columns.
+the rewrite names the missing rule columns and a capped loop that supplies
+their values. Pinning `.readerId` decides visibility; it grants no read
+authority over another reader's inbox. See `guide feeds` for removal limits.
 The pass is atomic and still aborts above 1,024 rows written. `check --cost`
 prints "a pass over the first N rows of <prefix>; examined ceiling <n>".
 

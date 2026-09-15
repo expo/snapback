@@ -389,7 +389,7 @@ fn plain_prefix_problem(schema: &Schema, scan: &Scan) -> Option<String> {
 fn require_uniform_mutation_pages(schema: &Schema, scans: &[&Scan]) -> Result<(), Problem> {
     for scan in scans {
         if schema.table(&scan.table).and_then(|table| table.index(&scan.index)).is_some() && !scan_visibility(schema, scan).uniform {
-            return Err(fanout(Some(scan), &scan.site, "the mutation page's read rule is not uniformly decided by its prefix", "read it in a query, or pin the deciding columns"));
+            return Err(fanout(Some(scan), &scan.site, "the mutation page's read rule is not uniformly decided by its prefix", &uniform_rewrite(schema, scan)));
         }
     }
     Ok(())
@@ -399,4 +399,31 @@ fn fanout(scan: Option<&Scan>, site: &str, reason: &str, rewrite: &str) -> Probl
     let reason = reason.split_once("; ").map_or(reason, |(reason, _)| reason);
     let population = scan.map(|scan| format!("{} by {} (page bound {}): ", scan.table, scan.index, scan.take.maximum())).unwrap_or_default();
     Problem { code: "E_STRUCTURAL_FANOUT", site: site.into(), page_site: scan.map(|scan| scan.site.clone()), message: format!("{population}{reason}"), rewrite: rewrite.into() }
+}
+
+// @ref LLP 3000.007#20.3 — a private feed cleanup must pin the reader; changing its audience is not a rewrite.
+fn uniform_rewrite(schema: &Schema, scan: &Scan) -> String {
+    let table = &schema.tables[&scan.table];
+    let mut fields = BTreeSet::new();
+    table.rules.read.fields(&mut fields);
+    let pinned = table.index(&scan.index).expect("checked index").columns().into_iter().take(scan.prefix.len()).collect::<BTreeSet<_>>();
+    fields.retain(|field| !pinned.contains(field));
+    if fields.is_empty() { return "this rule needs more than column pinning; read the page in a query, or use a job chunk".into(); }
+    let columns = fields.iter().map(|field| format!(".{field}")).collect::<Vec<_>>().join(", ");
+    let mut rewrite = format!("pin {columns} in each read's index prefix by iterating the capped group that supplies those values");
+    // Recognize the published follower vocabulary, not a relation inferred
+    // from principal types alone. actorId/eventId are example bindings.
+    if fields.len() == 1 && fields.contains("readerId") && table.columns.contains_key("eventId")
+        && let Some(follows) = schema.tables.get("follows")
+        && follows.columns.contains_key("followerId") && follows.expire.is_none()
+        && { let mut deciding = BTreeSet::new(); follows.rules.read.fields(&mut deciding); deciding.iter().all(|field| field == "followedId") }
+        && table.indexes.values().any(|index| index.unique && index.columns() == ["readerId", "eventId"])
+        && let Some(cap) = follows.cap(&["followedId".into()])
+        && let Some((index, _)) = follows.indexes.iter().find(|(_, i)| i.is_plain() && i.columns().starts_with(&["followedId".into()])) {
+        rewrite.push_str(&format!("; for example, with actorId and eventId bound: `for f in follows[actorId] first {cap} by {index}:`, then address `{}[readerId = f.followerId, eventId = eventId]`; pinning .readerId decides visibility but grants no read authority over another reader's inbox (see `snapback4 guide feeds`)", scan.table));
+    } else {
+        let keys = fields.iter().map(|field| format!("{field} = row.{field}")).collect::<Vec<_>>().join(", ");
+        rewrite.push_str(&format!("; inside that loop use `{}[{keys}]` with an index leading on those columns; or read the page in a query", scan.table));
+    }
+    rewrite
 }
