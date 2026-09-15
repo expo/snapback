@@ -268,8 +268,13 @@ with all lanes uniform and in budget it is complete at 20 matches or the
 end, and `next` continues after the last returned live entry. More removals
 cost more examinations and probes, so a long removed run can still cut the
 page. At the 40-event test with its newest 20 removed, the first live page
-examines 82 rows and makes 41 tombstone probes, returning 20 live rows and
+uses 82 examinations and makes 41 tombstone probes, returning 20 live rows and
 a continuation; ceiling 25 returns no rows, incomplete, without a cursor.
+Following uses the eager merge path: its inbox and broadcast lanes read
+different tables. Filtered lanes discovered by `for` also use that path,
+so each predicate sees its own discovery row throughout pagination.
+Uniform lanes with fixed prefixes on one seekable plain index can still
+use the lazy merge path.
 
 The minute schedule runs `purgeRemoved` as the system, one removed event
 per chunk. The event index and cap bound each chunk to 1,001 private copies

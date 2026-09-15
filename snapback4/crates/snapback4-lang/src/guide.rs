@@ -360,7 +360,7 @@ query thread(roomId: rooms, c: cursor ?):                            -- `cursor 
 query inbox(c: cursor ?):
   return members[viewer] after c first 50 by byPrincipalRoom { roomId, room: rooms[.roomId], unread: messageCounts[.roomId] }
 
-query following(c: cursor ?):        -- private inbox plus capped pulled authors; the metered tombstone predicate needs the full recipe on `snapback4 guide feeds`
+query following(c: cursor ?):        -- syntax example: private inbox plus capped pulled authors; use the removal recipe on `snapback4 guide feeds` to hide removed events
   page = merge feed after c last 20 by byReaderTime where .body != '':
     [viewer]
     broadcast[p.authorId] for p in pulls[viewer] first 32 by byReaderAuthor

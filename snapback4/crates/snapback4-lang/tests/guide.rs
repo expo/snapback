@@ -609,3 +609,17 @@ fn calibration_effects_jobs_and_seed_cards_explain_replay_flags() {
         assert!(text.contains("--hold-effects") && text.contains("--hold-schedules"), "{word}");
     }
 }
+
+#[test]
+fn following_cards_pin_examinations() {
+    for (name, doc) in [("feeds", card("feeds").unwrap()), ("README", README)] {
+        assert!(doc.contains("82 examinations"), "{name} must count examinations, including lookups");
+        assert!(doc.contains("41 tombstone probes"), "{name} must pin the tombstone work");
+    }
+}
+
+#[test]
+fn following_language_card_labels_the_syntax_example() {
+    assert!(LANGUAGE.contains("syntax example"), "Following's body predicate is syntax, not removal");
+    assert!(LANGUAGE.contains("removal recipe"));
+}

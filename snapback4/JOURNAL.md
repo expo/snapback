@@ -17195,6 +17195,190 @@ Repository root, after the final targeted and concurrency-2 client runs:
 -- ok: package build (0 s)
 -- ok: chat app check (2 s)
 -- ok: cargo test (311 s)
+
+
+## 2026-09-15 — W4R1b: merge predicate discovery bindings and Following review coverage
+
+**Base:** `b1b9fd9ec364fcebd74caf20f533759ae9a99521` (`sb4/w4r1b`).
+No commit, push, tag or publication. No engine, read-rule probe, point-read,
+meter ceiling or serialized-value change; no other lane's client file touched.
+
+**Built.** Finding A reproduced on the server, memory device and SQLite
+device: the first page omitted `dev:a-00` (red) and included `dev:a-01`
+(blue), because lazy discovery left the B/blue selector in the environment.
+The binder now initializes each filtered discovery lane's selector through
+its existing setup. Nonempty setup selects eager evaluation, keeping that
+selector live through the lane's complete scan. This is a conservative
+fallback for all filtered discovery lanes, including helpers; it avoids a
+new dependency walker or runtime environment. Uniform fixed-prefix filtered
+lanes on one seekable plain index and unfiltered discovery lanes remain lazy.
+Following's named inbox/broadcast merge remains eager, even with no pulls.
+The new fixture compares the natural path with forced eager execution and
+an equivalent fixed-prefix lazy query, including cursors, completeness,
+exact expected IDs, tied ordering keys and termination. The wanted rows are
+**48**, in **3 pages (20, 20, 8)** on every host; the unfiltered control is
+**96 rows / 5 pages**. Both direct `p.wanted` and helper expansion are covered.
+
+**Costs and cuts (B, C, missing coverage).** The ordinary fixture now pins
+**82 examinations / 41 tombstone probes** and ceiling **25** to empty data,
+`complete: false`, no `next`. The promoted fixture starts with 5 followers,
+writes the pushed events, really promotes on follower **51**, and adds a
+live broadcast that must appear in the uncut first page. It pins **85
+examinations / 42 probes**. Across server, memory and SQLite, the respective
+**1..=82 / 1..=85** sweeps find **0 removed IDs/bodies** and **0 unsafe cut
+cursors**; ceiling 25 returns **0 rows** in both shapes. Promotion matters:
+`removeEvent` deletes a shared broadcast immediately, so seeding only shared
+posts and deleting them would skip the long inbox tombstone run.
+
+The N1 helper adds a merge predicate using `exists records[...]` against a
+non-uniform-rule table. It compares `data`, `complete`, `next`, `seq`,
+`tables`, `nextExpiry` and refusal fields between hidden and absent worlds,
+under **82 examined ceilings × 2 probe ceilings × 4 forms = 656 pairs per
+host**, all identical, with **4 positive controls per host**. Device tests
+explicitly install adversarial online-only rows to exercise rules; this
+is interpreter/store evidence, not an assertion that those rows sync.
+The heap regression cuts at **20 bytes** while allocating the second
+tombstone key, after **26 bytes charged / 3 examinations / 1 probe**;
+all three hosts return **null data**, incomplete and no cursor. Default
+budgets return **20 live rows** and a continuation. Cost, examined-cut,
+non-uniform and heap coverage passed the base implementation before the
+binder fix; no new engine fix was needed for those missing tests.
+
+**Published surface (B, D).** Feeds and the README say “82 examinations”
+and “41 tombstone probes”; both describe the merge paths. The language
+card labels `.body != ''` a “syntax example” and points to the feeds card's
+“removal recipe”. The compact language schema stays a syntax example;
+the complete feeds recipe remains compiled and exercised. No diagnostic
+message, code, note or `guide::CODES` entry changed. Both documentation
+assertions were red before their wording changes and green afterward.
+LLP 3000.007 §20.12 records the fix, paths and measured coverage.
+
+**Targeted commands and verbatim summaries.** Cargo commands below ran
+from `snapback4/`, except the explicitly recorded mistaken invocation.
+Initial regression runs preceded all binder and published-text edits.
+The cost/text test was initially named
+`following_cards_pin_examinations_and_label_the_syntax_example`; its two
+assertion groups were then separated so D had its own red result.
+
+A, server red:
+
+```text
+cargo test -p snapback4-sim --test clique following_merge_predicate -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 49 filtered out; finished in 0.03s
+```
+
+A, both devices red:
+
+```text
+cargo test -p snapback4-device --test device following_merge_predicate -- --nocapture
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 122 filtered out; finished in 0.05s
+```
+
+B, text red:
+
+```text
+cargo test -p snapback4-lang --test guide following_cards_pin_examinations_and_label_the_syntax_example -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+```
+
+D, text red:
+
+```text
+cargo test -p snapback4-lang --test guide following_language_card_labels_the_syntax_example -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.00s
+```
+
+Base coverage after fixture corrections, server:
+
+```text
+cargo test -p snapback4-sim --test clique following_removal -- --nocapture
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 43 filtered out; finished in 1.02s
+```
+
+Base coverage after fixture corrections, both devices:
+
+```text
+cargo test -p snapback4-device --test device following_removal -- --nocapture
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 116 filtered out; finished in 17.14s
+```
+
+Final feed forms and guide:
+
+```text
+cargo test -p snapback4-lang --test feed_forms --test guide -- --nocapture
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+```
+
+Final server Following:
+
+```text
+cargo test -p snapback4-sim --test clique following -- --nocapture
+test result: ok. 15 passed; 0 failed; 1 ignored; 0 measured; 35 filtered out; finished in 37.24s
+```
+
+Final device Following:
+
+```text
+cargo test -p snapback4-device --test device following -- --nocapture
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 112 filtered out; finished in 39.67s
+```
+
+**Fixture-development errors, not product regressions.** Before the final
+base coverage above, I incorrectly expected 85 examinations from a fixture
+that removed shared broadcasts (it measured 45), and initially used a
+candidate reference where a records reference was required. I corrected
+the seed to real promotion with old pushes and added the correctly typed
+`record: records` field. Those exploratory commands and summaries were:
+
+Initial promotion fixture:
+
+```text
+cargo test -p snapback4-sim --test clique following_removal_cut -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 50 filtered out; finished in 0.20s
+```
+
+Initial combined fixture, server:
+
+```text
+cargo test -p snapback4-sim --test clique following_removal -- --nocapture
+test result: FAILED. 6 passed; 2 failed; 0 ignored; 0 measured; 43 filtered out; finished in 0.92s
+```
+
+Initial combined fixture, devices:
+
+```text
+cargo test -p snapback4-device --test device following_removal -- --nocapture
+test result: FAILED. 4 passed; 4 failed; 0 ignored; 0 measured; 116 filtered out; finished in 17.43s
+```
+
+One initial invocation of
+`cargo test -p snapback4-lang --test guide following_language_card_labels_the_syntax_example -- --nocapture`
+accidentally ran from the repository root, contrary to the lane rule. Cargo
+stopped before any tests because `vendor/ibex/Cargo.toml` was absent. I
+immediately reran it from `snapback4/` (the D red above); no root file was
+changed. This is an invocation mistake, not a claim of a pre-existing
+Snapback 4 test failure.
+
+**Blocking suite.** Repository-root command (the script changes into
+`snapback4/`), with Node 24.18.0 first on PATH:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+```
+
+Exit **1**. Rust summary totals, summed across the suite's verbatim
+per-target lines: **890 passed, 0 failed, 4 ignored**. The stage and JS
+summary lines, verbatim:
+
+```text
+-- ok: cargo build (10 s)
+-- ok: wasm build (14 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (2 s)
+-- ok: cargo test (306 s)
 -- ok: chat app typecheck (0 s)
 -- ok: expo app typecheck (1 s)
 ℹ tests 9
@@ -17238,3 +17422,53 @@ ref-check: ok — 480 LLP docs, 8930 refs in 23703 files, 0 errors, 0 unchecked
 `git diff --check` passes. The prior journal bytes remain an unchanged prefix,
 with exactly one new dated entry. The working tree contains exactly the seven
 intended W4a files listed above.
+
+-- ok: fixture wrapper tests (8 s)
+ℹ tests 275
+ℹ pass 274
+ℹ fail 1
+ℹ cancelled 0
+-- FAIL: client tests (44 s)
+== 1 failure(s) in 333 s
+```
+
+The sole failure was `packages/snapback4/test/react.test.mjs`, Chromium
+exiting with `exitCode=null, signal=SIGABRT`. The isolated rerun from
+`snapback4/` used:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+node --test packages/snapback4/test/react.test.mjs
+```
+
+It repeated the sandbox artifact:
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+```
+
+The lead must rerun this browser check outside the sandbox. No lifecycle
+or mass client-concurrency failure occurred, so no concurrency retry was
+needed. No failing product test is called pre-existing: there was no
+independent base checkout verification of Chromium, and the environment
+artifact is identified from the lane brief and repeated isolated launch.
+
+Repository-root `./ref-check --verbose` before this journal append:
+
+```text
+ref-check: ok — 480 LLP docs, 8930 refs in 23697 files, 0 errors, 0 unchecked
+```
+
+All assigned work is implemented. There is no new per-lane lazy runtime
+environment: the six-line binder fallback is the selected smaller fix.
+The language example remains intentionally syntactic and is explicitly
+labelled; the full removal recipe stays on the feeds card. No out-of-scope
+file was touched. The parser needed no further grammar change, and no
+`E_`/`N_` diagnostic text changed. The valid selector query had no compiler
+diagnostic or note before or after; its before failure was wrong runtime
+data. The largest changed code file is `guide.rs`, **1,364 lines**, below
+1,500. `git diff --check` passes. This entry is appended with all prior
+journal bytes unchanged; final ref-check is rerun after the append.
