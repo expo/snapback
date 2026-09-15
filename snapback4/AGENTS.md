@@ -22,7 +22,7 @@ cargo test -p snapback4-sim          # the chat world under faults: the seven in
 cargo test -p snapback4-sim --test native   # native jobs: builds native-fixtures/rescore for wasm32-unknown-unknown (cold ~20 s, then cached under target/native-fixture) and runs it
 bash scripts/build-wasm.sh           # the device as wasm into packages/snapback4/src/wasm/ (the web tier and the Chromium witness need it)
 node witness/idb.mjs                 # the Chromium witness: the client on the wasm device over IndexedDB (needs Chrome)
-WITNESS_DEV_CLIENT=1 node witness/expo.mjs   # the simulator witness: the client on the Rust module in a development build (apps/chat-expo: bun run ios:dev first; booted iOS simulator)
+WITNESS_UDID=<dedicated-udid> node witness/expo.mjs   # published witness verb/helper; install apps/chat-expo Release first; port 4400, no Metro
 node witness/scale.mjs [G] [N] [M]   # cold sync at scale: G groups × N messages × M members into the wasm device; wall time + JS heap → metrics/witness.jsonl
 node scripts/measure-storage.mjs     # what the store weighs on the scale seed (rows, indexes, partition log) → metrics/storage.jsonl
                                      # SNAPBACK4_BIN=target/release/snapback4 measures the release build (throughput numbers)

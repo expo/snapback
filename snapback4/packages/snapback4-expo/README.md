@@ -32,7 +32,7 @@ linked and about a millisecond per call; those measurements predate the
 native-query host.
 
 Earlier iOS simulator evidence from the repository's witness in a development
-build (`WITNESS_DEV_CLIENT=1 node witness/expo.mjs`, recorded in
+build (before the published driver, recorded in
 `metrics/witness.jsonl` as `dev-client-native`): a cold sync of 303 rows
 in 31 ms, a reopen in 6 ms, a cold start with no network answering the
 thread from the store in 2 ms, and writes composed offline surviving a
@@ -46,3 +46,15 @@ file storage beside each device store in Documents. Offline `client.asset` and
 on home-row revocation, deletion, clearing or expiry and on sign-out; `once`
 bytes never enter file storage. Rebuild the native app to include this storage
 capability. `keep: "none"` (default) retains no bytes.
+
+## Simulator witness
+
+Import `witness` from `snapback4-expo/witness` in an installed iOS Release
+app. `witness()` is null on ordinary launches; under `snapback4 witness ios`
+it returns `{ segment, step(name, fn), receipt(object), waitFor(label) }`.
+The `Witness` type is exported from the same subpath. Rebuild the native app
+to include the launch-environment and Documents-file bridge. The full chat
+runner, commands and artifact contract are in `snapback4 guide witness`
+(aliases: `simulator`, `offline proof`) and the client package README's
+“Proving it on an iOS simulator”. No Expo Go or Metro process supplies a
+Release witness.

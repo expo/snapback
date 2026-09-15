@@ -1,4 +1,17 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_WITNESS_INPUT", "invalid witness arguments, launch configuration or signal label. Use snapback4 guide witness for the flags and app recipe. guide witness."),
+    ("E_WITNESS_PLATFORM", "witness ios requires macOS, Xcode and an installed iOS simulator. guide witness."),
+    ("E_WITNESS_SIMULATOR", "a simulator could not be selected or simctl failed. Boot a dedicated iOS simulator and pass its --udid; never select an ambiguous booted set. guide witness."),
+    ("E_WITNESS_APP", "the app is missing or its installed Info.plist could not be read. Build and install the Release configuration on the named simulator using the printed command. guide witness."),
+    ("E_WITNESS_PORT", "the requested backend port is unavailable. Choose a free --port and build the app for that origin; the witness never stops an existing listener. guide witness."),
+    ("E_WITNESS_BACKEND", "the owned backend did not become ready, exited early, or its stopped port did not refuse connections. Inspect the backend log; only owned processes are stopped. guide witness."),
+    ("E_WITNESS_PROCESS", "a witness child failed to start, exited early or could not be stopped. Inspect capture and backend logs. guide witness."),
+    ("E_WITNESS_ARTIFACT", "an artifact is missing, empty, changed containers or would overwrite a previous run. Use a fresh artifacts directory; inspect the failed run manifest. guide witness."),
+    ("E_WITNESS_RECEIPT", "a receipt is not a JSON object, has the reserved witness key, could not be written, or is empty/truncated. Preserve one complete JSON object per line. guide witness."),
+    ("E_WITNESS_STEP", "an application assertion failed, a milestone arrived out of order, or helper steps overlapped. Steps must be sequential; inspect the app receipts and log. guide witness."),
+    ("E_WITNESS_TIMEOUT", "an app step, command or signal did not arrive before the step timeout (120 seconds by default). Inspect the last recorded step; increase --timeout only for a measured slow run. guide witness."),
+    ("E_WITNESS_INTERRUPTED", "the witness was interrupted; its owned backend and capture processes are stopped and available artifacts retained. guide witness."),
+
     ("E_ADOPT", "the compiled schema cannot adopt the stored rows. check reads the dev store (or --store path) without changing it; dev refuses the same successor step. Add an optional column or a literal default, or repair existing values/duplicate keys before narrowing. now and viewer belong to inserts and cannot fill old rows. guide types."),
     ("E_QUARRY_LIVE_MAINTAIN_PROBE", "a rule cannot compare the value of a maintain over an expiring source. Read the maintain in the program; its live value cannot be probed at one unit. Existence probes still cost one unit; guide expire."),
     ("SNAPBACK4_EXIT", "the dev/serve loop returned; status, generation and the startup/listener error or normal-stop reason are on stderr. Generation 0 means it has not served yet. guide refusals."),

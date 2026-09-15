@@ -106,10 +106,14 @@ fn expo_files() -> Vec<(&'static str, String)> {
     // explicitly so an app cannot accidentally select an Expo 54 preset.
     package["devDependencies"]["babel-preset-expo"] = json!("57.0.11");
     let mut app = include_str!("../../../../apps/chat-expo/App.tsx").to_owned();
-    app = app.replace("import { runWitness } from \"./src/witness\";\n", "");
-    let start = app.find("    if (process.env.EXPO_PUBLIC_WITNESS_URL) {").unwrap();
+    app = app.replace("import { runWitness } from \"./src/witness\";\n", "")
+        .replace("import { witness } from \"snapback4-expo/witness\";\n", "");
+    let start = app.find("    const proof = witness();").unwrap();
     let end = app[start..].find("    openClient()").unwrap() + start;
     app.replace_range(start..end, "");
+    app = app.lines().filter(|line| !line.contains("const [witnessConversation") && !line.contains("const [witnessStatus") && !line.contains("{witnessStatus ?"))
+        .collect::<Vec<_>>().join("\n") + "\n";
+    app = app.replace("<Home initialConversationId={witnessConversation} />", "<Home />");
     app = app.replace("import { openClient }", "import { openClient, tier }")
         .replace("in SQLite (expo-sqlite)", "in the Rust module's SQLite")
         .replace("apps/chat/snapback/schema.q", "snapback/schema.q")

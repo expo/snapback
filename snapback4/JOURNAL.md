@@ -8214,3 +8214,307 @@ ref-check: ok — 474 LLP docs, 8870 refs in 22861 files, 0 errors, 0 unchecked
 `git diff --check` passed; the journal before this entry is byte-identical
 to the base. The full Rust suite reports 684 passed, 0 failed and 2 ignored
 across its 52 result summaries.
+
+
+## 2026-09-14 — W1: a published iOS simulator witness (S30)
+
+Base: `8e02e1530f2db73eeddc205f267906d206792dc6`. Built the app-facing
+`snapback4-expo/witness` export and types, the `snapback4 witness ios` verb,
+the `witness` card (aliases `simulator`, `offline proof`), the README recipe,
+and LLP 3000.007 §20.10. The repository witness now invokes the published
+verb for `offline` and `restart`; the chat app uses the published helper,
+shows its real Thread during the scenario, and keeps the two write IDs in
+SecureStore across the driver's process termination. Its fixture seeds 303
+rows and checks 50 history rows, two pending sends, their exact bodies and
+ordered `sent` settlements. Those are scenario assertions, not native
+measurements from this run.
+
+The helper owns the step protocol in TypeScript. The only new native bridge
+is 46 lines in `WitnessContainer.swift` plus three module registrations:
+Hermes/Expo does not expose runtime launch environment, and durable append
+must reach the app's Documents directory. A simulator-only environment
+constant activates a run; ordinary launches return null even if old run
+files exist. Synchronous file append flushes each JSONL line. A run-specific
+file signals reconnect after the owned backend reports readiness, without
+network entitlements or a second HTTP endpoint. Application receipt fields
+are unchanged; only `witness: { at, step }` is added. The app's completed
+steps drive progress; running receipts cannot prematurely finish a step.
+
+The CLI refuses ambiguous booted sets, missing apps, occupied ports,
+non-macOS, malformed receipts, missing/empty artifacts, failed/out-of-order
+steps, and timeouts. It finalizes video before stopping logs, stops only
+its recorded host children, explicitly targets the selected app/UDID for
+termination, and binds the exported receipts and video by SHA-256 in the
+run manifest. A failed run retains a nonzero manifest when setup got far
+enough to create one. The fake-simctl tests start and stop a real dev backend
+and exercise both cold launch and relaunch; they are driver tests, not
+simulator evidence. No meter, value serialization or existing corpus case
+changed. No commit, push, tag or publication was made.
+
+Necessary supporting edits outside the central witness files: the starter's
+`verbs/init.rs` extraction now removes the new reference-app harness; its
+existing positive template tests pass. The React test stubs the helper as
+inactive on its browser host (two lines). The README example test resolves
+the new package subpath to its actual source (one line). `AGENTS.md` names
+the new repository invocation. No loopbar caller used the removed form.
+The NOT-DOING history records the move: the published witness replaces the
+repository-only Metro witness; the deterministic simulator stays primary.
+
+### Verification and red/green
+
+All Cargo/Bun and package test commands below ran from `snapback4/`; the
+full suite, reference check and caps ran from the repository root. Every
+Node/Bun/npx command used:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+The regression was red before implementation: the CLI had no witness verb
+or card, and the helper import did not exist. Exact commands and summary
+lines follow; full command output remains in the named `/tmp/sb4-w1-*` logs.
+
+Before implementation: `cargo test -p snapback4 --test witness`
+
+```text
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.12s
+```
+
+After implementation: `cargo test -p snapback4 --test witness`
+
+```text
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.75s
+```
+
+Final targeted Rust: `cargo test -p snapback4 --test witness --test init`
+
+```text
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.15s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.77s
+```
+
+Before implementation: `node --test packages/snapback4/test/witness.test.mjs`
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 33.3465
+```
+
+Final helper: `node --test packages/snapback4/test/witness.test.mjs`
+
+```text
+ℹ tests 3
+ℹ pass 3
+ℹ fail 0
+ℹ duration_ms 268.320166
+```
+
+Helper and compiled README: `node --test packages/snapback4/test/witness.test.mjs packages/snapback4/test/readme-examples.test.mjs`
+
+```text
+ℹ tests 5
+ℹ pass 5
+ℹ fail 0
+ℹ duration_ms 711.196542
+```
+
+Final targeted JS, including the generated Expo starter: `node --test packages/snapback4/test/periphery.test.mjs packages/snapback4/test/witness.test.mjs packages/snapback4/test/readme-examples.test.mjs`
+
+```text
+ℹ tests 22
+ℹ pass 22
+ℹ fail 0
+ℹ duration_ms 1856.605083
+```
+
+Final guide: `cargo test -p snapback4-lang --test guide`
+
+```text
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+```
+
+Isolated rerun of a port teardown race: `cargo test -p snapback4 --test witness bound_port_is_refused_without_stopping_its_owner`
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+```
+
+The first full suite found the stale starter extraction, the missing guide
+list entries and a test's assumption that an ephemeral port could not be
+reassigned immediately. The port test passed alone before its positive
+reservation was moved to a fresh port. The prescribed builds also generated
+the initially absent wasm/types/API files; the early typechecks' missing
+module errors are resolved. None of these failures is called pre-existing.
+
+`bun run --cwd apps/chat-expo typecheck` exited 0:
+
+```text
+$ tsc -p tsconfig.json --noEmit
+```
+
+`bash snapback4/scripts/test.sh`, first run (`/tmp/sb4-w1-suite.log`):
+
+```text
+-- FAIL: cargo test (240 s)
+ℹ tests 191
+ℹ pass 188
+ℹ fail 3
+-- FAIL: client tests (42 s)
+== 2 failure(s) in 260 s
+```
+
+`bash snapback4/scripts/test.sh`, final (`/tmp/sb4-w1-suite-final.log`):
+
+```text
+-- ok: cargo build (1 s)
+-- ok: wasm build (1 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (232 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (8 s)
+ℹ tests 191
+ℹ pass 190
+ℹ fail 1
+-- FAIL: client tests (41 s)
+== 1 failure(s) in 236 s
+```
+
+The final Rust summaries total **696 passed, 0 failed, 2 ignored**, across
+53 summaries. No lifecycle timeout occurred. The one client failure is
+Chromium SIGABRT at browser startup, before application modules load.
+
+Final reduced-concurrency client run: `node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'`
+
+```text
+ℹ tests 191
+ℹ pass 190
+ℹ fail 1
+ℹ duration_ms 73113.494458
+```
+
+Chromium alone: `node --test packages/snapback4/test/react.test.mjs`
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 318.316208
+```
+
+Baseline browser-startup reproduction: `node --test /tmp/sb4-w1-base-react.test.mjs`
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 231.920333
+```
+
+The baseline browser reproduction uses the React test source from
+`8e02e1530f2db73eeddc205f267906d206792dc6`, with only its two relative path
+roots relocated into `/tmp`; `witness/lib.mjs` is unchanged from that base.
+It aborts at `chromium.launch`, before any application source is loaded.
+This verifies the browser-startup failure against the base test, not a full
+baseline suite. The lead must run browser and native qualification outside
+this sandbox.
+
+`node scripts/caps.mjs` reports `2 violations.` Both inputs were verified
+against the same base: the same 65 non-dot working-set links against a cap
+of 59, and the byte-identical root
+`crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs` at 1,504 lines
+(SHA-256 `1eae485cacf83f8823f2716b33c49e1d4df32fdd1f1e68b8b0e3491338274ad9`).
+The 19 changed/new code files are all below 1,500; the largest is
+`crates/snapback4-lang/src/guide.rs`, 1,212 lines. Markdown was not reflowed
+to save lines. `git diff --check` passed.
+
+### Native attempt and measurements
+
+The dedicated simulator could not be created. Command:
+
+```sh
+xcrun simctl create sb4-w1 'iPhone 17' com.apple.CoreSimulator.SimRuntime.iOS-26-5
+```
+
+`/tmp/sb4-w1-sim-create.log` records the exact output, including:
+
+```text
+CoreSimulatorService connection became invalid.  Simulator services will no longer be available.
+```
+
+The failure ends with `Unable to locate device set` and POSIX code 61
+`Connection refused`. No simulator UDID was returned; no simulator was
+booted or deleted, and no other session's simulator was touched.
+
+From `snapback4/apps/chat-expo`, the Release command was:
+
+```sh
+npx expo run:ios --configuration Release --device sb4-w1
+```
+
+It exited 1 after prebuild; `/tmp/sb4-w1-release.log` contains the full
+output. CocoaPods reported `Operation not permitted @ rb_sysopen` for
+`/Users/ccheever/.cocoapods/repos/trunk/deprecated_podspecs.txt`. Exact final
+lines:
+
+```text
+pod install --repo-update --ansi exited with non-zero code: 1
+CommandError: Can't determine id of Device Hub or Simulator app; the Device Hub or Simulator is most likely not installed on this machine. Run `sudo xcode-select -s /Applications/Xcode.app`
+```
+
+The generated, ignored `apps/chat-expo/ios/` directory from this failed
+attempt was removed. No package install was run without a frozen lockfile.
+As instructed, native verification stopped here; the driver was not weakened
+and no substitute was called a native pass. Native end-to-end runs: **0**.
+Native MP4/JSONL/run-manifest artifacts: **0/0/0**; paths, byte sizes and
+native end-to-end timings are unavailable because installation never
+completed. In particular, neither cold-offline nor kill/relaunch/ordered
+flush is claimed to have passed on an iOS simulator in this lane.
+
+Measured non-native verification: helper **268.320166 ms** (3/3), targeted
+Rust driver **11.77 s** (9/9), targeted JS **1856.605083 ms** (22/22), final
+blocking suite **236 s**, reduced-concurrency clients **73113.494458 ms**.
+The fake driver completes two positive process scenarios; its synthetic
+files are temporary test inputs, not attachable app proof artifacts.
+
+What remains: one Release installation and both native scenarios on a
+dedicated simulator, with the three artifacts, their sizes and end-to-end
+timings; the sandbox cannot provide them. Swift native compilation and
+recordVideo/log-stream behavior remain unqualified by this lane. All
+non-simulator implementation and requested documentation are present.
+
+The discovery diagnostic before the change began with:
+
+```text
+unknown verb witness
+```
+
+It was followed by the global help. For `snapback4 witness ios`, the new
+complete refusal is:
+
+```text
+E_WITNESS_INPUT: --bundle-id is required; see snapback4 guide witness
+see snapback4 guide witness
+```
+
+The helper's former import failure was `ERR_MODULE_NOT_FOUND`; it now
+returns null on an ordinary launch and preserves receipts under the fake
+container's positive test. Twelve new `E_WITNESS_*` codes are in
+`guide::CODES`; the guide's compiled-card/code checks pass.
+
+Final root `./ref-check --verbose` passed after the entry was appended:
+
+```text
+ref-check: ok — 480 LLP docs, 8880 refs in 22925 files, 0 errors, 0 unchecked
+```
+
+The prior journal remains byte-identical to the base; only this dated entry
+was appended. The final working tree contains the intended source/docs/tests,
+with no native video or generated iOS project committed or left as source.
