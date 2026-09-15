@@ -1230,13 +1230,19 @@ await client.close();
 
 On the web, `mutate` waits for the outbox's IndexedDB commit, and `pagehide`
 or becoming hidden sends only the oldest unconfirmed write with an authenticated
-keepalive request when no ordinary send is in flight. A blocked or oversized
+keepalive request, including a retry of that same head if an ordinary send
+is in flight when the page exits. A blocked or oversized
 head is never skipped. Requests share the browser's 64 KiB body budget; unsent or unconfirmed writes
 stay durable for retry on reopen, with mutation-id dedupe preventing duplicates.
 If an exit response has not finished after one second, ordinary flushing
 retries that same durable head before advancing; an unknown outcome never
 skips a write. `close()` stops waiting immediately without cancelling the
 keepalive request.
+An admission that finishes while the page is suspended rechecks the exit
+transport after its commit; on reopen, a matching server store identity and
+non-regressed head allow unknown writes to replay before the first sync finishes.
+For programmatic navigation, await `client.mutate(...)` to ensure durable
+admission; `pending` means the server outcome still needs confirmation.
 
 On the web one tab is one device: a second tab on the same store opens
 its own, and the writes a tab left queued when it closed are adopted by

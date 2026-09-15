@@ -328,7 +328,7 @@ test("exit never bypasses an oversized or quota-blocked predecessor", async () =
   assert.deepEqual(quota, ["other client"]);
 });
 
-test("exit does not overlap an ordinary in-flight flush", async t => {
+test("exit overlaps only the same ordinary in-flight head", async t => {
   const f = await fixture(t);
   await f.client.mutate(send, { conversationId: "c1", body: "first" });
   await f.client.mutate(send, { conversationId: "c1", body: "second" });
@@ -338,9 +338,10 @@ test("exit does not overlap an ordinary in-flight flush", async t => {
   await until(() => f.ordinary.length > 0);
   f.window.dispatchEvent(new Event("pagehide"));
   const atExit = f.requests.length;
+  assert.deepEqual(JSON.parse(f.requests[0].init.body), f.ordinaryRequests.at(-1));
   f.resume(); await syncing;
   await until(async () => (await f.rows()).length === 2);
-  assert.equal(atExit, 0);
+  assert.equal(atExit, 1);
 });
 
 test("ordinary flush waits for the exit request before replaying its head", async t => {

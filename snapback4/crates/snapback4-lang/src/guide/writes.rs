@@ -74,14 +74,20 @@ and no `result` or `current`. Retries return only
 execution identity (`sent`/`failed`, `seq`/`why`, `replayed`), withholding
 historical `result` and `current`, including scalar results after a lost reply.
 On the web, admission waits for the IndexedDB commit; pagehide or becoming
-hidden sends only the oldest unconfirmed write with keepalive when no ordinary
-send is in flight. A blocked or oversized head is never skipped; clients share
+hidden sends only the oldest unconfirmed write with keepalive, including a retry
+of that same head if an ordinary send is in flight when the page exits.
+A blocked or oversized head is never skipped; clients share
 the browser's 64 KiB body budget. Unsent/unconfirmed writes stay durable for retry on reopen with
 the same mutation id, so replay cannot apply a write twice.
 If an exit response has not finished after one second, ordinary flushing
 retries that same durable head before advancing; an unknown outcome never
 skips a write. `close()` stops waiting immediately without cancelling the
 keepalive request.
+An admission that finishes while the page is suspended rechecks the exit
+transport after its commit; on reopen, a matching server store identity and
+non-regressed head allow unknown writes to replay before the first sync finishes.
+For programmatic navigation, await `client.mutate(...)` to ensure durable
+admission; `pending` means the server outcome still needs confirmation.
 A device write-target miss that cannot prove the insert conditions above
 queues without a predicted row and still sends `/m`.
 A reference column checks the id's shape, not that

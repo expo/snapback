@@ -100,6 +100,7 @@ interface Queued {
 }
 
 interface StoreCapture {
+  backend_required?: boolean;
   store_id?: string | null;
   watermark: number;
   send_revision: number;
@@ -861,7 +862,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let retryMs = 250;
   let flushing: Promise<void> | null = null;
   let exitDone: Promise<void> | undefined;
-  let ordinarySending = false;
+  let ordinarySending: string | undefined;
   let flushAgain = false;
   function flush(): Promise<void> {
     if (partitionDenied?.code === "E_STORE_RESTORE") return Promise.resolve();
@@ -890,30 +891,32 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     retryMs = Math.min(5000, retryMs * 2);
   }
 
-  async function flushOnce() {
+  async function flushOnce(acquire = true) {
     await exitDone;
     if (closed) return;
     for (const entry of await queued()) {
       await exitDone;
       if (closed) return;
-      if (entry.sent_seq != null) { await syncOnce(); continue; }
+      if (entry.sent_seq != null || (!acquire && entry.observed_seq != null)) { if (acquire) await syncOnce(); continue; }
       try {
         const result = await network(async () => {
           await exitDone;
           if (closed || sessionDead) return { ok: false as const };
           if (!(await queued()).some((current) => current.id === entry.id && current.sent_seq == null)) return { ok: true as const, retired: true as const };
-          ordinarySending = true;
-          const started = await call({ op: "begin_send" });
-          if (started.denied) return { ok: false as const };
-          const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids });
-          if (response.ok) {
-            const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined;
-            if (!response.obsoleteAuth && !why?.retryable && (json.state === "sent" || why)) {
-              const applied = await call({ op: "settle", id: entry.id, ...(json.state === "sent" ? { seq: Number(json.seq ?? 0) } : {}) });
-              if (applied.denied) return { ok: false as const };
+          ordinarySending = entry.id;
+          try {
+            const started = await call({ op: "begin_send" });
+            if (started.denied) return { ok: false as const };
+            const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids });
+            if (response.ok) {
+              const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined;
+              if (!response.obsoleteAuth && !why?.retryable && (json.state === "sent" || why)) {
+                const applied = await call({ op: "settle", id: entry.id, ...(json.state === "sent" ? { seq: Number(json.seq ?? 0) } : {}) });
+                if (applied.denied) return { ok: false as const };
+              }
             }
-          }
-          return response;
+            return response;
+          } finally { ordinarySending = undefined; }
         });
         if (closed) return;
         if (!result.ok) { retryFlush(); return; }
@@ -929,12 +932,31 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), replayed: true }
             : { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), result: json.result }
           : { state: "failed", id: entry.id, why: (json.why as Refusal | undefined) ?? (json.denied as Refusal | undefined) ?? { code: "E_STORE", family: "store", message: "the server answered without a state", retryable: true } };
-        if (outcome.state === "sent") await syncOnce();
+        if (outcome.state === "sent") { if (acquire) await syncOnce(); }
         else rerunTables(predictedTables(entry.predicted));
         settle?.(outcome);
         emitWrite(outcome);
-      } finally { ordinarySending = false; }
+      } catch { retryFlush(); return; }
     }
+  }
+
+  // @ref LLP 3000.007#18.2 — early replay needs the persisted store's identity and head; a replacement must retire known receipts through sync first.
+  async function replayOnOpen() {
+    const capture = await captureStore();
+    if (!capture?.store_id || capture.backend_required || !(await queued()).some(entry => entry.sent_seq == null && entry.observed_seq == null)) return;
+    try {
+      const request = requestCredentials();
+      const response = await doFetch(`${base}/probe`, { headers: request.headers, signal: aborter.signal });
+      const head = await response.json();
+      await refusedSession(head.denied ?? head.why, request.revision);
+      if (!response.ok || head.ok !== true || sessionDead || request.revision !== credentialRevision) return;
+      if (await witnessRestore(head.store_id, head.seq, capture)) return;
+      if (head.store_id !== capture.store_id || !Number.isSafeInteger(head.seq) || head.seq < capture.watermark) return;
+      // A slow snapshot must not hold an unknown write behind acquisition.
+      // Receipt settlement still runs in the ordinary network queue; these
+      // sends retain their IDs and the first sync collects their effects.
+      await flushOnce(false);
+    } catch { /* The ordinary sync/retry path owns an unreachable probe. */ }
   }
 
   const client: LocalClient = {
@@ -1109,13 +1131,19 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       return closing;
     },
   };
-  if (link === "online") await syncOnce();
+  if (link === "online") {
+    // Web stores have one owner. Native owners may share an outbox with an
+    // active sender, so their existing snapshot/receipt coordination runs first.
+    if (core.onSuspend) await replayOnOpen();
+    await syncOnce();
+  }
   seq = Number(((await call({ op: "state" })).ok as { watermark?: number } | undefined)?.watermark ?? 0);
   if (core.onSuspend) {
     const sendOnExit = exitTransport(doFetch, base, aborter.signal);
     stopSuspend = core.onSuspend((entries, beginSend) => {
       const request = requestCredentials();
-      exitDone = sendOnExit(entries, request.headers, () => !ordinarySending && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend());
+      // @ref LLP 3000.007#20.4 — document teardown may abort the ordinary request: only its same durable head may overlap the keepalive retry.
+      exitDone = sendOnExit(entries, request.headers, () => (ordinarySending === undefined || ordinarySending === entries[0]?.id) && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend());
     });
   }
   follow();

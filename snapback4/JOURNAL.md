@@ -14037,3 +14037,83 @@ The four §14 decisions already accepted by the author remain settled. Later
 CU/§19/§20 releases receive no credit at this frozen pin.
 
 Validation: all displayed comparison values match their received sources; all twelve lifecycle records, frozen instrument/templates/pins and selected copy hashes check. `python3 ./ref-check --verbose` passes (480 LLP documents, 8,889 refs, zero errors). The final archive carries scoped scan/disposition and cumulative-hash records. No product runtime or independent M7 grade was rerun.
+
+## 2026-09-14 — W3a: a web outbox head survives immediate navigation
+
+Read the 0.2.16 F1 evidence and the identical 0.2.12 choreography failure:
+`removed member received a new live group message`. The ordinary request
+could be in flight at `pagehide`, suppressing the keepalive request, and
+reopening waited for the whole initial sync before replay. The Node model
+reproduced both, plus admission finishing after the page was suspended.
+The reproduction base is `826108972b7b6969a97d40d7503effa64faa95c3`.
+During verification HEAD advanced to `c2b78619907655503a9da7b56170b0ee48d8a33a`
+with benchmark records only; no `snapback4/` code changed in that advance.
+
+Built the LLP 3000.007 §20.4 handoff with §18.2's store fence. The ordinary
+sender records its mutation id while sending and persisting settlement;
+exit may overlap only that same oldest committed head. Its outcome remains
+unknown until a durable receipt or sync acknowledgement arrives. A completed
+outbox commit rechecks a suspended page, and `pageshow`/visible stops that
+recheck. Reopening a web device probes the persisted server store identity
+and head before replaying unknown writes ahead of initial acquisition;
+missing/different identity, backend replacement and a regressed head keep
+the existing sync/restore path. Mutation ids and row ids are preserved.
+The 65,536-byte shared keepalive body budget and 1,000 ms exit wait remain.
+
+The first implementation also tried early replay on native shared stores.
+The existing native snapshot/sender test exposed a deadlock: the new owner
+waited for a send whose fixture released it only after acquisition started.
+Its isolated result was 0 passed, 0 failed, 1 cancelled (12,004 ms). Early
+replay is now web-only; that same isolated test passed in 119.812 ms, and
+all lifecycle tests passed in the final affected run. This was an introduced
+regression, repaired here, not an attributed baseline failure.
+
+The README and writes card describe the new handoff and recommend awaiting
+`client.mutate(...)` before programmatic navigation for durable admission.
+The optional public `flush()` was considered and not added: `mutate` already
+provides that admission boundary, and a new public network-wait contract is
+unnecessary for this repair. No diagnostic or note was added or changed.
+
+Validation used Node 24.18.0, with
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` before JS commands.
+Commands below run from `snapback4/` unless the repository root is named.
+
+- `node --test --test-name-pattern='unawaited|finishing|same store' packages/snapback4/test/navigation-model.test.mjs`:
+  before `ℹ tests 6`, `ℹ pass 0`, `ℹ fail 6`, `ℹ cancelled 0`;
+  after `ℹ tests 6`, `ℹ pass 6`, `ℹ fail 0`, `ℹ cancelled 0`.
+- `node --test --test-concurrency=2 packages/snapback4/test/navigation-model.test.mjs packages/snapback4/test/web-navigation.test.mjs packages/snapback4/test/local-e2e.test.mjs packages/snapback4/test/client-lifecycle.test.mjs`:
+  `ℹ tests 74`, `ℹ pass 74`, `ℹ fail 0`, `ℹ cancelled 0`,
+  `ℹ duration_ms 31985.715958`.
+- Repository root, `bash snapback4/scripts/test.sh`:
+  `-- ok: cargo test (339 s)`; fixture tests `ℹ tests 9`, `ℹ pass 9`,
+  `ℹ fail 0`; client tests `ℹ tests 245`, `ℹ pass 244`, `ℹ fail 1`,
+  `ℹ cancelled 0`; `-- FAIL: client tests (44 s)`;
+  `== 1 failure(s) in 356 s`. The only failure is the supplied sandbox
+  artifact: `react.test.mjs`, Chromium `exitCode=null, signal=SIGABRT`.
+  Builds, wasm, package/app typechecks, guide compilation and Rust tests pass.
+- Repository root, `./ref-check --verbose`: 480 LLP documents, zero errors
+  and zero unchecked references. `git diff --check` passes. The largest
+  changed code file is `local.ts`, 1,174 lines.
+
+Final affected-run measurements: for 1 and 2 writes, with ordinary delivery
+aborted before application or after application but before its reply, exit
+requests changed from 0 to 1; the oldest write reached the server before
+reopen in all four cases. Reopen took 23/23/18/25 ms respectively, ending
+with 1/2/1/2 rows and 0 duplicates. Late admission produced 1 exit request
+and 1 row only after commit. With first sync held, the reopened client sent
+1 write and the server applied it before that sync was released. Three
+identity controls (different, missing, restored) sent 0 premature writes.
+
+`witness/navigation-immediate.mjs` adds ten real-document cases: awaited
+pending/sent, unawaited calls, two writes, 0/5 ms navigation, a held ordinary
+request, a 3 s first sync, and a destination with no client for 10 s. The
+builder-shaped admin removal increments an independent counter to expose
+double application. Its Quarry compiled and the real-server source probe
+reported `navigation witness source: 3 operations; 2 same-ID requests; 1 application; 0 duplicates; passed`.
+`node --check witness/navigation-immediate.mjs` passes. Chromium was not
+launched for this witness inside the sandbox. The lead's exact command,
+from `snapback4/` with the Node PATH above, is
+`node witness/navigation-immediate.mjs`; run the same witness against the
+base implementation and this implementation to record its JSON lines before
+and after. Browser timings and the actual ten-second destination remain
+unmeasured here. No commit, push, tag or publication was performed by this lane.

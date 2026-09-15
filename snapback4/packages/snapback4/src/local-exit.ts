@@ -13,7 +13,7 @@ const EXIT_WAIT_MS = 1000;
 let inflightBytes = 0;
 export function exitTransport(doFetch: typeof fetch, base: string, closed?: AbortSignal) {
   let active: Promise<void> | undefined;
-  // @ref LLP 3000.007#20.4 — the exit transport preserves durable submission order, sharing ordinary sends' exclusion.
+  // @ref LLP 3000.007#20.4 — exit retries only the oldest head, including an ordinary send whose outcome may be unknown after teardown.
   return (entries: readonly PendingSend[], headers: Record<string, string>, isCurrent = () => true): Promise<void> | undefined => {
     if (active) return active;
     const entry = entries[0];
