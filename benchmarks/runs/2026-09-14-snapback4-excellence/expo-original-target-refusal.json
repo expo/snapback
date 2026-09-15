@@ -1,0 +1,12 @@
+[
+  {
+    "sdk": "iphoneos",
+    "exit": 1,
+    "log": "/tmp/sb4-excellence-expo-target-old/iphoneos-fatal-warning-link.log"
+  },
+  {
+    "sdk": "iphonesimulator",
+    "exit": 1,
+    "log": "/tmp/sb4-excellence-expo-target-old/iphonesimulator-fatal-warning-link.log"
+  }
+]

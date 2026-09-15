@@ -10357,3 +10357,73 @@ and D and left three Medium items; Grok's third check returned READY.
   and stated in §20.10 (no PID-targeted terminate in the simulator; dedicated
   simulator).
 
+
+## 2026-09-14 — Expo target audit holds the first 0.2.5 candidate
+
+The final artifact inventory found deployment-target warnings in the earlier
+successful C-link logs: bundled SQLite targeted iOS/iOS Simulator 26.5 while
+the podspec promises 16.4. Those original bytes remain unpublished. Inspection
+of the pinned cc and rustc implementations established that both consume
+`IPHONEOS_DEPLOYMENT_TARGET` for both Apple iOS targets. Astra added the explicit
+16.4 setting to the existing XCFramework script and is rebuilding the slices
+for object-metadata and real C/Swift consumer checks. The runtime source is
+unchanged; already qualified and landed 0.2.14 CLI/browser inputs are unaffected.
+The earlier successful-link receipt is retained with this qualification limit.
+
+
+## 2026-09-14 — LLP 3000.008 selected increment delivered
+
+The four-family RFC panel (Astra, Grok, Muse, Claude) and author pass selected
+bounded residual work; Astra implemented it. Independent Sol/Grok code reviews
+accepted the combined changes and the focused follow-ups. Replayed writes now
+expose execution-only receipts, generation acquisition guards local knowledge,
+browser persistence/runtime installation recovers from real injected failures,
+stopped copies stay attached to their own store, and TCP_NODELAY repairs the
+measured response-body delay. The bounded ranking counterexample passes.
+
+The final 0.2.14 publication dry-run passed with zero failures in a 110 s
+canonical suite; installed-consumer checks passed. Actual production Chrome
+acquisition reached first useful data in 11.28 s and offline reopen in 675 ms
+on the named 40×500×10 fixture, with exact identities and zero runtime fetches.
+These timings are not a full-application/native/floor claim. The target-corrected
+Expo 0.2.5 has 374 valid deployment records per slice and warning-free C/Swift
+links at 16.4. Exact qualified client/platform 0.2.14 and Expo 0.2.5 tarballs
+are published with matching registry hashes. Native apps need a rebuild.
+
+The [run record](../benchmarks/runs/2026-09-14-snapback4-excellence/README.md)
+retains the original failures, the held old Expo artifact, source/host/toolchain
+identities and the remaining gaps. The short-lease worker fixture was a
+workaround: subsequent §19 source gives dead children revocable sessions and
+restores production test defaults. That stronger repair corrects the earlier
+review diagnosis and belongs to 0.2.15, with its own evidence. Neither release
+history nor test results are rewritten across those snapshots. The six RFC
+working-set links are retired; the outcome standards and broader gaps remain.
+
+
+## 2026-09-14 — membership feeds: repeated work measured inside the query
+
+The fixed d81381a98 0.2.13 diagnostic completed 18,432 HTTP queries and
+2,304 selected core wall/thread-CPU traces on Office ARM Linux. Both
+independent calculations agree on every recorded scope component and the
+shared case sums/means/shares. All full fixture/auth checks, the 73-test
+CLI qualification, and owned-process cleanup passed; smoke is excluded.
+
+A 20-row first feed performs 11/101/341 indexed scan collections and
+120/180/660 row JSON decodes at 5/30/150 groups. The 150-group path
+initializes every lane, then refills after each emitted row; its 170 message
+scans repeat 170 live membership lookups. This is a concrete core-owner
+target for reducing repeated work while preserving live authority, meters,
+typed cursors and exact complete results.
+
+The probes are deliberately detailed and expensive: 5,024 scope guards for
+the 150-group first page. Their exact partitions do not establish ordinary
+CPU shares or pure SQLite cost. The benchmark record retains instrumented
+times, counts, raw objects and the full limits. No new latency gain is claimed.
+Main advanced through 0.2.14 to 0.2.15 with page/cursor and socket changes;
+any candidate needs qualification and ordinary A/B on its current inputs.
+The existing membership-feed ticket is updated. No core implementation changed.
+
+
+## 2026-09-15 UTC — Clique M7 exposes a maintained-identity adoption refusal
+
+Astra's fresh 0.2.10 M7 session retained a schema-adoption refusal on an engine-generated poll tally ID and recovered by preserving vote rows while replacing the derived tally. A separate public-CLI reproduction on the unmodified published binary uses fresh stores and no server ports: canonical maintained IDs of 144 bytes accept an unrelated index addition; 145 and 159 bytes refuse store opening with E_INPUT. Restoring the prior schema reads identical source rows. Filed [the P2 adoption ticket](../issues/20260915-snapback4-maintained-identity-blocks-additive-schema-adoption.md) with the exact schemas, command receipts and source explanation. Current-main runtime applicability remains unverified; no product fix or author ruling is made here. All three independent grades are complete; M7 and the final LLP 3000.007 §10.3 record continue.

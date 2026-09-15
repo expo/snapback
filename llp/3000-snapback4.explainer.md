@@ -974,7 +974,8 @@ time-ordered 128-bit form.
   LLPs 3000.006 and 3000.007 by reference rather than replacing their detailed
   designs, and carries the unresolved questions from the earlier research
   children without reopening repaired defects. The request authorizes this
-  document family; its proposed product changes remain Draft. The bakeoff,
+  document family; its product changes were initially Draft. The subsequent
+  delegated ruling below authorizes the selected increment. The bakeoff,
   runtime contracts, scope exclusions and promotion decision are unchanged.
 
 
@@ -994,6 +995,27 @@ time-ordered 128-bit form.
   separately owned .007 §19 corrections keep their owner. No second
   application, SQL read surface, backup command, seamless restore of old
   device outboxes, new gate or promotion is commissioned.
+
+- **2026-09-14 — native artifacts honor the advertised iOS minimum.**
+  The Expo podspec declares iOS 16.4. The XCFramework build explicitly exports
+  `IPHONEOS_DEPLOYMENT_TARGET=16.4`, which both pinned rustc and the bundled
+  SQLite `cc` build use for device and simulator. An installed SDK version
+  cannot silently become the package's minimum. Actual consumer links against
+  16.4 and object deployment metadata qualify the replacement artifact;
+  successful linking with a newer-object warning is insufficient. This arose
+  in the LLP 3000.008 delivery audit: the first unpublished Expo 0.2.5 candidate
+  contained SQLite objects targeting 26.5 and was held for replacement.
+
+- **2026-09-14 — the selected excellence increment is delivered.**
+  [LLP 3000.008 §10](./3000.008-holistic-product-excellence.rfc.md#10-delivered-increment)
+  closes the five bounded workstreams with recorded counterevidence, independent
+  source reviews and published 0.2.14 / Expo 0.2.5 artifacts. Replay outcomes
+  represent withheld values honestly; device readiness requires durable
+  acquisition; browser failures recover committed state; stopped copies use
+  their own database; accepted TCP sockets avoid the measured body delay.
+  The corrected native package honors its advertised minimum. Holistic
+  excellence and the explicit remaining application/operations gaps are not
+  claimed. Later §19 worker-session and language fixes keep their own evidence.
 
 ## 8. Implementation map
 
