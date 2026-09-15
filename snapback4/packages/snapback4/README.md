@@ -141,6 +141,9 @@ mutation edit(messageId: messages, body: text <=4000):
   optional (null when absent). `default <literal | now | viewer>` fills an
   omitted insert column on the writing host; an explicit value wins.
   A required literal default also fills absent columns in older rows on every host; optional columns still read null when absent.
+  An enum fits `text <=N` when every variant has at most N characters: a
+  static, total widening with no runtime conversion. If any variant exceeds
+  N, use the enum type on the helper parameter instead.
 - **References** are typed ids, with no implicit existence check and no
   delete cascade. The string `"null"` is an id; JSON `null` only fits an
   optional reference. When a mutation requires a visible target, write
@@ -249,7 +252,10 @@ its source rows.
 
 `shape card = { id, name, owner: .ownerId }` names a shape; `row card` and
 `page card` use it, and `{ ...card, extra: 1 }` spreads its fields into
-another. `fn isBrief(ttl: int ?): ttl != null` is a helper expression and
+another. After `where`, use `{ ...card }` to shape the page; a bare shape
+name attaches inside the predicate. If it mistakenly shapes a scalar there,
+`check --fix` inserts the explicit page shape.
+`fn isBrief(ttl: int ?): ttl != null` is a helper expression and
 `fn stamp(roomId: rooms):` a helper block ending in `return expr` or a bare `return`,
 each expanded where it is called (`isBrief(ttl)`; `stamp(r.id)` as a
 statement or expression), at most eight levels deep. A table-typed helper parameter keeps a row argument as a row with fields and no lookup; a reference argument stays a reference. A helper can write only
@@ -385,7 +391,10 @@ charged to that chunk's meter. Writes belong inside a chunk.
   member)`, `a ?? b`, `a if cond else b` (the arm not taken is never
   evaluated; `x != null` as the condition narrows `x` in the taken arm).
   `/` and `%` give the Euclidean quotient and remainder of ints or times;
-  zero refuses `E_DIV_ZERO`. `divmod` binds both parts at once. Text `+` concatenates present texts;
+  zero refuses `E_DIV_ZERO`. `(now / 1) * 1000` scales integer milliseconds;
+  store the scaled count as `int`. Bind an optional helper result once and
+  guard that local before arithmetic; repeated calls do not share a null
+  refinement. `divmod` binds both parts at once. Text `+` concatenates present texts;
   interpolation and formatting stay in the client. A bare `return` returns null.
   `=` and `!=` are total (null equals null); `<` and friends need present
   operands — narrow with `if x != null:` or `x ! else CODE`. Guards also

@@ -166,6 +166,8 @@ impl Ty {
             (Ty::Optional(inner), Ty::Optional(target)) => inner.assignable_to(target),
             (value, Ty::Optional(target)) => value.assignable_to(target),
             (Ty::Text(a), Ty::Text(b)) => a <= b,
+            // @ref LLP 3000.007#20 — enum widening is static and total: every variant fits the text bound.
+            (Ty::Enum(variants), Ty::Text(max)) => variants.iter().all(|v| v.chars().count() <= *max as usize),
             // A text literal in an enum position is a variant; the binder
             // checks membership where it knows the literal.
             (Ty::Text(_), Ty::Enum(_)) => true,

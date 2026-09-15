@@ -448,6 +448,11 @@ impl Parser {
         self.take("{")?;
         let mut fields = Vec::new();
         while !self.at("}") {
+            if self.at(".") && self.peek_at(1).value == "." && self.peek_at(2).value == "." {
+                let site = self.peek().site.clone();
+                let name = &self.peek_at(3).value;
+                return Err(syntax_with(&site, format!("expected an object field name, got spread ...{name}; objects list fields explicitly"), format!("replace ...{name} with field: {name}.field for each payload field")));
+            }
             let name = self.word()?;
             let value = if self.maybe(":") { Some(self.expression(0, &[",", "}"])?) } else { None };
             fields.push(ObjectField { name: name.value, value, site: name.site });
