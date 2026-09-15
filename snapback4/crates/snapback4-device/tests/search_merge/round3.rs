@@ -26,7 +26,7 @@ fn admitted_words<S: snapback4_device::store::DeviceStore>(mut store: S) {
     }
     println!("R3 device: W0={} W1={}", serde_json::to_string(&worlds[0]).unwrap(), serde_json::to_string(&worlds[1]).unwrap());
     assert_eq!(worlds[0].data.as_array().unwrap().len(), 1);
-    assert!(worlds[0].next.is_some());
+    assert!(worlds[0].next.is_none(), "non-uniform merges withhold the shared continuation in both worlds");
     assert_eq!((&worlds[0].data, &worlds[0].next, worlds[0].complete), (&worlds[1].data, &worlds[1].next, worlds[1].complete));
     assert!(!worlds[0].complete);
     assert!(worlds.iter().all(|page| page.capped_at.is_none()));

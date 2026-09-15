@@ -73,6 +73,8 @@ before word discovery even when another conjunct needs each row. Admitted
 non-uniform scopes keep per-row costs and remain incomplete; hidden rows
 there still spend the query-wide examined/index-entry budget. The 32-word
 bound makes that lane incomplete without cutting later lanes; operator
-results name it in `word_cut_at`, separately from a meter cut in `capped_at`. Reads inside
+results name it in `word_cut_at`, separately from a meter cut in `capped_at`.
+Merged pages return no `next` for a non-uniform read or a meter or word-limit
+cut: one cursor cannot advance past an unfinished lane. Reads inside
 `where` use their own rules and search terms. Even an empty matching result
 past a device horizon is incomplete; a held group can fall back to the server."##;

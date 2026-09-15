@@ -66,7 +66,7 @@ fn nested_pair(merged: bool, boundary: bool) {
             assert_eq!(worlds[0]["error"], Json::Null);
             assert_eq!(worlds[0]["data"].as_array().unwrap().len(), usize::from(merged));
             assert_eq!(worlds[0]["complete"], false);
-            if merged { assert_eq!(worlds[0]["data"][0]["id"], "shown"); assert!(worlds[0]["next"].is_string()); }
+            if merged { assert_eq!(worlds[0]["data"][0]["id"], "shown"); assert!(worlds[0]["next"].is_null()); }
         }
     }}
     assert!(failures.is_empty(), "{}", failures.join("\n"));
@@ -77,7 +77,7 @@ fn r3_nested_conjunction_complete_observation() { nested_pair(false, false); }
 #[test]
 fn r3_nested_conjunction_examined_boundary() { nested_pair(false, true); }
 #[test]
-fn r3_nested_conjunction_33_words_preserve_later_row_and_cursor() { nested_pair(true, false); }
+fn r3_nested_conjunction_33_words_preserve_later_row_without_shared_cursor() { nested_pair(true, false); }
 
 #[test]
 fn r3_admitted_word_bound_both_cuts_and_real_meter_ceiling() {
@@ -100,7 +100,7 @@ fn r3_admitted_word_bound_both_cuts_and_real_meter_ceiling() {
                 if worlds[0][key] != worlds[1][key] { failures.push(format!("{cut:?} {key}: W0={} W1={}", worlds[0][key], worlds[1][key])); }
             }
             assert_eq!(worlds[0]["complete"], false);
-            assert!(worlds[0]["next"].is_string());
+            assert!(worlds[0]["next"].is_null());
         } else if cut == Cut::Abort { assert_eq!(worlds[1]["error"]["code"], "E_BOUND"); }
         else { assert!(worlds[1]["capped_at"].is_array()); assert_eq!(worlds[1]["data"], json!([])); }
     }}

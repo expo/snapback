@@ -91,7 +91,9 @@ fn nonuniform_matching_lanes_keep_per_row_authority_and_the_note() {
     let first = read(&mut engine, "explicit", "cof", None);
     assert_eq!(ids(&first), ["d", "c"]);
     assert!(!first.complete);
-    assert_eq!(ids(&read(&mut engine, "explicit", "cof", first.next)), ["a"]);
+    assert!(first.next.is_none(), "a non-uniform merge has no shared continuation");
+    let mut larger = fixture(&source.replace("last 2 by", "last 50 by"));
+    assert_eq!(ids(&read(&mut larger, "explicit", "cof", None)), ["d", "c", "a"]);
 }
 
 #[test]

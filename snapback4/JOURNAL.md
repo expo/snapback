@@ -9555,6 +9555,94 @@ group. See `guide prediction` for the conditions and a set-membership recipe.
 
 From the repository root, with the required Node 24 runtime:
 
+
+## 2026-09-14 — Lane W2R1m: a merged cursor never skips an unfinished lane
+
+Base: `0e9fdddba4fe34684d99215b70ac8dae2d164c42`. Reproduced GPT review
+finding 3 on the server and both device stores before changing the runner.
+The ordinary single-table merge has the same defect at this base: with a
+readable row at 10 in lane A and 8,193 hidden rows above 20 followed by a
+readable row at 15 in lane B, the first page examines 8,193 rows, returns
+10 incomplete, and emits a cursor after 10. Its next page is empty, skipping
+15 forever. All six server/SQLite/memory × cross-table/single-table cases
+failed on that exact omission. The extra uniform test reproduces the lazy
+merge's same mistake with expired rows spending the examined ceiling.
+
+The existing cursor carries one position, without per-lane progress. Both
+merge implementations now withhold `next` on a meter or word-limit cut,
+and for the whole non-uniform class even within budget. Withholding only
+on a physical cut would make cursor presence reveal hidden populations.
+This conservative choice keeps `complete: false` and gives up pagination
+for non-uniform merges; pin each lane's deciding columns to obtain a
+pageable feed. Single plain scans keep their visible-position policy.
+No meter ceiling, value serialization or cursor serialization changed.
+
+The 48 paired comparisons cover 16 server, 16 SQLite and 16 memory wire
+observations. Each compares the entire query envelope (data, completeness,
+continuation including its absence, expiry and table dependencies; server
+sequence and viewer; device unknown/retained coverage). Hidden populations
+are 8,190, 8,191, 8,192 and 8,193 against 0, for both merge forms, with
+an empty second lane or a readable row at 5 below the returned key. Operator
+meters and cut sites remain off both viewer wires; their differing physical
+cost is the existing non-uniform contract. These are in-process wire-shape
+comparisons, not HTTP transport measurements. The online-only fixture
+places candidates directly in each device store to exercise per-row read
+rules; it makes no claim that sync delivers hidden rows to a device.
+
+Positive controls page three equal-time IDs in descending ID order on all
+three hosts, deduplicate an equal `(at, id)` projection copy, and continue
+through generation N+1 after an additive field. A changed direction is
+refused with existing `E_INPUT`. The descriptor, not generation, binds the
+cursor. The feeds card and README state that contract; the feeds/search
+cards, README and LLP 3000.007 §20.3 state the conservative continuation rule.
+Existing non-uniform search assertions now require no cursor while retaining
+their readable results and paired-world checks. The corpus adapter stops
+synthesizing a merged continuation from its last visible row; the frozen
+case's absent cursor is kept. Zero files under `snapback4/corpus/` changed.
+
+### Targeted commands and red/green evidence
+
+Cargo commands run from `snapback4/`. Initial fixture compile/setup errors
+(missing trait imports, SQLite reset before device-side tables existed,
+and querying a new device generation before its snapshot) were corrected
+before the valid base reproductions below; none is claimed pre-existing.
+
+`cargo test -p snapback4-sim --test clique merge_cursor -- --nocapture`:
+
+```text
+test result: FAILED. 3 passed; 3 failed; 0 ignored; 0 measured; 34 filtered out; finished in 7.11s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 34 filtered out; finished in 7.92s
+```
+
+`cargo test -p snapback4-device --test device merge_cursor -- --nocapture`:
+
+```text
+test result: FAILED. 3 passed; 6 failed; 0 ignored; 0 measured; 51 filtered out; finished in 3.44s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 51 filtered out; finished in 3.59s
+```
+
+`cargo test -p snapback4-sim --test search_merge -- --nocapture`:
+
+```text
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+```
+
+`cargo test -p snapback4-device --test device search_merge -- --nocapture`:
+
+```text
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 50 filtered out; finished in 0.20s
+```
+
+`cargo test -p snapback4-lang --test guide -- --nocapture`:
+
+```text
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+```
+
+### Full blocking suite and isolated reruns
+
+From the repository root:
+
 ```sh
 export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
 bash snapback4/scripts/test.sh
@@ -9625,12 +9713,98 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 -- ok: cargo test (460 s)
 -- ok: chat app typecheck (2 s)
 -- ok: expo app typecheck (11 s)
+
+The suite completed every group in 532 s on the loaded shared host. Summing
+its 53 Rust result lines gives 721 passed, 1 failed, 2 ignored. The failure
+was `dev_and_serve_report_signals_without_an_application_worker`: its
+expected SIGHUP signal line was preceded by a partial startup line,
+`snapback4 serve: http://127SNAPBACK4_SIGNAL verb=serve generation=1 reason=SIGHUP signal=1`.
+The isolated rerun below passed. All merge, search, corpus and guide checks
+passed in the full run. The stages, verbatim:
+
+```text
+-- ok: cargo build (35 s)
+-- ok: wasm build (23 s)
+-- ok: package typecheck (6 s)
+-- ok: package build (2 s)
+-- ok: chat app check (7 s)
+-- FAIL: cargo test (459 s)
+-- ok: chat app typecheck (2 s)
+-- ok: expo app typecheck (10 s)
+-- ok: fixture wrapper tests (33 s)
+-- FAIL: client tests (68 s)
+== 2 failure(s) in 532 s
+```
+
+Full Rust summaries, verbatim:
+
+```text
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.09s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: FAILED. 12 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.84s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.39s
+test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.52s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.72s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+test result: ok. 60 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 46.94s
+test result: ok. 90 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 23.00s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.31s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.92s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 84.08s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.66s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.61s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 39 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 33.38s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.77s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.48s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.71s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.70s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 20.04s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.53s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Fixture and client summaries, respectively:
+
+```text
 ℹ tests 9
 ℹ pass 9
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 -- ok: fixture wrapper tests (34 s)
+
+ℹ duration_ms 33041.606916
 ℹ tests 188
 ℹ pass 187
 ℹ fail 1
@@ -9647,6 +9821,15 @@ launch. The isolated rerun from `snapback4/` reproduces it:
 ```text
 export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
 node --test packages/snapback4/test/react.test.mjs
+
+ℹ duration_ms 68402.645875
+```
+
+The client failure was the program's documented Chromium sandbox SIGABRT,
+reproduced alone from `snapback4/` with the pinned Node PATH:
+`node --test packages/snapback4/test/react.test.mjs`.
+
+```text
 ℹ tests 1
 ℹ pass 0
 ℹ fail 1
@@ -9679,3 +9862,45 @@ git diff --check
 `git diff --check` exited 0 with no output. HEAD remains the base above;
 the working tree contains only the 13 intended source, test and documentation
 files, including the new upsert proof test module.
+
+ℹ duration_ms 391.320625
+```
+
+From `snapback4/`,
+`cargo test -p snapback4 --test lifecycle dev_and_serve_report_signals_without_an_application_worker -- --nocapture`:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 3.54s
+```
+
+After the last feeds-card wording edit,
+`cargo test -p snapback4-lang --test guide -- --nocapture`:
+
+```text
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+```
+
+Root `./ref-check --verbose`, with the pinned Node PATH:
+
+```text
+ref-check: ok — 480 LLP docs, 8880 refs in 22922 files, 0 errors, 0 unchecked
+```
+
+No new failure is asserted to predate the base without a base reproduction.
+The Chromium classification comes from the brief's explicit environment
+ruling and the isolated reproduction here, not a whole-suite base claim.
+The lifecycle assertion is reported as an intermittent failure that passed
+alone on this change. The lead must rerun the browser witness outside the
+sandbox. No client en-masse timeout or lifecycle timeout occurred.
+
+All requested implementation items are done; the permitted no-continuation
+option was selected instead of extending the descriptor with per-lane state.
+No out-of-scope feature or file was changed. Supporting core corpus-adapter
+and read-verdict test expectations changed to match the narrower merge
+contract; no golden corpus cases changed. There are 16 changed/new files,
+12 code files, 0 above 1,500 lines (largest: device tests, 1,455 lines),
+0 new diagnostic codes, 0 diagnostic text changes. The brief requests no
+diagnostic before/after text for this lane. No application spelling changed.
+`git diff --check` passes, and the journal's prefix is byte-identical to the
+base with this one appended dated entry. Nothing was committed, pushed,
+tagged or published.

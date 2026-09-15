@@ -18,7 +18,7 @@ fn r3_admitted_hidden_words_do_not_starve_later_lanes() {
         worlds.push(page);
     }
     assert_eq!(ids(&worlds[0]), ["shown"]);
-    assert!(worlds[0].next.is_some());
+    assert!(worlds[0].next.is_none(), "non-uniform merges withhold the shared continuation in both worlds");
     assert_eq!((&worlds[0].data, &worlds[0].next, worlds[0].complete), (&worlds[1].data, &worlds[1].next, worlds[1].complete));
     assert!(!worlds[0].complete);
     assert!(worlds.iter().all(|page| page.capped_at.is_none()));

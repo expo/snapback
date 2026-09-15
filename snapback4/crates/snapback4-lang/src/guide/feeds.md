@@ -7,6 +7,16 @@ and unfollow deletes every private entry by that actor and drops the pull
 lane. The reader's own posts and reposts need no self-follow edge.
 Rendered columns travel with each entry, so Following answers on the device.
 
+A merge with non-uniform lanes or a meter or word-limit cut returns no
+`next`: its single cursor cannot safely advance every lane.
+Non-uniform merges withhold the cursor even within budget, so its presence
+cannot reveal hidden rows; pin the columns that decide each lane's rule to
+get a pageable feed. IDs break equal ordering keys and identify copies
+across projections, which must keep the same ordering fields.
+A cursor from generation N is accepted on N+1 when its table, index,
+direction and typed ordering suffix still match; it is a position in the
+current data, not a snapshot or a generation token.
+
 ```quarry
 table authors:
   principal: principal
