@@ -332,3 +332,72 @@ fn calibration_merge_of_capped_groups_still_needs_a_cursor() {
     let b = clean(source);
     assert!(b.notes.iter().any(|n| n.code == "N_NO_CURSOR"), "two groups can have 100 rows: {:?}", b.notes);
 }
+
+
+const REACTIONS: &str = "table members:\n  conversationId: id\n  principal: principal\n  unique byConversationPrincipal: conversationId, principal\n  by byPrincipalConversation: principal, conversationId, id\n  immutable conversationId, principal\n  read <- .principal = viewer\n  sync\ntable reactions:\n  conversationId: id\n  messageId: id\n  principal: principal\n  emoji: text <=20\n  unique byMessagePrincipal: messageId, principal\n  by byConversation: conversationId, id\n  by byPrincipal: principal, id\n  cap 50 by messageId\n  read <- exists members[.conversationId, viewer]\n  insert <- .principal = viewer\n  update <- .principal = viewer\n  sync to members[.conversationId] last 500 by byConversation\nmutation react(conversationId: id, messageId: id):\n  upsert reactions[messageId, viewer] { conversationId, emoji: 'heart' }\n";
+
+#[test]
+fn insert_arm_clique_output_names_the_first_failed_proof_everywhere() {
+    let b = compile(&[("chat.q".into(), REACTIONS.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let lines = snapback4_lang::bind::residency::operation_lines("chat.react", &b.schema.operations["chat.react"]);
+    let summary = snapback4_lang::bind::residency::prediction_summary(&b);
+    println!("{lines}\nsummary: {summary:?}");
+    assert_eq!(lines.lines().next().unwrap(), "  chat.react: predicts: updates only — inserts into reactions queue without a row");
+    assert_eq!(lines.lines().count(), 2, "one clear explanation: {lines}");
+    assert!(lines.lines().any(|line| line == "    Horizon: upsert insert queues without a row: reactions has horizon last 500 by byConversation (conversationId, id) (site chat.q:23:3); this write queues until the server answers; show its pending state"), "{lines}");
+    assert_eq!(summary.as_deref(), Some("1 mutation has insert arms that never predict: chat.react (reactions has horizon last 500 by byConversation (conversationId, id)) — snapback4 why <op>"));
+}
+
+#[test]
+fn insert_arm_rule_and_cap_causes_have_applicable_guidance() {
+    let unbounded = REACTIONS.replace(" last 500 by byConversation", "");
+    let b = compile(&[("chat.q".into(), unbounded.clone())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let summary = snapback4_lang::bind::residency::prediction_summary(&b).unwrap();
+    assert_eq!(summary, "1 mutation has insert arms that never predict: chat.react (reactions read rule `exists members[.conversationId, viewer]` is not decided by key byMessagePrincipal (messageId, principal); unpinned: conversationId) — snapback4 why <op>");
+    let private = unbounded.replace("read <- exists members[.conversationId, viewer]", "read <- .principal = viewer").replace("sync to members[.conversationId]", "sync to .principal");
+    let b = compile(&[("chat.q".into(), private.clone())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert_eq!(snapback4_lang::bind::residency::prediction_summary(&b).unwrap(), "1 mutation has insert arms that never predict: chat.react (reactions cap 50 by messageId is not covered by read rule `.principal = viewer`; unpinned: principal) — snapback4 why <op>");
+    let lines = snapback4_lang::bind::residency::operation_lines("chat.react", &b.schema.operations["chat.react"]);
+    assert!(lines.contains("this write queues until the server answers; show its pending state"));
+    assert!(!lines.contains("rewrite:"), "changing the cap population changes the product rule: {lines}");
+    for source in [private.replace("cap 50 by messageId", "cap 50 by principal"), private.replace("read <- .principal = viewer", "read <- public").replace("sync to .principal", "sync public")] {
+        let b = compile(&[("chat.q".into(), source)]);
+        assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+        assert_eq!(snapback4_lang::bind::residency::operation_lines("chat.react", &b.schema.operations["chat.react"]).lines().next().unwrap(), "  chat.react: predicts: eligible");
+        assert_eq!(snapback4_lang::bind::residency::prediction_summary(&b), None);
+    }
+}
+
+#[test]
+fn insert_arm_if_absent_is_reported_and_covered_control_stays_eligible() {
+    let source = REACTIONS.replace("upsert reactions[messageId, viewer] { conversationId, emoji: 'heart' }", "insert reactions { conversationId, messageId, principal: viewer, emoji: 'heart' } if absent");
+    let b = compile(&[("chat.q".into(), source.clone())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let lines = snapback4_lang::bind::residency::operation_lines("chat.react", &b.schema.operations["chat.react"]);
+    assert_eq!(lines.lines().next().unwrap(), "  chat.react: predicts: inserts queue without a row — insert if absent into reactions cannot prove absence");
+    assert!(snapback4_lang::bind::residency::prediction_summary(&b).unwrap().contains("chat.react (reactions has horizon last 500 by byConversation (conversationId, id))"));
+    assert!(lines.contains("insert if absent queues without a row:"));
+    assert!(!lines.contains("may queue") && !lines.contains("rewrite:"), "{lines}");
+    let source = source.replace("read <- exists members[.conversationId, viewer]", "read <- public").replace("sync to members[.conversationId] last 500 by byConversation", "sync public");
+    let b = compile(&[("chat.q".into(), source)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert_eq!(snapback4_lang::bind::residency::operation_lines("chat.react", &b.schema.operations["chat.react"]).lines().next().unwrap(), "  chat.react: predicts: eligible");
+    assert_eq!(snapback4_lang::bind::residency::prediction_summary(&b), None);
+}
+
+#[test]
+fn insert_arm_nullable_unique_image_distinguishes_null_from_a_known_lookup() {
+    let source = REACTIONS.replace("read <- exists members[.conversationId, viewer]", "read <- .principal = viewer")
+        .replace("sync to members[.conversationId] last 500 by byConversation", "sync to .principal")
+        .replace("  cap 50 by messageId\n", "  alias: text <=20 ? default 'taken'\n  unique byAlias: alias\n");
+    let b = compile(&[("chat.q".into(), source.clone())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert_eq!(snapback4_lang::bind::residency::prediction_summary(&b).as_deref(), Some("1 mutation has insert arms that never predict: chat.react (reactions unique key byAlias (alias) is not covered by read rule `.principal = viewer`; unpinned: principal) — snapback4 why <op>"));
+    let source = source.replace("emoji: 'heart'", "emoji: 'heart', alias: null");
+    let b = compile(&[("chat.q".into(), source)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert_eq!(snapback4_lang::bind::residency::prediction_summary(&b), None);
+}

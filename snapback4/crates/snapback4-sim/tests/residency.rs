@@ -312,9 +312,9 @@ fn service_read_grants_preserve_the_device_audience_snapshot_and_stream_bytes() 
 fn upsert_residency_explains_insert_prediction_without_changing_eligibility() {
     let source = "table likes:\n  post: text <=30\n  principal: principal\n  on: bool\n  unique byPostPrincipal: post, principal\n  by byPrincipal: principal, post, id\n  read <- .principal = viewer\n  insert <- .principal = viewer\n  update <- .principal = viewer\n  sync\nmutation vote(post: text <=30):\n  upsert likes[post, viewer] {on: true}\n";
     for (source, reason) in [
-        (source.to_owned(), "upsert inserts predict: absence is provable"),
-        (source.replace("  sync\n", "  sync last 1 by byPrincipal\n"), "upsert inserts do not predict: the target has a horizon"),
-        (source.replace("post, principal\n", "post\n").replace("likes[post, viewer]", "likes[post]").replace("{on: true}", "{principal: viewer, on: true}"), "upsert inserts do not predict: the key does not pin readability"),
+        (source.to_owned(), "upsert insert into likes: absence is provable when the group and insert image are held and readable"),
+        (source.replace("  sync\n", "  sync last 1 by byPrincipal\n"), "upsert insert queues without a row: likes has horizon last 1 by byPrincipal (principal, post, id)"),
+        (source.replace("post, principal\n", "post\n").replace("likes[post, viewer]", "likes[post]").replace("{on: true}", "{principal: viewer, on: true}"), "upsert insert queues without a row: likes read rule `.principal = viewer` is not decided by key byPostPrincipal (post); unpinned: principal"),
     ] {
         let bound = compile(&source);
         let fact = &bound.schema.operations["vote"];

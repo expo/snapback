@@ -17902,3 +17902,130 @@ the lead must rerun outside the sandbox. No failure is claimed verified
 pre-existing against the base. `./ref-check --verbose` passed with 0 errors
 and 0 unchecked; changed code files remain below 1,500 lines. No commit,
 push, tag or publication was performed.
+
+## 2026-09-15 — W5b: first-insert prediction tells the truth
+
+The 0.2.19 Clique d-06/M1 shape now gets an updates-only heading, an
+insert-arm entry alongside the never-predict summary, and one residency
+explanation. The first failed proof names the horizon and its ordering
+columns, the unreadable key's rule and missing columns, or the uncovered
+unique/cap population. A nullable unique column with a known non-null default
+is a lookup; an explicit null skips that lookup. Dynamic insert images still
+need the runtime proof. No spelling repairs the original membership/horizon
+shape while preserving its product, so the line advises showing pending
+state instead of removing a nonexistent guard. Existing codes and the
+eligible/never execution metadata are unchanged; the human heading qualifies
+eligibility using the insert site's facts. New limits also appear in changed
+prediction notes without duplicating synthetic write sites.
+
+The regression uses the same reactions schema with a compact `chat.q`; its
+write is at 23:3 rather than the calibration's 232:5. Before, verbatim:
+
+```text
+  chat.react: predicts: eligible
+    Horizon: write target reactions by byMessagePrincipal: sync to members[.conversationId] last 500 by byConversation (site chat.q:23:3); may queue without a row past the horizon
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+    Horizon: upsert inserts do not predict: the target has a horizon; queue without a row (reactions by byMessagePrincipal) (site chat.q:23:3); may queue without a row past the horizon
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+```
+
+There was no summary for this one-mutation fixture (`prediction_summary`
+returned `None`). After, verbatim:
+
+```text
+  chat.react: predicts: updates only — inserts into reactions queue without a row
+    Horizon: upsert insert queues without a row: reactions has horizon last 500 by byConversation (conversationId, id) (site chat.q:23:3); this write queues until the server answers; show its pending state
+1 mutation has insert arms that never predict: chat.react (reactions has horizon last 500 by byConversation (conversationId, id)) — snapback4 why <op>
+```
+
+Removing the horizon exposes this next cause, verbatim:
+
+```text
+1 mutation has insert arms that never predict: chat.react (reactions read rule `exists members[.conversationId, viewer]` is not decided by key byMessagePrincipal (messageId, principal); unpinned: conversationId) — snapback4 why <op>
+```
+
+Changing to viewer-only reads while preserving the original cap exposes:
+
+```text
+1 mutation has insert arms that never predict: chat.react (reactions cap 50 by messageId is not covered by read rule `.principal = viewer`; unpinned: principal) — snapback4 why <op>
+```
+
+The prediction card and README now explain the tradeoffs: a viewer-keyed
+rule, no horizon and viewer-covered caps can predict, but only the viewer's
+reactions are readable; full public sync covers a per-message cap but
+publishes everyone's reactions. There is also an existing membership path:
+include the conversation in every unique key and cap group, remove the
+horizon, and hold the positive membership witness. The existing device test
+now includes that cap and passes on SQLite and memory. This acquires every
+reaction in the conversation. Neither changing to `insert if absent` nor
+adding an existence branch proves that only the children of a held message
+are complete. Pending guidance uses the existing write `state` and
+`client.onWrite`; this lane does not depend on W5c.
+
+A device regression uncovered one necessary change outside the planned
+language/docs scope: `insert if absent` did not invoke upsert's runtime
+insert proof. It predicted 1 row behind a horizon while its new diagnostic
+would have promised 0. Six added lines in core `engine/write.rs` reuse the
+existing image/secondary-unique/cap proof before the insert arm; an already
+held unique collision keeps its existing result. The regression is red
+before this fix (0 passed, 1 failed) and green after (1 passed, 0 failed).
+The expanded test covers 4 shapes on 2 stores: complete partition and
+covered cap predict 1 row each; horizon and uncovered cap predict 0.
+No ceiling, serialized value form or upsert runtime rule changes. The CLI's
+existing positive `check`/`why` assertion is updated to the new text as well.
+
+Measurements: the original 3 diagnostic regressions are red before the fix
+(0 passed, 3 failed) and green after (3 passed, 0 failed). The nullable-key
+regression is separately red (0 passed, 1 failed); the final insert-arm
+filter passes 4 tests, 0 failures, in 0.00 s. The initial wider language run
+found one duplicate-source regression (guide 23/0; residency 21/1), fixed
+by resolving the synthetic if-absent site to its authored insert. The first
+full suite ran 368 s with 2 failing groups: the old CLI text assertion and
+Chromium SIGABRT in React. The isolated React rerun reports 1 test, 0 pass,
+1 fail; no base-comparison claim is made for that sandbox failure.
+
+Design note, not built: preserving Clique's message horizon requires a
+parent-linked complete child group. For every held message, acquisition
+would need to deliver all its reactions at one snapshot/stream boundary,
+not an independent last-500 slice. A schema-enforced parent relation must
+bind the child's conversation to that message; the held membership witness
+then proves readability for the key and insert image. Every secondary
+unique population and the full `cap 50 by messageId` population must lie
+inside that complete child group, and group revocation/reacquisition must
+withdraw/restore its proof together with the rows. An empty local lookup
+under today's last-500 reaction horizon cannot distinguish no reaction
+from an older reaction omitted at acquisition; a cap is only a population
+bound, not evidence that its population arrived. The smallest sound
+extension is this parent-linked complete-child acquisition rule with its
+schema relation and lifecycle, using the membership proof that already
+exists. Removing the independent child horizon alone does not establish
+the parent dependency or bound acquisition to held messages. No such
+extension is implemented in this lane.
+
+Final review extended the initial 6-line runtime guard to 10 added lines:
+only an id minted by this operation can bypass the primary-key absence
+proof. A caller-supplied id on a private table must prove that key too.
+The fixed-id control was red (0 passed, 1 failed) before that correction;
+the final if-absent test is green (1 passed, 0 failed) across 6 shapes on
+both stores, with matching diagnostic headings: 6 predicted admissions
+(1 row each) and 6 queued admissions (0 rows each). Public supplied-id
+inserts remain eligible. The compiler keeps literal/default image facts
+and its single-assignment snapshots, without executing expressions.
+
+For precision, the first full run's cargo group contained both old-text
+assertions: CLI 19 passed/1 failed and simulator residency 9 passed/1 failed.
+The second full run took 373 s with 2 failing groups (the remaining simulator
+old-text assertion and Chromium SIGABRT). Both assertions are updated;
+latest targeted results are guide 23/0, language residency 23/0, device
+upserts 27/0, CLI check 20/0 and simulator residency 10/0. The simulator test
+update is another minimal caller change outside the named test locations.
+
+Final full run: `bash snapback4/scripts/test.sh` reports `== 1 failure(s)
+in 341 s`. Its 60 Rust result groups total 896 passed, 0 failed, 4 ignored;
+fixtures are 9 passed/0 failed and clients 286 passed/1 failed. The sole
+remaining failure is the reproduced sandbox Chromium SIGABRT, for the lead
+to rerun outside the sandbox. All build/typecheck steps pass. The wasm build
+reports 1,744,205 B raw and 485,626 B gzip; this is a build observation, not
+a performance comparison. `./ref-check --verbose` passes with 480 documents,
+8,933 references, 0 errors and 0 unchecked references. No commit, push, tag
+or publication was made.

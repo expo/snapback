@@ -20,8 +20,8 @@ the call still needs its facts on this device and must fit the meter and rules.
 `mutation name(args) predicts:` asserts this eligibility: `check` refuses
 `E_NOT_PREDICTABLE` at the header if a server site makes it `never`, with
 the reason and rewrite. It does not promise prediction on every call.
-Every `check` summarizes mutations that never predict, even on an unchanged
-program; `snapback4 why <op>` explains each site. A loss of eligibility
+Every `check` summarizes mutations that never predict and insert arms that
+never predict, naming the first failed proof even on an unchanged program; `snapback4 why <op>` explains each site. A loss of eligibility
 produces one `N_NOT_PREDICTABLE` note per mutation, listing distinct root
 causes with deduplicated sites and rewrites.
 Every mutation can queue on the local client; eligibility is not a promise
@@ -107,8 +107,31 @@ out locally; a whole-table cap needs the whole public table. A left group,
 a horizon, or any unproved condition queues without a predicted row. For boolean
 membership `insert ... if absent` to set and `delete` to clear read most
 plainly; with the whole viewer partition held, the device can predict both. For a multi-valued
-reaction, explicitly insert when absent and update the held row when present.
-An existence branch needs a whole partition; a horizon miss is still unknown.
+reaction, use `upsert` to insert when absent and update the held row when present.
+An explicit existence branch needs a whole partition; a horizon miss is still unknown.
+`check` labels an upsert with an unprovable insert arm `predicts: updates only`;
+that means a held-row update remains eligible, not that the first write predicts.
+`insert ... if absent` with an unprovable insert says `predicts: inserts queue
+without a row`. The summary and residency line name the horizon, read rule or
+uncovered unique/cap group; changing the write spelling does not supply that proof.
+
+Membership-scoped reactions and likes need particular care. With
+`sync to members[.conversationId] last 500 by byConversation`, a first write
+cannot prove absence outside the window. Even without that horizon, a key
+`(messageId, principal)` does not decide `exists members[.conversationId, viewer]`:
+it omits `conversationId`. A viewer-keyed rule `.principal = viewer` with no
+horizon and `cap 50 by principal` can predict a first write, as can a fully
+public table with `cap 50 by messageId`. Those change the product: the former
+shows only the viewer's own reactions and caps per viewer; the latter discloses
+all reactions to everyone. Neither preserves private conversation reactions.
+A membership rule can also work without a horizon when every unique key and cap
+group pins `conversationId` and the device holds its positive membership witness;
+for example, a key `(conversationId, messageId, principal)` and
+`cap 50 by conversationId, messageId`, with no other uncovered unique key.
+That acquires the whole conversation's reactions, not just children of held messages.
+If none fits, this write queues until the server answers; show its pending state.
+Use the returned write's `state` and `client.onWrite` to follow settlement
+(`guide writes`); a queued insert has no row whose `pending` flag you can render.
 
 An `after insert <- exists t[key]` postcondition accepts a local hit. A miss
 predicts a refusal only when the key proves readability and its synced group

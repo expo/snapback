@@ -249,6 +249,22 @@ and the viewer-readable partition covers every secondary unique lookup and
 affected cap group. The image includes key columns, patch and defaults; a
 whole-table cap needs the whole public table. Left groups and unproved
 conditions queue without a predicted row and still send `/m` (guide prediction).
+`check` calls an upsert with an unprovable insert arm `predicts: updates only`,
+and lists that arm in its summary with the first failing horizon, rule or cap
+coverage proof. `insert ... if absent` reports the same insert limitation.
+Membership-scoped reactions with `last 500` cannot prove absence outside that
+window; removing it still leaves `(messageId, principal)` unable to decide
+`exists members[.conversationId, viewer]`. A viewer-keyed read rule with no
+horizon and caps grouped by that viewer predicts a first write but shows only
+the viewer's own reactions. Full public sync covers a per-message cap but
+makes every reaction public. Membership reads can predict without a horizon
+when every unique key and cap group includes `conversationId` and the device
+holds the deciding membership row; that acquires all reactions in the held
+conversation. None of these means complete children of just the held messages.
+If no shape fits the product, this write queues until the server answers;
+show its pending state using the returned write's `state` and `client.onWrite`
+(guide writes). Changing `upsert` to an existence branch does not supply absence
+or cap coverage.
 The at-most-once record stores the replay body, with value-free diagnostic
 messages and no `result` or `current`. Replay returns
 execution identity only, with `replayed: true`; historical `result` and
