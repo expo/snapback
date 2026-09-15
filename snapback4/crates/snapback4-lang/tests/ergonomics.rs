@@ -216,11 +216,11 @@ query history(id: messages):
     assert_eq!(reference.diagnostics.len(), 1);
     assert_eq!(reference.diagnostics[0].message, "a messages reference has no fields");
     assert!(reference.diagnostics[0].rewrite.contains("messages[m] ! else NOT_FOUND"));
-    // S11's residency syntax is owned by B2. Preserve its exact evidence and
-    // the builder's successful removal without changing its diagnostic here.
+    // S11's residency syntax is owned by B2: its message names inheritance
+    // and the `online only` opt-out; the builder's removal stays clean.
     let source = at_line("table likes:\n  postId: id\n  public 'likes'\n", 70, "maintain likeCounts: count likes by postId\n  read <- allow\n  sync public last 2000 by byId");
     let bad = bind("social.q", &source);
-    assert_eq!(texts(&bad), ["social.q:72:3 — E_QUARRY_SYNTAX: unknown maintain property sync\n  rewrite: read <- rule\n  guide: language"]);
+    assert_eq!(texts(&bad), ["social.q:72:3 — E_QUARRY_SYNTAX: a maintain inherits its source's sync; `online only` opts out\n  rewrite: remove this sync line to inherit, or replace it with `online only`\n  guide: residency"]);
     clean("social.q", &source.replace("  sync public last 2000 by byId\n", ""));
 }
 
