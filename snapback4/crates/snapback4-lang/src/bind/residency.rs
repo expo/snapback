@@ -5,6 +5,7 @@ use snapback4_core::ir::{self, Expr, LoopDomain, Program, ProgramKind, Stmt};
 use snapback4_core::schema::{Audience, Execution, ResidencySite, RuleExpr, Schema, SiteClass};
 use std::collections::{BTreeMap, BTreeSet};
 mod presence;
+mod inserts;
 
 pub fn execution(schema: &Schema, program: &Program) -> Execution {
     execution_with_presence(schema, program, None)
@@ -74,21 +75,10 @@ fn site(schema: &Schema, location: &str, table: &str, index: &str, kind: &str) -
     let (class, reason, rewrite) = match sync {
         _ if schema.maintain_subset_unknown(table) => (SiteClass::Server, format!("{kind} {table} by {index}: public source has subset delivery; aggregate coverage is unknown"), "read this aggregate on the server, or sync its public source to every device".into()),
         None => (SiteClass::Server, format!("{kind} {table} by {index}: online only"), if schema.maintain_for(table).is_some() { format!("remove `online only` from maintain {table} to inherit its source's sync, or read a compact synced projection") } else { format!("sync {table} to its read-rule audience, or read a compact synced projection") }),
-        Some(sync) if sync.horizon.is_some() => (SiteClass::Horizon, format!("{kind} {table} by {index}: {}", sync.line()), "remove a redundant guard, or read a synced fact without a horizon".into()),
+        Some(sync) if sync.horizon.is_some() => (SiteClass::Horizon, format!("{kind} {table} by {index}: {}", sync.line()), if kind == "write target" { String::new() } else { "remove a redundant guard, or read a synced fact without a horizon".into() }),
         Some(_) => (SiteClass::Held, format!("{kind} {table} by {index}: held, no horizon"), String::new()),
     };
     ResidencySite { site: location.into(), table: table.into(), index: index.into(), kind: kind.into(), class, reason, rewrite }
-}
-
-fn upsert_site(schema: &Schema, location: &str, table: &str, index: &str, key: &[Expr]) -> ResidencySite {
-    let mut fact = site(schema, location, table, index, "upsert insert");
-    let reason = match snapback4_core::engine::rules::upsert_absence(schema, table, index, key) {
-        Ok(visibility) if visibility.decided_true => "upsert inserts predict: absence is provable".into(),
-        Ok(_) => "upsert inserts predict only when the key's read rule is true on this device; otherwise queue without a row".into(),
-        Err(reason) => format!("upsert inserts do not predict: {reason}; queue without a row"),
-    };
-    fact.reason = format!("{reason} ({table} by {index})");
-    fact
 }
 
 fn rule_sites(schema: &Schema, rule: &RuleExpr, location: &str, sites: &mut Vec<ResidencySite>, seen: &mut BTreeSet<String>) {
@@ -104,6 +94,7 @@ fn rule_sites(schema: &Schema, rule: &RuleExpr, location: &str, sites: &mut Vec<
 }
 
 fn inspect(schema: &Schema, stmts: &[Stmt], codes: &mut BTreeSet<String>, sites: &mut Vec<ResidencySite>) {
+    let mut known = BTreeMap::new();
     for stmt in stmts {
         match stmt {
             Stmt::Require { condition, code, .. } => { codes.insert(code.clone()); expr(schema, condition, codes, sites); }
@@ -118,16 +109,22 @@ fn inspect(schema: &Schema, stmts: &[Stmt], codes: &mut BTreeSet<String>, sites:
                 }
                 inspect(schema, body, codes, sites);
             }
-            Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) | Stmt::Emit { payload: value, .. } => expr(schema, value, codes, sites),
+            Stmt::Const { name, value } => { known.insert(name.clone(), inserts::image(value, &known)); expr(schema, value, codes, sites); }
+            Stmt::Let { name, value } if name.starts_with("$value") => { known.insert(name.clone(), inserts::image(value, &known)); expr(schema, value, codes, sites); }
+            Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. } | Stmt::Return(value) | Stmt::Emit { payload: value, .. } => expr(schema, value, codes, sites),
             Stmt::Check { condition, current } => { expr(schema, condition, codes, sites); for key in &current.key { expr(schema, key, codes, sites); } }
-            Stmt::Insert { row, .. } | Stmt::InsertIfAbsent { row, .. } => expr(schema, row, codes, sites),
+            Stmt::Insert { row, .. } => expr(schema, row, codes, sites),
+            Stmt::InsertIfAbsent { table, row, .. } => {
+                sites.push(inserts::insert_site(schema, &format!("insert if absent {table}"), table, None, &inserts::image(row, &known)));
+                expr(schema, row, codes, sites);
+            }
             Stmt::Update { key, patch, .. } => { expr(schema, key, codes, sites); expr(schema, patch, codes, sites); }
             Stmt::Upsert { table, key, row } => {
-                sites.push(upsert_site(schema, "upsert", table, "byId", std::slice::from_ref(key)));
+                sites.push(inserts::insert_site(schema, "upsert", table, Some(("byId", std::slice::from_ref(key))), &inserts::image(row, &known)));
                 expr(schema, key, codes, sites); expr(schema, row, codes, sites);
             }
             Stmt::WriteTarget { target, patch, condition, upsert, .. } => {
-                if *upsert { sites.push(upsert_site(schema, &target.site, &target.table, &target.index, &target.key)); }
+                if *upsert { sites.push(inserts::insert_site(schema, &target.site, &target.table, Some((&target.index, &target.key)), &inserts::image(patch, &known))); }
                 for key in &target.key { expr(schema, key, codes, sites); }
                 expr(schema, patch, codes, sites);
                 if let Some(condition) = condition { inspect(schema, &condition.setup, codes, sites); expr(schema, &condition.value, codes, sites); }
@@ -167,18 +164,27 @@ fn expr(schema: &Schema, value: &Expr, codes: &mut BTreeSet<String>, sites: &mut
 /// A single human reason for the first site that prevents prediction.
 pub fn prediction_reason(schema: &Schema, site: &ResidencySite) -> String {
     if matches!(site.kind.as_str(), "presence" | "dispatch" | "native") { return site.reason.clone(); }
-    let verb = match site.kind.as_str() { "write" | "write target" => "writes", "rule" => "a write rule reads", _ => "reads" };
+    let verb = match site.kind.as_str() { "write" | "write target" | inserts::UPSERT_BLOCKED | inserts::ABSENT_BLOCKED => "writes", "rule" => "a write rule reads", _ => "reads" };
     let noun = if schema.maintain_for(&site.table).is_some() { "maintain" } else { "table" };
     format!("{verb} online-only {noun} {}", site.table)
 }
 
 pub fn prediction_summary(bound: &Bound) -> Option<String> {
-    let names: Vec<_> = bound.schema.operations.iter().filter_map(|(name, fact)| {
-        if fact.predicts.as_deref() != Some("never") || !bound.programs.iter().any(|p| p.program.name == *name && p.program.kind == ProgramKind::Mutation) { return None; }
-        let site = fact.sites.iter().find(|site| site.class == SiteClass::Server)?;
-        Some(format!("{name} ({})", prediction_reason(&bound.schema, site)))
-    }).collect();
-    (!names.is_empty()).then(|| format!("{} mutations never predict: {} — snapback4 why <op>", names.len(), names.join(", ")))
+    let mut never = Vec::new();
+    let mut inserts = Vec::new();
+    for (name, fact) in &bound.schema.operations {
+        if !bound.programs.iter().any(|p| p.program.name == *name && p.program.kind == ProgramKind::Mutation) { continue; }
+        if fact.predicts.as_deref() == Some("never") && let Some(site) = fact.sites.iter().find(|site| site.class == SiteClass::Server) {
+            never.push(format!("{name} ({})", prediction_reason(&bound.schema, site)));
+        }
+        if let Some(site) = fact.sites.iter().find(|site| inserts::blocked(site)) {
+            inserts.push(format!("{name} ({})", site.reason));
+        }
+    }
+    let mut parts = Vec::new();
+    if !never.is_empty() { parts.push(format!("{} mutations never predict: {}", never.len(), never.join(", "))); }
+    if !inserts.is_empty() { parts.push(format!("{} {} insert arms that never predict: {}", inserts.len(), if inserts.len() == 1 { "mutation has" } else { "mutations have" }, inserts.join(", "))); }
+    (!parts.is_empty()).then(|| format!("{} — snapback4 why <op>", parts.join("; ")))
 }
 
 pub(super) fn maintain_notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
@@ -249,8 +255,9 @@ pub fn change_notes(bound: &Bound, previous: &BTreeMap<String, Execution>) -> Ve
         // The acceptance case's added id guard stays statically eligible, but
         // can now queue without a row. Name that new horizon risk as well.
         let new_horizon = old.predicts.as_deref() == Some("eligible") && new.predicts.as_deref() == Some("eligible");
+        let new_insert_limit = new_horizon && new.sites.iter().any(|site| inserts::blocked(site) && !old.sites.iter().any(|before| before.kind == site.kind && before.table == site.table && before.index == site.index && before.reason == site.reason));
         let risks: Vec<_> = new.sites.iter().filter(|site| {
-            ((lost || moved) && site.class == SiteClass::Server)
+            (new_insert_limit && inserts::blocked(site)) || ((lost || moved) && site.class == SiteClass::Server)
                 || (new_horizon && site.class == SiteClass::Horizon && !old.sites.iter().any(|before| before.class == site.class && before.table == site.table && before.index == site.index && before.kind == site.kind))
         }).collect();
         if moved {
@@ -262,12 +269,12 @@ pub fn change_notes(bound: &Bound, previous: &BTreeMap<String, Execution>) -> Ve
             for site in risks {
                 let cause = if site.class == SiteClass::Server && !matches!(site.kind.as_str(), "presence" | "dispatch" | "native") && bound.schema.tables.get(&site.table).is_some_and(|table| table.sync.is_none()) {
                     format!("online-only {} {}", if bound.schema.maintain_for(&site.table).is_some() { "maintain" } else { "table" }, site.table)
-                } else { site.reason.clone() };
+                } else if inserts::blocked(site) { format!("insert queues without a row: {}; {}", site.reason, inserts::PENDING) } else { site.reason.clone() };
                 causes.entry(cause).or_default().extend(note_sites(program, site));
                 if !site.rewrite.is_empty() { rewrites.insert(site.rewrite.as_str()); }
             }
             let reasons = causes.into_iter().map(|(cause, sites)| format!("{cause} (sites: {})", sites.into_iter().collect::<Vec<_>>().join(", "))).collect::<Vec<_>>().join("; ");
-            let message = if lost { "is no longer eligible to predict; queued without a row" } else { "remains eligible; may queue without a row past the horizon" };
+            let message = if lost { "is no longer eligible to predict; queued without a row" } else if new_insert_limit { "has insert arms that never predict" } else { "remains eligible; may queue without a row past the horizon" };
             notes.push(Diagnostic::new(&program.site, "N_NOT_PREDICTABLE", format!("{name} {message}: {reasons}"), rewrites.into_iter().collect::<Vec<_>>().join("; ")).guide("residency"));
         }
     }
@@ -275,7 +282,8 @@ pub fn change_notes(bound: &Bound, previous: &BTreeMap<String, Execution>) -> Ve
 }
 
 fn note_sites(program: &super::BoundProgram, site: &ResidencySite) -> BTreeSet<String> {
-    let write = site.site.strip_suffix(" insert rule").or_else(|| site.site.strip_suffix(" rule")).unwrap_or(&site.site);
+    let location = site.site.replace("insert if absent ", "insert ");
+    let write = location.strip_suffix(" insert rule").or_else(|| location.strip_suffix(" rule")).unwrap_or(&location);
     let locations: BTreeSet<_> = program.sources.iter().filter(|(key, (_, name))| key.starts_with("write/") && name == write).map(|(_, (location, _))| location.to_string()).collect();
     if !locations.is_empty() { return locations; }
     // Read facts already carry their source and spelling. A grouped site list
@@ -295,12 +303,25 @@ pub fn table_line(schema: &Schema, name: &str) -> String {
 }
 
 pub fn operation_lines(name: &str, fact: &Execution) -> String {
-    let word = match (fact.runs.as_deref(), fact.predicts.as_deref()) { (Some(runs), _) => format!("runs: {runs}"), (_, Some("eligible")) => "predicts: eligible".into(), _ => "predicts: never; queued without a row".into() };
+    let blocked = fact.sites.iter().find(|site| inserts::blocked(site));
+    let word = match (fact.runs.as_deref(), fact.predicts.as_deref()) { (Some(runs), _) => format!("runs: {runs}"), (_, Some("eligible")) => match blocked {
+        Some(site) if site.kind == inserts::UPSERT_BLOCKED => format!("predicts: updates only — inserts into {} queue without a row", site.table),
+        Some(site) => format!("predicts: inserts queue without a row — insert if absent into {} cannot prove absence", site.table),
+        None => "predicts: eligible".into(),
+    }, _ => "predicts: never; queued without a row".into() };
     let mut lines = vec![format!("  {name}: {word}")];
     if fact.connected_effects_only { lines.push(format!("    {CONNECTED_EFFECTS}")); }
     for site in &fact.sites {
+        // The insert explanation also names the upsert target; do not follow it
+        // with the generic horizon warning that used to contradict that proof.
+        if site.kind == "write target" && fact.sites.iter().any(|insert| inserts::blocked(insert) && insert.site == site.site && insert.table == site.table && insert.index == site.index) { continue; }
+        if inserts::blocked(site) {
+            let kind = if site.kind == inserts::UPSERT_BLOCKED { "upsert insert" } else { "insert if absent" };
+            lines.push(format!("    {:?}: {kind} queues without a row: {} (site {}); {}", site.class, site.reason, site.site, inserts::PENDING));
+            continue;
+        }
         lines.push(format!("    {:?}: {} (site {}){}", site.class, site.reason, site.site, if site.class == SiteClass::Horizon { if fact.predicts.as_deref() == Some("eligible") { "; may queue without a row past the horizon" } else { "; server past the horizon" } } else { "" }));
-        if site.class != SiteClass::Held { lines.push(format!("      rewrite: {}", site.rewrite)); }
+        if !site.rewrite.is_empty() { lines.push(format!("      rewrite: {}", site.rewrite)); }
     }
     lines.join("\n")
 }

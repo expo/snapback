@@ -41,6 +41,7 @@ table likes:
   principal: principal
   on: bool
   unique byRoomPostPrincipal: room, post, principal
+  cap 50 by room, post
   read <- exists members[.room, viewer]
   insert <- .principal = viewer
   update <- allow
@@ -108,6 +109,12 @@ fn first_offline_upsert_predicts_only_when_absence_is_provable_on_both_stores() 
             ("online", LIKES.replace("  sync\n", "  online only\n"), false),
         ] {
             let (mut server, backend) = compile(&source);
+            if predicts {
+                let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+                let lines = snapback4_lang::bind::residency::operation_lines("vote", &bound.schema.operations["vote"]);
+                assert_eq!(lines.lines().next().unwrap(), "  vote: predicts: eligible", "{case}");
+                assert_eq!(snapback4_lang::bind::residency::prediction_summary(&bound), None);
+            }
             let mut device = host.open(case, Some(backend)).unwrap();
             for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
             let input = json!({"postId":"first"});
@@ -166,3 +173,33 @@ fn hidden_admitted_upserts_preserve_the_complete_paired_observation() {
 
 mod proof;
 mod final_exists;
+
+#[test]
+fn insert_if_absent_matches_its_reported_absence_proof_on_both_stores() {
+    fn run<H: Host>(host: &mut H) {
+        for (case, horizon, cap, predicts) in [
+            ("covered", "", "", true), ("window", " last 1 by byPrincipal", "", false),
+            ("covered-cap", "", "  cap 50 by principal\n", true), ("hidden-cap", "", "  cap 50 by postId\n", false),
+            ("fixed-id", "", "", false), ("public-id", "", "", true),
+        ] {
+            let source = LIKES.replace("upsert likes[postId, viewer] { on: true }", "insert likes { postId, principal: viewer, on: true } if absent")
+                .replace("  sync\n", &format!("{cap}  sync{horizon}\n"));
+            let source = if case.ends_with("-id") { source.replace("insert likes { postId", "insert likes { id: 'chosen', postId") } else { source };
+            let source = if case == "public-id" { source.replace("read <- .principal = viewer", "read <- public") } else { source };
+            let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+            assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+            let lines = snapback4_lang::bind::residency::operation_lines("vote", &bound.schema.operations["vote"]);
+            assert_eq!(lines.lines().next().unwrap(), if predicts { "  vote: predicts: eligible" } else { "  vote: predicts: inserts queue without a row — insert if absent into likes cannot prove absence" }, "{case}");
+            let (mut server, backend) = compile(&source);
+            let mut device = host.open(case, Some(backend)).unwrap();
+            for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+            let queued = device.admit(Queued { id: "vote".into(), seq: 1, op: "vote".into(), args: json!({"postId":"first"}), viewer: "bob".into(), now: 1000,
+                new_ids: vec!["like".into()], predicted: vec![], predictable: true, sent_seq: None, observed_seq: None }).unwrap();
+            assert_eq!(queued.predictable, predicts, "{} {case}: {queued:?}", host.label());
+            assert_eq!(queued.predicted.len(), usize::from(predicts));
+            host.close(case, device);
+        }
+    }
+    run(&mut Sqlite::new("if-absent-proof"));
+    run(&mut Memory::new());
+}

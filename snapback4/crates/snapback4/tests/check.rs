@@ -37,8 +37,8 @@ fn upsert_insert_proof_and_service_grants_reach_check_and_why() {
     let p = Project::new();
     p.source("table likes:\n  post: text <=30\n  principal: principal\n  on: bool\n  unique byPostPrincipal: post, principal\n  by byPrincipal: principal, post, id\n  read <- .principal = viewer or viewer = 'service:pusher'\n  insert <- .principal = viewer\n  update <- .principal = viewer\n  sync\nmutation vote(post: text <=30):\n  upsert likes[post, viewer] {on: true}\n");
     for (args, words) in [
-        (vec!["check", "--residency"], vec!["predicts: eligible", "upsert inserts predict: absence is provable", "service grants: service:pusher"]),
-        (vec!["why", "vote"], vec!["predicts: eligible", "upsert inserts predict: absence is provable"]),
+        (vec!["check", "--residency"], vec!["predicts: eligible", "upsert insert into likes: absence is provable when the group and insert image are held and readable", "service grants: service:pusher"]),
+        (vec!["why", "vote"], vec!["predicts: eligible", "upsert insert into likes: absence is provable when the group and insert image are held and readable"]),
         (vec!["why", "likes"], vec!["service grants: service:pusher"]),
     ] {
         let output = p.run(&args);

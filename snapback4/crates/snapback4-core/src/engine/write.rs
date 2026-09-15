@@ -49,6 +49,16 @@ impl Runner<'_> {
             }
         }
         let id = row.field("id")?.as_str()?.to_owned();
+        if if_absent && self.device {
+            // @ref LLP 3000.007#20.5 — if-absent's insert arm needs the same image, unique-population and cap proof as upsert.
+            // Upsert mints its insert id; if-absent may instead supply one.
+            // Only a freshly minted id can skip the primary-key absence proof.
+            let index = if self.context.minted_ids.contains(&id) {
+                table.indexes.iter().find(|(name, index)| name.as_str() != "byId" && index.unique && !index_values(index, &row).contains(&Value::Null))
+                    .map_or("byId", |(name, _)| name.as_str())
+            } else { "byId" };
+            self.prove_upsert_insert(table_name, index, &row)?;
+        }
         if let Some(existing) = self.tx.get(table_name, &id)? {
             if !self.expired(&table, &existing) {
                 self.visible_collision(table_name, &existing, Effect::Insert)?;
