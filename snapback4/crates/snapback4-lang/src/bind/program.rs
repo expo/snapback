@@ -697,6 +697,10 @@ impl<'a> Binder<'a> {
         if info.maintained.is_some() {
             return Err(unknown(site, format!("{table} is a maintained aggregate; write its source rows instead"), format!("{} {}", op.word(), info.maintained.as_ref().map(|m| m.source.clone()).unwrap_or_default())));
         }
+        // Writes share table-level residency facts, but every source occurrence
+        // (including an expanded helper) belongs in a changed-prediction note.
+        let write_name = format!("{} {table}", op.word());
+        self.sources.insert(format!("write/{write_name}/{site}"), (site.clone(), write_name));
         match op {
             WriteOp::Insert => {
                 let (row, row_ty) = self.write_row(info, fields, None, site, out)?;
@@ -744,7 +748,9 @@ impl<'a> Binder<'a> {
                 let key = self.write_key(info, keys, site, out)?;
                 let id_expr = if key.alternate {
                     let current = self.temp("current");
-                    out.push(Stmt::Let { name: current.clone(), value: Expr::Get(Read { site: self.site(), table: table.clone(), index: key.index.clone(), key: key.key.clone(), provenance: KeyProvenance::Shape }) });
+                    let location = self.site();
+                    self.sources.insert(location.clone(), (site.clone(), format!("delete {table}")));
+                    out.push(Stmt::Let { name: current.clone(), value: Expr::Get(Read { site: location, table: table.clone(), index: key.index.clone(), key: key.key.clone(), provenance: KeyProvenance::Shape }) });
                     out.push(Stmt::Require { condition: Expr::Binary { op: BinaryOp::Ne, left: Box::new(ir::var(&current)), right: Box::new(Expr::Literal(Value::Null)) }, code: "NOT_FOUND".into(), site: Some(site.to_string()) });
                     ir::field(ir::var(&current), "id")
                 } else {

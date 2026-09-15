@@ -116,3 +116,66 @@ fn following_removal_empty_slots_keep_pagination_on_both_stores() {
         device.close();
     });
 }
+
+fn removal_authority<H: crate::common::Host>(mut host: H) {
+    use snapback4_core::wire;
+    let mut paired = Vec::new();
+    for hidden in [true, false] {
+        let (mut engine, backend) = compile(&case::authority_source());
+        case::seed_authority(&mut engine, hidden);
+        let attacker_store = format!("attacker-{hidden}");
+        let victim_store = format!("victim-{hidden}");
+        let mut attacker = host.open(&attacker_store, Some(backend.clone())).unwrap();
+        let mut victim = host.open(&victim_store, Some(backend)).unwrap();
+        for (viewer, device) in [(case::INTRUDER, &mut attacker), (case::PRIVATE, &mut victim)] {
+            for (i, page) in snapshot_pages(&mut engine, viewer, 1000).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+        }
+        let before = victim.query("following", case::PRIVATE, &serde_json::json!({}), 10).unwrap();
+        let input = serde_json::json!({"eventId":"new-post", "markerId":"new-post", "actorId":case::INTRUDER});
+        let entry: snapback4_device::device::Queued = serde_json::from_value(serde_json::json!({
+            "id":"forge", "seq":1, "op":"forgeRemoval", "args":input, "viewer":case::INTRUDER, "now":10, "predictable":true
+        })).unwrap();
+        let admitted = attacker.admit(entry).unwrap();
+        host.close(&attacker_store, attacker);
+        let mut attacker = host.open(&attacker_store, None).unwrap();
+        let seq = engine.seq().unwrap();
+        let result = engine.mutate("forgeRemoval", Some("forge"), context(case::INTRUDER, &[("eventId", world::id("new-post")), ("markerId", world::id("new-post")), ("actorId", world::id(case::INTRUDER))]).at(10)).unwrap();
+        victim.apply(&stream_page(&mut engine, case::PRIVATE, seq), false).unwrap();
+        let after = victim.query("following", case::PRIVATE, &serde_json::json!({}), 10).unwrap();
+        println!("REMOVAL_AUTHORITY host={} hidden={hidden} state={} victim_unchanged={} predictable={}", host.label(), result.reply(Some("forge"))["state"], before.data == after.data, admitted.predictable);
+        assert_eq!(result.reply(Some("forge"))["why"]["code"], "E_RULE");
+        assert!(!admitted.predictable, "source ownership is checked online; no predicted tombstone");
+        assert_eq!(serde_json::to_value(&before).unwrap(), serde_json::to_value(&after).unwrap());
+        attacker.settle("forge", None).unwrap();
+        attacker.apply(&stream_page(&mut engine, case::INTRUDER, seq), false).unwrap();
+        assert!(attacker.queued().unwrap().is_empty());
+        let no_purge = engine.run_job("purgeRemoved", Default::default(), 11).unwrap();
+        assert_eq!(no_purge.rows_written, 0);
+        victim.apply(&stream_page(&mut engine, case::PRIVATE, seq), false).unwrap();
+        assert_eq!(victim.query("following", case::PRIVATE, &serde_json::json!({}), 10).unwrap().data, before.data);
+        paired.push((serde_json::to_value(admitted).unwrap(), result.reply(Some("forge")), result.metered));
+        // Positive control: the actual owner removes, then purges, the event.
+        let seq = engine.seq().unwrap();
+        world::mutate(&mut engine, "deletePost", case::AUTHOR, &[("postId", world::id("new-post"))], 12);
+        victim.apply(&stream_page(&mut engine, case::PRIVATE, seq), false).unwrap();
+        let removed = victim.query("following", case::PRIVATE, &serde_json::json!({}), 13).unwrap();
+        assert!(removed.complete);
+        assert_eq!(removed.data.as_array().unwrap()[0] == Value::Null, hidden);
+        let seq = engine.seq().unwrap();
+        engine.run_job("purgeRemoved", Default::default(), 14).unwrap();
+        victim.apply(&stream_page(&mut engine, case::PRIVATE, seq), false).unwrap();
+        let local = victim.query("following", case::PRIVATE, &serde_json::json!({}), 15).unwrap();
+        assert!(local.complete);
+        assert_eq!(wire::to_json(&local.data), wire::to_json(&case::page(&mut engine, case::PRIVATE).data));
+        assert_eq!(local.data.as_array().unwrap().len(), usize::from(!hidden));
+        host.close(&attacker_store, attacker);
+        host.close(&victim_store, victim);
+    }
+    assert_eq!(paired[0], paired[1], "hidden/absent private copy cannot affect the attacker");
+}
+
+#[test]
+fn following_removal_foreign_tombstone_memory() { removal_authority(crate::common::Memory::new()); }
+
+#[test]
+fn following_removal_foreign_tombstone_sqlite() { removal_authority(crate::common::Sqlite::new("removal-authority")); }

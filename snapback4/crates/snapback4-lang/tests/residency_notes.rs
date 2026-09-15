@@ -205,6 +205,10 @@ fn never_predict_change_notes_group_distinct_roots_once_per_mutation() {
             assert_eq!(note.message.matches("online-only table rankedPosts").count(), 1, "{note}");
         }
         assert_eq!(note.rewrite.matches("sync insightFacts").count(), 1);
+        assert!(!note.message.contains("programs."), "{note}");
+        assert!(!note.message.contains("sites: insert ") && !note.message.contains("sites: delete ") && !note.message.contains(", upsert "), "{note}");
+        assert!(note.message.contains("schema.q:36:3"), "the helper's insert source: {note}");
+        if name != "createPost" { assert!(note.message.contains("schema.q:40:5"), "the helper's delete source: {note}"); }
     }
     assert!(snapback4_lang::bind::residency::change_notes(&after, &after.schema.operations).is_empty());
 }
