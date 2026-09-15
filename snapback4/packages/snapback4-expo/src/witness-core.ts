@@ -40,7 +40,8 @@ export function createWitness(container: WitnessContainer | null): Witness | nul
         append({}, name);
         return value;
       } catch (error) {
-        append({}, `${name}:failed`);
+        // The failure's own message is the first thing anyone reading the receipts needs.
+        append({ error: error instanceof Error ? error.message : String(error) }, `${name}:failed`);
         throw error;
       } finally { active = false; current = "between-steps"; }
     },

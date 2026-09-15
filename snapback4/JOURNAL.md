@@ -8518,3 +8518,33 @@ ref-check: ok — 480 LLP docs, 8880 refs in 22925 files, 0 errors, 0 unchecked
 The prior journal remains byte-identical to the base; only this dated entry
 was appended. The final working tree contains the intended source/docs/tests,
 with no native video or generated iOS project committed or left as source.
+
+## 2026-09-14 — W1 native end-to-end, run by the lead outside the lane sandbox
+
+The lane could not reach CoreSimulatorService from its sandbox. On a dedicated
+simulator (`sb4-w1`, iOS 26.5) the lead ran the repository witness through the
+published verb and helper:
+
+- `npx expo run:ios --configuration Release` failed at base: the Release
+  simulator build asks for `arm64 x86_64` and `Snapback4Device.xcframework`
+  carries only arm64 device and arm64 simulator slices ("Unable to find
+  matching slice"). The podspec now excludes x86_64 for simulator SDKs in the
+  pod and the user target; the same command then builds, installs and opens.
+- A failed step recorded only `primed:failed`; the helper now records the
+  error message in that receipt (`{"error": …}`), which found the next two
+  problems at once.
+- The device log streamed the whole simulator at debug level (30 MB for a
+  10-second segment); it now streams only the app's `CFBundleExecutable`
+  (3–5 MB), and the manifest records the executable.
+- An ad-hoc build without code signing loses the keychain entitlement
+  `expo-secure-store` needs; build normally (the default signs for the
+  simulator).
+
+Result on the `expo run:ios` build, clean install: `{"witness":"published-ios","ok":true,"ms":17424}`
+— offline segment: primed (303 seeded, 50 rows online), cold history 50 rows
+`fresh: false` link offline, two pending sends, reconnect flush seq in compose
+order; restart segment: the same plus kill and relaunch offline with both
+writes still pending, then ordered flush. Videos 1.07 MB and 3.48 MB. With an
+app store left from an earlier backend store the prime fails deterministically;
+filed `issues/20260914-snapback4-device-store-from-a-replaced-backend-never-reacquires.md`.
+

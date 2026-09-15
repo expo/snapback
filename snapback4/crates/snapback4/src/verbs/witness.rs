@@ -202,7 +202,9 @@ impl Run {
             .stdin(Stdio::null()).stdout(Stdio::null()).stderr(output(&self.path("video.log"))?);
         self.video = Some(Owned::spawn(&mut video)?);
         let mut logs = Command::new("xcrun");
-        logs.args(["simctl", "spawn", &self.udid, "log", "stream", "--style", "json", "--level", "debug"])
+        // Only the app's own process: a whole-simulator debug stream is tens of megabytes per segment.
+        let executable = self.manifest["appBuild"]["CFBundleExecutable"].as_str().unwrap_or_default().replace('"', "");
+        logs.args(["simctl", "spawn", &self.udid, "log", "stream", "--style", "json", "--level", "debug", "--predicate"]).arg(format!("process == \"{executable}\""))
             .stdin(Stdio::null()).stdout(output(&self.path("device.log"))?).stderr(output(&self.path("log-stderr.log"))?);
         self.logs = Some(Owned::spawn(&mut logs)?);
         let end = Instant::now() + self.options.timeout;
@@ -299,7 +301,7 @@ fn prepare(options: Options) -> Result<Run> {
     let container = PathBuf::from(simctl(&["get_app_container", &udid, &options.bundle, "data"], options.timeout)?);
     let plist = Path::new(&app).join("Info.plist");
     let mut build = json!({});
-    for key in ["CFBundleIdentifier", "CFBundleVersion", "CFBundleShortVersionString"] {
+    for key in ["CFBundleIdentifier", "CFBundleVersion", "CFBundleShortVersionString", "CFBundleExecutable"] {
         let output = Command::new("/usr/bin/plutil").args(["-extract", key, "raw", "-o", "-"]).arg(&plist).output().map_err(|e| error("E_WITNESS_APP", e))?;
         if !output.status.success() { return Err(error("E_WITNESS_APP", format!("cannot read {key} from {}", plist.display()))); }
         build[key] = json!(String::from_utf8_lossy(&output.stdout).trim());
