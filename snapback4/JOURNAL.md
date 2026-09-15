@@ -9532,3 +9532,2909 @@ The final append is also covered by the root reference check; the worktree is
 left uncommitted for the lead. The lead still needs to rerun the full suite
 outside the sandbox, where Chromium can start, and handle the existing
 persistence-test failure in its owning lane. No new product test remains red.
+
+## 2026-09-14 — lane B2: prediction, residency and fanout explanations (§20)
+
+Built S05, S06, S08 and S17 from LLP 3000.007 §20, preserving its §6.2
+site classes, §14/§18 decisions and §19.1 presence analysis. Read the
+inventory's L12 final/m8/m6 checks, generated API and residency facts;
+L10a's m6/m8 checks and fanout explanation; the timestamped L12, L10a and
+A6 horizon/maintain notes; R10g's loop 8; and L12 grader trace §4.9. These
+fixtures reproduce the accumulated recipients, online-only aggregates and
+ranked writes, and a complete wide matching search that the old note said
+was cut. The existing prediction card supplies the horizon and effects-only
+presence controls.
+
+Every successful text check now prints one sorted summary of mutations that
+never predict, including unchanged checks. Failed checks with bound mutation
+facts print it too. Successful JSON checks carry `predictionSummary`.
+`mutation name(args) predicts:` asserts the existing binder result, refusing
+E_NOT_PREDICTABLE at the header when it is never. It neither changes a site
+class nor promises that a horizon miss will predict. The prediction recipes
+and language card compile with the new modifier.
+
+The maintain note names eligible mutation readers before suggesting an
+online-only opt-out. Check observes value-row counts in the current dev
+store (explicitly before adoption); test --residency still measures each
+persona's actual cold partition. A maintain's sync-property refusal explains
+inheritance; its online-only rewrite removes the override instead of asking
+for an invalid sync property.
+
+Fanout admission returns located details for the compiler. A small source
+map beside the bound program maps loops and page reads back to Quarry;
+serialized IR and generated site ids are unchanged. An accumulated list's
+rewrite names its original capped page, a too-small page names the cap,
+and an unpinned read offers a query. Core refusal text also avoids repeating
+the code and message. No admission verdict, meter ceiling or value-model
+serialization changed; no existing corpus case changed. N_WIDE_MERGE now
+states the possible cost conditionally and points to test --cost.
+
+### Measurements
+
+- Summary cases: 0, 1 and 3 never-predicting mutations, each checked twice.
+  The L12-shaped ranked-write/entryCounts case also checks text, JSON and
+  check --residency; operation why names the maintain's actual rewrite.
+- Three likes over two post ids produce 2 maintained value rows. Alice's
+  cold snapshot contains 2 likeCounts rows / 100 bytes, and 5 total rows /
+  223 bytes including the source likes.
+- Matching search: 1,000 possible lanes × 21 rows = 21,000 potential rows;
+  the populated control returns 1 message, examines 2 rows, complete=true.
+  The ceiling remains 8,192.
+- The accumulated recipient loop is reported at 14:3, formerly the header
+  at 9:1. The non-uniform read is at 8:10, formerly the header at 7:1.
+  The small-page control uses 10 against a schema cap of 50; the suggested
+  50-row loop compiles. The corrected recipient loop executes successfully.
+
+### Exact diagnostics before → after
+
+The following are the regression fixtures' output. The always-on summary
+had no before line; after an unchanged three-mutation check it is:
+
+```text
+3 mutations never predict: createPost (reads online-only maintain likeCounts), like (reads online-only maintain likeCounts), repost (reads online-only maintain likeCounts) — snapback4 why <op>
+```
+
+**N_NOT_PREDICTABLE (the existing change note remains; its maintain rewrite is corrected) — before:**
+
+```text
+schema.q:14:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: point likeCounts by byGroup: online only (site programs.like.0)
+  rewrite: sync likeCounts to its read-rule audience, or read a compact synced projection
+  guide: residency
+```
+
+**After:**
+
+```text
+schema.q:14:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: point likeCounts by byGroup: online only (site programs.like.0)
+  rewrite: remove `online only` from maintain likeCounts to inherit its source's sync, or read a compact synced projection
+  guide: residency
+```
+
+**N_MAINTAIN_SYNCED (with a measured current store) — before:**
+
+```text
+schema.q:10:1 — N_MAINTAIN_SYNCED: maintain likeCounts: sync public inherited from likes; one value row per postId reaches every device
+  rewrite: add `online only` to the maintain to opt out of inherited sync; measure with `test --residency`
+  guide: residency
+```
+
+**After:**
+
+```text
+schema.q:10:1 — N_MAINTAIN_SYNCED: maintain likeCounts: sync public inherited from likes; one value row per postId reaches every device; createPost, like, repost would stop predicting if likeCounts goes `online only`; current store measurement: 2 value rows (before adoption; cold rows per viewer: `snapback4 test --residency`)
+  rewrite: keep inherited sync for local readers, or add `online only` to opt out; measure cold rows with `snapback4 test --residency`
+  guide: residency
+```
+
+**A sync property on a maintain — before:**
+
+```text
+schema.q:12:3 — E_QUARRY_SYNTAX: unknown maintain property sync
+  rewrite: read <- rule
+  guide: language
+```
+
+**After:**
+
+```text
+schema.q:12:3 — E_QUARRY_SYNTAX: a maintain inherits its source's sync; `online only` opts out
+  rewrite: remove this sync line to inherit, or replace it with `online only`
+  guide: residency
+```
+
+**The predicts header assertion — before:**
+
+```text
+schema.q:1:21 — E_QUARRY_SYNTAX: expected ":", got "predicts"
+
+## 2026-09-14 — §20 lane B1: diagnostics that lead to the working spelling
+
+Implemented inventory S07, S09, S10, S11 and S12 from base
+`6896dfce5ecc949e2260ce1407f7449ebdd83d91`. Read the five inventory rows,
+every cited check file, the cited run-log entries and M5 diary, and searched
+all three evidence directories' `*check*` files for syntax errors. L12 is
+`clique-sb4-20260914-astra-0.2.11`, L10a is
+`clique-sb4-20260913-relaxed-3models`, and R9 is
+`clique-sb4-20260914-astra-0.2.9`; paths below are relative to each lane's
+`evidence/`. The regression suite preserves the offending source lines and
+positions in small supporting schemas. Historical source was recovered from
+the recorded command strings, read as data; those commands were not executed.
+The four `ergonomics-*.q` fixtures preserve the complete order helper and the
+original message inserts/uses, including `return { id: msg.id }`.
+
+S07 uses a specific refusal and mechanical `{ ...postCard }` repair. Accepting
+a trailing bare name as the page shape would change an existing valid program:
+`where ({ body: .body }) = candidate selected` applies `selected` to the
+object `candidate` inside the predicate. The executable regression seeds one
+row and still returns that row. Keeping the grammar avoids that ambiguity;
+therefore the conditional exhaustive before/after binding census for a new
+accepted grammar was not needed. The repair preserves surrounding text and
+moves the shape past parentheses enclosing the predicate, while preserving
+parentheses enclosing the whole read. Three evidence forms and five CLI
+repair variants pass, including strings, Unicode comments and parentheses.
+
+S09 retains a failed binding with its original cause, deduplicates that cause
+across uses and helper expansions, and continues checking independent
+statements and sibling values. Additional red/green regressions cover nested
+blocks, tuple bindings, independent object/list values, successful rebinding,
+and a relocated helper placement error. L12's six errors become two distinct
+optional-call errors, then zero after binding the TTL once. L10a's eleven
+errors become five distinct time-scaling errors, then zero after the explicit
+integer conversion and integer storage types.
+
+S10 widens an enum to bounded text only when every variant fits the character
+bound. This is static and total; no runtime conversion, serialized value
+change or ceiling change is involved. All three TTL variants execute correctly;
+two non-ASCII single-character variants fit `text <=1`, a long variant is
+refused, and nullable-to-required calls still require a guard. The language
+card both compiles and runs this widening. The original row-helper, argument
+`once`, empty-argument and dotted-schedule cases were already repaired on the
+base; this lane adds exact-source positive coverage and does not claim those
+repairs as new work.
+
+S11 names object spread and expected punctuation, number, string and indentation
+spellings, and gives `why E_QUARRY_SYNTAX` actionable content. No new diagnostic
+code or new object-spread form was added. The complete syntax evidence census
+contains seven sites: one object spread, three missing argument lists, one
+argument `once`, one dotted schedule target, and one maintain `sync` property.
+The last belongs to B2's residency scope: it is reproduced and its successful
+removal is tested, but its diagnostic is deliberately unchanged here.
+
+S12 names the index columns and types, supplied expressions and types, and
+whether the problem is a fully pinned range or a wrong key type. The fixtures
+compile both the point-read/chunk rewrite and the alternative slug index or
+correctly typed reference argument. No runtime index semantics changed.
+
+### Exact evidence diagnostics: before → after
+
+The following blocks are verbatim, including duplicate historical diagnostics.
+“No diagnostic” below means the historical error is absent; it does not imply
+that the lane changed the already-repaired base behavior.
+
+#### S07: trailing named shape
+
+Before, `m2-check.txt`:
+
+```text
+social.q:83:82 — E_QUARRY_TYPE: a shape applies to a row, an object or a page; got null
+  rewrite: shape a read: `messages[id] { body }`
+  guide: types
+```
+
+After:
+
+```text
+social.q:83:82 — E_QUARRY_TYPE: shape postCard after where attaches to null inside the predicate; apply it to the page with { ...postCard }
+  rewrite: { ...postCard } — check --fix applies it
+  guide: shapes
+```
+
+Before, `check-m2.txt`:
+
+```text
+social.q:85:81 — E_QUARRY_TYPE: a shape applies to a row, an object or a page; got null
+  rewrite: shape a read: `messages[id] { body }`
+  guide: types
+```
+
+After:
+
+```text
+social.q:85:81 — E_QUARRY_TYPE: shape postCard after where attaches to null inside the predicate; apply it to the page with { ...postCard }
+  rewrite: { ...postCard } — check --fix applies it
+  guide: shapes
+```
+
+Before, `m2-check.txt`:
+
+```text
+social.q:147:78 — E_QUARRY_TYPE: a shape applies to a row, an object or a page; got null
+  rewrite: shape a read: `messages[id] { body }`
+  guide: types
+```
+
+After:
+
+```text
+social.q:147:78 — E_QUARRY_TYPE: shape postCard after where attaches to null inside the predicate; apply it to the page with { ...postCard }
+  rewrite: { ...postCard } — check --fix applies it
+  guide: shapes
+```
+
+Applying `check --fix` yields zero diagnostics for each repaired form.
+
+#### S09/S10: L12 message bindings and enum/optional types
+
+Before, `m5-check.txt`:
+
+```text
+chat.q:170:207 — E_QUARRY_TYPE: disappearance's setting is text <=10; got enum('off', '24h', '7d')
+  rewrite: pass text <=10 for setting
+  guide: types
+
+chat.q:171:76 — E_QUARRY_UNKNOWN: unknown name msg
+  rewrite: declared names: body, c, conversationId, messageId, new, now, recipients, replyToId, viewer
+  guide: language
+
+chat.q:172:16 — E_QUARRY_UNKNOWN: unknown name msg
+  rewrite: declared names: body, c, conversationId, messageId, new, now, recipients, replyToId, viewer
+  guide: language
+
+chat.q:213:264 — E_QUARRY_TYPE: disappearance's setting is text <=10; got enum('off', '24h', '7d')
+  rewrite: pass text <=10 for setting
+  guide: types
+
+chat.q:214:76 — E_QUARRY_UNKNOWN: unknown name msg
+  rewrite: declared names: body, c, clip, conversationId, messageId, new, now, oncePhoto, photo, recipients, viewer
+  guide: language
+
+chat.q:215:16 — E_QUARRY_UNKNOWN: unknown name msg
+  rewrite: declared names: body, c, clip, conversationId, messageId, new, now, oncePhoto, photo, recipients, viewer
+  guide: language
+```
+
+After:
+
+```text
+chat.q:170:157 — E_QUARRY_TYPE: + needs present numbers; got time and int ?
+  rewrite: bind the optional call once: `ttl = disappearance(c.disappearing)`; use `now + ttl if ttl != null else null`
+  guide: types
+
+chat.q:213:214 — E_QUARRY_TYPE: + needs present numbers; got time and int ?
+  rewrite: bind the optional call once: `ttl = disappearance(c.disappearing)`; use `now + ttl if ttl != null else null`
+  guide: types
+```
+
+The enum error is gone because all variants fit 10 characters. The four
+`unknown name msg` follow-ons are gone. The two remaining diagnostics identify
+the independent optional-call issue the builder actually fixed. Binding
+`ttl = disappearance(c.disappearing)` and testing `ttl != null` gives zero
+diagnostics; the corrected mutation also commits in the engine.
+
+For a deliberately too-small helper bound, the exact replacement diagnostic
+is below. Before, its message was the same, but its rewrite was
+`pass text <=1 for setting`. The separate `missing` error remains.
+
+After:
+
+```text
+chat.q:6:37 — E_QUARRY_TYPE: bad's setting is text <=1; got enum('off', '24h', '7d')
+  rewrite: change bad's parameter to `setting: enum('off', '24h', '7d')`; not every variant fits text <=1
+  guide: types
+
+chat.q:9:11 — E_QUARRY_UNKNOWN: unknown name missing
+  rewrite: declared names: id, msg, new, now, setting, viewer
+  guide: language
+```
+
+#### S09/S10: L10a time/count errors and cascades
+
+Before, `check-m8-order.txt`:
+
+```text
+order.q:15:19 — E_QUARRY_TYPE: time values add or subtract an int offset; time + time and time * n have no meaning
+  rewrite: subtract two times for an int difference in milliseconds
+  guide: types
+
+chat.q:196:27 — E_QUARRY_UNKNOWN: unknown name arrival
+  rewrite: declared names: c, conversationId, messageId, new, now, recipients, replyToId, text, ttl, viewer
+  guide: language
+
+chat.q:202:16 — E_QUARRY_UNKNOWN: unknown name msg
+  rewrite: declared names: c, conversationId, messageId, new, now, recipients, replyToId, text, ttl, viewer
+  guide: language
+
+chat.q:209:55 — E_QUARRY_TYPE: time values add or subtract an int offset; time + time and time * n have no meaning
+  rewrite: subtract two times for an int difference in milliseconds
+  guide: types
+
+chat.q:210:70 — E_QUARRY_TYPE: time values add or subtract an int offset; time + time and time * n have no meaning
+  rewrite: subtract two times for an int difference in milliseconds
+  guide: types
+
+chat.q:211:60 — E_QUARRY_TYPE: time values add or subtract an int offset; time + time and time * n have no meaning
+  rewrite: subtract two times for an int difference in milliseconds
+  guide: types
+
+chat.q:212:104 — E_QUARRY_UNKNOWN: unknown name da
+  rewrite: did you mean `d`?
+  guide: language
+
+order.q:15:19 — E_QUARRY_TYPE: time values add or subtract an int offset; time + time and time * n have no meaning
+  rewrite: subtract two times for an int difference in milliseconds
+  guide: types
+
+media.q:41:27 — E_QUARRY_UNKNOWN: unknown name arrival
+  rewrite: declared names: c, caption, conversationId, messageId, new, now, photo, recipients, ttl, video, viewOnce, viewer
+  guide: language
+
+media.q:47:16 — E_QUARRY_UNKNOWN: unknown name msg
+  rewrite: declared names: c, caption, conversationId, messageId, new, now, photo, recipients, ttl, video, viewOnce, viewer
+  guide: language
+
+order.q:22:45 — E_QUARRY_TYPE: time values add or subtract an int offset; time + time and time * n have no meaning
+  rewrite: subtract two times for an int difference in milliseconds
+  guide: types
+```
+
+After:
+
+```text
+order.q:22:45 — E_QUARRY_TYPE: * cannot scale a time; use an int number of milliseconds
+  rewrite: (m.at / 1) * 1000 — / 1 yields integer milliseconds; store the scaled count as int
+  guide: types
+
+order.q:15:19 — E_QUARRY_TYPE: * cannot scale a time; use an int number of milliseconds
+  rewrite: (now / 1) * 1000 — / 1 yields integer milliseconds; store the scaled count as int
+  guide: types
+
+chat.q:209:55 — E_QUARRY_TYPE: * cannot scale a time; use an int number of milliseconds
+  rewrite: (now / 1) * 1000 — / 1 yields integer milliseconds; store the scaled count as int
+  guide: types
+
+chat.q:210:70 — E_QUARRY_TYPE: * cannot scale a time; use an int number of milliseconds
+  rewrite: (d / 1) * 1000 — / 1 yields integer milliseconds; store the scaled count as int
+  guide: types
+
+chat.q:211:60 — E_QUARRY_TYPE: * cannot scale a time; use an int number of milliseconds
+  rewrite: (r / 1) * 1000 — / 1 yields integer milliseconds; store the scaled count as int
+  guide: types
+```
+
+The duplicate `order.q:15:19` and five unknown-name follow-ons disappear.
+Changing `arrival`, `deliveredArrival`, `readArrival` and the clock's `last`
+to `int`, then writing `(now / 1) * 1000`, `(m.at / 1) * 1000`,
+`(d / 1) * 1000` and `(r / 1) * 1000`, compiles with zero diagnostics.
+For `time + time`, the old message and rewrite were the same generic pair
+above. They are now, verbatim:
+
+```text
++ cannot add two times; an offset is an int number of milliseconds
+rewrite: change the duration parameter or column to int, then add it to the time; subtract two times to measure an elapsed duration
+```
+
+#### S10: reference versus row (already repaired on the base)
+
+Before, `m3-check.txt`:
+
+```text
+chat.q:105:139 — E_QUARRY_TYPE: state's m is a messages reference; got a messages row
+  rewrite: pass a messages reference for m
+  guide: types
+```
+
+After: no diagnostic for the exact original `state(m: messages)` helper
+and `shape messageCard = { *, sender: profiles[.senderId], quote: messages[.quoteId] { id, body, sender: profiles[.senderId] }, receipt: state(.) }`.
+A reference still requires an explicit read before field access. The existing
+positive row and reference tests both examine one row. The reverse refusal,
+unchanged by this lane, is:
+
+```text
+schema.q:5:24 — E_QUARRY_TYPE: a messages reference has no fields
+  rewrite: messages[m] ! else NOT_FOUND — read the row, or use the shape's row parameter: messages[m] { body: .body }
+  guide: shapes
+```
+
+#### S10/S11: argument once (already repaired on the base)
+
+Before, `m5-check.txt`:
+
+```text
+chat.q:160:158 — E_QUARRY_SYNTAX: once is a column modifier, not an argument constraint
+  rewrite: remove once from this argument; declare image <=10000000 once on the owning table column
+  guide: language
+```
+
+After:
+
+```text
+chat.q:160:147 — E_QUARRY_SYNTAX: once is a column modifier, not an argument constraint; declare it on the owning table column
+  rewrite: oncePhoto: image <=10000000 ? — check --fix applies it
+  guide: language
+```
+
+The mechanical removal compiles with zero diagnostics; the owning column retains `once`.
+
+#### S11: all other syntax evidence sites
+
+Before, `m8-check.txt`:
+
+```text
+insights.q:91:90 — E_QUARRY_SYNTAX: expected a name, got "."
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+```
+
+**After:**
+
+```text
+schema.q:1:1 — E_NOT_PREDICTABLE: mutation dispatch asserts predicts, but author marked this mutation : server
+  rewrite: remove : server to allow prediction when every site is held
+  guide: prediction
+```
+
+**E_STRUCTURAL_FANOUT on the accumulated recipients — before:**
+
+```text
+schema.q:9:1 — E_STRUCTURAL_FANOUT: E_STRUCTURAL_FANOUT: send/for/$p3/0: $p3 does not preserve one complete page; pin a schema-capped group with a literal bound at least its cap, or use a job chunk
+  rewrite: send/for/$p3/0: $p3 does not preserve one complete page; pin a schema-capped group with a literal bound at least its cap, or use a job chunk
+  guide: language
+```
+
+**After:**
+
+```text
+schema.q:14:3 — E_STRUCTURAL_FANOUT: loop over recipients: members by byRoom (page bound 50): this list does not preserve one complete page
+  rewrite: iterate the original group: `for row in members[room] first 50 by byRoom:`; put the condition and work inside that loop
+  guide: programs
+```
+
+**E_STRUCTURAL_FANOUT on a non-uniform read — before:**
+
+```text
+schema.q:7:1 — E_STRUCTURAL_FANOUT: E_STRUCTURAL_FANOUT: programs.send.0: the mutation page's read rule is not uniformly decided by its prefix; read it in a query, or pin the deciding columns
+  rewrite: read it in a query, or pin the deciding columns
+  guide: language
+```
+
+**After:**
+
+```text
+schema.q:8:10 — E_STRUCTURAL_FANOUT: members by byRoom (page bound 10): the mutation page's read rule is not uniformly decided by its prefix
+  rewrite: read it in a query, or pin the deciding columns
+  guide: programs
+```
+
+**N_WIDE_MERGE on the completed search — before:**
+
+```text
+schema.q:32:1 — N_WIDE_MERGE: query searchAll: the merge over messages reads up to 1000 lanes, one page of 21 each — 21000 rows per read, past the 8192 examined the meter allows, so the page is cut and `complete: false`
+  rewrite: keep the lanes under 50 (`first 50` on the lane source), or write the feed on the way in: a table of entries per reader, synced to .reader, read as one page (`snapback4 guide feeds`)
+  guide: feeds
+```
+
+**After:**
+
+```text
+schema.q:32:1 — N_WIDE_MERGE: query searchAll: the merge over messages reads up to 1000 lanes, one page of 21 each — up to 21000 rows per read; a read past the 8,192 examined ceiling returns `complete: false`
+  rewrite: measure with `snapback4 test --cost`; keep the lanes under 50 (`first 50` on the lane source), or write the feed on the way in: a table of entries per reader, synced to .reader, read as one page (`snapback4 guide feeds`)
+  guide: feeds
+```
+
+**why E_STRUCTURAL_FANOUT — before:**
+
+```text
+E_STRUCTURAL_FANOUT: family schema — prediction needs a complete schema-capped group; a never-predicting mutation may pass a bounded uniform plain prefix page over a table without expiry. Every mutation page, even without a loop, must be uniformly decided by its prefix. Matching word scans, merges and expiring tables are refused for every mutation page, predicting or not, looped or bound; unknown loop origins are refused too. Pin the read-rule fields and a capped group, use : server for a bounded uniform pass, or move a sweep to a job chunk.
+```
+
+**After:**
+
+```text
+E_STRUCTURAL_FANOUT: a mutation cannot safely iterate this population. Prediction needs a whole capped group; all mutation pages need a uniform plain prefix over a table without expiry. An accumulated or filtered list may lose the proof that it contains the whole group. Iterate the original group, read the page in a query, or sweep it in a job chunk.
+
+Example: declare `cap 50 by room` on members, then iterate `for m in members[room] first 50 by byRoom:` and put the recipient condition and `emit` inside that loop.
+```
+
+### Verification and scope
+
+Base: `6896dfce5ecc949e2260ce1407f7449ebdd83d91`. The new regressions were
+run against that exact implementation (saved edits restored afterward,
+without git reset/checkout/stash), then against the lane. Every new test
+is red before and green after. These are the exact targeted commands,
+run from `snapback4/`, and their verbatim summary lines:
+
+`cargo test -p snapback4-lang --test residency_notes -- --nocapture`
+
+Before:
+
+```text
+test result: FAILED. 0 passed; 9 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+After:
+
+```text
+insights.q:91:90 — E_QUARRY_SYNTAX: expected an object field name, got spread ...counts; objects list fields explicitly
+  rewrite: replace ...counts with field: counts.field for each payload field
+  guide: language
+```
+
+Writing each payload field explicitly gives zero diagnostics.
+
+Before, `m8-check1.txt`:
+
+```text
+analytics.q:41:15 — E_QUARRY_SYNTAX: expected "(", got ":"
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+
+analytics.q:49:15 — E_QUARRY_SYNTAX: expected "(", got ":"
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+
+analytics.q:52:13 — E_QUARRY_SYNTAX: expected "(", got ":"
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+```
+
+After:
+
+```text
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+```
+
+`cargo test -p snapback4 --test check b2_ -- --nocapture`
+
+Before:
+
+```text
+test result: FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 15 filtered out; finished in 1.80s
+
+analytics.q:41:1 — E_QUARRY_SYNTAX: an operation with no arguments still needs parentheses
+  rewrite: query insights(): — check --fix applies it
+  guide: language
+
+analytics.q:49:1 — E_QUARRY_SYNTAX: an operation with no arguments still needs parentheses
+  rewrite: query trending(): — check --fix applies it
+  guide: language
+
+analytics.q:52:1 — E_QUARRY_SYNTAX: an operation with no arguments still needs parentheses
+  rewrite: job backfill(): — check --fix applies it
+  guide: language
+```
+
+Each mechanical parentheses repair gives zero diagnostics; these repairs predate this lane.
+
+Before, `m8-check4.txt`:
+
+```text
+digest.q:52:47 — E_QUARRY_SYNTAX: unexpected token after declaration from line 52
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+```
+
+After: no diagnostic for `schedule dailyDigest every 2m at 00:00: digest.daily`; already accepted on the base.
+
+Before, `check-m8-prediction.txt`:
+
+```text
+social.q:72:3 — E_QUARRY_SYNTAX: unknown maintain property sync
+  rewrite: read <- rule
+  guide: language
+```
+
+After: exactly the same three lines. B2 owns this residency spelling; removing `sync public last 2000 by byId` compiles successfully.
+
+Additional expected-token regressions keep their before message/site and replace the generic rewrite `fix this Quarry line and rerun snapback4 check` with the following exact text:
+
+After:
+
+```text
+schema.q:1:11 — E_QUARRY_SYNTAX: expected ":", got "int"
+  rewrite: put : after a declaration or block header; parameters use name: type, and object fields use name: expression
+  guide: language
+
+schema.q:1:19 — E_QUARRY_SYNTAX: expected a number, got ")"
+  rewrite: write an integer literal here, for example first 50 or text <=100
+  guide: language
+
+schema.q:1:17 — E_QUARRY_SYNTAX: expected a string, got "off"
+  rewrite: quote the text with ' or "; enum variants are quoted strings, for example enum('off', 'on')
+  guide: language
+
+schema.q:2:1 — E_QUARRY_SYNTAX: expected an indented block, got "return"
+  rewrite: indent the body beneath its header with spaces, for example query q(): followed by an indented return null
+  guide: language
+
+schema.q:2:18 — E_QUARRY_SYNTAX: expected "}", got ":"
+  rewrite: separate fields with commas and close the object or shape with }
+  guide: language
+```
+
+Before, `snapback4 why E_QUARRY_SYNTAX` on the named base:
+
+```text
+E_QUARRY_SYNTAX: the parser could not read this line; the rewrite is a canonical spelling. `snapback4 guide` is the language card.
+```
+
+After, captured from the built CLI:
+
+```text
+E_QUARRY_SYNTAX: the parser expected the token or construct named at file:line:column. Object fields use name: expression (or a bare name for name: name); ...shape belongs in a row/page shape, not an object payload. Operations need name(args): followed by an indented body, including () for no arguments. Close each (, [ and { with its matching delimiter; separate fields and arguments with commas. The rewrite names the expected spelling; `check --fix` applies only repairs marked mechanical. Read `snapback4 guide language` for complete examples.
+```
+
+#### S12: fully pinned range and wrong key type
+
+Before, `m8-fixture-check.txt`:
+
+```text
+test-fixtures.q:3:14 — E_QUARRY_TYPE: profiles.byPrincipal is over principal; this range supplies 1 key
+  rewrite: profiles[] first 50 by byPrincipal
+  guide: types
+```
+
+After:
+
+```text
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 1.56s
+```
+
+`cargo test -p snapback4-lang --test guide`
+
+```text
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+```
+
+The broader targeted command
+`cargo test -p snapback4-lang --test frontend_regressions --test presence --test lowering`
+passed:
+
+```text
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 76.85s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+```
+
+The initial broader admission command was
+`cargo test -p snapback4-sim --test page_admission --test write_authority --test condition_authority`.
+It caught one existing expectation of rewrite text inside the message; this
+lane intentionally separates them. The assertion now checks the explanation
+in the message; the rewrite is separately asserted by the new regressions.
+The initial command's summary lines were:
+
+```text
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.63s
+test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 34.64s
+```
+
+That target and every other Rust target passed in the full suite on the
+final implementation. From the repository root:
+
+```sh
+export PATH="$HOME/.volta/tools/image/node/24.18.0/bin:$PATH"
+bash snapback4/scripts/test.sh > /tmp/b2-suite.log 2>&1
+```
+
+```text
+-- ok: cargo test (499 s)
+ℹ tests 169
+ℹ pass 168
+ℹ fail 1
+-- FAIL: client tests (63 s)
+== 1 failure(s) in 533 s
+   client tests
+```
+
+The only suite failure is `React hooks and reference-app lifetimes`:
+Chromium exits with SIGABRT inside the sandbox, the environment artifact
+named in the lane rules. It repeats alone, from `snapback4/` with the same
+Node 24 PATH:
+
+`node --test packages/snapback4/test/react.test.mjs`
+
+test-fixtures.q:3:14 — E_QUARRY_TYPE: profiles.byPrincipal takes (principal: principal); supplied (author: principal) pins every key, leaving no column to range over
+  rewrite: use profiles[author] by byPrincipal for one row; in a chunk, use `chunk row in profiles first 1 by byId:` then `if row.principal != author: continue`
+  guide: indexes
+```
+
+Before, `m3-check6.txt`:
+
+```text
+chat.q:192:14 — E_QUARRY_TYPE: conversations.byId is over id; this point read supplies 1 key
+  rewrite: conversations[id]
+  guide: types
+```
+
+After:
+
+```text
+chat.q:192:14 — E_QUARRY_TYPE: conversations.byId takes (id: a conversations reference); supplied (handle: text <=100) has the wrong key type
+  rewrite: conversations[handle] by bySlug — this index accepts the supplied key; for byId, pass a conversations reference instead of text <=100
+  guide: indexes
+```
+
+Both suggested repairs for each case compile with zero diagnostics.
+
+### Verification and measurements
+
+All successful Cargo verification below ran from `snapback4/`. Node commands
+used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`. Base rechecks
+temporarily restored the modified tracked source files from the exact
+`git show 6896dfce5ecc949e2260ce1407f7449ebdd83d91:<path>` bytes, ran the new
+regressions, and restored the working copies in a `finally` block. No branch,
+index or commit was changed. Four tests were already green on that base;
+fourteen diagnostic tests and the new CLI repair test were red.
+
+The red/green commands and their verbatim summary lines follow. Earlier
+iterations are included to distinguish the evolving test count from the final
+18-case suite.
+
+`cargo test -p snapback4-lang --test ergonomics -- --nocapture` — initial red, first green, expanded green
+
+```text
+test result: FAILED. 1 passed; 9 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+```
+
+`cargo test -p snapback4-lang --test ergonomics -- --nocapture --test-threads=1` — named base, final fixtures
+
+```text
+test result: FAILED. 4 passed; 14 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+`cargo test -p snapback4 --test fix -- --nocapture --test-threads=1` — named base
+
+```text
+test result: FAILED. 20 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.27s
+```
+
+`cargo test -p snapback4-lang --test ergonomics s09_recovery -- --test-threads=1` — two introduced recovery defects, red then green
+
+```text
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.01s
+```
+
+`cargo test -p snapback4-lang --test guide --test ergonomics --test repairs --test frontend_regressions -- --nocapture` — intermediate
+
+```text
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.49s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.40s
+```
+
+`cargo test -p snapback4-lang --test ergonomics --test guide --test repairs --test frontend_regressions -- --nocapture --test-threads=1` — final
+
+```text
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+```
+
+`cargo test -p snapback4 --test fix` — intermediate
+
+```text
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.51s
+```
+
+`cargo test -p snapback4 --test fix -- --test-threads=1` — final
+
+```text
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.30s
+```
+
+`cargo test -p snapback4-lang --test guide` — exact acceptance command
+
+```text
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+```
+
+`bash snapback4/scripts/test.sh` — run from the repository root twice, after
+exporting the Node 24 path. The first run preceded the final two recovery
+fixes; the second includes the final code and tests. Full logs are
+`/tmp/b1-suite.log` and `/tmp/b1-suite-final.log`.
+
+```text
+-- ok: cargo build (3 s)
+-- ok: wasm build (31 s)
+-- ok: package typecheck (3 s)
+-- ok: package build (2 s)
+-- ok: chat app check (2 s)
+-- ok: cargo test (326 s)
+-- ok: chat app typecheck (2 s)
+-- ok: expo app typecheck (2 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (34 s)
+ℹ tests 169
+ℹ pass 168
+ℹ fail 1
+-- FAIL: client tests (68 s)
+== 1 failure(s) in 367 s
+```
+
+```text
+-- ok: cargo build (4 s)
+-- ok: wasm build (1 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (0 s)
+-- ok: cargo test (230 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (8 s)
+ℹ tests 169
+ℹ pass 168
+ℹ fail 1
+-- FAIL: client tests (43 s)
+== 1 failure(s) in 236 s
+```
+
+The final Rust total, summed from all 52 test-result lines, is **689 passed,
+0 failed, 2 ignored**. The suite built the wasm device: **1,643,507 bytes raw,
+455,513 bytes gzip**. Package, chat and Expo typechecks passed. The chat check
+reported **5 tables, 9 operations, 0 problems, 1 existing cursor note**.
+
+The only failure in either complete run was the user-identified sandbox
+Chromium launch artifact in `packages/snapback4/test/react.test.mjs:72`, with
+`signal=SIGABRT`. It also failed alone with
+`node --test packages/snapback4/test/react.test.mjs`:
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 1285.249042
+```
+
+The lead must rerun that browser test outside the sandbox. No other product
+failure is called pre-existing. The root caps check reports `1 violation.`:
+`crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs` is 1,504 lines
+by the checker, byte-identical to the named base (SHA-256
+`1eae485cacf83f8823f2716b33c49e1d4df32fdd1f1e68b8b0e3491338274ad9`).
+All 19 changed/new code files are below 1,500 lines; the largest is
+`guide.rs` at 1,210 newline-terminated lines. No root code file changed.
+
+Necessary supporting edits outside the brief's named files: the AST boolean
+and three header-parser lines in `parser/programs.rs`; the source map in
+`bind/program.rs`, one registration in `bind/program/control.rs`, and empty
+initialization in `bind/actions.rs`; core `error.rs` for the non-repeating
+refusal envelope; and one expectation in the existing simulator
+`page_admission.rs` test. B1's syntax/type diagnostics and `parser/expr.rs`
+are untouched. README prose was extended without reflowing it; this journal
+entry is appended. No feature item was omitted. Nothing was committed,
+pushed, tagged or published.
+
+ℹ duration_ms 334.236541
+```
+
+The lead must rerun that test outside the sandbox. There were no en-masse
+client timeouts and no lifecycle failures in these runs. No newly discovered
+failure is asserted to predate the named base; the Chromium classification
+comes from the program's explicit environment ruling, plus the isolated
+reproduction here, rather than a whole-suite base claim.
+
+There are **19 changed/new code files**, **0 above 1,500 lines**; the largest
+is `snapback4-lang/src/guide.rs` at **1,223 lines**. Markdown was not compressed
+or reflowed to meet a cap. The implementation adds **0 codes**, changes
+**0 existing corpus cases**, and touches **0 B2-owned files**. README and
+language/type cards document the published behavior. No form was removed,
+so application/corpus/loopbar callers needed no migration. All implementation
+items in B1 are complete; the B2 maintain-sync text and outside-sandbox browser
+verification are the explicit handoff items. No out-of-scope file was changed.
+Nothing was committed, pushed, tagged or published.
+
+Root `./ref-check --verbose` passed:
+
+```text
+ref-check: ok — 474 LLP docs, 8870 refs in 22861 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passed; the journal before this entry is byte-identical
+to the base. The full Rust suite reports 684 passed, 0 failed and 2 ignored
+across its 52 result summaries.
+
+ref-check: ok — 474 LLP docs, 8869 refs in 22863 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passed. The JOURNAL prefix is byte-identical to the base;
+this dated entry is append-only.
+
+## 2026-09-14 — wave-2 review: Grok finding 5 (reused loop binding) does not reproduce (lead)
+
+Grok's wave-2 review (Low, `engine/admission.rs:208`) held that two `for x in …`
+loops with the same binding share the admission site `for/x`, so
+`E_STRUCTURAL_FANOUT` could locate and rewrite the wrong loop. The binder's
+`declare` gives every loop item a unique runtime binding, so the IR bindings,
+the admission sites and the binder's source map never collide.
+`a_reused_loop_binding_locates_the_failing_loop` (two `for p in` loops, the
+failing one first) passes at `0e9fdddba` and stays as a guard.
+
+## 2026-09-14 — W2R1c: ordered exit sends, staged signing, schedule release, enum domain, atomic init
+
+Implemented GPT review findings 4, 6, 7, 8 and 9 at base
+`0e9fdddba4fe34684d99215b70ac8dae2d164c42`. Read the review's corresponding
+findings and obligations 4–7, the Snapback 4 fence and LLP 3000.007's
+rulings. Each finding first failed with the base implementation; only then
+was its implementation changed. No commit, push, tag or publication occurred.
+
+- **4, exit ordering:** removed concurrent waves and predecessor bypass.
+  An exit event attempts only the oldest committed, unconfirmed write;
+  oversized/quota-blocked heads stay durable. Ordinary sends and exit sends
+  exclude one another in both directions, through transport completion and
+  ordinary durable settlement. Ordinary replay confirms the head before
+  advancing. Tests reverse server processing, block the head, overlap an
+  ordinary send, resume ordinary sending after an exit request, share quota
+  across clients, and reopen the real wasm device against the HTTP server.
+  Measured **2** durable writes, **1** exit request, **1** server row before
+  reopen and **2** after replay. The two-client UTF-8 body sum is **64,093 B**
+  against **65,536 B**; outstanding same-client sends fall from **2** to **1**,
+  and exit requests overlapping an ordinary send fall from **2** to **0**.
+- **6, signing custody:** copy Cargo's artifact into a private platform
+  package first. Sign, verify, notarize when configured, execute the version
+  probe, hash and pack that staged binary. Copy the platform metadata and
+  THIRD-PARTY-NOTICES into staging too. Strictly verify the installed
+  consumer's Developer ID signature and match authority/team as well as
+  digest. The fake harness now packs actual bytes and replaces Cargo's
+  artifact after signature inspection: the base packs **20 B** of unsigned
+  replacement; the fix packs the expected **15 B** and matching SHA-256 of
+  `unsigned-signed`. An installed signature failure refuses even when the
+  digest matches. No real signing service or publication was invoked.
+- **7, schedules:** save the schedule shape digest with its release
+  boundary in the same transaction. The regression changes **60,000 ms**
+  to **120,000 ms** while held, releases at **119,999 ms**, and now enqueues
+  **1** job at **120,000 ms** instead of **0**, with **0** duplicate firings
+  at the same boundary. The same-shape restart test remains green.
+- **8, enum widening:** reuse the runtime text-control predicate alongside
+  the character count in assignability. Declarations and enum membership
+  remain unchanged; widening requires every variant to be accepted text.
+  Tests cover helper calls, text-column storage, a named index, JSON wire
+  input, and retained enum-only control-character storage/lookup. `é`, `猫`
+  and tab succeed through the entire text path. U+0001, U+007F and U+0085
+  are refused as text, without changing their enum representation.
+- **9, init:** write package.json to an exclusively created sibling temp
+  file, preserve existing permissions, flush it, then rename it over the
+  original. Failed writes remove the temp file. A child-only **512 B**
+  RLIMIT_FSIZE forces a partial write: the base leaves a **512 B** truncated
+  replacement, while the fix retains the original **50 B** byte-for-byte.
+  Positive online/Expo merges and conflict preservation remain green.
+
+The required red/green commands follow. Cargo and package tests below ran
+from `snapback4/`; Node used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+
+Finding 4, base:
+`node --test --test-name-pattern='exit ordering|exit never bypasses|exit does not overlap' packages/snapback4/test/web-navigation.test.mjs`
+
+```text
+ℹ tests 3
+ℹ pass 0
+ℹ fail 3
+```
+
+Finding 6, base:
+`node --test packages/snapback4/test/publish-signing.test.mjs`
+
+```text
+ℹ tests 17
+ℹ pass 16
+ℹ fail 1
+```
+
+Findings 4 and 6, final expanded suites:
+`node --test packages/snapback4/test/web-navigation.test.mjs packages/snapback4/test/publish-signing.test.mjs`
+
+```text
+ℹ tests 29
+ℹ pass 29
+ℹ fail 0
+ℹ duration_ms 5173.343833
+```
+
+Finding 7, base:
+`cargo test -p snapback4 --test replay changed_schedule_shape_releases_at_first_boundary -- --nocapture`
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.01s
+```
+
+Finding 9, base:
+`cargo test -p snapback4 --test init --test replay -- --nocapture`
+(the initial command stopped after init; the separate command above ran replay).
+
+```text
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.21s
+```
+
+Findings 7 and 9, green:
+`cargo test -p snapback4 --test init --test replay --no-fail-fast -- --nocapture`
+
+```text
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.79s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.35s
+```
+
+Finding 8, base:
+`cargo test -p snapback4-lang --test ergonomics enum_widening_respects_text_character_domain -- --nocapture`
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+```
+
+Finding 8 and published cards, green:
+`cargo test -p snapback4-lang --test ergonomics --test guide -- --nocapture`
+
+```text
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+```
+
+The first exit-test attempt could not import the absent generated wasm
+module. `bash scripts/build-wasm.sh` and
+`bun run --cwd packages/snapback4 build` supplied it before the actual base
+regression above. The wasm build reported **1,649,049 B raw**, **457,519 B
+gzip**. During test development, additional assertions exposed fixture
+assumptions (ordinary offline attempts still in flight, missing insert
+permission, and treating a mutation's Failed outcome as a Rust Err); those
+were corrected without further enum/runtime changes. One accidental root
+Cargo invocation refused the unknown Snapback 4 package before testing;
+all recorded Rust test results above are from its own workspace.
+
+Required real-browser command, from the repository root:
+`node snapback4/witness/navigation.mjs`. It exited **1** before evaluation:
+Chromium terminated with `signal=SIGABRT`, so it produced **no witness JSON
+line**. The witness now expects one oldest write before reopen and waits
+for both writes to settle after reopening. The browser remains a lead
+handoff outside the sandbox; the Node/wasm/HTTP navigation test passed.
+
+Published-surface updates are in the package README, language/type cards,
+and the writes card's exit paragraph. The workspace README records staged
+publication custody. No compiler diagnostic string or E_/N_ code was added
+or replaced; invalid widening now uses the existing E_QUARRY_TYPE refusal.
+No before/after diagnostic wording was requested by this brief. No form
+changed, so apps, fixtures and loopbar authoring callers need no migration.
+Supporting files beyond the named implementation paths are the existing
+adjacent tests, `witness/navigation.mjs`, `snapback4/README.md`, and the
+required package README/cards/journal. The unrelated prediction paragraph
+in the writes card is untouched. No core-engine implementation file,
+ceiling, serialization, or existing corpus case changed. There are **16**
+changed code files, **0** above 1,500 lines; the largest is guide.rs at
+**1,229** lines. Earlier journal content remains byte-identical to the base.
+
+Blocking suite, from the repository root with Node 24 on PATH:
+`bash snapback4/scripts/test.sh`
+
+```text
+-- ok: cargo build (3 s)
+-- ok: wasm build (3 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (1 s)
+-- ok: chat app check (3 s)
+-- FAIL: cargo test (374 s)
+-- ok: chat app typecheck (2 s)
+-- ok: expo app typecheck (5 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (15 s)
+ℹ tests 194
+ℹ pass 193
+ℹ fail 1
+-- FAIL: client tests (59 s)
+== 2 failure(s) in 385 s
+```
+
+The 53 Rust result summaries total **709 passed, 1 failed, 2 ignored**.
+The failing lifecycle target reported:
+
+```text
+test result: FAILED. 12 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.52s
+```
+
+Its single failure was
+`dev_and_serve_report_signals_without_an_application_worker`: startup
+stderr interleaved with the serve SIGTERM diagnostic (`snapback4 serve:
+http://SNAPBACK4_SIGNAL ...`). The isolated rerun, from `snapback4/`,
+`cargo test -p snapback4 --test lifecycle dev_and_serve_report_signals_without_an_application_worker -- --nocapture`, passed:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 4.63s
+```
+
+The sole client failure was the program's named Chromium environment
+artifact. Isolated command, from `snapback4/`:
+`node --test packages/snapback4/test/react.test.mjs`
+
+
+## 2026-09-14 — W1: a published iOS simulator witness (S30)
+
+Base: `8e02e1530f2db73eeddc205f267906d206792dc6`. Built the app-facing
+`snapback4-expo/witness` export and types, the `snapback4 witness ios` verb,
+the `witness` card (aliases `simulator`, `offline proof`), the README recipe,
+and LLP 3000.007 §20.10. The repository witness now invokes the published
+verb for `offline` and `restart`; the chat app uses the published helper,
+shows its real Thread during the scenario, and keeps the two write IDs in
+SecureStore across the driver's process termination. Its fixture seeds 303
+rows and checks 50 history rows, two pending sends, their exact bodies and
+ordered `sent` settlements. Those are scenario assertions, not native
+measurements from this run.
+
+The helper owns the step protocol in TypeScript. The only new native bridge
+is 46 lines in `WitnessContainer.swift` plus three module registrations:
+Hermes/Expo does not expose runtime launch environment, and durable append
+must reach the app's Documents directory. A simulator-only environment
+constant activates a run; ordinary launches return null even if old run
+files exist. Synchronous file append flushes each JSONL line. A run-specific
+file signals reconnect after the owned backend reports readiness, without
+network entitlements or a second HTTP endpoint. Application receipt fields
+are unchanged; only `witness: { at, step }` is added. The app's completed
+steps drive progress; running receipts cannot prematurely finish a step.
+
+The CLI refuses ambiguous booted sets, missing apps, occupied ports,
+non-macOS, malformed receipts, missing/empty artifacts, failed/out-of-order
+steps, and timeouts. It finalizes video before stopping logs, stops only
+its recorded host children, explicitly targets the selected app/UDID for
+termination, and binds the exported receipts and video by SHA-256 in the
+run manifest. A failed run retains a nonzero manifest when setup got far
+enough to create one. The fake-simctl tests start and stop a real dev backend
+and exercise both cold launch and relaunch; they are driver tests, not
+simulator evidence. No meter, value serialization or existing corpus case
+changed. No commit, push, tag or publication was made.
+
+Necessary supporting edits outside the central witness files: the starter's
+`verbs/init.rs` extraction now removes the new reference-app harness; its
+existing positive template tests pass. The React test stubs the helper as
+inactive on its browser host (two lines). The README example test resolves
+the new package subpath to its actual source (one line). `AGENTS.md` names
+the new repository invocation. No loopbar caller used the removed form.
+The NOT-DOING history records the move: the published witness replaces the
+repository-only Metro witness; the deterministic simulator stays primary.
+
+### Verification and red/green
+
+All Cargo/Bun and package test commands below ran from `snapback4/`; the
+full suite, reference check and caps ran from the repository root. Every
+Node/Bun/npx command used:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+The regression was red before implementation: the CLI had no witness verb
+or card, and the helper import did not exist. Exact commands and summary
+lines follow; full command output remains in the named `/tmp/sb4-w1-*` logs.
+
+Before implementation: `cargo test -p snapback4 --test witness`
+
+```text
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.12s
+```
+
+After implementation: `cargo test -p snapback4 --test witness`
+
+```text
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.75s
+```
+
+Final targeted Rust: `cargo test -p snapback4 --test witness --test init`
+
+```text
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.15s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.77s
+```
+
+Before implementation: `node --test packages/snapback4/test/witness.test.mjs`
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+```
+
+Chromium again exited with `signal=SIGABRT` before the test's page launched.
+There were no en-masse client timeouts, so no reduced-concurrency rerun
+was needed. Neither this record nor the report claims a newly discovered
+failure is pre-existing at the base: the lifecycle failure passed in
+isolation on the changed tree, and the Chromium classification follows the
+user's explicit environment ruling. The lead must rerun Chromium outside
+the sandbox. A read-only `cargo test --workspace --no-fail-fast -- --list`
+identified the long-running 51-test device and 34-test simulator suites
+while the blocking run was in progress; both finished. The complete raw
+logs for this session are under `/tmp/w2r1c/`.
+
+Final root reference check: `./ref-check --verbose`
+
+```text
+ref-check: ok — 480 LLP docs, 8880 refs in 22919 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` is clean. The journal prefix before this entry is
+byte-identical to the base. All five requested fixes are implemented;
+the missing real-browser JSON is the only unfinished acceptance evidence.
+No sub-agent, other machine, install, commit, push, tag or publication was
+used. Changes remain uncommitted for the lead.
+
+ℹ duration_ms 33.3465
+```
+
+Final helper: `node --test packages/snapback4/test/witness.test.mjs`
+
+```text
+ℹ tests 3
+ℹ pass 3
+ℹ fail 0
+ℹ duration_ms 268.320166
+```
+
+Helper and compiled README: `node --test packages/snapback4/test/witness.test.mjs packages/snapback4/test/readme-examples.test.mjs`
+
+```text
+ℹ tests 5
+ℹ pass 5
+ℹ fail 0
+ℹ duration_ms 711.196542
+```
+
+Final targeted JS, including the generated Expo starter: `node --test packages/snapback4/test/periphery.test.mjs packages/snapback4/test/witness.test.mjs packages/snapback4/test/readme-examples.test.mjs`
+
+```text
+ℹ tests 22
+ℹ pass 22
+ℹ fail 0
+ℹ duration_ms 1856.605083
+```
+
+Final guide: `cargo test -p snapback4-lang --test guide`
+
+```text
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+```
+
+Isolated rerun of a port teardown race: `cargo test -p snapback4 --test witness bound_port_is_refused_without_stopping_its_owner`
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+```
+
+The first full suite found the stale starter extraction, the missing guide
+list entries and a test's assumption that an ephemeral port could not be
+reassigned immediately. The port test passed alone before its positive
+reservation was moved to a fresh port. The prescribed builds also generated
+the initially absent wasm/types/API files; the early typechecks' missing
+module errors are resolved. None of these failures is called pre-existing.
+
+`bun run --cwd apps/chat-expo typecheck` exited 0:
+
+```text
+$ tsc -p tsconfig.json --noEmit
+```
+
+`bash snapback4/scripts/test.sh`, first run (`/tmp/sb4-w1-suite.log`):
+
+```text
+-- FAIL: cargo test (240 s)
+ℹ tests 191
+ℹ pass 188
+ℹ fail 3
+-- FAIL: client tests (42 s)
+== 2 failure(s) in 260 s
+```
+
+`bash snapback4/scripts/test.sh`, final (`/tmp/sb4-w1-suite-final.log`):
+
+```text
+-- ok: cargo build (1 s)
+-- ok: wasm build (1 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (232 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (8 s)
+ℹ tests 191
+ℹ pass 190
+ℹ fail 1
+-- FAIL: client tests (41 s)
+== 1 failure(s) in 236 s
+```
+
+The final Rust summaries total **696 passed, 0 failed, 2 ignored**, across
+53 summaries. No lifecycle timeout occurred. The one client failure is
+Chromium SIGABRT at browser startup, before application modules load.
+
+Final reduced-concurrency client run: `node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'`
+
+```text
+ℹ tests 191
+ℹ pass 190
+ℹ fail 1
+ℹ duration_ms 73113.494458
+```
+
+Chromium alone: `node --test packages/snapback4/test/react.test.mjs`
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 318.316208
+```
+
+Baseline browser-startup reproduction: `node --test /tmp/sb4-w1-base-react.test.mjs`
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 231.920333
+```
+
+The baseline browser reproduction uses the React test source from
+`8e02e1530f2db73eeddc205f267906d206792dc6`, with only its two relative path
+roots relocated into `/tmp`; `witness/lib.mjs` is unchanged from that base.
+It aborts at `chromium.launch`, before any application source is loaded.
+This verifies the browser-startup failure against the base test, not a full
+baseline suite. The lead must run browser and native qualification outside
+this sandbox.
+
+`node scripts/caps.mjs` reports `2 violations.` Both inputs were verified
+against the same base: the same 65 non-dot working-set links against a cap
+of 59, and the byte-identical root
+`crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs` at 1,504 lines
+(SHA-256 `1eae485cacf83f8823f2716b33c49e1d4df32fdd1f1e68b8b0e3491338274ad9`).
+The 19 changed/new code files are all below 1,500; the largest is
+`crates/snapback4-lang/src/guide.rs`, 1,212 lines. Markdown was not reflowed
+to save lines. `git diff --check` passed.
+
+### Native attempt and measurements
+
+The dedicated simulator could not be created. Command:
+
+```sh
+xcrun simctl create sb4-w1 'iPhone 17' com.apple.CoreSimulator.SimRuntime.iOS-26-5
+```
+
+`/tmp/sb4-w1-sim-create.log` records the exact output, including:
+
+```text
+CoreSimulatorService connection became invalid.  Simulator services will no longer be available.
+```
+
+The failure ends with `Unable to locate device set` and POSIX code 61
+`Connection refused`. No simulator UDID was returned; no simulator was
+booted or deleted, and no other session's simulator was touched.
+
+From `snapback4/apps/chat-expo`, the Release command was:
+
+```sh
+npx expo run:ios --configuration Release --device sb4-w1
+```
+
+It exited 1 after prebuild; `/tmp/sb4-w1-release.log` contains the full
+output. CocoaPods reported `Operation not permitted @ rb_sysopen` for
+`/Users/ccheever/.cocoapods/repos/trunk/deprecated_podspecs.txt`. Exact final
+lines:
+
+```text
+pod install --repo-update --ansi exited with non-zero code: 1
+CommandError: Can't determine id of Device Hub or Simulator app; the Device Hub or Simulator is most likely not installed on this machine. Run `sudo xcode-select -s /Applications/Xcode.app`
+```
+
+The generated, ignored `apps/chat-expo/ios/` directory from this failed
+attempt was removed. No package install was run without a frozen lockfile.
+As instructed, native verification stopped here; the driver was not weakened
+and no substitute was called a native pass. Native end-to-end runs: **0**.
+Native MP4/JSONL/run-manifest artifacts: **0/0/0**; paths, byte sizes and
+native end-to-end timings are unavailable because installation never
+completed. In particular, neither cold-offline nor kill/relaunch/ordered
+flush is claimed to have passed on an iOS simulator in this lane.
+
+Measured non-native verification: helper **268.320166 ms** (3/3), targeted
+Rust driver **11.77 s** (9/9), targeted JS **1856.605083 ms** (22/22), final
+blocking suite **236 s**, reduced-concurrency clients **73113.494458 ms**.
+The fake driver completes two positive process scenarios; its synthetic
+files are temporary test inputs, not attachable app proof artifacts.
+
+What remains: one Release installation and both native scenarios on a
+dedicated simulator, with the three artifacts, their sizes and end-to-end
+timings; the sandbox cannot provide them. Swift native compilation and
+recordVideo/log-stream behavior remain unqualified by this lane. All
+non-simulator implementation and requested documentation are present.
+
+The discovery diagnostic before the change began with:
+
+```text
+unknown verb witness
+```
+
+It was followed by the global help. For `snapback4 witness ios`, the new
+complete refusal is:
+
+```text
+E_WITNESS_INPUT: --bundle-id is required; see snapback4 guide witness
+see snapback4 guide witness
+```
+
+The helper's former import failure was `ERR_MODULE_NOT_FOUND`; it now
+returns null on an ordinary launch and preserves receipts under the fake
+container's positive test. Twelve new `E_WITNESS_*` codes are in
+`guide::CODES`; the guide's compiled-card/code checks pass.
+
+Final root `./ref-check --verbose` passed after the entry was appended:
+
+```text
+ref-check: ok — 480 LLP docs, 8880 refs in 22925 files, 0 errors, 0 unchecked
+```
+
+The prior journal remains byte-identical to the base; only this dated entry
+was appended. The final working tree contains the intended source/docs/tests,
+with no native video or generated iOS project committed or left as source.
+
+## 2026-09-14 — W1 native end-to-end, run by the lead outside the lane sandbox
+
+The lane could not reach CoreSimulatorService from its sandbox. On a dedicated
+simulator (`sb4-w1`, iOS 26.5) the lead ran the repository witness through the
+published verb and helper:
+
+- `npx expo run:ios --configuration Release` failed at base: the Release
+  simulator build asks for `arm64 x86_64` and `Snapback4Device.xcframework`
+  carries only arm64 device and arm64 simulator slices ("Unable to find
+  matching slice"). The podspec now excludes x86_64 for simulator SDKs in the
+  pod and the user target; the same command then builds, installs and opens.
+- A failed step recorded only `primed:failed`; the helper now records the
+  error message in that receipt (`{"error": …}`), which found the next two
+  problems at once.
+- The device log streamed the whole simulator at debug level (30 MB for a
+  10-second segment); it now streams only the app's `CFBundleExecutable`
+  (3–5 MB), and the manifest records the executable.
+- An ad-hoc build without code signing loses the keychain entitlement
+  `expo-secure-store` needs; build normally (the default signs for the
+  simulator).
+
+Result on the `expo run:ios` build, clean install: `{"witness":"published-ios","ok":true,"ms":17424}`
+— offline segment: primed (303 seeded, 50 rows online), cold history 50 rows
+`fresh: false` link offline, two pending sends, reconnect flush seq in compose
+order; restart segment: the same plus kill and relaunch offline with both
+writes still pending, then ordered flush. Videos 1.07 MB and 3.48 MB. With an
+app store left from an earlier backend store the prime fails deterministically;
+filed `issues/20260914-snapback4-device-store-from-a-replaced-backend-never-reacquires.md`.
+
+## 2026-09-14 — W2R1u: prove the whole upsert insert before predicting it
+
+Base: `0e9fdddba4fe34684d99215b70ac8dae2d164c42` (`sb4/w2-int`). Read
+GPT findings 1, 2, 5 and 10 and obligations 1 and 8, lane F's journal and
+`20ea0534d`. The governing constraints are LLP 3000.007 §20.5 (ruling 19),
+§8.7/§15/§17 (prediction confers no hidden-row authority), and §18.2 (a
+left group is retained history, not whole-group absence evidence).
+
+The common insert arm now materializes defaults, proves readability again
+using the addressed index's values from that actual image, and proves
+coverage of every non-null secondary unique lookup and every affected cap
+prefix. The original addressed-key absence proof remains. A cap without
+`by` has the empty prefix and needs full public sync. A private partition
+cannot rule out another viewer's collision or count. The intrinsic byId
+key is either the already-proven address or the newly minted row identity.
+Both engine upsert paths use the same insert proof; ordinary insert and
+update semantics, rules, value serialization and meter ceilings are unchanged.
+
+Prediction now reads the persisted held/left map through the same helper
+as the reading adapter, in direct prediction, admission and replay. When
+replay loses prediction evidence it withdraws the overlay and clears the
+entry's `predictable` and `predicted` fields while keeping the queued write.
+The writes card, prediction card and README state the same conditions.
+There is no new Quarry form, diagnostic code, or note.
+
+Thirteen added device tests exercise 46 device scenarios on the SQLite and
+memory stores against the server: 8 changed-audience scenarios (including
+the `require r = null else WRONG` program), 24 hidden-constraint scenarios
+(secondary unique, grouped cap, whole-table cap and a defaulted unique
+column, each absent/noncolliding/colliding), 6 positive covered-constraint
+and default scenarios, 2 defaulted insert-rule refusals, 2 ordered pending
+delete/upsert lifecycles, and 4 left-group admission/replay scenarios.
+One guide test rejects the categorical obsolete writes-card sentence.
+The existing first-like prediction remains 1 row on each store; the feeds
+card predicts 2 rows, the vote and maintained score. The affected tests
+added no meter ceiling or serialized-value changes.
+
+The observation helper now serializes the entire local QueryOutcome and
+uses ordinary wire JSON only for its data: continuation, all seven meter
+fields, caps, word cuts, sequence, dependency tables and next expiry are
+retained. It can record a local admission refusal even if the server later
+succeeds. Changed-audience worlds compare the full existing observation
+(first/retry bodies, receipt, meters, deltas, effects, snapshots, streams,
+and both complete device lifecycles), with an absent/noncolliding control.
+Constraint worlds compare complete device observations through reopen;
+the server's expected acceptance/refusal and settlement are checked in each
+world, rather than incorrectly demanding identical server results when a
+constraint legitimately refuses. This helper remains in-process; actual
+HTTP status and JavaScript subscription notifications are not exercised.
+
+Reproduction qualification for finding 5: an ordinary server scope
+tombstone retains the old self-membership image under delivered-history;
+it does not itself produce the review's missing membership row. The
+regression therefore pairs the actual server scope with an explicit row
+tombstone for the membership the server has confirmed deleted, proving the
+missing-row/left-group state on admission and replay. The reading adapter
+confirms that the empty group is left. Before the fix, admission returned
+`NOT_FOUND` and replay retained stale prediction metadata. This is a
+boundary-state regression, not a claim that the normal scope-only stream
+delivers the additional row tombstone.
+
+### Red before, green after
+
+Only tests and the observation helper changed for the red run; production
+sources were still exactly the base above. Cargo commands below run from
+`snapback4/`.
+
+```text
+cargo test -p snapback4-device --test device upsert::proof -- --nocapture
+test result: FAILED. 3 passed; 10 failed; 0 ignored; 0 measured; 51 filtered out; finished in 0.37s
+```
+
+Finding 1 — changed audience and valued result:
+
+```text
+test upsert::proof::changed_audience_program_result_queues_on_both_stores ... FAILED
+test upsert::proof::changed_audience_image_queues_on_both_stores ... FAILED
+test upsert::proof::changed_audience_image_queues_on_both_stores ... ok
+test upsert::proof::changed_audience_program_result_queues_on_both_stores ... ok
+```
+
+Finding 2 — secondary unique and both cap populations:
+
+```text
+test upsert::proof::defaulted_hidden_unique_collision_queues_on_both_stores ... FAILED
+test upsert::proof::hidden_whole_table_cap_occupancy_queues_on_both_stores ... FAILED
+test upsert::proof::hidden_secondary_unique_collision_queues_on_both_stores ... FAILED
+test upsert::proof::hidden_group_cap_occupancy_queues_on_both_stores ... FAILED
+test upsert::proof::hidden_whole_table_cap_occupancy_queues_on_both_stores ... ok
+test upsert::proof::hidden_secondary_unique_collision_queues_on_both_stores ... ok
+test upsert::proof::hidden_group_cap_occupancy_queues_on_both_stores ... ok
+test upsert::proof::defaulted_hidden_unique_collision_queues_on_both_stores ... ok
+```
+
+Finding 5 — left self-witness admission and replay:
+
+```text
+test upsert::proof::left_self_witness_admission_memory ... FAILED
+test upsert::proof::left_self_witness_replay_memory ... FAILED
+test upsert::proof::left_self_witness_replay_sqlite ... FAILED
+test upsert::proof::left_self_witness_admission_sqlite ... FAILED
+test upsert::proof::left_self_witness_admission_memory ... ok
+test upsert::proof::left_self_witness_replay_memory ... ok
+test upsert::proof::left_self_witness_replay_sqlite ... ok
+test upsert::proof::left_self_witness_admission_sqlite ... ok
+```
+
+Finding 10 — obsolete writes-card guidance:
+
+```text
+cargo test -p snapback4-lang --test guide writes_card_explains_the_whole_upsert_insert_proof -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s
+```
+
+The three positive/control tests (covered constraints and defaults,
+defaulted insert-rule refusal, and ordered pending delete/upsert) were
+already green on the base; they motivated no additional production change.
+The final green targeted commands and verbatim summaries:
+
+```text
+cargo test -p snapback4-device --test device upsert -- --nocapture
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 46 filtered out; finished in 0.48s
+```
+
+```text
+cargo test -p snapback4-lang --test guide
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+```
+
+```text
+cargo test -p snapback4-device --test device --test write_authority
+test result: ok. 64 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 45.29s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
+```
+
+```text
+cargo test -p snapback4-sim --test residency --test write_authority
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.50s
+```
+
+Setup corrections before the valid red run: one accidental Cargo
+invocation at repository root exited 101 without running tests; it was
+rerun from `snapback4/`. A test initially used `Value::Time`, corrected to
+the existing `Value::Int` representation. Neither is counted as regression
+evidence. Early fixture assertions were corrected to equalize server seed
+sequence and to inspect left groups through a range query; the valid red
+run above is the one that reaches each reported production defect.
+
+### Published text
+
+No diagnostic text or code changed. Before, the writes card said verbatim:
+
+```text
+`upsert` set-state writes (likes, reactions and votes) predict only updates of
+rows the device holds; a missing row queues without a prediction. See
+`guide prediction` for a predictable insert/delete set-membership recipe.
+```
+
+After:
+
+```text
+`upsert` set-state writes (likes, reactions and votes) predict updates of
+rows the device holds. A missing row predicts an insert only when its synced
+group is held with no horizon, both the key and the materialized insert image
+prove readability, and the device holds every row that can collide on a
+secondary unique index or count toward an affected cap. Defaults are part of
+that image. Otherwise it queues without a predicted row, including in a left
+group. See `guide prediction` for the conditions and a set-membership recipe.
+```
+
+### Blocking suite and scope
+
+From the repository root, with the required Node 24 runtime:
+
+
+## 2026-09-14 — Lane W2R1m: a merged cursor never skips an unfinished lane
+
+Base: `0e9fdddba4fe34684d99215b70ac8dae2d164c42`. Reproduced GPT review
+finding 3 on the server and both device stores before changing the runner.
+The ordinary single-table merge has the same defect at this base: with a
+readable row at 10 in lane A and 8,193 hidden rows above 20 followed by a
+readable row at 15 in lane B, the first page examines 8,193 rows, returns
+10 incomplete, and emits a cursor after 10. Its next page is empty, skipping
+15 forever. All six server/SQLite/memory × cross-table/single-table cases
+failed on that exact omission. The extra uniform test reproduces the lazy
+merge's same mistake with expired rows spending the examined ceiling.
+
+The existing cursor carries one position, without per-lane progress. Both
+merge implementations now withhold `next` on a meter or word-limit cut,
+and for the whole non-uniform class even within budget. Withholding only
+on a physical cut would make cursor presence reveal hidden populations.
+This conservative choice keeps `complete: false` and gives up pagination
+for non-uniform merges; pin each lane's deciding columns to obtain a
+pageable feed. Single plain scans keep their visible-position policy.
+No meter ceiling, value serialization or cursor serialization changed.
+
+The 48 paired comparisons cover 16 server, 16 SQLite and 16 memory wire
+observations. Each compares the entire query envelope (data, completeness,
+continuation including its absence, expiry and table dependencies; server
+sequence and viewer; device unknown/retained coverage). Hidden populations
+are 8,190, 8,191, 8,192 and 8,193 against 0, for both merge forms, with
+an empty second lane or a readable row at 5 below the returned key. Operator
+meters and cut sites remain off both viewer wires; their differing physical
+cost is the existing non-uniform contract. These are in-process wire-shape
+comparisons, not HTTP transport measurements. The online-only fixture
+places candidates directly in each device store to exercise per-row read
+rules; it makes no claim that sync delivers hidden rows to a device.
+
+Positive controls page three equal-time IDs in descending ID order on all
+three hosts, deduplicate an equal `(at, id)` projection copy, and continue
+through generation N+1 after an additive field. A changed direction is
+refused with existing `E_INPUT`. The descriptor, not generation, binds the
+cursor. The feeds card and README state that contract; the feeds/search
+cards, README and LLP 3000.007 §20.3 state the conservative continuation rule.
+Existing non-uniform search assertions now require no cursor while retaining
+their readable results and paired-world checks. The corpus adapter stops
+synthesizing a merged continuation from its last visible row; the frozen
+case's absent cursor is kept. Zero files under `snapback4/corpus/` changed.
+
+### Targeted commands and red/green evidence
+
+Cargo commands run from `snapback4/`. Initial fixture compile/setup errors
+(missing trait imports, SQLite reset before device-side tables existed,
+and querying a new device generation before its snapshot) were corrected
+before the valid base reproductions below; none is claimed pre-existing.
+
+`cargo test -p snapback4-sim --test clique merge_cursor -- --nocapture`:
+
+```text
+test result: FAILED. 3 passed; 3 failed; 0 ignored; 0 measured; 34 filtered out; finished in 7.11s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 34 filtered out; finished in 7.92s
+```
+
+`cargo test -p snapback4-device --test device merge_cursor -- --nocapture`:
+
+```text
+test result: FAILED. 3 passed; 6 failed; 0 ignored; 0 measured; 51 filtered out; finished in 3.44s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 51 filtered out; finished in 3.59s
+```
+
+`cargo test -p snapback4-sim --test search_merge -- --nocapture`:
+
+```text
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+```
+
+`cargo test -p snapback4-device --test device search_merge -- --nocapture`:
+
+```text
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 50 filtered out; finished in 0.20s
+```
+
+`cargo test -p snapback4-lang --test guide -- --nocapture`:
+
+```text
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+```
+
+### Full blocking suite and isolated reruns
+
+From the repository root:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+```
+
+Verbatim stage, Rust and JavaScript summary lines:
+
+```text
+-- ok: cargo build (36 s)
+wasm 1651371 B raw, 458493 B gzip
+-- ok: wasm build (23 s)
+-- ok: package typecheck (6 s)
+-- ok: package build (2 s)
+-- ok: chat app check (4 s)
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.07s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.21s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.38s
+test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.61s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.59s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+test result: ok. 64 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 47.63s
+test result: ok. 90 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 25.21s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.63s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.60s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 85.33s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.70s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 33 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 33.33s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.00s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.68s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.72s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 19.82s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.29s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+-- ok: cargo test (460 s)
+-- ok: chat app typecheck (2 s)
+-- ok: expo app typecheck (11 s)
+
+The suite completed every group in 532 s on the loaded shared host. Summing
+its 53 Rust result lines gives 721 passed, 1 failed, 2 ignored. The failure
+was `dev_and_serve_report_signals_without_an_application_worker`: its
+expected SIGHUP signal line was preceded by a partial startup line,
+`snapback4 serve: http://127SNAPBACK4_SIGNAL verb=serve generation=1 reason=SIGHUP signal=1`.
+The isolated rerun below passed. All merge, search, corpus and guide checks
+passed in the full run. The stages, verbatim:
+
+```text
+-- ok: cargo build (35 s)
+-- ok: wasm build (23 s)
+-- ok: package typecheck (6 s)
+-- ok: package build (2 s)
+-- ok: chat app check (7 s)
+-- FAIL: cargo test (459 s)
+-- ok: chat app typecheck (2 s)
+-- ok: expo app typecheck (10 s)
+-- ok: fixture wrapper tests (33 s)
+-- FAIL: client tests (68 s)
+== 2 failure(s) in 532 s
+```
+
+Full Rust summaries, verbatim:
+
+```text
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.09s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: FAILED. 12 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.84s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.39s
+test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.52s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.72s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+test result: ok. 60 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 46.94s
+test result: ok. 90 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 23.00s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.31s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.92s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 84.08s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.66s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.61s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 39 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 33.38s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.77s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.48s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.71s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.70s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 20.04s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.53s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Fixture and client summaries, respectively:
+
+```text
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+-- ok: fixture wrapper tests (34 s)
+
+ℹ duration_ms 33041.606916
+ℹ tests 188
+ℹ pass 187
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+-- FAIL: client tests (69 s)
+== 1 failure(s) in 531 s
+```
+
+Rust totals: **720 passed, 0 failed, 2 ignored**. Fixtures: 9/9. Clients: 187/188.
+The only suite failure is Chromium SIGABRT during the React test's browser
+launch. The isolated rerun from `snapback4/` reproduces it:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+node --test packages/snapback4/test/react.test.mjs
+
+ℹ duration_ms 68402.645875
+```
+
+The client failure was the program's documented Chromium sandbox SIGABRT,
+reproduced alone from `snapback4/` with the pinned Node PATH:
+`node --test packages/snapback4/test/react.test.mjs`.
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+```
+
+This matches the known sandbox artifact named in the lane brief. I did not
+rerun the unmodified base for the browser failure and make no independently
+base-verified pre-existing-failure claim. No lifecycle or mass client timeout
+was observed, so a reduced-concurrency rerun was not needed. The lead still
+needs the outside-sandbox browser run.
+
+The rebuilt wasm measured **1,651,371 bytes raw; 458,493 bytes gzip**. No
+before/after size improvement is claimed. The largest changed code file is
+778 lines (`device.rs`); Markdown was not compressed. No out-of-scope file,
+corpus case, meter ceiling, value form, transport, signing, schedule, enum,
+init, app or loopbar file was changed. No commit, push, tag or publication
+was made. The supplied scenarios are covered with the explicit left-group
+fixture qualification above; actual browser execution remains unverified.
+
+Final root checks:
+
+```text
+./ref-check --verbose
+ref-check: ok — 480 LLP docs, 8881 refs in 22920 files, 0 errors, 0 unchecked
+git diff --check
+```
+
+`git diff --check` exited 0 with no output. HEAD remains the base above;
+the working tree contains only the 13 intended source, test and documentation
+files, including the new upsert proof test module.
+
+ℹ duration_ms 391.320625
+```
+
+From `snapback4/`,
+`cargo test -p snapback4 --test lifecycle dev_and_serve_report_signals_without_an_application_worker -- --nocapture`:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 3.54s
+```
+
+After the last feeds-card wording edit,
+`cargo test -p snapback4-lang --test guide -- --nocapture`:
+
+```text
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+```
+
+Root `./ref-check --verbose`, with the pinned Node PATH:
+
+```text
+ref-check: ok — 480 LLP docs, 8880 refs in 22922 files, 0 errors, 0 unchecked
+```
+
+No new failure is asserted to predate the base without a base reproduction.
+The Chromium classification comes from the brief's explicit environment
+ruling and the isolated reproduction here, not a whole-suite base claim.
+The lifecycle assertion is reported as an intermittent failure that passed
+alone on this change. The lead must rerun the browser witness outside the
+sandbox. No client en-masse timeout or lifecycle timeout occurred.
+
+All requested implementation items are done; the permitted no-continuation
+option was selected instead of extending the descriptor with per-lane state.
+No out-of-scope feature or file was changed. Supporting core corpus-adapter
+and read-verdict test expectations changed to match the narrower merge
+contract; no golden corpus cases changed. There are 16 changed/new files,
+12 code files, 0 above 1,500 lines (largest: device tests, 1,455 lines),
+0 new diagnostic codes, 0 diagnostic text changes. The brief requests no
+diagnostic before/after text for this lane. No application spelling changed.
+`git diff --check` passes, and the journal's prefix is byte-identical to the
+base with this one appended dated entry. Nothing was committed, pushed,
+tagged or published.
+
+## 2026-09-14 — W2R2e: a stalled exit response cannot wedge flushing or close
+
+Implemented re-check finding A and retained finding 4's submission ordering
+at base `bca8bfe70d320c1d466c6a700493465662b2205e` (LLP 3000.007 §20.4).
+The exit transport now bounds its wait to **1,000 ms**, then lets ordinary
+flushing retry the **same durable head, mutation id, arguments and new ids**.
+Only ordinary settlement advances the queue. An exit response arriving late
+never settles a write itself. The still-outstanding keepalive keeps its
+active slot and byte reservation until its body actually finishes, so more
+page events cannot start another exit request or pretend its quota is free.
+Closing aborts only the wait, not the keepalive delivery; the awakened flush
+checks `closed` before reading the device queue. The README and writes card
+state the recovery and close behavior. No client contract, code/note,
+serialized form, meter ceiling or existing corpus case changed.
+
+The regression uses fake page events with the real wasm device and HTTP
+server. Its exit response supplies headers but leaves a ReadableStream body
+open through recovery. Both outcomes are covered: the server never applied
+the exit write, and it already applied it and answers the ordinary retry
+with `replayed: true`. Each queues **2** writes, starts **1** exit request,
+then sends **2** ordinary requests in submission order and leaves exactly
+**2** server rows, **0** duplicates. The ordinary head retry is itself held
+open to check that its successor cannot pass it and another exit cannot
+start. Separate tests close the client with a stalled body and verify that
+the transport wait releases immediately on the close signal without giving
+that signal to fetch.
+
+First ran the three client regressions before changing implementation:
+`node --test --test-name-pattern='stalled exit' packages/snapback4/test/web-navigation.test.mjs`
+reported `ℹ tests 3`, `ℹ pass 0`, `ℹ fail 3`. The first fixed run recovered
+both writes but reported `ℹ tests 3`, `ℹ pass 2`, `ℹ fail 1`: the close
+assertion allowed only 500 ms, while the existing offline follower can
+already be sleeping for one second. That unrelated sleep is unchanged.
+The final close assertion allows 1,500 ms, with a separate 100 ms transport
+assertion proving immediate wait release. All four final regressions were
+rerun against the exact base's `local.ts` and `local-exit.ts`, extracted
+with `git show HEAD:<path>` and transpiled into the ignored package `dist/`
+using the installed TypeScript. The current package was then rebuilt.
+
+Commands below used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+Cargo, Bun and package Node commands ran from `snapback4/`; the blocking
+suite, witness and ref-check commands ran from the repository root.
+
+Final regression command, base then fix:
+`node --test --test-name-pattern='stalled exit' packages/snapback4/test/web-navigation.test.mjs`
+
+```text
+ℹ tests 4
+ℹ pass 0
+ℹ fail 4
+
+## 2026-09-14 — W2R2w: witness receipt validation, process ownership and artifact preservation
+
+Base: `bca8bfe70d320c1d466c6a700493465662b2205e`. Read GPT re-check
+findings B, C and D, including the custom-serialization envelope probe,
+LLP 3000.007 §20.10, and W1's lane and native end-to-end records. Every
+execution regression here uses the fake simctl and the real dev backend;
+there were **0 native simulator end-to-end runs** in this sandbox.
+
+The driver now validates every complete row before advancing, including
+failures later in the same batch, checks the witness envelope and milestone
+order, and validates the full exported file after collection. Previously
+observed rows cannot be replaced. After `done`, only app receipts in the
+helper's `between-steps` state may follow. The helper serializes and parses
+the app object before installing the protocol envelope, rejecting primitive,
+array, null and reserved-key serialization results while accepting benign
+`toJSON` and getters without evaluating them again.
+
+The driver refuses an already running app before starting its backend,
+records each launch's reported PID, checks the current app PID before
+signaling that PID, and leaves replacement instances running. It never
+terminates by bundle ID or launches with `--terminate-running-process`.
+A persistent create-new marker reserves the segment's namespace, and the
+manifest names it and all **9 output files**. Every output is covered by
+preflight. Backend and launch logs append across restarts; readiness reads
+only the new backend's stdout suffix, so an earlier announcement cannot
+satisfy the restarted process's readiness check. The card, README, existing
+witness code explanations and §20.10 document the changed behavior.
+
+Measured fake-driver controls: **2 simultaneous runs, 1 owner and 1 refusal**;
+**2 backend readiness announcements** retained (base: **1**); **3 launch
+stderr groups** retained; **3 launched PIDs**, 7001, 7002 and
+7003, and **3 matching terminations**, with **0 bundle-only terminations**.
+The existing-instance control leaves PID 6999 alone; the replacement
+control leaves PID 9999 alone. All **9 pre-existing output paths** retain
+their exact bytes. The five invalid-receipt scenarios fail, while cold,
+relaunch and harmless post-done app receipts pass.
+
+### Red and green
+
+Cargo and package commands ran from `snapback4/`. Every Node/Bun command
+used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+`cargo test -p snapback4 --test witness` first ran before production edits:
+
+```text
+test result: FAILED. 9 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.69s
+```
+
+The strengthened, separately named regressions were then run against the
+same base's driver and protocol restored with `git show`, with a test-only
+adapter extracting the base's inline check-only artifact preflight for the
+reservation race. That adapter is absent from the delivered code:
+
+```text
+test result: FAILED. 9 passed; 10 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.02s
+```
+
+The same command on the fixed implementation:
+
+```text
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 19.07s
+```
+
+`node --test packages/snapback4/test/witness.test.mjs`, before then after:
+
+```text
+ℹ tests 4
+ℹ pass 3
+ℹ fail 1
+
+ℹ tests 4
+ℹ pass 4
+ℹ fail 0
+```
+
+The fixed run measured recovery **1,010 ms** (not applied) / **1,005 ms**
+(already applied), client close **978 ms** including the follower sleep,
+and the isolated immediate-close test **0.572833 ms** total. There were
+**0** ordinary sends after close. These are shared-host wall times, not a
+latency guarantee beyond the timeout's scheduled release.
+
+`node --test packages/snapback4/test/web-navigation.test.mjs packages/snapback4/test/local-e2e.test.mjs packages/snapback4/test/client-lifecycle.test.mjs`
+
+```text
+ℹ tests 65
+ℹ pass 65
+ℹ fail 0
+```
+
+`cargo test -p snapback4-lang --test guide -- --nocapture`
+
+```text
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+```
+
+`bash snapback4/scripts/test.sh` — Rust totals **750 passed, 0 failed,
+2 ignored**; all builds and typechecks passed. Verbatim group summaries:
+
+```text
+-- ok: cargo build (2 s)
+-- ok: wasm build (2 s)
+-- ok: package typecheck (0 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (279 s)
+-- ok: chat app typecheck (1 s)
+
+The first intermediate green Rust run also used
+`cargo test -p snapback4 --test witness`:
+
+```text
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.20s
+```
+
+### Diagnostics
+
+The base accepted the failed batch, late failure, reordered milestone,
+late step change and malformed envelope as success; it also took over the
+existing app. The fixed fixture's refusals include these exact texts:
+
+```text
+E_WITNESS_STEP: app step check:failed; see receipts and device log
+E_WITNESS_STEP: app changed step after done: primed
+E_WITNESS_STEP: app changed step after done: history:running
+E_WITNESS_RECEIPT: receipt line 3 has an invalid witness envelope; expected witness: { at: ISO timestamp, step: name }
+E_WITNESS_APP: dev.test is already running on dedicated; quit it before starting the witness
+E_WITNESS_APP: dev.test on dedicated was replaced by PID 9999; leaving that instance running
+E_WITNESS_RECEIPT: serialized receipt must be an object without the reserved witness key
+```
+
+No meter, value serialization, existing corpus case, native bridge, app
+caller or other lane's client implementation changed. No commit, push, tag,
+publication, sub-agent or remote machine was used. The lead's native rerun
+remains necessary; fake process choreography does not measure native UI,
+process or storage behavior. The useful lesson is that a milestone is not
+a validated batch, a bundle identifier is not process ownership, and an
+existence check is not an exclusive artifact reservation.
+
+
+### Full verification
+
+From the repository root, with the same Node 24 PATH:
+`bash snapback4/scripts/test.sh`:
+
+```text
+-- ok: cargo build (2 s)
+-- ok: wasm build (17 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (2 s)
+-- ok: cargo test (352 s)
+-- ok: chat app typecheck (0 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (10 s)
+ℹ tests 201
+ℹ pass 200
+ℹ fail 1
+-- FAIL: client tests (44 s)
+== 1 failure(s) in 285 s
+```
+
+The sole failure is Chromium `signal=SIGABRT` before the React page opens.
+Isolated rerun: `node --test packages/snapback4/test/react.test.mjs`.
+Verified independently against exact base
+`bca8bfe70d320c1d466c6a700493465662b2205e`: archived its package, app and
+witness sources into `/tmp/w2r2e-base`, linked installed dependencies, and
+ran `node --test /tmp/w2r2e-base/snapback4/packages/snapback4/test/react.test.mjs`.
+Both commands reproduced that launch failure and the same summary:
+
+ℹ tests 198
+ℹ pass 197
+ℹ fail 1
+-- FAIL: client tests (46 s)
+== 1 failure(s) in 374 s
+```
+
+Summing the 54 Rust suite summaries gives **760 passed, 0 failed,
+2 ignored**. All witness regressions pass in that full run. The client
+failure is Chromium `signal=SIGABRT` in `react.test.mjs`, the sandbox
+artifact explicitly named in this lane's brief. The isolated rerun from
+`snapback4/`, `node --test packages/snapback4/test/react.test.mjs`, reproduces
+it:
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+```
+
+`node snapback4/witness/navigation.mjs` also exited **1** at Chromium launch
+with `signal=SIGABRT`, before producing any witness JSON. The real-browser
+witness remains for the lead outside the sandbox; the Node/wasm/HTTP tests
+passed. No other requested implementation work remains, and no out-of-scope
+file was changed. Preparatory `bash scripts/build-wasm.sh`,
+`bun run --cwd packages/snapback4 build` and
+`cargo build --workspace --quiet` all exited **0**; wasm measured
+**1,651,366 B raw / 458,474 B gzip**. No install, commit, push, tag,
+publication, sub-agent or remote machine was used. Changed code files are
+at most **998** lines. Full logs are `/tmp/w2r2e-{red-final,green-final,targeted,guide,suite,react,react-base,witness,ref}.log`.
+
+`./ref-check --verbose` passed after this entry was appended:
+
+```text
+ref-check: ok — 480 LLP docs, 8885 refs in 22933 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passed. The worktree contains only the six intended
+source/test/documentation changes above; HEAD remains the base.
+
+ℹ duration_ms 1158.33125
+```
+
+No lifecycle host test failed and no reduced-concurrency client rerun was
+needed. I do not claim an independently verified pre-existing full-suite
+failure at the base; the Chromium classification follows the author's
+explicit environment ruling, and the lead reruns it outside the sandbox.
+`./ref-check --verbose` from the root passes:
+
+```text
+ref-check: ok — 480 LLP docs, 8887 refs in 22927 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passes. Raw outputs are `/tmp/w2r2w-rust-red.log`,
+`/tmp/w2r2w-rust-red-complete.log`, `/tmp/w2r2w-rust-final.log`,
+`/tmp/w2r2w-js-red.log`, `/tmp/w2r2w-js-final.log`,
+`/tmp/w2r2w-suite.log`, `/tmp/w2r2w-react-alone.log` and
+`/tmp/w2r2w-ref-check.log`.
+
+## 2026-09-14 — W2R2a: final-exists device misses need an absence proof
+
+Base: `bca8bfe70d320c1d466c6a700493465662b2205e` (`sb4/w2-int`). Read
+Grok's re-check finding 4 and section 2, lane F and W2R1u, and the governing
+LLP 3000.007 §20.5, §8.7, §15/§17 and §18 rulings. The shared final-exists
+check now reuses `upsert_absence_proven` on a device miss. A refusal needs
+a key that proves readability and a fully held synced group without a
+horizon; an unproved miss records an unknown fact, which the existing local
+prediction mapping turns into `E_PREDICT`. Admission then queues the write
+without a predicted row. A local hit still satisfies the postcondition.
+The writes and prediction cards and package README state these conditions.
+No new language form, diagnostic code or note was added.
+
+Both ordinary insert and upsert were red at the base: Alice's private
+`targets {name: "x"}` is missing from Bob's device, so both stores refused
+`E_CONSTRAINT` while the server committed Bob's source row. The four named
+store/write-form regressions now queue instead. Eight new tests include
+those four regressions, direct `E_PREDICT` checks, viewer-pinned held-group
+success and refusal controls, and unpinned local-hit controls. The known
+miss still gives exactly the server's complete `E_CONSTRAINT` refusal;
+the successful predicted row, after removing `pending`, equals the server
+result and settled local row. Both stores exercise admission, reopen and
+settlement. No meter ceiling, serialized value form or corpus case changed.
+
+The existing observation helper records full query envelopes, all seven
+meters, all table reads, admission, the outbox, reopen and settlement. Three
+worlds have identical viewer holdings and seed sequence: no target, a hidden
+nonmatching target, and a hidden matching target. Their complete device
+observations match through reopen. The absent and hidden-nonmatching worlds
+also match the complete server observation, including first/retry bodies,
+receipt, meters, committed delta, effects, stream, snapshot and settlement.
+The matching hidden witness legitimately changes the server's postcondition
+outcome; that commit and the other worlds' refusals are each checked instead
+of demanding identical authoritative outcomes. This is an in-process
+observation, not an HTTP or browser-notification measurement.
+
+### Red before, green after
+
+Only the test files were changed for the final red run; production sources
+were still exactly the base above. Cargo commands run from `snapback4/`.
+
+```text
+cargo test -p snapback4-device --test device upsert::final_exists -- --nocapture
+test result: FAILED. 3 passed; 5 failed; 0 ignored; 0 measured; 73 filtered out; finished in 0.26s
+cargo test -p snapback4-device --test device upsert::final_exists -- --nocapture
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 73 filtered out; finished in 0.32s
+cargo test -p snapback4-device --test device -- --nocapture
+test result: ok. 81 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 47.68s
+cargo test -p snapback4-lang --test guide -- --nocapture
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+```
+
+The blocking suite, from the repository root, with the pinned Node PATH:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+-- ok: cargo build (16 s)
+-- ok: wasm build (31 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (301 s)
+-- ok: chat app typecheck (0 s)
+-- ok: expo app typecheck (1 s)
+-- ok: fixture wrapper tests (11 s)
+-- FAIL: client tests (46 s)
+== 1 failure(s) in 351 s
+```
+
+Rust's 54 summary lines total 758 passed, 0 failed, 2 ignored. Fixture and
+client summaries, respectively:
+
+```text
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ skipped 0
+ℹ tests 197
+ℹ pass 196
+ℹ fail 1
+ℹ skipped 0
+```
+
+The sole failure was `React hooks and reference-app lifetimes` in
+`packages/snapback4/test/react.test.mjs`, Chromium `SIGABRT`. Rerun alone
+from `snapback4/`, with the same pinned Node PATH:
+
+```text
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ skipped 0
+ℹ duration_ms 477.062625
+```
+
+The isolated run also reports Chromium `SIGABRT`. This is the sandbox
+artifact explicitly identified by the lane brief, not an independently
+base-verified pre-existing-failure claim. No lifecycle or mass client timeout
+occurred. The lead still needs the browser test outside the sandbox. Logs:
+`/tmp/w2r2a-final-exists-red.log`, `/tmp/w2r2a-final-exists-green.log`,
+`/tmp/w2r2a-device.log`, `/tmp/w2r2a-guide.log`, `/tmp/w2r2a-suite.log`,
+`/tmp/w2r2a-react.log`, `/tmp/w2r2a-ref-check.log`.
+
+Measurements: 4 false local refusals in the primary insert/upsert/store
+reproduction become 0; each uncertain write goes from 0 queued entries to
+1, with 0 predicted rows. Held successes still predict 1 source row. The
+rebuilt wasm is 1,651,659 B raw and 458,591 B gzip; no size improvement is
+claimed. The 5 changed/new code files are all below 1,500 lines (largest:
+`engine/write.rs`, 628). No out-of-scope file was touched. Nothing was
+committed, pushed, tagged or published.
+
+Direct prediction's diagnostic fields for both write forms and stores:
+
+```text
+before code: E_CONSTRAINT
+before message: inserting into sources requires a matching row in targets by the end of the mutation
+after code: E_PREDICT
+after message: E_PREDICT: site after insert: this device cannot establish targets by byName at key ["x"]; the probe key does not establish a fully held, readable group without a horizon
+```
+
+Admission consumes the latter as a queued unpredicted write. The server's
+constraint diagnostic is unchanged. Lesson: whole-table sync metadata does
+not prove that a private probe's key is absent; final postconditions need
+the same viewer-specific absence proof as the insert arm itself.
+
+Final root checks:
+
+```text
+./ref-check --verbose
+ref-check: ok — 480 LLP docs, 8886 refs in 22934 files, 0 errors, 0 unchecked
+git diff --check
+```
+
+`git diff --check` exits 0. The journal's base prefix is byte-identical,
+with exactly this one dated entry appended. HEAD remains the named base;
+the working tree contains only the 7 intended source, test and documentation
+files listed above.
+
+## 2026-09-14 — native end-to-end on the round-2 witness: no `kill` in the simulator runtime (lead)
+
+The round-2 ownership fix (W2R2w) stopped its launched app with
+`xcrun simctl spawn <udid> kill -TERM <pid>`. On a real simulator (iOS 26.5,
+dedicated `sb4-e2e`, `expo run:ios --configuration Release` build) that fails:
+"An error was encountered processing the command (domain=NSPOSIXErrorDomain,
+code=2) … No such file or directory" — the runtime has no `kill`. The fake
+`simctl` accepted it, so the tests could not see it. The driver now confirms
+through `launchctl list` that the running instance is the PID it launched and
+then calls `simctl terminate <udid> <bundle>`; a replaced instance is still
+left running with `E_WITNESS_APP`. The fixture now fails `spawn kill` as the
+runtime does and records the PID each terminate stops (witness tests 19 of 19).
+
+## 2026-09-14 — wave 2 review round 3, settled by the lead (LLP 3000.007 §20.11)
+
+GPT's third check of `e01cc8afa` confirmed A, C (and the `toJSON` envelope)
+and D and left three Medium items; Grok's third check returned READY.
+- An empty `receipt({})` after `done` wrote `{"witness":{"step":"between-steps"}}`
+  and the driver rejected it because it required an application field.
+  `between-steps` rows only come from `receipt()`, so any such row is accepted
+  after `done` and any other step still fails (`protocol.rs` unit test).
+- A device's final-exists coverage proof that exhausts the meter surfaced as a
+  local `E_BOUND` refusal while the server commits. The proof's
+  `RuntimeError::Bound` now means "not proven": the miss is unknown and the
+  write queues. `a_final_exists_proof_that_exhausts_the_meter_queues_instead_of_refusing`
+  (`rule_probes: 0`): red `E_BOUND` at `e01cc8afa`, green `E_PREDICT`.
+- The window between the launched-PID check and `simctl terminate` is accepted
+  and stated in §20.10 (no PID-targeted terminate in the simulator; dedicated
+  simulator).
+
+
+## 2026-09-14 — Expo target audit holds the first 0.2.5 candidate
+
+The final artifact inventory found deployment-target warnings in the earlier
+successful C-link logs: bundled SQLite targeted iOS/iOS Simulator 26.5 while
+the podspec promises 16.4. Those original bytes remain unpublished. Inspection
+of the pinned cc and rustc implementations established that both consume
+`IPHONEOS_DEPLOYMENT_TARGET` for both Apple iOS targets. Astra added the explicit
+16.4 setting to the existing XCFramework script and is rebuilding the slices
+for object-metadata and real C/Swift consumer checks. The runtime source is
+unchanged; already qualified and landed 0.2.14 CLI/browser inputs are unaffected.
+The earlier successful-link receipt is retained with this qualification limit.
+
+
+## 2026-09-14 — LLP 3000.008 selected increment delivered
+
+The four-family RFC panel (Astra, Grok, Muse, Claude) and author pass selected
+bounded residual work; Astra implemented it. Independent Sol/Grok code reviews
+accepted the combined changes and the focused follow-ups. Replayed writes now
+expose execution-only receipts, generation acquisition guards local knowledge,
+browser persistence/runtime installation recovers from real injected failures,
+stopped copies stay attached to their own store, and TCP_NODELAY repairs the
+measured response-body delay. The bounded ranking counterexample passes.
+
+The final 0.2.14 publication dry-run passed with zero failures in a 110 s
+canonical suite; installed-consumer checks passed. Actual production Chrome
+acquisition reached first useful data in 11.28 s and offline reopen in 675 ms
+on the named 40×500×10 fixture, with exact identities and zero runtime fetches.
+These timings are not a full-application/native/floor claim. The target-corrected
+Expo 0.2.5 has 374 valid deployment records per slice and warning-free C/Swift
+links at 16.4. Exact qualified client/platform 0.2.14 and Expo 0.2.5 tarballs
+are published with matching registry hashes. Native apps need a rebuild.
+
+The [run record](../benchmarks/runs/2026-09-14-snapback4-excellence/README.md)
+retains the original failures, the held old Expo artifact, source/host/toolchain
+identities and the remaining gaps. The short-lease worker fixture was a
+workaround: subsequent §19 source gives dead children revocable sessions and
+restores production test defaults. That stronger repair corrects the earlier
+review diagnosis and belongs to 0.2.15, with its own evidence. Neither release
+history nor test results are rewritten across those snapshots. The six RFC
+working-set links are retired; the outcome standards and broader gaps remain.
+
+
+## 2026-09-14 — membership feeds: repeated work measured inside the query
+
+The fixed d81381a98 0.2.13 diagnostic completed 18,432 HTTP queries and
+2,304 selected core wall/thread-CPU traces on Office ARM Linux. Both
+independent calculations agree on every recorded scope component and the
+shared case sums/means/shares. All full fixture/auth checks, the 73-test
+CLI qualification, and owned-process cleanup passed; smoke is excluded.
+
+A 20-row first feed performs 11/101/341 indexed scan collections and
+120/180/660 row JSON decodes at 5/30/150 groups. The 150-group path
+initializes every lane, then refills after each emitted row; its 170 message
+scans repeat 170 live membership lookups. This is a concrete core-owner
+target for reducing repeated work while preserving live authority, meters,
+typed cursors and exact complete results.
+
+The probes are deliberately detailed and expensive: 5,024 scope guards for
+the 150-group first page. Their exact partitions do not establish ordinary
+CPU shares or pure SQLite cost. The benchmark record retains instrumented
+times, counts, raw objects and the full limits. No new latency gain is claimed.
+Main advanced through 0.2.14 to 0.2.15 with page/cursor and socket changes;
+any candidate needs qualification and ordinary A/B on its current inputs.
+The existing membership-feed ticket is updated. No core implementation changed.
+
+
+## 2026-09-15 UTC — Clique M7 exposes a maintained-identity adoption refusal
+
+Astra's fresh 0.2.10 M7 session retained a schema-adoption refusal on an engine-generated poll tally ID and recovered by preserving vote rows while replacing the derived tally. A separate public-CLI reproduction on the unmodified published binary uses fresh stores and no server ports: canonical maintained IDs of 144 bytes accept an unrelated index addition; 145 and 159 bytes refuse store opening with E_INPUT. Restoring the prior schema reads identical source rows. Filed [the P2 adoption ticket](../issues/20260915-snapback4-maintained-identity-blocks-additive-schema-adoption.md) with the exact schemas, command receipts and source explanation. Current-main runtime applicability remains unverified; no product fix or author ruling is made here. All three independent grades are complete; M7 and the final LLP 3000.007 §10.3 record continue.
+
+
+## 2026-09-14 — D1I: integrate 0.2.16 with filtered maintains
+
+Integrated the in-progress merge into lane `sb4/w3-d1`, whose HEAD remains
+`bfad501c53d80f274fc6c245e3962bc6b585155a`; incoming MERGE_HEAD is
+`1a4a50da811c5c4a7544ae11c94ccda4f9f5fefd`. No commit, push, tag,
+publication, sub-agent, clone, remote work or forbidden Git recovery command
+was used. Orientation followed LLP 3000 §6–§7 and LLP 3000.007 §14, §18,
+§19 and §20, especially the §20.9 built notes and §20.11 dispositions,
+alongside both sides' journal records and published cards.
+
+### Integration decisions
+
+- `engine/read.rs` retains D1's evaluated-prefix/active-generation binding
+  for direct table and maintain pages. Both merge implementations retain
+  W2R1m's withholding on non-uniform reads, meter cuts and word-limit cuts.
+  Merged pages keep their shared descriptor and can continue through an
+  additive generation. The feeds card, README and §20.3 now explicitly say
+  **merge cursor** when describing that cross-generation behavior.
+- Direct prediction and queued replay retain D1's generation in Context
+  and W2R1u's persisted held/left-group map in Predicting. The whole-image
+  upsert insert proof, secondary unique/cap coverage, left-group withdrawal
+  and W2R2a's final-exists unknown miss (including a proof meter cut) remain.
+- Residency checks apply D1's subset-inheritance server classification
+  before the other classes, and keep B2's maintain-specific online-only
+  rewrite and mutation-reader consequence in N_MAINTAIN_SYNCED. D1's
+  insert/delete/filter/key/value delta disclosure note remains intact.
+- The parser keeps both the restricted maintain predicate module and B1's
+  expected-token module. Maintain filters, computed keys, index properties,
+  B2's explicit-sync refusal and the predicts modifier all remain. The
+  language card runs D1's maintain examples and B1's enum-to-text helper;
+  maintains and witness cards/codes are both registered. Both device test
+  modules and both final guide tests survive. Main's other reviewed changes
+  remain in the automatically merged files.
+- The journal is ours in full, then main's full append after the common
+  base: 620,214 + 116,459 bytes, independently compared byte-for-byte before
+  this entry. The RFC retains all of §20.9 before §20.10 and §20.11.
+
+No inherited test expectation was changed to suppress a failure. The added
+`direct_and_merged_cursor_generation_contracts_are_distinct` test runs
+three page forms across adoption: direct table and filtered calendar
+maintain tokens refuse E_INPUT; the merged token returns the remaining row
+completely, then ends. Runtime assertions passed before the documentation
+fix; the valid regression failed because the feeds card's wording promised
+cross-generation continuation for an unqualified cursor. It passed after
+the wording correction. Initial fixture drafts needed a whole-table cap to
+avoid N_NO_HORIZON and an assertion on the refusal's message rather than its
+Display wrapper; those setup errors are not product regressions.
+
+### Targeted commands and verbatim summaries
+
+All Cargo and package Node commands below ran from `snapback4/`. Every
+Node/Bun command used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+The repeated focused cursor command records the valid red before the prose
+fix and green after it.
+
+`cargo build` (`/tmp/d1i-build.log`):
+
+```text
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.30s
+```
+
+`cargo test -p snapback4-lang --test guide --test maintains --test ergonomics --test residency_notes --no-fail-fast -- --nocapture` (`/tmp/d1i-lang-first.log`):
+
+```text
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+`cargo test -p snapback4-core --test corpus --test rows --no-fail-fast -- --nocapture` (`/tmp/d1i-core.log`):
+
+```text
+corpus (Rust server only; no TypeScript/replica conformance claim): 211 passed, 83 skipped, 0 failed
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.17s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+```
+
+`cargo test -p snapback4-device --test device -- --nocapture` (`/tmp/d1i-device.log`):
+
+```text
+test result: ok. 104 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 35.97s
+```
+
+`cargo test -p snapback4-sim --test clique --test maintains --test maintains_review --test search_merge --no-fail-fast -- --nocapture` (`/tmp/d1i-sim.log`):
+
+```text
+test result: ok. 39 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 47.80s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 35.96s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.83s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+```
+
+`cargo test -p snapback4-lang --test guide direct_and_merged_cursor_generation_contracts_are_distinct -- --nocapture` (`/tmp/d1i-cursor-doc-red.log`):
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.01s
+```
+
+`cargo test -p snapback4-lang --test guide direct_and_merged_cursor_generation_contracts_are_distinct -- --nocapture` (`/tmp/d1i-cursor-doc-green.log`):
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.01s
+```
+
+`cargo test -p snapback4-lang --test guide` (`/tmp/d1i-guide.log`):
+
+```text
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+```
+
+`cargo test -p snapback4 --test lifecycle dev_and_serve_report_signals_without_an_application_worker -- --nocapture` (`/tmp/d1i-lifecycle-alone.log`):
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 3.53s
+```
+
+`node --test packages/snapback4/test/react.test.mjs` (`/tmp/d1i-react.log`):
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ duration_ms 320.083625
+```
+
+### Full blocking suite
+
+Both runs used the exact root command below, with no source changes between
+them. The shell command's output was retained in `/tmp/d1i-suite.log` and
+`/tmp/d1i-suite-repeat.log`, respectively.
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+```
+
+The first run totals 819 Rust passes, 1 failure and 4 ignored tests. The
+failure was `dev_and_serve_report_signals_without_an_application_worker`:
+startup stderr interrupted its expected standalone signal line. The exact
+observed line was:
+
+```text
+snapback4 serve: http://127.0.0.1:SNAPBACK4_SIGNAL verb=serve generation=1 reason=SIGTERM signal=15
+```
+
+Its isolated command above passed all ten dev/serve signal checks. The
+second complete run totals **820 Rust passes, 0 failures and 4 ignored**;
+its lifecycle suite passes all 13 tests. Both runs pass every build,
+typecheck and all 9 fixture tests. Client results are **203 passed / 1
+failed / 0 cancelled** out of 204 in both runs. The only client failure is
+Chromium SIGABRT before the React page launches; the isolated rerun above
+reproduces it. No client-concurrency rerun was needed: there were no mass
+timeouts. No change was made to the lifecycle or React tests.
+
+These are same-source reruns, not an exact-base reproduction. No failure
+is claimed pre-existing at HEAD. Chromium is classified by the brief's
+explicit environment ruling; its outside-sandbox execution remains the
+lead's acceptance work. The signal-log failure is recorded as intermittent
+and passed both alone and in the final complete suite.
+
+First full run, verbatim summaries:
+
+```text
+-- ok: cargo build (4 s)
+wasm 1712867 B raw, 476145 B gzip
+-- ok: wasm build (12 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (1 s)
+test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: FAILED. 12 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.68s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.32s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.17s
+test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.16s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.14s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 104 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 33.37s
+test result: ok. 90 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.46s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.57s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 41.70s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.07s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 39 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 28.69s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.45s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 33.21s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.54s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.79s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.92s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.13s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+-- FAIL: cargo test (292 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ duration_ms 8803.824208
+-- ok: fixture wrapper tests (10 s)
+ℹ tests 204
+ℹ pass 203
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ duration_ms 43402.29875
+-- FAIL: client tests (43 s)
+== 2 failure(s) in 311 s
+```
+
+Final full run, verbatim summaries:
+
+```text
+-- ok: cargo build (0 s)
+wasm 1712867 B raw, 476145 B gzip
+-- ok: wasm build (1 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (1 s)
+test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.45s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.34s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.94s
+test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.40s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.08s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test result: ok. 104 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 33.30s
+test result: ok. 90 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.58s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.38s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 41.97s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.59s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.20s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 39 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 28.76s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.55s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 32.72s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.79s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.69s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.95s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.91s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+-- ok: cargo test (217 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (0 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ duration_ms 6035.391292
+-- ok: fixture wrapper tests (6 s)
+ℹ tests 204
+ℹ pass 203
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ duration_ms 40193.903834
+-- FAIL: client tests (40 s)
+== 1 failure(s) in 220 s
+```
+
+### Scope, measurements and final state
+
+Thirteen files were edited for integration: the eleven conflicted files,
+plus `snapback4-lang/src/guide/feeds.md` and the package README for the
+minimal cursor-contract clarification. The latter two are the only edits
+outside the conflict list. All other incoming main changes remain as merged.
+No inherited test expectation was rewritten, no meter ceiling changed and
+zero existing corpus cases changed. No additional diagnostic wording or
+code was introduced; both sides' reviewed diagnostic texts are preserved.
+
+Measurements: 11 of 11 content conflicts resolved; 0 remaining markers;
+9 edited Rust files, maximum 1,457 lines by the cap runner's convention,
+0 above 1,500. The wasm device is 1,712,867 bytes raw / 476,145 bytes gzip
+in both full runs. Full-suite wall times are 311 s and 220 s. No new scale
+benchmark was commissioned or claimed by this integration brief.
+
+The root `./ref-check --verbose`, with Node 24 on PATH, passed before this
+append:
+
+```text
+ref-check: ok — 480 LLP docs, 8903 refs in 22957 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passed. Final reference validation runs after this entry
+and is reported to the lead. All 620,214 ours bytes and 116,459 incoming
+append bytes were verified unchanged immediately before appending this
+one dated entry.
+
+**Index handoff:** the file contents are resolved, but the sandbox forbids
+creating the parent checkout's worktree index lock. `git add` returned:
+
+```text
+fatal: Unable to create '/Users/ccheever/projects/snapback/.git/worktrees/snapback-w3-D1/index.lock': Operation not permitted
+```
+
+Therefore Git still lists the eleven paths as unmerged even though their
+contents contain no markers. The lead must stage the thirteen integration
+files and commit the merge. The failed staging attempt changed no index
+state; no commit or merge-abort was attempted. Nothing else in the brief
+remains unfinished except this sandbox-owned index operation and Chromium
+verification outside the sandbox.

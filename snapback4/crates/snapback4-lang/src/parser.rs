@@ -9,6 +9,7 @@ use crate::print;
 
 mod expr;
 mod maintains;
+mod expected;
 mod programs;
 mod actions;
 
@@ -472,6 +473,9 @@ impl Parser {
                 }
                 if effect.value == "readable" {
                     return Err(unsupported(&effect.site, "readable on a maintain", "read <- rule  -- a maintain has one rule; the engine delivers it to its source's audience"));
+                }
+                if effect.value == "sync" {
+                    return Err(syntax_with(&effect.site, "a maintain inherits its source's sync; `online only` opts out", "remove this sync line to inherit, or replace it with `online only`").guide("residency"));
                 }
                 if effect.value != "read" {
                     let rewrite = if effect.value == "public" { "read <- allow  -- maintain has no public property" } else { "read <- rule" };
@@ -961,7 +965,7 @@ impl Parser {
     fn take(&mut self, value: &str) -> Fallible<Token> {
         let token = self.peek().clone();
         if token.value != value {
-            return Err(syntax(&token.site, format!("expected {value:?}, got {:?}", token.value)));
+            return Err(syntax_with(&token.site, format!("expected {value:?}, got {:?}", token.value), expected::token(value)));
         }
         self.position += 1;
         Ok(token)
@@ -980,7 +984,7 @@ impl Parser {
                 Kind::Dedent => "the end of the block",
                 Kind::Eof => "the end of the file",
             };
-            return Err(syntax(&token.site, format!("expected {expected}, got {:?}", token.value)));
+            return Err(syntax_with(&token.site, format!("expected {expected}, got {:?}", token.value), expected::kind(kind)));
         }
         self.position += 1;
         Ok(token)

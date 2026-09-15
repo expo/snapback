@@ -352,6 +352,7 @@ pub enum ProgramKind {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProgramDecl {
+    pub predicts: bool,
     pub server: bool,
     pub kind: ProgramKind,
     pub name: String,

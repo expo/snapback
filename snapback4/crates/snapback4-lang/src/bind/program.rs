@@ -13,6 +13,7 @@ use snapback4_core::value::Value;
 use std::collections::BTreeMap;
 
 mod control;
+mod diagnostics;
 mod expr;
 mod reads;
 pub(crate) mod setup;
@@ -20,6 +21,7 @@ pub(crate) mod setup;
 /// A bound operation: the IR plus the types the client sees.
 #[derive(Clone, Debug)]
 pub struct BoundProgram {
+    pub(crate) sources: BTreeMap<String, (Site, String)>,
     pub program: Program,
     pub(crate) presence: Option<snapback4_core::schema::Execution>,
     pub module: String,
@@ -30,6 +32,7 @@ pub struct BoundProgram {
 }
 
 pub struct Binder<'a> {
+    sources: BTreeMap<String, (Site, String)>,
     catalog: &'a Catalog,
     name: String,
     kind: ProgramKind,
@@ -45,6 +48,7 @@ pub struct Binder<'a> {
     in_prelude: bool,
     record_ownership: bool,
     notes: Vec<Diagnostic>,
+    errors: Vec<Diagnostic>,
 }
 
 /// Source names are lexical; the IR's flat environment needs a distinct
@@ -57,6 +61,8 @@ struct Binding {
     parameter: bool,
     revision: u32,
     fields: BTreeMap<Vec<String>, Ty>,
+    /// An invalid binding retains its original cause; its unknown type never escapes compilation.
+    error: Option<Diagnostic>,
 }
 
 const MAX_EXPANSION_DEPTH: u32 = 8;
@@ -70,7 +76,7 @@ impl<'a> Binder<'a> {
     /// Differential-test control: lowering is identical with the side map disabled.
     #[doc(hidden)]
     pub fn bind_with_ownership(catalog: &'a Catalog, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>, record_ownership: bool) -> Option<BoundProgram> {
-        let mut binder = Binder { catalog, name: decl.name.clone(), kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, notes: Vec::new() };
+        let mut binder = Binder { sources: BTreeMap::new(), catalog, name: decl.name.clone(), kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, notes: Vec::new(), errors: Vec::new() };
         let mut args = BTreeMap::new();
         let mut arg_types = Vec::new();
         for arg in &decl.args {
@@ -85,7 +91,7 @@ impl<'a> Binder<'a> {
                 return None;
             }
             let ty = Ty::from_scalar(&arg.type_);
-            binder.scopes[0].insert(arg.name.clone(), Binding { runtime: arg.name.clone(), ty: ty.clone(), declared: ty.clone(), parameter: true, revision: 0, fields: BTreeMap::new() });
+            binder.scopes[0].insert(arg.name.clone(), Binding { runtime: arg.name.clone(), ty: ty.clone(), declared: ty.clone(), parameter: true, revision: 0, fields: BTreeMap::new(), error: None });
             args.insert(arg.name.clone(), scalar_to_arg(&arg.type_));
             arg_types.push((arg.name.clone(), ty));
         }
@@ -97,7 +103,7 @@ impl<'a> Binder<'a> {
                 ProgramKind::Query => (ir::ProgramKind::Query, Ty::Json),
                 _ => (ir::ProgramKind::Job, Ty::Null),
             };
-            return Some(BoundProgram { program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
+            return Some(BoundProgram { sources: binder.sources, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
         }
         let mut body = setup::Body::default();
         let mut failed = false;
@@ -111,7 +117,8 @@ impl<'a> Binder<'a> {
                 let mut prelude = setup::Body::default();
                 for statement in &decl.prelude {
                     if let Err(diagnostic) = binder.statement(statement, &mut prelude, false) {
-                        diagnostics.push(diagnostic);
+                        binder.record_error(diagnostic);
+                        binder.append_errors(diagnostics);
                         return None;
                     }
                 }
@@ -137,12 +144,13 @@ impl<'a> Binder<'a> {
                     }
                 }
                 Err(diagnostic) => {
-                    diagnostics.push(diagnostic);
+                    binder.record_error(diagnostic);
                     failed = true;
                 }
             }
         }
         if failed {
+            binder.append_errors(diagnostics);
             return None;
         }
         // The interpreter returns null when control reaches the end. Include
@@ -163,7 +171,7 @@ impl<'a> Binder<'a> {
         let presence = if kind == ir::ProgramKind::Mutation {
             Some(super::residency::presence_facts(&program, &ownership))
         } else { None };
-        Some(BoundProgram { program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
+        Some(BoundProgram { sources: binder.sources, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
     }
 
     fn site(&mut self) -> String {
@@ -186,7 +194,7 @@ impl<'a> Binder<'a> {
 
     fn declare(&mut self, name: &str, ty: Ty) -> String {
         let runtime = if name.starts_with('$') { name.to_owned() } else { self.temp(name) };
-        self.scopes.last_mut().expect("a scope").insert(name.to_owned(), Binding { runtime: runtime.clone(), declared: ty.clone(), ty, parameter: false, revision: 0, fields: BTreeMap::new() });
+        self.scopes.last_mut().expect("a scope").insert(name.to_owned(), Binding { runtime: runtime.clone(), declared: ty.clone(), ty, parameter: false, revision: 0, fields: BTreeMap::new(), error: None });
         runtime
     }
 
@@ -277,9 +285,11 @@ impl<'a> Binder<'a> {
             }
             prefix.push(IndexKeyExpr::WordPrefix(e));
         }
+        let scan_site = self.site();
+        self.sources.insert(scan_site.clone(), (read.site.clone(), print::read_expr(&ReadExpr { index: None, range: None, matching: None, filter: None, seeks: Vec::new(), ..read.clone() })));
         Ok((
             Scan {
-                site: self.site(),
+                site: scan_site,
                 table: read.table.clone(),
                 index: index.name,
                 prefix,
@@ -367,7 +377,7 @@ impl<'a> Binder<'a> {
                 None => unknown(&read.site, format!("{} has no index {explicit}", read.table), name_rewrite(explicit, info.indexes.iter().map(|i| i.name.as_str()), None)),
                 Some(index) if index.words.is_some() && !searching => unknown(&read.site, format!("{}.{explicit} is a words index; it is read with matching", read.table), format!("{}[{}] matching q first 50 by {explicit}", read.table, index.columns[..index.words.as_ref().map_or(0, |(p, _)| *p)].join(", "))),
                 Some(index) if searching => unknown(&read.site, format!("{}.{explicit} has its words after {} column{}; matching takes exactly those as keys", read.table, index.words.as_ref().map_or(0, |(p, _)| *p), if index.words.as_ref().map_or(0, |(p, _)| *p) == 1 { "" } else { "s" }), format!("{}[{}] matching q first 50 by {explicit}", read.table, index.columns[..index.words.as_ref().map_or(0, |(p, _)| *p)].join(", "))),
-                Some(index) => type_error(&read.site, format!("{}.{explicit} is over {}; this {} supplies {} key{}", read.table, index.columns.join(", "), if point { "point read" } else { "range" }, keys.len(), if keys.len() == 1 { "" } else { "s" }), if point { format!("{}[{}]", read.table, index.columns.join(", ")) } else { format!("{}[{}] first 50 by {explicit}", read.table, index.columns[..index.columns.len() - 1].join(", ")) }),
+                Some(index) => self.index_mismatch(info, read, mode, &keys, index),
             });
         }
         match candidates.len() {

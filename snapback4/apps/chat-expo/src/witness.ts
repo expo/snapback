@@ -1,101 +1,112 @@
-// The simulator witness's scenario, run inside the app: sync the partition
-// into SQLite, read locally, send, reopen the store and find it all there.
-// The report goes to witness/expo.mjs, which is waiting for it.
-import { isReady } from "snapback4/contract";
+// The same published helper an application builder imports. No gated fetch,
+// store close/reopen substitute, or benchmark-specific receipt schema.
+import * as SecureStore from "expo-secure-store";
+import { isReady, type Client, type Write } from "snapback4/contract";
+import type { Witness } from "snapback4-expo/witness";
 import { api } from "../../chat/snapback/generated/api";
-import { openClient, tier } from "./client";
+import { openClient, tier, url } from "./client";
 
-async function until<T>(check: () => Promise<T | null>, ms = 20_000): Promise<T | null> {
-  const deadline = Date.now() + ms;
+const key = "snapback4.witness.plan";
+interface Plan { conversationId: string; bodies: string[]; writes: string[] }
+const assert: (ok: unknown, message: string) => asserts ok = (ok, message) => { if (!ok) throw new Error(message); };
+const pause = (ms = 100) => new Promise(resolve => setTimeout(resolve, ms));
+async function until<T>(read: () => Promise<T | null>): Promise<T> {
+  const end = Date.now() + 100_000;
   for (;;) {
-    const value = await check();
-    if (value) return value;
-    if (Date.now() > deadline) return null;
-    await new Promise((r) => setTimeout(r, 100));
+    const value = await read(); if (value !== null) return value;
+    if (Date.now() > end) throw new Error("chat witness observation timed out");
+    await pause();
   }
 }
 
-export async function runWitness(reportUrl: string): Promise<void> {
-  const report: Record<string, unknown> = { platform: "ios-simulator", tier };
-  // Each step is posted as it happens, so a stall names its step.
-  const step = (name: string) => { console.log(`witness ${name}`); return fetch(`${reportUrl}/step`, { method: "POST", headers: { "content-type": "text/plain" }, body: `${tier}: ${name}` }).catch(() => undefined); };
-  try {
-    await step("start");
-    const t0 = Date.now();
-    const client = await openClient({ persona: "bob", guest: false });
-    await step("opened");
-    const syncMs = Date.now() - t0;
-    const thread = await client.query(api.thread, { conversationId: "c1" });
-    await step("thread read");
-    const inbox = await client.query(api.inbox, {});
-    const write = await client.mutate(api.send, { conversationId: "c1", body: "sent from the simulator" });
-    await step(`sent: ${write.state}`);
-    const after = await client.query(api.thread, { conversationId: "c1" });
-    await client.close();
-    await step("first done");
-    report.first = {
-      syncMs,
-      threadRows: isReady(thread) ? thread.data.length : -1,
-      threadComplete: isReady(thread) && thread.complete,
-      next: isReady(thread) && !!thread.next,
-      count: isReady(inbox) ? inbox.data[0]?.count : -1,
-      write: write.state,
-      // `last 50` reads newest first: the send is the first row, read
-      // straight after `sent`; it stays `pending` until the stream's copy
-      // replaces it, so that flag is a race, recorded not judged.
-      sentRowRead: isReady(after) && after.data[0]?.body === "sent from the simulator",
-      sentRowPending: isReady(after) ? after.data[0]?.pending === true : null,
-    };
-    // A second open on the same SQLite file: the rows are already there.
-    const t1 = Date.now();
-    const again = await openClient({ persona: "bob", guest: false });
-    const reopenMs = Date.now() - t1;
-    // The rows are there: the module answers through the count it maintains.
-    const again_inbox = await again.query(api.inbox, {});
-    const rows = isReady(again_inbox) ? Number(again_inbox.data[0]?.count ?? -1) : -1;
-    const again_thread = await again.query(api.thread, { conversationId: "c1" });
-    await again.close();
-    report.second = { reopenMs, reopenedRows: rows, threadRows: isReady(again_thread) ? again_thread.data.length : -1 };
-    await step("second done");
-    // Native proof of the M6/M8 behaviours, on the real SQLite store: the
-    // link is a fetch this app gates, so the server never has to die.
-    // (a) A cold start with the server unreachable opens on what the
-    // store holds and answers from it.
-    let offline = true;
-    const gated: typeof fetch = (input, init) => (offline ? Promise.reject(new TypeError("offline")) : fetch(input, init));
-    const t2 = Date.now();
-    const cold = await openClient({ persona: "bob", guest: false, fetch: gated });
-    const coldMs = Date.now() - t2;
-    const coldThread = await cold.query(api.thread, { conversationId: "c1" });
-    // (b) A write composed offline is queued durably: it survives a restart
-    // of the app still offline, and flushes in order on reconnect.
-    const queued = await cold.mutate(api.send, { conversationId: "c1", body: "composed offline" });
-    const queuedSecond = await cold.mutate(api.send, { conversationId: "c1", body: "composed offline, second" });
-    await cold.close();
-    const restarted = await openClient({ persona: "bob", guest: false, fetch: gated });
-    const stillPending = await restarted.query(api.thread, { conversationId: "c1" });
-    const pendingRows = isReady(stillPending) ? stillPending.data.filter((m) => m.pending === true).map((m) => m.body) : [];
-    offline = false;
-    const landedOrder = await until(async () => {
-      const r = await restarted.query(api.thread, { conversationId: "c1" });
-      if (!isReady(r)) return null;
-      const mine = r.data.filter((m) => typeof m.body === "string" && m.body.startsWith("composed offline") && !m.pending);
-      return mine.length === 2 ? mine.map((m) => m.body).reverse() : null;
+export async function runWitness(w: Witness, ready: (client: Client, conversationId: string) => void, status: (text: string) => void): Promise<void> {
+  assert(tier === "native", "the witness requires the native device");
+  status(`Witness ${w.segment}: opening`);
+  if (w.segment === "prime") {
+    await w.step("primed", async () => {
+      const started = Date.now();
+      const conversationId = `w${started}`;
+      const plan: Plan = { conversationId, bodies: [`offline first ${started}`, `offline second ${started}`], writes: [] };
+      const seed = [
+        { table: "conversations", row: { id: conversationId, title: "Simulator witness", creatorId: "dev:alice" } },
+        { table: "memberships", row: { id: `${conversationId}a`, conversationId, principal: "dev:alice", role: "admin", joinedAt: 1 } },
+        { table: "memberships", row: { id: `${conversationId}b`, conversationId, principal: "dev:bob", role: "member", joinedAt: 2 } },
+        ...Array.from({ length: 300 }, (_, n) => ({ table: "messages", row: {
+          id: `${conversationId}s${n}`, conversationId, authorId: n % 2 ? "dev:alice" : "dev:bob",
+          body: `history ${n}`, at: 1_700_000_000_000 + n, editedAt: null, photo: null,
+        } })),
+      ];
+      const response = await fetch(`${url}/seed`, { method: "POST", body: JSON.stringify(seed) });
+      const result = await response.json();
+      assert(response.ok && result.seeded === 303, `seed refused: ${JSON.stringify(result)}`);
+      await SecureStore.setItemAsync(key, JSON.stringify(plan));
+      const client = await openClient({ persona: "bob" });
+      ready(client, conversationId);
+      const r = await client.query(api.thread, { conversationId });
+      assert(isReady(r) && r.fresh && r.data.length === 50, "prime did not acquire history");
+      await pause(750); // Let the same query render on the real chat screen.
+      await w.receipt({ event: "primed", rows: r.data.length, seeded: 303, ms: Date.now() - started, conversationId });
     });
-    await restarted.close();
-    report.native = {
-      coldMs,
-      coldLink: cold.link(),
-      coldThreadRows: isReady(coldThread) ? coldThread.data.length : -1,
-      coldFresh: isReady(coldThread) ? coldThread.fresh : null,
-      queued: queued.state,
-      queuedSecond: queuedSecond.state,
-      pendingAfterRestart: pendingRows,
-      landedOrder,
-    };
-  } catch (error) {
-    report.error = String((error as Error).message ?? error);
-    await step(`error: ${report.error}`);
+    return; // The driver terminates the process; the store stays open until then.
   }
-  await fetch(reportUrl, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(report) });
+  const stored = await SecureStore.getItemAsync(key);
+  assert(stored, "run with --prime before the offline witness");
+  const plan: Plan = JSON.parse(stored);
+  const started = Date.now();
+  const client = await openClient({ persona: "bob" });
+  ready(client, plan.conversationId);
+  const sent: Extract<Write, { state: "sent" }>[] = [];
+  let failed: unknown;
+  const off = client.onWrite(write => {
+    if (!plan.writes.includes(write.id)) return;
+    if (write.state === "failed") failed = write;
+    else sent.push(write);
+    void w.receipt({ event: "settlement", write });
+  });
+  try {
+    await w.step("history", async () => {
+      const r = await client.query(api.thread, { conversationId: plan.conversationId });
+      assert(client.link() === "offline" && isReady(r) && !r.fresh && r.data.length === 50, "cold history was not readable offline");
+      status(`Cold offline: ${r.data.length} history rows`);
+      await pause(750);
+      await w.receipt({ event: "cold-history", rows: r.data.length, fresh: r.fresh, link: client.link(), ms: Date.now() - started });
+    });
+    const relaunched = plan.writes.length === 2;
+    const milestone = w.segment === "restart" && !relaunched ? "relaunch" : "offline-done";
+    await w.step(milestone, async () => {
+      if (!relaunched) {
+        for (const body of plan.bodies) {
+          const write = await client.mutate(api.send, { conversationId: plan.conversationId, body });
+          assert(write.state === "pending", `offline send was ${write.state}`);
+          plan.writes.push(write.id);
+          await SecureStore.setItemAsync(key, JSON.stringify(plan));
+        }
+      }
+      const r = await client.query(api.thread, { conversationId: plan.conversationId });
+      assert(isReady(r), "pending query was refused");
+      const pending = r.data.filter(m => plan.bodies.includes(m.body ?? "")).reverse();
+      assert(pending.length === 2 && pending.every((m, i) => m.pending && m.body === plan.bodies[i]), "the two exact pending rows were not present once each in compose order");
+      status(relaunched ? "Relaunched offline: both sends still pending" : "Offline: both sends pending");
+      await pause(1000);
+      await w.receipt({ event: "pending", relaunched, bodies: pending.map(m => m.body), ids: plan.writes, rows: pending });
+    });
+    await w.waitFor("reconnect");
+    await w.step("done", async () => {
+      const reconnect = Date.now();
+      await until(async () => {
+        assert(!failed, `send failed: ${JSON.stringify(failed)}`);
+        return sent.length === 2 ? sent : null;
+      });
+      assert(sent.every((write, i) => write.id === plan.writes[i]) && sent[0]!.seq < sent[1]!.seq, "sends did not settle in compose order");
+      const rows = await until(async () => {
+        const r = await client.query(api.thread, { conversationId: plan.conversationId });
+        if (!isReady(r)) return null;
+        const mine = r.data.filter(m => plan.bodies.includes(m.body ?? "")).reverse();
+        return mine.length === 2 && mine.every((m, i) => !m.pending && m.body === plan.bodies[i]) ? mine : null;
+      });
+      status("Both sends sent, in order");
+      await pause(1000);
+      await w.receipt({ event: "done", writes: sent, bodies: rows.map(m => m.body), rows, ms: Date.now() - reconnect });
+    });
+  } finally { off(); }
 }

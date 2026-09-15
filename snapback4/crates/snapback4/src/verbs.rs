@@ -15,6 +15,7 @@ use std::time::Instant;
 mod fix;
 mod init;
 mod sql;
+pub mod witness;
 pub use init::init;
 pub use sql::sql;
 mod residency;
@@ -96,6 +97,7 @@ pub fn check(options: &Options) -> i32 {
     };
     if !bound.diagnostics.is_empty() {
         report_diagnostics(&bound, options.json);
+        if !options.json && let Some(summary) = snapback4_lang::bind::residency::prediction_summary(&bound) { println!("{summary}"); }
         return 1;
     }
     // @ref LLP 3000.007#18.3 — check judges adoption against the dev store's active generation and rows, read-only
@@ -105,7 +107,11 @@ pub fn check(options: &Options) -> i32 {
     }
     if !bound.diagnostics.is_empty() {
         report_diagnostics(&bound, options.json);
+        if !options.json && let Some(summary) = snapback4_lang::bind::residency::prediction_summary(&bound) { println!("{summary}"); }
         return 1;
+    }
+    if let Err(error) = residency::maintain_measurements(&project, &mut bound, options.flags.get("store")) {
+        eprintln!("cannot measure maintain rows: {error}"); return 2;
     }
     bound.notes.extend(snapback4_lang::bind::residency::change_notes(&bound, &residency::previous(&project)));
     if let Err(error) = project.write_generated(&bound) {
@@ -130,13 +136,14 @@ pub fn check(options: &Options) -> i32 {
     let elapsed = started.elapsed();
     let synced = bound.schema.synced().count();
     if options.json {
-        println!("{}", json!({ "ok": true, "tables": bound.schema.tables.len(), "synced": synced, "operations": bound.programs.len(), "notes": bound.notes, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
+        println!("{}", json!({ "ok": true, "tables": bound.schema.tables.len(), "synced": synced, "operations": bound.programs.len(), "notes": bound.notes, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
     } else {
         println!("check: ok — {} tables ({synced} synced), {} operations, no problems{}, {:.1} ms{}", bound.schema.tables.len(), bound.programs.len(), if bound.notes.is_empty() { String::new() } else { format!(", {} note{}", bound.notes.len(), if bound.notes.len() == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0, match &native { Some(b) => format!("; native: {} → {} ({} B, {} ms)", b.jobs.join(", "), b.path.display(), b.bytes, b.ms), None => String::new() });
         for note in &bound.notes {
             println!("note: {note}\n");
         }
     }
+    if !options.json && let Some(summary) = snapback4_lang::bind::residency::prediction_summary(&bound) { println!("{summary}"); }
     if options.flags.contains_key("residency") && !options.json { println!("{}", residency::facts(&bound)); }
     if options.flags.contains_key("cost") {
         for program in &bound.programs {

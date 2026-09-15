@@ -74,3 +74,22 @@ fn help_lists_both_replay_holds() {
     let text = String::from_utf8(out.stdout).unwrap();
     assert!(text.contains("--hold-effects") && text.contains("--hold-schedules"), "{text}");
 }
+
+#[path = "../src/dev_replay.rs"]
+mod dev_replay;
+
+#[test]
+fn changed_schedule_shape_releases_at_first_boundary() {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    assert!(engine.fire_schedules(0).unwrap().is_empty());
+    dev_replay::schedules(&mut engine, true, 60_000).unwrap();
+    let changed = snapback4_lang::compile(&[("schema.q".into(), SOURCE.replace("every 1m", "every 2m"))]);
+    assert!(changed.diagnostics.is_empty(), "{:?}", changed.diagnostics);
+    engine.adopt(changed.schema, changed.programs.into_iter().map(|p| p.program)).unwrap();
+    dev_replay::schedules(&mut engine, false, 119_999).unwrap();
+    assert_eq!(engine.fire_schedules(120_000).unwrap(), vec!["ticking"]);
+    assert!(engine.fire_schedules(120_000).unwrap().is_empty());
+    assert_eq!(engine.jobs(10).unwrap().len(), 1);
+}

@@ -35,6 +35,8 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   sql <SELECT> [--release dir] [--limit N] [--json]  read-only inspection of your store (not rule-filtered)
   token --service <name> [--days N] [--release <dir>]  a bearer token for a service principal (a worker's seat), printed once
   doctor                           say what is and is not in place
+  witness ios --bundle-id ID --segment NAME --artifacts DIR [--udid ID] [--port N] [--prime] [--relaunch] [--timeout 120]
+                                      record an installed iOS app cold-offline, then reconnect its owned backend
   device <store.sqlite> [backend.json]  the native module over stdin/stdout: one JSON request per line, one answer per line
   --version";
 
@@ -64,6 +66,7 @@ fn main() -> ExitCode {
         "sql" => verbs::sql(&options),
         "token" => verbs::token(&options),
         "doctor" => verbs::doctor(&options),
+        "witness" => verbs::witness::run(&args[1..]),
         "device" => verbs::device(&options),
         "guide" => {
             match options.positionals.first().map(String::as_str) {
@@ -200,7 +203,7 @@ mod tests {
 
     #[test]
     fn help_names_every_dispatched_verb() {
-        for verb in ["init", "check", "types", "dev", "deploy", "rollback", "serve", "run", "test", "why", "guide", "data", "sql", "token", "doctor", "device"] {
+        for verb in ["init", "check", "types", "dev", "deploy", "rollback", "serve", "run", "test", "why", "guide", "data", "sql", "token", "doctor", "device", "witness"] {
             assert!(super::HELP.lines().any(|line| line.trim_start().starts_with(verb)), "HELP omits {verb}");
         }
     }

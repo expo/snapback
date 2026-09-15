@@ -72,6 +72,30 @@ pub(super) fn edit(sources: &[(String, String)], index: usize, diagnostic: &Diag
             || source[..start].ends_with('=') { return None; }
         return Some((index, start, start + 2, "=".into()));
     }
+    if diagnostic.code == "E_QUARRY_TYPE" && diagnostic.message.starts_with("shape ") && diagnostic.message.contains(" after where attaches to ") {
+        let name = diagnostic.rewrite.strip_prefix("{ ...")?.strip_suffix(" }")?;
+        let actual = tokens(source);
+        let at = actual.iter().position(|t| offset(source, t.site.line, t.site.col) == Some(start))?;
+        if actual[at].kind != Kind::Word || actual[at].value != name { return None; }
+        let mut depth = 0usize;
+        let mut wheres = Vec::new();
+        for token in &actual[..at] {
+            match (token.kind, token.value.as_str()) {
+                (Kind::Symbol, "(" | "[" | "{") => depth += 1,
+                (Kind::Symbol, ")" | "]" | "}") => { depth = depth.checked_sub(1)?; wheres.retain(|d| *d <= depth); }
+                (Kind::Word, "where") => wheres.push(depth),
+                _ => {}
+            }
+        }
+        // A parenthesized predicate closes before the page shape. Parentheses
+        // surrounding the whole read (e.g. count(page)) close after the shape.
+        let closing = depth.checked_sub(*wheres.last()?)?;
+        if actual.get(at + 1..at + 1 + closing)?.iter().any(|t| t.kind != Kind::Symbol || t.value != ")") { return None; }
+        if closing == 0 { return Some((index, start, start + name.len(), diagnostic.rewrite.clone())); }
+        let last = &actual[at + closing];
+        let end = offset(source, last.site.line, last.site.col)? + 1;
+        return Some((index, start, end, format!("{} {}", &source[start + name.len()..end], diagnostic.rewrite)));
+    }
     // @ref LLP 3000.007#18.5 — exact repairs for missing indexes, argument once, wildcard repeats and empty operation parentheses
     if let Some(repair) = discovery_edit(sources, index, diagnostic, start) { return Some(repair); }
     if diagnostic.code == "E_QUARRY_AMBIGUOUS" {

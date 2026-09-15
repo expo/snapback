@@ -55,6 +55,7 @@ test("README TypeScript examples compile and call every public function", (t) =>
     "react": ["node_modules/@types/react/index.d.ts"],
     "react/*": ["node_modules/@types/react/*"],
     "snapback4-expo": ["../snapback4-expo/src/index.ts"],
+    "snapback4-expo/witness": ["../snapback4-expo/src/witness.ts"],
     "expo-secure-store": [expoRequire.resolve("expo-secure-store/build/SecureStore.d.ts")],
   } });
   const program = ts.createProgram([...blocks.map(b => b.file), ...publicSources.map(s => s.path), join(root, "test/fixtures/client-card.tsx")], options);

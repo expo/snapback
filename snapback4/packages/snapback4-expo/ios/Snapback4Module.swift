@@ -13,6 +13,10 @@ public final class Snapback4Module: Module {
   public func definition() -> ModuleDefinition {
     Name("Snapback4")
 
+    Constant("witnessLaunch") { WitnessContainer.launch }
+    Function("witnessAppend") { (line: String) in try WitnessContainer.append(line) }
+    Function("witnessSignaled") { (label: String) -> Bool in try WitnessContainer.signaled(label) }
+
     // Where an app keeps its stores: the documents directory.
     Constant("documentDirectory") {
       FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.path ?? NSTemporaryDirectory()

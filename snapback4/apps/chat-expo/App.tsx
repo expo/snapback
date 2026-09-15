@@ -7,21 +7,28 @@ import { openClient } from "./src/client";
 import { Inbox } from "./src/Inbox";
 import { Thread } from "./src/Thread";
 import { runWitness } from "./src/witness";
+import { witness } from "snapback4-expo/witness";
 
 // The local-first tier on a phone: the device holds the viewer's partition
-// in SQLite (expo-sqlite), reads run locally, writes queue durably, the
+// in SQLite (the Rust native module), reads run locally, writes queue durably, the
 // session is kept in the secure store. `snapback4 dev` serves
 // apps/chat/snapback/schema.q; EXPO_PUBLIC_SNAPBACK_URL names it.
 
 export function App() {
   const [client, setClient] = useState<Client | null>(null);
+  const [witnessConversation, setWitnessConversation] = useState<string | undefined>(undefined);
+  const [witnessStatus, setWitnessStatus] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   useEffect(() => {
     let live: Client | null = null;
     let disposed = false;
     const close = () => { disposed = true; void live?.close(); };
-    if (process.env.EXPO_PUBLIC_WITNESS_URL) {
-      runWitness(process.env.EXPO_PUBLIC_WITNESS_URL).catch((e: Error) => { if (!disposed) setProblem(`witness: ${e.message}`); });
+    const proof = witness();
+    if (proof) {
+      runWitness(proof, (c, conversationId) => {
+        if (disposed) { void c.close(); return; }
+        live = c; setWitnessConversation(conversationId); setClient(c);
+      }, setWitnessStatus).catch((e: Error) => { if (!disposed) setProblem(`witness: ${e.message}`); });
       return close;
     }
     openClient().then((c) => {
@@ -33,12 +40,13 @@ export function App() {
   }, []);
   return <SafeAreaView style={styles.screen}>
     <StatusBar style="auto" />
-    {problem ? <Text style={styles.alert}>{problem}</Text> : client ? <SnapbackProvider client={client}><Home /></SnapbackProvider> : <Text style={styles.note}>Opening your replica…</Text>}
+    {witnessStatus ? <Text style={styles.note}>{witnessStatus}</Text> : null}
+    {problem ? <Text style={styles.alert}>{problem}</Text> : client ? <SnapbackProvider client={client}><Home initialConversationId={witnessConversation} /></SnapbackProvider> : <Text style={styles.note}>Opening your replica…</Text>}
   </SafeAreaView>;
 }
 
-function Home() {
-  const [selected, setSelected] = useState<string | undefined>(undefined);
+function Home({ initialConversationId }: { initialConversationId?: string }) {
+  const [selected, setSelected] = useState<string | undefined>(initialConversationId);
   const link = useLink();
   return <View style={styles.home}>
     <View style={styles.bar}>

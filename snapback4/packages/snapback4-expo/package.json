@@ -1,10 +1,15 @@
 {
   "name": "snapback4-expo",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "type": "module",
   "description": "Snapback 4's native module for Expo: the device in Rust (the partition in its own SQLite, the stream applied, the outbox kept, queries and predictions answered) behind one JSON call, and the opener `snapback4/native` takes.",
   "main": "src/index.ts",
   "types": "src/index.ts",
+  "exports": {
+    ".": { "types": "./src/index.ts", "default": "./src/index.ts" },
+    "./witness": { "types": "./src/witness.ts", "default": "./src/witness.ts" },
+    "./package.json": "./package.json"
+  },
   "files": [
     "src",
     "ios",

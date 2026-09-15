@@ -144,6 +144,20 @@ fn a_new_id_guard_warns_without_falsely_removing_eligibility_and_names_the_runti
     snapback4_core::engine::local::predict(&rows, &before.schema, &program(&before), Context::new("dev:alice", args).at(10), Ceilings::default()).unwrap();
 }
 
+// A final-exists proof that runs out of budget while establishing device
+// coverage is the device's uncertainty: queue (E_PREDICT), never a refusal.
+#[test]
+fn a_final_exists_proof_that_exhausts_the_meter_queues_instead_of_refusing() {
+    let source = "table members:\n  group: id\n  principal: principal\n  unique byGroupPrincipal: group, principal\n  by byPrincipalGroup: principal, group, id\n  read <- .principal = viewer\n  insert <- deny\n  sync\ntable targets:\n  group: id\n  name: text <=10\n  unique byGroupName: group, name\n  read <- exists members[.group, viewer]\n  insert <- exists members[.group, viewer]\n  sync to members[.group]\ntable sources:\n  owner: principal\n  group: id\n  name: text <=10\n  by byOwner: owner, id\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  after insert <- exists targets[.group, .name]\n  sync\nmutation add(group: id, name: text <=10):\n  insert sources { owner: viewer, group, name }\n";
+    let bound = compile(source);
+    let program = bound.programs.iter().find(|p| p.program.name == "add").unwrap().program.clone();
+    let rows = MemoryRows::new();
+    let args = BTreeMap::from([("group".into(), id("g2")), ("name".into(), Value::String("x".into()))]);
+    let tight = Ceilings { rule_probes: 0, ..Ceilings::default() };
+    let why = snapback4_core::engine::local::predict(&rows, &bound.schema, &program, Context::new("dev:bob", args).at(10), tight).unwrap_err().refusal();
+    assert_eq!(why.code, "E_PREDICT", "{why:?}");
+}
+
 #[test]
 fn inference_preserves_all_three_audiences_and_the_cold_partition() {
     let explicit = compile(CLIQUE);

@@ -45,7 +45,7 @@ pub fn init(options: &Options) -> i32 {
         for (name, text) in &files {
             let path = dir.join(*name);
             std::fs::create_dir_all(path.parent().unwrap())?;
-            std::fs::write(path, text)?;
+            if *name == "package.json" { replace_package(&path, text)?; } else { std::fs::write(path, text)?; }
         }
         let gitignore = dir.join(".gitignore");
         let existing = match std::fs::read_to_string(&gitignore) { Ok(text) => text, Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(), Err(e) => return Err(e) };
@@ -56,6 +56,28 @@ pub fn init(options: &Options) -> i32 {
     if let Err(error) = write() { eprintln!("init: {error}"); return 2; }
     println!("init: wrote {} files in {} — {} — next: `snapback4 check`, then `snapback4 dev`{}", files.len(), dir.display(), if expo { "Expo: native when available, online in Expo Go" } else if online { "online-only" } else { "local-first" }, if expo || online { "; see README.md" } else { "" });
     0
+}
+
+// @ref LLP 3000.007#20.2 — merge an installed package without losing it on a partial write.
+fn replace_package(path: &Path, text: &str) -> std::io::Result<()> {
+    use std::{fs::OpenOptions, io::Write, sync::atomic::{AtomicU64, Ordering}};
+    static SERIAL: AtomicU64 = AtomicU64::new(0);
+    let (temporary, mut file) = loop {
+        let temporary = path.with_file_name(format!(".package.json.{}.{}.tmp", std::process::id(), SERIAL.fetch_add(1, Ordering::Relaxed)));
+        match OpenOptions::new().write(true).create_new(true).open(&temporary) {
+            Ok(file) => break (temporary, file),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error),
+        }
+    };
+    let result = (|| {
+        if let Ok(metadata) = std::fs::metadata(path) { file.set_permissions(metadata.permissions())?; }
+        file.write_all(text.as_bytes())?;
+        file.sync_all()?;
+        std::fs::rename(&temporary, path)
+    })();
+    if result.is_err() { let _ = std::fs::remove_file(&temporary); }
+    result
 }
 
 fn merge_package(path: &Path, starter: &str) -> Result<String, String> {
@@ -106,10 +128,14 @@ fn expo_files() -> Vec<(&'static str, String)> {
     // explicitly so an app cannot accidentally select an Expo 54 preset.
     package["devDependencies"]["babel-preset-expo"] = json!("57.0.11");
     let mut app = include_str!("../../../../apps/chat-expo/App.tsx").to_owned();
-    app = app.replace("import { runWitness } from \"./src/witness\";\n", "");
-    let start = app.find("    if (process.env.EXPO_PUBLIC_WITNESS_URL) {").unwrap();
+    app = app.replace("import { runWitness } from \"./src/witness\";\n", "")
+        .replace("import { witness } from \"snapback4-expo/witness\";\n", "");
+    let start = app.find("    const proof = witness();").unwrap();
     let end = app[start..].find("    openClient()").unwrap() + start;
     app.replace_range(start..end, "");
+    app = app.lines().filter(|line| !line.contains("const [witnessConversation") && !line.contains("const [witnessStatus") && !line.contains("{witnessStatus ?"))
+        .collect::<Vec<_>>().join("\n") + "\n";
+    app = app.replace("<Home initialConversationId={witnessConversation} />", "<Home />");
     app = app.replace("import { openClient }", "import { openClient, tier }")
         .replace("in SQLite (expo-sqlite)", "in the Rust module's SQLite")
         .replace("apps/chat/snapback/schema.q", "snapback/schema.q")

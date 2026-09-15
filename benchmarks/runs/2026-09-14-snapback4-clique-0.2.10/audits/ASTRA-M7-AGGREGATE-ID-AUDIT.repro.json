@@ -1,0 +1,275 @@
+{
+  "observedAtUtc": "2026-09-15T01:17:07.615151+00:00",
+  "root": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/astra-m7-maintained-id-audit-8tbmrtwr",
+  "binary": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4",
+  "binarySha256": "af4e26be10419df9428bf6be0c7513de07d227e33f77cdb464c4d93dc2a0767d",
+  "noServerPorts": true,
+  "baselineSchema": "use personas alice\n\ntable votes:\n  conversationKey: text 1..50\n  messageKey: text 1..50\n  optionKey: text 1..50\n  public\n  insert <- allow\n  sync public\n\nmaintain tallies: count votes by conversationKey, messageKey, optionKey\n  read <- allow\n\nmutation add(conversationKey: text 1..50, messageKey: text 1..50, optionKey: text 1..50):\n  insert votes { conversationKey, messageKey, optionKey }\n\nquery all():\n  return votes first 10 by byId\n",
+  "candidateSchema": "use personas alice\n\ntable votes:\n  conversationKey: text 1..50\n  messageKey: text 1..50\n  optionKey: text 1..50\n  public\n  insert <- allow\n  sync public\n  by byOption: optionKey, id\n\nmaintain tallies: count votes by conversationKey, messageKey, optionKey\n  read <- allow\n\nmutation add(conversationKey: text 1..50, messageKey: text 1..50, optionKey: text 1..50):\n  insert votes { conversationKey, messageKey, optionKey }\n\nquery all():\n  return votes first 10 by byId\n",
+  "cases": [
+    {
+      "conversationKeyLength": 8,
+      "groupIdUtf8Bytes": 123,
+      "canonicalTaggedIdUtf8Bytes": 144,
+      "commands": [
+        {
+          "phase": "check-base",
+          "argv": [
+            "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4",
+            "check"
+          ],
+          "cwd": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/astra-m7-maintained-id-audit-8tbmrtwr/key-8",
+          "exitCode": 0,
+          "wallSeconds": 0.006990833000000002,
+          "stdout": "check: ok \u2014 2 tables (2 synced), 2 operations, no problems, 3 notes, 0.5 ms\nnote: schema.q:3:1 \u2014 N_NO_HORIZON: table votes: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start\n  rewrite: by byAt: at, id  -- then: sync public last 500 by byAt\n  guide: sync\n\nnote: schema.q:17:1 \u2014 N_NO_CURSOR: query all returns a page of 10 votes rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on\n  rewrite: declare `c: cursor ?` and page with `after c` \u2014 all(.., c: cursor ?): return votes[..] after c last 10 by <index>\n  guide: reads\n\nnote: schema.q:11:1 \u2014 N_MAINTAIN_SYNCED: maintain tallies: sync public inherited from votes; one value row per conversationKey, messageKey, optionKey reaches every device\n  rewrite: add `online only` to the maintain to opt out of inherited sync; measure with `test --residency`\n  guide: residency\n\n",
+          "stderr": ""
+        },
+        {
+          "phase": "insert-base",
+          "argv": [
+            "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4",
+            "run",
+            "add",
+            "{\"conversationKey\":\"cccccccc\",\"messageKey\":\"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm\",\"optionKey\":\"oooooooooooooooooooooooooooooooooooo\"}",
+            "--as",
+            "alice",
+            "--json"
+          ],
+          "cwd": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/astra-m7-maintained-id-audit-8tbmrtwr/key-8",
+          "exitCode": 0,
+          "wallSeconds": 0.01053320800000001,
+          "stdout": "{\"events\":2,\"metered\":{\"examined\":0,\"heap_bytes\":1242,\"index_entries\":3,\"output_bytes\":215,\"rows_written\":2,\"rule_probes\":0,\"steps\":14},\"result\":{\"conversationKey\":\"cccccccc\",\"id\":\"01M2HA785J669W9XM1WEBHXYMX\",\"messageKey\":\"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm\",\"optionKey\":\"oooooooooooooooooooooooooooooooooooo\"},\"seq\":1,\"state\":\"sent\"}\n",
+          "stderr": ""
+        },
+        {
+          "phase": "read-base",
+          "argv": [
+            "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4",
+            "run",
+            "all",
+            "{}",
+            "--as",
+            "alice",
+            "--json"
+          ],
+          "cwd": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/astra-m7-maintained-id-audit-8tbmrtwr/key-8",
+          "exitCode": 0,
+          "wallSeconds": 0.007657749999999991,
+          "stdout": "{\"complete\":true,\"data\":[{\"conversationKey\":\"cccccccc\",\"id\":\"01M2HA785J669W9XM1WEBHXYMX\",\"messageKey\":\"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm\",\"optionKey\":\"oooooooooooooooooooooooooooooooooooo\"}],\"metered\":{\"examined\":1,\"heap_bytes\":502,\"index_entries\":0,\"output_bytes\":227,\"rows_written\":0,\"rule_probes\":0,\"steps\":2},\"next\":null}\n",
+          "stderr": ""
+        },
+        {
+          "phase": "read-added-index",
+          "argv": [
+            "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4",
+            "run",
+            "all",
+            "{}",
+            "--as",
+            "alice",
+            "--json"
+          ],
+          "cwd": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/astra-m7-maintained-id-audit-8tbmrtwr/key-8",
+          "exitCode": 0,
+          "wallSeconds": 0.009675166999999998,
+          "stdout": "{\"complete\":true,\"data\":[{\"conversationKey\":\"cccccccc\",\"id\":\"01M2HA785J669W9XM1WEBHXYMX\",\"messageKey\":\"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm\",\"optionKey\":\"oooooooooooooooooooooooooooooooooooo\"}],\"metered\":{\"examined\":1,\"heap_bytes\":502,\"index_entries\":0,\"output_bytes\":227,\"rows_written\":0,\"rule_probes\":0,\"steps\":2},\"next\":null}\n",
+          "stderr": ""
+        },
+        {
+          "phase": "read-restored-base",
+          "argv": [
+            "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4",
+            "run",
+            "all",
+            "{}",
+            "--as",
+            "alice",
+            "--json"
+          ],
+          "cwd": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/astra-m7-maintained-id-audit-8tbmrtwr/key-8",
+          "exitCode": 0,
+          "wallSeconds": 0.006887749999999998,
+          "stdout": "{\"complete\":true,\"data\":[{\"conversationKey\":\"cccccccc\",\"id\":\"01M2HA785J669W9XM1WEBHXYMX\",\"messageKey\":\"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm\",\"optionKey\":\"oooooooooooooooooooooooooooooooooooo\"}],\"metered\":{\"examined\":1,\"heap_bytes\":502,\"index_entries\":0,\"output_bytes\":227,\"rows_written\":0,\"rule_probes\":0,\"steps\":2},\"next\":null}\n",
+          "stderr": ""
+        }
+      ],
+      "restoredSourceRowsEqual": true
+    },
+    {
+      "conversationKeyLength": 9,
+      "groupIdUtf8Bytes": 124,
+      "canonicalTaggedIdUtf8Bytes": 145,
+      "commands": [
+        {
+          "phase": "check-base",
+          "argv": [
+            "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4",
+            "check"
+          ],
+          "cwd": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/astra-m7-maintained-id-audit-8tbmrtwr/key-9",
+          "exitCode": 0,
+          "wallSeconds": 0.0057976669999999925,
+          "stdout": "check: ok \u2014 2 tables (2 synced), 2 operations, no problems, 3 notes, 0.7 ms\nnote: schema.q:3:1 \u2014 N_NO_HORIZON: table votes: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start\n  rewrite: by byAt: at, id  -- then: sync public last 500 by byAt\n  guide: sync\n\nnote: schema.q:17:1 \u2014 N_NO_CURSOR: query all returns a page of 10 votes rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on\n  rewrite: declare `c: cursor ?` and page with `after c` \u2014 all(.., c: cursor ?): return votes[..] after c last 10 by <index>\n  guide: reads\n\nnote: schema.q:11:1 \u2014 N_MAINTAIN_SYNCED: maintain tallies: sync public inherited from votes; one value row per conversationKey, messageKey, optionKey reaches every device\n  rewrite: add `online only` to the maintain to opt out of inherited sync; measure with `test --residency`\n  guide: residency\n\n",
+          "stderr": ""
+        },
+        {
+          "phase": "insert-base",
+          "argv": [
+            "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4",
+            "run",
+            "add",
+            "{\"conversationKey\":\"ccccccccc\",\"messageKey\":\"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm\",\"optionKey\":\"oooooooooooooooooooooooooooooooooooo\"}",
+            "--as",
+            "alice",
+            "--json"
+          ],
+          "cwd": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/astra-m7-maintained-id-audit-8tbmrtwr/key-9",
+          "exitCode": 0,
+          "wallSeconds": 0.012134999999999993,
+          "stdout": "{\"events\":2,\"metered\":{\"examined\":0,\"heap_bytes\":1246,\"index_entries\":3,\"output_bytes\":216,\"rows_written\":2,\"rule_probes\":0,\"steps\":14},\"result\":{\"conversationKey\":\"ccccccccc\",\"id\":\"01M2HA786YRV82S8WVK1MXFCXD\",\"messageKey\":\"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm\",\"optionKey\":\"oooooooooooooooooooooooooooooooooooo\"},\"seq\":1,\"state\":\"sent\"}\n",
+          "stderr": ""
+        },
+        {
+          "phase": "read-base",
+          "argv": [
+            "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4",
+            "run",
+            "all",
+            "{}",
+            "--as",
+            "alice",
+            "--json"
+          ],
+          "cwd": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/astra-m7-maintained-id-audit-8tbmrtwr/key-9",
+          "exitCode": 0,
+          "wallSeconds": 0.009421791999999998,
+          "stdout": "{\"complete\":true,\"data\":[{\"conversationKey\":\"ccccccccc\",\"id\":\"01M2HA786YRV82S8WVK1MXFCXD\",\"messageKey\":\"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm\",\"optionKey\":\"oooooooooooooooooooooooooooooooooooo\"}],\"metered\":{\"examined\":1,\"heap_bytes\":503,\"index_entries\":0,\"output_bytes\":228,\"rows_written\":0,\"rule_probes\":0,\"steps\":2},\"next\":null}\n",
+          "stderr": ""
+        },
+        {
+          "phase": "read-added-index",
+          "argv": [
+            "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4",
+            "run",
+            "all",
+            "{}",
+            "--as",
+            "alice",
+            "--json"
+          ],
+          "cwd": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/astra-m7-maintained-id-audit-8tbmrtwr/key-9",
+          "exitCode": 2,
+          "wallSeconds": 0.005421499999999996,
+          "stdout": "",
+          "stderr": "cannot open the store: E_INPUT: identity exceeds 144 canonical tagged UTF-8 bytes\n"
+        },
+        {
+          "phase": "read-restored-base",
+          "argv": [
+            "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4",
+            "run",
+            "all",
+            "{}",
+            "--as",
+            "alice",
+            "--json"
+          ],
+          "cwd": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/astra-m7-maintained-id-audit-8tbmrtwr/key-9",
+          "exitCode": 0,
+          "wallSeconds": 0.006776792000000004,
+          "stdout": "{\"complete\":true,\"data\":[{\"conversationKey\":\"ccccccccc\",\"id\":\"01M2HA786YRV82S8WVK1MXFCXD\",\"messageKey\":\"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm\",\"optionKey\":\"oooooooooooooooooooooooooooooooooooo\"}],\"metered\":{\"examined\":1,\"heap_bytes\":503,\"index_entries\":0,\"output_bytes\":228,\"rows_written\":0,\"rule_probes\":0,\"steps\":2},\"next\":null}\n",
+          "stderr": ""
+        }
+      ],
+      "restoredSourceRowsEqual": true
+    },
+    {
+      "conversationKeyLength": 23,
+      "groupIdUtf8Bytes": 138,
+      "canonicalTaggedIdUtf8Bytes": 159,
+      "commands": [
+        {
+          "phase": "check-base",
+          "argv": [
+            "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4",
+            "check"
+          ],
+          "cwd": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/astra-m7-maintained-id-audit-8tbmrtwr/key-23",
+          "exitCode": 0,
+          "wallSeconds": 0.004741041000000001,
+          "stdout": "check: ok \u2014 2 tables (2 synced), 2 operations, no problems, 3 notes, 0.5 ms\nnote: schema.q:3:1 \u2014 N_NO_HORIZON: table votes: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start\n  rewrite: by byAt: at, id  -- then: sync public last 500 by byAt\n  guide: sync\n\nnote: schema.q:17:1 \u2014 N_NO_CURSOR: query all returns a page of 10 votes rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on\n  rewrite: declare `c: cursor ?` and page with `after c` \u2014 all(.., c: cursor ?): return votes[..] after c last 10 by <index>\n  guide: reads\n\nnote: schema.q:11:1 \u2014 N_MAINTAIN_SYNCED: maintain tallies: sync public inherited from votes; one value row per conversationKey, messageKey, optionKey reaches every device\n  rewrite: add `online only` to the maintain to opt out of inherited sync; measure with `test --residency`\n  guide: residency\n\n",
+          "stderr": ""
+        },
+        {
+          "phase": "insert-base",
+          "argv": [
+            "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4",
+            "run",
+            "add",
+            "{\"conversationKey\":\"ccccccccccccccccccccccc\",\"messageKey\":\"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm\",\"optionKey\":\"oooooooooooooooooooooooooooooooooooo\"}",
+            "--as",
+            "alice",
+            "--json"
+          ],
+          "cwd": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/astra-m7-maintained-id-audit-8tbmrtwr/key-23",
+          "exitCode": 0,
+          "wallSeconds": 0.009691166000000001,
+          "stdout": "{\"events\":2,\"metered\":{\"examined\":0,\"heap_bytes\":1302,\"index_entries\":3,\"output_bytes\":230,\"rows_written\":2,\"rule_probes\":0,\"steps\":14},\"result\":{\"conversationKey\":\"ccccccccccccccccccccccc\",\"id\":\"01M2HA78834MRBWTSG96V7EQ4Q\",\"messageKey\":\"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm\",\"optionKey\":\"oooooooooooooooooooooooooooooooooooo\"},\"seq\":1,\"state\":\"sent\"}\n",
+          "stderr": ""
+        },
+        {
+          "phase": "read-base",
+          "argv": [
+            "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4",
+            "run",
+            "all",
+            "{}",
+            "--as",
+            "alice",
+            "--json"
+          ],
+          "cwd": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/astra-m7-maintained-id-audit-8tbmrtwr/key-23",
+          "exitCode": 0,
+          "wallSeconds": 0.0076003749999999926,
+          "stdout": "{\"complete\":true,\"data\":[{\"conversationKey\":\"ccccccccccccccccccccccc\",\"id\":\"01M2HA78834MRBWTSG96V7EQ4Q\",\"messageKey\":\"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm\",\"optionKey\":\"oooooooooooooooooooooooooooooooooooo\"}],\"metered\":{\"examined\":1,\"heap_bytes\":517,\"index_entries\":0,\"output_bytes\":242,\"rows_written\":0,\"rule_probes\":0,\"steps\":2},\"next\":null}\n",
+          "stderr": ""
+        },
+        {
+          "phase": "read-added-index",
+          "argv": [
+            "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4",
+            "run",
+            "all",
+            "{}",
+            "--as",
+            "alice",
+            "--json"
+          ],
+          "cwd": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/astra-m7-maintained-id-audit-8tbmrtwr/key-23",
+          "exitCode": 2,
+          "wallSeconds": 0.005827374999999996,
+          "stdout": "",
+          "stderr": "cannot open the store: E_INPUT: identity exceeds 144 canonical tagged UTF-8 bytes\n"
+        },
+        {
+          "phase": "read-restored-base",
+          "argv": [
+            "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4",
+            "run",
+            "all",
+            "{}",
+            "--as",
+            "alice",
+            "--json"
+          ],
+          "cwd": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/astra-m7-maintained-id-audit-8tbmrtwr/key-23",
+          "exitCode": 0,
+          "wallSeconds": 0.006504333000000001,
+          "stdout": "{\"complete\":true,\"data\":[{\"conversationKey\":\"ccccccccccccccccccccccc\",\"id\":\"01M2HA78834MRBWTSG96V7EQ4Q\",\"messageKey\":\"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm\",\"optionKey\":\"oooooooooooooooooooooooooooooooooooo\"}],\"metered\":{\"examined\":1,\"heap_bytes\":517,\"index_entries\":0,\"output_bytes\":242,\"rows_written\":0,\"rule_probes\":0,\"steps\":2},\"next\":null}\n",
+          "stderr": ""
+        }
+      ],
+      "restoredSourceRowsEqual": true
+    }
+  ]
+}

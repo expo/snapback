@@ -11,9 +11,8 @@ impl Binder<'_> {
         let count = statements.len();
         let mut result = Ok(());
         for (index, statement) in statements.iter().enumerate() {
-            result = self.statement(statement, out, completes && index + 1 == count);
-            if result.is_err() {
-                break;
+            if let Err(error) = self.statement(statement, out, completes && index + 1 == count) {
+                if result.is_ok() { result = Err(error); }
             }
         }
         let after = self.visible_bindings();
@@ -27,7 +26,34 @@ impl Binder<'_> {
         result
     }
 
+    pub(super) fn append_errors(&mut self, diagnostics: &mut Vec<Diagnostic>) {
+        for error in self.errors.drain(..) {
+            if !diagnostics.contains(&error) { diagnostics.push(error); }
+        }
+    }
+
+    pub(super) fn record_error(&mut self, error: Diagnostic) {
+        if !self.errors.contains(&error) { self.errors.push(error); }
+    }
+
     pub(super) fn statement(&mut self, statement: &S, out: &mut setup::Body, completes: bool) -> Fallible<()> {
+        let result = self.statement_inner(statement, out, completes);
+        if let Err(error) = &result {
+            self.record_error(error.clone());
+            if let S::Bind { names, .. } = statement {
+                for name in names {
+                    if self.binding(name).is_some_and(|binding| binding.parameter) { continue; }
+                    let runtime = self.declare(name, Ty::Unknown);
+                    let binding = self.scopes.last_mut().unwrap().get_mut(name).unwrap();
+                    binding.error = Some(error.clone());
+                    out.push(Stmt::Let { name: runtime, value: Expr::Literal(Value::Null) });
+                }
+            }
+        }
+        result
+    }
+
+    fn statement_inner(&mut self, statement: &S, out: &mut setup::Body, completes: bool) -> Fallible<()> {
         match statement {
             S::Return { value, site: _ } => {
                 let (expr, ty) = self.value_of(value, out)?;
@@ -61,6 +87,7 @@ impl Binder<'_> {
                     binding.ty = Ty::List(Box::new(item.join(&ty)), u32::MAX);
                     binding.declared = binding.ty.clone();
                     binding.fields.clear();
+                    binding.error = None;
                     binding.revision += 1;
                     out.push(Stmt::Push { target: binding.runtime.clone(), value });
                     self.scopes.last_mut().expect("a scope").insert(name.clone(), binding);
@@ -79,6 +106,7 @@ impl Binder<'_> {
                     binding.declared = if self.loops > 0 { joined.rebound() } else { joined };
                     binding.ty = if self.loops > 0 { ty.rebound() } else { ty };
                     binding.fields.clear();
+                    binding.error = None;
                     binding.revision += 1;
                     out.push(Stmt::Assign { name: binding.runtime.clone(), value: expr });
                     self.scopes.last_mut().expect("a scope").insert(name.clone(), binding);
@@ -156,6 +184,7 @@ impl Binder<'_> {
                     return Err(unknown(site, format!("{name} is an argument; locals cannot shadow arguments"), "give the loop item a fresh name"));
                 }
                 let (binding, body_out) = self.loop_body(name, item_ty, body, site)?;
+                self.sources.insert(format!("for/{binding}"), (site.clone(), print::expression(domain)));
                 out.push_for(binding, loop_domain, body_out);
                 Ok(())
             }
@@ -396,11 +425,15 @@ impl Binder<'_> {
                 _ => expected,
             };
             if !ty.assignable_to(&expected) {
-                return Err(type_error(given.site(), format!("{name}'s {} is {}; got {}", declared.name, expected.name(), ty.name()), format!("pass {} for {}", expected.name(), declared.name)));
+                return Err(type_error(given.site(), format!("{name}'s {} is {}; got {}", declared.name, expected.name(), ty.name()), match (ty.required(), expected.required()) {
+                    (Ty::Enum(variants), Ty::Text(max)) if variants.iter().any(|variant| variant.chars().count() > max as usize) => format!("change {name}'s parameter to `{}: {}`; not every variant fits text <={max}", declared.name, ty.name()),
+                    _ if ty.is_optional() && !expected.is_optional() => format!("guard `{} != null` before calling {name}, or make its parameter `{}: {} ?`", print::expression(given), declared.name, print::scalar_type(&declared.type_)),
+                    _ => format!("pass {} for {}", expected.name(), declared.name),
+                }));
             }
             let runtime = self.temp(&declared.name);
             out.push(Stmt::Let { name: runtime.clone(), value: expr });
-            bindings.insert(declared.name.clone(), Binding { runtime, ty: expected.clone(), declared: expected, parameter: true, revision: 0, fields: BTreeMap::new() });
+            bindings.insert(declared.name.clone(), Binding { runtime, ty: expected.clone(), declared: expected, parameter: true, revision: 0, fields: BTreeMap::new(), error: None });
         }
         Ok(bindings)
     }
@@ -437,6 +470,7 @@ impl Binder<'_> {
         self.focal = focal;
         result.map_err(|diagnostic| {
             if matches!(diagnostic.code.as_str(), "E_QUARRY_PLACEMENT" | "E_EMIT_IN_QUERY") || diagnostic.message == "queries cannot mint ids" {
+                self.errors.retain(|error| *error != diagnostic);
                 placement(site, format!("fn {}: {} (at {})", function.name, diagnostic.message, diagnostic.site), diagnostic.rewrite)
             } else { diagnostic }
         })
@@ -451,10 +485,13 @@ impl Binder<'_> {
         self.narrow(condition, taken);
         let mut out = setup::Body::default();
         let result = (|| {
+            let mut result = Ok(());
             for (index, statement) in statements.iter().enumerate() {
-                self.statement(statement, &mut out, completes && index + 1 == statements.len())?;
+                if let Err(error) = self.statement(statement, &mut out, completes && index + 1 == statements.len()) {
+                    if result.is_ok() { result = Err(error); }
+                }
             }
-            Ok((out, self.visible_bindings()))
+            result.map(|()| (out, self.visible_bindings()))
         })();
         self.pop_scope();
         result

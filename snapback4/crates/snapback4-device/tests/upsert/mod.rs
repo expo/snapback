@@ -163,3 +163,6 @@ fn hidden_admitted_upserts_preserve_the_complete_paired_observation() {
     }
     pair[0].assert_same(&pair[1]);
 }
+
+mod proof;
+mod final_exists;

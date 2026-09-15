@@ -1,0 +1,17 @@
+{
+  "files": [
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/ASTRA-M7-AGGREGATE-ID-AUDIT.md",
+      "destination": "audits/ASTRA-M7-AGGREGATE-ID-AUDIT.md",
+      "bytes": 9624,
+      "sha256": "9180b87923e7f5d91ba8a3c4253275b025648a6c620afdb5f8d120b751bd45fb"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/ASTRA-M7-AGGREGATE-ID-AUDIT.repro.json",
+      "destination": "audits/ASTRA-M7-AGGREGATE-ID-AUDIT.repro.json",
+      "bytes": 17867,
+      "sha256": "2d5aa1eb240069523f77c13d3573b3b25a65cfc0a5679122dfbfa14ddf9ad561"
+    }
+  ],
+  "method": "Verbatim orchestrator evidence audit and safe synthetic public-CLI receipts; not a blind review or product fix."
+}

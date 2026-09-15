@@ -141,6 +141,10 @@ mutation edit(messageId: messages, body: text <=4000):
   optional (null when absent). `default <literal | now | viewer>` fills an
   omitted insert column on the writing host; an explicit value wins.
   A required literal default also fills absent columns in older rows on every host; optional columns still read null when absent.
+  An enum fits `text <=N` when every variant has at most N characters and
+  contains no control characters except tab, LF and CR: a
+  static, total widening with no runtime conversion. If any variant exceeds
+  N, use the enum type on the helper parameter instead.
 - **References** are typed ids, with no implicit existence check and no
   delete cascade. The string `"null"` is an id; JSON `null` only fits an
   optional reference. When a mutation requires a visible target, write
@@ -222,9 +226,12 @@ keep their placement. An explicit asset id on a row you cannot read must be your
 own upload, even if it equals the retained id. Update authority is checked
 before asset diagnostics. A readable maintain is an explicit delta read channel;
 `N_MAINTAIN_DELTA` notes potentially wider source update authority.
-A missing `upsert` predicts its insert when the synced group has no horizon
-and the key proves readability (public rows, or a viewer-keyed rule); otherwise
-a device missing a write target queues without a predicted row and still sends `/m`.
+A missing `upsert` predicts its insert when the synced group is held with no
+horizon, both the key and the materialized insert image prove readability,
+and the viewer-readable partition covers every secondary unique lookup and
+affected cap group. The image includes key columns, patch and defaults; a
+whole-table cap needs the whole public table. Left groups and unproved
+conditions queue without a predicted row and still send `/m` (guide prediction).
 The at-most-once record stores the replay body, with value-free diagnostic
 messages and no `result` or `current`. Replay returns
 execution identity only, with `replayed: true`; historical `result` and
@@ -343,7 +350,10 @@ and the failed transaction rolls back.
 
 `shape card = { id, name, owner: .ownerId }` names a shape; `row card` and
 `page card` use it, and `{ ...card, extra: 1 }` spreads its fields into
-another. `fn isBrief(ttl: int ?): ttl != null` is a helper expression and
+another. After `where`, use `{ ...card }` to shape the page; a bare shape
+name attaches inside the predicate. If it mistakenly shapes a scalar there,
+`check --fix` inserts the explicit page shape.
+`fn isBrief(ttl: int ?): ttl != null` is a helper expression and
 `fn stamp(roomId: rooms):` a helper block ending in `return expr` or a bare `return`,
 each expanded where it is called (`isBrief(ttl)`; `stamp(r.id)` as a
 statement or expression), at most eight levels deep. A table-typed helper parameter keeps a row argument as a row with fields and no lookup; a reference argument stays a reference. A helper can write only
@@ -433,6 +443,8 @@ charged to that chunk's meter. Writes belong inside a chunk.
   lowers to a seek with N_SEEK. A full page's cursor is after its last result;
   a cut page continues after the last rule-visible examined row, including a
   filter rejection, never a hidden row. Non-uniform ranges stay incomplete.
+  Merged pages return no `next` for a non-uniform read or a meter or word-limit
+  cut, because a shared cursor cannot advance past an unfinished lane.
   A uniform filtered page is complete at N matches or the range's end, even
   without a cursor; a meter cut is incomplete.
 - **List operations:** pages, lists, and shaped collections share `sort`,
@@ -463,6 +475,10 @@ charged to that chunk's meter. Writes belong inside a chunk.
   A final write is the implicit return; bind it to use it (`row = insert
   ..`). Writes check the rule, unique indexes, caps, immutables, text
   formats and `after insert`; any refusal rolls the whole mutation back.
+  A device accepts a local hit for `after insert <- exists t[key]`. A miss
+  predicts a refusal only when the key proves readability and the synced
+  group is fully held without a horizon; otherwise the insert or upsert
+  queues without a predicted row for the server to decide.
 - **Statements:** `x = expr` binds or reassigns a local with a compatible type;
   reassignment resets refinements, and arguments cannot be shadowed. `(q, r) = divmod(a, b)`, `(lo, hi) = sorted(a, b)`,
   `xs = []` then `xs = xs + [value]` appends under the heap meter;
@@ -479,7 +495,10 @@ charged to that chunk's meter. Writes belong inside a chunk.
   member)`, `a ?? b`, `a if cond else b` (the arm not taken is never
   evaluated; `x != null` as the condition narrows `x` in the taken arm).
   `/` and `%` give the Euclidean quotient and remainder of ints or times;
-  zero refuses `E_DIV_ZERO`. `divmod` binds both parts at once. Text `+` concatenates present texts;
+  zero refuses `E_DIV_ZERO`. `(now / 1) * 1000` scales integer milliseconds;
+  store the scaled count as `int`. Bind an optional helper result once and
+  guard that local before arithmetic; repeated calls do not share a null
+  refinement. `divmod` binds both parts at once. Text `+` concatenates present texts;
   interpolation and formatting stay in the client. A bare `return` returns null.
   `=` and `!=` are total (null equals null); `<` and friends need present
   operands — narrow with `if x != null:` or `x ! else CODE`. Guards also
@@ -710,6 +729,9 @@ admitted non-uniform scope keeps its per-row costs and stays incomplete;
 hidden rows there still spend the query-wide examined/index-entry budget.
 The 32-word bound makes that lane incomplete without cutting later lanes;
 operator results name it in `word_cut_at`, separately from a meter cut in `capped_at`.
+Merged pages withhold `next` for a non-uniform read or a meter or word-limit
+cut, including a non-uniform read within budget, so cursor presence cannot
+reveal hidden-row costs.
 Reads inside `where` use their own rules and search terms. An empty
 matching result past a device horizon is incomplete too, so a held group
 can fall back to the server.
@@ -866,6 +888,9 @@ together with the last, so a device never shows half a snapshot.
 `online only` optionally documents a table with no sync. On a `maintain`,
 it opts out of inherited sync. `N_MAINTAIN_SYNCED` calls out public inherited
 aggregates and group audiences with unbounded recipients or multiple values per group.
+The note names mutations that would stop predicting if the maintain goes
+`online only`; `snapback4 test --residency` measures its cold rows. When a
+dev store exists, `check` includes its measured value-row count before adoption.
 
 `check --residency` lists every table's residency, inferred and inherited
 audiences, and each operation's `runs: device | server` or
@@ -878,6 +903,12 @@ rewrite; `why <table>` includes the rule used for inference. The generated
 `require` codes. `check` compares with `snapback/generated/residency.json`;
 `dev` compares with its served generation. `N_NOW_SERVER` and
 `N_NOT_PREDICTABLE` name changed sites, including added horizon risks.
+Every text `check` also summarizes mutations that never predict, with one
+reason each; JSON checks include `predictionSummary`. Add `predicts` before
+a mutation header's colon (`mutation like(postId: posts) predicts:`) to assert
+eligibility: `check` refuses `E_NOT_PREDICTABLE` at that header if any site
+makes it `never`. This asserts eligibility, not that every call will predict;
+a horizon miss can still queue without a row. See `guide prediction`.
 
 `test --residency --fixture dir [--as persona]` prints measured cold rows and
 compact JSON row bytes per synced table and persona, plus totals and
@@ -897,6 +928,11 @@ merge lane reads a second table with the same columns and plain index;
 each table keeps its own rule and sync. `cap N` without `by` caps the whole
 table. `N_SPARSE_FILTER` points here when a global timeline filter can spend
 the page meter on unrelated authors.
+
+A merge cursor from generation N works on N+1 when its table, index, direction
+and typed ordering suffix still match; it continues through current data.
+IDs break equal ordering keys and identify copies across projections;
+copies must keep the same ordering fields.
 
 ```quarry
 table authors:
@@ -1164,9 +1200,14 @@ await client.close();
 ```
 
 On the web, `mutate` waits for the outbox's IndexedDB commit, and `pagehide`
-or becoming hidden sends queued writes with authenticated keepalive requests
-within the browser's shared 64 KiB body budget; unsent or unconfirmed writes
+or becoming hidden sends only the oldest unconfirmed write with an authenticated
+keepalive request when no ordinary send is in flight. A blocked or oversized
+head is never skipped. Requests share the browser's 64 KiB body budget; unsent or unconfirmed writes
 stay durable for retry on reopen, with mutation-id dedupe preventing duplicates.
+If an exit response has not finished after one second, ordinary flushing
+retries that same durable head before advancing; an unknown outcome never
+skips a write. `close()` stops waiting immediately without cancelling the
+keepalive request.
 
 On the web one tab is one device: a second tab on the same store opens
 its own, and the writes a tab left queued when it closed are adopted by
@@ -1599,7 +1640,8 @@ step.
 
 - **`snapback4 init [dir] [--online|--expo]`** starts a project without
   overwriting existing files. An existing `package.json` keeps its metadata;
-  required dependencies, devDependencies and scripts merge into it. A different
+  required dependencies, devDependencies and scripts merge into it through an
+  atomic replacement, so a failed package write leaves the original intact. A different
   value for the same required key refuses with the key and both values before
   any file is written. Run `npm install` again after merging a starter.
   The default writes the local-first todo
@@ -1622,7 +1664,7 @@ step.
   prevents workers from claiming effects; emitted effects remain durable and
   become claimable after restarting without the flag. `--hold-schedules`
   prevents schedule admission; restart without it resumes at the next boundary,
-  skipping the held periods. Already queued jobs still run. Both flags are
+  skipping the held periods, including when the schedule changed while held. Already queued jobs still run. Both flags are
   independent and require no app code. `dev` writes `api.ts` on start and on
   every adoption, and refuses a store that belongs to a deployment
   (`E_GENERATION`). Personas (`use personas ..`) sign requests from the
@@ -1715,7 +1757,7 @@ step.
   **`guide [keyword]`** lists cards and aliases, or prints one card: language,
   types, indexes, maintains, rules, sync, residency, prediction, evolution, expire, assets, reads, shapes, writes,
   programs, jobs, native, feeds, search, effects, actions, services, presence,
-  bounds, refusals, personas (`guide <E_CODE>` explains a code);
+  bounds, refusals, personas, witness (`guide <E_CODE>` explains a code);
   Natural words resolve too: `offline` → prediction, `pagination` → reads,
   `migration` → evolution, `sql` → personas, `push` → effects. An unknown
   word prints three nearest cards and the list on stdout, then exits 1.
@@ -1928,21 +1970,145 @@ The client probes the device first and refuses with `E_DEVICE_VERSION`
 when the device predates it: reloading JavaScript does not update a
 native module; rebuild the development build.
 
-**Proving it on the device.** The package's own simulator witness
-(`witness/expo.mjs` in the repository, run with `WITNESS_DEV_CLIENT=1`
-on a booted iOS simulator against a real `snapback4 dev`, the Rust
-module in a development build) records five things: a cold sync, local
-reads and a send, a reopen that finds the rows, a cold start with the
-server unreachable that opens on what the store holds and answers with
-`fresh: false`, and two writes composed offline that survive a restart of
-the app still offline and flush in order on reconnect; the cold sync of
-303 rows took 31 ms in that recorded simulator run. The Chromium witness
-(`witness/idb.mjs`) separately checks local reads, one offline write landing
-after reopen, fresh-realm offline runtime startup, and persistence/cache
-failure recovery on the wasm device over IndexedDB. An app can model these
-boundaries by gating the client's `fetch` option to
-model the link (the server never has to die), close and reopen the
-client to model a restart, and read the outcomes off the card.
+### Proving it on an iOS simulator
+
+`snapback4 witness ios` drives an installed Release app on macOS. It builds
+nothing. Add `snapback4-expo/witness` to the app and rebuild its native module.
+The helper is null on ordinary launches. Mount this runner beside the chat
+screen, using the same local client and a conversation already seeded online:
+
+```tsx
+import { useEffect, useRef } from "react";
+import { isReady, type Client, type Write } from "snapback4/contract";
+import { witness } from "snapback4-expo/witness";
+import { api } from "../snapback/generated/api";
+export function WitnessRunner({ client, conversationId, onError }: {
+  client: Client; conversationId: string; onError(error: unknown): void;
+}) {
+  const started = useRef(false);
+  useEffect(() => {
+    const w = witness();
+    if (!w || started.current) return;
+    started.current = true;
+    const pause = () => new Promise(resolve => setTimeout(resolve, 100));
+    const assert = (ok: unknown) => { if (!ok) throw Error("witness assertion failed"); };
+    const run = async () => {
+      if (w.segment === "prime") {
+        await w.step("primed", async () => {
+          const r = await client.query(api.thread, { conversationId });
+          assert(isReady(r) && r.fresh && r.data.length > 0);
+        });
+        return;
+      }
+      await w.step("history", async () => {
+        const r = await client.query(api.thread, { conversationId });
+        assert(isReady(r) && !r.fresh && r.data.length > 0);
+        await w.receipt({ history: r });
+      });
+      const sent: Extract<Write, { state: "sent" }>[] = [];
+      const unsubscribe = client.onWrite(write => { if (write.state === "sent") sent.push(write); });
+      try {
+        const bodies = ["offline first", "offline second"], ids: string[] = [];
+        await w.step("offline-done", async () => {
+          for (const body of bodies) {
+            const write = await client.mutate(api.send, { conversationId, body });
+            assert(write.state === "pending"); ids.push(write.id);
+          }
+          const r = await client.query(api.thread, { conversationId });
+          assert(isReady(r) && bodies.every(body => r.data.some(m => m.body === body && "pending" in m && m.pending)));
+          await w.receipt({ pending: r, ids });
+        });
+        await w.waitFor("reconnect");
+        await w.step("done", async () => {
+          while (ids.some(id => !sent.some(write => write.id === id))) await pause();
+          const writes = sent.filter(write => ids.includes(write.id));
+          assert(writes.length === 2 && writes[0]?.id === ids[0] && writes[0]!.seq < writes[1]!.seq);
+          await w.receipt({ writes });
+        });
+      } finally { unsubscribe(); }
+    };
+    void run().catch(onError);
+  }, [client, conversationId, onError]);
+  return null;
+}
+```
+
+Keep the actual chat screen visible: its observed query renders the two
+pending bubbles while the runner waits. An assertion must throw before its
+step completes. Add your own media, search or read-receipt assertions in the
+same way; the tool imposes no application receipt schema.
+
+```sh
+xcrun simctl list devices available --json
+# Set UDID to your dedicated, booted simulator's identifier.
+npx expo run:ios --configuration Release --device "$UDID"
+# Run from the backend project, with the app built for this backend origin.
+npx snapback4 witness ios --bundle-id com.example.chat --udid "$UDID" \
+  --segment offline --artifacts artifacts/offline --port 4400 --prime
+```
+
+The driver owns `snapback4 dev --port 4400 --no-watch`; stop any manually
+started backend first. A bound port is refused, never reclaimed. `--udid` is
+required with more than one booted iOS simulator. Without it exactly one
+available booted iOS simulator must exist. `--timeout 120` is the default
+number of seconds per driver step. The app's configured origin must be
+`http://127.0.0.1:<port>`; the kit does not change its client configuration.
+A Release build embeds its JavaScript and needs no Metro server.
+Quit the named app before starting: an already running instance is refused
+with `E_WITNESS_APP`, and termination targets only the PID reported by the
+driver's own launch, leaving a replacement instance running.
+
+`--prime` first launches with `segment === "prime"`, waits for the completed
+`primed` step, and terminates the app. It then stops the backend, verifies
+connection refusal, starts video and logs, and cold-launches with the given
+segment. Complete `offline-done`, await `waitFor("reconnect")`, then complete
+`done`. `step(name, fn)` returns the function's result and records completion
+only if it succeeds. Receipts inside a step carry `name:running`; failure
+records `name:failed`. Steps are sequential. `receipt(object)` preserves the
+object's fields and adds only `witness: { at, step }`; `witness` is reserved.
+The helper serializes the app object before adding that envelope; custom
+`toJSON` results must still be objects without `witness`.
+`at` is an ISO timestamp. The helper appends and syncs each JSONL line in
+Documents. The driver writes a run-specific reconnect file only after its
+backend announces readiness again; container files require no simulator
+network entitlement. Ordinary app launches cannot activate stale run files.
+
+For the kill-and-relaunch variant, persist the two write IDs and bodies in
+your app's storage. On the first offline launch complete `relaunch` after
+asserting both are pending. On the second launch of the same segment read
+the saved IDs and assert those exact pending rows survived, then complete
+`offline-done`. Subscribe to `onWrite` on each launch before reconnect; wait
+for both saved IDs to be `sent` in order, assert the visible rows, and complete
+`done`. No extra sends belong on the second launch. Run that app scenario:
+
+```sh
+npx snapback4 witness ios --bundle-id com.example.chat --udid "$UDID" \
+  --segment restart --artifacts artifacts/restart --port 4400 --prime --relaunch
+```
+
+Each run writes `<segment>-ios-screen.mp4` (uninterrupted native screen
+recording), `<segment>-ios-receipts.jsonl` (the app's assertions and completed
+steps), and `<segment>-ios-run.json` (simulator/runtime, installed Info.plist
+build identifiers, backend command/origin/port, millisecond timestamps,
+termination/relaunch events, byte counts, SHA-256 digests and exit status).
+The device log and backend/capture logs accompany them. Missing or empty
+artifacts, malformed receipts, failed steps, timeouts and backend failures
+exit nonzero with an `E_WITNESS_*` diagnostic. Existing artifacts are never
+overwritten; choose a fresh directory for a retry. Keep the manifest with
+the exact video and receipt files it hashes.
+A persistent `<segment>-ios-reserved` marker exclusively reserves all output
+names; concurrent runs cannot share them, and backend/launch logs append
+across restart and relaunch.
+Every complete receipt is validated, including rows after a milestone and
+again at collection; after `done`, only app receipts with the unchanged
+`between-steps` state are accepted.
+
+The manifest binds this execution's artifacts. It does not independently
+verify the truth of application assertions, prove physical-device behavior,
+simulate loss of every network connection, or establish media, search,
+view-once exclusion or recipient `read` state unless your app asserts and
+renders those observations. The deterministic simulator remains the main
+engine harness; this witness covers native process, storage and UI boundaries.
 
 ## 8. Not in this release
 

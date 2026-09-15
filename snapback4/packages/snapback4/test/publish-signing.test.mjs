@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -22,6 +23,7 @@ function publish(t, scenario = {}) {
   for (const dir of ["snapback4", platform])
     writeFileSync(join(root, "packages", dir, "package.json"), JSON.stringify({ version: "0.0.0" }));
   writeFileSync(join(root, "target/production/snapback4"), "unsigned");
+  writeFileSync(join(root, "packages", platform, "THIRD-PARTY-NOTICES"), "notices");
   writeFileSync(join(root, "mock.mjs"), `
 import cp from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
@@ -50,7 +52,8 @@ cp.execFileSync = (cmd, args, opts = {}) => {
       if (scenario.signError) throw Error("timestamp server unavailable");
       appendFileSync(args.at(-1), "-signed");
     }
-    if (args.includes("--verify") && scenario.verifyError) throw Error("invalid signature");
+    if (args.includes("--verify") && (scenario.verifyError || (scenario.installedVerifyError && args.at(-1).includes("node_modules/")))) throw Error("invalid signature");
+    if (args.includes("--display") && scenario.replaceArtifact) writeFileSync(binary, "replacement-unsigned");
     if (args.includes("--display")) return scenario.signature ?? "Authority=${authority}\\nTeamIdentifier=UD2ZVW5WU5\\n";
     return "";
   }
@@ -62,13 +65,13 @@ cp.execFileSync = (cmd, args, opts = {}) => {
   }
   if (cmd === "npm" && args[0] === "pack") {
     const filename = opts.cwd.includes(platform) ? "platform.tgz" : "client.tgz";
-    writeFileSync(join(args.at(-1), filename), "package");
+    writeFileSync(join(args.at(-1), filename), filename === "platform.tgz" ? readFileSync(join(opts.cwd, "snapback4")) : "package");
     return JSON.stringify([{ filename, entryCount: 1 }]);
   }
   if (cmd === "npm" && args[0] === "install") {
     const dir = join(opts.cwd, "node_modules", platform);
     mkdirSync(dir, { recursive: true });
-    copyFileSync(join(root, "packages", platform, "snapback4"), join(dir, "snapback4"));
+    copyFileSync(args[4], join(dir, "snapback4"));
     if (scenario.tamper) appendFileSync(join(dir, "snapback4"), "-tampered");
   }
   if (args[0] === "--version") return "snapback4 0.0.0";
@@ -171,5 +174,22 @@ test("the installed digest still refuses tampering after signing", (t) => {
   const r = publish(t, { tamper: true });
   assert.notEqual(r.status, 0);
   assert.match(r.stderr, /packed\/installed platform binary differs/);
+  assert.equal(r.record, null);
+});
+
+test("replacing Cargo output after verification cannot replace packed signed bytes", t => {
+  const r = publish(t, { replaceArtifact: true });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.record.binaryBytes, Buffer.byteLength("unsigned-signed"));
+  assert.equal(r.record.binarySha256, createHash("sha256").update("unsigned-signed").digest("hex"));
+  const verifies = r.commands.filter(c => c.cmd === "codesign" && c.args.includes("--verify"));
+  assert.ok(verifies.some(c => c.args.at(-1).includes("node_modules/")), "verify the installed signature");
+  assert.ok(verifies.every(c => !c.args.at(-1).includes("target/production")), "verify private staged bytes");
+});
+
+test("the installed consumer signature must verify even with a matching digest", t => {
+  const r = publish(t, { installedVerifyError: true });
+  assert.notEqual(r.status, 0);
+  assert.match(r.stderr, /invalid signature/);
   assert.equal(r.record, null);
 });

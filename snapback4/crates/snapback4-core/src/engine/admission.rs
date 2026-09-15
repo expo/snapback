@@ -59,33 +59,47 @@ impl Origin {
 }
 
 
+#[derive(Clone, Debug)]
+pub struct Problem {
+    pub code: &'static str,
+    pub site: String,
+    pub page_site: Option<String>,
+    pub message: String,
+    pub rewrite: String,
+}
+
 pub fn check(schema: &Schema, program: &Program) -> Result<(), RuntimeError> {
+    check_detail(schema, program).map_err(|problem| RuntimeError::Structural { code: problem.code, message: problem.message })
+}
+
+// @ref LLP 3000.007#20 — admission reports the author's population and bound; source locations stay beside the IR.
+pub fn check_detail(schema: &Schema, program: &Program) -> Result<(), Problem> {
     let (scans, has_merge) = crate::ir::read_structure(program);
     if program.kind == ProgramKind::Mutation {
         require_uniform_mutation_pages(schema, &scans)?;
         // @ref LLP 3000.007#17 — structural merges and every mutation page are checked, including bound pages in predicting mutations.
-        if has_merge { return Err(RuntimeError::Structural { code: "E_STRUCTURAL_FANOUT", message: format!("{}: a merge is not a plain prefix scan; read it in a query, or use a job chunk", program.name) }); }
+        if has_merge { return Err(fanout(scans.first().copied(), &program.name, "a merge is not a plain prefix scan", "read this merge in a query, then pass the selected ids to the mutation")); }
         for scan in &scans {
             if let Some(reason) = plain_prefix_problem(schema, scan) {
-                return Err(RuntimeError::Structural { code: "E_STRUCTURAL_FANOUT", message: format!("{}: {reason}", scan.site) });
+                return Err(fanout(Some(scan), &scan.site, &reason, "read this page in a query, then pass the selected ids to the mutation"));
             }
         }
         let nonuniform = scans.iter().find(|s| schema.table(&s.table).and_then(|t| t.index(&s.index)).is_some() && !scan_visibility(schema, s).uniform).map(|s| (*s).clone());
         let mut bindings = BTreeMap::new();
         collect(&program.body, true, &mut bindings);
         let env = program.args.keys().map(|name| (name.clone(), if bindings.contains_key(name) { Origin::Unknown(vec![]) } else { Origin::Other })).collect();
-        let mut flow = Flow { schema, program, nonuniform, env, error: None, loops: BTreeMap::new(), bindings };
+        let mut flow = Flow { schema, program, nonuniform, env, error: None, bindings };
         flow.statements(&program.body, &Origin::Other, true);
         if let Some(error) = flow.error { return Err(error); }
         if flow.nonuniform.is_some() && crate::ir::write_tables(program).iter().any(|(name, effect)| {
             *effect != "delete" && schema.table(name).is_some_and(|t| t.constraints.iter().any(|c| matches!(c, Constraint::Cap { .. })))
         }) {
-            return Err(RuntimeError::Structural { code: "E_STRUCTURAL_FANOUT", message: "a non-uniform scan cannot share a mutation with a complete population or group cap check; pin its read-rule fields or move the pass to a job".into() });
+            return Err(fanout(flow.nonuniform.as_ref(), &program.name, "a non-uniform scan cannot share a mutation with a complete population or group cap check", "read this page in a query, then pass the selected ids to the mutation"));
         }
     }
     for scan in scans {
         if schema.table(&scan.table).and_then(|t| t.index(&scan.index)).is_none() {
-            return Err(RuntimeError::Structural { code: "E_UNBOUND_SCAN", message: format!("{}: missing scan table or index {}.{}", scan.site, scan.table, scan.index) });
+            return Err(Problem { code: "E_UNBOUND_SCAN", site: scan.site.clone(), page_site: None, message: format!("missing scan table or index {}.{}", scan.table, scan.index), rewrite: "declare this table and index".into() });
         }
     }
     Ok(())
@@ -96,8 +110,7 @@ struct Flow<'a> {
     program: &'a Program,
     nonuniform: Option<Scan>,
     env: BTreeMap<String, Origin>,
-    error: Option<RuntimeError>,
-    loops: BTreeMap<String, u32>,
+    error: Option<Problem>,
     bindings: BTreeMap<String, Binding>,
 }
 
@@ -192,11 +205,9 @@ impl Flow<'_> {
                     domain,
                     body,
                 } => {
-                    let ordinal = self.loops.entry(binding.clone()).or_default();
-                    let site = format!("{}/for/{binding}/{ordinal}", self.program.name);
-                    *ordinal += 1;
+                    let site = format!("for/{binding}");
                     let origin = self.domain(domain);
-                    self.admit(binding, &origin, &site);
+                    self.admit(&origin, &site);
                     let before = self.env.clone();
                     // The head is the only local binding path we admit. A body write
                     // poisons it globally, including reads preceding that write.
@@ -242,15 +253,28 @@ impl Flow<'_> {
     }
 
 
-    fn admit(&mut self, binding: &str, origin: &Origin, site: &str) {
+    fn admit(&mut self, origin: &Origin, site: &str) {
         let reason = match origin {
             Origin::Other | Origin::Empty => return,
             Origin::Page(scan) => self.page_problem(scan),
             Origin::Merge(_) => Some("a merge has no proof of a complete union".into()),
-            Origin::Unknown(_) => Some(format!("{binding} does not preserve one complete page")),
+            Origin::Unknown(_) => Some("this list does not preserve one complete page".into()),
         };
         if self.error.is_none() {
-            if let Some(reason) = reason { self.error = Some(RuntimeError::Structural { code: "E_STRUCTURAL_FANOUT", message: format!("{site}: {reason}; pin a schema-capped group with a literal bound at least its cap, or use a job chunk") }); }
+            if let Some(reason) = reason {
+                let scans = origin.scans();
+                let scan = scans.first();
+                let rewrite = if let Some(scan) = scan && let Some(table) = self.schema.table(&scan.table) {
+                    let pinned: Vec<_> = table.index(&scan.index).map(|index| index.columns().into_iter().take(scan.prefix.len()).collect()).unwrap_or_default();
+                    let cap = table.constraints.iter().filter_map(|c| match c { Constraint::Cap { by, max } if by.iter().all(|key| pinned.contains(key)) => Some(*max), _ => None }).min();
+                    match cap {
+                        Some(cap) => format!("iterate the original group: `for row in {}[..] first {cap} by {}:`; put the condition and work inside that loop", scan.table, scan.index),
+                        None if !pinned.is_empty() => format!("declare `cap {} by {}` on {}, then pin those columns and iterate the whole group with `first {} by {}`", scan.take.maximum(), pinned.join(", "), scan.table, scan.take.maximum(), scan.index),
+                        _ => format!("move this pass to a job: `chunk row in {} first {} by {}:`", scan.table, scan.take.maximum(), scan.index),
+                    }
+                } else { "pass a bounded list argument directly, or move the population pass to a job chunk".into() };
+                self.error = Some(fanout(scan, site, &reason, &rewrite));
+            }
         }
     }
     fn page_problem(&self, scan: &Scan) -> Option<String> {
@@ -362,11 +386,17 @@ fn plain_prefix_problem(schema: &Schema, scan: &Scan) -> Option<String> {
 }
 
 // @ref LLP 3000.007#14 — ruling 17 (c): binding a page has the same abort channel as looping over it.
-fn require_uniform_mutation_pages(schema: &Schema, scans: &[&Scan]) -> Result<(), RuntimeError> {
+fn require_uniform_mutation_pages(schema: &Schema, scans: &[&Scan]) -> Result<(), Problem> {
     for scan in scans {
         if schema.table(&scan.table).and_then(|table| table.index(&scan.index)).is_some() && !scan_visibility(schema, scan).uniform {
-            return Err(RuntimeError::Structural { code: "E_STRUCTURAL_FANOUT", message: format!("{}: the mutation page's read rule is not uniformly decided by its prefix; read it in a query, or pin the deciding columns", scan.site) });
+            return Err(fanout(Some(scan), &scan.site, "the mutation page's read rule is not uniformly decided by its prefix", "read it in a query, or pin the deciding columns"));
         }
     }
     Ok(())
+}
+
+fn fanout(scan: Option<&Scan>, site: &str, reason: &str, rewrite: &str) -> Problem {
+    let reason = reason.split_once("; ").map_or(reason, |(reason, _)| reason);
+    let population = scan.map(|scan| format!("{} by {} (page bound {}): ", scan.table, scan.index, scan.take.maximum())).unwrap_or_default();
+    Problem { code: "E_STRUCTURAL_FANOUT", site: site.into(), page_site: scan.map(|scan| scan.site.clone()), message: format!("{population}{reason}"), rewrite: rewrite.into() }
 }

@@ -206,7 +206,8 @@ impl RuntimeError {
                 refusal.guide = Some("programs".into());
             }
             Self::Structural { code: "E_STRUCTURAL_FANOUT", message } => {
-                refusal.rewrite = Some(if message.contains("read it in a query, or pin the deciding columns") { "read it in a query, or pin the deciding columns".into() } else { message.clone() });
+                refusal.message = message.clone();
+                refusal.rewrite = Some("iterate the original capped group, read the page in a query, or use a job chunk; `snapback4 check` locates the source and names the bound".into());
                 refusal.guide = Some("programs".into());
             }
             Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE") => refusal.guide = Some("actions".into()),

@@ -43,6 +43,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
         enforce: "pre",
         resolveId(id, importer = "") {
           if (id === "react-native") return "\0native-host-views";
+          if (id === "snapback4-expo/witness") return "\0witness-launch";
           if (id === "expo-status-bar") return "\0status-bar";
           if (/snapback\/generated\/api(?:\.ts)?$/.test(id)) return "\0generated-api";
           if (id === "snapback4/local" || (id === "./src/client" && importer.endsWith("/chat-expo/App.tsx"))) return "\0open-client";
@@ -53,6 +54,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
           if (id === "\0open-client") return "export const openClient = (...args) => globalThis.openClient(...args); export const createLocalClient = openClient;";
           if (id === "\0generated-api") return 'export const api = { send: { kind: "mutation", name: "send" }, thread: { kind: "query", name: "thread" } };';
           if (id === "\0home-views") return "export const Inbox = () => null; export const Thread = () => null;";
+          if (id === "\0witness-launch") return "export const witness = () => null;";
           if (id === "\0witness") return "export const runWitness = () => Promise.resolve();";
           if (id === "\0status-bar") return "export const StatusBar = () => null;";
           if (id === "\0native-host-views") return `

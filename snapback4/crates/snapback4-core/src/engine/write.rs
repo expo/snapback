@@ -104,13 +104,14 @@ impl Runner<'_> {
                 self.replace(table_name, old, new, readable, &row)
             }
             None if self.device && !self.upsert_absence_proven(table_name, "byId", &[key.clone()])? => Err(self.write_miss(table_name, "byId", &[key.clone()])),
-            None => self.insert_upsert(table_name, row),
+            None => self.insert_upsert(table_name, "byId", row),
         }
     }
 
-    pub(super) fn insert_upsert(&mut self, table_name: &str, row: Value) -> Result<(), RuntimeError> {
+    pub(super) fn insert_upsert(&mut self, table_name: &str, addressed_index: &str, row: Value) -> Result<(), RuntimeError> {
         // Defaults fill first, so a patch that leaves a defaulted column out is a complete row here.
         let row = self.with_defaults(table_name, row)?;
+        if self.device { self.prove_upsert_insert(table_name, addressed_index, &row)?; }
         // @ref LLP 3000.007#17 — absent upserts decide insert authority before asset or constraint diagnostics.
         if !self.check_rule(table_name, Effect::Insert, None, &row)? { return Err(self.no_write_target()); }
         // An incomplete insert patch has the same word as a refused hidden target.
@@ -424,8 +425,22 @@ impl Runner<'_> {
                     Some(row) => self.live_aggregate(target, row)?,
                     None => None,
                 };
-                if self.device && (definition.sync.is_none() || (found.is_none() && definition.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.unknown_fact(target, index, &key, "after insert"); }
                 if found.is_none() {
+                    // @ref LLP 3000.007#20.5 — a final-exists miss needs the same readable, fully held group proof as upsert absence; a local hit needs no absence proof.
+                    // Budget spent only while establishing device coverage is the device's
+                    // uncertainty, not the write's: the server needs no such proof.
+                    let proven = self.device && match self.upsert_absence_proven(target, index, &key) {
+                        Ok(proven) => proven,
+                        Err(RuntimeError::Bound { .. }) => false,
+                        Err(error) => return Err(error),
+                    };
+                    if self.device && !proven {
+                        let first_unknown = self.missing_fact.is_none();
+                        self.unknown_fact(target, index, &key, "after insert");
+                        if first_unknown && let Some(message) = &mut self.missing_fact {
+                            *message = message.replace("the row or its absence is past the acquired horizon or online only", "the probe key does not establish a fully held, readable group without a horizon");
+                        }
+                    }
                     return Err(RuntimeError::Constraint(format!("inserting into {table_name} requires a matching row in {target} by the end of the mutation")));
                 }
             }

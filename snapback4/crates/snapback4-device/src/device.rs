@@ -146,10 +146,15 @@ pub struct Device<S: DeviceStore> {
 /// a row the server has not confirmed; the server's image replaces it.
 struct Predicting<'a, T: DeviceTx> {
     tx: &'a T,
+    schema: &'a Schema,
+    groups: history::Groups,
     written: RefCell<Vec<String>>,
 }
 
 impl<T: DeviceTx> Rows for Predicting<'_, T> {
+    fn retained_group(&self, table: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> {
+        history::retained_group(self.schema, &self.groups, table, index, prefix)
+    }
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         self.tx.get(table, id).map(|row| row.map(predictions::without_pending))
     }
@@ -593,7 +598,7 @@ impl<S: DeviceStore> Device<S> {
         let tx = self.store.transaction()?;
         require_acquired(&tx, &self.schema, &program)?;
         let context = Context::new(viewer, media::inputs(&tx, &program, viewer, args)?).at(now).with_generation(self.generation).with_ids(new_ids).with_entropy(entropy.max(1));
-        let predicting = Predicting { tx: &tx, written: RefCell::new(Vec::new()) };
+        let predicting = Predicting { tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, written: RefCell::new(Vec::new()) };
         match local::predict(&predicting, &self.schema, &program, context, Ceilings::default()) {
             Ok(prediction) => {
                 let predicted = predicting.written.into_inner();

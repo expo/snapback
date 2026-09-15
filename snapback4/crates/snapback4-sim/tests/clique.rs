@@ -3,6 +3,7 @@
 //! snapback4-clique-0002).
 
 mod following;
+mod merge_cursor;
 
 use snapback4_core::engine::{Context, Engine, WriteState};
 use snapback4_core::partition::holdings;

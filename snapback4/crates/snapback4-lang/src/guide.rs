@@ -21,10 +21,11 @@ mod prediction;
 #[path = "guide/discovery.rs"]
 mod discovery;
 pub use discovery::{listing, nearest};
-pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "maintains", "rules", "sync", "residency", "prediction", "evolution", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "services", "presence", "bounds", "refusals", "personas"];
+pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "maintains", "rules", "sync", "residency", "prediction", "evolution", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "services", "presence", "bounds", "refusals", "personas", "witness"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
+    ("simulator", "witness"), ("offline proof", "witness"),
     ("grammar", "language"), ("quarry", "language"),
     ("predict", "prediction"), ("predictable", "prediction"), ("offline", "prediction"),
     ("optimistic", "prediction"), ("pending", "prediction"),
@@ -304,7 +305,8 @@ query mostLiked(c: cursor ?):
 query chips(postId: posts, c: cursor ?):
   return reactionCounts[viewer, postId] after c first 50 by byGroup { emoji, count: .value }
 
-shape card = { id, name, owner: .ownerId, tagCount: count(.tags) }   -- a named shape: `.` is the row; `row card` and `page card` use it
+fn kindLabel(value: text <=6): value                               -- every enum variant fits the text bound
+shape card = { id, name, kind: kindLabel(.kind), owner: .ownerId, tagCount: count(.tags) }   -- a named shape: `.` is the row; `row card` and `page card` use it
 fn messageBody(m: messages): m.body                                  -- a row argument keeps its fields at this call site
 fn messageById(m: messages): (messages[m] ! else NOT_FOUND).body      -- a reference argument stays a reference
 fn isBrief(ttl: int ?): ttl != null                                  -- a helper expression, expanded where it is called
@@ -402,7 +404,7 @@ mutation sendBrief(roomId: rooms, body: text <=4000 ?, ttl: int ?):
       emit notify { targetUserId: m.principal, roomId, preview: slice(body ?? '', 0, 80) }   -- kept in this commit; a worker claims and settles it (guide effects)
   return { id: row.id, brief: isBrief(ttl), mentions: count(tokens(body ?? '')) }                                 -- `??` is the value when the left is null
 
-mutation edit(messageId: messages, body: text <=4000, expected: text <=4000 ?):
+mutation edit(messageId: messages, body: text <=4000, expected: text <=4000 ?) predicts:
   msg = messages[messageId] ! else NOT_FOUND                         -- the row, or refuse with the code; `msg` is present from here on
   require msg.authorId = viewer else NOT_AUTHOR
   update messages[msg] { body, editedAt: now } if .body = expected    -- a row as the key; `if` makes the update conditional: E_CONFLICT with the current row when false
@@ -443,6 +445,13 @@ query personalizeNative(first: int): native                          -- a read i
 ```
 
 Helpers expand at each call: a table-typed parameter keeps a row argument as a row (fields need no lookup), while a reference argument stays a reference.
+An enum fits `text <=N` when every variant has at most N characters and
+contains no control characters except tab, LF and CR. This is
+static and total: no variant is truncated or converted at runtime. If one
+variant is too long, declare the helper parameter with the enum instead.
+After `where`, apply a named page shape with `{ ...card }`; a bare shape
+name attaches inside the predicate. `check --fix` repairs that spelling when
+it mistakenly shapes a scalar predicate operand.
 
 Values: `viewer` (a principal), `now` (a time; in a mutation it is the commit's
 instant), `new` (an id, mutations only), `true`, `false`, `null`, integers,
@@ -471,7 +480,7 @@ Before editing, `check --fix` verifies every compiled source; an editor save ref
 
 Cards: `snapback4 guide <keyword>` — types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,
 assets, reads, shapes, writes, programs, jobs, native, feeds, search,
-effects, actions, services, presence, bounds, refusals, personas. `snapback4 why
+effects, actions, services, presence, bounds, refusals, personas, witness. `snapback4 why
 <CODE>` explains a refusal.
 "##;
 
@@ -479,6 +488,7 @@ pub fn card(keyword: &str) -> Option<&'static str> {
     let keyword = ALIASES.iter().find(|(alias, _)| *alias == keyword).map_or(keyword, |(_, target)| *target);
     Some(match keyword {
         "language" => LANGUAGE,
+        "witness" => include_str!("guide/witness.md"),
         "prediction" => prediction::CARD,
         "evolution" => discovery::EVOLUTION,
         "types" => r##"# Types
@@ -508,6 +518,10 @@ table everything:
   update <- deny
   delete <- deny
 
+fn label(kind: text <=1): kind
+query enumLabel(kind: enum('a', 'b')):
+  return label(kind)
+
 query typed(c: cursor ?, handle: text 3..20 format handle):   -- arguments take the same types, plus `cursor ?`
   return everything[handle]
 ```
@@ -523,6 +537,13 @@ narrow with `if x != null:`, `x ! else CODE`, or `x ?? default`. A null guard
 also narrows a bound row's field (`r.changedAt != null`), until the local is rebound. `time`
 arithmetic: `time - time` is an int, `time + int` a time. `/` and `%` give
 the Euclidean quotient and remainder of ints or times; zero refuses `E_DIV_ZERO`.
+An enum is accepted as `text <=N` only if every variant fits N characters
+and contains no control characters except tab, LF and CR,
+including when both types are optional. This is a static, total widening;
+it adds no runtime conversion. Otherwise give the helper parameter the enum
+type. `(now / 1) * 1000` explicitly scales integer milliseconds; a scaled
+count belongs in an `int` column. Bind an optional helper result once before
+its null guard: repeated calls are separate values.
 Text `+` concatenates; `count(text)` counts characters. Loop-built strings and
 lists are heap-bound; a write still validates their actual column lengths.
 A column may end with `default <literal | now | viewer>`. Omitted insert
@@ -709,10 +730,14 @@ and require codes. check compares with generated/residency.json; dev compares
 with the generation it serves. N_NOW_SERVER names a newly server-run query.
 N_NOT_PREDICTABLE names lost eligibility or an added horizon risk, explicitly
 distinguishing a call that may queue from an operation that never predicts.
+Every check also summarizes all never-predicting mutations. A header such as
+`mutation post(body: text <=200) predicts:` asserts eligibility; a server
+site refuses E_NOT_PREDICTABLE at that header. See `guide prediction`.
 
 N_MAINTAIN_SYNCED names public inherited aggregates and group audiences
-with unbounded recipients or multiple values per group. Add online only
-to opt out. Run
+with unbounded recipients or multiple values per group. It names mutations
+that would stop predicting if the maintain goes online only. When a dev
+store exists, check adds its measured value-row count before adoption. Run
 `test --residency --fixture dir --as alice` to measure cold rows and compact
 JSON row bytes per synced table and persona, plus totals and aggregate row
 counts. Facts are labelled facts; measurements exclude transport framing

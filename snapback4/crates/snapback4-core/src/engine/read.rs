@@ -780,11 +780,20 @@ impl Runner<'_> {
             self.page_overflow = true;
         }
         if self.page_depth == 0 && first.scan.opaque_cursor {
-            let continues = if self.meter.capped_at.is_some() || self.non_uniform || self.word_cut_at.is_some() { !candidates.is_empty() } else { has_more };
+            let continues = self.merge_can_continue() && has_more;
             let next = if continues { candidates.last().map(|(key, _)| key.clone()) } else { None };
             self.record_page(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, prefix: None, interrupted: false, next });
         }
         Ok(candidates.into_iter().map(|(_, row)| row).collect())
+    }
+
+    // @ref LLP 3000.007#18.1 — one shared position must be established by every lane, including a lane cut before contributing a row.
+    fn merge_can_continue(&self) -> bool {
+        // A cut can leave unread rows ahead of the last merged result. The
+        // existing cursor has no per-lane positions, so it cannot resume that
+        // page safely. Withhold for the entire non-uniform class, even without
+        // a cut: presence of next must not reveal a hidden run's meter cost.
+        !self.non_uniform && self.meter.capped_at.is_none() && self.word_cut_at.is_none()
     }
 
     /// One head per uniform lane, then advance only the winning lane. Each
@@ -858,7 +867,7 @@ impl Runner<'_> {
         self.page_depth = depth;
         if depth == 0 {
             if first.scan.opaque_cursor {
-                let continues = if self.meter.capped_at.is_some() || self.non_uniform || self.word_cut_at.is_some() { !page.is_empty() } else { has_more };
+                let continues = self.merge_can_continue() && has_more;
                 self.record_page(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, prefix: None, interrupted: false, next: if continues { last } else { None } });
             } else if has_more { self.page_overflow = true; }
         }

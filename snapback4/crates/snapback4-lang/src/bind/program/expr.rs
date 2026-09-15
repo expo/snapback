@@ -37,13 +37,18 @@ impl Binder<'_> {
 
     fn strict_args(&mut self, args: &[A], out: &mut setup::Body) -> Fallible<Vec<(Expr, Ty)>> {
         let mut values = Vec::<(Expr, Ty)>::new();
+        let mut failed = None;
         for arg in args {
             let mut setup = setup::Body::default();
-            let value = self.expr(arg, &mut setup)?;
-            self.sequence_setup(values.iter_mut().map(|(e, _)| e), setup, out);
-            values.push(value);
+            match self.expr(arg, &mut setup) {
+                Ok(value) => {
+                    self.sequence_setup(values.iter_mut().map(|(e, _)| e), setup, out);
+                    values.push(value);
+                }
+                Err(error) => { self.record_error(error.clone()); failed.get_or_insert(error); }
+            }
         }
-        Ok(values)
+        match failed { Some(error) => Err(error), None => Ok(values) }
     }
 
     pub(super) fn expr(&mut self, expr: &A, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
@@ -202,6 +207,7 @@ impl Binder<'_> {
             "null" => Ok((Expr::Literal(Value::Null), Ty::Null)),
             _ => {
                 if let Some(binding) = self.binding(name) {
+                    if let Some(error) = &binding.error { return Err(error.clone()); }
                     return Ok((ir::var(&binding.runtime), binding.ty.clone()));
                 }
                 if self.catalog.tables.contains_key(name) {
@@ -255,11 +261,16 @@ impl Binder<'_> {
     pub(super) fn object(&mut self, fields: &[ObjectField], out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         let mut exprs = Vec::<(String, Expr)>::new();
         let mut types = BTreeMap::new();
+        let mut failed = None;
         for field in fields {
             let mut setup = setup::Body::default();
-            let (e, t) = match &field.value {
-                Some(value) => self.expr(value, &mut setup)?,
-                None => self.name(&field.name, &field.site)?,
+            let value = match &field.value {
+                Some(value) => self.expr(value, &mut setup),
+                None => self.name(&field.name, &field.site),
+            };
+            let (e, t) = match value {
+                Ok(value) => value,
+                Err(error) => { self.record_error(error.clone()); failed.get_or_insert(error); continue; }
             };
             self.sequence_setup(exprs.iter_mut().map(|(_, e)| e), setup, out);
             // Object IR stores fields by name. Minted ids still follow source
@@ -271,7 +282,7 @@ impl Binder<'_> {
             exprs.push((field.name.clone(), e));
             types.insert(field.name.clone(), t);
         }
-        Ok((Expr::Object(exprs.into_iter().collect()), Ty::Object(types)))
+        match failed { Some(error) => Err(error), None => Ok((Expr::Object(exprs.into_iter().collect()), Ty::Object(types))) }
     }
 
     pub(super) fn binary(&mut self, op: &str, left: &A, right: &A, site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
@@ -366,13 +377,25 @@ impl Binder<'_> {
             }
             "+" | "-" | "*" => {
                 if !lt.is_numeric() || !rt.is_numeric() {
-                    return Err(type_error(site, format!("{op} needs present numbers; got {} and {}", lt.name(), rt.name()), "narrow optional operands with `?? 0`"));
+                    let optional = if lt.is_optional() { left } else { right };
+                    let rewrite = if matches!(optional, A::Call { .. }) && (lt.is_optional() || rt.is_optional()) {
+                        let (a, b) = if lt.is_optional() { ("ttl".into(), print::expression(right)) } else { (print::expression(left), "ttl".into()) };
+                        format!("bind the optional call once: `ttl = {}`; use `{a} {op} {b} if ttl != null else null`", print::expression(optional))
+                    } else if lt.is_optional() || rt.is_optional() {
+                        format!("guard `{} != null` before the arithmetic, or choose an explicit default with `{} ?? 0`", print::expression(optional), print::expression(optional))
+                    } else { "use int, decimal or money operands for arithmetic".into() };
+                    return Err(type_error(site, format!("{op} needs present numbers; got {} and {}", lt.name(), rt.name()), rewrite));
                 }
                 let result = match (op, &lt, &rt) {
                     ("-", Ty::Time, Ty::Time) => Ty::Int,
                     ("+", Ty::Time, Ty::Int) | ("+", Ty::Int, Ty::Time) | ("-", Ty::Time, Ty::Int) => Ty::Time,
-                    ("+", Ty::Time, Ty::Time) | ("*", Ty::Time, _) | ("*", _, Ty::Time) => {
-                        return Err(type_error(site, "time values add or subtract an int offset; time + time and time * n have no meaning", "subtract two times for an int difference in milliseconds"));
+                    ("*", Ty::Time, _) | ("*", _, Ty::Time) => {
+                        let left = if lt == Ty::Time { format!("({} / 1)", print::expression(left)) } else { print::expression(left) };
+                        let right = if rt == Ty::Time { format!("({} / 1)", print::expression(right)) } else { print::expression(right) };
+                        return Err(type_error(site, "* cannot scale a time; use an int number of milliseconds", format!("{left} * {right} — `/ 1` turns a time into int milliseconds; store the scaled count as int. For a server-arrival order keep a per-conversation counter instead: `snapback4 guide arrival`")));
+                    }
+                    ("+", Ty::Time, Ty::Time) => {
+                        return Err(type_error(site, "+ cannot add two times; an offset is an int number of milliseconds", "change the duration parameter or column to int, then add it to the time; subtract two times to measure an elapsed duration"));
                     }
                     (_, Ty::Decimal(a), Ty::Decimal(b)) if a == b && op != "*" => Ty::Decimal(*a),
                     (_, Ty::Money(c, a), Ty::Money(d, b)) if a == b && c == d && op != "*" => Ty::Money(c.clone(), *a),

@@ -9,51 +9,46 @@ export interface PendingSend {
 // Fetch's quota is the sum of outstanding keepalive bodies, across clients
 // in this page, not a per-request limit. Other libraries may also consume it.
 const KEEPALIVE_BYTES = 64 * 1024;
+const EXIT_WAIT_MS = 1000;
 let inflightBytes = 0;
-const waiting = new Set<() => void>();
+export function exitTransport(doFetch: typeof fetch, base: string, closed?: AbortSignal) {
+  let active: Promise<void> | undefined;
+  // @ref LLP 3000.007#20.4 — the exit transport preserves durable submission order, sharing ordinary sends' exclusion.
+  return (entries: readonly PendingSend[], headers: Record<string, string>, isCurrent = () => true): Promise<void> | undefined => {
+    if (active) return active;
+    const entry = entries[0];
+    if (!entry) return;
+    const body = JSON.stringify({ id: entry.id, args: entry.args, newIds: entry.newIds });
+    const bytes = new TextEncoder().encode(body).byteLength;
+    // No ordered batch exists. Never bypass a blocked head or dispatch its
+    // successors without settlement; the remaining queue flushes on reopen.
+    if (bytes + inflightBytes > KEEPALIVE_BYTES || !isCurrent()) return;
+    inflightBytes += bytes;
+    try {
+      // No page AbortSignal on fetch: close() stops waiting, not delivery.
+      // A timeout leaves the outcome unknown: ordinary flushing must replay
+      // this same durable head before advancing. Keep the active slot and
+      // quota until actual completion, so another exit cannot overlap it.
+      const done = doFetch(`${base}/m/${entry.op}`, { method: "POST", headers: { ...headers }, body, keepalive: true })
+        .then(async response => { await response.arrayBuffer(); })
+        .catch(() => {})
+        .finally(() => { inflightBytes -= bytes; active = undefined; });
+      active = waitForExit(done, closed);
+      return active;
+    } catch { inflightBytes -= bytes; }
+  };
+}
 
-export function exitTransport(doFetch: typeof fetch, base: string) {
-  const inflight = new Set<string>();
-  let pending: readonly PendingSend[] = [];
-  let headers: Record<string, string> = {};
-  let current = () => true;
-  const pump = () => {
-    waiting.delete(pump);
-    if (!current()) { pending = []; return; }
-    const deferred: PendingSend[] = [];
-    // @ref LLP 3000.007#20.4 — dispatch committed writes synchronously on page exit; replay keeps the same mutation id
-    for (const entry of pending) {
-      if (inflight.has(entry.id)) continue;
-      const body = JSON.stringify({ id: entry.id, args: entry.args, newIds: entry.newIds });
-      const bytes = new TextEncoder().encode(body).byteLength;
-      // A mutation is atomic: its body cannot be split across /m requests.
-      // Oversize entries stay durable for ordinary sends or reopen. Beacon
-      // cannot carry our auth headers and shares this quota. Split a larger
-      // queue into waves while the page is still alive to start the next wave.
-      if (bytes > KEEPALIVE_BYTES) continue;
-      if (bytes + inflightBytes > KEEPALIVE_BYTES) { deferred.push(entry); continue; }
-      inflight.add(entry.id);
-      inflightBytes += bytes;
-      const release = () => {
-        inflight.delete(entry.id); inflightBytes -= bytes;
-        for (const next of [...waiting]) next();
-      };
-      try {
-        // No page AbortSignal: close() must not cancel this request. Leave
-        // settlement to normal sends/sync receipts, including after reopening.
-        void doFetch(`${base}/m/${entry.op}`, { method: "POST", headers: { ...headers }, body, keepalive: true })
-          .then(async response => { await response.arrayBuffer(); })
-          .catch(() => {})
-          .finally(release);
-      } catch { inflight.delete(entry.id); inflightBytes -= bytes; }
-    }
-    pending = deferred;
-    if (pending.length) waiting.add(pump);
-  };
-  return (entries: readonly PendingSend[], credentials: Record<string, string>, isCurrent = () => true) => {
-    pending = entries;
-    headers = credentials;
-    current = isCurrent;
-    pump();
-  };
+function waitForExit(done: Promise<void>, closed?: AbortSignal): Promise<void> {
+  if (closed?.aborted) return Promise.resolve();
+  return new Promise(resolve => {
+    const finish = () => {
+      clearTimeout(timer);
+      closed?.removeEventListener("abort", finish);
+      resolve();
+    };
+    const timer = setTimeout(finish, EXIT_WAIT_MS);
+    closed?.addEventListener("abort", finish, { once: true });
+    void done.then(finish);
+  });
 }

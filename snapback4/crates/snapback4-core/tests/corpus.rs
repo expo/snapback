@@ -330,12 +330,14 @@ fn card_expected(case: &Case, schema: &Schema, program: &Program) -> Result<Expe
             }
         }
     }
-    // @ref LLP 3000#7-decisions-during-execution — a nonuniform capped page continues from its last visible row and ends only on an empty page.
+    // @ref LLP 3000#7-decisions-during-execution — a nonuniform capped scan continues from its last visible row and ends only on an empty page.
     // SB2 ClientStore::reexecute clears `next` on every receipt Partial.
-    // A server has no receipt custody: recover the page's visible position
-    // from the golden result and held row, never from the actual execution.
+    // A server has no receipt custody: recover a single scan's visible
+    // position from the golden result, never from the actual execution.
+    // Merges keep the frozen absent cursor: one result key cannot establish
+    // every lane's position (LLP 3000.007 §20.3).
     if expected.local_state == LocalState::Partial && case.certificate["completeness"] == "Capped"
-        && expected.next.is_none() && descriptors.len() == 1 && case.prelude.is_empty()
+        && expected.next.is_none() && descriptors.len() == 1 && !descriptors[0].merge && case.prelude.is_empty()
     {
         let page = &descriptors[0];
         let mut ids = Vec::new();
@@ -795,7 +797,6 @@ mod adapter {
         for (name, last) in [
             ("composite-hidden-page-1", "i1"), ("composite-hidden-page-2", "i2"),
             ("conditional-enriched-hidden-page-1", "i1"), ("conditional-enriched-hidden-page-2", "i2"),
-            ("merge-hidden-candidates-capped", "b"),
         ] {
             let c = corpus_case(name);
             let schema: Schema = serde_json::from_value(c.schema.clone()).unwrap();
@@ -811,6 +812,17 @@ mod adapter {
             empty.expected.canonical_result = Some("{\"Array\":[]}".into());
             assert_eq!(card_expected(&empty, &schema, &program).unwrap().next, None, "empty capped pages terminate");
         }
+    }
+
+    #[test]
+    fn capped_merge_cursor_oracle_keeps_the_frozen_absent_continuation() {
+        let case = corpus_case("merge-hidden-candidates-capped");
+        let schema: Schema = serde_json::from_value(case.schema.clone()).unwrap();
+        let program: Program = serde_json::from_value(case.program.clone()).unwrap();
+        let translated = card_expected(&case, &schema, &program).unwrap();
+        assert_eq!(translated.next, None);
+        assert_eq!(translated.canonical_result, case.expected.canonical_result);
+        assert_eq!(translated.local_state, LocalState::Partial);
     }
 
     #[test]

@@ -98,7 +98,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           const beginSend = () => {
             if (closing || !device) return false;
             // Invalidate any sync already in flight, including a bfcache page's
-            // snapshot. The synchronous VM call precedes each wave of sends;
+            // snapshot. The synchronous VM call precedes the oldest write's send;
             // its metadata is persisted in order behind any current IDB save.
             const started = JSON.parse(device.call(JSON.stringify({ op: "begin_send" })));
             if (started.denied) return false;

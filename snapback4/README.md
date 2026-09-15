@@ -68,10 +68,13 @@ through the consumer proof without publishing. Use Node 24 on PATH.
 
 The production darwin CLI in `snapback4-darwin-arm64` is signed with a
 Developer ID Application identity, hardened runtime and a secure timestamp
-before packing. Signing and strict verification must succeed, including
+in private publication staging before packing. The shared Cargo artifact is
+copied there first; signing, verification, notarization and hashing use only
+the staged copy. Signing and strict verification must succeed, including
 in a dry run. `SNAPBACK4_SIGN_IDENTITY` chooses the identity; otherwise
 exactly one Developer ID Application identity must be available in the
-keychain. The installed binary's digest must match the signed artifact.
+keychain. The installed binary's digest must match the staged signed artifact,
+and its Developer ID signature must verify with the same authority and team.
 The publish metrics record its signing authority and team id. Ordinary
 developer builds, the JavaScript client and the Expo xcframework are not
 signed by this publication step.

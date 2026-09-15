@@ -78,6 +78,7 @@ fn the_language_card_compiles_and_runs() {
     let room = sent(&created);
     assert_eq!(room.field("id").unwrap(), &id("r1"));
     assert_eq!(room.field("owner").unwrap(), &id(alice));
+    assert_eq!(room.field("kind").unwrap(), &text("open"));
     assert_eq!(room.field("tagCount").unwrap(), &Value::Int(1));
     // join: `insert .. if absent` yields the row, then null on the clash.
     let joined = engine.mutate("join", Some("j1"), Context::new(alice, args(&[("roomId", id("r1")), ("principal", id(bob))])).at(1_100).with_ids(["m2".to_owned()])).unwrap();
@@ -522,4 +523,48 @@ fn expire_card_explains_maintained_value_order_refusal_and_rewrites() {
     for phrase in ["Value-order indexes over expiring sources", "E_QUARRY_MAINTAIN_EXPIRE", "live bounded query", "scheduled ranked-table recipe"] {
         assert!(expire.contains(phrase), "expiry diagnostic's destination omits {phrase}");
     }
+}
+
+#[test]
+fn writes_card_explains_the_whole_upsert_insert_proof() {
+    let writes = card("writes").unwrap().split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(!writes.contains("predict only updates of rows the device holds"));
+    for text in ["held", "no horizon", "insert image", "unique", "cap", "guide prediction"] {
+        assert!(writes.contains(text), "writes card omits {text}");
+    }
+}
+
+#[test]
+fn direct_and_merged_cursor_generation_contracts_are_distinct() {
+    let source = "table events:\n  owner: principal\n  at: time\n  selected: bool\n  by byOwnerAt: owner, at, id\n  cap 10\n  public 'events'\n  sync\nmaintain daily: count events where .selected by owner, day(.at)\n  read <- allow\n  online only\nquery direct(c: cursor ?):\n  return events[viewer] after c first 1 by byOwnerAt\nquery grouped(c: cursor ?):\n  return daily[viewer] after c first 1 by byGroup\nquery merged(c: cursor ?):\n  return merge events after c first 1 by byOwnerAt:\n    [viewer]\n";
+    let bound = clean("cursor contracts", source);
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed([1, 2].map(|day| ("events".into(), snapback4_core::value::object([
+        ("id", id(&format!("e{day}"))), ("owner", id("alice")), ("at", Value::Int(day * 86_400_000)), ("selected", Value::Bool(true)),
+    ])))).unwrap();
+    let cursors: Vec<_> = ["direct", "grouped", "merged"].into_iter().map(|name| {
+        let read = engine.query(name, Context::new("alice", BTreeMap::new())).unwrap();
+        assert!(read.complete);
+        (name, read.next.unwrap())
+    }).collect();
+    let successor = clean("cursor successor", &source.replace("  selected: bool", "  selected: bool\n  label: text <=10 default 'new'"));
+    engine.adopt(successor.schema, successor.programs.into_iter().map(|p| p.program)).unwrap();
+    for (name, cursor) in cursors {
+        let read = engine.query(name, Context::new("alice", args(&[("c", text(&cursor))])));
+        if name == "merged" {
+            let read = read.unwrap();
+            assert!(read.complete);
+            assert_eq!(read.data.as_array().unwrap()[0].field("id").unwrap(), &id("e2"));
+            assert!(read.next.is_none());
+        } else {
+            let refusal = read.unwrap_err();
+            assert_eq!(refusal.code, "E_INPUT");
+            assert_eq!(refusal.message, "E_INPUT: cursor: cursor token describes a different prefix or generation");
+        }
+    }
+    for (name, doc) in [("feeds", card("feeds").unwrap()), ("README", README)] {
+        assert!(doc.contains("A merge cursor from generation N"), "{name} must scope cross-generation continuation to merge cursors");
+        assert!(!doc.contains("A cursor from generation N"), "{name} must not promise it for direct pages");
+    }
+    assert!(README.contains("A direct page cursor binds the\nevaluated prefix and active generation"));
 }

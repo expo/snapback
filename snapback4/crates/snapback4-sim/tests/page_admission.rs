@@ -144,7 +144,7 @@ fn w2_hidden_word_expansion_and_expired_populations_are_refused_at_check() {
 
 #[test]
 fn w2_a_mutation_binding_a_nonuniform_page_is_refused_with_zero_or_ten_thousand_hidden_rows() {
-    refused_pair(SOURCE, "mutation pass(): server\n  rows = items[] first 10 by byOwner\n  return count(rows)\n", 10_000, false, "E_STRUCTURAL_FANOUT", "read it in a query, or pin the deciding columns");
+    refused_pair(SOURCE, "mutation pass(): server\n  rows = items[] first 10 by byOwner\n  return count(rows)\n", 10_000, false, "E_STRUCTURAL_FANOUT", "the mutation page's read rule is not uniformly decided by its prefix");
 }
 
 #[test]
