@@ -109,7 +109,9 @@ export function runWorker(options: WorkerOptions): Worker {
   const settle = async (effect: Effect, outcome: { result: unknown } | { error: string; retry: boolean }) => {
     const path = "result" in outcome ? `/effects/${encodeURIComponent(effect.id)}/done` : `/effects/${encodeURIComponent(effect.id)}/failed`;
     const reply = (await post(path, outcome)) as { ok?: boolean; denied?: Refusal };
-    if (reply.denied) report(new Error(`${reply.denied.code}: ${reply.denied.message}`));
+    if (reply.denied?.code === "E_EFFECT_LEASE") {
+      console.info(`snapback4 worker: effect ${effect.id} lease expired; the effect was requeued`);
+    } else if (reply.denied) report(new Error(`${reply.denied.code}: ${reply.denied.message}`));
   };
   const perform = async (effect: Effect) => {
     const handler = effects[effect.effect] as EffectHandler | undefined;

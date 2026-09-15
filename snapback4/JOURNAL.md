@@ -18657,3 +18657,75 @@ native leg. The lead then rebuilt the xcframework and published
 `snapback4-expo@0.2.12`, which npm reported at 13:57 UTC. Next: the fifth
 Astra-medium calibration on these pins.
 
+
+## 2026-09-15 — W6e: development clock advances preserve live effect leases
+
+Built the 0.2.21 calibration's V4 and H8 (ranks 8 and 11), from base
+`35886bc2226f8e53b2537132714d6f3e6890f140`. This was **not a W5g regression**:
+W3d commit `91d4ca9b184ff07de268d7eaae638b6a3b422e4f` moved both effect
+claims and lease sweeps from wall time to the development clock. Its journal
+entry explicitly lists effect leases among the consumers. W5g commit
+`f3e781096799a188a896a21047722a97fdc9f34c` subsequently moved presence grace.
+The regression on the unchanged base implementation claimed a 60-second lease,
+advanced 120 seconds through the actual clock CLI, observed the effect queued
+again, and received E_EFFECT_LEASE on settlement: 0 passed / 1 failed.
+
+Chose the brief's lease-extension option: an explicit development advance
+adds exactly its duration to running effects' lease deadlines. It preserves
+their remaining real-time lifetime without changing retry `next_at`, ordinary
+maintenance ticks, action routes or `serve`. The advance takes the engine lock
+before the clock lock, matching claims, and publishes the new clock only after
+the lease transaction succeeds; invalid clock input leaves leases untouched.
+A lease already overdue stays overdue. The simulator checks two successive
+120-second advances, an already expired claim, a still-live claim, untouched
+queued retry times, real elapsed expiry and successful subsequent settlements.
+No value serialization, meter ceiling, conformance case or production route
+changed. The existing RFC's development-clock section records the decision;
+the effects card and README explain it, and the jobs card and README warn that
+rows stamped under an offset keep their times after restart: use a fresh store
+per offset test. Persistent row times and a process-local clock are different
+things, which the previous restart wording left too easy to conflate.
+
+`runWorker` now prints a lost effect settlement as information, with the effect
+ID and cause, instead of passing an Error to `onError`. Other settlement
+refusals still report errors. The success-handler and throwing-handler
+regressions first reported 0 passed / 2 failed, then passed in the final worker
+suite. For the test effect ID, the previous error text was
+`Error: E_EFFECT_LEASE: E_EFFECT_LEASE: effect effect-test is queued and not claimed by this worker; claim it first`;
+the new informational line is
+`snapback4 worker: effect effect-test lease expired; the effect was requeued`.
+The backend's E_EFFECT_LEASE refusal stays unchanged for an actual lost claim.
+
+Measurements (N=1, this loaded host): a **120,000 ms** advance on a host started
+with **+90,000,000 ms** offset preserved a **60,000 ms** lease, added exactly
+**120,000 ms** to its deadline, requeued **0** effects and settled at attempt
+**1**, in **13 ms** wall time. A retry with **4,000 ms** backoff became claimable
+at attempt **2** after a **4,000 ms** advance in **7 ms** wall time. Actual
+**1,000 ms** lease losses requeued **1** effect each in dev and serve, with
+late settlements refused and the second attempts successfully settled; the
+ordinary five-second sweep observed them after **5,065 ms** and **5,028 ms**.
+
+Targeted checks, from `snapback4/` with Node 24.18.0 on PATH:
+`cargo test -p snapback4 --test clock -- --nocapture` passed **12/12**;
+`cargo test -p snapback4-sim --test clique effect -- --nocapture` passed **1/1**;
+`cargo test -p snapback4-lang --test guide -- --nocapture` passed **24/24**;
+`node --test packages/snapback4/test/worker.test.mjs` passed **12/12**.
+The first package build found missing generated wasm bindings; running
+`bash scripts/build-wasm.sh` supplied them and the package build passed.
+An initial misplaced Cargo invocation at the repository root exited 101 before
+the regression ran; the recorded Rust test results all come from `snapback4/`.
+
+`bash snapback4/scripts/test.sh` completed in **338 s**, with **954 passed,
+2 failed, 4 ignored** across 61 Rust targets, fixtures **9/9**, and client
+**313 passed / 1 failed**. All builds and typechecks passed. The Rust failures
+were `driver::cli_preserves_every_existing_output` and
+`driver::cli_concurrent_runs_into_one_namespace_have_one_owner`, both in the
+witness CLI suite; `cargo test -p snapback4 --test witness cli_ -- --nocapture`
+then passed **13/13**, including both. These are observed transient failures,
+not a verified pre-existing attribution. The client failure was the brief's
+known Chromium sandbox SIGABRT in `react.test.mjs`; rerunning
+`node --test packages/snapback4/test/react.test.mjs` reproduced **0 passed /
+1 failed**. The lead still needs its outside-sandbox browser run. No unrelated
+failure is claimed reproduced against the base commit. Reference validation
+passed with 0 errors and 0 unchecked; changed code tops out at **1,448 lines**.
+The tree is left uncommitted, with no push, tag or publication.

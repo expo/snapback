@@ -1143,6 +1143,7 @@ The response reports `now`, `advancedMs`, and work counts (including parked
 jobs); if maintenance fails, time remains advanced and the normal tick retries
 pending work, so do not blindly repeat the advance. The offset belongs to
 this process and resets on restart; supply it again when continuing a test.
+Rows stamped under an offset keep their times after restart; use a fresh store per offset test.
 Clients receive ordinary row times, nextExpiry and sync deletions; their
 own clocks and the application wire do not change.
 
@@ -1316,6 +1317,8 @@ snapback4 clock advance 36s
 curl -X POST http://127.0.0.1:4400/dev/clock/advance -H 'Content-Type: application/json' -d '{"duration":"36s"}'
 ```
 
+`clock advance` extends held effect leases by the advanced duration, preserving their remaining real-time lifetime; retry `nextAt` still follows the dev clock.
+
 The loop is `POST /effects/claim { effect?, limit?, lease?, wait? }` (a
 lease in seconds; `wait` long-polls until something is due), then `POST
 /effects/<id>/done { result? }` or `POST /effects/<id>/failed { error,
@@ -1324,7 +1327,8 @@ failed) and `doctor` counts them. A thrown handler retries with backoff
 (2 s, 4 s, ... up to 5 min) until the eighth attempt, then rests as
 `failed`; throw `GiveUp` to fail at once. A worker that dies loses its
 lease and the effect is claimed again (E_EFFECT_LEASE for the one that
-settles late); two workers never hold one effect. `meta.id` is the
+settles late; `runWorker` reports "lease expired; the effect was requeued"
+as information); two workers never hold one effect. `meta.id` is the
 idempotency key a provider should see. A scheduled job that `emit`s once
 per period is the digest recipe."##,
         "services" => r##"# Services: a worker's seat, and accounts the application authenticates

@@ -34,7 +34,7 @@ pub fn run_now(text: Option<&String>) -> Result<i64, Refusal> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Clock {
     dev: bool,
     base: i64,

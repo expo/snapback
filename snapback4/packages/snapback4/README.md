@@ -853,6 +853,10 @@ A failure retries with backoff up to eight attempts; a worker that dies
 loses its lease and the effect is claimed again; two workers never hold
 one effect. `snapback4 doctor` counts them. A scheduled job that emits
 once per period is the digest recipe.
+`clock advance` extends held effect leases by the advanced duration, preserving
+their remaining real-time lifetime; retry `nextAt` still follows the dev clock.
+`runWorker` reports a lost-lease settlement as information: "lease expired;
+the effect was requeued".
 
 ### Presence
 
@@ -2016,6 +2020,8 @@ step.
   Mutations at `POST /m/<op>` stamp `now` from this dev clock.
   The dev clock keeps ticking monotonically and cannot advance backwards.
   Its offset resets on process restart; supply it again to continue a test.
+  Rows stamped under an offset keep their times after restart; use a fresh store
+  per offset test.
   Devices receive the ordinary sync deletion and row timestamps, and keep
   their own local clocks. `serve` refuses every clock control with
   `E_CLOCK_DEV_ONLY`; invalid or backward advances refuse `E_CLOCK_INPUT`.

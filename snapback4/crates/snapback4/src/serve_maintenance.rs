@@ -87,7 +87,19 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
     // Serialize advances with each other and the periodic tick, without
     // holding the engine or clock lock during maintenance or response I/O.
     let _maintenance = lock(&shared.maintenance);
-    let now = match lock(&shared.clock).advance(milliseconds) {
+    // @ref LLP 3000.007#20.12 — simulated time makes retries due without stealing a live worker's effect lease.
+    let advanced = (|| {
+        // Match claims' engine-then-clock lock order: no claim can land
+        // between shifting its lease and publishing the advanced clock.
+        let mut engine = lock(&shared.engine);
+        let mut clock = lock(&shared.clock);
+        let mut next = clock.clone();
+        let now = next.advance(milliseconds)?;
+        engine.advance_effect_leases(milliseconds).map_err(|e| e.refusal())?;
+        *clock = next;
+        Ok(now)
+    })();
+    let now = match advanced {
         Ok(now) => now,
         Err(error) => return respond(request, 400, json!({"denied":refusal_json(&error)})),
     };
