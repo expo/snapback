@@ -10326,3 +10326,17 @@ git diff --check
 with exactly this one dated entry appended. HEAD remains the named base;
 the working tree contains only the 7 intended source, test and documentation
 files listed above.
+
+## 2026-09-14 — native end-to-end on the round-2 witness: no `kill` in the simulator runtime (lead)
+
+The round-2 ownership fix (W2R2w) stopped its launched app with
+`xcrun simctl spawn <udid> kill -TERM <pid>`. On a real simulator (iOS 26.5,
+dedicated `sb4-e2e`, `expo run:ios --configuration Release` build) that fails:
+"An error was encountered processing the command (domain=NSPOSIXErrorDomain,
+code=2) … No such file or directory" — the runtime has no `kill`. The fake
+`simctl` accepted it, so the tests could not see it. The driver now confirms
+through `launchctl list` that the running instance is the PID it launched and
+then calls `simctl terminate <udid> <bundle>`; a replaced instance is still
+left running with `E_WITNESS_APP`. The fixture now fails `spawn kill` as the
+runtime does and records the PID each terminate stops (witness tests 19 of 19).
+

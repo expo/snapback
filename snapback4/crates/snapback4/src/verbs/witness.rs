@@ -122,7 +122,9 @@ impl Run {
             }
             Some(_) => {}
         }
-        simctl(&["spawn", &self.udid, "kill", "-TERM", &pid.to_string()], self.options.timeout)?;
+        // The simulator runtime has no `kill`; `simctl terminate` is the supported
+        // mechanism. The check above just confirmed the running instance is ours.
+        simctl(&["terminate", &self.udid, &self.options.bundle], self.options.timeout)?;
         let end = Instant::now() + self.options.timeout;
         while self.running_app()? == Some(pid) {
             if Instant::now() >= end { return Err(error("E_WITNESS_TIMEOUT", format!("app PID {pid} did not stop"))); }

@@ -24,8 +24,10 @@ elif a[0] == 'get_app_container':
         sys.exit(1)
     print(root / a[-1])
 elif a[0] == 'terminate':
+    # Record which instance a terminate stops, as the real simulator would.
+    pid = int((root / 'app-pid').read_text()) if (root / 'app-pid').exists() else None
     with (root / 'process-events.jsonl').open('a') as f:
-        f.write(json.dumps({'terminate': a[-1]}) + '\n')
+        f.write(json.dumps({'terminate': pid}) + '\n')
     (root / 'app-pid').unlink(missing_ok=True)
 elif a[0] == 'launch':
     assert a[1:] in [['--terminate-running-process', udid, 'dev.test'], [udid, 'dev.test']]
@@ -76,12 +78,11 @@ elif a[0] == 'spawn' and a[2:] == ['launchctl', 'list']:
     print('PID\tStatus\tLabel')
     pid = (root / 'app-pid').read_text() if (root / 'app-pid').exists() else ('6999' if mode == 'running' else '-')
     print(pid + '\t0\tUIKitApplication:dev.test[fixture]')
-elif a[0] == 'spawn' and a[2:4] == ['kill', '-TERM']:
-    pid = int(a[4])
-    with (root / 'process-events.jsonl').open('a') as f:
-        f.write(json.dumps({'terminate': pid}) + '\n')
-    assert int((root / 'app-pid').read_text()) == pid
-    (root / 'app-pid').unlink()
+elif a[0] == 'spawn' and a[2] == 'kill':
+    # The iOS simulator runtime has no kill binary (observed natively 2026-09-14).
+    print('An error was encountered processing the command (domain=NSPOSIXErrorDomain, code=2):', file=sys.stderr)
+    print('No such file or directory', file=sys.stderr)
+    sys.exit(1)
 elif a[0] == 'spawn':
     def finish(*_):
         if (root / 'waiting').exists():
