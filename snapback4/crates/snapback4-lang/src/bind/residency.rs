@@ -95,7 +95,9 @@ fn rule_sites(schema: &Schema, rule: &RuleExpr, location: &str, sites: &mut Vec<
 
 fn inspect(schema: &Schema, stmts: &[Stmt], codes: &mut BTreeSet<String>, sites: &mut Vec<ResidencySite>) {
     let mut known = BTreeMap::new();
+    let mut minted_aliases = BTreeSet::new();
     for stmt in stmts {
+        inserts::track_minted_alias(stmt, &mut known, &mut minted_aliases);
         match stmt {
             Stmt::Require { condition, code, .. } => { codes.insert(code.clone()); expr(schema, condition, codes, sites); }
             Stmt::If { condition, then_body, else_body } => { expr(schema, condition, codes, sites); inspect(schema, then_body, codes, sites); inspect(schema, else_body, codes, sites); }

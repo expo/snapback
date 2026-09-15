@@ -252,6 +252,9 @@ conditions queue without a predicted row and still send `/m` (guide prediction).
 `check` calls an upsert with an unprovable insert arm `predicts: updates only`,
 and lists that arm in its summary with the first failing horizon, rule or cap
 coverage proof. `insert ... if absent` reports the same insert limitation.
+An id supplied to `insert ... if absent`, including a parameter or helper result,
+needs the `byId` absence proof too. Only an id minted by `new` during the call
+(including an omitted id) can use a covered secondary unique key instead.
 Membership-scoped reactions with `last 500` cannot prove absence outside that
 window; removing it still leaves `(messageId, principal)` unable to decide
 `exists members[.conversationId, viewer]`. A viewer-keyed read rule with no
@@ -483,8 +486,9 @@ charged to that chunk's meter. Writes belong inside a chunk.
   below), `merge t matching q [after c] last N by wordsIndex:` over scope
   lanes (search across groups), `connected[p]` (open connections; `exists connected[p]` tests;
   Presence, below). A key may name its columns: `t[a = x, b = y]`.
-  If several indexes match a positional key and exactly one is unique over
-  the whole key, that unique index wins; otherwise use `by index`.
+  If several indexes match a positional key, a single exact-type match wins
+  first. If that remains ambiguous and exactly one is unique over the whole
+  key, that unique index wins; otherwise use `by index`.
   With a total unique `(chatKey, principal)` key on t, `.principal = viewer
   or exists t[.chatKey, viewer]` is decided by the chat: each row witnesses
   itself, so the chat's roster page is complete without a second table.
@@ -492,9 +496,11 @@ charged to that chunk's meter. Writes belong inside a chunk.
   seeks on the first unpinned index column. `t[prefix] after c first N by idx
   where predicate` evaluates the read rule then the predicate for each row;
   only rows passing both count toward N. `.` is the row, and indexed reads
-  inside the predicate are metered probes. At that level, `matching`, `after`,
-  `first`/`last` and `by` end the predicate and modify the outer read;
-  parenthesize an inner read that needs its own modifiers. A lone next-column comparison
+  inside the predicate are metered probes. At that level, `matching`, `after`
+  and `first`/`last` end the predicate and modify the outer read. An immediate
+  `by` after an unparenthesized inner read refuses `E_QUARRY_MODIFIER_SCOPE`:
+  parenthesize the inner read, or move the modifier before `where`.
+  `check --fix` adds parentheses to preserve the inner index. A lone next-column comparison
   lowers to a seek with N_SEEK. A full page's cursor is after its last result;
   a cut page continues after the last rule-visible examined row, including a
   filter rejection, never a hidden row. Non-uniform ranges stay incomplete.
@@ -992,7 +998,8 @@ creates the normal starter plus the recipe in an empty directory. Existing
 destination files refuse before any write. Pass your app's client to the
 example; call `register` during profile creation. Read-time merges are fine
 when the follow count is bounded small. `N_WIDE_MERGE` explains how a
-follow-driven merge's read cost grows with follow count and names this command;
+principal-driven merge's read cost grows with the number of related principals
+and names this command as an example for Following;
 `N_SPARSE_FILTER` names it for a global-timeline filter too.
 
 `snapback4 guide feeds` carries the complete Following recipe: private

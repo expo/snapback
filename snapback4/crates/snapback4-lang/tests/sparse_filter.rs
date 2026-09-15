@@ -32,8 +32,8 @@ fn follow_driven_wide_merge_names_the_cost_and_adoption_command() {
         let bound = following_merge(table, 1000, filter);
         let note = bound.notes.iter().find(|n| n.code == "N_WIDE_MERGE").unwrap();
         println!("{note}");
-        assert_eq!(note.message, "query following: read cost grows with follow count, so a 500-follow reader does many times the work of a 5-follow reader (up to 1001 lanes); a read past the 8,192 examined ceiling returns `complete: false`");
-        assert_eq!(note.rewrite, "use `snapback4 init --recipe feeds` for Following; keep read-time merges for a bounded small follow count; measure with `snapback4 test --cost`");
+        assert_eq!(note.message, "query following: read cost grows with the number of related principals (up to 1001 lanes); a read past the 8,192 examined ceiling returns `complete: false`");
+        assert_eq!(note.rewrite, "keep read-time merges for a bounded small number of related principals; for Following, `snapback4 init --recipe feeds`; measure with `snapback4 test --cost`");
         assert_eq!(note.guide, "feeds");
     }
 }

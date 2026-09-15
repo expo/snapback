@@ -366,7 +366,7 @@ query helperRows(messageId: messages):
 
 query thread(roomId: rooms, c: cursor ?):                            -- `cursor ?` is the page argument; an omitted optional argument is null
   require exists members[roomId, viewer] else NOT_MEMBER              -- a refusal with the program's own code
-  return messages[roomId] by byRoomTime last 50 after c where .body != null and exists members[.roomId, viewer] messageCard   -- a page from a cursor, shaped: `*` spreads the row; a point read inside is null for a hidden row
+  return messages[roomId] by byRoomTime last 50 after c where .body != null and exists (members[.roomId, viewer] by byRoomPrincipal) messageCard   -- parentheses keep the explicit index on the inner read; messageCard shapes the page
 
 query inbox(c: cursor ?):
   return members[viewer] after c first 50 by byPrincipalRoom { roomId, room: rooms[.roomId], unread: messageCounts[.roomId] }
@@ -925,7 +925,8 @@ the engine mutex. Uploads are online only; there is nothing to queue."##,
 Named equalities covering a total unique key read one row and check any extra
 columns there: `t[key = x, col = y]` returns null on a mismatch, and
 `exists t[key = x, col = y]` returns false. A non-unique prefix still needs an index. When several indexes match a positional
-key, exactly one unique index covering the whole key wins; otherwise name `by index`
+key, a single exact-type match wins first; if that remains ambiguous, exactly one
+unique index covering the whole key wins; otherwise name `by index`
 (the ambiguity diagnostic carries a mechanical `check --fix` rewrite).
 
 ```quarry
@@ -956,10 +957,12 @@ both true and false verdicts; a true verdict then examines candidates.
 A page verdict evaluated from its pinned prefix charges the rule's static probe count on either outcome, including probes skipped by `and`/`or` short-circuiting.
 A table page accepts its modifiers in any order, once each. The printed order
 is `[matching q]`, `after c`, `first N` or `last N`, `by index`, `where predicate`.
-At the predicate's level, a modifier ends `where` and belongs to that outer
+At the predicate's level, a non-index modifier ends `where` and belongs to that outer
 read: `posts[viewer] where exists follows[viewer, .authorId] last 20 by byAuthorTime`.
-Parenthesize an inner read that needs its own modifiers:
-`where (exists follows[viewer, .authorId] by byPair)`. A page a query returns without
+An immediate `by` after an unparenthesized inner read is ambiguous
+(`E_QUARRY_MODIFIER_SCOPE`): parenthesize the inner read, or move the modifier
+before `where`. `check --fix` preserves the inner index by adding parentheses:
+`where exists (follows[viewer, .authorId] by byPair)`. A page a query returns without
 a cursor cannot be continued: an unfiltered page with more rows reads
 `complete: false` with no `next` (N_NO_CURSOR); declare `c: cursor ?` and
 page with `after c`. A single-group page omits this note only when its bound

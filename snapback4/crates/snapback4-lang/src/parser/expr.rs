@@ -144,11 +144,21 @@ impl Parser {
                             break;
                         }
                     }
-                    Expr::Array { items, site: token.site }
+                    Expr::Array { items, site: token.site.clone() }
                 } else {
                     first
                 };
                 self.take(")")?;
+                let mut value = value;
+                if stops.contains(&"<where>") && self.at("by") && let Expr::Read(read) = &mut value {
+                    if read.index.is_some() {
+                        let scoped: Vec<_> = stops.iter().copied().filter(|stop| *stop != "<where>").collect();
+                        return self.postfix(value, &scoped);
+                    }
+                    // Parentheses around only the key do not settle the index's
+                    // scope. Locate the whole group so --fix can wrap it intact.
+                    read.site = token.site;
+                }
                 value
             }
             Kind::Word => {
@@ -163,7 +173,17 @@ impl Parser {
     pub(super) fn postfix(&mut self, initial: Expr, stops: &[&str]) -> Fallible<Expr> {
         let mut value = initial;
         loop {
-            if self.is_stop(self.peek(), stops) { break; }
+            if self.is_stop(self.peek(), stops) {
+                // @ref LLP 3000.007#5.6 — a formerly inner index must not silently become the outer page's index.
+                if stops.contains(&"<where>") && self.at("by") && let Expr::Read(read) = &mut value {
+                    self.take("by")?;
+                    read.index = Some(self.word()?.value);
+                    self.diagnostics.push(Diagnostic::new(&read.site, "E_QUARRY_MODIFIER_SCOPE",
+                        "by could modify the inner or outer read; parenthesize the inner read, or move the modifier before `where`",
+                        format!("({})", print::read_expr(read))).guide("reads").mechanical());
+                }
+                break;
+            }
             if self.at("?") && self.peek_at(1).value == "." {
                 let site = self.take("?")?.site;
                 self.take(".")?;
@@ -261,10 +281,12 @@ impl Parser {
         let site = self.peek().site.clone();
         let mut seen = std::collections::BTreeSet::new();
         let mut violation: Option<Token> = None;
-        // @ref LLP 3000.007#5.6 — modifiers delimit the outer predicate; parentheses give a nested read its own modifier scope.
+        // Non-index modifiers delimit the predicate; a bare inner `by` needs explicit scope.
         let stops = ["matching", "after", "first", "last", "by", "where", "<newline>", ":", "{", ",", "}", ")", "]"];
         let mut value_stops = stops.to_vec();
         value_stops.push("<probe-shape>");
+        let mut predicate_stops = stops.to_vec();
+        predicate_stops.push("<where>");
         while matches!(self.peek().value.as_str(), "matching" | "after" | "first" | "last" | "by" | "where") {
             let key = self.word()?;
             let rank = match key.value.as_str() {
@@ -280,7 +302,7 @@ impl Parser {
             seen.insert(rank);
             match key.value.as_str() {
                 "where" => {
-                    let predicate = self.expression(0, &stops)?;
+                    let predicate = self.expression(0, &predicate_stops)?;
                     if read.filter.is_none() { read.filter = Some(Box::new(predicate)); }
                 }
                 "matching" => {

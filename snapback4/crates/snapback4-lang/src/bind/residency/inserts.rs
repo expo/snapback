@@ -49,7 +49,12 @@ fn failure(schema: &Schema, name: &str, addressed: Option<(&str, &[Expr])>, row:
         let columns: Vec<_> = table.index(index)?.columns().into_iter().take(key.len()).collect();
         return Some(format!("{name} read rule `{}` is not decided by key {index} ({}){}", rule.quarry(), columns.join(", "), unpinned(table, &columns)));
     }
-    let supplied_id = if let Expr::Object(fields) = row { fields.get("id").filter(|value| matches!(value, Expr::Literal(_) | Expr::Input(Input::Viewer))) } else { None };
+    // The runtime skips byId only for an id minted during this call; parameters and unknown images are supplied too.
+    let unknown_id = ir::var("<runtime>");
+    let supplied_id = match row {
+        Expr::Object(fields) => fields.get("id").filter(|value| !matches!(value, Expr::Input(Input::NewId))),
+        _ => Some(&unknown_id),
+    };
     if addressed.is_none() && (supplied_id.is_some() || !table.indexes.iter().any(|(name, index)| name != "byId" && index.unique)) {
         let key = [supplied_id.cloned().unwrap_or_else(|| ir::var("id"))];
         if upsert_absence(schema, name, "byId", &key).is_err() {
@@ -98,5 +103,28 @@ pub(super) fn image(value: &Expr, known: &BTreeMap<String, Expr>) -> Expr {
         Expr::Literal(_) | Expr::Input(_) => value.clone(),
         Expr::Object(fields) => Expr::Object(fields.iter().map(|(name, value)| (name.clone(), image(value, known))).collect()),
         _ => ir::var("<runtime>"),
+    }
+}
+
+// Keep straight-line aliases of `new` without treating a mutable local as a
+// permanent mint receipt. Other expressions or control flow may reassign it;
+// immutable $value snapshots already have their own facts in inspect.
+pub(super) fn track_minted_alias(stmt: &Stmt, known: &mut BTreeMap<String, Expr>, aliases: &mut BTreeSet<String>) {
+    fn simple(value: &Expr) -> bool {
+        match value {
+            Expr::Literal(_) | Expr::Input(_) | Expr::Variable(_) => true,
+            Expr::Object(fields) => fields.values().all(simple),
+            _ => false,
+        }
+    }
+    let binding = match stmt { Stmt::Let { name, value } | Stmt::Assign { name, value } | Stmt::Const { name, value } => Some((name, value)), _ => None };
+    if binding.is_none_or(|(_, value)| !simple(value)) {
+        for name in std::mem::take(aliases) { known.remove(&name); }
+    }
+    if let Some((name, value)) = binding {
+        if name.starts_with("$value") || matches!(stmt, Stmt::Const { .. }) { return; }
+        let minted = matches!(image(value, known), Expr::Input(Input::NewId));
+        if aliases.remove(name) { known.remove(name); }
+        if minted { known.insert(name.clone(), Expr::Input(Input::NewId)); aliases.insert(name.clone()); }
     }
 }

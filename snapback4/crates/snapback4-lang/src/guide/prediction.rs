@@ -114,6 +114,10 @@ that means a held-row update remains eligible, not that the first write predicts
 `insert ... if absent` with an unprovable insert says `predicts: inserts queue
 without a row`. The summary and residency line name the horizon, read rule or
 uncovered unique/cap group; changing the write spelling does not supply that proof.
+An id supplied to `insert ... if absent`, including a parameter or helper result,
+also needs the `byId` absence proof. Only an id minted by `new` during the call
+(including the omitted id) can use a covered secondary unique key instead.
+A private viewer-keyed table cannot prove absence by an unrelated caller-supplied id.
 
 Membership-scoped reactions and likes need particular care. With
 `sync to members[.conversationId] last 500 by byConversation`, a first write
