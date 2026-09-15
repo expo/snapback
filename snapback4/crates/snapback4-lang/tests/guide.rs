@@ -11,6 +11,20 @@ use snapback4_core::meter::Ceilings;
 use snapback4_core::{Context, Engine, Value, WriteState};
 use snapback4_lang::guide::{self, KEYWORDS, LANGUAGE, card, codes, explain_code, language, quarry};
 use std::collections::BTreeMap;
+
+#[test]
+fn time_waiting_cards_point_to_cli_and_http_clock_controls() {
+    for name in ["expire", "jobs", "effects"] {
+        let card = snapback4_lang::guide::card(name).unwrap();
+        assert!(card.contains("snapback4 clock advance <dur>"), "{name}: missing test pointer");
+        assert!(card.contains("POST /dev/clock/advance"), "{name}: missing HTTP pointer");
+        assert!(card.contains("snapback4 clock advance 36s\ncurl"), "{name}: missing two-line example");
+    }
+    assert!(snapback4_lang::guide::card("presence").unwrap().contains("In tests: `snapback4 clock advance 36s`"));
+    let readme = include_str!("../../../packages/snapback4/README.md");
+    assert!(readme.contains("snapback4 clock advance <dur>"));
+    assert!(readme.contains("snapback4 clock advance 36s\n  curl"));
+}
 use std::path::{Path, PathBuf};
 
 const README: &str = include_str!("../../../packages/snapback4/README.md");
@@ -66,7 +80,7 @@ fn the_language_card_compiles_and_runs() {
     let source = language();
     let bound = clean("the language card", &source);
     let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).collect();
-    assert_eq!(names, ["daily", "today", "calendar", "mostLiked", "chips", "room", "helperRows", "thread", "inbox", "following", "ancestors", "digest", "mentions", "search", "everywhere", "online", "pagePass", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative"]);
+    assert_eq!(names, ["daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "room", "helperRows", "thread", "inbox", "following", "ancestors", "digest", "mentions", "search", "everywhere", "online", "pagePass", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative"]);
     assert_eq!(bound.schema.effects, ["notify"]);
     assert_eq!(bound.schema.schedules.len(), 1);
     assert_eq!(bound.personas, ["alice", "bob", "carol"]);
@@ -179,6 +193,9 @@ fn the_language_card_compiles_and_runs() {
     let chips = engine.query("chips", Context::new(bob, args(&[("postId", id("post1"))])).at(3_300)).unwrap();
     assert_eq!(chips.data.as_array().unwrap()[0].field("emoji").unwrap(), &text("like"));
     assert_eq!(chips.data.as_array().unwrap()[0].field("count").unwrap(), &Value::Int(1));
+    assert_eq!(engine.query("anchoredKeys", Context::new(bob, args(&[])).at(28_800_000)).unwrap().data,
+        snapback4_core::value::object([("day", Value::Int(0)), ("hour", Value::Int(7)), ("bucket", Value::Int(0))]));
+    assert_eq!(engine.query("digestToday", Context::new(alice, args(&[])).at(3_300)).unwrap().data, Value::Int(2));
     // A value index grants no read authority over a private vote aggregate.
     assert!(engine.query("mostLiked", Context::new(bob, args(&[])).at(3_300)).unwrap().data.as_array().unwrap().is_empty());
     let following = engine.query("following", Context::new(bob, args(&[])).at(3_400)).unwrap();

@@ -24,22 +24,32 @@ pub(super) fn keys(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<BTre
         match key {
             Expr::Name { name, .. } if source.columns.contains_key(name) => {}
             Expr::Call { name, args, .. } if matches!(name.as_str(), "day" | "hour" | "bucket") => {
-                if args.len() != if name == "bucket" { 2 } else { 1 } { return Err(refusal(key.site(), "calendar key has the wrong number of arguments", "day(.at), hour(.at), or bucket(.at, 2m)")); }
+                let (millis, offset) = calendar(name, args, key.site())?;
                 let column = match &args[0] { Expr::Member { base, name, .. } if matches!(base.as_ref(), Expr::Focal { .. }) => name, _ => return Err(refusal(args[0].site(), "calendar group key needs a source time column", "day(.at), hour(.at), or bucket(.at, 2m)")) };
                 if source.columns.get(column) != Some(&ScalarType { kind: TypeKind::Time, optional: false }) {
                     return Err(refusal(args[0].site(), format!("{}.{} must be a required time column for {name}", maintain.source, column), format!("{column}: time")));
                 }
-                let millis = match name.as_str() { "day" => 86_400_000, "hour" => 3_600_000, _ => match &args[1] {
-                    Expr::Literal { value: Literal::Number(n), site } => super::integer_literal(n, site)?,
-                    other => return Err(restricted(other)),
-                }};
-                if millis <= 0 { return Err(refusal(key.site(), "bucket duration must be positive", "bucket(.at, 2m)")); }
-                computed.insert(field.clone(), CalendarKey { function: name.clone(), column: column.clone(), millis });
+                computed.insert(field.clone(), CalendarKey { function: name.clone(), column: column.clone(), millis, offset });
             }
             _ => return Err(refusal(key.site(), "maintain group keys are bare source columns or day, hour and bucket of a required time column", "by authorId, day(.at)")),
         }
     }
     Ok(computed)
+}
+
+pub(super) fn calendar(name: &str, args: &[Expr], site: &Site) -> Fallible<(i64, i64)> {
+    let base = if name == "bucket" { 2 } else { 1 };
+    let rewrite = "day(time, 8h), hour(time, 30m), or bucket(time, 1d, 8h); omit the offset for UTC epoch boundaries";
+    if args.len() != base && args.len() != base + 1 { return Err(refusal(site, "calendar key takes a time, a bucket duration if needed, and an optional literal offset", rewrite)); }
+    let literal = |expr: &Expr| match expr {
+        Expr::Literal { value: Literal::Number(n), site } => super::integer_literal(n, site),
+        _ => Err(refusal(expr.site(), "calendar durations and offsets must be literals", rewrite)),
+    };
+    let millis = match name { "day" => 86_400_000, "hour" => 3_600_000, _ => literal(&args[1])? };
+    if millis <= 0 { return Err(refusal(site, "bucket duration must be positive", "bucket(.at, 2m)")); }
+    let offset = if args.len() > base { literal(&args[base])? } else { 0 };
+    if offset < 0 || offset >= millis { return Err(refusal(args[base].site(), "calendar offset must be nonnegative and smaller than its period", rewrite)); }
+    Ok((millis, offset))
 }
 
 pub(super) fn predicate(source: &TableInfo, expr: &Expr) -> Fallible<Predicate> {

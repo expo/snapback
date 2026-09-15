@@ -42,6 +42,8 @@ query localNotes(c: cursor ?):
   return notes after c last 1 by byTime
 query presence():
   return exists connected[viewer]
+query connections(p: principal):
+  return connected[p]
 mutation add(text: text <=100):
   return insert audit { text, at: now }
 `;
@@ -149,6 +151,25 @@ test("connected is server-run even with no ordinary tables and preserves its ans
   const offline = await client.query(query("presence"), {});
   assert.equal(offline.data, online.data); assert.equal(offline.fresh, false); assert.ok(offline.since > 0);
   assert.ok(!f.deviceReads.includes("presence"));
+});
+
+test("clock advance expires presence on the server and a device", { timeout: 15000 }, async (t) => {
+  const f = await fixture(t), client = await f.open(); await client.sync();
+  const headers = { "x-snapback-persona": "bob", "content-type": "application/json" };
+  await fetch(`${f.url}/changes?wait=0`, { headers }).then(r => r.json());
+  const read = () => fetch(`${f.url}/q/connections`, { method: "POST", headers, body: JSON.stringify({ args: { p: "dev:bob" } }) }).then(r => r.json());
+  assert.equal((await client.query(query("connections"), { p: "dev:bob" })).data, 1);
+  assert.equal((await read()).data, 1);
+  const start = performance.now();
+  const advanced = await fetch(`${f.url}/dev/clock/advance`, { method: "POST", body: JSON.stringify({ duration: "36s" }) }).then(r => r.json());
+  assert.equal(advanced.advancedMs, 36000);
+  assert.equal((await read()).data, 0);
+  assert.equal((await client.query(query("connections"), { p: "dev:bob" })).data, 0);
+  assert.equal((await client.query(query("connections"), { p: "dev:bob" })).fresh, true);
+  assert.ok(!f.deviceReads.includes("connections"), "presence remains server-run");
+  t.diagnostic(`presence device: advanced_ms=36000 before=1 after=0 wall_ms=${(performance.now() - start).toFixed(2)}`);
+  await fetch(`${f.url}/changes?wait=0`, { headers }).then(r => r.json());
+  assert.equal((await client.query(query("connections"), { p: "dev:bob" })).data, 1);
 });
 
 test("presence effects residency is additive in check, why and generated artifacts", (t) => {

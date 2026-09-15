@@ -17,6 +17,37 @@ fn compile(tail: &str) -> snapback4_lang::Bound {
 }
 
 #[test]
+fn guessed_spelling_rewrite_keeps_calendar_duration_units() {
+    let b = compile("query guessed():\n  return len([day(now, 8h), bucket(now, 1d, 8h)])\n");
+    assert_eq!(b.diagnostics[0].code, "E_QUARRY_UNSUPPORTED");
+    let fixed = compile(&format!("query guessed():\n  return {}\n", b.diagnostics[0].rewrite));
+    assert!(fixed.diagnostics.is_empty(), "rewrite {:?}: {:?}", b.diagnostics[0].rewrite, fixed.diagnostics);
+}
+
+#[test]
+fn calendar_offsets_preserve_zero_forms_and_refuse_outside_the_period() {
+    for (plain, zero) in [("day(.at)", "day(.at, 0ms)"), ("hour(.at)", "hour(.at, 0s)"), ("bucket(.at, 2m)", "bucket(.at, 2m, 0m)")] {
+        let program = |form: &str| format!("maintain totals: count posts by author, {form}\n  read <- allow\n  online only\nquery key():\n  return {}\n", form.replace(".at", "now"));
+        let a = compile(&program(plain)); let b = compile(&program(zero));
+        assert!(a.diagnostics.is_empty() && b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+        assert_eq!(serde_json::to_value(&a.schema).unwrap(), serde_json::to_value(&b.schema).unwrap());
+        assert_eq!(serde_json::to_value(&a.programs[0].program).unwrap(), serde_json::to_value(&b.programs[0].program).unwrap());
+        let key = &a.schema.maintains[0].computed.values().next().unwrap();
+        let encoded = serde_json::to_value(key).unwrap();
+        assert_eq!(encoded, serde_json::json!({"function":key.function,"column":"at","millis":key.millis}));
+        assert_eq!(serde_json::from_value::<snapback4_core::maintain::CalendarKey>(encoded).unwrap(), **key);
+    }
+    for bad in ["day(.at, 24h)", "day(.at, -1h)", "hour(.at, 60m)", "bucket(.at, 2m, 120s)", "bucket(.at, 0m, 0s)", "day(.at, 9007199254740992ms)"] {
+        let b = compile(&format!("maintain totals: count posts by author, {bad}\n  read <- allow\n  online only\n"));
+        assert!(!b.diagnostics.is_empty(), "{bad}");
+        assert_eq!(b.diagnostics[0].code, "E_QUARRY_MAINTAIN", "{:?}", b.diagnostics);
+        assert_eq!(b.diagnostics[0].guide, "maintains");
+        let b = compile(&format!("query key():\n  return {}\n", bad.replace(".at", "now")));
+        assert!(!b.diagnostics.is_empty()); assert_eq!(b.diagnostics[0].code, "E_QUARRY_MAINTAIN");
+    }
+}
+
+#[test]
 fn maintain_filter_calendar_pages_and_rank() {
     let bound = compile(r#"maintain dailyPosts: count posts where .parentId = null and .active by author, day(.at)
   read <- allow

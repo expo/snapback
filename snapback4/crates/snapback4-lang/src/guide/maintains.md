@@ -19,6 +19,12 @@ outputs are floor ordinals from the Unix UTC epoch; day(-1 ms) is -1.
 Computed fields are named day, hour and bucket, once each; id and value are
 reserved. The same functions work in queries as day(now), hour(now) and
 bucket(now, 2m).
+An optional literal offset anchors the boundary: day(.at, 8h) or
+bucket(.at, 1d, 8h) groups 08:00 UTC through just before the next 08:00.
+The ordinal is floor((at - offset) / period); offsets are nonnegative whole
+durations smaller than the period, including 0ms. hour(.at, 30m) works too.
+The same offset belongs in scalar lookups: day(now, 8h). Days remain exactly
+86,400,000 ms; no timezone or daylight-saving adjustment is applied.
 
 The following Clique summaries are online-only. Add source sync when its
 audience is invertible, and omit the maintain's online only to inherit it
@@ -63,6 +69,9 @@ maintain hourlyPosts: sum posts of score by authorId, hour(.at)
 maintain periodPosts: count posts by authorId, bucket(.at, 2m)
   read <- allow
   online only
+maintain digestPosts: count posts by authorId, bucket(.at, 1d, 8h)
+  read <- allow
+  online only
 maintain reactionCounts: count reactions by messageId, emoji
   read <- allow
   online only
@@ -71,6 +80,8 @@ maintain postLikes: count likes by postId
   online only
   by byCount: value, id
 
+query digestToday():
+  return digestPosts[viewer, bucket(now, 1d, 8h)]
 query today():
   return dailyPosts[viewer, day(now)]
 query reactionChips(messageId: id):
@@ -123,6 +134,6 @@ E_OVERFLOW while an excluded contribution commits. Work reservation does not
 prevent this overflow bit; the refusal names only the maintain and column,
 and the failed transaction rolls back.
 
-Adding or changing a filter, key, duration, dependent literal default or index
+Adding or changing a filter, key, duration, offset, dependent literal default or index
 is a derived rebuild at its declaration. Today's atomic activation rebuilds
 populated stores before publishing the new generation; it is not resumable.

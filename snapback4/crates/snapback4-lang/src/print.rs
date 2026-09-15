@@ -20,7 +20,11 @@ pub fn expression(expr: &Expr) -> String {
             Expr::Focal { .. } => format!(".{name}"),
             other => format!("{}.{name}", expression(other)),
         },
-        Expr::Call { name, args, .. } => format!("{name}({})", args.iter().map(expression).collect::<Vec<_>>().join(", ")),
+        Expr::Call { name, args, .. } => format!("{name}({})", args.iter().enumerate().map(|(n, arg)| {
+            let value = expression(arg);
+            if n > 0 && matches!(name.as_str(), "day" | "hour" | "bucket") && matches!(arg, Expr::Literal { value: Literal::Number(_), .. }) { format!("{value}ms") }
+            else { value }
+        }).collect::<Vec<_>>().join(", ")),
         Expr::Read(read) => read_expr(read),
         Expr::Merge(merge) => format!("merge {}{}{} {} {} by {}{}:", merge.table, merge.matching.as_ref().map_or(String::new(), |q| format!(" matching {}", expression(q))), merge.cursor.as_ref().map_or(String::new(), |c| format!(" after {}", expression(c))), if merge.order == Order::Asc { "first" } else { "last" }, merge.take, merge.index, merge.filter.as_ref().map_or(String::new(), |p| format!(" where {}", expression(p)))),
         Expr::Exists { read, .. } => format!("exists {}", read_expr(read)),

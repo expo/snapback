@@ -34,6 +34,7 @@ pub fn run_now(text: Option<&String>) -> Result<i64, Refusal> {
     }
 }
 
+#[derive(Debug)]
 pub struct Clock {
     dev: bool,
     base: i64,
@@ -48,6 +49,10 @@ impl Clock {
     pub fn now(&self) -> i64 {
         if !self.dev { return snapback4_core::now_ms(); }
         self.base.saturating_add(self.started.elapsed().as_millis().min(MAX_TIME as u128) as i64).min(MAX_TIME)
+    }
+    pub fn presence_now(&self) -> i64 {
+        // Production grace is elapsed real time, unaffected by wall-clock corrections.
+        if self.dev { self.now() } else { self.started.elapsed().as_millis().min(MAX_TIME as u128) as i64 }
     }
     pub fn advance(&mut self, milliseconds: i64) -> Result<i64, Refusal> {
         if !self.dev { return Err(release()); }

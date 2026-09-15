@@ -17831,3 +17831,74 @@ the device, but the client needed its actual state rather than inferring it
 from a watermark or an online link. The public metadata door intentionally
 namespaces client keys, so the acquisition flag belongs in the existing device
 state reply. This lane leaves its changes uncommitted for the lead.
+
+## 2026-09-15 — W5g: development presence, clock discovery, Metro and calendar anchors
+
+Built the G7 anchor, G10, M8 and M9 items from the 0.2.19 Astra calibration,
+starting at `2862bfdadd6cf846029628151d2fb6a39006d2ed`. Presence now shares
+the development clock: the CLI and HTTP advance expire an ended poll's
+35-second grace, while an open poll survives advances. Production grace
+still uses elapsed real time. This is sound without another dev flag because
+presence remains the server's knowledge; online device queries read its new
+answer, and nothing new is replicated. Closing a browser must first end its
+server poll; advancing time does not pretend an open connection disconnected.
+The presence card points at `clock advance 36s`; expire, jobs, effects and
+README testing each put the CLI and HTTP controls beside the wait, with a
+two-line example. The useful change was putting a shipped control where the
+builder needs it, not inventing another clock API.
+
+`init --expo` and chat-expo now preserve Expo's resolver exclusions and add
+one blockList expression for `.snapback4/` trees, on POSIX and Windows paths.
+That covers SQLite, WAL/SHM, assets and generated runtime files, including a
+sibling backend watched through the workspace root. Source and generated API
+files remain watchable. The generated config test executes both configs with
+all 3 existing blockList shapes (absent, one RegExp, an array); the installed
+Expo config also loaded and excluded a WAL path without starting Metro.
+
+Calendar offsets fit the existing integer group-key encoding. `day(.at, 8h)`,
+`hour(.at, 30m)` and `bucket(.at, 1d, 8h)` accept literal nonnegative offsets
+smaller than the period, with matching query expressions. One shared evaluator
+returns `floor((at - offset) / period)` in UTC using a wide intermediate;
+zero offsets preserve the old computed-key serialization and builtin IR.
+Nonzero offsets use the existing builtin argument list and optional computed
+metadata; they add one maintained evaluation step, with no ceiling increase.
+An offset edit rebuilds the aggregate, with no source backfill. Join
+attribution remains outside this lane. Diagnostic rewrites also needed to
+preserve duration units: otherwise fixing `len` around an anchored call
+produced a second parse failure. The parser, language card, maintains card,
+README and code catalogue moved together; LLP 3000.007 records the decisions.
+
+Measurements (N=1, local loaded host): two ended-poll advances totalled
+72,000 ms of development time in 10 ms wall time; each changed connections
+from 1 to 0, and two more 36,000 ms advances left an open poll at 1. The
+process-device check advanced 36,000 ms in 7.63 ms wall time, reading 1 before
+and 0 after through the server. The existing row-expiry/schedule test advanced
+185,000 ms in 29 ms wall time, deleting 1 row and running 1 schedule, with
+both device stores observing the deletion without changing their clocks.
+The calendar test covered 15 timestamp inputs on 3 hosts, including negative
+time, both I53 endpoints, 08:00 boundaries and UTC dates spanning DST changes;
+its day and bucket period is 86,400,000 ms with offset 28,800,000 ms. Inserts,
+boundary-crossing updates and deletes predict consistently on both stores.
+Changing 28,800,000 ms to 32,400,000 ms rebuilt the group with 0 source rows
+rewritten. Explicit zero offsets matched the old schema and IR serialization
+for all 3 calendar functions.
+
+The presence, Metro, calendar and pointer regressions each first failed
+0 passed / 1 failed against the unchanged base implementation; the device
+presence regression did too. The duration-rewrite regression failed 0/1 with
+the original printer after introducing anchors, then passed with its repair.
+Final targeted commands from `snapback4/` (Node 24.18.0 on PATH):
+`cargo test -p snapback4 --test clock --test init -- --nocapture` passed
+9 clock and 7 init tests; `cargo test -p snapback4-lang --test guide --test
+maintains -- --nocapture` passed 24 guide and 7 maintain tests;
+`cargo test -p snapback4-sim --test maintains anchored_calendar -- --nocapture`
+and the `changing_calendar` filter each passed 1/1; `node --test
+packages/snapback4/test/residency.test.mjs` passed 7/7. The full
+`bash snapback4/scripts/test.sh` finished in 384 s: Rust 898 passed, 0 failed,
+4 ignored; fixtures 9/9; client 287 passed, 1 failed. The only failure was the
+brief's documented Chromium SIGABRT in `react.test.mjs`; rerunning that file
+alone reproduced 0 passed / 1 failed. This run is not a green browser claim;
+the lead must rerun outside the sandbox. No failure is claimed verified
+pre-existing against the base. `./ref-check --verbose` passed with 0 errors
+and 0 unchecked; changed code files remain below 1,500 lines. No commit,
+push, tag or publication was performed.

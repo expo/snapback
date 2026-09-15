@@ -258,6 +258,14 @@ The same operation id under another principal has no access to that receipt.
 
 ### Maintains
 
+Calendar keys accept an optional literal offset: `day(.at, 8h)` and
+`bucket(.at, 1d, 8h)` start each period at 08:00 UTC. The integer key is
+`floor((at - offset) / period)`; use the same offset in the lookup, such as
+`day(now, 8h)`. Offsets are nonnegative whole durations smaller than the
+period (zero is allowed); `hour(.at, 30m)` works too. A day is always
+86,400,000 ms, with no timezone or daylight-saving adjustment. Changing the
+offset rebuilds the maintain without adding a source column.
+
 A maintain keeps an engine-owned table of rows { id, <group columns>, value }.
 A full-key lookup returns the number, zero when absent. An explicit page
 returns rows; a short key without a page operator is refused. The generated
@@ -310,6 +318,9 @@ maintain hourlyPosts: sum posts of score by authorId, hour(.at)
 maintain periodPosts: count posts by authorId, bucket(.at, 2m)
   read <- allow
   online only
+maintain digestPosts: count posts by authorId, bucket(.at, 1d, 8h)
+  read <- allow
+  online only
 maintain reactionCounts: count reactions by messageId, emoji
   read <- allow
   online only
@@ -324,6 +335,9 @@ query reactionChips(messageId: id):
   return reactionCounts[messageId] first 50 by byGroup { emoji, count: .value }
 query mostLiked(c: cursor ?):
   return postLikes after c last 10 by byCount { postId, count: .value }
+
+query digestToday():
+  return digestPosts[viewer, bucket(now, 1d, 8h)]
 ```
 
 Value-order indexes end in value, id, optionally after group fields. last N
@@ -811,6 +825,10 @@ one effect. `snapback4 doctor` counts them. A scheduled job that emits
 once per period is the digest recipe.
 
 ### Presence
+
+In tests: `snapback4 clock advance 36s` expires grace after a poll ends;
+open polls stay connected. Online client queries read the updated server
+answer; presence is still not replicated to a device.
 
 `connected[p]` is how many connections a principal holds open on the
 server now — a device following the stream keeps a long poll open, and
@@ -1980,6 +1998,13 @@ step.
   argument cannot be derived). A query's own `require` refusing a
   derived argument (the persona is not in that group) is reported, not
   counted as a failure; run it with your arguments to see its meters.
+  In tests, use `snapback4 clock advance <dur>` or `POST /dev/clock/advance`; each example line advances the running dev once.
+
+  ```sh
+  snapback4 clock advance 36s
+  curl -X POST http://127.0.0.1:4400/dev/clock/advance -H 'Content-Type: application/json' -d '{"duration":"36s"}'
+  ```
+
 - **`snapback4 check [--cost|--residency|--fix|--json]`** compiles, writes
   `snapback/generated/api.ts` (`Rows`, `Ops`, `api`), and prints every
   diagnostic with its site and rewrite; `--cost` adds each site's
@@ -2197,6 +2222,9 @@ On web, `webDevice()` then finds the emitted wasm URL without a manual
 `wasm` option, in development and in an Expo web export. Keep both generated
 files when customizing Metro. The starter selects native or online on phones;
 select `webDevice()` when adding a local-first web client.
+The resolver blockList excludes `.snapback4/` store trees (including SQLite
+sidecars, assets and generated runtime files) while preserving Expo's existing
+exclusions; keep this entry when customizing Metro.
 
 The same client runs on React Native over the native module — the
 `snapback4-expo` package, §7.1 — in a development or production build.

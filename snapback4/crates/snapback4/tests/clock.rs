@@ -76,6 +76,39 @@ fn output_json(out: Output) -> Value {
 }
 
 #[test]
+fn clock_advance_expires_presence_grace_and_a_new_poll_reconnects() {
+    let f = Fixture::new("presence");
+    fs::write(f.0.join("snapback/schema.q"), format!("{SOURCE}\nquery connections():\n  return connected[viewer]\n")).unwrap();
+    let host = f.start(&["dev", "--no-watch", "--hold-schedules", "--clock-offset", "+25h"]);
+    assert_eq!(host.query("connections"), 0);
+    host.request("GET", "/changes?wait=0", json!(null));
+    assert_eq!(host.query("connections"), 1, "an answered poll has grace");
+    let start = Instant::now();
+    let port = host.address.rsplit(':').next().unwrap();
+    let advanced = output_json(f.command(&["clock", "advance", "36s", "--port", port]));
+    assert_eq!(advanced["advancedMs"], 36_000);
+    assert_eq!(host.query("connections"), 0, "development time must expire an ended poll's grace");
+    host.request("GET", "/changes?wait=0", json!(null));
+    assert_eq!(host.query("connections"), 1, "a new poll reconnects at the advanced time");
+    let advanced = host.post("/dev/clock/advance", json!({"duration":"36s"}));
+    assert_eq!(advanced["advancedMs"], 36_000);
+    assert_eq!(host.query("connections"), 0);
+    println!("presence: advances=2 advanced_ms=72000 grace_ms=35000 wall_ms={}", start.elapsed().as_millis());
+    let seq = host.request("GET", "/probe", json!(null))["seq"].as_u64().unwrap();
+    let mut poll = TcpStream::connect(&host.address).unwrap();
+    poll.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+    write!(poll, "GET /changes?since={seq}&wait=25&heartbeat=1 HTTP/1.1\r\nHost: localhost\r\nx-snapback-persona: alice\r\nConnection: close\r\n\r\n").unwrap();
+    let mut poll = BufReader::new(poll);
+    let mut header = String::new(); poll.read_line(&mut header).unwrap();
+    assert!(header.starts_with("HTTP/1.1 200"), "{header}");
+    // Receiving the streaming header proves the poll entered, without a sleep.
+    for _ in 0..2 {
+        assert_eq!(host.post("/dev/clock/advance", json!({"duration":"36s"}))["advancedMs"], 36_000);
+        assert_eq!(host.query("connections"), 1, "an open poll survives clock advances");
+    }
+}
+
+#[test]
 fn offset_cli_advance_and_rejected_inputs_keep_time_monotone() {
     let f = Fixture::new("offset");
     let before = snapback4_core::now_ms();

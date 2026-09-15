@@ -177,7 +177,9 @@ impl Parser {
                 let site = self.take("(")?.site;
                 let mut args = Vec::new();
                 while !self.at(")") {
-                    args.push(if name == "bucket" && args.len() == 1 { self.maintain_duration()? } else { self.expression(0, &[",", ")"])? });
+                    args.push(if name == "bucket" && args.len() == 1 { self.maintain_duration(false)? }
+                        else if matches!(name.as_str(), "day" | "hour" | "bucket") && args.len() == if name == "bucket" { 2 } else { 1 } { self.maintain_duration(true)? }
+                        else { self.expression(0, &[",", ")"])? });
                     if !self.maybe(",") {
                         break;
                     }

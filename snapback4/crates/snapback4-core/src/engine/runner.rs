@@ -470,7 +470,7 @@ impl<'a> Runner<'a> {
                 }
             }
             Expr::Builtin { builtin, args } => {
-                if args.len() != builtin.arity() {
+                if args.len() != builtin.arity() && !(matches!(builtin, Builtin::Calendar { .. }) && args.len() == 2) {
                     return Err(RuntimeError::Input(format!("builtin {builtin:?} takes {} arguments, received {}", builtin.arity(), args.len())));
                 }
                 // Inspect a held value without allocating a copy just to count
@@ -526,7 +526,9 @@ impl<'a> Runner<'a> {
             Builtin::Len | Builtin::Count | Builtin::CountCapped | Builtin::Sum => scalar_builtin(builtin, &args[0]),
             Builtin::Calendar { millis } => {
                 if *millis <= 0 { return Err(RuntimeError::Input("calendar duration must be positive".into())); }
-                Ok(Value::Int(args[0].as_int()?.div_euclid(*millis)))
+                let offset = args.get(1).map(Value::as_int).transpose()?.unwrap_or(0);
+                if offset < 0 || offset >= *millis { return Err(RuntimeError::Input("calendar offset must be nonnegative and smaller than its period".into())); }
+                Ok(Value::Int(crate::maintain::calendar_ordinal(args[0].as_int()?, *millis, offset)))
             }
             Builtin::Lower | Builtin::Trim => {
                 let text = args[0].as_str()?;
