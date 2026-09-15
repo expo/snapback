@@ -20034,3 +20034,65 @@ Documentation checks: `./ref-check --verbose` passes with 481 LLP documents,
 Markdown targets in the new RFC resolve. The new RFC is 754 lines and the
 root is 1,187, below the file-size bound. No runtime source changed, and no
 runtime tests, independent review, deployment or publication are claimed.
+
+## 2026-09-15 — LLP 3000.009 rewritten after a directional review (Claude)
+
+The author asked for a sanity check of Draft 3000.009's direction, and a
+rewrite if a different approach would work better. Read against the author's
+commission in the Codex session (the goal, agnosticism between SQLite and
+Postgres, and the question of what the abstraction loses), the Postgres
+experiment's store and measurements, LLP 3000.007 §3, §7, §9 and §10.3, LLP
+3000.008 and .008.004, the actions card, and the online client's table-level
+invalidation.
+
+Kept from the draft: Quarry for managed data; TypeScript outside
+transactions; no SQL writes into managed tables; one commit order; durable
+work without exactly-once; webhook admission before acknowledgement; restore
+as a new store incarnation; LLP 3000.003's verification obligations.
+
+Changed:
+
+- Execution. The draft lowered data fragments to per-backend plans qualified
+  against the interpreter. The rewrite keeps the interpreter as the only
+  executor and batches access with transaction-scoped prefetch. The inbox's
+  68 calls are a per-row loop after a one-call page scan; the meter's charges
+  and cut are defined in interpreter order; Convex's Postgres persistence is
+  a generic documents-and-indexes layout beneath its own engine.
+- Layout. Generic on both stores. Typed, natively indexed tables exist only as
+  engine-maintained projections, which SQL reads (candidates or declared
+  channels) and extensions use. If the author admits SQL reads, this answers
+  two of the costs LLP 3000.007 §9.1 named.
+- Sequence. An online-only brief with Convex and Supabase controls first,
+  rerun after each increment, with Postgres as a parallel lane; the draft put
+  the application last.
+- Terms. "Native" keeps LLP 3000.005's meaning; the draft's native
+  capabilities are database capabilities.
+- Added: read-set invalidation for online observation, with key ranges kept
+  on the server (§7.1).
+
+LLP 3000.003's routing link now names the verification section's new number
+(§11), and the root's 3000.009 entry summarizes the rewrite. Documentation
+checks: `./ref-check --verbose` ok (481 LLP documents, 0 errors, 0
+unchecked); `git diff --check` clean. The RFC is 708 lines and the root
+1,202. No runtime source, tests, independent review or publication.
+
+## 2026-09-15 — LLP 3000.009 rulings; panel and implementation commissioned (Claude)
+
+The author: "accept direction, commission online-only breif, idk waht count
+towards promotion means you decide, idk what you mean rule on sql reads,
+deployment targets are both, we'll do a quick review then start the work";
+then "have astra max, grok xhigh, muse xhigh do a one round panel discussion
+of this new plan just to sanity check direction and suss out major issues.
+then begin implementation using astra xhigh to code".
+
+Recorded in LLP 3000.009 §14 and LLP 3000 §7; the RFC's status becomes
+Accepted in direction. On the delegated promotion question, the brief does
+not join §3's gates: they were registered before the comparison, and the
+brief has no baseline yet. It is reported beside them and is the bar for any
+general-purpose claim. SQL reads stay open, restated in plain terms for the
+author; they gate only increment D. The managed-service target is direction
+only; its design and Moves line wait for a commission.
+
+Next: the panel, blind and in one round, at the commit that records these
+rulings; then Astra xhigh lanes on increments A (the server half) and C
+(Postgres persistence), and the brief.
