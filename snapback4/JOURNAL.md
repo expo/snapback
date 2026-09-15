@@ -10427,3 +10427,32 @@ The existing membership-feed ticket is updated. No core implementation changed.
 ## 2026-09-15 UTC — Clique M7 exposes a maintained-identity adoption refusal
 
 Astra's fresh 0.2.10 M7 session retained a schema-adoption refusal on an engine-generated poll tally ID and recovered by preserving vote rows while replacing the derived tally. A separate public-CLI reproduction on the unmodified published binary uses fresh stores and no server ports: canonical maintained IDs of 144 bytes accept an unrelated index addition; 145 and 159 bytes refuse store opening with E_INPUT. Restoring the prior schema reads identical source rows. Filed [the P2 adoption ticket](../issues/20260915-snapback4-maintained-identity-blocks-additive-schema-adoption.md) with the exact schemas, command receipts and source explanation. Current-main runtime applicability remains unverified; no product fix or author ruling is made here. All three independent grades are complete; M7 and the final LLP 3000.007 §10.3 record continue.
+
+## 2026-09-15 — scan preparation A/B rejects this candidate
+
+The fixed-source experiment on d0ea081923 (0.2.15) is complete. An ignored
+core candidate reuses two pure schema/IR analyses within one plain lazy
+merge, keeping every live verdict, expiry, dependency, meter and page/cursor
+operation fresh. Its corrected test fixture passed 318 selected Rust test
+executions; the earlier test-compile failure remains preserved. All six
+ordinary HTTP runs passed 117,000 timed case calls, 7,020 excluded warmups,
+162 untimed complete walks / 33,510 pages and the complete fixture, auth,
+leave/regrant and owned-process checks. Both frozen calculators passed
+unchanged and their values reconcile.
+
+This version is not recommended for adoption. The 150-group rotating feed
+at eight clients moves 19.176 → 24.454 ms p50 and 36.245 → 55.225 ms p95;
+throughput falls 375.8 → 282.9 requests/s. It loses elapsed/rate in every
+pair, as does the 150-group next page. Smaller concurrent feeds improve,
+and point/thread controls vary; the result does not identify a cause or
+establish a uniform regression. After-workload RSS medians fall 848 KiB,
+but two of three paired RSS observations rise. The benchmark record and
+six raw-preserving ledger entries retain every loss and the measurement
+limits. The next investigation must address the larger repeated scan and
+materialization costs while preserving the live authority contract. Core
+implementation remains with its owner; no candidate runtime is landed.
+
+Main reached 0.2.16 before this evidence landing, with changes to core
+read/rule/admission/schema and host behavior at integration parent
+1a4a50da8. This fixed d0ea batch does not qualify that newer runtime or its
+performance; the next experiment must qualify its own source.
