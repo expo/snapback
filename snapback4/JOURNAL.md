@@ -18621,3 +18621,22 @@ owners): `first_completion_emissions=0` without the fix, `1` with it.
 process) and the W5R1x history tests stay green: 15/15 for
 `--test-name-pattern='N3|W5R2a|W5R1x'`.
 
+## 2026-09-15 — Wave 5 landed as 0.2.21 / expo 0.2.12 (lead)
+
+Integration `sb4/w5-int` (W5a–W5g, repairs W5R1x/y/z and W5R2a/b, the lead's
+N3 fix). Lead verification outside the sandbox:
+- `scripts/test.sh`: the one client failure was an `ECONNREFUSED` on the
+  web-navigation test's local server port; that test passed 3/3 alone.
+- Client tests at concurrency 2: 323/323.
+- Real Chromium `navigation-immediate`: 10/10; `navigation`: 2 durable
+  writes.
+- Native Expo end-to-end (`native-e2e.sh`: dedicated iPhone 17 simulator,
+  iOS 26.5, `expo run:ios --configuration Release`, published witness):
+  `{"witness":"published-ios","ok":true,"ms":24209}`, with offline and
+  restart receipts and video. The metrics line is in `metrics/witness.jsonl`.
+- ref-check: ok.
+
+Blind reviews: GPT round-3 confirmation reported N3, which the lead fixed
+with a regression; Grok's confirmation was READY. LLP 3000.007 §20.14,
+`llp/reviews/3000.007-agent-ergonomics-wave-5.*`.
+
