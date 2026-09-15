@@ -19,7 +19,7 @@ use std::process::ExitCode;
 
 const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on every device
 
-  init [dir] [--online|--expo]      start local-first, online-only, or with the Expo client
+  init [dir] [--online|--expo] [--recipe feeds]  start a project or add the Following recipe
   check [--cost|--residency|--fix|--json] [--store path]  compile snapback/*.q; check store adoption; write types; build native jobs
   types                            compile and write snapback/generated/api.ts
   dev [--port N] [--no-watch] [--fresh] [--hold-effects] [--hold-schedules] [--clock-offset +25h]

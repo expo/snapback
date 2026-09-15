@@ -11,6 +11,99 @@ impl Dir {
     fn run(&self, flag: &str) -> std::process::Output { Command::new(BIN).args(["init", flag]).current_dir(&self.0).output().unwrap() }
 }
 impl Drop for Dir { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
+
+fn recipe(dir: &Dir, extra: &[&str]) -> std::process::Output {
+    Command::new(BIN).args(["init", "--recipe", "feeds"]).args(extra).current_dir(&dir.0).output().unwrap()
+}
+
+fn check_recipe(dir: &Dir) {
+    let written = fs::read_to_string(dir.0.join("snapback/feed.q")).unwrap();
+    let card = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).remove(0);
+    assert_eq!(written, card.replace(": purgeRemoved\n", ": feed.purgeRemoved\n"), "only the module's schedule target is qualified");
+    let bound = snapback4_lang::compile(&[("feed.q".into(), written.clone())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+    assert_eq!(bound.schema.operations["feed.following"].runs.as_deref(), Some("device"));
+    assert_eq!(bound.schema.schedules[0].target, "feed.purgeRemoved");
+    let output = Command::new(BIN).args(["check", "--json"]).current_dir(&dir.0).output().unwrap();
+    assert!(output.status.success(), "{output:?}");
+    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let starter = snapback4_lang::compile(&[("schema.q".into(), fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap())]);
+    assert_eq!(report["notes"], serde_json::to_value(&starter.notes).unwrap(), "the recipe must add no notes: {report}");
+    let api = fs::read_to_string(dir.0.join("snapback/generated/api.ts")).unwrap();
+    assert!(api.contains("feed.following") && api.contains("feed.register"), "{api}");
+    assert!(dir.0.join("src/following.ts").is_file());
+    println!("recipe check: {} tables, {} operations, 0 diagnostics, 0 recipe notes ({} starter notes); module: {} lines, {} bytes; check: {} ms", report["tables"], report["operations"], starter.notes.len(), written.lines().count(), written.len(), report["ms"]);
+}
+
+#[test]
+fn feeds_recipe_initializes_empty_and_fresh_expo_projects() {
+    for extra in [&[][..], &["--expo"][..]] {
+        let dir = Dir::new();
+        let output = recipe(&dir, extra);
+        assert!(output.status.success(), "{output:?}");
+        assert!(dir.0.join("snapback/schema.q").is_file());
+        check_recipe(&dir);
+    }
+}
+
+#[test]
+fn feeds_recipe_adds_to_existing_starters_without_changing_their_files() {
+    for flag in ["", "--expo", "--online"] {
+        let dir = Dir::new();
+        assert!(dir.run(flag).status.success());
+        let check = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
+        assert!(check.status.success(), "{check:?}");
+        fn snapshot(dir: &std::path::Path) -> Vec<(PathBuf, Vec<u8>)> {
+            let mut files = Vec::new();
+            for entry in fs::read_dir(dir).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_dir() { files.extend(snapshot(&path)); } else { files.push((path.clone(), fs::read(path).unwrap())); }
+            }
+            files
+        }
+        let before = snapshot(&dir.0);
+        let output = recipe(&dir, &[]);
+        assert!(output.status.success(), "{output:?}");
+        for (path, bytes) in before { assert_eq!(fs::read(&path).unwrap(), bytes, "{} changed", path.display()); }
+        check_recipe(&dir);
+    }
+}
+
+#[test]
+fn feeds_recipe_conflicts_leave_every_destination_untouched() {
+    for existing in [false, true] {
+        for name in ["snapback/feed.q", "src/following.ts"] {
+            let dir = Dir::new();
+            if existing { assert!(dir.run("--expo").status.success()); }
+            let path = dir.0.join(name);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(&path, "kept").unwrap();
+            let output = recipe(&dir, &[]);
+            assert_eq!(output.status.code(), Some(1), "{output:?}");
+            assert_eq!(String::from_utf8_lossy(&output.stderr), format!("./{name} already exists\n"));
+            assert_eq!(fs::read_to_string(path).unwrap(), "kept");
+            let other = if name.ends_with(".q") { "src/following.ts" } else { "snapback/feed.q" };
+            assert!(!dir.0.join(other).exists());
+            assert_eq!(dir.0.join("snapback/schema.q").exists(), existing);
+        }
+    }
+    let dir = Dir::new();
+    assert!(recipe(&dir, &[]).status.success());
+    assert_eq!(recipe(&dir, &[]).status.code(), Some(1));
+}
+
+#[test]
+fn feeds_recipe_requires_a_known_name_before_writing() {
+    for args in [vec!["init", "--recipe"], vec!["init", "--recipe", "unknown"]] {
+        let dir = Dir::new();
+        let output = Command::new(BIN).args(args).current_dir(&dir.0).output().unwrap();
+        assert_eq!(output.status.code(), Some(2), "{output:?}");
+        assert!(String::from_utf8_lossy(&output.stderr).contains("--recipe feeds"));
+        assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0);
+    }
+}
+
 #[test]
 fn init_merges_packages_and_preserves_unrelated_metadata() {
     for flag in ["--online", "--expo"] {

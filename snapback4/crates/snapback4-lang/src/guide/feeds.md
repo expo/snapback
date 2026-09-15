@@ -1,5 +1,15 @@
 # Feeds: complete Following with a small celebrity merge
 
+> Adopt: `snapback4 init --recipe feeds`\
+> Writes `snapback/feed.q` and typed `src/following.ts`; then run `snapback4 check`.\
+> A read-time merge is fine when the follow count is bounded small.
+
+Add it to an existing project, including `init --expo`, or start an empty
+directory with the normal starter plus the recipe. Existing destination
+files refuse before any write. The module's operations are under `api.feed`;
+its schedule names `feed.purgeRemoved`. The block below is the source copied
+by init, with that schedule target qualified for the module.
+
 Small accounts write each reader's private inbox. On the 51st follower,
 future events go into one public broadcast projection; the earlier events
 keep their delivery mode. Follow backfills the latest 200 source events,

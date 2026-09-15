@@ -118,6 +118,7 @@ fn wide_matching_merge_note_is_conditional_when_the_read_completes() {
     assert!(note.message.contains("up to 21000 rows per read"), "{note}");
     assert!(note.message.contains("a read past the 8,192 examined ceiling returns `complete: false`"), "{note}");
     assert!(!note.message.contains("the page is cut"));
+    assert!(!note.message.contains("follow count"), "room memberships are not a follows-shaped read: {note}");
     assert!(note.rewrite.contains("snapback4 test --cost"));
 }
 

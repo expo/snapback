@@ -6,14 +6,22 @@ use serde_json::{Value, json};
 use std::path::Path;
 
 pub fn init(options: &Options) -> i32 {
-    if options.positionals.len() > 1 || (options.flags.contains_key("online") && options.flags.contains_key("expo")) {
-        eprintln!("usage: snapback4 init [dir] [--online|--expo]");
+    let recipe = options.flags.get("recipe");
+    if options.positionals.len() > 1 || (options.flags.contains_key("online") && options.flags.contains_key("expo")) || recipe.is_some_and(|name| name != "feeds") {
+        eprintln!("usage: snapback4 init [dir] [--online|--expo] [--recipe feeds]");
         return 2;
     }
     let dir = options.positionals.first().map(Path::new).unwrap_or_else(|| Path::new("."));
     let online = options.flags.contains_key("online");
     let expo = options.flags.contains_key("expo");
-    let mut files = if expo { expo_files() } else if online { online_files() } else { vec![("snapback/schema.q", snapback4_lang::guide::TEMPLATE.to_owned())] };
+    let recipe_only = recipe.is_some() && !expo && !online && dir.join("snapback/schema.q").is_file();
+    let mut files = if recipe_only { Vec::new() } else if expo { expo_files() } else if online { online_files() } else { vec![("snapback/schema.q", snapback4_lang::guide::TEMPLATE.to_owned())] };
+    if recipe.is_some() {
+        // @ref LLP 3000.007#20.3 — adopt the tested Following recipe; only its schedule needs the module's qualified job name.
+        let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).remove(0);
+        files.push(("snapback/feed.q", source.replace(": purgeRemoved\n", ": feed.purgeRemoved\n")));
+        files.push(("src/following.ts", include_str!("init/following.ts").to_owned()));
+    }
     // @ref LLP 3000.007#20.2 — installed packages can receive a starter; only conflicting required entries refuse.
     for (name, text) in &mut files {
         if *name == "package.json" && dir.join(*name).exists() {
@@ -40,7 +48,7 @@ pub fn init(options: &Options) -> i32 {
         }
     }
     // @ref LLP 3000.007#20.2 — scope generated ESM to its artifacts, preserving existing application scripts' module interpretation.
-    files.push(("snapback/generated/package.json", GENERATED_PACKAGE.into()));
+    if !recipe_only { files.push(("snapback/generated/package.json", GENERATED_PACKAGE.into())); }
     // Check every destination before writing any starter file.
     for (name, _) in &files {
         let alternate = match *name { "metro.config.cjs" => Some("metro.config.js"), "babel.config.cjs" => Some("babel.config.js"), "metro.config.js" => Some("metro.config.cjs"), "babel.config.js" => Some("babel.config.cjs"), _ => None };
@@ -48,7 +56,7 @@ pub fn init(options: &Options) -> i32 {
             eprintln!("{} already exists", dir.join(alternate).display());
             return 1;
         }
-        if *name != "package.json" && dir.join(*name).exists() {
+        if *name != "package.json" && dir.join(*name).symlink_metadata().is_ok() {
             eprintln!("{} already exists", dir.join(*name).display());
             return 1;
         }
@@ -66,7 +74,7 @@ pub fn init(options: &Options) -> i32 {
         Ok(())
     };
     if let Err(error) = write() { eprintln!("init: {error}"); return 2; }
-    println!("init: wrote {} files in {} — {} — next: `snapback4 check`, then `snapback4 dev`{}", files.len(), dir.display(), if expo { "Expo: native when available, online in Expo Go" } else if online { "online-only" } else { "local-first" }, if expo || online { "; see README.md" } else { "" });
+    println!("init: wrote {} files in {} — {}{} — next: `snapback4 check`, then `snapback4 dev`{}", files.len(), dir.display(), if recipe_only { "Following recipe" } else if expo { "Expo: native when available, online in Expo Go" } else if online { "online-only" } else { "local-first" }, if recipe.is_some() && !recipe_only { " + Following recipe" } else { "" }, if expo || online { "; see README.md" } else { "" });
     0
 }
 

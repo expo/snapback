@@ -17577,3 +17577,58 @@ production benchmark binary. Original inputs, outputs and receipts are under
 is `signal-framing-0219-v1-source-evidence-independent-review.md` (68b3a763).
 The current three-backend comparison still requires a separately qualified
 build and fresh sessions; no timing or new competitor win is claimed here.
+
+## 2026-09-15 — W5d: adopt Following with one init command
+
+`snapback4 init --recipe feeds` now adds `snapback/feed.q` and the typed
+`src/following.ts` example to an existing starter, including Expo; an empty
+directory receives the normal starter as well. Both destination conflicts
+refuse before writing, and an existing starter's files stay byte-identical.
+The recipe comes directly from the feeds card's first compiled Quarry block.
+Only the purge schedule target becomes `feed.purgeRemoved`, because jobs in
+a module have qualified names. The card opens with three adoption lines;
+the README and language card name the command too.
+
+The module is **200 lines / 6,506 bytes**, with **7 tables / 9 operations**,
+and compiles with **0 diagnostics / 0 notes**. The fresh default plus recipe
+checks at **8 tables / 13 operations** with no notes; Expo plus recipe has
+**12 tables / 18 operations**, preserving its starter's one inbox
+`N_NO_CURSOR` note. A baseline binary built from
+`2862bfdadd6cf846029628151d2fb6a39006d2ed` reproduces that starter note.
+The five targeted project checks took **6–11 ms** on this shared host.
+The **13-line** client example typechecks against the real generated API in
+fresh and existing Expo projects.
+
+`N_WIDE_MERGE` recognizes principal-to-principal discovery, including the
+binding used by filtered merges, and says that read cost grows with follow
+count: a 500-follow reader does many times the work of a 5-follow reader.
+It states the lane envelope and names the adoption command, without turning
+one replay's latency ratio into a general promise. `N_SPARSE_FILTER` names
+the same command. Small merges remain clean, and room-membership merges keep
+their existing note. No codes, meter ceilings, value forms or corpus cases
+changed.
+
+Red first at the base: init regressions **0 passed / 4 failed**, note tests
+**2 passed / 2 failed**, typed usage **0 passed / 1 failed**. A filtered-merge
+extension also reproduced the missing wording (**3 passed / 1 failed**)
+before handling its discovery binding. Final targeted Rust checks passed
+**56/56** (init 10, guide 23, residency notes 19, feed notes 4); the typed
+usage test passed **1/1**. Clique passed **50/50**, with one measurement
+test ignored. Following still examines **42 rows at 5 follows and 42 at
+500 (1.00×)**; the removal page uses **82 examinations / 41 tombstone
+probes**. These are deterministic interpreter counts, not a new HTTP
+latency comparison.
+
+The full `bash snapback4/scripts/test.sh` completed in **440 s**, reporting
+**1 failure**: client tests **287 passed / 1 failed**, Chromium SIGABRT in
+`react.test.mjs`, the known sandbox artifact. Its isolated rerun was
+**0 passed / 1 failed** with the same signal; the test and its execution
+inputs match the base above. Rust, both app typechecks, package checks and
+the **9/9** fixture tests passed. `./ref-check --verbose` passed with
+**480 LLP documents / 8,933 references / 0 errors / 0 unchecked**.
+
+The adoption friction was packaging, not another feed design: keeping the
+tested card as the source makes the full lifecycle available without a
+200-line transcription. Module-qualified schedules and preserving an
+existing starter's diagnostics are the two details a copy-only scaffold
+would otherwise miss. No commit, push or publication was made in this lane.

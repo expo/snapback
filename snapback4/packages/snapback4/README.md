@@ -933,6 +933,16 @@ framing and are not extrapolated.
 
 ### Feeds: complete Following on the device
 
+Run `snapback4 init --recipe feeds` to write `snapback/feed.q` and the typed
+client example `src/following.ts`, then `snapback4 check` to generate
+`api.feed`. This adds to an existing project, including `init --expo`, or
+creates the normal starter plus the recipe in an empty directory. Existing
+destination files refuse before any write. Pass your app's client to the
+example; call `register` during profile creation. Read-time merges are fine
+when the follow count is bounded small. `N_WIDE_MERGE` explains how a
+follow-driven merge's read cost grows with follow count and names this command;
+`N_SPARSE_FILTER` names it for a global-timeline filter too.
+
 `snapback4 guide feeds` carries the complete Following recipe: private
 inboxes for small accounts, one public projection for celebrity posts,
 follow-time backfill, atomic unfollow purge, own posts and attributed
@@ -1790,7 +1800,7 @@ default of an existing required column rechecks the unique indexes and
 caps over it, and a group that no longer fits is `E_ADOPT` like any other
 step.
 
-- **`snapback4 init [dir] [--online|--expo]`** starts a project without
+- **`snapback4 init [dir] [--online|--expo] [--recipe feeds]`** starts a project without
   overwriting existing files. An existing `package.json` keeps its metadata;
   required dependencies, devDependencies and scripts merge into it through an
   atomic replacement, so a failed package write leaves the original intact. A different
@@ -1805,6 +1815,8 @@ step.
   Keep Expo and its Babel preset on the same major; a mismatch can leave
   private fields in the bundle that Hermes cannot compile. The generated
   README gives the install and run commands.
+  `--recipe feeds` adds the Following module and typed client example above;
+  it also works after the starter has been initialized, without rewriting its files.
 
 - **`snapback4 dev [--port N] [--no-watch] [--fresh] [--hold-effects] [--hold-schedules] [--clock-offset +25h]`** serves
   `snapback/*.q` on `127.0.0.1:4400`, recompiling and re-adopting on
