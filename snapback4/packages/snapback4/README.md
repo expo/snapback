@@ -1305,7 +1305,7 @@ await client.close();
 ```
 
 On the web, `mutate` waits for the outbox's IndexedDB commit, and `pagehide`
-or becoming hidden sends the oldest durable unconfirmed write with an authenticated
+or becoming hidden sends only the oldest unconfirmed write with an authenticated
 keepalive request, including a retry of that same head if an ordinary send
 is in flight when the page exits. A blocked or oversized
 head is never skipped. Requests share the browser's 64 KiB body budget; unsent or unconfirmed writes
@@ -1314,25 +1314,14 @@ If an exit response has not finished after one second, ordinary flushing
 retries that same durable head before advancing; an unknown outcome never
 skips a write. `close()` stops waiting immediately without cancelling the
 keepalive request.
-From the synchronous call to `mutate`, the client also remembers each pending
-admission's mutation id, operation, arguments and minted row ids in memory.
-If no durable unconfirmed write precedes them and no ordinary send is in
-flight, exit sends a prefix of those submissions in order, in one authenticated
-keepalive request: at most 32 writes that fit the shared 64 KiB body budget.
-It never skips a blocked predecessor. The server executes the list in order,
-with one transaction and receipt per write, stopping at the first refusal.
-Admission and keepalive use the same mutation id, so later durable replay
-dedupes even when the server applied a write before IndexedDB committed it.
-This pre-admission send is best-effort: if the browser drops the keepalive
-before admission commits, that write can still be lost. A write excluded
-by the budget, a predecessor or an in-flight send also needs admission to
-finish to survive navigation.
 An admission that finishes while the page is suspended rechecks the exit
 transport after its commit; on reopen, a matching server store identity and
 non-regressed head allow unknown writes to replay before the first sync finishes.
 For programmatic navigation, `await client.mutate(...)` before navigating
-is the durable boundary; handle a `failed` outcome before leaving. `pending`
-means admission is durable and the server outcome still needs confirmation.
+is the durable boundary; handle a `failed` outcome before leaving. A write
+whose `mutate` is not awaited can be lost if the page unloads before its
+admission commits. `pending` means admission is durable and the server
+outcome still needs confirmation.
 
 On the web one tab is one device: a second tab on the same store opens
 its own, and the writes a tab left queued when it closed are adopted by

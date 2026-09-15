@@ -33,7 +33,7 @@ import {
 /** One JSON call into the device: `{ op, ... }` in, `{ ok } | { denied }` out. */
 export interface DeviceCore {
   readonly media?: MediaStorage;
-  /** Web hosts alone: pagehide/hidden, with committed unsent writes (possibly empty), synchronously. */
+  /** Web hosts alone: committed unsent writes at pagehide/hidden, synchronously. */
   onSuspend?(flush: (entries: readonly PendingSend[], beginSend: () => boolean) => void): () => void;
   call(request: Record<string, unknown>): Promise<Record<string, unknown>>;
   close(): Promise<void>;
@@ -195,7 +195,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let closing: Promise<void> | undefined;
   const aborter = new AbortController();
   const core = await options.device.open(storeName, backend);
-  const submitted = new Map<string, PendingSend>();
   let stopSuspend: (() => void) | undefined;
   let media: MediaCache | undefined;
   try {
@@ -332,14 +331,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     active.add(work);
     try {
       const result = (await work) as { ok?: unknown; denied?: Refusal };
-      if (request.op === "admit") submitted.delete((request.entry as Queued).id);
       if (!result.denied && ["apply", "observe_store", "adopt", "clear_rows", "admit", "settle"].includes(String(request.op))) await media?.reconcile();
       return result;
     }
-    finally {
-      active.delete(work);
-      if (request.op === "admit") submitted.delete((request.entry as Queued).id);
-    }
+    finally { active.delete(work); }
   }
 
   const offline = (): Refusal => ({ code: "E_OFFLINE", family: "link", message: "the server is unreachable", retryable: true });
@@ -901,9 +896,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           await exitDone;
           if (closed || sessionDead) return { ok: false as const };
           if (!(await queued()).some((current) => current.id === entry.id && current.sent_seq == null)) return { ok: true as const, retired: true as const };
-          // A suspend event may have started a send during the queued read.
-          await exitDone;
-          if (closed || sessionDead) return { ok: false as const };
           ordinarySending = entry.id;
           try {
             const started = await call({ op: "begin_send" });
@@ -1018,14 +1010,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const predictable = Boolean(program && schema && [...operationTables(program, schema)].every((t) => schema.tables[t]?.sync));
       const result = new Promise<Write>((resolve) => settled.set(id, resolve));
       try {
-        // @ref LLP 3000.007#20.4 — retain the submission synchronously: teardown can precede even the first IndexedDB admission turn.
-        const capturedArgs = core.onSuspend ? JSON.parse(JSON.stringify(args)) : args;
-        if (core.onSuspend) submitted.set(id, { id, op: op.name, args: capturedArgs, newIds });
-        const admitted = await call({ op: "admit", entry: { id, seq: submission, op: op.name, args: capturedArgs, viewer: principal, now: Date.now(), new_ids: newIds, predicted: [], predictable } satisfies Queued });
+        const admitted = await call({ op: "admit", entry: { id, seq: submission, op: op.name, args, viewer: principal, now: Date.now(), new_ids: newIds, predicted: [], predictable } satisfies Queued });
         if (admitted.denied) { settled.delete(id); return emitWrite({ state: "failed", id, why: admitted.denied }); }
         rerunTables(predictedTables(((admitted.ok as Queued | undefined)?.predicted) ?? []));
       } catch (error) {
-        submitted.delete(id);
         settled.delete(id);
         return emitWrite({ state: "failed", id, why: { code: "E_STORE", family: "store", message: `write ${id} admission outcome is unknown: ${String(error)}` } });
       }
@@ -1147,10 +1135,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const sendOnExit = exitTransport(doFetch, base, aborter.signal);
     stopSuspend = core.onSuspend((entries, beginSend) => {
       const request = requestCredentials();
-      const beforeAdmission = entries.length === 0;
-      const candidates = beforeAdmission ? [...submitted.values()] : entries;
       // @ref LLP 3000.007#20.4 — document teardown may abort the ordinary request: only its same durable head may overlap the keepalive retry.
-      exitDone = sendOnExit(candidates, request.headers, () => (ordinarySending === undefined || (!beforeAdmission && ordinarySending === entries[0]?.id)) && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend(), beforeAdmission);
+      exitDone = sendOnExit(entries, request.headers, () => (ordinarySending === undefined || ordinarySending === entries[0]?.id) && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend());
     });
   }
   follow();
