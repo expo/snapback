@@ -21,10 +21,11 @@ mod prediction;
 #[path = "guide/discovery.rs"]
 mod discovery;
 pub use discovery::{listing, nearest};
-pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "rules", "sync", "residency", "prediction", "evolution", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "services", "presence", "bounds", "refusals", "personas"];
+pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "rules", "sync", "residency", "prediction", "evolution", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "services", "presence", "bounds", "refusals", "personas", "witness"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
+    ("simulator", "witness"), ("offline proof", "witness"),
     ("grammar", "language"), ("quarry", "language"),
     ("predict", "prediction"), ("predictable", "prediction"), ("offline", "prediction"),
     ("optimistic", "prediction"), ("pending", "prediction"),
@@ -446,7 +447,7 @@ Before editing, `check --fix` verifies every compiled source; an editor save ref
 
 Cards: `snapback4 guide <keyword>` — types, indexes, rules, sync, residency, prediction, evolution, expire,
 assets, reads, shapes, writes, programs, jobs, native, feeds, search,
-effects, actions, services, presence, bounds, refusals, personas. `snapback4 why
+effects, actions, services, presence, bounds, refusals, personas, witness. `snapback4 why
 <CODE>` explains a refusal.
 "##;
 
@@ -454,6 +455,7 @@ pub fn card(keyword: &str) -> Option<&'static str> {
     let keyword = ALIASES.iter().find(|(alias, _)| *alias == keyword).map_or(keyword, |(_, target)| *target);
     Some(match keyword {
         "language" => LANGUAGE,
+        "witness" => include_str!("guide/witness.md"),
         "prediction" => prediction::CARD,
         "evolution" => discovery::EVOLUTION,
         "types" => r##"# Types

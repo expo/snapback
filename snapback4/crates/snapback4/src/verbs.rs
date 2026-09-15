@@ -15,6 +15,7 @@ use std::time::Instant;
 mod fix;
 mod init;
 mod sql;
+pub mod witness;
 pub use init::init;
 pub use sql::sql;
 mod residency;
