@@ -22,12 +22,14 @@ fn n1_probe_sweep<S: snapback4_device::store::DeviceStore>(mut store: S, label: 
         }));
         let (table, row) = nonuniform::visible();
         tx.put(&table, &backend.schema.tables[&table], &row, None).unwrap();
-        let program = backend.programs.iter().find(|p| p.name == "page").unwrap();
-        nonuniform::positive(snapback4_core::engine::local::query(&tx, &backend.schema, program, nonuniform::context(), Default::default()).unwrap());
+        for name in ["page", "merged"] {
+            let program = backend.programs.iter().find(|p| p.name == name).unwrap();
+            nonuniform::positive(snapback4_core::engine::local::query(&tx, &backend.schema, program, nonuniform::context(), Default::default()).unwrap(), name);
+        }
         tx.rollback().unwrap();
     }
     assert_eq!(worlds[0], worlds[1]);
-    println!("N1 host={label} ceilings=1..={cost} probe_limits=2 forms=3 identical_pairs={} positive_controls=2", worlds[0].len());
+    println!("N1 host={label} ceilings=1..={cost} probe_limits=2 forms=4 identical_pairs={} positive_controls=4", worlds[0].len());
 }
 
 #[test]
@@ -36,10 +38,10 @@ fn following_removal_n1_memory() { n1_probe_sweep(snapback4_device::memory::Memo
 #[test]
 fn following_removal_n1_sqlite() { n1_probe_sweep(snapback4_core::Store::memory().unwrap(), "sqlite"); }
 
-fn removal_cut<S: snapback4_device::store::DeviceStore>(mut store: S, label: &str) {
+fn removal_cut<S: snapback4_device::store::DeviceStore>(mut store: S, label: &str, followers: usize) {
     use snapback4_core::rows::Rows;
     let (mut engine, backend) = compile(&world::source());
-    case::seed_cut(&mut engine);
+    case::seed_cut(&mut engine, followers);
     store.install(&backend.schema, &Default::default(), false).unwrap();
     let tx = store.transaction().unwrap();
     // Public dispatch fixes the ceilings. Install exactly this reader's real
@@ -54,14 +56,19 @@ fn removal_cut<S: snapback4_device::store::DeviceStore>(mut store: S, label: &st
         }
     }
     let program = backend.programs.iter().find(|p| p.name == "following").unwrap();
-    case::check_cut(label, |ceilings| snapback4_core::engine::local::query(&tx, &backend.schema, program, context(&case::reader(0), &[]).at(300), ceilings).unwrap());
+    assert!(!snapback4_core::engine::rules::lazy_merge(&backend.schema, predicate::merge(program)));
+    println!("MERGE_PATH host={label} followers={followers} shape=following_inbox_broadcast lazy=false");
+    case::check_cut(label, followers, |ceilings| snapback4_core::engine::local::query(&tx, &backend.schema, program, context(&case::reader(0), &[]).at(300), ceilings).unwrap());
+    if followers == 5 {
+        case::check_heap_cut(label, |ceilings| snapback4_core::engine::local::query(&tx, &backend.schema, program, context(&case::reader(0), &[]).at(300), ceilings).unwrap());
+    }
 }
 
 #[test]
-fn following_removal_cut_memory() { removal_cut(snapback4_device::memory::MemoryStore::new(), "memory"); }
+fn following_removal_cut_memory() { for followers in [5, 51] { removal_cut(snapback4_device::memory::MemoryStore::new(), "memory", followers); } }
 
 #[test]
-fn following_removal_cut_sqlite() { removal_cut(snapback4_core::Store::memory().unwrap(), "sqlite"); }
+fn following_removal_cut_sqlite() { for followers in [5, 51] { removal_cut(snapback4_core::Store::memory().unwrap(), "sqlite", followers); } }
 
 #[test]
 fn following_removal_reaches_every_reader_before_purge_on_both_stores() {
@@ -218,3 +225,32 @@ fn following_removal_foreign_tombstone_memory() { removal_authority(crate::commo
 
 #[test]
 fn following_removal_foreign_tombstone_sqlite() { removal_authority(crate::common::Sqlite::new("removal-authority")); }
+
+#[path = "../../../snapback4-sim/tests/common/merge_predicate.rs"]
+mod predicate;
+
+fn merge_predicate<H: crate::common::Host>(mut host: H) {
+    let (mut engine, backend) = compile(predicate::SOURCE);
+    engine.seed(predicate::rows()).unwrap();
+    predicate::paths(&backend.schema, &backend.programs);
+    let mut eager_backend = backend.clone();
+    eager_backend.programs = predicate::eager(&backend.programs);
+    let mut natural = host.open("natural", Some(backend)).unwrap();
+    let mut eager = host.open("eager", Some(eager_backend)).unwrap();
+    for (n, page) in snapshot_pages(&mut engine, "dev:reader", 1000).iter().enumerate() {
+        natural.apply(page, n == 0).unwrap();
+        eager.apply(page, n == 0).unwrap();
+    }
+    predicate::check(host.label(), |force_eager, name, cursor| {
+        let device = if force_eager { &mut eager } else { &mut natural };
+        device.query(name, "dev:reader", &serde_json::json!({"c":cursor}), 300).unwrap()
+    });
+    host.close("natural", natural);
+    host.close("eager", eager);
+}
+
+#[test]
+fn following_merge_predicate_memory() { merge_predicate(crate::common::Memory::new()); }
+
+#[test]
+fn following_merge_predicate_sqlite() { merge_predicate(crate::common::Sqlite::new("merge-predicate")); }

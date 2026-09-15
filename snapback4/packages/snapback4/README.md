@@ -956,6 +956,13 @@ complete at 20 live matches or the end, and continues after its last live
 entry. Longer removed runs cost more examinations and probes. An offline
 device still sees its last synced state. Ordinary point reads and read-rule
 probes keep their existing semantics.
+The 40-event test with its newest 20 removed uses 82 examinations and
+41 tombstone probes to return 20 live rows and a continuation; examined
+ceiling 25 returns no rows, incomplete, without a cursor.
+Following uses the eager merge path because its lanes read different tables.
+Filtered lanes discovered by `for` also use eager evaluation, preserving
+each selector's bindings throughout pagination; uniform fixed-prefix lanes
+on one seekable plain index can still use the lazy path.
 The card lists its schema caps and measured cold-sync tradeoff. A named
 merge lane reads a second table with the same columns and plain index;
 each table keeps its own rule and sync. `cap N` without `by` caps the whole

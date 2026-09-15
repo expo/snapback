@@ -12,17 +12,22 @@ fn engine() -> Engine {
     let bound = world::compiled(&world::source());
     assert!(bound.notes.is_empty(), "{:?}", bound.notes);
     assert!(bound.schema.operations.contains_key("unrepost"), "feeds must publish removal");
+    let following = &bound.programs.iter().find(|p| p.program.name == "following").unwrap().program;
+    assert!(!snapback4_core::engine::rules::lazy_merge(&bound.schema, predicate::merge(following)));
+    println!("MERGE_PATH shape=following_inbox_broadcast lazy=false");
     Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap()
 }
 
 #[test]
 fn following_removal_cut_never_returns_unchecked_events() {
-    let mut e = engine();
-    case::seed_cut(&mut e);
-    case::check_cut("server", |ceilings| {
-        e.set_ceilings(ceilings);
-        e.query("following", Context::new(case::reader(0), BTreeMap::new()).at(300)).unwrap()
-    });
+    for followers in [5, 51] {
+        let mut e = engine();
+        case::seed_cut(&mut e, followers);
+        case::check_cut("server", followers, |ceilings| {
+            e.set_ceilings(ceilings);
+            e.query("following", Context::new(case::reader(0), BTreeMap::new()).at(300)).unwrap()
+        });
+    }
 }
 
 #[test]
@@ -36,10 +41,10 @@ fn following_removal_n1_hidden_absent_probe_sweep() {
         worlds.push(nonuniform::sweep(cost, |name, ceilings| { e.set_ceilings(ceilings); e.query(name, nonuniform::context()) }));
         e.set_ceilings(Default::default());
         e.seed([nonuniform::visible()]).unwrap();
-        nonuniform::positive(e.query("page", nonuniform::context()).unwrap());
+        for name in ["page", "merged"] { nonuniform::positive(e.query(name, nonuniform::context()).unwrap(), name); }
     }
     assert_eq!(worlds[0], worlds[1]);
-    println!("N1 host=server ceilings=1..={cost} probe_limits=2 forms=3 identical_pairs={} positive_controls=2", worlds[0].len());
+    println!("N1 host=server ceilings=1..={cost} probe_limits=2 forms=4 identical_pairs={} positive_controls=4", worlds[0].len());
 }
 
 // @ref LLP 3000.007#20.3 — source removal preserves private inboxes; the system purges bounded copies.
@@ -221,4 +226,33 @@ fn following_removal_foreign_tombstone_preserves_private_worlds() {
         }
         paired[0].assert_same(&paired[1]);
     }
+}
+
+#[path = "../common/merge_predicate.rs"]
+mod predicate;
+
+#[test]
+fn following_merge_predicate_keeps_each_discovery_binding() {
+    let bound = world::compiled(predicate::SOURCE);
+    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+    let programs: Vec<_> = bound.programs.into_iter().map(|p| p.program).collect();
+    predicate::paths(&bound.schema, &programs);
+    let mut natural = Engine::memory(bound.schema.clone(), programs.clone()).unwrap();
+    let mut eager = Engine::memory(bound.schema, predicate::eager(&programs)).unwrap();
+    natural.seed(predicate::rows()).unwrap();
+    eager.seed(predicate::rows()).unwrap();
+    predicate::check("server", |force_eager, name, cursor| {
+        let engine = if force_eager { &mut eager } else { &mut natural };
+        engine.query(name, predicate::context(cursor)).unwrap()
+    });
+}
+
+#[test]
+fn following_removal_heap_cut_stops_at_the_tombstone_key() {
+    let mut e = engine();
+    case::seed_cut(&mut e, 5);
+    case::check_heap_cut("server", |ceilings| {
+        e.set_ceilings(ceilings);
+        e.query("following", Context::new(case::reader(0), BTreeMap::new()).at(300)).unwrap()
+    });
 }
