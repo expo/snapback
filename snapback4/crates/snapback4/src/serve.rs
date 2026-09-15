@@ -179,6 +179,19 @@ impl Live {
 }
 
 impl Presence for Live {
+    fn effect_presence(&self, principal: &str) -> (u64, Option<i64>) {
+        let map = lock(&self.polls);
+        let clock = lock(&self.clock);
+        match map.get(principal) {
+            Some((open, _)) if *open > 0 => (u64::from(*open), None),
+            Some((_, Some(last))) => {
+                let remaining = (PRESENCE_GRACE.as_millis() as i64).saturating_sub(clock.presence_now().saturating_sub(*last));
+                (0, (remaining > 0).then(|| clock.now().saturating_add(remaining)))
+            }
+            _ => (0, None),
+        }
+    }
+
     fn connections(&self, principal: &str) -> u64 {
         let map = lock(&self.polls);
         let now = lock(&self.clock).presence_now();

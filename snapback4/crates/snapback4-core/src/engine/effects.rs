@@ -26,7 +26,7 @@ pub struct EffectRun {
     pub id: String,
     pub effect: String,
     pub payload: Value,
-    /// `queued`, `running`, `sent` or `failed`.
+    /// `queued`, `running`, `sent`, `satisfied` or `failed`.
     pub state: String,
     /// Claims so far; the current claim counts.
     pub attempts: u32,
@@ -55,14 +55,17 @@ pub enum Settled {
 const COLUMNS: &str = "id, effect, payload, state, attempts, seq, at, next_at, lease_until, claimed_by, result, error";
 
 // @ref LLP 3000.007#20.2 — dev replay counts committed emits without retaining a deliverable payload.
-pub(super) fn record(tx: &crate::store::Tx<'_>, outbox: &[(String, String, Value)], seq: u64, now: i64, dev: bool) -> Result<(), RuntimeError> {
+pub(super) fn record(tx: &crate::store::Tx<'_>, outbox: &[super::presence::Emission], seq: u64, now: i64, dev: bool) -> Result<(), RuntimeError> {
     if outbox.is_empty() { return Ok(()); }
     let replay = dev && tx.conn().prepare_cached("SELECT EXISTS(SELECT 1 FROM _meta WHERE key = 'dev:replay' AND value = 'true') AND NOT EXISTS(SELECT 1 FROM _meta WHERE key = 'release')")?.query_row([], |row| row.get(0))?;
     if replay {
         tx.conn().execute("INSERT INTO _meta(key, value) VALUES ('dev:suppressed-effects', ?1) ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + CAST(excluded.value AS INTEGER)", [outbox.len().to_string()])?;
     } else {
-        for (id, effect, payload) in outbox {
-            tx.conn().execute("INSERT INTO _outbox(id, seq, effect, payload, state, attempts, at) VALUES (?1, ?2, ?3, ?4, 'queued', 0, ?5)", params![id, seq as i64, effect, canonical_json(payload), now])?;
+        for (id, effect, payload, presence) in outbox {
+            tx.conn().execute("INSERT INTO _outbox(id, seq, effect, payload, state, attempts, at, next_at) VALUES (?1, ?2, ?3, ?4, 'queued', 0, ?5, ?6)", params![id, seq as i64, effect, canonical_json(payload), now, presence.values().max()])?;
+            for (principal, deadline) in presence {
+                tx.conn().execute("INSERT INTO _effect_presence(principal, id, deadline) VALUES (?1, ?2, ?3)", params![principal, id, deadline])?;
+            }
         }
     }
     Ok(())
@@ -106,6 +109,16 @@ impl Engine {
         };
         let mut claimed = Vec::with_capacity(ids.len());
         for id in ids {
+            let dependencies = tx.conn().prepare("SELECT principal, reconnected FROM _effect_presence WHERE id = ?1")?
+                .query_map([&id], |row| Ok((row.get::<_, String>(0)?, row.get::<_, bool>(1)?)))?.collect::<Result<Vec<_>, _>>()?;
+            let satisfied = dependencies.iter().any(|(principal, reconnected)| *reconnected
+                || self.presence.as_ref().is_some_and(|presence| presence.effect_presence(principal).0 > 0));
+            tx.conn().execute("DELETE FROM _effect_presence WHERE id = ?1", [&id])?;
+            if satisfied {
+                let outcome = crate::value::object([("outcome", Value::String("presence_reconnected".into()))]);
+                tx.conn().execute("UPDATE _outbox SET state = 'satisfied', result = ?2, next_at = NULL WHERE id = ?1", params![id, canonical_json(&outcome)])?;
+                continue;
+            }
             tx.conn().execute("UPDATE _outbox SET state = 'running', attempts = attempts + 1, claimed_by = ?2, lease_until = ?3, next_at = NULL, error = NULL WHERE id = ?1", params![id, worker, now + lease])?;
             if let Some(run) = tx.conn().query_row(&format!("SELECT {COLUMNS} FROM _outbox WHERE id = ?1"), [&id], read_run).optional()? {
                 claimed.push(run);
@@ -113,6 +126,14 @@ impl Engine {
         }
         tx.commit()?;
         Ok(claimed)
+    }
+
+    /// Record even a brief reconnect before its grace deadline. The host
+    /// calls this under the same engine lock as emission and claiming.
+    pub fn presence_reconnected(&mut self, principal: &str, now: i64) -> Result<(), RuntimeError> {
+        let tx = self.store.transaction()?;
+        tx.conn().execute("UPDATE _effect_presence SET reconnected = 1 WHERE principal = ?1 AND deadline >= ?2", params![principal, now])?;
+        tx.commit()
     }
 
     /// Settle a claimed effect: `sent` with the worker's result, or a

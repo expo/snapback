@@ -434,3 +434,99 @@ fn real_time_effect_lease_loss_requeues_in_dev_and_serve() {
         println!("effect wall: release={release} lease_ms=1000 requeues=1 attempts=2 wall_ms={}", start.elapsed().as_millis());
     }
 }
+
+
+#[test]
+fn grace_push_is_deferred_until_clock_advance_then_delivered_once() {
+    let f = effect_fixture("grace-push");
+    fs::write(f.0.join("snapback/schema.q"), format!("{SOURCE}\neffect notify\nmutation push():\n  insert counters {{n: 1, at: now}}\n  if not exists connected[viewer]:\n    emit notify {{recipient: viewer}}\n")).unwrap();
+    let host = f.start(&["dev", "--no-watch", "--hold-schedules"]);
+    let auth = effect_token(&f, false);
+    host.request("GET", "/changes?wait=0", json!(null));
+    assert_eq!(host.post("/m/push", json!({"id":"push", "args":{}}))["state"], "sent");
+    let queued = host.auth_request("GET", "/effects", json!(null), &auth);
+    assert_eq!(queued["effects"].as_array().unwrap().len(), 1, "grace must defer the push, not lose it: {queued}");
+    let effect = &queued["effects"][0];
+    let delay = effect["nextAt"].as_i64().unwrap() - effect["at"].as_i64().unwrap();
+    assert!((1..=35_000).contains(&delay), "{effect}");
+    assert_eq!(host.auth_request("POST", "/effects/claim", json!({}), &auth)["effects"], json!([]));
+    let start = Instant::now();
+    let port = host.address.rsplit(':').next().unwrap();
+    assert_eq!(output_json(f.command(&["clock", "advance", "36s", "--port", port]))["advancedMs"], 36_000);
+    let claimed = host.auth_request("POST", "/effects/claim", json!({}), &auth);
+    assert_eq!(claimed["effects"].as_array().unwrap().len(), 1, "{claimed}");
+    assert_eq!(claimed["effects"][0]["id"], effect["id"]);
+    assert_eq!(claimed["effects"][0]["attempt"], 1);
+    let id = effect["id"].as_str().unwrap();
+    assert_eq!(host.auth_request("POST", &format!("/effects/{id}/done"), json!({}), &auth)["ok"], true);
+    assert_eq!(host.auth_request("POST", "/effects/claim", json!({}), &auth)["effects"], json!([]));
+    assert_eq!(host.post("/m/push", json!({"id":"push", "args":{}}))["replayed"], true);
+    assert_eq!(host.query("counters").as_array().unwrap().len(), 1);
+    println!("grace push: delay_ms={delay} advanced_ms=36000 delivered=1 attempts=1 duplicate_claims=0 wall_ms={}", start.elapsed().as_millis());
+}
+
+
+#[test]
+fn grace_push_reconnect_is_satisfied_even_after_restart_and_disconnect() {
+    for reconnect in [false, true] {
+        let f = effect_fixture(if reconnect { "grace-reconnect" } else { "grace-restart" });
+        fs::write(f.0.join("snapback/schema.q"), format!("{SOURCE}\neffect notify\nmutation push():\n  if not exists connected[viewer]:\n    emit notify {{recipient: viewer}}\n")).unwrap();
+        let host = f.start(&["dev", "--no-watch", "--hold-schedules"]);
+        let auth = effect_token(&f, false);
+        host.request("GET", "/changes?wait=0", json!(null));
+        assert_eq!(host.post("/m/push", json!({"id":"push", "args":{}}))["state"], "sent");
+        let queued = host.auth_request("GET", "/effects", json!(null), &auth)["effects"][0].clone();
+        assert_eq!(queued["state"], "queued");
+        if reconnect { host.request("GET", "/changes?wait=0", json!(null)); }
+        drop(host);
+        let host = f.start(&["dev", "--no-watch", "--hold-schedules"]);
+        assert_eq!(host.auth_request("GET", "/effects", json!(null), &auth)["effects"][0]["nextAt"], queued["nextAt"]);
+        assert_eq!(host.post("/dev/clock/advance", json!({"duration":"36s"}))["advancedMs"], 36_000);
+        let claimed = host.auth_request("POST", "/effects/claim", json!({}), &auth);
+        if reconnect {
+            assert_eq!(claimed["effects"], json!([]));
+            let effect = host.auth_request("GET", "/effects?state=satisfied", json!(null), &auth)["effects"][0].clone();
+            assert_eq!(effect["id"], queued["id"]);
+            assert_eq!(effect["attempt"], 0);
+            assert_eq!(effect["result"], json!({"outcome":"presence_reconnected"}));
+        } else {
+            assert_eq!(claimed["effects"].as_array().unwrap().len(), 1);
+            assert_eq!(claimed["effects"][0]["id"], queued["id"]);
+            let id = queued["id"].as_str().unwrap();
+            assert_eq!(host.auth_request("POST", &format!("/effects/{id}/done"), json!({}), &auth)["ok"], true);
+        }
+        assert_eq!(host.auth_request("POST", "/effects/claim", json!({}), &auth)["effects"], json!([]));
+        println!("grace HTTP restart: reconnect={reconnect} delivered={} attempts={}", u8::from(!reconnect), u8::from(!reconnect));
+    }
+}
+
+#[test]
+fn grace_push_serve_keeps_deadline_and_reconnect_record_for_claim_after_restart() {
+    let f = effect_fixture("grace-serve");
+    fs::write(f.0.join("snapback/schema.q"), "effect notify\nmutation push():\n  if not exists connected[viewer]:\n    emit notify {recipient: viewer}\n").unwrap();
+    assert!(f.command(&["deploy", "deployment"]).status.success());
+    let host = f.start(&["serve", "deployment"]);
+    let auth = effect_token(&f, true);
+    // No connection/grace: immediate, also on the release host.
+    assert_eq!(host.auth_request("POST", "/m/push", json!({"id":"immediate", "args":{}}), &auth)["state"], "sent");
+    let immediate = host.auth_request("POST", "/effects/claim", json!({}), &auth)["effects"][0].clone();
+    assert_eq!(immediate["state"], "running");
+    assert_eq!(host.auth_request("POST", &format!("/effects/{}/done", immediate["id"].as_str().unwrap()), json!({}), &auth)["ok"], true);
+    host.auth_request("GET", "/changes?wait=0", json!(null), &auth);
+    assert_eq!(host.auth_request("POST", "/m/push", json!({"id":"deferred", "args":{}}), &auth)["state"], "sent");
+    let queued = host.auth_request("GET", "/effects?state=queued", json!(null), &auth)["effects"][0].clone();
+    let deadline = queued["nextAt"].as_i64().unwrap();
+    assert!((1..=35_000).contains(&(deadline - queued["at"].as_i64().unwrap())), "{queued}");
+    assert_eq!(host.auth_request("POST", "/effects/claim", json!({}), &auth)["effects"], json!([]));
+    host.auth_request("GET", "/changes?wait=0", json!(null), &auth);
+    drop(host);
+    // Reopen the real release store and pin claim time at its durable
+    // deadline; production has no clock-control route and needs no sleep.
+    let mut engine = snapback4_core::Engine::open(snapback4_core::Store::open(&f.0.join("deployment/store.sqlite")).unwrap()).unwrap();
+    assert!(engine.claim_effects("service:worker", None, 10, 60_000, deadline).unwrap().is_empty());
+    let satisfied = engine.effects(Some("satisfied"), 10).unwrap();
+    assert_eq!(satisfied.len(), 1);
+    assert_eq!(satisfied[0].attempts, 0);
+    assert_eq!(satisfied[0].result.as_ref().unwrap().field("outcome").unwrap().as_str().unwrap(), "presence_reconnected");
+    println!("grace serve: immediate_delivered=1 deferred_delivered=0 satisfied=1 attempts=0 restarts=1");
+}

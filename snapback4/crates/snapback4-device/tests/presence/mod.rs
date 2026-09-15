@@ -231,3 +231,34 @@ fn r1p_unconditional_payload_new_and_effect_only_commits_have_separate_ids() {
     });
     assert!(mismatches.borrow().is_empty(), "{}", mismatches.borrow().join("\n"));
 }
+
+
+#[test]
+fn grace_push_prediction_remains_identical_on_both_stores() {
+    #[derive(Debug)]
+    struct Grace;
+    impl snapback4_core::Presence for Grace {
+        fn connections(&self, _: &str) -> u64 { 1 }
+        fn effect_presence(&self, _: &str) -> (u64, Option<i64>) { (0, Some(36_000)) }
+    }
+    on_both(|host| {
+        let (mut engine, backend) = compile(&format!("{NOTES}\nmutation post(p: principal):\n  insert notes {{ n: 1 }}\n  if not exists connected[p]:\n    emit notify {{recipient: p}}\n"));
+        assert_eq!(backend.schema.operations["post"].predicts.as_deref(), Some("eligible"));
+        engine.set_presence(Some(std::sync::Arc::new(Grace)));
+        let label = host.label();
+        let mut device = host.open("grace-prediction", Some(backend)).unwrap();
+        for (n, page) in snapshot_pages(&mut engine, "alice", 10).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
+        let predicted = ok(device.call(serde_json::json!({"op":"predict", "name":"post", "viewer":"alice", "args":{"p":"bob"}, "now":11_000, "newIds":["message"]})));
+        assert!(predicted.get("denied").is_none(), "{predicted}");
+        let sent = engine.mutate("post", Some("write"), context("alice", &[("p", id("bob"))]).at(11_000).with_ids(["message".into()])).unwrap();
+        assert!(matches!(sent.state, WriteState::Sent { .. }), "{sent:?}");
+        let mut local = query(&mut *device, "notes", "alice", serde_json::json!({}), 11_000)["data"].clone();
+        for row in local.as_array_mut().unwrap() { assert_eq!(row["pending"], true); row.as_object_mut().unwrap().remove("pending"); }
+        assert_eq!(local, snapback4_core::wire::to_json(&Value::Array(engine.store().rows("notes").unwrap())));
+        assert_eq!(engine.effects(None, 10).unwrap()[0].next_at, Some(36_000));
+        engine.set_presence(None);
+        assert_eq!(engine.claim_effects("worker", None, 10, 60_000, 36_000).unwrap().len(), 1);
+        println!("grace prediction: store={} predicted_rows=1 identical_server_rows=1 deferred_effects=1", label);
+        device.close();
+    });
+}

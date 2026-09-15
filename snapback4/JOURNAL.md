@@ -19895,3 +19895,72 @@ Two complete original-evidence records are appended to storage.jsonl; the
 includes every case and the source/host/correctness/timing limits. The
 private comparison continues separately; these results establish no new
 competitor ranking or moving-main speed claim.
+
+## 2026-09-15 — W7b: grace defers a push instead of swallowing it
+
+Built calibration 0.2.22 d-02 / V2 from base
+`80b4899f949eb597d6426d95dda82d0c2dcd0b97`. Before changing the engine, the
+real-HTTP regression sent a message after an ended poll and found an empty
+effect queue: `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 1.14s`.
+After the fix, that same command reported
+`test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 1.42s`.
+
+The states are recorded in LLP 3000.007 §19.1. A live poll still suppresses
+an absence-conditioned push. No live poll and no grace emits immediately.
+For a mutation whose presence values reach only effects, grace alone now
+means a deferred absence decision, with the effect's existing `next_at` at
+the grace deadline. Dependencies follow local values, fields and branch
+control, including lowered short-circuit expressions, and stay separate for
+each recipient; an unrelated emit stays immediate. The binder's existing
+effects-only proof keeps predicted rows independent of this server decision.
+Ordinary presence queries, and presence deciding rows or results, retain
+their prior meaning. No serialized value/IR form or meter ceiling changed.
+
+An authenticated reconnect during the waiting window is recorded durably
+with the queued effect, under the same engine lock as emission and claim.
+At first claim, that record or a currently live poll cancels worker delivery:
+state `satisfied`, result `{ outcome: 'presence_reconnected' }`, attempts `0`.
+This survives a brief reconnect followed by disconnect and restart. An ended
+reconnect after the window does not cancel it. The first actual claim consumes
+the presence condition; subsequent retries keep the existing worker protocol.
+The queue and reconnect records share the mutation's transaction; replay and
+restart cannot create a second effect. Development deadlines follow the dev
+clock, while `serve` converts its remaining monotone grace into the queue's
+wall-clock deadline. The process-local dev offset still resets on restart.
+
+Measurements (local loaded host): a `36,000 ms` CLI advance made a push with
+`35,000 ms` remaining delay claimable in `5 ms` wall time in the targeted HTTP
+run: `1` delivered effect, `1` attempt, `0` duplicate claims. The deterministic
+boundary test waits `25,000 ms` from message to deadline, claims `0` at
+`35,999`, and `1` at `36,000`. Restart cases perform `2` reopens each; absence
+and a late-ended reconnect deliver `1`, while an in-window reconnect and a
+live poll at claim deliver `0`. The Clique send writes `1` message for `2`
+recipients: Bob's reconnect satisfies `1` push and Carol receives `1`.
+Both device stores predict `1` row identical to the server's row with `1`
+deferred effect. The release-host witness delivers `1` immediate effect,
+then persists and satisfies `1` grace effect with `0` worker attempts after
+reopen. Its claim clock is pinned in the engine at the persisted deadline;
+production exposes no clock-control route.
+
+Final focused checks: grace simulator `6 passed / 0 failed`; presence device
+suite `8 passed / 0 failed`; HTTP grace suite `3 passed / 0 failed`; compiled
+guide/README suite `25 passed / 0 failed`. The full
+`bash snapback4/scripts/test.sh` finished with `== 1 failure(s) in 506 s`:
+Rust totals `1,000 passed / 0 failed / 4 ignored` (62 summary lines), fixtures
+`9 passed / 0 failed`, clients `364 passed / 1 failed`. Builds and package,
+chat and Expo typechecks passed. The client failure is the brief's named
+sandbox artifact: Chromium exits `SIGABRT` in `react.test.mjs`; rerunning
+`node --test packages/snapback4/test/react.test.mjs` alone gives
+`ℹ tests 1` / `ℹ pass 0` / `ℹ fail 1` with the same abort. I did not rerun
+that failure against the base, so this is an environment observation, not a
+newly verified pre-existing product-failure claim. `./ref-check --verbose`
+passes. No commit, push, tag or publication was made.
+
+What I learned: neither a process-local last-seen time nor a claim-time check
+alone can remember a reconnect that has already ended. The reconnect fact
+must be durable until first claim, alongside the deferred effect. No new
+presence table in the application or worker-side timer is needed.
+The transaction wording above refers to the initial grace dependency records:
+they are inserted with the emitted queue row in the mutation's commit. A later
+reconnect marks those records in its own transaction, serialized by the engine
+lock; claim consumes them atomically with its final queue transition.

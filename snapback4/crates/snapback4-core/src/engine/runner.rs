@@ -56,8 +56,9 @@ pub struct Runner<'a> {
     pub(crate) next_expiry: Option<i64>,
     /// Partition events, accumulated for the commit.
     pub(crate) events: Vec<Event>,
-    /// Queued effects: `(id, effect, payload)`.
-    pub(crate) outbox: Vec<(String, String, Value)>,
+    /// Queued effects with their grace dependencies.
+    pub(crate) outbox: Vec<super::presence::Emission>,
+    pub(super) effect_presence: super::presence::EffectPresence,
     /// How deep inside page loops the runner is; a scan at depth 0 may own
     /// the program's `next`.
     pub(crate) page_depth: usize,
@@ -126,6 +127,7 @@ impl<'a> Runner<'a> {
             next_expiry: None,
             events: Vec::new(),
             outbox: Vec::new(),
+            effect_presence: Default::default(),
             page_depth: 0,
             page: None,
             pages: BTreeMap::new(),
@@ -153,6 +155,7 @@ impl<'a> Runner<'a> {
 
     pub fn run(&mut self, program: &Program) -> Result<Value, RuntimeError> {
         self.page_plan = super::pages::plan(program);
+        self.prepare_effect_presence(&program.name);
         self.prediction_guards = self.schema.operations.get(&program.name)
             .filter(|fact| self.device && fact.connected_effects_only && fact.predicts.as_deref() == Some("eligible"))
             .map(|fact| fact.prediction_guards.iter().cloned().collect()).unwrap_or_default();
@@ -177,6 +180,7 @@ impl<'a> Runner<'a> {
 
     pub(super) fn statements(&mut self, statements: &[Stmt], prefix: &str) -> Result<Flow, RuntimeError> {
         for (index, statement) in statements.iter().enumerate() {
+            self.effect_presence.reads.clear();
             let site = format!("{prefix}:{}", index + 1);
             if matches!(statement, Stmt::Insert { .. } | Stmt::InsertIfAbsent { .. } | Stmt::Update { .. } | Stmt::Upsert { .. } | Stmt::WriteTarget { .. } | Stmt::Delete { .. } | Stmt::Emit { .. }) { self.refuse_condition_write()?; }
             self.statement_site = site.clone();
@@ -186,7 +190,7 @@ impl<'a> Runner<'a> {
                 Stmt::Const { name, value } => {
                     let value = self.expr(value)?;
                     self.meter.heap(value.heap_bytes())?;
-                    self.bind(name, value);
+                    self.bind_effect_value(name, value)?;
                     self.consts.insert(name.clone());
                     Flow::Next
                 }
@@ -196,12 +200,13 @@ impl<'a> Runner<'a> {
                     }
                     let value = self.expr(value)?;
                     self.meter.heap(value.heap_bytes())?;
-                    self.bind(name, value);
+                    self.bind_effect_value(name, value)?;
                     Flow::Next
                 }
                 Stmt::Push { target, value } => {
                     let value = self.expr(value)?;
                     self.meter.heap(value.heap_bytes() + std::mem::size_of::<Value>() as u64)?;
+                    self.push_presence_value(target)?;
                     match self.env.get_mut(target) {
                         Some(Value::Array(values)) => values.push(value),
                         Some(other) => return Err(ValueError::Type { expected: "array", actual: other.kind() }.into()),
@@ -213,7 +218,10 @@ impl<'a> Runner<'a> {
                     let take_then = self.expr(condition)?.as_bool()?;
                     let (branch, arm, untaken, other) = if take_then { (then_body, "then", else_body, "else") } else { (else_body, "else", then_body, "then") };
                     if self.prediction_guards.contains(&site) { self.charge_untaken(untaken, &format!("{site}:{other}"))?; }
-                    self.statements(branch, &format!("{site}:{arm}"))?
+                    let guard = self.enter_presence_guard()?;
+                    let result = self.statements(branch, &format!("{site}:{arm}"));
+                    self.effect_presence.guard = guard;
+                    result?
                 }
                 Stmt::For { binding, domain, body } => {
                     let mut values = self.domain(domain)?;
@@ -300,7 +308,8 @@ impl<'a> Runner<'a> {
                     // @ref LLP 3000.007#19.1 — effect identity belongs to the commit, never to the row/result id supply.
                     if !self.discard_effects {
                         let id = format!("effect-{:016x}-{:016x}", self.seq, self.outbox.len());
-                        self.outbox.push((id, effect.clone(), payload));
+                        let presence = self.emission_presence()?;
+                        self.outbox.push((id, effect.clone(), payload, presence));
                     }
                     Flow::Next
                 }
@@ -321,6 +330,7 @@ impl<'a> Runner<'a> {
     }
 
     fn bind(&mut self, name: &str, value: Value) {
+        self.effect_presence.variables.remove(name);
         self.env.insert(name.to_owned(), value);
     }
 
@@ -397,6 +407,7 @@ impl<'a> Runner<'a> {
 
     pub(super) fn expr(&mut self, expression: &Expr) -> Result<Value, RuntimeError> {
         self.meter.step(1)?;
+        self.read_presence_value(expression)?;
         match expression {
             Expr::Literal(value) => {
                 self.meter.heap(value.clone_heap_bytes())?;
@@ -677,7 +688,13 @@ impl<'a> Runner<'a> {
                     other => return Err(ValueError::Type { expected: "principal", actual: other.kind() }.into()),
                 };
                 match &self.context.presence {
-                    Some(presence) => Value::int(presence.connections(principal) as i128).map_err(Into::into),
+                    Some(presence) => {
+                        if self.effect_presence.enabled {
+                            let (live, deadline) = presence.effect_presence(principal);
+                            if let Some(deadline) = deadline.filter(|_| live == 0) { self.grace_read(principal, deadline)?; }
+                            Value::int(live as i128).map_err(Into::into)
+                        } else { Value::int(presence.connections(principal) as i128).map_err(Into::into) }
+                    },
                     None => {
                         // Nobody here knows: a device reads everyone as
                         // connected (the least speculative rows) and the

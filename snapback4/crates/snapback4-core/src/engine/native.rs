@@ -52,7 +52,7 @@ pub(crate) struct ChunkOutcome {
     pub step: Result<Step, RuntimeError>,
     pub events: Vec<Event>,
     pub tables: Vec<String>,
-    pub outbox: Vec<(String, String, Value)>,
+    pub outbox: Vec<super::presence::Emission>,
     pub rows_written: u64,
     pub logs: Vec<String>,
 }
