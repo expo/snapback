@@ -8,6 +8,7 @@ use crate::lexer::{Kind, Token, lex};
 use crate::print;
 
 mod expr;
+mod expected;
 mod programs;
 mod actions;
 
@@ -930,7 +931,7 @@ impl Parser {
     fn take(&mut self, value: &str) -> Fallible<Token> {
         let token = self.peek().clone();
         if token.value != value {
-            return Err(syntax(&token.site, format!("expected {value:?}, got {:?}", token.value)));
+            return Err(syntax_with(&token.site, format!("expected {value:?}, got {:?}", token.value), expected::token(value)));
         }
         self.position += 1;
         Ok(token)
@@ -949,7 +950,7 @@ impl Parser {
                 Kind::Dedent => "the end of the block",
                 Kind::Eof => "the end of the file",
             };
-            return Err(syntax(&token.site, format!("expected {expected}, got {:?}", token.value)));
+            return Err(syntax_with(&token.site, format!("expected {expected}, got {:?}", token.value), expected::kind(kind)));
         }
         self.position += 1;
         Ok(token)

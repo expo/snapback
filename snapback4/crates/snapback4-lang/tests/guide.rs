@@ -78,6 +78,7 @@ fn the_language_card_compiles_and_runs() {
     let room = sent(&created);
     assert_eq!(room.field("id").unwrap(), &id("r1"));
     assert_eq!(room.field("owner").unwrap(), &id(alice));
+    assert_eq!(room.field("kind").unwrap(), &text("open"));
     assert_eq!(room.field("tagCount").unwrap(), &Value::Int(1));
     // join: `insert .. if absent` yields the row, then null on the clash.
     let joined = engine.mutate("join", Some("j1"), Context::new(alice, args(&[("roomId", id("r1")), ("principal", id(bob))])).at(1_100).with_ids(["m2".to_owned()])).unwrap();

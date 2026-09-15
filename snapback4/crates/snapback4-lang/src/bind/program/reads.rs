@@ -95,7 +95,17 @@ impl Binder<'_> {
         self.pop_scope();
         self.kind = kind;
         self.focal = prior;
-        let (value, ty) = bound?;
+        let (value, ty) = bound.map_err(|error| {
+            if error.message.starts_with("a shape applies to a row, an object or a page; got ") {
+                if let Some((name, site)) = trailing_shape(&predicate) {
+                    if *site == error.site {
+                        let got = error.message.rsplit_once("; got ").unwrap().1;
+                        return type_error(site, format!("shape {name} after where attaches to {got} inside the predicate; apply it to the page with {{ ...{name} }}"), format!("{{ ...{name} }}")).guide("shapes").mechanical();
+                    }
+                }
+            }
+            error
+        })?;
         if !ty.is_bool() { return Err(type_error(predicate.site(), format!("where needs a bool predicate, got {}", ty.name()), "where .col = value")); }
         // @ref LLP 3000.007#5.6 — predicate setup, including lazy reads, runs afresh for each rule-visible row.
         let value = if body.is_empty() { value } else { Expr::Block { body: body.code, value: Box::new(value) } };
@@ -122,5 +132,15 @@ fn has_focal(expr: &A) -> bool {
         A::Call { args, .. } => args.iter().any(has_focal),
         // Other forms stay predicates; a read on a row-dependent key must not escape the row.
         _ => true,
+    }
+}
+
+/// Only the rightmost postfix can be the builder's attempted page shape.
+fn trailing_shape(expr: &A) -> Option<(&str, &Site)> {
+    match expr {
+        A::ShapeUse { name, site, .. } => Some((name, site)),
+        A::Binary { right, .. } => trailing_shape(right),
+        A::If { otherwise, .. } => trailing_shape(otherwise),
+        _ => None,
     }
 }

@@ -271,7 +271,8 @@ maintain scoreTotals: sum posts of score by authorId   -- count, or sum of an in
   read <- allow
   online only                         -- opt out of inheriting public sync
 
-shape card = { id, name, owner: .ownerId, tagCount: count(.tags) }   -- a named shape: `.` is the row; `row card` and `page card` use it
+fn kindLabel(value: text <=6): value                               -- every enum variant fits the text bound
+shape card = { id, name, kind: kindLabel(.kind), owner: .ownerId, tagCount: count(.tags) }   -- a named shape: `.` is the row; `row card` and `page card` use it
 fn messageBody(m: messages): m.body                                  -- a row argument keeps its fields at this call site
 fn messageById(m: messages): (messages[m] ! else NOT_FOUND).body      -- a reference argument stays a reference
 fn isBrief(ttl: int ?): ttl != null                                  -- a helper expression, expanded where it is called
@@ -410,6 +411,12 @@ query personalizeNative(first: int): native                          -- a read i
 ```
 
 Helpers expand at each call: a table-typed parameter keeps a row argument as a row (fields need no lookup), while a reference argument stays a reference.
+An enum fits `text <=N` when every variant has at most N characters. This is
+static and total: no variant is truncated or converted at runtime. If one
+variant is too long, declare the helper parameter with the enum instead.
+After `where`, apply a named page shape with `{ ...card }`; a bare shape
+name attaches inside the predicate. `check --fix` repairs that spelling when
+it mistakenly shapes a scalar predicate operand.
 
 Values: `viewer` (a principal), `now` (a time; in a mutation it is the commit's
 instant), `new` (an id, mutations only), `true`, `false`, `null`, integers,
@@ -475,6 +482,10 @@ table everything:
   update <- deny
   delete <- deny
 
+fn label(kind: text <=1): kind
+query enumLabel(kind: enum('a', 'b')):
+  return label(kind)
+
 query typed(c: cursor ?, handle: text 3..20 format handle):   -- arguments take the same types, plus `cursor ?`
   return everything[handle]
 ```
@@ -490,6 +501,12 @@ narrow with `if x != null:`, `x ! else CODE`, or `x ?? default`. A null guard
 also narrows a bound row's field (`r.changedAt != null`), until the local is rebound. `time`
 arithmetic: `time - time` is an int, `time + int` a time. `/` and `%` give
 the Euclidean quotient and remainder of ints or times; zero refuses `E_DIV_ZERO`.
+An enum is accepted as `text <=N` only if every variant fits N characters,
+including when both types are optional. This is a static, total widening;
+it adds no runtime conversion. Otherwise give the helper parameter the enum
+type. `(now / 1) * 1000` explicitly scales integer milliseconds; a scaled
+count belongs in an `int` column. Bind an optional helper result once before
+its null guard: repeated calls are separate values.
 Text `+` concatenates; `count(text)` counts characters. Loop-built strings and
 lists are heap-bound; a write still validates their actual column lengths.
 A column may end with `default <literal | now | viewer>`. Omitted insert

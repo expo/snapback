@@ -7657,3 +7657,624 @@ reauthenticate after every wait, so an orphaned poll answers 401 instead of
 claiming. The printed token stays valid for the developer. After: the worker
 tests 5 of 5, three runs in a row. External `serve` workers still recover
 through lease expiry, as documented.
+
+
+## 2026-09-14 — §20 lane B1: diagnostics that lead to the working spelling
+
+Implemented inventory S07, S09, S10, S11 and S12 from base
+`6896dfce5ecc949e2260ce1407f7449ebdd83d91`. Read the five inventory rows,
+every cited check file, the cited run-log entries and M5 diary, and searched
+all three evidence directories' `*check*` files for syntax errors. L12 is
+`clique-sb4-20260914-astra-0.2.11`, L10a is
+`clique-sb4-20260913-relaxed-3models`, and R9 is
+`clique-sb4-20260914-astra-0.2.9`; paths below are relative to each lane's
+`evidence/`. The regression suite preserves the offending source lines and
+positions in small supporting schemas. Historical source was recovered from
+the recorded command strings, read as data; those commands were not executed.
+The four `ergonomics-*.q` fixtures preserve the complete order helper and the
+original message inserts/uses, including `return { id: msg.id }`.
+
+S07 uses a specific refusal and mechanical `{ ...postCard }` repair. Accepting
+a trailing bare name as the page shape would change an existing valid program:
+`where ({ body: .body }) = candidate selected` applies `selected` to the
+object `candidate` inside the predicate. The executable regression seeds one
+row and still returns that row. Keeping the grammar avoids that ambiguity;
+therefore the conditional exhaustive before/after binding census for a new
+accepted grammar was not needed. The repair preserves surrounding text and
+moves the shape past parentheses enclosing the predicate, while preserving
+parentheses enclosing the whole read. Three evidence forms and five CLI
+repair variants pass, including strings, Unicode comments and parentheses.
+
+S09 retains a failed binding with its original cause, deduplicates that cause
+across uses and helper expansions, and continues checking independent
+statements and sibling values. Additional red/green regressions cover nested
+blocks, tuple bindings, independent object/list values, successful rebinding,
+and a relocated helper placement error. L12's six errors become two distinct
+optional-call errors, then zero after binding the TTL once. L10a's eleven
+errors become five distinct time-scaling errors, then zero after the explicit
+integer conversion and integer storage types.
+
+S10 widens an enum to bounded text only when every variant fits the character
+bound. This is static and total; no runtime conversion, serialized value
+change or ceiling change is involved. All three TTL variants execute correctly;
+two non-ASCII single-character variants fit `text <=1`, a long variant is
+refused, and nullable-to-required calls still require a guard. The language
+card both compiles and runs this widening. The original row-helper, argument
+`once`, empty-argument and dotted-schedule cases were already repaired on the
+base; this lane adds exact-source positive coverage and does not claim those
+repairs as new work.
+
+S11 names object spread and expected punctuation, number, string and indentation
+spellings, and gives `why E_QUARRY_SYNTAX` actionable content. No new diagnostic
+code or new object-spread form was added. The complete syntax evidence census
+contains seven sites: one object spread, three missing argument lists, one
+argument `once`, one dotted schedule target, and one maintain `sync` property.
+The last belongs to B2's residency scope: it is reproduced and its successful
+removal is tested, but its diagnostic is deliberately unchanged here.
+
+S12 names the index columns and types, supplied expressions and types, and
+whether the problem is a fully pinned range or a wrong key type. The fixtures
+compile both the point-read/chunk rewrite and the alternative slug index or
+correctly typed reference argument. No runtime index semantics changed.
+
+### Exact evidence diagnostics: before → after
+
+The following blocks are verbatim, including duplicate historical diagnostics.
+“No diagnostic” below means the historical error is absent; it does not imply
+that the lane changed the already-repaired base behavior.
+
+#### S07: trailing named shape
+
+Before, `m2-check.txt`:
+
+```text
+social.q:83:82 — E_QUARRY_TYPE: a shape applies to a row, an object or a page; got null
+  rewrite: shape a read: `messages[id] { body }`
+  guide: types
+```
+
+After:
+
+```text
+social.q:83:82 — E_QUARRY_TYPE: shape postCard after where attaches to null inside the predicate; apply it to the page with { ...postCard }
+  rewrite: { ...postCard } — check --fix applies it
+  guide: shapes
+```
+
+Before, `check-m2.txt`:
+
+```text
+social.q:85:81 — E_QUARRY_TYPE: a shape applies to a row, an object or a page; got null
+  rewrite: shape a read: `messages[id] { body }`
+  guide: types
+```
+
+After:
+
+```text
+social.q:85:81 — E_QUARRY_TYPE: shape postCard after where attaches to null inside the predicate; apply it to the page with { ...postCard }
+  rewrite: { ...postCard } — check --fix applies it
+  guide: shapes
+```
+
+Before, `m2-check.txt`:
+
+```text
+social.q:147:78 — E_QUARRY_TYPE: a shape applies to a row, an object or a page; got null
+  rewrite: shape a read: `messages[id] { body }`
+  guide: types
+```
+
+After:
+
+```text
+social.q:147:78 — E_QUARRY_TYPE: shape postCard after where attaches to null inside the predicate; apply it to the page with { ...postCard }
+  rewrite: { ...postCard } — check --fix applies it
+  guide: shapes
+```
+
+Applying `check --fix` yields zero diagnostics for each repaired form.
+
+#### S09/S10: L12 message bindings and enum/optional types
+
+Before, `m5-check.txt`:
+
+```text
+chat.q:170:207 — E_QUARRY_TYPE: disappearance's setting is text <=10; got enum('off', '24h', '7d')
+  rewrite: pass text <=10 for setting
+  guide: types
+
+chat.q:171:76 — E_QUARRY_UNKNOWN: unknown name msg
+  rewrite: declared names: body, c, conversationId, messageId, new, now, recipients, replyToId, viewer
+  guide: language
+
+chat.q:172:16 — E_QUARRY_UNKNOWN: unknown name msg
+  rewrite: declared names: body, c, conversationId, messageId, new, now, recipients, replyToId, viewer
+  guide: language
+
+chat.q:213:264 — E_QUARRY_TYPE: disappearance's setting is text <=10; got enum('off', '24h', '7d')
+  rewrite: pass text <=10 for setting
+  guide: types
+
+chat.q:214:76 — E_QUARRY_UNKNOWN: unknown name msg
+  rewrite: declared names: body, c, clip, conversationId, messageId, new, now, oncePhoto, photo, recipients, viewer
+  guide: language
+
+chat.q:215:16 — E_QUARRY_UNKNOWN: unknown name msg
+  rewrite: declared names: body, c, clip, conversationId, messageId, new, now, oncePhoto, photo, recipients, viewer
+  guide: language
+```
+
+After:
+
+```text
+chat.q:170:157 — E_QUARRY_TYPE: + needs present numbers; got time and int ?
+  rewrite: bind the optional call once: `ttl = disappearance(c.disappearing)`; use `now + ttl if ttl != null else null`
+  guide: types
+
+chat.q:213:214 — E_QUARRY_TYPE: + needs present numbers; got time and int ?
+  rewrite: bind the optional call once: `ttl = disappearance(c.disappearing)`; use `now + ttl if ttl != null else null`
+  guide: types
+```
+
+The enum error is gone because all variants fit 10 characters. The four
+`unknown name msg` follow-ons are gone. The two remaining diagnostics identify
+the independent optional-call issue the builder actually fixed. Binding
+`ttl = disappearance(c.disappearing)` and testing `ttl != null` gives zero
+diagnostics; the corrected mutation also commits in the engine.
+
+For a deliberately too-small helper bound, the exact replacement diagnostic
+is below. Before, its message was the same, but its rewrite was
+`pass text <=1 for setting`. The separate `missing` error remains.
+
+After:
+
+```text
+chat.q:6:37 — E_QUARRY_TYPE: bad's setting is text <=1; got enum('off', '24h', '7d')
+  rewrite: change bad's parameter to `setting: enum('off', '24h', '7d')`; not every variant fits text <=1
+  guide: types
+
+chat.q:9:11 — E_QUARRY_UNKNOWN: unknown name missing
+  rewrite: declared names: id, msg, new, now, setting, viewer
+  guide: language
+```
+
+#### S09/S10: L10a time/count errors and cascades
+
+Before, `check-m8-order.txt`:
+
+```text
+order.q:15:19 — E_QUARRY_TYPE: time values add or subtract an int offset; time + time and time * n have no meaning
+  rewrite: subtract two times for an int difference in milliseconds
+  guide: types
+
+chat.q:196:27 — E_QUARRY_UNKNOWN: unknown name arrival
+  rewrite: declared names: c, conversationId, messageId, new, now, recipients, replyToId, text, ttl, viewer
+  guide: language
+
+chat.q:202:16 — E_QUARRY_UNKNOWN: unknown name msg
+  rewrite: declared names: c, conversationId, messageId, new, now, recipients, replyToId, text, ttl, viewer
+  guide: language
+
+chat.q:209:55 — E_QUARRY_TYPE: time values add or subtract an int offset; time + time and time * n have no meaning
+  rewrite: subtract two times for an int difference in milliseconds
+  guide: types
+
+chat.q:210:70 — E_QUARRY_TYPE: time values add or subtract an int offset; time + time and time * n have no meaning
+  rewrite: subtract two times for an int difference in milliseconds
+  guide: types
+
+chat.q:211:60 — E_QUARRY_TYPE: time values add or subtract an int offset; time + time and time * n have no meaning
+  rewrite: subtract two times for an int difference in milliseconds
+  guide: types
+
+chat.q:212:104 — E_QUARRY_UNKNOWN: unknown name da
+  rewrite: did you mean `d`?
+  guide: language
+
+order.q:15:19 — E_QUARRY_TYPE: time values add or subtract an int offset; time + time and time * n have no meaning
+  rewrite: subtract two times for an int difference in milliseconds
+  guide: types
+
+media.q:41:27 — E_QUARRY_UNKNOWN: unknown name arrival
+  rewrite: declared names: c, caption, conversationId, messageId, new, now, photo, recipients, ttl, video, viewOnce, viewer
+  guide: language
+
+media.q:47:16 — E_QUARRY_UNKNOWN: unknown name msg
+  rewrite: declared names: c, caption, conversationId, messageId, new, now, photo, recipients, ttl, video, viewOnce, viewer
+  guide: language
+
+order.q:22:45 — E_QUARRY_TYPE: time values add or subtract an int offset; time + time and time * n have no meaning
+  rewrite: subtract two times for an int difference in milliseconds
+  guide: types
+```
+
+After:
+
+```text
+order.q:22:45 — E_QUARRY_TYPE: * cannot scale a time; use an int number of milliseconds
+  rewrite: (m.at / 1) * 1000 — / 1 yields integer milliseconds; store the scaled count as int
+  guide: types
+
+order.q:15:19 — E_QUARRY_TYPE: * cannot scale a time; use an int number of milliseconds
+  rewrite: (now / 1) * 1000 — / 1 yields integer milliseconds; store the scaled count as int
+  guide: types
+
+chat.q:209:55 — E_QUARRY_TYPE: * cannot scale a time; use an int number of milliseconds
+  rewrite: (now / 1) * 1000 — / 1 yields integer milliseconds; store the scaled count as int
+  guide: types
+
+chat.q:210:70 — E_QUARRY_TYPE: * cannot scale a time; use an int number of milliseconds
+  rewrite: (d / 1) * 1000 — / 1 yields integer milliseconds; store the scaled count as int
+  guide: types
+
+chat.q:211:60 — E_QUARRY_TYPE: * cannot scale a time; use an int number of milliseconds
+  rewrite: (r / 1) * 1000 — / 1 yields integer milliseconds; store the scaled count as int
+  guide: types
+```
+
+The duplicate `order.q:15:19` and five unknown-name follow-ons disappear.
+Changing `arrival`, `deliveredArrival`, `readArrival` and the clock's `last`
+to `int`, then writing `(now / 1) * 1000`, `(m.at / 1) * 1000`,
+`(d / 1) * 1000` and `(r / 1) * 1000`, compiles with zero diagnostics.
+For `time + time`, the old message and rewrite were the same generic pair
+above. They are now, verbatim:
+
+```text
++ cannot add two times; an offset is an int number of milliseconds
+rewrite: change the duration parameter or column to int, then add it to the time; subtract two times to measure an elapsed duration
+```
+
+#### S10: reference versus row (already repaired on the base)
+
+Before, `m3-check.txt`:
+
+```text
+chat.q:105:139 — E_QUARRY_TYPE: state's m is a messages reference; got a messages row
+  rewrite: pass a messages reference for m
+  guide: types
+```
+
+After: no diagnostic for the exact original `state(m: messages)` helper
+and `shape messageCard = { *, sender: profiles[.senderId], quote: messages[.quoteId] { id, body, sender: profiles[.senderId] }, receipt: state(.) }`.
+A reference still requires an explicit read before field access. The existing
+positive row and reference tests both examine one row. The reverse refusal,
+unchanged by this lane, is:
+
+```text
+schema.q:5:24 — E_QUARRY_TYPE: a messages reference has no fields
+  rewrite: messages[m] ! else NOT_FOUND — read the row, or use the shape's row parameter: messages[m] { body: .body }
+  guide: shapes
+```
+
+#### S10/S11: argument once (already repaired on the base)
+
+Before, `m5-check.txt`:
+
+```text
+chat.q:160:158 — E_QUARRY_SYNTAX: once is a column modifier, not an argument constraint
+  rewrite: remove once from this argument; declare image <=10000000 once on the owning table column
+  guide: language
+```
+
+After:
+
+```text
+chat.q:160:147 — E_QUARRY_SYNTAX: once is a column modifier, not an argument constraint; declare it on the owning table column
+  rewrite: oncePhoto: image <=10000000 ? — check --fix applies it
+  guide: language
+```
+
+The mechanical removal compiles with zero diagnostics; the owning column retains `once`.
+
+#### S11: all other syntax evidence sites
+
+Before, `m8-check.txt`:
+
+```text
+insights.q:91:90 — E_QUARRY_SYNTAX: expected a name, got "."
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+```
+
+After:
+
+```text
+insights.q:91:90 — E_QUARRY_SYNTAX: expected an object field name, got spread ...counts; objects list fields explicitly
+  rewrite: replace ...counts with field: counts.field for each payload field
+  guide: language
+```
+
+Writing each payload field explicitly gives zero diagnostics.
+
+Before, `m8-check1.txt`:
+
+```text
+analytics.q:41:15 — E_QUARRY_SYNTAX: expected "(", got ":"
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+
+analytics.q:49:15 — E_QUARRY_SYNTAX: expected "(", got ":"
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+
+analytics.q:52:13 — E_QUARRY_SYNTAX: expected "(", got ":"
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+```
+
+After:
+
+```text
+analytics.q:41:1 — E_QUARRY_SYNTAX: an operation with no arguments still needs parentheses
+  rewrite: query insights(): — check --fix applies it
+  guide: language
+
+analytics.q:49:1 — E_QUARRY_SYNTAX: an operation with no arguments still needs parentheses
+  rewrite: query trending(): — check --fix applies it
+  guide: language
+
+analytics.q:52:1 — E_QUARRY_SYNTAX: an operation with no arguments still needs parentheses
+  rewrite: job backfill(): — check --fix applies it
+  guide: language
+```
+
+Each mechanical parentheses repair gives zero diagnostics; these repairs predate this lane.
+
+Before, `m8-check4.txt`:
+
+```text
+digest.q:52:47 — E_QUARRY_SYNTAX: unexpected token after declaration from line 52
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+```
+
+After: no diagnostic for `schedule dailyDigest every 2m at 00:00: digest.daily`; already accepted on the base.
+
+Before, `check-m8-prediction.txt`:
+
+```text
+social.q:72:3 — E_QUARRY_SYNTAX: unknown maintain property sync
+  rewrite: read <- rule
+  guide: language
+```
+
+After: exactly the same three lines. B2 owns this residency spelling; removing `sync public last 2000 by byId` compiles successfully.
+
+Additional expected-token regressions keep their before message/site and replace the generic rewrite `fix this Quarry line and rerun snapback4 check` with the following exact text:
+
+After:
+
+```text
+schema.q:1:11 — E_QUARRY_SYNTAX: expected ":", got "int"
+  rewrite: put : after a declaration or block header; parameters use name: type, and object fields use name: expression
+  guide: language
+
+schema.q:1:19 — E_QUARRY_SYNTAX: expected a number, got ")"
+  rewrite: write an integer literal here, for example first 50 or text <=100
+  guide: language
+
+schema.q:1:17 — E_QUARRY_SYNTAX: expected a string, got "off"
+  rewrite: quote the text with ' or "; enum variants are quoted strings, for example enum('off', 'on')
+  guide: language
+
+schema.q:2:1 — E_QUARRY_SYNTAX: expected an indented block, got "return"
+  rewrite: indent the body beneath its header with spaces, for example query q(): followed by an indented return null
+  guide: language
+
+schema.q:2:18 — E_QUARRY_SYNTAX: expected "}", got ":"
+  rewrite: separate fields with commas and close the object or shape with }
+  guide: language
+```
+
+Before, `snapback4 why E_QUARRY_SYNTAX` on the named base:
+
+```text
+E_QUARRY_SYNTAX: the parser could not read this line; the rewrite is a canonical spelling. `snapback4 guide` is the language card.
+```
+
+After, captured from the built CLI:
+
+```text
+E_QUARRY_SYNTAX: the parser expected the token or construct named at file:line:column. Object fields use name: expression (or a bare name for name: name); ...shape belongs in a row/page shape, not an object payload. Operations need name(args): followed by an indented body, including () for no arguments. Close each (, [ and { with its matching delimiter; separate fields and arguments with commas. The rewrite names the expected spelling; `check --fix` applies only repairs marked mechanical. Read `snapback4 guide language` for complete examples.
+```
+
+#### S12: fully pinned range and wrong key type
+
+Before, `m8-fixture-check.txt`:
+
+```text
+test-fixtures.q:3:14 — E_QUARRY_TYPE: profiles.byPrincipal is over principal; this range supplies 1 key
+  rewrite: profiles[] first 50 by byPrincipal
+  guide: types
+```
+
+After:
+
+```text
+test-fixtures.q:3:14 — E_QUARRY_TYPE: profiles.byPrincipal takes (principal: principal); supplied (author: principal) pins every key, leaving no column to range over
+  rewrite: use profiles[author] by byPrincipal for one row; in a chunk, use `chunk row in profiles first 1 by byId:` then `if row.principal != author: continue`
+  guide: indexes
+```
+
+Before, `m3-check6.txt`:
+
+```text
+chat.q:192:14 — E_QUARRY_TYPE: conversations.byId is over id; this point read supplies 1 key
+  rewrite: conversations[id]
+  guide: types
+```
+
+After:
+
+```text
+chat.q:192:14 — E_QUARRY_TYPE: conversations.byId takes (id: a conversations reference); supplied (handle: text <=100) has the wrong key type
+  rewrite: conversations[handle] by bySlug — this index accepts the supplied key; for byId, pass a conversations reference instead of text <=100
+  guide: indexes
+```
+
+Both suggested repairs for each case compile with zero diagnostics.
+
+### Verification and measurements
+
+All successful Cargo verification below ran from `snapback4/`. Node commands
+used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`. Base rechecks
+temporarily restored the modified tracked source files from the exact
+`git show 6896dfce5ecc949e2260ce1407f7449ebdd83d91:<path>` bytes, ran the new
+regressions, and restored the working copies in a `finally` block. No branch,
+index or commit was changed. Four tests were already green on that base;
+fourteen diagnostic tests and the new CLI repair test were red.
+
+The red/green commands and their verbatim summary lines follow. Earlier
+iterations are included to distinguish the evolving test count from the final
+18-case suite.
+
+`cargo test -p snapback4-lang --test ergonomics -- --nocapture` — initial red, first green, expanded green
+
+```text
+test result: FAILED. 1 passed; 9 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+```
+
+`cargo test -p snapback4-lang --test ergonomics -- --nocapture --test-threads=1` — named base, final fixtures
+
+```text
+test result: FAILED. 4 passed; 14 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+`cargo test -p snapback4 --test fix -- --nocapture --test-threads=1` — named base
+
+```text
+test result: FAILED. 20 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.27s
+```
+
+`cargo test -p snapback4-lang --test ergonomics s09_recovery -- --test-threads=1` — two introduced recovery defects, red then green
+
+```text
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.01s
+```
+
+`cargo test -p snapback4-lang --test guide --test ergonomics --test repairs --test frontend_regressions -- --nocapture` — intermediate
+
+```text
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.49s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.40s
+```
+
+`cargo test -p snapback4-lang --test ergonomics --test guide --test repairs --test frontend_regressions -- --nocapture --test-threads=1` — final
+
+```text
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+```
+
+`cargo test -p snapback4 --test fix` — intermediate
+
+```text
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.51s
+```
+
+`cargo test -p snapback4 --test fix -- --test-threads=1` — final
+
+```text
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.30s
+```
+
+`cargo test -p snapback4-lang --test guide` — exact acceptance command
+
+```text
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+```
+
+`bash snapback4/scripts/test.sh` — run from the repository root twice, after
+exporting the Node 24 path. The first run preceded the final two recovery
+fixes; the second includes the final code and tests. Full logs are
+`/tmp/b1-suite.log` and `/tmp/b1-suite-final.log`.
+
+```text
+-- ok: cargo build (3 s)
+-- ok: wasm build (31 s)
+-- ok: package typecheck (3 s)
+-- ok: package build (2 s)
+-- ok: chat app check (2 s)
+-- ok: cargo test (326 s)
+-- ok: chat app typecheck (2 s)
+-- ok: expo app typecheck (2 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (34 s)
+ℹ tests 169
+ℹ pass 168
+ℹ fail 1
+-- FAIL: client tests (68 s)
+== 1 failure(s) in 367 s
+```
+
+```text
+-- ok: cargo build (4 s)
+-- ok: wasm build (1 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (0 s)
+-- ok: cargo test (230 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (8 s)
+ℹ tests 169
+ℹ pass 168
+ℹ fail 1
+-- FAIL: client tests (43 s)
+== 1 failure(s) in 236 s
+```
+
+The final Rust total, summed from all 52 test-result lines, is **689 passed,
+0 failed, 2 ignored**. The suite built the wasm device: **1,643,507 bytes raw,
+455,513 bytes gzip**. Package, chat and Expo typechecks passed. The chat check
+reported **5 tables, 9 operations, 0 problems, 1 existing cursor note**.
+
+The only failure in either complete run was the user-identified sandbox
+Chromium launch artifact in `packages/snapback4/test/react.test.mjs:72`, with
+`signal=SIGABRT`. It also failed alone with
+`node --test packages/snapback4/test/react.test.mjs`:
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 334.236541
+```
+
+The lead must rerun that test outside the sandbox. There were no en-masse
+client timeouts and no lifecycle failures in these runs. No newly discovered
+failure is asserted to predate the named base; the Chromium classification
+comes from the program's explicit environment ruling, plus the isolated
+reproduction here, rather than a whole-suite base claim.
+
+There are **19 changed/new code files**, **0 above 1,500 lines**; the largest
+is `snapback4-lang/src/guide.rs` at **1,223 lines**. Markdown was not compressed
+or reflowed to meet a cap. The implementation adds **0 codes**, changes
+**0 existing corpus cases**, and touches **0 B2-owned files**. README and
+language/type cards document the published behavior. No form was removed,
+so application/corpus/loopbar callers needed no migration. All implementation
+items in B1 are complete; the B2 maintain-sync text and outside-sandbox browser
+verification are the explicit handoff items. No out-of-scope file was changed.
+Nothing was committed, pushed, tagged or published.
+
+Root `./ref-check --verbose` passed:
+
+```text
+ref-check: ok — 474 LLP docs, 8869 refs in 22863 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passed. The JOURNAL prefix is byte-identical to the base;
+this dated entry is append-only.

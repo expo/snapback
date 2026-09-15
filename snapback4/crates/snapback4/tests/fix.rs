@@ -293,3 +293,20 @@ fn concurrent_fix_subprocess() {
     // Use the production check command's error text and exit-code mapping.
     std::process::exit(match fix::checked(result) { Err(code) => code, Ok(bound) => if bound.diagnostics.is_empty() { 0 } else { 1 } });
 }
+
+#[test]
+fn filtered_page_shape_fix_keeps_comments_strings_and_other_shapes() {
+    let prefix = "table posts:\n  parentId: posts ?\n  body: text <=100\n  public 'posts'\nshape postCard = { id, body }\n";
+    for (suffix, expected) in [
+        ("where .parentId = null postCard -- café postCard", "where .parentId = null { ...postCard } -- café postCard"),
+        ("where .body = 'postCard' postCard", "where .body = 'postCard' { ...postCard }"),
+        ("where .parentId = null postCard\n", "where .parentId = null { ...postCard }\n"),
+        ("where (.parentId = null postCard)", "where (.parentId = null ) { ...postCard }"),
+        ("where (.parentId = (null postCard))", "where (.parentId = (null )) { ...postCard }"),
+    ] {
+        let source = format!("{prefix}query q(c: cursor ?):\n  return posts after c first 20 by byId {suffix}\n");
+        let expected = source.replace(suffix, expected);
+        let output = check_fix(&[("schema.q", &source, &expected)], true);
+        assert!(String::from_utf8(output.stderr).unwrap().contains("{ ...postCard }"));
+    }
+}
