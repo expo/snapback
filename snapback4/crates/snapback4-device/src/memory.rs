@@ -201,6 +201,12 @@ fn project(row: &mut Value, table: &Table) -> bool {
 impl DeviceStore for MemoryStore {
     type Tx<'a> = MemoryTx<'a>;
 
+    fn install_checked(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
+        for (key, value) in expected {
+            if &self.meta(key)? != value { return Err(RuntimeError::Generation("the backend adoption capture is obsolete; retry sync".into())); }
+        }
+        self.install(schema, metadata, reset)
+    }
     fn install(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool) -> Result<(), RuntimeError> {
         let mut state = self.state.borrow_mut();
         let mut changes = self.changes.borrow_mut();

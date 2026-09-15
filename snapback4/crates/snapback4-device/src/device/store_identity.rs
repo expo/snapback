@@ -1,9 +1,18 @@
 //! Acquisition and receipts belong to one database incarnation.
 use super::*;
 
+// The installed program set is shared, but each native owner has its own
+// interpreter. Same-generation replacement must invalidate that interpreter.
+pub(super) fn backend_identity(backend: &Backend) -> String {
+    let mut programs: Vec<_> = backend.programs.iter().collect();
+    programs.sort_by(|a, b| a.name.cmp(&b.name));
+    snapback4_core::value::digest(&(&backend.schema, programs, backend.generation))
+}
+
 #[derive(Debug, Serialize)]
 pub struct StoreObservation {
     pub reset: bool,
+    pub backend_required: bool,
     pub send_revision: u64,
     pub retired: BTreeMap<String, u64>,
 }
@@ -20,15 +29,21 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<StoreObs
         };
         return Err(RuntimeError::Generation(message.into()));
     }
+    let watermark = meta_u64(tx, WATERMARK)?;
+    // A response belongs to its request, not to a newer owner's acquisition.
+    if page.captured_watermark.is_some_and(|expected| expected != watermark) {
+        return Err(RuntimeError::Generation("another owner advanced acquisition during sync; retry sync".into()));
+    }
     let identity_changed = page.store_id.as_ref().is_some_and(|id| previous.as_ref() != Some(id));
     let reset = (identity_changed && (previous.is_some() || tx.meta(ACQUIRED)?.is_some() || meta_u64(tx, WATERMARK)? > 0 || tx.meta(SNAPSHOT_OWNER)?.is_some()))
-        || (page.store_id.is_none() && page.watermark < meta_u64(tx, WATERMARK)?);
+        || (page.store_id.is_none() && page.requested_watermark.is_some_and(|requested| page.watermark < requested) && page.captured_watermark == Some(watermark));
     let mut retired = BTreeMap::new();
     if reset {
         tx.clear_rows()?;
         tx.base_clear()?;
         tx.staged_clear()?;
         tx.set_meta(WATERMARK, "0")?;
+        tx.set_meta(BACKEND_REQUIRED, page.store_id.as_deref().unwrap_or("legacy"))?;
         tx.delete_meta(&[ACQUIRED, history::GROUPS])?;
         tx.delete_meta(&SNAPSHOT_KEYS)?;
         for data in tx.outbox_entries()? {
@@ -52,7 +67,7 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<StoreObs
         revision = revision.checked_add(1).filter(|n| *n <= 9_007_199_254_740_991).ok_or_else(|| RuntimeError::Store("send revision overflow".into()))?;
         tx.set_meta(SEND_REVISION, &revision.to_string())?;
     }
-    Ok(StoreObservation { reset, send_revision: revision, retired })
+    Ok(StoreObservation { reset, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()), send_revision: revision, retired })
 }
 
 impl<S: DeviceStore> Device<S> {

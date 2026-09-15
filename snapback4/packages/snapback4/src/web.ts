@@ -138,6 +138,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
               if (!device) await restore();
               const reply = JSON.parse(device!.call(JSON.stringify(request))) as Record<string, unknown>;
               await settle();
+              if (!reply.denied && (request.op === "observe_store" || request.op === "apply")) await adoptOrphans(device!, name, store.name, persist, settle);
               return reply;
             } catch (error) {
               discard();
@@ -276,16 +277,33 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
     const held = await hold(locks, orphan);
     if (!held) continue;
     try {
+      // @ref LLP 3000.007#18.2 — orphan receipts retain their source store until ownership can be resolved.
+      const saved = await persist.load(orphan);
+      let source: string | null | undefined;
+      for (const change of saved) if (change.s === "m" && change.k === "device:store_id") source = change.v;
+      const state = JSON.parse(device.call(JSON.stringify({ op: "sync_state" }))).ok;
+      const destination = state?.store_id;
       const latest = new Map<string, string | null>();
-      for (const change of await persist.load(orphan)) if (change.s === "o") latest.set(change.k, change.v);
-      const entries = [...latest.values()].filter((v): v is string => v !== null).map((v) => JSON.parse(v) as { seq: number });
+      for (const change of saved) if (change.s === "o") latest.set(change.k, change.v);
+      const entries = [...latest.values()].filter((v): v is string => v !== null).map(v => JSON.parse(v) as { id: string; seq: number; sent_seq?: number | null; observed_seq?: number | null });
       entries.sort((a, b) => a.seq - b.seq);
+      const existing = new Set((JSON.parse(device.call(JSON.stringify({ op: "queued" }))).ok as { id: string }[]).map(e => e.id));
+      const removed: Change[] = [];
+      let unresolved = false;
       for (const entry of entries) {
-        const next = JSON.parse(device.call(JSON.stringify({ op: "next_submission" }))) as { ok?: number };
-        device.call(JSON.stringify({ op: "enqueue", entry: { ...entry, seq: next.ok ?? entry.seq } }));
+        const known = entry.sent_seq != null || entry.observed_seq != null;
+        if (known && (!source || !destination)) { unresolved = true; continue; }
+        if ((!known || source === destination) && !existing.has(entry.id)) {
+          const next = JSON.parse(device.call(JSON.stringify({ op: "next_submission" }))) as { ok?: number };
+          const reply = JSON.parse(device.call(JSON.stringify({ op: "enqueue", entry: { ...entry, seq: next.ok ?? entry.seq, predictable: false, predicted: [] } })));
+          if (reply.denied) throw new Error(refusalText(JSON.stringify(reply)));
+          existing.add(entry.id);
+        }
+        removed.push({ s: "o", k: entry.id, v: null });
       }
       await settle();
-      await persist.remove(orphan);
+      if (unresolved) await persist.save(orphan, removed);
+      else await persist.remove(orphan);
     } finally {
       await held();
     }

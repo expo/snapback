@@ -10269,3 +10269,421 @@ line cap. Required implementation, documentation and issue closure are
 complete; the browser witness is the sole remaining outside-sandbox
 verification for the lead. The working tree contains only these intended,
 uncommitted changes.
+
+## 2026-09-14 — X1R1: store replacement review findings 1–4
+
+Base: `f69338c005af9fe6bc657af6287b22fd0934a3ed`. Read the full GPT review
+at `/Users/ccheever/projects/snapback-x1-review/gpt.md`, the X1 entry and
+LLP 3000.007 §18.2. All four findings reproduced before production edits:
+six deterministic Node tests (finding 1: one; finding 2: four; finding 3:
+one) and one native two-owner test (finding 4). No commit, push, tag,
+publication, clone, remote work or sub-agent was used.
+
+The reset now persists `device:backend-required`, with the replacement ID
+(or `legacy`), alongside discarding the partition. Device reads and page
+application refuse while it remains; backend installation clears it in the
+same transaction that checks the store/send capture. A failed fetch, failed
+save, offline reopen or restart cannot forget the obligation. The installed
+backend has a digest too: another native owner's adoption at the same
+generation does not bless an old owner's programs. The client probes the
+updated internal protocol before it can use an old native/wasm device.
+
+A client revision advances at replacement observation, invalidating
+freshness, remembered answers and watch snapshots immediately. Read results
+are checked again before returning, caching or notifying. A new rerun uses
+the current server until replacement acquisition completes, because a rerun
+started after observation can otherwise read the still-queued old partition.
+Sync/change replies carry local revision fences as well.
+
+Orphan import compares the persisted source/destination identities. Foreign
+known receipts retire; unknown and unsent entries keep their operation and
+row IDs with predictions disabled. Unresolved known receipts remain in their
+source store with provenance, including across reopen; later identification
+retries import. Same-store known acknowledgements are preserved. Legacy
+fallback checks the reply against its own request watermark and checks that
+the captured persisted watermark/send revision are still current before any
+reset. Another owner's newer acquisition makes the old reply stale.
+
+Two extra boundary regressions were found while checking the first repair:
+the observation-triggered watch rerun described above, and a native owner
+continuing with A's programs after another owner installed B. Both were red
+on the intermediate implementation and green after the corresponding fix;
+they are not represented as additional base-commit runs.
+
+### Red and green evidence per finding
+
+Every Node/Bun command below used this first:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+Cargo, Bun and targeted Node commands ran from `snapback4/`; the blocking
+script and reference check ran from the repository root. The frozen installs
+were reused. Rebuild commands were `bash scripts/build-wasm.sh`,
+`bun run --cwd packages/snapback4 build`, and
+`bun run --cwd packages/snapback4 typecheck`.
+
+Test construction initially used an incorrectly tagged literal, then fixed
+the harness before counting the base reds. The first native stale-page
+fixture used a request capture of 1 (its attempted metadata setter was
+client-namespaced); its final expansion explicitly pins 10 and includes a
+left group's 50 rows. Both schedules advance to 12 before delayed page 11.
+A later native test initially had a Rust declaration typo. One attempted
+Cargo invocation from the repository root exited 101 before building; it
+was immediately rerun from `snapback4/`. No pass count is attributed to
+those setup/compilation mistakes.
+
+```sh
+node --test packages/snapback4/test/store-reset-review.test.mjs
+```
+
+Base, before production edits:
+
+```text
+✖ finding 1: failed same-generation backend adoption survives retry and offline reopen (152.38925ms)
+✖ finding 2: delayed server answer cannot escape its incarnation (5.763583ms)
+✖ finding 2: delayed horizon answer cannot escape its incarnation (13.554667ms)
+✖ finding 2: delayed watch answer cannot escape its incarnation (3.220041ms)
+✖ finding 2: changes observation drops freshness while a mutation holds the network queue (6.369459ms)
+✖ finding 3: orphan import retires foreign receipts and disables unknown predictions (2.615416ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 225.4835
+```
+
+Finding 1 returned A after the failed B schema fetch and offline reopen.
+Finding 2 returned or notified A after B acquisition, and marked A fresh
+while `/changes` had identified B behind a held mutation. Finding 3 imported
+all three orphan entries, including both known-A receipts, into B.
+
+The final run's corresponding test lines (plus the expanded positive cases):
+
+```sh
+node --test packages/snapback4/test/store-reset-review.test.mjs packages/snapback4/test/store-reset-idb.test.mjs
+```
+
+```text
+✔ IndexedDB model: reset termination before-commit preserves one complete transaction (197.28875ms)
+✔ IndexedDB model: reset termination after-commit preserves one complete transaction (10.034709ms)
+✔ finding 1: failed same-generation backend adoption survives retry and offline reopen (194.889709ms)
+✔ finding 2: delayed server answer cannot escape its incarnation (5.278375ms)
+✔ finding 2: delayed horizon answer cannot escape its incarnation (18.92675ms)
+✔ finding 2: delayed watch answer cannot escape its incarnation (5.565167ms)
+✔ finding 2: changes observation drops freshness while a mutation holds the network queue (10.041708ms)
+✔ finding 3: orphan import retires foreign receipts and disables unknown predictions (4.043375ms)
+✔ finding 2: a delayed device read is retried before returning (3.846459ms)
+✔ orphan provenance survives an unidentified destination and resolves on sync (4.463042ms)
+✔ same-store orphan adoption preserves receipts, order and row IDs without predictions (2.7825ms)
+✔ replacement receipts use ordinary transport without replaying known writes (6.990541ms)
+✔ replacement receipts use exit transport without replaying known writes (4.028792ms)
+✔ finding 2: a rerun started by replacement observation cannot publish the old partition (7.971917ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 325.157333
+```
+
+Finding 4's initial base command and result:
+
+```sh
+cargo test -p snapback4-device --test native finding_4 -- --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.04s
+```
+
+Same command, green:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.06s
+```
+
+The two extra boundaries, red then green on the intermediate work:
+
+```sh
+node --test --test-name-pattern='rerun started' packages/snapback4/test/store-reset-review.test.mjs
+```
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+
+```
+
+```sh
+cargo test -p snapback4-device --test native finding_1 -- --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.02s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.02s
+
+```
+
+Final combined native findings:
+
+```sh
+cargo test -p snapback4-device --test native finding_ -- --nocapture
+```
+
+```text
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.07s
+```
+
+### Other targeted checks
+
+```sh
+cargo test -p snapback4-device --test device store_reset -- --nocapture
+```
+
+```text
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 73 filtered out; finished in 0.29s
+```
+
+```sh
+cargo test -p snapback4-device --test device --test native --test native_reads --test retained_history --test adoption -- --nocapture
+```
+
+```text
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 81 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 48.56s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.21s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+```
+
+```sh
+node --test packages/snapback4/test/store-reset.test.mjs packages/snapback4/test/store-reset-review.test.mjs packages/snapback4/test/store-reset-idb.test.mjs packages/snapback4/test/web-durability.test.mjs packages/snapback4/test/web-navigation.test.mjs packages/snapback4/test/release-activation.test.mjs
+```
+
+```text
+ℹ tests 46
+ℹ pass 46
+ℹ fail 0
+ℹ cancelled 0
+```
+
+```sh
+node --test packages/snapback4/test/client-lifecycle.test.mjs packages/snapback4/test/session-security.test.mjs packages/snapback4/test/store-reset-review.test.mjs packages/snapback4/test/store-reset-idb.test.mjs
+```
+
+```text
+ℹ tests 66
+ℹ pass 66
+ℹ fail 0
+ℹ cancelled 0
+```
+
+```sh
+cargo test -p snapback4-lang --test guide -- --nocapture
+```
+
+```text
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+```
+
+```sh
+node --test packages/snapback4/test/react.test.mjs
+```
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+```
+
+These affected runs preceded the final full build in a few cases; the final
+blocking script below includes the completed changes. Intermediate expanded
+checks exposed two assertion mistakes: offline horizon reads correctly
+returned B's local rows rather than its remembered server scalar, and the
+initial constant-read watch barrier expected a row array. The assertions
+were corrected; no product failure was hidden by those corrections.
+
+### Coverage and measurements
+
+- Two stores execute the eight `store_reset` scenarios. Replacement during
+  A's paged snapshot and during catch-up rejects delayed A pages and leaves
+  **0 A rows** after B acquisition. Backend adoption is checked across reopen
+  and stale adoption attempts, with successful B acquisition afterwards.
+- The final native race captures **10**, advances to **12**, rejects delayed
+  **11**, and keeps **50 retained rows**. A current request from **12** whose
+  reply is **9** still resets. Watermark controls exercise **2,147,483,647**,
+  **4,294,967,296**, and **9,007,199,254,740,991**; read clocks are **100,000**
+  then **-100,000**. Same-store program adoption and release activation /
+  rollback preserve the store ID.
+- First identification of a legacy acquired device deliberately keeps **0**
+  of its **50** already-left rows. LLP 3000.007 §18.2, the README and the sync
+  card now make that otherwise-unrecoverable migration loss explicit.
+- Orphan import retires **2 known foreign receipts** and retains **1 unknown
+  entry** with unchanged row IDs and **0 predicted images**. Ordinary and
+  exit replacement sends each issue **0 known-write POSTs** and **1 unknown-
+  write POST**. Real-server reset/navigation tests also cover deduplication.
+- The Node IndexedDB model exercises **2 termination sides** of commit,
+  over **5 store kinds** (rows, metadata, outbox, bases and stages). It uses
+  `indexedDbPersistence()` and a modeled IDB transaction; a new wasm device
+  loses runtime state between checks. It covers aborted reset/adoption saves
+  and a committed reset whose caller loses the reply. This is not an actual
+  browser/process-termination or physical-power-loss qualification.
+- Final wasm build: **1,670,724 B raw**, **464,114 B gzip**. Largest changed
+  source file: **1,262 lines**. No meter ceiling, value serialization or
+  existing corpus case changed.
+
+### Diagnostic text
+
+Finding 4, before (and incorrectly dropping watermark 12 to 0):
+
+```text
+E_GENERATION: the backend store was replaced; reacquire its partition
+```
+
+Finding 4, after (keeping watermark 12 and history):
+
+```text
+E_GENERATION: another owner advanced acquisition during sync; retry sync
+```
+
+The first three base failures returned stale answers or imported receipts,
+not a diagnostic. The durable-adoption/read guards now say, verbatim:
+
+```text
+E_GENERATION: the backend store requires backend adoption before acquisition
+E_GENERATION: the backend adoption capture is obsolete; retry sync
+E_PREDICT: this store's backend has not been adopted; reconnect to acquire it
+E_PREDICT: this owner's backend is obsolete; reconnect to adopt the current backend
+```
+
+These use existing `guide::CODES` entries; no new code or card name was
+introduced. The public offline fallback still says `E_OFFLINE`.
+
+### Scope and limits
+
+All requested findings and the Node-modelable missing cases were handled.
+Actual Chromium termination remains unqualified: React's browser launch
+exits with SIGABRT in this sandbox, including the standalone retry. This
+matches the user-supplied environment artifact. I did not independently run
+a clean-base browser battery, so I make no separately verified pre-existing-
+failure claim for it.
+
+The minimal shared-file extension is `snapback4-core/src/store/activation.rs`:
+eight lines expose installation with transaction-scoped metadata guards.
+`DeviceStore`, its two implementations and the native-read test wrapper
+support that path. Existing lifecycle/session mocks gained the new protocol
+field, and the release-activation test gained store-identity assertions.
+The README, guide and §18.2 note are the required published/design updates.
+No other lane's listed file was identified by this brief, and no app,
+contract, meter or corpus file was changed.
+
+### Blocking suite
+
+```sh
+bash snapback4/scripts/test.sh
+```
+
+The first two completed runs, followed by the final run below, all report
+failures rather than stopping at the first one. The first run totaled **759
+Rust passes, 0 failures, 2 ignored**, and the second the same Rust counts.
+Their script summaries are preserved here:
+
+```text
+-- ok: cargo build (8 s)
+-- ok: wasm build (1 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (312 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+-- ok: fixture wrapper tests (10 s)
+ℹ tests 212
+ℹ pass 211
+ℹ fail 1
+ℹ cancelled 0
+-- FAIL: client tests (46 s)
+== 1 failure(s) in 324 s
+```
+
+```text
+-- ok: cargo build (3 s)
+-- ok: wasm build (6 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (2 s)
+-- ok: cargo test (244 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+-- ok: fixture wrapper tests (10 s)
+ℹ tests 214
+ℹ pass 213
+ℹ fail 1
+ℹ cancelled 0
+-- FAIL: client tests (45 s)
+== 1 failure(s) in 256 s
+```
+
+Final completed implementation: **760 Rust passes, 0 failures, 2 ignored**; **9/9** fixture tests; **214/215** client tests.
+
+```text
+-- ok: cargo build (6 s)
+-- ok: wasm build (6 s)
+-- ok: package typecheck (0 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (259 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+-- ok: fixture wrapper tests (8 s)
+ℹ tests 215
+ℹ pass 214
+ℹ fail 1
+ℹ cancelled 0
+-- FAIL: client tests (42 s)
+== 1 failure(s) in 273 s
+```
+
+The one failed check is Chromium launch in `react.test.mjs` (SIGABRT),
+reproduced alone above. No lifecycle host test failed in these runs. No
+client timeout wave occurred, so the concurrency-2 retry was not needed.
+
+```sh
+./ref-check --verbose
+git diff --check
+```
+
+```text
+ref-check: ok — 480 LLP docs, 8890 refs in 22938 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` produced no output (exit 0). The reference check was
+repeated after the journal append. HEAD remains
+`f69338c005af9fe6bc657af6287b22fd0934a3ed`; only the intended lane changes
+are left in the working tree for the lead.

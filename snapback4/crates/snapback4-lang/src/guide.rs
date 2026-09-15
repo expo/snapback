@@ -631,11 +631,18 @@ most), each applied in its own transaction. `POST /sync` takes JSON
 Oversize bodies, including chunked ones, return HTTP 413 `E_INPUT`; malformed
 fields return HTTP 400 `E_INPUT`. Continue snapshots with `after: next`;
 `stream: true` follows the log even from zero. There is no GET sync route.
-A changed sync `store_id` (echoed from the previous reply), or a backwards
-watermark without one, discards the old partition and held/left history and
+A changed sync `store_id` (echoed from the previous reply), or a reply behind
+its own requested watermark without one while that capture is still current, discards the old partition and held/left history and
 requires acquisition again, keeping unsent writes without their predicted
 rows and retiring known receipts so those writes are never replayed to the
-replacement store.
+replacement store. The reset persists the obligation to adopt that store's
+backend before acquisition publishes, including after retry or offline reopen.
+Replacement observation immediately invalidates freshness, remembered answers
+and watch snapshots; delayed reads from the previous store are retried.
+Orphan known receipts keep their source identity until ownership is resolved;
+foreign known receipts retire, and unknown writes transfer without predictions.
+First identification of a legacy acquired device discards retained left-group
+history even on the same database; already-left groups cannot be reacquired.
 Joining a group delivers its
 rows; leaving it delivers one scope tombstone, and `retain` says whether the
 device keeps what it was given (`delivered-history`) or drops it

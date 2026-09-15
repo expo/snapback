@@ -28,6 +28,9 @@ impl DeviceStore for Store {
     fn install(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool) -> Result<(), RuntimeError> {
         self.install_device(schema, metadata, reset)
     }
+    fn install_checked(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
+        self.install_device_checked(schema, metadata, reset, expected)
+    }
     fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
         Store::meta(self, key)
     }

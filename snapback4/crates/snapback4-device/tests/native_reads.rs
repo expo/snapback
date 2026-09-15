@@ -33,6 +33,11 @@ impl DeviceStore for RejectPostAdoptTransactions {
         self.installs += 1;
         Ok(())
     }
+    fn install_checked(&mut self, schema: &snapback4_core::schema::Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>) -> Result<(), snapback4_core::error::RuntimeError> {
+        self.inner.install_checked(schema, metadata, reset, expected)?;
+        self.installs += 1;
+        Ok(())
+    }
     fn meta(&self, key: &str) -> Result<Option<String>, snapback4_core::error::RuntimeError> {
         self.inner.meta(key)
     }

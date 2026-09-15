@@ -260,3 +260,60 @@ fn pending_metadata_reprediction_survives_updates_upserts_scans_and_offline_reop
     drop(device);
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn finding_4_delayed_legacy_page_does_not_erase_an_advanced_owners_history() {
+    use snapback4_device::call::call;
+    use serde_json::json;
+    let (mut engine, _) = server();
+    let (_, backend) = compile(&format!("{CHAT}\nquery retainedHistory(conversationId: conversations):\n  return messages[conversationId] last 50 by byConvTime\n"));
+    let host = Sqlite::new("legacy-race");
+    let mut first = Device::open(&host.path("store"), Some(backend)).unwrap();
+    for (n, page) in snapshot_pages(&mut engine, "dev:alice", 500).iter().enumerate() { first.apply(page, n == 0).unwrap(); }
+    let from = first.state().unwrap().0;
+    engine.mutate("leave", Some("leave"), context("dev:alice", &[("conversationId", id("c1"))])).unwrap();
+    first.apply(&stream_page(&mut engine, "dev:alice", from), false).unwrap();
+    first.store().conn().execute("UPDATE _meta SET value = '10' WHERE key = 'device:watermark'", []).unwrap();
+    let mut second = Device::open(&host.path("store"), None).unwrap();
+    let capture = first.sync_state().unwrap();
+    let page = |watermark| json!({ "snapshot": false, "events": [], "watermark": watermark, "more": false,
+        "send_revision": capture.send_revision, "requested_watermark": capture.watermark, "captured_watermark": capture.watermark });
+    assert!(call(&mut second, &json!({ "op": "apply", "page": page(12) }))["ok"].is_object());
+    let delayed = call(&mut first, &json!({ "op": "apply", "page": page(11) }));
+    eprintln!("finding 4 delayed page: {delayed}; watermark={}", first.state().unwrap().0);
+    assert!(delayed["denied"].is_object());
+    assert_eq!(first.state().unwrap().0, 12, "a page ahead of its own requested watermark is stale, not a replacement");
+    assert_eq!(call(&mut first, &json!({ "op": "query", "name": "retainedHistory", "viewer": "dev:alice", "args": { "conversationId": "c1" }, "now": 1 }))["ok"]["data"].as_array().unwrap().len(), 50);
+    // A current authenticated reply behind its own requested watermark is
+    // a real legacy regression, and still resets the partition.
+    let current = first.sync_state().unwrap();
+    let regressed = json!({ "snapshot": false, "events": [], "watermark": 9, "more": false,
+        "send_revision": current.send_revision, "requested_watermark": 12, "captured_watermark": 12 });
+    assert!(call(&mut first, &json!({ "op": "apply", "page": regressed }))["denied"].is_object());
+    assert_eq!(first.state().unwrap().0, 0);
+}
+
+#[test]
+fn finding_1_another_owner_adopting_b_does_not_bless_this_owners_a_programs() {
+    use snapback4_device::call::call;
+    use serde_json::json;
+    let source = "table notes:\n  body: text <=20\n  read <- allow\n  sync public\nquery marker():\n  return 'A'\n";
+    let (_, a) = compile(source);
+    let (_, b) = compile(&source.replace("return 'A'", "return 'B'"));
+    let host = Sqlite::new("adoption-owners");
+    let path = host.path("store");
+    let mut owner = Device::open(&path, Some(a.clone())).unwrap();
+    let page = |store| json!({ "snapshot": true, "events": [], "watermark": 0, "more": false, "store_id": store });
+    assert!(call(&mut owner, &json!({ "op": "apply", "page": page("A"), "first": true }))["ok"].is_object());
+    let mut reader = Device::open(&path, None).unwrap();
+    owner.adopt(a).unwrap();
+    assert!(!reader.sync_state().unwrap().backend_required, "same-store same-program adoption remains usable");
+    owner.observe_store(&serde_json::from_value(page("B")).unwrap()).unwrap();
+    owner.adopt(b.clone()).unwrap();
+    owner.apply(&serde_json::from_value(page("B")).unwrap(), true).unwrap();
+    assert!(reader.sync_state().unwrap().backend_required, "this owner's A programs still need B's backend");
+    assert!(reader.query("marker", "alice", &json!({}), 1).is_err());
+    assert!(reader.apply(&serde_json::from_value(page("B")).unwrap(), true).is_err());
+    reader.adopt(b).unwrap();
+    assert_eq!(reader.query("marker", "alice", &json!({}), 1).unwrap().data, Value::String("B".into()));
+}

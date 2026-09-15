@@ -82,6 +82,7 @@ interface Watch {
   running: boolean;
   dirty: boolean;
   expiryTimer: ReturnType<typeof setTimeout> | null;
+  incarnation: number;
 }
 
 interface Queued {
@@ -115,7 +116,7 @@ async function requireSyncProtocol(core: DeviceCore): Promise<void> {
   if (denied && typeof denied.code === "string" && denied.code !== "E_OP") throw new Error(`createLocalClient: ${denied.code}: native startup failed: ${denied.message}`);
   const state = reply?.ok as Record<string, unknown> | undefined;
   const uint = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-  if (denied || !state || !(state.store_id === null || typeof state.store_id === "string") || !uint(state.watermark) || !uint(state.generation) || !uint(state.send_revision) || !Array.isArray(state.pending_ids) || state.pending_ids.length > 256 || !state.pending_ids.every((id) => typeof id === "string" && id.length > 0)) {
+  if (denied || !state || typeof state.backend_required !== "boolean" || !(state.store_id === null || typeof state.store_id === "string") || !uint(state.watermark) || !uint(state.generation) || !uint(state.send_revision) || !Array.isArray(state.pending_ids) || state.pending_ids.length > 256 || !state.pending_ids.every((id) => typeof id === "string" && id.length > 0)) {
     throw new Error("createLocalClient: E_DEVICE_VERSION: the device lacks the sync receipt protocol this client speaks. Update the device to match the client: rebuild the app's native binary for snapback4-expo (reloading JavaScript does not update a native module), or serve the wasm this package version ships.");
   }
 }
@@ -275,7 +276,27 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const settled = new Map<string, (write: Write) => void>();
   let lastSyncAt = Number((await call({ op: "meta", key: "syncedAt" })).ok ?? 0);
   let caughtUp = false;
-  let storeIdentity: string | undefined;
+  let partitionCurrent = true;
+  let storeIdentity = ((await call({ op: "sync_state" })).ok as { store_id?: string | null })?.store_id ?? undefined;
+  let incarnation = 0;
+  // @ref LLP 3000.007#18.2 — observation fences answers before queued sync can retire the partition.
+  function observeIncarnation(id?: string, force = false) {
+    if (!force && (id === undefined || id === storeIdentity)) return;
+    storeIdentity = id;
+    incarnation++;
+    partitionCurrent = false;
+    caughtUp = false;
+    lastSyncAt = 0;
+    serverAnswers.clear();
+    for (const watch of watches.values()) {
+      watch.snapshot = { loading: true };
+      watch.incarnation = incarnation;
+      if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
+      watch.expiryTimer = null;
+      notify(watch);
+      void rerun(watch);
+    }
+  }
 
   async function call(request: Record<string, unknown>): Promise<{ ok?: unknown; denied?: Refusal }> {
     const work = core.call(request);
@@ -444,16 +465,21 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         let page: Record<string, unknown>;
         let pageRevision = credentialRevision;
         let requestedStore: string | null | undefined;
+        let backendRequired = false;
+        const pageIncarnation = incarnation;
         try {
           const captured = await call({ op: "sync_state" });
           if (captured.denied) return false;
-          const { pending_ids: pending, send_revision, store_id } = captured.ok as { pending_ids: string[]; send_revision: number; store_id?: string | null };
+          const { pending_ids: pending, send_revision, store_id, watermark: capturedWatermark, backend_required } = captured.ok as { pending_ids: string[]; send_revision: number; store_id?: string | null; watermark: number; backend_required?: boolean };
+          backendRequired = !!backend_required;
           requestedStore = store_id;
           const request = requestCredentials();
           const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify({ from: watermark, limit: PAGE, after: after ?? null, stream: catchingUp, pending, ...(store_id ? { store_id } : {}) }), signal: aborter.signal });
           if (response.status >= 500) { setLink("offline"); return false; }
           page = (await response.json()) as Record<string, unknown>;
           page.send_revision = send_revision;
+          page.requested_watermark = watermark;
+          page.captured_watermark = capturedWatermark;
           pageRevision = request.revision;
         } catch {
           setLink("offline");
@@ -469,14 +495,19 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           }
           return false;
         }
+        if (pageIncarnation !== incarnation) return false;
         // @ref LLP 3000.007#18.2 — sync identity retires the old partition before any read or outbox replay.
         let replacedStore = false;
+        if (typeof page.store_id === "string") observeIncarnation(page.store_id);
         if ((typeof page.store_id === "string" && page.store_id !== requestedStore) || Number(page.watermark) < watermark) {
           const observed = await call({ op: "observe_store", page });
           if (observed.denied) return false;
-          const observation = observed.ok as { reset: boolean; send_revision: number; retired: Record<string, number> };
+          const observation = observed.ok as { reset: boolean; backend_required?: boolean; send_revision: number; retired: Record<string, number> };
           page.send_revision = observation.send_revision;
+          backendRequired = !!observation.backend_required;
           if (observation.reset) {
+            if (typeof page.store_id !== "string") observeIncarnation(undefined, true);
+            page.captured_watermark = 0;
             serverAnswers.clear();
             lastSyncAt = 0;
             await call({ op: "set_meta", key: "syncedAt", value: "0" });
@@ -495,16 +526,17 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (link !== "online") setLink("online");
         partitionDenied = null;
         const pageGeneration = Number(page.generation ?? generation);
-        if (pageGeneration !== generation || replacedStore) {
+        if (pageGeneration !== generation || replacedStore || backendRequired) {
           // Generation counters restart with a new store. Reload the backend
           // even when its number matches, then acquire its current partition.
           let backendRevision = credentialRevision;
+          const backendIncarnation = incarnation;
           try {
             const request = requestCredentials();
             backendRevision = request.revision;
             const nextBackend = await loadBackend(doFetch, base, request.headers, aborter.signal);
-            if (closed) return false;
-            const adopted = await call({ op: "adopt", backend: nextBackend });
+            if (closed || backendIncarnation !== incarnation) return false;
+            const adopted = await call({ op: "adopt", backend: nextBackend, store_id: page.store_id ?? requestedStore ?? null, send_revision: page.send_revision });
             if (adopted.denied) return false;
             backend = nextBackend;
             generation = Number(nextBackend.generation ?? pageGeneration);
@@ -520,8 +552,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (Number(page.watermark) < watermark || (catchingUp && page.snapshot) || (page.snapshot && page.more && !page.next)) return false;
         page.stage_snapshot = !!page.snapshot;
         page.snapshot_catchup = catchingUp;
+        const applyingIncarnation = incarnation;
         const applied = await call({ op: "apply", page, first: !catchingUp && after === undefined });
-        if (closed) return false;
+        if (closed || applyingIncarnation !== incarnation) return false;
         if (applied.denied) return false;
         for (const table of ((applied.ok as { touched?: string[] } | undefined)?.touched ?? [])) touched.add(table);
         if (page.snapshot && page.more && page.next) {
@@ -532,6 +565,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         watermark = Number(page.watermark ?? watermark);
         if (page.snapshot) { catchingUp = true; continue; }
         if (!page.more) {
+          partitionCurrent = true;
           caughtUp = true;
           break;
         }
@@ -549,7 +583,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       } else if (!closed && caughtUp) {
         for (const watch of watches.values()) {
           if (serverRun(watch.op)) { void rerun(watch); continue; }
-          if (!("data" in watch.snapshot) || watch.snapshot.fresh) continue;
+          if (watch.incarnation !== incarnation || !("data" in watch.snapshot) || watch.snapshot.fresh) continue;
           const { since: _, ...read } = watch.snapshot;
           watch.snapshot = { ...read, fresh: true };
           notify(watch);
@@ -580,14 +614,17 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     try {
       const request = requestCredentials();
+      const changeIncarnation = incarnation;
       const { response, json } = await changes(seq, options.waitSeconds ?? 25, request.headers);
       if (!response.ok || json.denied) {
         await refusedSession(json.denied, request.revision);
         if (json.denied?.code === "E_AUTH") return false;
         throw new Error(`changes: HTTP ${response.status}`);
       }
-      const changed = json.seq > seq || (json.generation !== undefined && json.generation !== generation)
-        || (json.store_id !== undefined && json.store_id !== storeIdentity);
+      if (closed || changeIncarnation !== incarnation) return false;
+      const replaced = json.store_id !== undefined && json.store_id !== storeIdentity;
+      if (replaced) observeIncarnation(json.store_id);
+      const changed = replaced || json.seq > seq || (json.generation !== undefined && json.generation !== generation);
       if (changed) {
         seq = Math.max(seq, json.seq);
         const touched = new Set(json.tables ?? []);
@@ -632,13 +669,19 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
 
   function runLocal<R>(op: Query<unknown, R>, args: unknown) {
-    const work = evaluateLocal(op, args);
+    const work = (async () => {
+      while (true) {
+        const revision = incarnation;
+        const result = await evaluateLocal(op, args, revision);
+        if (revision === incarnation || closed) return { ...result, incarnation: revision };
+      }
+    })();
     active.add(work);
     void work.finally(() => active.delete(work)).catch(() => {});
     return work;
   }
 
-  async function evaluateLocal<R>(op: Query<unknown, R>, args: unknown): Promise<{ read: Read<R>; tables: Set<string>; nextExpiry: number | null }> {
+  async function evaluateLocal<R>(op: Query<unknown, R>, args: unknown, revision: number): Promise<{ read: Read<R>; tables: Set<string>; nextExpiry: number | null }> {
     const refused = unavailable();
     if (refused) return { read: { denied: refused }, tables: new Set(), nextExpiry: null };
     const schema = backend!.schema;
@@ -654,6 +697,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const server = async () => {
       while (true) {
         const result = await post(`/q/${op.name}`, { args });
+        if (revision !== incarnation) return { read: { loading: true } as Read<R>, tables, nextExpiry: null };
         if (sessionDead) return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } } as Read<R>, tables, nextExpiry: null };
         if (!result.ok) return remembered();
         if (result.obsoleteAuth) {
@@ -673,6 +717,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         return { read, tables, nextExpiry };
       }
     };
+    // A rerun started by observation must not read the old partition while
+    // its reset is still queued behind a send. Current server reads are safe.
+    if (!partitionCurrent) return link === "online" ? server() : { read: { denied: offline() }, tables, nextExpiry: null };
     if (program?.native && !nativeReady) {
       if (link === "online") nativeReady = await installNative(aborter.signal);
       if (!nativeReady) return link === "online" ? server() : remembered();
@@ -725,8 +772,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     watch.running = true;
     try {
-      const { read, tables, nextExpiry } = await runLocal(watch.op, watch.args);
+      const { read, tables, nextExpiry, incarnation: revision } = await runLocal(watch.op, watch.args);
+      if (revision !== incarnation) { watch.dirty = true; return; }
       if (closed || watches.get(watch.key) !== watch) return;
+      watch.incarnation = revision;
       watch.tables = tables;
       watch.snapshot = read;
       scheduleExpiry(watch, nextExpiry);
@@ -832,13 +881,16 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       return act(op, args, options, options?.id ?? mintId(), post, () => unavailable() ?? (link !== "online" ? offline() : undefined));
     },
     async query(op, args) {
-      return (await runLocal(op, args)).read;
+      while (true) {
+        const result = await runLocal(op, args);
+        if (result.incarnation === incarnation || closed) return result.read;
+      }
     },
     observe<A, R>(op: Query<A, R>, args: A): Observed<R> {
       const key = `${op.name}:${JSON.stringify(args)}`;
       let watch = watches.get(key);
       if (!watch) {
-        watch = { op: op as Query<unknown, unknown>, args, key, tables: new Set(), snapshot: { loading: true }, subscribers: new Set(), running: false, dirty: false, expiryTimer: null };
+        watch = { op: op as Query<unknown, unknown>, args, key, tables: new Set(), snapshot: { loading: true }, subscribers: new Set(), running: false, dirty: false, expiryTimer: null, incarnation };
         watches.set(key, watch);
         void rerun(watch);
       }

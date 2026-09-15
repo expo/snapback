@@ -18,6 +18,11 @@ pub trait DeviceStore {
     /// rows, the images and the staged snapshot (a new generation), never
     /// the outbox.
     fn install(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool) -> Result<(), RuntimeError>;
+    /// Compare capture metadata inside the installation transaction.
+    fn install_checked(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
+        if !expected.is_empty() { return Err(RuntimeError::Store("this device store cannot check backend adoption captures".into())); }
+        self.install(schema, metadata, reset)
+    }
     fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError>;
     fn set_meta(&mut self, key: &str, value: &str) -> Result<(), RuntimeError>;
     fn transaction(&mut self) -> Result<Self::Tx<'_>, RuntimeError>;

@@ -58,7 +58,19 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, request: &Json) -> Json {
             "observe_store" => encoded(&device.observe_store(&parse::<StreamPage>(arg(request, "page")?)?)?)?,
             "begin_send" => json!({ "send_revision": device.begin_send()? }),
             "adopt" => {
-                device.adopt(parse::<Backend>(arg(request, "backend")?)?)?;
+                let mut expected = std::collections::BTreeMap::new();
+                for (field, key) in [("store_id", "device:store_id"), ("send_revision", "device:send_revision")] {
+                    if let Some(value) = request.get(field) {
+                        let value = if field == "send_revision" {
+                            let revision = value.as_u64().ok_or_else(|| RuntimeError::Input("send_revision is an unsigned integer".into()))?;
+                            if revision == 0 && device.store().meta(key)?.is_none() { None } else { Some(revision.to_string()) }
+                        } else if value.is_null() { None } else {
+                            Some(value.as_str().ok_or_else(|| RuntimeError::Input("store_id is text or null".into()))?.to_owned())
+                        };
+                        expected.insert(key.to_owned(), value);
+                    }
+                }
+                device.adopt_captured(parse::<Backend>(arg(request, "backend")?)?, expected)?;
                 Json::Null
             }
             "apply" => {

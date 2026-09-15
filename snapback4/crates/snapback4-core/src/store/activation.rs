@@ -27,7 +27,15 @@ impl Store {
     /// its replacement backend and reset watermark. It never migrates rows
     /// whose authority belongs to a previous server generation.
     pub fn install_device(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool) -> Result<(), RuntimeError> {
+        self.install_device_checked(schema, metadata, reset, &BTreeMap::new())
+    }
+
+    pub fn install_device_checked(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
         self.activate(schema, None, reset, |tx, _| {
+            for (key, value) in expected {
+                let held: Option<String> = tx.conn().query_row("SELECT value FROM _meta WHERE key = ?1", [key], |row| row.get(0)).optional()?;
+                if &held != value { return Err(RuntimeError::Generation("the backend adoption capture is obsolete; retry sync".into())); }
+            }
             for (key, value) in metadata { tx.set_meta(key, value)?; }
             if reset { tx.conn().execute_batch("DELETE FROM _device_base; DELETE FROM _device_snapshot;")?; }
             Ok(())

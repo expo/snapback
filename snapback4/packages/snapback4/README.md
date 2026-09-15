@@ -1054,7 +1054,19 @@ acquisition again.
 A replaced backend store also requires acquisition again, even at the same
 schema generation: sync's store identity discards old rows and held/left
 history, keeps unsent writes without their predictions, and never replays a
-write whose receipt is already known.
+write whose receipt is already known. The reset durably requires the new
+store's backend to be adopted before acquisition can publish; a failed schema
+fetch, offline reopen or restart preserves that requirement. Replacement
+observation immediately drops freshness and invalidates remembered answers
+and watches; outstanding reads from the previous store are retried.
+Orphan tabs transfer unknown writes without predictions, retire receipts
+known to belong to another store, and retain unresolved receipts with their
+source identity until ownership can be compared. First identification of a
+legacy acquired device also discards retained left-group history, even on
+the same database; already-left groups cannot be reacquired. An identified
+same-store snapshot preserves ordinary retained history. A legacy backwards
+watermark counts as replacement only behind that request's own watermark,
+while its acquisition capture is still current.
 
 On the web, a failed save rejects the call and discards its uncommitted in-memory
 state. The next serialized call reopens the last persisted state; earlier
