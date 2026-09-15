@@ -21,6 +21,7 @@ pub mod rules;
 pub mod runner;
 pub mod validate;
 pub mod write;
+mod maintains;
 mod write_target;
 mod receipt;
 
@@ -372,7 +373,8 @@ impl Engine {
             let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
             let previous: Option<Schema> = previous.map(|text| serde_json::from_str(&text).map_err(|e| RuntimeError::Store(e.to_string()))).transpose()?;
             let rebuild: Vec<_> = schema.maintains.iter().filter(|m| {
-                (changed && previous.as_ref().is_none_or(|old| !old.maintains.contains(m) || old.table(&m.source).and_then(|s| s.expire.as_ref()) != schema.table(&m.source).and_then(|s| s.expire.as_ref())))
+                (changed && previous.as_ref().is_none_or(|old| !old.maintains.contains(m) || old.table(&m.source).and_then(|s| s.expire.as_ref()) != schema.table(&m.source).and_then(|s| s.expire.as_ref())
+                    || m.dependencies().iter().any(|column| old.table(&m.source).and_then(|s| s.defaults.get(column)) != schema.table(&m.source).and_then(|s| s.defaults.get(column)))))
                     || (repair_live_sums && matches!(m.kind, crate::schema::MaintainKind::Sum { .. }) && schema.table(&m.source).is_some_and(|source| source.expire.is_some()))
             }).collect();
             tx.set_meta("live_sum_candidates", "1")?;

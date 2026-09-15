@@ -7,14 +7,13 @@ use super::validate::validate_row;
 use crate::assets::{AssetKind, asset_id};
 use crate::error::{MeterKind, RuntimeError};
 use crate::partition;
-use crate::schema::{ColumnType, Constraint, Effect, Maintain, MaintainKind, Table, maintained_id, maintained_key, materialize_optional_fields};
+use crate::schema::{ColumnType, Constraint, Effect, Table, materialize_optional_fields};
 use crate::rows::{Bounds, Dir};
 use crate::rows::index_values;
-use crate::value::{I53_MAX, I53_MIN, Value, canonical_json};
-use std::collections::BTreeMap;
+use crate::value::{Value, canonical_json};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum Origin {
+pub(super) enum Origin {
     Source,
     Maintained,
 }
@@ -58,8 +57,8 @@ impl Runner<'_> {
             self.remove(table_name, &existing)?;
         }
         self.check_constraints(table_name, None, &row, Effect::Insert)?;
-        let entries = self.tx.put(table_name, &table, &row, None)?;
-        self.meter.charge(MeterKind::IndexEntries, entries)?;
+        let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.put(table_name, &table, &row, None))?;
+        self.charge_source_indexes(&table, None, Some(&row), entries)?;
         self.row_changed(table_name, None, Some(&row), Origin::Source)?;
         Ok(true)
     }
@@ -74,7 +73,7 @@ impl Runner<'_> {
             return Err(RuntimeError::Input(format!("{table_name} update patch cannot change id")));
         }
         let id = key.as_str()?;
-        self.reserve_target_resolution(self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?, &patch, false)?;
+        self.reserve_target_resolution(table_name, &self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?.clone(), &patch, false)?;
         let Some(old) = self.fetch(table_name, id)? else {
             return Err(self.write_miss(table_name, "byId", &[key.clone()]));
         };
@@ -95,7 +94,7 @@ impl Runner<'_> {
         if row.field("id")?.as_str()? != id {
             return Err(RuntimeError::Input(format!("{table_name} upsert row id must equal its key")));
         }
-        self.reserve_target_resolution(self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?, &row, true)?;
+        self.reserve_target_resolution(table_name, &self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?.clone(), &row, true)?;
         match self.fetch(table_name, id)? {
             Some(old) => {
                 let readable = self.check_rule(table_name, Effect::Read, None, &old)?;
@@ -142,8 +141,8 @@ impl Runner<'_> {
         if let Err(error) = validate_row(self.schema, table_name, &new) { return Err(if readable { error } else { self.no_write_target() }); }
         self.check_constraints(table_name, Some(&old), &new, Effect::Update)?;
         let table = self.schema.table(table_name).expect("validated").clone();
-        let entries = self.tx.put(table_name, &table, &new, Some(&old))?;
-        self.meter.charge(MeterKind::IndexEntries, entries)?;
+        let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.put(table_name, &table, &new, Some(&old)))?;
+        self.charge_source_indexes(&table, Some(&old), Some(&new), entries)?;
         self.row_changed(table_name, Some(&old), Some(&new), Origin::Source)
     }
 
@@ -157,8 +156,8 @@ impl Runner<'_> {
         }
         self.check_constraints(table_name, Some(&old), &old, Effect::Delete)?;
         let table = self.schema.table(table_name).expect("validated").clone();
-        let entries = self.tx.delete(table_name, &table, &old)?;
-        self.meter.charge(MeterKind::IndexEntries, entries)?;
+        let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.delete(table_name, &table, &old))?;
+        self.charge_source_indexes(&table, Some(&old), None, entries)?;
         self.row_changed(table_name, Some(&old), None, Origin::Source)
     }
 
@@ -167,8 +166,8 @@ impl Runner<'_> {
     /// aggregates and partition events apply as for any delete.
     pub(super) fn remove(&mut self, table_name: &str, old: &Value) -> Result<(), RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?.clone();
-        let entries = self.tx.delete(table_name, &table, old)?;
-        self.meter.charge(MeterKind::IndexEntries, entries)?;
+        let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.delete(table_name, &table, old))?;
+        self.charge_source_indexes(&table, Some(old), None, entries)?;
         self.row_changed(table_name, Some(old), None, Origin::Source)
     }
 
@@ -429,12 +428,42 @@ impl Runner<'_> {
         Ok(())
     }
 
+    fn contribution_heap(&self, table: &Table) -> u64 {
+        table.indexes.values().fold(0, |bytes: u64, index| match index.components.first() {
+            Some(crate::schema::IndexComponent::Contribution(maintain)) => bytes.saturating_add(
+                super::write_target::row_copy_ceiling(&self.schema.tables[&maintain.target]).saturating_mul(16)),
+            _ => bytes,
+        })
+    }
+
+    fn charge_source_indexes(&mut self, table: &Table, old: Option<&Value>, new: Option<&Value>, mut entries: u64) -> Result<(), RuntimeError> {
+        for index in table.indexes.values() {
+            if let Some(crate::schema::IndexComponent::Contribution(maintain)) = index.components.first() {
+                self.charge_maintain(MeterKind::Steps, maintain.evaluation_steps() * (u64::from(old.is_some()) + u64::from(new.is_some())))?;
+            }
+        }
+        if self.maintain_prepaid {
+            let id = old.or(new).expect("source image").field("id")?.as_str()?;
+            for index in table.indexes.values() {
+                if matches!(index.components.first(), Some(crate::schema::IndexComponent::Contribution(_))) {
+                    let before = old.map(|row| crate::rows::stored_index_keys(table, index, row, id)).unwrap_or_default();
+                    let after = new.map(|row| crate::rows::stored_index_keys(table, index, row, id)).unwrap_or_default();
+                    let changed = before.iter().filter(|key| !after.contains(key)).count() + after.iter().filter(|key| !before.contains(key)).count();
+                    entries = entries.saturating_sub(changed as u64);
+                }
+            }
+        }
+        self.meter.charge(MeterKind::IndexEntries, entries)?;
+        Ok(())
+    }
+
     /// The shared tail of every physical row change: creation facts, the
     /// write meter, maintained aggregates, and the partition events.
-    fn row_changed(&mut self, table_name: &str, old: Option<&Value>, new: Option<&Value>, origin: Origin) -> Result<(), RuntimeError> {
+    pub(super) fn row_changed(&mut self, table_name: &str, old: Option<&Value>, new: Option<&Value>, origin: Origin) -> Result<(), RuntimeError> {
         self.written_tables.insert(table_name.to_owned());
         self.rows_written += 1;
-        self.meter.charge(MeterKind::RowsWritten, 1)?;
+        if origin == Origin::Maintained { self.charge_maintain(MeterKind::RowsWritten, 1)?; }
+        else { self.meter.charge(MeterKind::RowsWritten, 1)?; }
         let table = self.schema.table(table_name).expect("validated").clone();
         // Final-exists obligations retain immutable successful-insert images.
         // Current creation facts have separate per-row ownership, so updates
@@ -470,141 +499,6 @@ impl Runner<'_> {
         Ok(())
     }
 
-    fn maintain(&mut self, source: &str, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
-        let maintains: Vec<Maintain> = self.schema.maintains.iter().filter(|maintain| maintain.source == source).cloned().collect();
-        for maintain in maintains {
-            let table = self.schema.table(&maintain.source).expect("validated").clone();
-            let mut changes: Vec<(Vec<Value>, i128)> = Vec::new();
-            if let Some(old) = old {
-                let mut image = old.clone();
-                materialize_optional_fields(&mut image, &table);
-                let key = maintained_key(&image, &maintain.by);
-                changes.push((key, delta(&maintain, &image, -1)?));
-            }
-            if let Some(new) = new {
-                let mut image = new.clone();
-                materialize_optional_fields(&mut image, &table);
-                let key = maintained_key(&image, &maintain.by);
-                let change = delta(&maintain, &image, 1)?;
-                if let Some(existing) = changes.iter_mut().find(|(k, _)| *k == key) {
-                    existing.1 += change;
-                } else {
-                    changes.push((key, change));
-                }
-            }
-            for (key, change) in changes {
-                if change != 0 || self.live_sum(&maintain) {
-                    self.apply_aggregate(&maintain, key, change, None)?;
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Build one aggregate from the rows in the store: the target's rows go,
-    /// then every source row contributes once. A schema change that adds or
-    /// redefines a `maintain` calls this, so a count over existing rows is
-    /// right from its first read (day two, LLP 2000.000 §11.2).
-    #[cfg(feature = "sqlite")]
-    pub(crate) fn rebuild_maintain(&mut self, maintain: &Maintain) -> Result<(), RuntimeError> {
-        let target = self.schema.table(&maintain.target).expect("validated").clone();
-        let mut bounds = Bounds::default();
-        loop {
-            let page = self.tx.scan(&maintain.target, "byId", &[], &bounds, Dir::Asc, 256)?;
-            if page.is_empty() { break; }
-            for (existing, key) in page {
-                bounds.after = crate::key::decode(&key);
-                let entries = self.tx.delete(&maintain.target, &target, &existing)?;
-                self.meter.charge(MeterKind::IndexEntries, entries)?;
-                self.row_changed(&maintain.target, Some(&existing), None, Origin::Maintained)?;
-            }
-        }
-        let source = self.schema.table(&maintain.source).expect("validated").clone();
-        let mut totals: BTreeMap<String, (Vec<Value>, i128)> = BTreeMap::new();
-        bounds = Bounds::default();
-        loop {
-            let page = self.tx.scan(&maintain.source, "byId", &[], &bounds, Dir::Asc, 256)?;
-            if page.is_empty() { break; }
-            for (mut image, key) in page {
-                bounds.after = crate::key::decode(&key);
-                materialize_optional_fields(&mut image, &source);
-                let key = maintained_key(&image, &maintain.by);
-                let change = delta(maintain, &image, 1)?;
-                let entry = totals.entry(canonical_json(&key)).or_insert((key, 0));
-                entry.1 = entry.1.checked_add(change).ok_or_else(|| aggregate_overflow(maintain))?;
-            }
-        }
-        for (_, (key, change)) in totals {
-            if change != 0 || self.live_sum(maintain) {
-                self.apply_aggregate(maintain, key, change, Some(true))?;
-            }
-        }
-        Ok(())
-    }
-
-    fn live_sum(&self, maintain: &Maintain) -> bool {
-        matches!(maintain.kind, MaintainKind::Sum { .. }) && self.schema.table(&maintain.source).is_some_and(|source| source.expire.is_some())
-    }
-
-    /// A zero sum is still a group while source rows remain: one signed
-    /// contribution may expire before the other. Keep its candidate row so
-    /// a scan, snapshot and offline replica can discover the later live sum.
-    fn aggregate_source_present(&mut self, maintain: &Maintain, key: &[Value]) -> Result<bool, RuntimeError> {
-        let source = self.schema.table(&maintain.source).expect("validated");
-        let (index, prefix) = source.indexes.iter().find(|(_, index)| index.word_component().is_none() && index.columns().starts_with(&maintain.by))
-            .map(|(name, _)| (name.as_str(), key)).unwrap_or(("byId", &[]));
-        let mut bounds = Bounds::default();
-        loop {
-            let rows = self.tx.scan(&maintain.source, index, prefix, &bounds, Dir::Asc, 256)?;
-            let count = rows.len();
-            for (row, stored) in rows {
-                self.meter.charge(MeterKind::Examined, 1)?;
-                bounds.after = crate::key::decode(&stored).map(|values| values.into_iter().skip(prefix.len()).collect());
-                // @ref LLP 3000.007#18.3 — old source images group by their literal defaults, including zero-sum candidates.
-                let row = crate::schema::row_image(&row, source);
-                if maintained_key(&row, &maintain.by) == key { return Ok(true); }
-            }
-            if count < 256 { return Ok(false); }
-        }
-    }
-
-    fn apply_aggregate(&mut self, maintain: &Maintain, key: Vec<Value>, change: i128, source_present: Option<bool>) -> Result<(), RuntimeError> {
-        let id = maintained_id(&key);
-        let target = self.schema.table(&maintain.target).expect("validated").clone();
-        let existing = self.tx.get(&maintain.target, &id)?;
-        let old_value = existing.as_ref().and_then(|row| row.field("value").ok()).map(Value::as_int).transpose()?.unwrap_or(0);
-        let next = i128::from(old_value) + change;
-        if !(I53_MIN as i128..=I53_MAX as i128).contains(&next) {
-            return Err(aggregate_overflow(maintain));
-        }
-        let keep_zero = next == 0 && self.live_sum(maintain) && match source_present {
-            Some(present) => present,
-            None => self.aggregate_source_present(maintain, &key)?,
-        };
-        if next == 0 && !keep_zero {
-            if let Some(existing) = existing {
-                let entries = self.tx.delete(&maintain.target, &target, &existing)?;
-                self.meter.charge(MeterKind::IndexEntries, entries)?;
-                self.row_changed(&maintain.target, Some(&existing), None, Origin::Maintained)?;
-            }
-            return Ok(());
-        }
-        let mut row = BTreeMap::from([("id".to_owned(), Value::Id(id.clone())), ("value".to_owned(), Value::Int(next as i64))]);
-        for (field, value) in maintain.by.iter().zip(key) {
-            row.insert(field.clone(), value);
-        }
-        let row = Value::Row(row.into());
-        let entries = self.tx.put(&maintain.target, &target, &row, existing.as_ref())?;
-        self.meter.charge(MeterKind::IndexEntries, entries)?;
-        self.row_changed(&maintain.target, existing.as_ref(), Some(&row), Origin::Maintained)
-    }
-}
-
-fn delta(maintain: &Maintain, source: &Value, direction: i64) -> Result<i128, RuntimeError> {
-    Ok(match &maintain.kind {
-        MaintainKind::Count => i128::from(direction),
-        MaintainKind::Sum { of } => i128::from(direction).checked_mul(i128::from(source.field(of)?.as_int()?)).ok_or_else(|| aggregate_overflow(maintain))?,
-    })
 }
 
 fn describe(value: &Value) -> String {
@@ -612,9 +506,4 @@ fn describe(value: &Value) -> String {
         Value::String(s) | Value::Id(s) => format!("'{s}'"),
         other => canonical_json(other),
     }
-}
-
-// @ref LLP 3000.007#17 — an internal sum names its maintain and column, never a retained contribution or computed value.
-pub(super) fn aggregate_overflow(maintain: &Maintain) -> RuntimeError {
-    RuntimeError::AggregateOverflow { maintain: maintain.target.clone(), column: "value".into() }
 }

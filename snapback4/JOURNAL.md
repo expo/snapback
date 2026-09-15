@@ -8187,3 +8187,666 @@ ref-check: ok — 474 LLP docs, 8853 refs in 22826 files, 0 errors, 0 unchecked
 `git diff --check` exited 0; the journal prefix matches the base byte for
 byte, §20.9 is between §20.8 and Non-claims, and the only code addition is
 the 118-line ignored measurement (below the 1,500-line code cap).
+
+## 2026-09-14 — D1: filtered and calendar maintains, group pages and value order
+
+Implemented LLP 3000.007 §20.9 (a)–(d) from base `397c0a829001f1df4f1e096d9bdee5693a56416d`.
+The source contribution evaluator is shared by server writes, rebuilds,
+expiry and both device stores. It handles restricted typed predicates,
+Euclidean day/hour/literal-duration bucket keys, coalesced key moves and
+wide intermediate sums. Generated group pages and scoped/global value indexes
+use ordinary rows and cursors. An internal selected-source contribution index
+keeps computed expiry groups off the source-wide fallback. Source caps prove
+distinct-group bounds without creating a target constraint.
+
+Prediction preserves ordinary source authority and requires each aggregate
+base or its absence to be known. Online-only aggregate side effects are omitted
+locally. Inherited aggregates have no horizon and remain until-revoked when
+their source retains history. Hidden writes reserve predicate/key, two-group,
+index and transient heap work before inspecting the old image; transient
+buffers are released. The in-memory store now counts actual index removals
+and insertions, matching SQLite's changed-key behavior. The language card runs
+calendar scalars, pages and reaction chips; README and guide cards compile
+without notes. Disclosure diagnostics name the target's filter/key/value
+dependencies, and the rules card includes a restrictive aggregate read rule.
+
+Successor classification reports filter/key/duration/default/index changes at
+the maintain declaration. Read-only assessment checks interpreted source
+images and final sums before today's atomic activation. A failing regression
+showed that a filter change could previously pass assessment and overflow
+during rebuild; check and adoption now agree. No source backfill writes are
+needed. Resumable adoption, a write fence, check exit 2, bounded preparation
+and S26's digest continuation remain outside this slice. There is no claim
+of the complete five-million-row, disk-backed scale qualification or a
+measured durable write pause.
+
+What I learned: ordinary group pages already supplied the chips runtime
+control on the base; the missing work was its paved contract and bound
+propagation, plus the new contribution/key/rank forms. Not-comparison
+precedence needs the maintain's own grammar. A missing scoped-rank prefix
+must be refused instead of accidentally ordering across scopes. A physical
+zero-sum group must survive independent signed expiry. Unknown local bases
+must queue; partial source history cannot reconstruct an authoritative total.
+
+### Measurements
+
+Command, from `snapback4/`:
+
+```sh
+cargo test -p snapback4-sim --test maintain_measurement accepted_maintain_costs -- --ignored --nocapture > /private/tmp/d1-measurements-final.log 2>&1
+```
+
+SQLite in-memory stores, debug Rust, on the shared loaded host. Each of six
+real modes has a separate 50,000-post or 100,000-message store. There are 200
+samples per operation: 14,400 mutation samples and 400 rank reads in total.
+Filter selectivity is 0%, 50% or 100% for both seeded rows and the measured
+add/unrelated batches. Decrease exits selected rows; enter makes every sample
+selected before keyMove/remove. Rank decrease lowers the initially winning
+group one contribution at a time. Calendar/expiry modes have 50,000/100,000
+distinct groups; filter100/rank have 1,000 groups.
+
+Temporary SQLite triggers independently count physical source/target index
+inserts/deletes and target writes. Timings include that instrumentation.
+All seven logical meters are printed as the last sample and as a 200-sample
+sum; heap is the engine's logical accounting, not a peak RSS measurement.
+Adoption timing includes exhaustive assessment and the existing unbounded
+atomic rebuild, with zero resumable chunks. These timings are observations,
+not controlled throughput or disk-backed pause claims.
+
+| Source rows | Mode | Target groups | Adoption ms |
+| --- | --- | ---: | ---: |
+| posts 50000 | filter0 | 0 | 3383.382 |
+| posts 50000 | filter50 | 500 | 2729.744 |
+| posts 50000 | filter100 | 1000 | 2805.781 |
+| posts 50000 | calendar | 50000 | 5884.015 |
+| posts 50000 | rank | 1000 | 3312.036 |
+| posts 50000 | expiry | 50000 | 6596.769 |
+| messages 100000 | filter0 | 0 | 5194.768 |
+| messages 100000 | filter50 | 500 | 5837.429 |
+| messages 100000 | filter100 | 1000 | 6658.824 |
+| messages 100000 | calendar | 100000 | 11899.762 |
+| messages 100000 | rank | 1000 | 5296.803 |
+| messages 100000 | expiry | 100000 | 13675.413 |
+
+| Source | Mode / operation | p50 µs | p95 µs |
+| --- | --- | ---: | ---: |
+| posts | filter0 / add | 109.666 | 263.625 |
+| posts | filter0 / decrease | 121.416 | 374.292 |
+| posts | filter0 / keyMove | 252.208 | 594.208 |
+| posts | filter50 / add | 106.833 | 199.375 |
+| posts | filter50 / decrease | 123.041 | 286.125 |
+| posts | filter50 / keyMove | 162.584 | 217.750 |
+| posts | filter100 / add | 110.166 | 217.000 |
+| posts | filter100 / decrease | 124.583 | 178.583 |
+| posts | filter100 / keyMove | 163.666 | 236.208 |
+| posts | calendar / add | 121.708 | 172.625 |
+| posts | calendar / decrease | 136.458 | 227.459 |
+| posts | calendar / keyMove | 188.292 | 277.125 |
+| posts | rank / add | 128.500 | 192.792 |
+| posts | rank / decrease | 145.958 | 212.208 |
+| posts | rank / keyMove | 196.583 | 235.750 |
+| posts | rank / read | 90.416 | 125.875 |
+| posts | expiry / add | 152.125 | 298.333 |
+| posts | expiry / decrease | 219.417 | 467.625 |
+| posts | expiry / keyMove | 251.375 | 344.584 |
+| messages | filter0 / add | 82.500 | 96.417 |
+| messages | filter0 / decrease | 99.208 | 102.458 |
+| messages | filter0 / keyMove | 166.416 | 215.792 |
+| messages | filter50 / add | 103.500 | 125.000 |
+| messages | filter50 / decrease | 121.958 | 126.125 |
+| messages | filter50 / keyMove | 163.459 | 186.000 |
+| messages | filter100 / add | 109.333 | 175.750 |
+| messages | filter100 / decrease | 125.167 | 176.333 |
+| messages | filter100 / keyMove | 172.292 | 259.875 |
+| messages | calendar / add | 114.583 | 163.833 |
+| messages | calendar / decrease | 130.084 | 183.459 |
+| messages | calendar / keyMove | 171.916 | 188.792 |
+| messages | rank / add | 125.000 | 145.208 |
+| messages | rank / decrease | 141.375 | 154.875 |
+| messages | rank / keyMove | 193.500 | 203.459 |
+| messages | rank / read | 88.958 | 93.083 |
+| messages | expiry / add | 145.250 | 197.500 |
+| messages | expiry / decrease | 163.167 | 176.291 |
+| messages | expiry / keyMove | 236.250 | 404.958 |
+
+The 0/50/100% add batches wrote respectively 0/100/200 target rows for 200
+source writes. The 200 ranked winner decreases deleted 200 and inserted
+200 value-index entries. Calendar key moves wrote 400 target rows; expiry
+key moves additionally deleted 400 and inserted 400 source-index entries
+(the ordinary group index plus the internal contribution index). A live
+computed expiry scalar examined 2 rows over either source size, returned
+1 before expiry and 0 at expiry before sweep, and exposed next_expiry 2000.
+Both rank reads examined 11 target rows, with no source scan.
+
+Full measured records, preserving the seven meters and physical counters:
+
+```text
+REAL adoption source=posts n=50000 mode=filter0 groups=0 ms=3383.382 store=sqlite-memory resumable_chunks=0
+REAL write source=posts mode=filter0 op=add n=200 p50_us=109.666 p95_us=263.625 last_meter={"examined":0,"index_entries":2,"rule_probes":0,"steps":17,"heap_bytes":1363,"output_bytes":165,"rows_written":1} meter_sum_200={"examined":0,"heap_bytes":272600,"index_entries":400,"output_bytes":33000,"rows_written":200,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":400,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=posts mode=filter0 op=unrelated n=200 p50_us=144.708 p95_us=317.125 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1499,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":299800,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=posts mode=filter0 op=decrease n=200 p50_us=121.416 p95_us=374.292 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=posts mode=filter0 op=enter n=200 p50_us=156.042 p95_us=342.292 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":2,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":2,"target_rows":200}
+REAL write source=posts mode=filter0 op=keyMove n=200 p50_us=252.208 p95_us=594.208 last_meter={"examined":3,"index_entries":4,"rule_probes":0,"steps":18,"heap_bytes":1583,"output_bytes":173,"rows_written":3} meter_sum_200={"examined":600,"heap_bytes":316600,"index_entries":404,"output_bytes":34600,"rows_written":600,"rule_probes":0,"steps":3600} physical_200={"source_index_delete":200,"source_index_insert":200,"target_index_delete":2,"target_index_insert":2,"target_rows":400}
+REAL write source=posts mode=filter0 op=remove n=200 p50_us=146.541 p95_us=283.541 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":10,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":402,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":2000} physical_200={"source_index_delete":400,"source_index_insert":0,"target_index_delete":2,"target_index_insert":0,"target_rows":200}
+REAL adoption source=posts n=50000 mode=filter50 groups=500 ms=2729.744 store=sqlite-memory resumable_chunks=0
+REAL write source=posts mode=filter50 op=add n=200 p50_us=106.833 p95_us=199.375 last_meter={"examined":0,"index_entries":2,"rule_probes":0,"steps":17,"heap_bytes":1363,"output_bytes":165,"rows_written":1} meter_sum_200={"examined":100,"heap_bytes":272600,"index_entries":400,"output_bytes":33000,"rows_written":300,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":400,"target_index_delete":0,"target_index_insert":0,"target_rows":100}
+REAL write source=posts mode=filter50 op=unrelated n=200 p50_us=103.166 p95_us=227.500 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1499,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":299800,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=posts mode=filter50 op=decrease n=200 p50_us=123.041 p95_us=286.125 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":300,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":300,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":100}
+REAL write source=posts mode=filter50 op=enter n=200 p50_us=125.583 p95_us=157.875 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=posts mode=filter50 op=keyMove n=200 p50_us=162.584 p95_us=217.750 last_meter={"examined":3,"index_entries":2,"rule_probes":0,"steps":18,"heap_bytes":1583,"output_bytes":173,"rows_written":3} meter_sum_200={"examined":600,"heap_bytes":316600,"index_entries":402,"output_bytes":34600,"rows_written":600,"rule_probes":0,"steps":3600} physical_200={"source_index_delete":200,"source_index_insert":200,"target_index_delete":0,"target_index_insert":2,"target_rows":400}
+REAL write source=posts mode=filter50 op=remove n=200 p50_us=82.334 p95_us=96.625 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":10,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":402,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":2000} physical_200={"source_index_delete":400,"source_index_insert":0,"target_index_delete":2,"target_index_insert":0,"target_rows":200}
+REAL adoption source=posts n=50000 mode=filter100 groups=1000 ms=2805.781 store=sqlite-memory resumable_chunks=0
+REAL write source=posts mode=filter100 op=add n=200 p50_us=110.166 p95_us=217.000 last_meter={"examined":1,"index_entries":2,"rule_probes":0,"steps":17,"heap_bytes":1363,"output_bytes":165,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":272600,"index_entries":400,"output_bytes":33000,"rows_written":400,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":400,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=posts mode=filter100 op=unrelated n=200 p50_us=100.959 p95_us=108.666 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1499,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":299800,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=posts mode=filter100 op=decrease n=200 p50_us=124.583 p95_us=178.583 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=posts mode=filter100 op=enter n=200 p50_us=124.042 p95_us=130.542 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=posts mode=filter100 op=keyMove n=200 p50_us=163.666 p95_us=236.208 last_meter={"examined":3,"index_entries":2,"rule_probes":0,"steps":18,"heap_bytes":1583,"output_bytes":173,"rows_written":3} meter_sum_200={"examined":600,"heap_bytes":316600,"index_entries":402,"output_bytes":34600,"rows_written":600,"rule_probes":0,"steps":3600} physical_200={"source_index_delete":200,"source_index_insert":200,"target_index_delete":0,"target_index_insert":2,"target_rows":400}
+REAL write source=posts mode=filter100 op=remove n=200 p50_us=82.625 p95_us=97.708 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":10,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":402,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":2000} physical_200={"source_index_delete":400,"source_index_insert":0,"target_index_delete":2,"target_index_insert":0,"target_rows":200}
+REAL adoption source=posts n=50000 mode=calendar groups=50000 ms=5884.015 store=sqlite-memory resumable_chunks=0
+REAL write source=posts mode=calendar op=add n=200 p50_us=121.708 p95_us=172.625 last_meter={"examined":1,"index_entries":2,"rule_probes":0,"steps":19,"heap_bytes":1363,"output_bytes":165,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":272600,"index_entries":400,"output_bytes":33000,"rows_written":400,"rule_probes":0,"steps":3800} physical_200={"source_index_delete":0,"source_index_insert":400,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=posts mode=calendar op=unrelated n=200 p50_us=106.084 p95_us=119.459 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":21,"heap_bytes":1499,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":299800,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":4200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=posts mode=calendar op=decrease n=200 p50_us=136.458 p95_us=227.459 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":21,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":4200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=posts mode=calendar op=enter n=200 p50_us=139.500 p95_us=233.541 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":21,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":4200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=posts mode=calendar op=keyMove n=200 p50_us=188.292 p95_us=277.125 last_meter={"examined":3,"index_entries":2,"rule_probes":0,"steps":22,"heap_bytes":1583,"output_bytes":173,"rows_written":3} meter_sum_200={"examined":600,"heap_bytes":316600,"index_entries":402,"output_bytes":34600,"rows_written":600,"rule_probes":0,"steps":4400} physical_200={"source_index_delete":200,"source_index_insert":200,"target_index_delete":0,"target_index_insert":2,"target_rows":400}
+REAL write source=posts mode=calendar op=remove n=200 p50_us=96.166 p95_us=116.750 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":12,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":402,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":2400} physical_200={"source_index_delete":400,"source_index_insert":0,"target_index_delete":2,"target_index_insert":0,"target_rows":200}
+REAL adoption source=posts n=50000 mode=rank groups=1000 ms=3312.036 store=sqlite-memory resumable_chunks=0
+REAL write source=posts mode=rank op=add n=200 p50_us=128.500 p95_us=192.792 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":14,"heap_bytes":1363,"output_bytes":165,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":272600,"index_entries":800,"output_bytes":33000,"rows_written":400,"rule_probes":0,"steps":2800} physical_200={"source_index_delete":0,"source_index_insert":400,"target_index_delete":200,"target_index_insert":200,"target_rows":200}
+REAL write source=posts mode=rank op=unrelated n=200 p50_us=102.167 p95_us=209.042 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":11,"heap_bytes":1499,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":299800,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":2200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=posts mode=rank op=decrease n=200 p50_us=145.958 p95_us=212.208 last_meter={"examined":2,"index_entries":2,"rule_probes":0,"steps":11,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":400,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":2200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":200,"target_index_insert":200,"target_rows":200}
+REAL write source=posts mode=rank op=enter n=200 p50_us=143.792 p95_us=217.542 last_meter={"examined":2,"index_entries":2,"rule_probes":0,"steps":11,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":400,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":2200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":200,"target_index_insert":200,"target_rows":200}
+REAL write source=posts mode=rank op=keyMove n=200 p50_us=196.583 p95_us=235.750 last_meter={"examined":3,"index_entries":6,"rule_probes":0,"steps":12,"heap_bytes":1583,"output_bytes":173,"rows_written":3} meter_sum_200={"examined":600,"heap_bytes":316600,"index_entries":1201,"output_bytes":34600,"rows_written":600,"rule_probes":0,"steps":2400} physical_200={"source_index_delete":200,"source_index_insert":200,"target_index_delete":399,"target_index_insert":402,"target_rows":400}
+REAL write source=posts mode=rank op=remove n=200 p50_us=100.833 p95_us=130.208 last_meter={"examined":1,"index_entries":5,"rule_probes":0,"steps":7,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":801,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":1400} physical_200={"source_index_delete":400,"source_index_insert":0,"target_index_delete":202,"target_index_insert":199,"target_rows":200}
+REAL rank source=posts n=200 p50_us=90.416 p95_us=125.875 last_meter={"examined":11,"index_entries":0,"rule_probes":0,"steps":3,"heap_bytes":3150,"output_bytes":901,"rows_written":0}
+REAL adoption source=posts n=50000 mode=expiry groups=50000 ms=6596.769 store=sqlite-memory resumable_chunks=0
+REAL write source=posts mode=expiry op=add n=200 p50_us=152.125 p95_us=298.333 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":26,"heap_bytes":1533,"output_bytes":186,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":306600,"index_entries":800,"output_bytes":37200,"rows_written":400,"rule_probes":0,"steps":5200} physical_200={"source_index_delete":0,"source_index_insert":800,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=posts mode=expiry op=unrelated n=200 p50_us=133.709 p95_us=219.584 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":33,"heap_bytes":1669,"output_bytes":187,"rows_written":1} meter_sum_200={"examined":400,"heap_bytes":333800,"index_entries":0,"output_bytes":37400,"rows_written":200,"rule_probes":0,"steps":6600} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=posts mode=expiry op=decrease n=200 p50_us=219.417 p95_us=467.625 last_meter={"examined":3,"index_entries":1,"rule_probes":0,"steps":33,"heap_bytes":1662,"output_bytes":187,"rows_written":2} meter_sum_200={"examined":600,"heap_bytes":332400,"index_entries":200,"output_bytes":37400,"rows_written":400,"rule_probes":0,"steps":6600} physical_200={"source_index_delete":200,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=posts mode=expiry op=enter n=200 p50_us=198.917 p95_us=445.500 last_meter={"examined":3,"index_entries":1,"rule_probes":0,"steps":33,"heap_bytes":1662,"output_bytes":187,"rows_written":2} meter_sum_200={"examined":600,"heap_bytes":332400,"index_entries":200,"output_bytes":37400,"rows_written":400,"rule_probes":0,"steps":6600} physical_200={"source_index_delete":0,"source_index_insert":200,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=posts mode=expiry op=keyMove n=200 p50_us=251.375 p95_us=344.584 last_meter={"examined":4,"index_entries":4,"rule_probes":0,"steps":34,"heap_bytes":1753,"output_bytes":194,"rows_written":3} meter_sum_200={"examined":800,"heap_bytes":350600,"index_entries":802,"output_bytes":38800,"rows_written":600,"rule_probes":0,"steps":6800} physical_200={"source_index_delete":400,"source_index_insert":400,"target_index_delete":0,"target_index_insert":2,"target_rows":400}
+REAL write source=posts mode=expiry op=remove n=200 p50_us=143.334 p95_us=262.000 last_meter={"examined":1,"index_entries":6,"rule_probes":0,"steps":18,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":802,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":3600} physical_200={"source_index_delete":800,"source_index_insert":0,"target_index_delete":2,"target_index_insert":0,"target_rows":200}
+REAL expiry source=posts before=1 after=0 next_expiry=Some(2000) before_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":20,"heap_bytes":821,"output_bytes":9,"rows_written":0} after_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":19,"heap_bytes":5,"output_bytes":9,"rows_written":0}
+REAL adoption source=messages n=100000 mode=filter0 groups=0 ms=5194.768 store=sqlite-memory resumable_chunks=0
+REAL write source=messages mode=filter0 op=add n=200 p50_us=82.500 p95_us=96.417 last_meter={"examined":0,"index_entries":2,"rule_probes":0,"steps":17,"heap_bytes":1363,"output_bytes":165,"rows_written":1} meter_sum_200={"examined":0,"heap_bytes":272600,"index_entries":400,"output_bytes":33000,"rows_written":200,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":400,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=messages mode=filter0 op=unrelated n=200 p50_us=100.208 p95_us=106.708 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1499,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":299800,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=messages mode=filter0 op=decrease n=200 p50_us=99.208 p95_us=102.458 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=messages mode=filter0 op=enter n=200 p50_us=124.000 p95_us=138.791 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":2,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":2,"target_rows":200}
+REAL write source=messages mode=filter0 op=keyMove n=200 p50_us=166.416 p95_us=215.792 last_meter={"examined":3,"index_entries":4,"rule_probes":0,"steps":18,"heap_bytes":1583,"output_bytes":173,"rows_written":3} meter_sum_200={"examined":600,"heap_bytes":316600,"index_entries":404,"output_bytes":34600,"rows_written":600,"rule_probes":0,"steps":3600} physical_200={"source_index_delete":200,"source_index_insert":200,"target_index_delete":2,"target_index_insert":2,"target_rows":400}
+REAL write source=messages mode=filter0 op=remove n=200 p50_us=84.583 p95_us=138.917 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":10,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":402,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":2000} physical_200={"source_index_delete":400,"source_index_insert":0,"target_index_delete":2,"target_index_insert":0,"target_rows":200}
+REAL adoption source=messages n=100000 mode=filter50 groups=500 ms=5837.429 store=sqlite-memory resumable_chunks=0
+REAL write source=messages mode=filter50 op=add n=200 p50_us=103.500 p95_us=125.000 last_meter={"examined":0,"index_entries":2,"rule_probes":0,"steps":17,"heap_bytes":1363,"output_bytes":165,"rows_written":1} meter_sum_200={"examined":100,"heap_bytes":272600,"index_entries":400,"output_bytes":33000,"rows_written":300,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":400,"target_index_delete":0,"target_index_insert":0,"target_rows":100}
+REAL write source=messages mode=filter50 op=unrelated n=200 p50_us=100.666 p95_us=104.417 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1499,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":299800,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=messages mode=filter50 op=decrease n=200 p50_us=121.958 p95_us=126.125 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":300,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":300,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":100}
+REAL write source=messages mode=filter50 op=enter n=200 p50_us=123.541 p95_us=126.709 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=messages mode=filter50 op=keyMove n=200 p50_us=163.459 p95_us=186.000 last_meter={"examined":3,"index_entries":2,"rule_probes":0,"steps":18,"heap_bytes":1583,"output_bytes":173,"rows_written":3} meter_sum_200={"examined":600,"heap_bytes":316600,"index_entries":402,"output_bytes":34600,"rows_written":600,"rule_probes":0,"steps":3600} physical_200={"source_index_delete":200,"source_index_insert":200,"target_index_delete":0,"target_index_insert":2,"target_rows":400}
+REAL write source=messages mode=filter50 op=remove n=200 p50_us=83.167 p95_us=105.125 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":10,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":402,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":2000} physical_200={"source_index_delete":400,"source_index_insert":0,"target_index_delete":2,"target_index_insert":0,"target_rows":200}
+REAL adoption source=messages n=100000 mode=filter100 groups=1000 ms=6658.824 store=sqlite-memory resumable_chunks=0
+REAL write source=messages mode=filter100 op=add n=200 p50_us=109.333 p95_us=175.750 last_meter={"examined":1,"index_entries":2,"rule_probes":0,"steps":17,"heap_bytes":1363,"output_bytes":165,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":272600,"index_entries":400,"output_bytes":33000,"rows_written":400,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":400,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=messages mode=filter100 op=unrelated n=200 p50_us=108.958 p95_us=181.500 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1499,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":299800,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=messages mode=filter100 op=decrease n=200 p50_us=125.167 p95_us=176.333 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=messages mode=filter100 op=enter n=200 p50_us=132.292 p95_us=180.333 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":17,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":3400} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=messages mode=filter100 op=keyMove n=200 p50_us=172.292 p95_us=259.875 last_meter={"examined":3,"index_entries":2,"rule_probes":0,"steps":18,"heap_bytes":1583,"output_bytes":173,"rows_written":3} meter_sum_200={"examined":600,"heap_bytes":316600,"index_entries":402,"output_bytes":34600,"rows_written":600,"rule_probes":0,"steps":3600} physical_200={"source_index_delete":200,"source_index_insert":200,"target_index_delete":0,"target_index_insert":2,"target_rows":400}
+REAL write source=messages mode=filter100 op=remove n=200 p50_us=89.083 p95_us=123.417 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":10,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":402,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":2000} physical_200={"source_index_delete":400,"source_index_insert":0,"target_index_delete":2,"target_index_insert":0,"target_rows":200}
+REAL adoption source=messages n=100000 mode=calendar groups=100000 ms=11899.762 store=sqlite-memory resumable_chunks=0
+REAL write source=messages mode=calendar op=add n=200 p50_us=114.583 p95_us=163.833 last_meter={"examined":1,"index_entries":2,"rule_probes":0,"steps":19,"heap_bytes":1363,"output_bytes":165,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":272600,"index_entries":400,"output_bytes":33000,"rows_written":400,"rule_probes":0,"steps":3800} physical_200={"source_index_delete":0,"source_index_insert":400,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=messages mode=calendar op=unrelated n=200 p50_us=104.750 p95_us=188.916 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":21,"heap_bytes":1499,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":299800,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":4200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=messages mode=calendar op=decrease n=200 p50_us=130.084 p95_us=183.459 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":21,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":4200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=messages mode=calendar op=enter n=200 p50_us=128.875 p95_us=143.542 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":21,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":0,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":4200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=messages mode=calendar op=keyMove n=200 p50_us=171.916 p95_us=188.792 last_meter={"examined":3,"index_entries":2,"rule_probes":0,"steps":22,"heap_bytes":1583,"output_bytes":173,"rows_written":3} meter_sum_200={"examined":600,"heap_bytes":316600,"index_entries":402,"output_bytes":34600,"rows_written":600,"rule_probes":0,"steps":4400} physical_200={"source_index_delete":200,"source_index_insert":200,"target_index_delete":0,"target_index_insert":2,"target_rows":400}
+REAL write source=messages mode=calendar op=remove n=200 p50_us=87.084 p95_us=95.750 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":12,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":402,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":2400} physical_200={"source_index_delete":400,"source_index_insert":0,"target_index_delete":2,"target_index_insert":0,"target_rows":200}
+REAL adoption source=messages n=100000 mode=rank groups=1000 ms=5296.803 store=sqlite-memory resumable_chunks=0
+REAL write source=messages mode=rank op=add n=200 p50_us=125.000 p95_us=145.208 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":14,"heap_bytes":1363,"output_bytes":165,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":272600,"index_entries":800,"output_bytes":33000,"rows_written":400,"rule_probes":0,"steps":2800} physical_200={"source_index_delete":0,"source_index_insert":400,"target_index_delete":200,"target_index_insert":200,"target_rows":200}
+REAL write source=messages mode=rank op=unrelated n=200 p50_us=100.542 p95_us=107.542 last_meter={"examined":1,"index_entries":0,"rule_probes":0,"steps":11,"heap_bytes":1499,"output_bytes":166,"rows_written":1} meter_sum_200={"examined":200,"heap_bytes":299800,"index_entries":0,"output_bytes":33200,"rows_written":200,"rule_probes":0,"steps":2200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=messages mode=rank op=decrease n=200 p50_us=141.375 p95_us=154.875 last_meter={"examined":2,"index_entries":2,"rule_probes":0,"steps":11,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":400,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":2200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":200,"target_index_insert":200,"target_rows":200}
+REAL write source=messages mode=rank op=enter n=200 p50_us=139.792 p95_us=145.792 last_meter={"examined":2,"index_entries":2,"rule_probes":0,"steps":11,"heap_bytes":1492,"output_bytes":166,"rows_written":2} meter_sum_200={"examined":400,"heap_bytes":298400,"index_entries":400,"output_bytes":33200,"rows_written":400,"rule_probes":0,"steps":2200} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":200,"target_index_insert":200,"target_rows":200}
+REAL write source=messages mode=rank op=keyMove n=200 p50_us=193.500 p95_us=203.459 last_meter={"examined":3,"index_entries":6,"rule_probes":0,"steps":12,"heap_bytes":1583,"output_bytes":173,"rows_written":3} meter_sum_200={"examined":600,"heap_bytes":316600,"index_entries":1201,"output_bytes":34600,"rows_written":600,"rule_probes":0,"steps":2400} physical_200={"source_index_delete":200,"source_index_insert":200,"target_index_delete":399,"target_index_insert":402,"target_rows":400}
+REAL write source=messages mode=rank op=remove n=200 p50_us=98.500 p95_us=108.500 last_meter={"examined":1,"index_entries":5,"rule_probes":0,"steps":7,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":801,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":1400} physical_200={"source_index_delete":400,"source_index_insert":0,"target_index_delete":202,"target_index_insert":199,"target_rows":200}
+REAL rank source=messages n=200 p50_us=88.958 p95_us=93.083 last_meter={"examined":11,"index_entries":0,"rule_probes":0,"steps":3,"heap_bytes":3150,"output_bytes":911,"rows_written":0}
+REAL adoption source=messages n=100000 mode=expiry groups=100000 ms=13675.413 store=sqlite-memory resumable_chunks=0
+REAL write source=messages mode=expiry op=add n=200 p50_us=145.250 p95_us=197.500 last_meter={"examined":1,"index_entries":4,"rule_probes":0,"steps":26,"heap_bytes":1533,"output_bytes":186,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":306600,"index_entries":800,"output_bytes":37200,"rows_written":400,"rule_probes":0,"steps":5200} physical_200={"source_index_delete":0,"source_index_insert":800,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=messages mode=expiry op=unrelated n=200 p50_us=128.750 p95_us=138.125 last_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":33,"heap_bytes":1669,"output_bytes":187,"rows_written":1} meter_sum_200={"examined":400,"heap_bytes":333800,"index_entries":0,"output_bytes":37400,"rows_written":200,"rule_probes":0,"steps":6600} physical_200={"source_index_delete":0,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":0}
+REAL write source=messages mode=expiry op=decrease n=200 p50_us=163.167 p95_us=176.291 last_meter={"examined":3,"index_entries":1,"rule_probes":0,"steps":33,"heap_bytes":1662,"output_bytes":187,"rows_written":2} meter_sum_200={"examined":600,"heap_bytes":332400,"index_entries":200,"output_bytes":37400,"rows_written":400,"rule_probes":0,"steps":6600} physical_200={"source_index_delete":200,"source_index_insert":0,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=messages mode=expiry op=enter n=200 p50_us=165.584 p95_us=212.666 last_meter={"examined":3,"index_entries":1,"rule_probes":0,"steps":33,"heap_bytes":1662,"output_bytes":187,"rows_written":2} meter_sum_200={"examined":600,"heap_bytes":332400,"index_entries":200,"output_bytes":37400,"rows_written":400,"rule_probes":0,"steps":6600} physical_200={"source_index_delete":0,"source_index_insert":200,"target_index_delete":0,"target_index_insert":0,"target_rows":200}
+REAL write source=messages mode=expiry op=keyMove n=200 p50_us=236.250 p95_us=404.958 last_meter={"examined":4,"index_entries":4,"rule_probes":0,"steps":34,"heap_bytes":1753,"output_bytes":194,"rows_written":3} meter_sum_200={"examined":800,"heap_bytes":350600,"index_entries":802,"output_bytes":38800,"rows_written":600,"rule_probes":0,"steps":6800} physical_200={"source_index_delete":400,"source_index_insert":400,"target_index_delete":0,"target_index_insert":2,"target_rows":400}
+REAL write source=messages mode=expiry op=remove n=200 p50_us=113.542 p95_us=137.542 last_meter={"examined":1,"index_entries":6,"rule_probes":0,"steps":18,"heap_bytes":32,"output_bytes":6,"rows_written":2} meter_sum_200={"examined":200,"heap_bytes":6400,"index_entries":802,"output_bytes":1200,"rows_written":400,"rule_probes":0,"steps":3600} physical_200={"source_index_delete":800,"source_index_insert":0,"target_index_delete":2,"target_index_insert":0,"target_rows":200}
+REAL expiry source=messages before=1 after=0 next_expiry=Some(2000) before_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":20,"heap_bytes":821,"output_bytes":9,"rows_written":0} after_meter={"examined":2,"index_entries":0,"rule_probes":0,"steps":19,"heap_bytes":5,"output_bytes":9,"rows_written":0}
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 129.91s
+```
+
+### Validation and regression evidence
+
+The targeted cargo commands reported below ran from snapback4/. An initial
+cargo test invocation at the repository root exited before running tests
+because the package is outside that workspace; it was rerun from snapback4/.
+No root workspace code changed. Node used the pinned Node 24 path:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+```sh
+cargo test -p snapback4-lang --test maintains
+```
+
+Red (`/private/tmp/d1-lang-red.log`):
+
+```text
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+Green (`/private/tmp/d1-final-lang.log`):
+
+```text
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+```sh
+cargo test -p snapback4-sim --test maintains
+```
+
+Red (`/private/tmp/d1-base-sim-regressions.log`):
+
+```text
+test result: FAILED. 2 passed; 9 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+```
+
+Green (`/private/tmp/d1-final-sim.log`):
+
+```text
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.82s
+```
+
+```sh
+cargo test -p snapback4-device --test device maintains
+```
+
+Red (`/private/tmp/d1-base-device-regressions.log`):
+
+```text
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 51 filtered out; finished in 0.00s
+```
+
+Green (`/private/tmp/d1-final-device.log`):
+
+```text
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 51 filtered out; finished in 0.08s
+```
+
+```sh
+cargo test -p snapback4-device --test device the_feeds_card_predicts
+```
+
+Red (`/private/tmp/d1-base-feeds-regression.log`):
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 53 filtered out; finished in 0.03s
+```
+
+Green (`/private/tmp/d1-final-feeds.log`):
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 53 filtered out; finished in 0.03s
+```
+
+```sh
+node --test packages/snapback4/test/maintains.test.mjs
+```
+
+Red (`/private/tmp/d1-base-client-regressions.log`):
+
+```text
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1960.389042
+```
+
+Green (`/private/tmp/d1-final-client.log`):
+
+```text
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 404.836
+```
+
+```sh
+cargo test -p snapback4-lang --test guide
+```
+
+Green (`/private/tmp/d1-final-guide.log`):
+
+```text
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+```
+
+```sh
+cargo test -p snapback4-sim --test maintains hidden_filter_work
+```
+
+Green (`/private/tmp/d1-hidden-final.log`):
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 14.99s
+```
+
+The initial language and simulator regressions were red before implementation
+(0 passed / 3 failed in each). Later isolated regressions caught not-comparison
+precedence, identity literal coercion, missing rank scope and adoption's final
+sum assessment; each was rerun green. The final simulator/device/client
+regressions were also run with production source restored from the exact base
+commit, then restored byte-for-byte to D1. The two passing base simulator
+controls were the shared observation helper and the existing chips runtime.
+No repository clone, branch switch, stash, reset, commit or push was used.
+
+The wider hidden test compares first/retry wire bytes, durable receipts,
+all seven meters, effects, stream/snapshot and both devices through reopen
+and settlement. It also compares server query data, completeness, cursor,
+dependency tables, expiry and cap/error metadata. It covers true/false,
+hidden-refused/absent and expiring/non-expiring worlds at low limits, around
+observed work thresholds, and around 16/64 KiB heap limits.
+
+### Full-suite and base failures
+
+```sh
+bash scripts/test.sh > /private/tmp/d1-suite-first.log 2>&1
+```
+
+```text
+-- FAIL: cargo test (285 s)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9542.980208
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ before acquisition write: {"state":"pending","id":"01M2H6A9TT9GXB48N373WK4WG3"}; durable queue: [{"args":{"body":"queued before acquisition"},"id":"01M2H6A9TT9GXB48N373WK4WG3","new_ids":["01M2H6A9TVP5MABFZ00YKHKEWA","01M2H6A9TWYRDPJ73EWSJSJCE4","01M2H6A9TX7H6TSWPZHS0HDQ5Z","01M2H6A9TY162T1APNZTJEMH6P","01M2H6A9TZRMRQS35WT8RTXS81","01M2H6A9V085YJCNGVD94AQWWB","01M2H6A9V13X20A6J42VY9J9SQ","01M2H6A9V2DK95FBCF52KNKZ3H"],"now":1789430933339,"observed_seq":null,"op":"add","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:alice"}]
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ before acquisition write: {"state":"pending","id":"01M2H6AHVXYZ1EJCTNPB9NWGJY"}; durable queue: [{"args":{"body":"queued before acquisition"},"id":"01M2H6AHVXYZ1EJCTNPB9NWGJY","new_ids":["01M2H6AHVYH6C7FSGZKE8KQTKR","01M2H6AHVZSNR9638KPK927M10","01M2H6AHW0YWK5HT10ME6G9YFS","01M2H6AHW15YZPHGNREDW7CQY9","01M2H6AHW2F1VRKAXGH1ZFX4VA","01M2H6AHW3RVN32BCP34GQ71FG","01M2H6AHW47M43ETHHSNXGMF31","01M2H6AHW5JRYMN3Z0JCMTECKV"],"now":1789430941566,"observed_seq":null,"op":"add","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:alice"}]
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ wire={"id":"01M2H6ADCE7SW3NFXF91SF72FA","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H6ADCE7SW3NFXF91SF72FA","seq":3,"replayed":true}; result key=false
+ℹ wire={"id":"01M2H6ADPJW7YX65CP3BV5FBCW","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H6ADPJW7YX65CP3BV5FBCW","seq":3,"replayed":true}; result key=false
+ℹ wire={"id":"01M2H6AEKA2H9ENZV9CFEE64SK","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H6AEKA2H9ENZV9CFEE64SK","seq":3,"replayed":true}; result key=false
+ℹ wire={"id":"01M2H6AER7H08M4AXZ2ZJVVSF9","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H6AER7H08M4AXZ2ZJVVSF9","seq":3,"replayed":true}; result key=false
+ℹ media: 68 B/image; maxBytes 136; 2 retained then 0 with keep:none; once bytes 0; deleted home bytes 0
+ℹ identity: 200 guest sign-ins + 200 same-email attempts; dev E_RATE_LIMIT=0; serve peer 31 and email 11 refused; 4239 ms
+ℹ video: 60 B retained; duration 1000 ms; id-only pending prediction agrees with sent.result after reopen
+ℹ token dev default: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev --days 1: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev --days=2 --service=worker: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev --json: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve default: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve --days 1: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve --days=2 --service=worker: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve --json: stdout 44 B; redeemed session queried as member:captured
+ℹ SQL count of 205 messages with WAL writer held: 7.18 ms
+ℹ 12 README blocks; 36 public functions; 1695.48 ms
+ℹ recovery point: release 1, generation 1, sequence 1; post-backup original writes excluded; queued effects never delivered
+ℹ action round trip tier=online: 13.29 ms
+ℹ action round trip tier=device: 16.96 ms
+ℹ pending wait: 1011.41 ms
+ℹ tests 188
+ℹ suites 0
+ℹ pass 186
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 46043.808375
+-- FAIL: client tests (46 s)
+== 2 failure(s) in 331 s
+```
+
+```sh
+bash snapback4/scripts/test.sh > /private/tmp/d1-suite-final.log 2>&1
+```
+
+```text
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7808.689083
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ before acquisition write: {"state":"pending","id":"01M2H7MRYWWBK2YFXAZQNFX26P"}; durable queue: [{"args":{"body":"queued before acquisition"},"id":"01M2H7MRYWWBK2YFXAZQNFX26P","new_ids":["01M2H7MRYX3A7AGFZ5QKDP9YZB","01M2H7MRYY5JXX17ZPCED5PZTJ","01M2H7MRYZ8Q4RQ42VPG735Y3P","01M2H7MRZ0JHZFMD49WGSYPBP0","01M2H7MRZ18TZF6K2X4AV2YTCZ","01M2H7MRZ2QY61N3T94EZTEJQB","01M2H7MRZ3ZPK73RSGXPWVC9X6","01M2H7MRZ47F517SZYRBN2BEHJ"],"now":1789432325084,"observed_seq":null,"op":"add","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:alice"}]
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ before acquisition write: {"state":"pending","id":"01M2H7N21QRZT0E6KZ3S88F0FB"}; durable queue: [{"args":{"body":"queued before acquisition"},"id":"01M2H7N21QRZT0E6KZ3S88F0FB","new_ids":["01M2H7N21RRYJBFFG18ZAVXAQF","01M2H7N21S1BFSSNNZVM42M0W0","01M2H7N21TG58K7F0921Z5BXNB","01M2H7N21VCZRT9F8DZR84KEDY","01M2H7N21WTDK35YX6RWSSFNSG","01M2H7N21X6MV09ND3XEHGPQDE","01M2H7N21YKPC73Y07RF6YZQ6A","01M2H7N21Z4S5X0NXZ3R4NM56K"],"now":1789432334391,"observed_seq":null,"op":"add","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:alice"}]
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ wire={"id":"01M2H7MWS5G8QZA1D1ZYPNR4GR","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H7MWS5G8QZA1D1ZYPNR4GR","seq":3,"replayed":true}; result key=false
+ℹ wire={"id":"01M2H7MX3MER1N935FCT1F1BCD","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H7MX3MER1N935FCT1F1BCD","seq":3,"replayed":true}; result key=false
+ℹ wire={"id":"01M2H7MXXPNP62GWFQMT75TJJV","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H7MXXPNP62GWFQMT75TJJV","seq":3,"replayed":true}; result key=false
+ℹ wire={"id":"01M2H7MY0P706JAJ1XEAWTN896","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H7MY0P706JAJ1XEAWTN896","seq":3,"replayed":true}; result key=false
+ℹ media: 68 B/image; maxBytes 136; 2 retained then 0 with keep:none; once bytes 0; deleted home bytes 0
+ℹ identity: 200 guest sign-ins + 200 same-email attempts; dev E_RATE_LIMIT=0; serve peer 31 and email 11 refused; 1194 ms
+ℹ video: 60 B retained; duration 1000 ms; id-only pending prediction agrees with sent.result after reopen
+ℹ token dev default: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev --days 1: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev --days=2 --service=worker: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev --json: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve default: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve --days 1: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve --days=2 --service=worker: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve --json: stdout 44 B; redeemed session queried as member:captured
+ℹ SQL count of 205 messages with WAL writer held: 7.03 ms
+ℹ 12 README blocks; 36 public functions; 1224.32 ms
+ℹ recovery point: release 1, generation 1, sequence 1; post-backup original writes excluded; queued effects never delivered
+ℹ action round trip tier=online: 10.71 ms
+ℹ action round trip tier=device: 13.42 ms
+ℹ pending wait: 1009.38 ms
+ℹ tests 190
+ℹ suites 0
+ℹ pass 188
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 41930.2525
+-- FAIL: client tests (42 s)
+== 1 failure(s) in 251 s
+```
+
+The first run additionally found the feeds-card test expecting an online-only
+aggregate overlay. Its expectation now matches this slice; the targeted
+regression and the second run's entire Rust workspace pass. The remaining
+client failures reproduce in isolated tests built from base
+397c0a829001f1df4f1e096d9bdee5693a56416d: Chromium SIGABRT in react.test.mjs,
+and web-navigation.test.mjs:159 expecting the first device core to reject
+after the injected disk-full save. No lifecycle timeout occurred in these
+runs. The lead must rerun the browser witness outside the sandbox.
+
+```sh
+node --test --test-name-pattern='failed persistence' packages/snapback4/test/web-navigation.test.mjs
+```
+
+```text
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1395.933292
+```
+
+```sh
+node --test packages/snapback4/test/react.test.mjs
+```
+
+```text
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 403.450416
+```
+
+The root caps command reports two unchanged base violations: working set
+65 of 59, and crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs
+at 1504 lines by caps' newline convention (205 oversize files against baseline
+204). The rule file, cap runner, working-set links and offending file are
+byte-identical to the exact base; git diff of those inputs exited 0.
+All 37 changed code files are below 1,500 lines; the largest is 1,456 by
+the cap runner's convention. No meter ceiling or existing corpus case changed.
+
+Minimal changes outside the brief's named files: CLI verbs/adoption.rs
+maps maintains[n] back to its declaration; parser/expr.rs recognizes the
+literal bucket duration for query builtins; device/tests/upsert/mod.rs
+updates the feeds expectation for online-only aggregate side effects.
+Other touched files implement the requested runtime, binding, proof,
+guide or acceptance paths.
+
+### Diagnostic wording
+
+The before fixture has count posts by author; the after fixture adds
+where .selected and day(.at). These are the actual CLI note lines:
+
+Before:
+
+```text
+note: schema.q:11:1 — N_MAINTAIN_DELTA: maintain counts may disclose the delta of a hidden posts row: its update rule can be wider than its read rule, and the maintain has its own readable audience
+  rewrite: treat the maintain as a declared read channel; restrict its read rule or the source update rule if the delta is private
+  guide: rules
+```
+
+After:
+
+```text
+note: schema.q:11:1 — N_MAINTAIN_DELTA: maintain counts may disclose the delta of a hidden posts row: insert/delete and a potentially wider update rule affect this readable target; filter/key/value dependencies: at, author, selected
+  rewrite: treat the maintain as a declared read channel; restrict its read rule or the source update rule if the delta is private
+  guide: rules
+```
+
+New codes E_QUARRY_MAINTAIN and E_QUARRY_MAINTAIN_EXPIRE are registered in
+guide::CODES; expression-specific refusals point to guide maintains and the
+expiring value-index refusal points to guide expire. E_ADOPT is reused for
+invalid interpreted contributions/final sums; no incomplete-adoption code
+is introduced in this slice.
+
+### Final complete run
+
+From the repository root, after the final contribution-buffer reservation:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh > /private/tmp/d1-suite-complete.log 2>&1
+```
+
+```text
+wasm 1695854 B raw, 470041 B gzip
+-- ok: cargo test (448 s)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11652.66225
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ before acquisition write: {"state":"pending","id":"01M2H87EVXE9Q0APXNQHBVC9G8"}; durable queue: [{"args":{"body":"queued before acquisition"},"id":"01M2H87EVXE9Q0APXNQHBVC9G8","new_ids":["01M2H87EVY41WA5AV4JDZXHGRD","01M2H87EVZRMCP3C6PJNGYJ612","01M2H87EW0E9T468D7XZ8351H5","01M2H87EW1XHDGHE3HEA0AN7CE","01M2H87EW28QH2NB54A7V9DWQJ","01M2H87EW38ZXQ9HNB6X0ER9YY","01M2H87EW4Z9ZSY4XHGSVVCPKX","01M2H87EW5NCEFN9YQFTCFV2HX"],"now":1789432937342,"observed_seq":null,"op":"add","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:alice"}]
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ before acquisition write: {"state":"pending","id":"01M2H87PYJ65DTEFH6QX0ZSXCV"}; durable queue: [{"args":{"body":"queued before acquisition"},"id":"01M2H87PYJ65DTEFH6QX0ZSXCV","new_ids":["01M2H87PYKNGBZGRCHB9F9S8TF","01M2H87PYMXPE9EY4P3F55Q3V0","01M2H87PYN5WSVN27ZJBRAG858","01M2H87PYPWH41T0Y3SWZETBE8","01M2H87PYQ1FFHXWKW39D6J1C9","01M2H87PYR7ND4EPG9BQ0B43X6","01M2H87PYS84PAFAWQP2GTJBR1","01M2H87PYTMEY36HWNQ4C4VK0R"],"now":1789432945618,"observed_seq":null,"op":"add","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:alice"}]
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ wire={"id":"01M2H87JNYFCZSVGRGFE77RDC4","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H87JNYFCZSVGRGFE77RDC4","seq":3,"replayed":true}; result key=false
+ℹ wire={"id":"01M2H87K106TMN3TBYQ6HHW2EA","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H87K106TMN3TBYQ6HHW2EA","seq":3,"replayed":true}; result key=false
+ℹ wire={"id":"01M2H87M0WAWFDPHCK1TW0SD6F","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H87M0WAWFDPHCK1TW0SD6F","seq":3,"replayed":true}; result key=false
+ℹ wire={"id":"01M2H87M7H303MH72ANE0R6CTP","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2H87M7H303MH72ANE0R6CTP","seq":3,"replayed":true}; result key=false
+ℹ media: 68 B/image; maxBytes 136; 2 retained then 0 with keep:none; once bytes 0; deleted home bytes 0
+ℹ identity: 200 guest sign-ins + 200 same-email attempts; dev E_RATE_LIMIT=0; serve peer 31 and email 11 refused; 3001 ms
+ℹ video: 60 B retained; duration 1000 ms; id-only pending prediction agrees with sent.result after reopen
+ℹ token dev default: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev --days 1: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev --days=2 --service=worker: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev --json: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve default: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve --days 1: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve --days=2 --service=worker: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve --json: stdout 44 B; redeemed session queried as member:captured
+ℹ SQL count of 205 messages with WAL writer held: 7.63 ms
+ℹ 12 README blocks; 36 public functions; 2355.08 ms
+ℹ recovery point: release 1, generation 1, sequence 1; post-backup original writes excluded; queued effects never delivered
+ℹ action round trip tier=online: 28.51 ms
+ℹ action round trip tier=device: 23.91 ms
+ℹ pending wait: 1012.15 ms
+ℹ tests 190
+ℹ suites 0
+ℹ pass 188
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 46969.017167
+-- FAIL: client tests (47 s)
+== 1 failure(s) in 480 s
+```
+
+The Rust workspace totals 692 passed, 0 failed,
+4 ignored. The expanded hidden-boundary matrix ran
+in that suite. The two client failures are the same base-verified Chromium
+and persistence assertions above. There are no failing affected Rust or D1
+client tests. Full suite wall time was 480 s on this loaded host; its Rust
+worker took 448 s. Final wasm is 1,695,854 bytes raw / 470,041 bytes gzip.
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+./ref-check --verbose > /private/tmp/d1-ref-final.log 2>&1
+git diff --check
+```
+
+```text
+ref-check: ok — 480 LLP docs, 8883 refs in 22925 files, 0 errors, 0 unchecked
+D1 code caps: 37 files; max 1456 lines; 0 over 1500
+```
+
+git diff --check exited 0. The base journal prefix is byte-identical.
+The working tree is left for the lead; nothing was committed or published.

@@ -100,8 +100,7 @@ impl Runner<'_> {
                 && let Some(source) = self.schema.table(&maintain.source).filter(|source| source.expire.is_some()) {
                 self.read_tables.insert(maintain.source.clone());
                 let group = crate::schema::maintained_key(row, &maintain.by);
-                let (name, prefix) = source.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(&maintain.by))
-                    .map(|(name, _)| (name.as_str(), group.clone())).unwrap_or(("byId", Vec::new()));
+                let (name, prefix) = maintain.source_scan(source, &group);
                 if self.device && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some()) { self.unknown_fact(&maintain.source, name, &prefix, "rule probe"); }
                 let mut bounds = Bounds::default();
                 live = false;
@@ -111,7 +110,7 @@ impl Runner<'_> {
                     for (candidate, stored) in rows {
                         let candidate = crate::schema::row_image(&candidate, source);
                         bounds.after = crate::key::decode(&stored).map(|v| v.into_iter().skip(prefix.len()).collect());
-                        if !self.expired(source, &candidate) && crate::schema::maintained_key(&candidate, &maintain.by) == group {
+                        if !self.expired(source, &candidate) && maintain.selected(&candidate) && maintain.source_key(&candidate) == group {
                             self.note_expiry(source, &candidate);
                             live = true;
                             break 'sources;
@@ -158,10 +157,16 @@ impl Runner<'_> {
         let Some(maintain) = self.schema.maintain_for(table_name).cloned() else { return Ok(Some(row)); };
         let source = self.schema.table(&maintain.source).ok_or_else(|| RuntimeError::Schema("missing maintain source".into()))?;
         if source.expire.is_none() { return Ok(Some(row)); }
+        let bytes = super::write_target::row_copy_ceiling(source).saturating_mul(32)
+            .saturating_add(super::write_target::row_copy_ceiling(&self.schema.tables[table_name]).saturating_mul(16));
+        self.maintain_scratch(bytes, |runner| runner.live_aggregate_inner(&maintain, row))
+    }
+
+    fn live_aggregate_inner(&mut self, maintain: &crate::schema::Maintain, row: Value) -> Result<Option<Value>, RuntimeError> {
+        let source = &self.schema.tables[&maintain.source];
         self.read_tables.insert(maintain.source.clone());
         let group = crate::schema::maintained_key(&row, &maintain.by);
-        let (index, prefix) = source.indexes.iter().find(|(_, index)| index.word_component().is_none() && index.columns().starts_with(&maintain.by))
-            .map(|(name, _)| (name.as_str(), group.clone())).unwrap_or(("byId", Vec::new()));
+        let (index, prefix) = maintain.source_scan(source, &group);
         if self.device && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some()) {
             self.unknown_fact(&maintain.source, index, &prefix, "live aggregate");
         }
@@ -169,22 +174,23 @@ impl Runner<'_> {
         let mut total = 0_i128;
         let mut any = false;
         'sources: loop {
-            let rows = self.tx.scan(&maintain.source, index, &prefix, &bounds, Dir::Asc, 256)?;
+            let rows = self.tx.scan(&maintain.source, index, &prefix, &bounds, Dir::Asc, 32)?;
             let count = rows.len();
             for (mut candidate, key) in rows {
                 materialize_optional_fields(&mut candidate, source);
                 if !self.meter.charge(MeterKind::Examined, 1)? { break 'sources; }
                 bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(prefix.len()).collect());
-                if self.expired(source, &candidate) || crate::schema::maintained_key(&candidate, &maintain.by) != group { continue; }
+                if !self.meter.charge(MeterKind::Steps, maintain.evaluation_steps())? { break 'sources; }
+                if self.expired(source, &candidate) || !maintain.selected(&candidate) || maintain.source_key(&candidate) != group { continue; }
                 any = true;
                 self.note_expiry(source, &candidate);
                 total += match &maintain.kind { crate::schema::MaintainKind::Count => 1, crate::schema::MaintainKind::Sum { of } => i128::from(candidate.field(of)?.as_int()?) };
             }
-            if count < 256 { break; }
+            if count < 32 { break; }
         }
         if !any { return Ok(None); }
         if !(crate::value::I53_MIN as i128..=crate::value::I53_MAX as i128).contains(&total) {
-            return Err(super::write::aggregate_overflow(&maintain));
+            return Err(super::maintains::aggregate_overflow(&maintain));
         }
         let mut fields = row.as_object()?.clone();
         fields.insert("value".into(), Value::Int(total as i64));

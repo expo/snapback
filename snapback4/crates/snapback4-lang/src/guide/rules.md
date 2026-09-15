@@ -65,3 +65,33 @@ Omitted asset columns keep their placement. An explicit asset id on a row you
 cannot read must be your own upload, even if it equals the retained id. A rule
 probe costs one unit regardless of expired siblings; a uniform false page is
 decided from its pinned prefix and returns empty and complete at no charge.
+
+
+A filtered count can disclose whether a hidden row matched its predicate;
+computed groups disclose bucket membership and rank discloses relative values.
+The maintain's filter grants no source-row read. N_MAINTAIN_DELTA names the
+filter/key/value dependencies and the separately readable target, including
+insert/delete channels. Restrict its read audience to close the channel:
+
+```quarry
+table posts:
+  authorId: principal
+  parentId: id ?
+  at: time
+  by byAuthor: authorId, id
+  read <- .authorId = viewer
+  insert <- .authorId = viewer
+  update <- allow
+  online only
+maintain originalPostCounts: count posts where .parentId = null by authorId
+  read <- .authorId = viewer
+  online only
+query ownOriginals():
+  return originalPostCounts[viewer]
+```
+
+Here a writer may update a hidden post, but cannot read that author's count.
+Changing the maintain to read <- allow deliberately grants the filtered-delta
+channel and produces N_MAINTAIN_DELTA. Hidden-target attempts reserve both
+possible aggregate groups, predicate/key work and indexes before inspecting
+the old source image.

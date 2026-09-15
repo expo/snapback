@@ -210,7 +210,14 @@ impl<'a> Binder<'a> {
             return Ok((Expr::Scan(scan), Ty::Page(read.table.clone(), take)));
         }
         let info = self.table(&read.table, &read.site)?;
-        let value = self.read_value(read, ReadMode::FilteredPoint, out)?;
+        if let Some(maintain) = &info.maintained {
+            if read.keys.len() != maintain.by.len() || read.keys.iter().filter_map(|key| key.column.as_ref()).any(|column| !maintain.by.contains(column)) {
+                return Err(super::maintains::refusal(&read.site, format!("{} scalar lookup needs the complete group key: {}", read.table, maintain.by.join(", ")), format!("supply every group key, or use {}[prefix] first 50 by byGroup", read.table)));
+            }
+        }
+        let mut point = read.clone();
+        if info.maintained.is_some() && point.index.is_none() { point.index = Some("byGroup".into()); }
+        let value = self.read_value(&point, ReadMode::FilteredPoint, out)?;
         if let Some(maintain) = &info.maintained {
             // A maintained point read is the typed value: zero when absent.
             let tmp = self.temp("total");
@@ -233,6 +240,12 @@ impl<'a> Binder<'a> {
         let range = read.range.as_ref().expect("a range read");
         let (keys, index) = self.select_index(info, read, ReadMode::Range, out)?;
         let prefix = self.order_keys(info, &index, keys)?;
+        if info.maintained.is_some() && let Some(position) = index.columns.iter().position(|field| field == "value") {
+            if prefix.len() != position {
+                return Err(super::maintains::refusal(&range.site, format!("{} by {} needs every ranking scope field pinned: {}", read.table, index.name, index.columns[..position].join(", ")),
+                    format!("{}[{}] last {} by {}, or declare by byCount: value, id for a global ranking", read.table, index.columns[..position].join(", "), range.take, index.name)));
+            }
+        }
         if range.take == 0 {
             return Err(type_error(&range.site, "a page holds at least one row", print::read_expr(&ReadExpr { range: Some(ast::RangeSpec { take: 50, ..range.clone() }), ..read.clone() })));
         }

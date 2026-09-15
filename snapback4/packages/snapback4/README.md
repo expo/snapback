@@ -234,16 +234,96 @@ The same operation id under another principal has no access to that receipt.
 
 ### Maintains
 
-`maintain counts: count messages by conversationId` (or `maintain totals:
-sum posts of score by authorId`, over an `int`, `decimal` or `money`
-column) keeps an aggregate table the engine writes. A program reads it by
-group and gets **the number**: `counts[conversationId]` and
-`counts[.conversationId]` in a shape are an `int`, 0 when the group has no
-row. (On the wire and on a device the table's rows are `{ id, <by
-columns>, value }` with the group's canonical key as the id; that shape
-only matters to sync.) It takes one `read` rule and inherits the source's
-`sync` when it groups by the audience columns; it is written only through
-its source rows.
+A maintain keeps an engine-owned table of rows { id, <group columns>, value }.
+A full-key lookup returns the number, zero when absent. An explicit page
+returns rows; a short key without a page operator is refused. The generated
+byGroup index covers the complete group tuple. Source caps can bound distinct
+groups without a new runtime target cap.
+
+Filters accept typed scalar comparisons, and/or/not and required boolean
+columns, with no reads, viewer, now, helpers or arithmetic. Calendar keys take
+required time columns; day, hour and bucket are UTC epoch floor ordinals,
+including negative timestamps. Duplicate output names and id/value are refused.
+These Clique examples replace stored original-post flags and calendar fields,
+and expose reaction chips and a value ranking:
+
+```quarry
+table posts:
+  authorId: principal
+  parentId: id ?
+  at: time
+  score: int
+  by byAuthor: authorId, id
+  public 'posts are public'
+  online only
+
+table likes:
+  postId: posts
+  authorId: principal
+  principal: principal
+  unique byPostPrincipal: postId, principal
+  public 'likes are public'
+  online only
+
+table reactions:
+  messageId: id
+  emoji: text <=20
+  principal: principal
+  by byMessage: messageId, id
+  cap 50 by messageId
+  public 'reaction counts are public'
+  online only
+
+maintain originalPostCounts: count posts where .parentId = null by authorId
+  read <- allow
+  online only
+maintain dailyPosts: count posts where .parentId = null by authorId, day(.at)
+  read <- allow
+  online only
+maintain hourlyPosts: sum posts of score by authorId, hour(.at)
+  read <- allow
+  online only
+maintain periodPosts: count posts by authorId, bucket(.at, 2m)
+  read <- allow
+  online only
+maintain reactionCounts: count reactions by messageId, emoji
+  read <- allow
+  online only
+maintain postLikes: count likes by postId
+  read <- allow
+  online only
+  by byCount: value, id
+
+query today():
+  return dailyPosts[viewer, day(now)]
+query reactionChips(messageId: id):
+  return reactionCounts[messageId] first 50 by byGroup { emoji, count: .value }
+query mostLiked(c: cursor ?):
+  return postLikes after c last 10 by byCount { postId, count: .value }
+```
+
+Value-order indexes end in value, id, optionally after group fields. last N
+descends by both; ordinary cursors continue it. Only existing nonzero groups
+appear. Author attribution stays a source field. A value-order page pins
+every group field before value in its index;
+value, id alone gives a global ranking. A UTC day is not a rolling
+24-hour window: exact trailing-day Trending and zero-like candidates keep the
+ranked/expiry recipe. Value ordering over an expiring source is refused; live
+unranked reads still recompute selected, unexpired contributions.
+
+A maintain inherits source sync only when every audience column survives as
+a bare key, with no target horizon. It stays until-revoked even when its source
+retains delivered-history. Public inheritance sends all groups to every device,
+including when a query reads only the top ten. An online-only derived side
+effect does not prevent prediction of a source write; reading it does. Unknown
+aggregate bases queue without a predicted row and are never initialized to zero.
+
+Filtered counts disclose predicate membership; computed keys disclose bucket
+membership and rank discloses relative values to the declared aggregate read
+audience. The filter grants no source-row read. Restrict the maintain's read
+rule when these deltas are private; guide rules shows that form. Adoption
+rebuilds changed derived definitions on populated stores through today's
+atomic activation path; resumable adoption is a separate slice.
 
 ### Shapes and helpers
 
@@ -1619,7 +1699,7 @@ step.
   store, its size, schedules and their last boundary, the last job runs,
   the effects by state and the failed ones;
   **`guide [keyword]`** lists cards and aliases, or prints one card: language,
-  types, indexes, rules, sync, residency, prediction, evolution, expire, assets, reads, shapes, writes,
+  types, indexes, maintains, rules, sync, residency, prediction, evolution, expire, assets, reads, shapes, writes,
   programs, jobs, native, feeds, search, effects, actions, services, presence,
   bounds, refusals, personas (`guide <E_CODE>` explains a code);
   Natural words resolve too: `offline` → prediction, `pagination` → reads,

@@ -21,7 +21,7 @@ mod prediction;
 #[path = "guide/discovery.rs"]
 mod discovery;
 pub use discovery::{listing, nearest};
-pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "rules", "sync", "residency", "prediction", "evolution", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "services", "presence", "bounds", "refusals", "personas"];
+pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "maintains", "rules", "sync", "residency", "prediction", "evolution", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "services", "presence", "bounds", "refusals", "personas"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
@@ -197,6 +197,7 @@ table messages:
 table posts:
   authorId: principal
   body: text <=500
+  parentId: id ?
   score: int
   at: time
   by byAuthorTime: authorId, at, id
@@ -210,6 +211,7 @@ table posts:
 table publicPosts:                    -- a same-shaped public projection for a named-table merge lane
   authorId: principal
   body: text <=500
+  parentId: id ?
   score: int
   at: time
   by byAuthorTime: authorId, at, id
@@ -233,6 +235,7 @@ table reactions:
   postId: posts
   principal: principal
   direction: int
+  emoji: text <=20 default 'like'
   unique byPostPrincipal: postId, principal
   by byPrincipal: principal, id
   read <- .principal = viewer
@@ -270,6 +273,36 @@ maintain messageCounts: count messages by roomId       -- an aggregate the engin
 maintain scoreTotals: sum posts of score by authorId   -- count, or sum of an int, decimal or money column
   read <- allow
   online only                         -- opt out of inheriting public sync
+
+maintain originalPostCounts: count posts where .parentId = null by authorId
+  read <- allow
+  online only
+maintain dailyPosts: count posts where .parentId = null by authorId, day(.at)
+  read <- allow
+  online only
+maintain hourlyPosts: count posts by authorId, hour(.at)
+  read <- allow
+  online only
+maintain periodPosts: count posts by authorId, bucket(.at, 2m)
+  read <- allow
+  online only
+maintain reactionCounts: count reactions by principal, postId, emoji
+  read <- .principal = viewer
+maintain postLikes: count reactions where .direction > 0 by postId
+  read <- deny
+  online only
+  by byCount: value, id
+
+query daily(c: cursor ?):
+  return dailyPosts[viewer] after c first 7 by byGroup { day, count: .value }
+query today():
+  return dailyPosts[viewer, day(now)]
+query calendar():
+  return { hour: hour(now), bucket: bucket(now, 2m) }
+query mostLiked(c: cursor ?):
+  return postLikes after c last 10 by byCount { postId, count: .value }
+query chips(postId: posts, c: cursor ?):
+  return reactionCounts[viewer, postId] after c first 50 by byGroup { emoji, count: .value }
 
 shape card = { id, name, owner: .ownerId, tagCount: count(.tags) }   -- a named shape: `.` is the row; `row card` and `page card` use it
 fn messageBody(m: messages): m.body                                  -- a row argument keeps its fields at this call site
@@ -436,7 +469,7 @@ Before editing, `check --fix` verifies every compiled source; an editor save ref
 
 - Guessed spellings are refused with a canonical rewrite; `snapback4 check --fix` applies mechanical repairs (including missing indexes, argument `once`, repeated wildcard fields and empty operation parentheses): `cond ? a : b` → `a if cond else b`; `a?.b` → `a.b if a != null else null`; `len(x)` → `count(x)`; `elif` → `else if`; `proc` → `fn`; `//` and `#` → `--`; `==` → `=`.
 
-Cards: `snapback4 guide <keyword>` — types, indexes, rules, sync, residency, prediction, evolution, expire,
+Cards: `snapback4 guide <keyword>` — types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,
 assets, reads, shapes, writes, programs, jobs, native, feeds, search,
 effects, actions, services, presence, bounds, refusals, personas. `snapback4 why
 <CODE>` explains a refusal.
@@ -538,6 +571,7 @@ leading with the column; a merge's lanes are equal-width prefixes of one
 index; a job's `chunk` sweeps an index whose columns are `id` or
 `immutable`. The diagnostic names the indexes that exist and the one to
 declare."##,
+        "maintains" => include_str!("guide/maintains.md"),
         "rules" => include_str!("guide/rules.md"),
         "sync" => r##"# Sync: the viewer's partition is the unit of sync
 
@@ -623,6 +657,7 @@ cannot serve that retained history. Replacement snapshots keep left groups
 and replace held groups with their current acquisition. If the same query
 also has an unknown held-group read, it still falls back to the server.
 Keep a read of a left group in its own query: mixing its retained rows with an unknown held-group read returns the whole server answer online (without the left rows) and the whole device answer offline.
+An inherited aggregate stays until-revoked even when its source retains delivered-history; it has no target horizon.
 A table without `sync` is online-only. A `maintain`
 grouped by the audience columns inherits sync and is delivered as a value row.
 `online only` on a table documents the absence of sync; on a maintain it opts

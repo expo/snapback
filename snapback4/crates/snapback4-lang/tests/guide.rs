@@ -66,7 +66,7 @@ fn the_language_card_compiles_and_runs() {
     let source = language();
     let bound = clean("the language card", &source);
     let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).collect();
-    assert_eq!(names, ["room", "helperRows", "thread", "inbox", "following", "ancestors", "digest", "mentions", "search", "everywhere", "online", "pagePass", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative"]);
+    assert_eq!(names, ["daily", "today", "calendar", "mostLiked", "chips", "room", "helperRows", "thread", "inbox", "following", "ancestors", "digest", "mentions", "search", "everywhere", "online", "pagePass", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative"]);
     assert_eq!(bound.schema.effects, ["notify"]);
     assert_eq!(bound.schema.schedules.len(), 1);
     assert_eq!(bound.personas, ["alice", "bob", "carol"]);
@@ -146,6 +146,16 @@ fn the_language_card_compiles_and_runs() {
     // post: a loop over a bounded list argument; following: a merge over lanes, shaped.
     let posted = engine.mutate("post", Some("p1"), Context::new(alice, args(&[("bodies", Value::Array(vec![text("a"), text("b")]))])).at(3_000).with_ids(["post1".to_owned(), "post2".to_owned()])).unwrap();
     assert_eq!(sent(&posted), &Value::Int(2));
+    // Calendar maintains share scalar keys with ordinary expressions; pages retain their group fields.
+    assert_eq!(engine.query("today", Context::new(alice, args(&[])).at(3_000)).unwrap().data, Value::Int(2));
+    assert_eq!(engine.query("today", Context::new(alice, args(&[])).at(86_400_000)).unwrap().data, Value::Int(0));
+    let daily = engine.query("daily", Context::new(alice, args(&[])).at(3_000)).unwrap();
+    assert_eq!(daily.data.as_array().unwrap()[0].field("day").unwrap(), &Value::Int(0));
+    assert_eq!(daily.data.as_array().unwrap()[0].field("count").unwrap(), &Value::Int(2));
+    assert!(daily.complete);
+    let calendar = engine.query("calendar", Context::new(alice, args(&[])).at(-1)).unwrap().data;
+    assert_eq!(calendar.field("hour").unwrap(), &Value::Int(-1));
+    assert_eq!(calendar.field("bucket").unwrap(), &Value::Int(-1));
     engine.seed([("follows".to_owned(), snapback4_core::value::object([("id", id("f1")), ("followerId", id(bob)), ("followedId", id(alice))]))]).unwrap();
     let following = engine.query("following", Context::new(bob, args(&[])).at(3_100)).unwrap();
     let posts = following.data.as_array().unwrap();
@@ -155,6 +165,11 @@ fn the_language_card_compiles_and_runs() {
     assert_eq!(failed(&engine.mutate("react", Some("x1"), Context::new(bob, args(&[("postId", id("post1")), ("direction", Value::Int(2))])).at(3_200)).unwrap()), "BAD_DIRECTION");
     let reacted = engine.mutate("react", Some("x2"), Context::new(bob, args(&[("postId", id("post1")), ("direction", Value::Int(-1))])).at(3_300).with_ids(["react1".to_owned()])).unwrap();
     assert_eq!(sent(&reacted).field("direction").unwrap(), &Value::Int(-1));
+    let chips = engine.query("chips", Context::new(bob, args(&[("postId", id("post1"))])).at(3_300)).unwrap();
+    assert_eq!(chips.data.as_array().unwrap()[0].field("emoji").unwrap(), &text("like"));
+    assert_eq!(chips.data.as_array().unwrap()[0].field("count").unwrap(), &Value::Int(1));
+    // A value index grants no read authority over a private vote aggregate.
+    assert!(engine.query("mostLiked", Context::new(bob, args(&[])).at(3_300)).unwrap().data.as_array().unwrap().is_empty());
     let following = engine.query("following", Context::new(bob, args(&[])).at(3_400)).unwrap();
     assert!(following.data.as_array().unwrap().iter().any(|p| p.field("mine").unwrap() != &Value::Null));
     // edit: the presence assertion, a conditional update refused with the current row, then accepted.

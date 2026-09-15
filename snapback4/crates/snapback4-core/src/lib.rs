@@ -14,6 +14,7 @@ pub mod ids;
 pub mod ir;
 pub mod key;
 pub mod meter;
+pub mod maintain;
 pub mod partition;
 pub mod rows;
 pub mod schema;

@@ -121,6 +121,21 @@ impl Schema {
         self.maintains.iter().find(|maintain| maintain.target == table)
     }
 
+    /// A source cap proves a bound on distinct derived groups; no target cap is enforced.
+    pub fn group_bound(&self, name: &str, pinned: &[String]) -> Option<u32> {
+        let table = self.table(name)?;
+        let ordinary = table.constraints.iter().filter_map(|c| match c {
+            Constraint::Cap { by, max } if by.iter().all(|field| pinned.contains(field)) => Some(*max), _ => None,
+        }).min();
+        let derived = self.maintain_for(name).and_then(|m| {
+            let source = self.table(&m.source)?;
+            source.constraints.iter().filter_map(|c| match c {
+                Constraint::Cap { by, max } if by.iter().all(|field| pinned.contains(field) && m.bare_key(field)) => Some(*max), _ => None,
+            }).min()
+        });
+        ordinary.into_iter().chain(derived).min()
+    }
+
     /// Whether an `exists` probe's target row is structurally readable by the
     /// probing viewer (public target, or the read rule is proven true for the
     /// exact indexed row being probed). Copied from Snapback 2: the proof is
@@ -389,7 +404,7 @@ impl Index {
     pub fn word_component(&self) -> Option<(usize, &[String])> {
         self.components.iter().enumerate().find_map(|(position, component)| match component {
             IndexComponent::WordPrefixes { fields, .. } => Some((position, fields.as_slice())),
-            IndexComponent::Column(_) => None,
+            IndexComponent::Column(_) | IndexComponent::Contribution(_) => None,
         })
     }
 
@@ -403,6 +418,8 @@ impl Index {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IndexComponent {
+    /// Internal selected physical source rows, ordered by computed group then source id.
+    Contribution(Box<Maintain>),
     Column(String),
     WordPrefixes { fields: Vec<String>, #[serde(default)] contract: serde_json::Value },
 }
@@ -411,7 +428,7 @@ impl IndexComponent {
     pub fn column(&self) -> Option<&String> {
         match self {
             Self::Column(column) => Some(column),
-            Self::WordPrefixes { .. } => None,
+            Self::WordPrefixes { .. } | Self::Contribution(_) => None,
         }
     }
 }
@@ -613,6 +630,10 @@ impl TextFormat {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Maintain {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub filter: Option<crate::maintain::Predicate>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub computed: BTreeMap<String, crate::maintain::CalendarKey>,
     #[serde(default, skip_serializing_if = "Residency::is_default")]
     pub residency: Residency,
     pub kind: MaintainKind,
@@ -700,6 +721,12 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                             Some(kind) if !kind.is_indexable() => issue(&mut issues, ipath.clone(), format!("column {column} is {kind}, which cannot be indexed")),
                             _ => {}
                         }
+                    }
+                    IndexComponent::Contribution(maintain) => {
+                        if index.unique || index.components.len() != 1 || maintain.source != *table_name || name != &maintain.contribution_index() {
+                            issue(&mut issues, ipath.clone(), "invalid internal contribution index".into());
+                        }
+                        if let Err(message) = maintain.validate_keys(table) { issue(&mut issues, ipath.clone(), message); }
                     }
                     IndexComponent::WordPrefixes { fields, contract } => {
                         // One tokenizer, named: a store built under another
@@ -872,8 +899,10 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
     if maintain.by.is_empty() {
         issue(issues, "maintain by needs at least one source column".into());
     }
+    if let Err(message) = maintain.validate_keys(source) { issue(issues, message); }
     for field in &maintain.by {
-        match source.columns.get(field) {
+        let expected = if maintain.computed.contains_key(field) { Some(&ColumnType::Int) } else { source.columns.get(field) };
+        match expected {
             None => issue(issues, format!("maintain names unknown source column {}.{field}", maintain.source)),
             Some(kind) if target.columns.get(field) != Some(kind) => issue(issues, format!("maintain target column {field} must match the source type {kind}")),
             _ => {}
@@ -914,8 +943,8 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
     {
         let sound = match (&target_sync.audience, source.sync.as_ref().map(|sync| &sync.audience)) {
             (Audience::Public, Some(Audience::Public)) => true,
-            (Audience::Column(column), Some(Audience::Column(source_column))) => column == source_column && maintain.by.contains(column),
-            (Audience::Target { table, prefix, principal }, Some(Audience::Target { table: source_table, prefix: source_prefix, principal: source_principal })) => table == source_table && principal == source_principal && prefix == source_prefix && prefix.iter().all(|column| maintain.by.contains(column)),
+            (Audience::Column(column), Some(Audience::Column(source_column))) => column == source_column && maintain.bare_key(column),
+            (Audience::Target { table, prefix, principal }, Some(Audience::Target { table: source_table, prefix: source_prefix, principal: source_principal })) => table == source_table && principal == source_principal && prefix == source_prefix && prefix.iter().all(|column| maintain.bare_key(column)),
             _ => false,
         };
         if !sound {

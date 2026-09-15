@@ -315,6 +315,9 @@ pub struct TableDecl {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MaintainDecl {
+    pub filter: Option<Expr>,
+    pub keys: Vec<Expr>,
+    pub indexes: Vec<IndexDecl>,
     pub name: String,
     pub aggregate: String,
     pub source: String,

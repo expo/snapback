@@ -1,0 +1,92 @@
+const SOURCE: &str = r#"table posts:
+  author: principal
+  parentId: id ?
+  at: time
+  active: bool
+  score: int
+  by byAuthor: author, id
+  read <- allow
+  insert <- allow
+  update <- allow
+  delete <- allow
+  online only
+"#;
+
+fn compile(tail: &str) -> snapback4_lang::Bound {
+    snapback4_lang::compile(&[("maintains.q".into(), format!("{SOURCE}\n{tail}"))])
+}
+
+#[test]
+fn maintain_filter_calendar_pages_and_rank() {
+    let bound = compile(r#"maintain dailyPosts: count posts where .parentId = null and .active by author, day(.at)
+  read <- allow
+  online only
+maintain scores: sum posts of score where not .active or .score >= 0 by author
+  read <- allow
+  online only
+  by byCount: value, id
+maintain periods: count posts by author, hour(.at), bucket(.at, 2m)
+  read <- allow
+  online only
+query today():
+  return dailyPosts[viewer, day(now)]
+query days(c: cursor ?):
+  return dailyPosts[viewer] after c first 7 by byGroup { day, count: .value }
+query mostLiked(c: cursor ?):
+  return scores after c last 10 by byCount { author, count: .value }
+query timeKeys():
+  return { day: day(now), hour: hour(now), bucket: bucket(now, 2m) }
+"#);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+}
+
+#[test]
+fn maintain_refusals_point_to_the_expression_and_offer_a_rewrite() {
+    for head in [
+        "count posts where .active = viewer by author",
+        "count posts where .at < now by author",
+        "count posts where exists posts['a'] by author",
+        "count posts where count([1]) = 1 by author",
+        "count posts where .score + 1 > 0 by author",
+        "count posts by day(.at), day(.at)",
+        "count posts by bucket(.at, 0m)",
+        "count posts by day(.parentId)",
+        "count posts by id",
+    ] {
+        let bound = compile(&format!("maintain totals: {head}\n  read <- allow\n  online only\n"));
+        assert!(!bound.diagnostics.is_empty(), "accepted {head}");
+        assert!(bound.diagnostics.iter().any(|d| d.code == "E_QUARRY_MAINTAIN"), "{head}: {:?}", bound.diagnostics);
+    }
+}
+
+#[test]
+fn maintain_scalar_needs_the_whole_key_and_expiring_rank_is_refused() {
+    let bound = compile("maintain totals: count posts by author, at\n  read <- allow\nquery short():\n  return totals[viewer]\n");
+    assert!(bound.diagnostics.iter().any(|d| d.code == "E_QUARRY_MAINTAIN"), "{:?}", bound.diagnostics);
+    let source = SOURCE.replace("  at: time", "  until: time\n  by byUntil: until\n  expire at .until\n  at: time");
+    let bound = snapback4_lang::compile(&[("expiry.q".into(), format!("{source}\nmaintain totals: count posts by author\n  read <- allow\n  by byCount: value, id\n"))]);
+    assert!(bound.diagnostics.iter().any(|d| d.code == "E_QUARRY_MAINTAIN_EXPIRE"), "{:?}", bound.diagnostics);
+}
+
+#[test]
+fn maintain_not_negates_a_comparison_and_parentheses_group_predicates() {
+    let bound = compile("maintain totals: count posts where not .parentId = null and (.active or not .score >= 0) by author\n  read <- allow\n  online only\n");
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let predicate = bound.schema.maintains[0].filter.as_ref().unwrap();
+    let row = |parent, active, score| snapback4_core::value::object([
+        ("parentId", parent), ("active", snapback4_core::Value::Bool(active)), ("score", snapback4_core::Value::Int(score)),
+    ]);
+    assert!(predicate.matches(&row(snapback4_core::Value::Id("p".into()), false, -1)));
+    assert!(!predicate.matches(&row(snapback4_core::Value::Null, true, 1)));
+    assert!(!predicate.matches(&row(snapback4_core::Value::Id("p".into()), false, 1)));
+}
+
+#[test]
+fn maintain_identity_literals_and_scoped_rank_prefix() {
+    let prefix = "maintain scoped: count posts where .author = 'alice' by author, day(.at)\n  read <- allow\n  online only\n  by byCount: author, value, id\n";
+    let good = compile(&format!("{prefix}query scoped(c: cursor ?):\n  return scoped[viewer] after c last 10 by byCount\n"));
+    assert!(good.diagnostics.is_empty(), "{:?}", good.diagnostics);
+    let bad = compile(&format!("{prefix}query unscoped(c: cursor ?):\n  return scoped after c last 10 by byCount\n"));
+    assert!(bad.diagnostics.iter().any(|d| d.code == "E_QUARRY_MAINTAIN"), "{:?}", bad.diagnostics);
+}

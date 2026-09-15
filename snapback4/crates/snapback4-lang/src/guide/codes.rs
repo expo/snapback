@@ -1,4 +1,6 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_QUARRY_MAINTAIN", "maintain predicates use row-local typed scalar comparisons; group keys are bare columns or day/hour/bucket of required time columns; scalar reads need the complete key. Follow the expression-specific rewrite; guide maintains."),
+    ("E_QUARRY_MAINTAIN_EXPIRE", "a value-order maintain index cannot stay exact when its source expires without a commit. Use a live bounded query or the scheduled ranked-table recipe; guide expire."),
     ("E_ADOPT", "the compiled schema cannot adopt the stored rows. check reads the dev store (or --store path) without changing it; dev refuses the same successor step. Add an optional column or a literal default, or repair existing values/duplicate keys before narrowing. now and viewer belong to inserts and cannot fill old rows. guide types."),
     ("E_QUARRY_LIVE_MAINTAIN_PROBE", "a rule cannot compare the value of a maintain over an expiring source. Read the maintain in the program; its live value cannot be probed at one unit. Existence probes still cost one unit; guide expire."),
     ("SNAPBACK4_EXIT", "the dev/serve loop returned; status, generation and the startup/listener error or normal-stop reason are on stderr. Generation 0 means it has not served yet. guide refusals."),
@@ -13,7 +15,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_SQL_INTERNAL", "developer SQL reads only generated application-table views. Raw r/i, internal tables and SQLite metadata are refused; guide personas."),
     ("N_NOW_SERVER", "a query now reads a server-only site; why names it and the rewrite. See guide residency."),
     ("N_NOT_PREDICTABLE", "a mutation lost eligibility, or gained a horizon site that may queue without a row; the note names which. See guide residency."),
-    ("N_MAINTAIN_DELTA", "a readable maintain over a source with potentially wider update authority declares a delta read channel; restrict the maintain read rule or the source update rule if that delta is private."),
+    ("N_MAINTAIN_DELTA", "a readable maintain declares an insert/delete/update delta channel, including filter/key/value dependencies; restrict its read audience or source write authority if the delta is private."),
     ("N_MAINTAIN_SYNCED", "a maintain inherits public sync or a group audience with unbounded recipients or multiple values per group; online only opts out. test --residency measures its rows."),
     ("E_INPUT", "family input — an argument or a row value does not fit its declared type, or an HTTP request exceeds its body bound (sync: 256 KiB, HTTP 413). The message names the field; fix the value or the declaration. A table reference validates the id's shape, not the target's existence: the string \"null\" is an id, while JSON null needs an optional type; `require exists t[id] else CODE` checks for a visible target (guide writes)."),
     ("E_TYPE", "family input — a value has the wrong type for its position at run time (a Quarry program that binds cannot raise it; a seed or a wire argument can); the message names both types."),
