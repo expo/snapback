@@ -724,6 +724,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let retry: ReturnType<typeof setTimeout> | undefined;
   let retryMs = 250;
   let flushing: Promise<void> | null = null;
+  let exitDone: Promise<void> | undefined;
+  let ordinarySending = false;
   let flushAgain = false;
   function flush(): Promise<void> {
     if (flushing) {
@@ -752,34 +754,40 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
 
   async function flushOnce() {
+    await exitDone;
     for (const entry of await queued()) {
+      await exitDone;
       if (closed) return;
       if (entry.sent_seq != null) { await syncOnce(); continue; }
-      const result = await network(async () => {
-        if (closed || sessionDead) return { ok: false as const };
-        const started = await call({ op: "begin_send" });
-        if (started.denied) return { ok: false as const };
-        return post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids });
-      });
-      if (closed) return;
-      if (!result.ok) { retryFlush(); return; }
-      const json = result.json;
-      const why = (json.why ?? json.denied) as Refusal | undefined;
-      if (result.obsoleteAuth || why?.retryable || (json.state !== "sent" && !why)) { retryFlush(); return; }
-      const applied = await call({ op: "settle", id: entry.id, ...(json.state === "sent" ? {seq: Number(json.seq ?? 0)} : {}) });
-      if (applied.denied) { retryFlush(); return; }
-      retryMs = 250;
-      const settle = settled.get(entry.id);
-      settled.delete(entry.id);
-      const outcome: Write = json.state === "sent"
-        ? json.replayed === true
-          ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), replayed: true }
-          : { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), result: json.result }
-        : { state: "failed", id: entry.id, why: (json.why as Refusal | undefined) ?? (json.denied as Refusal | undefined) ?? { code: "E_STORE", family: "store", message: "the server answered without a state", retryable: true } };
-      if (outcome.state === "sent") await syncOnce();
-      else rerunTables(predictedTables(entry.predicted));
-      settle?.(outcome);
-      emitWrite(outcome);
+      try {
+        const result = await network(async () => {
+          await exitDone;
+          if (closed || sessionDead) return { ok: false as const };
+          ordinarySending = true;
+          const started = await call({ op: "begin_send" });
+          if (started.denied) return { ok: false as const };
+          return post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids });
+        });
+        if (closed) return;
+        if (!result.ok) { retryFlush(); return; }
+        const json = result.json;
+        const why = (json.why ?? json.denied) as Refusal | undefined;
+        if (result.obsoleteAuth || why?.retryable || (json.state !== "sent" && !why)) { retryFlush(); return; }
+        const applied = await call({ op: "settle", id: entry.id, ...(json.state === "sent" ? {seq: Number(json.seq ?? 0)} : {}) });
+        if (applied.denied) { retryFlush(); return; }
+        retryMs = 250;
+        const settle = settled.get(entry.id);
+        settled.delete(entry.id);
+        const outcome: Write = json.state === "sent"
+          ? json.replayed === true
+            ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), replayed: true }
+            : { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), result: json.result }
+          : { state: "failed", id: entry.id, why: (json.why as Refusal | undefined) ?? (json.denied as Refusal | undefined) ?? { code: "E_STORE", family: "store", message: "the server answered without a state", retryable: true } };
+        if (outcome.state === "sent") await syncOnce();
+        else rerunTables(predictedTables(entry.predicted));
+        settle?.(outcome);
+        emitWrite(outcome);
+      } finally { ordinarySending = false; }
     }
   }
 
@@ -958,7 +966,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const sendOnExit = exitTransport(doFetch, base);
     stopSuspend = core.onSuspend((entries, beginSend) => {
       const request = requestCredentials();
-      sendOnExit(entries, request.headers, () => !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend());
+      exitDone = sendOnExit(entries, request.headers, () => !ordinarySending && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend());
     });
   }
   follow();

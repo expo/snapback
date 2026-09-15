@@ -411,7 +411,8 @@ query personalizeNative(first: int): native                          -- a read i
 ```
 
 Helpers expand at each call: a table-typed parameter keeps a row argument as a row (fields need no lookup), while a reference argument stays a reference.
-An enum fits `text <=N` when every variant has at most N characters. This is
+An enum fits `text <=N` when every variant has at most N characters and
+contains no control characters except tab, LF and CR. This is
 static and total: no variant is truncated or converted at runtime. If one
 variant is too long, declare the helper parameter with the enum instead.
 After `where`, apply a named page shape with `{ ...card }`; a bare shape
@@ -501,7 +502,8 @@ narrow with `if x != null:`, `x ! else CODE`, or `x ?? default`. A null guard
 also narrows a bound row's field (`r.changedAt != null`), until the local is rebound. `time`
 arithmetic: `time - time` is an int, `time + int` a time. `/` and `%` give
 the Euclidean quotient and remainder of ints or times; zero refuses `E_DIV_ZERO`.
-An enum is accepted as `text <=N` only if every variant fits N characters,
+An enum is accepted as `text <=N` only if every variant fits N characters
+and contains no control characters except tab, LF and CR,
 including when both types are optional. This is a static, total widening;
 it adds no runtime conversion. Otherwise give the helper parameter the enum
 type. `(now / 1) * 1000` explicitly scales integer milliseconds; a scaled

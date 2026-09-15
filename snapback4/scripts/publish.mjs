@@ -8,7 +8,7 @@ import { appendFileSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmS
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { signForPublication } from "./signing.mjs";
+import { signForPublication, verifyDeveloperId } from "./signing.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pkg = join(root, "packages/snapback4");
@@ -49,7 +49,13 @@ const artifact = built.trim().split("\n").map((line) => JSON.parse(line)).find((
 if (!artifact) throw new Error("cargo did not report the production snapback4 binary");
 // Use Cargo's reported path, including CARGO_TARGET_DIR, rather than finding
 // an old release binary beside the one that was actually built.
-const sourceBinary = artifact.executable;
+const work = mkdtempSync(join(tmpdir(), "snapback4-publish-"));
+const stagedPlatform = join(work, `snapback4-${process.platform}-${process.arch}`);
+mkdirSync(stagedPlatform);
+for (const file of ["package.json", "THIRD-PARTY-NOTICES"]) copyFileSync(join(platformPkg, file), join(stagedPlatform, file));
+const sourceBinary = join(stagedPlatform, "snapback4");
+// Cargo's artifact is shared with other builds. Own the bytes before any signing step.
+copyFileSync(artifact.executable, sourceBinary);
 // @ref LLP 3000.007#20.8 — sign and verify the shipped darwin bytes, including dry runs
 console.log("== sign the production darwin binary");
 let signing;
@@ -65,14 +71,11 @@ const binaryVersion = run(sourceBinary, ["--version"]).trim();
 if (binaryVersion !== expectedVersion) throw new Error(`built binary is ${binaryVersion}; expected ${expectedVersion}`);
 const digest = (path) => createHash("sha256").update(readFileSync(path)).digest("hex");
 const binarySha256 = digest(sourceBinary);
-copyFileSync(sourceBinary, join(platformPkg, "snapback4"));
-
-const work = mkdtempSync(join(tmpdir(), "snapback4-publish-"));
 console.log(`== pack → ${work}`);
 const [packed] = JSON.parse(run("npm", ["pack", "--json", "--pack-destination", work], { cwd: pkg }));
 const tarball = join(work, packed.filename);
 const tarballBytes = statSync(tarball).size;
-const [packedPlatform] = JSON.parse(run("npm", ["pack", "--json", "--pack-destination", work], { cwd: platformPkg }));
+const [packedPlatform] = JSON.parse(run("npm", ["pack", "--json", "--pack-destination", work], { cwd: stagedPlatform }));
 const platformTarball = join(work, packedPlatform.filename);
 const platformTarballBytes = statSync(platformTarball).size;
 
@@ -83,6 +86,8 @@ writeFileSync(join(consumer, "package.json"), JSON.stringify({ name: "consumer",
 run("npm", ["install", "--no-audit", "--no-fund", "--loglevel=error", platformTarball, tarball, "react@19.3.0", "react-dom@19.3.0", "@types/react@19.3.0", "typescript@5.9.3"], { cwd: consumer });
 const installedBinary = join(consumer, `node_modules/snapback4-${process.platform}-${process.arch}/snapback4`);
 if (digest(installedBinary) !== binarySha256) throw new Error("packed/installed platform binary differs from the production artifact");
+const installedSignature = verifyDeveloperId(installedBinary);
+if (installedSignature.signingAuthority !== signing.signingAuthority || installedSignature.signingTeamId !== signing.signingTeamId) throw new Error("installed binary signature differs from the staged signature");
 const installedVersion = run(join(consumer, "node_modules/.bin/snapback4"), ["--version"], { cwd: consumer }).trim();
 if (installedVersion !== expectedVersion) throw new Error(`installed CLI is ${installedVersion}; expected ${expectedVersion}`);
 // This is the binary unpacked from the platform tarball, not an unrelated
