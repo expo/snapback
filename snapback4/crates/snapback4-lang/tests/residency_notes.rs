@@ -171,3 +171,44 @@ fn predicts_assertion_refuses_online_writes_and_explicit_server_but_keeps_horizo
     let b = clean(&source.replace("mutation guardedPost(id: notes, body: text <=200):", "mutation guardedPost(id: notes, body: text <=200) predicts:"));
     assert_eq!(b.schema.operations["guardedPost"].predicts.as_deref(), Some("eligible"));
 }
+
+#[test]
+fn calibration_capped_members_page_needs_no_cursor_note() {
+    let prefix = "table members:\n  conversationId: id\n  principal: principal\n  unique byConversationPrincipal: conversationId, principal\n  cap 50 by conversationId\n  public 'roster'\n";
+    for (take, cursor_note) in [(49, true), (50, false), (51, false)] {
+        let source = format!("{prefix}query settings(conversationId: id):\n  return members[conversationId] first {take} by byConversationPrincipal\n");
+        let b = clean(&source);
+        for n in &b.notes { println!("{n}"); }
+        assert_eq!(b.notes.iter().any(|n| n.code == "N_NO_CURSOR"), cursor_note, "take {take}");
+    }
+    let unpinned = clean(&format!("{prefix}query settings():\n  return members first 50 by byConversationPrincipal\n"));
+    assert!(unpinned.notes.iter().any(|n| n.code == "N_NO_CURSOR"));
+}
+
+#[test]
+fn calibration_presence_refusal_names_source_read_without_internal_paths() {
+    let source = "table profiles:\n  principal: principal\n  unique byPrincipal: principal\n  displayName: text <=100\n  public 'profiles'\n  sync\neffect notify\nmutation send(recipient: principal) predicts:\n  if not exists connected[recipient]:\n    emit notify { senderDisplayName: profiles[viewer].displayName }\n";
+    let b = compile(&[("chat.q".into(), source.into())]);
+    let d = &b.diagnostics[0];
+    println!("{d}");
+    assert_eq!(d.code, "E_NOT_PREDICTABLE");
+    assert!(d.message.contains("connected[recipient]") && d.message.contains("chat.q:9:17"), "{d}");
+    assert!(!d.to_string().contains("programs.") && !d.to_string().contains('$'), "{d}");
+    let fixed = source.replace("  if not exists connected[recipient]:\n    emit notify { senderDisplayName: profiles[viewer].displayName }", "  senderName = profiles[viewer].displayName\n  if not exists connected[recipient]:\n    emit notify { senderDisplayName: senderName }");
+    let good = compile(&[("chat.q".into(), fixed)]);
+    assert!(good.diagnostics.is_empty(), "{:?}", good.diagnostics);
+    assert_eq!(good.schema.operations["chat.send"].predicts.as_deref(), Some("eligible"));
+    let unasserted = compile(&[("chat.q".into(), source.replace(" predicts:", ":"))]);
+    let summary = snapback4_lang::bind::residency::prediction_summary(&unasserted).unwrap();
+    assert!(!summary.contains("programs.") && summary.contains("chat.q:9:17"), "{summary}");
+    for note in snapback4_lang::bind::residency::change_notes(&unasserted, &good.schema.operations) {
+        assert!(!note.to_string().contains("programs."), "{note}");
+    }
+}
+
+#[test]
+fn calibration_merge_of_capped_groups_still_needs_a_cursor() {
+    let source = "table members:\n  conversationId: id\n  principal: principal\n  unique byConversationPrincipal: conversationId, principal\n  cap 50 by conversationId\n  public 'roster'\nquery settings():\n  return merge members first 50 by byConversationPrincipal:\n    ['one']\n    ['two']\n";
+    let b = clean(source);
+    assert!(b.notes.iter().any(|n| n.code == "N_NO_CURSOR"), "two groups can have 100 rows: {:?}", b.notes);
+}

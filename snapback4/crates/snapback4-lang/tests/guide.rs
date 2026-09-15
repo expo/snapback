@@ -568,3 +568,21 @@ fn direct_and_merged_cursor_generation_contracts_are_distinct() {
     }
     assert!(README.contains("A direct page cursor binds the\nevaluated prefix and active generation"));
 }
+
+#[test]
+fn calibration_guide_words_and_replay_holds_are_discoverable() {
+    for (word, target) in [("maintain", "maintains"), ("maintains", "maintains"), ("time", "language"), ("clock", "language"), ("replay", "personas"), ("seed", "personas")] {
+        assert_eq!(card(word), card(target), "{word}");
+    }
+    for word in ["divmod", "immutable", "return", "arithmetic", "a"] {
+        assert!(guide::nearest(word).contains(&"language"), "{word}: {:?}", guide::nearest(word));
+    }
+}
+
+#[test]
+fn calibration_effects_jobs_and_seed_cards_explain_replay_flags() {
+    for word in ["effects", "jobs", "personas"] {
+        let text = card(word).unwrap();
+        assert!(text.contains("--hold-effects") && text.contains("--hold-schedules"), "{word}");
+    }
+}

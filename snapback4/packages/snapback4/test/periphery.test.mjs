@@ -201,13 +201,13 @@ test("check --fix repairs ambiguity then the cursor index in one run and preserv
   const fixed = run("check", "--fix", "--json");
   assert.equal(JSON.parse(fixed.stdout).ok, true);
   assert.match(fixed.stderr, /fix: .*E_QUARRY_AMBIGUOUS/);
-  assert.match(fixed.stderr, /fix: .*E_QUARRY_UNKNOWN/);
+  assert.match(fixed.stderr, /fix: .*E_CURSOR_INDEX/);
   assert.match(read(join(dir, "snapback/schema.q")), /by byOwner -- keep this comment/);
   // Force the cursor tie-break repair across module files as well.
   writeFileSync(join(dir, "snapback/schema.q"), ambiguous.split("query list")[0]);
   writeFileSync(join(dir, "snapback/reads.q"), "query list(c: cursor ?):\n  return items[viewer] after c first 10 by byOwner -- keep me\n");
   const cursor = run("check", "--fix");
-  assert.match(cursor.stderr, /E_QUARRY_UNKNOWN/);
+  assert.match(cursor.stderr, /E_CURSOR_INDEX/);
   assert.match(read(join(dir, "snapback/schema.q")), /by byOwner: owner, title, id/);
   assert.match(read(join(dir, "snapback/reads.q")), /-- keep me/);
   const stable = read(join(dir, "snapback/schema.q"));

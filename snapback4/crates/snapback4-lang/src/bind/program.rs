@@ -33,6 +33,7 @@ pub struct BoundProgram {
 
 pub struct Binder<'a> {
     sources: BTreeMap<String, (Site, String)>,
+    presence_sources: Vec<(Expr, Site, String)>,
     catalog: &'a Catalog,
     name: String,
     kind: ProgramKind,
@@ -76,7 +77,7 @@ impl<'a> Binder<'a> {
     /// Differential-test control: lowering is identical with the side map disabled.
     #[doc(hidden)]
     pub fn bind_with_ownership(catalog: &'a Catalog, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>, record_ownership: bool) -> Option<BoundProgram> {
-        let mut binder = Binder { sources: BTreeMap::new(), catalog, name: decl.name.clone(), kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, notes: Vec::new(), errors: Vec::new() };
+        let mut binder = Binder { sources: BTreeMap::new(), presence_sources: Vec::new(), catalog, name: decl.name.clone(), kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, notes: Vec::new(), errors: Vec::new() };
         let mut args = BTreeMap::new();
         let mut arg_types = Vec::new();
         for arg in &decl.args {
@@ -169,7 +170,7 @@ impl<'a> Binder<'a> {
         let ownership = body.ownership;
         let program = Program { name: full_name, kind, args, read_time_granularity_ms: None, body: body.code, native: false };
         let presence = if kind == ir::ProgramKind::Mutation {
-            Some(super::residency::presence_facts(&program, &ownership))
+            Some(super::residency::presence_facts(&program, &ownership, &binder.presence_sources))
         } else { None };
         Some(BoundProgram { sources: binder.sources, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
     }
@@ -270,7 +271,7 @@ impl<'a> Binder<'a> {
             }
             let last = index.columns.last().map(String::as_str);
             if last != Some("id") && !index.unique {
-                return Err(unknown(&range.site, format!("index {}.{} cannot carry a cursor: it neither ends in id nor is unique", read.table, index.name), format!("by {}: {}, id", index.name, index.columns.join(", "))));
+                return Err(Diagnostic::new(&range.site, "E_CURSOR_INDEX", format!("index {}.{} cannot carry a cursor: it neither ends in id nor is unique", read.table, index.name), format!("by {}: {}, id", index.name, index.columns.join(", "))).guide("indexes").mechanical());
             }
             after = Some(Box::new(e));
         }

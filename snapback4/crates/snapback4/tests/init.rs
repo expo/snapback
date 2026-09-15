@@ -45,7 +45,7 @@ fn init_conflicts_name_the_key_and_leave_every_destination_untouched() {
         assert_eq!(fs::read_to_string(dir.0.join("package.json")).unwrap(), before);
         assert!(!dir.0.join("snapback").exists());
     }
-    for name in ["README.md", "src/client.ts", "metro.config.js", "snapback/schema.q"] {
+    for name in ["README.md", "src/client.ts", "metro.config.js", "snapback/schema.q", "snapback/package.json"] {
         let dir = Dir::new();
         let path = dir.0.join(name); fs::create_dir_all(path.parent().unwrap()).unwrap(); fs::write(&path, "kept").unwrap();
         fs::write(dir.0.join("package.json"), "{}").unwrap();
@@ -74,4 +74,20 @@ fn failed_package_write_preserves_original() {
     assert_eq!(output.status.code(), Some(2), "{output:?}");
     assert_eq!(fs::read_to_string(dir.0.join("package.json")).unwrap(), before);
     assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 1, "failed replacement removes its temporary file");
+}
+
+#[test]
+fn calibration_commonjs_expo_imports_generated_api_from_node_esm() {
+    let dir = Dir::new();
+    fs::write(dir.0.join("package.json"), r#"{"name":"astra-snapback4","version":"1.0.0","type":"commonjs"}"#).unwrap();
+    assert!(dir.run("--expo").status.success());
+    let check = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
+    assert!(check.status.success(), "{check:?}");
+    fs::create_dir_all(dir.0.join("scripts")).unwrap();
+    fs::write(dir.0.join("scripts/seed.mjs"), "import {api} from '../snapback/generated/api.ts';\nif (!api.send) throw new Error('missing send');\nconsole.log('api import: ok');\n").unwrap();
+    let output = Command::new("node").arg("scripts/seed.mjs").current_dir(&dir.0).output().unwrap();
+    println!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    assert!(output.status.success(), "{output:?}");
+    let package: Value = serde_json::from_slice(&fs::read(dir.0.join("package.json")).unwrap()).unwrap();
+    assert_eq!(package["type"], "commonjs");
 }

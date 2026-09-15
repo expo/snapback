@@ -24,7 +24,9 @@ impl<'a> Binder<'a> {
             keys.retain(|(column, _, _)| index.columns.contains(column.as_ref().unwrap()));
         }
         let key = self.order_keys(info, &index, keys)?;
-        let point = Read { site: self.site(), table: read.table.clone(), index: index.name, key, provenance: KeyProvenance::Shape };
+        let location = self.site();
+        self.sources.insert(location.clone(), (read.site.clone(), print::read_expr(read)));
+        let point = Read { site: location, table: read.table.clone(), index: index.name, key, provenance: KeyProvenance::Shape };
         if equalities.is_empty() { return Ok(if mode == ReadMode::Exists { Expr::Exists(point) } else { Expr::Get(point) }); }
         let row = self.temp("probe");
         out.push(Stmt::Let { name: row.clone(), value: Expr::Get(point) });
@@ -139,6 +141,8 @@ fn has_focal(expr: &A) -> bool {
 fn trailing_shape(expr: &A) -> Option<(&str, &Site)> {
     match expr {
         A::ShapeUse { name, site, .. } => Some((name, site)),
+        // @ref LLP 3000.007#18.5 — unary predicates need the same mechanical page-shape repair.
+        A::Unary { value, .. } => trailing_shape(value),
         A::Binary { right, .. } => trailing_shape(right),
         A::If { otherwise, .. } => trailing_shape(otherwise),
         _ => None,

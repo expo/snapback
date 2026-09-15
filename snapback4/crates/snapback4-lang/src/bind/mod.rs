@@ -58,7 +58,17 @@ pub fn bind(documents: Vec<Document>) -> Bound {
     }
     actions::bind(&catalog, &mut programs, &mut diagnostics);
     // The residency facts come before admission: a never-predicting mutation may pass over a uniformly authorized page (LLP 3000.007 §5.9), and admission reads that class here.
-    schema.operations = programs.iter().map(|bound| (bound.program.name.clone(), residency::execution_with_presence(&schema, &bound.program, bound.presence.as_ref()))).collect();
+    schema.operations = programs.iter().map(|bound| {
+        let mut fact = residency::execution_with_presence(&schema, &bound.program, bound.presence.as_ref());
+        for site in &mut fact.sites {
+            if let Some((location, name)) = bound.sources.get(&site.site) {
+                site.site = format!("{location} ({name})");
+            } else if site.site.starts_with("programs.") {
+                site.site = format!("{} ({} by {})", bound.site, site.table, site.index);
+            }
+        }
+        (bound.program.name.clone(), fact)
+    }).collect();
     for doc in &catalog.documents {
         let module = std::path::Path::new(&doc.file).file_stem().unwrap().to_string_lossy();
         for decl in &doc.programs {
@@ -199,8 +209,9 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         for page in snapback4_core::ir::scans(&bound.program) {
             let site = page.merge_site.as_ref().unwrap_or(&page.site);
             let pinned = schema.tables[&page.table].indexes[&page.index].columns().into_iter().take(page.prefix.len()).collect::<Vec<_>>();
-            let derived_complete = schema.maintain_for(&page.table).is_some() && schema.group_bound(&page.table, &pinned).is_some_and(|n| u64::from(n) <= page.take.maximum());
-            if !page.opaque_cursor && !derived_complete && returned.contains(site) && noted.insert(site) {
+            // A lane cap does not bound the union of a merge. Quarry page takes are literals.
+            let group_complete = page.merge_site.is_none() && schema.group_bound(&page.table, &pinned).is_some_and(|n| u64::from(n) <= page.take.maximum());
+            if !page.opaque_cursor && !group_complete && returned.contains(site) && noted.insert(site) {
                 let (table, take) = (&page.table, page.take.maximum());
                 notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on", bound.program.kind.word(), bound.program.name), format!("declare `c: cursor ?` and page with `after c` — {}(.., c: cursor ?): return {}[..] after c last {take} by <index>", bound.program.name, table)).guide("reads"));
             }

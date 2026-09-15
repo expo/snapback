@@ -1,6 +1,10 @@
 //! Identity and developer inspection.
 pub(super) const CARD: &str = r##"# Personas
 
+For seeding or recorded-action replay, run
+`snapback4 dev --hold-effects --hold-schedules` to hold effect claims and
+scheduled jobs without an app replay flag.
+
 `use personas alice, bob` declares a development cast. `snapback4 run send
 '{..}' --as alice` (the default persona is alice) and the
 `x-snapback-persona: alice` header in development act as `dev:alice`;
