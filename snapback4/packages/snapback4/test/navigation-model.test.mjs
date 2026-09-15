@@ -38,7 +38,7 @@ async function until(check, ms = 2000) {
   do { if (await check()) return true; await new Promise(r => setTimeout(r, 10)); } while (performance.now() < end);
   return false;
 }
-async function fixture(t) {
+async function fixture(t, source = extraSource) {
   const window = new EventTarget(), document = new EventTarget();
   document.visibilityState = "visible";
   for (const [key, value] of Object.entries({ window, document })) {
@@ -46,7 +46,7 @@ async function fixture(t) {
     Object.defineProperty(globalThis, key, { configurable: true, value });
     t.after(() => previous ? Object.defineProperty(globalThis, key, previous) : delete globalThis[key]);
   }
-  const server = await devServer({ seed, extraSource, port: 47000 + process.pid % 1000 });
+  const server = await devServer({ seed, extraSource: source, port: 47000 + process.pid % 1000 });
   const clients = [], cores = [], cleanup = [], persist = memoryPersistence();
   t.after(async () => { for (const run of cleanup) await run(); for (const client of clients) await client.close(); server.close(); });
   const open = async (transport = fetch) => {
@@ -460,3 +460,105 @@ for (const delivery of ["delivered", "dropped", "delayed"]) for (const count of 
     for (const write of failed) assert.ok(settlements.indexOf(write) < settlements.findIndex(w => w.id === write.id && w.state === "sent"));
   });
 }
+
+for (const failAfterCommit of [false, true]) test(`navigation model: confirmed exposed replay settles despite apply persistence failure (afterCommit=${failAfterCommit})`, async t => {
+  const f = await fixture(t), admission = deferred(), entered = deferred(), settlements = [], replies = [];
+  let offline = false, confirmed = false, applyFailures = 0;
+  const client = await f.open(async (url, init) => {
+    if (!init?.keepalive && offline) throw new TypeError("offline");
+    const response = await fetch(url, init);
+    if (!init?.keepalive && String(url).includes("/m/")) {
+      const reply = await response.clone().json(); replies.push(reply);
+      confirmed = reply.state === "sent" && reply.replayed === true;
+    }
+    return response;
+  });
+  offline = true; await client.sync(); client.onWrite(write => settlements.push(write));
+  const save = f.persist.save.bind(f.persist);
+  let abort = true;
+  f.persist.save = async (name, changes) => {
+    if (abort && changes.some(c => c.s === "o")) { abort = false; entered.resolve(); await admission.promise; throw new Error("admission transaction aborted"); }
+    await save(name, changes);
+  };
+  f.cleanup.push(() => admission.resolve());
+  // Arm only an actual apply call after the authoritative replay, so a
+  // preceding reconnect sync or begin_send cannot consume the injected fault.
+  const core = f.cores[0], call = core.call.bind(core);
+  let applying = false;
+  core.call = async request => {
+    applying = request.op === "apply" && confirmed;
+    try { return await call(request); } finally { applying = false; }
+  };
+  const admissionSave = f.persist.save;
+  f.persist.save = async (name, changes) => {
+    if (applying && applyFailures === 0 && changes.length) {
+      applyFailures++;
+      if (failAfterCommit) await save(name, changes);
+      throw new Error("apply persistence failed after confirmed replay");
+    }
+    await admissionSave(name, changes);
+  };
+  const write = client.mutate({ kind: "mutation", name: "media.record" }, { body: "1", digit: 1 });
+  await entered.promise; f.window.dispatchEvent(new Event("pagehide"));
+  assert.ok(await until(async () => (await f.audit()).total === 1));
+  f.window.dispatchEvent(new Event("pageshow")); admission.resolve();
+  const first = await write;
+  assert.equal(first.why.code, "E_EXIT_ADMISSION"); assert.equal(f.durable().length, 0);
+  offline = false; await client.sync().catch(() => {});
+  assert.ok(await until(() => applyFailures === 1), "the post-confirmation apply must hit persistence");
+  assert.ok(await until(() => settlements.some(w => w.id === first.id && w.state === "sent")), "a confirmed replay must notify even when the following apply fails");
+  await client.sync(); await client.sync();
+  const sent = settlements.filter(w => w.id === first.id && w.state === "sent");
+  assert.equal(sent.length, 1); assert.equal(sent[0].replayed, true);
+  assert.equal(replies.length, 1); assert.equal(core.exitState.pending.size, 0);
+  assert.deepEqual(await f.audit(), { total: 1, order: 1 });
+  console.log(`confirmed replay: afterCommit=${failAfterCommit}; applyFailures=${applyFailures}; failedCallers=1; sentSettlements=${sent.length}; applications=1; duplicates=0`);
+});
+
+for (const refusal of ["removed", "narrowed"]) test(`navigation model: permanent ${refusal} operation refusal settles and releases successor`, async t => {
+  const source = refusal === "removed" ? extraSource.replace("mutation record(", "mutation replacement(") : extraSource.replace("body: text <=200", "body: text <=1");
+  const f = await fixture(t, source), admission = deferred(), entered = deferred(), delivery = deferred(), settlements = [], ordinary = [], replies = [];
+  let offline = false, exitWork, exitReceipt;
+  const client = await f.open(async (url, init) => {
+    if (init?.keepalive) { exitWork = delivery.promise.then(() => fetch(url, init)).then(response => { exitReceipt = response.clone(); return response; }); return exitWork; }
+    if (offline) throw new TypeError("offline");
+    const response = await fetch(url, init);
+    if (String(url).endsWith("/schema")) {
+      // Model an already loaded client catalog while the server has removed
+      // its operation or narrowed its input. Mutation refusals are real HTTP.
+      const backend = await response.json();
+      const program = backend.programs.find(p => p.name === (refusal === "removed" ? "media.replacement" : "media.record"));
+      const old = structuredClone(program); old.name = "media.record"; old.args.body.Text.max = 200;
+      if (refusal === "removed") backend.programs.push(old); else Object.assign(program, old);
+      return Response.json(backend);
+    }
+    if (String(url).includes("/m/")) { ordinary.push(JSON.parse(init.body)); replies.push(await response.clone().json()); }
+    return response;
+  });
+  offline = true; await client.sync(); client.onWrite(write => settlements.push(write));
+  const save = f.persist.save.bind(f.persist);
+  let abort = true;
+  f.persist.save = async (name, changes) => {
+    if (abort && changes.some(c => c.s === "o")) { abort = false; entered.resolve(); await admission.promise; throw new Error("admission transaction aborted"); }
+    await save(name, changes);
+  };
+  f.cleanup.push(async () => { admission.resolve(); delivery.resolve(); await exitWork; });
+  const write = client.mutate({ kind: "mutation", name: "media.record" }, { body: "old body", digit: 1 });
+  await entered.promise; f.window.dispatchEvent(new Event("pagehide"));
+  f.window.dispatchEvent(new Event("pageshow")); admission.resolve();
+  const first = await write;
+  assert.equal(first.why.code, "E_EXIT_ADMISSION");
+  const second = await client.mutate({ kind: "mutation", name: refusal === "removed" ? "media.replacement" : "media.record" }, { body: "2", digit: 2 });
+  offline = false; await client.sync();
+  assert.ok(await until(() => settlements.some(w => w.id === second.id && w.state === "sent"), 5000), "a permanent refusal must release the ordered successor");
+  delivery.resolve(); await exitWork;
+  const delayed = await exitReceipt.json(), code = refusal === "removed" ? "E_OP" : "E_INPUT";
+  assert.equal(delayed.state, "failed"); assert.equal(delayed.why.code, code); assert.equal(delayed.replayed, true);
+  assert.equal(replies[0].state, "failed"); assert.equal(replies[1].replayed, true);
+  assert.deepEqual(ordinary.map(w => w.id), [first.id, first.id, second.id]);
+  assert.deepEqual(settlements.map(w => w.state === "failed" ? w.why.code : w.state), ["E_EXIT_ADMISSION", code, "sent"]);
+  await client.sync();
+  assert.equal(settlements.filter(w => w.id === first.id && w.why?.code === code).length, 1);
+  assert.deepEqual(await f.audit(), { total: 1, order: 2 });
+  console.log(`permanent refusal: kind=${refusal}; terminalFailures=1; successorSent=1; ordinarySends=${ordinary.length}; order=2; delayedReplay=true; duplicates=0`);
+});

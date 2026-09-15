@@ -734,7 +734,7 @@ impl Engine {
             return Err(RuntimeError::UnknownOp(format!("{name} is a job: a schedule fires it, or `snapback4 run {name}` does; no caller can")));
         }
         if let Err(error) = validate::validate_inputs(&self.schema, &program, &mut context.args) {
-            return Ok(MutationOutcome { state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false });
+            return self.refuse_mutation(&context.viewer, op, error.refusal());
         }
         if context.now.is_none() {
             context.now = Some(crate::now_ms());

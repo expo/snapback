@@ -8,6 +8,25 @@ use crate::meter::Metered;
 use crate::value::Value;
 use serde_json::{Value as Json, json};
 
+#[cfg(feature = "sqlite")]
+impl super::Engine {
+    // @ref LLP 3000.007#20.4 — permanent write refusals finalize the ID too, so an exposed predecessor can settle before its successors.
+    pub fn refuse_mutation(&mut self, viewer: &str, id: Option<&str>, why: Refusal) -> Result<MutationOutcome, RuntimeError> {
+        let outcome = MutationOutcome { state: WriteState::Failed { why: why.clone(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false };
+        let Some(id) = id.filter(|_| !why.retryable) else { return Ok(outcome) };
+        let tx = self.store.transaction()?;
+        if let Some((_, recorded)) = tx.applied(viewer, id)? {
+            let recorded = MutationOutcome::from_receipt(&recorded)?;
+            tx.rollback()?;
+            return Ok(recorded);
+        }
+        let receipt = serde_json::to_string(&outcome.receipt(Some(id))).map_err(|e| RuntimeError::Store(e.to_string()))?;
+        tx.record_applied(viewer, id, tx.next_seq()? - 1, &receipt)?;
+        tx.commit()?;
+        Ok(outcome)
+    }
+}
+
 impl MutationOutcome {
     pub fn reply(&self, id: Option<&str>) -> Json {
         let mut body = match &self.state {

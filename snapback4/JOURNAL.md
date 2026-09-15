@@ -16018,3 +16018,151 @@ ref-check: ok — 480 LLP docs, 8929 refs in 23702 files, 0 errors, 0 unchecked
 
 `git diff --check` passes. HEAD remains the base hash above, and a byte-prefix
 comparison confirms every prior journal entry is unchanged.
+
+## 2026-09-14 — W3R3c: confirmed exposed writes settle; permanent refusals release the queue
+
+Reproduced re-check findings B and C against base
+`96d5be3bc95523e3b3abd388265fab7cbd85bd62` before changing implementation.
+Both acquisition-persistence interleavings (abort before commit and lost
+response after commit) applied A but lost its `sent` notification after
+its caller received `failed/E_EXIT_ADMISSION`. Both permanent-refusal client
+cases left B waiting: a removed operation and an argument narrowed from
+200 characters to 1. The real HTTP tests separately reproduced missing
+receipts for a removed operation, typed argument bounds, and wire decoding.
+The last two are different paths: the engine's input validator also returned
+an unrecorded failure after HTTP decoding succeeded.
+
+The client retains the exposure record through local receipt persistence
+and notification. A confirmed exposed outcome resolves and emits `onWrite`
+before the following acquisition, with no await between notification and
+removing the exposure. If receipt persistence or close interrupts that path,
+the retained exposure remains replayable even when its durable outbox entry
+already has a sent sequence. Ordinary, unexposed successful writes keep their
+existing sync-before-notification timing. No new durable format or public
+card word was introduced; the fallback's lifetime is still this document.
+
+The server now finalizes write-specific operation and argument refusals in
+the existing principal/mutation-id receipt store, for individual and ordered
+batch requests. The helper rechecks the id in the same transaction that
+records the failure, so a concurrent applied receipt wins. Engine input
+validation uses it too. The first failure keeps its existing diagnostic
+message; replay uses the existing value-free receipt message. A receipt
+survives restart and a restored operation definition: a delayed request or
+corrected arguments under that id cannot execute later. A valid successor
+and the same id under another principal can still execute. Authentication
+and retryable transport/store refusals remain unrecorded and retryable.
+The writes card and README state terminal failure replay and notification
+independence from sync persistence.
+
+Measured acceptance: each B case has **1** failed caller, **1** injected apply
+persistence failure, **1** later sent settlement, **1** server application,
+and **0** duplicates. Each C case has **1** terminal failure settlement and
+**1** sent successor, ordinary request ids **A, A, B** (**3** sends), audit
+order **2**, and **0** duplicates after the delayed original request returns
+`failed` with `replayed: true`. The HTTP tests cover both routes across
+**3** permanent refusal classes and **1** restart per class after refusal,
+plus same-principal finality and another-principal success. The affected
+client run includes the existing transient retry/hold controls.
+
+Commands below run from `snapback4/` unless the repository root is named.
+Every JS command used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+Evidence is in `/tmp/w3r3c-*.log`.
+
+- `node --test --test-name-pattern='confirmed exposed replay|permanent .* operation refusal' packages/snapback4/test/navigation-model.test.mjs`:
+  base red `ℹ tests 4`, `ℹ pass 0`, `ℹ fail 4`, `ℹ cancelled 0`,
+  `ℹ duration_ms 16077.7565`; final green `ℹ tests 4`, `ℹ pass 4`,
+  `ℹ fail 0`, `ℹ cancelled 0`, `ℹ duration_ms 4605.194`.
+  The first green run before narrowing the timing change to exposed writes
+  was also 4/4 (`ℹ duration_ms 4555.228625`).
+- `cargo test -p snapback4 --test replay permanent_ -- --nocapture`:
+  before `test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.05s`;
+  after `test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.17s`.
+- `node --test --test-concurrency=2 packages/snapback4/test/navigation-model.test.mjs packages/snapback4/test/web-navigation.test.mjs packages/snapback4/test/local-e2e.test.mjs packages/snapback4/test/client-lifecycle.test.mjs`:
+  `ℹ tests 100`, `ℹ pass 100`, `ℹ fail 0`, `ℹ cancelled 0`,
+  `ℹ duration_ms 47583.950667`.
+- `cargo test -p snapback4 --test replay -- --nocapture`:
+  `test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.44s`.
+- `cargo test -p snapback4-lang --test guide -- --nocapture`:
+  `test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s`.
+- Setup: `cargo build --workspace --quiet`, `bash scripts/build-wasm.sh`,
+  and `bun run --cwd packages/snapback4 build` all exited 0; generated wasm
+  was absent at first. Wasm measured **1,744,041 B raw**, **485,593 B gzip**.
+  The package build also passed after each client implementation change.
+
+Repository root, `bash snapback4/scripts/test.sh` exited 1. Rust totals from
+its per-suite summaries are **887 passed, 0 failed, 4 ignored**. The only
+failure was Chromium `exitCode=null, signal=SIGABRT` in
+`packages/snapback4/test/react.test.mjs`, the sandbox artifact identified by
+the brief. No lifecycle timeout or client-concurrency timeout occurred. The
+step and count summaries, verbatim:
+
+```text
+-- ok: cargo build (1 s)
+-- ok: wasm build (12 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (0 s)
+-- ok: cargo test (318 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+-- ok: fixture wrapper tests (9 s)
+ℹ tests 279
+ℹ pass 278
+ℹ fail 1
+ℹ cancelled 0
+-- FAIL: client tests (45 s)
+== 1 failure(s) in 332 s
+```
+
+Isolated rerun, `node --test packages/snapback4/test/react.test.mjs`, again
+aborted at Chromium launch with SIGABRT before any browser assertion:
+
+```text
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 399.439333
+```
+
+Repository-root `./ref-check --verbose`:
+
+```text
+ref-check: ok — 480 LLP docs, 8932 refs in 23699 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passes. The largest changed code file is `serve.rs`,
+**1,321 lines**, and **0** changed code files exceed 1,500 lines. All prior
+journal content remains byte-identical. The one-line support change beyond
+the brief's explicitly named implementation files is
+`crates/snapback4-core/src/engine/mod.rs`: it routes typed-input refusal to
+the atomic helper in `engine/receipt.rs`, required by the limit-change
+reproduction. These are the at-most-once receipt path within this lane's
+scope; no other lane's implementation was changed.
+
+No new diagnostic code or note was added, so `guide::CODES` is unchanged.
+The brief requested no diagnostic wording comparison; initial messages are
+unchanged. The three HTTP reproductions' messages are `unknown operation
+limited`, `E_INPUT: body is longer than 1 characters`, and `argument digit:
+expected an integer, got a string`; their recorded replays now use the
+existing `the program refused with E_OP` or `the program refused with E_INPUT`.
+The new behavior is a terminal receipt, not new diagnostic wording.
+
+All requested implementation and tests are complete. The lead owns the real
+Chromium witnesses outside the sandbox; this lane did not run them. No
+failure is classified as pre-existing from an unverified base. No dependency
+install, ceiling change, serialized value change, existing corpus edit,
+commit, push, tag, publication, sub-agent, repository clone or remote machine
+was used. The working tree contains only the nine intended changed files.
+
+Final reference-check repeat after the full suite and journal append:
+`ref-check: ok — 480 LLP docs, 8932 refs in 23703 files, 0 errors, 0 unchecked`.
+HEAD remains the base hash above; no commit was made.
