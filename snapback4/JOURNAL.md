@@ -20003,3 +20003,34 @@ and review-corrections suites; core without default features; harness clippy;
 `ref-check --verbose` (0 errors, 0 unchecked). The initial language run stopped
 at its explicit missing-Bun-dependencies precondition, then passed after install.
 No browser, iOS, full CLI/deployment suite or production publication claimed.
+
+## 2026-09-15 — Draft general-purpose backend architecture (Codex)
+
+The author asked for an LLP designing a compact transactional core, a
+first-class general-purpose server runtime, integrated backend services,
+optional locality and explicit native capabilities. Added Draft RFC
+[3000.009](../llp/3000.009-general-purpose-backend.rfc.md), after extending
+the root's decision record and checking existing coverage and allocation
+history. This is a design commission, not implementation or acceptance.
+
+The proposal retains Quarry and shared Rust semantics for managed data,
+provides typed TypeScript action contracts and an integrated runtime, and
+separates portable meaning from database execution/layout. It specifies
+managed/native ownership, authorization and observation boundaries, durable
+provider work, service lifecycles, deployment/recovery, three application
+journeys and six candidate increments with scoped acceptance. The real
+Postgres prototype informs the plan boundary, large-key portability and
+commit-publication risks; its native SQL comparison is not counted as an
+optimized Snapback query. No prior completed increment is broadened by its
+status, and no existing production exclusion is removed.
+
+The new working-set link replaces LLP 3000.003's link, retaining 59 documents.
+That research source and historical evidence remain, with a routing note;
+its cross-executor, admission, persistence and actual-host obligations are
+carried forward into the RFC. This is not a claim that they are all resolved.
+
+Documentation checks: `./ref-check --verbose` passes with 481 LLP documents,
+0 errors and 0 unchecked references; `git diff --check` passes. All 12 local
+Markdown targets in the new RFC resolve. The new RFC is 754 lines and the
+root is 1,187, below the file-size bound. No runtime source changed, and no
+runtime tests, independent review, deployment or publication are claimed.
