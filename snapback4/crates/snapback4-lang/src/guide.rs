@@ -25,6 +25,7 @@ pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "maintains", "ru
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
+    ("clock", "jobs"),
     ("simulator", "witness"), ("offline proof", "witness"),
     ("grammar", "language"), ("quarry", "language"),
     ("maintain", "maintains"), ("time", "language"), ("clock", "language"),
@@ -822,7 +823,10 @@ mutation postStory(body: text <=500, ttl: int ?):
 A row past the time in the column is absent — to every reader, on every
 host, before any rule — from that moment; the server's sweep deletes it
 within a second, and the deletion streams to each device holding it, so it
-leaves local stores on the next sync. Disappearing messages are one field on
+leaves local stores on the next sync. In development, `snapback4 clock advance 185s`
+runs that sweep immediately on the running `dev`; the deletion reaches both
+device stores through normal sync, without changing the device clock (guide clock).
+Disappearing messages are one field on
 insert; there is no purge job to write. A `maintain` over an expiring table
 reads its live source group under the read meter through an internal selected
 contribution index. Physical zero-sum occupancy reads at most one index entry. A rule may probe whether that live group
@@ -1068,7 +1072,29 @@ the job with its refusal (`snapback4 doctor` lists runs). No client calls
 a job: a schedule fires it once per period boundary of the server's clock,
 exactly once across restarts, passing `periodStart` and `periodEnd` when
 the job declares them (and nothing else); a schedule first seen fires from
-its next boundary. `snapback4 run <job> '{..}'` runs one here and now."##,
+its next boundary. `snapback4 run <job> '{..}'` runs one here and now.
+
+For development and tests, `snapback4 dev --clock-offset +25h` starts the
+server 25 hours ahead of wall time. The clock keeps ticking monotonically;
+`snapback4 clock advance 2m [--port N]` moves a running dev forward and waits
+for expiry sweeps and queued job chunks to finish. Missed periods fire once,
+not once per skipped boundary; `--hold-schedules` still holds admission.
+The response reports `now`, `advancedMs`, and work counts (including parked
+jobs); if maintenance fails, time remains advanced and the normal tick retries
+pending work, so do not blindly repeat the advance. The offset belongs to
+this process and resets on restart; supply it again when continuing a test.
+Clients receive ordinary row times, nextExpiry and sync deletions; their
+own clocks and the application wire do not change.
+
+`snapback4 run <op> --now 1789352669447` pins just that local invocation
+(query, mutation or job) to Unix milliseconds; `--now +25h` pins it relative
+to wall time. Use an absolute past time to create an old post without a seed.
+It does not advance a running host or fire schedules. Durations are positive
+whole numbers with `ms`, `s`, `m`, `h`, `d` or `w`, optionally prefixed `+`;
+a startup offset may also be negative. Backward/zero advances and invalid
+values refuse E_CLOCK_INPUT. `serve` refuses clock flags and the control
+endpoint with E_CLOCK_DEV_ONLY. The endpoint is dev-only loopback
+`POST /dev/clock/advance` with `{"duration":"+2m"}`."##,
         "native" => r##"# Native jobs and reads: the app's Rust, hosted as wasm, metered like a job
 
 ```quarry

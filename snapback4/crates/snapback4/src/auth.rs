@@ -200,7 +200,7 @@ fn perform(
             identity::finish_signup(
                 engine.store(),
                 prepared,
-                snapback4_core::now_ms(),
+                shared.now(),
                 &mut shared.entropy.lock().unwrap(),
             )
             .map(Outcome::Session)
@@ -219,7 +219,7 @@ fn perform(
             identity::finish_login(
                 engine.store(),
                 found.expect("verified account"),
-                snapback4_core::now_ms(),
+                shared.now(),
             )
             .map(Outcome::Session)
         }
@@ -227,7 +227,7 @@ fn perform(
             let engine = shared.engine.lock().unwrap();
             identity::guest(
                 engine.store(),
-                snapback4_core::now_ms(),
+                shared.now(),
                 &mut shared.entropy.lock().unwrap(),
             )
             .map(Outcome::Session)
@@ -235,7 +235,7 @@ fn perform(
         "/auth/refresh" => {
             let token = bearer_token(request)?;
             let engine = shared.engine.lock().unwrap();
-            identity::rotate_session(engine.store(), token, snapback4_core::now_ms())?
+            identity::rotate_session(engine.store(), token, shared.now())?
                 .map(Outcome::Session)
                 .ok_or_else(|| RuntimeError::Auth("this session is not live; sign in again".into()))
         }

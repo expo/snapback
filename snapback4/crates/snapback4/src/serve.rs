@@ -24,11 +24,17 @@ mod actions;
 #[path = "serve_changes.rs"]
 mod changes;
 
+#[path = "serve_maintenance.rs"]
+mod maintenance;
+use maintenance::maintain;
+
 #[cfg(test)]
 #[path = "serve_tests.rs"]
 mod tests;
 
 pub struct Shared {
+    pub clock: Mutex<crate::dev_clock::Clock>,
+    maintenance: Mutex<()>,
     pub engine: Mutex<Engine>,
     readers: Mutex<QueryReaders>,
     pub bound: Mutex<Bound>,
@@ -57,6 +63,10 @@ pub struct Shared {
     pub upload_work: WorkHook,
     #[cfg(test)]
     pub effect_wait: WorkHook,
+}
+
+impl Shared {
+    pub fn now(&self) -> i64 { lock(&self.clock).now() }
 }
 
 // @ref LLP 3000#7-decisions-during-execution — reader reuse retains fresh transactions and retires old native modules.
@@ -183,7 +193,7 @@ pub(crate) fn test_work(hook: &WorkHook) {
 /// How the server is run: `dev` on a project (personas, watch), or a
 /// release (`serve`): a compiled generation over a store, tokens only.
 pub enum Mode {
-    Dev { watch: bool, fresh: bool, hold_effects: bool, hold_schedules: bool },
+    Dev { watch: bool, fresh: bool, hold_effects: bool, hold_schedules: bool, clock_offset: i64 },
     Release { expected: u64 },
 }
 
@@ -200,6 +210,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     // @ref LLP 3000.007#20.2 — replay holds gate admission; mutations still commit durable effects.
     let hold_effects = matches!(mode, Mode::Dev { hold_effects: true, .. });
     let hold_schedules = matches!(mode, Mode::Dev { hold_schedules: true, .. });
+    let clock = crate::dev_clock::Clock::new(dev, match mode { Mode::Dev { clock_offset, .. } => clock_offset, _ => 0 }).map_err(|e| e.to_string())?;
     let generated = if dev { Some(project.write_generated(&bound).map_err(|e| e.to_string())?) } else { None };
     // `--fresh`: a store in memory that dies with the process, for acceptance
     // scripts that must start from nothing every time.
@@ -213,14 +224,15 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     if dev {
         crate::native::build(&project, &bound).map_err(|p| p.to_string())?;
     }
-    crate::dev_replay::schedules(&mut engine, hold_schedules, snapback4_core::now_ms()).map_err(|e| e.to_string())?;
+    crate::dev_replay::schedules(&mut engine, hold_schedules, clock.now()).map_err(|e| e.to_string())?;
+    if !hold_schedules { engine.fire_schedules(clock.now()).map_err(|e| e.to_string())?; }
     let installed = crate::native::install(&mut engine, &project).map_err(|p| p.to_string())?;
     let presence = Arc::new(Live::default());
     engine.set_presence(Some(presence.clone()));
     let seq = engine.seq().map_err(|e| e.to_string())?;
     let generation: u64 = engine.generation();
     let shared = Arc::new(Shared {
-        engine: Mutex::new(engine), readers: Mutex::new(QueryReaders::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
+        clock: Mutex::new(clock), maintenance: Mutex::new(()), engine: Mutex::new(engine), readers: Mutex::new(QueryReaders::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
         #[cfg(test)] auth_work: Mutex::new(None),
         #[cfg(test)] upload_work: Mutex::new(None),
         #[cfg(test)] effect_wait: Mutex::new(None),
@@ -371,98 +383,10 @@ fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: u128) {
     }
 }
 
-/// The server's own clock, once a second: rows past their `expire` column
-/// are swept, so the deletion reaches every device that holds them
-/// (readers never see an expired row in the meantime; this is the purge);
-/// schedules whose boundary passed queue their jobs, so a digest lands
-/// within a second of its boundary; queued jobs run a chunk at a time,
-/// the engine free for requests between chunks; and once a minute,
-/// released and abandoned uploads leave the disk. A quiet tick is a few
-/// index probes under the lock.
-fn maintain(shared: Arc<Shared>) {
-    let mut tick: u64 = 0;
-    loop {
-        std::thread::sleep(Duration::from_secs(1));
-        if crate::lifecycle::stopping() { return; }
-        tick += 1;
-        let now = snapback4_core::now_ms();
-        let swept = lock(&shared.engine).sweep_expired(now, 2_000);
-        match swept {
-            Ok(0) => {}
-            Ok(_) => bump_seq(&shared),
-            Err(error) => eprintln!("snapback4: the expiry sweep failed: {error}"),
-        }
-        match if shared.hold_schedules { Ok(Vec::new()) } else { lock(&shared.engine).fire_schedules(now) } {
-            Ok(fired) => {
-                for name in fired {
-                    eprintln!("snapback4: schedule {name} fired");
-                }
-            }
-            Err(error) => eprintln!("snapback4: schedules failed: {error}"),
-        }
-        let mut budget = 500;
-        while budget > 0 && !crate::lifecycle::stopping() {
-            budget -= 1;
-            let ran = lock(&shared.engine).run_job_chunk(snapback4_core::now_ms());
-            match ran {
-                Ok(None) => break,
-                Ok(Some(run)) => {
-                    bump_seq(&shared);
-                    for line in lock(&shared.engine).take_native_logs() {
-                        eprintln!("snapback4: native {line}");
-                    }
-                    match run.state {
-                        snapback4_core::JobState::Done => eprintln!("snapback4: job {} done: {} chunk{}, {} row{} written", run.name, run.chunks, if run.chunks == 1 { "" } else { "s" }, run.rows_written, if run.rows_written == 1 { "" } else { "s" }),
-                        snapback4_core::JobState::Parked => eprintln!("snapback4: job {} parked after {} chunks: {}", run.name, run.chunks, run.error.as_deref().unwrap_or("")),
-                        _ => {}
-                    }
-                    // Give waiting request threads a scheduling point between
-                    // chunks in a large background run.
-                    std::thread::yield_now();
-                }
-                Err(error) => {
-                    eprintln!("snapback4: job failed: {error}");
-                    break;
-                }
-            }
-        }
-        if tick % 5 == 0 {
-            match lock(&shared.engine).requeue_expired_actions(now) {
-                Ok(n) if n > 0 => shared.committed.notify_all(),
-                Err(error) => eprintln!("snapback4: the action lease sweep failed: {error}"),
-                _ => {}
-            }
-            let requeued = lock(&shared.engine).requeue_expired_effects(now);
-            match requeued {
-                Ok(0) => {}
-                Ok(n) => {
-                    eprintln!("snapback4: {n} effect lease{} expired; queued again", if n == 1 { "" } else { "s" });
-                    shared.committed.notify_all();
-                }
-                Err(error) => eprintln!("snapback4: the effect lease sweep failed: {error}"),
-            }
-        }
-        if tick % 60 == 0 {
-            let prepared = lock(&shared.engine).prepare_asset_sweep(now);
-            match prepared {
-                Ok(sweep) => match sweep.remove_files() {
-                    Ok(()) => {
-                        if let Err(error) = lock(&shared.engine).finish_asset_sweep(&sweep) {
-                            eprintln!("snapback4: the asset sweep catalog update failed: {error}");
-                        }
-                    }
-                    Err(error) => eprintln!("snapback4: the asset file sweep failed: {error}"),
-                },
-                Err(error) => eprintln!("snapback4: the asset sweep failed: {error}"),
-            }
-        }
-    }
-}
-
 /// A worker's seat: a bearer session of a service principal.
 fn service_of(request: &Request, shared: &Shared) -> Result<String, Refusal> {
     let principal = principal_of(request, shared)?;
-    let kind = single_header(request, "authorization").ok().flatten().and_then(|h| h.strip_prefix("Bearer ")).and_then(|token| snapback4_core::identity::resolve(lock(&shared.engine).store(), token.trim(), snapback4_core::now_ms()).ok().flatten()).map(|(_, kind)| kind);
+    let kind = single_header(request, "authorization").ok().flatten().and_then(|h| h.strip_prefix("Bearer ")).and_then(|token| snapback4_core::identity::resolve(lock(&shared.engine).store(), token.trim(), shared.now()).ok().flatten()).map(|(_, kind)| kind);
     if !snapback4_core::identity::is_service(&principal) || kind.as_deref() != Some("service") {
         return Err(Refusal::new("E_AUTH", "auth", "this is a worker's door: send a service token (`snapback4 token --service <name>`)").guide("effects"));
     }
@@ -718,7 +642,7 @@ pub(crate) fn principal_of(request: &Request, shared: &Shared) -> Result<String,
     }
     if let Some(token) = bearer {
         let engine = lock(&shared.engine);
-        return match snapback4_core::identity::resolve(engine.store(), &token, snapback4_core::now_ms()) {
+        return match snapback4_core::identity::resolve(engine.store(), &token, shared.now()) {
             Ok(Some((principal, _))) => Ok(principal),
             Ok(None) => Err(Refusal::new("E_AUTH", "auth", "this session is not live; sign in again").guide("personas")),
             Err(error) => Err(error.refusal()),
@@ -753,6 +677,9 @@ fn handle(mut request: Request, shared: &Shared) {
     if let Err(refusal) = dev_request(&request, shared) {
         respond_with_cors(request, 403, json!({ "denied": refusal_json(&refusal) }), false);
         return;
+    }
+    if path.starts_with("/dev/clock") && !shared.personas {
+        return respond(request, 403, json!({ "denied": refusal_json(&crate::dev_clock::release()) }));
     }
     if method == Method::Options {
         respond_empty(request, 204);
@@ -826,6 +753,7 @@ fn handle(mut request: Request, shared: &Shared) {
         Err(_) => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "a JSON request body must be valid UTF-8")) })),
     };
     match (method, path.as_str()) {
+        (Method::Post, "/dev/clock/advance") => maintenance::advance(request, shared, &body),
         (Method::Post, path) if path.starts_with("/a/") => actions::call(request, shared, path.trim_start_matches("/a/"), &body),
         (Method::Post, "/actions/claim") => actions::claim(request, shared, &body),
         (Method::Post, path) if path.starts_with("/actions/") => actions::settle(request, shared, path, &body),
@@ -943,7 +871,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 }
             }
             let viewer = principal.clone();
-            let mut context = Context::new(principal, args);
+            let mut context = Context::new(principal, args).at(shared.now());
             if path.starts_with("/q/") {
                 if program.kind != ProgramKind::Query {
                     respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("{op} is a mutation; POST /m/{op}"))) }));
@@ -1038,11 +966,11 @@ fn handle(mut request: Request, shared: &Shared) {
                     match reader {
                         Ok(mut reader) => {
                             let generation = reader.generation();
-                            (reader.snapshot_page_with_groups_at(&principal, after.as_deref(), limit, snapback4_core::now_ms()).and_then(|(events, watermark, next, held)| reader.acknowledged(&principal, &pending, watermark).map(|acks| (events, watermark, next, held, acks))), generation)
+                            (reader.snapshot_page_with_groups_at(&principal, after.as_deref(), limit, shared.now()).and_then(|(events, watermark, next, held)| reader.acknowledged(&principal, &pending, watermark).map(|acks| (events, watermark, next, held, acks))), generation)
                         }
                         Err(_) => {
                             let mut engine = lock(&shared.engine);
-                            (engine.snapshot_page_with_groups_at(&principal, after.as_deref(), limit, snapback4_core::now_ms()).and_then(|(events, watermark, next, held)| engine.acknowledged(&principal, &pending, watermark).map(|acks| (events, watermark, next, held, acks))), *lock(&shared.generation))
+                            (engine.snapshot_page_with_groups_at(&principal, after.as_deref(), limit, shared.now()).and_then(|(events, watermark, next, held)| engine.acknowledged(&principal, &pending, watermark).map(|acks| (events, watermark, next, held, acks))), *lock(&shared.generation))
                         }
                     }
                 };
@@ -1061,11 +989,11 @@ fn handle(mut request: Request, shared: &Shared) {
                     match reader {
                         Ok(mut reader) => {
                             let generation = reader.generation();
-                            (reader.stream(&principal, from, limit).and_then(|page| reader.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))), generation)
+                            (reader.stream_at(&principal, from, limit, shared.now()).and_then(|page| reader.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))), generation)
                         }
                         Err(_) => {
                             let mut engine = lock(&shared.engine);
-                            (engine.stream(&principal, from, limit).and_then(|page| engine.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))), *lock(&shared.generation))
+                            (engine.stream_at(&principal, from, limit, shared.now()).and_then(|page| engine.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))), *lock(&shared.generation))
                         }
                     }
                 };
@@ -1092,7 +1020,7 @@ fn handle(mut request: Request, shared: &Shared) {
             let Some(principal) = payload.get("principal").and_then(Json::as_str).map(str::to_owned) else {
                 return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "name the account: { \"principal\": \"member:42\" }")) }));
             };
-            let now = snapback4_core::now_ms();
+            let now = shared.now();
             let outcome = {
                 let engine = lock(&shared.engine);
                 if path == "/auth/session" {
@@ -1124,7 +1052,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     Ok(worker) => worker,
                     Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
                 };
-                let claimed = if shared.hold_effects { Ok(Vec::new()) } else { lock(&shared.engine).claim_effects(&worker, effect.as_deref(), limit, lease_ms, snapback4_core::now_ms()) };
+                let claimed = if shared.hold_effects { Ok(Vec::new()) } else { lock(&shared.engine).claim_effects(&worker, effect.as_deref(), limit, lease_ms, shared.now()) };
                 match claimed {
                     Ok(runs) if runs.is_empty() && Instant::now() < deadline => {
                         // Nothing due: wait for a commit (an emit), or for a
@@ -1159,7 +1087,7 @@ fn handle(mut request: Request, shared: &Shared) {
             } else {
                 snapback4_core::Settled::Failed { error: payload.get("error").and_then(Json::as_str).unwrap_or("the worker failed").to_owned(), retry: payload.get("retry").and_then(Json::as_bool).unwrap_or(true) }
             };
-            let outcome = lock(&shared.engine).settle_effect(&id, &worker, settled, snapback4_core::now_ms());
+            let outcome = lock(&shared.engine).settle_effect(&id, &worker, settled, shared.now());
             match outcome {
                 Ok(run) => respond(request, 200, json!({ "ok": true, "effect": effect_json(&run) })),
                 Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else if refusal.code == "E_EFFECT_UNKNOWN" { 404 } else { 200 }, json!({ "denied": refusal_json(&refusal) })) }
@@ -1213,7 +1141,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     }
                 }
             }
-            let outcome = lock(&shared.engine).seed(typed);
+            let outcome = lock(&shared.engine).seed_at(typed, shared.now());
             match outcome {
                 Ok(count) => {
                     if let Ok(seq) = lock(&shared.engine).seq() {
@@ -1249,6 +1177,7 @@ mod poison_tests {
             personas: true,
             hold_effects: false,
             hold_schedules: false,
+            clock: Mutex::new(crate::dev_clock::Clock::new(true, 0).unwrap()), maintenance: Mutex::new(()),
             entropy: Mutex::new(1),
             presence: Arc::new(Live::default()),
             asset_transfers: AssetTransfers::default(),

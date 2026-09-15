@@ -15027,3 +15027,55 @@ ref-check: ok — 480 LLP docs, 8906 refs in 23674 files, 0 errors, 0 unchecked
 `git diff --check` exits 0 with no output. Working tree: 20 intended files,
 uncommitted. The final reference summary is after appending this entry;
 this closing paragraph adds no reference or file.
+
+## 2026-09-14 — W3d: advance development time without waiting through expiry or a digest
+
+Built S27 against base `0c6b0c03cfea21d65eab728035ef87776a4144a3`, after
+reading calibration F5: its expiry probe waited 185,023 ms, its choreography
+adapter requested 185,000 ms, and its old-post test used a special backdated
+system seed. `dev --clock-offset +25h` now starts ahead of wall time;
+`clock advance 185s --port N` and the loopback-only
+`POST /dev/clock/advance` move the running clock forward. `run --now` pins
+one query, mutation or job to Unix milliseconds or wall time plus a duration,
+so an ordinary mutation can create an old post. The process clock continues
+monotonically between advances; its offset is process-local and resets on
+restart. `serve` refuses clock flags and the endpoint with E_CLOCK_DEV_ONLY;
+invalid, zero, backward and overflowing advances return E_CLOCK_INPUT.
+
+Expiry, schedule admission and job chunks use the same maintenance path for
+ordinary ticks and explicit advances. An advance drains bounded expiry batches
+and queued chunks before replying, preserving the existing job meters,
+missed-period coalescing, parked jobs and replay schedule holds. A maintenance
+error leaves time advanced and pending work for the next ordinary tick; the
+response makes that partial outcome explicit. Authentication, assets,
+actions, effect leases, worker sessions, snapshots and streams use the same
+server clock. One small core addition, `Engine::seed_at`, gives the dev seed
+endpoint that clock too. No serialized value form, meter ceiling, client
+clock or ordinary application wire field changed. The jobs/expire cards,
+`guide clock`, code explanations and README carry the controls.
+
+The regression first failed on the actual base host with E_OP, "no route
+/dev/clock/advance; operations are POST /q/<op> and POST /m/<op>", after a
+live expiring row and scheduled counter were created. Its final run advanced
+185,000 ms in 47 ms of wall time, swept one row, ran one `every 2m` job, and
+applied both the deletion and scheduled update through normal HTTP sync to
+the memory and SQLite device stores while their local clocks stayed fixed.
+A second test physically deleted 2,005 rows across the existing 2,000-row
+sweep batches before the endpoint returned. The offset check covered
+90,000,000 ms (+25h); other cases covered absolute/relative run times,
+queries/mutations/jobs, release refusals, malformed and overflowing input,
+replay holds and restart admission. Earlier fixture construction required
+correcting Quarry syntax and using the native device opener that creates
+its side tables; those were test setup errors, not product regressions.
+
+Validation: the red regression reported 0 passed / 1 failed; final clock
+suite 7 passed / 0 failed, replay suite 4 / 0, guide suite 18 / 0.
+`bash snapback4/scripts/test.sh` completed in 398 s on the shared host: Rust
+827 passed / 0 failed / 4 ignored across 60 targets, fixtures 9 / 0, and all
+builds/typechecks passed. The client check was 202 / 2: one native admission
+timing assertion and Chromium's sandbox SIGABRT. The timing test alone
+passed 1 / 0; the requested concurrency-two client rerun passed 203 / 1,
+leaving only the documented Chromium launch artifact for the lead's
+outside-sandbox run. No failure is classified as pre-existing from an
+unverified base comparison. Reference validation and the whitespace check
+passed. No commit, push, tag or publication was made.

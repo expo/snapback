@@ -41,6 +41,7 @@ impl Host {
             personas: dev,
             hold_effects: false,
             hold_schedules: false,
+            clock: Mutex::new(crate::dev_clock::Clock::new(dev, 0).unwrap()), maintenance: Mutex::new(()),
             entropy: Mutex::new(1),
             presence,
             asset_transfers: AssetTransfers::default(),

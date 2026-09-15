@@ -31,7 +31,7 @@ impl DevWorker {
         let node = std::env::var_os("SNAPBACK_NODE").map(PathBuf::from).or_else(|| pinned.filter(|p| p.is_file())).unwrap_or_else(|| PathBuf::from("node"));
         let version = Command::new(&node).arg("--version").output().map_err(|e| format!("worker needs Node 24: {e}"))?;
         if !version.status.success() || !String::from_utf8_lossy(&version.stdout).starts_with("v24.") { return Err("worker needs Node 24; put it on PATH or set SNAPBACK_NODE to its executable".into()); }
-        let session = snapback4_core::identity::service_session(lock(&shared.engine).store(), "worker", snapback4_core::now_ms(), 365).map_err(|e| e.to_string())?;
+        let session = snapback4_core::identity::service_session(lock(&shared.engine).store(), "worker", shared.now(), 365).map_err(|e| e.to_string())?;
         eprintln!("snapback4 dev worker: service:worker token (printed once): {}", session.token);
         let mut worker = Self { project: Project { root: project.root.clone() }, source, node, url, token: session.token, shared, child: None, child_token: None, restart: Instant::now(), started: Instant::now(), backoff: Duration::from_millis(250) };
         crate::lifecycle::worker_cleanup();
@@ -54,7 +54,7 @@ impl DevWorker {
         }
         if crate::lifecycle::stopping() || Instant::now() < self.restart { return; }
         // @ref LLP 3000.007#9.2 — a restarted worker's orphaned claim poll must not lease work to the dead child.
-        let token = match snapback4_core::identity::service_session(lock(&self.shared.engine).store(), "worker", snapback4_core::now_ms(), 365) {
+        let token = match snapback4_core::identity::service_session(lock(&self.shared.engine).store(), "worker", self.shared.now(), 365) {
             Ok(session) => session.token,
             Err(error) => { eprintln!("snapback4 dev worker: cannot mint the child's session: {error}"); self.restart = Instant::now() + self.backoff; return; }
         };

@@ -1743,7 +1743,7 @@ step.
   private fields in the bundle that Hermes cannot compile. The generated
   README gives the install and run commands.
 
-- **`snapback4 dev [--port N] [--no-watch] [--fresh] [--hold-effects] [--hold-schedules]`** serves
+- **`snapback4 dev [--port N] [--no-watch] [--fresh] [--hold-effects] [--hold-schedules] [--clock-offset +25h]`** serves
   `snapback/*.q` on `127.0.0.1:4400`, recompiling and re-adopting on
   every save (the watcher polls every 400 ms; a save with problems keeps
   the previous generation serving and prints the diagnostics); the store
@@ -1778,6 +1778,23 @@ step.
   `SIGBUS`, termination is immediate with the OS signal status.
   `SIGKILL`, power loss and an unwritable stderr cannot be reported
   from inside the process. `snapback4 why SNAPBACK4_SIGNAL` explains the code.
+- **Development clock:** `snapback4 dev --clock-offset +25h` starts 25 hours
+  ahead; `snapback4 clock advance 185s [--port N]` advances a running dev and
+  waits for expiry sweeps and queued jobs, so an `every 2m` schedule and a
+  three-minute expiry need no real wait. Missed periods fire once; held
+  schedules stay held. Each job chunk keeps its normal meter and commit.
+  The JSON response names `now`, `advancedMs` and `work` counts, including
+  parked jobs. A maintenance error leaves time advanced and pending work
+  retries on the normal tick; do not blindly repeat the advance.
+  Durations are positive whole numbers with `ms`, `s`, `m`, `h`, `d` or `w`,
+  optionally prefixed `+`; the startup offset alone may be negative.
+  The dev clock keeps ticking monotonically and cannot advance backwards.
+  Its offset resets on process restart; supply it again to continue a test.
+  Devices receive the ordinary sync deletion and row timestamps, and keep
+  their own local clocks. `serve` refuses every clock control with
+  `E_CLOCK_DEV_ONLY`; invalid or backward advances refuse `E_CLOCK_INPUT`.
+  Scripts may call the same loopback-only dev endpoint,
+  `POST /dev/clock/advance` with `{"duration":"+2m"}`. `guide clock` has the recipe.
 - **`POST /seed`** (dev only, same machine) takes `[{ "table": "t",
   "row": { "id": "..", .. } }, ..]`, writes the rows as the system
   principal in one commit (rules bypassed; validation, constraints,
@@ -1785,10 +1802,14 @@ step.
   For seeding or recorded-action replay, run
   `snapback4 dev --hold-effects --hold-schedules` to hold effect claims and
   scheduled jobs without an app replay flag.
-- **`snapback4 run <op> ['<json args>'] [--as alice] [--json]`** runs one
+- **`snapback4 run <op> ['<json args>'] [--as alice] [--now <milliseconds|+duration>] [--json]`** runs one
   operation against the local store (the persona defaults to alice) and
   prints the result, the meter and, for a mutation, the partition events;
   a job runs whole as the system (`--as` is ignored) and prints its run.
+  `--now 1789352669447` pins the invocation to Unix milliseconds, so a post
+  can be created in the past without a special seed; `--now +25h` uses wall
+  time plus the duration. This pins queries, mutations and jobs equally;
+  it does not change a running dev clock or fire schedules.
   Exit 1 on a refusal or a parked job, 2 on an engine error.
 - **`snapback4 test [--residency] [--fixture dir] [--as persona]`** loads a fixture
   (one `<table>.jsonl` per table; a file for an unknown table is
