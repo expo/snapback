@@ -18594,3 +18594,30 @@ Verification (cargo from `snapback4/`; Node 24.18.0 first on PATH for JS):
   corpus case or diagnostic code changed. The prediction card, README and
   this append are the required shared documentation changes; all other edits
   are in the lane's owned files. No commit, push, tag or publication was made.
+
+## 2026-09-15 — Wave 5 confirmation N3: the lead's fix after the round limit
+
+The GPT confirmation of round 3 (`1688940ff`) found both N1 and N2 repaired,
+and reported one new Medium, N3.
+
+**The defect.** Client A submits a write and sees `pending`. Native owner B,
+sharing the device store, persists the receipt and marks the shared outbox
+entry sent; catch-up then leaves it queued. A's next flush read B's durable
+receipt and skipped `emitWrite` because a receipt was already known. A had
+never emitted that completion, so a mounted `usePendingWrite` stayed pending.
+Grok's confirmation was READY.
+
+**Why the lead fixed it.** The three-round limit had been reached, and the
+fix is one line with a regression test, so the lead made it instead of
+opening a fourth round. `flushOnce` now always calls `emitWrite` for a sent
+queued entry. Emission is tracked per client, and the emitted set (kept while
+the outbox entry exists, W5R2a) suppresses a repeat. Re-reading the receipt
+still never refreshes an evicted one.
+
+**Regression.** `W5 confirmation N3: another owner's durable receipt still
+notifies this client once` (`test/acquisition.test.mjs`, process tier, two
+owners): `first_completion_emissions=0` without the fix, `1` with it.
+`W5R2a … a sent queued id emits once beyond 256 other emissions` (wasm and
+process) and the W5R1x history tests stay green: 15/15 for
+`--test-name-pattern='N3|W5R2a|W5R1x'`.
+

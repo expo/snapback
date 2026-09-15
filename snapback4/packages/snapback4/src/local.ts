@@ -934,11 +934,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (entry.sent_seq != null || (!acquire && entry.observed_seq != null)) {
         const receipt = { state: "sent" as const, id: entry.id, seq: entry.sent_seq ?? entry.observed_seq!, replayed: true as const };
         const known = await history.read(entry.id);
-        // A sent outbox entry already persisted its receipt before settlement.
-        // Re-reading it must neither refresh an evicted receipt nor emit again.
+        // A sent outbox entry already persisted its receipt before settlement;
+        // re-reading it must not refresh an evicted receipt. Emission is per
+        // client: another owner's durable receipt is still this client's first
+        // completion, and the emitted set suppresses a repeat.
         if (entry.sent_seq == null && !known) await history.keep(receipt);
         settled.get(entry.id)?.(receipt); settled.delete(entry.id);
-        if (!known) emitWrite(receipt);
+        emitWrite(receipt);
         if (acquire) await syncOnce();
         continue;
       }

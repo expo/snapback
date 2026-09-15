@@ -444,6 +444,27 @@ for (const tier of ["wasm", "process"]) test(`W5R2a ${tier}: a sent queued id em
   assert.equal((await client.write(next.id)).state, "sent");
 });
 
+test("W5 confirmation N3: another owner's durable receipt still notifies this client once", { timeout: 60000 }, async t => {
+  const f = await fixture(t, "process"), client = await f.open(), a = f.core();
+  await f.open(); const b = f.core(); f.mode("offline");
+  const events = []; client.onWrite(write => events.push(write));
+  const pending = await client.mutate({ kind: "mutation", name: "add" }, { body: "settled by the other owner" });
+  assert.equal(pending.state, "pending");
+  await keepReceipt(b, sentReceipt(pending.id, 1));
+  ok(await b.call({ op: "settle", id: pending.id, seq: 1 }));
+  assert.equal(ok(await a.call({ op: "queued" }))[0].sent_seq, 1, "the shared entry stays queued until catch-up");
+  f.mode("sent-queued");
+  // Only /sync is refused, so catch-up leaves the shared entry queued while flushes run.
+  await client.mutate({ kind: "mutation", name: "add" }, { body: "first flush" });
+  for (let n = 0; n < 60 && !events.some(write => write.id === pending.id); n++) await new Promise(r => setTimeout(r, 50));
+  await client.mutate({ kind: "mutation", name: "add" }, { body: "second flush" });
+  await new Promise(r => setTimeout(r, 200));
+  const count = events.filter(write => write.id === pending.id).length;
+  t.diagnostic(`first_completion_emissions=${count}`);
+  assert.equal(count, 1, "usePendingWrite depends on exactly one onWrite for the completion");
+  assert.equal((await client.write(pending.id)).state, "sent");
+});
+
 for (const size of [256, 128]) test(`W5R2a web: adopting 256 orphan receipts preserves ${size} destination receipts`, { timeout: 30000 }, async t => {
   receiptLocks(t);
   const f = await fixture(t, "wasm"); f.mode("online");
