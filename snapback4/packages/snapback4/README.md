@@ -903,6 +903,8 @@ rewrite; `why <table>` includes the rule used for inference. The generated
 `require` codes. `check` compares with `snapback/generated/residency.json`;
 `dev` compares with its served generation. `N_NOW_SERVER` and
 `N_NOT_PREDICTABLE` name changed sites, including added horizon risks.
+Each mutation gets one `N_NOT_PREDICTABLE` note with distinct root causes
+and deduplicated sites and rewrites.
 Every text `check` also summarizes mutations that never predict, with one
 reason each; JSON checks include `predictionSummary`. Add `predicts` before
 a mutation header's colon (`mutation like(postId: posts) predicts:`) to assert
@@ -923,6 +925,10 @@ inboxes for small accounts, one public projection for celebrity posts,
 follow-time backfill, atomic unfollow purge, own posts and attributed
 reposts, and a cursor query that runs on the device. On the 51st follower,
 future events switch to broadcast; older events retain their delivery mode.
+Deleting a source row does not cascade to its projected copies; this recipe
+currently has no atomic author-run source-removal operation. Pinning a
+reader makes its page uniform but does not make that private inbox readable
+to the author. Keep the private rule; the feeds card explains the limit.
 The card lists its schema caps and measured cold-sync tradeoff. A named
 merge lane reads a second table with the same columns and plain index;
 each table keeps its own rule and sync. `cap N` without `by` caps the whole

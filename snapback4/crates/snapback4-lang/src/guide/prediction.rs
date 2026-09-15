@@ -16,7 +16,9 @@ the call still needs its facts on this device and must fit the meter and rules.
 `E_NOT_PREDICTABLE` at the header if a server site makes it `never`, with
 the reason and rewrite. It does not promise prediction on every call.
 Every `check` summarizes mutations that never predict, even on an unchanged
-program; `snapback4 why <op>` explains each site.
+program; `snapback4 why <op>` explains each site. A loss of eligibility
+produces one `N_NOT_PREDICTABLE` note per mutation, listing distinct root
+causes with deduplicated sites and rewrites.
 Every mutation can queue on the local client; eligibility is not a promise
 that every call produces a predicted row. Native reads also need their module.
 

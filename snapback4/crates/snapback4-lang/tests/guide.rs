@@ -158,6 +158,16 @@ fn the_language_card_compiles_and_runs() {
     assert_eq!(calendar.field("hour").unwrap(), &Value::Int(-1));
     assert_eq!(calendar.field("bucket").unwrap(), &Value::Int(-1));
     engine.seed([("follows".to_owned(), snapback4_core::value::object([("id", id("f1")), ("followerId", id(bob)), ("followedId", id(alice))]))]).unwrap();
+    // The full delivery lifecycle is on the feeds card; exercise both projected lanes here.
+    let projected = |row_id: &str, event: &str, reader: &str| snapback4_core::value::object([
+        ("id", id(row_id)), ("eventId", id(event)), ("readerId", id(reader)), ("authorId", id(alice)), ("body", text(event)), ("at", Value::Int(3_000)),
+    ]);
+    engine.seed([
+        ("feed".into(), projected("private1", "post1", bob)),
+        ("feed".into(), projected("hidden", "hiddenPost", alice)),
+        ("broadcast".into(), projected("shared2", "post2", alice)),
+        ("pulls".into(), snapback4_core::value::object([("id", id("pull1")), ("readerId", id(bob)), ("authorId", id(alice))])),
+    ]).unwrap();
     let following = engine.query("following", Context::new(bob, args(&[])).at(3_100)).unwrap();
     let posts = following.data.as_array().unwrap();
     assert_eq!(posts.len(), 2);
@@ -567,4 +577,17 @@ fn direct_and_merged_cursor_generation_contracts_are_distinct() {
         assert!(!doc.contains("A cursor from generation N"), "{name} must not promise it for direct pages");
     }
     assert!(README.contains("A direct page cursor binds the\nevaluated prefix and active generation"));
+}
+
+#[test]
+fn language_following_uses_private_inbox_and_capped_pulls() {
+    let source = language();
+    let bound = clean("language", &source);
+    let fact = &bound.schema.operations["following"];
+    assert!(fact.sites.iter().any(|s| s.table == "feed"), "{:?}", fact.sites);
+    assert!(!fact.sites.iter().any(|s| s.table == "follows"));
+    assert_eq!(fact.runs.as_deref(), Some("device"));
+    assert!(source.contains("broadcast[p.authorId] for p in pulls[viewer] first 32 by byReaderAuthor"));
+    assert!(LANGUAGE.contains("guide feeds"));
+    assert!(source.lines().any(|line| line.trim_start().starts_with("online only") && line.contains("mutations reading this maintain never predict")));
 }

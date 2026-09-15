@@ -12503,3 +12503,266 @@ The four §14 decisions already accepted by the author remain settled. Later
 CU/§19/§20 releases receive no credit at this frozen pin.
 
 Validation: all displayed comparison values match their received sources; all twelve lifecycle records, frozen instrument/templates/pins and selected copy hashes check. `python3 ./ref-check --verbose` passes (480 LLP documents, 8,889 refs, zero errors). The final archive carries scoped scan/disposition and cumulative-hash records. No product runtime or independent M7 grade was rerun.
+
+
+## 2026-09-14 — W3b: Following guidance and prediction notes; source removal blocked
+
+Base: `0c6b0c03cfea21d65eab728035ef87776a4144a3`. No commit, push, tag or publication.
+This lane completed F2, the F3 diagnostic rewrite, and L1. It did **not**
+complete the private source-removal recipe; its new acceptance regression
+remains red, so this is not a ready-to-land complete W3b lane.
+
+Orientation: [LLP 3000 §6–§7](../llp/3000-snapback4.explainer.md#6)
+and [LLP 3000.007 §14](../llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md#14),
+[§18](../llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md#18),
+[§20.3](../llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md#20.3)
+and [§20.9](../llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md#20.9)
+govern the scope. The 0.2.16 calibration's F2/F3/L1 evidence was read in
+`/Users/ccheever/projects/snapback-next-20260914/FRICTION-0.2.16.md` and
+`/Users/ccheever/clique-sb4-20260915-astra-next/lanes/astra-snapback4/`:
+`feed.q`, all three feed checks, `guide-feeds.txt`, `m8-check-second.txt`,
+the insights/social source and run-log records 1789439126, 1789442332,
+1789442353 and 1789442550. No external evidence file was modified.
+
+Built: the language card's Following query reads one private inbox plus
+at most 32 pulled-author broadcast lanes; it compiles without notes and
+runs a positive example with both lanes and an excluded private row.
+The maintain's `online only` comment now states its cost to mutations that
+read it. `N_NOT_PREDICTABLE` groups repeated reads, writes and the upsert's
+arms by their online-only table/maintain root, with sorted distinct sites
+and rewrites; distinct non-table causes and horizon indexes are retained.
+`N_NOW_SERVER` keeps its existing site-by-site contract. No execution class,
+authority verdict, meter ceiling, value serialization or corpus case changed.
+The fanout rewrite names the unpinned columns; when the schema has the
+published follower vocabulary and a capped uniform follower prefix, it
+prints that loop and the private key. README, cards and existing code
+explanations carry the same guidance; no new diagnostic code was needed.
+
+**What blocked F3.** A uniformly decided prefix can decide **false**.
+With `.readerId = viewer`, an author looping through `follows[actorId]`
+gets no rows from another reader's pinned inbox. The server regression
+commits that loop with **0 rows written**, leaving the **1** private entry.
+The intended reader sees **1** entry and the author **0**, both complete.
+`delete feedEntries[readerId, eventId]` lowers through a rule-filtered point
+read and returns `NOT_FOUND`, even with `.actorId = viewer` as its delete
+rule. Blind deletion by a known primary id is a different existing path;
+it does not supply an unknown copy's id or prove an absent copy.
+The bound recipe's posts/follows/authors are online-only, so its source
+writes already have `predicts: never`; removal must not promise more.
+After promotion and follow-time backfill, an old pushed event may have
+more than 50 copies, so cleanup must also cover the full 1,000-follower cap.
+
+[LLP 3000.007 §8](../llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md#8),
+item 7(h), explicitly says “`delete` is out of scope.” The lane asked for
+a ruling before extending that authority boundary; no answer was received
+during this work. A working private recipe needs an agreed cleanup-addressing
+or delete-authority design, including absent copies after unfollow/backfill.
+No public escape, untested keyed-delete recipe, or delete-runtime change was
+added. The feeds card and README state the limit. The simulator regression
+requires `deletePost` and `unrepost` and then checks ordinary/broadcast event
+removal on the existing 1,000-person / 50,000-event fixture; it currently
+fails before seeding because `deletePost` is absent. No new both-store
+source-removal result, prediction result, or removal meter number is claimed.
+
+**Measurements.** The captured check has **24 total notes: 17**
+`N_NOT_PREDICTABLE` notes and **7** other advisories (the friction report's
+“18” duplicated-note description is not the literal count). The reduced
+insights/social regression reproduces **17 → 3** changed-mutation notes,
+covering **3** mutations and **7** distinct table/maintain roots across them.
+That is a reduction of **14 notes (82.35%)**, not a change to eligibility.
+The new language query has **1 + 32 = 33** maximum lanes and `runs: device`.
+The complete suite took **448 s** on the shared host. Summing its 59 Rust
+summary lines gives **826 passed / 1 failed / 4 ignored**. The client run
+has **203 passed / 1 failed**, and fixture wrappers **9 passed / 0 failed**.
+Changed Rust files remain below 1,500 lines; `guide.rs` is **1,295** lines,
+`admission.rs` **429**, `residency.rs` **299**, and the note tests **262**.
+
+**Commands and verbatim summaries.** Cargo commands ran from `snapback4/`;
+Node used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+One initial cargo invocation was mistakenly issued at the repository root
+and exited 101 without a test summary; it was immediately rerun from the
+correct workspace. Test-authoring compile/type mistakes were corrected
+before the final targeted checks. An optional cap-script attempt used the
+nonexistent `snapback4/scripts/caps.mjs` path; direct changed-source line
+counts above establish the requested cap.
+
+Before fixes, `cargo test -p snapback4-lang --test residency_notes --test guide -- --nocapture`
+stopped at the guide target:
+
+```text
+test result: FAILED. 18 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+```
+
+Before fixes, `cargo test -p snapback4-lang --test residency_notes -- --nocapture`:
+
+```text
+test result: FAILED. 10 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+After fixes, `cargo test -p snapback4-lang --test guide --test residency_notes -- --nocapture`:
+
+```text
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+```
+
+After fixes, `cargo test -p snapback4-lang --test guide`:
+
+```text
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+```
+
+The incomplete F3 case, `cargo test -p snapback4-sim --test clique following_removes_source_events_at_the_envelope -- --nocapture`:
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 40 filtered out; finished in 0.01s
+```
+
+From the repository root, `bash snapback4/scripts/test.sh`:
+
+```text
+-- ok: cargo build (13 s)
+-- ok: wasm build (14 s)
+-- ok: package typecheck (2 s)
+-- ok: package build (1 s)
+-- ok: chat app check (2 s)
+test result: FAILED. 39 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 33.16s
+-- FAIL: cargo test (416 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+-- ok: fixture wrapper tests (10 s)
+-- FAIL: client tests (47 s)
+== 2 failure(s) in 448 s
+```
+
+The Rust failure is the new unresolved F3 regression, not an inherited
+failure. Client failure: `react.test.mjs` Chromium exits with `SIGABRT`.
+It was rerun alone with `node --test packages/snapback4/test/react.test.mjs`:
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+```
+
+The user identified this Chromium sandbox artifact in the lane brief;
+no independent base-commit run was made, and no additional “pre-existing”
+failure claim is made. The five lifecycle timeout artifacts did not recur.
+There was no mass client timeout requiring the concurrency-2 rerun.
+`./ref-check --verbose` passed before this entry (480 LLP docs, 8,905 refs,
+0 errors); it is rerun after the entry. `git diff --check` is clean.
+No out-of-scope runtime file was touched; the added fixture is beside the
+existing language tests and the red acceptance case beside the feed tests.
+
+**Exact diagnostic texts, before and after (reduced builder fixtures).**
+The original captured fanout diagnostic is also retained here verbatim:
+
+```text
+feed.q:84:14 — E_STRUCTURAL_FANOUT: feedEntries by byEvent (page bound 10000): the mutation page's read rule is not uniformly decided by its prefix
+  rewrite: read it in a query, or pin the deciding columns
+  guide: programs
+```
+
+The before and after for the same reduced regression:
+
+```text
+schema.q:16:14 — E_STRUCTURAL_FANOUT: feedEntries by byEvent (page bound 10000): the mutation page's read rule is not uniformly decided by its prefix
+  rewrite: read it in a query, or pin the deciding columns
+  guide: programs
+```
+
+```text
+schema.q:16:14 — E_STRUCTURAL_FANOUT: feedEntries by byEvent (page bound 10000): the mutation page's read rule is not uniformly decided by its prefix
+  rewrite: pin .readerId in each read's index prefix by iterating the capped group that supplies those values; for example, with actorId and eventId bound: `for f in follows[actorId] first 1000 by byFollowed:`, then address `feedEntries[readerId = f.followerId, eventId = eventId]`; pinning .readerId decides visibility but grants no read authority over another reader's inbox (see `snapback4 guide feeds`)
+  guide: programs
+```
+
+All 17 before prediction notes:
+
+```text
+schema.q:61:1 — N_NOT_PREDICTABLE: createPost is no longer eligible to predict; queued without a row: point likeCounts by byGroup: online only (site programs.createPost.0)
+  rewrite: remove `online only` from maintain likeCounts to inherit its source's sync, or read a compact synced projection
+  guide: residency
+
+schema.q:61:1 — N_NOT_PREDICTABLE: createPost is no longer eligible to predict; queued without a row: write target rankedPosts by byPost: online only (site schema.q:59:5)
+  rewrite: sync rankedPosts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:61:1 — N_NOT_PREDICTABLE: createPost is no longer eligible to predict; queued without a row: upsert inserts do not predict: the target is online only; queue without a row (rankedPosts by byPost) (site schema.q:59:5)
+  rewrite: sync rankedPosts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:61:1 — N_NOT_PREDICTABLE: createPost is no longer eligible to predict; queued without a row: write insightFacts by byId: online only (site insert insightFacts)
+  rewrite: sync insightFacts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:61:1 — N_NOT_PREDICTABLE: createPost is no longer eligible to predict; queued without a row: write rankedPosts by byId: online only (site upsert rankedPosts)
+  rewrite: sync rankedPosts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:65:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: point insightFacts by bySourceKind: online only (site programs.like.3)
+  rewrite: sync insightFacts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:65:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: point insightFacts by bySourceKind: online only (site programs.like.4)
+  rewrite: sync insightFacts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:65:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: point likeCounts by byGroup: online only (site programs.like.6)
+  rewrite: remove `online only` from maintain likeCounts to inherit its source's sync, or read a compact synced projection
+  guide: residency
+
+schema.q:65:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: write target rankedPosts by byPost: online only (site schema.q:59:5)
+  rewrite: sync rankedPosts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:65:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: upsert inserts do not predict: the target is online only; queue without a row (rankedPosts by byPost) (site schema.q:59:5)
+  rewrite: sync rankedPosts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:65:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: write insightFacts by byId: online only (site insert insightFacts)
+  rewrite: sync insightFacts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:65:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: write insightFacts by byId: online only (site delete insightFacts)
+  rewrite: sync insightFacts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:65:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: write rankedPosts by byId: online only (site upsert rankedPosts)
+  rewrite: sync rankedPosts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:76:1 — N_NOT_PREDICTABLE: repost is no longer eligible to predict; queued without a row: point insightFacts by bySourceKind: online only (site programs.repost.0)
+  rewrite: sync insightFacts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:76:1 — N_NOT_PREDICTABLE: repost is no longer eligible to predict; queued without a row: point insightFacts by bySourceKind: online only (site programs.repost.1)
+  rewrite: sync insightFacts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:76:1 — N_NOT_PREDICTABLE: repost is no longer eligible to predict; queued without a row: write insightFacts by byId: online only (site insert insightFacts)
+  rewrite: sync insightFacts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:76:1 — N_NOT_PREDICTABLE: repost is no longer eligible to predict; queued without a row: write insightFacts by byId: online only (site delete insightFacts)
+  rewrite: sync insightFacts to its read-rule audience, or read a compact synced projection
+  guide: residency
+```
+
+All three after prediction notes:
+
+```text
+schema.q:61:1 — N_NOT_PREDICTABLE: createPost is no longer eligible to predict; queued without a row: online-only maintain likeCounts (sites: programs.createPost.0); online-only table insightFacts (sites: insert insightFacts); online-only table rankedPosts (sites: schema.q:59:5, upsert rankedPosts)
+  rewrite: remove `online only` from maintain likeCounts to inherit its source's sync, or read a compact synced projection; sync insightFacts to its read-rule audience, or read a compact synced projection; sync rankedPosts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:65:1 — N_NOT_PREDICTABLE: like is no longer eligible to predict; queued without a row: online-only maintain likeCounts (sites: programs.like.6); online-only table insightFacts (sites: delete insightFacts, insert insightFacts, programs.like.3, programs.like.4); online-only table rankedPosts (sites: schema.q:59:5, upsert rankedPosts)
+  rewrite: remove `online only` from maintain likeCounts to inherit its source's sync, or read a compact synced projection; sync insightFacts to its read-rule audience, or read a compact synced projection; sync rankedPosts to its read-rule audience, or read a compact synced projection
+  guide: residency
+
+schema.q:76:1 — N_NOT_PREDICTABLE: repost is no longer eligible to predict; queued without a row: online-only table insightFacts (sites: delete insightFacts, insert insightFacts, programs.repost.0, programs.repost.1)
+  rewrite: sync insightFacts to its read-rule audience, or read a compact synced projection
+  guide: residency
+```

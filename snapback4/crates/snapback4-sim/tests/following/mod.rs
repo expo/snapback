@@ -147,3 +147,22 @@ fn following_card_has_complete_follow_lifecycle() {
     assert!(page.complete);
     assert!(page.data.as_array().unwrap().is_empty());
 }
+
+#[test]
+fn following_removes_source_events_at_the_envelope() {
+    let bound = world::compiled(&world::source());
+    for name in ["deletePost", "unrepost"] {
+        assert!(bound.schema.operations.contains_key(name), "feeds card must publish {name}");
+        assert_eq!(bound.schema.operations[name].predicts, bound.schema.operations["createPost"].predicts);
+    }
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    world::seed(&mut engine, "hybrid");
+    for (actor, event) in [(700, "p0700-0049"), (999, "p0999-0199")] {
+        let write = world::mutate(&mut engine, "deletePost", &world::who(actor), &[("postId", world::id(event))], 300_000);
+        println!("REMOVE actor={actor} examined={} index={} written={}", write.metered.examined, write.metered.index_entries, write.metered.rows_written);
+        for table in ["feed", "broadcast"] {
+            assert!(!engine.store().rows(table).unwrap().iter().any(|row| row.field("eventId").unwrap() == &world::id(event)), "{table} retains {event}");
+        }
+        assert!(!engine.store().rows("posts").unwrap().iter().any(|row| row.field("id").unwrap() == &world::id(event)));
+    }
+}

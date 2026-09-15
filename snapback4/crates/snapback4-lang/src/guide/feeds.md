@@ -191,6 +191,14 @@ its removed pull lane no longer reads them. Reposts carry the original
 body and author, with the reposter as actor, and repeated `repost` calls
 insert nothing twice.
 
+Source-event removal is not yet covered by this recipe. Deleting a `posts`
+row does not cascade to its private inbox copies or its broadcast entry.
+Pinning `.readerId` through the capped follower group passes admission,
+but an author's read of another reader's inbox still returns no rows;
+`delete feed[readerId, eventId]` also resolves through that read rule.
+Do not make the inbox public to work around this. A cleanup job runs as the
+system; an atomic author-run removal needs a separate delete-authority design.
+
 Limits: 1,000 follows per account, 1,000 source events per actor, 50,000
 private entries per reader, 32 pulled authors per reader and 32,000 public
 broadcast entries; reaching a cap refuses the write atomically, so archive
