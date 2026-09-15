@@ -219,3 +219,34 @@ work remain open until ordinary unsampled HTTP results justify a change.
 Full scope and provenance are in the benchmark README's 0.2.18 stack section;
 independent review `9951d0ce…`, audit `3de9cebe…`, parser reconciliation
 `9db47dd9…`. No current comparator batch ran here.
+
+
+## 2026-09-15 — cursor-reuse HTTP gain, adoption still open
+
+The fixed 053a5b288 / 0.2.18 cursor-reuse experiment completed selected source
+qualification (368 candidate and eight baseline Rust passes; four full
+outcome/refusal equality cases) and three paired ordinary-fetch HTTP trials
+on Durand. All 117,000 timed calls, 7,020 excluded warmups, 162 untimed walks /
+33,510 pages and 24 physical fixture proofs pass, including acknowledged
+leave and same-session regrant. Independent recomputation agrees with every
+reported value, median, contrast and memory point; all owned groups stopped.
+
+All twelve feed-continuation cases improve median p50/p95/rate, and all 36
+paired p50s improve. The 150-group rotating feed at C8 falls 3.716→2.984 ms
+p50 and 4.376→3.247 ms p95, with rate 2,092.8→2,649.1 requests/s. This is
+promising evidence for retaining a validated cursor within one merge while
+preserving canonical validation, live authority and exact meter semantics.
+
+It is not yet an adoption recommendation. First-page p50/rate medians worsen
+at 150 groups, and continuation has eleven paired p99 losses. The 150-group
+next-page C8 trial-503 p99 rises 5.104→12.691 ms; five-group thread-first C8
+loses p99/max/rate in every pair. All losses and RSS points remain recorded.
+The fixed retained-symbol Darwin build is not a current-package or competitor
+comparison. A second-platform replication remains the next input; Office
+Linux storage must be planned before a build, with no evidence deletion or
+lowered disk precondition implied. No runtime change is adopted here.
+
+Full results and failure history are in the benchmark README's decoded-cursor
+section. Ignored-run prefix `membership-cursor-reuse-0218-http-v2` binds
+transfer `0af2f0db…`, independent summary `fdbf3550…`, and evidence review
+`c1a88176…`. The broader repeated-scan/materialization work remains open.

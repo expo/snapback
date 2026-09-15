@@ -14091,3 +14091,41 @@ charge, canonical encoding, scope checks and current rule/row reads. The
 ignored experiment changes only read.rs plus two simulator regressions;
 compilation, qualification and ordinary HTTP comparison are still pending
 at this entry. No tracked core change is adopted by this performance lane.
+
+
+## 2026-09-15 — cursor reuse improves continuation, with tail tradeoffs
+
+The ignored fixed-0.2.18 candidate now has completed evidence: 368 candidate
+and eight baseline Rust passes, four exact full outcome/refusal equality
+cases, and three ordinary HTTP baseline/candidate pairs on Durand. Every
+117,000 timed response passed; 7,020 warmups and 162 complete walks / 33,510
+pages are excluded from timing. Full physical/auth/leave/same-session-regrant
+checks pass, and all 42 owned groups stopped with expected exits.
+
+Retaining the already validated cursor inside one eligible merge improves
+median p50/p95/rate in all twelve continuation cases. All 36 paired p50s
+improve. The 150-group rotating feed at eight clients falls 3.716→2.984 ms
+p50 and 4.376→3.247 ms p95, with rate 2,092.8→2,649.1 requests/s. Initial
+validation, canonical encoding, expressions, meter charges, scope/generation
+and live rules remain unchanged; the earlier re-encoding-removal experiment
+is still rejected.
+
+Tail/control losses remain material: 150-group first-page p50/rate medians
+worsen at C1/C8; next-page C8 trial 503 p99 rises 5.104→12.691 ms. Five-group
+thread-first C8 loses p99/max/elapsed/rate in all three pairs. The complete
+benchmark record preserves all 190 paired and 50 median losses across six
+metrics, plus twelve RSS points. Shared-host/cache effects are not isolated.
+
+Independent review c1a88176 finds no material custody/oracle issue. Both
+calculations agree on all reported values, medians, contrasts and resources.
+The original smoke analyzer's duplicate-log redaction mismatch and earlier
+unexecuted control revisions remain in the ignored evidence. No workload
+rerun or raw-data replacement was needed. Six original formal result objects
+are appended to storage.jsonl.
+
+This remains a core-owner proposal under LLP 3000 decision 4, not a tracked
+runtime adoption or publication. Before recommending it, replicate on a
+second platform and evaluate the first-page/tail tradeoff. The Office Linux
+preflight is idle but below the older builder's disk precondition; no Linux
+source transfer, build or measurement has begun. The competitor and broader
+common-workload goals remain open.
