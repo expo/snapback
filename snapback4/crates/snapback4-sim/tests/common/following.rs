@@ -50,12 +50,11 @@ pub fn seed(engine: &mut Engine, mode: &str) {
             let eid = format!("p{a:04}-{n:04}");
             let at = (n * 1000 + a) as i64;
             let shared = mode == "hybrid" && a == 999;
-            let body = Value::String(format!("post {a}/{n}"));
-            rows.push(("posts".into(), object([("id", id(&eid)), ("postId", id(&eid)), ("actorId", id(&who(a))), ("authorId", id(&who(a))), ("repost", Value::Bool(false)), ("body", body.clone()), ("at", Value::Int(at)), ("shared", Value::Bool(shared))])));
+            rows.push(("posts".into(), object([("id", id(&eid)), ("postId", id(&eid)), ("actorId", id(&who(a))), ("authorId", id(&who(a))), ("repost", Value::Bool(false)), ("at", Value::Int(at)), ("shared", Value::Bool(shared))])));
             if mode != "merge" {
                 let readers: Vec<_> = if shared { vec![a] } else { std::iter::once(a).chain(edges.iter().filter(|(_, author)| *author == a).map(|(r, _)| *r)).collect() };
                 for r in readers {
-                    rows.push((if shared { "broadcast" } else { "feed" }.into(), object([("id", id(&format!("e{r}-{eid}"))), ("eventId", id(&eid)), ("readerId", id(&who(r))), ("actorId", id(&who(a))), ("authorId", id(&who(a))), ("postId", id(&eid)), ("repost", Value::Bool(false)), ("body", body.clone()), ("at", Value::Int(at))])));
+                    rows.push((if shared { "broadcast" } else { "feed" }.into(), object([("id", id(&format!("e{r}-{eid}"))), ("eventId", id(&eid)), ("readerId", id(&who(r))), ("actorId", id(&who(a))), ("authorId", id(&who(a))), ("postId", id(&eid)), ("repost", Value::Bool(false)), ("at", Value::Int(at))])));
                 }
             }
         }

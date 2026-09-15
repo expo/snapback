@@ -1,0 +1,169 @@
+//! Install the feeds card as a module, retaining its comments and formatting.
+use crate::{ast::*, diag::Site, lexer::{Kind, Token}};
+use std::collections::{BTreeMap};
+
+pub fn prefixed_name(prefix: &str, name: &str) -> String {
+    if prefix.is_empty() { return name.into(); }
+    let mut chars = name.chars();
+    format!("{prefix}{}{}", chars.next().unwrap().to_ascii_uppercase(), chars.as_str())
+}
+
+pub fn valid_prefix(prefix: &str) -> bool {
+    let mut chars = prefix.chars();
+    chars.next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_') && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+pub fn following(prefix: &str, module: &str) -> Result<String, String> {
+    let source = crate::guide::quarry(crate::guide::card("feeds").unwrap()).remove(0);
+    prefix_module(&source, prefix, module)
+}
+
+// @ref LLP 3000.007#20.3 — adoption renames declaration references through syntax; literals, fields and local bindings keep their meanings.
+// Index names are table-local. Keeping them also preserves the identical
+// index names required by the inbox/broadcast merge; none need renaming.
+pub fn prefix_module(source: &str, prefix: &str, module: &str) -> Result<String, String> {
+    if !prefix.is_empty() && !valid_prefix(prefix) { return Err("--prefix needs a Quarry identifier, for example --prefix feed".into()); }
+    let source = source.replace("\r\n", "\n").replace('\r', "\n");
+    let (doc, errors) = crate::parse_document("feed.q", &source);
+    if !errors.is_empty() { return Err(errors.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n")); }
+    let (tokens, _) = crate::lexer::lex("feed.q", &source);
+    let names = doc.tables.iter().map(|d| &d.name).chain(doc.maintains.iter().map(|d| &d.name))
+        .chain(doc.functions.iter().map(|d| &d.name)).chain(doc.shapes.iter().map(|d| &d.name))
+        .chain(doc.programs.iter().map(|d| &d.name)).chain(doc.schedules.iter().map(|d| &d.name))
+        .chain(doc.effects.iter().map(|d| &d.name)).chain(doc.actions.iter().map(|d| &d.name))
+        .map(|n| (n.clone(), prefixed_name(prefix, n))).collect();
+    let mut edit = Rename { tokens, names, edits: BTreeMap::new() };
+    for table in &doc.tables {
+        edit.name(&table.site, &table.name, 1);
+        for col in &table.columns {
+            edit.type_(&col.site, &col.type_);
+            if let Some(value) = &col.default { edit.expr(value); }
+        }
+        for rule in &table.rules { edit.expr(&rule.value); }
+        for (value, _) in &table.final_exists { edit.expr(value); }
+        if let Some(SyncDecl { audience: SyncAudience::Target { table, .. }, site, .. }) = &table.sync { edit.name(site, table, 1); }
+    }
+    for maintain in &doc.maintains {
+        edit.name(&maintain.site, &maintain.name, 1);
+        edit.name(&maintain.site, &maintain.source, 3);
+        if let Some(filter) = &maintain.filter { edit.expr(filter); }
+        for key in &maintain.keys { edit.expr(key); }
+        edit.expr(&maintain.read.value);
+    }
+    for shape in &doc.shapes { edit.name(&shape.site, &shape.name, 1); edit.shape(&shape.fields); }
+    for function in &doc.functions {
+        edit.name(&function.site, &function.name, 1);
+        for arg in &function.args { edit.type_(&arg.site, &arg.type_); }
+        match &function.body { FunctionBody::Expression(value) => edit.expr(value), FunctionBody::Block(body) => edit.body(body) }
+    }
+    for program in &doc.programs {
+        edit.name(&program.site, &program.name, 1);
+        for arg in &program.args { edit.type_(&arg.site, &arg.type_); }
+        edit.body(&program.prelude); edit.body(&program.body);
+    }
+    for action in &doc.actions {
+        edit.name(&action.site, &action.name, 1);
+        for arg in &action.args { edit.type_(&arg.site, &arg.type_); }
+        edit.expr(&action.rule);
+    }
+    for effect in &doc.effects { edit.name(&effect.site, &effect.name, 1); }
+    for schedule in &doc.schedules {
+        edit.name(&schedule.site, &schedule.name, 1);
+        let target = prefixed_name(prefix, &schedule.target);
+        let target = if module.is_empty() { target } else { format!("{module}.{target}") };
+        edit.replace(&schedule.site, &schedule.target, 2, target);
+    }
+    // Apply only AST-selected identifier tokens, from the right, so byte
+    // offsets never shift and comments/string contents are never candidates.
+    let mut lines = source.split('\n').map(str::to_owned).collect::<Vec<_>>();
+    for ((line, col), (old, new)) in edit.edits.into_iter().rev() {
+        let line = &mut lines[line as usize - 1];
+        let offset = line.char_indices().nth(col as usize - 1).unwrap().0;
+        line.replace_range(offset..offset + old.len(), &new);
+    }
+    Ok(lines.join("\n"))
+}
+
+struct Rename {
+    tokens: Vec<Token>,
+    names: BTreeMap<String, String>,
+    edits: BTreeMap<(u32, u32), (String, String)>,
+}
+
+impl Rename {
+    fn replace(&mut self, site: &Site, name: &str, skip: usize, replacement: String) {
+        let token = self.tokens.iter().filter(|t| t.site.line == site.line && t.site.col >= site.col && !matches!(t.kind, Kind::Indent | Kind::Dedent))
+            .skip(skip).find(|t| t.kind == Kind::Word && t.value == name).unwrap_or_else(|| panic!("AST identifier {name} at {site:?}, skip {skip} has no token"));
+        self.edits.insert((token.site.line, token.site.col), (name.into(), replacement));
+    }
+    fn name(&mut self, site: &Site, name: &str, skip: usize) {
+        if let Some(new) = self.names.get(name) { self.replace(site, name, skip, new.clone()); }
+    }
+    fn type_(&mut self, site: &Site, ty: &ScalarType) {
+        match &ty.kind {
+            TypeKind::Ref { table } => self.name(site, table, 2),
+            TypeKind::List { item, .. } => self.type_(site, item),
+            _ => {},
+        }
+    }
+    fn read(&mut self, read: &ReadExpr) {
+        self.name(&read.site, &read.table, 0);
+        for key in &read.keys { self.expr(&key.value); }
+        for seek in &read.seeks { self.expr(&seek.value); }
+        for value in [&read.filter, &read.matching, &read.range.as_ref().and_then(|r| r.cursor.clone())].into_iter().flatten() { self.expr(value); }
+    }
+    fn fields(&mut self, fields: &[ObjectField]) { for field in fields { if let Some(value) = &field.value { self.expr(value); } } }
+    fn shape(&mut self, fields: &[ShapeField]) {
+        for field in fields {
+            match field {
+                ShapeField::NamedSpread { name, site } => self.name(site, name, 0),
+                ShapeField::Field { value, .. } => self.expr(value),
+                _ => {},
+            }
+        }
+    }
+    fn expr(&mut self, value: &Expr) {
+        match value {
+            Expr::Name { .. } | Expr::Focal { .. } | Expr::Literal { .. } => {},
+            Expr::Array { items, .. } => for value in items { self.expr(value); },
+            Expr::Object { fields, .. } => self.fields(fields),
+            Expr::Unary { value, .. } | Expr::Member { base: value, .. } | Expr::Assert { value, .. } => self.expr(value),
+            Expr::Binary { left, right, .. } => { self.expr(left); self.expr(right); }
+            Expr::Call { name, args, site } => {
+                let name_site = self.tokens.iter().rev().find(|t| t.site.line == site.line && t.site.col < site.col && t.kind == Kind::Word && t.value == *name).expect("call name before its opening parenthesis").site.clone();
+                self.name(&name_site, name, 0); for value in args { self.expr(value); } }
+            Expr::Read(read) | Expr::Exists { read, .. } | Expr::Created { read, .. } => self.read(read),
+            Expr::Merge(merge) => {
+                self.name(&merge.site, &merge.table, 1);
+                for value in [&merge.matching, &merge.filter, &merge.cursor].into_iter().flatten() { self.expr(value); }
+                for lane in &merge.lanes {
+                    if let Some(table) = &lane.table { self.name(&lane.site, table, 0); }
+                    for value in &lane.prefix { self.expr(value); }
+                    if let Some((_, read)) = &lane.loop_ { self.read(read); }
+                }
+            }
+            Expr::ShapeUse { base, name, site } => { self.expr(base); self.name(site, name, 0); }
+            Expr::Shape { base, fields, .. } => { self.expr(base); self.shape(fields); }
+            Expr::Walk { table, seed, site, .. } => { self.name(site, table, 1); self.expr(seed); }
+            Expr::If { then, condition, otherwise, .. } => { self.expr(then); self.expr(condition); self.expr(otherwise); }
+            Expr::Write { table, keys, fields, condition, site, .. } => {
+                self.name(site, table, 1);
+                for key in keys { self.expr(&key.value); }
+                self.fields(fields);
+                if let Some(condition) = condition { self.expr(condition); }
+            }
+        }
+    }
+    fn body(&mut self, body: &[Stmt]) {
+        for stmt in body {
+            match stmt {
+                Stmt::Bind { value, .. } | Stmt::Expr { value, .. } | Stmt::Return { value, .. } => self.expr(value),
+                Stmt::Require { condition, .. } => self.expr(condition),
+                Stmt::Emit { effect, payload, site } => { self.name(site, effect, 1); self.expr(payload); }
+                Stmt::If { condition, then_body, else_body, .. } => { self.expr(condition); self.body(then_body); self.body(else_body); }
+                Stmt::For { domain, body, .. } => { self.expr(domain); self.body(body); }
+                Stmt::Break { .. } | Stmt::Continue { .. } => {},
+            }
+        }
+    }
+}

@@ -134,7 +134,7 @@ fn following_removal_fills_live_pages_on_both_stores() {
         let (mut engine, backend) = compile(&world::source());
         case::seed(&mut engine, 5);
         for n in 0..40 {
-            world::mutate(&mut engine, "createPost", case::AUTHOR, &[("postId", world::id(&format!("page-{n:02}"))), ("body", Value::String("page".into()))], 100 + n);
+            world::mutate(&mut engine, "createPost", case::AUTHOR, &[("postId", world::id(&format!("page-{n:02}")))], 100 + n);
         }
         let viewer = case::reader(0);
         let mut device = host.open("removal-page", Some(backend)).unwrap();

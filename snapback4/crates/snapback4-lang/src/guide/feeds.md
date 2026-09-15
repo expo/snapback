@@ -5,23 +5,30 @@
 > A read-time merge is fine when the follow count is bounded small.
 
 Add it to an existing project, including `init --expo`, or start an empty
-directory with the normal starter plus the recipe. Existing destination
-files and non-directory parents refuse before any write. Init compiles the
-existing `snapback/*.q` sources with the recipe in memory first; colliding
-table or maintain names refuse with both declaration sites and a rename
-instruction. Rename the existing declaration and its references, or copy
-this card and rename the recipe's declarations and references together.
-A write failure removes newly created files and preserves the existing
-`.gitignore`. The module's operations are under `api.feed`;
-its schedule names `feed.purgeRemoved`. The block below is the source copied
-by init, with that schedule target qualified for the module.
+directory with the normal starter plus the recipe. If the app already owns
+`posts` or `follows`, run `snapback4 init --recipe feeds --prefix feed`.
+The prefix renames every recipe declaration and reference through its syntax
+tree: `posts` becomes `feedPosts`, `deliver` becomes `feedDeliver`, and
+`following` becomes `feedFollowing`. Index names are table-local and stay
+unchanged, including the matching inbox/broadcast indexes. Columns, local
+variables, comments and strings keep their spelling. Any Quarry identifier
+can be the prefix. The module remains `snapback/feed.q`, so the prefixed API
+is `api.feed.feedFollowing` and the schedule calls `feed.feedPurgeRemoved`.
+
+Existing destination files and non-directory parents refuse before any
+write. Init compiles the existing sources plus the recipe in memory first;
+unprefixed clashes name both declarations and print the prefixed command.
+A write failure removes newly created files and preserves `.gitignore`.
+The block below is the unprefixed source; init qualifies its schedule target.
 
 Small accounts write each reader's private inbox. On the 51st follower,
 future events go into one public broadcast projection; the earlier events
 keep their delivery mode. Follow backfills the latest 200 source events,
 and unfollow deletes every private entry by that actor and drops the pull
 lane. The reader's own posts and reposts need no self-follow edge.
-Rendered columns travel with each entry, so Following answers on the device.
+Entries carry the app post ID and attribution, without copying a text body.
+Join the app's card at read time as shown below; its residency decides whether
+that card can answer on the device.
 
 A merge with non-uniform lanes or a meter or word-limit cut returns no
 `next`: its single cursor cannot safely advance every lane.
@@ -73,7 +80,6 @@ table posts:                       -- originals and attributed reposts, one sour
   authorId: principal
   postId: id
   repost: bool
-  body: text <=500
   at: time
   shared: bool
   unique byActorPost: actorId, postId, repost
@@ -98,14 +104,13 @@ table removedEvents:               -- compact tombstones for deleted public sour
   insert <- .actorId = viewer and .id = .eventId and exists posts[id = .eventId, actorId = viewer]
   sync public
 
-table feed:                        -- private inbox, with rendered columns
+table feed:                        -- private inbox, with app post references
   readerId: principal
   eventId: posts
   actorId: principal
   authorId: principal
   postId: id
   repost: bool
-  body: text <=500
   at: time
   unique byReaderEvent: readerId, eventId
   unique byReaderTime: readerId, at, eventId
@@ -128,7 +133,6 @@ table broadcast:                   -- public celebrity events, stored once
   authorId: principal
   postId: id
   repost: bool
-  body: text <=500
   at: time
   unique byReaderEvent: readerId, eventId
   unique byReaderTime: readerId, at, eventId
@@ -143,15 +147,15 @@ table broadcast:                   -- public celebrity events, stored once
 
 fn copy(p: posts, readerId: principal, shared: bool):
   if shared:
-    insert broadcast { readerId, eventId: p.id, actorId: p.actorId, authorId: p.authorId, postId: p.postId, repost: p.repost, body: p.body, at: p.at } if absent
+    insert broadcast { readerId, eventId: p.id, actorId: p.actorId, authorId: p.authorId, postId: p.postId, repost: p.repost, at: p.at } if absent
   else:
-    insert feed { readerId, eventId: p.id, actorId: p.actorId, authorId: p.authorId, postId: p.postId, repost: p.repost, body: p.body, at: p.at } if absent
+    insert feed { readerId, eventId: p.id, actorId: p.actorId, authorId: p.authorId, postId: p.postId, repost: p.repost, at: p.at } if absent
   return null
 
 mutation register():
   insert authors { principal: viewer } if absent
 
-mutation follow(authorId: principal):
+fn addFollow(authorId: principal):
   require authorId != viewer else CANNOT_FOLLOW_SELF
   a = authors[authorId] ! else AUTHOR_NOT_FOUND
   if exists follows[followerId = viewer, followedId = authorId]:
@@ -170,7 +174,12 @@ mutation follow(authorId: principal):
     if not p.shared:
       copy(p, viewer, false)
 
-mutation unfollow(authorId: principal):
+  return null
+
+mutation follow(authorId: principal):
+  return addFollow(authorId)
+
+fn dropFollow(authorId: principal):
   if not exists follows[followerId = viewer, followedId = authorId]:
     return null
   for e in feed[viewer, authorId] first 1000 by byReaderActor:
@@ -178,6 +187,11 @@ mutation unfollow(authorId: principal):
   if exists pulls[viewer, authorId]:
     delete pulls[viewer, authorId]
   delete follows[followerId = viewer, followedId = authorId]
+
+  return null
+
+mutation unfollow(authorId: principal):
+  return dropFollow(authorId)
 
 fn deliver(p: posts):
   if p.shared:
@@ -188,10 +202,10 @@ fn deliver(p: posts):
       copy(p, f.followerId, false)
   return null
 
-mutation createPost(postId: id, body: text <=500):
+mutation createPost(postId: id):
   require not exists removedEvents[eventId = postId] else EVENT_REMOVED
   a = authors[viewer] ! else AUTHOR_NOT_FOUND
-  p = insert posts { id: postId, postId, actorId: viewer, authorId: viewer, repost: false, body, at: now, shared: a.shared }
+  p = insert posts { id: postId, postId, actorId: viewer, authorId: viewer, repost: false, at: now, shared: a.shared }
   deliver(p)
   return { id: p.id }
 
@@ -201,7 +215,7 @@ mutation repost(postId: posts):
   if exists posts[viewer, original.postId, true]:
     return null
   a = authors[viewer] ! else AUTHOR_NOT_FOUND
-  p = insert posts { postId: original.postId, actorId: viewer, authorId: original.authorId, repost: true, body: original.body, at: now, shared: a.shared }
+  p = insert posts { postId: original.postId, actorId: viewer, authorId: original.authorId, repost: true, at: now, shared: a.shared }
   deliver(p)
   return { id: p.id }
 
@@ -249,7 +263,7 @@ public broadcast projection sync in full: no exhausted horizon can turn
 an empty lane into an incomplete device answer. Unfollow removes private
 copies in the same transaction; public broadcast rows remain public but
 its removed pull lane no longer reads them. Reposts carry the original
-body and author, with the reposter as actor, and repeated `repost` calls
+post ID and author, with the reposter as actor, and repeated `repost` calls
 insert nothing twice.
 
 `deletePost` and `unrepost` delete the author's own public source event and
@@ -265,14 +279,14 @@ last synced state. No private inbox or follow graph is additionally synced.
 These mutations, like `createPost` and `repost`, queue without prediction
 because their source reads are online-only. Repeating a removal is a no-op;
 re-reposting creates a fresh event ID and works before or after cleanup.
-Never reuse event IDs. A repost is an independent attributed snapshot;
+Never reuse event IDs. A repost is an independent attributed event;
 deleting the original does not delete someone else's repost event.
 
 Following checks removal inside each merge lane's `where` predicate, after
 that lane's read rule and before emitting an entry. Each tombstone lookup
 is a metered probe against the public, fully synced `removedEvents` table.
 If the predicate cuts, the scan stops before that entry: no unchecked event
-ID or body is returned. Already checked live entries may remain in the page;
+ID is returned. Already checked live entries may remain in the page;
 a cut page reads `complete: false` and has no `next`, since the merge's
 shared cursor cannot safely advance every unfinished lane. Retry the same
 cursor after cleanup; there is no cut continuation. This recipe does not change ordinary point-read or read-rule
@@ -324,6 +338,119 @@ copying it. The merge deduplicates IDs and returns one cursor page. `cap N`
 without `by` bounds the whole table. `N_SPARSE_FILTER` warns when an
 unscoped `where` pins no index prefix; use this recipe for Following rather
 than filtering the global timeline.
+
+## Wire into an app with posts, media and reposts
+
+After installing with `--prefix feed`, keep the app's own `posts`, `follows`
+and `reposts`. Fold the corresponding statements below into its existing
+mutations; the example is `snapback/social.q` beside the installed module.
+Both `createPost` and `repost` insert one reference event and call
+`feedDeliver(event)` in the same transaction. The recipe never owns or copies
+the media asset; Following joins `posts[.postId] postCard` and app repost
+attribution at read time. Keep the merge in the app's query so its cursor
+belongs to that query.
+
+The app's `follow`/`unfollow` mutations are the one-mutation bridge: they
+change the app edge and call `feedAddFollow`/`feedDropFollow` atomically.
+Route all future follow changes through them, and backfill existing edges
+through the same helpers before switching Following to this query. Register
+existing authors first; backfill their existing post/repost reference events
+before those edges so follow backfill can find them. Respect the recipe's
+200-event backfill and caps. The standalone recipe operations remain useful
+for a new app; an integrated app calls its own bridged operations.
+
+This example fully syncs public post cards and repost attribution under
+explicit caps. That adds their rows to acquisition; a private or online-only
+app card keeps its own rule/residency, and a horizon can make a card join
+incomplete. This is not a claim that the recipe makes arbitrary app cards
+available offline. Here `deletePost` removes the feed event and retains the
+app card so another author's independent repost can still render it. Choose
+an explicit deleted-card representation if the app also removes the content;
+never reuse an event ID. `unrepost` removes its event and app attribution.
+
+```quarry
+-- After: snapback4 init --recipe feeds --prefix feed
+-- These are the app's tables and mutations in snapback/social.q.
+table posts:
+  authorId: principal
+  body: text <=4000
+  media: image <=1000000 ?
+  at: time
+  cap 60000
+  public 'app post cards are public'
+  insert <- .authorId = viewer
+  sync public
+
+table follows:
+  followerId: principal
+  followedId: principal
+  unique byPair: followerId, followedId
+  cap 1000 by followerId
+  public 'the app follow graph is public'
+  insert <- .followerId = viewer
+  delete <- .followerId = viewer
+  online only
+
+table reposts:
+  actorId: principal
+  postId: posts
+  at: time
+  unique byActorPost: actorId, postId
+  cap 32000
+  public 'app repost attribution is public'
+  insert <- .actorId = viewer
+  delete <- .actorId = viewer
+  sync public
+
+shape postCard = { id, authorId, body, media, at }
+
+mutation register():
+  insert feedAuthors { principal: viewer } if absent
+
+mutation follow(authorId: principal):
+  insert follows { followerId: viewer, followedId: authorId } if absent
+  return feedAddFollow(authorId)
+
+mutation unfollow(authorId: principal):
+  delete follows[followerId = viewer, followedId = authorId]
+  return feedDropFollow(authorId)
+
+mutation createPost(postId: id, body: text <=4000, media: image <=1000000 ?):
+  require not exists feedRemovedEvents[eventId = postId] else EVENT_REMOVED
+  a = feedAuthors[viewer] ! else AUTHOR_NOT_FOUND
+  p = insert posts { id: postId, authorId: viewer, body, media, at: now }
+  event = insert feedPosts { id: postId, postId, actorId: viewer, authorId: p.authorId, repost: false, at: p.at, shared: a.shared }
+  feedDeliver(event)
+  return p postCard
+
+mutation repost(postId: posts):
+  original = posts[postId] ! else POST_NOT_FOUND
+  if exists reposts[viewer, postId]:
+    return null
+  a = feedAuthors[viewer] ! else AUTHOR_NOT_FOUND
+  r = insert reposts { actorId: viewer, postId, at: now }
+  event = insert feedPosts { postId, actorId: viewer, authorId: original.authorId, repost: true, at: r.at, shared: a.shared }
+  feedDeliver(event)
+  return { id: r.id }
+
+mutation deletePost(postId: posts):
+  event = feedPosts[viewer, postId, false]
+  if event != null:
+    feedRemoveEvent(event)
+  return null
+
+mutation unrepost(postId: posts):
+  event = feedPosts[viewer, postId, true]
+  if event != null:
+    feedRemoveEvent(event)
+  delete reposts[viewer, postId]
+
+query following(c: cursor ?):
+  entries = merge feedFeed after c last 20 by byReaderTime where not exists feedRemovedEvents[eventId = .eventId]:
+    [viewer]
+    feedBroadcast[p.authorId] for p in feedPulls[viewer] first 32 by byReaderAuthor
+  return entries { *, post: posts[.postId] postCard, attribution: reposts[.actorId, .postId] }
+```
 
 A ranked feed for a community keeps one shared candidate set instead of a
 row per reader: a job on a schedule scores the pool from maintains into a

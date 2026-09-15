@@ -385,14 +385,14 @@ fn a_feed_fans_out_on_write() {
         let follow = engine.mutate("follow", None, Context::new(format!("dev:u{n}"), args(&[("authorId", id("dev:alice"))])).at(2)).unwrap();
         assert!(matches!(follow.state, WriteState::Sent { .. }), "{:?}", follow.state);
     }
-    let posted = engine.mutate("createPost", Some("p1"), Context::new("dev:alice", args(&[("postId", id("post1")), ("body", Value::String("hello".into()))])).at(1_000)).unwrap();
+    let posted = engine.mutate("createPost", Some("p1"), Context::new("dev:alice", args(&[("postId", id("post1"))])).at(1_000)).unwrap();
     assert!(matches!(posted.state, WriteState::Sent { .. }), "{:?}", posted.state);
     assert_eq!(engine.store().rows("feed").unwrap().len(), 6);
     let (events, _) = engine.snapshot("dev:u4").unwrap();
     assert_eq!(holdings(&events)["feed"].len(), 1);
     let read = engine.query("following", Context::new("dev:u4", BTreeMap::new()).at(3_000)).unwrap();
     assert!(read.complete);
-    assert_eq!(read.data.as_array().unwrap()[0].field("body").unwrap(), &Value::String("hello".into()));
+    assert_eq!(read.data.as_array().unwrap()[0].field("postId").unwrap(), &id("post1"));
 }
 
 const SEARCH: &str = r#"
@@ -771,9 +771,9 @@ fn a_feed_read_costs_the_same_at_five_and_five_hundred_follows() {
     engine.seed(rows).unwrap();
     let mut n = 0;
     for a in 0..500 {
-        for k in 0..20 {
+        for _ in 0..20 {
             n += 1;
-            let posted = engine.mutate("createPost", Some(&format!("p{n}")), Context::new(&format!("dev:a{a:03}"), args(&[("postId", id(&format!("post{n}"))), ("body", Value::String(format!("post {k} by {a}")))])).at(1_000 + n).with_ids([format!("post{n}")])).unwrap();
+            let posted = engine.mutate("createPost", Some(&format!("p{n}")), Context::new(&format!("dev:a{a:03}"), args(&[("postId", id(&format!("post{n}")))])).at(1_000 + n).with_ids([format!("post{n}")])).unwrap();
             assert!(matches!(posted.state, WriteState::Sent { .. }), "{:?}", posted.state);
         }
     }
@@ -789,7 +789,7 @@ fn a_feed_read_costs_the_same_at_five_and_five_hundred_follows() {
     // The newest post first, whoever wrote it; the wide reader's page is
     // from many authors, the narrow reader's from five.
     let authors = |read: &snapback4_core::QueryOutcome| read.data.as_array().unwrap().iter().map(|e| e.field("authorId").unwrap().as_str().unwrap().to_owned()).collect::<std::collections::BTreeSet<_>>();
-    assert_eq!(wide.data.as_array().unwrap()[0].field("body").unwrap(), &Value::String("post 19 by 499".into()));
+    assert_eq!(wide.data.as_array().unwrap()[0].field("postId").unwrap(), &id("post10000"));
     assert!(authors(&narrow).len() <= 5 && authors(&narrow).iter().all(|a| a < &"dev:a005".to_owned()), "{:?}", authors(&narrow));
     // Each reader's device holds its complete, schema-capped private feed.
     let (events, _) = engine.snapshot("dev:wide").unwrap();
@@ -1312,3 +1312,9 @@ fn created_equalities_check_the_current_created_row_and_program_reads_stay_autho
         assert_eq!(hidden.data, if name == "get" { Value::Null } else { Value::Bool(false) });
     }
 }
+
+#[path = "common/following_app.rs"]
+mod following_app;
+
+#[test]
+fn w6a_wired_following_is_bounded_and_removes_app_events() { following_app::server_scenario(); }

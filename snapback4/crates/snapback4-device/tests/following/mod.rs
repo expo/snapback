@@ -2,6 +2,7 @@ use super::*;
 #[path = "../../../snapback4-sim/tests/common/following.rs"]
 mod world;
 mod removal;
+mod app;
 
 #[test]
 fn following_scale_pages_match_on_both_device_stores() {
@@ -51,8 +52,8 @@ fn following_streams_backfill_purge_own_posts_and_reposts() {
     on_both(|host| {
         let (mut engine, backend) = compile(&world::source());
         for viewer in ["dev:alice", "dev:bob"] { world::mutate(&mut engine, "register", viewer, &[], 1); }
-        for n in 0..25 { world::mutate(&mut engine, "createPost", "dev:alice", &[("postId", world::id(&format!("p{n}"))), ("body", Value::String(format!("old {n}")))], 10 + n); }
-        world::mutate(&mut engine, "createPost", "dev:bob", &[("postId", world::id("own")), ("body", Value::String("own".into()))], 50);
+        for n in 0..25 { world::mutate(&mut engine, "createPost", "dev:alice", &[("postId", world::id(&format!("p{n}")))], 10 + n); }
+        world::mutate(&mut engine, "createPost", "dev:bob", &[("postId", world::id("own"))], 50);
         let mut device = host.open("following-lifecycle", Some(backend)).unwrap();
         for (n, page) in snapshot_pages(&mut engine, "dev:bob", 100).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
         let before = engine.seq().unwrap();

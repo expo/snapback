@@ -36,6 +36,10 @@ fn compile(source: &str) -> snapback4_lang::Bound {
 /// A block that declares a table stands alone; another compiles beside the
 /// language card's schema.
 fn in_context(block: &str) -> String {
+    // This card block is explicitly a second file beside the installed recipe.
+    if block.starts_with("-- After: snapback4 init --recipe feeds --prefix feed\n") {
+        return format!("{}\n{block}", snapback4_lang::recipe::following("feed", "").unwrap());
+    }
     if block.lines().any(|line| line.starts_with("table ")) { block.to_owned() } else { format!("{}\n{block}", language()) }
 }
 

@@ -117,7 +117,7 @@ fn feeds_recipe_schema_collisions_refuse_before_writing() {
         assert_eq!(output.status.code(), Some(1), "{output:?}");
         let error = String::from_utf8_lossy(&output.stderr);
         assert!(error.contains(&format!("table {name}")) && error.contains(&format!("snapback/{file}:1:")) && error.contains("snapback/feed.q:"), "{error}");
-        assert!(error.contains(&format!("rename the existing {name} declaration and its references")), "{error}");
+        assert!(error.contains("snapback4 init --recipe feeds --prefix feed"), "{error}");
         assert_eq!(fs::read_to_string(dir.0.join("snapback").join(file)).unwrap(), source);
         for name in ["snapback/feed.q", "src", ".gitignore"] { assert!(!dir.0.join(name).exists(), "{name} was written"); }
     }
@@ -340,5 +340,42 @@ fn init_preserves_inherited_module_type_when_creating_root_package() {
         let after = run();
         assert!(after.status.success());
         assert_eq!(after.stdout, before.stdout, "init changed the inherited {kind} interpretation");
+    }
+}
+
+#[test]
+fn w6a_prefixed_recipe_adopts_into_existing_media_app() {
+    let dir = Dir::new();
+    fs::create_dir_all(dir.0.join("snapback")).unwrap();
+    let app = "table posts:\n  body: text <=4000\n  media: image <=1000000 ?\n  read <- allow\ntable follows:\n  followerId: principal\n  followedId: principal\n  unique byPair: followerId, followedId\n  read <- allow\ntable reposts:\n  postId: posts\n  actorId: principal\n  read <- allow\n";
+    fs::write(dir.0.join("snapback/schema.q"), app).unwrap();
+    let refused = recipe(&dir, &[]);
+    assert_eq!(refused.status.code(), Some(1), "{refused:?}");
+    assert!(String::from_utf8_lossy(&refused.stderr).contains("snapback4 init --recipe feeds --prefix feed"), "{refused:?}");
+    let installed = recipe(&dir, &["--prefix", "feed"]);
+    assert!(installed.status.success(), "{installed:?}");
+    assert_eq!(fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap(), app);
+    let written = fs::read_to_string(dir.0.join("snapback/feed.q")).unwrap();
+    let bound = snapback4_lang::compile(&[("schema.q".into(), app.into()), ("feed.q".into(), written)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+    assert!(bound.schema.tables.contains_key("feedPosts"));
+    assert!(bound.schema.operations.contains_key("feed.feedFollowing"));
+    assert_eq!(bound.schema.schedules[0].target, "feed.feedPurgeRemoved");
+    let checked = Command::new(BIN).args(["check", "--json"]).current_dir(&dir.0).output().unwrap();
+    assert!(checked.status.success(), "{checked:?}");
+    println!("W6a init: 3 existing app tables, 0 diagnostics, 0 notes");
+}
+
+#[test]
+fn w6a_prefix_requires_a_recipe_and_a_valid_identifier_before_writing() {
+    for args in [vec!["init", "--prefix", "feed"], vec!["init", "--recipe", "feeds", "--prefix"],
+        vec!["init", "--recipe", "feeds", "--prefix", "feed.other"], vec!["init", "--recipe", "feeds", "--prefix", "1feed"],
+        vec!["init", "--recipe", "feeds", "--prefix", "feed-name"]] {
+        let dir = Dir::new();
+        let output = Command::new(BIN).args(args).current_dir(&dir.0).output().unwrap();
+        assert_eq!(output.status.code(), Some(2), "{output:?}");
+        assert!(String::from_utf8_lossy(&output.stderr).contains("--prefix <name>"));
+        assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0);
     }
 }

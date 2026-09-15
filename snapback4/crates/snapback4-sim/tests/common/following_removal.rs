@@ -22,14 +22,14 @@ pub fn seed(engine: &mut Engine, followers: usize) {
         }
     }
     for (event, actor) in [("old-pushed", AUTHOR), (ORIGINAL, "dev:original")] {
-        rows.push(("posts".into(), object([("id", id(event)), ("postId", id(event)), ("actorId", id(actor)), ("authorId", id(actor)), ("repost", Value::Bool(false)), ("body", Value::String(event.into())), ("at", Value::Int(1)), ("shared", Value::Bool(false))])));
+        rows.push(("posts".into(), object([("id", id(event)), ("postId", id(event)), ("actorId", id(actor)), ("authorId", id(actor)), ("repost", Value::Bool(false)), ("at", Value::Int(1)), ("shared", Value::Bool(false))])));
     }
     for viewer in std::iter::once(AUTHOR.to_owned()).chain((0..followers).map(reader)) {
-        rows.push(("feed".into(), object([("id", id(&format!("inbox-{viewer}"))), ("eventId", id("old-pushed")), ("readerId", id(&viewer)), ("actorId", id(AUTHOR)), ("authorId", id(AUTHOR)), ("postId", id("old-pushed")), ("repost", Value::Bool(false)), ("body", Value::String("old-pushed".into())), ("at", Value::Int(1))])));
+        rows.push(("feed".into(), object([("id", id(&format!("inbox-{viewer}"))), ("eventId", id("old-pushed")), ("readerId", id(&viewer)), ("actorId", id(AUTHOR)), ("authorId", id(AUTHOR)), ("postId", id("old-pushed")), ("repost", Value::Bool(false)), ("at", Value::Int(1))])));
     }
     engine.seed(rows).unwrap();
     for (op, input, at) in [
-        ("createPost", args(&[("postId", id("new-post")), ("body", Value::String("new post".into()))]), 2),
+        ("createPost", args(&[("postId", id("new-post"))]), 2),
         ("repost", args(&[("postId", id(ORIGINAL))]), 3),
     ] {
         let result = engine.mutate(op, None, Context::new(AUTHOR, input).at(at).with_ids((0..60).map(|n| format!("{op}-{n:03}")))).unwrap();
@@ -102,21 +102,21 @@ pub fn seed_authority(engine: &mut Engine, hidden: bool) {
         ("id", id("private-copy")), ("readerId", id(PRIVATE)),
         ("eventId", id(if hidden { "new-post" } else { "old-pushed" })),
         ("actorId", id(AUTHOR)), ("authorId", id(AUTHOR)), ("postId", id("new-post")),
-        ("repost", Value::Bool(false)), ("body", Value::String("private body".into())), ("at", Value::Int(2)),
+        ("repost", Value::Bool(false)), ("at", Value::Int(2)),
     ]))]).unwrap();
 }
 
 pub fn seed_cut(engine: &mut Engine, followers: usize) {
     seed(engine, 5);
     for n in 0..40 {
-        mutate(engine, "createPost", AUTHOR, &[("postId", id(&format!("cut-{n:02}"))), ("body", Value::String(format!("CUT-BODY-{n:02}")))], 100 + n);
+        mutate(engine, "createPost", AUTHOR, &[("postId", id(&format!("cut-{n:02}")))], 100 + n);
     }
     if followers > 50 {
         // Real promotion leaves the removed old pushes in the inbox and adds
         // a live broadcast lane. Removing shared posts alone deletes their
         // broadcasts immediately and would miss the long tombstone run.
         for n in 5..followers { mutate(engine, "follow", &reader(n), &[("authorId", id(AUTHOR))], 150); }
-        mutate(engine, "createPost", AUTHOR, &[("postId", id("broadcast-live")), ("body", Value::String("BROADCAST-LIVE".into()))], 160);
+        mutate(engine, "createPost", AUTHOR, &[("postId", id("broadcast-live"))], 160);
         assert!(engine.store().rows("pulls").unwrap().iter().any(|row| row.field("readerId") == Ok(&id(&reader(0)))));
         assert!(engine.store().rows("broadcast").unwrap().iter().any(|row| row.field("eventId") == Ok(&id("broadcast-live"))));
     }
@@ -137,7 +137,7 @@ pub fn check_cut(host: &str, followers: usize, mut query: impl FnMut(snapback4_c
     let cost = uncut.metered.examined;
     assert_eq!(uncut.data.as_array().unwrap().len(), 20);
     assert!(uncut.next.is_some());
-    if followers > 50 { assert!(uncut.data.as_array().unwrap().iter().any(|row| row.field("body") == Ok(&Value::String("BROADCAST-LIVE".into())))); }
+    if followers > 50 { assert!(uncut.data.as_array().unwrap().iter().any(|row| row.field("postId") == Ok(&id("broadcast-live")))); }
     assert_eq!(uncut.metered.examined, if followers > 50 { 85 } else { 82 });
     assert_eq!(uncut.metered.rule_probes, if followers > 50 { 42 } else { 41 });
     let mut leaked = Vec::new();
@@ -145,7 +145,7 @@ pub fn check_cut(host: &str, followers: usize, mut query: impl FnMut(snapback4_c
     for ceiling in 1..=cost {
         let page = query(snapback4_core::Ceilings { examined: ceiling, ..Default::default() });
         let json = wire(&page).to_string();
-        let removed = (20..40).filter(|n| json.contains(&format!("cut-{n:02}")) || json.contains(&format!("CUT-BODY-{n:02}"))).count();
+        let removed = (20..40).filter(|n| json.contains(&format!("cut-{n:02}"))).count();
         if removed > 0 { leaked.push((ceiling, removed)); }
         if page.capped_at.is_some() && page.next.is_some() { unsafe_cursors.push(ceiling); }
         if ceiling == 25 {

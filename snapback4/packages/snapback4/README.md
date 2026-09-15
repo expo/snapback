@@ -994,21 +994,33 @@ framing and are not extrapolated.
 
 ### Feeds: complete Following on the device
 
-Run `snapback4 init --recipe feeds` to write `snapback/feed.q` and the typed
+Run `snapback4 init --recipe feeds --prefix feed` to write `snapback/feed.q` and the typed
 client example `src/following.ts`, then `snapback4 check` to generate
-`api.feed`. This adds to an existing project, including `init --expo`, or
+`api.feed.feedFollowing`. This adds to an existing project, including `init --expo`, or
 creates the normal starter plus the recipe in an empty directory. Existing
 destination files and non-directory parents refuse before any write. Init
 first compiles the existing `snapback/*.q` sources plus the recipe in memory;
-name clashes report both declarations and files. Rename the existing
-declaration and its references, or copy `guide feeds` and rename the recipe's
-declarations and references together. A write failure removes newly created
+name clashes report both declarations and files. `--prefix feed` renames the
+recipe's declarations and references through its syntax tree (`posts` →
+`feedPosts`, `deliver` → `feedDeliver`, `following` → `feedFollowing`),
+keeping the app's `posts` and `follows`. Index names are table-local and stay
+unchanged. Without a prefix a clash refuses and prints the prefixed command. A write failure removes newly created
 files and preserves the existing `.gitignore`. Pass your app's client to the
-example; call `register` during profile creation. Read-time merges are fine
+example; call `api.feed.feedRegister` during profile creation. Read-time merges are fine
 when the follow count is bounded small. `N_WIDE_MERGE` explains how a
 principal-driven merge's read cost grows with the number of related principals
 and names this command as an example for Following;
 `N_SPARSE_FILTER` names it for a global-timeline filter too.
+
+For an existing media app, the feeds card's “Wire into an app” example keeps
+its post and repost cards. Its `createPost`/`repost` insert a reference event
+in `feedPosts` and call `feedDeliver(event)` in the same transaction. The app's
+Following query joins `posts[.postId] postCard` and its repost attribution;
+no body or media is copied into the recipe. Its `follow`/`unfollow` mutate the
+app edge and call `feedAddFollow`/`feedDropFollow` as a one-mutation bridge.
+Backfill existing authors, reference events and edges before switching reads.
+The app cards must also be synced for an offline join; their own rules and
+horizons remain authoritative. The card gives the complete compilable example.
 
 `snapback4 guide feeds` carries the complete Following recipe: private
 inboxes for small accounts, one public projection for celebrity posts,
@@ -1025,7 +1037,7 @@ as the only insert; it writes the marker before deleting the source in the
 same transaction. A guessed foreign event ID cannot hide or purge it.
 The tombstone check runs inside each merge lane's `where` predicate before
 an entry is emitted. A cut stops before the unchecked entry: no removed ID
-or body is returned. Checked live entries may remain, with `complete: false`
+is returned. Checked live entries may remain, with `complete: false`
 and no `next`; retry the same cursor after cleanup.
 Pages contain live rows without null slots and fill through removed entries
 under the meter. With uniform lanes and enough budget, the cursor query is
@@ -1088,7 +1100,6 @@ table posts:                       -- originals and attributed reposts, one sour
   authorId: principal
   postId: id
   repost: bool
-  body: text <=500
   at: time
   shared: bool
   unique byActorPost: actorId, postId, repost
@@ -1113,14 +1124,13 @@ table removedEvents:               -- compact tombstones for deleted public sour
   insert <- .actorId = viewer and .id = .eventId and exists posts[id = .eventId, actorId = viewer]
   sync public
 
-table feed:                        -- private inbox, with rendered columns
+table feed:                        -- private inbox, with app post references
   readerId: principal
   eventId: posts
   actorId: principal
   authorId: principal
   postId: id
   repost: bool
-  body: text <=500
   at: time
   unique byReaderEvent: readerId, eventId
   unique byReaderTime: readerId, at, eventId
@@ -1143,7 +1153,6 @@ table broadcast:                   -- public celebrity events, stored once
   authorId: principal
   postId: id
   repost: bool
-  body: text <=500
   at: time
   unique byReaderEvent: readerId, eventId
   unique byReaderTime: readerId, at, eventId
@@ -1158,15 +1167,15 @@ table broadcast:                   -- public celebrity events, stored once
 
 fn copy(p: posts, readerId: principal, shared: bool):
   if shared:
-    insert broadcast { readerId, eventId: p.id, actorId: p.actorId, authorId: p.authorId, postId: p.postId, repost: p.repost, body: p.body, at: p.at } if absent
+    insert broadcast { readerId, eventId: p.id, actorId: p.actorId, authorId: p.authorId, postId: p.postId, repost: p.repost, at: p.at } if absent
   else:
-    insert feed { readerId, eventId: p.id, actorId: p.actorId, authorId: p.authorId, postId: p.postId, repost: p.repost, body: p.body, at: p.at } if absent
+    insert feed { readerId, eventId: p.id, actorId: p.actorId, authorId: p.authorId, postId: p.postId, repost: p.repost, at: p.at } if absent
   return null
 
 mutation register():
   insert authors { principal: viewer } if absent
 
-mutation follow(authorId: principal):
+fn addFollow(authorId: principal):
   require authorId != viewer else CANNOT_FOLLOW_SELF
   a = authors[authorId] ! else AUTHOR_NOT_FOUND
   if exists follows[followerId = viewer, followedId = authorId]:
@@ -1185,7 +1194,12 @@ mutation follow(authorId: principal):
     if not p.shared:
       copy(p, viewer, false)
 
-mutation unfollow(authorId: principal):
+  return null
+
+mutation follow(authorId: principal):
+  return addFollow(authorId)
+
+fn dropFollow(authorId: principal):
   if not exists follows[followerId = viewer, followedId = authorId]:
     return null
   for e in feed[viewer, authorId] first 1000 by byReaderActor:
@@ -1193,6 +1207,11 @@ mutation unfollow(authorId: principal):
   if exists pulls[viewer, authorId]:
     delete pulls[viewer, authorId]
   delete follows[followerId = viewer, followedId = authorId]
+
+  return null
+
+mutation unfollow(authorId: principal):
+  return dropFollow(authorId)
 
 fn deliver(p: posts):
   if p.shared:
@@ -1203,10 +1222,10 @@ fn deliver(p: posts):
       copy(p, f.followerId, false)
   return null
 
-mutation createPost(postId: id, body: text <=500):
+mutation createPost(postId: id):
   require not exists removedEvents[eventId = postId] else EVENT_REMOVED
   a = authors[viewer] ! else AUTHOR_NOT_FOUND
-  p = insert posts { id: postId, postId, actorId: viewer, authorId: viewer, repost: false, body, at: now, shared: a.shared }
+  p = insert posts { id: postId, postId, actorId: viewer, authorId: viewer, repost: false, at: now, shared: a.shared }
   deliver(p)
   return { id: p.id }
 
@@ -1216,7 +1235,7 @@ mutation repost(postId: posts):
   if exists posts[viewer, original.postId, true]:
     return null
   a = authors[viewer] ! else AUTHOR_NOT_FOUND
-  p = insert posts { postId: original.postId, actorId: viewer, authorId: original.authorId, repost: true, body: original.body, at: now, shared: a.shared }
+  p = insert posts { postId: original.postId, actorId: viewer, authorId: original.authorId, repost: true, at: now, shared: a.shared }
   deliver(p)
   return { id: p.id }
 
@@ -1938,7 +1957,7 @@ default of an existing required column rechecks the unique indexes and
 caps over it, and a group that no longer fits is `E_ADOPT` like any other
 step.
 
-- **`snapback4 init [dir] [--online|--expo] [--recipe feeds]`** starts a project without
+- **`snapback4 init [dir] [--online|--expo] [--recipe feeds [--prefix <name>]]`** starts a project without
   overwriting existing files. An existing `package.json` keeps its metadata;
   required dependencies, devDependencies and scripts merge into it through an
   atomic replacement, so a failed package write leaves the original intact. A different
@@ -1953,7 +1972,7 @@ step.
   Keep Expo and its Babel preset on the same major; a mismatch can leave
   private fields in the bundle that Hermes cannot compile. The generated
   README gives the install and run commands.
-  `--recipe feeds` adds the Following module and typed client example above;
+  `--recipe feeds [--prefix <name>]` adds the Following module and typed client example above;
   it also works after the starter has been initialized, without rewriting its files.
 
 - **`snapback4 dev [--port N] [--no-watch] [--fresh] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h]`** serves

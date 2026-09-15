@@ -18657,3 +18657,73 @@ native leg. The lead then rebuilt the xcframework and published
 `snapback4-expo@0.2.12`, which npm reported at 13:57 UTC. Next: the fifth
 Astra-medium calibration on these pins.
 
+
+## 2026-09-15 — W6a: Following adopts into an existing media app
+
+Implemented the 0.2.21 calibration's H2 / S14–S15 against base
+`35886bc2226f8e53b2537132714d6f3e6890f140` (LLP 3000.007 §20.3).
+`init --recipe feeds --prefix feed` uses the parser's AST to select declaration
+and reference tokens: tables, helpers, operations and schedules become
+`feedPosts`, `feedDeliver`, `feedFollowing`, etc. Comments, strings, columns
+and local variables keep their spelling. Index names stay table-local and
+identical across the two merged projections; no index rename is needed.
+The module remains `feed.q`, its job target is `feed.feedPurgeRemoved`, and
+the generated TypeScript example calls the corresponding generated API.
+Unprefixed clashes still refuse before writing and print the prefixed command.
+
+The recipe's required copied `body` is removed. Its existing `postId` carries
+the app reference; the feeds card's compiled second-file example inserts a
+reference event and calls `feedDeliver(event)` from the app's `createPost`
+and `repost`, then joins the app's media card and repost attribution in the
+Following query. `feedAddFollow` / `feedDropFollow` provide the one-mutation
+bridge from the app's existing follow graph. The card records registration
+and backfill order, the 200-event follow backfill, card residency and the
+choice to retain a card for independent reposts after removing its original
+feed event. The README and written TypeScript example show the integration
+seams. All existing executable recipe callers now use reference events.
+The unprefixed source changes from 200 lines / 6,501 B to 207 lines / 6,536 B.
+No meter ceiling, value serialization, conformance case or engine code changed.
+
+Measured the actual card example through app mutations: 505 bridged follow
+edges (5 and 500), 526 app post cards including a placed 640×480 PNG,
+2 idempotent reposts, and 3 removed events hidden before the purge job.
+Both device stores receive real snapshots and removal/unfollow streams;
+first and continuation pages match the server. The app cards are fully
+publicly synced under explicit caps, so this measures that stated residency,
+not arbitrary private or horizon-limited app cards.
+
+| Host | Following 5 p95 ms | Following 500 p95 ms | Ratio | Examined, both | Probes, both | Fill / complete |
+|---|---:|---:|---:|---:|---:|---|
+| Server | 1.523 | 1.467 | 0.963× | 82 | 21 | 20/20, true |
+| Memory device | 0.795 | 0.731 | 0.920× | 82 | 21 | 20/20, true |
+| SQLite device | 1.268 | 1.165 | 0.919× | 82 | 21 | 20/20, true |
+
+Twenty samples after three warm-ups on the shared host; deterministic meter
+counts, not latency ratios, are asserted. Index entries are 0 in all six
+reads. Cold acquisition is 560 rows for Following 5 and 1,055 for Following
+500 on either device store, including the app's card rows.
+
+The two new init/note regressions were red against the base (each
+`0 passed; 1 failed`) and green after the change. Targeted init: 17/17;
+sparse-filter/prefix tests: 6/6; guide: 24/24; existing Following simulator
+subset: 15 passed, 1 ignored; wired server: 1/1; wired device: 2/2;
+TypeScript recipe usage: 1/1 across 6 starter/prefix combinations. The full
+suite first found an older 10,000-event test still passing `body`; its
+reference-ID update passed alone. The final `bash snapback4/scripts/test.sh`
+run reports `-- ok: cargo test (316 s)` (959 passed, 0 failed, 4 ignored),
+9/9 fixture tests, and client 310 passed / 1 failed:
+`== 1 failure(s) in 323 s`. Only the supplied sandbox Chromium SIGABRT remains;
+`node --test packages/snapback4/test/react.test.mjs` reproduces it alone
+(0 passed / 1 failed). The first run's navigation test had a port collision
+and ECONNREFUSED; it passes alone (1/1) and in the final full run. No failure
+is asserted pre-existing without a base rerun. Ref-check is green.
+
+Learned: namespace installation alone was insufficient. A small reference-only
+recipe plus an atomic follow bridge makes an existing post model usable,
+while the app's card residency remains an explicit acquisition cost. Quarry's
+nominal table IDs also matter: the original event can reuse the caller's
+untyped ID, while repost events mint their own IDs and retain the app post
+reference; no value-model relaxation is needed. On principal-edge timeline
+filters, `N_SPARSE_FILTER` now says “pages come back short and incomplete when
+followed authors are sparse (`complete: false`)” and prints
+`snapback4 init --recipe feeds --prefix feed`.

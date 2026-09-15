@@ -91,7 +91,7 @@ fn following_removal_fills_live_pages_and_continues_through_removed_entries() {
     let mut e = engine();
     case::seed(&mut e, 5);
     for n in 0..40 {
-        world::mutate(&mut e, "createPost", case::AUTHOR, &[("postId", world::id(&format!("page-{n:02}"))), ("body", Value::String("page".into()))], 100 + n);
+        world::mutate(&mut e, "createPost", case::AUTHOR, &[("postId", world::id(&format!("page-{n:02}")))], 100 + n);
     }
     let before = case::page(&mut e, &case::reader(0));
     assert_eq!(before.data.as_array().unwrap().len(), 20);
@@ -136,7 +136,7 @@ fn following_removal_does_not_observe_or_delete_another_readers_private_rows() {
                 ("eventId", world::id(if hidden { "new-post" } else { case::ORIGINAL })),
                 ("actorId", world::id(case::AUTHOR)), ("authorId", world::id(case::AUTHOR)),
                 ("postId", world::id("new-post")), ("repost", Value::Bool(false)),
-                ("body", Value::String(if hidden { "SECRET" } else { "OTHER" }.into())), ("at", Value::Int(1)),
+                ("at", Value::Int(1)),
             ]))]).unwrap();
             let input = if op == "deletePost" { json!({"postId":"new-post"}) } else { json!({"readerId":"dev:private","eventId":"new-post"}) };
             let (_, observed) = observation::observe(&mut e, op, case::AUTHOR, input, "remove-pair", ("following", json!({"c":null})));

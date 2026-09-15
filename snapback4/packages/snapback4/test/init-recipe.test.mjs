@@ -10,7 +10,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const binary = process.env.SNAPBACK4_BIN ?? resolve(root, "../../target/debug/snapback4");
 
 test("Following recipe usage compiles against its generated API in fresh and Expo projects", (t) => {
-  for (const expo of [false, true]) {
+  for (const expo of [false, true]) for (const prefix of ["", "feed", "social_2"]) {
     const dir = mkdtempSync(join(root, ".init-recipe-"));
     t.after(() => rmSync(dir, { recursive: true, force: true }));
     const run = (args) => {
@@ -23,7 +23,7 @@ test("Following recipe usage compiles against its generated API in fresh and Exp
       run(["init", "--expo"]);
       starterNotes = JSON.parse(run(["check", "--json"])).notes;
     }
-    run(["init", "--recipe", "feeds"]);
+    run(["init", "--recipe", "feeds", ...(prefix ? ["--prefix", prefix] : [])]);
     const checked = JSON.parse(run(["check", "--json"]));
     assert.deepEqual(checked.notes, starterNotes, "the recipe adds no notes");
     const options = {
@@ -37,6 +37,6 @@ test("Following recipe usage compiles against its generated API in fresh and Exp
       getCurrentDirectory: () => dir, getCanonicalFileName: (file) => file, getNewLine: () => "\n",
     }));
     const api = program.getSourceFile(join(dir, "snapback/generated/api.ts"));
-    assert.ok(api?.text.includes("feed.following"), "usage must import the real generated API");
+    assert.ok(api?.text.includes(`feed.${prefix ? `${prefix}Following` : "following"}`), "usage must import the real generated API");
   }
 });

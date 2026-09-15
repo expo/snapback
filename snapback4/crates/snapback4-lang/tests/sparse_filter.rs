@@ -14,7 +14,7 @@ fn unscoped_sparse_filters_name_the_feed_recipe() {
         assert_eq!(notes[0].guide, "feeds");
         println!("{}", notes[0]);
         assert_eq!(notes[0].message, "entries by byTime: this unscoped `where` pins no index prefix; sparse matches can exhaust the row meter and return short `complete: false` pages");
-        assert_eq!(notes[0].rewrite, "pin a leading index key, or run `snapback4 init --recipe feeds` for Following (followed authors, own posts and reposts)");
+        assert_eq!(notes[0].rewrite, "pin a leading index key, or run `snapback4 init --recipe feeds --prefix feed` for Following (followed authors, own posts and reposts)");
     }
 }
 
@@ -61,5 +61,40 @@ fn scoped_or_prefix_pinned_reads_do_not_get_the_sparse_note() {
     ] {
         let bound = check(read);
         assert!(!bound.notes.iter().any(|n| n.code == "N_SPARSE_FILTER"), "{read}: {:?}", bound.notes);
+    }
+}
+
+#[test]
+fn w6a_follow_edge_filter_names_incomplete_pages_and_prefixed_install() {
+    let source = "table follows:\n  reader: principal\n  author: principal\n  unique byPair: reader, author\n  read <- allow\ntable events:\n  actorId: principal\n  at: time\n  by byTime: at, id\n  read <- allow\nquery following(c: cursor ?):\n  return events after c last 20 by byTime where .actorId = viewer or exists follows[viewer, .actorId]\n";
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let note = bound.notes.iter().find(|n| n.code == "N_SPARSE_FILTER").unwrap();
+    println!("{note}");
+    assert_eq!(note.message, "events by byTime: this unscoped `where` pins no index prefix; pages come back short and incomplete when followed authors are sparse (`complete: false`)");
+    assert_eq!(note.rewrite, "pin a leading index key, or run `snapback4 init --recipe feeds --prefix feed` for Following (followed authors, own posts and reposts)");
+}
+
+#[test]
+fn w6a_prefixing_uses_syntax_and_preserves_literals_fields_and_locals() {
+    let recipe = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).remove(0);
+    let extra = "\n-- posts follows copy must stay unchanged here\nfn echo(posts: text <=100): posts\nquery quoted():\n  return { posts: echo('posts follows copy'), copy: 'é posts' }\n";
+    let source = format!("{recipe}{extra}");
+    assert!(snapback4_lang::compile(&[("schema.q".into(), source.clone())]).diagnostics.is_empty());
+    for prefix in ["feed", "social_2", "_f"] {
+        let renamed = snapback4_lang::recipe::prefix_module(&source, prefix, "feed").unwrap();
+        assert!(renamed.contains("-- posts follows copy must stay unchanged here"));
+        assert!(renamed.contains("(posts: text <=100): posts"));
+        assert!(renamed.contains("('posts follows copy'), copy: 'é posts' }"));
+        assert!(renamed.contains("unique byReaderTime:"));
+        let bound = snapback4_lang::compile(&[("feed.q".into(), renamed.clone())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+        let (before, _) = snapback4_lang::parse_document("feed.q", &source);
+        let (after, _) = snapback4_lang::parse_document("feed.q", &renamed);
+        let names = |doc: snapback4_lang::ast::Document| doc.tables.into_iter().map(|t| t.name)
+            .chain(doc.functions.into_iter().map(|f| f.name)).chain(doc.programs.into_iter().map(|p| p.name))
+            .chain(doc.schedules.into_iter().map(|s| s.name)).collect::<Vec<_>>();
+        assert_eq!(names(after), names(before).iter().map(|n| snapback4_lang::recipe::prefixed_name(prefix, n)).collect::<Vec<_>>());
     }
 }

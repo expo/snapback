@@ -7,8 +7,9 @@ use std::{io::Write, path::Path};
 
 pub fn init(options: &Options) -> i32 {
     let recipe = options.flags.get("recipe");
-    if options.positionals.len() > 1 || (options.flags.contains_key("online") && options.flags.contains_key("expo")) || recipe.is_some_and(|name| name != "feeds") {
-        eprintln!("usage: snapback4 init [dir] [--online|--expo] [--recipe feeds]");
+    let prefix = options.flags.get("prefix");
+    if options.positionals.len() > 1 || (options.flags.contains_key("online") && options.flags.contains_key("expo")) || recipe.is_some_and(|name| name != "feeds") || prefix.is_some_and(|p| recipe.is_none() || !snapback4_lang::recipe::valid_prefix(p)) {
+        eprintln!("usage: snapback4 init [dir] [--online|--expo] [--recipe feeds [--prefix <name>]]");
         return 2;
     }
     let dir = options.positionals.first().map(Path::new).unwrap_or_else(|| Path::new("."));
@@ -17,10 +18,17 @@ pub fn init(options: &Options) -> i32 {
     let recipe_only = recipe.is_some() && !expo && !online && dir.join("snapback/schema.q").is_file();
     let mut files = if recipe_only { Vec::new() } else if expo { expo_files() } else if online { online_files() } else { vec![("snapback/schema.q", snapback4_lang::guide::TEMPLATE.to_owned())] };
     if recipe.is_some() {
-        // @ref LLP 3000.007#20.3 — adopt the tested Following recipe; only its schedule needs the module's qualified job name.
-        let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).remove(0);
-        files.push(("snapback/feed.q", source.replace(": purgeRemoved\n", ": feed.purgeRemoved\n")));
-        files.push(("src/following.ts", include_str!("init/following.ts").to_owned()));
+        let prefix = prefix.map(String::as_str).unwrap_or("");
+        let source = match snapback4_lang::recipe::following(prefix, "feed") {
+            Ok(source) => source,
+            Err(error) => { eprintln!("init: {error}"); return 1; }
+        };
+        files.push(("snapback/feed.q", source));
+        let mut client = include_str!("init/following.ts").to_owned();
+        for name in ["register", "follow", "unfollow", "following"] {
+            client = client.replace(&format!("api.feed.{name}"), &format!("api.feed.{}", snapback4_lang::recipe::prefixed_name(prefix, name)));
+        }
+        files.push(("src/following.ts", client));
     }
     // @ref LLP 3000.007#20.2 — installed packages can receive a starter; only conflicting required entries refuse.
     for (name, text) in &mut files {
@@ -114,7 +122,7 @@ fn preflight_parents(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-// @ref LLP 3000.007#20.3 — installing the fixed-name Following module must preserve a compilable application.
+// @ref LLP 3000.007#20.3 — installing the Following module must preserve a compilable application.
 fn check_recipe(dir: &Path, files: &[(&str, String)]) -> Result<(), String> {
     let project = crate::project::Project { root: dir.to_path_buf() };
     let mut sources = match project.sources() {
@@ -135,7 +143,7 @@ fn check_recipe(dir: &Path, files: &[(&str, String)]) -> Result<(), String> {
             .chain(document.maintains.into_iter().map(|m| ("maintain", m.name, m.site))) {
             let location = format!("{}:{}:{}", project.schema_dir().join(&site.file).display(), site.line, site.col);
             if let Some((previous_kind, previous)) = declarations.get(&name) {
-                collisions.push(format!("  {previous_kind} {name} in {previous} collides with {kind} {name} in {location}\n  rename the existing {name} declaration and its references before installing, or copy `snapback4 guide feeds` and rename the recipe's declarations and references together"));
+                collisions.push(format!("  {previous_kind} {name} in {previous} collides with {kind} {name} in {location}\n  run `snapback4 init --recipe feeds --prefix feed` to keep the app's declarations and rename the recipe"));
             } else { declarations.insert(name, (kind, location)); }
         }
     }

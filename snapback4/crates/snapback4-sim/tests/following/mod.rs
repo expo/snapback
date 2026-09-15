@@ -38,7 +38,7 @@ fn following_candidates_at_scale() {
             let mut times = Vec::new();
             for k in 0..23 {
                 let start = std::time::Instant::now();
-                let write = world::mutate(&mut engine, "createPost", &world::who(author), &[("postId", world::id(&format!("new-{author}-{k}"))), ("body", Value::String("measured".into()))], 300_001 + k);
+                let write = world::mutate(&mut engine, "createPost", &world::who(author), &[("postId", world::id(&format!("new-{author}-{k}")))], 300_001 + k);
                 if k >= 3 { times.push(start.elapsed().as_secs_f64() * 1000.0); }
                 if k == 22 { println!("MEASURE {mode} write={author} examined={} index={} written={}", write.metered.examined, write.metered.index_entries, write.metered.rows_written); }
             }
@@ -62,9 +62,9 @@ fn follow_backfill_purge_reposts_and_promotion_are_exact() {
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     for viewer in ["dev:alice", "dev:bob"] { world::mutate(&mut engine, "register", viewer, &[], 1); }
     for n in 0..220 {
-        world::mutate(&mut engine, "createPost", "dev:alice", &[("postId", world::id(&format!("p{n:03}"))), ("body", Value::String(format!("old {n}")))], 10 + n);
+        world::mutate(&mut engine, "createPost", "dev:alice", &[("postId", world::id(&format!("p{n:03}")))], 10 + n);
     }
-    world::mutate(&mut engine, "createPost", "dev:bob", &[("postId", world::id("own")), ("body", Value::String("own".into()))], 240);
+    world::mutate(&mut engine, "createPost", "dev:bob", &[("postId", world::id("own"))], 240);
     let follow = world::mutate(&mut engine, "follow", "dev:bob", &[("authorId", world::id("dev:alice"))], 250);
     println!("FOLLOW backfill examined={} index={} written={}", follow.metered.examined, follow.metered.index_entries, follow.metered.rows_written);
     world::mutate(&mut engine, "follow", "dev:bob", &[("authorId", world::id("dev:alice"))], 251);
@@ -81,7 +81,7 @@ fn follow_backfill_purge_reposts_and_promotion_are_exact() {
     // Follow-time promotion: old pushes stay private; future posts use the
     // broadcast table. All current followers acquire the new pull lane.
     for n in 0..51 { world::mutate(&mut engine, "follow", &format!("dev:f{n}"), &[("authorId", world::id("dev:alice"))], 300 + n); }
-    let posted = world::mutate(&mut engine, "createPost", "dev:alice", &[("postId", world::id("shared")), ("body", Value::String("after promotion".into()))], 400);
+    let posted = world::mutate(&mut engine, "createPost", "dev:alice", &[("postId", world::id("shared"))], 400);
     assert_eq!(posted.metered.rows_written, 2);
     assert_eq!(all(&mut engine, "dev:f0").len(), 201);
     assert_eq!(all(&mut engine, "dev:alice").len(), 221);
@@ -138,7 +138,7 @@ fn following_card_has_complete_follow_lifecycle() {
     };
     call(&mut engine, "register", "dev:alice", BTreeMap::new());
     call(&mut engine, "register", "dev:bob", BTreeMap::new());
-    call(&mut engine, "createPost", "dev:alice", BTreeMap::from([("postId".into(), Value::Id("p1".into())), ("body".into(), Value::String("older".into()))]));
+    call(&mut engine, "createPost", "dev:alice", BTreeMap::from([("postId".into(), Value::Id("p1".into()))]));
     call(&mut engine, "follow", "dev:bob", BTreeMap::from([("authorId".into(), Value::Id("dev:alice".into()))]));
     let page = engine.query("following", Context::new("dev:bob", BTreeMap::new()).at(101)).unwrap();
     assert!(page.complete);

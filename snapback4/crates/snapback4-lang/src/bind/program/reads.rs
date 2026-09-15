@@ -102,9 +102,12 @@ impl Binder<'_> {
         if self.kind == ProgramKind::Query && read.keys.is_empty() && read.seeks.is_empty() && read.matching.is_none()
             && has_focal(&predicate) && !pins_leading_column(&predicate, index.columns.first().map(String::as_str))
         {
+            let consequence = if follow_edge_filter(&predicate, self.table(&read.table, &read.site)?) {
+                "pages come back short and incomplete when followed authors are sparse (`complete: false`)"
+            } else { "sparse matches can exhaust the row meter and return short `complete: false` pages" };
             self.notes.push(Diagnostic::new(predicate.site(), "N_SPARSE_FILTER",
-                format!("{} by {}: this unscoped `where` pins no index prefix; sparse matches can exhaust the row meter and return short `complete: false` pages", read.table, index.name),
-                "pin a leading index key, or run `snapback4 init --recipe feeds` for Following (followed authors, own posts and reposts)").guide("feeds"));
+                format!("{} by {}: this unscoped `where` pins no index prefix; {consequence}", read.table, index.name),
+                "pin a leading index key, or run `snapback4 init --recipe feeds --prefix feed` for Following (followed authors, own posts and reposts)").guide("feeds"));
         }
         let prior = self.focal.replace(("$filter".into(), Ty::Row(read.table.clone())));
         let kind = std::mem::replace(&mut self.kind, ProgramKind::Query);
@@ -162,5 +165,17 @@ fn remove_trailing_shape(expr: &mut A) {
         A::Binary { right, .. } => remove_trailing_shape(right),
         A::If { otherwise, .. } => remove_trailing_shape(otherwise),
         _ => unreachable!("a trailing shape was found"),
+    }
+}
+
+// Recognize the edge probe structurally, including renamed follow tables
+// and named keys. Ordinary row predicates retain the general sparse note.
+fn follow_edge_filter(expr: &A, table: &TableInfo) -> bool {
+    match expr {
+        A::Exists { read, .. } => read.keys.iter().any(|key| matches!(&key.value, A::Name { name, .. } if name == "viewer"))
+            && read.keys.iter().any(|key| matches!(&key.value, A::Member { base, name, .. } if matches!(base.as_ref(), A::Focal { .. }) && table.columns.get(name).is_some_and(|ty| ty.kind == ast::TypeKind::Principal))),
+        A::Binary { left, right, .. } => follow_edge_filter(left, table) || follow_edge_filter(right, table),
+        A::Unary { value, .. } | A::ShapeUse { base: value, .. } => follow_edge_filter(value, table),
+        _ => false,
     }
 }
