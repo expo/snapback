@@ -76,7 +76,12 @@ for (const mode of ["dev", "serve"]) test(`${mode}: piped token stdout is one us
       assert.ok(match, "stdout must contain only the base64url token and one newline");
       const token = match[1];
       assert.equal(minted.stdout, `${token}\n`);
-      assert.match(minted.stderr, /^token: a session for service:worker until \d+ — printed once; keep it where the worker keeps secrets\n$/);
+      const [status, ownership, end] = minted.stderr.split("\n");
+      assert.match(status, /^token: a session for service:worker until \d+ — printed once; keep it where the worker keeps secrets$/);
+      const store = mode === "serve" ? join(release, "store.sqlite") : realpathSync(join(dir, ".snapback4/store.sqlite"));
+      assert.equal(ownership, `store: ${store} — this token belongs only to this store; each isolated store needs its own`);
+      assert.equal(end, "");
+      assert.equal(minted.stderr.split("\n").length, 3);
       assert.ok(!minted.stderr.includes(token), "the token is printed only once");
       const { session } = await post("/auth/session", token, { principal: "member:captured", kind: "member", days: 1 });
       assert.equal(session.principal, "member:captured");

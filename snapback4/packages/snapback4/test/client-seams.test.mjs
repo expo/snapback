@@ -104,8 +104,71 @@ async function fixture(t, release = false, schema = source) {
   const device = { async open(name, backend) { const core = await native.open(name, backend); cores.push(core); return core; } };
   const post = async (path, body, persona = true) => (await fetch(url + path, { method: "POST", headers: persona ? { "x-snapback-persona": "alice" } : {}, body: JSON.stringify(body) })).json();
   const web = webDevice({ wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")), persist: memoryPersistence() });
-  return { url, device, web, cores, clients, post, log: () => log };
+  return { dir, url, device, web, cores, clients, post, log: () => log };
 }
+
+const meterSource = `use personas alice
+use identity
+table records:
+  owner: principal
+  n: int
+  by byOwner: owner, id
+  read <- .owner = viewer
+  insert <- .owner = viewer
+mutation put(n: int):
+  return insert records { owner: viewer, n }
+query rows():
+  return { principal: viewer, rows: records[viewer] first 10 by byOwner }
+`;
+
+for (const release of [false, true]) test(`W7c ${release ? "serve ignores" : "dev exposes"} opt-in meters for a real account`, async t => {
+  const f = await fixture(t, release, meterSource);
+  const registered = await signup(f.url, "meter@example.com", "password-123");
+  assert.equal(registered.ok, true, JSON.stringify(registered));
+  const session = registered.session, replies = [];
+  const client = createClient({ url: f.url, session, meter: true, fetch: async (url, init) => {
+    const response = await fetch(url, init);
+    if (String(url).includes("/q/")) replies.push({ headers: init.headers, body: await response.clone().json() });
+    return response;
+  } });
+  f.clients.push(client);
+  assert.equal((await client.mutate(mutation("put"), { n: 7 })).state, "sent");
+  const op = { kind: "query", name: "rows" };
+  const read = await client.query(op, {});
+  assert.equal(read.data.principal, session.principal);
+  assert.equal(read.data.rows.length, 1); assert.equal(read.data.rows[0].n, 7);
+  assert.equal(read.complete, true); assert.equal(read.fresh, true);
+  assert.equal(replies[0].headers["x-snapback-meter"], "1");
+  if (release) {
+    assert.equal(Object.hasOwn(read, "meter"), false);
+    assert.equal(Object.hasOwn(replies[0].body, "meter"), false);
+  } else {
+    assert.deepEqual(read.meter, replies[0].body.meter);
+    for (const field of ["examined", "indexEntries", "probes", "steps", "heapBytes", "outputBytes", "rowsWritten"]) assert.equal(typeof read.meter?.[field], "number", field);
+    assert.ok(read.meter.examined > 0); assert.ok(read.meter.heapBytes > 0);
+    const cli = spawnSync(binary, ["run", "rows", "--as", session.principal, "--json"], { cwd: f.dir, encoding: "utf8" });
+    assert.equal(cli.status, 0, cli.stdout + cli.stderr);
+    const result = JSON.parse(cli.stdout), m = result.metered;
+    assert.deepEqual(result.data, read.data);
+    assert.deepEqual(read.meter, { examined: m.examined, indexEntries: m.index_entries, probes: m.rule_probes, steps: m.steps, heapBytes: m.heap_bytes, outputBytes: m.output_bytes, rowsWritten: m.rows_written });
+    const watch = client.observe(op, {});
+    await until(() => watch.getSnapshot().data);
+    assert.deepEqual(watch.getSnapshot().meter, read.meter); watch.close();
+    t.diagnostic(`meter=${JSON.stringify(read.meter)}`);
+  }
+  const plain = createClient({ url: f.url, session }); f.clients.push(plain);
+  assert.equal(Object.hasOwn(await plain.query(op, {}), "meter"), false);
+  for (const value of [undefined, "0", "1"]) {
+    const response = await fetch(`${f.url}/q/rows`, { method: "POST", headers: { authorization: `Bearer ${session.token}`, ...(value === undefined ? {} : { "x-snapback-meter": value }) }, body: JSON.stringify({ args: {} }) });
+    const body = await response.json();
+    assert.deepEqual(body.data, read.data);
+    assert.equal(Object.hasOwn(body, "meter"), !release && value === "1");
+  }
+  const denied = await (await fetch(`${f.url}/q/rows`, { method: "POST", headers: { "x-snapback-meter": "1" }, body: "{}" })).json();
+  assert.equal(denied.denied.code, "E_AUTH"); assert.equal(Object.hasOwn(denied, "meter"), false);
+  const preflight = await fetch(`${f.url}/q/rows`, { method: "OPTIONS", headers: { origin: "http://localhost:5173", "access-control-request-headers": "x-snapback-meter" } });
+  assert.ok(preflight.headers.get("access-control-allow-headers").includes("x-snapback-meter"));
+});
 
 for (const tier of ["online", "web", "native"]) {
   async function callerFixture(t) {

@@ -6,7 +6,7 @@
 
 import { changeFeed } from "./changes.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
-import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
+import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadMeter, Refusal, Write } from "./contract.ts";
 import { logout, logoutAll as revokeAllSessions, refreshSession as rotateSession, type Session, type SignIn } from "./auth.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
@@ -20,6 +20,8 @@ export interface ClientOptions {
   readonly session?: Session;
   /** A bare bearer token, when the app keeps sessions itself. */
   readonly token?: string;
+  /** Include engine work on reads from loopback dev; serve ignores this request. */
+  readonly meter?: boolean;
   readonly fetch?: typeof fetch;
   /** How long a change poll waits at the server, in seconds. */
   readonly waitSeconds?: number;
@@ -240,7 +242,7 @@ export function createClient(options: ClientOptions): Client {
     try { encoded = JSON.stringify(body); }
     catch { return { ok: true, json: { denied: { code: "E_INPUT", family: "input", message: "request arguments must be JSON-serializable" } } }; }
     try {
-      const response = await doFetch(`${base}${path}`, { method: "POST", headers: { ...headers }, body: encoded, signal: aborter.signal });
+      const response = await doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(options.meter && path.startsWith("/q/") ? { "x-snapback-meter": "1" } : {}) }, body: encoded, signal: aborter.signal });
       const json = (await response.json()) as Record<string, unknown>;
       if (closed) return { ok: false };
       if (response.status >= 500) { setLink("offline"); return { ok: false }; }
@@ -265,7 +267,8 @@ export function createClient(options: ClientOptions): Client {
     const at = Number(json.seq ?? 0);
     const next = (json.next as Cursor | null | undefined) ?? null;
     const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
-    return { read: { data: json.data as R, complete: json.complete !== false, fresh: true, next }, tables: (json.tables as string[] | undefined) ?? [], seq: at, nextExpiry };
+    const meter = options.meter && json.meter ? { meter: json.meter as ReadMeter } : {};
+    return { read: { data: json.data as R, complete: json.complete !== false, fresh: true, next, ...meter }, tables: (json.tables as string[] | undefined) ?? [], seq: at, nextExpiry };
   }
 
   function notify(watch: Watch) {

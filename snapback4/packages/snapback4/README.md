@@ -903,8 +903,9 @@ concatenation and other allocating builtins, local bindings, and owned
 copies count. Inspecting a held value's length or sum borrows it; row and
 map clones share their immutable image. A heap cut stops a query immediately
 with `data: null`, `complete: false`, and no continuation, since an interrupted
-scalar or shape has no valid partial answer. Its meter and cut site remain
-internal; a mutation rolls back with `E_BOUND` as above.
+scalar or shape has no valid partial answer. Its cut site remains internal;
+the meter is available only through dev's opt-in read inspection (§4).
+A mutation rolls back with `E_BOUND` as above.
 
 A page whose read rule the prefix does not decide (the deciding fields include a
 column the scan does not pin) is never `complete`: the server cannot tell
@@ -1540,9 +1541,9 @@ chunks promptly when exposing streams.
 Every word a screen reads is on the card (`snapback4/contract`):
 
 ```ts
-import type { Cursor } from "snapback4/contract";
+import type { Cursor, ReadMeter } from "snapback4/contract";
 type Read<T> =
-  | { data: T; complete: boolean; fresh: boolean; since?: number; next?: Cursor | null }
+  | { data: T; complete: boolean; fresh: boolean; since?: number; next?: Cursor | null; meter?: ReadMeter }
   | { loading: true }
   | { denied: Refusal };
 type Write<R> =
@@ -1553,6 +1554,33 @@ type Write<R> =
 type Refusal = { code: string; family: string; message: string; site?: string; rewrite?: string; guide?: string; rule?: string; retryable?: boolean };
 type Link = "online" | "offline" | "signed-out";
 ```
+
+To measure a real account's server read in development, opt in on the online
+client (the same session or bearer token works alongside a local client):
+
+```ts
+import { createClient } from "snapback4/client";
+import { isReady } from "snapback4/contract";
+import { api } from "../snapback/generated/api";
+const client = createClient({ url: "http://127.0.0.1:4400", token: process.env.SNAPBACK_TOKEN!, meter: true });
+const read = await client.query(api.thread, { conversationId: "existing-conversation" });
+if (isReady(read)) console.log(read.meter); // { examined, indexEntries, probes, steps, heapBytes, outputBytes, rowsWritten }
+await client.close();
+```
+
+`Read.meter` contains the engine's counters for that server answer, including
+examined rows, index entries, rule probes (`probes`), steps, charged heap work
+(`heapBytes`), output bytes and rows written. These are work counts, not latency
+or process memory. Successful `query` and `observe` answers carry them; a
+remembered offline watch keeps its last server answer's counters. Local device
+reads have no meter. The wire opt-in is `x-snapback-meter: 1` on `POST /q/<op>`.
+Loopback `dev` omits the field by default; `serve` ignores the header and never
+returns meters. They can reflect hidden work, so they are development-only.
+For local-store inspection, `snapback4 run <op> '<json args>' --as <principal id>
+--json` prints the same engine counters under `metered`, using their Rust names
+(`rule_probes`, `heap_bytes`, etc.). `--as alice` resolves a declared persona to
+`dev:alice`; any other value is a literal principal id, such as `user:...` from
+the account's session or an application principal such as `member:42`.
 
 `complete` says this is everything the query can answer: false when the
 meter cut the page, when a scan's read rule is not decided by its prefix
@@ -1958,6 +1986,21 @@ A service is a principal `service:<name>` with a bearer session of its
 own: `snapback4 token --service pusher` prints it once (`--release <dir>`
 for a deployment). The token and one newline are the whole of stdout, with
 prose on stderr, so capture it with `TOKEN=$(npx snapback4 token --service pusher)`.
+Stderr names the owning store: `.snapback4/store.sqlite` in the project, or
+`<dir>/store.sqlite` for `--release <dir>`. Mint a token for each isolated audit
+or proof store; tokens from another store do not authenticate there. After
+starting persistent `dev` in that proof project's directory and waiting for
+its first stdout line (the listening URL), mint the script's credential there:
+
+```sh
+npx snapback4 token --service audit > .snapback4/audit-token
+# For a deployment instead:
+npx snapback4 token --service audit --release ./proof-release > ./proof-audit-token
+```
+
+The service name must match the script's rule grants. `--fresh`/`--memory`
+has no disk store for the token CLI to mint into; use persistent dev for these
+scripts. Each new empty store needs its own mint step.
 Rules admit it like any principal (`insert <- viewer =
 'service:ranker'`); with its token a worker claims what the backend
 `emit`s under a lease, performs it, and settles it — a thrown handler
@@ -2047,13 +2090,17 @@ step.
   `--recipe feeds [--prefix <name>]` adds the Following module and typed client example above;
   it also works after the starter has been initialized, without rewriting its files.
 
-- **`snapback4 dev [--port N] [--no-watch] [--fresh] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h]`** serves
+- **`snapback4 dev [--port N] [--no-watch] [--fresh|--memory] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h]`** serves
   `snapback/*.q` on `127.0.0.1:4400`, recompiling and re-adopting on
   every save (the watcher polls every 400 ms; a save with problems keeps
   the previous generation serving and prints the diagnostics); the store
   lives in `.snapback4/store.sqlite` and persists across runs, and
-  `--fresh` uses one in memory that dies with the process (acceptance
-  scripts start from nothing). For a replay mode that must not emit notifications,
+  `--fresh` (alias `--memory`) uses one in memory that dies with the process (acceptance
+  scripts start from nothing). The stderr banner prints `store: in memory — dies with this process`
+  for either flag, or `store: <SQLite path>` for persistent dev. For dev and serve,
+  readiness is the first stdout line: the listening URL, emitted after store and
+  native-module setup. Wait for that line before requests; lifecycle logs use stderr.
+  For a replay mode that must not emit notifications,
   run `snapback4 dev --replay`: new emits are never delivered. The
   startup banner says effects are suppressed and schedules held; `doctor`
   reports the persisted dev replay and schedule policy. The write's
@@ -2123,8 +2170,9 @@ step.
   For recorded-action replay that must not emit notifications, run
   `snapback4 dev --replay`: new effects are never delivered and schedules
   are held. `guide replay` explains the restart and explicit-job behaviour.
-- **`snapback4 run <op> ['<json args>'] [--as alice] [--now <milliseconds|+duration>] [--json]`** runs one
-  operation against the local store (the persona defaults to alice) and
+- **`snapback4 run <op> ['<json args>'] [--as <persona|principal-id>] [--now <milliseconds|+duration>] [--json]`** runs one
+  operation against the local store (defaults to `dev:alice`; declared personas
+  get the `dev:` prefix and other principal ids are used verbatim) and
   prints the result, the meter and, for a mutation, the partition events;
   a job runs whole as the system (`--as` is ignored) and prints its run.
   `--now 1789352669447` pins the invocation to Unix milliseconds, so a post
@@ -2192,6 +2240,7 @@ step.
   deployment's) and prints it once.
   The token and one newline are the whole of stdout (even with `--json`),
   with prose on stderr, so capture it with `TOKEN=$(npx snapback4 token --service worker)`.
+  Stderr names the owning store; each isolated store needs its own token (§4, Workers and services).
 - **`snapback4 why <E_CODE | op | table>`** explains a refusal code, an
   operation's arguments, result and cost, or a table's rules, sync line,
   expire column and indexes; **`data <table> [--limit N]`** prints rows

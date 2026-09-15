@@ -287,3 +287,70 @@ fn serve_emits_with_replay_metadata_left_in_the_release_store() {
     assert_eq!(host.post("/m/send", json!({"id":"release-send", "args":{}}), &auth)["state"], "sent");
     assert_eq!(host.post("/effects/claim", json!({}), &auth)["effects"].as_array().unwrap().len(), 1);
 }
+
+#[test]
+fn w7c_run_accepts_principal_ids_and_declared_personas() {
+    let f = Fixture::new("w7c-principals");
+    fs::write(f.0.join("snapback/schema.q"), "use personas alice\nquery who():\n  return viewer\n").unwrap();
+    for (name, expected) in [("alice", "dev:alice"), ("user:012345", "user:012345"), ("member:42", "member:42"), ("u0500", "u0500"), ("dev:alice", "dev:alice")] {
+        let out = f.command(&["run", "who", "--as", name, "--json"]);
+        assert!(out.status.success(), "{out:?}");
+        let body: Value = serde_json::from_slice(&out.stdout).unwrap();
+        assert_eq!(body["data"], expected, "--as {name}");
+        assert!(body["metered"]["steps"].as_u64().unwrap() > 0);
+    }
+}
+
+#[test]
+fn w7c_dev_banner_names_the_store_and_stdout_is_readiness() {
+    for flag in [None, Some("--fresh"), Some("--memory")] {
+        let f = Fixture::new(&format!("w7c-banner-{flag:?}"));
+        let log = f.0.join("startup.log");
+        let mut command = Command::new(BIN);
+        command.current_dir(&f.0).args(["dev", "--port", "0", "--no-watch"]);
+        if let Some(flag) = flag { command.arg(flag); }
+        let mut child = command.stdout(Stdio::piped()).stderr(fs::File::create(&log).unwrap()).spawn().unwrap();
+        let mut line = String::new();
+        BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
+        let host = Host { child, address: line.trim().trim_start_matches("http://").into() };
+        assert_eq!(line, format!("http://{}\n", host.address));
+        assert_eq!(host.post("/m/send", json!({"args":{}}), PERSONA)["result"], 7, "the first stdout line signals a usable backend");
+        let startup = fs::read_to_string(log).unwrap();
+        let expected = match flag {
+            Some(_) => "store: in memory — dies with this process".to_owned(),
+            None => format!("store: {}", f.0.join(".snapback4/store.sqlite").canonicalize().unwrap().display()),
+        };
+        assert!(startup.lines().any(|line| line == expected), "{startup}");
+        assert_eq!(f.0.join(".snapback4/store.sqlite").exists(), flag.is_none());
+        println!("{expected}");
+        drop(host);
+    }
+}
+
+#[test]
+fn w7c_service_token_output_names_its_owning_store() {
+    let f = Fixture::new("w7c-tokens");
+    drop(f.start(&[]));
+    let release = f.0.join("deployment");
+    assert!(f.command(&["deploy", release.to_str().unwrap()]).status.success());
+    for (flags, path, other) in [
+        (vec![], f.0.join(".snapback4/store.sqlite"), release.join("store.sqlite")),
+        (vec!["--release", release.to_str().unwrap()], release.join("store.sqlite"), f.0.join(".snapback4/store.sqlite")),
+    ] {
+        let mut args = vec!["token", "--service", "audit", "--json"];
+        args.extend(flags);
+        let out = f.command(&args);
+        assert!(out.status.success(), "{out:?}");
+        let stdout = String::from_utf8(out.stdout).unwrap();
+        assert_eq!(stdout.lines().count(), 1);
+        let own = Store::open(&path).unwrap();
+        let other = Store::open(&other).unwrap();
+        let now = snapback4_core::now_ms();
+        assert_eq!(snapback4_core::identity::resolve(&own, stdout.trim(), now).unwrap().unwrap().0, "service:audit");
+        assert!(snapback4_core::identity::resolve(&other, stdout.trim(), now).unwrap().is_none());
+        let stderr = String::from_utf8(out.stderr).unwrap();
+        let reported = if args.contains(&"--release") { path } else { path.canonicalize().unwrap() };
+        assert!(stderr.contains(&format!("store: {}", reported.display())), "{stderr}");
+        assert!(stderr.contains("this token belongs only to this store"), "{stderr}");
+    }
+}

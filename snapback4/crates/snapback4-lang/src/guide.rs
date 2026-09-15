@@ -28,7 +28,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("clock", "jobs"),
     ("simulator", "witness"), ("offline proof", "witness"),
     ("grammar", "language"), ("quarry", "language"),
-    ("maintain", "maintains"), ("time", "language"),
+    ("maintain", "maintains"), ("aggregates", "maintains"), ("time", "language"),
     ("replay", "personas"), ("seed", "personas"),
     ("predict", "prediction"), ("predictable", "prediction"), ("offline", "prediction"),
     ("optimistic", "prediction"), ("pending", "prediction"),
@@ -929,6 +929,23 @@ viewer. At most two uploads run at once, and their disk writes happen outside
 the engine mutex. Uploads are online only; there is nothing to queue."##,
         "reads" => r##"# Reads
 
+To inspect a real account's server work under loopback `dev`, use the online
+client `createClient({ url, session, meter: true })` (or a bearer `token`).
+Successful `query` and `observe` answers include `Read.meter`:
+`{ examined, indexEntries, probes, steps, heapBytes, outputBytes, rowsWritten }`.
+These are the engine's counters for that answer, not latency or process memory;
+`probes` is rule_probes and `heapBytes` is charged heap work. A remembered
+offline watch keeps the counters of its last server answer. Local device reads
+have no meter; use the online client to inspect the server for the same account.
+On the wire, opt in with `x-snapback-meter: 1` on `POST /q/<op>`.
+Without it dev omits the field; `serve` ignores the header and never returns
+meters. The counters can reflect hidden work and are development-only.
+`snapback4 run <op> '<json args>' --as <principal id> --json` also prints
+the engine's `metered` counters against `.snapback4/store.sqlite`.
+A declared persona such as `alice` resolves to `dev:alice`; any other `--as`
+value is used verbatim (including `user:...`, `member:42` and `dev:alice`).
+The default is `dev:alice`. Jobs still run as the system.
+
 Named equalities covering a total unique key read one row and check any extra
 columns there: `t[key = x, col = y]` returns null on a mismatch, and
 `exists t[key = x, col = y]` returns false. A non-unique prefix still needs an index. When several indexes match a positional
@@ -1360,6 +1377,13 @@ mutation rank(postId: id, score: int):
 `snapback4 token --service ranker [--days 365] [--release <dir>]` prints,
 once, a bearer session for the principal `service:ranker`.
 The token and one newline are the whole of stdout (even with `--json`), with prose on stderr, so capture it with `TOKEN=$(npx snapback4 token --service ranker)`.
+The owning store is printed on stderr: the project's `.snapback4/store.sqlite`,
+or `<dir>/store.sqlite` with `--release <dir>`. A token belongs only to that
+store; mint one for each isolated audit or proof store after starting its dev
+server. `--fresh` (also `--memory`) has no disk store for this CLI to mint into.
+Readiness for dev and serve is the first stdout line: the listening URL,
+emitted after store and native-module setup. Wait for that line before sending
+requests; lifecycle logs and the store banner use stderr.
 Rules name it
 like any principal, so the ranker is admitted and nobody else is; with
 its token a worker claims effects (guide effects) and runs any operation

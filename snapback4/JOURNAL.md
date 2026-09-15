@@ -19895,3 +19895,67 @@ Two complete original-evidence records are appended to storage.jsonl; the
 includes every case and the source/host/correctness/timing limits. The
 private comparison continues separately; these results establish no new
 competitor ranking or moving-main speed claim.
+
+
+## 2026-09-15 — W7c: real-account read meters and visible store ownership
+
+Built the 0.2.22 calibration's H6/H7/H8/H10 dev-loop corrections. The online
+client accepts `meter: true`, sends `x-snapback-meter: 1` on query requests,
+and preserves optional `Read.meter` on queries and observations. Loopback dev
+returns the existing seven engine counters; ordinary dev reads omit them and
+serve ignores the header. Production disclosure, cut sites, ceilings and the
+serialized value model stay unchanged. The root LLP records this explicit
+development exception to its earlier wire rule. Device reads have no meter;
+an online client with the same real account measures the server instead.
+
+`run --as` resolves a declared persona first and otherwise uses the literal
+principal id. The regression covers 5 spellings, including a bare `u0500`,
+a password principal, a custom principal and an explicit `dev:alice`.
+Dev's stderr banner names the SQLite path or prints exactly
+`store: in memory — dies with this process`; `--memory` aliases `--fresh`.
+All 3 startup modes answer a request after the first stdout line. That existing
+listening-URL line is now documented as readiness for dev and serve, so this
+lane adds 0 health routes. Token stdout stays 44 bytes (43 token characters
+and a newline); stderr names its owning store. Both dev and release token
+checks redeem in their own store and refuse in the other. The README gives
+the audit-token mint step for each isolated persistent proof store, and the
+services card explains why the token CLI cannot mint into a live memory store.
+`guide aggregates` resolves to the maintains card.
+
+Measured on a password account reading its 1 private row: examined **1**,
+index entries **0**, probes **0**, steps **5**, heap bytes **1,124**, output
+bytes **195**, rows written **0**. Every counter and the returned data equal
+`run --as <session principal>` on the same store. These are deterministic
+engine work counts, not process memory or latency; no scale speedup is claimed.
+The SDK and raw wire expose **0** meter fields in serve, including with the
+opt-in header. The new regressions on base
+`80b4899f949eb597d6426d95dda82d0c2dcd0b97` were red first: Rust CLI **0/3**,
+SDK **0/2**, guide **0/1** passed; after implementation, **3/3**, **2/2**,
+**1/1**. The banner/token assertions also needed macOS temp-path canonicalization.
+README examples pass **3/3** (15 blocks, 38 public functions). The existing
+piped-token tests required an updated exact stderr assertion for the new
+owning-store line; the periphery suite then passed **18/18**.
+
+What I learned: store identity and persistence need to be visible at the
+command that creates the artifact, and a stable stdout protocol can coexist
+with that explanation on stderr. The work meters already existed; exposing
+them safely needed a dev boundary and an opt-in card field, not a new meter.
+
+Verification used Node 24.18.0. The first package build exposed missing
+untracked wasm bindings on the base; `bash scripts/build-wasm.sh` generated
+them (1,752,840 B raw, 488,262 B gzip), after which package build/typecheck
+passed. `bash snapback4/scripts/test.sh` completed with
+`== 1 failure(s) in 411 s`: Rust **995 passed, 0 failed, 4 ignored**;
+fixtures **9 passed, 0 failed**; clients **363 passed, 4 failed**. The client
+failures were the two old token-output assertions fixed above, one navigation
+connection timeout, and Chromium SIGABRT in the sandbox. The focused navigation
+rerun passed **4/4**. The complete client rerun with
+`node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'` passed
+**366**, failed **1**, in **154,454.728584 ms**: only React's Chromium launch.
+`node --test packages/snapback4/test/react.test.mjs` also reproduced SIGABRT
+alone (**0 passed, 1 failed**). This is the environment artifact named in the
+lane brief; I did not run a separate base checkout to claim it pre-existing.
+The lead's outside-sandbox React run remains necessary. All builds, app
+checks and typechecks passed. `./ref-check --verbose` passed with **0 errors,
+0 unchecked**. No E_/N_ diagnostic text changed, and no commit or publication
+was made by this lane.
