@@ -8816,3 +8816,303 @@ ref-check: ok — 474 LLP docs, 8869 refs in 22863 files, 0 errors, 0 unchecked
 
 `git diff --check` passed. The JOURNAL prefix is byte-identical to the base;
 this dated entry is append-only.
+
+## 2026-09-14 — W2R1u: prove the whole upsert insert before predicting it
+
+Base: `0e9fdddba4fe34684d99215b70ac8dae2d164c42` (`sb4/w2-int`). Read
+GPT findings 1, 2, 5 and 10 and obligations 1 and 8, lane F's journal and
+`20ea0534d`. The governing constraints are LLP 3000.007 §20.5 (ruling 19),
+§8.7/§15/§17 (prediction confers no hidden-row authority), and §18.2 (a
+left group is retained history, not whole-group absence evidence).
+
+The common insert arm now materializes defaults, proves readability again
+using the addressed index's values from that actual image, and proves
+coverage of every non-null secondary unique lookup and every affected cap
+prefix. The original addressed-key absence proof remains. A cap without
+`by` has the empty prefix and needs full public sync. A private partition
+cannot rule out another viewer's collision or count. The intrinsic byId
+key is either the already-proven address or the newly minted row identity.
+Both engine upsert paths use the same insert proof; ordinary insert and
+update semantics, rules, value serialization and meter ceilings are unchanged.
+
+Prediction now reads the persisted held/left map through the same helper
+as the reading adapter, in direct prediction, admission and replay. When
+replay loses prediction evidence it withdraws the overlay and clears the
+entry's `predictable` and `predicted` fields while keeping the queued write.
+The writes card, prediction card and README state the same conditions.
+There is no new Quarry form, diagnostic code, or note.
+
+Thirteen added device tests exercise 46 device scenarios on the SQLite and
+memory stores against the server: 8 changed-audience scenarios (including
+the `require r = null else WRONG` program), 24 hidden-constraint scenarios
+(secondary unique, grouped cap, whole-table cap and a defaulted unique
+column, each absent/noncolliding/colliding), 6 positive covered-constraint
+and default scenarios, 2 defaulted insert-rule refusals, 2 ordered pending
+delete/upsert lifecycles, and 4 left-group admission/replay scenarios.
+One guide test rejects the categorical obsolete writes-card sentence.
+The existing first-like prediction remains 1 row on each store; the feeds
+card predicts 2 rows, the vote and maintained score. The affected tests
+added no meter ceiling or serialized-value changes.
+
+The observation helper now serializes the entire local QueryOutcome and
+uses ordinary wire JSON only for its data: continuation, all seven meter
+fields, caps, word cuts, sequence, dependency tables and next expiry are
+retained. It can record a local admission refusal even if the server later
+succeeds. Changed-audience worlds compare the full existing observation
+(first/retry bodies, receipt, meters, deltas, effects, snapshots, streams,
+and both complete device lifecycles), with an absent/noncolliding control.
+Constraint worlds compare complete device observations through reopen;
+the server's expected acceptance/refusal and settlement are checked in each
+world, rather than incorrectly demanding identical server results when a
+constraint legitimately refuses. This helper remains in-process; actual
+HTTP status and JavaScript subscription notifications are not exercised.
+
+Reproduction qualification for finding 5: an ordinary server scope
+tombstone retains the old self-membership image under delivered-history;
+it does not itself produce the review's missing membership row. The
+regression therefore pairs the actual server scope with an explicit row
+tombstone for the membership the server has confirmed deleted, proving the
+missing-row/left-group state on admission and replay. The reading adapter
+confirms that the empty group is left. Before the fix, admission returned
+`NOT_FOUND` and replay retained stale prediction metadata. This is a
+boundary-state regression, not a claim that the normal scope-only stream
+delivers the additional row tombstone.
+
+### Red before, green after
+
+Only tests and the observation helper changed for the red run; production
+sources were still exactly the base above. Cargo commands below run from
+`snapback4/`.
+
+```text
+cargo test -p snapback4-device --test device upsert::proof -- --nocapture
+test result: FAILED. 3 passed; 10 failed; 0 ignored; 0 measured; 51 filtered out; finished in 0.37s
+```
+
+Finding 1 — changed audience and valued result:
+
+```text
+test upsert::proof::changed_audience_program_result_queues_on_both_stores ... FAILED
+test upsert::proof::changed_audience_image_queues_on_both_stores ... FAILED
+test upsert::proof::changed_audience_image_queues_on_both_stores ... ok
+test upsert::proof::changed_audience_program_result_queues_on_both_stores ... ok
+```
+
+Finding 2 — secondary unique and both cap populations:
+
+```text
+test upsert::proof::defaulted_hidden_unique_collision_queues_on_both_stores ... FAILED
+test upsert::proof::hidden_whole_table_cap_occupancy_queues_on_both_stores ... FAILED
+test upsert::proof::hidden_secondary_unique_collision_queues_on_both_stores ... FAILED
+test upsert::proof::hidden_group_cap_occupancy_queues_on_both_stores ... FAILED
+test upsert::proof::hidden_whole_table_cap_occupancy_queues_on_both_stores ... ok
+test upsert::proof::hidden_secondary_unique_collision_queues_on_both_stores ... ok
+test upsert::proof::hidden_group_cap_occupancy_queues_on_both_stores ... ok
+test upsert::proof::defaulted_hidden_unique_collision_queues_on_both_stores ... ok
+```
+
+Finding 5 — left self-witness admission and replay:
+
+```text
+test upsert::proof::left_self_witness_admission_memory ... FAILED
+test upsert::proof::left_self_witness_replay_memory ... FAILED
+test upsert::proof::left_self_witness_replay_sqlite ... FAILED
+test upsert::proof::left_self_witness_admission_sqlite ... FAILED
+test upsert::proof::left_self_witness_admission_memory ... ok
+test upsert::proof::left_self_witness_replay_memory ... ok
+test upsert::proof::left_self_witness_replay_sqlite ... ok
+test upsert::proof::left_self_witness_admission_sqlite ... ok
+```
+
+Finding 10 — obsolete writes-card guidance:
+
+```text
+cargo test -p snapback4-lang --test guide writes_card_explains_the_whole_upsert_insert_proof -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s
+```
+
+The three positive/control tests (covered constraints and defaults,
+defaulted insert-rule refusal, and ordered pending delete/upsert) were
+already green on the base; they motivated no additional production change.
+The final green targeted commands and verbatim summaries:
+
+```text
+cargo test -p snapback4-device --test device upsert -- --nocapture
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 46 filtered out; finished in 0.48s
+```
+
+```text
+cargo test -p snapback4-lang --test guide
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+```
+
+```text
+cargo test -p snapback4-device --test device --test write_authority
+test result: ok. 64 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 45.29s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
+```
+
+```text
+cargo test -p snapback4-sim --test residency --test write_authority
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.50s
+```
+
+Setup corrections before the valid red run: one accidental Cargo
+invocation at repository root exited 101 without running tests; it was
+rerun from `snapback4/`. A test initially used `Value::Time`, corrected to
+the existing `Value::Int` representation. Neither is counted as regression
+evidence. Early fixture assertions were corrected to equalize server seed
+sequence and to inspect left groups through a range query; the valid red
+run above is the one that reaches each reported production defect.
+
+### Published text
+
+No diagnostic text or code changed. Before, the writes card said verbatim:
+
+```text
+`upsert` set-state writes (likes, reactions and votes) predict only updates of
+rows the device holds; a missing row queues without a prediction. See
+`guide prediction` for a predictable insert/delete set-membership recipe.
+```
+
+After:
+
+```text
+`upsert` set-state writes (likes, reactions and votes) predict updates of
+rows the device holds. A missing row predicts an insert only when its synced
+group is held with no horizon, both the key and the materialized insert image
+prove readability, and the device holds every row that can collide on a
+secondary unique index or count toward an affected cap. Defaults are part of
+that image. Otherwise it queues without a predicted row, including in a left
+group. See `guide prediction` for the conditions and a set-membership recipe.
+```
+
+### Blocking suite and scope
+
+From the repository root, with the required Node 24 runtime:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+```
+
+Verbatim stage, Rust and JavaScript summary lines:
+
+```text
+-- ok: cargo build (36 s)
+wasm 1651371 B raw, 458493 B gzip
+-- ok: wasm build (23 s)
+-- ok: package typecheck (6 s)
+-- ok: package build (2 s)
+-- ok: chat app check (4 s)
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.07s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.21s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.38s
+test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.61s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.59s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+test result: ok. 64 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 47.63s
+test result: ok. 90 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 25.21s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.63s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.60s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 85.33s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.70s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 33 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 33.33s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.00s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.68s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.72s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 19.82s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.29s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+-- ok: cargo test (460 s)
+-- ok: chat app typecheck (2 s)
+-- ok: expo app typecheck (11 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+-- ok: fixture wrapper tests (34 s)
+ℹ tests 188
+ℹ pass 187
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+-- FAIL: client tests (69 s)
+== 1 failure(s) in 531 s
+```
+
+Rust totals: **720 passed, 0 failed, 2 ignored**. Fixtures: 9/9. Clients: 187/188.
+The only suite failure is Chromium SIGABRT during the React test's browser
+launch. The isolated rerun from `snapback4/` reproduces it:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+```
+
+This matches the known sandbox artifact named in the lane brief. I did not
+rerun the unmodified base for the browser failure and make no independently
+base-verified pre-existing-failure claim. No lifecycle or mass client timeout
+was observed, so a reduced-concurrency rerun was not needed. The lead still
+needs the outside-sandbox browser run.
+
+The rebuilt wasm measured **1,651,371 bytes raw; 458,493 bytes gzip**. No
+before/after size improvement is claimed. The largest changed code file is
+778 lines (`device.rs`); Markdown was not compressed. No out-of-scope file,
+corpus case, meter ceiling, value form, transport, signing, schedule, enum,
+init, app or loopbar file was changed. No commit, push, tag or publication
+was made. The supplied scenarios are covered with the explicit left-group
+fixture qualification above; actual browser execution remains unverified.
+
+Final root checks:
+
+```text
+./ref-check --verbose
+ref-check: ok — 480 LLP docs, 8881 refs in 22920 files, 0 errors, 0 unchecked
+git diff --check
+```
+
+`git diff --check` exited 0 with no output. HEAD remains the base above;
+the working tree contains only the 13 intended source, test and documentation
+files, including the new upsert proof test module.

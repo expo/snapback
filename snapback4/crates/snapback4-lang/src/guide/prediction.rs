@@ -90,10 +90,14 @@ work such as `falliblePost`, even inside an emit. See `guide presence`.
 ## Set-state writes: likes and reactions
 
 `upsert` predicts an update of a row the device holds. It predicts the insert
-of a row the device lacks only when the synced group has no horizon and the
-key proves readability (public rows, or a viewer-keyed rule), as for `likes`
-below; with a horizon, or a key that does not decide readability, a first like
-or reaction written with upsert queues without a predicted row. For boolean
+of a row the device lacks only when the synced group is held with no horizon,
+both the key and the materialized insert image prove readability (public rows,
+or a viewer-keyed rule), and every secondary unique lookup and affected cap
+group is fully covered by that viewer-readable partition. Key columns, patch
+and defaults all contribute to the image; changing its audience cannot grant
+read authority. A hidden unique collision or cap population cannot be ruled
+out locally; a whole-table cap needs the whole public table. A left group,
+a horizon, or any unproved condition queues without a predicted row. For boolean
 membership `insert ... if absent` to set and `delete` to clear read most
 plainly; with the whole viewer partition held, the device can predict both. For a multi-valued
 reaction, explicitly insert when absent and update the held row when present.

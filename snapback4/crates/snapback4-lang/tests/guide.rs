@@ -501,3 +501,12 @@ fn set_state_recipe_predicts_first_like_and_repeated_set_and_clear() {
         assert_eq!(engine.store().rows("likes").unwrap().len(), usize::from(liked));
     }
 }
+
+#[test]
+fn writes_card_explains_the_whole_upsert_insert_proof() {
+    let writes = card("writes").unwrap().split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(!writes.contains("predict only updates of rows the device holds"));
+    for text in ["held", "no horizon", "insert image", "unique", "cap", "guide prediction"] {
+        assert!(writes.contains(text), "writes card omits {text}");
+    }
+}
