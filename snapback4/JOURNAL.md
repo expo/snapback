@@ -13669,3 +13669,318 @@ Main reached 0.2.16 before this evidence landing, with changes to core
 read/rule/admission/schema and host behavior at integration parent
 1a4a50da8. This fixed d0ea batch does not qualify that newer runtime or its
 performance; the next experiment must qualify its own source.
+
+## 2026-09-14 — X1R3: committed heads and native owner bindings
+
+Base: `ebb9ab3ded7aaea2c50df48646288e8c09207500`. Read findings 5 and 6
+of `/Users/ccheever/projects/snapback-x1-review/recheck-gpt.out.md`, the
+X1/X1R1/X1R2 entries, the Snapback 4 fence and LLP 3000.007 §14/§18.2.
+Both findings reproduced with test-only changes before implementation.
+No commit, push, tag, publication, sub-agent, clone, remote work, ceiling
+increase or value-model serialization change was made. No corpus case changed.
+
+### Findings and implementation
+
+1. **Finding 5 reproduced.** A populated maintain adoption committed head
+   **4**, but the next idle `/changes` reply said **3**. Both the wasm and
+   process clients persisted `E_STORE_RESTORE` on that healthy store.
+   `/changes` now reads the committed head, store identity and changed
+   tables in one read transaction. The wake counter is never its answer;
+   production counter updates are monotonic and source adoption refreshes
+   it after a maintain rebuild. A notification still releases held polls,
+   including the session-liveness recheck, without asserting that the head
+   changed. Reporting the actual head also requires covering the bounded
+   commit page: beyond **500** commits the notification invalidates every
+   current table, rather than skipping later invalidations.
+2. **Finding 5 client boundary reproduced.** Injecting a lower notification
+   against an unchanged store persisted the same halt. A lower poll or probe
+   now invalidates freshness and requests sync confirmation. Only a matching
+   authenticated snapshot/stream reply below the captured acquisition can
+   persist the restore refusal. Non-success replies without a denial and
+   replies from an obsolete credential revision cannot establish it. The
+   old round-2 test requiring notification-only persistence was updated to
+   the accepted round-3 policy. The real stopped-backup restore still halts,
+   preserves its watermark, refuses offline reopen and stops retries.
+3. **Finding 6 reproduced.** Two SQLite owners loaded A's native module;
+   owner 1 adopted store B with identical schema, Quarry and generation,
+   installed different native bytes, and acquired B. Owner 2 still returned
+   A's `weight` field with `complete: true`. Each owner now remembers its
+   adopted store ID and checks it, the backend fingerprint and the loaded
+   native digest against durable metadata before reads, acquisition or
+   prediction (including replay paths). Adoption clears an obsolete local
+   module; installation checks the adopted store before writing bytes.
+   Owner 2 refuses the existing obsolete-owner `E_PREDICT`, then returns B's
+   `Weight` field after adoption and reload. Controls cover unchanged
+   adoption, a module-only change, and another incarnation with identical
+   module bytes. Existing native offline-reopen tests remain green.
+
+The server race test uses two committed writes and channels to deliver the
+first wake after the second. It deliberately leaves the counter at **1**
+while the store is at **2**; the old wire reports **1**, the fixed wire **2**.
+A separate HTTP test covers concurrent commits and replay of their older
+receipt. That receipt retry bypasses notification assignment; it is not the
+race witness. The native module variant changes only the fixture's returned
+field name in its in-memory wasm bytes; it does not edit the fixture.
+
+### Commands and red/green evidence
+
+Cargo and Bun commands below ran from `snapback4/`. Every Node/Bun invocation
+used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` first.
+The initial red runs used the base implementation. For the additional server
+barrier tests and revised round-2 client test, all six changed implementation
+files were temporarily restored verbatim from the same base with `git show`,
+then restored from saved bytes in a `finally` block; no index or branch was
+changed. The package JavaScript was rebuilt during that baseline check.
+
+`cargo test -p snapback4-device --test native_reads finding_6 -- --nocapture`
+
+Before:
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 1.31s
+```
+
+After:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 1.27s
+```
+
+`node --test --test-concurrency=1 --test-name-pattern='R3 finding 5' packages/snapback4/test/store-reset-reconnect.test.mjs`
+
+Before (the five new negative witnesses fail; the concurrent/replayed receipt
+control passes):
+
+```text
+ℹ tests 6
+ℹ suites 0
+ℹ pass 1
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6326.242958
+```
+
+`cargo test -p snapback4 --bin snapback4 review_changes -- --nocapture`
+
+Before (reordered wakes and the actual head beyond the commit page):
+
+```text
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 33 filtered out; finished in 0.04s
+```
+
+`node --test --test-name-pattern='R3 finding 5' packages/snapback4/test/store-reset-review.test.mjs`
+
+Before (the updated confirmation policy):
+
+```text
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 200.755416
+```
+
+`cargo test -p snapback4-device --test native_reads --test native --test device`
+
+After, including both device stores and the additional native controls:
+
+```text
+test result: ok. 114 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 34.60s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.43s
+```
+
+`cargo test -p snapback4 --bin snapback4`
+
+After, including both server regressions and wake/session checks:
+
+```text
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s
+```
+
+`node --test --test-concurrency=1 packages/snapback4/test/store-reset-reconnect.test.mjs packages/snapback4/test/store-reset-review.test.mjs`
+
+After, including the true restore and the prior review regressions:
+
+```text
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18618.515833
+```
+
+### Measurements and diagnostic texts
+
+- Populated maintain: committed/acquired head **4**; idle head **3 → 4**;
+  healthy client restore refusals **1 → 0** on each of **2** client hosts.
+- Transient lower notification: **0** against acquired head **3**; sync
+  confirms **3**, with **0** persisted restore refusals on both hosts.
+- Reordered wake witness: **2** commits, counter **1**, reply **1 → 2**.
+- Bounded invalidation: **501** commits, page bound **500**; actual head
+  **500 → 501**, invalidations include both tables. The final one-commit
+  request names only the table that changed.
+- True restore: same ID, heads **3 → 1**; preserved device watermark **3**,
+  retry syncs **0**, fresh-device rows **1**, offline reopen still refused.
+- Native ownership: **2** owners, **2** module digests, **3** store identities;
+  **0** stale native executions after the refusal guard. Same-generation
+  re-adoption and reload positively return B's computation.
+- Changed code files are all below **1,500** lines; the largest is
+  `crates/snapback4/src/serve.rs` at **1,305** lines.
+
+Healthy maintain acquisition before emitted this client diagnostic; after it
+returns the three acquired rows fresh with no denial:
+
+```text
+E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox
+```
+
+The true restore still emits that exact text. The obsolete native owner
+previously emitted no refusal and returned A's result; afterward it emits the
+existing diagnostic, unchanged:
+
+```text
+E_PREDICT: this owner's backend is obsolete; reconnect to adopt the current backend
+```
+
+No new diagnostic or note code was introduced. The README, sync card and
+§18.2 note describe the revised confirmation policy and native binding.
+A restore that advances beyond the acquired watermark before sync confirms
+it is not detected by this sequence check; the stopped-backup procedure still
+requires a fresh device and outbox.
+
+### Scope and full-suite qualification
+
+The only additional source file outside the named implementation paths is
+`crates/snapback4/src/serve_tests.rs`: three lines include the new regression
+module under `crates/snapback4/tests/serve_changes/`, reusing its existing
+private HTTP host fixture. The core engine needed no edit. All requested
+implementation and regression work is present; no performance benchmark was
+requested beyond the concrete sequence/owner measurements above.
+
+The first `bash snapback4/scripts/test.sh` run found two wake-only server tests
+and the old notification-only restore expectation. Those were corrected as
+described above. Its summaries were:
+
+```text
+test result: FAILED. 31 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.59s
+-- FAIL: cargo test (305 s)
+ℹ tests 236
+ℹ pass 234
+ℹ fail 2
+-- FAIL: client tests (45 s)
+== 2 failure(s) in 310 s
+```
+
+The other client failure was Chromium's sandbox launch, reproduced alone at
+base `ebb9ab3ded7aaea2c50df48646288e8c09207500` with restored implementation
+sources and rebuilt JavaScript. It aborts before application execution:
+
+`node --test packages/snapback4/test/react.test.mjs`
+
+```text
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 378.550917
+<process did exit: exitCode=null, signal=SIGABRT>
+```
+
+Final rerun (repository root, after the same Node 24 PATH export):
+
+`bash snapback4/scripts/test.sh`
+
+```text
+-- ok: cargo build (2 s)
+-- ok: wasm build (7 s)
+-- ok: package typecheck (0 s)
+-- ok: package build (1 s)
+-- ok: chat app check (2 s)
+-- ok: cargo test (270 s)
+-- ok: chat app typecheck (0 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7644.159583
+-- ok: fixture wrapper tests (7 s)
+ℹ tests 236
+ℹ suites 0
+ℹ pass 235
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 44215.768167
+-- FAIL: client tests (44 s)
+== 1 failure(s) in 282 s
+```
+
+Across the final Rust result lines: **835 passed, 0 failed, 4 ignored**.
+The sole final client failure is the same Chromium launch `SIGABRT` verified
+at the base above; no lifecycle timeout or other client failure occurred.
+The full blocking suite cannot be reported green inside this sandbox. The
+lead must run the browser test outside it; no additional implementation work
+is left from findings 5 and 6.
+
+Final matching green for the server's two deterministic red witnesses:
+
+`cargo test -p snapback4 --bin snapback4 review_changes -- --nocapture`
+
+```text
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 33 filtered out; finished in 0.03s
+```
+
+Additional isolated targeted runs (before the combined 26-test run above):
+
+`node --test --test-concurrency=1 packages/snapback4/test/store-reset-reconnect.test.mjs`
+
+```text
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16467.874417
+```
+
+`node --test --test-concurrency=1 packages/snapback4/test/store-reset-review.test.mjs`
+
+```text
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2267.338083
+```
+
+Repository-root `./ref-check --verbose`:
+
+```text
+ref-check: ok — 480 LLP docs, 8911 refs in 22964 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` exits **0**. Only the intended source, tests, published
+text, §18.2 note and this one appended journal entry are changed. No generated
+artifact is included. The work is left uncommitted for the lead.

@@ -351,6 +351,8 @@ fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: u128) {
                         for step in steps {
                             eprintln!("  {:?}: {}", step.change, step.message);
                         }
+                        // Adoption can itself commit a populated maintain rebuild.
+                        if let Ok(seq) = engine.seq() { let mut current = lock(&shared.seq); *current = (*current).max(seq); }
                         shared.committed.notify_all();
                     }
                     Err(error) => {
@@ -842,11 +844,15 @@ fn handle(mut request: Request, shared: &Shared) {
             respond(request, 200, json!({ "guests": auth.guests, "password": auth.password }));
         }
         (Method::Get, "/") => {
+            let seq = match lock(&shared.engine).seq() {
+                Ok(seq) => seq,
+                Err(error) => return respond(request, 500, json!({ "denied": refusal_json(&error.refusal()) })),
+            };
             let body = {
                 let bound = lock(&shared.bound);
                 let ops: Vec<Json> = bound.programs.iter().map(|p| json!({ "name": p.program.name, "kind": p.program.kind.word() })).collect();
                 let tables: Vec<Json> = bound.schema.tables.iter().map(|(name, table)| json!({ "name": name, "sync": table.sync.as_ref().map(|s| s.line()) })).collect();
-                json!({ "snapback4": env!("CARGO_PKG_VERSION"), "generation": *lock(&shared.generation), "seq": *lock(&shared.seq), "ops": ops, "tables": tables })
+                json!({ "snapback4": env!("CARGO_PKG_VERSION"), "generation": *lock(&shared.generation), "seq": seq, "ops": ops, "tables": tables })
             };
             respond(request, 200, body);
         }
@@ -993,7 +999,8 @@ fn handle(mut request: Request, shared: &Shared) {
                 match outcome {
                     Ok(outcome) => {
                         if let WriteState::Sent { seq, .. } = &outcome.state {
-                            *lock(&shared.seq) = *seq;
+                            let mut current = lock(&shared.seq);
+                            *current = (*current).max(*seq);
                             shared.committed.notify_all();
                         }
                         let body = outcome.reply(id.as_deref());
@@ -1210,7 +1217,8 @@ fn handle(mut request: Request, shared: &Shared) {
             match outcome {
                 Ok(count) => {
                     if let Ok(seq) = lock(&shared.engine).seq() {
-                        *lock(&shared.seq) = seq;
+                        let mut current = lock(&shared.seq);
+                        *current = (*current).max(seq);
                         shared.committed.notify_all();
                     }
                     respond(request, 200, json!({ "seeded": count }));

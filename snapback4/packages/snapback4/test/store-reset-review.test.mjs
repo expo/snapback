@@ -87,14 +87,16 @@ test("R2 item 2: getSnapshot is cleared and notified in the reset turn", async t
   assert.equal(watch.getSnapshot().fresh, true);
 });
 
-test("R2 item 3: a lower change head cannot be forgotten when the head recovers before sync", async t => {
+test("R3 finding 5: a lower change head alone cannot persist a restore halt", async t => {
   const f = await fixture(t), op = { kind: "query", name: "marker" };
   assert.equal((await f.client.query(op, {})).fresh, true);
-  // The poll witnesses a restored head, but the next /sync already reports
-  // the original head again. That does not repair the old partition's rows.
+  // The next authenticated /sync confirms the acquired head. A delayed or
+  // transient notification alone cannot prove that this store shrank.
+  const syncs = f.stats().syncStarts;
   await f.changed(5); await f.client.sync();
-  assert.equal((await f.client.query(op, {})).denied?.code, "E_STORE_RESTORE");
-  assert.equal((await f.core.call({ op: "sync_state" })).ok.restore_refusal.code, "E_STORE_RESTORE");
+  assert.ok(f.stats().syncStarts > syncs);
+  assert.equal((await f.client.query(op, {})).fresh, true);
+  assert.equal((await f.core.call({ op: "sync_state" })).ok.restore_refusal, undefined);
 });
 
 test("finding 1: failed same-generation backend adoption survives retry and offline reopen", async t => {

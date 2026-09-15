@@ -152,6 +152,7 @@ pub struct Device<S: DeviceStore> {
     programs: BTreeMap<String, Program>,
     generation: u64,
     backend_identity: String,
+    store_identity: Option<String>,
     snapshot_owner: Option<String>,
     /// The app's native module, once installed or reloaded from the store.
     #[cfg(feature = "wasm-host")]
@@ -298,12 +299,14 @@ impl<S: DeviceStore> Device<S> {
             // absent. Do not advertise its digest and suppress repair.
             clear_native(&mut store)?;
         }
+        let store_identity = store.meta(STORE_ID)?;
         Ok(Self {
             store,
             schema: backend.schema,
             programs: backend.programs.into_iter().map(|p| (p.name.clone(), p)).collect(),
             generation: backend.generation,
             backend_identity,
+            store_identity,
             snapshot_owner: None,
             #[cfg(feature = "wasm-host")]
             native,
@@ -326,6 +329,11 @@ impl<S: DeviceStore> Device<S> {
             let module = snapback4_core::engine::native::Module::compile(bytes)?;
             let names = (module.jobs().to_vec(), module.reads().to_vec());
             let tx = self.store.transaction()?;
+            store_identity::require_backend(&tx, &self.backend_identity, &self.store_identity)?;
+            store_identity::require_healthy(&tx)?;
+            if tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) {
+                return Err(RuntimeError::Prediction("this store's backend has not been adopted; reconnect to acquire it".into()));
+            }
             tx.set_meta(NATIVE, &snapback4_core::value::encode_bytes_hex(bytes))?;
             tx.set_meta(NATIVE_DIGEST, digest)?;
             tx.set_meta(NATIVE_GENERATION, &generation.to_string())?;
@@ -359,6 +367,10 @@ impl<S: DeviceStore> Device<S> {
         expected.entry(BACKEND_REQUIRED.into()).or_insert(required.clone());
         expected.entry(STORE_ID.into()).or_insert(self.store.meta(STORE_ID)?);
         expected.entry(SEND_REVISION.into()).or_insert(self.store.meta(SEND_REVISION)?);
+        let adopted_store = expected.get(STORE_ID).cloned().flatten();
+        let cached_native = self.store.meta(NATIVE_DIGEST)?;
+        expected.entry(NATIVE_DIGEST.into()).or_insert(cached_native.clone());
+        let obsolete_native = adopted_store != self.store_identity || cached_native.filter(|s| !s.is_empty()).as_deref() != self.native_digest.as_deref();
         let replacement = required.as_ref().is_some_and(|value| !value.is_empty());
         let reset = backend.generation != self.generation;
         let keep_images = snapback4_core::successor::keeps_literal_default_images(&self.schema, &backend.schema);
@@ -378,7 +390,7 @@ impl<S: DeviceStore> Device<S> {
         }
         if replacement { invalidate_native(&mut metadata); }
         self.store.install_checked(&backend.schema, &metadata, reset && !keep_images, &expected)?;
-        if reset || replacement {
+        if reset || replacement || obsolete_native {
             #[cfg(feature = "wasm-host")]
             {
                 self.native = None;
@@ -389,6 +401,7 @@ impl<S: DeviceStore> Device<S> {
         self.programs = backend.programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         self.generation = backend.generation;
         self.backend_identity = backend_identity;
+        self.store_identity = adopted_store;
         self.snapshot_owner = None;
         Ok(())
     }
@@ -424,7 +437,7 @@ impl<S: DeviceStore> Device<S> {
             }
         }
         let restore_refusal = tx.meta(store_identity::RESTORE_REFUSED)?.map(|_| store_identity::restore_error().refusal());
-        let state = SyncState { backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || tx.meta(BACKEND_IDENTITY)?.as_deref() != Some(&self.backend_identity), restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, send_revision: meta_u64(&tx, SEND_REVISION)? };
+        let state = SyncState { backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()).is_err(), restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, send_revision: meta_u64(&tx, SEND_REVISION)? };
         tx.rollback()?;
         Ok(state)
     }
@@ -450,6 +463,8 @@ impl<S: DeviceStore> Device<S> {
     /// every remaining prediction. Returns the tables touched.
     pub fn apply(&mut self, page: &StreamPage, first: bool) -> Result<Vec<String>, RuntimeError> {
         let tx = self.store.transaction()?;
+        let first_identity = tx.meta(STORE_ID)?.is_none() && self.store_identity.is_none();
+        let owner_store = if first_identity { page.store_id.clone() } else { self.store_identity.clone() };
         let observed = store_identity::observe(&tx, page)?;
         if observed.restore_refused {
             tx.commit()?;
@@ -460,7 +475,7 @@ impl<S: DeviceStore> Device<S> {
             self.snapshot_owner = None;
             return Err(RuntimeError::Generation("the backend store was replaced; reacquire its partition".into()));
         }
-        if observed.backend_required || tx.meta(BACKEND_IDENTITY)?.as_deref() != Some(&self.backend_identity) {
+        if observed.backend_required || store_identity::require_owner(&tx, &self.backend_identity, &owner_store, self.native_digest.as_deref()).is_err() {
             return Err(RuntimeError::Generation("the backend store requires backend adoption before acquisition".into()));
         }
         if page.generation.is_some_and(|g| g != self.generation) {
@@ -514,6 +529,7 @@ impl<S: DeviceStore> Device<S> {
             // image private until log catch-up repairs intervening commits.
             if page.more || (page.snapshot && page.stage_snapshot) {
                 tx.commit()?;
+                self.store_identity = owner_store.clone();
                 self.snapshot_owner = owner;
                 return Ok(Vec::new());
             }
@@ -594,6 +610,7 @@ impl<S: DeviceStore> Device<S> {
         }
         predictions::replay(&tx, &self.schema, &self.programs, page.watermark)?;
         tx.commit()?;
+        self.store_identity = owner_store.clone();
         if replacing {
             self.snapshot_owner = None;
         }
@@ -614,9 +631,9 @@ impl<S: DeviceStore> Device<S> {
             let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
             let context = Context::new(viewer, typed_args(&program, args)?).at(now).with_generation(self.generation);
             let tx = self.store.read_transaction()?;
-            if tx.meta(BACKEND_IDENTITY).map_err(|e| e.refusal())?.as_deref() != Some(&self.backend_identity) {
+            if let Err(error) = store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()) {
                 unknown = true;
-                return Err(RuntimeError::Prediction("this owner's backend is obsolete; reconnect to adopt the current backend".into()).refusal());
+                return Err(error.refusal());
             }
             if let Err(error) = require_acquired(&tx, &self.schema, &program) {
                 unknown = matches!(&error, RuntimeError::Prediction(_));
@@ -651,6 +668,7 @@ impl<S: DeviceStore> Device<S> {
     pub fn predict(&mut self, name: &str, viewer: &str, args: &serde_json::Value, now: i64, new_ids: Vec<String>, entropy: u64) -> Result<Predicted, RuntimeError> {
         let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
         let tx = self.store.transaction()?;
+        store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
         require_acquired(&tx, &self.schema, &program)?;
         let context = Context::new(viewer, media::inputs(&tx, &program, viewer, args)?).at(now).with_generation(self.generation).with_ids(new_ids).with_entropy(entropy.max(1));
         let predicting = Predicting { tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, written: RefCell::new(Vec::new()) };
@@ -671,6 +689,7 @@ impl<S: DeviceStore> Device<S> {
     /// restores anything else.
     pub fn withdraw(&mut self, _predicted: &[String]) -> Result<(), RuntimeError> {
         let tx = self.store.transaction()?;
+        store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
         let watermark = meta_u64(&tx, WATERMARK)?;
         predictions::restore(&tx, &self.schema)?;
         // Base images are shared by overlapping predictions, so restore the
@@ -686,6 +705,7 @@ impl<S: DeviceStore> Device<S> {
         let program = self.programs.get(&entry.op).ok_or_else(|| RuntimeError::UnknownOp(entry.op.clone()))?;
         if program.kind == snapback4_core::ProgramKind::Action { return Err(RuntimeError::UnknownOp("an action cannot enter the device outbox; call client.act".into())); }
         let tx = self.store.transaction()?;
+        store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
         if entry.predictable {
             tx.savepoint("admit")?;
             match predictions::run(&tx, &self.schema, program, &entry) {
@@ -714,6 +734,7 @@ impl<S: DeviceStore> Device<S> {
     /// survivors are replayed over the confirmed images.
     pub fn settle(&mut self, id: &str, seq: Option<u64>) -> Result<(), RuntimeError> {
         let tx = self.store.transaction()?;
+        store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
         let watermark = meta_u64(&tx, WATERMARK)?;
         predictions::restore(&tx, &self.schema)?;
         match seq {

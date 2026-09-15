@@ -323,16 +323,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return capture;
   }
 
-  // @ref LLP 3000.007#18.2 — a witnessed restore stays refused even if writes advance its head before the next sync.
-  async function observeHead(id: string | undefined, head: number, capture: StoreCapture): Promise<boolean> {
-    if (id === undefined || id !== capture.store_id || !(head < capture.watermark)) return true;
-    observeIncarnation(id, true);
-    const reply = await call({ op: "observe_store", page: { snapshot: false, events: [], more: false, store_id: id, watermark: head,
-      requested_watermark: capture.watermark, captured_watermark: capture.watermark, send_revision: capture.send_revision } });
-    refuseRestore(reply.denied);
-    return false;
-  }
-
   async function call(request: Record<string, unknown>): Promise<{ ok?: unknown; denied?: Refusal }> {
     const work = core.call(request);
     active.add(work);
@@ -521,6 +511,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify({ from: watermark, limit: PAGE, after: after ?? null, stream: catchingUp, pending, ...(store_id ? { store_id } : {}) }), signal: aborter.signal });
           if (response.status >= 500) { setLink("offline"); return false; }
           page = (await response.json()) as Record<string, unknown>;
+          if (!response.ok && !page.denied) { setLink("offline"); return false; }
           page.send_revision = send_revision;
           page.requested_watermark = watermark;
           page.captured_watermark = capturedWatermark;
@@ -539,7 +530,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           }
           return false;
         }
-        if (pageIncarnation !== incarnation) return false;
+        if (pageIncarnation !== incarnation || pageRevision !== credentialRevision) return false;
         // @ref LLP 3000.007#18.2 — sync identity retires the old partition before any read or outbox replay.
         let replacedStore = false;
         if (typeof page.store_id === "string") observeIncarnation(page.store_id);
@@ -650,8 +641,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       await refusedSession(json.denied ?? json.why, request.revision);
       if (response.status === 200 && json.ok === true && !sessionDead && probeIncarnation === incarnation) {
         // @ref LLP 3000.007#18.2 — verify identity before reconnect can bless cached local answers or resume a long poll.
-        if (!await observeHead(typeof json.store_id === "string" ? json.store_id : undefined, Number(json.seq), capture)) return;
-        if (typeof json.store_id === "string") observeIncarnation(json.store_id, json.store_id === storeIdentity && Number(json.seq) < seq);
+        if (typeof json.store_id === "string") observeIncarnation(json.store_id, json.store_id === storeIdentity && Number(json.seq) < Math.max(seq, capture.watermark));
         identityChecked = true;
         setLink("online");
       } else if (response.status !== 200 || json.ok !== true) setLink("offline");
@@ -679,9 +669,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         throw new Error(`changes: HTTP ${response.status}`);
       }
       if (closed || changeIncarnation !== incarnation) return false;
-      if (!await observeHead(json.store_id, json.seq, capture)) return false;
       const replaced = json.store_id !== undefined && json.store_id !== storeIdentity;
-      const shrank = json.seq < seq;
+      // A notification can be delayed or transient. Only an authenticated
+      // sync reply at the captured acquisition can persist a restore halt.
+      const shrank = json.seq < Math.max(seq, capture.watermark);
       if (replaced || shrank) observeIncarnation(json.store_id, shrank);
       const changed = replaced || shrank || json.seq > seq || (json.generation !== undefined && json.generation !== generation);
       if (changed) {

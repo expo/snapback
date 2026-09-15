@@ -1172,8 +1172,12 @@ not a replacement: `E_STORE_RESTORE` halts sync and refuses reads, including
 after an offline reopen. The old watermark and outbox remain in place.
 Stop that client and use a fresh device store and outbox for the restored
 backend; retry or backend adoption does not silently reacquire that identity.
-The poll or probe persists its restore refusal immediately, even if later
-writes advance the backend back to the old head before another sync.
+A lower poll or probe head invalidates freshness and requests sync confirmation.
+Only an authenticated sync reply with the matching identity and a head below
+that request's acquired watermark persists the refusal; a notification alone
+cannot halt a healthy client. Each native owner binds its interpreter and loaded
+module digest to the adopted store identity. Another owner's replacement
+requires adoption and module reload before local reads or prediction resume.
 
 On the web, a failed save rejects the call and discards its uncommitted in-memory
 state. The next serialized call reopens the last persisted state; earlier
@@ -1832,7 +1836,9 @@ when it first learns one. There is no GET `/sync` route.
 requires the same principal and answers
 `{ seq, tables, generation, store_id }` when a commit lands or after N seconds (25
 at most; 0 answers at once; at most
-500 commits are summarised). A different identity or a head below `since`
+500 commits are summarised; beyond that, all tables are invalidated). `seq`
+is the actual committed head, read in the same transaction as the identity and
+changed tables. A different identity or a head below `since`
 answers immediately; a regressed head is returned as `seq`. A matching
 identity still waits for a commit or the deadline. With `heartbeat=1`, an idle HTTP/1.1 response
 starts immediately and sends JSON whitespace every 2 seconds before the

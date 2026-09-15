@@ -1043,3 +1043,6 @@ fn sync_stream_encoding_preserves_sequences_scopes_and_empty_groups() {
     let expected = json!({"acknowledged":{},"events":[],"generation":4,"joined":{},"more":false,"snapshot":false,"store_id":"store-a","watermark":9});
     assert_eq!(serde_json::to_vec(&reply).unwrap(), serde_json::to_vec(&expected).unwrap());
 }
+
+#[path = "../tests/serve_changes/mod.rs"]
+mod review_changes;

@@ -16,19 +16,22 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
         Ok(principal) => principal,
         Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
     };
-    // @ref LLP 3000.007#18.2 — a replacement or restored head answers before the ordinary long wait.
-    let replaced = match lock(&shared.engine).store().meta("store_id") {
-        Ok(current) => params.get("store_id").is_some_and(|supplied| Some(supplied) != current.as_ref()),
-        Err(error) => return respond(request, 500, json!({ "denied": refusal_json(&error.refusal()) })),
-    };
     let heartbeat = params.get("heartbeat").is_some_and(|s| s == "1") && request.http_version().0 == 1 && request.http_version().1 >= 1;
     let mut response = PollResponse { request: Some(request), started: false };
     shared.presence.enter(&connected);
     let result = (|| -> io::Result<()> {
         let mut beat = Instant::now();
         loop {
+            // @ref LLP 3000.007#18.2 — the counter only wakes polls; the store decides whether its head changed.
+            let observed = *lock(&shared.seq);
+            let changed = {
+                let engine = lock(&shared.engine);
+                let store_id = engine.store().meta("store_id").map_err(io::Error::other)?;
+                params.get("store_id").is_some_and(|supplied| Some(supplied) != store_id.as_ref())
+                    || engine.seq().map_err(io::Error::other)? != since
+            };
             let seq = lock(&shared.seq);
-            if replaced || *seq != since || Instant::now() >= deadline { break; }
+            if changed || *seq != observed || Instant::now() >= deadline { break; }
             if heartbeat && Instant::now() >= beat {
                 drop(seq);
                 response.heartbeat()?;
@@ -36,7 +39,8 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
                 continue;
             }
             let wake = if heartbeat { deadline.min(beat) } else { deadline };
-            let _ = shared.committed.wait_timeout(seq, wake.saturating_duration_since(Instant::now())).unwrap_or_else(|poisoned| poisoned.into_inner());
+            let (_seq, timeout) = shared.committed.wait_timeout(seq, wake.saturating_duration_since(Instant::now())).unwrap_or_else(|poisoned| poisoned.into_inner());
+            if !timeout.timed_out() { break; }
         }
         Ok(())
     })();
@@ -48,18 +52,11 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     }
     let reader = { lock(&shared.engine).reader() };
     let changes = match reader {
-        Ok(mut reader) => reader.store().meta("store_id").and_then(|store_id| reader.changes(since, 500).map(|changes| (changes, store_id))),
-        Err(_) => {
-            let mut engine = lock(&shared.engine);
-            engine.store().meta("store_id").and_then(|store_id| engine.changes(since, 500).map(|changes| (changes, store_id)))
-        },
+        Ok(mut reader) => check(&mut reader, since),
+        Err(_) => check(&mut lock(&shared.engine), since),
     };
     match changes {
-        Ok((changes, store_id)) => {
-            let seq = changes.last().map(|(seq, _)| *seq).unwrap_or_else(|| since.min(*lock(&shared.seq)));
-            let mut tables: Vec<String> = changes.into_iter().flat_map(|(_, tables)| tables).collect();
-            tables.sort();
-            tables.dedup();
+        Ok((seq, store_id, tables)) => {
             let generation = *lock(&shared.generation);
             response.finish(200, json!({ "seq": seq, "tables": tables, "generation": generation, "store_id": store_id }));
         }
@@ -68,6 +65,24 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
             response.finish(if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) }));
         }
     }
+}
+
+/// The notification's head, identity and invalidations share one read snapshot.
+fn check(engine: &mut snapback4_core::engine::Engine, since: u64) -> Result<(u64, Option<String>, Vec<String>), snapback4_core::error::RuntimeError> {
+    use rusqlite::OptionalExtension;
+    let all_tables: Vec<_> = engine.schema().tables.keys().cloned().collect();
+    let tx = engine.store_mut().read_transaction()?;
+    let head = tx.next_seq()? - 1;
+    let store_id = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'store_id'", [], |row| row.get(0)).optional()?;
+    let changes = tx.commits_after(since, 500)?;
+    // Advancing to the actual head must not skip invalidation beyond the
+    // bounded commit page. Saturation conservatively invalidates every table.
+    let mut tables = if changes.last().is_some_and(|(seq, _)| *seq < head) { all_tables }
+        else { changes.into_iter().flat_map(|(_, tables)| tables).collect() };
+    tables.sort();
+    tables.dedup();
+    tx.rollback()?;
+    Ok((head, store_id, tables))
 }
 
 struct PollResponse {

@@ -681,8 +681,12 @@ restored or shrank. Sync halts and reads refuse, including after offline
 reopen; the watermark and outbox stay in place. Stop the client and use a
 fresh device store and outbox for that restored backend. Retry and backend
 adoption do not silently reacquire the same identity.
-The poll or probe persists that refusal before another sync can forget a
-lower head that later writes advance again.
+A lower poll or probe head invalidates freshness and requests sync confirmation;
+only an authenticated sync reply at the captured acquisition persists a restore
+refusal. A notification alone cannot halt the client. Each native owner's
+interpreter and loaded module digest belong to its adopted store identity;
+another owner's replacement requires adoption and module reload before local
+reads or prediction resume.
 Orphan known receipts keep their source identity until ownership is resolved;
 foreign known receipts retire, and unknown writes transfer without predictions.
 First identification of a legacy acquired device discards retained left-group

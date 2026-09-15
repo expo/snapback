@@ -20,6 +20,22 @@ pub(super) fn backend_identity(backend: &Backend) -> String {
     snapback4_core::value::digest(&(&backend.schema, programs, backend.generation))
 }
 
+// @ref LLP 3000.007#18.2 — each owner's interpreter and loaded native bytes belong to its adopted incarnation.
+pub(super) fn require_owner<T: DeviceTx>(tx: &T, backend: &str, store_id: &Option<String>, native: Option<&str>) -> Result<(), RuntimeError> {
+    require_backend(tx, backend, store_id)?;
+    if tx.meta(NATIVE_DIGEST)?.filter(|s| !s.is_empty()).as_deref() != native { return Err(obsolete()); }
+    Ok(())
+}
+
+pub(super) fn require_backend<T: DeviceTx>(tx: &T, backend: &str, store_id: &Option<String>) -> Result<(), RuntimeError> {
+    if tx.meta(BACKEND_IDENTITY)?.as_deref() != Some(backend) || &tx.meta(STORE_ID)? != store_id { return Err(obsolete()); }
+    Ok(())
+}
+
+fn obsolete() -> RuntimeError {
+    RuntimeError::Prediction("this owner's backend is obsolete; reconnect to adopt the current backend".into())
+}
+
 #[derive(Debug, Serialize)]
 pub struct StoreObservation {
     pub reset: bool,
@@ -96,8 +112,10 @@ impl<S: DeviceStore> Device<S> {
     /// or acquiring pages. A replacement is durable even if acquisition fails.
     pub fn observe_store(&mut self, page: &StreamPage) -> Result<StoreObservation, RuntimeError> {
         let tx = self.store.transaction()?;
+        let first_identity = tx.meta(STORE_ID)?.is_none() && self.store_identity.is_none();
         let observed = observe(&tx, page)?;
         tx.commit()?;
+        if first_identity && !observed.reset { self.store_identity = page.store_id.clone(); }
         if observed.reset { self.snapshot_owner = None; }
         if observed.restore_refused { return Err(restore_error()); }
         Ok(observed)

@@ -307,3 +307,67 @@ fn sha256(bytes: &[u8]) -> Vec<u8> {
     use sha2::Digest;
     sha2::Sha256::digest(bytes).to_vec()
 }
+
+#[test]
+fn finding_6_each_native_owner_is_bound_to_incarnation_and_module() {
+    let (mut engine, backend, _) = server();
+    let a = module();
+    // Change a returned field, keeping schema, Quarry and generation identical.
+    let mut b = a.to_vec();
+    let offsets: Vec<_> = b.windows(6).enumerate().filter_map(|(n, bytes)| (bytes == b"weight").then_some(n)).collect();
+    assert_eq!(offsets.len(), 1);
+    b[offsets[0]] = b'W';
+    let digest_a = hex(&sha256(a));
+    let digest_b = hex(&sha256(&b));
+    let host = Sqlite::new("native-incarnation");
+    let path = host.path("shared");
+    let mut first = Device::open(&path, Some(backend.clone())).unwrap();
+    let acquire = |device: &mut Device<snapback4_core::store::Store>, engine: &mut Engine, store: &str| {
+        for (n, mut page) in snapshot_pages(engine, "dev:bob", 1_000).into_iter().enumerate() {
+            page.store_id = Some(store.into()); device.apply(&page, n == 0).unwrap();
+        }
+    };
+    acquire(&mut first, &mut engine, "A");
+    first.install_native(a, &digest_a, backend.generation).unwrap();
+    let mut second = Device::open(&path, None).unwrap();
+    let query = json!({ "first": 2 });
+    assert!(second.query("personalize", "dev:bob", &query, NOW).unwrap().data.as_array().unwrap()[0].field("weight").is_ok());
+    first.adopt(backend.clone()).unwrap();
+    assert!(!second.sync_state().unwrap().backend_required, "unchanged adoption stays usable");
+    let page = serde_json::from_value(json!({ "snapshot": true, "events": [], "watermark": 0, "more": false, "store_id": "B" })).unwrap();
+    first.observe_store(&page).unwrap();
+    first.adopt(backend.clone()).unwrap();
+    first.install_native(&b, &digest_b, backend.generation).unwrap();
+    acquire(&mut first, &mut engine, "B");
+    assert!(first.query("personalize", "dev:bob", &query, NOW).unwrap().data.as_array().unwrap()[0].field("Weight").is_ok());
+    let stale = second.query("personalize", "dev:bob", &query, NOW);
+    eprintln!("finding 6 stale native read: {stale:?}");
+    assert_eq!(stale.unwrap_err().code, "E_PREDICT");
+    assert!(second.sync_state().unwrap().backend_required);
+    assert_eq!(second.install_native(a, &digest_a, backend.generation).unwrap_err().code(), "E_PREDICT");
+    assert_eq!(second.query("home", "dev:bob", &json!({"c": null}), NOW).unwrap_err().code, "E_PREDICT");
+    assert_eq!(second.predict("markSeen", "dev:bob", &json!({"postId":"p"}), NOW, vec![], 1).unwrap_err().code(), "E_PREDICT");
+    second.adopt(backend.clone()).unwrap();
+    assert!(second.sync_state().unwrap().backend_required, "adoption alone cannot bless A's loaded module");
+    second.install_native(&b, &digest_b, backend.generation).unwrap();
+    assert!(!second.sync_state().unwrap().backend_required);
+    assert!(second.query("personalize", "dev:bob", &query, NOW).unwrap().data.as_array().unwrap()[0].field("Weight").is_ok());
+    // The digest fence also works without an incarnation change.
+    first.install_native(a, &digest_a, backend.generation).unwrap();
+    assert_eq!(second.query("personalize", "dev:bob", &query, NOW).unwrap_err().code, "E_PREDICT");
+    second.adopt(backend.clone()).unwrap();
+    second.install_native(a, &digest_a, backend.generation).unwrap();
+    assert!(second.query("personalize", "dev:bob", &query, NOW).unwrap().data.as_array().unwrap()[0].field("weight").is_ok());
+    // A new store with identical module bytes still invalidates the owner.
+    let c = serde_json::from_value(json!({ "snapshot": true, "events": [], "watermark": 0, "more": false, "store_id": "C" })).unwrap();
+    first.observe_store(&c).unwrap(); first.adopt(backend.clone()).unwrap();
+    first.install_native(a, &digest_a, backend.generation).unwrap();
+    acquire(&mut first, &mut engine, "C");
+    assert!(second.sync_state().unwrap().backend_required);
+    assert_eq!(second.query("personalize", "dev:bob", &query, NOW).unwrap_err().code, "E_PREDICT");
+    second.adopt(backend.clone()).unwrap(); second.install_native(a, &digest_a, backend.generation).unwrap();
+    assert!(!second.sync_state().unwrap().backend_required);
+    assert!(second.query("personalize", "dev:bob", &query, NOW).is_ok());
+    eprintln!("finding 6: owners=2, incarnations=3, module digests=2, stale executions=0");
+
+}
