@@ -198,7 +198,7 @@ test("hidden flushes, visible does not, and close removes page hooks", async t =
   await until(() => f.responses.length === 1);
 });
 
-test("mutate waits for outbox persistence before the exit transport can see it", async t => {
+test("mutate waits for outbox persistence while exit can send its pending admission", async t => {
   const f = await fixture(t);
   const save = f.persist.save.bind(f.persist);
   let release, saving = false;
@@ -213,7 +213,7 @@ test("mutate waits for outbox persistence before the exit transport can see it",
   await until(() => saving);
   assert.equal(resolved, false);
   f.window.dispatchEvent(new Event("pagehide"));
-  assert.equal(f.requests.length, 0);
+  assert.equal(f.requests.length, 1);
   release();
   assert.equal((await admitted).state, "pending");
   f.persist.save = save;
@@ -238,7 +238,7 @@ test("IndexedDB save resolves on transaction completion, not request success", a
   assert.equal(options?.durability, "strict");
 });
 
-test("failed persistence discards the device before either transport can send an undurable admission", async t => {
+test("failed persistence removes the pending submission before a later exit", async t => {
   const f = await fixture(t);
   f.persist.save = async (_name, changes) => {
     if (changes.some(c => c.s === "o")) throw new Error("disk full");
@@ -326,6 +326,36 @@ test("exit never bypasses an oversized or quota-blocked predecessor", async () =
   finish.splice(0).forEach(f => f()); await tick();
   assert.deepEqual(oversize, []);
   assert.deepEqual(quota, ["other client"]);
+});
+
+test("pending admissions use one bounded ordered batch and share the keepalive quota", async () => {
+  const requests = [], finish = [];
+  const transport = (url, init) => {
+    requests.push({ url, init });
+    return new Promise(resolve => finish.push(() => resolve(new Response("{}"))));
+  };
+  const entry = (id, n = 0) => ({ id, op: "set", args: { body: "😀".repeat(n) }, newIds: [id] });
+  const a = exitTransport(transport, "https://example.test"), b = exitTransport(transport, "https://example.test");
+  const entries = [entry("first", 8000), entry("second", 8000), entry("third", 8000)];
+  a(entries, {}, () => true, true);
+  a(entries, {}, () => true, true);
+  b([entry("other client", 8000)], {}, () => true, true);
+  assert.equal(requests.length, 1, "active batch retains the shared quota and cannot overlap a second exit");
+  assert.equal(requests[0].url, "https://example.test/m");
+  assert.deepEqual(JSON.parse(requests[0].init.body).writes, entries.slice(0, 2));
+  const bytes = Buffer.byteLength(requests[0].init.body);
+  assert.ok(bytes > 64000 && bytes <= 65536);
+  finish.splice(0).forEach(f => f()); await tick();
+  b(Array.from({ length: 33 }, (_, n) => entry(String(n))), {}, () => true, true);
+  assert.equal(JSON.parse(requests[1].init.body).writes.length, 32);
+  finish.splice(0).forEach(f => f()); await tick();
+  a([entry("too large", 17000), entry("small successor")], {}, () => true, true);
+  assert.equal(requests.length, 2, "an oversized predecessor is never bypassed");
+  a([entry("small head"), entry("too large", 17000), entry("small successor")], {}, () => true, true);
+  assert.equal(requests[2].url, "https://example.test/m/set");
+  assert.equal(JSON.parse(requests[2].init.body).id, "small head");
+  finish.splice(0).forEach(f => f()); await tick();
+  console.log(`pending batch quota: ${bytes} UTF-8 bytes; 2 ordered writes; 1 request; max 32 writes; shared ceiling 65536 bytes`);
 });
 
 test("exit overlaps only the same ordinary in-flight head", async t => {

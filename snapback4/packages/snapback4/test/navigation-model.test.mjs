@@ -12,7 +12,24 @@ const send = { kind: "mutation", name: "send" };
 const seed = [
   { table: "conversations", row: { id: "c1", title: "General", creatorId: "dev:alice" } },
   { table: "memberships", row: { id: "m1", conversationId: "c1", principal: "dev:alice", role: "admin", joinedAt: 1 } },
+  { table: "navigationAudit", row: { id: "audit", total: 0, order: 0 } },
 ];
+const extraSource = `
+table navigationAudit:
+  total: int
+  order: int
+  public 'navigation model audit'
+  update <- allow
+  online only
+
+mutation record(body: text <=200, digit: int):
+  audit = navigationAudit['audit'] ! else AUDIT_MISSING
+  update navigationAudit[audit] { total: audit.total + 1, order: audit.order * 10 + digit }
+  insert messages { conversationId: 'c1', authorId: viewer, body, at: now }
+
+query audit():
+  return navigationAudit['audit'] { total, order }
+`;
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 async function until(check, ms = 2000) {
@@ -28,7 +45,7 @@ async function fixture(t) {
     Object.defineProperty(globalThis, key, { configurable: true, value });
     t.after(() => previous ? Object.defineProperty(globalThis, key, previous) : delete globalThis[key]);
   }
-  const server = await devServer({ seed, port: 47000 + process.pid % 1000 });
+  const server = await devServer({ seed, extraSource, port: 47000 + process.pid % 1000 });
   const clients = [], cleanup = [], persist = memoryPersistence();
   t.after(async () => { for (const run of cleanup) await run(); for (const client of clients) await client.close(); server.close(); });
   const open = async (transport = fetch) => {
@@ -37,7 +54,52 @@ async function fixture(t) {
   };
   const rows = async () => (await fetch(server.api + "/q/thread", { method: "POST", headers: { "x-snapback-persona": "alice" }, body: JSON.stringify({ args: { conversationId: "c1" } }) }).then(r => r.json())).data;
   const durable = () => [...persist.stores.values()].flatMap(s => [...s.values()]).filter(c => c.s === "o").map(c => JSON.parse(c.v)).sort((a, b) => a.seq - b.seq);
-  return { window, document, server, persist, open, rows, durable, cleanup };
+  const audit = async () => (await fetch(server.api + "/q/media.audit", { method: "POST", headers: { "x-snapback-persona": "alice" }, body: "{}" }).then(r => r.json())).data;
+  return { window, document, server, persist, open, rows, durable, audit, cleanup };
+}
+
+for (const count of [1, 2]) for (const duringSave of [false, true]) {
+  test(`navigation model: immediate ${count} unawaited writes before admission (${duringSave ? "save pending" : "same turn"})`, async t => {
+    const f = await fixture(t), commit = deferred(), entered = deferred(), exits = [];
+    let offline = false;
+    const client = await f.open((url, init) => {
+      if (init?.keepalive) { exits.push({ url, init }); return fetch(url, init); }
+      return offline ? Promise.reject(new TypeError("document destroyed")) : fetch(url, init);
+    });
+    offline = true; await client.sync();
+    const save = f.persist.save.bind(f.persist);
+    f.persist.save = async (name, changes) => {
+      if (changes.some(c => c.s === "o")) { entered.resolve(); await commit.promise; }
+      await save(name, changes);
+    };
+    f.cleanup.push(() => commit.resolve());
+    const writes = Array.from({ length: count }, (_, n) => client.mutate({ kind: "mutation", name: "media.record" }, { body: String(n + 1), digit: n + 1 }));
+    if (duringSave) await entered.promise;
+    const hiddenAt = performance.now();
+    if (duringSave) {
+      f.document.visibilityState = "hidden"; f.document.dispatchEvent(new Event("visibilitychange"));
+    } else f.window.dispatchEvent(new Event("pagehide"));
+    assert.equal(f.durable().length, 0);
+    assert.equal(exits.length, 1, "navigation must synchronously send before admission can commit");
+    assert.ok(await until(async () => (await f.audit()).total === count), "all submitted writes must apply while persistence is held");
+    const before = await f.audit(), elapsed = Math.round(performance.now() - hiddenAt);
+    const payload = JSON.parse(exits[0].init.body), sent = payload.writes ?? [payload];
+    assert.equal(sent.length, count);
+    assert.equal(before.order, count === 1 ? 1 : 12);
+    const rowIds = (await f.rows()).map(row => row.id).sort();
+    assert.deepEqual(rowIds, sent.map(entry => entry.newIds[0]).sort());
+    assert.equal(f.durable().length, 0, "server application precedes the held persistence boundary");
+    f.window.dispatchEvent(new Event("pageshow"));
+    commit.resolve();
+    const outcomes = await Promise.all(writes);
+    assert.deepEqual(f.durable().map(entry => entry.id), sent.map(entry => entry.id));
+    assert.deepEqual(outcomes.map(entry => entry.id), sent.map(entry => entry.id));
+    await client.close();
+    const reopened = await f.open(); await reopened.sync();
+    assert.deepEqual(await f.audit(), before, "the non-idempotent counter and order must not change on replay");
+    assert.deepEqual((await f.rows()).map(row => row.id).sort(), rowIds);
+    console.log(`immediate navigation: writes=${count}; savePending=${duringSave}; exitRequests=1; durableBefore=0; appliedBeforeAdmission=${before.total}; afterReplay=${(await f.audit()).total}; duplicates=0; bodyBytes=${Buffer.byteLength(exits[0].init.body)}; applicationMs=${elapsed}`);
+  });
 }
 
 for (const applied of [false, true]) for (const count of [1, 2]) {
@@ -75,7 +137,80 @@ for (const applied of [false, true]) for (const count of [1, 2]) {
   });
 }
 
-test("navigation model: admission finishing after pagehide sends only after its commit", async t => {
+test("navigation model: a durable predecessor blocks pending admissions at exit", async t => {
+  const f = await fixture(t), commit = deferred(), exits = [];
+  let offline = false;
+  const client = await f.open((url, init) => {
+    if (init?.keepalive) { exits.push(JSON.parse(init.body)); return fetch(url, init); }
+    return offline ? Promise.reject(new TypeError("offline")) : fetch(url, init);
+  });
+  offline = true; await client.sync();
+  const first = await client.mutate({ kind: "mutation", name: "media.record" }, { body: "1", digit: 1 });
+  const save = f.persist.save.bind(f.persist);
+  f.persist.save = async (name, changes) => {
+    if (changes.some(c => c.s === "o")) await commit.promise;
+    await save(name, changes);
+  };
+  f.cleanup.push(() => commit.resolve());
+  const second = client.mutate({ kind: "mutation", name: "media.record" }, { body: "2", digit: 2 });
+  f.window.dispatchEvent(new Event("pagehide"));
+  assert.equal(exits.length, 1); assert.equal(exits[0].id, first.id);
+  assert.equal(exits[0].writes, undefined);
+  assert.ok(await until(async () => (await f.audit()).total === 1));
+  f.window.dispatchEvent(new Event("pageshow")); commit.resolve(); await second;
+  await client.close(); const reopened = await f.open(); await reopened.sync();
+  assert.deepEqual(await f.audit(), { total: 2, order: 12 });
+});
+
+test("navigation model: submission captures arguments before the caller changes them", async t => {
+  const f = await fixture(t), commit = deferred(), exits = [];
+  let offline = false;
+  const client = await f.open((url, init) => {
+    if (init?.keepalive) { exits.push(JSON.parse(init.body)); return fetch(url, init); }
+    return offline ? Promise.reject(new TypeError("offline")) : fetch(url, init);
+  });
+  offline = true; await client.sync();
+  const save = f.persist.save.bind(f.persist);
+  f.persist.save = async (name, changes) => { if (changes.some(c => c.s === "o")) await commit.promise; await save(name, changes); };
+  f.cleanup.push(() => commit.resolve());
+  const args = { body: "original", digit: 1 };
+  const write = client.mutate({ kind: "mutation", name: "media.record" }, args);
+  args.body = "changed"; args.digit = 2;
+  f.window.dispatchEvent(new Event("pagehide"));
+  assert.deepEqual(exits[0].args, { body: "original", digit: 1 });
+  assert.ok(await until(async () => (await f.audit()).total === 1));
+  f.window.dispatchEvent(new Event("pageshow")); commit.resolve(); await write;
+  await client.close(); const reopened = await f.open(); await reopened.sync();
+  assert.deepEqual(await f.audit(), { total: 1, order: 1 });
+  assert.equal((await f.rows())[0].body, "original");
+});
+
+for (const committed of [false, true]) test(`navigation model: dropped keepalive with admission ${committed ? "committed" : "lost"}`, async t => {
+  const f = await fixture(t), commit = deferred();
+  let offline = false, exits = 0;
+  const client = await f.open((url, init) => {
+    if (init?.keepalive) { exits++; return Promise.reject(new TypeError("browser dropped keepalive")); }
+    return offline ? Promise.reject(new TypeError("document destroyed")) : fetch(url, init);
+  });
+  offline = true; await client.sync();
+  const save = f.persist.save.bind(f.persist);
+  f.persist.save = async (name, changes) => {
+    if (changes.some(c => c.s === "o")) { await commit.promise; if (!committed) throw new Error("admission aborted on unload"); }
+    await save(name, changes);
+  };
+  f.cleanup.push(() => commit.resolve());
+  const writes = [1, 2].map(digit => client.mutate({ kind: "mutation", name: "media.record" }, { body: String(digit), digit }));
+  f.window.dispatchEvent(new Event("pagehide"));
+  assert.equal(exits, 1); assert.equal(f.durable().length, 0);
+  f.window.dispatchEvent(new Event("pageshow")); commit.resolve();
+  const outcomes = await Promise.all(writes);
+  assert.ok(outcomes.every(w => w.state === (committed ? "pending" : "failed")));
+  await client.close(); const reopened = await f.open(); await reopened.sync();
+  assert.deepEqual(await f.audit(), committed ? { total: 2, order: 12 } : { total: 0, order: 0 });
+  console.log(`dropped keepalive: admissionCommitted=${committed}; writes=2; exitRequests=${exits}; afterReopen=${(await f.audit()).total}`);
+});
+
+test("navigation model: admission finishing after pagehide keeps the exit mutation id", async t => {
   const f = await fixture(t), commit = deferred(), entered = deferred(), exits = [];
   let gone = false;
   const client = await f.open((url, init) => {
@@ -90,14 +225,14 @@ test("navigation model: admission finishing after pagehide sends only after its 
   const write = client.mutate(send, { conversationId: "c1", body: "late admission" });
   await entered.promise;
   gone = true; f.window.dispatchEvent(new Event("pagehide"));
-  assert.equal(exits.length, 0, "an uncommitted admission is never sent");
+  assert.equal(exits.length, 1, "the pending admission is sent synchronously");
   assert.equal(f.durable().length, 0);
   commit.resolve();
   const outcome = await write;
   const received = await until(async () => (await f.rows()).length === 1);
   console.log(`navigation model late commit: exitRequests=${exits.length}; rows=${(await f.rows()).length}; state=${outcome.state}`);
   assert.ok(received, "a completed admission must recheck the suspended page");
-  assert.deepEqual(exits.map(e => e.id), [outcome.id]);
+  assert.ok(exits.every(e => e.id === outcome.id), "a post-commit retry keeps the submitted id");
 });
 
 for (const identity of ["same", "different", "missing", "restored"]) {

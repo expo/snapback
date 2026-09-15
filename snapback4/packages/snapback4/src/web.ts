@@ -115,7 +115,9 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
             if (!suspended || closing || !device) return;
             const entries: PendingSend[] = [...committed.values()].filter(e => e.sent_seq == null).sort((a, b) => a.seq - b.seq)
               .map(e => ({ id: e.id, op: e.op, args: e.args, newIds: e.new_ids }));
-            if (entries.length) flush(entries, beginSend);
+            // An empty committed queue can still have client submissions
+            // waiting for their first VM turn or IndexedDB commit.
+            flush(entries, beginSend);
           };
           const suspend = () => { suspended = true; dispatch(); };
           const resume = () => { suspended = false; };
