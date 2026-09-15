@@ -855,8 +855,11 @@ one effect. `snapback4 doctor` counts them. A scheduled job that emits
 once per period is the digest recipe.
 `clock advance` extends held effect leases by the advanced duration, preserving
 their remaining real-time lifetime; retry `nextAt` still follows the dev clock.
-`runWorker` reports a lost-lease settlement as information: "lease expired;
-the effect was requeued".
+`runWorker` reports a lost settlement with the server's code and message.
+Only a recorded `queued` state is informational and says requeued;
+`sent`, `running`, `failed` and unknown outcomes go to `onError` (or stderr).
+A handler error whose settlement cannot be recorded is reported separately,
+with the original error and stack.
 
 ### Presence
 
@@ -1969,6 +1972,8 @@ wins; maximum 900). Thrown errors retry after 2 seconds, doubling to
 5 minutes and at most 8 attempts; `GiveUp` fails at once. Action results
 are JSON, bounded by the unchanged 1 MiB output ceiling. The worker only
 claims supplied handler names; effects and actions wait independently.
+Development clock advances extend a held action's lease and viewer session
+by the same duration; ordinary sessions keep their expiry.
 
 With `snapback/worker.ts` (or `.mts` or `.mjs`), `dev` starts Node 24 and supplies
 `SNAPBACK_URL` and `SNAPBACK_SERVICE_TOKEN`, a `service:worker` token

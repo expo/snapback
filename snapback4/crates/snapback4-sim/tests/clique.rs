@@ -1329,7 +1329,7 @@ fn development_advances_preserve_remaining_effect_lease_time_and_overdue_claims(
     let long = engine.claim_effects("service:long", None, 1, 60_000, 2_000).unwrap().remove(0);
     // At time 4,000 the short claim is already overdue. Advancing 120 s
     // must neither revive that claim nor steal the other one's 58 s left.
-    engine.advance_effect_leases(120_000).unwrap();
+    engine.advance_worker_leases(120_000).unwrap();
     assert_eq!(engine.requeue_expired_effects(124_000).unwrap(), 1);
     let queued = engine.effects(Some("queued"), 10).unwrap();
     assert_eq!(queued[0].id, short.id);
@@ -1338,7 +1338,7 @@ fn development_advances_preserve_remaining_effect_lease_time_and_overdue_claims(
     assert_eq!(running[0].id, long.id);
     assert_eq!(running[0].lease_until, Some(182_000));
     // Another advance moves only the held lease, never the queued retry.
-    engine.advance_effect_leases(120_000).unwrap();
+    engine.advance_worker_leases(120_000).unwrap();
     assert_eq!(engine.effects(Some("queued"), 10).unwrap(), queued);
     assert!(engine.effects_due(None, 244_000).unwrap());
     assert_eq!(engine.requeue_expired_effects(301_999).unwrap(), 0);

@@ -33,6 +33,8 @@ the viewer's rules. It cannot refresh or use worker/auth-minting routes.
 It expires with the lease (60 seconds by default) and is revoked on
 settlement. Set `actionSessions: { invite: 120 }` and `lease: 120` for a
 longer handler (maximum 900 seconds; the shorter duration wins).
+Development clock advances extend held action leases and their viewer
+sessions by the advanced duration; ordinary sessions keep their expiry.
 `meta.id` is the idempotency key to send to providers. Delivery is at
 least once: thrown errors retry after 2 seconds, doubling up to 5 minutes,
 at most 8 attempts; `GiveUp` fails immediately. An expired lease requeues.

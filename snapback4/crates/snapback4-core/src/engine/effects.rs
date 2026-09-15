@@ -144,11 +144,14 @@ impl Engine {
         Ok(run)
     }
 
-    /// Move held leases with an explicit development clock advance. Backoff
-    /// timestamps stay put; a lease already overdue remains overdue afterward.
-    pub fn advance_effect_leases(&mut self, milliseconds: i64) -> Result<(), RuntimeError> {
+    /// Move held effect/action leases and their delegated viewer sessions
+    /// together. Backoffs and ordinary sessions stay put; overdue stays overdue.
+    // @ref LLP 3000.007#20.12 — dev advances preserve worker lifetimes without making retries wait longer.
+    pub fn advance_worker_leases(&mut self, milliseconds: i64) -> Result<(), RuntimeError> {
         let tx = self.store.transaction()?;
         tx.conn().execute("UPDATE _outbox SET lease_until = lease_until + ?1 WHERE state = 'running' AND lease_until IS NOT NULL", [milliseconds])?;
+        tx.conn().execute("UPDATE _sessions SET expires_at = expires_at + ?1 WHERE token_digest IN (SELECT session_digest FROM _requests WHERE state = 'running' AND lease_until IS NOT NULL)", [milliseconds])?;
+        tx.conn().execute("UPDATE _requests SET lease_until = lease_until + ?1 WHERE state = 'running' AND lease_until IS NOT NULL", [milliseconds])?;
         tx.commit()?;
         Ok(())
     }
