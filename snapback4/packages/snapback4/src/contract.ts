@@ -38,9 +38,20 @@ export interface Refusal {
  * reflect, so a screen can say "as of three minutes ago".
  */
 export type Read<T> =
-  | { readonly data: T; readonly complete: boolean; readonly fresh: boolean; readonly since?: number; readonly next?: Cursor | null }
+  | { readonly data: T; readonly complete: boolean; readonly fresh: boolean; readonly since?: number; readonly next?: Cursor | null; readonly meter?: ReadMeter }
   | { readonly loading: true }
   | { readonly denied: Refusal };
+
+/** Engine work for this server answer, only when an online client opts in under dev. */
+export interface ReadMeter {
+  readonly examined: number;
+  readonly indexEntries: number;
+  readonly probes: number;
+  readonly steps: number;
+  readonly heapBytes: number;
+  readonly outputBytes: number;
+  readonly rowsWritten: number;
+}
 
 /** A row this device changed and the server has not yet confirmed carries `pending: true`. */
 export interface Pending {
@@ -176,7 +187,7 @@ export interface Client {
   close(): Promise<void>;
 }
 
-export function isReady<T>(read: Read<T>): read is { readonly data: T; readonly complete: boolean; readonly fresh: boolean; readonly since?: number; readonly next?: Cursor | null } {
+export function isReady<T>(read: Read<T>): read is Extract<Read<T>, { data: T }> {
   return "data" in read;
 }
 export function isLoading<T>(read: Read<T>): read is { readonly loading: true } {

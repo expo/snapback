@@ -282,6 +282,12 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
         Some(generated) => eprintln!("snapback4 dev: http://{address}  (schema: snapback/, types: {})", generated.display()),
         None => eprintln!("snapback4 serve: http://{address}  (release {}, generation {generation}, tokens only)", project.root.display()),
     }
+    if dev {
+        match mode {
+            Mode::Dev { fresh: true, .. } => eprintln!("store: in memory — dies with this process"),
+            _ => eprintln!("store: {}", project.store_path().display()),
+        }
+    }
     if dev { eprintln!("snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both."); }
     if replay { eprintln!("snapback4 dev: replay on — new effects suppressed; schedules held"); }
     let mut background = Vec::new();
@@ -492,7 +498,7 @@ fn dev_request(request: &Request, shared: &Shared) -> Result<(), Refusal> {
 pub(crate) fn cors(request: &Request) -> Vec<Header> {
     let mut headers = vec![
         Header::from_bytes("Vary", "Origin").unwrap(),
-        Header::from_bytes("Access-Control-Allow-Headers", "content-type, x-snapback-persona, authorization, range").unwrap(),
+        Header::from_bytes("Access-Control-Allow-Headers", "content-type, x-snapback-persona, x-snapback-meter, authorization, range").unwrap(),
         Header::from_bytes("Access-Control-Allow-Methods", "GET, POST, OPTIONS").unwrap(),
     ];
     if let Ok(Some(origin)) = single_header(request, "origin") && origin_authority(origin).is_some() {
@@ -928,8 +934,6 @@ fn handle(mut request: Request, shared: &Shared) {
                     Err(_) => lock(&shared.engine).query(&op, context),
                 };
                 match outcome {
-                    // The meter's numbers and its cut site stay off the wire: they
-                    // measure hidden rows. `complete` is the one word.
                     Ok(outcome) => {
                         #[derive(serde::Serialize)]
                         struct QueryReply<'a> {
@@ -941,8 +945,15 @@ fn handle(mut request: Request, shared: &Shared) {
                             seq: u64,
                             tables: &'a [String],
                             viewer: &'a str,
+                            #[serde(skip_serializing_if = "Option::is_none")]
+                            meter: Option<Json>,
                         }
-                        respond(request, 200, QueryReply { complete: outcome.complete, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, tables: &outcome.tables, viewer: &viewer });
+                        // @ref LLP 3000#7-decisions-during-execution — meter inspection is an opt-in loopback dev capability; releases ignore it.
+                        let meter = (shared.personas && matches!(single_header(&request, "x-snapback-meter"), Ok(Some("1")))).then(|| {
+                            let m = outcome.metered;
+                            json!({ "examined": m.examined, "indexEntries": m.index_entries, "probes": m.rule_probes, "steps": m.steps, "heapBytes": m.heap_bytes, "outputBytes": m.output_bytes, "rowsWritten": m.rows_written })
+                        });
+                        respond(request, 200, QueryReply { complete: outcome.complete, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, tables: &outcome.tables, viewer: &viewer, meter });
                     }
                     Err(refusal) => respond(request, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal) })),
                 }

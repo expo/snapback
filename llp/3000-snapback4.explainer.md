@@ -323,6 +323,16 @@ time-ordered 128-bit form.
   hoist; its `complete` speaks of the horizon and the meter alone, since a
   device holds only its partition.
 
+  **2026-09-15 — W7c development inspection (author's lane brief).**
+  Loopback `dev` may return the existing engine counters on successful reads
+  explicitly requesting `x-snapback-meter: 1`; the online client exposes this
+  as `createClient({ meter: true })` and optional `Read.meter`. The counters
+  describe the returned server answer, including a remembered watch answer.
+  Local device reads do not gain counters. `serve` and releases ignore the
+  header and never return them; cut sites stay private. This is a development
+  capability under the same loopback peer, Host and Origin checks as dev's
+  other doors, and leaves metering, ceilings and production disclosure unchanged.
+
 - **2026-09-12 — the log is keyed by group (lead, after the Snapback 2 run
   report).** A target audience's events are logged once under the group;
   a device's stream merges its own partition, the public one, and every

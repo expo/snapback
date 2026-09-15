@@ -38,7 +38,7 @@ pub fn parse(args: &[String]) -> Options {
         } else if let Some(flag) = arg.strip_prefix("--") {
             // A switch takes no value; any other flag takes the next token
             // unless that token is itself a flag.
-            const SWITCHES: &[&str] = &["no-watch", "fresh", "replay", "hold-effects", "hold-schedules", "cost", "residency", "fix", "online", "expo", "allow-destructive", "i-understand-cleartext"];
+            const SWITCHES: &[&str] = &["no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "cost", "residency", "fix", "online", "expo", "allow-destructive", "i-understand-cleartext"];
             let (name, value) = match flag.split_once('=') {
                 Some((name, value)) => (name.to_owned(), value.to_owned()),
                 None if SWITCHES.contains(&flag) || iter.peek().is_none_or(|next| next.starts_with("--")) => (flag.to_owned(), String::new()),
@@ -276,7 +276,7 @@ pub fn types(options: &Options) -> i32 {
 
 pub fn run(options: &Options) -> i32 {
     let Some(op) = options.positionals.first() else {
-        eprintln!("usage: snapback4 run <operation> [json-args] --as <persona> [--json]");
+        eprintln!("usage: snapback4 run <operation> [json-args] --as <persona|principal-id> [--json]");
         return 2;
     };
     let now = match crate::dev_clock::run_now(options.flags.get("now")) { Ok(now) => now, Err(error) => { eprintln!("{error}"); return 1; } };
@@ -315,7 +315,11 @@ pub fn run(options: &Options) -> i32 {
             }
         }
     }
-    let persona = options.flags.get("as").cloned().unwrap_or_else(|| "alice".into());
+    let principal = match options.flags.get("as") {
+        Some(name) if bound.personas.contains(name) => persona_principal(name),
+        Some(principal) => principal.clone(),
+        None => persona_principal("alice"),
+    };
     let mut engine = match project.open_engine(&bound) {
         Ok(engine) => engine,
         Err(error) => {
@@ -347,7 +351,7 @@ pub fn run(options: &Options) -> i32 {
             }
         };
     }
-    let context = Context::new(persona_principal(&persona), args).at(now);
+    let context = Context::new(principal, args).at(now);
     if program.kind == ProgramKind::Query {
         match engine.query(op, context) {
             Ok(outcome) => {
@@ -791,9 +795,16 @@ pub fn token(options: &Options) -> i32 {
         return 2;
     };
     let days: i64 = options.flags.get("days").and_then(|d| d.parse().ok()).unwrap_or(365);
-    let store = match options.flags.get("release") {
-        Some(dir) => snapback4_core::Store::open(&Path::new(dir).join("store.sqlite")),
-        None => project_or_exit().open_store(),
+    let (store_path, store) = match options.flags.get("release") {
+        Some(dir) => {
+            let path = Path::new(dir).join("store.sqlite");
+            let store = snapback4_core::Store::open(&path);
+            (path, store)
+        }
+        None => {
+            let project = project_or_exit();
+            (project.store_path(), project.open_store())
+        }
     };
     let store = match store {
         Ok(store) => store,
@@ -807,6 +818,7 @@ pub fn token(options: &Options) -> i32 {
             // Shell capture has one form, including when the shared --json flag is present.
             println!("{}", session.token);
             eprintln!("token: a session for {} until {} — printed once; keep it where the worker keeps secrets", session.principal, session.expires_at);
+            eprintln!("store: {} — this token belongs only to this store; each isolated store needs its own", store_path.display());
             0
         }
         Err(error) => {

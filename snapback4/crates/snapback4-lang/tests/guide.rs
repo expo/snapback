@@ -668,3 +668,14 @@ fn password_policy_and_guest_choice_are_on_the_card() {
         assert!(!bound.schema.auth.guests && !bound.schema.auth.password, "persona-only starters do not opt into identity");
     }
 }
+
+#[test]
+fn w7c_meter_store_readiness_and_aggregate_discovery_are_on_the_cards() {
+    assert_eq!(card("aggregates"), card("maintains"));
+    for doc in [card("reads").unwrap(), README] {
+        for text in ["meter: true", "x-snapback-meter: 1", "heapBytes", "probes", "principal id", "ignores"] { assert!(doc.contains(text), "missing {text}"); }
+    }
+    for doc in [card("services").unwrap(), README] {
+        for text in [".snapback4/store.sqlite", "--release", "store.sqlite", "each isolated", "first stdout line"] { assert!(doc.contains(text), "missing {text}"); }
+    }
+}
