@@ -1324,7 +1324,8 @@ async function openThread(conversationId: string) { // an existing conversation 
   const client = await createLocalClient({ url: "http://127.0.0.1:4400", persona: "alice", device: webDevice() });
   if (client.link() === "online") await client.sync();
   const thread = await client.query(api.thread, { conversationId });
-  const write = await client.mutate(api.send, { conversationId, body: "hi" });
+  const intentId = mintId(); // Keep this id with the intent for any retry.
+  const write = await client.mutate(api.send, { conversationId, body: "hi" }, { id: intentId });
   const invitation = await client.act(api.invite, { email: "friend@example.com" }, { id: mintId() });
 }
 ```
@@ -1404,7 +1405,7 @@ and restored for this JavaScript runtime by default), or `guest: true`
 (mint one when none is kept); `sessionStore`; `fetch`; `waitSeconds`. It
 has `query(op, args) → Read`, `observe(op, args) → { getSnapshot(), subscribe(listener) →
 unsubscribe, close() }` (a live read; React's `useSyncExternalStore`
-shape), `mutate(op, args) → Write`, `act(op, args, options?) → Act`, `link()`, `onLink`, `viewer()`,
+shape), `mutate(op, args, options?) → Write`, `act(op, args, options?) → Act`, `link()`, `onLink`, `viewer()`,
 `onViewer`, `onWrite`, `session()`, `onSession`, `refreshSession()`,
 `logoutAll()`, `signOut()`, `sync()`,
 `close()`. `onWrite` reports the terminal `sent` or `failed` outcome of a
@@ -1608,6 +1609,32 @@ receipts win id collisions and count as newest, so adopted receipts fill only
 spare capacity and cannot displace the destination's window. Rebuild the Expo native binary with this client
 version: acquisition is a device protocol field, and an older module refuses
 startup with `E_DEVICE_VERSION`.
+
+For replay adapters and retry-safe intents, pass `{ id }` from your own fixture
+or intent id; a retry returns the original outcome and never applies twice:
+`client.mutate(op, args, { id })`. Online, web and native clients accept the
+`mintId()` form: 26 uppercase Crockford base32 digits
+(0123456789ABCDEFGHJKMNPQRSTVWXYZ), starting with 0–7. A malformed id returns
+local `failed` with `E_WRITE_ID`. Mint once and keep it with the intent;
+prediction mints separate row ids through `new_ids`. The caller id is the
+mutation id in the outbox, `/m` request, receipt, `client.write(id)` and
+`usePendingWrite(op, id)`.
+
+A same-client retry while pending returns the same Write object; a settled
+retry returns its retained receipt, without historical results. Reopen reuses
+queued writes before predicting or admitting them. Different operation names
+or JSON arguments under the same id return local `E_WRITE_ID_REUSE` when the
+input is known: unresolved submissions, this client's last 256 terminal input
+identities, or the recovered outbox. Object key order does not matter. The
+refusal does not replace the original outcome or emit a terminal event for it.
+A receipt recovered after reopen has no arguments to compare and returns the
+original outcome. If neither outbox nor receipt knows the id, the server's
+record, keyed by principal and mutation id, wins even for different operations
+or arguments. Use a new id for a new intent. Each client remembers used ids for
+its lifetime (ids only after the bounded input/receipt window); a known id
+whose receipt was evicted and whose outbox entry is gone returns
+`E_WRITE_RECEIPT_EXPIRED` instead of being admitted again. Reopen to ask the
+server for that outcome. At-most-once belongs to the same backend store.
 
 `webDevice()` stores wasm bytes by SHA-256 digest in IndexedDB and opens from
 them without a network fetch on reload. It also persists the compiled backend

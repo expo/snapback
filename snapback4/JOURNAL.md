@@ -18925,3 +18925,76 @@ compiler should consult the existing read/insert proofs before offering it.
 Grouping advisories works only when their individual sites and measurements
 survive. The pending-row control proves the proposed guard rewrite without
 changing the interpreter or adding another ledger.
+
+## 2026-09-15 — W6d: caller-supplied mutation ids (0.2.21 calibration H7)
+
+Base: `35886bc2226f8e53b2537132714d6f3e6890f140`. The online client and the
+shared web/native local client now accept `mutate(op, args, { id })`.
+The caller id is the outbox and server mutation id, and the id recovered by
+`write` and `usePendingWrite`. Prediction still supplies independent row ids
+through `new_ids`. No engine replay behavior, serialized value form, meter
+ceiling or existing corpus case changed.
+
+The id has the minted 128-bit form: 26 uppercase Crockford base32 digits,
+starting with 0–7. Invalid ids return typed local `E_WRITE_ID`; even a
+non-string JavaScript input returns a Write-shaped refusal. Arguments are
+snapshotted as JSON before admission. Concurrent retries share the admission
+and the pending Write object. Known operation/argument mismatches return
+`E_WRITE_ID_REUSE` without replacing the original outcome or emitting a false
+terminal event. JSON object key order is immaterial.
+
+Settled retries recover the existing value-free receipt (LLP 3000.007 §17).
+Input identities are held for unresolved writes and up to 256 terminal writes;
+the client keeps id-only markers for its lifetime after that window. A known
+id whose receipt and queued entry have gone returns `E_WRITE_RECEIPT_EXPIRED`,
+so that client never admits it twice. Reopen can ask the server for the old
+outcome. A recovered receipt alone has no input identity to compare; without
+local evidence, the server's `(principal, mutation id)` record wins even if
+operation or arguments differ. This guarantee belongs to that backend store.
+The README, writes card, contract JSDoc and generated api.ts JSDoc state these
+boundaries; all three new codes are in `guide::CODES`.
+
+Recovery loads queued and retained ids during open. Fresh admissions still
+reach the synchronous web journal before mutate returns its promise
+(LLP 3000.007 §20.4); putting an awaited receipt lookup before every admission
+would have weakened navigation custody. The journal witness checks a same-id
+retry and a conflicting retry cannot overwrite that original record.
+
+Measured against the real HTTP host, with the wasm device and process/native
+device as the two local tiers:
+
+- Each of 3 tiers: 1 POST, 1 application, 1 terminal event for ordinary same-id
+  retries; a lost acknowledgement causes 2 identical POSTs and 1 application,
+  with 0 historical result fields in the replay receipt.
+- Each of 2 local tiers after offline reopen: 1 queued entry, 1 predicted row,
+  1 POST and 1 application. The predicted row id differs from the write id.
+- Each tier: 9 malformed ids refused locally; the maximum 128-bit id succeeds.
+  After 257 completed writes, 256 receipts remain, a known-id retry makes 0
+  new admissions, and reopening recovers through 1 server POST.
+- Synchronous web custody: 1 journal record, 1 durable outbox entry and 1
+  application despite concurrent same-id and conflicting-input retries.
+
+Verification used Node 24.18.0. Before implementation, the 11 W6d regressions
+reported `ℹ pass 0` / `ℹ fail 11`; afterward, `ℹ pass 11` / `ℹ fail 0`.
+The expanded final lane tests report `ℹ pass 15` / `ℹ fail 0`; the separate
+non-string refusal-shape regression was also red first (0/3). The broader
+client/acquisition/navigation/README selection passed 92/92, and
+`cargo test -p snapback4-lang --test guide` passed 24/24.
+
+`bash snapback4/scripts/test.sh` ran twice: `== 1 failure(s) in 423 s` and
+`== 1 failure(s) in 305 s`, each in the client group. Both Rust runs had 952
+passes, 0 failures and 4 ignored tests; build, wasm, package/app typechecks and
+the 9 fixture tests passed. The first client group was 323/326: its README
+test double answered missing metadata with `true` (corrected to the device's
+`null`), one navigation connection failure passed alone, and Chromium failed.
+The second was 324/326: it had already loaded my journal test before its
+receipt wait was corrected, and Chromium aborted at launch. `sync()` is not
+a promise that the outbox has settled; the witness now waits for `write(id)`.
+The corrected 15-test lane selection passed, then the final complete client
+run, `node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'`,
+reported `ℹ tests 326`, `ℹ pass 325`, `ℹ fail 1` in 123035.139 ms. Only
+Chromium's sandbox `SIGABRT` remains; the lead reruns Chromium outside the
+sandbox. No product failure is labelled pre-existing without a base witness.
+`./ref-check --verbose` and `git diff --check` passed before this append;
+references are checked again with the entry included. No commit, push, tag or
+publication was made.

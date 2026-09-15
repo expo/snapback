@@ -5,8 +5,8 @@
 // Every word a screen reads is on the card (contract.ts).
 
 import { changeFeed } from "./changes.ts";
-import { WriteHistory } from "./writes.ts";
-import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
+import { MutationIds, WriteHistory } from "./writes.ts";
+import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import { logout, logoutAll as revokeAllSessions, refreshSession as rotateSession, type Session, type SignIn } from "./auth.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
@@ -87,9 +87,11 @@ export function createClient(options: ClientOptions): Client {
   const sessionListeners = new Set<(session: Session | null) => void>();
   const viewerListeners = new Set<(viewer: Principal | null) => void>();
   const history = new WriteHistory();
+  const mutationIds = new MutationIds();
   const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
   const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
     history.remember(write);
+    mutationIds.finish(write.id);
     for (const listener of writeListeners) listener(write);
     return write;
   };
@@ -474,19 +476,20 @@ export function createClient(options: ClientOptions): Client {
         },
       };
     },
-    async mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write<R>> {
-      const id = mintId();
+    async mutate<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
+      const id = options?.id === undefined ? mintId() : options.id;
       if (closed) return emitWrite({ state: "failed", id, why: ended() });
       if (!credentials || link === "signed-out") return emitWrite({ state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write" } });
-      let settle!: (write: Write) => void;
-      const settled = new Promise<Write>((resolve) => { settle = resolve; });
-      const entry = { id, op: op as Mutation<unknown, unknown>, args, resolve: settle };
-      pending.push(entry);
-      history.remember({ state: "pending", id });
-      const attempt = flush();
-      if (link !== "online") return { state: "pending", id };
-      return Promise.race([settled, attempt.then((): Write => ({ state: "pending", id }))]) as Promise<Write<R>>;
-
+      return mutationIds.run<R>(id, op.name, args, () => client.write(id), async (args, write) => {
+        let settle!: (write: Write) => void;
+        const settled = new Promise<Write>((resolve) => { settle = resolve; });
+        const entry = { id, op: op as Mutation<unknown, unknown>, args, resolve: settle };
+        pending.push(entry);
+        history.remember(write);
+        const attempt = flush();
+        if (link !== "online") return write;
+        return Promise.race([settled, attempt.then((): Write => write)]) as Promise<Write<R>>;
+      });
     },
     async write(id) { const receipt = await history.read(id); return !closed && credentials ? receipt : undefined; },
     acquired: false,

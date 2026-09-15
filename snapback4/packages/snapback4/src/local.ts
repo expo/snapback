@@ -7,10 +7,10 @@
 // web (`snapback4/web`), the Expo module (`snapback4-expo`) and the
 // `snapback4 device` process for Node (`snapback4/native`) all fit.
 
-import { WriteHistory } from "./writes.ts";
+import { MutationIds, WriteHistory } from "./writes.ts";
 import { changeFeed } from "./changes.ts";
 import { exitTransport, type PendingSend } from "./local-exit.ts";
-import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
+import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import { MediaCache, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { MediaStorage, AssetRetention } from "./local-assets.ts";
 import { mintId } from "./client.ts";
@@ -169,8 +169,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const viewerListeners = new Set<(viewer: Principal | null) => void>();
   const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
   let history!: WriteHistory;
+  const mutationIds = new MutationIds();
   let setLink!: (next: Link) => void;
   const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
+    mutationIds.finish(write.id);
     if (history.firstEmission(write.id)) {
       for (const listener of writeListeners) listener(write);
     }
@@ -888,6 +890,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const answer = await call({ op: "queued" });
     if (answer.denied) throw new Error(`${answer.denied.code}: ${answer.denied.message}`);
     const entries = (answer.ok as Queued[] | undefined) ?? [];
+    for (const entry of entries) mutationIds.remember(entry.id, entry.op, entry.args);
     history.retainEmissions(entries.map(entry => entry.id));
     return entries;
   }
@@ -1052,38 +1055,39 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         },
       };
     },
-    async mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write<R>> {
-      const id = mintId();
+    async mutate<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
+      const id = options?.id === undefined ? mintId() : options.id;
       const unavailableWhy = unavailable();
       if (unavailableWhy) return emitLocalFailure({ state: "failed", id, why: unavailableWhy });
-      const submission = ++submissions;
-      const newIds: string[] = [];
-      // The module mints ids for `new` from the ids we pass, so the server
-      // applies the same ones; a burst takes them from one ascending clock.
-      for (let n = 0; n < 8; n++) newIds.push(mintId());
-      const schema = backend!.schema;
-      const program = backend!.programs.find((p) => p.name === op.name);
-      const predictable = Boolean(program && schema && [...operationTables(program, schema)].every((t) => schema.tables[t]?.sync));
-      const result = new Promise<Write>((resolve) => settled.set(id, resolve));
-      let pending: Extract<Write, { state: "pending" }> = { state: "pending", id };
-      try {
-        const admitted = await call({ op: "admit", entry: { id, seq: submission, op: op.name, args, viewer: principal, now: Date.now(), new_ids: newIds, predicted: [], predictable } satisfies Queued });
-        if (admitted.denied) { settled.delete(id); return emitLocalFailure({ state: "failed", id, why: admitted.denied }); }
-        const entry = admitted.ok as Queued;
-        if (!entry.predictable && !entry.predicted.length) pending = { ...pending, reason: !acquired
-          ? "queued without a row: not acquired yet"
-          : "queued without a row: local data does not justify prediction" };
-        rerunTables(predictedTables(entry.predicted));
-      } catch (error) {
-        settled.delete(id);
-        return emitLocalFailure({ state: "failed", id, why: { code: "E_STORE", family: "store", message: `write ${id} admission outcome is unknown: ${String(error)}` } });
-      }
-      if (closed) { settled.delete(id); return pending; }
-      void flush();
-      if (link !== "online") { settled.delete(id); return pending; }
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      try { return await Promise.race([result, new Promise<Write>((resolve) => { timer = setTimeout(() => resolve(pending), 4_000); })]) as Write<R>; }
-      finally { clearTimeout(timer); settled.delete(id); }
+      return mutationIds.run<R>(id, op.name, args, () => client.write(id), async (args, pending) => {
+        const submission = ++submissions;
+        const newIds: string[] = [];
+        // The module mints ids for `new` from the ids we pass, so the server
+        // applies the same ones; a burst takes them from one ascending clock.
+        for (let n = 0; n < 8; n++) newIds.push(mintId());
+        const schema = backend!.schema;
+        const program = backend!.programs.find((p) => p.name === op.name);
+        const predictable = Boolean(program && schema && [...operationTables(program, schema)].every((t) => schema.tables[t]?.sync));
+        const result = new Promise<Write>((resolve) => settled.set(id, resolve));
+        try {
+          const admitted = await call({ op: "admit", entry: { id, seq: submission, op: op.name, args, viewer: principal, now: Date.now(), new_ids: newIds, predicted: [], predictable } satisfies Queued });
+          if (admitted.denied) { settled.delete(id); return emitLocalFailure({ state: "failed", id, why: admitted.denied }); }
+          const entry = admitted.ok as Queued;
+          if (!entry.predictable && !entry.predicted.length) Object.assign(pending, { reason: !acquired
+            ? "queued without a row: not acquired yet"
+            : "queued without a row: local data does not justify prediction" });
+          rerunTables(predictedTables(entry.predicted));
+        } catch (error) {
+          settled.delete(id);
+          return emitLocalFailure({ state: "failed", id, why: { code: "E_STORE", family: "store", message: `write ${id} admission outcome is unknown: ${String(error)}` } });
+        }
+        if (closed) { settled.delete(id); return pending; }
+        void flush();
+        if (link !== "online") { settled.delete(id); return pending; }
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try { return await Promise.race([result, new Promise<Write>((resolve) => { timer = setTimeout(() => resolve(pending), 4_000); })]) as Write<R>; }
+        finally { clearTimeout(timer); settled.delete(id); }
+      });
     },
     async write(id) {
       if (unavailable()) return undefined;
@@ -1201,6 +1205,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       return closing;
     },
   };
+  // @ref LLP 3000.007#20.4 — recover existing IDs before accepting a fresh synchronous web admission; custody stays with the outbox and its receipt window.
+  await queued();
+  const keptWrites = (await call({ op: "meta", key: "write-history" })).ok as string | null;
+  for (const write of keptWrites ? JSON.parse(keptWrites) as Write[] : []) mutationIds.remember(write.id);
   if (link === "online") {
     // Web stores have one owner. Native owners may share an outbox with an
     // active sender, so their existing snapshot/receipt coordination runs first.

@@ -49,7 +49,7 @@ export interface Pending {
 
 /** A write. Fresh `sent` carries the server answer, including null. A replay
  * confirms execution identity only: `replayed: true` has no historical result.
- * Pending rows show predictions; `id` is client-minted and stable across replay. */
+ * Pending rows show predictions; `id` is caller-supplied or client-minted and stable across replay. */
 // @ref LLP 3000.007#17 — replay confirms execution without historical read authority
 export type Write<R = unknown> =
   | { readonly state: "pending"; readonly id: string; readonly reason?: string }
@@ -72,6 +72,15 @@ export interface ActOptions {
   readonly id?: string;
   /** Wait up to 25 seconds; 0 only admits or collects the request. */
   readonly waitSeconds?: number;
+}
+
+export interface MutateOptions {
+  /** A 26-digit uppercase Crockford base32 id, first digit 0–7, as minted by
+   * mintId(). Reuse an intent/fixture id for retries; this is not a row id.
+   * Retries return the pending Write or a receipt without historical results.
+   * Conflicting input is refused while this client or its outbox knows it;
+   * otherwise a retained receipt or the server's original outcome wins. */
+  readonly id?: string;
 }
 
 /** The app's relationship to its server. While polling on a running host,
@@ -130,7 +139,9 @@ export type AssetRead =
 export interface Client {
   query<A, R>(op: Query<A, R>, args: A): Promise<Read<R>>;
   observe<A, R>(op: Query<A, R>, args: A): Observed<R>;
-  mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write<R>>;
+  /** Retry-safe intents: pass { id } to reuse the original write. A client
+   * never admits a known id twice; an evicted receipt requires reopening. */
+  mutate<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>>;
   /** Recover a write by mutation id. Unknown ids return undefined. Local
    * clients keep terminal receipts with their store, without historical results. */
   write(id: string): Promise<Write | undefined>;

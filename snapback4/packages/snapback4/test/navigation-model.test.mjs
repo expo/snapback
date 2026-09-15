@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createLocalClient } from "../dist/local.js";
+import { mintId } from "../dist/client.js";
 import { memoryPersistence, webDevice } from "../dist/web.js";
 import { devServer } from "../../../witness/lib.mjs";
 
@@ -85,6 +86,28 @@ query audit():
 
 const journalEntries = f => [...f.storage.values()].map(text => JSON.parse(text)).filter(r => r.entry);
 const transfers = f => [...f.persist.stores.values()].flatMap(s => [...s.values()]).filter(c => c.s === "j");
+
+test("W6d: caller id reservations preserve synchronous journal custody without duplicate prediction", async t => {
+  const f = await fixture(t);
+  let offline = false;
+  const client = await f.open((url, init) => offline ? Promise.reject(new TypeError("offline")) : fetch(url, init));
+  offline = true; await client.sync();
+  const op = { kind: "mutation", name: "media.mark" }, id = mintId();
+  const first = client.mutate(op, { digit: 1 }, { id });
+  assert.equal(journalEntries(f).length, 1, "capture happens before mutate returns its promise");
+  assert.equal(journalEntries(f)[0].entry.id, id);
+  const retry = client.mutate(op, { digit: 1 }, { id });
+  const conflict = client.mutate(op, { digit: 2 }, { id });
+  assert.equal(journalEntries(f).length, 1);
+  assert.equal(journalEntries(f)[0].entry.args.digit, 1, "a conflicting retry cannot overwrite the synchronous record");
+  assert.strictEqual(await retry, await first);
+  assert.equal((await conflict).why.code, "E_WRITE_ID_REUSE");
+  assert.equal(f.durable().length, 1);
+  offline = false; await client.sync();
+  assert.ok(await until(async () => (await client.write(id))?.state === "sent", 15000));
+  assert.equal((await f.audit()).total, 1); assert.equal((await f.rows()).length, 1);
+  t.diagnostic("caller_id_journal_records=1 durable_entries=1 applied=1");
+});
 
 async function loseAdmission(f, client, op, args) {
   const gate = deferred(), entered = deferred(), save = f.persist.save.bind(f.persist);
