@@ -8816,3 +8816,227 @@ ref-check: ok — 474 LLP docs, 8869 refs in 22863 files, 0 errors, 0 unchecked
 
 `git diff --check` passed. The JOURNAL prefix is byte-identical to the base;
 this dated entry is append-only.
+
+## 2026-09-14 — W2R1c: ordered exit sends, staged signing, schedule release, enum domain, atomic init
+
+Implemented GPT review findings 4, 6, 7, 8 and 9 at base
+`0e9fdddba4fe34684d99215b70ac8dae2d164c42`. Read the review's corresponding
+findings and obligations 4–7, the Snapback 4 fence and LLP 3000.007's
+rulings. Each finding first failed with the base implementation; only then
+was its implementation changed. No commit, push, tag or publication occurred.
+
+- **4, exit ordering:** removed concurrent waves and predecessor bypass.
+  An exit event attempts only the oldest committed, unconfirmed write;
+  oversized/quota-blocked heads stay durable. Ordinary sends and exit sends
+  exclude one another in both directions, through transport completion and
+  ordinary durable settlement. Ordinary replay confirms the head before
+  advancing. Tests reverse server processing, block the head, overlap an
+  ordinary send, resume ordinary sending after an exit request, share quota
+  across clients, and reopen the real wasm device against the HTTP server.
+  Measured **2** durable writes, **1** exit request, **1** server row before
+  reopen and **2** after replay. The two-client UTF-8 body sum is **64,093 B**
+  against **65,536 B**; outstanding same-client sends fall from **2** to **1**,
+  and exit requests overlapping an ordinary send fall from **2** to **0**.
+- **6, signing custody:** copy Cargo's artifact into a private platform
+  package first. Sign, verify, notarize when configured, execute the version
+  probe, hash and pack that staged binary. Copy the platform metadata and
+  THIRD-PARTY-NOTICES into staging too. Strictly verify the installed
+  consumer's Developer ID signature and match authority/team as well as
+  digest. The fake harness now packs actual bytes and replaces Cargo's
+  artifact after signature inspection: the base packs **20 B** of unsigned
+  replacement; the fix packs the expected **15 B** and matching SHA-256 of
+  `unsigned-signed`. An installed signature failure refuses even when the
+  digest matches. No real signing service or publication was invoked.
+- **7, schedules:** save the schedule shape digest with its release
+  boundary in the same transaction. The regression changes **60,000 ms**
+  to **120,000 ms** while held, releases at **119,999 ms**, and now enqueues
+  **1** job at **120,000 ms** instead of **0**, with **0** duplicate firings
+  at the same boundary. The same-shape restart test remains green.
+- **8, enum widening:** reuse the runtime text-control predicate alongside
+  the character count in assignability. Declarations and enum membership
+  remain unchanged; widening requires every variant to be accepted text.
+  Tests cover helper calls, text-column storage, a named index, JSON wire
+  input, and retained enum-only control-character storage/lookup. `é`, `猫`
+  and tab succeed through the entire text path. U+0001, U+007F and U+0085
+  are refused as text, without changing their enum representation.
+- **9, init:** write package.json to an exclusively created sibling temp
+  file, preserve existing permissions, flush it, then rename it over the
+  original. Failed writes remove the temp file. A child-only **512 B**
+  RLIMIT_FSIZE forces a partial write: the base leaves a **512 B** truncated
+  replacement, while the fix retains the original **50 B** byte-for-byte.
+  Positive online/Expo merges and conflict preservation remain green.
+
+The required red/green commands follow. Cargo and package tests below ran
+from `snapback4/`; Node used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+
+Finding 4, base:
+`node --test --test-name-pattern='exit ordering|exit never bypasses|exit does not overlap' packages/snapback4/test/web-navigation.test.mjs`
+
+```text
+ℹ tests 3
+ℹ pass 0
+ℹ fail 3
+```
+
+Finding 6, base:
+`node --test packages/snapback4/test/publish-signing.test.mjs`
+
+```text
+ℹ tests 17
+ℹ pass 16
+ℹ fail 1
+```
+
+Findings 4 and 6, final expanded suites:
+`node --test packages/snapback4/test/web-navigation.test.mjs packages/snapback4/test/publish-signing.test.mjs`
+
+```text
+ℹ tests 29
+ℹ pass 29
+ℹ fail 0
+ℹ duration_ms 5173.343833
+```
+
+Finding 7, base:
+`cargo test -p snapback4 --test replay changed_schedule_shape_releases_at_first_boundary -- --nocapture`
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.01s
+```
+
+Finding 9, base:
+`cargo test -p snapback4 --test init --test replay -- --nocapture`
+(the initial command stopped after init; the separate command above ran replay).
+
+```text
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.21s
+```
+
+Findings 7 and 9, green:
+`cargo test -p snapback4 --test init --test replay --no-fail-fast -- --nocapture`
+
+```text
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.79s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.35s
+```
+
+Finding 8, base:
+`cargo test -p snapback4-lang --test ergonomics enum_widening_respects_text_character_domain -- --nocapture`
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+```
+
+Finding 8 and published cards, green:
+`cargo test -p snapback4-lang --test ergonomics --test guide -- --nocapture`
+
+```text
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+```
+
+The first exit-test attempt could not import the absent generated wasm
+module. `bash scripts/build-wasm.sh` and
+`bun run --cwd packages/snapback4 build` supplied it before the actual base
+regression above. The wasm build reported **1,649,049 B raw**, **457,519 B
+gzip**. During test development, additional assertions exposed fixture
+assumptions (ordinary offline attempts still in flight, missing insert
+permission, and treating a mutation's Failed outcome as a Rust Err); those
+were corrected without further enum/runtime changes. One accidental root
+Cargo invocation refused the unknown Snapback 4 package before testing;
+all recorded Rust test results above are from its own workspace.
+
+Required real-browser command, from the repository root:
+`node snapback4/witness/navigation.mjs`. It exited **1** before evaluation:
+Chromium terminated with `signal=SIGABRT`, so it produced **no witness JSON
+line**. The witness now expects one oldest write before reopen and waits
+for both writes to settle after reopening. The browser remains a lead
+handoff outside the sandbox; the Node/wasm/HTTP navigation test passed.
+
+Published-surface updates are in the package README, language/type cards,
+and the writes card's exit paragraph. The workspace README records staged
+publication custody. No compiler diagnostic string or E_/N_ code was added
+or replaced; invalid widening now uses the existing E_QUARRY_TYPE refusal.
+No before/after diagnostic wording was requested by this brief. No form
+changed, so apps, fixtures and loopbar authoring callers need no migration.
+Supporting files beyond the named implementation paths are the existing
+adjacent tests, `witness/navigation.mjs`, `snapback4/README.md`, and the
+required package README/cards/journal. The unrelated prediction paragraph
+in the writes card is untouched. No core-engine implementation file,
+ceiling, serialization, or existing corpus case changed. There are **16**
+changed code files, **0** above 1,500 lines; the largest is guide.rs at
+**1,229** lines. Earlier journal content remains byte-identical to the base.
+
+Blocking suite, from the repository root with Node 24 on PATH:
+`bash snapback4/scripts/test.sh`
+
+```text
+-- ok: cargo build (3 s)
+-- ok: wasm build (3 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (1 s)
+-- ok: chat app check (3 s)
+-- FAIL: cargo test (374 s)
+-- ok: chat app typecheck (2 s)
+-- ok: expo app typecheck (5 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (15 s)
+ℹ tests 194
+ℹ pass 193
+ℹ fail 1
+-- FAIL: client tests (59 s)
+== 2 failure(s) in 385 s
+```
+
+The 53 Rust result summaries total **709 passed, 1 failed, 2 ignored**.
+The failing lifecycle target reported:
+
+```text
+test result: FAILED. 12 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.52s
+```
+
+Its single failure was
+`dev_and_serve_report_signals_without_an_application_worker`: startup
+stderr interleaved with the serve SIGTERM diagnostic (`snapback4 serve:
+http://SNAPBACK4_SIGNAL ...`). The isolated rerun, from `snapback4/`,
+`cargo test -p snapback4 --test lifecycle dev_and_serve_report_signals_without_an_application_worker -- --nocapture`, passed:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 4.63s
+```
+
+The sole client failure was the program's named Chromium environment
+artifact. Isolated command, from `snapback4/`:
+`node --test packages/snapback4/test/react.test.mjs`
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+```
+
+Chromium again exited with `signal=SIGABRT` before the test's page launched.
+There were no en-masse client timeouts, so no reduced-concurrency rerun
+was needed. Neither this record nor the report claims a newly discovered
+failure is pre-existing at the base: the lifecycle failure passed in
+isolation on the changed tree, and the Chromium classification follows the
+user's explicit environment ruling. The lead must rerun Chromium outside
+the sandbox. A read-only `cargo test --workspace --no-fail-fast -- --list`
+identified the long-running 51-test device and 34-test simulator suites
+while the blocking run was in progress; both finished. The complete raw
+logs for this session are under `/tmp/w2r1c/`.
+
+Final root reference check: `./ref-check --verbose`
+
+```text
+ref-check: ok — 480 LLP docs, 8880 refs in 22919 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` is clean. The journal prefix before this entry is
+byte-identical to the base. All five requested fixes are implemented;
+the missing real-browser JSON is the only unfinished acceptance evidence.
+No sub-agent, other machine, install, commit, push, tag or publication was
+used. Changes remain uncommitted for the lead.

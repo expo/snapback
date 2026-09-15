@@ -64,8 +64,9 @@ and no `result` or `current`. Retries return only
 execution identity (`sent`/`failed`, `seq`/`why`, `replayed`), withholding
 historical `result` and `current`, including scalar results after a lost reply.
 On the web, admission waits for the IndexedDB commit; pagehide or becoming
-hidden sends queued writes with keepalive within the browser's shared 64 KiB
-body budget. Unsent/unconfirmed writes stay durable for retry on reopen with
+hidden sends only the oldest unconfirmed write with keepalive when no ordinary
+send is in flight. A blocked or oversized head is never skipped; clients share
+the browser's 64 KiB body budget. Unsent/unconfirmed writes stay durable for retry on reopen with
 the same mutation id, so replay cannot apply a write twice.
 A missing `upsert` predicts its insert when the synced group has no horizon
 and the key proves readability (public rows, or a viewer-keyed rule); otherwise

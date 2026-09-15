@@ -54,3 +54,24 @@ fn init_conflicts_name_the_key_and_leave_every_destination_untouched() {
         assert_eq!(fs::read_to_string(dir.0.join("package.json")).unwrap(), "{}");
     }
 }
+
+#[cfg(unix)]
+#[test]
+fn failed_package_write_preserves_original() {
+    use std::os::unix::process::CommandExt;
+    let dir = Dir::new();
+    let before = "{\"name\":\"kept\",\"description\":\"original metadata\"}\n";
+    fs::write(dir.0.join("package.json"), before).unwrap();
+    let mut command = Command::new(BIN);
+    command.args(["init", "--expo"]).current_dir(&dir.0);
+    unsafe { command.pre_exec(|| {
+        let limit = libc::rlimit { rlim_cur: 512, rlim_max: 512 };
+        if libc::setrlimit(libc::RLIMIT_FSIZE, &limit) != 0 { return Err(std::io::Error::last_os_error()); }
+        libc::signal(libc::SIGXFSZ, libc::SIG_IGN);
+        Ok(())
+    }); }
+    let output = command.output().unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    assert_eq!(fs::read_to_string(dir.0.join("package.json")).unwrap(), before);
+    assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 1, "failed replacement removes its temporary file");
+}

@@ -24,6 +24,10 @@ export function signingIdentity(env = process.env) {
 
 export function signDeveloperId(binary, identity = signingIdentity()) {
   command("codesign", ["--force", "--sign", identity, "--options", "runtime", "--timestamp", binary]);
+  return verifyDeveloperId(binary);
+}
+
+export function verifyDeveloperId(binary) {
   command("codesign", ["--verify", "--strict", "--verbose=2", binary]);
   // codesign writes its display information to stderr even on success.
   const display = spawnSync("codesign", ["--display", "--verbose=4", binary], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });

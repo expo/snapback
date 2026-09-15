@@ -265,3 +265,46 @@ fn s09_recovery_clears_a_reassigned_bindings_error_type() {
     assert_eq!(bound.diagnostics.iter().map(|d| d.message.as_str()).collect::<Vec<_>>(), ["unknown name missing", "int has no fields"]);
     clean("schema.q", &source.replace("missing", "1").replace("msg.body", "msg"));
 }
+
+#[test]
+fn enum_widening_respects_text_character_domain() {
+    let source = "table labels:\n  label: text <=1\n  unique byLabel: label\n  public 'labels'\n  insert <- allow\nfn take(t: text <=1): t\n";
+    for body in ["return take(t)", "return insert labels { label: t }", "return labels[label = take(t)]"] {
+        let bound = bind("schema.q", &format!("{source}mutation bad(t: enum('é', '\u{0001}')):\n  {body}\n"));
+        assert!(!bound.diagnostics.is_empty(), "control-character enum widened through {body}");
+        assert!(bound.diagnostics.iter().all(|d| d.code == "E_QUARRY_TYPE"), "{:?}", bound.diagnostics);
+    }
+}
+
+#[test]
+fn enum_text_helpers_storage_indexes_and_wire_keep_the_same_domain() {
+    let source = "table labels:\n  label: text <=1\n  unique byLabel: label\n  public 'labels'\n  insert <- allow\nfn take(t: text <=1): t\nmutation put(t: enum('é', '猫', '\t')):\n  return insert labels { label: take(t) }\nquery get(t: enum('é', '猫', '\t')):\n  return labels[label = t]\nmutation raw(t: text <=1):\n  return insert labels { label: t }\n";
+    let bound = clean("schema.q", source);
+    let enum_arg = bound.programs.iter().find(|p| p.program.name == "put").unwrap().program.args["t"].clone();
+    let text_arg = bound.programs.iter().find(|p| p.program.name == "raw").unwrap().program.args["t"].clone();
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    for text in ["é", "猫", "\t"] {
+        let value = snapback4_core::wire::from_json(&enum_arg, &serde_json::json!(text)).unwrap();
+        let context = || Context::new("alice", BTreeMap::from([("t".into(), value.clone())]));
+        let sent = engine.mutate("put", None, context()).unwrap();
+        assert!(matches!(sent.state, snapback4_core::WriteState::Sent { .. }), "{sent:?}");
+        let row = engine.query("get", context()).unwrap().data;
+        assert_eq!(row.field("label").unwrap(), &value);
+        assert_eq!(snapback4_core::wire::to_json(row.field("label").unwrap()), serde_json::json!(text));
+    }
+    for text in ["\u{0001}", "\u{007f}", "\u{0085}"] {
+        let value = snapback4_core::wire::from_json(&text_arg, &serde_json::json!(text)).unwrap();
+        let outcome = engine.mutate("raw", None, Context::new("alice", BTreeMap::from([("t".into(), value)]))).unwrap();
+        let snapback4_core::WriteState::Failed { why, .. } = outcome.state else { panic!("control character admitted"); };
+        assert_eq!(why.code, "E_INPUT");
+        assert!(!snapback4_lang::types::Ty::Enum(vec![text.into()]).assignable_to(&snapback4_lang::types::Ty::Text(1)));
+    }
+    // Enum membership itself is unchanged: only a widening into text is refused.
+    let bound = clean("schema.q", "table labels:\n  label: enum('é', '\u{0001}')\n  unique byLabel: label\n  public 'labels'\n  insert <- allow\nfn take(t: enum('é', '\u{0001}')): t\nmutation put(t: enum('é', '\u{0001}')):\n  return insert labels { label: take(t) }\nquery get(t: enum('é', '\u{0001}')):\n  return labels[label = t]\n");
+    let enum_arg = bound.programs.iter().find(|p| p.program.name == "put").unwrap().program.args["t"].clone();
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    let value = snapback4_core::wire::from_json(&enum_arg, &serde_json::json!("\u{0001}")).unwrap();
+    let context = || Context::new("alice", BTreeMap::from([("t".into(), value.clone())]));
+    engine.mutate("put", None, context()).unwrap();
+    assert_eq!(engine.query("get", context()).unwrap().data.field("label").unwrap(), &value);
+}

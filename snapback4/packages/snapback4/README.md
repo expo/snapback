@@ -141,7 +141,8 @@ mutation edit(messageId: messages, body: text <=4000):
   optional (null when absent). `default <literal | now | viewer>` fills an
   omitted insert column on the writing host; an explicit value wins.
   A required literal default also fills absent columns in older rows on every host; optional columns still read null when absent.
-  An enum fits `text <=N` when every variant has at most N characters: a
+  An enum fits `text <=N` when every variant has at most N characters and
+  contains no control characters except tab, LF and CR: a
   static, total widening with no runtime conversion. If any variant exceeds
   N, use the enum type on the helper parameter instead.
 - **References** are typed ids, with no implicit existence check and no
@@ -1088,8 +1089,9 @@ await client.close();
 ```
 
 On the web, `mutate` waits for the outbox's IndexedDB commit, and `pagehide`
-or becoming hidden sends queued writes with authenticated keepalive requests
-within the browser's shared 64 KiB body budget; unsent or unconfirmed writes
+or becoming hidden sends only the oldest unconfirmed write with an authenticated
+keepalive request when no ordinary send is in flight. A blocked or oversized
+head is never skipped. Requests share the browser's 64 KiB body budget; unsent or unconfirmed writes
 stay durable for retry on reopen, with mutation-id dedupe preventing duplicates.
 
 On the web one tab is one device: a second tab on the same store opens
@@ -1523,7 +1525,8 @@ step.
 
 - **`snapback4 init [dir] [--online|--expo]`** starts a project without
   overwriting existing files. An existing `package.json` keeps its metadata;
-  required dependencies, devDependencies and scripts merge into it. A different
+  required dependencies, devDependencies and scripts merge into it through an
+  atomic replacement, so a failed package write leaves the original intact. A different
   value for the same required key refuses with the key and both values before
   any file is written. Run `npm install` again after merging a starter.
   The default writes the local-first todo
@@ -1546,7 +1549,7 @@ step.
   prevents workers from claiming effects; emitted effects remain durable and
   become claimable after restarting without the flag. `--hold-schedules`
   prevents schedule admission; restart without it resumes at the next boundary,
-  skipping the held periods. Already queued jobs still run. Both flags are
+  skipping the held periods, including when the schedule changed while held. Already queued jobs still run. Both flags are
   independent and require no app code. `dev` writes `api.ts` on start and on
   every adoption, and refuses a store that belongs to a deployment
   (`E_GENERATION`). Personas (`use personas ..`) sign requests from the

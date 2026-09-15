@@ -35,12 +35,18 @@ async function fixture(t) {
   const clients = [];
   t.after(async () => { for (const c of clients) await c.close(); server.close(); });
   const persist = memoryPersistence(), requests = [], responses = [], cores = [];
-  let offline = false;
+  let offline = false, pauseOrdinary = false, pauseExit = false;
+  const exits = [];
+  let ordinaryCount = 0;
+  const ordinary = [];
   const transport = (input, init) => {
     if (init?.keepalive) {
       requests.push({ input, init });
-      return fetch(input, init).then(async r => { responses.push(await r.clone().json()); return r; });
+      const send = () => fetch(input, init).then(async r => { responses.push(await r.clone().json()); return r; });
+      return pauseExit ? new Promise(resolve => exits.push(() => resolve(send()))) : send();
     }
+    if (String(input).includes("/m/")) ordinaryCount++;
+    if (pauseOrdinary && String(input).includes("/m/")) return new Promise(resolve => ordinary.push(() => resolve(fetch(input, init))));
     return offline ? Promise.reject(new TypeError("page transport stopped")) : fetch(input, init);
   };
   const open = async () => {
@@ -54,7 +60,7 @@ async function fixture(t) {
   await client.sync();
   assert.equal(client.link(), "offline");
   const rows = async () => (await fetch(server.api + "/q/thread", { method: "POST", headers: { "x-snapback-persona": "alice" }, body: JSON.stringify({ args: { conversationId: "c1" } }) }).then(r => r.json())).data;
-  return { ...events, client, open, persist, requests, responses, cores, rows, online() { offline = false; } };
+  return { ...events, client, open, persist, requests, responses, cores, rows, online() { offline = false; }, ordinary, count() { return ordinaryCount; }, holdExit() { pauseExit = true; }, releaseExit() { pauseExit = false; exits.splice(0).forEach(f => f()); }, pause() { pauseOrdinary = true; }, resume() { pauseOrdinary = false; ordinary.splice(0).forEach(f => f()); } };
 }
 
 test("pagehide sends committed writes synchronously and reopen is deduped by the server", async t => {
@@ -74,22 +80,22 @@ test("pagehide sends committed writes synchronously and reopen is deduped by the
     f.online(); await f.open(); await until(async () => (await f.rows()).length === 2);
     console.log("base navigation: 0 exit requests; 0 rows before reopen; 2 rows after reopen");
   }
-  assert.equal(countAtExit, 2);
+  assert.equal(countAtExit, 1);
   for (const { init } of f.requests) {
     assert.equal(init.keepalive, true); assert.equal(init.signal, undefined);
     assert.equal(init.headers["x-snapback-persona"], "alice");
   }
-  await until(() => f.responses.length === 2);
+  await until(() => f.responses.length === 1);
   assert.ok(f.responses.every(r => r.state === "sent"));
-  assert.equal((await f.rows()).length, 2, "server received writes before next device opens");
+  assert.equal((await f.rows()).length, 1, "server received only the oldest write before reopen");
   for (const { input, init } of f.requests) {
     const replay = await fetch(input, init).then(r => r.json());
     assert.equal(replay.state, "sent");
     assert.equal(replay.seq, f.responses.find(r => r.id === replay.id)?.seq);
   }
   f.online(); await f.open();
-  assert.equal((await f.rows()).length, 2);
-  console.log("navigation: 2 durable writes; 2 exit requests; 2 rows before reopen; 2 rows after replay");
+  await until(async () => (await f.rows()).length === 2);
+  console.log("navigation: 2 durable writes; 1 exit request; 1 row before reopen; 2 rows after replay");
 });
 
 test("hidden flushes, visible does not, and close removes page hooks", async t => {
@@ -97,6 +103,7 @@ test("hidden flushes, visible does not, and close removes page hooks", async t =
   await f.client.mutate(send, { conversationId: "c1", body: "hidden" });
   f.document.dispatchEvent(new Event("visibilitychange"));
   assert.equal(f.requests.length, 0);
+  await tick(); // Let a failed ordinary offline attempt finish before the exit dispatch.
   f.document.visibilityState = "hidden";
   f.document.dispatchEvent(new Event("visibilitychange"));
   assert.equal(f.requests.length, 1);
@@ -127,6 +134,7 @@ test("mutate waits for outbox persistence before the exit transport can see it",
   release();
   assert.equal((await admitted).state, "pending");
   f.persist.save = save;
+  await tick();
   f.window.dispatchEvent(new Event("pagehide"));
   assert.equal(f.requests.length, 1);
   await until(() => f.responses.length === 1);
@@ -165,6 +173,7 @@ test("failed persistence discards the device before either transport can send an
 test("an exit send invalidates an older sync receipt before the page resumes", async t => {
   const f = await fixture(t);
   await f.client.mutate(send, { conversationId: "c1", body: "sync race" });
+  await tick();
   const before = (await f.cores[0].call({ op: "sync_state" })).ok;
   f.window.dispatchEvent(new Event("pagehide"));
   assert.equal(f.requests.length, 1);
@@ -174,7 +183,7 @@ test("an exit send invalidates an older sync receipt before the page resumes", a
   await until(() => f.responses.length === 1);
 });
 
-test("keepalive splits writes, counts UTF-8 bytes across clients, and releases quota on failure", async () => {
+test("keepalive counts UTF-8 bytes across clients and releases quota on failure", async () => {
   const requests = [], finish = [];
   const transport = (url, init) => {
     requests.push({ url, init });
@@ -190,12 +199,81 @@ test("keepalive splits writes, counts UTF-8 bytes across clients, and releases q
   assert.ok(total <= 65536 && total > 64000);
   assert.ok(requests.every(r => r.init.keepalive && !r.init.signal));
   finish.splice(0).forEach(f => f()); await tick();
-  assert.equal(requests.length, 4, "the next wave, including another client, starts as quota frees");
-  assert.deepEqual(requests.map(r => JSON.parse(r.init.body).id).sort(), ["a", "b", "c", "other client"]);
+  assert.equal(requests.length, 2, "successors stay durable until the head is settled");
+  assert.deepEqual(requests.map(r => JSON.parse(r.init.body).id).sort(), ["a", "other client"]);
   finish.splice(0).forEach(f => f()); await tick();
   let attempts = 0;
   const failing = exitTransport(() => { attempts++; if (attempts === 1) throw new TypeError("sync failure"); return Promise.reject(new TypeError("async failure")); }, "https://example.test");
   failing([first], {}); failing([first], {}); await tick(); failing([first], {}); await tick();
   assert.equal(attempts, 3);
   console.log(`keepalive: ${total} UTF-8 body bytes in 2 concurrent requests; ceiling 65536 bytes`);
+});
+
+test("exit ordering survives reversed server processing", async () => {
+  const pending = [], processed = new Set(); let value = 0;
+  const transport = (_url, init) => new Promise(resolve => pending.push(() => {
+    const entry = JSON.parse(init.body);
+    if (!processed.has(entry.id)) { processed.add(entry.id); value = entry.args.value; }
+    resolve(new Response("{}"));
+  }));
+  const send = exitTransport(transport, "https://example.test");
+  const entries = [1, 2].map(value => ({ id: String(value), op: "set", args: { value }, newIds: [] }));
+  send(entries, {});
+  const outstanding = pending.length;
+  pending.splice(0).reverse().forEach(f => f()); await tick();
+  assert.equal(outstanding, 1, "only the oldest unconfirmed request may start");
+  assert.equal(value, 1);
+  send(entries.slice(1), {});
+  pending.splice(0).reverse().forEach(f => f()); await tick();
+  assert.equal(value, 2);
+});
+
+test("exit never bypasses an oversized or quota-blocked predecessor", async () => {
+  const sent = [], finish = [];
+  const transport = (_url, init) => { sent.push(JSON.parse(init.body).id); return new Promise(resolve => finish.push(() => resolve(new Response("{}")))); };
+  const entry = (id, n) => ({ id, op: "set", args: "x".repeat(n), newIds: [] });
+  const a = exitTransport(transport, "https://example.test"), b = exitTransport(transport, "https://example.test");
+  a([entry("oversized", 65536), entry("small successor", 1)], {});
+  const oversize = [...sent];
+  finish.splice(0).forEach(f => f()); await tick(); sent.length = 0;
+  a([entry("other client", 40000)], {});
+  b([entry("quota blocked", 40000), entry("small successor", 1)], {});
+  const quota = [...sent];
+  finish.splice(0).forEach(f => f()); await tick();
+  finish.splice(0).forEach(f => f()); await tick();
+  assert.deepEqual(oversize, []);
+  assert.deepEqual(quota, ["other client"]);
+});
+
+test("exit does not overlap an ordinary in-flight flush", async t => {
+  const f = await fixture(t);
+  await f.client.mutate(send, { conversationId: "c1", body: "first" });
+  await f.client.mutate(send, { conversationId: "c1", body: "second" });
+  f.pause(); f.online();
+  const syncing = f.client.sync();
+  t.after(() => f.resume());
+  await until(() => f.ordinary.length > 0);
+  f.window.dispatchEvent(new Event("pagehide"));
+  const atExit = f.requests.length;
+  f.resume(); await syncing;
+  await until(async () => (await f.rows()).length === 2);
+  assert.equal(atExit, 0);
+});
+
+test("ordinary flush waits for the exit request before replaying its head", async t => {
+  const f = await fixture(t);
+  await f.client.mutate(send, { conversationId: "c1", body: "first" });
+  await f.client.mutate(send, { conversationId: "c1", body: "second" });
+  await tick();
+  f.holdExit();
+  f.window.dispatchEvent(new Event("pagehide"));
+  assert.equal(f.requests.length, 1);
+  const before = f.count();
+  f.online();
+  await f.client.sync(); await tick();
+  const during = f.count();
+  f.releaseExit();
+  await until(async () => (await f.rows()).length === 2);
+  assert.equal(during, before, "ordinary transport cannot overlap the exit send");
+  assert.ok(f.count() > during, "ordinary replay resumes after exit transport settles");
 });

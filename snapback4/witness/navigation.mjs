@@ -38,7 +38,7 @@ try {
   let received;
   do {
     received = await rows();
-    if (received.length === 2) break;
+    if (received.length === 1) break;
     await new Promise(resolve => setTimeout(resolve, 25));
   } while (Date.now() < deadline);
   const beforeReopen = received.length;
@@ -47,11 +47,19 @@ try {
   await page.waitForFunction(() => typeof window.createLocalClient === "function");
   await page.evaluate(async api => {
     const client = await window.createLocalClient({ url: api, persona: "alice", waitSeconds: 1 });
-    await client.sync(); await client.close();
+    await client.sync();
+    const deadline = Date.now() + 10000;
+    while (true) {
+      const result = await client.query({ kind: "query", name: "thread" }, { conversationId: "c1", c: null });
+      if (result.data?.length === 2 && result.data.every(row => !row.pending)) break;
+      if (Date.now() > deadline) throw new Error("reopened outbox did not settle");
+      await new Promise(resolve => setTimeout(resolve, 25));
+    }
+    await client.close();
   }, api);
   const afterReopen = (await rows()).length;
   console.log(JSON.stringify({ witness: "web-navigation", chromium: witness.chromium, durableWrites: writes.length, rowsBeforeReopen: beforeReopen, rowsAfterReopen: afterReopen }));
-  assert.equal(beforeReopen, 2, "queued writes must arrive before the next page opens the device");
+  assert.equal(beforeReopen, 1, "only the oldest unconfirmed write may dispatch at exit");
   assert.equal(afterReopen, 2, "reopen must not apply either mutation twice");
 } finally {
   await witness.close();

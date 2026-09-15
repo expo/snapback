@@ -8,6 +8,7 @@ pub fn schedules(engine: &mut Engine, held: bool, now: i64) -> Result<(), Runtim
     let tx = engine.store_mut().transaction()?;
     for schedule in schedules {
         tx.set_meta(&format!("schedule:{}", schedule.name), &schedule.boundary(now).to_string())?;
+        tx.set_meta(&format!("schedule-shape:{}", schedule.name), &snapback4_core::value::digest(&schedule))?;
     }
     tx.set_meta("dev:hold-schedules", if held { "true" } else { "false" })?;
     tx.commit()
