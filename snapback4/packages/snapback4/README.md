@@ -25,6 +25,13 @@ Every Quarry block in this file and in the guide is compiled by the
 package's own suite, and the language card is run, so nothing here
 promises a form the compiler refuses.
 
+Start here: read `snapback4 guide language` for Quarry, then `guide rules`
+for authorization, `guide sync` and `guide residency` for what the device holds,
+and `guide prediction` for offline writes. Use `guide reads` and `guide writes`
+as you build screens; `guide replay`, `guide effects`, `guide jobs` and
+`guide clock` cover seeds, notifications and tests. Read `guide personas`
+when wiring sign-in, and `guide assets` when adding media.
+
 ## 1. The shape of an app
 
 ```
@@ -1806,20 +1813,32 @@ step.
   private fields in the bundle that Hermes cannot compile. The generated
   README gives the install and run commands.
 
-- **`snapback4 dev [--port N] [--no-watch] [--fresh] [--hold-effects] [--hold-schedules] [--clock-offset +25h]`** serves
+- **`snapback4 dev [--port N] [--no-watch] [--fresh] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h]`** serves
   `snapback/*.q` on `127.0.0.1:4400`, recompiling and re-adopting on
   every save (the watcher polls every 400 ms; a save with problems keeps
   the previous generation serving and prints the diagnostics); the store
   lives in `.snapback4/store.sqlite` and persists across runs, and
   `--fresh` uses one in memory that dies with the process (acceptance
-  scripts start from nothing). Run `snapback4 dev --hold-effects --hold-schedules`
-  while seeding or replaying recorded actions without an app replay flag.
-  For recorded-action replays, `--hold-effects`
-  prevents workers from claiming effects; emitted effects remain durable and
+  scripts start from nothing). For a replay mode that must not emit notifications,
+  run `snapback4 dev --replay`: new emits are never delivered. The write's
+  transaction keeps only a durable `suppressed` count, shown by `doctor`,
+  with no queued payload. Mutations, explicitly run jobs, results and meters
+  behave normally. Replay also holds schedule admission; restarting without
+  it resumes at the next boundary and skips held periods, including when the
+  schedule changed while held. Already queued jobs still run, with new emits
+  suppressed. Effects queued before replay keep their ordinary lifecycle.
+  `--hold-effects` only prevents worker claims: effects remain durable and
   become claimable after restarting without the flag. `--hold-schedules`
-  prevents schedule admission; restart without it resumes at the next boundary,
-  skipping the held periods, including when the schedule changed while held. Already queued jobs still run. Both flags are
-  independent and require no app code. `dev` writes `api.ts` on start and on
+  only prevents schedule admission and skips held periods on restart.
+  The holds are independent; choose `--replay` when new effects must never
+  be delivered. Suppressed effects never become deliverable after any restart.
+  The policy stays on the dev store for local `run` invocations until the
+  next host start; restarting without `--replay` restores normal emission for
+  new writes and preserves the count. With `--fresh`, the count dies with the
+  in-memory store; `doctor` and local `run` inspect the separate on-disk store.
+  `serve`, deployment and `--release` invocations refuse `--replay` with
+  `E_REPLAY_DEV_ONLY`; production always emits normally.
+  `dev` writes `api.ts` on start and on
   every adoption, and refuses a store that belongs to a deployment
   (`E_GENERATION`). Personas (`use personas ..`) sign requests from the
   same machine with the `x-snapback-persona: alice` header (the client's
@@ -1851,7 +1870,7 @@ step.
   retries on the normal tick; do not blindly repeat the advance.
   Durations are positive whole numbers with `ms`, `s`, `m`, `h`, `d` or `w`,
   optionally prefixed `+`; the startup offset alone may be negative.
-  Ordinary and ordered batch mutations both stamp `now` from this dev clock.
+  Mutations at `POST /m/<op>` stamp `now` from this dev clock.
   The dev clock keeps ticking monotonically and cannot advance backwards.
   Its offset resets on process restart; supply it again to continue a test.
   Devices receive the ordinary sync deletion and row timestamps, and keep
@@ -1863,9 +1882,9 @@ step.
   "row": { "id": "..", .. } }, ..]`, writes the rows as the system
   principal in one commit (rules bypassed; validation, constraints,
   aggregates and sync apply) and answers `{ "seeded": N }`.
-  For seeding or recorded-action replay, run
-  `snapback4 dev --hold-effects --hold-schedules` to hold effect claims and
-  scheduled jobs without an app replay flag.
+  For recorded-action replay that must not emit notifications, run
+  `snapback4 dev --replay`: new effects are never delivered and schedules
+  are held. `guide replay` explains the restart and explicit-job behaviour.
 - **`snapback4 run <op> ['<json args>'] [--as alice] [--now <milliseconds|+duration>] [--json]`** runs one
   operation against the local store (the persona defaults to alice) and
   prints the result, the meter and, for a mutation, the partition events;
@@ -2108,7 +2127,8 @@ select `webDevice()` when adding a local-first web client.
 The same client runs on React Native over the native module — the
 `snapback4-expo` package, §7.1 — in a development or production build.
 Expo Go loads no custom native code and no wasm under Hermes, so an app
-there runs the online tier with a session it keeps itself:
+there runs the online tier with a session it keeps itself. Normalize session
+keys for SecureStore, as the Expo starter does:
 
 ```ts
 import * as SecureStore from "expo-secure-store";
@@ -2117,7 +2137,11 @@ import { nativeAvailable, nativeDevice } from "snapback4-expo";
 import { createClient } from "snapback4/client";
 import { guest, keepSession, restoreSession } from "snapback4/auth";
 const url = "http://127.0.0.1:4400";
-const sessionStore = { get: SecureStore.getItemAsync, set: SecureStore.setItemAsync, delete: SecureStore.deleteItemAsync };
+const sessionStore = {
+  get: (key: string) => SecureStore.getItemAsync(key.replace(/[^A-Za-z0-9._-]/g, "_")),
+  set: (key: string, value: string) => SecureStore.setItemAsync(key.replace(/[^A-Za-z0-9._-]/g, "_"), value),
+  delete: (key: string) => SecureStore.deleteItemAsync(key.replace(/[^A-Za-z0-9._-]/g, "_")),
+};
 async function kept() {
   const restored = await restoreSession(url, sessionStore);
   if (restored) return restored;

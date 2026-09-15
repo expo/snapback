@@ -193,7 +193,7 @@ pub(crate) fn test_work(hook: &WorkHook) {
 /// How the server is run: `dev` on a project (personas, watch), or a
 /// release (`serve`): a compiled generation over a store, tokens only.
 pub enum Mode {
-    Dev { watch: bool, fresh: bool, hold_effects: bool, hold_schedules: bool, clock_offset: i64 },
+    Dev { watch: bool, fresh: bool, replay: bool, hold_effects: bool, hold_schedules: bool, clock_offset: i64 },
     Release { expected: u64 },
 }
 
@@ -207,9 +207,10 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
         return Err(format!("{} problem{} in snapback/", bound.diagnostics.len(), if bound.diagnostics.len() == 1 { "" } else { "s" }));
     }
     let dev = matches!(mode, Mode::Dev { .. });
-    // @ref LLP 3000.007#20.2 — replay holds gate admission; mutations still commit durable effects.
+    // @ref LLP 3000.007#20.2 — replay suppresses new effects and holds schedule admission; ordinary holds keep their separate meanings.
+    let replay = matches!(mode, Mode::Dev { replay: true, .. });
     let hold_effects = matches!(mode, Mode::Dev { hold_effects: true, .. });
-    let hold_schedules = matches!(mode, Mode::Dev { hold_schedules: true, .. });
+    let hold_schedules = replay || matches!(mode, Mode::Dev { hold_schedules: true, .. });
     let clock = crate::dev_clock::Clock::new(dev, match mode { Mode::Dev { clock_offset, .. } => clock_offset, _ => 0 }).map_err(|e| e.to_string())?;
     let generated = if dev { Some(project.write_generated(&bound).map_err(|e| e.to_string())?) } else { None };
     // `--fresh`: a store in memory that dies with the process, for acceptance
@@ -224,6 +225,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     if dev {
         crate::native::build(&project, &bound).map_err(|p| p.to_string())?;
     }
+    crate::dev_replay::effects(&engine, replay).map_err(|e| e.to_string())?;
     crate::dev_replay::schedules(&mut engine, hold_schedules, clock.now()).map_err(|e| e.to_string())?;
     if !hold_schedules { engine.fire_schedules(clock.now()).map_err(|e| e.to_string())?; }
     let installed = crate::native::install(&mut engine, &project).map_err(|p| p.to_string())?;

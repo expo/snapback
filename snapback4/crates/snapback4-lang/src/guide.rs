@@ -1031,9 +1031,24 @@ Queries cannot write or mint ids, including through a helper; the call site name
 the write that does not belong."##,
         "jobs" => r##"# Jobs and schedules: the server's own work, on its own clock
 
-For seeding or recorded-action replay, run
-`snapback4 dev --hold-effects --hold-schedules` to hold effect claims and
-scheduled jobs without an app replay flag.
+For a replay mode that must not emit notifications, run `snapback4 dev --replay`.
+New emits are counted as `suppressed` by `doctor`, with no queued payload:
+they are never delivered, including after restarting with or without `--replay`.
+Mutations and explicitly run jobs keep their writes, results and meters.
+Replay holds schedule admission; restart without it resumes at the next
+boundary, skipping held periods. Already queued jobs still run, with their
+new emits suppressed. Effects queued before replay keep their ordinary lifecycle.
+
+`--hold-effects` only pauses worker claims: effects stay durable and become
+claimable after restarting without the flag. `--hold-schedules` only holds
+schedule admission, skipping held periods on restart. Use `--replay` when
+new effects must never be delivered; use the effect hold to keep them queued.
+The suppression policy stays on the dev store for local `run` invocations
+until the next host start; a restart without `--replay` restores normal
+emission for new writes and keeps the count. `serve` and release commands
+refuse `--replay` with E_REPLAY_DEV_ONLY; production always emits normally.
+With `--fresh`, the count dies with the in-memory store; `doctor` and local
+`run` inspect the separate on-disk store.
 
 Jobs in `snapback/jobs.q` are named `jobs.<name>` even in that file's schedules;
 `schema.q` jobs use their bare names. `check --fix` qualifies an unambiguous bare module job.
@@ -1077,8 +1092,8 @@ the job declares them (and nothing else); a schedule first seen fires from
 its next boundary. `snapback4 run <job> '{..}'` runs one here and now.
 
 For development and tests, `snapback4 dev --clock-offset +25h` starts the
-server 25 hours ahead of wall time. Ordinary and ordered batch mutations
-both stamp `now` from this clock. The clock keeps ticking monotonically;
+server 25 hours ahead of wall time. Mutations at `POST /m/<op>`
+stamp `now` from this clock. The clock keeps ticking monotonically;
 `snapback4 clock advance 2m [--port N]` moves a running dev forward and waits
 for expiry sweeps and queued job chunks to finish. Missed periods fire once,
 not once per skipped boundary; `--hold-schedules` still holds admission.
@@ -1187,9 +1202,24 @@ reads. A query, not a mutation, can be native too (LLP 3000.005 §9)."##,
         "actions" => actions::CARD,
         "effects" => r##"# Effects: the outside world, performed by a worker
 
-For seeding or recorded-action replay, run
-`snapback4 dev --hold-effects --hold-schedules` to hold effect claims and
-scheduled jobs without an app replay flag.
+For a replay mode that must not emit notifications, run `snapback4 dev --replay`.
+New emits are counted as `suppressed` by `doctor`, with no queued payload:
+they are never delivered, including after restarting with or without `--replay`.
+Mutations and explicitly run jobs keep their writes, results and meters.
+Replay holds schedule admission; restart without it resumes at the next
+boundary, skipping held periods. Already queued jobs still run, with their
+new emits suppressed. Effects queued before replay keep their ordinary lifecycle.
+
+`--hold-effects` only pauses worker claims: effects stay durable and become
+claimable after restarting without the flag. `--hold-schedules` only holds
+schedule admission, skipping held periods on restart. Use `--replay` when
+new effects must never be delivered; use the effect hold to keep them queued.
+The suppression policy stays on the dev store for local `run` invocations
+until the next host start; a restart without `--replay` restores normal
+emission for new writes and keeps the count. `serve` and release commands
+refuse `--replay` with E_REPLAY_DEV_ONLY; production always emits normally.
+With `--fresh`, the count dies with the in-memory store; `doctor` and local
+`run` inspect the separate on-disk store.
 
 ```quarry
 effect notify

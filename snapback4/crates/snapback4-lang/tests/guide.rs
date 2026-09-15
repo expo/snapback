@@ -604,9 +604,13 @@ fn calibration_guide_words_and_replay_holds_are_discoverable() {
 
 #[test]
 fn calibration_effects_jobs_and_seed_cards_explain_replay_flags() {
-    for word in ["effects", "jobs", "personas"] {
-        let text = card(word).unwrap();
+    for word in ["effects", "jobs", "personas", "replay", "README"] {
+        let text = if word == "README" { README } else { card(word).unwrap() };
         assert!(text.contains("--hold-effects") && text.contains("--hold-schedules"), "{word}");
+        assert!(text.contains("snapback4 dev --replay") && text.contains("never delivered"), "{word}");
+        assert!(text.contains("claimable after restarting without"), "{word}");
+        assert!(!text.contains("without an app replay flag"), "{word}");
+        assert!(!text.contains("Ordinary and ordered batch"), "{word}");
     }
 }
 

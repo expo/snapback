@@ -267,9 +267,7 @@ impl Engine {
                 if rows_written > 0 || !events.is_empty() || !outbox.is_empty() {
                     tx.record_commit(seq, now, &head.run.name, crate::SYSTEM_PRINCIPAL, "job", &tables, rows_written)?;
                     partition::append(&tx, seq, &events)?;
-                    for (id, effect, payload) in &outbox {
-                        tx.conn().execute("INSERT INTO _outbox(id, seq, effect, payload, state, attempts, at) VALUES (?1, ?2, ?3, ?4, 'queued', 0, ?5)", params![id, seq as i64, effect, canonical_json(payload), now])?;
-                    }
+                    super::effects::record(&tx, &outbox, seq, now)?;
                 }
                 let (next_sweep, cursor, upper) = if chunk.finished { (sweeps.len(), None, None) } else if chunk.ended { (sweep + 1, None, None) } else { (sweep, chunk.last_key, upper) };
                 let state = if next_sweep >= sweeps.len() { JobState::Done } else { JobState::Running };
@@ -369,9 +367,7 @@ fn native_chunk(tx: crate::store::Tx<'_>, schema: &crate::schema::Schema, module
             if outcome.rows_written > 0 || !outcome.events.is_empty() {
                 tx.record_commit(seq, now, &head.run.name, crate::SYSTEM_PRINCIPAL, "job", &outcome.tables, outcome.rows_written)?;
                 partition::append(&tx, seq, &outcome.events)?;
-                for (id, effect, payload) in &outcome.outbox {
-                    tx.conn().execute("INSERT INTO _outbox(id, seq, effect, payload, state, attempts, at) VALUES (?1, ?2, ?3, ?4, 'queued', 0, ?5)", params![id, seq as i64, effect, canonical_json(payload), now])?;
-                }
+                super::effects::record(&tx, &outcome.outbox, seq, now)?;
             }
             let (state, cursor) = match step {
                 Step::Done => (JobState::Done, None),

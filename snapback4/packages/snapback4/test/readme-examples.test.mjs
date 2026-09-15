@@ -92,3 +92,25 @@ test("R1a Queries lists matching merges over scope lanes", () => {
   assert.ok(queries.includes("merge t matching q [after c] last N by wordsIndex:"), "Queries must spell the matching merge");
   assert.ok(queries.includes("scope lanes"));
 });
+
+test("Expo Go README session store normalizes SecureStore keys and round-trips a session", async () => {
+  const readme = read(join(root, "README.md"));
+  const source = readme.match(/const sessionStore = [\s\S]*?;/)?.[0];
+  assert.ok(source, "README declares its SecureStore adapter");
+  const values = new Map();
+  const keys = [];
+  const valid = (key) => { assert.match(key, /^[A-Za-z0-9._-]+$/); keys.push(key); };
+  const SecureStore = {
+    async getItemAsync(key) { valid(key); return values.get(key) ?? null; },
+    async setItemAsync(key, value) { valid(key); values.set(key, value); },
+    async deleteItemAsync(key) { valid(key); values.delete(key); },
+  };
+  const js = ts.transpile(source, { target: ts.ScriptTarget.ES2022 });
+  const store = new Function("SecureStore", `${js}\nreturn sessionStore;`)(SecureStore);
+  const key = "snapback4:session:http://127.0.0.1:4400";
+  await store.set(key, "saved-session");
+  assert.equal(await store.get(key), "saved-session");
+  await store.delete(key);
+  assert.equal(await store.get(key), null);
+  assert.deepEqual(keys, Array(4).fill("snapback4_session_http___127.0.0.1_4400"));
+});

@@ -1,4 +1,4 @@
-//! Replay holds fence worker claims and schedule admission, not mutation commits.
+//! Replay suppresses emissions; holds fence worker claims and schedule admission.
 use serde_json::{Value, json};
 use snapback4_core::{Engine, Store};
 use std::{fs, io::{BufRead, BufReader, Read, Write}, net::TcpStream, path::PathBuf, process::{Child, Command, Stdio}, time::Duration};
@@ -12,6 +12,7 @@ impl Fixture {
         fs::write(path.join("snapback/schema.q"), SOURCE).unwrap(); Self(path)
     }
     fn engine(&self) -> Engine { Engine::open(Store::open(&self.0.join(".snapback4/store.sqlite")).unwrap()).unwrap() }
+    fn command(&self, args: &[&str]) -> std::process::Output { Command::new(BIN).current_dir(&self.0).args(args).output().unwrap() }
     fn start(&self, flags: &[&str]) -> Host {
         let mut child = Command::new(BIN).current_dir(&self.0).args(["dev", "--port", "0", "--no-watch"]).args(flags).stdout(Stdio::piped()).stderr(Stdio::inherit()).spawn().unwrap();
         let mut line = String::new(); BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
@@ -72,7 +73,89 @@ fn held_schedules_skip_missed_periods_and_resume_at_the_next_boundary() {
 fn help_lists_both_replay_holds() {
     let out = Command::new(BIN).arg("--help").output().unwrap();
     let text = String::from_utf8(out.stdout).unwrap();
-    assert!(text.contains("--hold-effects") && text.contains("--hold-schedules"), "{text}");
+    assert!(text.contains("--replay") && text.contains("--hold-effects") && text.contains("--hold-schedules"), "{text}");
+}
+
+const WRITES: &str = "use personas alice\neffect notify\ntable items:\n  n: int\n  public 'replay test'\n  insert <- allow\n  update <- allow\nmutation put(id: id, n: int):\n  insert items {id, n}\n  emit notify {id, n}\n  return n\nmutation abort(id: id):\n  insert items {id, n: -1}\n  emit notify {id}\n  require false else ABORTED\nquery rows():\n  return items first 100 by byId\njob bump():\n  chunk row in items first 10 by byId:\n    update items[row.id] {n: row.n + 1}\n    emit notify {id: row.id}\nschedule bumping every 7d: bump\n";
+const PERSONA: &str = "x-snapback-persona: alice";
+
+fn worker(f: &Fixture) -> String {
+    let out = f.command(&["token", "--service", "worker"]);
+    assert!(out.status.success(), "{out:?}");
+    format!("Authorization: Bearer {}", String::from_utf8(out.stdout).unwrap().trim())
+}
+
+#[test]
+fn replay_suppresses_committed_emits_and_preserves_writes_jobs_and_restarts() {
+    const N: usize = 32;
+    for restart_with_replay in [true, false] {
+        let f = Fixture::new(if restart_with_replay { "suppress-replay" } else { "suppress-normal" });
+        let control = Fixture::new(if restart_with_replay { "control-replay" } else { "control-normal" });
+        for fixture in [&f, &control] { fs::write(fixture.0.join("snapback/schema.q"), WRITES).unwrap(); }
+        let host = f.start(&["--replay"]);
+        let normal = control.start(&["--hold-schedules"]);
+        let auth = worker(&f);
+        for i in 0..N {
+            let request = json!({"id":format!("op-{i}"), "args":{"id":format!("{i:032x}"), "n":i}});
+            for server in [&host, &normal] {
+                let sent = server.post("/m/put", request.clone(), PERSONA);
+                assert_eq!(sent["state"], "sent", "{sent}");
+                assert_eq!(sent["result"], i, "{sent}");
+                let repeated = server.post("/m/put", request.clone(), PERSONA);
+                assert_eq!(repeated["state"], "sent", "{repeated}");
+            }
+        }
+        for (fixture, server) in [(&f, &host), (&control, &normal)] {
+            let refused = server.post("/m/abort", json!({"id":"abort", "args":{"id":"ffffffffffffffffffffffffffffffff"}}), PERSONA);
+            assert_eq!(refused["state"], "failed", "{refused}");
+            assert_eq!(refused["why"]["code"], "ABORTED", "{refused}");
+            let advanced = server.post("/dev/clock/advance", json!({"duration":"15d"}), PERSONA);
+            assert_eq!(advanced["work"]["schedules"], 0, "{advanced}");
+            assert!(fixture.engine().jobs(10).unwrap().is_empty());
+        }
+        let rows = host.post("/q/rows", json!({"args":{}}), PERSONA)["data"].clone();
+        assert_eq!(rows.as_array().unwrap().len(), N);
+        assert_eq!(rows, normal.post("/q/rows", json!({"args":{}}), PERSONA)["data"]);
+        for fixture in [&f, &control] {
+            let out = fixture.command(&["run", "bump", "--json"]);
+            assert!(out.status.success(), "{out:?}");
+            let run: Value = serde_json::from_slice(&out.stdout).unwrap();
+            assert_eq!(run["rowsWritten"], N, "{run}");
+        }
+        let rows = host.post("/q/rows", json!({"args":{}}), PERSONA)["data"].clone();
+        assert_eq!(rows, normal.post("/q/rows", json!({"args":{}}), PERSONA)["data"]);
+        assert_eq!(f.engine().effect_counts().unwrap().get("suppressed"), Some(&((N * 2) as u64)));
+        assert_eq!(control.engine().effect_counts().unwrap().get("queued"), Some(&((N * 2) as u64)));
+        assert!(f.engine().effects(None, 100).unwrap().is_empty(), "suppression must retain no effect payloads");
+        assert_eq!(host.post("/effects/claim", json!({}), &auth)["effects"], json!([]));
+        let doctor = f.command(&["doctor"]);
+        assert!(doctor.status.success(), "{doctor:?}");
+        assert!(String::from_utf8_lossy(&doctor.stdout).contains("64 suppressed"), "{doctor:?}");
+        drop(host);
+        let host = f.start(if restart_with_replay { &["--replay"] } else { &[] });
+        assert_eq!(host.post("/effects/claim", json!({}), &auth)["effects"], json!([]));
+        assert_eq!(f.engine().effect_counts().unwrap().get("suppressed"), Some(&64));
+        assert_eq!(host.post("/q/rows", json!({"args":{}}), PERSONA)["data"], rows);
+        assert_eq!(f.engine().jobs(10).unwrap().len(), 1, "held schedules must not catch up on restart");
+        let sent = host.post("/m/put", json!({"id":"new", "args":{"id":"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "n":99}}), PERSONA);
+        assert_eq!(sent["state"], "sent", "{sent}");
+        let claimed = host.post("/effects/claim", json!({}), &auth);
+        assert_eq!(claimed["effects"].as_array().unwrap().len(), usize::from(!restart_with_replay), "{claimed}");
+        assert_eq!(f.engine().effect_counts().unwrap()["suppressed"], 64 + u64::from(restart_with_replay));
+        println!("replay: mutations={N} duplicate_retries={N} refused=1 explicit_job_rows={N} equal_rows={N} suppressed=64 claimable_before=0 claimable_after=0 restart_replay={restart_with_replay} held_schedule_runs=0");
+    }
+}
+
+#[test]
+fn replay_is_refused_outside_dev_and_for_release_directories() {
+    let f = Fixture::new("dev-only");
+    assert_eq!(dev_replay::dev_only().guide.as_deref(), Some("replay"));
+    for args in [vec!["serve", "missing", "--replay"], vec!["dev", "--release", "missing", "--replay"], vec!["run", "send", "--replay"], vec!["run", "send", "--release", "missing", "--replay"], vec!["deploy", "missing", "--replay"]] {
+        let out = f.command(&args);
+        assert!(!out.status.success(), "{args:?}");
+        let diagnostic = String::from_utf8(out.stderr).unwrap();
+        assert_eq!(diagnostic.trim(), "E_REPLAY_DEV_ONLY: --replay requires dev without --release; serve and releases always emit effects normally", "{args:?}");
+    }
 }
 
 #[path = "../src/dev_replay.rs"]
@@ -83,6 +166,8 @@ fn changed_schedule_shape_releases_at_first_boundary() {
     let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    dev_replay::effects(&engine, true).unwrap();
+    assert_eq!(engine.store().meta("dev:replay").unwrap().as_deref(), Some("true"));
     assert!(engine.fire_schedules(0).unwrap().is_empty());
     dev_replay::schedules(&mut engine, true, 60_000).unwrap();
     let changed = snapback4_lang::compile(&[("schema.q".into(), SOURCE.replace("every 1m", "every 2m"))]);

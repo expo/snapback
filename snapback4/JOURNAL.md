@@ -17577,3 +17577,54 @@ production benchmark binary. Original inputs, outputs and receipts are under
 is `signal-framing-0219-v1-source-evidence-independent-review.md` (68b3a763).
 The current three-backend comparison still requires a separately qualified
 build and fresh sessions; no timing or new competitor win is claimed here.
+
+## 2026-09-15 — W5a: replay suppresses effects, and the cards distinguish holds
+
+Built `snapback4 dev --replay` for calibration G2 (LLP 3000.007 §20.2):
+new emits retain their evaluation and meters, but their successful mutation
+or job chunk commits only a suppression count, never an effect payload.
+`doctor` reports the durable count. The flag also holds schedule admission;
+held periods are skipped on restart. Already queued jobs still run, and
+local `run` uses the dev store's policy until the next host start. A normal
+restart restores new emission without losing the count or delivering any
+suppressed effect. Effects queued before replay keep their normal lifecycle;
+`--hold-effects` still pauses claims and leaves effects claimable later.
+One composed `--replay` spelling answers the no-notifications replay task
+without another independent suppression flag. `serve`, deployment and
+`--release` invocations refuse it with `E_REPLAY_DEV_ONLY`.
+
+The effects, jobs and personas cards now state these boundaries, including
+`--fresh`'s separate in-memory store; `guide replay` reaches the personas
+card. The README adds a start-here card index, replaces the reverted batch
+route claim with `POST /m/<op>`, and normalizes SecureStore keys exactly as
+the Expo starter does (M4, M5, G12). No existing prose was reflowed. No
+meter ceiling, value serialization or conformance case changed.
+
+Measured on base `2862bfdadd6cf846029628151d2fb6a39006d2ed`: the replay
+regressions were **3 passed / 3 failed** before the fix and **6 / 0** after.
+Each of two restart scenarios executes **32 mutations, 32 duplicate retries,
+1 refused transaction and 32 explicit-job row updates**: **64 suppressed,
+0 queued payloads, 0 claimable effects before and after restart, 0 scheduled
+runs across a 15-day clock advance, 32 rows identical to the ordinary
+control**. The control retains 64 queued effects; new writes after a normal
+restart emit again, while new writes after a replay restart remain suppressed.
+The guide regression was **0 / 1** before, with the complete guide suite
+**23 / 0** after. SecureStore's URL-shaped key was refused before (**0 / 1**)
+and round-trips after; README tests pass **3 / 0**, compiling **13 blocks /
+36 public functions**. Largest changed code file: **1,394 lines**. No
+100,000-action throughput or notification-provider measurement is claimed.
+
+The first full suite finished in **425 s** with **893 Rust passes, 0 Rust
+failures, 4 ignored; 284 client passes, 4 failures**. Three client failures
+caught my unconditional `dev:replay=false` startup write changing release
+snapshots. Startup now leaves a store that never enabled replay untouched;
+the existing release suite passes **12 / 0**. This is why the emission
+policy must be separate from an incidental normal-start metadata write.
+The final `bash snapback4/scripts/test.sh` reports **1 failure in 360 s**:
+**893 Rust passes, 0 failures, 4 ignored; 9 fixture passes; 287 client passes,
+1 failure**. Its only failure is Chromium's sandbox `SIGABRT` in the React
+suite, also reproduced alone (**0 / 1**); no lifecycle or timing failures
+remain. This matches the supplied environment artifact, but is not claimed
+as a failure verified on an unmodified base build. The lead must run the
+browser test outside the sandbox. Reference validation and diff whitespace
+checks pass. Changes remain uncommitted for the lead.
