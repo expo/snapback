@@ -13984,3 +13984,21 @@ ref-check: ok — 480 LLP docs, 8911 refs in 22964 files, 0 errors, 0 unchecked
 `git diff --check` exits **0**. Only the intended source, tests, published
 text, §18.2 note and this one appended journal entry are changed. No generated
 artifact is included. The work is left uncommitted for the lead.
+
+## 2026-09-15 — X1 confirmation: a restore refilled by later writes still halts (lead)
+
+GPT's confirmation of X1R3 (`4e986d5aa`) accepted findings 5 and 6 and found
+that X1R3's client relaxation let a witnessed restore escape: a same-identity
+poll head 5 below acquisition 10, then writers creating commits 6–10 before
+sync, and `/sync` from 10 returns an empty page, so the old partition read
+fresh again. With finding 5's repair both `/probe` and `/changes` report the
+committed head, so the strict rule is safe again: `witnessRestore` in
+`local.ts` sends a synthetic same-identity page (captured acquisition and send
+revision) through `observe_store`, which persists `E_STORE_RESTORE` under the
+existing capture guards. `R4: a same-identity /changes head below acquisition
+persists the restore halt even when writes refill the head` was red
+(`restore_refusal` undefined) and is green; the process/wasm reconnect tests
+now expect the halt; the real-server maintain-adoption regression stays
+healthy (store-reset tests 30 of 30). The synthetic page first failed with
+`E_INPUT: missing field snapshot`, found by calling `observe_store` directly.
+

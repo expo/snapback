@@ -218,20 +218,18 @@ maintain counts: count notes by body
   }
 });
 
-for (const kind of ["wasm", "process"]) test(`R3 finding 5: ${kind} a lower notification requires sync confirmation`, { timeout: 30000 }, async t => {
+for (const kind of ["wasm", "process"]) test(`R4: ${kind} a same-identity head below acquisition halts as a restore`, { timeout: 30000 }, async t => {
+  // /changes and /probe report the committed head, so on a healthy store a
+  // reply to a request made after acquiring N never reports less than N
+  // (the maintain-adoption regression above covers the healthy case).
   const f = await fixture(t, kind, 1); await f.seed("A", 3);
   const client = await f.open(); f.lowerNotice();
-  const syncs = f.pages.length;
   await until(() => f.notices.some(n => n.seq === 0), "the lower notice was not delivered");
-  await client.sync();
-  const read = await client.query(op, {}), state = (await f.core.call({ op: "sync_state" })).ok;
-  assert.equal(read.denied, undefined, JSON.stringify(read));
-  assert.equal(read.fresh, true); assert.equal(read.data.length, 3);
-  assert.ok(f.pages.length > syncs, "a lower notice must be checked against sync");
-  assert.equal(state.restore_refusal, undefined);
-  t.diagnostic(`${kind}: lower notice=0, confirmed head=${state.watermark}, restore=none`);
+  await until(async () => (await f.core.call({ op: "sync_state" })).ok.restore_refusal?.code === "E_STORE_RESTORE", "the lower head did not persist a restore halt");
+  const read = await client.query(op, {});
+  assert.equal(read.denied?.code, "E_STORE_RESTORE", JSON.stringify(read));
+  t.diagnostic(`${kind}: lower head=0 below acquisition → E_STORE_RESTORE`);
 });
-
 test("R3 finding 5: concurrent commits and an older receipt retry keep the actual head", { timeout: 30000 }, async t => {
   const f = await fixture(t, "server", 0, true);
   writeFileSync(join(f.dir, "snapback/schema.q"), `${source}

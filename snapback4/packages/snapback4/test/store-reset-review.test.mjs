@@ -87,18 +87,16 @@ test("R2 item 2: getSnapshot is cleared and notified in the reset turn", async t
   assert.equal(watch.getSnapshot().fresh, true);
 });
 
-test("R3 finding 5: a lower change head alone cannot persist a restore halt", async t => {
+test("R4: a same-identity /changes head below acquisition persists the restore halt even when writes refill the head", async t => {
   const f = await fixture(t), op = { kind: "query", name: "marker" };
   assert.equal((await f.client.query(op, {})).fresh, true);
-  // The next authenticated /sync confirms the acquired head. A delayed or
-  // transient notification alone cannot prove that this store shrank.
-  const syncs = f.stats().syncStarts;
+  // /changes reports the committed head. The store was restored to 5; other
+  // writers then create commits 6–10, so the next /sync from 10 looks empty.
   await f.changed(5); await f.client.sync();
-  assert.ok(f.stats().syncStarts > syncs);
-  assert.equal((await f.client.query(op, {})).fresh, true);
-  assert.equal((await f.core.call({ op: "sync_state" })).ok.restore_refusal, undefined);
+  assert.equal((await f.core.call({ op: "sync_state" })).ok.restore_refusal?.code, "E_STORE_RESTORE");
+  const read = await f.client.query(op, {});
+  assert.equal(read.denied?.code, "E_STORE_RESTORE", JSON.stringify(read));
 });
-
 test("finding 1: failed same-generation backend adoption survives retry and offline reopen", async t => {
   const f = await fixture(t);
   assert.equal((await f.client.query({ kind: "query", name: "marker" }, {})).data, "A");

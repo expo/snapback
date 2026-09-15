@@ -315,6 +315,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     for (const watch of watches.values()) { watch.snapshot = { denied }; notify(watch); }
   }
 
+  // @ref LLP 3000.007#18.2 — /probe and /changes report the committed head: a same-identity head below the acquisition captured before the request is a restore, whatever later writes do to the head.
+  async function witnessRestore(storeId: unknown, head: unknown, capture: StoreCapture): Promise<boolean> {
+    if (typeof storeId !== "string" || storeId !== storeIdentity || !(Number(head) < capture.watermark)) return false;
+    const observed = await call({ op: "observe_store", page: { snapshot: false, generation, events: [], watermark: Number(head), more: false, store_id: storeId,
+      requested_watermark: capture.watermark, captured_watermark: capture.watermark, send_revision: capture.send_revision } });
+    if (observed.denied) refuseRestore(observed.denied);
+    return partitionDenied?.code === "E_STORE_RESTORE";
+  }
+
   async function captureStore(): Promise<StoreCapture | undefined> {
     const reply = await call({ op: "sync_state" });
     if (reply.denied) return;
@@ -641,6 +650,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       await refusedSession(json.denied ?? json.why, request.revision);
       if (response.status === 200 && json.ok === true && !sessionDead && probeIncarnation === incarnation) {
         // @ref LLP 3000.007#18.2 — verify identity before reconnect can bless cached local answers or resume a long poll.
+        if (await witnessRestore(json.store_id, json.seq, capture)) return;
         if (typeof json.store_id === "string") observeIncarnation(json.store_id, json.store_id === storeIdentity && Number(json.seq) < Math.max(seq, capture.watermark));
         identityChecked = true;
         setLink("online");
@@ -670,8 +680,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       }
       if (closed || changeIncarnation !== incarnation) return false;
       const replaced = json.store_id !== undefined && json.store_id !== storeIdentity;
-      // A notification can be delayed or transient. Only an authenticated
-      // sync reply at the captured acquisition can persist a restore halt.
+      if (!replaced && await witnessRestore(json.store_id, json.seq, capture)) return false;
       const shrank = json.seq < Math.max(seq, capture.watermark);
       if (replaced || shrank) observeIncarnation(json.store_id, shrank);
       const changed = replaced || shrank || json.seq > seq || (json.generation !== undefined && json.generation !== generation);
