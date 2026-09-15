@@ -91,7 +91,7 @@ fn grace_effects_reconnect_and_restart_preserve_the_decision() {
 
 #[test]
 fn grace_effects_aliases_short_circuit_and_unrelated_emits_keep_ownership() {
-    for guard in ["  online = exists connected[p]\n  send = p != viewer and not online\n  if send:", "  if not (exists connected[p] and p != viewer):"] {
+    for (guard, deferred) in [("  online = exists connected[p]\n  send = p != viewer and not online\n  if send:", true), ("  if not (exists connected[p] and p != viewer):", false)] {
         let source = SOURCE.replace("  if not exists connected[p]:", guard);
         let source = source.replace("    emit notify {recipient: p}", "    emit notify {recipient: p}\n  emit audit {recipient: p}");
         let mut engine = build(&source, Store::memory().unwrap());
@@ -99,14 +99,14 @@ fn grace_effects_aliases_short_circuit_and_unrelated_emits_keep_ownership() {
         send(&mut engine);
         let queued = engine.effects(None, 10).unwrap();
         assert_eq!(queued.len(), 2);
-        assert_eq!(queued.iter().find(|e| e.effect == "notify").unwrap().next_at, Some(36_000));
+        assert_eq!(queued.iter().find(|e| e.effect == "notify").unwrap().next_at, deferred.then_some(36_000), "{guard}");
         assert_eq!(queued.iter().find(|e| e.effect == "audit").unwrap().next_at, None);
         let immediate = engine.claim_effects("worker", None, 10, 60_000, 11_000).unwrap();
-        assert_eq!(immediate.len(), 1);
-        assert_eq!(immediate[0].effect, "audit");
+        assert_eq!(immediate.len(), if deferred { 1 } else { 2 });
+        assert!(immediate.iter().any(|e| e.effect == "audit"));
         engine.presence_reconnected("bob", 12_000).unwrap();
         assert!(engine.claim_effects("worker", None, 10, 60_000, 36_000).unwrap().is_empty());
-        assert_eq!(engine.effect_counts().unwrap().get("satisfied"), Some(&1));
+        assert_eq!(engine.effect_counts().unwrap().get("satisfied"), if deferred { Some(&1) } else { None });
     }
 }
 
@@ -142,4 +142,101 @@ fn grace_effects_clique_send_keeps_each_recipients_push_separate() {
     assert_eq!(claimed[0].payload.field("targetUserId").unwrap(), &id("dev:carol"));
     assert_eq!(engine.effects(Some("satisfied"), 10).unwrap()[0].payload.field("targetUserId").unwrap(), &id("dev:bob"));
     println!("grace Clique: message_rows=1 recipients=2 delivered=1 satisfied=1");
+}
+
+#[test]
+fn w7r1_heap_boundary_is_independent_of_grace() {
+    let source = format!("{SOURCE}\ntable notes:\n  n: int\n  public 'test'\n  insert <- allow\nmutation post(p: principal):\n  insert notes {{n: 1}}\n  online = exists connected[p]\n  if not online:\n    emit notify {{recipient: p, online}}\n");
+    let run = |grace: bool, ceiling| {
+        let mut engine = build(&source, Store::memory().unwrap());
+        engine.set_presence(Some(Arc::new(Grace { live: 0, deadline: grace.then_some(36_000) })));
+        engine.set_ceilings(snapback4_core::Ceilings { heap_bytes: ceiling, ..Default::default() });
+        let sent = engine.mutate("post", None, Context::new("alice", args(&[("p", id("bob"))])).at(11_000).with_ids(["note".into()])).unwrap();
+        (sent, engine.store().rows("notes").unwrap())
+    };
+    let absent = run(false, 16 << 20).0.metered.heap_bytes;
+    let grace = run(true, 16 << 20).0.metered.heap_bytes;
+    println!("w7r1 server heap: absent={absent} grace={grace}");
+    let mut mismatches = Vec::new();
+    for ceiling in [absent - 1, absent, grace - 1, grace] {
+        let (a, ar) = run(false, ceiling);
+        let (b, br) = run(true, ceiling);
+        println!("w7r1 server ceiling={ceiling}: absent={:?} grace={:?}", a.state, b.state);
+        if a.state != b.state || ar != br { mismatches.push(ceiling); }
+        if ceiling >= absent.max(grace) { assert_eq!(ar.len(), 1); assert_eq!(br.len(), 1); }
+    }
+    assert!(mismatches.is_empty(), "grace changed mutation outcomes at {mismatches:?}");
+}
+
+#[test]
+fn w7r1_payload_and_alternative_guards_do_not_cancel() {
+    let mut failures = Vec::new();
+    for (label, body) in [
+        ("payload", "  emit audit {recipient: p, online: exists connected[p]}"),
+        ("or-direct", "  if not exists connected[p] or force:\n    emit audit {recipient: p}"),
+        ("or-force", "  online = exists connected[p]\n  if not online or force:\n    emit audit {recipient: p}"),
+        ("negated-and", "  if not (exists connected[p] and force):\n    emit audit {recipient: p}"),
+    ] {
+        let source = format!("{SOURCE}\nmutation probe(p: principal, force: bool):\n{body}\n");
+        let mut engine = build(&source, Store::memory().unwrap());
+        engine.set_presence(Some(Arc::new(Grace { live: 0, deadline: Some(36_000) })));
+        let sent = engine.mutate("probe", None, Context::new("alice", args(&[("p", id("bob")), ("force", Value::Bool(label != "negated-and"))])).at(11_000)).unwrap();
+        assert!(matches!(sent.state, WriteState::Sent { .. }), "{sent:?}");
+        engine.presence_reconnected("bob", 12_000).unwrap();
+        engine.set_presence(None);
+        let queued = engine.effects(None, 10).unwrap();
+        let claimed = engine.claim_effects("worker", Some("audit"), 10, 60_000, 36_000).unwrap();
+        println!("w7r1 {label}: next_at={:?} claimed={} satisfied={:?}", queued[0].next_at, claimed.len(), engine.effect_counts().unwrap().get("satisfied"));
+        if queued[0].next_at.is_some() || claimed.len() != 1 { failures.push(label); }
+        if let Some(effect) = claimed.first() { assert_eq!(effect.attempts, 1); }
+    }
+    assert!(failures.is_empty(), "unconditional effects cancelled: {failures:?}");
+}
+
+#[test]
+fn w7r1_multiple_necessary_absences_respect_each_deadline() {
+    #[derive(Debug)]
+    struct Pair;
+    impl Presence for Pair {
+        fn connections(&self, _: &str) -> u64 { 1 }
+        fn effect_presence(&self, p: &str) -> (u64, Option<i64>) { (0, Some(if p == "bob" { 20_000 } else { 36_000 })) }
+    }
+    for (who, at, cancelled) in [("bob", 19_999, true), ("bob", 20_001, false), ("carol", 25_000, true)] {
+        let source = format!("{SOURCE}\nmutation both(p: principal, q: principal):\n  if not exists connected[p] and not exists connected[q]:\n    emit audit {{recipient: p}}\n");
+        let mut engine = build(&source, Store::memory().unwrap());
+        engine.set_presence(Some(Arc::new(Pair)));
+        let sent = engine.mutate("both", None, Context::new("alice", args(&[("p", id("bob")), ("q", id("carol"))])).at(11_000)).unwrap();
+        assert!(matches!(sent.state, WriteState::Sent { .. }), "{sent:?}");
+        assert_eq!(engine.effects(None, 10).unwrap()[0].next_at, Some(36_000));
+        engine.presence_reconnected(who, at).unwrap();
+        assert!(engine.claim_effects("worker", None, 10, 60_000, 35_999).unwrap().is_empty());
+        engine.set_presence(None);
+        let claimed = engine.claim_effects("worker", None, 10, 60_000, 36_000).unwrap();
+        assert_eq!(claimed.len(), usize::from(!cancelled));
+        if cancelled { assert_eq!(engine.effects(Some("satisfied"), 10).unwrap()[0].attempts, 0); }
+    }
+}
+
+#[test]
+fn w7r1_payload_dependency_cannot_extend_or_satisfy_an_absence_guard() {
+    #[derive(Debug)]
+    struct Pair;
+    impl Presence for Pair {
+        fn connections(&self, _: &str) -> u64 { 1 }
+        fn effect_presence(&self, p: &str) -> (u64, Option<i64>) { (0, Some(if p == "bob" { 20_000 } else { 36_000 })) }
+    }
+    for (who, cancelled) in [("bob", true), ("carol", false)] {
+        let source = format!("{SOURCE}\nmutation probe(p: principal, q: principal):\n  if not exists connected[p]:\n    emit audit {{recipient: p, otherOnline: exists connected[q]}}\n");
+        let mut engine = build(&source, Store::memory().unwrap());
+        engine.set_presence(Some(Arc::new(Pair)));
+        let sent = engine.mutate("probe", None, Context::new("alice", args(&[("p", id("bob")), ("q", id("carol"))])).at(11_000)).unwrap();
+        assert!(matches!(sent.state, WriteState::Sent { .. }));
+        assert_eq!(engine.effects(None, 10).unwrap()[0].next_at, Some(20_000));
+        engine.presence_reconnected(who, 19_000).unwrap();
+        engine.set_presence(None);
+        let claimed = engine.claim_effects("worker", None, 10, 60_000, 20_000).unwrap();
+        assert_eq!(claimed.len(), usize::from(!cancelled));
+        if cancelled { assert_eq!(engine.effects(Some("satisfied"), 10).unwrap()[0].attempts, 0); }
+        else { assert_eq!(claimed[0].attempts, 1); }
+    }
 }

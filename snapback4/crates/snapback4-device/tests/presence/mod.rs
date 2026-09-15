@@ -262,3 +262,46 @@ fn grace_push_prediction_remains_identical_on_both_stores() {
         device.close();
     });
 }
+
+#[test]
+fn w7r1_grace_bookkeeping_reservation_matches_both_device_stores() {
+    use snapback4_device::store::{DeviceStore, DeviceTx};
+    use snapback4_core::{Ceilings, engine::local};
+    #[derive(Debug)]
+    struct Grace(bool);
+    impl snapback4_core::Presence for Grace {
+        fn connections(&self, _: &str) -> u64 { u64::from(self.0) }
+        fn effect_presence(&self, _: &str) -> (u64, Option<i64>) { (0, self.0.then_some(36_000)) }
+    }
+    fn scenario<S: DeviceStore>(mut store: S, label: &str, failures: &mut Vec<String>) {
+        let source = format!("{NOTES}\nmutation probe(p: principal):\n  insert notes {{n: 1}}\n  online = exists connected[p]\n  if not online:\n    emit notify {{recipient: p, online}}\n");
+        let (_, backend) = compile(&source);
+        let program = backend.programs.iter().find(|p| p.name == "probe").unwrap();
+        store.install(&backend.schema, &Default::default(), false).unwrap();
+        let ctx = || context("alice", &[("p", id("bob"))]).at(11_000).with_ids(["note".into()]);
+        let server = |grace, ceiling| {
+            let (mut engine, _) = compile(&source);
+            engine.set_presence(Some(std::sync::Arc::new(Grace(grace))));
+            engine.set_ceilings(Ceilings { heap_bytes: ceiling, ..Default::default() });
+            let sent = engine.mutate("probe", None, ctx()).unwrap();
+            (sent, engine.store().rows("notes").unwrap())
+        };
+        let absent = server(false, 16 << 20).0.metered.heap_bytes;
+        let grace = server(true, 16 << 20).0.metered.heap_bytes;
+        for ceiling in [absent - 1, absent, grace - 1, grace] {
+            let tx = store.transaction().unwrap();
+            let predicted = local::predict(&tx, &backend.schema, program, ctx(), Ceilings { heap_bytes: ceiling, ..Default::default() });
+            tx.rollback().unwrap();
+            let (a, ar) = server(false, ceiling);
+            let (b, br) = server(true, ceiling);
+            let accepted = matches!(a.state, WriteState::Sent { .. });
+            println!("w7r1 {label}: ceiling={ceiling} device={} absent={accepted} grace={} heap_absent={absent} heap_grace={grace}", predicted.is_ok(), matches!(b.state, WriteState::Sent { .. }));
+            if a.state != b.state || ar != br || predicted.is_ok() != accepted { failures.push(format!("{label}/{ceiling}: device={predicted:?}, absent={a:?}, grace={b:?}")); }
+            if ceiling >= absent.max(grace) { assert!(predicted.is_ok()); assert_eq!(ar.len(), 1); }
+        }
+    }
+    let mut failures = Vec::new();
+    scenario(snapback4_core::Store::memory().unwrap(), "sqlite", &mut failures);
+    scenario(snapback4_device::memory::MemoryStore::new(), "memory", &mut failures);
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}

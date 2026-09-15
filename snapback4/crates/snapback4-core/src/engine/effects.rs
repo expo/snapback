@@ -62,8 +62,9 @@ pub(super) fn record(tx: &crate::store::Tx<'_>, outbox: &[super::presence::Emiss
         tx.conn().execute("INSERT INTO _meta(key, value) VALUES ('dev:suppressed-effects', ?1) ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + CAST(excluded.value AS INTEGER)", [outbox.len().to_string()])?;
     } else {
         for (id, effect, payload, presence) in outbox {
-            tx.conn().execute("INSERT INTO _outbox(id, seq, effect, payload, state, attempts, at, next_at) VALUES (?1, ?2, ?3, ?4, 'queued', 0, ?5, ?6)", params![id, seq as i64, effect, canonical_json(payload), now, presence.values().max()])?;
+            tx.conn().execute("INSERT INTO _outbox(id, seq, effect, payload, state, attempts, at, next_at) VALUES (?1, ?2, ?3, ?4, 'queued', 0, ?5, ?6)", params![id, seq as i64, effect, canonical_json(payload), now, presence.values().flatten().max()])?;
             for (principal, deadline) in presence {
+                let Some(deadline) = deadline else { continue; };
                 tx.conn().execute("INSERT INTO _effect_presence(principal, id, deadline) VALUES (?1, ?2, ?3)", params![principal, id, deadline])?;
             }
         }

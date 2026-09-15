@@ -155,7 +155,6 @@ impl<'a> Runner<'a> {
 
     pub fn run(&mut self, program: &Program) -> Result<Value, RuntimeError> {
         self.page_plan = super::pages::plan(program);
-        self.prepare_effect_presence(&program.name);
         self.prediction_guards = self.schema.operations.get(&program.name)
             .filter(|fact| self.device && fact.connected_effects_only && fact.predicts.as_deref() == Some("eligible"))
             .map(|fact| fact.prediction_guards.iter().cloned().collect()).unwrap_or_default();
@@ -164,6 +163,7 @@ impl<'a> Runner<'a> {
         // Unwind immediately; both query hosts publish null, incomplete, with
         // the private capped_at recorded by Meter::heap (LLP 3000 §7).
         let result = (|| {
+            self.prepare_effect_presence(program)?;
             for value in self.context.args.values() { self.meter.heap(value.clone_heap_bytes())?; }
             self.statements(&program.body, &program.name)
         })();
@@ -217,8 +217,8 @@ impl<'a> Runner<'a> {
                 Stmt::If { condition, then_body, else_body } => {
                     let take_then = self.expr(condition)?.as_bool()?;
                     let (branch, arm, untaken, other) = if take_then { (then_body, "then", else_body, "else") } else { (else_body, "else", then_body, "then") };
+                    let guard = self.enter_presence_guard(&site, take_then)?;
                     if self.prediction_guards.contains(&site) { self.charge_untaken(untaken, &format!("{site}:{other}"))?; }
-                    let guard = self.enter_presence_guard()?;
                     let result = self.statements(branch, &format!("{site}:{arm}"));
                     self.effect_presence.guard = guard;
                     result?
@@ -306,9 +306,9 @@ impl<'a> Runner<'a> {
                         return Err(RuntimeError::Schema(format!("unknown effect {effect}")));
                     }
                     // @ref LLP 3000.007#19.1 — effect identity belongs to the commit, never to the row/result id supply.
+                    let presence = self.emission_presence()?;
                     if !self.discard_effects {
                         let id = format!("effect-{:016x}-{:016x}", self.seq, self.outbox.len());
-                        let presence = self.emission_presence()?;
                         self.outbox.push((id, effect.clone(), payload, presence));
                     }
                     Flow::Next
@@ -691,7 +691,7 @@ impl<'a> Runner<'a> {
                     Some(presence) => {
                         if self.effect_presence.enabled {
                             let (live, deadline) = presence.effect_presence(principal);
-                            if let Some(deadline) = deadline.filter(|_| live == 0) { self.grace_read(principal, deadline)?; }
+                            self.grace_read(principal, deadline.filter(|_| live == 0))?;
                             Value::int(live as i128).map_err(Into::into)
                         } else { Value::int(presence.connections(principal) as i128).map_err(Into::into) }
                     },
@@ -701,6 +701,7 @@ impl<'a> Runner<'a> {
                         // server's answer replaces its prediction; `run`
                         // and tests read nobody as connected.
                         self.presence_unknown = true;
+                        if self.effect_presence.enabled { self.grace_read(principal, None)?; }
                         Ok(Value::Int(if self.device { 1 } else { 0 }))
                     }
                 }

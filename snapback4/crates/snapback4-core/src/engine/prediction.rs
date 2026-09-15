@@ -48,14 +48,20 @@ impl Runner<'_> {
         assigned(body, &mut names);
         let mut saved = Vec::new();
         for name in names {
+            self.meter.heap(64)?; // Saved dependency slot, including vector growth.
             let value = self.env.get(&name);
             if let Some(value) = value { self.meter.heap(value.clone_heap_bytes())?; }
-            saved.push((name, value.cloned()));
+            let deps = self.effect_presence.variables.get(&name);
+            if let Some(deps) = deps { self.meter.heap(super::presence::bytes(deps) + name.len() as u64 + 64)?; }
+            saved.push((name, value.cloned(), deps.cloned()));
         }
         let discard = std::mem::replace(&mut self.discard_effects, true);
+        let reads = std::mem::take(&mut self.effect_presence.reads);
         let result = self.statements(body, prefix);
+        self.effect_presence.reads = reads;
         self.discard_effects = discard;
-        for (name, value) in saved {
+        for (name, value, deps) in saved {
+            match deps { Some(deps) => { self.effect_presence.variables.insert(name.clone(), deps); } None => { self.effect_presence.variables.remove(&name); } }
             match value { Some(value) => { self.env.insert(name, value); } None => { self.env.remove(&name); } }
         }
         match result {

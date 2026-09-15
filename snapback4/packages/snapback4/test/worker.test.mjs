@@ -6,6 +6,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
+import { DatabaseSync } from "node:sqlite";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, symlinkSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -170,7 +171,7 @@ async function until(check, timeout = 10_000) {
   const deadline = Date.now() + timeout;
   for (;;) { const value = await check(); if (value) return value; if (Date.now() >= deadline) throw Error("timed out waiting"); await sleep(20); }
 }
-async function actionFixture(t, { worker, source = actionSource } = {}) {
+async function actionFixture(t, { worker, source = actionSource, flags = [] } = {}) {
   const directory = mkdtempSync(join(tmpdir(), "sb4-actions-"));
   mkdirSync(join(directory, "snapback"));
   mkdirSync(join(directory, "devices"));
@@ -181,7 +182,7 @@ async function actionFixture(t, { worker, source = actionSource } = {}) {
     symlinkSync(join(root, "packages/snapback4"), join(directory, "node_modules/snapback4"));
     writeFileSync(join(directory, `snapback/worker.${worker.ext ?? "ts"}`), worker.text);
   }
-  const child = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn(binary, ["dev", "--port", "0", "--no-watch", ...flags], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
   const exited = once(child, "exit");
   let log = "", url;
   child.stdout.on("data", data => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
@@ -497,4 +498,52 @@ test("effect settlement still reports a refusal other than lease loss", async ()
   });
   await worker.done;
   assert.deepEqual(errors.map(error => error.message), ["E_AUTH: this session is not live; sign in again"]);
+});
+
+
+for (const replay of [true, false]) test(`W7r1 runWorker and doctor observe ${replay ? "suppressed" : "deferred"} presence effects`, { timeout: 30_000 }, async t => {
+  const f = await actionFixture(t, { flags: replay ? ["--replay"] : [], source: `use personas alice
+ effect notify
+ table notes:
+   n: int
+   public 'worker test'
+   insert <- allow
+ query notes():
+   return notes first 10 by byId
+ mutation post():
+   insert notes {n: 1}
+   if not exists connected[viewer]:
+     emit notify {recipient: viewer}
+ `.replace(/^ /gm, "") });
+  const db = new DatabaseSync(join(f.directory, ".snapback4/store.sqlite"), { readOnly: true });
+  t.after(() => db.close());
+  const dependencies = () => db.prepare("SELECT COUNT(*) AS n FROM _effect_presence").get().n;
+  const effects = () => db.prepare("SELECT state, attempts FROM _outbox").all();
+  await (await fetch(`${f.url}/changes?wait=0`, { headers: { "x-snapback-persona": "alice" } })).json();
+  assert.equal((await f.post("/m/post", { id: "note", args: {} })).state, "sent");
+  assert.equal(dependencies(), replay ? 0 : 1);
+  assert.equal(effects().length, replay ? 0 : 1);
+  let handlers = 0, claims = 0;
+  const errors = [];
+  const worker = f.launch({ wait: 0, effects: { notify: () => { handlers++; } }, onError: e => errors.push(String(e)), fetch: async (url, init) => {
+    const response = await fetch(url, init);
+    if (String(url).endsWith("/effects/claim")) { await response.clone().json(); claims++; }
+    return response;
+  } });
+  await until(() => claims >= 1);
+  assert.equal(handlers, 0);
+  assert.equal((await f.post("/dev/clock/advance", { duration: "36s" })).advancedMs, 36_000);
+  await until(() => replay ? claims >= 2 : effects()[0]?.state === "sent");
+  f.stop.abort(); await worker.done;
+  assert.deepEqual(errors, []);
+  assert.equal(handlers, replay ? 0 : 1);
+  assert.equal(dependencies(), 0);
+  assert.equal((await f.post("/q/notes", { args: {} })).data.length, 1);
+  const doctor = spawnSync(binary, ["doctor"], { cwd: f.directory, encoding: "utf8" });
+  assert.equal(doctor.status, 0, doctor.stdout + doctor.stderr);
+  assert.match(doctor.stdout, replay ? /1 suppressed/ : /1 sent/);
+  assert.match(doctor.stdout, replay ? /replay +on/ : /replay +off/);
+  if (replay) { assert.deepEqual(effects(), []); assert.equal(db.prepare("SELECT value FROM _meta WHERE key = 'dev:suppressed-effects'").get().value, "1"); }
+  else { assert.equal(effects()[0].attempts, 1); }
+  t.diagnostic(`replay=${replay} notes=1 handler_attempts=${handlers} dependency_rows=${dependencies()} claim_responses=${claims}`);
 });

@@ -20582,3 +20582,167 @@ schema.q:32:1 — N_WIDE_MERGE: query searchAll: the merge over messages reads u
   rewrite: `snapback4 guide search`, section "Search every chat I'm in": search held messages with one unscoped words index, or page memberships 50 at a time and exhaust each matching merge with its own result cursor before advancing the membership cursor; a result cursor alone does not continue undiscovered chats or a meter-cut merge. Measure with `snapback4 test --cost`
   guide: search
 ```
+
+## 2026-09-15 — W7R1a: grace cannot buy a refusal; only necessary absence cancels
+
+Wave-7 review round 1, base
+`2cbe3f94bd22d6a9ebbb17c84f6f4e832fd7df2b`. F1 reproduced before the fix:
+the same note mutation needed **653 heap bytes without grace**, **1,194 with
+grace**. At ceiling 653 the former committed and the latter refused E_BOUND;
+the device predicted the note on both stores. The server regression initially
+reported `test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 68 filtered out; finished in 0.06s`;
+the device regression reported `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 145 filtered out; finished in 0.11s`.
+After adding the payload/guard deadline case, I temporarily restored the four
+core implementation files from the exact base (without switching branches),
+ran all four new simulator tests, and restored the intended changes:
+`test result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 68 filtered out; finished in 0.07s`.
+
+Every eligible presence read now records a potential dependency, including on
+the device and when there is no grace. An optional deadline separates the
+reservation from durable grace. Copies through variables, guards and emits
+remain charged; propagation avoids an intermediate map copy, and append and
+saved dependency slots pay their own allocation allowance; a discarded device emission also pays its copy. Prediction
+restores dependency locals and pending reads around the untaken arm. Only
+present deadlines are written to `_effect_presence`; the existing stored
+forms and ceilings stay the same. The static guard proof is also metered
+before executing the mutation, identically on both hosts.
+
+F2 reproduced as an unconditional audit payload becoming `satisfied` with
+zero attempts after reconnect. A payload read also incorrectly moved a guard's
+20,000 deadline to its own 36,000 deadline. The fix proves necessary absence
+before retaining cancellation deadlines. It understands count/zero tests,
+boolean aliases, conjunctions and the compiler's short-circuit setup; unknown
+forms keep ordinary emission semantics. It does not re-execute application
+conditions or writes at claim. The direct and aliased `or force` cases did
+not reproduce cancellation on this base, and remain explicit regressions.
+
+This corrects the broader dependency wording in the earlier W7b entry:
+**dependency tracking alone never authorizes cancellation**. Payload reads
+add no delay and no cancellation condition. An enclosing necessary absence
+guard still applies. Conjunctive or nested necessary absence guards wait for
+their latest deadline; a reconnect inside any one necessary principal's own
+window can satisfy the effect. Alternative guards such as `not online or
+force` and `not (online and force)` retain ordinary immediate emission. The
+README and presence/effects cards now state that distinction. An existing
+negated-conjunction test was updated to require immediate delivery, while its
+necessary-conjunction alias case still requires cancellation.
+
+Final deterministic measurements: the simulator note fixture needs **2,018
+heap bytes** in both grace worlds, refuses identically at **2,017**, and commits
+one note in each at **2,018**. The equivalent `probe` fixture on both device
+stores and server needs **2,027**, fails prediction/commit at **2,026**, and
+predicts/commits at **2,027**. The fixtures use different operation names. Two-dependency tests use deadlines **20,000** and
+**36,000**: Bob reconnecting at **19,999** cancels, Bob at **20,001** does not,
+and Carol at **25,000** cancels; claim at **35,999** returns zero. A payload-only
+Carol dependency neither moves Bob's **20,000** deadline nor satisfies it.
+Correct cancellation retains **0 attempts**; an admitted effect has **1**.
+
+The end-to-end `dev --replay`/`runWorker`/`doctor` witness commits **1 note**,
+counts **1 suppressed effect**, invokes **0 handlers**, and records **0
+dependency rows** before and after a **36,000 ms** advance. Its normal-dev
+control starts with **1 dependency row**, then invokes **1 handler** and
+consumes the row. The non-uniform read witness has **0 examined** when absent
+and **1 examined** when hidden in opt-in dev counters. Both have **0 heapBytes,
+0 indexEntries, 12 outputBytes, 0 probes, 0 rowsWritten, 2 steps**. The exact
+production responses are identical and have no meter, as do the ordinary dev
+responses. Both worlds use the same authenticated principal and commit count.
+
+Focused commands, from `snapback4/` (Node commands use
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`):
+
+- `cargo test -p snapback4-sim --test clique w7r1 -- --nocapture` — the base
+  red summaries above; the final same-filter check is
+  `test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 68 filtered out; finished in 0.06s`.
+  The initial heap-only fix was also checked with
+  `cargo test -p snapback4-sim --test clique w7r1_heap -- --nocapture`:
+  `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 70 filtered out; finished in 0.04s`.
+- `cargo test -p snapback4-sim --test clique w7r1_payload -- --nocapture` —
+  base F2: `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 70 filtered out; finished in 0.02s`.
+- `cargo test -p snapback4-sim --test clique grace_effects -- --nocapture` —
+  `test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 62 filtered out; finished in 0.12s`.
+- `cargo test -p snapback4-device --test device w7r1 -- --nocapture` — base
+  red above; after the initial accounting fix:
+  `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 145 filtered out; finished in 0.07s`.
+- `cargo test -p snapback4-device --test device presence -- --nocapture` —
+  `test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 137 filtered out; finished in 0.37s`.
+- `cargo test -p snapback4 --test clock grace -- --nocapture` —
+  `test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 1.26s`.
+- `cargo test -p snapback4-lang --test guide` —
+  `test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s`.
+- `node --test --test-name-pattern=W7r1 packages/snapback4/test/worker.test.mjs packages/snapback4/test/client-seams.test.mjs` —
+  `ℹ tests 4` / `ℹ pass 4` / `ℹ fail 0` / `ℹ cancelled 0`.
+- `node --test packages/snapback4/test/react.test.mjs` —
+  `ℹ tests 1` / `ℹ pass 0` / `ℹ fail 1` / `ℹ cancelled 0`, Chromium
+  `signal=SIGABRT` at launch, before the application.
+
+Setup corrections are not product-failure claims: the initial Rust test had
+a missing closure type annotation; one early device-test invocation was
+mistakenly launched at the repository root and stopped on missing
+`vendor/ibex/Cargo.toml` before any build/test; it was rerun from `snapback4/`.
+The first JS attempt preceded package generation (`0 pass / 2 fail`), then
+paired-world test setup initially minted different viewers (`2 pass / 2 fail`)
+and assumed the primary-key scan increments indexEntries (`3 pass / 1 fail`).
+The test now pins one viewer and the observed examined difference. One attempt
+ran while Cargo relinked the CLI (`ENOENT`, `0 pass / 4 fail`); the isolated
+final attempt and all four witnesses in the full suite pass. An intermediate
+grace run had `8 passed / 1 failed` because the old negated-conjunction test
+still required unsafe cancellation; its expectation is corrected above.
+
+The complete command, from the repository root with Node 24 on PATH, was
+`bash snapback4/scripts/test.sh`. It was run twice: before the final
+allocation-accounting review, `== 1 failure(s) in 562 s`; after that
+correction, the final verbatim summaries were:
+
+```text
+-- ok: cargo build (5 s)
+-- ok: wasm build (15 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (483 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (12 s)
+ℹ tests 371
+ℹ pass 370
+ℹ fail 1
+-- FAIL: client tests (67 s)
+== 1 failure(s) in 506 s
+```
+
+Both runs' 62 Rust summaries sum to **1,022 passed, 0 failed, 4 ignored**
+(the sum is not a separate harness summary). The single client failure in
+both is the Chromium SIGABRT reproduced above; no lifecycle or batch client
+timeout occurred, so the low-concurrency rerun was unnecessary. Every new
+witness passed in both full runs. The elapsed time reflects the shared host;
+no timing or resource ceiling was raised. `./ref-check --verbose` passed
+before this append:
+
+```text
+ref-check: ok — 480 LLP docs, 8969 refs in 23788 files, 0 errors, 0 unchecked
+```
+
+It is repeated after the append. `git diff --check` is clean. The largest
+changed code file is the guide, **1,487 lines**, below the **1,500** cap.
+
+The only extra implementation file beyond the lane's ownership list is
+`engine/prediction.rs`, for restoring the dependency state that untaken-arm
+accounting now uses. The guide, README and existing worker/client test suites
+are also outside that list and implement the explicitly requested published
+wording and end-to-end coverage. No recipe, feeds, init, existing corpus case,
+serialized value form, meter ceiling or dependency was changed. No commit,
+push, tag, publication, sub-agent, clone or remote machine was used.
+
+No diagnostic code or diagnostic text was added or changed. F1's existing
+message is verbatim `heap bytes reached the ceiling 653`; the fix makes both
+grace worlds refuse at that ceiling instead of only one. There is no
+baseline-verified unresolved product failure claimed. The Chromium sandbox
+artifact needs the lead's outside-sandbox rerun.
+
+What I learned: a dependency is useful for reserving memory but insufficient
+for cancelling an application's requested effect. The absence condition must
+be necessary across both boolean alternatives, and its metadata must cost the
+same even in the world where no durable grace record is needed.

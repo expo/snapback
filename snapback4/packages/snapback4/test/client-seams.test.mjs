@@ -12,6 +12,7 @@ import { createClient, mintId } from "../dist/client.js";
 import { createLocalClient } from "../dist/local.js";
 import { processDevice } from "../dist/native.js";
 import { guest, signup, login } from "../dist/auth.js";
+import { mintSession } from "../dist/worker.js";
 import { memoryPersistence, webDevice } from "../dist/web.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -580,4 +581,50 @@ test("id-only video predicts after offline reopen and its ordinary bytes are ret
   const held = await client.asset(uploaded.asset.id); assert.equal(held.type, "video/mp4");
   assert.deepEqual(Buffer.from(await (await fetch(held.url)).arrayBuffer()), mp4); held.revoke();
   t.diagnostic("video: 60 B retained; duration 1000 ms; id-only pending prediction agrees with sent.result after reopen");
+});
+
+
+for (const release of [false, true]) test(`W7r1 hidden versus absent non-uniform reads under ${release ? "serve" : "dev"}`, async t => {
+  const schema = `use identity
+ table records:
+   owner: principal
+   read <- .owner = viewer
+   insert <- allow
+ table padding:
+   public 'equal commit count'
+   insert <- allow
+ mutation seed(hidden: bool):
+   if hidden:
+     insert records {id: 'hidden', owner: 'somebody-else'}
+   else:
+     insert padding {id: 'padding'}
+ query scan():
+   return records first 10 by byId
+ `.replace(/^ /gm, "");
+  const observations = [];
+  for (const hidden of [false, true]) {
+    const f = await fixture(t, release, schema);
+    const token = spawnSync(binary, ["token", "--service", "meter", ...(release ? ["--release", join(f.dir, "release")] : [])], { cwd: f.dir, encoding: "utf8" });
+    assert.equal(token.status, 0, token.stderr);
+    const session = await mintSession(f.url, token.stdout.trim(), "member:viewer");
+    const headers = { authorization: `Bearer ${session.token}` };
+    const write = await (await fetch(`${f.url}/m/seed`, { method: "POST", headers, body: JSON.stringify({ args: { hidden } }) })).json();
+    assert.equal(write.state, "sent", JSON.stringify(write));
+    const query = async meter => (await fetch(`${f.url}/q/scan`, { method: "POST", headers: { ...headers, ...(meter ? { "x-snapback-meter": "1" } : {}) }, body: '{"args":{}}' })).json();
+    const opted = await query(true), plain = await query(false);
+    assert.deepEqual(plain.data, []); assert.equal(plain.complete, false);
+    assert.equal(Object.hasOwn(plain, "meter"), false);
+    assert.equal(Object.hasOwn(opted, "meter"), !release);
+    for (const key of ["metered", "capped_at", "cappedAt"]) { assert.equal(Object.hasOwn(opted, key), false); }
+    observations.push({ opted, plain });
+  }
+  assert.deepEqual(observations[0].plain, observations[1].plain);
+  if (release) assert.deepEqual(observations[0].opted, observations[1].opted);
+  else {
+    const [absent, hidden] = observations.map(x => x.opted.meter);
+    assert.ok(hidden.examined > absent.examined);
+    assert.notDeepEqual(hidden, absent);
+    assert.deepEqual(observations.map(x => { const { meter, ...rest } = x.opted; return rest; }), observations.map(x => x.plain));
+    t.diagnostic(`absent=${JSON.stringify(absent)} hidden=${JSON.stringify(hidden)}`);
+  }
 });

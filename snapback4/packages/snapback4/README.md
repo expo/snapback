@@ -884,7 +884,17 @@ restarts. A live poll at claim also cancels it. The recorded effect has state
 `satisfied`, `result: { outcome: 'presence_reconnected' }` and zero attempts;
 it never reaches a worker. Otherwise it becomes claimable once through the
 existing lease protocol. No grace means immediate admission; an already live
-poll still suppresses the push. An unrelated emit remains immediate.
+poll still suppresses the push. Cancellation requires a proven necessary
+absence guard, such as `if not exists connected[p]`, an alias of that test,
+or a conjunction of absence tests. With several necessary absences, the
+queue waits for their latest grace deadline; reconnecting any one within
+its own window satisfies the guard. An unconditional payload read such as
+`emit audit { online: exists connected[p] }`, `not exists connected[p] or force`,
+and boolean forms without that proof remain immediate and are never
+cancelled by reconnect. Nested necessary absence guards also qualify.
+Potential dependency allocations, propagation and emission copies reserve
+the same heap allowance with or without grace, including on a device; actual
+allocations remain metered.
 `clock advance` extends held effect leases by the advanced duration, preserving
 their remaining real-time lifetime; retry `nextAt` still follows the dev clock.
 `runWorker` reports a lost settlement with the server's code and message.
