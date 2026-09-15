@@ -86,11 +86,26 @@ keepalive request.
 An admission that finishes while the page is suspended rechecks the exit
 transport after its commit; on reopen, a matching server store identity and
 non-regressed head allow unknown writes to replay before the first sync finishes.
+Before `mutate` returns its promise, the web device records the mutation id,
+operation, arguments and minted row ids synchronously in localStorage, in call
+order. Same-origin navigation can therefore leave before IndexedDB admission
+commits: the next client admits those records before new writes, then sends
+through the ordinary outbox with the original ids. A closed tab's records are
+adopted by the next device that opens the store, under the outbox's Web Lock.
+Recovered records stay bound to their original backend store identity; a
+replacement retires them without sending them to the new backend.
+The journal allows at most 32 records and 256 KiB of UTF-8 keys and values per
+device store; a serialized record over 64 KiB is not journaled. Unavailable,
+throwing or full localStorage, an unidentified backend store, exceeded journal
+limits, or browser storage clearing leave unawaited navigation best-effort:
+that write can still be lost before IndexedDB commits. A destination must open
+a client to recover a record that never reached the outbox; keepalive remains
+best-effort and sends only admitted writes.
 For programmatic navigation, `await client.mutate(...)` before navigating
-is the durable boundary; handle a `failed` outcome before leaving. A write
-whose `mutate` is not awaited can be lost if the page unloads before its
-admission commits. `pending` means admission is durable and the server
-outcome still needs confirmation.
+is the strongest durable boundary; handle a `failed` outcome before leaving.
+`pending` means IndexedDB admission is durable and the server outcome still
+needs confirmation. A write-specific admission refusal removes its journal
+record and returns the ordinary failed outcome.
 A device write-target miss that cannot prove the insert conditions above
 queues without a predicted row and still sends `/m`.
 A reference column checks the id's shape, not that
