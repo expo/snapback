@@ -20096,3 +20096,64 @@ only; its design and Moves line wait for a commission.
 Next: the panel, blind and in one round, at the commit that records these
 rulings; then Astra xhigh lanes on increments A (the server half) and C
 (Postgres persistence), and the brief.
+
+## 2026-09-15 — LLP 3000.009: the panel, its disposition, and the landing (Claude)
+
+Panel, one round, blind, on `187d98b1f`: Astra (`gpt-6-astra`, max, Codex CLI,
+read-only sandbox), Grok (`grok-4.6`, xhigh, terminal/edit/write tools denied,
+file reads only) and Muse (`muse-spark-1.3`, xhigh, read-only workspace). All
+three returned SOUND WITH MAJOR ISSUES, and none proposed another
+architecture. The reviews, with their prompt and artifact digests, are
+`llp/reviews/3000.009-general-purpose-backend.{gpt,grok,muse}.md`; the
+disposition is LLP 3000.009 §15.
+
+The lead checked the load-bearing claims against main before accepting them.
+Confirmed: `claim_actions` mints a session from the stored principal
+(`engine/actions.rs:131`) while `revoke_principal` deletes only `_sessions`
+rows (`identity.rs:459`), so queued work outlives revocation; action replay
+compares principal and action, not arguments (`engine/actions.rs:101`); server
+mutation replay reads `_ops` by principal and id alone (`store.rs:240`). Two
+read-only code maps (the server half; the interpreter's read path and the
+Postgres adapter) cut the lanes and decomposed the inbox's 68 calls: BEGIN,
+the sequence read, the page scan, 32 maintained-total lookups, 32 rule-probe
+lookups, ROLLBACK.
+
+What changed in the RFC: prefetch is a physical cache of exact `Rows` calls,
+filled under a savepoint from total keys, charging nothing, qualified by an
+on/off differential on Postgres; program-time write batching splits out as C2
+and only the commit tail is pipelined in C1; index keys get one portable
+bound, and no prefix-and-hash representation without an order proof; authority
+is bound at admission, ids are bound to operation and argument digests, and
+`ctx.step` records external steps; routes gain a settlement contract, declared
+secrets and an explicit worker environment; SQL reads see only authorized
+inputs, channels are marked and ship last, liveness follows the whole
+dependency set, and expiry uses the operation's clock; increment C splits into
+C1–C3 behind one owner for durable non-row state; a Postgres database per
+application store is the managed-service assumption. Declined: removing
+declared channels outright; moving scheduled actions out of A. `NOT-DOING.md`
+gains Moves lines for A1–A3 and C1, and "a jobs framework" narrows.
+
+Landing: the Postgres evaluation and the LLP commits were cherry-picked onto
+`bae8b9299` as `sb4/w9-land`. The only conflict was the journal's
+append-append, resolved by keeping both sides in order. The evaluation
+harness is its own Cargo workspace, so its lockfile needed regenerating
+against the core's current dependencies before `--locked` would pass.
+
+Verification on the landing branch: `cargo build`, the wasm build, package
+typecheck and build, the chat check, `cargo test --workspace` (910 s), both
+app typechecks and the fixture wrapper tests are green; `scripts/test-postgres.sh`
+is 10/10 green after the lockfile refresh; `./ref-check --verbose` passes (481
+LLP documents, 0 errors, 0 unchecked) and `git diff --check` is clean. The
+`client tests` step is red, with an ECONNREFUSED cluster against fixture dev
+servers. The same step is red the same way on untouched `bae8b9299` in a
+second worktree (44 ECONNREFUSED, overlapping test names), so it is not this
+landing's doing; it matches the open ticket
+`issues/20260915-snapback4-navigation-model-fixture-server-econnrefused-under-load.md`.
+Fix-forward, not a landing veto
+(LLP 3000 §4, optimistic landing).
+
+Next: Astra xhigh lanes on `sb4/w9-a1` (work records: authority bound at
+admission, ids bound to operation and arguments, `why <id>`, `serve --worker`)
+and `sb4/w9-c1` (prefetch, the pipelined commit tail, the portable key bound,
+dual-store suites), both cut from the landing tip with their briefs; the lead
+writes the online-only brief.
