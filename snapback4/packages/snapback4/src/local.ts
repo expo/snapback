@@ -755,6 +755,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
   async function flushOnce() {
     await exitDone;
+    if (closed) return;
     for (const entry of await queued()) {
       await exitDone;
       if (closed) return;
@@ -963,7 +964,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   if (link === "online") await syncOnce();
   seq = Number(((await call({ op: "state" })).ok as { watermark?: number } | undefined)?.watermark ?? 0);
   if (core.onSuspend) {
-    const sendOnExit = exitTransport(doFetch, base);
+    const sendOnExit = exitTransport(doFetch, base, aborter.signal);
     stopSuspend = core.onSuspend((entries, beginSend) => {
       const request = requestCredentials();
       exitDone = sendOnExit(entries, request.headers, () => !ordinarySending && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend());

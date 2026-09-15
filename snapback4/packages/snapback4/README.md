@@ -1106,6 +1106,10 @@ or becoming hidden sends only the oldest unconfirmed write with an authenticated
 keepalive request when no ordinary send is in flight. A blocked or oversized
 head is never skipped. Requests share the browser's 64 KiB body budget; unsent or unconfirmed writes
 stay durable for retry on reopen, with mutation-id dedupe preventing duplicates.
+If an exit response has not finished after one second, ordinary flushing
+retries that same durable head before advancing; an unknown outcome never
+skips a write. `close()` stops waiting immediately without cancelling the
+keepalive request.
 
 On the web one tab is one device: a second tab on the same store opens
 its own, and the writes a tab left queued when it closed are adopted by

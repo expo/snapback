@@ -72,6 +72,10 @@ hidden sends only the oldest unconfirmed write with keepalive when no ordinary
 send is in flight. A blocked or oversized head is never skipped; clients share
 the browser's 64 KiB body budget. Unsent/unconfirmed writes stay durable for retry on reopen with
 the same mutation id, so replay cannot apply a write twice.
+If an exit response has not finished after one second, ordinary flushing
+retries that same durable head before advancing; an unknown outcome never
+skips a write. `close()` stops waiting immediately without cancelling the
+keepalive request.
 A device write-target miss that cannot prove the insert conditions above
 queues without a predicted row and still sends `/m`.
 A reference column checks the id's shape, not that

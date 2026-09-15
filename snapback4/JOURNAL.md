@@ -9904,3 +9904,137 @@ diagnostic before/after text for this lane. No application spelling changed.
 `git diff --check` passes, and the journal's prefix is byte-identical to the
 base with this one appended dated entry. Nothing was committed, pushed,
 tagged or published.
+
+## 2026-09-14 — W2R2e: a stalled exit response cannot wedge flushing or close
+
+Implemented re-check finding A and retained finding 4's submission ordering
+at base `bca8bfe70d320c1d466c6a700493465662b2205e` (LLP 3000.007 §20.4).
+The exit transport now bounds its wait to **1,000 ms**, then lets ordinary
+flushing retry the **same durable head, mutation id, arguments and new ids**.
+Only ordinary settlement advances the queue. An exit response arriving late
+never settles a write itself. The still-outstanding keepalive keeps its
+active slot and byte reservation until its body actually finishes, so more
+page events cannot start another exit request or pretend its quota is free.
+Closing aborts only the wait, not the keepalive delivery; the awakened flush
+checks `closed` before reading the device queue. The README and writes card
+state the recovery and close behavior. No client contract, code/note,
+serialized form, meter ceiling or existing corpus case changed.
+
+The regression uses fake page events with the real wasm device and HTTP
+server. Its exit response supplies headers but leaves a ReadableStream body
+open through recovery. Both outcomes are covered: the server never applied
+the exit write, and it already applied it and answers the ordinary retry
+with `replayed: true`. Each queues **2** writes, starts **1** exit request,
+then sends **2** ordinary requests in submission order and leaves exactly
+**2** server rows, **0** duplicates. The ordinary head retry is itself held
+open to check that its successor cannot pass it and another exit cannot
+start. Separate tests close the client with a stalled body and verify that
+the transport wait releases immediately on the close signal without giving
+that signal to fetch.
+
+First ran the three client regressions before changing implementation:
+`node --test --test-name-pattern='stalled exit' packages/snapback4/test/web-navigation.test.mjs`
+reported `ℹ tests 3`, `ℹ pass 0`, `ℹ fail 3`. The first fixed run recovered
+both writes but reported `ℹ tests 3`, `ℹ pass 2`, `ℹ fail 1`: the close
+assertion allowed only 500 ms, while the existing offline follower can
+already be sleeping for one second. That unrelated sleep is unchanged.
+The final close assertion allows 1,500 ms, with a separate 100 ms transport
+assertion proving immediate wait release. All four final regressions were
+rerun against the exact base's `local.ts` and `local-exit.ts`, extracted
+with `git show HEAD:<path>` and transpiled into the ignored package `dist/`
+using the installed TypeScript. The current package was then rebuilt.
+
+Commands below used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+Cargo, Bun and package Node commands ran from `snapback4/`; the blocking
+suite, witness and ref-check commands ran from the repository root.
+
+Final regression command, base then fix:
+`node --test --test-name-pattern='stalled exit' packages/snapback4/test/web-navigation.test.mjs`
+
+```text
+ℹ tests 4
+ℹ pass 0
+ℹ fail 4
+
+ℹ tests 4
+ℹ pass 4
+ℹ fail 0
+```
+
+The fixed run measured recovery **1,010 ms** (not applied) / **1,005 ms**
+(already applied), client close **978 ms** including the follower sleep,
+and the isolated immediate-close test **0.572833 ms** total. There were
+**0** ordinary sends after close. These are shared-host wall times, not a
+latency guarantee beyond the timeout's scheduled release.
+
+`node --test packages/snapback4/test/web-navigation.test.mjs packages/snapback4/test/local-e2e.test.mjs packages/snapback4/test/client-lifecycle.test.mjs`
+
+```text
+ℹ tests 65
+ℹ pass 65
+ℹ fail 0
+```
+
+`cargo test -p snapback4-lang --test guide -- --nocapture`
+
+```text
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+```
+
+`bash snapback4/scripts/test.sh` — Rust totals **750 passed, 0 failed,
+2 ignored**; all builds and typechecks passed. Verbatim group summaries:
+
+```text
+-- ok: cargo build (2 s)
+-- ok: wasm build (2 s)
+-- ok: package typecheck (0 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (279 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (10 s)
+ℹ tests 201
+ℹ pass 200
+ℹ fail 1
+-- FAIL: client tests (44 s)
+== 1 failure(s) in 285 s
+```
+
+The sole failure is Chromium `signal=SIGABRT` before the React page opens.
+Isolated rerun: `node --test packages/snapback4/test/react.test.mjs`.
+Verified independently against exact base
+`bca8bfe70d320c1d466c6a700493465662b2205e`: archived its package, app and
+witness sources into `/tmp/w2r2e-base`, linked installed dependencies, and
+ran `node --test /tmp/w2r2e-base/snapback4/packages/snapback4/test/react.test.mjs`.
+Both commands reproduced that launch failure and the same summary:
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+```
+
+`node snapback4/witness/navigation.mjs` also exited **1** at Chromium launch
+with `signal=SIGABRT`, before producing any witness JSON. The real-browser
+witness remains for the lead outside the sandbox; the Node/wasm/HTTP tests
+passed. No other requested implementation work remains, and no out-of-scope
+file was changed. Preparatory `bash scripts/build-wasm.sh`,
+`bun run --cwd packages/snapback4 build` and
+`cargo build --workspace --quiet` all exited **0**; wasm measured
+**1,651,366 B raw / 458,474 B gzip**. No install, commit, push, tag,
+publication, sub-agent or remote machine was used. Changed code files are
+at most **998** lines. Full logs are `/tmp/w2r2e-{red-final,green-final,targeted,guide,suite,react,react-base,witness,ref}.log`.
+
+`./ref-check --verbose` passed after this entry was appended:
+
+```text
+ref-check: ok — 480 LLP docs, 8885 refs in 22933 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passed. The worktree contains only the six intended
+source/test/documentation changes above; HEAD remains the base.
