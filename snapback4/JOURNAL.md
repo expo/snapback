@@ -19873,3 +19873,25 @@ Published from main `2b11da7d1` (wave 6, LLP 3000.007 §20.15) with `scripts/pub
 
 Next: the sixth Astra-medium calibration on these pins.
 
+
+## 2026-09-15 — two HTTP framing experiments do not justify adoption
+
+The performance lane completed two separate fixed 68b45b9a / 0.2.20 native
+Linux A/B experiments. Neither changes the production runtime. Raising the
+JSON chunk threshold increased concurrent-stream median p99 from 155.006
+to 189.457 ms, with p50/p99/rate losses in all three pairs. Keeping the
+original framing but reserving chunk overhead lost median throughput in
+seven of eight cases and raised large initial C8 snapshot p99 from 96.254
+to 112.928 ms. Its separate fixed-header buffer-growth probe is not an
+RSS or peak-memory measurement.
+
+Each experiment passed 9,600 timed requests, 960 excluded warmups, 192
+ordinary-auth captures, 48 complete walks and 144 reconstructed page hashes.
+All twelve server/client groups per experiment stopped. Both frozen
+calculators passed and independent evidence audits retain every loss:
+19 median / 55 paired for known-length framing, 29 / 67 for reservation.
+Two complete original-evidence records are appended to storage.jsonl; the
+[benchmark record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
+includes every case and the source/host/correctness/timing limits. The
+private comparison continues separately; these results establish no new
+competitor ranking or moving-main speed claim.

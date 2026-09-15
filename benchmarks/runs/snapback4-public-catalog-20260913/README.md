@@ -3564,3 +3564,118 @@ Ignored-run prefix `membership-current-0220-v1` binds complete `4e5bb86c…`,
 formal transfer `9a1d42ac…`, root `8aec8c13…`, independent `807029fe…`,
 audit `c9c6880d…` and READY review `11cb1a13…`. This evidence adds no core
 adoption, runtime change or new publication.
+
+### Known-length JSON framing: fixed 0.2.20 HTTP A/B — not adopted
+
+The candidate raises tiny_http's chunk threshold above the bounded JSON
+response ceiling, so ordinary responses use their known Content-Length; an
+explicit chunked preference retains chunk framing. This changes only the
+HTTP host and its focused tests. The original framing remains in production.
+
+Six serial warm loopback runs use fixed source `68b45b9a` / 0.2.20 on
+Ubuntu 24.04 / AMD EPYC 9454 with Node 24.21.0 / Undici 7.29.1, the
+production profile and packaged SQLite flag. Orders are B/C, C/B, B/C.
+Each experiment has **9,600 timed requests**, 960 excluded warmups,
+192 ordinary-auth captures, 48 complete large-fixture walks and 144
+reconstructed page hashes. All assertions pass, all six clients exit zero,
+and all twelve server/client groups are absent after planned cleanup. The
+original smoke is excluded. These are separate experiments, not comparisons
+against Convex or Supabase.
+
+Medians of three per-run statistics, baseline → candidate; latency is ms
+and rate is requests/s. C1/C8 denotes concurrency. Each snapshot case
+returns its named event count; the stream requested at 4,000 returns 3,584
+events because commit groups remain intact.
+
+| Case | p50 | p95 | p99 | Maximum | Rate |
+|---|---:|---:|---:|---:|---:|
+| snapshot64FirstC1 | 1.608 → 1.493 | 2.468 → 2.584 | 2.980 → 3.105 | 5.655 → 5.012 | 570.726 → 575.334 |
+| snapshot64FirstC8 | 5.920 → 5.441 | 10.593 → 10.321 | 14.250 → 15.054 | 18.748 → 19.121 | 1300.382 → 1327.753 |
+| snapshot4000FirstC1 | 26.914 → 29.386 | 34.609 → 33.119 | 37.095 → 33.898 | 38.194 → 36.630 | 31.830 → 29.316 |
+| snapshot4000FirstC8 | 60.016 → 58.437 | 84.889 → 91.809 | 116.870 → 122.428 | 144.204 → 135.521 | 120.170 → 123.932 |
+| snapshot4000NextC1 | 30.101 → 29.777 | 33.316 → 33.627 | 33.736 → 34.563 | 35.125 → 38.124 | 28.419 → 28.600 |
+| snapshot4000NextC8 | 59.186 → 58.073 | 79.393 → 77.030 | 101.537 → 93.415 | 114.163 → 111.689 | 124.022 → 129.852 |
+| stream4000C1 | 50.215 → 48.131 | 52.966 → 52.175 | 55.093 → 55.099 | 56.051 → 55.900 | 18.017 → 18.664 |
+| stream4000C8 | 61.421 → 65.757 | 113.907 → 113.945 | 155.006 → 189.457 | 179.007 → 205.479 | 109.213 → 104.720 |
+
+The concurrent stream loses p50, p99 and rate in every paired run. Its
+median p99 rises **155.006 → 189.457 ms (+22.23%)** and rate falls
+109.213 → 104.720. Six of eight case-median p50/rates improve, but
+the complete record retains **19 median and 55 paired metric losses**.
+The large initial C1 snapshot is also slower at p50. The runtime/test
+overlay was restored before the next experiment.
+
+Both frozen calculators passed their first formal invocations, and the
+independent audit verifies all 229 original public files and reconciles
+every raw statistic, median and paired contrast. Full originals, all metric
+losses, build qualifications and evidence hashes are retained in the
+`json-known-length-0220-v1-perf-formal` storage record. The ignored run
+contains the source patch, rejected decision and full review.
+
+Request timing ends after text/JSON parsing; response SHA checks follow the
+latency timer and remain inside whole-case elapsed/rate. Concurrent client
+callbacks can interfere. All large responses are checked by the bound
+producer, but their full bodies are not exported. These descriptive warm
+results establish no server CPU/allocation cause, cold-start, hosted/WAN,
+current-main, device, realtime, restart, or power-loss durability result.
+
+### Chunk-framing buffer reservation: fixed 0.2.20 HTTP A/B — not adopted
+
+The candidate keeps the original HTTP bytes and reserves eight bytes per
+8 KiB body chunk beside the existing 512-byte header allowance. A separate
+fixed-header probe verifies 91 byte-identical frame pairs and no candidate
+Vec growth. Long reflected Origin headers can still exceed that allowance;
+no RSS or peak-memory benefit was measured. This candidate is not adopted.
+
+Six serial warm loopback runs use fixed source `68b45b9a` / 0.2.20 on
+Ubuntu 24.04 / AMD EPYC 9454 with Node 24.21.0 / Undici 7.29.1, the
+production profile and packaged SQLite flag. Orders are B/C, C/B, B/C.
+Each experiment has **9,600 timed requests**, 960 excluded warmups,
+192 ordinary-auth captures, 48 complete large-fixture walks and 144
+reconstructed page hashes. All assertions pass, all six clients exit zero,
+and all twelve server/client groups are absent after planned cleanup. The
+original smoke is excluded. These are separate experiments, not comparisons
+against Convex or Supabase.
+
+Medians of three per-run statistics, baseline → candidate; latency is ms
+and rate is requests/s. C1/C8 denotes concurrency. Each snapshot case
+returns its named event count; the stream requested at 4,000 returns 3,584
+events because commit groups remain intact.
+
+| Case | p50 | p95 | p99 | Maximum | Rate |
+|---|---:|---:|---:|---:|---:|
+| snapshot64FirstC1 | 1.689 → 1.739 | 2.873 → 2.783 | 3.255 → 3.289 | 5.032 → 4.782 | 534.920 → 530.031 |
+| snapshot64FirstC8 | 5.900 → 5.907 | 10.711 → 11.458 | 16.190 → 17.213 | 19.352 → 23.739 | 1318.452 → 1217.772 |
+| snapshot4000FirstC1 | 26.959 → 28.829 | 31.178 → 32.334 | 36.535 → 32.915 | 38.308 → 36.450 | 32.070 → 29.627 |
+| snapshot4000FirstC8 | 61.522 → 59.915 | 80.100 → 88.741 | 96.254 → 112.928 | 116.530 → 139.038 | 121.922 → 119.615 |
+| snapshot4000NextC1 | 30.592 → 30.381 | 33.894 → 33.509 | 34.978 → 34.379 | 36.851 → 35.323 | 27.491 → 27.708 |
+| snapshot4000NextC8 | 60.559 → 58.523 | 78.062 → 77.211 | 103.232 → 99.732 | 109.933 → 107.379 | 126.027 → 125.355 |
+| stream4000C1 | 50.300 → 50.494 | 53.240 → 53.932 | 54.115 → 55.691 | 58.427 → 56.115 | 18.074 → 17.888 |
+| stream4000C8 | 63.881 → 66.565 | 135.815 → 109.096 | 182.386 → 155.792 | 210.920 → 180.527 | 109.118 → 108.537 |
+
+Seven of eight cases lose median throughput. The concurrent stream loses
+p50 and rate in all three pairs, despite better p95 in every pair. Large
+initial C8 snapshots improve p50 in every pair, but their median p99 rises
+**96.254 → 112.928 ms (+17.32%)**. The large next-page C1 case improves
+all six median metrics, with one paired elapsed/rate loss. The record
+retains **29 median and 67 paired metric losses**, including small changes;
+these counts include elapsed and rate as separate metrics. This runtime
+candidate was never applied to the tracked worktree.
+
+Both frozen calculators passed their first formal invocations, and the
+independent audit verifies all 229 original public files and reconciles
+every raw statistic, median and paired contrast. Full originals, all metric
+losses, build qualifications and evidence hashes are retained in the
+`json-chunk-capacity-0220-v1-perf-formal` storage record. The ignored run
+contains the source patch, rejected decision and full review.
+
+Request timing ends after text/JSON parsing; response SHA checks follow the
+latency timer and remain inside whole-case elapsed/rate. Concurrent client
+callbacks can interfere. All large responses are checked by the bound
+producer, but their full bodies are not exported. These descriptive warm
+results establish no server CPU/allocation cause, cold-start, hosted/WAN,
+current-main, device, realtime, restart, or power-loss durability result.
+The original source-probe compile failure and collector-pin correction
+remain preserved separately from the successful qualification. Root
+calculator invocation custody is its retained tool result; no separate
+original launch/stdout/stderr packet was captured or reconstructed.
