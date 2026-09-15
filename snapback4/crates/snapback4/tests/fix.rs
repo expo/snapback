@@ -29,6 +29,22 @@ fn spelling_repairs_preserve_the_rest_of_the_line() {
 }
 
 #[test]
+fn review_check_fix_parenthesizes_the_inner_index_without_changing_other_bytes() {
+    let schema = "table posts:\n  author: principal\n  by byReverse: author, id\n  public 'posts'\ntable follows:\n  follower: principal\n  followed: principal\n  unique byPair: follower, followed\n  by byReverse: followed, follower\n  public 'follows'\n";
+    for (read, fixed_read) in [
+        ("exists follows[viewer, .author] by byReverse", "exists (follows[viewer, .author] by byReverse)"),
+        ("exists follows[viewer , .author] by byReverse", "exists (follows[viewer , .author] by byReverse)"),
+        ("follows[viewer, .author] by byPair != null", "(follows[viewer, .author] by byPair) != null"),
+        ("exists (follows[viewer, .author]) by byReverse", "exists ((follows[viewer, .author]) by byReverse)"),
+        ("exists ((follows[viewer, .author])) by byReverse", "exists (((follows[viewer, .author])) by byReverse)"),
+    ] {
+        let source = format!("{schema}query page():\n  return posts['bob'] first 1 where {read} -- keep café\n").replace('\n', "\r\n");
+        let expected = source.replace(read, fixed_read);
+        check_fix(&[("schema.q", &source, &expected)], true);
+    }
+}
+
+#[test]
 fn conditional_guesses_use_the_exact_expression_span() {
     assert_eq!(repair("  return flag ? 'yes' : 'no', tail\n", 1, 15, "'yes' if flag else 'no'"), "  return ('yes' if flag else 'no'), tail\n");
     assert_eq!(repair("  return flag ? 'if' : 'else'\n", 1, 15, "'if' if flag else 'else'"), "  return ('if' if flag else 'else')\n");

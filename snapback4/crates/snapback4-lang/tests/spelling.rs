@@ -166,3 +166,81 @@ fn optional_read_and_writing_helper_rewrites_evaluate_the_base_once() {
     assert_eq!(e.store().rows("items").unwrap().len(), 1);
     println!("optional bases: examined=1, inserted=1");
 }
+
+#[test]
+fn review_inner_index_ownership_requires_an_explicit_scope() {
+    let schema = SCHEMA.replace("byAuthor", "byReverse").replace("byFollowed", "byReverse");
+    let ambiguous = "posts['bob'] first 1 where exists follows[viewer, .author] by byReverse";
+    let b = bound(&format!("{schema}query page():\n  return {ambiguous}\n"));
+    println!("before/after scope diagnostics: {:?}", b.diagnostics.iter().map(ToString::to_string).collect::<Vec<_>>());
+    assert_eq!(b.diagnostics.len(), 1, "the old inner index must not silently move to posts");
+    let d = &b.diagnostics[0];
+    assert_eq!(d.code, "E_QUARRY_MODIFIER_SCOPE");
+    assert_eq!(d.message, "by could modify the inner or outer read; parenthesize the inner read, or move the modifier before `where`");
+    assert_eq!(d.rewrite, "(follows[viewer, .author] by byReverse)");
+    assert!(d.mechanical);
+    for (read, expected) in [
+        (ambiguous.replace("follows[viewer, .author] by byReverse", &d.rewrite), 0),
+        ("posts['bob'] first 1 by byReverse where exists follows[viewer, .author]".into(), 1),
+        ("posts['bob'] first 1 where (exists follows[viewer, .author] by byReverse)".into(), 0),
+    ] {
+        let mut e = engine(clean(&format!("{schema}query page():\n  return {read}\n")));
+        assert_eq!(e.query("page", context()).unwrap().data.as_array().unwrap().len(), expected, "{read}");
+        // Reverse the only edge: the answers must reverse too.
+        let b = clean(&format!("{schema}query page():\n  return {read}\n"));
+        let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        e.seed([("posts".into(), object([("id", Value::Id("p1".into())), ("author", Value::Id("bob".into())), ("body", Value::String("post".into())), ("hidden", Value::Bool(false))])),
+            ("follows".into(), object([("id", Value::Id("f1".into())), ("follower", Value::Id("bob".into())), ("followed", Value::Id("alice".into()))]))]).unwrap();
+        assert_eq!(e.query("page", context()).unwrap().data.as_array().unwrap().len(), 1 - expected, "reversed edge: {read}");
+    }
+}
+
+#[test]
+fn review_parentheses_separate_both_explicit_indexes() {
+    let schema = SCHEMA.replace("byAuthor", "byReverse").replace("byFollowed", "byReverse");
+    for predicate in ["exists (follows[viewer, .author] by byReverse)", "(exists follows[viewer, .author] by byReverse)"] {
+        let mut e = engine(clean(&format!("{schema}query page():\n  return posts['bob'] first 1 where {predicate} by byReverse\n")));
+        assert!(e.query("page", context()).unwrap().data.as_array().unwrap().is_empty());
+    }
+}
+
+#[test]
+fn review_exact_type_index_wins_before_unique_preference() {
+    let source = "table t:\n  a: int\n  b: time\n  c: int\n  by byA: a, c\n  unique byB: b, c\n  public 'rows'\nquery probe(x: int):\n  return exists t[x, 0]\nquery timed(x: time):\n  return exists t[x, 0]\n";
+    let b = clean(source);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    e.seed([("t".into(), object([("id", Value::Id("row".into())), ("a", Value::Int(1)), ("b", Value::Int(2)), ("c", Value::Int(0))]))]).unwrap();
+    for (op, x, expected) in [("probe", 1, true), ("probe", 2, false), ("timed", 1, false), ("timed", 2, true)] {
+        let actual = e.query(op, Context::new("alice", BTreeMap::from([("x".into(), Value::Int(x))]))).unwrap().data;
+        println!("{op}({x}) = {actual:?}");
+        assert_eq!(actual, Value::Bool(expected));
+    }
+}
+
+#[test]
+fn review_parameter_id_reports_the_primary_key_absence_requirement() {
+    let source = "table likes:\n  postId: id\n  principal: principal\n  unique byPostPrincipal: postId, principal\n  by byPrincipal: principal, id\n  read <- .principal = viewer\n  insert <- .principal = viewer\n  sync\nmutation add(id: id, postId: id):\n  insert likes { id, postId, principal: viewer } if absent\n";
+    let b = clean(source);
+    let lines = snapback4_lang::bind::residency::operation_lines("add", &b.schema.operations["add"]);
+    let summary = snapback4_lang::bind::residency::prediction_summary(&b);
+    println!("{lines}\nsummary: {summary:?}");
+    assert_eq!(lines.lines().next().unwrap(), "  add: predicts: inserts queue without a row — insert if absent into likes cannot prove absence");
+    assert!(lines.contains("likes read rule `.principal = viewer` is not decided by key byId (id); unpinned: principal"));
+    assert_eq!(summary.as_deref(), Some("1 mutation has insert arms that never predict: add (likes read rule `.principal = viewer` is not decided by key byId (id); unpinned: principal) — snapback4 why <op>"));
+    for source in [source.replace("{ id, postId", "{ id: new, postId"), source.replace("{ id, postId", "{ postId"), source.replace("read <- .principal = viewer", "read <- public")] {
+        let b = clean(&source);
+        assert_eq!(snapback4_lang::bind::residency::prediction_summary(&b), None);
+    }
+}
+
+#[test]
+fn review_manager_report_merge_note_describes_related_principals() {
+    let source = "table reporting:\n  manager: principal\n  report: principal\n  unique byPair: manager, report\n  cap 1000 by manager\n  public 'reporting relationships'\n  online only\ntable entries:\n  actor: principal\n  at: time\n  by byActorTime: actor, at, id\n  public 'entries'\n  online only\nquery reports(c: cursor ?):\n  return merge entries after c last 20 by byActorTime:\n    [r.report] for r in reporting[viewer] first 1000 by byPair\n";
+    let b = clean(source);
+    let note = b.notes.iter().find(|n| n.code == "N_WIDE_MERGE").unwrap();
+    println!("{note}");
+    assert_eq!(note.message, "query reports: read cost grows with the number of related principals (up to 1000 lanes); a read past the 8,192 examined ceiling returns `complete: false`");
+    assert_eq!(note.rewrite, "keep read-time merges for a bounded small number of related principals; for Following, `snapback4 init --recipe feeds`; measure with `snapback4 test --cost`");
+    let small = clean(&source.replace("first 1000", "first 5"));
+    assert!(small.notes.iter().all(|n| n.code != "N_WIDE_MERGE"));
+}

@@ -61,6 +61,11 @@ pub(super) fn edit(sources: &[(String, String)], index: usize, diagnostic: &Diag
     if !diagnostic.mechanical { return None; }
     let (_, source) = &sources[index];
     let start = offset(source, diagnostic.site.line, diagnostic.site.col)?;
+    if diagnostic.code == "E_QUARRY_MODIFIER_SCOPE" {
+        let inner = diagnostic.rewrite.strip_prefix('(')?.strip_suffix(')')?;
+        let end = matching_end(source, start, inner).or_else(|| matching_read_end(source, start, inner))?;
+        return Some((index, start, end, format!("({})", &source[start..end])));
+    }
     // @ref LLP 3000.007#5.5 — remove only the optional marker; the existing field access preserves null and single evaluation.
     if diagnostic.code == "E_QUARRY_UNSUPPORTED" && diagnostic.rewrite == "." {
         let actual = tokens(source);

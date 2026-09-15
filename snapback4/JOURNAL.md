@@ -18108,3 +18108,149 @@ Verification and measurements:
 - The largest changed code file is the guide at 1,376 lines. No meter ceiling,
   existing conformance case, shared note output or residency/prediction output
   changed. No commit, push, tag or publication was performed.
+
+## 2026-09-15 — W5R1y: preserve read meaning and report supplied-id proofs
+
+Built from `0246023537b31baed75e06ef08ffdba1621bf49e` (wave-5 integration).
+The four finding regressions failed before any implementation edit: 0 passed,
+4 failed. The CLI repair regression and the device diagnostic/runtime agreement
+regression each failed too: 0 passed, 1 failed. No commit, push, tag or publication.
+
+An immediate `by` after an unparenthesized inner read in `where` now refuses
+with `E_QUARRY_MODIFIER_SCOPE`. `check --fix` adds parentheses around that
+inner read and index, preserving its previous ownership and every original
+byte inside the parentheses. Whitespace, CRLF, Unicode comments, point reads,
+probes and nested key parentheses are covered. Parentheses containing an
+explicit inner index also allow a separately explicit outer index; that
+self-review control failed before the scope correction and passed after it.
+The parser still accepts G4's outer `after c last 1 by byAuthor`, all 24
+orders of a single page's modifiers, and the bare-shape tail. Exact-type index
+selection now precedes the unique-index preference; G11's otherwise ambiguous
+unique `byPair` selection remains.
+
+Insert eligibility now treats every non-`NewId` id image as supplied, including
+parameters, aliases, helper results and unknown images. The runtime already
+required `byId` absence for those ids and needed no change. Straight-line aliases
+of `new` retain the minted fact; reassignment and uncertain control flow clear
+it conservatively. The extra production file outside the named ownership list
+is `bind/residency.rs`: two lines connect that alias tracking to the existing
+inspection. Supporting edits outside the listed files are the device upsert
+suite, CLI fix suite, sparse-filter expected text, published guide and code
+cards, package README and this required journal entry. No replay/client or
+recipe/init files were touched.
+
+The principal-relationship merge detector now describes related principals;
+Following is a conditional recipe example. A manager/report relationship gets
+the neutral note, and a five-lane control has no wide-merge note.
+
+### Diagnostic texts, verbatim
+
+A before: no diagnostic. After:
+
+```text
+schema.q:15:44 — E_QUARRY_MODIFIER_SCOPE: by could modify the inner or outer read; parenthesize the inner read, or move the modifier before `where`
+  rewrite: (follows[viewer, .author] by byReverse) — check --fix applies it
+  guide: reads
+```
+
+B emits no diagnostic before or after. With `{a: 1, b: 2, c: 0}`, the int
+query's `probe(1)` changed from `Bool(false)` to `Bool(true)`; the exact-type
+winner is `byA`. The time query keeps `byB`.
+
+C before (`operation_lines`); the prediction summary emitted no entry:
+
+```text
+  add: predicts: eligible
+    Held: insert if absent into likes: predicts only when the key, insert image and constraint groups are held and readable; otherwise queues without a row (site insert if absent likes)
+```
+
+C after (`operation_lines`, then `prediction_summary`):
+
+```text
+  add: predicts: inserts queue without a row — insert if absent into likes cannot prove absence
+    Held: insert if absent queues without a row: likes read rule `.principal = viewer` is not decided by key byId (id); unpinned: principal (site insert if absent likes); this write queues until the server answers; show its pending state
+1 mutation has insert arms that never predict: add (likes read rule `.principal = viewer` is not decided by key byId (id); unpinned: principal) — snapback4 why <op>
+```
+
+D before:
+
+```text
+schema.q:14:1 — N_WIDE_MERGE: query reports: read cost grows with follow count, so a 500-follow reader does many times the work of a 5-follow reader (up to 1000 lanes); a read past the 8,192 examined ceiling returns `complete: false`
+  rewrite: use `snapback4 init --recipe feeds` for Following; keep read-time merges for a bounded small follow count; measure with `snapback4 test --cost`
+  guide: feeds
+```
+
+D after:
+
+```text
+schema.q:14:1 — N_WIDE_MERGE: query reports: read cost grows with the number of related principals (up to 1000 lanes); a read past the 8,192 examined ceiling returns `complete: false`
+  rewrite: keep read-time merges for a bounded small number of related principals; for Following, `snapback4 init --recipe feeds`; measure with `snapback4 test --cost`
+  guide: feeds
+```
+
+### Measurements and verification
+
+- Asymmetric follows: the parenthesized inner reverse index returns 0 posts
+  and the explicit outer index with inferred forward probe returns 1. Reversing
+  the only follow edge reverses the answers to 1 and 0. Three explicit forms
+  run in both worlds, plus both ways of parenthesizing the indexed probe.
+- Exact-type controls: `probe(1)=true`, `probe(2)=false`, `timed(1)=false`,
+  `timed(2)=true`. G11's forward and explicit reverse probes return true/false.
+- Single-page modifier permutations: 24/24. G4's cursor returns `p3`, then `p2`.
+- Device proof controls: 9 cases on each of 2 stores, 18 total; 8 predict one
+  row, 10 queue with zero rows. The first 14-case baseline had 6 binder/runtime
+  mismatches (parameter, alias and helper on each store); the final 18 have 0.
+- Targeted suites: spelling 18/0, guide 24/0, residency notes 23/0,
+  sparse-filter 4/0, CLI fix 27/0. The device regression is 1/0, running all
+  18 scenarios. The parenthesis self-review regression is 0/1 before and 1/0
+  after. Every targeted Cargo command runs from `snapback4/`.
+- Blocking suite, run twice from the root with Node 24.18.0 on PATH:
+  `bash snapback4/scripts/test.sh`. First: 938 Rust passes, 0 failures,
+  4 ignored; fixtures 9/9; client 295/296. Final: 939 Rust passes,
+  0 failures, 4 ignored; fixtures 9/9; client 295/296. Verbatim script
+  summaries: `== 1 failure(s) in 371 s`, then `== 1 failure(s) in 287 s`.
+  Both failures are the client group alone, Chromium's documented sandbox
+  SIGABRT in `react.test.mjs`; no lifecycle or other product failure appeared.
+  `node --test packages/snapback4/test/react.test.mjs` alone reproduced it:
+  `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`, `ℹ duration_ms 399.285583`.
+  The lead still needs that browser check outside the sandbox. No exact-base
+  product-failure claim is made.
+- Largest changed code file: `guide.rs`, 1,444 lines. No meter ceiling,
+  serialized value form, existing corpus case or runtime write behavior changed.
+
+Exact targeted commands and their retained before/after summary lines
+(run from `snapback4/`; output capture paths omitted here):
+
+```sh
+cargo test -p snapback4-lang --test spelling review_ -- --nocapture
+cargo test -p snapback4-device --test device review_supplied -- --nocapture
+cargo test -p snapback4 --test fix review_ -- --nocapture
+cargo test -p snapback4-lang --test spelling review_parentheses -- --nocapture
+cargo test -p snapback4-lang --test spelling --test sparse_filter --test guide --test residency_notes -- --nocapture
+cargo test -p snapback4 --test fix -- --nocapture
+```
+
+```text
+language findings before: test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.01s
+language findings after: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.03s
+device before: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 128 filtered out; finished in 0.10s
+device after: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 128 filtered out; finished in 0.13s
+CLI fix before: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 26 filtered out; finished in 1.18s
+CLI fix after: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 26 filtered out; finished in 1.19s
+parenthesis boundary before: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.00s
+parenthesis boundary after: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.01s
+final guide: test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+final residency notes: test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.67s
+final sparse-filter: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+final spelling: test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+final CLI suite: test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.48s
+```
+
+The additional controls caught two mistakes in the first candidate: a minted
+alias was conservatively mislabeled, and an already indexed parenthesized
+read was not recognized as a completed inner scope. Both were corrected and
+covered before the final full run. An intermediate compile caught a moved
+parser site (`E0382`); cloning that site preserves the existing array arm.
+
+Final `./ref-check --verbose`: `ref-check: ok — 480 LLP docs, 8947 refs in 23737 files, 0 errors, 0 unchecked`.
+`git diff --check` is clean; the journal preserves the complete original prefix.

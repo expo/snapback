@@ -371,10 +371,14 @@ impl<'a> Binder<'a> {
                     })
                 })
             });
-            // A full unique positional key wins over a non-unique probe with the same arity.
-            // Filter before the one-candidate arm so identity literals still receive their index's type.
-            let unique: Vec<_> = candidates.iter().copied().filter(|index| index.unique && index.columns.len() == keys.len()).collect();
-            if unique.len() == 1 { candidates = unique; }
+            // @ref LLP 3000.007#18.5 — resolve remaining ambiguity without replacing an existing exact-type winner.
+            let exact: Vec<_> = candidates.iter().copied().filter(|index| keys.iter().enumerate().all(|(position, (_, _, t))| index.columns.get(position).is_some_and(|column| self.column_ty(info, column) == t.required()))).collect();
+            if exact.len() == 1 { candidates = exact; }
+            else {
+                // Filter before the one-candidate arm so identity literals receive their index's type.
+                let unique: Vec<_> = candidates.iter().copied().filter(|index| index.unique && index.columns.len() == keys.len()).collect();
+                if unique.len() == 1 { candidates = unique; }
+            }
         }
         if let Some(explicit) = &read.index
             && candidates.is_empty()
@@ -415,16 +419,6 @@ impl<'a> Binder<'a> {
                 }
             }
             _ => {
-                // Two candidates whose columns merely compare with the keys
-                // (an `id` beside a reference): the one whose column types
-                // are the keys' types is the one meant.
-                if !named {
-                    let exact: Vec<&ast::IndexDecl> = candidates.iter().copied().filter(|index| keys.iter().enumerate().all(|(position, (_, _, t))| index.columns.get(position).is_some_and(|column| self.column_ty(info, column) == t.required()))).collect();
-                    if exact.len() == 1 {
-                        let index = exact[0].clone();
-                        return Ok((keys, index));
-                    }
-                }
                 let names: Vec<&str> = candidates.iter().map(|i| i.name.as_str()).collect();
                 Err(ambiguous(&read.site, format!("{} has {} indexes matching this key: {}; choose one", read.table, names.len(), names.join(", ")), format!("{} by {}", print::read_expr(read), names[0])))
             }

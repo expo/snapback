@@ -235,8 +235,8 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             } else {
                 format!("up to {lanes} lanes, one page of {take} each — up to {rows} rows per read")
             };
-            // @ref LLP 3000.007#20.3 — a principal-to-principal discovery read makes Following cost grow with the follow count.
-            let follows = merge.lanes.iter().any(|lane| {
+            // @ref LLP 3000.007#20.3 — principal-to-principal discovery grows with the relationship count; Following is one example.
+            let related_principals = merge.lanes.iter().any(|lane| {
                 use snapback4_core::ir::{Expr, Stmt};
                 let Some(source) = &lane.source else { return false };
                 let table = &schema.tables[&source.table];
@@ -250,9 +250,9 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                                 && !pinned.contains(name) && table.columns.get(name) == Some(&snapback4_core::schema::ColumnType::Principal))
                     })
             });
-            let (message, rewrite) = if follows {
-                (format!("{} {}: read cost grows with follow count, so a 500-follow reader does many times the work of a 5-follow reader (up to {lanes} lanes); a read past the {ceiling} examined ceiling returns `complete: false`", bound.program.kind.word(), bound.program.name),
-                    "use `snapback4 init --recipe feeds` for Following; keep read-time merges for a bounded small follow count; measure with `snapback4 test --cost`")
+            let (message, rewrite) = if related_principals {
+                (format!("{} {}: read cost grows with the number of related principals (up to {lanes} lanes); a read past the {ceiling} examined ceiling returns `complete: false`", bound.program.kind.word(), bound.program.name),
+                    "keep read-time merges for a bounded small number of related principals; for Following, `snapback4 init --recipe feeds`; measure with `snapback4 test --cost`")
             } else {
                 (format!("{} {}: the merge over {} reads {work}; a read past the {ceiling} examined ceiling returns `complete: false`", bound.program.kind.word(), bound.program.name, merge.table()),
                     "measure with `snapback4 test --cost`; keep the lanes under 50 (`first 50` on the lane source), or write the feed on the way in: a table of entries per reader, synced to .reader, read as one page (`snapback4 guide feeds`)")
