@@ -19834,3 +19834,31 @@ Lead verification on `7bf1f4128`:
 
 Records: LLP 3000.007 §20.15 and `llp/reviews/3000.007-agent-ergonomics-wave-6.*`.
 
+
+## 2026-09-15 — fixed 0.2.20 membership comparison
+
+The performance lane completed the refreshed three-backend membership
+comparison at 16:52:29 UTC, using fixed 68b45b9a / 0.2.20 on Office ARM
+Linux and the retained self-hosted comparator images. All nine formal runs,
+175,500 timed HTTP calls, 10,530 excluded warmups, 243 untimed walks /
+50,265 pages and 36 full physical fixture proofs pass. Acknowledged leave,
+same-session regrant, exact ordered results and authentication checks pass;
+all 121 registered children stopped and all 21 SQL phases completed.
+
+Snapback has lower median p50 in 24/39 cases versus Convex and all 39
+versus Supabase. Tails and paired runs retain losses: Supabase p99 is lower
+in five cases, and all twelve 30/150-group feed cases lose p50 to Convex
+in every pair. At 150 groups / next page / C8, p50 is 21.247 ms for
+Snapback, 4.758 for Convex and 43.602 for Supabase. Both first frozen
+calculations pass unchanged; independent review verifies every original
+public file and all 110 median / 370 paired metric losses.
+
+Nine full original records are appended to storage.jsonl. The existing
+[benchmark record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
+and [core-owner issue](../issues/20260914-snapback4-membership-feed-query-cost.md)
+retain the complete comparison, version/host/source bindings, failure
+history and limits. Warm local working-set results establish no old-to-new
+causal gain, current-main or hosted/WAN ranking, CPU/RSS, write, cold-start,
+device, realtime or power-loss durability result. Core adoption and the
+broader performance objective remain open. No runtime change or publication
+is part of this evidence update.
