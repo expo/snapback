@@ -8,7 +8,7 @@
 // `snapback4 device` process for Node (`snapback4/native`) all fit.
 
 import { changeFeed } from "./changes.ts";
-import { exitTransport, type PendingSend } from "./local-exit.ts";
+import { exitTransport, type ExitState, type PendingSend } from "./local-exit.ts";
 import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import { MediaCache, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { MediaStorage, AssetRetention } from "./local-assets.ts";
@@ -33,6 +33,7 @@ import {
 /** One JSON call into the device: `{ op, ... }` in, `{ ok } | { denied }` out. */
 export interface DeviceCore {
   readonly media?: MediaStorage;
+  readonly exitState?: ExitState;
   /** Web hosts alone: pagehide/hidden, with committed unsent writes (possibly empty), synchronously. */
   onSuspend?(flush: (entries: readonly PendingSend[], beginSend: () => boolean) => void): () => void;
   call(request: Record<string, unknown>): Promise<Record<string, unknown>>;
@@ -196,6 +197,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const aborter = new AbortController();
   const core = await options.device.open(storeName, backend);
   const submitted = new Map<string, PendingSend>();
+  const exits = core.exitState ?? { pending: new Map<string, PendingSend>(), blocked: false };
   let stopSuspend: (() => void) | undefined;
   let media: MediaCache | undefined;
   try {
@@ -556,6 +558,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             await call({ op: "set_meta", key: "syncedAt", value: "0" });
             adoptedGeneration = true;
             for (const [id, sentSeq] of Object.entries(observation.retired)) {
+              exits.pending.delete(id);
               const receipt: Write = { state: "sent", id: id as Write["id"], seq: sentSeq, replayed: true };
               settled.get(id)?.(receipt); settled.delete(id);
               emitWrite(receipt);
@@ -862,8 +865,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let exitDone: Promise<void> | undefined;
   let ordinarySending: string | undefined;
   let flushAgain = false;
+  const exitOrderRefusal = (): Refusal => ({ code: "E_EXIT_ORDER", family: "store", message: "exit write ordering could not be preserved; this page has stopped sending writes", guide: "writes" });
+  const exitAdmissionRefusal = (): Refusal => ({ code: "E_EXIT_ADMISSION", family: "store", message: "admission failed after this write was exposed at exit; its server outcome is unknown and this page will retry the same id before later writes", retryable: true, guide: "writes" });
   function flush(): Promise<void> {
-    if (partitionDenied?.code === "E_STORE_RESTORE") return Promise.resolve();
+    if (exits.blocked || partitionDenied?.code === "E_STORE_RESTORE") return Promise.resolve();
     if (flushing) {
       flushAgain = true;
       return flushing;
@@ -891,19 +896,28 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
   async function flushOnce(acquire = true) {
     await exitDone;
-    if (closed) return;
-    for (const entry of await queued()) {
+    if (closed || exits.blocked) return;
+    const durable = await queued();
+    // @ref LLP 3000.007#20.4 — exit exposure is an ordering obligation even if admission aborts: reconcile every exposed ID before any successor.
+    const prefix: Queued[] = [...exits.pending.values()].map(entry => durable.find(current => current.id === entry.id)
+      ?? { id: entry.id, seq: 0, op: entry.op, args: entry.args, new_ids: entry.newIds, predicted: [] });
+    for (const entry of [...prefix, ...durable.filter(entry => !exits.pending.has(entry.id))]) {
       await exitDone;
-      if (closed) return;
+      if (closed || exits.blocked) return;
       if (entry.sent_seq != null || (!acquire && entry.observed_seq != null)) { if (acquire) await syncOnce(); continue; }
       try {
         const result = await network(async () => {
           await exitDone;
-          if (closed || sessionDead) return { ok: false as const };
-          if (!(await queued()).some((current) => current.id === entry.id && current.sent_seq == null)) return { ok: true as const, retired: true as const };
+          if (closed || sessionDead || exits.blocked) return { ok: false as const };
+          const current = await queued();
+          if (!exits.pending.has(entry.id) && !current.some((current) => current.id === entry.id && current.sent_seq == null)) return { ok: true as const, retired: true as const };
           // A suspend event may have started a send during the queued read.
           await exitDone;
-          if (closed || sessionDead) return { ok: false as const };
+          if (closed || sessionDead || exits.blocked) return { ok: false as const };
+          // Exposure can happen during either await above. Rebuild the prefix
+          // instead of sending a successor from an older durable snapshot.
+          const predecessor = exits.pending.keys().next().value;
+          if (predecessor !== undefined && predecessor !== entry.id) return { ok: true as const, restart: true as const };
           ordinarySending = entry.id;
           try {
             const started = await call({ op: "begin_send" });
@@ -911,9 +925,16 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids });
             if (response.ok) {
               const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined;
-              if (!response.obsoleteAuth && !why?.retryable && (json.state === "sent" || why)) {
-                const applied = await call({ op: "settle", id: entry.id, ...(json.state === "sent" ? { seq: Number(json.seq ?? 0) } : {}) });
-                if (applied.denied) return { ok: false as const };
+              // Input validation may answer failed without recording the ID.
+              // A replayed failure proves that even a delayed exit cannot apply it.
+              const recordedFailure = json.state === "failed" && json.replayed === true;
+              const terminal = json.state === "sent" || (exits.pending.has(entry.id) ? recordedFailure && why : why);
+              if (!response.obsoleteAuth && (!why?.retryable || recordedFailure) && terminal) {
+                if (current.some(current => current.id === entry.id)) {
+                  const applied = await call({ op: "settle", id: entry.id, ...(json.state === "sent" ? { seq: Number(json.seq ?? 0) } : {}) });
+                  if (applied.denied) return { ok: false as const };
+                }
+                exits.pending.delete(entry.id);
               }
             }
             return response;
@@ -922,9 +943,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (closed) return;
         if (!result.ok) { retryFlush(); return; }
         if ("retired" in result) continue;
+        if ("restart" in result) { flushAgain = true; return; }
         const json = result.json;
         const why = (json.why ?? json.denied) as Refusal | undefined;
-        if (result.obsoleteAuth || why?.retryable || (json.state !== "sent" && !why)) { retryFlush(); return; }
+        if (result.obsoleteAuth || (why?.retryable && !(json.state === "failed" && json.replayed === true)) || exits.pending.has(entry.id) || (json.state !== "sent" && !why)) { retryFlush(); return; }
         retryMs = 250;
         const settle = settled.get(entry.id);
         settled.delete(entry.id);
@@ -1008,6 +1030,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const id = mintId();
       const unavailableWhy = unavailable();
       if (unavailableWhy) return emitWrite({ state: "failed", id, why: unavailableWhy });
+      if (exits.blocked) return emitWrite({ state: "failed", id, why: exitOrderRefusal() });
       const submission = ++submissions;
       const newIds: string[] = [];
       // The module mints ids for `new` from the ids we pass, so the server
@@ -1022,13 +1045,19 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         const capturedArgs = core.onSuspend ? JSON.parse(JSON.stringify(args)) : args;
         if (core.onSuspend) submitted.set(id, { id, op: op.name, args: capturedArgs, newIds });
         const admitted = await call({ op: "admit", entry: { id, seq: submission, op: op.name, args: capturedArgs, viewer: principal, now: Date.now(), new_ids: newIds, predicted: [], predictable } satisfies Queued });
-        if (admitted.denied) { settled.delete(id); return emitWrite({ state: "failed", id, why: admitted.denied }); }
+        if (admitted.denied) {
+          settled.delete(id);
+          if (exits.pending.has(id)) void flush();
+          return emitWrite({ state: "failed", id, why: exits.blocked ? exitOrderRefusal() : exits.pending.has(id) ? exitAdmissionRefusal() : admitted.denied });
+        }
         rerunTables(predictedTables(((admitted.ok as Queued | undefined)?.predicted) ?? []));
       } catch (error) {
         submitted.delete(id);
         settled.delete(id);
-        return emitWrite({ state: "failed", id, why: { code: "E_STORE", family: "store", message: `write ${id} admission outcome is unknown: ${String(error)}` } });
+        if (exits.pending.has(id)) void flush();
+        return emitWrite({ state: "failed", id, why: exits.blocked ? exitOrderRefusal() : exits.pending.has(id) ? exitAdmissionRefusal() : { code: "E_STORE", family: "store", message: `write ${id} admission outcome is unknown: ${String(error)}` } });
       }
+      if (exits.blocked) { settled.delete(id); return emitWrite({ state: "failed", id, why: exitOrderRefusal() }); }
       if (closed) { settled.delete(id); return { state: "pending", id }; }
       void flush();
       if (link !== "online") return { state: "pending", id };
@@ -1147,10 +1176,20 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const sendOnExit = exitTransport(doFetch, base, aborter.signal);
     stopSuspend = core.onSuspend((entries, beginSend) => {
       const request = requestCredentials();
-      const beforeAdmission = entries.length === 0;
-      const candidates = beforeAdmission ? [...submitted.values()] : entries;
+      const beforeAdmission = entries.length === 0 && exits.pending.size === 0;
+      const candidates = exits.pending.size ? [...exits.pending.values()] : beforeAdmission ? [...submitted.values()] : entries;
       // @ref LLP 3000.007#20.4 — document teardown may abort the ordinary request: only its same durable head may overlap the keepalive retry.
-      exitDone = sendOnExit(candidates, request.headers, () => (ordinarySending === undefined || (!beforeAdmission && ordinarySending === entries[0]?.id)) && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend(), beforeAdmission);
+      exitDone = sendOnExit(candidates, request.headers, () => (ordinarySending === undefined || (!beforeAdmission && ordinarySending === candidates[0]?.id)) && !closed && !sessionDead && !exits.blocked && !rotating && credentialRevision === request.revision && beginSend(), beforeAdmission, exposed => {
+        try { for (const entry of exposed) exits.pending.set(entry.id, entry); return true; }
+        catch {
+          exits.blocked = true;
+          for (const entry of exposed) {
+            const outcome = { state: "failed", id: entry.id, why: exitOrderRefusal() } as const;
+            settled.get(entry.id)?.(outcome); settled.delete(entry.id); emitWrite(outcome);
+          }
+          return false;
+        }
+      });
     });
   }
   follow();

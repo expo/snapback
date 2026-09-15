@@ -24,6 +24,7 @@ table navigationAudit:
 
 mutation record(body: text <=200, digit: int):
   audit = navigationAudit['audit'] ! else AUDIT_MISSING
+  require digit > 0 else BAD_DIGIT
   update navigationAudit[audit] { total: audit.total + 1, order: audit.order * 10 + digit }
   insert messages { conversationId: 'c1', authorId: viewer, body, at: now }
 
@@ -46,16 +47,18 @@ async function fixture(t) {
     t.after(() => previous ? Object.defineProperty(globalThis, key, previous) : delete globalThis[key]);
   }
   const server = await devServer({ seed, extraSource, port: 47000 + process.pid % 1000 });
-  const clients = [], cleanup = [], persist = memoryPersistence();
+  const clients = [], cores = [], cleanup = [], persist = memoryPersistence();
   t.after(async () => { for (const run of cleanup) await run(); for (const client of clients) await client.close(); server.close(); });
   const open = async (transport = fetch) => {
-    const client = await createLocalClient({ url: server.api, persona: "alice", device: webDevice({ wasm, persist }), fetch: transport, waitSeconds: 1 });
+    const opener = webDevice({ wasm, persist });
+    const device = { async open(...args) { const core = await opener.open(...args); cores.push(core); return core; } };
+    const client = await createLocalClient({ url: server.api, persona: "alice", device, fetch: transport, waitSeconds: 1 });
     clients.push(client); return client;
   };
   const rows = async () => (await fetch(server.api + "/q/thread", { method: "POST", headers: { "x-snapback-persona": "alice" }, body: JSON.stringify({ args: { conversationId: "c1" } }) }).then(r => r.json())).data;
   const durable = () => [...persist.stores.values()].flatMap(s => [...s.values()]).filter(c => c.s === "o").map(c => JSON.parse(c.v)).sort((a, b) => a.seq - b.seq);
   const audit = async () => (await fetch(server.api + "/q/media.audit", { method: "POST", headers: { "x-snapback-persona": "alice" }, body: "{}" }).then(r => r.json())).data;
-  return { window, document, server, persist, open, rows, durable, audit, cleanup };
+  return { window, document, server, persist, open, rows, durable, audit, cleanup, cores };
 }
 
 for (const count of [1, 2]) for (const duringSave of [false, true]) {
@@ -205,7 +208,11 @@ for (const committed of [false, true]) test(`navigation model: dropped keepalive
   f.window.dispatchEvent(new Event("pageshow")); commit.resolve();
   const outcomes = await Promise.all(writes);
   assert.ok(outcomes.every(w => w.state === (committed ? "pending" : "failed")));
-  await client.close(); const reopened = await f.open(); await reopened.sync();
+  await client.close();
+  // This loss control destroys the document; close/reopen within the same
+  // surviving page must instead retain failed admissions' exit obligations.
+  Object.defineProperty(globalThis, "document", { configurable: true, value: new EventTarget() });
+  const reopened = await f.open(); await reopened.sync();
   assert.deepEqual(await f.audit(), committed ? { total: 2, order: 12 } : { total: 0, order: 0 });
   console.log(`dropped keepalive: admissionCommitted=${committed}; writes=2; exitRequests=${exits}; afterReopen=${(await f.audit()).total}`);
 });
@@ -276,5 +283,180 @@ for (const identity of ["same", "different", "missing", "restored"]) {
       await reopened.sync();
       assert.equal((await f.rows()).length, 1);
     }
+  });
+}
+
+for (const refusal of ["retryable", "unrecorded"]) for (const reopen of [false, true]) test(`navigation model: unresolved exposure blocks ordinary and repeated exit successors (${refusal}, reopen=${reopen})`, async t => {
+  const f = await fixture(t), admission = deferred(), entered = deferred(), settlements = [], ordinary = [], exits = [];
+  let offline = false, allowReplay = false;
+  const transport = (url, init) => {
+    if (init?.keepalive) { exits.push(JSON.parse(init.body)); return Promise.reject(new TypeError("keepalive dropped")); }
+    if (offline) return Promise.reject(new TypeError("offline"));
+    if (String(url).includes("/m/")) {
+      const entry = JSON.parse(init.body); ordinary.push(entry);
+      if (!allowReplay && entry.args.digit === 1) return Promise.resolve(Response.json({ state: "failed", id: entry.id, why: refusal === "retryable"
+        ? { code: "E_STORE", family: "store", message: "try later", retryable: true }
+        : { code: "E_INPUT", family: "input", message: "argument refused before a receipt was recorded" } }));
+    }
+    return fetch(url, init);
+  };
+  let client = await f.open(transport);
+  offline = true; await client.sync();
+  client.onWrite(write => settlements.push(write));
+  const save = f.persist.save.bind(f.persist);
+  let abort = true;
+  f.persist.save = async (name, changes) => {
+    if (abort && changes.some(c => c.s === "o")) { abort = false; entered.resolve(); await admission.promise; throw new Error("admission transaction aborted"); }
+    await save(name, changes);
+  };
+  f.cleanup.push(() => admission.resolve());
+  const write = client.mutate({ kind: "mutation", name: "media.record" }, { body: "1", digit: 1 });
+  await entered.promise; f.window.dispatchEvent(new Event("pagehide"));
+  f.window.dispatchEvent(new Event("pageshow")); admission.resolve();
+  const first = await write;
+  assert.equal(first.state, "failed");
+  const second = await client.mutate({ kind: "mutation", name: "media.record" }, { body: "2", digit: 2 });
+  if (reopen) { await client.close(); client = await f.open(transport); client.onWrite(write => settlements.push(write)); }
+  offline = false; await client.sync();
+  assert.ok(await until(() => ordinary.length > 0));
+  f.window.dispatchEvent(new Event("pagehide")); await tick();
+  f.window.dispatchEvent(new Event("pageshow"));
+  const held = { ordinary: ordinary.map(w => w.id), exits: exits.map(w => w.id), audit: await f.audit() };
+  allowReplay = true;
+  assert.ok(await until(() => settlements.some(w => w.id === second.id && w.state === "sent"), 5000));
+  assert.ok(held.ordinary.every(id => id === first.id), "an unresolved receipt must hold every ordinary successor");
+  assert.deepEqual(held.exits, [first.id, first.id], "a repeated exit must retry the exposed predecessor, even after close/reopen");
+  assert.deepEqual(held.audit, { total: 0, order: 0 });
+  assert.deepEqual(await f.audit(), { total: 2, order: 12 });
+  assert.deepEqual(settlements.filter(w => w.state === "sent").map(w => w.id), [first.id, second.id]);
+});
+
+for (const abortAdmission of [false, true]) test(`navigation model: inability to retain an exit obligation refuses successors (admission abort=${abortAdmission})`, async t => {
+  const f = await fixture(t), admission = deferred(), entered = deferred(), settlements = [], exits = [], ordinary = [];
+  let offline = false;
+  const client = await f.open((url, init) => {
+    if (init?.keepalive) { exits.push(JSON.parse(init.body)); return fetch(url, init); }
+    if (offline) return Promise.reject(new TypeError("offline"));
+    if (String(url).includes("/m/")) ordinary.push(JSON.parse(init.body));
+    return fetch(url, init);
+  });
+  offline = true; await client.sync(); client.onWrite(write => settlements.push(write));
+  const core = f.cores[0];
+  // Model a host that cannot retain the fallback record; the base ignores
+  // this state entirely and dispatches the write, making the control red.
+  core.exitState ??= { pending: new Map(), blocked: false };
+  core.exitState.pending.set = () => { throw new Error("cannot retain exit record"); };
+  const save = f.persist.save.bind(f.persist);
+  f.persist.save = async (name, changes) => {
+    if (changes.some(c => c.s === "o")) { entered.resolve(); await admission.promise; if (abortAdmission) throw new Error("admission transaction aborted"); }
+    await save(name, changes);
+  };
+  f.cleanup.push(() => admission.resolve());
+  const write = client.mutate({ kind: "mutation", name: "media.record" }, { body: "1", digit: 1 });
+  await entered.promise; f.window.dispatchEvent(new Event("pagehide"));
+  f.window.dispatchEvent(new Event("pageshow")); admission.resolve();
+  const first = await write;
+  const second = await client.mutate({ kind: "mutation", name: "media.record" }, { body: "2", digit: 2 });
+  offline = false; await client.sync(); await tick();
+  assert.equal(first.state, "failed"); assert.equal(first.why.code, "E_EXIT_ORDER");
+  assert.equal(second.state, "failed"); assert.equal(second.why.code, "E_EXIT_ORDER");
+  assert.equal(exits.length, 0); assert.equal(ordinary.length, 0);
+  assert.deepEqual(await f.audit(), { total: 0, order: 0 });
+  assert.ok(settlements.some(w => w.id === first.id && w.why?.code === "E_EXIT_ORDER"));
+});
+
+test("navigation model: a recorded terminal refusal releases an exposed predecessor", async t => {
+  const f = await fixture(t), admission = deferred(), entered = deferred(), delivery = deferred(), settlements = [], ordinary = [];
+  let offline = false, exitWork, exitReceipt;
+  const client = await f.open((url, init) => {
+    if (init?.keepalive) { exitWork = delivery.promise.then(() => fetch(url, init)).then(response => { exitReceipt = response.clone(); return response; }); return exitWork; }
+    if (offline) return Promise.reject(new TypeError("offline"));
+    if (String(url).includes("/m/")) ordinary.push(JSON.parse(init.body));
+    return fetch(url, init);
+  });
+  offline = true; await client.sync(); client.onWrite(write => settlements.push(write));
+  const save = f.persist.save.bind(f.persist);
+  let abort = true;
+  f.persist.save = async (name, changes) => {
+    if (abort && changes.some(c => c.s === "o")) { abort = false; entered.resolve(); await admission.promise; throw new Error("admission transaction aborted"); }
+    await save(name, changes);
+  };
+  f.cleanup.push(async () => { admission.resolve(); delivery.resolve(); await exitWork; });
+  const write = client.mutate({ kind: "mutation", name: "media.record" }, { body: "refused", digit: 0 });
+  await entered.promise; f.window.dispatchEvent(new Event("pagehide"));
+  f.window.dispatchEvent(new Event("pageshow")); admission.resolve();
+  const first = await write;
+  const second = await client.mutate({ kind: "mutation", name: "media.record" }, { body: "2", digit: 2 });
+  offline = false; await client.sync();
+  assert.ok(await until(() => settlements.some(w => w.id === second.id && w.state === "sent"), 5000));
+  delivery.resolve();
+  await exitWork;
+  const receipt = await exitReceipt.json();
+  assert.equal(receipt.state, "failed"); assert.equal(receipt.why.code, "BAD_DIGIT"); assert.equal(receipt.replayed, true);
+  assert.deepEqual(ordinary.map(w => w.id), [first.id, first.id, second.id], "confirm that the refusal is recorded before sending B");
+  assert.equal(first.why.code, "E_EXIT_ADMISSION");
+  assert.deepEqual(settlements.map(w => w.state === "failed" ? w.why.code : w.state), ["E_EXIT_ADMISSION", "BAD_DIGIT", "sent"]);
+  assert.deepEqual(await f.audit(), { total: 1, order: 2 });
+});
+
+for (const delivery of ["delivered", "dropped", "delayed"]) for (const count of [1, 2]) {
+  test(`navigation model: failed admission retains ${count} exit-exposed predecessors (${delivery})`, async t => {
+    const f = await fixture(t), admission = deferred(), entered = deferred(), deliveryGate = deferred();
+    const exits = [], ordinary = [], settlements = [];
+    let offline = false, exitWork;
+    const client = await f.open((url, init) => {
+      if (init?.keepalive) {
+        exits.push({ url, init });
+        exitWork = (async () => {
+          if (delivery === "dropped") throw new TypeError("keepalive dropped");
+          if (delivery === "delayed") await deliveryGate.promise;
+          return fetch(url, init);
+        })();
+        return exitWork;
+      }
+      if (offline) return Promise.reject(new TypeError("offline"));
+      if (String(url).includes("/m/")) ordinary.push(JSON.parse(init.body));
+      return fetch(url, init);
+    });
+    offline = true; await client.sync();
+    client.onWrite(write => settlements.push(write));
+    const save = f.persist.save.bind(f.persist);
+    let aborts = count;
+    f.persist.save = async (name, changes) => {
+      if (aborts && changes.some(c => c.s === "o" && c.v !== null)) {
+        aborts--; entered.resolve(); await admission.promise;
+        throw new Error("admission transaction aborted");
+      }
+      await save(name, changes);
+    };
+    f.cleanup.push(async () => { admission.resolve(); deliveryGate.resolve(); try { await exitWork; } catch {} });
+    const writes = Array.from({ length: count }, (_, n) => client.mutate({ kind: "mutation", name: "media.record" }, { body: String(n + 1), digit: n + 1 }));
+    await entered.promise;
+    f.document.visibilityState = "hidden"; f.document.dispatchEvent(new Event("visibilitychange"));
+    assert.equal(exits.length, 1); assert.equal(f.durable().length, 0);
+    if (delivery === "delivered") assert.ok(await until(async () => (await f.audit()).total === count));
+    f.window.dispatchEvent(new Event("pageshow")); admission.resolve();
+    const failed = await Promise.all(writes);
+    assert.ok(failed.every(w => w.state === "failed"));
+    assert.equal(f.durable().length, 0, "aborted admissions have no durable outbox entries");
+    const successor = await client.mutate({ kind: "mutation", name: "media.record" }, { body: String(count + 1), digit: count + 1 });
+    assert.equal(successor.state, "pending");
+    assert.deepEqual(f.durable().map(e => e.id), [successor.id]);
+    const resumedAt = performance.now();
+    offline = false; await client.sync();
+    assert.ok(await until(() => settlements.some(w => w.id === successor.id && w.state === "sent"), 5000), "the recovered page must eventually send its successor");
+    const replayMs = Math.round(performance.now() - resumedAt);
+    // Deliver the original request only after ordinary flushing reached B.
+    deliveryGate.resolve();
+    try { await (await exitWork).arrayBuffer(); } catch {}
+    const audit = await f.audit(), sent = settlements.filter(w => w.state === "sent");
+    console.log(`failed admission: delivery=${delivery}; predecessors=${count}; order=${audit.order}; applications=${audit.total}; ordinaryIds=${ordinary.length}; sentSettlements=${sent.length}; recoveryMs=${replayMs}`);
+    assert.deepEqual(audit, { total: count + 1, order: count === 1 ? 12 : 123 });
+    assert.deepEqual(ordinary.map(w => w.id), [...failed.map(w => w.id), successor.id], "every exposed predecessor is replayed before B with its original id");
+    const payload = JSON.parse(exits[0].init.body), exposed = payload.writes ?? [payload];
+    assert.deepEqual(ordinary.slice(0, count).map(({ id, args, newIds }) => ({ id, args, newIds })), exposed.map(({ id, args, newIds }) => ({ id, args, newIds })));
+    assert.deepEqual(sent.map(w => w.id), [...failed.map(w => w.id), successor.id], "an admission failure must later settle through onWrite");
+    assert.ok(failed.every(w => w.why.code === "E_EXIT_ADMISSION" && w.why.retryable === true));
+    for (const write of failed) assert.ok(settlements.indexOf(write) < settlements.findIndex(w => w.id === write.id && w.state === "sent"));
   });
 }

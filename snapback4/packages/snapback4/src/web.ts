@@ -7,7 +7,7 @@
 
 import type { BackendJson } from "./backend.ts";
 import type { DeviceCore, DeviceOpener } from "./local.ts";
-import type { PendingSend } from "./local-exit.ts";
+import type { ExitState, PendingSend } from "./local-exit.ts";
 import init, { WebDevice } from "./wasm/snapback4_device.js";
 
 /** One change the device reported: the store (`r` rows, `m` metadata, `o`
@@ -42,6 +42,9 @@ export interface WebDeviceOptions {
 
 let ready: Promise<unknown> | null = null;
 let runtime: { identity: string | WebAssembly.Module; initialized: unknown } | undefined;
+// An aborted IndexedDB admission cannot erase a write already exposed to
+// keepalive. Keep its fallback through close/reopen of this store in the page.
+const pageExits = new WeakMap<object, Map<string, ExitState>>();
 
 /** The opener `createLocalClient` takes on the web. */
 export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
@@ -52,6 +55,11 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         .catch((error) => { ready = null; throw error; });
       await ready;
       const store = await claim(name);
+      const page = typeof document === "undefined" ? globalThis : document;
+      let heldExits = pageExits.get(page);
+      if (!heldExits) pageExits.set(page, (heldExits = new Map()));
+      let exitState = heldExits.get(store.name);
+      if (!exitState) heldExits.set(store.name, (exitState = { pending: new Map(), blocked: false }));
       let device: WebDevice | undefined;
       let chain: Promise<unknown> = Promise.resolve();
       let closing: Promise<void> | undefined;
@@ -96,6 +104,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       }
       const suspendListeners = new Set<() => void>();
       const core: DeviceCore = {
+        exitState,
         onSuspend(flush) {
           if (typeof window === "undefined" || typeof document === "undefined") return () => {};
           const page = window, doc = document;

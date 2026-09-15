@@ -1317,8 +1317,8 @@ is in flight when the page exits. A blocked or oversized
 head is never skipped. Requests share the browser's 64 KiB body budget; unsent or unconfirmed writes
 stay durable for retry on reopen, with mutation-id dedupe preventing duplicates.
 If an exit response has not finished after one second, ordinary flushing
-retries that same durable head before advancing; an unknown outcome never
-skips a write. `close()` stops waiting immediately without cancelling the
+retries every exit-exposed predecessor with its original id before advancing;
+an unknown outcome never skips a write. `close()` stops waiting immediately without cancelling the
 keepalive request.
 From the synchronous call to `mutate`, the client also remembers each pending
 admission's mutation id, operation, arguments and minted row ids in memory.
@@ -1329,10 +1329,21 @@ It never skips a blocked predecessor. The server executes the list in order,
 with one transaction and receipt per write, stopping at the first refusal.
 Admission and keepalive use the same mutation id, so later durable replay
 dedupes even when the server applied a write before IndexedDB committed it.
-This pre-admission send is best-effort: if the browser drops the keepalive
-before admission commits, that write can still be lost. A write excluded
-by the budget, a predecessor or an in-flight send also needs admission to
-finish to survive navigation.
+An exit-exposed write remains an ordering obligation even if admission fails.
+The client returns `failed` with retryable `E_EXIT_ADMISSION`: this is an
+unknown server outcome, not a promise that the write did not apply. This page
+keeps its original id, arguments and minted ids in memory when persistence
+fails, including across a client close/reopen on the same store. Before sending
+any successor it retries that id through `/m` until a terminal receipt; a
+lost reply or retryable refusal keeps successors waiting. Subscribe to `onWrite`
+while the client is open: the failed admission later settles there with the
+same id, including `sent` if the server applied it. Do not resubmit it with a
+new id. If the ordering record cannot be retained, `E_EXIT_ORDER` stops this
+page's write sending rather than discarding the predecessor.
+This pre-admission send is best-effort across document destruction: if both
+admission and keepalive are lost and the page is gone, its memory cannot
+recover the write. A write excluded by the budget, a predecessor or an
+in-flight send also needs admission to finish to survive navigation.
 An admission that finishes while the page is suspended rechecks the exit
 transport after its commit; on reopen, a matching server store identity and
 non-regressed head allow unknown writes to replay before the first sync finishes.

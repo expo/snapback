@@ -1,4 +1,6 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_EXIT_ADMISSION", "family store — retryable: admission failed after exit exposed this mutation to the server. The page retains its original id and retries it before successors; onWrite reports its terminal settlement while the client is open. Do not submit it again with a new id. See `guide writes`."),
+    ("E_EXIT_ORDER", "family store — the page could not retain an exit write's ordering record and has stopped sending writes. Do not discard the unresolved predecessor or submit it again with a new id. See `guide writes`."),
     ("E_STORE_RESTORE", "family store — the same backend store identity reports a head below this device's watermark. Sync and reads halt; stop the client and use a fresh device store and outbox for the restored backend. A retry or backend adoption does not reacquire the same identity. See `guide sync`."),
     ("E_CURSOR_INDEX", "a cursor needs an index ending in id or a total unique key. Append id to the named index with check --fix; guide indexes."),
     ("E_CLOCK_DEV_ONLY", "clock controls require dev; serve always uses wall time. Use dev --clock-offset, clock advance or a local run --now; guide clock."),
