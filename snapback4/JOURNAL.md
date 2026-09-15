@@ -7091,3 +7091,8 @@ times, counts, raw objects and the full limits. No new latency gain is claimed.
 Main advanced through 0.2.14 to 0.2.15 with page/cursor and socket changes;
 any candidate needs qualification and ordinary A/B on its current inputs.
 The existing membership-feed ticket is updated. No core implementation changed.
+
+
+## 2026-09-15 UTC — Clique M7 exposes a maintained-identity adoption refusal
+
+Astra's fresh 0.2.10 M7 session retained a schema-adoption refusal on an engine-generated poll tally ID and recovered by preserving vote rows while replacing the derived tally. A separate public-CLI reproduction on the unmodified published binary uses fresh stores and no server ports: canonical maintained IDs of 144 bytes accept an unrelated index addition; 145 and 159 bytes refuse store opening with E_INPUT. Restoring the prior schema reads identical source rows. Filed [the P2 adoption ticket](../issues/20260915-snapback4-maintained-identity-blocks-additive-schema-adoption.md) with the exact schemas, command receipts and source explanation. Current-main runtime applicability remains unverified; no product fix or author ruling is made here. All three independent grades are complete; M7 and the final LLP 3000.007 §10.3 record continue.
