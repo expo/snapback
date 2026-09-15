@@ -179,6 +179,8 @@ pub struct Engine {
     ceilings: Ceilings,
     entropy: u64,
     generation: u64,
+    /// Dev engines may consult replay policy; release engines never suppress effects.
+    dev_effects: bool,
     /// The app's native module, once installed (LLP 3000.005).
     #[cfg(feature = "native")]
     native: Option<std::sync::Arc<native::Module>>,
@@ -200,14 +202,15 @@ impl Engine {
         }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         let generation = Self::activate(&mut store, &schema, &programs, None)?;
-        Ok(Self { store, schema, programs, generation, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: Vec::new(), presence: None })
+        let dev_effects = store.meta("release")?.is_none();
+        Ok(Self { store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: Vec::new(), presence: None })
     }
 
     /// A detached read owner for HTTP query/sync computation. Creating it is
     /// brief; materializing its response does not hold the serving engine.
     pub fn reader(&self) -> Result<Self, RuntimeError> {
         Ok(Self { store: self.store.reader()?, schema: self.schema.clone(), programs: self.programs.clone(),
-            ceilings: self.ceilings, entropy: 0, generation: self.generation,
+            ceilings: self.ceilings, entropy: 0, generation: self.generation, dev_effects: self.dev_effects,
             #[cfg(feature = "native")] native: self.native.clone(),
             #[cfg(feature = "native")] native_logs: Vec::new(), presence: self.presence.clone() })
     }
@@ -229,7 +232,7 @@ impl Engine {
         if let Some(issue) = crate::schema::validate(&schema).first() { return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message))); }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         let generation = Self::activate(&mut store, &schema, &programs, Some((release, expected_previous)))?;
-        Ok(Self { store, schema, programs, generation, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: Vec::new(), presence: None })
+        Ok(Self { store, schema, programs, generation, dev_effects: false, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: Vec::new(), presence: None })
     }
 
     /// Attach to an already activated semantic generation without installing
@@ -243,12 +246,13 @@ impl Engine {
         let generation = u64::try_from(generation).map_err(|_| RuntimeError::Store("negative stored generation".into()))?;
         let schema = serde_json::from_str(&schema).map_err(|e| RuntimeError::Store(format!("invalid stored schema: {e}")))?;
         let programs = serde_json::from_str(&programs).map_err(|e| RuntimeError::Store(format!("invalid stored programs: {e}")))?;
+        let dev_effects: bool = tx.conn().query_row("SELECT NOT EXISTS(SELECT 1 FROM _meta WHERE key = 'release')", [], |row| row.get(0))?;
         tx.rollback()?;
         // Upgrade derived candidates from older binaries using the stored
         // backend, never a caller's source. The repair logs its row changes.
         let generation = if store.meta("live_sum_candidates")?.as_deref() == Some("1") { generation }
             else { Self::activate(&mut store, &schema, &programs, None)? };
-        Ok(Self { store, schema, programs, generation, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: Vec::new(), presence: None })
+        Ok(Self { store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: Vec::new(), presence: None })
     }
 
     /// Serving a selected immutable release may attach only while that release
@@ -261,6 +265,7 @@ impl Engine {
             return Err(RuntimeError::Generation("the current release changed while starting; retry serve".into()));
         }
         tx.rollback()?;
+        engine.dev_effects = false;
         Ok(engine)
     }
 
@@ -794,7 +799,7 @@ impl Engine {
                 read_tables.extend(tables.iter().cloned());
                 tx.record_commit(seq, now, name, &viewer, program.kind.word(), &tables, rows_written)?;
                 partition::append(&tx, seq, &events)?;
-                effects::record(&tx, &outbox, seq, now)?;
+                effects::record(&tx, &outbox, seq, now, self.dev_effects)?;
                 MutationOutcome { state: WriteState::Sent { seq, result }, metered, tables, events: events.len(), replayed: false }
             }
             Err(error) if error.is_refusal() => {

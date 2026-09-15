@@ -17,7 +17,11 @@ Writes that do not predict show pending with `usePendingWrite(op)` from
 terminal `sent` or `failed`, and `last` is the Write. Keep its mutation id in
 view state; `usePendingWrite(op, savedId)` resumes observation after reload
 without submitting again. `client.write(id)` reads the kept outcome (undefined
-for an unknown id); `onWrite` reports later terminal changes. Local server receipts
+for an unknown or evicted id); `onWrite` reports later terminal changes.
+The online and local clients retain at most 256 terminal outcomes in memory;
+unresolved writes are independent of that bound. The local device atomically
+keeps the last 256 server terminal receipts in one metadata record, deleting
+evicted receipts; event deduplication keeps at most 256 ids. Local server receipts
 survive reopen with the device store, including adoption of a closed web tab. Recovered success carries `replayed: true`
 and no result; recovered failure keeps code/family and `write refused: CODE`.
 Refusals before durable admission, the online tier and mock remember outcomes
@@ -29,6 +33,8 @@ The online tier has no partition and reports false. In an opener, use
 `if (client.link() === "online") await client.sync()` before exposing a screen
 that needs immediate offline predictions; skip the wait on an offline cold start.
 If sync loses the link or the partition is refused, acquisition can remain false.
+Network fetch failures resolve `sync()` without a value and set the link offline;
+return the open client. Close and rethrow only unexpected opener exceptions.
 A Write queued without a row before acquisition carries
 `reason: "queued without a row: not acquired yet"`; other missing local evidence
 says `queued without a row: local data does not justify prediction`.

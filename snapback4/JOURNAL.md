@@ -18108,3 +18108,88 @@ Verification and measurements:
 - The largest changed code file is the guide at 1,376 lines. No meter ceiling,
   existing conformance case, shared note output or residency/prediction output
   changed. No commit, push, tag or publication was performed.
+
+## 2026-09-15 — W5R1x: replay ownership and bounded write receipts
+
+Built from `0246023537b31baed75e06ef08ffdba1621bf49e`, without a commit,
+push, tag or publication. A persistent dev host now holds the existing
+`serve.lock` at the resolved store directory before opening its engine;
+deploy, rollback and release serving already use that lock. Competing hosts
+on the same or different ports refuse before changing replay or schedule
+metadata. Binding also precedes policy changes, so an unrelated occupied
+port does not release a stopped replay's policy. Dev policy writes check
+release identity transactionally, including a delayed dev engine opened
+before activation. Release startup leaves dev policy alone. The engine
+carries its development/release mode into mutation, Quarry-job and native-job
+effect recording; release engines ignore suppression metadata, and a
+transactional release-identity check also fences a stale dev engine.
+
+Terminal write history and event deduplication now retain at most 256 ids;
+pending writes are independent of the bound. Device receipts use one bounded
+metadata record, with insertion and eviction in the same device transaction,
+so two native owners cannot lose each other's retained receipts through a
+read/overwrite race. Receipt persistence still precedes executable outbox
+retirement. Both device stores use the same implementation. Closed web-tab
+adoption merges that bounded history before removing the source store.
+`client.write(id)` returns undefined after terminal eviction; the README
+and writes card state the bound, the durable window and pending retention.
+This replaces the per-id receipt format rather than adding a compatibility
+lane. The existing React early-outcome map already caps at 256 and needed
+no change; the online client inherits the shared history fix.
+
+The opener and acquisition findings were already correct behavior. Six
+new tests passed before changes: on wasm and process devices, a transient
+fetch failure returns the open client with acquisition false and link
+offline; replacement remains unacquired until its new catch-up finishes;
+and a same-store restore halt stays unacquired across retry and offline
+reopen. The starter comments, README and writes card now explain the
+close-and-throw contract. The public `sync()` resolves without a value;
+its internal sync routine returns false on fetch failure. The public
+`acquired` flag is the readiness authority.
+
+Measurements and verification:
+
+- Replay regressions, including actual HTTP `serve` over a release still
+  carrying `dev:replay=true`: the final ten tests against the base Rust
+  implementations were 6 passed / 4 failed; candidate 10 passed / 0 failed.
+  The base files were read from Git and restored around that local test,
+  without another checkout or repository clone. Two competing-port cases
+  retain suppression; restart without replay admits one new effect.
+  The existing witness still reports 32 mutations, 32 duplicate retries,
+  32 explicit-job rows, 64 suppressed effects and 0 claimable suppressed
+  payloads on each restart path.
+- The initial focused client regressions were 6 passed / 3 failed;
+  candidate acquisition suite 19 passed / 0 failed. The final focused run,
+  also checking closed-secondary-tab receipt recovery, was 10 passed /
+  0 failed. In memory, 600 terminal writes plus 300 unresolved writes
+  leave 256 terminal + 300 pending = 556 values and 256 dedupe ids.
+- On each device tier, 270 real writes leave 256 durable receipts,
+  14 evicted ids, and 1 metadata row occupying 19,629 encoded bytes.
+  An unresolved outbox entry survives 270 additional receipt insertions
+  and offline reopen. The wasm build reports 1,749,000 B raw and
+  487,241 B gzip (before: 1,746,602 and 486,429; +2,398 and +812 B).
+  These are local build sizes, not a benchmark comparison.
+- `bash snapback4/scripts/test.sh`: `== 1 failure(s) in 371 s`.
+  All 61 Rust result groups passed: 936 tests, 0 failures, 4 ignored;
+  fixture tests 9 passed / 0 failed; builds and all typechecks passed.
+  Its client run had 302 passed, 2 failed, 1 cancelled. Two caller updates
+  followed: the release test expected the old lock message, and the fake
+  device in the lifecycle test did not accept the new receipt operation.
+  The latter also timed out alone (0 passed, 0 failed, 1 cancelled);
+  both pass after those single-line updates (2 passed / 0 failed).
+  `node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'`
+  then passed 304 / failed 1 / cancelled 0 in 113,056.333166 ms. Only
+  Chromium's sandbox SIGABRT remains, the environment artifact named in
+  the brief; the lead reruns it outside the sandbox. No product failure
+  is being labelled pre-existing without base evidence.
+- `./ref-check --verbose` passes: 480 LLP documents, 8,948 references,
+  0 errors and 0 unchecked references. No new diagnostic or note code.
+  The largest changed code file is `serve.rs`, 1,257 lines.
+
+Minimal scope extensions: `engine/mod.rs` and `engine/job.rs` pass engine
+mode to effect recording; `verbs.rs` and `verbs/releases.rs` expose/reuse
+host ownership; device `device.rs` and `call.rs` atomically bound receipt
+storage; client `web.ts` preserves receipt transfer under the new format;
+and the lifecycle/release-activation client tests update their existing
+callers. No language-lane or recipes/init-lane files were changed. The
+writes card is this lane's published-surface paragraph only.

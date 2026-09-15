@@ -8,15 +8,15 @@ fn directory(options: &Options) -> Result<PathBuf, String> {
     options.positionals.first().map(PathBuf::from).ok_or_else(|| "a deployment directory is required".into())
 }
 
-/// `serve` holds this advisory lock for its lifetime. Activation refuses
+/// `dev` and `serve` hold this advisory lock for their lifetime. Activation refuses
 /// while it is held, so a successful deploy or rollback cannot leave a live
 /// process advertising old IR over a store that has moved generations.
-fn deployment_lock(dir: &Path) -> Result<File, String> {
+pub(crate) fn deployment_lock(dir: &Path) -> Result<File, String> {
     std::fs::create_dir_all(dir).map_err(|e| format!("cannot create deployment directory: {e}"))?;
     let file = std::fs::OpenOptions::new().create(true).read(true).write(true).open(dir.join("serve.lock")).map_err(|e| format!("cannot open deployment lock: {e}"))?;
     file.try_lock().map_err(|error| match error {
         std::fs::TryLockError::WouldBlock => {
-            "this deployment is live; stop its `snapback4 serve` process before deploy or rollback".into()
+            "this store is live; stop its `snapback4 dev` or `snapback4 serve` process before starting another host, deploy or rollback".into()
         }
         std::fs::TryLockError::Error(error) => format!("cannot lock deployment: {error}"),
     })?;

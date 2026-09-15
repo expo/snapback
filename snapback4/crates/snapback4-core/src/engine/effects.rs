@@ -55,9 +55,9 @@ pub enum Settled {
 const COLUMNS: &str = "id, effect, payload, state, attempts, seq, at, next_at, lease_until, claimed_by, result, error";
 
 // @ref LLP 3000.007#20.2 — dev replay counts committed emits without retaining a deliverable payload.
-pub(super) fn record(tx: &crate::store::Tx<'_>, outbox: &[(String, String, Value)], seq: u64, now: i64) -> Result<(), RuntimeError> {
+pub(super) fn record(tx: &crate::store::Tx<'_>, outbox: &[(String, String, Value)], seq: u64, now: i64, dev: bool) -> Result<(), RuntimeError> {
     if outbox.is_empty() { return Ok(()); }
-    let replay: bool = tx.conn().prepare_cached("SELECT EXISTS(SELECT 1 FROM _meta WHERE key = 'dev:replay' AND value = 'true')")?.query_row([], |row| row.get(0))?;
+    let replay = dev && tx.conn().prepare_cached("SELECT EXISTS(SELECT 1 FROM _meta WHERE key = 'dev:replay' AND value = 'true') AND NOT EXISTS(SELECT 1 FROM _meta WHERE key = 'release')")?.query_row([], |row| row.get(0))?;
     if replay {
         tx.conn().execute("INSERT INTO _meta(key, value) VALUES ('dev:suppressed-effects', ?1) ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + CAST(excluded.value AS INTEGER)", [outbox.len().to_string()])?;
     } else {

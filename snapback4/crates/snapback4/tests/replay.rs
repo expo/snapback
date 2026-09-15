@@ -178,3 +178,85 @@ fn changed_schedule_shape_releases_at_first_boundary() {
     assert!(engine.fire_schedules(120_000).unwrap().is_empty());
     assert_eq!(engine.jobs(10).unwrap().len(), 1);
 }
+
+#[test]
+fn competing_starts_preserve_the_live_replay_policy() {
+    for same_port in [true, false] {
+        let f = Fixture::new(if same_port { "competing-port" } else { "competing-store" });
+        let host = f.start(&["--replay"]);
+        f.engine().store().set_meta("schedule:ticking", "0").unwrap();
+        let port = if same_port { host.address.rsplit(':').next().unwrap() } else { "0" };
+        let child = Command::new(BIN).current_dir(&f.0).args(["dev", "--no-watch", "--port", port])
+            .stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
+        let mut contender = Host { child, address: String::new() };
+        let mut status = None;
+        for _ in 0..200 {
+            status = contender.child.try_wait().unwrap();
+            if status.is_some() { break; }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        drop(contender);
+        let sent = host.post("/m/send", json!({"id":"after-contender", "args":{}}), PERSONA);
+        assert_eq!(sent["state"], "sent", "{sent}");
+        assert_eq!(f.engine().store().meta("dev:replay").unwrap().as_deref(), Some("true"));
+        assert_eq!(f.engine().store().meta("dev:hold-schedules").unwrap().as_deref(), Some("true"));
+        assert_eq!(f.engine().store().meta("schedule:ticking").unwrap().as_deref(), Some("0"));
+        assert!(f.engine().effects(None, 10).unwrap().is_empty());
+        assert_eq!(f.engine().effect_counts().unwrap()["suppressed"], 1);
+        assert!(status.is_some_and(|status| !status.success()), "competing host must refuse even on a different port");
+        let deploy = f.command(&["deploy", f.0.join(".snapback4").to_str().unwrap()]);
+        assert!(!deploy.status.success(), "a live dev host owns the same lock as deploy");
+        assert!(f.engine().store().meta("release").unwrap().is_none());
+        drop(host);
+        let normal = f.start(&[]);
+        assert_eq!(normal.post("/m/send", json!({"id":"after-owner-exit", "args":{}}), PERSONA)["state"], "sent");
+        assert_eq!(f.engine().effects(None, 10).unwrap().len(), 1);
+    }
+}
+
+#[test]
+fn a_busy_listener_leaves_stopped_replay_policy_unchanged() {
+    let f = Fixture::new("busy-listener");
+    drop(f.start(&["--replay"]));
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let out = f.command(&["dev", "--no-watch", "--port", &listener.local_addr().unwrap().port().to_string()]);
+    assert!(!out.status.success());
+    assert_eq!(f.engine().store().meta("dev:replay").unwrap().as_deref(), Some("true"));
+    assert_eq!(f.engine().store().meta("dev:hold-schedules").unwrap().as_deref(), Some("true"));
+}
+
+#[test]
+fn release_engines_ignore_dev_suppression_and_delayed_dev_policy_is_refused() {
+    let f = Fixture::new("release-policy");
+    drop(f.start(&["--replay"]));
+    let stale = f.engine();
+    let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
+    let mut release = Engine::new_release(Store::open(&f.0.join(".snapback4/store.sqlite")).unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program), 1, None).unwrap();
+    for engine in [&mut release, &mut Engine::attach_release(Store::open(&f.0.join(".snapback4/store.sqlite")).unwrap(), 1).unwrap()] {
+        let sent = engine.mutate("send", None, snapback4_core::Context::new("dev:alice", Default::default())).unwrap();
+        assert!(matches!(sent.state, snapback4_core::WriteState::Sent { .. }));
+    }
+    assert_eq!(release.effects(None, 10).unwrap().len(), 2, "release transactions always emit");
+    assert!(dev_replay::effects(&stale, false).is_err(), "a delayed dev open must not change a deployed store");
+    assert_eq!(release.store().meta("dev:replay").unwrap().as_deref(), Some("true"));
+}
+
+#[test]
+fn serve_emits_with_replay_metadata_left_in_the_release_store() {
+    let f = Fixture::new("serve-policy");
+    let dir = f.0.join("deployment");
+    assert!(f.command(&["deploy", dir.to_str().unwrap()]).status.success());
+    let store = Store::open(&dir.join("store.sqlite")).unwrap();
+    store.set_meta("dev:replay", "true").unwrap();
+    let token = f.command(&["token", "--release", dir.to_str().unwrap(), "--service", "worker"]);
+    assert!(token.status.success(), "{token:?}");
+    let auth = format!("Authorization: Bearer {}", String::from_utf8(token.stdout).unwrap().trim());
+    let mut child = Command::new(BIN).current_dir(&f.0).args(["serve", dir.to_str().unwrap(), "--port", "0"])
+        .stdout(Stdio::piped()).stderr(Stdio::inherit()).spawn().unwrap();
+    let mut line = String::new(); BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
+    let host = Host { child, address: line.trim().trim_start_matches("http://").into() };
+    assert!(!host.address.is_empty(), "serve did not start");
+    assert_eq!(store.meta("dev:replay").unwrap().as_deref(), Some("true"), "release startup must not rewrite dev policy");
+    assert_eq!(host.post("/m/send", json!({"id":"release-send", "args":{}}), &auth)["state"], "sent");
+    assert_eq!(host.post("/effects/claim", json!({}), &auth)["effects"].as_array().unwrap().len(), 1);
+}

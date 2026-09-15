@@ -1310,6 +1310,10 @@ Await `client.sync()` when `client.link() === "online"` before exposing a
 screen that needs offline prediction immediately; skip that wait on an offline
 cold start. A sync interrupted by link loss or a refused partition can return
 without acquisition, so the flag remains the authority.
+Network fetch failures resolve `sync()` normally and set `link()` to `"offline"`;
+the public method resolves without a value. A transient network failure must
+not block opening. An opener's catch should close and rethrow only an unexpected
+exception, while returning the client when sync ends without acquisition.
 A successfully acquired empty partition is still known data. When upgrading a store that lacks acquisition metadata, one completed online
 sync is required;
 existing durable writes remain queued. Safe literal-default-only schema
@@ -1546,7 +1550,11 @@ Keep the returned mutation `id` with the application's view state and pass it
 as `usePendingWrite(op, savedId)` after reload. Recovery observes that id; it
 never submits again. `await client.write(id)` also reads its latest outcome,
 and `onWrite` receives later terminal changes. An unknown id returns
-`undefined`. The local client keeps server terminal receipts in the device store:
+`undefined`, as does an evicted terminal id. The online and local clients keep
+at most 256 terminal outcomes in memory; unresolved writes are retained
+independently. The local client keeps the last 256 server terminal receipts
+in one bounded device metadata record, replacing evicted receipts atomically;
+event deduplication also retains at most 256 ids. Reopen keeps that receipt window:
 recovered success has `replayed: true` and no historical result; recovered
 failure keeps its code and family with the message `write refused: CODE`.
 Refusals before durable admission, the online tier and mock remember outcomes

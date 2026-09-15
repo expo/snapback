@@ -125,7 +125,7 @@ test("a live release refuses deploy and rollback until the server stops", { time
       const blocked = invoke(...args);
       assert.equal(blocked.error, undefined);
       assert.equal(blocked.status, 1);
-      assert.match(blocked.stderr, /deployment is live/);
+      assert.match(blocked.stderr, /store is live/);
       assert.deepEqual(state(database), before, "a refused activation must not move the database");
     }
     const backend = await (await fetch(url + "/schema", { headers, signal: AbortSignal.timeout(2000) })).json();

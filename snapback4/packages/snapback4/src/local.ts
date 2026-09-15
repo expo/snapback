@@ -168,13 +168,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const sessionListeners = new Set<(session: Session | null) => void>();
   const viewerListeners = new Set<(viewer: Principal | null) => void>();
   const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
-  const emittedWrites = new Set<string>();
   let history!: WriteHistory;
   let setLink!: (next: Link) => void;
   const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
     history.remember(write);
-    if (!emittedWrites.has(write.id)) {
-      emittedWrites.add(write.id);
+    if (history.firstEmission(write.id)) {
       for (const listener of writeListeners) listener(write);
     }
     return write;
@@ -206,9 +204,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let media: MediaCache | undefined;
   try {
   history = new WriteHistory({
-    read: async id => (await call({ op: "meta", key: `write:${id}` })).ok as string | null,
-    save: async (id, value) => {
-      const reply = await call({ op: "set_meta", key: `write:${id}`, value });
+    read: async () => (await call({ op: "meta", key: "write-history" })).ok as string | null,
+    save: async value => {
+      const reply = await call({ op: "keep_write", value });
       if (reply.denied) throw new Error(`${reply.denied.code}: ${reply.denied.message}`);
     },
   });

@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { createLocalClient } from "../dist/local.js";
 import { processDevice } from "../dist/native.js";
 import { memoryPersistence, webDevice } from "../dist/web.js";
+import { WriteHistory } from "../dist/writes.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
@@ -51,34 +52,54 @@ async function fixture(t, tier, empty = false) {
   const schemaPath = join(directory, "snapback/schema.q");
   writeFileSync(schemaPath, source);
   t.after(() => rmSync(directory, { recursive: true, force: true }));
-  const child = spawn(binary, ["dev", "--port", "0", "--fresh"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
-  const exit = once(child, "exit");
-  let log = "", url;
-  child.stdout.on("data", (data) => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
-  child.stderr.on("data", (data) => { log += data; });
+  let child, exit, url;
+  async function start() {
+    if (child) { child.kill("SIGTERM"); await exit; }
+    child = spawn(binary, ["dev", "--port", url ? new URL(url).port : "0", "--fresh"], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
+    exit = once(child, "exit");
+    let log = "", listening = false;
+    child.stdout.on("data", (data) => { log += data; const address = log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; if (address) { url = address; listening = true; } });
+    child.stderr.on("data", (data) => { log += data; });
+    await until(() => { assert.equal(child.exitCode, null, log); return listening; }, "server did not listen");
+  }
   const clients = [];
   t.after(async () => {
     await Promise.allSettled(clients.map((client) => client.close()));
     if (child.exitCode == null && child.signalCode == null) child.kill("SIGTERM");
     await exit;
   });
-  await until(() => { assert.equal(child.exitCode, null, log); return url; }, "server did not listen");
+  await start();
   const headers = { "x-snapback-persona": "alice" };
   const post = (path, body) => fetch(`${url}${path}`, { method: "POST", headers, body: JSON.stringify(body) }).then((r) => r.json());
   const backend = () => fetch(`${url}/schema`, { headers }).then((r) => r.json());
   if (!empty) assert.equal((await post("/seed", Array.from({ length: 6 }, (_, n) => ({ table: "notes", row: { id: n ? `row-${n}` : "seed", body: `note ${n}` } })))).seeded, 6);
   const deviceDir = join(directory, "device"); mkdirSync(deviceDir);
   const persist = memoryPersistence();
-  let core, mode = "sync-fails", snapshots = 0, catchups = 0, posts = 0;
+  let core, mode = "sync-fails", snapshots = 0, catchups = 0, posts = 0, restore = false;
+  const metadata = new Map();
   const open = async () => {
     const opener = tier === "wasm" ? webDevice({ wasm, persist }) : processDevice({ binary, dir: deviceDir,
       spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }),
       writeFile: async (path, text) => writeFileSync(path, text) });
     const client = await createLocalClient({ url, persona: "alice", waitSeconds: 1,
-      device: { open: async (...args) => { core = await opener.open(...args); return core; } },
+      device: { open: async (...args) => {
+        core = await opener.open(...args);
+        const call = core.call.bind(core);
+        core.call = async request => {
+          const reply = await call(request);
+          if (request.op === "set_meta" && !reply.denied && reply.ok !== false) metadata.set(request.key, request.value);
+          if (request.op === "keep_write" && !reply.denied) metadata.set("write-history", (await call({ op: "meta", key: "write-history" })).ok);
+          return reply;
+        };
+        return core;
+      } },
       fetch: async (input, init) => {
         const path = new URL(input).pathname;
         if (mode === "offline") throw new TypeError("offline reopen");
+        if (restore && path === "/probe") {
+          const response = await fetch(input, init), json = await response.json();
+          return Response.json({ ...json, seq: 0 });
+        }
         if (mode === "busy" && (path === "/sync" || path.startsWith("/m/"))) return Response.json({ denied: {
           code: "E_RATE_LIMIT", family: "bound", message: "server is busy", retryable: true,
         } }, { status: 429 });
@@ -92,6 +113,7 @@ async function fixture(t, tier, empty = false) {
           const page = await response.clone().json();
           if (page.snapshot) snapshots++;
           if (body.stream) catchups++;
+          if (restore) return Response.json({ ...page, watermark: 0 });
           return response;
         }
         if (path.startsWith("/m/")) posts++;
@@ -100,7 +122,98 @@ async function fixture(t, tier, empty = false) {
     });
     clients.push(client); return client;
   };
-  return { open, backend, schemaPath, core: () => core, mode: (next) => { mode = next; }, counts: () => ({ snapshots, catchups, posts }) };
+  return { open, backend, schemaPath, start, metadata, restore: () => { restore = true; }, core: () => core, mode: (next) => { mode = next; }, counts: () => ({ snapshots, catchups, posts }) };
+}
+
+test("W5R1x: terminal history is bounded independently of unresolved writes", async t => {
+  const history = new WriteHistory();
+  for (let n = 0; n < 300; n++) history.remember({ state: "pending", id: `pending-${n}` });
+  for (let n = 0; n < 600; n++) history.remember({ state: "sent", id: `sent-${n}`, seq: n, replayed: true });
+  assert.equal(await history.read("sent-0"), undefined);
+  assert.equal((await history.read("sent-599")).state, "sent");
+  for (let n = 0; n < 300; n++) assert.equal((await history.read(`pending-${n}`)).state, "pending");
+  assert.equal(history.values.size, 556, "256 terminal + 300 unresolved entries");
+  for (let n = 0; n < 600; n++) assert.equal(history.firstEmission(`sent-${n}`), true);
+  assert.equal(history.firstEmission("sent-599"), false);
+  assert.equal(history.emitted.size, 256);
+  t.diagnostic(`terminal=256 unresolved=300 memory=${history.values.size} evicted=344`);
+});
+
+for (const tier of ["wasm", "process"]) {
+  test(`W5R1x ${tier}: durable receipts evict beyond 256 without growing metadata`, { timeout: 60000 }, async t => {
+    const f = await fixture(t, tier);
+    f.mode("online"); let client = await f.open();
+    const ids = [], events = [];
+    client.onWrite(write => events.push(write.id));
+    for (let n = 0; n < 270; n++) {
+      const write = await client.mutate({ kind: "mutation", name: "add" }, { body: `receipt ${n}` });
+      assert.equal(write.state, "sent"); ids.push(write.id);
+    }
+    assert.equal(events.length, 270);
+    assert.equal(new Set(events).size, 270);
+    assert.equal(await client.write(ids[0]), undefined);
+    assert.equal((await client.write(ids.at(-1))).state, "sent");
+    const receipts = [...f.metadata].filter(([key]) => key.startsWith("write"));
+    assert.equal(receipts.length, 1, "one bounded receipt record, not one row per mutation");
+    assert.equal(JSON.parse(receipts[0][1]).length, 256);
+    await client.close(); f.mode("offline"); client = await f.open();
+    assert.equal(await client.write(ids[0]), undefined);
+    assert.equal((await client.write(ids.at(-1))).state, "sent");
+    const pending = await client.mutate({ kind: "mutation", name: "add" }, { body: "still unresolved" });
+    // Other receipt settlements cannot retire this executable outbox entry.
+    for (let n = 0; n < 270; n++) {
+      assert.equal((await f.core().call({ op: "keep_write", value: JSON.stringify({ state: "sent", id: `other-${n}`, seq: n, replayed: true }) })).denied, undefined);
+    }
+    assert.equal((await client.write(pending.id)).state, "pending");
+    await client.close(); client = await f.open();
+    assert.equal((await client.write(pending.id)).state, "pending");
+    assert.equal((await f.core().call({ op: "queued" })).ok.length, 1);
+    assert.equal(JSON.parse((await f.core().call({ op: "meta", key: "write-history" })).ok).length, 256);
+    t.diagnostic(`writes=270 terminal=256 evicted=14 receipt_rows=${receipts.length} receipt_bytes=${Buffer.byteLength(receipts[0][1])} unresolved=1`);
+  });
+
+  test(`W5R1x ${tier}: opener returns an offline unacquired client on network loss`, { timeout: 30000 }, async t => {
+    const f = await fixture(t, tier);
+    let client = await f.open(); await client.close();
+    f.mode("busy"); client = await f.open();
+    assert.equal(client.link(), "online"); assert.equal(client.acquired, false);
+    f.mode("sync-fails");
+    // The native starter's close-and-throw pattern closes only exceptions.
+    const opened = await (async () => {
+      try { if (client.link() === "online") await client.sync(); return client; }
+      catch (error) { await client.close(); throw error; }
+    })();
+    assert.equal(opened, client); assert.equal(client.acquired, false); assert.equal(client.link(), "offline");
+    assert.equal((await client.mutate({ kind: "mutation", name: "add" }, { body: "opens offline" })).state, "pending");
+    f.mode("online"); await client.sync(); assert.equal(client.acquired, true);
+  });
+
+  test(`W5R1x ${tier}: replacement stays unacquired until the new catch-up completes`, { timeout: 30000 }, async t => {
+    const f = await fixture(t, tier); f.mode("online");
+    const client = await f.open(), changes = [];
+    assert.equal(client.acquired, true); client.onAcquired(value => changes.push(value));
+    const before = (await f.core().call({ op: "sync_state" })).ok.store_id;
+    f.mode("offline"); await client.sync(); await f.start();
+    f.mode("before-catchup"); await client.sync();
+    const state = (await f.core().call({ op: "sync_state" })).ok;
+    assert.notEqual(state.store_id, before); assert.equal(client.acquired, false);
+    assert.deepEqual(changes, [false]);
+    f.mode("online"); await client.sync();
+    assert.equal(client.acquired, true); assert.deepEqual(changes, [false, true]);
+    assert.deepEqual((await client.query(query("all"), {})).data, []);
+  });
+
+  test(`W5R1x ${tier}: a restore halt keeps acquisition false across retries and reopen`, { timeout: 30000 }, async t => {
+    const f = await fixture(t, tier); f.mode("online");
+    let client = await f.open(); assert.equal(client.acquired, true);
+    f.mode("offline"); await client.sync(); f.restore(); f.mode("online");
+    await until(async () => { await client.sync(); return !client.acquired; }, "restore was not observed");
+    assert.equal((await client.query(query("all"), {})).denied?.code, "E_STORE_RESTORE");
+    await client.sync(); assert.equal(client.acquired, false);
+    await client.close(); f.mode("offline"); client = await f.open();
+    assert.equal(client.acquired, false);
+    assert.equal((await client.query(query("all"), {})).denied?.code, "E_STORE_RESTORE");
+  });
 }
 
 async function observations(client, t) {

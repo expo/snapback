@@ -30,6 +30,9 @@ export async function openClient(extra: Partial<LocalOptions> = {}): Promise<Dev
   if (tier === "native") {
     const client = await createLocalClient({ url, ...(as ? { persona: as } : { guest: true, sessionStore }), device: nativeDevice, waitSeconds: 20, fetch: extra.fetch });
     try {
+      // Network loss resolves sync normally and makes the link offline; it
+      // must not block opening. `acquired` is the readiness signal. Close
+      // and rethrow only an unexpected exception from this opener's work.
       if (client.link() === "online") await client.sync();
       return client;
     } catch (error) { await client.close(); throw error; }

@@ -131,6 +131,10 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, request: &Json) -> Json {
                 device.set_meta(text(request, "key")?, text(request, "value")?)?;
                 Json::Null
             }
+            "keep_write" => {
+                device.keep_write(text(request, "value")?)?;
+                Json::Null
+            }
             "clear_rows" => {
                 device.clear_rows()?;
                 Json::Null

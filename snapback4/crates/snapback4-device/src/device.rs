@@ -794,6 +794,24 @@ impl<S: DeviceStore> Device<S> {
         self.store.set_meta(&format!("client:{key}"), value)
     }
 
+    /// Replace the bounded terminal history atomically, also across native owners.
+    /// Unresolved writes live independently in the executable outbox.
+    // @ref LLP 3000.007#20.4 — receipt retention cannot evict an unresolved durable write.
+    pub fn keep_write(&mut self, value: &str) -> Result<(), RuntimeError> {
+        let parse = |text: &str| serde_json::from_str::<serde_json::Value>(text).map_err(|e| RuntimeError::Store(e.to_string()));
+        let write = parse(value)?;
+        let id = write.get("id").and_then(|id| id.as_str()).ok_or_else(|| RuntimeError::Store("write receipt requires an id".into()))?;
+        let tx = self.store.transaction()?;
+        let mut history = tx.meta("client:write-history")?.map(|text| parse(&text)).transpose()?.unwrap_or_else(|| serde_json::json!([]));
+        let entries = history.as_array_mut().ok_or_else(|| RuntimeError::Store("write history must be a list".into()))?;
+        if !entries.iter().any(|entry| entry.get("id").and_then(|id| id.as_str()) == Some(id)) {
+            entries.push(write);
+            if entries.len() > 256 { entries.drain(..entries.len() - 256); }
+        }
+        tx.set_meta("client:write-history", &history.to_string())?;
+        tx.commit()
+    }
+
     pub fn backend(&self) -> Backend {
         Backend { generation: self.generation, schema: self.schema.clone(), programs: self.programs.values().cloned().collect() }
     }

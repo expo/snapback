@@ -210,7 +210,7 @@ impl Engine {
         if program.native {
             let id = head.run.id.clone();
             #[cfg(feature = "native")]
-            native_chunk(tx, &self.schema, self.native.as_deref(), &mut self.native_logs, head, &program, now)?;
+            native_chunk(tx, &self.schema, self.native.as_deref(), &mut self.native_logs, head, &program, now, self.dev_effects)?;
             #[cfg(not(feature = "native"))]
             native_chunk(tx, head, &program, now)?;
             return self.job(&id);
@@ -267,7 +267,7 @@ impl Engine {
                 if rows_written > 0 || !events.is_empty() || !outbox.is_empty() {
                     tx.record_commit(seq, now, &head.run.name, crate::SYSTEM_PRINCIPAL, "job", &tables, rows_written)?;
                     partition::append(&tx, seq, &events)?;
-                    super::effects::record(&tx, &outbox, seq, now)?;
+                    super::effects::record(&tx, &outbox, seq, now, self.dev_effects)?;
                 }
                 let (next_sweep, cursor, upper) = if chunk.finished { (sweeps.len(), None, None) } else if chunk.ended { (sweep + 1, None, None) } else { (sweep, chunk.last_key, upper) };
                 let state = if next_sweep >= sweeps.len() { JobState::Done } else { JobState::Running };
@@ -349,7 +349,7 @@ impl Engine {
 /// it, a trap parks it with the reason. Over the engine's fields, not the
 /// engine, because the transaction borrows its store.
 #[cfg(feature = "native")]
-fn native_chunk(tx: crate::store::Tx<'_>, schema: &crate::schema::Schema, module: Option<&super::native::Module>, logs: &mut Vec<String>, head: Head, program: &crate::ir::Program, now: i64) -> Result<(), RuntimeError> {
+fn native_chunk(tx: crate::store::Tx<'_>, schema: &crate::schema::Schema, module: Option<&super::native::Module>, logs: &mut Vec<String>, head: Head, program: &crate::ir::Program, now: i64, dev: bool) -> Result<(), RuntimeError> {
     use super::native::{self, Step};
     tx.savepoint("job_chunk")?;
     let seq = tx.next_seq()?;
@@ -367,7 +367,7 @@ fn native_chunk(tx: crate::store::Tx<'_>, schema: &crate::schema::Schema, module
             if outcome.rows_written > 0 || !outcome.events.is_empty() {
                 tx.record_commit(seq, now, &head.run.name, crate::SYSTEM_PRINCIPAL, "job", &outcome.tables, outcome.rows_written)?;
                 partition::append(&tx, seq, &outcome.events)?;
-                super::effects::record(&tx, &outcome.outbox, seq, now)?;
+                super::effects::record(&tx, &outcome.outbox, seq, now, dev)?;
             }
             let (state, cursor) = match step {
                 Step::Done => (JobState::Done, None),

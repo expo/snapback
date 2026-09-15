@@ -62,7 +62,7 @@ function emptyDevice(overrides = {}) {
       if (request.op === "apply") return { ok: { touched: [] } };
       if (request.op === "query") return { ok: { data: [], complete: true, tables: [], unknown: false, nextExpiry: null } };
       if (request.op === "queued") return { ok: [] };
-      if (request.op === "set_meta" || request.op === "adopt") return { ok: null };
+      if (request.op === "set_meta" || request.op === "keep_write" || request.op === "adopt") return { ok: null };
       throw new Error(`unexpected device call ${request.op}`);
     },
     async close() { closed++; await overrides.close?.(); },

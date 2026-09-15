@@ -221,6 +221,15 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     let hold_schedules = replay || matches!(mode, Mode::Dev { hold_schedules: true, .. });
     let clock = crate::dev_clock::Clock::new(dev, match mode { Mode::Dev { clock_offset, .. } => clock_offset, _ => 0 }).map_err(|e| e.to_string())?;
     let generated = if dev { Some(project.write_generated(&bound).map_err(|e| e.to_string())?) } else { None };
+    // @ref LLP 3000.007#20.2 — only the owning host may replace replay/schedule policy; deployment shares the same lock.
+    // Release startup already owns this lock before selecting its source.
+    let _host = if matches!(mode, Mode::Dev { fresh: false, .. }) {
+        let path = project.store_path();
+        let path = if path.exists() { path.canonicalize().map_err(|e| e.to_string())? } else { path };
+        Some(crate::verbs::deployment_lock(path.parent().ok_or("store path has no parent")?)?)
+    } else { None };
+    // A busy port is a failed start, not permission to change the stopped host's policy.
+    let server = Server::http_with_limits((bind, port), tiny_http::ConnectionLimits::default()).map_err(|e| format!("cannot listen on {bind}:{port}: {e}"))?;
     // `--fresh`: a store in memory that dies with the process, for acceptance
     // scripts that must start from nothing every time.
     let mut engine = match &mode {
@@ -233,8 +242,10 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     if dev {
         crate::native::build(&project, &bound).map_err(|p| p.to_string())?;
     }
-    crate::dev_replay::effects(&engine, replay).map_err(|e| e.to_string())?;
-    crate::dev_replay::schedules(&mut engine, hold_schedules, clock.now()).map_err(|e| e.to_string())?;
+    if dev {
+        crate::dev_replay::effects(&engine, replay).map_err(|e| e.to_string())?;
+        crate::dev_replay::schedules(&mut engine, hold_schedules, clock.now()).map_err(|e| e.to_string())?;
+    }
     if !hold_schedules { engine.fire_schedules(clock.now()).map_err(|e| e.to_string())?; }
     let installed = crate::native::install(&mut engine, &project).map_err(|p| p.to_string())?;
     let clock = Arc::new(Mutex::new(clock));
@@ -248,7 +259,6 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
         #[cfg(test)] upload_work: Mutex::new(None),
         #[cfg(test)] effect_wait: Mutex::new(None),
     });
-    let server = Server::http_with_limits((bind, port), tiny_http::ConnectionLimits::default()).map_err(|e| format!("cannot listen on {bind}:{port}: {e}"))?;
     let server = Arc::new(server);
     let address = server.server_addr();
     let mut worker = if dev { crate::dev_worker::DevWorker::start(&project, shared.clone(), format!("http://{address}"))? } else { None };
