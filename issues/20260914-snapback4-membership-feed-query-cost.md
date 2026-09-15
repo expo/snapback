@@ -1,6 +1,6 @@
 # Snapback 4: requalify and reduce membership-feed query cost
 
-Status: Open — fixed 0.2.15 scan-preparation candidate measured; large concurrent targets regress, candidate not adopted
+Status: Open — fixed 0.2.16 borrowed-text candidate measured; large continuation tails/throughput regress, candidate not adopted
 Priority: P1
 Systems: Snapback 4 online membership feeds, query execution
 Implementation owner: Snapback 4 core lead (LLP 3000 decision 4)
@@ -122,12 +122,37 @@ rotating C8 feed's median p50 rises 19.176 → 24.454 ms (+27.52%), p95 rises
 mixed; no causal attribution or new competitor comparison follows. All
 losses, control variation and RSS/HWM observations remain in the evidence.
 
+Fixed-source borrowed-text experiment, completed 2026-09-15 04:25:36 UTC:
+
+The 009de62842 baseline and candidate both use 0.2.16. The candidate removes
+one intermediate String copy in `Tx::scan_keys`, preserving SQL, typed
+results and the key-before-JSON error order. It passed 546 selected Rust
+tests, including three new differential cases, and all 117,000 ordinary HTTP
+calls, 7,020 warmups, 162 untimed walks / 33,510 pages and full auth,
+leave/regrant and cleanup checks. Both frozen calculators passed unchanged
+on their first formal execution; all values, losses/ties and memory reconcile.
+
+**This candidate is also not recommended for adoption.** Case-median p50
+splits 19 better / 19 worse / 1 tie; p95 splits 16 / 23. At 150 groups and
+C8, the next feed page moves 21.460 → 28.791 ms p50, 46.609 → 93.346 ms
+p95 and 333.4 → 206.2 requests/s. Its p95/p99/elapsed/rate worsen in every
+pair. First and rotating page medians improve in some metrics, but their
+paired results and tails are mixed. RSS after medians rise 520 KiB with
+mixed paired differences. Every loss and shared-VM/preparation limit remains
+in the benchmark record. Removing this copy did not solve the larger cost.
+
+Main reached 0.2.18 / 826108972 during the run. `scan_keys` itself is unchanged
+there, but read/cursor/schema/host behavior differs; this fixed-source A/B
+is not a current-release timing or a new competitor comparison.
+
 Next work:
 
 1. Target the remaining repeated indexed collections and row materialization,
    or establish the cause of the large concurrent losses with coarse/sampled
-   attribution. The rejected preparation patch and expensive diagnostic
-   shares must not be presented as a performance win.
+   attribution. Both rejected candidates and the expensive diagnostic
+   shares must not be presented as performance wins. Use coarse or sampled
+   attribution to separate SQL/row decoding from allocation and scheduling
+   before selecting another small materialization change.
 2. Keep core implementation with its owner. Live authority or result caching
    is not permitted. Preserve fresh transactions, membership/expiry checks,
    static dependency/probe accounting, all meters/cut/refusal order, typed
@@ -163,3 +188,65 @@ completion `4f5cf9ec…`, root summary `1668fa83…`, independent summary
 unchanged; all 1,404 run values, 468 medians, 234 median contrasts,
 702 paired contrasts and twelve memory snapshots reconcile. The six ledger
 objects preserve their full original formal records.
+
+The 0.2.16 borrowed-text A/B uses ignored-run prefix
+`membership-borrowed-scan-0216-v1-http-v1`: formal transfer `7d3ea92e…`,
+completion `e71e95fe…`, root summary `0a9cc815…`, independent summary
+`b5f05db8…`; six exact original formal records are appended to the ledger.
+
+
+## 2026-09-15 — current-source external stack diagnostic
+
+The unmodified 0.2.18 source `053a5b288…` completed four externally sampled
+150-group first/rotating-page loads at C1/C8. All 158,243 active responses,
+6,120 preparation/warmup responses and before/after logical/auth checks
+passed; all owned groups stopped. Independent call-tree analysis agrees with
+the root calculation. Request/query observation counts are 1,203/1,174,
+1,266/1,243, 11,353/11,194 and 11,387/11,289. Rotating-page cursor ancestry
+accounts for 308 and 2,974 request-subtree observations; kernel mutex waits
+are 0/0/4/4. These are overlapping sampled stacks, not CPU percentages,
+latency components or evidence that contention is absent.
+
+The next concrete experiment is reuse of a successfully decoded cursor
+within one lazy merge when later lanes present the identical token and
+descriptor. Initial validation before discovery, all expression evaluations,
+canonical encoding, scope/generation checks, meter charges and live row/rule
+reads must remain. An ignored candidate exists for review and qualification;
+no runtime adoption or speedup is claimed. This is distinct from the old
+rejected experiment that removed canonical re-encoding. The cursor and scan
+work remain open until ordinary unsampled HTTP results justify a change.
+
+Full scope and provenance are in the benchmark README's 0.2.18 stack section;
+independent review `9951d0ce…`, audit `3de9cebe…`, parser reconciliation
+`9db47dd9…`. No current comparator batch ran here.
+
+
+## 2026-09-15 — cursor-reuse HTTP gain, adoption still open
+
+The fixed 053a5b288 / 0.2.18 cursor-reuse experiment completed selected source
+qualification (368 candidate and eight baseline Rust passes; four full
+outcome/refusal equality cases) and three paired ordinary-fetch HTTP trials
+on Durand. All 117,000 timed calls, 7,020 excluded warmups, 162 untimed walks /
+33,510 pages and 24 physical fixture proofs pass, including acknowledged
+leave and same-session regrant. Independent recomputation agrees with every
+reported value, median, contrast and memory point; all owned groups stopped.
+
+All twelve feed-continuation cases improve median p50/p95/rate, and all 36
+paired p50s improve. The 150-group rotating feed at C8 falls 3.716→2.984 ms
+p50 and 4.376→3.247 ms p95, with rate 2,092.8→2,649.1 requests/s. This is
+promising evidence for retaining a validated cursor within one merge while
+preserving canonical validation, live authority and exact meter semantics.
+
+It is not yet an adoption recommendation. First-page p50/rate medians worsen
+at 150 groups, and continuation has eleven paired p99 losses. The 150-group
+next-page C8 trial-503 p99 rises 5.104→12.691 ms; five-group thread-first C8
+loses p99/max/rate in every pair. All losses and RSS points remain recorded.
+The fixed retained-symbol Darwin build is not a current-package or competitor
+comparison. A second-platform replication remains the next input; Office
+Linux storage must be planned before a build, with no evidence deletion or
+lowered disk precondition implied. No runtime change is adopted here.
+
+Full results and failure history are in the benchmark README's decoded-cursor
+section. Ignored-run prefix `membership-cursor-reuse-0218-http-v2` binds
+transfer `0af2f0db…`, independent summary `fdbf3550…`, and evidence review
+`c1a88176…`. The broader repeated-scan/materialization work remains open.

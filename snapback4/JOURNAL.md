@@ -16406,3 +16406,94 @@ lose the write (Chromium `navigation-immediate` 8 of 10 expected); a page the
 meter cuts before its tombstone lookups finish is `complete: false` and can
 show an event removed since the last purge. The pre-existing raw-reader
 rule-probe cut behaviour is unchanged.
+
+## 2026-09-15 — borrowed row-text A/B does not justify adoption
+
+The fixed 009de62842 / 0.2.16 experiment removes one temporary JSON String
+copy from the SQLite indexed-scan path. Its three new differential tests
+and 546 selected Rust test executions pass. All six ordinary HTTP runs pass
+117,000 timed calls, 7,020 excluded warmups, 162 untimed full walks / 33,510
+pages, full physical/auth/leave/regrant checks and owned-group cleanup.
+Both calculators were frozen before smoke timing, passed their first formal
+execution unchanged and reconcile every value, loss, tie and memory snapshot.
+
+This is a second measured candidate that is not recommended for adoption.
+Across 39 cases, median p50 is 19 better / 19 worse / 1 tie, and p95 is
+16 better / 23 worse. The 150-group next feed page at eight clients rises
+21.460 → 28.791 ms p50 and 46.609 → 93.346 ms p95; throughput falls
+333.4 → 206.2 requests/s. Its p95/p99/elapsed/rate worsen in all three
+pairs. Large first/rotating pages have some median gains, but mixed paired
+results and tails. RSS after-workload medians rise 520 KiB, with mixed
+paired differences. The existing benchmark record and six exact original
+ledger objects retain all 357 paired losses and the shared-VM, warm-input
+and untimed-resource limits. No core runtime change is landed.
+
+Main reached 0.2.18 / 826108972 during the measurement. The target scan_keys
+function is unchanged, but the newer read/cursor/schema/host behavior has
+not been timed by this fixed 0.2.16 A/B. The existing core-owner ticket stays
+open: address repeated indexed collections and row materialization with
+coarse or sampled attribution, preserving live authority, meters and exact
+results. This batch adds no current competitor or publication claim.
+
+
+## 2026-09-15 — membership request stacks on unchanged 0.2.18
+
+The performance lane sampled four 150-group first/rotating feed workloads
+at one/eight concurrent clients on Durand. Source `053a5b288…` retains the
+production settings and packaged SQLite flag, with function symbols kept.
+All 158,243 active and 6,120 preparation/warmup responses passed exact
+oracles; original logical/auth verification passed before and after. Four
+sample windows fit inside their loads, and all eleven owned groups stopped.
+
+Independent recomputation confirms query-engine ancestry for almost all
+request observations. Rotating pages show substantial cursor parsing/encoding
+ancestry (308/1,266 C1 and 2,974/11,387 C8 observations). These are overlapping
+stack observations, not CPU time or a new latency result. The benchmark
+README and storage record retain the complete scope and hashes; independent
+review `9951d0ce…` finds no material evidence/parser issue.
+
+Proposal for the core owner: retain the first validated cursor during one
+lazy merge and reuse its decoded values only for identical token/descriptor
+inputs. Keep initial validation before discovery, every expression and meter
+charge, canonical encoding, scope checks and current rule/row reads. The
+ignored experiment changes only read.rs plus two simulator regressions;
+compilation, qualification and ordinary HTTP comparison are still pending
+at this entry. No tracked core change is adopted by this performance lane.
+
+
+## 2026-09-15 — cursor reuse improves continuation, with tail tradeoffs
+
+The ignored fixed-0.2.18 candidate now has completed evidence: 368 candidate
+and eight baseline Rust passes, four exact full outcome/refusal equality
+cases, and three ordinary HTTP baseline/candidate pairs on Durand. Every
+117,000 timed response passed; 7,020 warmups and 162 complete walks / 33,510
+pages are excluded from timing. Full physical/auth/leave/same-session-regrant
+checks pass, and all 42 owned groups stopped with expected exits.
+
+Retaining the already validated cursor inside one eligible merge improves
+median p50/p95/rate in all twelve continuation cases. All 36 paired p50s
+improve. The 150-group rotating feed at eight clients falls 3.716→2.984 ms
+p50 and 4.376→3.247 ms p95, with rate 2,092.8→2,649.1 requests/s. Initial
+validation, canonical encoding, expressions, meter charges, scope/generation
+and live rules remain unchanged; the earlier re-encoding-removal experiment
+is still rejected.
+
+Tail/control losses remain material: 150-group first-page p50/rate medians
+worsen at C1/C8; next-page C8 trial 503 p99 rises 5.104→12.691 ms. Five-group
+thread-first C8 loses p99/max/elapsed/rate in all three pairs. The complete
+benchmark record preserves all 190 paired and 50 median losses across six
+metrics, plus twelve RSS points. Shared-host/cache effects are not isolated.
+
+Independent review c1a88176 finds no material custody/oracle issue. Both
+calculations agree on all reported values, medians, contrasts and resources.
+The original smoke analyzer's duplicate-log redaction mismatch and earlier
+unexecuted control revisions remain in the ignored evidence. No workload
+rerun or raw-data replacement was needed. Six original formal result objects
+are appended to storage.jsonl.
+
+This remains a core-owner proposal under LLP 3000 decision 4, not a tracked
+runtime adoption or publication. Before recommending it, replicate on a
+second platform and evaluate the first-page/tail tradeoff. The Office Linux
+preflight is idle but below the older builder's disk precondition; no Linux
+source transfer, build or measurement has begun. The competitor and broader
+common-workload goals remain open.

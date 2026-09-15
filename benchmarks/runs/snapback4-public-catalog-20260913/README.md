@@ -3012,3 +3012,290 @@ Supporting files use the ignored run prefix
 `membership-scan-preparation-0215-v2-http-v1`. The
 [core-owner follow-up](../../../issues/20260914-snapback4-membership-feed-query-cost.md)
 remains open; this landing changes evidence only.
+
+
+### Borrowed SQLite row text: fixed 0.2.16 A/B, trials 401–403
+
+**Do not adopt this candidate from the measured evidence.** Removing one
+intermediate JSON string copy does not establish an overall gain, and the
+150-group continuation feed at eight clients loses p95, p99, elapsed time
+and throughput in every matched pair. No candidate runtime is landed.
+
+Six serial runs on Office M1 Max / ARM Linux Colima (4 CPUs, 12 GiB)
+completed at **2026-09-15 04:25:36 UTC**. Both production binaries use
+`009de62842945ee86f4dec22d1d43705bfa21d74` (0.2.16), Rust 1.97.0,
+`-USQLITE_ENABLE_MEMORY_MANAGEMENT` with MEMSTATUS enabled, and pinned
+Node 24.21.0 / Undici 7.29.1 with the ordinary built-in fetch instrument.
+Baseline `9c6d0b8c…` and candidate `90aadbfc…` are each 8,736,272 bytes.
+Only `Tx::scan_keys` has a candidate runtime change: parse SQLite's borrowed
+TEXT into the same owned Value instead of first copying it into a String.
+The original SQL, bindings, key-before-JSON error order, owned return values,
+transactions, live authority, meters and cursor behavior are retained.
+
+The baseline passed 293 selected Rust test executions. The candidate passed
+546: core 72, language 120, CLI 104, simulator 79 and device-crate 171.
+All selected result groups report zero failed, ignored, measured or filtered;
+corpus-internal named exclusions remain separate. Three new differential
+tests cover typed rows, bounds/keys, malformed text and first-error order.
+This is selected source qualification, not a full workspace or physical-device
+claim. Test and production profiles are separate; both production artifacts
+were retained and rehashed after HTTP collection.
+
+Orders are B/C, C/B, B/C at trials 401–403. All **117,000 timed calls**,
+7,020 excluded warmups, and **162 untimed walks / 33,510 pages** passed.
+Each run verifies 501 groups, 100,000 messages and the 186→185→186 membership
+transition, exact ordered results, outsider/expired/foreign credentials,
+old cursors, acknowledged leave and regrant using the original sessions.
+All twelve clients exited zero; six owned servers stopped with their planned
+SIGTERM; all eighteen registered groups were absent before completion.
+The two 50-sample smokes are excluded from every formal statistic.
+
+Counts compare lower latency/elapsed or higher requests/s. Medians use three
+reported run statistics; request quantiles are not pooled.
+
+| Metric | Better / worse / tied medians (39) | Better / worse / tied pairs (117) |
+|---|---:|---:|
+| p50 | 19 / 19 / 1 | 60 / 56 / 1 |
+| p95 | 16 / 23 / 0 | 53 / 64 / 0 |
+| p99 | 20 / 19 / 0 | 58 / 59 / 0 |
+| Maximum | 20 / 19 / 0 | 59 / 58 / 0 |
+| Elapsed | 19 / 20 / 0 | 57 / 60 / 0 |
+| Requests/s | 19 / 20 / 0 | 57 / 60 / 0 |
+
+Selected medians are baseline → candidate, milliseconds except rate:
+
+| Case | p50 | p95 | p99 | Requests/s |
+|---|---:|---:|---:|---:|
+| 5 groups, next, C8 | 5.335 → 6.491 | 10.668 → 14.200 | 25.931 → 26.661 | 1301.9 → 1098.6 |
+| 30 groups, thread first, C1 | 1.570 → 2.807 | 2.248 → 7.227 | 2.520 → 14.032 | 566.1 → 283.4 |
+| 30 groups, rotating, C1 | 3.260 → 3.001 | 5.501 → 4.073 | 8.212 → 5.967 | 272.6 → 312.9 |
+| 150 groups, first, C1 | 6.186 → 6.451 | 8.086 → 11.957 | 10.416 → 19.466 | 155.8 → 131.1 |
+| 150 groups, rotating, C1 | 7.984 → 7.984 | 13.254 → 12.310 | 20.506 → 16.083 | 111.9 → 115.6 |
+| 150 groups, first, C8 | 19.951 → 18.539 | 40.712 → 35.913 | 54.556 → 44.084 | 369.4 → 394.3 |
+| 150 groups, next, C8 | 21.460 → 28.791 | 46.609 → 93.346 | 60.304 → 117.648 | 333.4 → 206.2 |
+| 150 groups, rotating, C8 | 25.185 → 23.806 | 51.060 → 50.874 | 66.864 → 75.534 | 289.6 → 306.6 |
+
+The large continuation's median p50 rises **34.16%**, p95 **100.27%** and
+throughput falls **38.15%**. Its three paired elapsed increases are 104.57%,
+15.00% and 40.63%; paired p95 increases are 100.27%, 65.04% and 65.78%.
+The large first page improves its median p50/p95/rate, but loses all three
+in the first pair; its p99 also rises 271.62% in that pair. The large rotating
+page's p50/rate medians improve 5.48%/5.87%, while p99 rises 12.97%.
+Largest observations are 201.672 ms baseline (trial 402) and 238.028 ms candidate (trial 401), both in `groups150FeedFirstC8`.
+Point and thread controls vary substantially too. All **357 paired losses**
+across six metrics remain in the summaries; no particular allocator, SQLite
+lock or scheduler cause is established by these timings.
+
+After-workload RSS medians are 29,704 → 30,224 KiB (+520 KiB); paired
+differences are −1,116, −388 and +2,188 KiB. Process-lifetime HWM medians
+are 37,696 → 37,376 KiB. These are untimed point observations, not continuous
+peaks or an isolated measure of the removed String allocation.
+
+The extra initial preflight wrongly required every `/target` server absent.
+That failed receipt is preserved. Historical and fresh identity observations
+reconcile five older fixture servers outside the established experiment
+scope. The corrected preflight kept that scope empty and port 4414 clear;
+none of those older servers was signalled. Their two short samples had no
+CPU-tick change, but a later sample added 6/6/6/7/6 ticks. This is a shared VM,
+not evidence of continuous inactivity or isolation. Full proofs/walks warm
+the cases; OS cache residency is unmeasured. There is no new comparator,
+write, durability, cold-cache, device-performance or published-artifact claim.
+
+Main reached 0.2.18 (`826108972…`) during this work. Its `scan_keys` function
+is byte-identical to the measured baseline, but store opening, read/cursor,
+schema and host/device behavior changed. The archived A/B remains bound to
+0.2.16; advancing the evidence worktree does not qualify the newer runtime.
+
+Both original calculators were frozen before smoke timing and passed their
+first formal execution unchanged. All 1,404 run values, 468 median values,
+234 median contrasts, 702 paired contrasts, twelve memory snapshots, and
+all losses/ties reconcile. Six appended ledger objects are the exact original
+formal records. The public transfer contains **137 files / 1,337,281 bytes**:
+transfer `7d3ea92e…`, completion `e71e95fe…`, root summary `0a9cc815…`,
+independent summary `b5f05db8…`. Supporting files use ignored-run prefix
+`membership-borrowed-scan-0216-v1-http-v1`. The existing
+[core-owner follow-up](../../../issues/20260914-snapback4-membership-feed-query-cost.md)
+remains open for the larger repeated-scan/materialization cost.
+
+
+### Unmodified 0.2.18 membership feed stack diagnostic
+
+Four external sampling runs completed on the shared Durand Apple M4 Pro at
+2026-09-15 05:34:31–05:36:29 UTC. Source is `053a5b288…` (0.2.18),
+retained native binary `93c2dc5c…`. The production profile retains function
+symbols with `strip=none`; Cargo reports `debuginfo:0`. The packaged SQLite
+flag, MEMSTATUS enabled, Node 24.21.0 and the original membership verifier
+remain pinned. This measures one fixed source and prepared fixture.
+
+All **158,243 active-load responses** and **6,120 preparation/warmup
+responses** passed exact viewer, completeness, ordered-row and continuation
+checks. The original five-reader logical feed/thread and credential checks
+passed before and after. The 150-group reader's first/rotating pages ran at
+one/eight concurrent clients, each for 25 seconds; every ten-second sample
+invocation stayed inside its active window. Ten verifier/loader/sampler
+children exited zero; the owned server exited -15. All eleven recorded
+groups are absent, with no cleanup or sanitization errors. No new
+leave/regrant, restart or physical-all-table proof ran.
+
+The following are inclusive unions of **request-subtree stack observations**.
+Categories overlap and cannot be added; they are not CPU time, call counts,
+latency or cache misses.
+
+| Case | Active responses | Request | Engine query | Store scan | SQLite step | Cursor | Kernel mutex wait |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| First page, C1 | 21,995 | 1,203 | 1,174 | 677 | 307 | 1 | 0 |
+| Rotating page, C1 | 16,765 | 1,266 | 1,243 | 555 | 242 | 308 | 0 |
+| First page, C8 | 65,553 | 11,353 | 11,194 | 5,163 | 1,706 | 3 | 4 |
+| Rotating page, C8 | 53,930 | 11,387 | 11,289 | 4,013 | 1,458 | 2,974 | 4 |
+
+Most request observations lie under the query engine. Rotating pages show
+cursor parsing/encoding ancestry; allocation/free and SQL index work also
+appear. Source inspection finds a successful initial cursor validation
+followed by bounds decoding for each expanded lazy-merge lane. This suggests
+an experiment retaining one decoded token during one request, while keeping
+canonical, descriptor, live-authority, scope, meter and result semantics.
+No such runtime change is adopted by this record. The earlier rejected
+canonical-re-encoding-removal experiment remains separate.
+
+Two independent call-tree implementations agree on all structural counts,
+scope unions, exclusive partitions, matched symbols and reported top frames.
+Every exclusive residual is nonnegative and the residual sum equals the
+thread-root sum. Wait-symbol lists are incomplete classifications; zero
+kernel-mutex observations cannot establish absence of contention. Inlining,
+unresolved symbols, shared-host activity and sampling affect attribution.
+No new unsampled speedup, comparator, current-release, device, write or
+durability result follows.
+
+The ignored run retains 49 public payload files / 36,196,185 bytes, all
+hash-verified, plus the transfer manifest. Private sessions, DB and raw logs
+were not transferred. The failed first collector parse/empty archive are
+preserved; the profile ran once. Transfer is `d1b5b811…`, final receipt
+`bb6c82f5…`, root analysis `dde31de2…`, independent audit `3de9cebe…`,
+parser reconciliation `9db47dd9…` and independent review `9951d0ce…`.
+
+
+### Decoded-cursor reuse: fixed 0.2.18 HTTP experiment
+
+Three alternating baseline/candidate pairs completed on shared Durand M4 Pro /
+native Darwin at 2026-09-15 06:47:46–06:49:30 UTC. This remains an ignored
+core-owner experiment, with no runtime adoption. Fixed source `053a5b288…`
+is version 0.2.18; retained baseline/candidate binaries are `93c2dc5c…` /
+`7b9c73d3…`. Both use production optimization with `strip=none`, the packaged
+SQLite flag and MEMSTATUS enabled. No sampler ran. Node 24.21.0 / Undici
+7.29.1 uses ordinary built-in fetch and the historical Darwin instrument
+`ebe5b64d…`, not the newer tracked instrument.
+
+The candidate retains the first successfully decoded cursor only within one
+eligible lazy merge. Reuse requires identical token, table, index, ordering
+and prefix width. Initial validation before discovery, canonical re-encoding,
+all expression evaluation and meter charges, scope/generation checks and
+live authority/row reads remain. The runtime overlay is one `read.rs` change;
+the second overlay supplies two simulator regressions. Selected qualification
+passed **368 candidate and eight baseline Rust tests**, with four full
+outcome/refusal objects equal. This was not a complete workspace or client
+qualification.
+
+Formal trials 501–503 run B/C, C/B, B/C: **117,000 timed requests**, 7,020
+excluded warmups and 162 untimed complete walks / 33,510 pages. All 234 case
+records have zero errors. Twenty-four full proofs agree on normalized records
+of all three app tables, including 186→185→186 memberships. Auth, tie order,
+cursor, acknowledged leave and same-session regrant checks pass; the original
+seven-day sessions are unchanged. Each run restores a fresh app/server/DB;
+leave and regrant use the same live server. All 42 owned child groups are
+absent with expected exits and no cleanup errors. The two 50-sample smoke
+runs are excluded. Neither batch was rerun.
+
+All **12 feed-continuation cases** have lower median p50/p95 and higher rate;
+p50 improves in all 36 matched pairs. For the 150-group rotating feed at C8,
+p50 falls **3.716→2.984 ms (19.70%)**, p95 **4.376→3.247 ms (25.80%)** and
+rate rises **2,092.8→2,649.1 requests/s (26.58%)**. Across all 39 cases,
+p50/p95/p99/max medians improve in 32/33/28/27; rate improves in 31. The
+p50 count has five losses and two ties. These are medians of three reported
+per-run statistics, not pooled quantiles or significance estimates.
+
+| Case | p50 ms, baseline → candidate | p95 ms | p99 ms | Maximum ms | Requests/s |
+|---|---:|---:|---:|---:|---:|
+| groups5PointHotC1 | 0.181 → 0.186 | 0.265 → 0.251 | 0.362 → 0.333 | 3.171 → 3.249 | 4832.5 → 4761.4 |
+| groups5PointWorkingSetC1 | 0.176 → 0.181 | 0.236 → 0.274 | 0.360 → 0.397 | 2.762 → 2.824 | 5256.6 → 4907.8 |
+| groups5ThreadFirstC1 | 0.273 → 0.272 | 0.384 → 0.389 | 0.483 → 0.473 | 1.930 → 3.309 | 3301.0 → 3225.4 |
+| groups5ThreadNextC1 | 0.277 → 0.274 | 0.369 → 0.337 | 0.443 → 0.432 | 2.973 → 2.751 | 3189.4 → 3317.1 |
+| groups5FeedFirstC1 | 0.322 → 0.317 | 0.371 → 0.389 | 0.479 → 0.517 | 3.438 → 2.832 | 2856.1 → 2904.8 |
+| groups5FeedNextC1 | 0.338 → 0.326 | 0.413 → 0.393 | 0.515 → 0.569 | 3.358 → 2.853 | 2741.1 → 2844.1 |
+| groups5FeedWorkingSetC1 | 0.344 → 0.330 | 0.451 → 0.420 | 0.582 → 0.542 | 3.165 → 3.660 | 2687.1 → 2833.0 |
+| groups5PointWorkingSetC8 | 0.417 → 0.401 | 0.932 → 0.851 | 3.736 → 3.281 | 4.000 → 3.408 | 14255.5 → 15729.5 |
+| groups5ThreadFirstC8 | 0.564 → 0.561 | 0.781 → 0.759 | 1.140 → 3.090 | 1.707 → 3.398 | 13283.3 → 12682.6 |
+| groups5ThreadNextC8 | 0.575 → 0.561 | 0.820 → 0.763 | 2.844 → 2.858 | 3.134 → 2.902 | 12526.0 → 13092.0 |
+| groups5FeedFirstC8 | 0.736 → 0.674 | 1.032 → 0.922 | 3.055 → 2.765 | 3.387 → 2.815 | 10416.0 → 10950.8 |
+| groups5FeedNextC8 | 0.846 → 0.684 | 1.131 → 0.947 | 3.062 → 3.083 | 3.250 → 3.217 | 9295.3 → 10649.1 |
+| groups5FeedWorkingSetC8 | 0.726 → 0.674 | 1.066 → 0.908 | 3.260 → 3.095 | 3.389 → 3.221 | 10110.9 → 10965.6 |
+| groups30PointHotC1 | 0.119 → 0.111 | 0.130 → 0.128 | 0.147 → 0.153 | 3.054 → 2.565 | 7914.6 → 8528.6 |
+| groups30PointWorkingSetC1 | 0.122 → 0.115 | 0.137 → 0.129 | 0.181 → 0.152 | 2.779 → 2.694 | 7850.3 → 8116.6 |
+| groups30ThreadFirstC1 | 0.210 → 0.206 | 0.232 → 0.227 | 0.302 → 0.282 | 3.601 → 2.340 | 4313.5 → 4530.5 |
+| groups30ThreadNextC1 | 0.222 → 0.218 | 0.285 → 0.279 | 0.352 → 0.350 | 2.286 → 3.267 | 4114.1 → 4145.6 |
+| groups30FeedFirstC1 | 0.398 → 0.398 | 0.429 → 0.418 | 0.469 → 0.438 | 2.921 → 3.220 | 2427.7 → 2449.2 |
+| groups30FeedNextC1 | 0.490 → 0.417 | 0.544 → 0.445 | 0.646 → 0.474 | 3.057 → 2.834 | 1981.6 → 2354.7 |
+| groups30FeedWorkingSetC1 | 0.514 → 0.444 | 0.580 → 0.478 | 0.634 → 0.530 | 3.043 → 2.967 | 1903.6 → 2184.7 |
+| groups30PointWorkingSetC8 | 0.344 → 0.343 | 0.424 → 0.416 | 2.507 → 3.731 | 2.585 → 3.781 | 20818.7 → 19959.6 |
+| groups30ThreadFirstC8 | 0.559 → 0.511 | 0.793 → 0.752 | 3.392 → 3.288 | 3.605 → 3.480 | 13008.1 → 13601.3 |
+| groups30ThreadNextC8 | 0.581 → 0.515 | 0.941 → 0.685 | 3.173 → 3.030 | 3.443 → 3.172 | 11817.4 → 13802.7 |
+| groups30FeedFirstC8 | 1.119 → 1.108 | 1.331 → 1.368 | 3.453 → 3.150 | 3.904 → 3.754 | 6763.1 → 6793.0 |
+| groups30FeedNextC8 | 1.337 → 1.129 | 1.525 → 1.344 | 1.678 → 3.400 | 1.985 → 3.860 | 5913.8 → 6725.4 |
+| groups30FeedWorkingSetC8 | 1.311 → 1.146 | 1.758 → 1.337 | 2.022 → 1.416 | 2.242 → 1.828 | 5742.3 → 6713.3 |
+| groups150PointHotC1 | 0.108 → 0.106 | 0.123 → 0.118 | 0.134 → 0.130 | 3.011 → 2.898 | 8850.5 → 8866.7 |
+| groups150PointWorkingSetC1 | 0.116 → 0.113 | 0.135 → 0.124 | 0.195 → 0.142 | 3.184 → 2.990 | 7969.5 → 8343.2 |
+| groups150ThreadFirstC1 | 0.203 → 0.203 | 0.223 → 0.222 | 0.297 → 0.283 | 3.039 → 2.820 | 4487.3 → 4571.6 |
+| groups150ThreadNextC1 | 0.211 → 0.209 | 0.226 → 0.223 | 0.246 → 0.239 | 2.833 → 2.403 | 4425.9 → 4490.9 |
+| groups150FeedFirstC1 | 1.126 → 1.156 | 1.190 → 1.301 | 1.221 → 1.369 | 2.989 → 1.437 | 881.1 → 857.9 |
+| groups150FeedNextC1 | 1.488 → 1.170 | 1.559 → 1.237 | 1.640 → 1.246 | 3.960 → 1.351 | 666.5 → 846.8 |
+| groups150FeedWorkingSetC1 | 1.587 → 1.268 | 1.666 → 1.367 | 1.686 → 1.499 | 1.904 → 3.347 | 627.2 → 776.3 |
+| groups150PointWorkingSetC8 | 0.345 → 0.347 | 0.417 → 0.420 | 2.696 → 2.555 | 2.795 → 2.632 | 20802.6 → 20760.3 |
+| groups150ThreadFirstC8 | 0.557 → 0.500 | 0.796 → 0.720 | 3.908 → 3.693 | 4.018 → 3.794 | 12483.3 → 13890.7 |
+| groups150ThreadNextC8 | 0.543 → 0.508 | 0.751 → 0.721 | 2.887 → 2.746 | 3.026 → 3.036 | 13282.9 → 14047.1 |
+| groups150FeedFirstC8 | 2.851 → 2.912 | 3.570 → 3.241 | 4.320 → 4.150 | 5.763 → 6.169 | 2692.2 → 2670.5 |
+| groups150FeedNextC8 | 3.656 → 2.944 | 4.356 → 3.520 | 5.104 → 5.191 | 6.203 → 5.959 | 2144.5 → 2588.5 |
+| groups150FeedWorkingSetC8 | 3.716 → 2.984 | 4.376 → 3.247 | 5.286 → 4.890 | 7.114 → 5.581 | 2092.8 → 2649.1 |
+
+The favorable medians do not erase tail and control-case losses. Feed
+continuation has 11 paired p99 and 13 paired maximum losses; p95 and rate
+each lose three pairs. In trial 503, 150-group next-page C8 p99 rises
+**5.104→12.691 ms** and maximum **5.996→12.812 ms**, even as p50/p95 improve.
+Thirty-group next-page C8 median p99 rises **1.678→3.400 ms**. Five-group
+thread-first C8 loses p99/max/elapsed/rate in all three pairs, with median
+p99 **1.140→3.090 ms**. The 150-group first-page median p50 rises
+**1.126→1.156 ms** at C1 and **2.851→2.912 ms** at C8; both rates fall.
+All 190 paired losses and 50 median losses across six correlated metrics
+remain in the summaries; these counts are not a combined success score.
+
+RSS before/after medians are 10,928/39,440 KiB baseline and 10,960/38,912 KiB
+candidate. One paired after snapshot rises 256 KiB. These twelve process
+points are not peak, residency, memory-pressure or isolated-allocation proof.
+Shared-host one-minute load observations range 13.96–18.91. Full walks and
+proofs warm the workload, OS caches were not reset, and background effects
+are not isolated. HTTP timers include text/JSON/projection but stop before
+the oracle; case rates include oracle/scheduling. No current-package,
+competitor, cold-cache, device, write-throughput or durability claim follows.
+
+Independent recomputation agrees with all 1,404 reported run values, 468
+medians, 234 median contrasts, 702 paired contrasts, losses/ties and twelve
+RSS points. The six appended storage-ledger objects preserve the original
+formal result values. Public originals contain **230 files / 492,099 bytes**;
+transfer `0af2f0db…`, completion `85a777d8…`, root analysis `a0395355…`,
+independent summary `fdbf3550…`, reconciliation `dd34e965…` and
+independent review `c1a88176…` bind this record. Supporting files live under
+ignored-run prefix `membership-cursor-reuse-0218-http-v2`.
+
+Failure history is retained: unexecuted V1 controls had port-probe and
+launcher-supervision findings; controller V2 and launcher V3 resolved them
+within three review rounds. After successful smoke, root analyzer V2 wrongly
+compared sanitized duplicate text logs with untouched raw JSON. Analyzer V3
+checks the exact redaction transform; only four smoke prose occurrences of
+“bearer credentials;” changed in duplicate logs. Formal has twelve such
+occurrences. Raw data and workload controls never changed. The independent
+calculator was frozen after that correction and successful smoke, before its
+first formal numerical access; its first formal execution passed unchanged.
+
+The existing [core-owner follow-up](../../../issues/20260914-snapback4-membership-feed-query-cost.md)
+stays open. A second-platform replication is the next adoption input; an
+Office ARM Linux preflight found the runner idle but only 8,362,958,848 bytes
+free on its target, below the older builder's 10 GiB precondition. No Linux
+source transfer, build or measurement has started for this candidate.
