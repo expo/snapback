@@ -6,7 +6,7 @@
 -- certifier keeps — rules, indexes, caps, `deliver`'s audience computation —
 -- is unchanged in meaning.
 
-use identity
+use identity -- This starter mints guests; an email-and-password product declares `use identity password`.
 use personas alice, bob, charlie
 
 action invite(email: text <=200)

@@ -199,9 +199,10 @@ pub fn prepare_signup(email: &str, password: &str) -> Result<PreparedSignup, Run
         return Err(RuntimeError::Auth("an email address is needed".into()));
     }
     password_bound(password)?;
-    if password.len() < 8 {
+    // The minimum counts Unicode scalar values; the maximum still bounds UTF-8 bytes.
+    if password.chars().count() < 8 {
         return Err(RuntimeError::Auth(
-            "a password needs at least 8 UTF-8 bytes".into(),
+            "a password needs at least 8 characters".into(),
         ));
     }
     Ok(PreparedSignup {
