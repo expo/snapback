@@ -1,6 +1,7 @@
 use super::*;
 #[path = "../../../snapback4-sim/tests/common/following.rs"]
 mod world;
+mod removal;
 
 #[test]
 fn following_scale_pages_match_on_both_device_stores() {

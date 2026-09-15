@@ -67,7 +67,20 @@ table posts:                       -- originals and attributed reposts, one sour
   immutable actorId, authorId, postId, repost, at, shared
   public 'original posts and attributed reposts are public'
   insert <- .actorId = viewer
+  delete <- .actorId = viewer
   online only
+
+table removedEvents:               -- compact tombstones for deleted public source events
+  eventId: posts
+  actorId: principal
+  unique byEvent: eventId
+  by byActor: actorId, id
+  immutable eventId, actorId
+  cap 1000 by actorId
+  cap 32000
+  public 'removal of a public source event is public; id is the eventId'
+  insert <- .actorId = viewer
+  sync public
 
 table feed:                        -- private inbox, with rendered columns
   readerId: principal
@@ -82,9 +95,11 @@ table feed:                        -- private inbox, with rendered columns
   unique byReaderTime: readerId, at, eventId
   by byReaderActor: readerId, actorId, id
   by byTime: at, eventId
+  by byEvent: eventId, id
   immutable readerId, eventId, actorId, at
   cap 1000 by readerId, actorId
   cap 50000 by readerId
+  cap 1001 by eventId
   read <- .readerId = viewer
   insert <- .actorId = viewer or .readerId = viewer
   delete <- .readerId = viewer
@@ -107,6 +122,7 @@ table broadcast:                   -- public celebrity events, stored once
   cap 32000
   public 'celebrity posts and reposts are public'
   insert <- .actorId = viewer
+  delete <- .actorId = viewer
   sync public
 
 fn copy(p: posts, readerId: principal, shared: bool):
@@ -157,6 +173,7 @@ fn deliver(p: posts):
   return null
 
 mutation createPost(postId: id, body: text <=500):
+  require not exists removedEvents[eventId = postId] else EVENT_REMOVED
   a = authors[viewer] ! else AUTHOR_NOT_FOUND
   p = insert posts { id: postId, postId, actorId: viewer, authorId: viewer, repost: false, body, at: now, shared: a.shared }
   deliver(p)
@@ -172,10 +189,42 @@ mutation repost(postId: posts):
   deliver(p)
   return { id: p.id }
 
+fn removeEvent(p: posts):
+  require p.actorId = viewer else NOT_AUTHOR
+  insert removedEvents { id: p.id, eventId: p.id, actorId: viewer }
+  if p.shared:
+    delete broadcast[viewer, p.id]
+  delete posts[p.id]
+  return null
+
+mutation deletePost(postId: posts):
+  p = posts[postId]
+  if p != null:
+    require not p.repost else ORIGINAL_REQUIRED
+    removeEvent(p)
+  return null
+
+mutation unrepost(postId: id):
+  p = posts[viewer, postId, true]
+  if p != null:
+    removeEvent(p)
+  return null
+
 query following(c: cursor ?):
-  return merge feed after c last 20 by byReaderTime:
+  page = merge feed after c last 20 by byReaderTime:
     [viewer]
     broadcast[p.authorId] for p in pulls[viewer] first 32 by byReaderAuthor
+  visible = []
+  for e in page:
+    visible = visible + [null if exists removedEvents[eventId = e.eventId] else e]
+  return visible
+
+job purgeRemoved():
+  chunk p in removedEvents first 1 by byId:
+    for e in feed[p.eventId] first 1001 by byEvent:
+      delete feed[e.id]
+    delete removedEvents[p.id]
+schedule purgeRemovedEvery every 1m: purgeRemoved
 ```
 
 Call `register` during profile creation. `follow` and `unfollow` are
@@ -191,21 +240,46 @@ its removed pull lane no longer reads them. Reposts carry the original
 body and author, with the reposter as actor, and repeated `repost` calls
 insert nothing twice.
 
-Source-event removal is not yet covered by this recipe. Deleting a `posts`
-row does not cascade to its private inbox copies or its broadcast entry.
-Pinning `.readerId` through the capped follower group passes admission,
-but an author's read of another reader's inbox still returns no rows;
-`delete feed[readerId, eventId]` also resolves through that read rule.
-Do not make the inbox public to work around this. A cleanup job runs as the
-system; an atomic author-run removal needs a separate delete-authority design.
+`deletePost` and `unrepost` delete the author's own public source event and
+broadcast entry, leaving a compact public tombstone with the same event ID.
+The immutable inbox `eventId` joins that tombstone on every Following read:
+removal is visible immediately on the server and on a device once it applies
+that commit, before private copies are purged. An offline device sees its
+last synced state. No private inbox or follow graph is additionally synced.
+These mutations, like `createPost` and `repost`, queue without prediction
+because their source reads are online-only. Repeating a removal is a no-op;
+re-reposting creates a fresh event ID and works before or after cleanup.
+Never reuse event IDs. A repost is an independent attributed snapshot;
+deleting the original does not delete someone else's repost event.
+
+Following checks at most 20 merged entries with at most 20 tombstone point
+reads and returns one row-or-null slot per entry. Render only non-null slots
+(`page.data.filter(row => row !== null)`); a removed slot contains no body.
+Keeping one slot per source entry preserves the merge's cursor. It assumes
+removals are rare: a rendered page may be short or empty with `complete: true`,
+meaning this source page was fully checked, not that 20 live entries were
+found. Continue through `next` even on an empty rendered page;
+the cursor advances over the source entries, including removed ones. A
+meter cut or incomplete input keeps `complete: false`; no refill loop
+spends an unbounded amount of work trying to fill a page.
+
+The minute schedule runs `purgeRemoved` as the system, one removed event
+per chunk. The event index and cap bound each chunk to 1,001 private copies
+(the 1,000-follower cap plus the author's own copy), including old pushed
+events acquired after promotion. Each chunk deletes every remaining copy
+and its tombstone in the same transaction, so no stale copy can reappear.
+Source deletion prevents concurrent follows from backfilling it; unfollow
+can only reduce the work. A refused chunk stays parked with its refusal.
+The removal mutation enqueues no job; the existing bounded schedule does.
 
 Limits: 1,000 follows per account, 1,000 source events per actor, 50,000
 private entries per reader, 32 pulled authors per reader and 32,000 public
-broadcast entries; reaching a cap refuses the write atomically, so archive
+broadcast entries, and 32,000 pending tombstones (1,000 per actor); reaching
+a cap refuses the write atomically, so archive
 or redesign before exceeding this envelope. A follow backfills 200 events,
 not an unlimited historical archive. Public broadcast rows reach every
-device; at the measured envelope that is 200 rows. No maintenance job or
-exact horizon maintenance is involved.
+device; at the measured envelope that is 200 rows, plus any pending removal
+tombstones. Cleanup is a bounded job; no exact horizon maintenance is involved.
 
 A merge lane may name another table (`broadcast[p.authorId]`); it must
 have the header table's columns and the same plain index. The first lane

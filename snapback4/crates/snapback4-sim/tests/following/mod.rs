@@ -2,6 +2,7 @@ use snapback4_core::{Context, Engine, Value, WriteState};
 use std::collections::BTreeMap;
 #[path = "../common/following.rs"]
 mod world;
+mod removal;
 
 #[test]
 #[ignore = "design comparison: run explicitly with --ignored --nocapture"]
@@ -160,6 +161,16 @@ fn following_removes_source_events_at_the_envelope() {
     for (actor, event) in [(700, "p0700-0049"), (999, "p0999-0199")] {
         let write = world::mutate(&mut engine, "deletePost", &world::who(actor), &[("postId", world::id(event))], 300_000);
         println!("REMOVE actor={actor} examined={} index={} written={}", write.metered.examined, write.metered.index_entries, write.metered.rows_written);
+        let readers = std::iter::once(actor).chain(world::graph().into_iter().filter(|(_, a)| *a == actor).map(|(r, _)| r));
+        for reader in readers {
+            let page = engine.query("following", Context::new(world::who(reader), BTreeMap::new()).at(300_001)).unwrap();
+            assert!(page.complete);
+            assert!(!page.data.as_array().unwrap().iter().any(|row| row.field("eventId") == Ok(&world::id(event))));
+        }
+        assert_eq!(engine.store().rows("removedEvents").unwrap().len(), 1);
+        let run = engine.run_job("purgeRemoved", BTreeMap::new(), 300_002).unwrap();
+        assert_eq!(run.state, snapback4_core::JobState::Done, "{run:?}");
+        println!("PURGE scale actor={actor} chunks={} written={}", run.chunks, run.rows_written);
         for table in ["feed", "broadcast"] {
             assert!(!engine.store().rows(table).unwrap().iter().any(|row| row.field("eventId").unwrap() == &world::id(event)), "{table} retains {event}");
         }
