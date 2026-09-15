@@ -3,6 +3,8 @@ use super::*;
 mod world;
 mod removal;
 mod app;
+mod privacy;
+mod saturation;
 
 #[test]
 fn following_scale_pages_match_on_both_device_stores() {
@@ -15,6 +17,8 @@ fn following_scale_pages_match_on_both_device_stores() {
         let start = std::time::Instant::now();
         let snapshot = snapshot_pages(&mut engine, &viewer, 1000);
         let cold = snapshot.iter().map(|p| p.events.len()).sum::<usize>();
+        assert_eq!(cold, match n { 0 => 52665, 1 => 52715, 2 => 52915, 3 => 77665, 4 => 52866, _ => 52615 });
+        assert!(snapshot.iter().flat_map(|p| &p.events).filter(|e| e.table == "pulls").all(|e| e.data.as_ref().unwrap()["readerId"] == viewer));
         println!("DEVICE cold reader={n} rows={cold} snapshot_ms={:.3}", start.elapsed().as_secs_f64() * 1000.0);
         let mut expected = Vec::new();
         let mut cursor = None;

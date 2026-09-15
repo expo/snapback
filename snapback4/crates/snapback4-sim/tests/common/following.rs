@@ -9,6 +9,17 @@ pub fn who(n: usize) -> String { format!("dev:u{n:04}") }
 pub fn args(pairs: &[(&str, Value)]) -> BTreeMap<String, Value> { pairs.iter().map(|(k, v)| ((*k).into(), v.clone())).collect() }
 pub fn source() -> String { snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).remove(0) }
 
+pub fn with_pull_counts(mut rows: Vec<(String, Value)>) -> Vec<(String, Value)> {
+    let mut counts = BTreeMap::<String, i64>::new();
+    for (table, row) in &rows {
+        if table == "pulls" { *counts.entry(row.field("readerId").unwrap().as_str().unwrap().into()).or_default() += 1; }
+    }
+    rows.extend(counts.into_iter().map(|(reader, used)| ("pullCounts".into(), object([
+        ("id", id(&format!("count-{reader}"))), ("readerId", id(&reader)), ("used", Value::Int(used)),
+    ]))));
+    rows
+}
+
 pub fn compiled(source: &str) -> snapback4_lang::Bound {
     let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
@@ -68,7 +79,7 @@ pub fn seed(engine: &mut Engine, mode: &str) {
     let mut loading = schema.clone();
     for table in loading.tables.values_mut() { table.constraints.retain(|c| !matches!(c, snapback4_core::schema::Constraint::Cap { .. })); }
     engine.adopt(loading, programs.clone()).unwrap();
-    engine.seed(rows).unwrap();
+    engine.seed(with_pull_counts(rows)).unwrap();
     engine.adopt(schema, programs).unwrap();
 }
 

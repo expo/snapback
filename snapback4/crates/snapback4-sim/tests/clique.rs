@@ -1358,12 +1358,13 @@ fn development_advances_preserve_remaining_effect_lease_time_and_overdue_claims(
 fn w6r1_wired_following_privacy_tombstones_and_broadcast() { following_app::review_server_scenario(); }
 
 #[test]
-fn w7a_wired_writes_are_prediction_eligible() {
+fn w7a_wired_writes_respect_the_private_routing_prediction_boundary() {
     let bound = following_app::built();
-    for op in ["saveProfile", "createPost", "follow"] {
+    for op in ["saveProfile", "createPost"] {
         let fact = &bound.schema.operations[&format!("social.{op}")];
         assert_eq!(fact.predicts.as_deref(), Some("eligible"), "{op}: {fact:?}");
     }
+    for op in ["follow", "unfollow"] { assert_eq!(bound.schema.operations[&format!("social.{op}")].predicts.as_deref(), Some("never")); }
 }
 
 #[test]
@@ -1373,6 +1374,7 @@ fn w7a_promotion_skips_a_saturated_follower() {
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     following_app::mutate(&mut engine, "register", "author", &[], 1);
     engine.seed((0..32).map(|n| ("feedPulls".into(), object([("id", id(&format!("pull{n}"))), ("readerId", id("reader00")), ("authorId", id(&format!("shared{n}")))]))).collect::<Vec<_>>()).unwrap();
+    engine.seed([("feedPullCounts".into(), object([("id", id("count-reader00")), ("readerId", id("reader00")), ("used", Value::Int(32))]))]).unwrap();
     for n in 0..51 { following_app::mutate(&mut engine, "follow", &format!("reader{n:02}"), &[("authorId", id("author"))], 2); }
     assert_eq!(engine.store().rows("feedAuthors").unwrap()[0].field("shared").unwrap(), &Value::Bool(true));
     assert_eq!(engine.store().rows("feedPulls").unwrap().iter().filter(|r| r.field("readerId") == Ok(&id("reader00"))).count(), 32);
@@ -1396,6 +1398,7 @@ fn w7a_saturated_author_keeps_own_posts_and_ghost_reposts_refuse() {
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     following_app::mutate(&mut engine, "register", "author", &[], 1);
     engine.seed((0..32).map(|n| ("feedPulls".into(), object([("id", id(&format!("pull{n}"))), ("readerId", id("author")), ("authorId", id(&format!("shared{n}")))])))).unwrap();
+    engine.seed([("feedPullCounts".into(), object([("id", id("count-author")), ("readerId", id("author")), ("used", Value::Int(32))]))]).unwrap();
     for n in 0..51 { following_app::mutate(&mut engine, "follow", &format!("reader{n:02}"), &[("authorId", id("author"))], 2); }
     following_app::mutate(&mut engine, "createPost", "author", &[("postId", id("real")), ("body", Value::String("real app post".into()))], 3);
     assert_eq!(following_app::query(&mut engine, "author").data.as_array().unwrap().len(), 1);

@@ -490,5 +490,5 @@ fn w7a_residency_measures_the_wired_500_follow_reader() {
     assert!(output.contains("dev:reader500 feedFeed: 527 rows"), "{output}");
     assert!(output.contains("dev:reader500 feedAuthors: 502 rows"), "{output}");
     assert!(output.contains("dev:reader500 feedPosts: 528 rows"), "{output}");
-    assert!(output.contains("social.saveProfile: predicts") && output.contains("social.createPost: predicts") && output.contains("social.follow: predicts"), "{output}");
+    assert!(output.contains("social.saveProfile: predicts: eligible") && output.contains("social.createPost: predicts: eligible") && output.contains("social.follow: predicts: never; queued without a row"), "{output}");
 }

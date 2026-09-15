@@ -11,6 +11,9 @@ import { api } from "../snapback/generated/api";
 // helpers in ONE mutation. With --prefix, only the query wrapper is generated;
 // all recipe mutations are fn helpers, called only by the app mutations.
 // Backfill existing authors, events and edges before switching Following.
+// Pull routes stay reader-private. Follow/unfollow queue without predicted
+// rows because slot counts are online-only; profile saves and post creation
+// can predict after their declared public metadata and app cards are acquired.
 // With --prefix feed, helpers include feedRegister/feedDeliver/feedAddFollow/feedDropFollow;
 // the module stays feed.q. With that prefix, the Quarry seams are:
 //   a = feedAuthors[viewer] ! else AUTHOR_NOT_FOUND

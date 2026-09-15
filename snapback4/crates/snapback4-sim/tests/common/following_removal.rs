@@ -27,7 +27,7 @@ pub fn seed(engine: &mut Engine, followers: usize) {
     for viewer in std::iter::once(AUTHOR.to_owned()).chain((0..followers).map(reader)) {
         rows.push(("feed".into(), object([("id", id(&format!("inbox-{viewer}"))), ("eventId", id("old-pushed")), ("readerId", id(&viewer)), ("actorId", id(AUTHOR)), ("authorId", id(AUTHOR)), ("postId", id("old-pushed")), ("repost", Value::Bool(false)), ("at", Value::Int(1))])));
     }
-    engine.seed(rows).unwrap();
+    engine.seed(super::world::with_pull_counts(rows)).unwrap();
     for (op, input, at) in [
         ("createPost", args(&[("postId", id("new-post"))]), 2),
         ("repost", args(&[("postId", id(ORIGINAL))]), 3),

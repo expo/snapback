@@ -14,6 +14,7 @@ fn wired<H: crate::common::Host>(mut host: H) {
     for (viewer, count) in app::READERS {
         let pages = snapshot_pages(&mut engine, viewer, 1_000);
         let cold = pages.iter().map(|p| p.events.len()).sum::<usize>();
+        let cold_bytes = pages.iter().flat_map(|p| &p.events).filter_map(|e| e.data.as_ref()).map(|row| serde_json::to_vec(row).unwrap().len()).sum::<usize>();
         let mut device = host.open(viewer, Some(backend.clone())).unwrap();
         for (n, page) in pages.iter().enumerate() { device.apply(page, n == 0).unwrap(); }
         let (first, p95) = app::measure(label, count, || device.query("social.following", viewer, &serde_json::json!({}), 100_000).unwrap());
@@ -24,7 +25,7 @@ fn wired<H: crate::common::Host>(mut host: H) {
         let next = device.query("social.following", viewer, &next_args, 100_000).unwrap();
         let online = engine.query("social.following", app::context(viewer, &[("c", Value::String(next_args["c"].as_str().unwrap().into()))])).unwrap();
         assert_eq!((next.data, next.complete, next.next), (online.data, online.complete, online.next));
-        println!("W6a host={label} follows={count} cold_rows={cold}");
+        println!("W6a host={label} follows={count} cold_rows={cold} cold_bytes={cold_bytes}");
         measured.push((first.metered.examined, p95));
         devices.push((viewer, device));
     }
@@ -78,7 +79,7 @@ fn w6r1_wired_cards_respect_rules_and_horizons_on_both_stores() {
 }
 
 #[test]
-fn w7a_wired_mutations_predict_offline_on_both_stores() {
+fn w7a_wired_mutations_predict_or_queue_offline_on_both_stores() {
     fn run<H: crate::common::Host>(mut host: H) {
         let bound = app::built();
         let mut engine = snapback4_core::Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
@@ -93,11 +94,21 @@ fn w7a_wired_mutations_predict_offline_on_both_stores() {
             ("follow", serde_json::json!({"authorId":"alice"}), "follows"),
         ].into_iter().enumerate() {
             let now = 10 + n as i64;
-            let prediction = device.predict(&format!("social.{op}"), "bob", &args, now, vec![], 10 + n as u64).unwrap();
-            assert!(prediction.predicted.iter().any(|key| key.starts_with(&format!("{table}/"))), "{op}: {prediction:?}");
+            let prediction = device.admit(serde_json::from_value(serde_json::json!({
+                "id":format!("offline-{op}"), "seq":10 + n, "op":format!("social.{op}"),
+                "viewer":"bob", "args":args, "now":now, "predictable":true,
+            })).unwrap()).unwrap();
+            if op == "follow" {
+                assert!(prediction.predicted.is_empty() && !prediction.predictable, "{prediction:?}");
+            } else {
+                assert!(prediction.predicted.iter().any(|key| key.starts_with(&format!("{table}/"))), "{op}: {prediction:?}");
+            }
             println!("W7a host={} op={op} predicted_rows={}", host.label(), prediction.predicted.len());
             let input = args.as_object().unwrap().iter().map(|(k, v)| (k.as_str(), if k == "body" || k == "name" { Value::String(v.as_str().unwrap().into()) } else { app::id(v.as_str().unwrap()) })).collect::<Vec<_>>();
+            let before = engine.seq().unwrap();
             app::mutate(&mut engine, op, "bob", &input, now);
+            device.settle(&prediction.id, Some(engine.seq().unwrap())).unwrap();
+            device.apply(&stream_page(&mut engine, "bob", before), false).unwrap();
         }
         let local = device.query("social.following", "bob", &serde_json::json!({}), 100).unwrap();
         assert!(local.complete, "{local:?}");
