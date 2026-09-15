@@ -1,0 +1,393 @@
+{
+  "observedAt": "2026-09-15T03:10:21.298804+00:00",
+  "checks": {
+    "instrument": {
+      "files": 177,
+      "bytes": 16243769,
+      "matchesFrozenManifest": true,
+      "noWritableEntries": true
+    },
+    "templates": {
+      "prompts/grade.template.md": "2021a6292d3f4b9a4313d5daf1af27fbe129f6a0978334a21c9de8e619adb88a",
+      "prompts/holistic.template.md": "5fa1a22a21ca614544fad4fdd81e6300f9b355d39a4be7e79afdabd0e7c5d4f3",
+      "prompts/m7.template.md": "af72982e03b62771e774d98c0b2e6c5eb0fad8baaed1ccb97e4905311405f712",
+      "prompts/score.previous.template.md": "cb93bdd7b7907419b5aa2b243cc34cde07deb2a91055e33d84d32824e38f52ce",
+      "prompts/template.md": "10a7006f2145b3fed7ce1d736e73b4a3fcbc8ddeb88354a81a052ea169b843f6"
+    },
+    "pins": {
+      "bytes": 75,
+      "sha256": "ad2e75038e36faa24ca51878201878c4b108184a94674f701d49148dd02bdd0f"
+    },
+    "phases": [
+      {
+        "lane": "astra",
+        "phase": "builder",
+        "actualExit": 0,
+        "wallSeconds": 8018.002,
+        "start": {
+          "bytes": 1128,
+          "sha256": "0bddde7642aab92f1945ca242a502b120da312cfd14badb6c8baa88480849016"
+        },
+        "end": {
+          "bytes": 373,
+          "sha256": "dcb4002cfae0c4899609576303799fa7e8cea1f192ec33aba281a5df321c8177"
+        },
+        "rawStreamsHashOnly": {
+          "stdout": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/astra-snapback4.ndjson",
+            "bytes": 1856863,
+            "sha256": "71685b871f90e555583f35881604e238659c1f95ac861bb3a621222787efbf71"
+          },
+          "stderr": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/astra-snapback4.stderr.log",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      },
+      {
+        "lane": "astra",
+        "phase": "score",
+        "actualExit": 0,
+        "wallSeconds": 140.434,
+        "start": {
+          "bytes": 1022,
+          "sha256": "9c03414500922bbb984aeb143866add36035044c62f57a9d74b84cdaa68bfad5"
+        },
+        "end": {
+          "bytes": 352,
+          "sha256": "bd2bf49afbd17f90141c37778a21ca716b2164327498469fe226617ca92a2709"
+        },
+        "rawStreamsHashOnly": {
+          "stdout": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scores/astra/raw.out",
+            "bytes": 6082,
+            "sha256": "728e93c6c70f84aac5f16e7c2fdd01a07da1c46b2836678cb9e34b0822d8a375"
+          },
+          "stderr": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scores/astra/raw.err",
+            "bytes": 12407,
+            "sha256": "9096e1ce52488bc9ffb335c6b5238e8959c7f84245cc0a98f2fd9f0b6e8f6e50"
+          }
+        }
+      },
+      {
+        "lane": "astra",
+        "phase": "grade",
+        "actualExit": 0,
+        "wallSeconds": 2596.349,
+        "start": {
+          "bytes": 978,
+          "sha256": "87b16778de32eb57b2d143380460a203b2edc919d719cbbb841868c800a80649"
+        },
+        "end": {
+          "bytes": 383,
+          "sha256": "9979c378182b18797a74c65050cde5f9c48808cce39d06dff720c0d2efa1cb76"
+        },
+        "rawStreamsHashOnly": {
+          "stdout": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/astra-snapback4.grade.ndjson",
+            "bytes": 2578510,
+            "sha256": "6f685cd6a3869a6888c0cd156f89640d2215b093de58c4006ae2364f760a4b6a"
+          },
+          "stderr": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/astra-snapback4.grade.stderr.log",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      },
+      {
+        "lane": "astra",
+        "phase": "m7",
+        "actualExit": 0,
+        "wallSeconds": 2870.258,
+        "start": {
+          "bytes": 1135,
+          "sha256": "8a631f9043e2fc22958be1ebb355fa30d3cf781ffa8cbf7b5a8546cae3e1700c"
+        },
+        "end": {
+          "bytes": 374,
+          "sha256": "b6b90e3b35cd68b56951075ad638148e4c80f9699a9912268e8cdd74810a0e7d"
+        },
+        "rawStreamsHashOnly": {
+          "stdout": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/astra-snapback4.m7.ndjson",
+            "bytes": 588503,
+            "sha256": "0315729aa525e87222f7aba82e4f6731d5b8f4fc7bbdc6f7fdccb2b9547eb066"
+          },
+          "stderr": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/astra-snapback4.m7.stderr.log",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      },
+      {
+        "lane": "grok",
+        "phase": "builder",
+        "actualExit": 0,
+        "wallSeconds": 11928.612,
+        "start": {
+          "bytes": 1099,
+          "sha256": "42f00cc21f66fd6f2816ee0f1d900794eed33f68c4025b91a5f1f485baffbf01"
+        },
+        "end": {
+          "bytes": 371,
+          "sha256": "fa742edd630087be25ace55c85a9f393c9c727744a5db6cfbde4c33133b5b26a"
+        },
+        "rawStreamsHashOnly": {
+          "stdout": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.ndjson",
+            "bytes": 15605004,
+            "sha256": "6cdb2051322198bfda88c097eb7947fe533000ad525b7d870426c9061fbcf425"
+          },
+          "stderr": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.stderr.log",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      },
+      {
+        "lane": "grok",
+        "phase": "score",
+        "actualExit": 0,
+        "wallSeconds": 407.165,
+        "start": {
+          "bytes": 1054,
+          "sha256": "9ad800fdde67df3ac4c3f17fe208c58513a6f71c81ef7bc18c1a108864e7d0e5"
+        },
+        "end": {
+          "bytes": 349,
+          "sha256": "46e5d7d6bc3c576437b55d5c92f59660baed60240a045cd8d091f391f71b8e3b"
+        },
+        "rawStreamsHashOnly": {
+          "stdout": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scores/grok/raw.out",
+            "bytes": 5344,
+            "sha256": "9d4d500ff725dd4dc779974082a05f2ebf5bda0811654c247f57f76a2323a265"
+          },
+          "stderr": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scores/grok/raw.err",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      },
+      {
+        "lane": "grok",
+        "phase": "grade",
+        "actualExit": 0,
+        "wallSeconds": 2184.473,
+        "start": {
+          "bytes": 973,
+          "sha256": "022461ad506731186429a39368490ae67979b792797e9f76926ef09bdf6f9e7a"
+        },
+        "end": {
+          "bytes": 380,
+          "sha256": "1df6c1f27b987ab7c4e7761a569f973bbe8929930fed7588c89aafaeaefe0b6b"
+        },
+        "rawStreamsHashOnly": {
+          "stdout": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.grade.ndjson",
+            "bytes": 2505562,
+            "sha256": "d7ba8cf1edfe09a3fe4d57b1133a429d45088c8bdb160f7c97e851717375595b"
+          },
+          "stderr": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.grade.stderr.log",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      },
+      {
+        "lane": "grok",
+        "phase": "m7",
+        "actualExit": 0,
+        "wallSeconds": 1667.198,
+        "start": {
+          "bytes": 1106,
+          "sha256": "719f4a4c71f10c666aa87daf4b9d2df8834d12c3c969d1579f5faac95c687285"
+        },
+        "end": {
+          "bytes": 371,
+          "sha256": "66f1d5bd2f4c3c11a1409839a82fb692c673b84a45a56fb724bbcd5f5e479778"
+        },
+        "rawStreamsHashOnly": {
+          "stdout": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.m7.ndjson",
+            "bytes": 4271512,
+            "sha256": "9e9cb55ae1c681c5f0be5fa91ef9ae2660be6d6efec810c599c81d9dc24f374d"
+          },
+          "stderr": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.m7.stderr.log",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      },
+      {
+        "lane": "muse",
+        "phase": "builder",
+        "actualExit": 130,
+        "wallSeconds": 20039.027,
+        "start": {
+          "bytes": 1132,
+          "sha256": "1615f85e9a1c24bb9bb96063cde9d6d929f94eb3f23e4539311bb5b3d4389f18"
+        },
+        "end": {
+          "bytes": 373,
+          "sha256": "f7350ce568c0d436c6c97e235288a0fc836a523224e483599bb398dff1c28ea5"
+        },
+        "rawStreamsHashOnly": {
+          "stdout": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/muse-snapback4.ndjson",
+            "bytes": 26312916,
+            "sha256": "c8a0c70bf14c6d82fb9f805ae635070d1951d27949874c6f8b67d7ffbec54f92"
+          },
+          "stderr": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/muse-snapback4.stderr.log",
+            "bytes": 497,
+            "sha256": "ec2f963505489179640ea8e49b70eecdf596a5f4285423d332b899a8c361e931"
+          }
+        }
+      },
+      {
+        "lane": "muse",
+        "phase": "score",
+        "actualExit": 0,
+        "wallSeconds": 75.485,
+        "start": {
+          "bytes": 1081,
+          "sha256": "a4d0603fc7e91b007b3c483a5a8dda5bf505852d0e73abf130709b31f8c24a00"
+        },
+        "end": {
+          "bytes": 348,
+          "sha256": "631e972cc3be4e4b21f0918899a8e3631d4f7312865724ad895a655644bb3e40"
+        },
+        "rawStreamsHashOnly": {
+          "stdout": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scores/muse/raw.out",
+            "bytes": 576009,
+            "sha256": "6602ca3c7f1f420a52bbce69be17fa1b6356b467cbd0740e8cbd08b4e5547d00"
+          },
+          "stderr": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scores/muse/raw.err",
+            "bytes": 438,
+            "sha256": "a3a0f1fd9bee9770efa3c56a15be65c6c6e3116df3c9fa11903da088fa48d3d7"
+          }
+        }
+      },
+      {
+        "lane": "muse",
+        "phase": "grade",
+        "actualExit": 0,
+        "wallSeconds": 2591.524,
+        "start": {
+          "bytes": 973,
+          "sha256": "93a1cfe08da00848c5906cde92f29bbf254542ea2b3cc553dbdd66199a61eac7"
+        },
+        "end": {
+          "bytes": 380,
+          "sha256": "3ed363e9081c2830f12b72d664ab862f3210e16d4d6fff4f60b7fb7b91649a9d"
+        },
+        "rawStreamsHashOnly": {
+          "stdout": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/muse-snapback4.grade.ndjson",
+            "bytes": 2592353,
+            "sha256": "a04295777fac1ce632dea8c0663195d52f45708815042b101ec65edd22590ff6"
+          },
+          "stderr": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/muse-snapback4.grade.stderr.log",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      },
+      {
+        "lane": "muse",
+        "phase": "m7",
+        "actualExit": 0,
+        "wallSeconds": 895.247,
+        "start": {
+          "bytes": 1138,
+          "sha256": "91f7ae705cf155b33ee33ceda8b2d70f8a87a1da41603d18862d2e9e5de4ccef"
+        },
+        "end": {
+          "bytes": 369,
+          "sha256": "42ae9a9c6619c5d007b8af42bf959d7bc340db98a01cb812463d6eed3964ffa5"
+        },
+        "rawStreamsHashOnly": {
+          "stdout": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/muse-snapback4.m7.ndjson",
+            "bytes": 3486736,
+            "sha256": "c90a906124bebd62891e4bf70d53731d36d6e48394058812e73dcc5b13942be8"
+          },
+          "stderr": {
+            "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/muse-snapback4.m7.stderr.log",
+            "bytes": 459,
+            "sha256": "8e9cebfa56fa049bdbd77ace788cc78a34bf020527bcf6ad5a07d5c8b3f0aff7"
+          }
+        }
+      }
+    ],
+    "renderedPromptsAtObservation": {
+      "prompts/astra-snapback4.md": {
+        "bytes": 6182,
+        "sha256": "606d8e2903e35aa3387589c023ccd2a73bd699680fdfc89c221e72408a84033d"
+      },
+      "prompts/astra-snapback4.score.md": {
+        "bytes": 5052,
+        "sha256": "650475fffd2b32c75392508a42d9a8d09677118d617dbadde2e86b6751c0321a"
+      },
+      "prompts/astra-snapback4.grade.md": {
+        "bytes": 6665,
+        "sha256": "5d08859ffbb075bc6a222c0dc6315734d9709167b9b76351eada53c63d2967bb"
+      },
+      "prompts/astra-snapback4.m7.md": {
+        "bytes": 5022,
+        "sha256": "a6a9274a4c24266598f8788269e4200f895c236ee27b5143c948ca15618fbad3"
+      },
+      "prompts/grok-snapback4.md": {
+        "bytes": 6176,
+        "sha256": "ea7d406d24460e32fa628e519f3d98a0ebcfe23c7096ba177c43068eff0dbcfa"
+      },
+      "prompts/grok-snapback4.score.md": {
+        "bytes": 5044,
+        "sha256": "86d915c6118b0f0ba921279ed0bfff5ec6b321a39bfd9ece1546279dd07631eb"
+      },
+      "prompts/grok-snapback4.grade.md": {
+        "bytes": 6654,
+        "sha256": "ef1c3c23c84dd1150371e6853263e027455f020ac0b8d330666a0bf0128b0a56"
+      },
+      "prompts/grok-snapback4.m7.md": {
+        "bytes": 5016,
+        "sha256": "adec3c8f6964ac9348f65a0d345852aa22c61eaa50fd193be747d538e4b6172d"
+      },
+      "prompts/muse-snapback4.md": {
+        "bytes": 6182,
+        "sha256": "8d7b0485f304e2490f1a5f54ed1b6a663bf2605710aeb2d84d44f3e951b76585"
+      },
+      "prompts/muse-snapback4.score.md": {
+        "bytes": 5056,
+        "sha256": "3eb2f33f2a7ab36268f305f2248bb42c75cfef4c7afef8fc60f07663929cfafc"
+      },
+      "prompts/muse-snapback4.grade.md": {
+        "bytes": 6654,
+        "sha256": "15566522dc81577a76bf9d9089f95fa8550d340e7fe8fbae16dc04a2a1c91ea3"
+      },
+      "prompts/muse-snapback4.m7.md": {
+        "bytes": 5022,
+        "sha256": "fe5454d2d340184fcfecca1a51011dbd085f6712b9fe567d7ea32965960be572"
+      }
+    },
+    "copyManifests": {
+      "entriesChecked": 1029,
+      "uniqueDestinations": 982,
+      "allMatch": true
+    }
+  },
+  "capturingToolSha256": "ff66349b146c68116f20646addeea2327c34f926272dab9554e282ecd273c79a",
+  "limits": "Read-only completed-file observation. Lifecycle exits remain actual, including nonzero outcomes; file presence does not mean green. Prompt pins and final hashes are checked, not continuous rendered-prompt identity. Frozen instrument/template manifests are compared in full. Copy manifests identify actual selected archive destinations, including explicitly redacted source. This does not rerun apps, grade semantics, certify complete process teardown, scan credentials or replace the scoped ref-check."
+}

@@ -1,0 +1,34 @@
+{
+  "observedAt": "2026-09-14T22:34:50.802898+00:00",
+  "method": "One final JSON fence ending the plain scorer stdout, after public progress prose; expected family/model and13integer scores with notes; originalscoreexit0. No recursive extraction.",
+  "raw": {
+    "bytes": 5344,
+    "sha256": "9d4d500ff725dd4dc779974082a05f2ebf5bda0811654c247f57f76a2323a265"
+  },
+  "fence": {
+    "startByte": 548,
+    "endByte": 5343,
+    "sha256": "efac22912046eaf02a2eb818480935af90a1aa90170121e0c36c12cab42d9bbd"
+  },
+  "wallSeconds": 407.165,
+  "scores": {
+    "overall": 63,
+    "setup_and_docs": 71,
+    "data_modeling": 85,
+    "authorization": 63,
+    "queries_and_live": 57,
+    "writes_and_transactions": 77,
+    "offline_sync": 37,
+    "media_assets": 79,
+    "background_work": 81,
+    "client_integration": 48,
+    "diagnostics_dev_loop": 79,
+    "scale_and_limits": 83,
+    "operations": 69
+  },
+  "qualifications": [
+    "Received likes live-update generalization is contradicted by both reduced published-pin controls; full app remains unreproduced.",
+    "Private insert-if-absent S05 refusal and dailyActivity read/ordinary-write pattern are separately dispositioned; no numerical score adjustment.",
+    "Public preface announces spot-checking schema/client/worker/acceptance beyond the scoring narrative-only instruction; plain stdout does not independently show which requests ran."
+  ]
+}

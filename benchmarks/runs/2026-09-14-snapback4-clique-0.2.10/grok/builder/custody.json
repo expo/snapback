@@ -1,0 +1,312 @@
+{
+  "observedAt": "2026-09-14T16:52:54.665799+00:00",
+  "lane": "grok",
+  "packet": "/Users/ccheever/clique-sb4-20260913-relaxed-3models",
+  "builderEnd": {
+    "lane": "grok-snapback4",
+    "phase": "builder",
+    "pid": 91061,
+    "endedAt": "2026-09-14T16:47:32Z",
+    "endedEpoch": 1789404452,
+    "wallSeconds": 11928.612,
+    "exitCode": 0,
+    "stdout": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.ndjson",
+    "stderr": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.stderr.log"
+  },
+  "stage": "after-builder-before-grade-and-m7",
+  "scope": "Named narrative artifacts copied; listed source and raw logs hashed only. Hashes do not establish semantic correctness, source-access compliance, or teardown.",
+  "sourceHashes": {
+    "app/_layout.tsx": {
+      "bytes": 2169,
+      "sha256": "7e0a4b0a974cca718ecea89e63bf9897b027e8ae2800b2131e92b90987b5d67f"
+    },
+    "app/chats.tsx": {
+      "bytes": 2904,
+      "sha256": "98569d4dce4aeef33b586729526a89dd2f4a78b5873ccacb828887d4f0ae6406"
+    },
+    "app/feed.tsx": {
+      "bytes": 6276,
+      "sha256": "8a5f03d7a10130845d2c1c7649f21be6227c50897cc3d6284e0ef38e5ce24c06"
+    },
+    "app/index.tsx": {
+      "bytes": 159,
+      "sha256": "445c8855e1975128e020664e25da6308432d1f7671a70f99a2a99e675bd5f159"
+    },
+    "app/insights.tsx": {
+      "bytes": 1164,
+      "sha256": "ba0ef9597ef8f98f363e8cf2c3437abc3eea96b4b80d45a1ee43358a13fd86e7"
+    },
+    "app/me.tsx": {
+      "bytes": 684,
+      "sha256": "af43873affb8a23b76a099c6b764dfa3e5a40809aa1231ae172c9d09285a257b"
+    },
+    "app/new-chat.tsx": {
+      "bytes": 2384,
+      "sha256": "3d216a46b052ebc5aec1a7fbe0d5dfcf087c0bced68aef95b719854abc343171"
+    },
+    "app/search.tsx": {
+      "bytes": 1930,
+      "sha256": "b7ef1a171d7aa96228e8b6292f7bb752814c19d6ad5d9052947e438bb7fe8269"
+    },
+    "app/settings.tsx": {
+      "bytes": 1317,
+      "sha256": "55722c80e1bb5ae2934d01a0ae98515cb1ef810b1de737ef7641cf9e3b98f631"
+    },
+    "app/conversation/[handle].tsx": {
+      "bytes": 1769,
+      "sha256": "ebdaa747521fe43c663d9b8704954eeec5c22d508626dc9b0d00cb6a15999aac"
+    },
+    "app/conversation/group/[group].tsx": {
+      "bytes": 1048,
+      "sha256": "b77c17880432babc16fefc822cc9550ec5a250ae59c0a83ffe422c0cfb482927"
+    },
+    "app/conversation/group/[group]/settings.tsx": {
+      "bytes": 8356,
+      "sha256": "a02472db6b6a41a726d19c44b967ee0c77eace30529f7e616a05fda556412952"
+    },
+    "app/post/[id].tsx": {
+      "bytes": 2331,
+      "sha256": "807874240f86e96b5922087df26bb01936fa71877ddf18c54e3c91577ba259dd"
+    },
+    "app/profile/[handle].tsx": {
+      "bytes": 3085,
+      "sha256": "5aaf4d20c3829970db71a5d945141536f47d81184e7af0dd10c49fd6d1ce7f6a"
+    },
+    "app/profile/edit.tsx": {
+      "bytes": 2500,
+      "sha256": "af7f18403904afec48df4760af9407df69c449b25ba6013ef48de41917e05086"
+    },
+    "src/AppProviders.tsx": {
+      "bytes": 2691,
+      "sha256": "4ae04b783413b95a48bd425e84b24c4f78a4dd133761b8b6aba680e2157a6086"
+    },
+    "src/AssetMedia.tsx": {
+      "bytes": 966,
+      "sha256": "6f6c8d772174b30f1dc38a2f0a440183a4591a88451c99cc1faf6583094a661f"
+    },
+    "src/ConversationThread.tsx": {
+      "bytes": 17019,
+      "sha256": "b241cd389bcf4939e1e3851670259a6e3b051967ec97a1bab64dd6a6f5e377ec"
+    },
+    "src/DeliverySync.tsx": {
+      "bytes": 1363,
+      "sha256": "ec5eb6cd99629a5fb99f99ab0450e2de18905a5b42ca4e9b884dace0499ec10d"
+    },
+    "src/FeedItem.tsx": {
+      "bytes": 4854,
+      "sha256": "197bcf3f051ccd964f473a34230f607c179158852f9d1cbc427fdcc801857a2a"
+    },
+    "src/WebFile.tsx": {
+      "bytes": 1919,
+      "sha256": "5b0c0ea697192915b192c2483960b3a69e221a65e2142131018e80b19af1b7e2"
+    },
+    "src/api.generated.ts": {
+      "bytes": 48776,
+      "sha256": "7447264bb67b2bd889238711a1778d49dd3cfe056e885104ec42660b9dd54b2b"
+    },
+    "src/client.ts": {
+      "bytes": 3919,
+      "sha256": "dc05991959cfd3f834fdb7f43cd4910cbf24d195edd306caf09fe5ed9018b938"
+    },
+    "src/ops.ts": {
+      "bytes": 2050,
+      "sha256": "8d4f8f007794e55b31e2d496f9e75075d43facc1a6d8a41d4737b1856ef08d62"
+    },
+    "src/url.ts": {
+      "bytes": 96,
+      "sha256": "afbd46b529652b517f2e8272cefabf623728d87f4c262a7b4fe497e5429490fa"
+    },
+    "snapback/schema.q": {
+      "bytes": 34516,
+      "sha256": "f71d0b6102eba07f4b75906d8e344d266273b88d6f8ede7528fd23a4ea7935fd"
+    },
+    "snapback/worker.ts": {
+      "bytes": 1039,
+      "sha256": "0bdfd9e50ab5e0ac444c2e6bf6cd4dc5dd367bc61a211c07ea730d5dcec4fa5f"
+    },
+    "snapback/generated/api.ts": {
+      "bytes": 48776,
+      "sha256": "7447264bb67b2bd889238711a1778d49dd3cfe056e885104ec42660b9dd54b2b"
+    },
+    "snapback/generated/residency.json": {
+      "bytes": 93733,
+      "sha256": "9fb83e0a0d1adf1dced44b7c300ddb6f39d250e8decef5df08e4a56a134112b9"
+    },
+    "scripts/acceptance.mjs": {
+      "bytes": 23927,
+      "sha256": "40c7d7ba2996abe2b488f59104e47f027aa905709cb1e9baf4d2205138eb8690"
+    },
+    "scripts/custom-client-demo.mjs": {
+      "bytes": 1828,
+      "sha256": "1b4ef286ce51cd329ce0edf35f2c89bdd8bb4f66fcc3f00c45c26a172d78f267"
+    },
+    "scripts/diag-dm.mjs": {
+      "bytes": 2503,
+      "sha256": "783cc962f0a0dede955681fd9a06e8eaa350b4ff0ce13af6a3859ac751b2dad4"
+    },
+    "scripts/export-ios-hermes.mjs": {
+      "bytes": 1063,
+      "sha256": "3dfc2e3f837e1ca76d471f7ef4e60fbbfe91ef53e1ebc04f8327a54ae6d8edb6"
+    },
+    "scripts/replay.mjs": {
+      "bytes": 1307,
+      "sha256": "96a2fea6228f950c71d8a6906a9473e9c6e59565c698f8f76201add3072f1194"
+    },
+    "scripts/scale-replay.mjs": {
+      "bytes": 2054,
+      "sha256": "14cffa0a1c0d1b570d6bae7d8f59fa701fe93cd6dfd8d4595ee19d8f1d997afb"
+    },
+    "scripts/seed.mjs": {
+      "bytes": 2496,
+      "sha256": "53dd60774fad1b078c8697975ca30e6850506fe4b1820bb3b76945a3e110cb0e"
+    },
+    "scripts/start-backend.mjs": {
+      "bytes": 930,
+      "sha256": "b5831f90bf08427d45dc05f6decfac501d487c602110c680c8584248a3994932"
+    },
+    "scripts/write-setup-identity.mjs": {
+      "bytes": 2219,
+      "sha256": "1f01ddb2336f11347903fbc83cd00659b39d08f97c7d801be9c2bf9e58aed220"
+    },
+    "scripts/lib/actions.mjs": {
+      "bytes": 1203,
+      "sha256": "e4a42c90805f3aec8428b792b219270f87cbe16568b3e5c885c425d84608939c"
+    },
+    "scripts/lib/replay-core.mjs": {
+      "bytes": 10683,
+      "sha256": "4a6dd23d87d428f8dd6e41137222997093320028c1fc81f0f351f41595d69bba"
+    },
+    "config/digest.json": {
+      "bytes": 182,
+      "sha256": "f5ddbd66bd4d791056a39b8cd4e77488c6822e6cbcdf65d97689be489851ea60"
+    },
+    "config/windows.json": {
+      "bytes": 418,
+      "sha256": "e1b5bde4676e2ab1d9c20c77d70b24bf33d4d96436c474c6abf635e708dd6b8a"
+    },
+    "choreography/README.md": {
+      "bytes": 17876,
+      "sha256": "c724e6b432ee8d2420f1e64b91f7412f2406671f9ad1e888dd28af6df5dc7847"
+    },
+    "choreography/RUNBOOK.md": {
+      "bytes": 8809,
+      "sha256": "7b68c0c6a335774ac5e101ef0415058c66ac12aaa683772346f112f99e3b8a1d"
+    },
+    "choreography/choreography.mjs": {
+      "bytes": 117581,
+      "sha256": "cc600295f80d40b89910a1bf01eb3c7d8b9c24625c9741035ca3844f80418fcc"
+    },
+    "choreography/control-lane.mjs": {
+      "bytes": 38354,
+      "sha256": "937f38b09a15d510576e18b20dba78274e2fd57900dd4753cc766f1ff06057b9"
+    },
+    "choreography/package.json": {
+      "bytes": 302,
+      "sha256": "a2cda3361f89e28b1b805ce4fa12a8414938126b495b6b2817d12c102969309c"
+    },
+    "choreography/receipts-format.md": {
+      "bytes": 10723,
+      "sha256": "1c247f0d7dc0edc84f2138bde37b1be39c01b3d3fe1247da1fbc0efef3e32b4d"
+    },
+    "choreography/receipts.schema.json": {
+      "bytes": 27080,
+      "sha256": "5970f62483fa58358bc2cc08692a74925112de300a696eac61aa54853e9a1c39"
+    },
+    "choreography/self-test.mjs": {
+      "bytes": 44163,
+      "sha256": "6bf78419ad72a8efd40dc9125d5ec1dac753018ad79d9d4e68374e5379f32703"
+    },
+    "choreography/setup-identity.mjs": {
+      "bytes": 6790,
+      "sha256": "a2e965b0a6db8e5ed7ec9c361035a0f5fb0252a261f4d44f8825463278da9420"
+    },
+    "choreography/setup-identity.schema.json": {
+      "bytes": 4167,
+      "sha256": "bbc54559dc14fe2bb0b2f0a4a74ddaf10a2a5b16f36ebbc2346a00238f32058b"
+    },
+    "choreography/simulator.md": {
+      "bytes": 8903,
+      "sha256": "a89a7af573e0d3716b78207a7b159e9e056a8d83405553f49e868d29ae4cca3f"
+    },
+    "choreography/startup.test.mjs": {
+      "bytes": 8966,
+      "sha256": "0cc638f5c88d201afdebb85c95325b336485a38d15dbf0cc8877b5b46075f562"
+    },
+    "choreography/w9-coterie-browser.mjs": {
+      "bytes": 8543,
+      "sha256": "0bb80fcfb1a0587b588f5c7d4b56b91a90d2e1088bfc44243d9ede4497ab8d89"
+    },
+    "choreography/w9-host-preflight.mjs": {
+      "bytes": 3803,
+      "sha256": "4d8b8d0105892f899e7f3a171d0215788984880b8f2e2e4e33a5f7846668913a"
+    },
+    "choreography/w9-native-host.mjs": {
+      "bytes": 8601,
+      "sha256": "1afdf0852a7469352609be725fbdb977da177d5b4f4eb81b33874db4894db924"
+    },
+    "app.json": {
+      "bytes": 598,
+      "sha256": "8c8d4cae3c3723a5c4f0b67f2641492721d46d1a4f00f569b8233aaab733a8ab"
+    },
+    "babel.config.js": {
+      "bytes": 101,
+      "sha256": "52db31902de488f2d5d368c3f449a449364d0d6d70450165c37fe7a1745838d8"
+    },
+    "package-lock.json": {
+      "bytes": 329926,
+      "sha256": "971fae50e3a551d6bb0261f2261e9f9649b3ac92e31e3d01406d36579475bbea"
+    },
+    "package.json": {
+      "bytes": 1337,
+      "sha256": "ed56c42a1702987481bfc675e87ad60f2a8aff3adaa1cda9e5be07d23aa1d7ad"
+    },
+    "tsconfig.json": {
+      "bytes": 303,
+      "sha256": "b6a3ea46536ea0603d354a10830f7611d9e2d13e327271761a9dcb03017d3c57"
+    }
+  },
+  "artifacts": {
+    "final-report.md": {
+      "bytes": 7176,
+      "sha256": "cf175e4bd109123859b36cde612c826e80f261dede28732dde7ea5318ee2bbcb"
+    },
+    "run-log.md": {
+      "bytes": 3969,
+      "sha256": "111ab7e444bfd4592894fbc0e2798072859e7cf295cde628f5b24ae3c5f12d0d"
+    },
+    "diary.md": {
+      "bytes": 5047,
+      "sha256": "4ef8f651d67794f75d8f5a2518f741c9dd17be596a703734b5a7bbcf005e3baf"
+    },
+    "essay.md": {
+      "bytes": 8045,
+      "sha256": "0fdc42f5aefd99820afce54a35933cd8c8e73d36e4d17204688242dcfa8f3a4a"
+    },
+    "API.md": {
+      "bytes": 2217,
+      "sha256": "f96551b5f8fd6b52c2170ca0076bf94c3a08a762eba92f09aaa81eefd599582b"
+    },
+    "setup-identity.json": {
+      "bytes": 1400,
+      "sha256": "9c40d3f7556a3ad9f888510dee9890697bb621429bb8b0488f755d00bdd0fe9a"
+    }
+  },
+  "packetLogHashes": {
+    "logs/grok-snapback4.start.json": {
+      "bytes": 1099,
+      "sha256": "42f00cc21f66fd6f2816ee0f1d900794eed33f68c4025b91a5f1f485baffbf01"
+    },
+    "logs/grok-snapback4.end.json": {
+      "bytes": 371,
+      "sha256": "fa742edd630087be25ace55c85a9f393c9c727744a5db6cfbde4c33133b5b26a"
+    },
+    "logs/grok-snapback4.ndjson": {
+      "bytes": 15605004,
+      "sha256": "6cdb2051322198bfda88c097eb7947fe533000ad525b7d870426c9061fbcf425"
+    },
+    "logs/grok-snapback4.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

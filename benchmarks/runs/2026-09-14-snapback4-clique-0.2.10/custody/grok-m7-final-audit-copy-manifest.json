@@ -1,0 +1,12 @@
+{
+  "copiedAt": "2026-09-15T02:43:23.712256+00:00",
+  "method": "Final bounded audit read in full by parent and copied verbatim; not a blind review or independent grade.",
+  "files": [
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/GROK-0210-M7-AUDIT.md",
+      "destination": "audits/GROK-0210-M7-AUDIT.md",
+      "bytes": 23067,
+      "sha256": "de0a2da1ea21a4e982166199490bd430a5acdfb6702b232b625d20ed9fbc3c36"
+    }
+  ]
+}

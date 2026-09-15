@@ -1,0 +1,38 @@
+{
+  "pass": true,
+  "at": 1789391917295,
+  "method": "published local client plus webDevice memory persistence; same engine as web, Node runtime diagnostic",
+  "syncMs": 1721.697958,
+  "rows": 50,
+  "complete": true,
+  "hasNext": true,
+  "p95": 2.9181670000000395,
+  "samples": [
+    2.196374999999989,
+    2.2110000000000127,
+    2.2570839999998498,
+    2.267415999999912,
+    2.29099999999994,
+    2.293374999999969,
+    2.3046669999998812,
+    2.34962500000006,
+    2.3742090000000644,
+    2.384582999999793,
+    2.3970419999998285,
+    2.4073339999999916,
+    2.4747919999999795,
+    2.5231249999999363,
+    2.547125000000051,
+    2.6625420000000304,
+    2.7192499999998745,
+    2.9140409999999974,
+    2.9181670000000395,
+    3.349666999999954
+  ],
+  "directHttp": {
+    "complete": false,
+    "rows": 0,
+    "hasNext": false
+  },
+  "note": "This post-replay proof verifies full-corpus replica search. The three checkpoint HTTP search timings are not valid evidence of successful global search; no corrected three-size search curve is claimed."
+}

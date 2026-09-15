@@ -1,0 +1,78 @@
+{
+  "capturedAt": "2026-09-15T00:59:13.631387+00:00",
+  "scope": "Completed Muse grade audit and selected original expiry/digest/ranking/choreography evidence, including earlier failed attempts. No raw model logs, store or credential-bearing scripts.",
+  "files": [
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/MUSE-0210-GRADE-AUDIT.md",
+      "destination": "audits/MUSE-0210-GRADE-AUDIT.md",
+      "bytes": 17425,
+      "sha256": "760870981f7a027a7b9d89aa8d5a7e31a1cbe4e5bbc6582a3d2b4ba78c594d8b"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/muse-snapback4/grading/evidence/choreo-run1.jsonl",
+      "destination": "muse/grading/evidence/choreo-run1.jsonl",
+      "bytes": 39003,
+      "sha256": "e5dc783b31b2fd71d62a856233f5bf1212785c6493dfc60c1fd82abdcda5b30a"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/muse-snapback4/grading/evidence/expiry-web-mu1xele8.jsonl",
+      "destination": "muse/grading/evidence/expiry-web-mu1xele8.jsonl",
+      "bytes": 2138,
+      "sha256": "e4c294e73f500baf55e4580d8fa2a373371a79d8729008145e2c7309e12d88b8"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/muse-snapback4/grading/evidence/expiry-web-mu1xcvhy.jsonl",
+      "destination": "muse/grading/evidence/expiry-web-mu1xcvhy.jsonl",
+      "bytes": 713,
+      "sha256": "5c77bc013959e19591dd83dfefb1d1b036f62e192e5d8415f8f05e5bfaf631b6"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/muse-snapback4/grading/evidence/digest-mu1xp5lc.jsonl",
+      "destination": "muse/grading/evidence/digest-mu1xp5lc.jsonl",
+      "bytes": 4386,
+      "sha256": "74a922df58c8fe2657a2e6b3c1e0362410db96eb75db15a7ab0de931e8c60f24"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/muse-snapback4/grading/evidence/trending-window-mu1xyyb1.jsonl",
+      "destination": "muse/grading/evidence/trending-window-mu1xyyb1.jsonl",
+      "bytes": 187,
+      "sha256": "bb9bc5addb418b3557b4f3f2f08294111ee2643376cfe0cc51e15601cfe5abe2"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/muse-snapback4/grading/evidence/choreo-m6m8-reruns.meta",
+      "destination": "muse/grading/evidence/choreo-m6m8-reruns.meta",
+      "bytes": 476,
+      "sha256": "33dd65592ca180fe28f8832ce1d823755335e6e2952b54fc6e0ae788b849510c"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/muse-snapback4/grading/evidence/choreo-run1.meta",
+      "destination": "muse/grading/evidence/choreo-run1.meta",
+      "bytes": 107,
+      "sha256": "745b0df376b6d082e95aac5bd5b1893f44e5f276c062256aced8d6861009476c"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/muse-snapback4/grading/evidence/choreo-run2-m3m6m8.jsonl",
+      "destination": "muse/grading/evidence/choreo-run2-m3m6m8.jsonl",
+      "bytes": 15790,
+      "sha256": "d3a08d4033867928a691a755ffb5b9eb74b4fdf7a426bd9fa4d3db2000eca847"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/muse-snapback4/grading/evidence/choreo-run3-m3m6m8.jsonl",
+      "destination": "muse/grading/evidence/choreo-run3-m3m6m8.jsonl",
+      "bytes": 15798,
+      "sha256": "29bb09c20b1ebdda171bcc0d9ef6a15f47b7934fd598644f90549bd74250ddd1"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/muse-snapback4/grading/evidence/choreo-run4-m6.jsonl",
+      "destination": "muse/grading/evidence/choreo-run4-m6.jsonl",
+      "bytes": 2711,
+      "sha256": "8c2a3ee37ccf234d9e7cb006d406b64316c924c7544fd4f0110ea2a2a34e70cb"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/muse-snapback4/grading/evidence/choreo-run5-m6.jsonl",
+      "destination": "muse/grading/evidence/choreo-run5-m6.jsonl",
+      "bytes": 2713,
+      "sha256": "a4f15de6e7f04df7b13eb5e66d3770ffe16c3caa735efda64909f1551e90803d"
+    }
+  ]
+}

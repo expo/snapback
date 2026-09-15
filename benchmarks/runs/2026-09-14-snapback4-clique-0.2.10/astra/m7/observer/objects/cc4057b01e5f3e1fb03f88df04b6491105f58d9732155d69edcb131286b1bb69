@@ -1,0 +1,20 @@
+{
+  "milestone": "m5",
+  "coverage": {
+    "m5-a04": "view-once-first-open",
+    "m5-a05": "view-once-second-open-denied",
+    "m5-a08": "non-admin-rename-denied",
+    "m5-a09": "people-word-prefix",
+    "m5-a10": "chat-prefix-search",
+    "m5-a11": "global-search-grouping"
+  },
+  "required": [
+    "m5-a04",
+    "m5-a05",
+    "m5-a08",
+    "m5-a09",
+    "m5-a10",
+    "m5-a11"
+  ],
+  "missing": []
+}

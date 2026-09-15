@@ -1,0 +1,18 @@
+{
+  "observedAt": "2026-09-15T01:45:09.904092+00:00",
+  "files": [
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/ASTRA-0210-M7-SNAPSHOT-AUDIT.md",
+      "destination": "audits/ASTRA-0210-M7-SNAPSHOT-AUDIT.md",
+      "bytes": 15988,
+      "sha256": "25e4b555084da74197b064fb7a2f55065c4ee0c2fcc94477e28401720c5604d5"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/ASTRA-M7-AGGREGATE-ID-main-source-identity.json",
+      "destination": "astra/qualifications/maintained-id-main-source-identity.json",
+      "bytes": 998,
+      "sha256": "d8a40cc8c02776dca455240896b34a9734dbe42a954e1c457a820422f3daeb7c"
+    }
+  ],
+  "scope": "Verbatim bounded snapshot audit and separate main-source identity observation; neither is a post-M7 independent grade or current-main runtime reproduction."
+}

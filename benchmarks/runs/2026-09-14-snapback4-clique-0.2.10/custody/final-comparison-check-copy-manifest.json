@@ -1,0 +1,23 @@
+{
+  "copiedAt": "2026-09-15T03:10:08.249690+00:00",
+  "files": [
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/verify-cell-comparison.v2.py",
+      "destination": "protocol/verify-cell-comparison.v2.py",
+      "bytes": 6542,
+      "sha256": "538c98d4bf23104951c0e8ced015528fcabd1193516347729a116b748b17057f"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-comparison-checker-correction.json",
+      "destination": "protocol/cell-comparison-checker-correction.json",
+      "bytes": 676,
+      "sha256": "9a3dce3ddc332078892ec6dedf63c8d487461b56253d4949cfb68faf7f8f2372"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-final-comparison-verification-20260915T030911.json",
+      "destination": "protocol/final-comparison-verification.json",
+      "bytes": 8602,
+      "sha256": "db03121500a0504e66db905eaaea03df9017b23926042de58d213d5c635861cc"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "pass": true,
+  "pre": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/m7/pre-snapshot",
+  "post": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/m7/post-snapshot",
+  "mismatches": [],
+  "comparedPersonas": [
+    "alice",
+    "bob",
+    "carol",
+    "dave",
+    "erin",
+    "frank",
+    "grace",
+    "henry"
+  ],
+  "at": "2026-09-15T01:56:09.085Z"
+}

@@ -1,0 +1,39 @@
+{
+  "milestone": "m4",
+  "pass": true,
+  "cases": [
+    {
+      "name": "photo-picker-upload-message",
+      "pass": true
+    },
+    {
+      "name": "video-picker-upload-message",
+      "pass": true
+    },
+    {
+      "name": "reaction-replacement-clear",
+      "pass": true
+    },
+    {
+      "name": "edited-label",
+      "pass": true
+    },
+    {
+      "name": "delete-revokes-asset",
+      "pass": true
+    },
+    {
+      "name": "server-edit-window",
+      "pass": true
+    }
+  ],
+  "coverage": {
+    "m4-a01": "photo-picker-upload-message",
+    "m4-a03": "video-picker-upload-message",
+    "m4-a06": "reaction-replacement-clear",
+    "m4-a07": "reaction-replacement-clear",
+    "m4-a09": "edited-label"
+  },
+  "missing": [],
+  "recordedAt": "2026-09-14T11:56:56.835Z"
+}

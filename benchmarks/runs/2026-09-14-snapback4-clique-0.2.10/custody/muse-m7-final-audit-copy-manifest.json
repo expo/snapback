@@ -1,0 +1,12 @@
+{
+  "copiedAt": "2026-09-15T03:08:23.675225+00:00",
+  "method": "Final audit read in full by parent and copied verbatim; no grade or author ruling.",
+  "files": [
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/MUSE-0210-M7-AUDIT.md",
+      "destination": "audits/MUSE-0210-M7-AUDIT.md",
+      "bytes": 24618,
+      "sha256": "a5c325625392f7d396bc665e07f8bd3f2ecc6c78d69d0feaf6cbe1bf41f3b821"
+    }
+  ]
+}

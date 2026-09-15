@@ -1,0 +1,135 @@
+{
+  "reportVersion": 1,
+  "lane": "muse-snapback4",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/instrument/schema/social-messenger/assertions.json",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grading/trace.md#m8 ; evidence/ui-sweep-*.jsonl tag m8-ui-insights",
+      "suiteResult": "pass",
+      "note": "Six tiles (18/3/4/4/4/2) match myInsights and independent store counts via snapback4 sql. Seed-only equality is not observable after acceptance and harness activity; the grader-run suite checked exact totals on fresh users."
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreography ; evidence/choreo-run1.jsonl m8:m8-a02-insights-like-refresh",
+      "suiteResult": null,
+      "note": "Run 1 passed (likes 2 to 3). Reruns 2-3 failed only because the grader's 205 trending filler posts pushed Alice's posts off Bob's first Global page. That was grader-induced state, not a lane defect."
+    },
+    "m8-a03": {
+      "result": "fail",
+      "method": "web-automation",
+      "evidence": "grading/trace.md#m8 ; evidence/functional-api-*.jsonl tag insights ; evidence/ui-sweep-*.jsonl tag m8-ui-insights ; snapback/schema.q:445-452 ; app/insights.tsx",
+      "suiteResult": "pass",
+      "note": "Buckets are rolling 24 h windows ending at request time (dayStart 2026-09-14T00:19:36Z), not server UTC days. The UI labels them with the browser-local weekday. Posts created 2026-09-15 UTC (Tuesday) appear under 'Mon', and the oldest row reads 'Tue'."
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grading/trace.md#m8 ; evidence/ui/m8-insights.png",
+      "suiteResult": "pass",
+      "note": "Seven day rows; empty days render 'Posts 0 Likes received 0'."
+    },
+    "m8-a05": {
+      "result": "fail",
+      "method": "api",
+      "evidence": "grading/trace.md#m8 ; evidence/trending-window-*.jsonl ; snapback/schema.q:430-443",
+      "suiteResult": "pass",
+      "note": "Passes with few posts (grader-run suite). The query only considers the newest 200 posts of the window (last 200 by byTime). After 205 newer posts, a 4-like post created minutes earlier dropped out of Trending entirely: top-10 likes were all 0, complete=false. The scale envelope puts far more than 200 posts in any 24 h replay window."
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "source-inspection",
+      "evidence": "grading/trace.md#m8 ; snapback/schema.q:431-432",
+      "suiteResult": "pass",
+      "note": "cutoff = now - 86400000 filters candidates. A >24 h post cannot be created without a time seam, so the grader-run suite's check is structural."
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "builder-suite",
+      "evidence": "grading/trace.md#phase1 ; snapback/schema.q:436 sort(scored,'-likes','-at')",
+      "suiteResult": "pass"
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest ; evidence/digest-*.jsonl tag check-after-p1",
+      "suiteResult": null,
+      "note": "Shortened digest config, no clients. P1 00:30-00:32Z produced exactly one digest each: dA {nf 2, np 2, um 5, uc 2}, dB {0,2,1,1}, dC {0,2,4,1}. Unread excludes the tombstoned message, the non-member group and post-removal messages. dA's np=2 counts dA's own posts, a defensible reading since the Following feed includes the viewer's own posts."
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "suiteResult": null,
+      "note": "dQ (no activity) received no digest in P1, P2 or P3."
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest ; evidence/digest-*.jsonl tag check-after-p3",
+      "suiteResult": null,
+      "note": "P3 00:34-00:36Z had no activity and emitted no digest for any test user."
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest ; evidence/digest-*.jsonl tags restart, check-after-p3",
+      "suiteResult": null,
+      "note": "Backend SIGTERMed and restarted at 00:32:50Z (mid-P2, down 0.8 s). Afterwards every (user, period) had exactly one digest: P1 was not re-emitted, and P2 emitted dB {nf 1} once at 00:34:00Z."
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "suiteResult": null,
+      "note": "dA's counts exclude the 5 messages in group G2 (dA never a member) and the 2 messages sent in G3 after dA's removal."
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreography ; evidence/choreo-run{1,2,3}*.jsonl m8:m8-a13-same-account-message-live",
+      "suiteResult": null
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreography ; evidence/choreo-run{1,2,3}*.jsonl m8:m8-a14-cross-device-read-state",
+      "suiteResult": null
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreography ; evidence/choreo-run{1,2,3}*.jsonl m8:m8-a15-dual-offline-convergence",
+      "suiteResult": null
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreography ; evidence/choreo-run{1,2,3}*.jsonl m8:m8-a16-dual-offline-receipts",
+      "suiteResult": null
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#native",
+      "suiteResult": null,
+      "note": "No simulator artifact for the durable-queue restart proof; scores not-passed."
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#native",
+      "suiteResult": null,
+      "note": "No simulator artifact; scores not-passed."
+    }
+  }
+}

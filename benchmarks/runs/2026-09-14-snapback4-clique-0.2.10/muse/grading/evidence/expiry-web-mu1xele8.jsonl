@@ -1,0 +1,15 @@
+{"at":"2026-09-15T00:20:54.788Z","tag":"dm-member-setting-rights","peerSetDisappearing":"failed:E_RULE","peerSetColor":"failed:E_RULE","peerSetBackground":"failed:E_RULE","creatorSetColor":"sent"}
+{"at":"2026-09-15T00:20:54.791Z","tag":"m5-a01-set","creatorSetDisappearing":"sent"}
+{"at":"2026-09-15T00:20:54.809Z","tag":"m5-a01-reset-off","result":"sent"}
+{"at":"2026-09-15T00:20:54.819Z","tag":"m5-a01-before","ttlS":180,"keepExpires":null,"visible":true,"asset":{"status":200,"bytes":2072,"code":null,"cache":"private, no-store"},"search":3}
+{"at":"2026-09-15T00:20:54.852Z","tag":"web-set","setDisappearing":"sent"}
+{"at":"2026-09-15T00:20:57.315Z","tag":"web-delivered","ttlS":180,"secondsToExpiry":"180.0"}
+{"at":"2026-09-15T00:21:01.622Z","tag":"m5-a03-online-baseline","results":1,"offlineBanner":0}
+{"at":"2026-09-15T00:21:11.138Z","tag":"m5-a03-baseline","offlineSearchBeforeExpiry":{"results":1,"offlineBanner":1},"h2BubbleOffline":1}
+{"at":"2026-09-15T00:23:57.692Z","tag":"m5-a02-connected","purgedAfterExpiryS":"0.5"}
+{"at":"2026-09-15T00:23:57.695Z","tag":"m5-a01-web-dm","serverHasExpired":false}
+{"at":"2026-09-15T00:24:07.721Z","tag":"m5-a02-warm-offline","bubbleGoneAfterReconnectS":"0.0","offlineBubblesAfterExpiry":0,"offlineSearchAfterExpiry":{"results":0,"offlineBanner":1},"reconnectedSearch":{"results":0,"offlineBanner":0},"secondsAfterReconnect":"6.5"}
+{"at":"2026-09-15T00:24:20.580Z","tag":"m5-a02-relaunch-online","maxBubblesSeenDuring10s":0,"convoOpened":1,"searchResults":0,"ms":12812}
+{"at":"2026-09-15T00:24:40.437Z","tag":"m5-a02-relaunch-backend-down","maxBubblesSeenDuring10s":0,"convoOpened":1,"offlineSearch":{"results":0,"offlineBanner":1}}
+{"at":"2026-09-15T00:24:40.457Z","tag":"m5-a01","refusedWithinS":"45.6","recipientHasText":false,"recipientHasMedia":false,"senderHasText":false,"keepPresent":true,"history":false,"searchChat":0,"searchAll":["keep"],"quotesFor":0,"assetRecipient":{"status":404,"bytes":0,"code":"E_ASSET_UNKNOWN","cache":"no-store"},"assetSender":{"status":404,"bytes":0,"code":"E_ASSET_UNKNOWN","cache":"no-store"},"total":1}
+{"at":"2026-09-15T00:24:40.496Z","tag":"done"}

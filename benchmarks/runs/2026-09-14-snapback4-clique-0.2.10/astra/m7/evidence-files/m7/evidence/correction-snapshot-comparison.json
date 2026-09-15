@@ -1,0 +1,174 @@
+{
+  "pass": true,
+  "at": 1789434749368,
+  "before": "m7/pre-correction-snapshot",
+  "after": "m7/post-correction-snapshot",
+  "checks": [
+    {
+      "persona": "alice",
+      "conversation": "d-alice-bob",
+      "messages": 14,
+      "messageCount": 13,
+      "assets": 1
+    },
+    {
+      "persona": "alice",
+      "conversation": "g-starter",
+      "messages": 9,
+      "messageCount": 9,
+      "assets": 0
+    },
+    {
+      "persona": "alice",
+      "conversation": "m31789434155675g1",
+      "messages": 14,
+      "messageCount": 14,
+      "assets": 0
+    },
+    {
+      "persona": "alice",
+      "conversation": "m31789434155675g2",
+      "messages": 0,
+      "messageCount": 0,
+      "assets": 0
+    },
+    {
+      "persona": "alice",
+      "conversation": "m51789434219632g",
+      "messages": 2,
+      "messageCount": 2,
+      "assets": 0
+    },
+    {
+      "persona": "alice",
+      "conversation": "m51789434219632g2",
+      "messages": 1,
+      "messageCount": 1,
+      "assets": 0
+    },
+    {
+      "persona": "alice",
+      "conversation": "m7-1789433963725-expiry",
+      "messages": 0,
+      "messageCount": 0,
+      "assets": 0
+    },
+    {
+      "persona": "alice",
+      "conversation": "m7-1789433963725-group",
+      "messages": 4,
+      "messageCount": 2,
+      "assets": 0
+    },
+    {
+      "persona": "bob",
+      "conversation": "d-alice-bob",
+      "messages": 14,
+      "messageCount": 13,
+      "assets": 1
+    },
+    {
+      "persona": "bob",
+      "conversation": "g-starter",
+      "messages": 9,
+      "messageCount": 9,
+      "assets": 0
+    },
+    {
+      "persona": "bob",
+      "conversation": "m31789434155675g1",
+      "messages": 14,
+      "messageCount": 14,
+      "assets": 0
+    },
+    {
+      "persona": "bob",
+      "conversation": "m31789434155675g2",
+      "messages": 0,
+      "messageCount": 0,
+      "assets": 0
+    },
+    {
+      "persona": "bob",
+      "conversation": "m51789434219632g",
+      "messages": 2,
+      "messageCount": 2,
+      "assets": 0
+    },
+    {
+      "persona": "bob",
+      "conversation": "m51789434219632g2",
+      "messages": 1,
+      "messageCount": 1,
+      "assets": 0
+    },
+    {
+      "persona": "bob",
+      "conversation": "m7-1789433963725-expiry",
+      "messages": 0,
+      "messageCount": 0,
+      "assets": 0
+    },
+    {
+      "persona": "bob",
+      "conversation": "m7-1789433963725-group",
+      "messages": 4,
+      "messageCount": 2,
+      "assets": 0
+    },
+    {
+      "persona": "carol",
+      "conversation": "g-starter",
+      "messages": 9,
+      "messageCount": 9,
+      "assets": 0
+    },
+    {
+      "persona": "carol",
+      "conversation": "m31789434155675g1",
+      "messages": 14,
+      "messageCount": 14,
+      "assets": 0
+    },
+    {
+      "persona": "carol",
+      "conversation": "m31789434155675g2",
+      "messages": 0,
+      "messageCount": 0,
+      "assets": 0
+    },
+    {
+      "persona": "carol",
+      "conversation": "m51789434219632g",
+      "messages": 2,
+      "messageCount": 2,
+      "assets": 0
+    },
+    {
+      "persona": "carol",
+      "conversation": "m7-1789433963725-group",
+      "messages": 4,
+      "messageCount": 2,
+      "assets": 0
+    }
+  ],
+  "fields": [
+    "id",
+    "conversationId",
+    "senderId",
+    "at",
+    "arrival",
+    "kind",
+    "text",
+    "photo",
+    "oncePhoto",
+    "video",
+    "edited",
+    "deleted",
+    "replyToId",
+    "reactions",
+    "receipt",
+    "expiresAt",
+    "viewed"
+  ]
+}

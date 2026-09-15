@@ -1,0 +1,141 @@
+{
+  "milestone": "m2",
+  "pass": true,
+  "results": [
+    {
+      "id": "m2-a01",
+      "name": "create text post",
+      "ok": true
+    },
+    {
+      "id": "m2-a02",
+      "name": "create image post with 2 images",
+      "ok": true
+    },
+    {
+      "id": "m2-a03",
+      "name": "create video post",
+      "ok": true
+    },
+    {
+      "id": "m2-a06",
+      "name": "follow projection",
+      "ok": true
+    },
+    {
+      "id": "m2-a08",
+      "name": "unfollow removes from following",
+      "ok": true
+    },
+    {
+      "id": "m2-a09",
+      "name": "unfollowed posts remain in global",
+      "ok": true
+    },
+    {
+      "id": "m2-a10",
+      "name": "unfollowed author in global",
+      "ok": true
+    },
+    {
+      "id": "m2-a11",
+      "name": "unfollowed author absent following",
+      "ok": true
+    },
+    {
+      "id": "m2-a12",
+      "name": "url is tappable text not preview",
+      "ok": true
+    },
+    {
+      "id": "m2-a13",
+      "name": "no unfurl preview",
+      "ok": true
+    },
+    {
+      "id": "m2-a15",
+      "name": "unlike decrements",
+      "ok": true
+    },
+    {
+      "id": "m2-a16",
+      "name": "repost attributed",
+      "ok": true
+    },
+    {
+      "id": "m2-a17",
+      "name": "unrepost removes",
+      "ok": true
+    },
+    {
+      "id": "m2-a18",
+      "name": "followed user's repost surfaces original",
+      "ok": true
+    },
+    {
+      "id": "m2-a20",
+      "name": "thread parent and replies order",
+      "ok": true
+    },
+    {
+      "id": "m2-a21",
+      "name": "replies absent from feeds",
+      "ok": true
+    },
+    {
+      "id": "m2-a22",
+      "name": "following pagination",
+      "ok": true
+    },
+    {
+      "id": "m2-a23",
+      "name": "global pagination",
+      "ok": true
+    },
+    {
+      "id": "m2-a24",
+      "name": "no dupes in first page",
+      "ok": true
+    },
+    {
+      "id": "m2-a25",
+      "name": "own posts in following without self-follow",
+      "ok": true
+    },
+    {
+      "id": "m2-a26",
+      "name": "own reposts in following",
+      "ok": true
+    },
+    {
+      "id": "m2-a27",
+      "name": "implicit self-follow does not change counts",
+      "ok": true
+    }
+  ],
+  "coverage": {
+    "m2-a01": "create text post",
+    "m2-a02": "create image post with 2 images",
+    "m2-a03": "create video post",
+    "m2-a06": "follow projection",
+    "m2-a08": "unfollow removes from following",
+    "m2-a09": "unfollowed posts remain in global",
+    "m2-a10": "unfollowed author in global",
+    "m2-a11": "unfollowed author absent following",
+    "m2-a12": "url is tappable text not preview",
+    "m2-a13": "no unfurl preview",
+    "m2-a15": "unlike decrements",
+    "m2-a16": "repost attributed",
+    "m2-a17": "unrepost removes",
+    "m2-a18": "followed user's repost surfaces original",
+    "m2-a20": "thread parent and replies order",
+    "m2-a21": "replies absent from feeds",
+    "m2-a22": "following pagination",
+    "m2-a23": "global pagination",
+    "m2-a24": "no dupes in first page",
+    "m2-a25": "own posts in following without self-follow",
+    "m2-a26": "own reposts in following",
+    "m2-a27": "implicit self-follow does not change counts"
+  },
+  "at": "2026-09-14T15:25:01.363Z"
+}

@@ -1,0 +1,44 @@
+{
+  "milestone": "m5",
+  "pass": true,
+  "cases": [
+    {
+      "name": "view-once-first-open",
+      "pass": true
+    },
+    {
+      "name": "view-once-second-open-denied",
+      "pass": true
+    },
+    {
+      "name": "non-admin-rename-denied",
+      "pass": true
+    },
+    {
+      "name": "people-word-prefix",
+      "pass": true
+    },
+    {
+      "name": "chat-prefix-search",
+      "pass": true
+    },
+    {
+      "name": "global-search-grouping",
+      "pass": true
+    },
+    {
+      "name": "server-expiry-with-all-clients-closed",
+      "pass": true
+    }
+  ],
+  "coverage": {
+    "m5-a04": "view-once-first-open",
+    "m5-a05": "view-once-second-open-denied",
+    "m5-a08": "non-admin-rename-denied",
+    "m5-a09": "people-word-prefix",
+    "m5-a10": "chat-prefix-search",
+    "m5-a11": "global-search-grouping"
+  },
+  "missing": [],
+  "recordedAt": "2026-09-15T01:19:56.543Z"
+}

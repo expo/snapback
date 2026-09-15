@@ -1,0 +1,48 @@
+{
+  "capturedAt": "2026-09-15T00:55:08.677947+00:00",
+  "scope": "Actual observer tool and its synthetic checks; external pre-M7 source custody inventories and Astra immediate source-integrity observation. Inventories include external copies not all archived here. No claim that API snapshots existed before M7.",
+  "files": [
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/m7-custody-observer.py",
+      "destination": "protocol/m7-custody-observer.py",
+      "bytes": 7809,
+      "sha256": "a93de82a0bd09abed732f27ce00283dd49d272e4a19fab3c9a457fe54bd97484"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/check-m7-observer-v3.py",
+      "destination": "protocol/check-m7-observer-v3.py",
+      "bytes": 5006,
+      "sha256": "ceb5beb1f14ed74f10bc077da1163b8a71f685f6a5473661beddecf71adb86c0"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/m7-observer-v3-checks.json",
+      "destination": "protocol/m7-observer-v3-checks.json",
+      "bytes": 739,
+      "sha256": "7e4e3b259e1ef20a0ed772c79307ddefa87df11aa7b07ee56cf5a58d21400472"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/pre-m7-source/custody.json",
+      "destination": "astra/m7/pre-source/custody.json",
+      "bytes": 67682,
+      "sha256": "1dafa80426e8d63e6aa23bf0290cba3eb2c0c94ec5c9232fe2ac13e0e01ba3f4"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/pre-m7-source/custody.json",
+      "destination": "grok/m7/pre-source/custody.json",
+      "bytes": 30467,
+      "sha256": "39c6fd30aa6929caf0b21d511c388873ecf0fbc009f17bb82f6b4da8ea90f9c5"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/pre-m7-source/custody.json",
+      "destination": "muse/m7/pre-source/custody.json",
+      "bytes": 66055,
+      "sha256": "2b2c64271ae0089c45f7ab50a7f02e2b17d0b324fc63bf70669590b111a94246"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/immediately-before-m7-source-integrity.json",
+      "destination": "astra/m7/custody/immediately-before-m7-source-integrity.json",
+      "bytes": 255,
+      "sha256": "37c1cd6f0300b92fbe93d70c9389fc73be8b0c9f50db558c8cda363da93caadc"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "milestone": "m4",
+  "url": "http://127.0.0.1:49340",
+  "web": "http://127.0.0.1:49341",
+  "at": "2026-09-14T19:10:13.221Z",
+  "pass": false,
+  "failures": 0,
+  "results": [],
+  "coverage": [
+    {
+      "id": "m4-a01",
+      "test": null,
+      "pass": false
+    },
+    {
+      "id": "m4-a03",
+      "test": null,
+      "pass": false
+    },
+    {
+      "id": "m4-a06",
+      "test": null,
+      "pass": false
+    },
+    {
+      "id": "m4-a07",
+      "test": null,
+      "pass": false
+    },
+    {
+      "id": "m4-a09",
+      "test": null,
+      "pass": false
+    }
+  ],
+  "uncovered": [
+    "m4-a01",
+    "m4-a03",
+    "m4-a06",
+    "m4-a07",
+    "m4-a09"
+  ]
+}

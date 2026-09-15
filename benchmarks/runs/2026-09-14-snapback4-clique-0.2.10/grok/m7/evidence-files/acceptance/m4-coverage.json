@@ -1,0 +1,17 @@
+{
+  "milestone": "m4",
+  "assertions": {
+    "m4-a01": "photo message",
+    "m4-a03": "video message",
+    "m4-a06": "reaction replace",
+    "m4-a07": "reaction remove",
+    "m4-a09": "edited label"
+  },
+  "tests": [
+    "m4-a01",
+    "m4-a03",
+    "m4-a06",
+    "m4-a07",
+    "m4-a09"
+  ]
+}

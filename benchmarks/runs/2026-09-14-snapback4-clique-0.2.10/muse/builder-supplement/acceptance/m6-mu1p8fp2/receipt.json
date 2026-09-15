@@ -1,0 +1,66 @@
+{
+  "milestone": "m6",
+  "url": "http://127.0.0.1:49340",
+  "web": "http://127.0.0.1:49341",
+  "at": "2026-09-14T20:32:11.710Z",
+  "pass": false,
+  "failures": 1,
+  "results": [
+    {
+      "assertion": "m6-a08",
+      "test": "push payload logged for offline peer message",
+      "pass": true
+    },
+    {
+      "assertion": "m6-a09",
+      "test": "view-once photo previews as Photo in push",
+      "pass": true
+    },
+    {
+      "assertion": "m6-a10",
+      "test": "custom-client demo runs green",
+      "pass": true
+    },
+    {
+      "assertion": "m6-a11",
+      "test": "demo exercises every listed operation",
+      "pass": true
+    },
+    {
+      "assertion": "m6-a13",
+      "test": "sample-50 action log replays green",
+      "pass": false,
+      "error": "Error: Command failed: /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node scripts/seed.mjs --log sample-50.log --url http://127.0.0.1:49340\nfile:///Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/muse-snapback4/scripts/seed.mjs:44\n  if (j.state === \"failed\") throw new Error(`${op} failed: ${JSON.stringify(j.why).slice(0, 300)} key=${key}`);\n                                  ^\n\nError: createPost failed: {\"code\":\"E_ASSET_PLACED\",\"family\":\"asset\",\"guide\":\"assets\",\"message\":\"asset 01M"
+    }
+  ],
+  "coverage": [
+    {
+      "id": "m6-a08",
+      "test": "push payload logged for offline peer message",
+      "pass": true
+    },
+    {
+      "id": "m6-a09",
+      "test": "view-once photo previews as Photo in push",
+      "pass": true
+    },
+    {
+      "id": "m6-a10",
+      "test": "custom-client demo runs green",
+      "pass": true
+    },
+    {
+      "id": "m6-a11",
+      "test": "demo exercises every listed operation",
+      "pass": true
+    },
+    {
+      "id": "m6-a13",
+      "test": "sample-50 action log replays green",
+      "pass": false
+    }
+  ],
+  "uncovered": [
+    "m6-a13"
+  ]
+}

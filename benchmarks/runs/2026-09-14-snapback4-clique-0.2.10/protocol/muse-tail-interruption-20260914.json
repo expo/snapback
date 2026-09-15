@@ -1,0 +1,66 @@
+{
+  "observedAt": "2026-09-14T22:21:31.250282+00:00",
+  "pid": 65229,
+  "processCommand": "/Users/ccheever/.local/bin/muse-bin-1.2.1-R2847.1 exec --prompt-file /Users/ccheever/clique-sb4-20260913-relaxed-3models/prompts/muse-snapback4.md --model muse-spark-1.3 --reasoning-effort xhigh --json --yolo --trust-workspace --user-input-auto-resolve --max-model-steps 50000 --workspace /Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/muse-snapback4",
+  "request": "SIGINT to the exact Muse CLI PID only; not its shared chain process group.",
+  "reason": "Builder final report and completed public answer exist; later completed answers respond only to the idle server and restate completion. Narrow anchor empty-tail precedent; preserve actual exit and total runner wall.",
+  "rawPrefix": {
+    "bytes": 26312916,
+    "sha256": "c8a0c70bf14c6d82fb9f805ae635070d1951d27949874c6f8b67d7ffbec54f92"
+  },
+  "finalReport": {
+    "bytes": 9618,
+    "sha256": "c7713e01ea72b85b3e6b9026df1b03e0f16eefdd39222a2bdfe5f9f8d9b5b5ea"
+  },
+  "publicCompletedAnswers": [
+    {
+      "line": 27572,
+      "eventId": "018f0000-0000-7000-8000-00000001ab4c",
+      "payload": {
+        "kind": "run_terminal",
+        "command_id": "df3d900b-5e79-468f-93ce-71ee387bcbd7",
+        "run_stream": {
+          "kind": "run",
+          "id": "df3d900b-5e79-468f-93ce-71ee387bcbd7"
+        },
+        "terminal": "completed",
+        "text": "Lane complete. All milestones green (M7 not-run per brief), essay and final report written.\n\n**Outcome:** final canonical sweep on a fresh store \u2014 suites 7/7 green, choreography m1, m2, m3, m4, m5, m6, m8 all green (`receipts-all5.jsonl`). `dist-web/` and `dist-ios/` rebuilt clean with the debug flag verified stripped. `essay.md` and `final-report.md` are in the lane root.\n\n**Three diagnoses this session, two real fixes:**\n- M5 search red was stale-store pollution: the DM had grown to 520 spam rows, pushing the seed's oldest row outside every sync window. Wiped and reseeded canonical (`seed --segment m3`).\n- M3 cutoff red was a genuine app bug: settings mutations died with the page on instant navigation. Added `settingsMutate` ([lib/helpers.tsx](/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/muse-snapback4/lib/helpers.tsx:162)) \u2014 keepalive write-through with device fallback \u2014 for `memberRemove`/`setDisappearing`. M3 now deterministic green.\n- M5 disappearing: verified server `expire at` fires and the UI applies, but the frozen production config (24h TTL vs 45s probe wait) makes the letter unsatisfiable \u2014 documented as gap 1 with the snapshot-timing analysis. Frozen config respected throughout.\n\nKey files: [final-report.md](/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/muse-snapback4/final-report.md), [essay.md](/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/muse-snapback4/essay.md), run-log/diary updated. Pins: `snapback4@0.2.10`, `snapback4-expo@0.2.3`, ports 49340/49341.\n\nNote: the backend/serve/worker processes are my lane's and still running, but nothing I start survives this session on macOS \u2014 to resume serving: `npm run backend`, `node scripts/serve.mjs 49341`, `npm run seed -- --segment m3`.\n\n`end=1789423823`",
+        "reason": null
+      },
+      "sha256": "4839b2ae8ef64180a4608b9217bbbfca75ccc3e631d09e200b9aaf3d5d466635"
+    },
+    {
+      "line": 27646,
+      "eventId": "018f0000-0000-7000-8000-00000001abdd",
+      "payload": {
+        "kind": "run_terminal",
+        "command_id": "01a0a1f9-3ddd-70b3-9cd3-804b241ff3fd",
+        "run_stream": {
+          "kind": "run",
+          "id": "01a0a1f9-3ddd-70b3-9cd3-804b241ff3fd"
+        },
+        "terminal": "completed",
+        "text": "That's just the lane's static web server (`scripts/serve.mjs` on 49341) \u2014 idle, healthy, and serving the final `dist-web` build. No action needed; the lane remains complete as reported.\n\n`end=1789423823`",
+        "reason": null
+      },
+      "sha256": "c3f3379cf61d03ae2a4c2dbf918c931ad7cc3518cc21133a3810fdb6db5b73f9"
+    },
+    {
+      "line": 27695,
+      "eventId": "018f0000-0000-7000-8000-00000001ac3c",
+      "payload": {
+        "kind": "run_terminal",
+        "command_id": "01a0a1fd-6e40-7112-812d-16e350082081",
+        "run_stream": {
+          "kind": "run",
+          "id": "01a0a1fd-6e40-7112-812d-16e350082081"
+        },
+        "terminal": "completed",
+        "text": "Same idle web server on 49341, still healthy by design \u2014 long-lived servers produce no output while waiting. Leaving it alone; lane work stays complete.\n\n`end=1789423823`",
+        "reason": null
+      },
+      "sha256": "c17b9e1a3a61f3423bdf3424c3e2699c3adadc643c50370a111e15106cf781df"
+    }
+  ],
+  "outcome": "interruption requested; original runner end remains authoritative"
+}

@@ -1,0 +1,45 @@
+{
+  "milestone": "m8",
+  "pass": true,
+  "results": [
+    {
+      "id": "m8-a01",
+      "name": "insights totals",
+      "ok": true
+    },
+    {
+      "id": "m8-a03",
+      "name": "today bucket",
+      "ok": true
+    },
+    {
+      "id": "m8-a04",
+      "name": "zero days rendered",
+      "ok": true
+    },
+    {
+      "id": "m8-a05",
+      "name": "trending likes first",
+      "ok": true
+    },
+    {
+      "id": "m8-a06",
+      "name": "old posts absent",
+      "ok": true
+    },
+    {
+      "id": "m8-a07",
+      "name": "tie newest first",
+      "ok": true
+    }
+  ],
+  "coverage": {
+    "m8-a01": "insights totals",
+    "m8-a03": "today bucket",
+    "m8-a04": "zero days rendered",
+    "m8-a05": "trending likes first",
+    "m8-a06": "old posts absent",
+    "m8-a07": "tie newest first"
+  },
+  "at": "2026-09-14T16:35:42.942Z"
+}

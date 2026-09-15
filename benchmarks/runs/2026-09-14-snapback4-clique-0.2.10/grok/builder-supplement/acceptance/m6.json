@@ -1,0 +1,39 @@
+{
+  "milestone": "m6",
+  "pass": true,
+  "results": [
+    {
+      "id": "m6-a08",
+      "name": "push payload logged",
+      "ok": true
+    },
+    {
+      "id": "m6-a09",
+      "name": "view-once preview Photo",
+      "ok": true
+    },
+    {
+      "id": "m6-a10",
+      "name": "custom-client-demo",
+      "ok": true
+    },
+    {
+      "id": "m6-a11",
+      "name": "demo operations listed",
+      "ok": true
+    },
+    {
+      "id": "m6-a13",
+      "name": "sample-50 replay",
+      "ok": true
+    }
+  ],
+  "coverage": {
+    "m6-a08": "push payload logged",
+    "m6-a09": "view-once preview Photo",
+    "m6-a10": "custom-client-demo",
+    "m6-a11": "demo operations listed",
+    "m6-a13": "sample-50 replay"
+  },
+  "at": "2026-09-14T16:35:42.721Z"
+}

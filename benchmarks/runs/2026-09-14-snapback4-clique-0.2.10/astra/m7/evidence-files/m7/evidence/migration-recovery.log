@@ -1,0 +1,69 @@
+check: ok — 33 tables (17 synced), 49 operations, no problems, 17 notes, 5.2 ms
+note: order.q:3:1 — N_NO_HORIZON: table messageClocks: `sync to members[.conversationId]` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start
+  rewrite: by byGroupAt: conversationId, at, id  -- then: sync to members[.conversationId] last 500 by byGroupAt
+  guide: sync
+
+note: chat.q:56:1 — N_NO_HORIZON: table messages: `sync to members[.conversationId]` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start
+  rewrite: sync to members[.conversationId] last 500 by byChatWords
+  guide: sync
+
+note: features.q:1:1 — N_NO_HORIZON: table opened: `sync to .principal` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start
+  rewrite: sync to .principal last 500 by byPrincipalMessage
+  guide: sync
+
+note: polls.q:2:1 — N_NO_HORIZON: table pollOptions: `sync to members[.conversationId]` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start
+  rewrite: sync to members[.conversationId] last 500 by byMessageKey
+  guide: sync
+
+note: polls.q:20:1 — N_NO_HORIZON: table pollVotes: `sync to members[.conversationId]` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start
+  rewrite: sync to members[.conversationId] last 500 by byMessagePrincipal
+  guide: sync
+
+note: schema.q:3:1 — N_NO_HORIZON: table profiles: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start
+  rewrite: sync public last 500 by byHandle
+  guide: sync
+
+note: media.q:1:1 — N_NO_HORIZON: table reactions: `sync to members[.conversationId]` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start
+  rewrite: sync to members[.conversationId] last 500 by byMessagePrincipal
+  guide: sync
+
+note: chat.q:42:1 — N_NO_HORIZON: table readStates: `sync to members[.conversationId]` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start
+  rewrite: sync to members[.conversationId] last 500 by byConversationPrincipal
+  guide: sync
+
+note: chat.q:86:1 — N_NO_HORIZON: table typing: `sync to members[.conversationId]` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start
+  rewrite: sync to members[.conversationId] last 500 by byConversationPrincipal
+  guide: sync
+
+note: analytics.q:45:1 — N_NO_CURSOR: query analytics.trending returns a page of 10 postRanks rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — analytics.trending(.., c: cursor ?): return postRanks[..] after c last 10 by <index>
+  guide: reads
+
+note: chat.q:123:1 — N_NO_CURSOR: query chat.roster returns a page of 50 members rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — chat.roster(.., c: cursor ?): return members[..] after c last 50 by <index>
+  guide: reads
+
+note: chat.q:126:1 — N_NO_CURSOR: query chat.typing returns a page of 50 typing rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — chat.typing(.., c: cursor ?): return typing[..] after c last 50 by <index>
+  guide: reads
+
+note: chat.q:136:1 — N_NO_CURSOR: query chat.group returns a page of 100 members rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — chat.group(.., c: cursor ?): return members[..] after c last 100 by <index>
+  guide: reads
+
+note: features.q:24:1 — N_NEVER_COMPLETE: query features.allMessages: the page over messages[..] by byWords is never `complete` — the read rule `exists members[.conversationId, viewer]` reads .conversationId, which the scan does not pin, so the server cannot tell "no more" from "more you may not read"
+  rewrite: scan by an index leading with conversationId, id (`by byConversationId: conversationId, id`), or read the page on the device, where the partition holds exactly what the viewer may read
+  guide: reads
+
+note: polls.q:38:1 — N_NO_CURSOR: query polls.view returns a page of 4 pollOptions rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — polls.view(.., c: cursor ?): return pollOptions[..] after c last 4 by <index>
+  guide: reads
+
+note: social.q:85:1 — N_WIDE_MERGE: query social.following: the merge over timelines reads up to 1001 lanes, reading one head per lane and advancing the winning lanes; discovery, lookahead, duplicates and expired rows also consume the meter
+  rewrite: keep the lanes under 50 (`first 50` on the lane source), or write the feed on the way in: a table of entries per reader, synced to .reader, read as one page (`snapback4 guide feeds`)
+  guide: feeds
+
+note: social.q:70:1 — N_MAINTAIN_SYNCED: maintain likeCounts: sync public inherited from likes; one value row per postId reaches every device
+  rewrite: add `online only` to the maintain to opt out of inherited sync; measure with `test --residency`
+  guide: residency
+

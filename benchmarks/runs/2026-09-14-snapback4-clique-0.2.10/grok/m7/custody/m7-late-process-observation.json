@@ -1,0 +1,32 @@
+{
+  "observedAt": "2026-09-15T02:28:05.624392+00:00",
+  "lane": "grok",
+  "phaseEndedAt": "2026-09-15T02:09:28Z",
+  "selectedPids": [
+    29621,
+    46099,
+    59663,
+    79827
+  ],
+  "sources": [
+    {
+      "path": "m7/run-log.md",
+      "sha256": "182c52c7f4c97805e780ee79fd415834753b54fe44d5841e2182d996065fc86c"
+    },
+    {
+      "path": "m7/final-report.md",
+      "sha256": "6cdbbaf57baf4aa62fd6d98efa961f8908f2760c284f213eb59146440bae8cd8"
+    }
+  ],
+  "ps": {
+    "exitCode": 1,
+    "stdout": "",
+    "stderr": ""
+  },
+  "assignedListeningSockets": {
+    "exitCode": 1,
+    "stdout": "",
+    "stderr": ""
+  },
+  "limits": "One late observation of PIDs explicitly named in M7 narratives and matching PID JSON ledgers plus the phase child, and listeners in the assigned port range. No signals or app requests. Absence is not a complete process inventory at phase end; any live PID may have been reused and needs ownership inspection before action. ps records executable names without arguments to avoid exposing credentials."
+}

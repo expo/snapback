@@ -1,0 +1,20 @@
+{
+  "observedAt": "2026-09-15T02:28:59.816143+00:00",
+  "phase": "m7",
+  "wave": "muse",
+  "qualificationSha256": "0a7dfc94696e5216cbe44f91e7c0c96a73a382505af3b81d25be585bf40dc6ea",
+  "originalRunnerSha256": "d72aba2dfcfd7a93c16de72349e430345682f63f12553b1a4f6ca5465f659c62",
+  "inMemoryRunnerSha256": "b8a8efbc23aa883e1c7e8e4a9fc78ab0759e5cd2d10be8a248b2c9555aa8815b",
+  "helperSha256": "c9402bb392e900a1e56fc869d8b1252d94780bb954130e42bfae0351af574486",
+  "changedExpression": "Only the Muse builder completion predicate; retained exit130 is not reclassified.",
+  "globalCompletedUnchanged": true,
+  "frozenRunnerModified": false,
+  "verifyOnly": false,
+  "pid": 6362,
+  "argv": [
+    "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scripts/run_phase.py",
+    "m7",
+    "muse"
+  ],
+  "startedAt": "2026-09-15T02:28:59.816518+00:00"
+}

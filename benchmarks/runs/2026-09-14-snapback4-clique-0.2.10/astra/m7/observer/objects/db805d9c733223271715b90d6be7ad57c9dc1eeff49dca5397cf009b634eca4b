@@ -1,0 +1,113 @@
+[
+  {
+    "id": "paths",
+    "attribution": "agent-error",
+    "description": "Guessed several module paths; used file search to locate the actual harness and frozen poll widgets.",
+    "evidence": [
+      "m7/run-log.md"
+    ]
+  },
+  {
+    "id": "rules-and-indexing",
+    "attribution": "agent-error",
+    "description": "Used row dereferences in rules and treated list indexing as nonoptional; corrected rules and unwrapped validated option indices.",
+    "evidence": [
+      "m7/evidence/check-1.txt",
+      "m7/evidence/check-2.txt"
+    ]
+  },
+  {
+    "id": "nullable-sum",
+    "attribution": "agent-error",
+    "description": "A sum maintain cannot use int?. Staged nullable contribution, ran the backfill, then required the column and introduced the sum.",
+    "evidence": [
+      "m7/evidence/check-2.txt",
+      "m7/evidence/backfill.json"
+    ]
+  },
+  {
+    "id": "expiring-mutation-scan",
+    "attribution": "agent-error",
+    "description": "A mutation cannot scan expiring option/vote tables. Removed the unsupported sweep and later implemented bounded option-key point deletions.",
+    "evidence": [
+      "m7/evidence/check-3.txt",
+      "m7/evidence/why-fanout.txt"
+    ]
+  },
+  {
+    "id": "poll-label-revocation",
+    "attribution": "agent-error",
+    "description": "Review found option labels retained after a tombstone. Stored option keys, backfilled test-era polls, and used four explicit point deletes after a list-delete loop was refused.",
+    "evidence": [
+      "m7/evidence/check-deletion.txt",
+      "m7/evidence/check-deletion-2.txt",
+      "scripts/acceptance-m7.mjs"
+    ]
+  },
+  {
+    "id": "generated-aggregate-identity",
+    "attribution": "snapback4-defect",
+    "description": "A maintained compound key accepted during writes exceeded the identity bound during later schema adoption. Old schema reopened. Minimal reproduction confirmed the failure; replacing only the derived tally cache with indexed vote counts preserved data and enabled adoption.",
+    "evidence": [
+      "m7/evidence/aggregate-id-repro.json",
+      "m7/evidence/poll-tally-ids.json",
+      "m7/evidence/migration-correction.log",
+      "m7/evidence/migration-recovery.log"
+    ]
+  },
+  {
+    "id": "failed-adoption-sequencing",
+    "attribution": "agent-error",
+    "description": "Dependent export/comparison/suite commands continued after adoption failed, producing a setup-red attempt. Retained failed evidence and verified recovery before the next full run.",
+    "evidence": [
+      "m7/evidence/m7-suite-startup-failure.json",
+      "m7/evidence/acceptance-startup-failure.log"
+    ]
+  },
+  {
+    "id": "node-shim",
+    "attribution": "environment",
+    "description": "The shell shim resolved Node 25.9.0 despite the environment document declaring Node 24 first. Final acceptance, choreography, and native export used explicit Node 24.18.0.",
+    "evidence": [
+      "m7/evidence/toolchain-final.txt",
+      "m7/evidence/migration-correction.log"
+    ]
+  },
+  {
+    "id": "pid-ledger-order",
+    "attribution": "agent-error",
+    "description": "A late historical backend entry made the inherited restart helper choose an exited PID. It failed ESRCH without killing a process. Relabeled the historical CLI child and reran the full unchanged suite command.",
+    "evidence": [
+      "m7/evidence/pid-ledger-order-failure.jsonl",
+      "m7/evidence/m8-suite-ledger-failure.json",
+      "m7/evidence/m7-suite-ledger-failure.json"
+    ]
+  },
+  {
+    "id": "adapter-relative-path",
+    "attribution": "agent-error",
+    "description": "Preflight review caught fixture paths resolving relative to the M7 adapter directory; corrected before choreography.",
+    "evidence": [
+      "m7/prepare-choreography.mjs",
+      "m7/run-log.md"
+    ]
+  },
+  {
+    "id": "duplicate-question",
+    "attribution": "agent-error",
+    "description": "Screenshot review found duplicate question copy in the message shell and poll card. Changed only shell text to Poll; repeated choreography, screenshots, typecheck, and iOS export.",
+    "evidence": [
+      "m7/evidence/poll-ui-before-label-fix.png",
+      "m7/evidence/poll-ui.png",
+      "m7/evidence/choreography-final.log"
+    ]
+  },
+  {
+    "id": "report-template-quoting",
+    "attribution": "agent-error",
+    "description": "Markdown backticks were not escaped inside the JavaScript report template. Corrected formatting and reran generation; application verification was unaffected.",
+    "evidence": [
+      "m7/evidence/report-generation-error.txt"
+    ]
+  }
+]

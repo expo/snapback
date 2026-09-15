@@ -1,0 +1,33 @@
+{
+  "milestone": "m8",
+  "pass": false,
+  "cases": [
+    {
+      "name": "six-server-totals-match-independent-state",
+      "pass": true
+    },
+    {
+      "name": "server-utc-buckets-and-zero-days",
+      "pass": true
+    },
+    {
+      "name": "trending-ranked-ties-and-expired-window",
+      "pass": true
+    },
+    {
+      "name": "scheduled-digest-no-clients-restart-and-quiet-next-period",
+      "pass": false,
+      "error": "Command failed: /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node scripts/restart-backend.mjs\nnode:internal/process/per_thread:277\n      throw new ErrnoException(err, 'kill');\n            ^\n\nError: kill ESRCH\n    at process.kill (node:internal/process/per_thread:277:13)\n    at file:///Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/scripts/restart-backend.mjs:9:9\n    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)\n    at async node:internal/modules/esm/loader:643:26\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {\n  errno: -3,\n  code: 'ESRCH',\n  syscall: 'kill'\n}\n\nNode.js v24.18.0\n"
+    }
+  ],
+  "coverage": {
+    "m8-a01": "six-server-totals-match-independent-state",
+    "m8-a03": "server-utc-buckets-and-zero-days",
+    "m8-a04": "server-utc-buckets-and-zero-days",
+    "m8-a05": "trending-ranked-ties-and-expired-window",
+    "m8-a06": "trending-ranked-ties-and-expired-window",
+    "m8-a07": "trending-ranked-ties-and-expired-window"
+  },
+  "missing": [],
+  "recordedAt": "2026-09-15T01:20:38.161Z"
+}

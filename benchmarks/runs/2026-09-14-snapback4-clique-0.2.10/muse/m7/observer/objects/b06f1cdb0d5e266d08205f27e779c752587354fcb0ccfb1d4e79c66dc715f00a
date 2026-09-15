@@ -1,0 +1,31 @@
+{
+  "persona": "grace",
+  "email": "grace@example.com",
+  "me": {
+    "at": 1789439768633,
+    "avatar": {
+      "bytes": 729,
+      "duration": null,
+      "height": 256,
+      "id": "01M2HEQY1KFMM88AV4CCJBBB5M",
+      "type": "image/png",
+      "width": 256
+    },
+    "bio": "Gardens, graphic novels, and good questions.",
+    "displayName": "Grace Green",
+    "handle": "grace",
+    "link": "https://example.com/grace",
+    "location": "Chicago, IL",
+    "principal": "user:01M2HEQY1G2KKVM76ZQ8AMNSZ4"
+  },
+  "inbox": [],
+  "convs": [],
+  "profiles": [],
+  "media": [
+    {
+      "id": "01M2HEQY1KFMM88AV4CCJBBB5M",
+      "sha256": "283773fb9ae8f07a00e335fdd37fd9f836845594d8be3352ee0fab542c4c9984",
+      "bytes": 729
+    }
+  ]
+}

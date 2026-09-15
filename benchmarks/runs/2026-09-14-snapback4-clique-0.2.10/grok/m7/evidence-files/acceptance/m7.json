@@ -1,0 +1,45 @@
+{
+  "milestone": "m7",
+  "pass": true,
+  "results": [
+    {
+      "id": "m7-a01",
+      "name": "create a group poll",
+      "ok": true
+    },
+    {
+      "id": "m7-a03",
+      "name": "changing a vote adjusts counts",
+      "ok": true
+    },
+    {
+      "id": "m7-a04",
+      "name": "duplicate vote intent does not flip state",
+      "ok": true
+    },
+    {
+      "id": "m7-a06",
+      "name": "backfilled visible message counts",
+      "ok": true
+    },
+    {
+      "id": "m7-a07",
+      "name": "counts increment with new messages",
+      "ok": true
+    },
+    {
+      "id": "m7-a09",
+      "name": "previously green suites still pass",
+      "ok": true
+    }
+  ],
+  "coverage": {
+    "m7-a01": "create a group poll",
+    "m7-a03": "changing a vote adjusts counts",
+    "m7-a04": "duplicate vote intent does not flip state",
+    "m7-a06": "backfilled visible message counts",
+    "m7-a07": "counts increment with new messages",
+    "m7-a09": "previously green suites still pass"
+  },
+  "at": "2026-09-15T02:00:52.690Z"
+}

@@ -1,0 +1,12 @@
+{
+  "observedAt": "2026-09-15T02:31:55.738412+00:00",
+  "source": "Grok M7 public cleanup request metadata line 2611, additional IDs omitted from report. Complements full-report-pid-observation.json.",
+  "pids": [
+    76534,
+    76697
+  ],
+  "psExit": 1,
+  "stdout": "",
+  "stderr": "",
+  "limits": "Late selected PID observation only; no signals, complete end inventory or shared-port vacancy claim."
+}

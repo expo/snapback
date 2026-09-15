@@ -1,0 +1,54 @@
+{
+  "observedAt": "2026-09-15T00:50:48.791123+00:00",
+  "stage": "after-grade-before-m7",
+  "baselineSourceFiles": 130,
+  "sourceChangesSinceBuilder": [],
+  "artifacts": {
+    "grader-report.json": {
+      "bytes": 48263,
+      "sha256": "437b3b58daebd13b88223df2971ad941a794e5f1392819e97e2d35ce72a6edcd"
+    },
+    "m8-assertion-results.json": {
+      "bytes": 6334,
+      "sha256": "554c57fecb9bfb2663c79363a2c72ac82335e8e9ad0bfdb652c44f02f35bd85c"
+    },
+    "trace.md": {
+      "bytes": 27734,
+      "sha256": "ebc51f533ef998cd22b98628f495e49144226ac3d6de58575d9ac5df5ede59f0"
+    },
+    "DONE": {
+      "bytes": 15,
+      "sha256": "4f789b550719415b35f8da81224d7581af09581c0613ab558d257fb31a6f64f3"
+    },
+    "muse-snapback4.grade.start.json": {
+      "bytes": 973,
+      "sha256": "93a1cfe08da00848c5906cde92f29bbf254542ea2b3cc553dbdd66199a61eac7"
+    },
+    "muse-snapback4.grade.end.json": {
+      "bytes": 380,
+      "sha256": "3ed363e9081c2830f12b72d664ab862f3210e16d4d6fff4f60b7fb7b91649a9d"
+    }
+  },
+  "gradeRawLogHash": {
+    "bytes": 2592353,
+    "sha256": "a04295777fac1ce632dea8c0663195d52f45708815042b101ec65edd22590ff6"
+  },
+  "recordedPidObservation": {
+    "pids": [
+      69676,
+      69724,
+      69814,
+      69677,
+      83535,
+      83537,
+      83546
+    ],
+    "stdout": "",
+    "exitCode": 1
+  },
+  "listeners": {
+    "stdout": "",
+    "exitCode": 1
+  },
+  "limits": "Named files captured and builder-source hashes compared. PID/listener observation is later than grade end, not a complete descendant inventory. No correctness or calibration claim."
+}

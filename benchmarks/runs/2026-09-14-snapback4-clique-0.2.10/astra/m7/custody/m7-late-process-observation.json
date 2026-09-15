@@ -1,0 +1,48 @@
+{
+  "observedAt": "2026-09-15T01:41:02.332121+00:00",
+  "lane": "astra",
+  "phaseEndedAt": "2026-09-15T01:39:57Z",
+  "selectedPids": [
+    19191,
+    19194,
+    20190,
+    20199,
+    23821,
+    38153,
+    38155,
+    49199,
+    54693,
+    54697,
+    67686,
+    67729,
+    74767,
+    86013,
+    86029,
+    86031
+  ],
+  "sources": [
+    {
+      "path": "m7/pids.jsonl",
+      "sha256": "463eeaf3bf809247e9d71d5dc6f7706898718563c2f6bd0ede7affb42b75b94a"
+    },
+    {
+      "path": "m7/run-log.md",
+      "sha256": "b5b03fffecb669c9f172d911f94a47249e81051c4805c17e846a156e96c94924"
+    },
+    {
+      "path": "m7/final-report.md",
+      "sha256": "62d286eac4fc0a10e48e90ad0309be4d9f2573f070d7f682cfe725747dbdad20"
+    }
+  ],
+  "ps": {
+    "exitCode": 1,
+    "stdout": "",
+    "stderr": ""
+  },
+  "assignedListeningSockets": {
+    "exitCode": 1,
+    "stdout": "",
+    "stderr": ""
+  },
+  "limits": "One late observation of PIDs explicitly named in M7 narratives and matching PID JSON ledgers plus the phase child, and listeners in the assigned port range. No signals or app requests. Absence is not a complete process inventory at phase end; any live PID may have been reused and needs ownership inspection before action. ps records executable names without arguments to avoid exposing credentials."
+}

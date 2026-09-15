@@ -1,0 +1,35 @@
+{
+  "lane": "grok-snapback4",
+  "phase": "m7",
+  "pid": 59663,
+  "startedAt": "2026-09-15T01:41:40Z",
+  "startedEpoch": 1789436500,
+  "command": [
+    "/Users/ccheever/.local/bin/grok",
+    "--prompt-file",
+    "/Users/ccheever/clique-sb4-20260913-relaxed-3models/prompts/grok-snapback4.m7.md",
+    "--cwd",
+    "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4",
+    "-m",
+    "grok-4.6",
+    "--reasoning-effort",
+    "xhigh",
+    "--output-format",
+    "streaming-json",
+    "--permission-mode",
+    "bypassPermissions",
+    "--max-turns",
+    "5000"
+  ],
+  "model": "grok-4.6",
+  "effort": "xhigh",
+  "prompt": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/prompts/grok-snapback4.m7.md",
+  "cwd": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4",
+  "stdout": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.m7.ndjson",
+  "stderr": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.m7.stderr.log",
+  "packages": {
+    "snapback4": "0.2.10",
+    "snapback4-expo": "0.2.3"
+  },
+  "detached": false
+}

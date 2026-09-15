@@ -1,0 +1,73 @@
+{
+  "milestone": "m8",
+  "url": "http://127.0.0.1:49340",
+  "web": "http://127.0.0.1:49341",
+  "at": "2026-09-14T22:04:48.488Z",
+  "pass": true,
+  "failures": 0,
+  "results": [
+    {
+      "assertion": "m8-a01",
+      "test": "insights totals match seeded content",
+      "pass": true
+    },
+    {
+      "assertion": "m8-a03",
+      "test": "activity breakdown buckets today",
+      "pass": true
+    },
+    {
+      "assertion": "m8-a04",
+      "test": "idle days render as zero",
+      "pass": true
+    },
+    {
+      "assertion": "m8-a05",
+      "test": "trending ranks most-liked first",
+      "pass": true
+    },
+    {
+      "assertion": "m8-a06",
+      "test": "trending rows stay inside the trailing 24h window",
+      "pass": true
+    },
+    {
+      "assertion": "m8-a07",
+      "test": "trending like tie breaks newest-first",
+      "pass": true
+    }
+  ],
+  "coverage": [
+    {
+      "id": "m8-a01",
+      "test": "insights totals match seeded content",
+      "pass": true
+    },
+    {
+      "id": "m8-a03",
+      "test": "activity breakdown buckets today",
+      "pass": true
+    },
+    {
+      "id": "m8-a04",
+      "test": "idle days render as zero",
+      "pass": true
+    },
+    {
+      "id": "m8-a05",
+      "test": "trending ranks most-liked first",
+      "pass": true
+    },
+    {
+      "id": "m8-a06",
+      "test": "trending rows stay inside the trailing 24h window",
+      "pass": true
+    },
+    {
+      "id": "m8-a07",
+      "test": "trending like tie breaks newest-first",
+      "pass": true
+    }
+  ],
+  "uncovered": []
+}

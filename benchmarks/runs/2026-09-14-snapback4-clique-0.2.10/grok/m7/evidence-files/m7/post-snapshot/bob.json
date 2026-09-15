@@ -1,0 +1,467 @@
+{
+  "schemaVersion": "clique.m6-field-manifest.v1",
+  "persona": "bob",
+  "principal": "user:01M2HC29YMGGE4M0K9G7D5T6TF",
+  "exportedAt": "2026-09-15T01:56:08.933Z",
+  "fieldManifest": [
+    "id",
+    "conversationId",
+    "authorId",
+    "at",
+    "photo",
+    "clip",
+    "photoOnce",
+    "poster",
+    "body",
+    "editedAt",
+    "deleted",
+    "quoteId",
+    "reactions",
+    "receipts"
+  ],
+  "conversations": [
+    {
+      "conversationId": "d-alice-bob",
+      "kind": "dm",
+      "title": null,
+      "disappearing": "off",
+      "unread": 3,
+      "role": "member",
+      "messages": [
+        {
+          "id": "sm0001",
+          "conversationId": "d-alice-bob",
+          "authorId": "user:01M2HC29XZH6NQWMBD58NBR5T7",
+          "at": 1789436963719,
+          "photo": null,
+          "clip": null,
+          "photoOnce": null,
+          "poster": null,
+          "body": "Coffee after work?",
+          "editedAt": null,
+          "deleted": false,
+          "quoteId": null,
+          "reactions": [],
+          "receipts": [
+            {
+              "id": "01M2HC2AW74R470RAKH0GCBQJA",
+              "messageId": "sm0001",
+              "principal": "user:01M2HC29YMGGE4M0K9G7D5T6TF",
+              "delivered": false,
+              "readFlag": false
+            }
+          ]
+        },
+        {
+          "id": "sm0002",
+          "conversationId": "d-alice-bob",
+          "authorId": "user:01M2HC29YMGGE4M0K9G7D5T6TF",
+          "at": 1789436963720,
+          "photo": null,
+          "clip": null,
+          "photoOnce": null,
+          "poster": null,
+          "body": "Yes. Corner place?",
+          "editedAt": null,
+          "deleted": false,
+          "quoteId": "sm0001",
+          "reactions": [],
+          "receipts": [
+            {
+              "id": "01M2HC2AW8YJ007SPGM80RQHM6",
+              "messageId": "sm0002",
+              "principal": "user:01M2HC29XZH6NQWMBD58NBR5T7",
+              "delivered": false,
+              "readFlag": false
+            }
+          ]
+        },
+        {
+          "id": "sm0003",
+          "conversationId": "d-alice-bob",
+          "authorId": "user:01M2HC29XZH6NQWMBD58NBR5T7",
+          "at": 1789436963721,
+          "photo": null,
+          "clip": null,
+          "photoOnce": null,
+          "poster": null,
+          "body": "Exactly. Six thirty.",
+          "editedAt": null,
+          "deleted": false,
+          "quoteId": "sm0002",
+          "reactions": [],
+          "receipts": [
+            {
+              "id": "01M2HC2AW9GFSQ3ERSYYDS7RDN",
+              "messageId": "sm0003",
+              "principal": "user:01M2HC29YMGGE4M0K9G7D5T6TF",
+              "delivered": false,
+              "readFlag": false
+            }
+          ]
+        },
+        {
+          "id": "sm0004",
+          "conversationId": "d-alice-bob",
+          "authorId": "user:01M2HC29YMGGE4M0K9G7D5T6TF",
+          "at": 1789436963723,
+          "photo": null,
+          "clip": null,
+          "photoOnce": null,
+          "poster": null,
+          "body": "I will bring the route map.",
+          "editedAt": null,
+          "deleted": false,
+          "quoteId": null,
+          "reactions": [],
+          "receipts": [
+            {
+              "id": "01M2HC2AWB4J2SE0TVVMV0E9KJ",
+              "messageId": "sm0004",
+              "principal": "user:01M2HC29XZH6NQWMBD58NBR5T7",
+              "delivered": false,
+              "readFlag": false
+            }
+          ]
+        },
+        {
+          "id": "sm0005",
+          "conversationId": "d-alice-bob",
+          "authorId": "user:01M2HC29XZH6NQWMBD58NBR5T7",
+          "at": 1789436963724,
+          "photo": null,
+          "clip": null,
+          "photoOnce": null,
+          "poster": null,
+          "body": "Perfect, see you there.",
+          "editedAt": null,
+          "deleted": false,
+          "quoteId": null,
+          "reactions": [],
+          "receipts": [
+            {
+              "id": "01M2HC2AWCZHKHP5CTXEPT58VX",
+              "messageId": "sm0005",
+              "principal": "user:01M2HC29YMGGE4M0K9G7D5T6TF",
+              "delivered": false,
+              "readFlag": false
+            }
+          ]
+        },
+        {
+          "id": "sm0006",
+          "conversationId": "d-alice-bob",
+          "authorId": "user:01M2HC29YMGGE4M0K9G7D5T6TF",
+          "at": 1789436963725,
+          "photo": null,
+          "clip": null,
+          "photoOnce": null,
+          "poster": null,
+          "body": "On my way.",
+          "editedAt": null,
+          "deleted": false,
+          "quoteId": "sm0005",
+          "reactions": [],
+          "receipts": [
+            {
+              "id": "01M2HC2AWDSN1P0YFSG75K9HN1",
+              "messageId": "sm0006",
+              "principal": "user:01M2HC29XZH6NQWMBD58NBR5T7",
+              "delivered": false,
+              "readFlag": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "conversationId": "g-starter",
+      "kind": "group",
+      "title": "Weekend Plans",
+      "disappearing": "off",
+      "unread": 7,
+      "role": "member",
+      "messages": [
+        {
+          "id": "sm0007",
+          "conversationId": "g-starter",
+          "authorId": "user:01M2HC29XZH6NQWMBD58NBR5T7",
+          "at": 1789436963727,
+          "photo": null,
+          "clip": null,
+          "photoOnce": null,
+          "poster": null,
+          "body": "Saturday plan: coffee, lake, then noodles.",
+          "editedAt": null,
+          "deleted": false,
+          "quoteId": null,
+          "reactions": [],
+          "receipts": [
+            {
+              "id": "01M2HC2AWF87EFYMAKQZCE3W2K",
+              "messageId": "sm0007",
+              "principal": "user:01M2HC29YMGGE4M0K9G7D5T6TF",
+              "delivered": false,
+              "readFlag": false
+            },
+            {
+              "id": "01M2HC2AWF1XRNZBRVGVZ2PTZY",
+              "messageId": "sm0007",
+              "principal": "user:01M2HC29Z5GY9KB930W4V1R0KC",
+              "delivered": false,
+              "readFlag": false
+            }
+          ]
+        },
+        {
+          "id": "sm0008",
+          "conversationId": "g-starter",
+          "authorId": "user:01M2HC29Z5GY9KB930W4V1R0KC",
+          "at": 1789436963728,
+          "photo": null,
+          "clip": null,
+          "photoOnce": null,
+          "poster": null,
+          "body": "Coffee is a definite yes.",
+          "editedAt": null,
+          "deleted": false,
+          "quoteId": "sm0007",
+          "reactions": [],
+          "receipts": [
+            {
+              "id": "01M2HC2AWG7RYPRDXEQ8MB38MF",
+              "messageId": "sm0008",
+              "principal": "user:01M2HC29XZH6NQWMBD58NBR5T7",
+              "delivered": false,
+              "readFlag": false
+            },
+            {
+              "id": "01M2HC2AWGW5VS2RJKDHVXX72W",
+              "messageId": "sm0008",
+              "principal": "user:01M2HC29YMGGE4M0K9G7D5T6TF",
+              "delivered": false,
+              "readFlag": false
+            }
+          ]
+        },
+        {
+          "id": "sm0009",
+          "conversationId": "g-starter",
+          "authorId": "user:01M2HC29Z5GY9KB930W4V1R0KC",
+          "at": 1789436963729,
+          "photo": null,
+          "clip": null,
+          "photoOnce": null,
+          "poster": null,
+          "body": "I can meet everyone at ten.",
+          "editedAt": null,
+          "deleted": false,
+          "quoteId": null,
+          "reactions": [],
+          "receipts": [
+            {
+              "id": "01M2HC2AWHZT59G4CH3D1C243X",
+              "messageId": "sm0009",
+              "principal": "user:01M2HC29XZH6NQWMBD58NBR5T7",
+              "delivered": false,
+              "readFlag": false
+            },
+            {
+              "id": "01M2HC2AWHNV13XVYX7869356Y",
+              "messageId": "sm0009",
+              "principal": "user:01M2HC29YMGGE4M0K9G7D5T6TF",
+              "delivered": false,
+              "readFlag": false
+            }
+          ]
+        },
+        {
+          "id": "sm0010",
+          "conversationId": "g-starter",
+          "authorId": "user:01M2HC29YMGGE4M0K9G7D5T6TF",
+          "at": 1789436963731,
+          "photo": null,
+          "clip": null,
+          "photoOnce": null,
+          "poster": null,
+          "body": "The west trail is dry now.",
+          "editedAt": null,
+          "deleted": false,
+          "quoteId": null,
+          "reactions": [],
+          "receipts": [
+            {
+              "id": "01M2HC2AWKCQC2DRK65G76CK2B",
+              "messageId": "sm0010",
+              "principal": "user:01M2HC29XZH6NQWMBD58NBR5T7",
+              "delivered": false,
+              "readFlag": false
+            },
+            {
+              "id": "01M2HC2AWKEXCHYPGCFF2WX7Q1",
+              "messageId": "sm0010",
+              "principal": "user:01M2HC29Z5GY9KB930W4V1R0KC",
+              "delivered": false,
+              "readFlag": false
+            }
+          ]
+        },
+        {
+          "id": "sm0011",
+          "conversationId": "g-starter",
+          "authorId": "user:01M2HC29XZH6NQWMBD58NBR5T7",
+          "at": 1789436963734,
+          "photo": null,
+          "clip": null,
+          "photoOnce": null,
+          "poster": null,
+          "body": "West trail it is.",
+          "editedAt": null,
+          "deleted": false,
+          "quoteId": "sm0010",
+          "reactions": [],
+          "receipts": [
+            {
+              "id": "01M2HC2AWPPV6AGW1RQCGP65W8",
+              "messageId": "sm0011",
+              "principal": "user:01M2HC29YMGGE4M0K9G7D5T6TF",
+              "delivered": false,
+              "readFlag": false
+            },
+            {
+              "id": "01M2HC2AWPH14YXMJX3XC6Q4DQ",
+              "messageId": "sm0011",
+              "principal": "user:01M2HC29Z5GY9KB930W4V1R0KC",
+              "delivered": false,
+              "readFlag": false
+            }
+          ]
+        },
+        {
+          "id": "sm0012",
+          "conversationId": "g-starter",
+          "authorId": "user:01M2HC29Z5GY9KB930W4V1R0KC",
+          "at": 1789436963735,
+          "photo": null,
+          "clip": null,
+          "photoOnce": null,
+          "poster": null,
+          "body": "I will bring snacks.",
+          "editedAt": null,
+          "deleted": false,
+          "quoteId": null,
+          "reactions": [],
+          "receipts": [
+            {
+              "id": "01M2HC2AWQVS6GB44QQPCP3TYG",
+              "messageId": "sm0012",
+              "principal": "user:01M2HC29XZH6NQWMBD58NBR5T7",
+              "delivered": false,
+              "readFlag": false
+            },
+            {
+              "id": "01M2HC2AWQ5NN9MJY1MZK0F7VV",
+              "messageId": "sm0012",
+              "principal": "user:01M2HC29YMGGE4M0K9G7D5T6TF",
+              "delivered": false,
+              "readFlag": false
+            }
+          ]
+        },
+        {
+          "id": "sm0013",
+          "conversationId": "g-starter",
+          "authorId": "user:01M2HC29Z5GY9KB930W4V1R0KC",
+          "at": 1789436963737,
+          "photo": null,
+          "clip": null,
+          "photoOnce": null,
+          "poster": null,
+          "body": "Should I book dinner?",
+          "editedAt": null,
+          "deleted": false,
+          "quoteId": null,
+          "reactions": [],
+          "receipts": [
+            {
+              "id": "01M2HC2AWS572MFAFA9NNHYX6M",
+              "messageId": "sm0013",
+              "principal": "user:01M2HC29XZH6NQWMBD58NBR5T7",
+              "delivered": false,
+              "readFlag": false
+            },
+            {
+              "id": "01M2HC2AWSAD0QXGKP7638B5V8",
+              "messageId": "sm0013",
+              "principal": "user:01M2HC29YMGGE4M0K9G7D5T6TF",
+              "delivered": false,
+              "readFlag": false
+            }
+          ]
+        },
+        {
+          "id": "sm0014",
+          "conversationId": "g-starter",
+          "authorId": "user:01M2HC29YMGGE4M0K9G7D5T6TF",
+          "at": 1789436963740,
+          "photo": null,
+          "clip": null,
+          "photoOnce": null,
+          "poster": null,
+          "body": "Please do, for three.",
+          "editedAt": null,
+          "deleted": false,
+          "quoteId": "sm0013",
+          "reactions": [],
+          "receipts": [
+            {
+              "id": "01M2HC2AWWCBNSBF8QRP3AAJ0V",
+              "messageId": "sm0014",
+              "principal": "user:01M2HC29XZH6NQWMBD58NBR5T7",
+              "delivered": false,
+              "readFlag": false
+            },
+            {
+              "id": "01M2HC2AWWW1Z7JAZPZCPSWBG0",
+              "messageId": "sm0014",
+              "principal": "user:01M2HC29Z5GY9KB930W4V1R0KC",
+              "delivered": false,
+              "readFlag": false
+            }
+          ]
+        },
+        {
+          "id": "sm0015",
+          "conversationId": "g-starter",
+          "authorId": "user:01M2HC29XZH6NQWMBD58NBR5T7",
+          "at": 1789436963746,
+          "photo": null,
+          "clip": null,
+          "photoOnce": null,
+          "poster": null,
+          "body": "Locked in. See you Saturday.",
+          "editedAt": null,
+          "deleted": false,
+          "quoteId": null,
+          "reactions": [],
+          "receipts": [
+            {
+              "id": "01M2HC2AX2CF00T2G4CTD6HNND",
+              "messageId": "sm0015",
+              "principal": "user:01M2HC29YMGGE4M0K9G7D5T6TF",
+              "delivered": false,
+              "readFlag": false
+            },
+            {
+              "id": "01M2HC2AX2BR7M997PA0RQA1DM",
+              "messageId": "sm0015",
+              "principal": "user:01M2HC29Z5GY9KB930W4V1R0KC",
+              "delivered": false,
+              "readFlag": false
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

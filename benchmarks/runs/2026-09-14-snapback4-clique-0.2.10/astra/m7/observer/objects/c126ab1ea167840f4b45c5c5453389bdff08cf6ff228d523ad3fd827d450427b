@@ -1,0 +1,79 @@
+[
+  {
+    "pid": 38153,
+    "name": "backend-restart",
+    "state": "SIGTERM",
+    "command": "./node_modules/snapback4-darwin-arm64/snapback4 dev --port 49340"
+  },
+  {
+    "pid": 86029,
+    "name": "initial-cli-child",
+    "state": "already-exited"
+  },
+  {
+    "pid": 67686,
+    "name": "backend-final-verified",
+    "state": "already-exited"
+  },
+  {
+    "pid": 54693,
+    "name": "backend-recovery",
+    "state": "already-exited"
+  },
+  {
+    "pid": 49199,
+    "name": "backend-final",
+    "state": "already-exited"
+  },
+  {
+    "pid": 19191,
+    "name": "backend-restart",
+    "state": "already-exited"
+  },
+  {
+    "pid": 23821,
+    "name": "web",
+    "state": "SIGTERM",
+    "command": "node /Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/expo/bin/cli start --web --port 49341"
+  },
+  {
+    "pid": 20190,
+    "name": "backend-evolved",
+    "state": "already-exited"
+  },
+  {
+    "pid": 86013,
+    "name": "backend",
+    "state": "already-exited"
+  },
+  {
+    "pid": 38155,
+    "name": "provider-worker",
+    "state": "already-exited"
+  },
+  {
+    "pid": 67729,
+    "name": "provider-worker",
+    "state": "already-exited"
+  },
+  {
+    "pid": 54697,
+    "name": "provider-worker",
+    "state": "already-exited"
+  },
+  {
+    "pid": 19194,
+    "name": "provider-worker",
+    "state": "already-exited"
+  },
+  {
+    "pid": 20199,
+    "name": "provider-worker",
+    "state": "already-exited"
+  },
+  {
+    "pid": 86031,
+    "name": "provider-worker",
+    "state": "already-exited"
+  }
+]

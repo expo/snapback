@@ -1,0 +1,42 @@
+{
+  "servers": [
+    {
+      "pid": 92219,
+      "name": "provider-worker",
+      "port": null,
+      "signal": "SIGTERM",
+      "epoch": 1789392509
+    },
+    {
+      "pid": 92216,
+      "name": "backend",
+      "port": 49340,
+      "signal": "SIGTERM",
+      "epoch": 1789392509
+    },
+    {
+      "pid": 12464,
+      "name": "web",
+      "port": 49341,
+      "signal": "SIGTERM",
+      "epoch": 1789392509
+    },
+    {
+      "pid": 22736,
+      "name": "scale-backend",
+      "port": 49342,
+      "signal": "SIGTERM",
+      "epoch": 1789392510
+    },
+    {
+      "pid": 22738,
+      "name": "scale-web",
+      "port": 49343,
+      "signal": "SIGTERM",
+      "epoch": 1789392510
+    }
+  ],
+  "remainingAllowedPortListeners": "",
+  "complete": true,
+  "epoch": 1789392512
+}

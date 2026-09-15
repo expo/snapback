@@ -1,0 +1,41 @@
+{
+  "milestone": "m1",
+  "pass": true,
+  "cases": [
+    {
+      "name": "signup-authenticated",
+      "pass": true
+    },
+    {
+      "name": "profile-edit",
+      "pass": true
+    },
+    {
+      "name": "avatar-upload-render",
+      "pass": true
+    },
+    {
+      "name": "duplicate-email-visible",
+      "pass": true
+    },
+    {
+      "name": "duplicate-handle-visible",
+      "pass": true
+    },
+    {
+      "name": "seed-repeat-and-server-boundaries",
+      "pass": true
+    }
+  ],
+  "coverage": {
+    "m1-a01": "signup-authenticated",
+    "m1-a02": "signup-authenticated",
+    "m1-a08": "profile-edit",
+    "m1-a10": "avatar-upload-render",
+    "m1-a11": "avatar-upload-render",
+    "m1-a04": "duplicate-email-visible",
+    "m1-a03": "duplicate-handle-visible"
+  },
+  "missing": [],
+  "recordedAt": "2026-09-15T01:15:44.764Z"
+}

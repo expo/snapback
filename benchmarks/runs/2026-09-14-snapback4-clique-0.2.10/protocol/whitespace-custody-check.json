@@ -1,0 +1,272 @@
+{
+  "observedAt": "2026-09-15T03:13:49.119968+00:00",
+  "wholeDiffExit": 2,
+  "wholeDiffDiagnosticSha256": "a710af637ce2e27f52487e6f627a3b92be8dab4ed168973bdf9daed5ba4a5fc0",
+  "receivedWarnings": [
+    {
+      "path": "astra/builder-supplement/evidence/resolved-package-pins.txt",
+      "line": 5,
+      "kind": "new blank line at EOF.",
+      "sha256": "b14eb326da6b13337d6ac2d0c965acf1031dc1849ab8b97cbc595df788461212",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "astra/m7/evidence-files/m7/evidence/migration-recovery.log",
+      "line": 69,
+      "kind": "new blank line at EOF.",
+      "sha256": "9f8ffc3d56c87c2c2109fac497a98bad065bd02131864d5e4075f3344374cf0f",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "astra/m7/evidence-files/m7/evidence/toolchain-final.txt",
+      "line": 6,
+      "kind": "new blank line at EOF.",
+      "sha256": "0319698187ab14b96f9df44b86ae660c7bb8fd1e2c42288becbe9b40e62d7885",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "astra/m7/evidence-files/m7/evidence/typecheck-final.txt",
+      "line": 4,
+      "kind": "new blank line at EOF.",
+      "sha256": "b4fce0e068cbf06902f15dba7eb964bc373038ccb78495a37ace692127e676e1",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "astra/m7/source/src/polls.tsx",
+      "line": 26,
+      "kind": "trailing whitespace.",
+      "sha256": "8a5f2543380a74f1273418f3d1bf1e2575f0f317247ac77e46a92b60c80d8849",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/builder/diary.md",
+      "line": 50,
+      "kind": "new blank line at EOF.",
+      "sha256": "4ef8f651d67794f75d8f5a2518f741c9dd17be596a703734b5a7bbcf005e3baf",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/builder/final-report.md",
+      "line": 3,
+      "kind": "trailing whitespace.",
+      "sha256": "cf175e4bd109123859b36cde612c826e80f261dede28732dde7ea5318ee2bbcb",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/builder/final-report.md",
+      "line": 4,
+      "kind": "trailing whitespace.",
+      "sha256": "cf175e4bd109123859b36cde612c826e80f261dede28732dde7ea5318ee2bbcb",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/builder/final-report.md",
+      "line": 5,
+      "kind": "trailing whitespace.",
+      "sha256": "cf175e4bd109123859b36cde612c826e80f261dede28732dde7ea5318ee2bbcb",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/builder/final-report.md",
+      "line": 6,
+      "kind": "trailing whitespace.",
+      "sha256": "cf175e4bd109123859b36cde612c826e80f261dede28732dde7ea5318ee2bbcb",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/builder/final-report.md",
+      "line": 7,
+      "kind": "trailing whitespace.",
+      "sha256": "cf175e4bd109123859b36cde612c826e80f261dede28732dde7ea5318ee2bbcb",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/builder/final-report.md",
+      "line": 9,
+      "kind": "trailing whitespace.",
+      "sha256": "cf175e4bd109123859b36cde612c826e80f261dede28732dde7ea5318ee2bbcb",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/builder/final-report.md",
+      "line": 10,
+      "kind": "trailing whitespace.",
+      "sha256": "cf175e4bd109123859b36cde612c826e80f261dede28732dde7ea5318ee2bbcb",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/builder/final-report.md",
+      "line": 76,
+      "kind": "trailing whitespace.",
+      "sha256": "cf175e4bd109123859b36cde612c826e80f261dede28732dde7ea5318ee2bbcb",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/builder/final-report.md",
+      "line": 77,
+      "kind": "trailing whitespace.",
+      "sha256": "cf175e4bd109123859b36cde612c826e80f261dede28732dde7ea5318ee2bbcb",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/builder/final-report.md",
+      "line": 78,
+      "kind": "trailing whitespace.",
+      "sha256": "cf175e4bd109123859b36cde612c826e80f261dede28732dde7ea5318ee2bbcb",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/builder/final-report.md",
+      "line": 79,
+      "kind": "trailing whitespace.",
+      "sha256": "cf175e4bd109123859b36cde612c826e80f261dede28732dde7ea5318ee2bbcb",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/builder/final-report.md",
+      "line": 80,
+      "kind": "trailing whitespace.",
+      "sha256": "cf175e4bd109123859b36cde612c826e80f261dede28732dde7ea5318ee2bbcb",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/builder/final-report.md",
+      "line": 85,
+      "kind": "trailing whitespace.",
+      "sha256": "cf175e4bd109123859b36cde612c826e80f261dede28732dde7ea5318ee2bbcb",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/builder/final-report.md",
+      "line": 86,
+      "kind": "trailing whitespace.",
+      "sha256": "cf175e4bd109123859b36cde612c826e80f261dede28732dde7ea5318ee2bbcb",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/builder/final-report.md",
+      "line": 87,
+      "kind": "trailing whitespace.",
+      "sha256": "cf175e4bd109123859b36cde612c826e80f261dede28732dde7ea5318ee2bbcb",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/builder/run-log.md",
+      "line": 43,
+      "kind": "new blank line at EOF.",
+      "sha256": "111ab7e444bfd4592894fbc0e2798072859e7cf295cde628f5b24ae3c5f12d0d",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/m7/final-report.md",
+      "line": 3,
+      "kind": "trailing whitespace.",
+      "sha256": "6cdbbaf57baf4aa62fd6d98efa961f8908f2760c284f213eb59146440bae8cd8",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/m7/final-report.md",
+      "line": 4,
+      "kind": "trailing whitespace.",
+      "sha256": "6cdbbaf57baf4aa62fd6d98efa961f8908f2760c284f213eb59146440bae8cd8",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/m7/final-report.md",
+      "line": 5,
+      "kind": "trailing whitespace.",
+      "sha256": "6cdbbaf57baf4aa62fd6d98efa961f8908f2760c284f213eb59146440bae8cd8",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/m7/final-report.md",
+      "line": 6,
+      "kind": "trailing whitespace.",
+      "sha256": "6cdbbaf57baf4aa62fd6d98efa961f8908f2760c284f213eb59146440bae8cd8",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/m7/final-report.md",
+      "line": 7,
+      "kind": "trailing whitespace.",
+      "sha256": "6cdbbaf57baf4aa62fd6d98efa961f8908f2760c284f213eb59146440bae8cd8",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/m7/final-report.md",
+      "line": 8,
+      "kind": "trailing whitespace.",
+      "sha256": "6cdbbaf57baf4aa62fd6d98efa961f8908f2760c284f213eb59146440bae8cd8",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/m7/final-report.md",
+      "line": 10,
+      "kind": "trailing whitespace.",
+      "sha256": "6cdbbaf57baf4aa62fd6d98efa961f8908f2760c284f213eb59146440bae8cd8",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/m7/final-report.md",
+      "line": 11,
+      "kind": "trailing whitespace.",
+      "sha256": "6cdbbaf57baf4aa62fd6d98efa961f8908f2760c284f213eb59146440bae8cd8",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/m7/final-report.md",
+      "line": 19,
+      "kind": "trailing whitespace.",
+      "sha256": "6cdbbaf57baf4aa62fd6d98efa961f8908f2760c284f213eb59146440bae8cd8",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/m7/final-report.md",
+      "line": 20,
+      "kind": "trailing whitespace.",
+      "sha256": "6cdbbaf57baf4aa62fd6d98efa961f8908f2760c284f213eb59146440bae8cd8",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/m7/final-report.md",
+      "line": 21,
+      "kind": "trailing whitespace.",
+      "sha256": "6cdbbaf57baf4aa62fd6d98efa961f8908f2760c284f213eb59146440bae8cd8",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/m7/final-report.md",
+      "line": 22,
+      "kind": "trailing whitespace.",
+      "sha256": "6cdbbaf57baf4aa62fd6d98efa961f8908f2760c284f213eb59146440bae8cd8",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "grok/m7/final-report.md",
+      "line": 53,
+      "kind": "trailing whitespace.",
+      "sha256": "6cdbbaf57baf4aa62fd6d98efa961f8908f2760c284f213eb59146440bae8cd8",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    },
+    {
+      "path": "muse/m7/source/app/feed.tsx",
+      "line": 122,
+      "kind": "new blank line at EOF.",
+      "sha256": "44edf11b1472ff8adf78f45d81baba1aec003e0bfc1cf7404ab7354c662a13e3",
+      "disposition": "Retained verbatim received-source/report whitespace; no byte normalization."
+    }
+  ],
+  "authoredAndAdministrativeScope": [
+    "llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md",
+    "llp/3000-snapback4.explainer.md",
+    "snapback4/JOURNAL.md",
+    "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/README.md",
+    "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/MEASUREMENT-NOTES.md",
+    "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/ARCHIVE-MAP.md",
+    "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/protocol",
+    "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/custody",
+    "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/ARCHIVE.sha256"
+  ],
+  "authoredAndAdministrativeExit": 0,
+  "method": "Each warning path matched a selected copy manifest; nested original/archive identities, where present, were equal with zero redactions. Original hard breaks and blank lines are retained. Newly authored prose/metadata has a clean scoped diff check."
+}

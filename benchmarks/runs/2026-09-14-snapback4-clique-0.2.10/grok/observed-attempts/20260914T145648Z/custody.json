@@ -1,0 +1,41 @@
+{
+  "observedAt": "2026-09-14T14:56:48.974996+00:00",
+  "scope": "Read-only capture of complete currently available choreography receipts during the active builder. Outcomes are attempts, not final milestone dispositions. Frozen packet untouched.",
+  "files": {
+    "m1.jsonl": {
+      "bytes": 4272,
+      "sha256": "849f23e3cb31605822c5d967c689f058a1fc8a613689a2f6446eae2191bab03f",
+      "recordedAt": "2026-09-14T14:10:38.085Z",
+      "green": true,
+      "assertions": {
+        "total": 3,
+        "required": 3,
+        "implemented": 3,
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      }
+    },
+    "m2.jsonl": {
+      "bytes": 11135,
+      "sha256": "59f0680cdb77483daa649d5a0db3306b15338d1a2c7a1ac4fa8886b8fa17727e",
+      "recordedAt": "2026-09-14T14:49:36.991Z",
+      "green": false,
+      "assertions": {
+        "total": 9,
+        "required": 9,
+        "implemented": 9,
+        "passed": 5,
+        "failed": 4,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      }
+    }
+  },
+  "skipped": {
+    "m3.jsonl": "no complete segment summary at observation"
+  }
+}

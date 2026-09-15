@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "clique.m7-pre-snapshot-manifest.v1",
+  "fieldManifest": "M6 custom-client API (API.md)",
+  "url": "http://127.0.0.1:49340",
+  "exportedAt": "2026-09-15T01:56:09.030Z",
+  "files": [
+    {
+      "persona": "alice",
+      "principal": "user:01M2HC29XZH6NQWMBD58NBR5T7",
+      "file": "alice.json",
+      "sha256": "sha256:898d07ea8cadd849f207d0d49cfbfc049c9f86ee3f4cf5bd89cec57cba9795b1",
+      "conversations": 2,
+      "messages": 15,
+      "reactions": 0,
+      "receipts": 24
+    },
+    {
+      "persona": "bob",
+      "principal": "user:01M2HC29YMGGE4M0K9G7D5T6TF",
+      "file": "bob.json",
+      "sha256": "sha256:0ee8c98d804b864a489c11c3ca39a12220e3814be1eea6c782fc6ac050f24e67",
+      "conversations": 2,
+      "messages": 15,
+      "reactions": 0,
+      "receipts": 24
+    },
+    {
+      "persona": "carol",
+      "principal": "user:01M2HC29Z5GY9KB930W4V1R0KC",
+      "file": "carol.json",
+      "sha256": "sha256:7ce06000c20e7b3cf768a99dc57ee7254742a0963a48160cafc4d488b2fc8b50",
+      "conversations": 1,
+      "messages": 9,
+      "reactions": 0,
+      "receipts": 18
+    },
+    {
+      "persona": "dave",
+      "principal": "user:01M2HC29ZPMXBGM7FX2ARMAMF4",
+      "file": "dave.json",
+      "sha256": "sha256:d71fffc0ce20b22e72d02b6130210e970ee799167196eb9f2dde8cb5e1b452b1",
+      "conversations": 0,
+      "messages": 0,
+      "reactions": 0,
+      "receipts": 0
+    },
+    {
+      "persona": "erin",
+      "principal": "user:01M2HC2A08XF6XM4SKDAYQ5E4T",
+      "file": "erin.json",
+      "sha256": "sha256:c5ad79c32404d67825d72285a90f63f8afee47f5cce86d980cbb207d25ec6248",
+      "conversations": 0,
+      "messages": 0,
+      "reactions": 0,
+      "receipts": 0
+    },
+    {
+      "persona": "frank",
+      "principal": "user:01M2HC2A0TTDWMRYDX8YK9KY2Y",
+      "file": "frank.json",
+      "sha256": "sha256:e753ede8202c22f95ada2d50240f5fb723b18b5d646fc8e2a4c4745412915611",
+      "conversations": 0,
+      "messages": 0,
+      "reactions": 0,
+      "receipts": 0
+    },
+    {
+      "persona": "grace",
+      "principal": "user:01M2HC2A1DE0VRXVNQKZTS5FH6",
+      "file": "grace.json",
+      "sha256": "sha256:1af8bfc33adbd5a397a22bb3a1bcc86d87afe4bbeae1e375bc6080ebcebf0a8e",
+      "conversations": 0,
+      "messages": 0,
+      "reactions": 0,
+      "receipts": 0
+    },
+    {
+      "persona": "henry",
+      "principal": "user:01M2HC2A209YQG3RR9KZ79YJ8A",
+      "file": "henry.json",
+      "sha256": "sha256:97a89126f476c54b63ae78c49d6069fbe32ed8daf98da0e46d304948494a8f23",
+      "conversations": 0,
+      "messages": 0,
+      "reactions": 0,
+      "receipts": 0
+    }
+  ]
+}

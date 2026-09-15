@@ -1,0 +1,21 @@
+{
+  "milestone": "m1",
+  "assertions": {
+    "m1-a01": "signup succeeds",
+    "m1-a02": "signup lands authenticated",
+    "m1-a03": "duplicate handle rejected",
+    "m1-a04": "duplicate email rejected",
+    "m1-a08": "edit display name and bio persist",
+    "m1-a10": "avatar upload succeeds",
+    "m1-a11": "avatar renders on profile"
+  },
+  "tests": [
+    "m1-a01",
+    "m1-a02",
+    "m1-a03",
+    "m1-a04",
+    "m1-a08",
+    "m1-a10",
+    "m1-a11"
+  ]
+}

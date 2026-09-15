@@ -1,0 +1,50 @@
+[
+  {
+    "path": "snapback/chat.q",
+    "sha256": "e3185c892e1d61aa433df95b3713557d33845d29bad47a638d196e8123227d9f"
+  },
+  {
+    "path": "snapback/counts.q",
+    "sha256": "7e6c4d70b3bf9c0741cf2f3c0d60bf4f9d0d684f674974e73f8ad1274a7dbbed"
+  },
+  {
+    "path": "snapback/polls.q",
+    "sha256": "03ea4ae38f20b6463792c1d0316a0e3f7a7e3993988ea8e530a7f71bb92db069"
+  },
+  {
+    "path": "snapback/media.q",
+    "sha256": "9739c972b87f3ab071378e32f740811ee73a0189e7a134d155f6498f98169b4e"
+  },
+  {
+    "path": "src/chat.tsx",
+    "sha256": "4d6777e4d5ea36f5e3c81489b7f1f20f3cca7d076269bda6692cb59e0dd953b0"
+  },
+  {
+    "path": "src/polls.tsx",
+    "sha256": "8a5f2543380a74f1273418f3d1bf1e2575f0f317247ac77e46a92b60c80d8849"
+  },
+  {
+    "path": "scripts/acceptance-m7.mjs",
+    "sha256": "6e20d8fd73b1824bf74974df55fb7a5ac4791a7b9d9d8136a8076d440230809b"
+  },
+  {
+    "path": "scripts/acceptance.mjs",
+    "sha256": "9a31cb6796cf15e5a2fdee0acc4ef9c3d5972cbc01f6cc3e630caf3ad3c9c788"
+  },
+  {
+    "path": "scripts/choreo.mjs",
+    "sha256": "739f9abc272f62a95572d2db4cfb890fc54b181a4e9502aca6f92c7a7c109135"
+  },
+  {
+    "path": "m7/migrate.mjs",
+    "sha256": "c86522f1a45432c46c37c8ed4f3198a3faab91e49ffe11e839ec65b0ade8537b"
+  },
+  {
+    "path": "API.md",
+    "sha256": "12e0d491e5fdd7635402349f98d9ce1e8022af71b6d7a8d9fc3d64eba69f60b6"
+  },
+  {
+    "path": "README.md",
+    "sha256": "dff47b91b32e8811838678e51fb825301cb09df2fd194902e2c7865aa046b578"
+  }
+]

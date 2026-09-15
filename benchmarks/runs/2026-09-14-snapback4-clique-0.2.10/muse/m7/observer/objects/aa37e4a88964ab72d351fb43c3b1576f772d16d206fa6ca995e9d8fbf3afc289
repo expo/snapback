@@ -1,0 +1,73 @@
+{
+  "milestone": "m7",
+  "url": "http://127.0.0.1:49340",
+  "web": "http://127.0.0.1:49341",
+  "at": "2026-09-15T02:41:00.989Z",
+  "pass": true,
+  "failures": 0,
+  "results": [
+    {
+      "assertion": "m7-a01",
+      "test": "create a group poll (question + 2-4 options)",
+      "pass": true
+    },
+    {
+      "assertion": "m7-a03",
+      "test": "members vote, tallies visible cross-user, switch adjusts",
+      "pass": true
+    },
+    {
+      "assertion": "m7-a04",
+      "test": "duplicate/retried vote intent does not flip state",
+      "pass": true
+    },
+    {
+      "assertion": "m7-a06",
+      "test": "message counts backfilled: pre-existing convs, tombstones excluded, polls count",
+      "pass": true
+    },
+    {
+      "assertion": "m7-a07",
+      "test": "message counts increment with new messages",
+      "pass": true
+    },
+    {
+      "assertion": "m7-a09",
+      "test": "previously green milestone suites still pass",
+      "pass": true
+    }
+  ],
+  "coverage": [
+    {
+      "id": "m7-a01",
+      "test": "create a group poll (question + 2-4 options)",
+      "pass": true
+    },
+    {
+      "id": "m7-a03",
+      "test": "members vote, tallies visible cross-user, switch adjusts",
+      "pass": true
+    },
+    {
+      "id": "m7-a04",
+      "test": "duplicate/retried vote intent does not flip state",
+      "pass": true
+    },
+    {
+      "id": "m7-a06",
+      "test": "message counts backfilled: pre-existing convs, tombstones excluded, polls count",
+      "pass": true
+    },
+    {
+      "id": "m7-a07",
+      "test": "message counts increment with new messages",
+      "pass": true
+    },
+    {
+      "id": "m7-a09",
+      "test": "previously green milestone suites still pass",
+      "pass": true
+    }
+  ],
+  "uncovered": []
+}

@@ -1,0 +1,23 @@
+{
+  "copiedAt": "2026-09-15T03:11:02.764229+00:00",
+  "files": [
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/completed-cell-record-verification-20260915T031021.json",
+      "destination": "protocol/completed-record-verification.json",
+      "bytes": 15062,
+      "sha256": "5664558feb6f22f5ea2eb9b1c54eb95de838a21802902d3f9ea6588f247d8de4"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-ref-check-20260915T031008.json",
+      "destination": "protocol/ref-check-result.json",
+      "bytes": 558,
+      "sha256": "c8210bd623ab4a63ae007a9b0955cd9f7ea1258f2d4e7e04a326627d8d7d4f79"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-ref-check-20260915T031008.log",
+      "destination": "protocol/ref-check.log",
+      "bytes": 80,
+      "sha256": "b46e67990d78f9a74811d958639769f58bb7b91917e02500a81110719ffa9ba7"
+    }
+  ]
+}

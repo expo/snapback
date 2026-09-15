@@ -1,0 +1,54 @@
+{
+  "observedAt": "2026-09-14T23:25:35.646Z",
+  "packet": "/Users/ccheever/clique-sb4-20260913-relaxed-3models",
+  "lane": "astra-snapback4",
+  "valid": true,
+  "errors": [],
+  "counts": {
+    "prior101": {
+      "pass": 83,
+      "fail": 2,
+      "not-run": 16,
+      "not-applicable": 0
+    },
+    "m8Only18": {
+      "pass": 16,
+      "fail": 0,
+      "not-run": 2,
+      "not-applicable": 0
+    },
+    "complete119": {
+      "pass": 99,
+      "fail": 2,
+      "not-run": 18,
+      "not-applicable": 0
+    }
+  },
+  "received": {
+    "calibrationPassed": false,
+    "contaminated": false
+  },
+  "files": {
+    "report": {
+      "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/grading/grader-report.json",
+      "sha256": "484346a9dfe388c10e763928fcdd301c4577f8a140c6f84e25cfac9a50b74ef1"
+    },
+    "supplement": {
+      "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/grading/m8-assertion-results.json",
+      "sha256": "43e7653e0085d72b69347cc61a08cc0a7db1e79ea7f46c3a5c53cbabb3c17aa5"
+    },
+    "trace": {
+      "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/grading/trace.md",
+      "sha256": "dec71c913b62b4f2d4e326f20233c721a6fc10d498de7c3e225b47ab1f8615e5"
+    },
+    "done": {
+      "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/grading/DONE",
+      "sha256": "3cb2e3e5685070d5efa40b42a51738790dfe4e54b6d72ff57a8aeb5d6519fb7d"
+    },
+    "lifecycle": {
+      "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/astra-snapback4.grade.end.json",
+      "sha256": "9979c378182b18797a74c65050cde5f9c48808cce39d06dff720c0d2efa1cb76"
+    }
+  },
+  "limits": "Validates output shape, exact IDs and named lifecycle/marker files only. Does not establish grade correctness, calibration, trace completeness, source custody, terminal provenance, or teardown; continuation lifecycle must be audited separately."
+}

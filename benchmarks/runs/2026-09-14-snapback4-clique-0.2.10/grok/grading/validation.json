@@ -1,0 +1,54 @@
+{
+  "observedAt": "2026-09-15T00:06:08.489Z",
+  "packet": "/Users/ccheever/clique-sb4-20260913-relaxed-3models",
+  "lane": "grok-snapback4",
+  "valid": true,
+  "errors": [],
+  "counts": {
+    "prior101": {
+      "pass": 68,
+      "fail": 17,
+      "not-run": 16,
+      "not-applicable": 0
+    },
+    "m8Only18": {
+      "pass": 3,
+      "fail": 13,
+      "not-run": 2,
+      "not-applicable": 0
+    },
+    "complete119": {
+      "pass": 71,
+      "fail": 30,
+      "not-run": 18,
+      "not-applicable": 0
+    }
+  },
+  "received": {
+    "calibrationPassed": false,
+    "contaminated": false
+  },
+  "files": {
+    "report": {
+      "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/grading/grader-report.json",
+      "sha256": "276dbb2fd0e4a2e7b952da76e602186d1c38b94844d088ce8baf6c95e6c8d272"
+    },
+    "supplement": {
+      "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/grading/m8-assertion-results.json",
+      "sha256": "8ab620e811535be9592f4f496734eff8eea465cbadd807e677f7d690dea1b987"
+    },
+    "trace": {
+      "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/grading/trace.md",
+      "sha256": "f2d3ea8cbd23165b5ceee8665d936fcba6821c83e944cad1ccbeacae5918ca5f"
+    },
+    "done": {
+      "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/grading/DONE",
+      "sha256": "faa58c66a602aab105cac0a3bf1247b953799d8c55a30af21af3e6e37e345293"
+    },
+    "lifecycle": {
+      "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.grade.end.json",
+      "sha256": "1df6c1f27b987ab7c4e7761a569f973bbe8929930fed7588c89aafaeaefe0b6b"
+    }
+  },
+  "limits": "Validates output shape, exact IDs and named lifecycle/marker files only. Does not establish grade correctness, calibration, trace completeness, source custody, terminal provenance, or teardown; continuation lifecycle must be audited separately."
+}

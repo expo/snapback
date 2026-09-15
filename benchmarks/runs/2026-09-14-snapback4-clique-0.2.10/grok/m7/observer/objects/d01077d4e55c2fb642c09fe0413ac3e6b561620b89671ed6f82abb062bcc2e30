@@ -1,0 +1,51 @@
+{
+  "milestone": "m3",
+  "pass": true,
+  "results": [
+    {
+      "id": "m3-a03",
+      "name": "dm reuse",
+      "ok": true
+    },
+    {
+      "id": "m3-a04",
+      "name": "create group",
+      "ok": true
+    },
+    {
+      "id": "m3-a05",
+      "name": "second group coexists",
+      "ok": true
+    },
+    {
+      "id": "m3-a10",
+      "name": "quoted excerpt",
+      "ok": true
+    },
+    {
+      "id": "m3-a11",
+      "name": "quote jump is UI",
+      "ok": true
+    },
+    {
+      "id": "m3-a14",
+      "name": "non-admin cannot remove",
+      "ok": true
+    },
+    {
+      "id": "m3-a15",
+      "name": "seed idempotent",
+      "ok": true
+    }
+  ],
+  "coverage": {
+    "m3-a03": "dm reuse",
+    "m3-a04": "create group",
+    "m3-a05": "second group coexists",
+    "m3-a10": "quoted excerpt",
+    "m3-a11": "quote jump is UI",
+    "m3-a14": "non-admin cannot remove",
+    "m3-a15": "seed idempotent"
+  },
+  "at": "2026-09-14T15:25:06.343Z"
+}

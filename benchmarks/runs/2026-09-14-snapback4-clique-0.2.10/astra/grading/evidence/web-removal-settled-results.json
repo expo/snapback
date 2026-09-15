@@ -1,0 +1,42 @@
+{
+  "m3-a12-harness-sequence-settled-before-navigation": {
+    "pass": true,
+    "detail": {
+      "pass": true,
+      "runs": [
+        {
+          "i": 0,
+          "uiRosterReflectedMs": 53,
+          "removedSaw": null,
+          "serverRecipientsIncludeRemoved": false,
+          "rosterStillHasRemoved": false,
+          "rosterRole": null
+        },
+        {
+          "i": 1,
+          "uiRosterReflectedMs": 54,
+          "removedSaw": null,
+          "serverRecipientsIncludeRemoved": false,
+          "rosterStillHasRemoved": false,
+          "rosterRole": null
+        },
+        {
+          "i": 2,
+          "uiRosterReflectedMs": 52,
+          "removedSaw": null,
+          "serverRecipientsIncludeRemoved": false,
+          "rosterStillHasRemoved": false,
+          "rosterRole": null
+        },
+        {
+          "i": 3,
+          "uiRosterReflectedMs": 51,
+          "removedSaw": null,
+          "serverRecipientsIncludeRemoved": false,
+          "rosterStillHasRemoved": false,
+          "rosterRole": null
+        }
+      ]
+    }
+  }
+}

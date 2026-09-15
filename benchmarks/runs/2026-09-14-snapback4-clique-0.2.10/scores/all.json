@@ -1,0 +1,224 @@
+{
+  "scores": {
+    "astra": {
+      "scorer": {
+        "family": "astra",
+        "model": "gpt-6-astra",
+        "basis": "own Snapback 4 lane narrative files"
+      },
+      "backends": {
+        "snapback4": {
+          "overall": {
+            "score": 82,
+            "note": "diary.md and final-report.md record seven green authoring milestones and a verified scale corpus. Shared authorization, offline execution and assets substantially reduced plumbing; three platform issues forced retention, prediction and notification workarounds. Agent and environment errors are excluded."
+          },
+          "setup_and_docs": {
+            "score": 79,
+            "note": "M1 diary reports compact built-in auth and documented replica/WASM setup. Asset and expiry guides supported M4\u2013M5 directly, but run-log.md identifies misleading retention behavior in M3 and presence prediction guidance in M6."
+          },
+          "data_modeling": {
+            "score": 84,
+            "note": "M2/M3/M8 diary entries credit unique keys, maintained counts and transactional aggregates with compact domain modeling. essay.md describes a meaningful learning cost from Quarry syntax, structural iteration rules and deciding which data must reside on devices."
+          },
+          "authorization": {
+            "score": 87,
+            "note": "M1/M3/M5 and essay.md describe built-in sessions, membership audiences integrating access with replication, and per-recipient asset rules. M8 verified authorized digest counts. Preserving removed-member history nevertheless required the M3 horizon workaround."
+          },
+          "queries_and_live": {
+            "score": 77,
+            "note": "M2\u2013M5 delivered live feeds, cursor paging and indexed replica search. Typing required durable expiring rows. final-report.md documents incomplete direct-HTTP global search; the replica returned complete results, but its three-size search curve remained unestablished."
+          },
+          "writes_and_transactions": {
+            "score": 86,
+            "note": "M2/M3/M8 demonstrate set-state intents, uniqueness, maintained aggregates and a transactional arrival clock. run-log.md attributes the original ordering error to the agent; the reaction upsert prediction failure was a platform defect requiring explicit insert/update branches."
+          },
+          "offline_sync": {
+            "score": 80,
+            "note": "M6/M8 diary records cold reads/search, ordered replay, multi-device convergence and restart durability without an application outbox. M3 retention and M8 upsert defects required full-history sync and explicit reaction branches. Runtime proofs covered browsers; native evidence was compilation only."
+          },
+          "media_assets": {
+            "score": 93,
+            "note": "M2/M4/M5 credit upload facts, asset columns, per-recipient once consumption and server expiry with minimal plumbing. Tests observed post-deletion asset denial and expiry with clients closed. essay.md identifies online-only uploads as the remaining capability gap."
+          },
+          "background_work": {
+            "score": 78,
+            "note": "M5/M8 demonstrate server expiry and scheduled, restart-safe digests with persisted cursors and ledgers. M6's presence/classifier mismatch shifted notification eligibility from commit to dispatch. final-report.md flags historical-message and accumulated-period scans as ongoing operational costs."
+          },
+          "client_integration": {
+            "score": 84,
+            "note": "M1\u2013M8 connected generated APIs, auth lifecycle and replicas to Expo, with passing browser choreography and every Hermes export retained. M1 required explicit replica/bundler choices. Native runtime behavior remains unobserved; recorded React and harness mistakes are excluded."
+          },
+          "diagnostics_dev_loop": {
+            "score": 75,
+            "note": "M1/M2/M6 describe useful partition, wide-merge and structural-bound diagnostics. However, M3 retention and M8's eligible-but-unpredicted upsert required runtime counterexamples; M6's N_NOT_PREDICTABLE contradicted guidance. Compiler acceptance did not consistently establish advertised device behavior."
+          },
+          "scale_and_limits": {
+            "score": 76,
+            "note": "final-report.md verifies 167,243 actions and 1,002 conversations; 500-follow and deep-history ratios were 1.88\u00d7 and 1.21\u00d7. Full-history retention contributed to 13.56-second cold hydration for 100 chats. Search growth and memory growth remain unestablished."
+          },
+          "operations": {
+            "score": 83,
+            "note": "final-report.md records idempotent seeds, published SQL inspection, isolated instances and restart recovery. M4 successfully staged a backfill before tightening columns; run-log.md attributes the initial defaults assumption to agent error. M7 evolution and production deployment were unobserved."
+          },
+          "verdict": "Snapback 4 was a strong fit for this messenger, with substantial integration savings tempered by three consequential defects or documentation mismatches and a costly retention workaround.",
+          "would_use_again_for": "I would use it again for relational messaging applications needing durable offline interaction, membership-scoped replication and revocable media, while testing retention and prediction behavior early."
+        }
+      },
+      "comparison_notes": [
+        "essay.md compares Quarry with familiar Convex-style TypeScript functions: shared server/device execution reduced optimistic-update and queue plumbing here, while Quarry required more language and classifier learning.",
+        "The diary and essay credit integrated authorization, replica search and asset expiry with reducing the separate policy, storage and offline coordination associated with Supabase/PostgreSQL, while describing SQL as more natural for reporting and migrations.",
+        "essay.md presents Firestore-style local interaction as familiar but describes memberships, quoted messages and receipts as requiring careful denormalization and authorization choices.",
+        "These comparisons reflect the lane author's prior architectural knowledge; this session supplied no contemporary alternative-backend experiment or comparative speed measurement."
+      ]
+    },
+    "grok": {
+      "scorer": {
+        "family": "grok",
+        "model": "grok-4.6",
+        "basis": "own Snapback 4 lane narrative files"
+      },
+      "backends": {
+        "snapback4": {
+          "overall": {
+            "score": 63,
+            "note": "Quarry encoded Clique so every M1\u2013M8 Node suite and the scale replay passed, but the published web client is createClient without an outbox, so M3\u2013M8 choreography and offline proofs stayed aborted."
+          },
+          "setup_and_docs": {
+            "score": 71,
+            "note": "Published npm README and npx snapback4 guide cards started M1; default wasm URL served HTML; README omitted that unsynced tables will not live-update on createClient. Gatekeeper _dyld_start was environment."
+          },
+          "data_modeling": {
+            "score": 85,
+            "note": "One Quarry file held tables, rules, sync, expire, assets, merge feeds, matching, and jobs (~826 lines); check rewrites compiled it in a handful of M1 passes, including a legal N_WIDE_MERGE following query."
+          },
+          "authorization": {
+            "score": 63,
+            "note": "Chat membership (exists memberships, created conversations, cap 50) mapped cleanly; dailyActivity and intents had to be public so another principal could increment or insert-if-absent without E_RULE."
+          },
+          "queries_and_live": {
+            "score": 57,
+            "note": "M2 live likes greened only after sync public last 2000 (run-log snapback-defect: likesOf horizon none); global timeline ticked; followingFeed stayed server-side; M3\u2013M4 live choreo remained partial."
+          },
+          "writes_and_transactions": {
+            "score": 77,
+            "note": "Mutations encoded edit/delete windows, set-state intents, and the 167k-action scale replay; unread intents made insert if absent return E_RULE until the table was readable (final-report loop 6)."
+          },
+          "offline_sync": {
+            "score": 37,
+            "note": "createClient has no outbox: M6 queue-flush, M5 warm-offline search, and M8 dual-offline failed. The wasm replica was abandoned after the URL served HTML and Playwright/IndexedDB lagged."
+          },
+          "media_assets": {
+            "score": 79,
+            "note": "client.upload plus image/video/once columns and require duration <= 60000 matched the brief; M1 avatars and M4 photo live passed; M4 video viewer and M5 view-once choreo did not."
+          },
+          "background_work": {
+            "score": 81,
+            "note": "expire at, schedule digestEveryTwoMinutes, job fanOut, and emit notify with a JSONL worker were schema-native; M6 push suite passed; typing expiry and disappearing choreo did not green."
+          },
+          "client_integration": {
+            "score": 48,
+            "note": "SnapbackProvider, keepSession, and iOS Hermes export shipped; web stayed on createClient after wasm HTML; 29\u00d7 receiptsOf polls starved mutate (run-log loop 13); M3\u2013M8 choreography never fully greened."
+          },
+          "diagnostics_dev_loop": {
+            "score": 79,
+            "note": "snapback4 check named N_WIDE_MERGE, N_NO_HORIZON, E_STRUCTURAL_FANOUT, and E_RULE with rewrites; generated api.ts, not check, revealed unsynced likesOf would not live-update on createClient."
+          },
+          "scale_and_limits": {
+            "score": 83,
+            "note": "Port 49342 --fresh replayed 167157 actions in 453s; named O5 u0500/u0900/u0901 matched. check left the 501-lane merge legal. Full invariant-manifest SQL was not enumerated."
+          },
+          "operations": {
+            "score": 69,
+            "note": "--fresh plus mutation-path seed and m3-a15 idempotency worked; appSettings needed a privileged seed despite insert <- deny; observability was push-log.jsonl; no migration path was used."
+          },
+          "verdict": "Snapback 4 made Clique\u2019s server program cheap and the Expo-web choreography bar expensive, because liveness and offline only show up on the replica arm this lane could not keep.",
+          "would_use_again_for": "A product whose hard part is authorization and sync and whose clients can stay on the local replica, not a Playwright two-browser online web proof."
+        }
+      },
+      "comparison_notes": [
+        "The essay says Convex would have reached a live like tick on web faster, because subscriptions are the default rather than schema-derived horizons that stay silent on unsynced tables.",
+        "It also says Supabase would have been slower to a correct Following feed, splitting the same work across Auth, RLS, SQL, Storage, and Realtime instead of one Quarry file.",
+        "Identity was cheaper here than Supabase Auth plus a profiles copy; Convex would have felt similar as one functions file, with a looser schema and no sync-audience language.",
+        "Offline is a replica product on this pin; createClient has no outbox, which the essay treats as the same class of gap Convex and Supabase have unless you add your own queue \u2014 except Snapback already has a replica this web path did not keep.",
+        "Relative to an earlier Snapback generation, 0.2.10\u2019s check notes (N_WIDE_MERGE, N_NO_HORIZON, E_STRUCTURAL_FANOUT) changed the work from guessing an empty replica to rewriting a named site, but still did not name createClient live-update failure."
+      ]
+    },
+    "muse": {
+      "scorer": {
+        "family": "muse",
+        "model": "muse-spark-1.3",
+        "basis": "own Snapback 4 lane narrative files"
+      },
+      "backends": {
+        "snapback4": {
+          "overall": {
+            "score": 82,
+            "note": "All seven suites and choreographies green, no cap exceeded; backend owned correctness while timeliness and device durability fell on the builder."
+          },
+          "setup_and_docs": {
+            "score": 90,
+            "note": "M1 green in ~28 min after README sections 1-8 plus guide cards; generated-op annotations doubled as diagnosis docs."
+          },
+          "data_modeling": {
+            "score": 90,
+            "note": "988-line .q schema held shape, rules, expiry, effects, jobs, pagination; app stayed ~9.6k mostly-UI lines."
+          },
+          "authorization": {
+            "score": 95,
+            "note": "Schema-attached read/insert/update rules with typed NOT_MEMBER, NOT_ADMIN, E_IMMUTABLE denials; zero auth regressions, verdict probes passed by construction."
+          },
+          "queries_and_live": {
+            "score": 78,
+            "note": "Live-tail follow, threadSig updates, pagination-window and typing-v2 fixes cost M3-M4 ~154 min; convergence needed settlement-aware waits, all green."
+          },
+          "writes_and_transactions": {
+            "score": 72,
+            "note": "Locally admitted settings writes evaporated on fast navigation with no error; required hand-rolled keepalive settingsMutate write-through."
+          },
+          "offline_sync": {
+            "score": 70,
+            "note": "Outbox died with the page; offline search covered only synced windows (520-row spam hid seed row); indexedDbPersistence switch clean; M6/M8 green."
+          },
+          "media_assets": {
+            "score": 85,
+            "note": "View-once fetch-then-record, fresh-asset seeding, fixture avatars rendering; M4 suite and choreography green."
+          },
+          "background_work": {
+            "score": 88,
+            "note": "Declared expire at purged the TTL probe row with no worker code; effect notify/digest plus push.log worker made the push seam an afternoon."
+          },
+          "client_integration": {
+            "score": 80,
+            "note": "snapback4-expo is a real client with useLink and asset viewed-state; mid-load offline toggle wedged session adopt until a ClientGate retry."
+          },
+          "diagnostics_dev_loop": {
+            "score": 70,
+            "note": "check plus generated codes and server data/sql/why CLI were good, but the device is a wasm black box needing a bespoke debug export."
+          },
+          "scale_and_limits": {
+            "score": 55,
+            "note": "Only the 50-action sample replay (m6-a13) ran green; no scale harness, tiny store footprints, envelope never exercised."
+          },
+          "operations": {
+            "score": 75,
+            "note": "Segmented idempotent seed with wipe-plus-reseed recovery was easy and push.log observable; M7 migration never run, simulator legs not recorded."
+          },
+          "verdict": "Snapback 4 carried auth, expiry, and ordering correctness while charging the builder for convergence timing and outbox durability.",
+          "would_use_again_for": "I would choose it again for an offline-capable social app, demanding a device inspector and a navigation-surviving durable-mutation primitive."
+        }
+      },
+      "comparison_notes": [
+        "Against Supabase, schema-attached rules replaced a second RLS program kept in sync by discipline.",
+        "Against Convex, per-function auth checks and online-only reads compared poorly to structural refusal plus synced offline reads.",
+        "Declared expire at beat pg_cron sweepers and scheduled functions, verified by an actually purged TTL probe row.",
+        "The effects push seam cost an afternoon versus a week of certificates, tokens, and dispatch on other stacks.",
+        "This generation gained a real Expo client, effects, jobs, and cursor pagination over older Snapbacks' demo clients and patterns."
+      ]
+    }
+  },
+  "sources": {
+    "astra": "scores/astra/FINAL.md",
+    "grok": "scores/grok/raw.out",
+    "muse": "scores/muse/FINAL.md"
+  }
+}

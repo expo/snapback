@@ -1,0 +1,233 @@
+{
+  "milestone": "m2",
+  "url": "http://127.0.0.1:49340",
+  "web": "http://127.0.0.1:49341",
+  "at": "2026-09-14T21:51:28.439Z",
+  "pass": true,
+  "failures": 0,
+  "results": [
+    {
+      "assertion": "m2-a01",
+      "test": "create a text post",
+      "pass": true
+    },
+    {
+      "assertion": "m2-a02",
+      "test": "create an image post with 2 fixture images",
+      "pass": true
+    },
+    {
+      "assertion": "m2-a03",
+      "test": "create a video post",
+      "pass": true
+    },
+    {
+      "assertion": "m2-a06",
+      "test": "follow surfaces posts in Following",
+      "pass": true
+    },
+    {
+      "assertion": "m2-a08",
+      "test": "unfollow purges posts from Following on next load",
+      "pass": true
+    },
+    {
+      "assertion": "m2-a09",
+      "test": "unfollowed posts remain in Global",
+      "pass": true
+    },
+    {
+      "assertion": "m2-a10",
+      "test": "stranger post in Global",
+      "pass": true
+    },
+    {
+      "assertion": "m2-a11",
+      "test": "stranger post absent from Following",
+      "pass": true
+    },
+    {
+      "assertion": "m2-a12",
+      "test": "URL stored verbatim in text post",
+      "pass": true
+    },
+    {
+      "assertion": "m2-a13",
+      "test": "no unfurl fields on the post row",
+      "pass": true
+    },
+    {
+      "assertion": "m2-a15",
+      "test": "unlike clears and decrements",
+      "pass": true
+    },
+    {
+      "assertion": "m2-a16",
+      "test": "repost attributed, toggle removes",
+      "pass": true
+    },
+    {
+      "assertion": "m2-a17",
+      "test": "unrepost removes the attribution from feeds",
+      "pass": true
+    },
+    {
+      "assertion": "m2-a18",
+      "test": "followed repost surfaces original in Following",
+      "pass": true
+    },
+    {
+      "assertion": "m2-a20",
+      "test": "thread shows parent + direct replies in order",
+      "pass": true
+    },
+    {
+      "assertion": "m2-a21",
+      "test": "reply absent from both feeds",
+      "pass": true
+    },
+    {
+      "assertion": "m2-a22",
+      "test": "Following paginates 20 per page",
+      "pass": true
+    },
+    {
+      "assertion": "m2-a23",
+      "test": "Global paginates 20 per page",
+      "pass": true
+    },
+    {
+      "assertion": "m2-a24",
+      "test": "no duplicates or gaps across pages",
+      "pass": true
+    },
+    {
+      "assertion": "m2-a25",
+      "test": "own original posts in Following with no self-follow",
+      "pass": true
+    },
+    {
+      "assertion": "m2-a26",
+      "test": "own reposts in Following",
+      "pass": true
+    },
+    {
+      "assertion": "m2-a27",
+      "test": "implicit self-follow changes no counts",
+      "pass": true
+    }
+  ],
+  "coverage": [
+    {
+      "id": "m2-a01",
+      "test": "create a text post",
+      "pass": true
+    },
+    {
+      "id": "m2-a02",
+      "test": "create an image post with 2 fixture images",
+      "pass": true
+    },
+    {
+      "id": "m2-a03",
+      "test": "create a video post",
+      "pass": true
+    },
+    {
+      "id": "m2-a06",
+      "test": "follow surfaces posts in Following",
+      "pass": true
+    },
+    {
+      "id": "m2-a08",
+      "test": "unfollow purges posts from Following on next load",
+      "pass": true
+    },
+    {
+      "id": "m2-a09",
+      "test": "unfollowed posts remain in Global",
+      "pass": true
+    },
+    {
+      "id": "m2-a10",
+      "test": "stranger post in Global",
+      "pass": true
+    },
+    {
+      "id": "m2-a11",
+      "test": "stranger post absent from Following",
+      "pass": true
+    },
+    {
+      "id": "m2-a12",
+      "test": "URL stored verbatim in text post",
+      "pass": true
+    },
+    {
+      "id": "m2-a13",
+      "test": "no unfurl fields on the post row",
+      "pass": true
+    },
+    {
+      "id": "m2-a15",
+      "test": "unlike clears and decrements",
+      "pass": true
+    },
+    {
+      "id": "m2-a16",
+      "test": "repost attributed, toggle removes",
+      "pass": true
+    },
+    {
+      "id": "m2-a17",
+      "test": "unrepost removes the attribution from feeds",
+      "pass": true
+    },
+    {
+      "id": "m2-a18",
+      "test": "followed repost surfaces original in Following",
+      "pass": true
+    },
+    {
+      "id": "m2-a20",
+      "test": "thread shows parent + direct replies in order",
+      "pass": true
+    },
+    {
+      "id": "m2-a21",
+      "test": "reply absent from both feeds",
+      "pass": true
+    },
+    {
+      "id": "m2-a22",
+      "test": "Following paginates 20 per page",
+      "pass": true
+    },
+    {
+      "id": "m2-a23",
+      "test": "Global paginates 20 per page",
+      "pass": true
+    },
+    {
+      "id": "m2-a24",
+      "test": "no duplicates or gaps across pages",
+      "pass": true
+    },
+    {
+      "id": "m2-a25",
+      "test": "own original posts in Following with no self-follow",
+      "pass": true
+    },
+    {
+      "id": "m2-a26",
+      "test": "own reposts in Following",
+      "pass": true
+    },
+    {
+      "id": "m2-a27",
+      "test": "implicit self-follow changes no counts",
+      "pass": true
+    }
+  ],
+  "uncovered": []
+}

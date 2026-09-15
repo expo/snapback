@@ -14002,3 +14002,38 @@ now expect the halt; the real-server maintain-adoption regression stays
 healthy (store-reset tests 30 of 30). The synthetic page first failed with
 `E_INPUT: missing field snapshot`, found by calling `observe_store` directly.
 
+
+## 2026-09-15 UTC — the relaxed Quarry three-model cell is recorded
+
+The published 0.2.10 / Expo 0.2.3 packet ran from September 14 11:15:05 to
+September 15 02:43:55 UTC: 55,730 elapsed seconds, with all twelve actual phase
+ends retained. Eleven exits are zero; the continuous Muse builder's completed
+CLI tail was interrupted and remains exit 130. Its later phases used only the
+qualified exact-builder exception. The original serial shell was taken over,
+without a fabricated final marker or rewritten lifecycle. The [record](../benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/README.md)
+contains reports, correction records, source and receipt custody, holistic
+scores, independent grades and detailed deviations.
+
+Received holistic scores are Astra 82, Grok 63 and Muse 82 against 84/70/80
+on 0.2.6; the separate 0.2.9 Astra calibration was 85. Independent 119-ID
+grades are 99/2/18, 71/30/18 and 98/3/18 (pass/fail/not-run). Different
+completion coverage, native classifications, source access and grading/scale
+methods prevent a magnitude or causal claim. All three grades finished without
+continuation. Fresh M7 sessions returned green in 2,870.258 / 1,667.198 /
+895.247 seconds, with explicit snapshot, regression and migration limits;
+these are builder results and do not rewrite the earlier independent grades.
+Astra's count uses a backfilled contribution plus maintained sum, Grok's a
+maintain in a fresh in-memory store, and Muse's a capped read-time scan with
+no count backfill. The maintained-identity adoption defect remains separately
+ticketed with published-pin boundary controls.
+
+The ceremony result remains local and clean: three natural membership rules,
+five probes each and zero Snapback-attributed loops on 0.2.10. Full-app reporting
+still caused concrete authoring corrections. LLP 3000.007 §10.3 now recommends
+SQL application reads on that remaining cost, with the attribution/protocol
+interpretation explicit and the author's ruling pending. It makes no full-cell
+loop-bar gate-pass claim, changes no Moves line, and commissions no SQL work.
+The four §14 decisions already accepted by the author remain settled. Later
+CU/§19/§20 releases receive no credit at this frozen pin.
+
+Validation: all displayed comparison values match their received sources; all twelve lifecycle records, frozen instrument/templates/pins and selected copy hashes check. `python3 ./ref-check --verbose` passes (480 LLP documents, 8,889 refs, zero errors). The final archive carries scoped scan/disposition and cumulative-hash records. No product runtime or independent M7 grade was rerun.

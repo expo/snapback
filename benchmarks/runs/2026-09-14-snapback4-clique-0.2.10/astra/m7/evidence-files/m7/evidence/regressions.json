@@ -1,0 +1,230 @@
+[
+  {
+    "milestone": "m1",
+    "code": 0,
+    "pass": true,
+    "cases": [
+      {
+        "name": "signup-authenticated",
+        "pass": true
+      },
+      {
+        "name": "profile-edit",
+        "pass": true
+      },
+      {
+        "name": "avatar-upload-render",
+        "pass": true
+      },
+      {
+        "name": "duplicate-email-visible",
+        "pass": true
+      },
+      {
+        "name": "duplicate-handle-visible",
+        "pass": true
+      },
+      {
+        "name": "seed-repeat-and-server-boundaries",
+        "pass": true
+      }
+    ],
+    "receipt": "m7/instance/evidence/m1-suite.json"
+  },
+  {
+    "milestone": "m2",
+    "code": 0,
+    "pass": true,
+    "cases": [
+      {
+        "name": "create-text",
+        "pass": true
+      },
+      {
+        "name": "create-two-images",
+        "pass": true
+      },
+      {
+        "name": "create-video",
+        "pass": true
+      },
+      {
+        "name": "follow-projection-global-self",
+        "pass": true
+      },
+      {
+        "name": "like-set-clear-idempotent",
+        "pass": true
+      },
+      {
+        "name": "repost-attribution-remove-followed",
+        "pass": true
+      },
+      {
+        "name": "direct-thread-order-and-feed-exclusion",
+        "pass": true
+      },
+      {
+        "name": "feed-pages-and-scroll",
+        "pass": true
+      },
+      {
+        "name": "link-tappable-no-preview",
+        "pass": true
+      },
+      {
+        "name": "m2-seed-repeat",
+        "pass": true
+      }
+    ],
+    "receipt": "m7/instance/evidence/m2-suite.json"
+  },
+  {
+    "milestone": "m3",
+    "code": 0,
+    "pass": true,
+    "cases": [
+      {
+        "name": "dm-deduplication",
+        "pass": true
+      },
+      {
+        "name": "groups-with-same-roster",
+        "pass": true
+      },
+      {
+        "name": "non-admin-removal-denied",
+        "pass": true
+      },
+      {
+        "name": "quoted-excerpt-and-jump",
+        "pass": true
+      },
+      {
+        "name": "starter-segments-idempotent",
+        "pass": true
+      }
+    ],
+    "receipt": "m7/instance/evidence/m3-suite.json"
+  },
+  {
+    "milestone": "m4",
+    "code": 0,
+    "pass": true,
+    "cases": [
+      {
+        "name": "photo-picker-upload-message",
+        "pass": true
+      },
+      {
+        "name": "video-picker-upload-message",
+        "pass": true
+      },
+      {
+        "name": "reaction-replacement-clear",
+        "pass": true
+      },
+      {
+        "name": "edited-label",
+        "pass": true
+      },
+      {
+        "name": "delete-revokes-asset",
+        "pass": true
+      },
+      {
+        "name": "server-edit-window",
+        "pass": true
+      }
+    ],
+    "receipt": "m7/instance/evidence/m4-suite.json"
+  },
+  {
+    "milestone": "m5",
+    "code": 0,
+    "pass": true,
+    "cases": [
+      {
+        "name": "view-once-first-open",
+        "pass": true
+      },
+      {
+        "name": "view-once-second-open-denied",
+        "pass": true
+      },
+      {
+        "name": "non-admin-rename-denied",
+        "pass": true
+      },
+      {
+        "name": "people-word-prefix",
+        "pass": true
+      },
+      {
+        "name": "chat-prefix-search",
+        "pass": true
+      },
+      {
+        "name": "global-search-grouping",
+        "pass": true
+      },
+      {
+        "name": "server-expiry-with-all-clients-closed",
+        "pass": true
+      }
+    ],
+    "receipt": "m7/instance/evidence/m5-suite.json"
+  },
+  {
+    "milestone": "m6",
+    "code": 0,
+    "pass": true,
+    "cases": [
+      {
+        "name": "push-text-no-connected-recipient",
+        "pass": true
+      },
+      {
+        "name": "push-once-photo-preview",
+        "pass": true
+      },
+      {
+        "name": "headless-documented-client",
+        "pass": true
+      },
+      {
+        "name": "sample-schema-settlement-and-state",
+        "pass": true
+      },
+      {
+        "name": "web-cold-offline-search-and-ordered-queue",
+        "pass": true
+      }
+    ],
+    "receipt": "m7/instance/evidence/m6-suite.json"
+  },
+  {
+    "milestone": "m8",
+    "code": 0,
+    "pass": true,
+    "cases": [
+      {
+        "name": "six-server-totals-match-independent-state",
+        "pass": true
+      },
+      {
+        "name": "server-utc-buckets-and-zero-days",
+        "pass": true
+      },
+      {
+        "name": "trending-ranked-ties-and-expired-window",
+        "pass": true
+      },
+      {
+        "name": "scheduled-digest-no-clients-restart-and-quiet-next-period",
+        "pass": true
+      }
+    ],
+    "receipt": "m7/instance/evidence/m8-suite.json"
+  }
+]

@@ -1,0 +1,138 @@
+{
+  "milestone": "m3",
+  "url": "http://127.0.0.1:49340",
+  "web": "http://127.0.0.1:49341",
+  "at": "2026-09-15T02:40:58.896Z",
+  "pass": true,
+  "failures": 0,
+  "results": [
+    {
+      "assertion": "m3-a05",
+      "test": "second DM create reuses the same channel",
+      "pass": true
+    },
+    {
+      "assertion": "m3-a01",
+      "test": "DM text delivers to the peer",
+      "pass": true
+    },
+    {
+      "assertion": "m3-a02",
+      "test": "aggregate starts at sent",
+      "pass": true
+    },
+    {
+      "assertion": "m3-a03",
+      "test": "markDelivered advances to delivered",
+      "pass": true
+    },
+    {
+      "assertion": "m3-a04",
+      "test": "markRead advances to read",
+      "pass": true
+    },
+    {
+      "assertion": "m3-a06",
+      "test": "group message reaches members",
+      "pass": true
+    },
+    {
+      "assertion": "m3-a07",
+      "test": "second group with same members coexists",
+      "pass": true
+    },
+    {
+      "assertion": "m3-a08",
+      "test": "group aggregate reaches read when all read",
+      "pass": true
+    },
+    {
+      "assertion": "m3-a09",
+      "test": "typing indicator appears",
+      "pass": true
+    },
+    {
+      "assertion": "m3-a11",
+      "test": "typing expires within the ceiling",
+      "pass": true
+    },
+    {
+      "assertion": "m3-a12",
+      "test": "quoted excerpt resolves",
+      "pass": true
+    },
+    {
+      "assertion": "m3-a10",
+      "test": "quoted reply carries its excerpt link for the bubble",
+      "pass": true
+    },
+    {
+      "assertion": "m3-a15",
+      "test": "admin adds a member",
+      "pass": true
+    },
+    {
+      "assertion": "m3-a16",
+      "test": "promote makes a second admin",
+      "pass": true
+    },
+    {
+      "assertion": "m3-a18",
+      "test": "non-admin member-add is rejected",
+      "pass": true
+    },
+    {
+      "assertion": "m3-a14",
+      "test": "non-admin member-remove is rejected",
+      "pass": true
+    },
+    {
+      "assertion": "m3-a19",
+      "test": "leaver keeps history but new messages are cut off",
+      "pass": true
+    },
+    {
+      "assertion": "m3-a20",
+      "test": "history pages newest-first without duplicates",
+      "pass": true
+    }
+  ],
+  "coverage": [
+    {
+      "id": "m3-a03",
+      "test": "markDelivered advances to delivered",
+      "pass": true
+    },
+    {
+      "id": "m3-a04",
+      "test": "markRead advances to read",
+      "pass": true
+    },
+    {
+      "id": "m3-a05",
+      "test": "second DM create reuses the same channel",
+      "pass": true
+    },
+    {
+      "id": "m3-a10",
+      "test": "quoted reply carries its excerpt link for the bubble",
+      "pass": true
+    },
+    {
+      "id": "m3-a11",
+      "test": "typing expires within the ceiling",
+      "pass": true
+    },
+    {
+      "id": "m3-a14",
+      "test": "non-admin member-remove is rejected",
+      "pass": true
+    },
+    {
+      "id": "m3-a15",
+      "test": "admin adds a member",
+      "pass": true
+    }
+  ],
+  "uncovered": []
+}

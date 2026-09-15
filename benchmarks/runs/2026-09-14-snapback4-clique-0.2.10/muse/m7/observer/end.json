@@ -1,0 +1,17 @@
+{
+  "observedAt": "2026-09-15T02:43:56.789333+00:00",
+  "pid": 1710,
+  "reason": "phase-end-present",
+  "wallSeconds": 926.4,
+  "phaseEnd": {
+    "lane": "muse-snapback4",
+    "phase": "m7",
+    "pid": 6364,
+    "endedAt": "2026-09-15T02:43:55Z",
+    "endedEpoch": 1789440235,
+    "wallSeconds": 895.247,
+    "exitCode": 0,
+    "stdout": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/muse-snapback4.m7.ndjson",
+    "stderr": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/muse-snapback4.m7.stderr.log"
+  }
+}

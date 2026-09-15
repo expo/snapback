@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "clique.m6-field-manifest.v1",
+  "persona": "dave",
+  "principal": "user:01M2HC29ZPMXBGM7FX2ARMAMF4",
+  "exportedAt": "2026-09-15T01:50:24.709Z",
+  "fieldManifest": [
+    "id",
+    "conversationId",
+    "authorId",
+    "at",
+    "photo",
+    "clip",
+    "photoOnce",
+    "poster",
+    "body",
+    "editedAt",
+    "deleted",
+    "quoteId",
+    "reactions",
+    "receipts"
+  ],
+  "conversations": []
+}

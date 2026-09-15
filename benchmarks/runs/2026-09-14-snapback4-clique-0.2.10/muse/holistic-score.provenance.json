@@ -1,0 +1,69 @@
+{
+  "capturedAt": "2026-09-14T22:36:46.783565Z",
+  "final": {
+    "bytes": 3514,
+    "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scores/muse/FINAL.md",
+    "sha256": "41116f29df34c342db3d05dc2b3098ebb8e0d504a34ff165d485852166aa585b",
+    "validation": {
+      "backend": "snapback4",
+      "fencedJsonBlocks": 1,
+      "fencedJsonBytes": 3503,
+      "fencedJsonSha256": "43316d42150d45c24f9136c5668288f38bb6a1a854a0f3e6698db305b70b1b46",
+      "integerScoresExcludeBoolean": true,
+      "nonemptyNotes": true,
+      "nonemptyVerdict": true,
+      "nonemptyWouldUseAgainFor": true,
+      "onlySurroundingWhitespace": true,
+      "requiredEntries": [
+        "overall",
+        "setup_and_docs",
+        "data_modeling",
+        "authorization",
+        "queries_and_live",
+        "writes_and_transactions",
+        "offline_sync",
+        "media_assets",
+        "background_work",
+        "client_integration",
+        "diagnostics_dev_loop",
+        "scale_and_limits",
+        "operations"
+      ],
+      "requiredEntryCount": 13,
+      "scoreMaximum": 100,
+      "scoreMinimum": 0,
+      "scorerFamily": "muse",
+      "scorerModel": "muse-spark-1.3"
+    }
+  },
+  "kind": "muse-score-final-public-answer-capture",
+  "lifecycle": {
+    "endPath": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/muse-snapback4.score.end.json",
+    "endSha256": "631e972cc3be4e4b21f0918899a8e3631d4f7312865724ad895a655644bb3e40",
+    "exitCode": 0,
+    "model": "muse-spark-1.3",
+    "pid": 23755,
+    "startPath": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/muse-snapback4.score.start.json",
+    "startSha256": "a4d0603fc7e91b007b3c483a5a8dda5bf505852d0e73abf130709b31f8c24a00"
+  },
+  "packetRoot": "/Users/ccheever/clique-sb4-20260913-relaxed-3models",
+  "raw": {
+    "bytes": 576009,
+    "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scores/muse/raw.out",
+    "sha256": "6602ca3c7f1f420a52bbce69be17fa1b6356b467cbd0740e8cbd08b4e5547d00"
+  },
+  "schemaVersion": 1,
+  "source": "scores/muse/raw.out:run.terminal.completed.payload.text",
+  "stream": {
+    "commandId": "8e9c07f9-714c-49b7-8387-012a1ac2f55e",
+    "runId": "8e9c07f9-714c-49b7-8387-012a1ac2f55e",
+    "sessionId": "01a0a20f-0ed6-7562-b3cb-b60bc80207a9"
+  },
+  "terminalEvent": {
+    "hashBasis": "exact raw JSONL record bytes excluding its line terminator",
+    "id": "018f0000-0000-7000-8000-00000000c6e6",
+    "recordedAt": 1780531400000918,
+    "sequence": 461,
+    "sha256": "9ff6730cf2f8c9c6cd693e2ed57e9db1b8ff8630653eec0c7263aed124e9adef"
+  }
+}

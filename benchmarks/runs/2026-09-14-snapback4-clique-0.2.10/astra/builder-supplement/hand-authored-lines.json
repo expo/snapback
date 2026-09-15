@@ -1,0 +1,316 @@
+{
+  "method": "Physical source/test/author-maintained config lines after formatting. Excludes generated API/config, copied kit/instrument/harness/scaffold/fixture files, lockfile, dependencies, build output, evidence and generated reports. Narrative files listed separately.",
+  "total": 6028,
+  "files": [
+    {
+      "file": "app.json",
+      "lines": 1
+    },
+    {
+      "file": "app/_layout.tsx",
+      "lines": 10
+    },
+    {
+      "file": "app/chats.tsx",
+      "lines": 23
+    },
+    {
+      "file": "app/conversation/[...path].tsx",
+      "lines": 48
+    },
+    {
+      "file": "app/index.tsx",
+      "lines": 81
+    },
+    {
+      "file": "app/insights.tsx",
+      "lines": 69
+    },
+    {
+      "file": "app/new-chat.tsx",
+      "lines": 77
+    },
+    {
+      "file": "app/post/[id].tsx",
+      "lines": 30
+    },
+    {
+      "file": "app/profile/[handle].tsx",
+      "lines": 65
+    },
+    {
+      "file": "app/profile/edit.tsx",
+      "lines": 80
+    },
+    {
+      "file": "app/search.tsx",
+      "lines": 102
+    },
+    {
+      "file": "app/settings.tsx",
+      "lines": 13
+    },
+    {
+      "file": "babel.config.js",
+      "lines": 1
+    },
+    {
+      "file": "choreography-adapter.json",
+      "lines": 1
+    },
+    {
+      "file": "package.json",
+      "lines": 44
+    },
+    {
+      "file": "scripts/acceptance-m2.mjs",
+      "lines": 244
+    },
+    {
+      "file": "scripts/acceptance-m3.mjs",
+      "lines": 115
+    },
+    {
+      "file": "scripts/acceptance-m4.mjs",
+      "lines": 143
+    },
+    {
+      "file": "scripts/acceptance-m5.mjs",
+      "lines": 189
+    },
+    {
+      "file": "scripts/acceptance-m6.mjs",
+      "lines": 241
+    },
+    {
+      "file": "scripts/acceptance-m8.mjs",
+      "lines": 280
+    },
+    {
+      "file": "scripts/acceptance.mjs",
+      "lines": 183
+    },
+    {
+      "file": "scripts/arrival-order-proof.mjs",
+      "lines": 56
+    },
+    {
+      "file": "scripts/boundary.mjs",
+      "lines": 34
+    },
+    {
+      "file": "scripts/browser-smoke.mjs",
+      "lines": 12
+    },
+    {
+      "file": "scripts/choreo.mjs",
+      "lines": 44
+    },
+    {
+      "file": "scripts/configure.mjs",
+      "lines": 32
+    },
+    {
+      "file": "scripts/custom-client-demo.mjs",
+      "lines": 77
+    },
+    {
+      "file": "scripts/final-report.mjs",
+      "lines": 407
+    },
+    {
+      "file": "scripts/full-search-proof.mjs",
+      "lines": 57
+    },
+    {
+      "file": "scripts/inspect-avatar.mjs",
+      "lines": 26
+    },
+    {
+      "file": "scripts/inspect-convo.mjs",
+      "lines": 32
+    },
+    {
+      "file": "scripts/inspect.mjs",
+      "lines": 21
+    },
+    {
+      "file": "scripts/instrument-loader.mjs",
+      "lines": 14
+    },
+    {
+      "file": "scripts/log.mjs",
+      "lines": 5
+    },
+    {
+      "file": "scripts/offline-durable.mjs",
+      "lines": 168
+    },
+    {
+      "file": "scripts/pack-evidence.mjs",
+      "lines": 27
+    },
+    {
+      "file": "scripts/probe-clone.mjs",
+      "lines": 110
+    },
+    {
+      "file": "scripts/probe-cold-web.mjs",
+      "lines": 35
+    },
+    {
+      "file": "scripts/probe-scale.mjs",
+      "lines": 99
+    },
+    {
+      "file": "scripts/query-diagnostic.mjs",
+      "lines": 11
+    },
+    {
+      "file": "scripts/replay.mjs",
+      "lines": 202
+    },
+    {
+      "file": "scripts/restart-backend.mjs",
+      "lines": 33
+    },
+    {
+      "file": "scripts/retention-metadata.mjs",
+      "lines": 8
+    },
+    {
+      "file": "scripts/retention-probe.mjs",
+      "lines": 70
+    },
+    {
+      "file": "scripts/scale.mjs",
+      "lines": 95
+    },
+    {
+      "file": "scripts/schema-validator.mjs",
+      "lines": 10
+    },
+    {
+      "file": "scripts/seed.mjs",
+      "lines": 5
+    },
+    {
+      "file": "scripts/setup.mjs",
+      "lines": 53
+    },
+    {
+      "file": "scripts/start-instance.mjs",
+      "lines": 38
+    },
+    {
+      "file": "scripts/start.mjs",
+      "lines": 25
+    },
+    {
+      "file": "scripts/starter.mjs",
+      "lines": 132
+    },
+    {
+      "file": "scripts/verify-scale.mjs",
+      "lines": 274
+    },
+    {
+      "file": "scripts/wire.mjs",
+      "lines": 51
+    },
+    {
+      "file": "snapback/analytics.q",
+      "lines": 109
+    },
+    {
+      "file": "snapback/chat.q",
+      "lines": 216
+    },
+    {
+      "file": "snapback/features.q",
+      "lines": 25
+    },
+    {
+      "file": "snapback/media.q",
+      "lines": 80
+    },
+    {
+      "file": "snapback/order.q",
+      "lines": 22
+    },
+    {
+      "file": "snapback/push.q",
+      "lines": 12
+    },
+    {
+      "file": "snapback/replay.q",
+      "lines": 2
+    },
+    {
+      "file": "snapback/schema.q",
+      "lines": 35
+    },
+    {
+      "file": "snapback/social.q",
+      "lines": 153
+    },
+    {
+      "file": "snapback/worker.mjs",
+      "lines": 56
+    },
+    {
+      "file": "src/chat.tsx",
+      "lines": 586
+    },
+    {
+      "file": "src/common.tsx",
+      "lines": 56
+    },
+    {
+      "file": "src/device.ts",
+      "lines": 9
+    },
+    {
+      "file": "src/device.web.ts",
+      "lines": 11
+    },
+    {
+      "file": "src/media.tsx",
+      "lines": 23
+    },
+    {
+      "file": "src/media.web.tsx",
+      "lines": 20
+    },
+    {
+      "file": "src/post.tsx",
+      "lines": 174
+    },
+    {
+      "file": "src/session.tsx",
+      "lines": 135
+    },
+    {
+      "file": "tsconfig.json",
+      "lines": 1
+    }
+  ],
+  "narratives": [
+    {
+      "file": "README.md",
+      "lines": 27
+    },
+    {
+      "file": "API.md",
+      "lines": 51
+    },
+    {
+      "file": "diary.md",
+      "lines": 36
+    },
+    {
+      "file": "essay.md",
+      "lines": 27
+    }
+  ]
+}

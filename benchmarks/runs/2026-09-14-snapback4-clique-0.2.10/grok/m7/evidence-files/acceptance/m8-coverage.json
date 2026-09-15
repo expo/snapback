@@ -1,0 +1,19 @@
+{
+  "milestone": "m8",
+  "assertions": {
+    "m8-a01": "insights totals",
+    "m8-a03": "today bucket",
+    "m8-a04": "zero days rendered",
+    "m8-a05": "trending likes first",
+    "m8-a06": "old posts absent",
+    "m8-a07": "tie newest first"
+  },
+  "tests": [
+    "m8-a01",
+    "m8-a03",
+    "m8-a04",
+    "m8-a05",
+    "m8-a06",
+    "m8-a07"
+  ]
+}

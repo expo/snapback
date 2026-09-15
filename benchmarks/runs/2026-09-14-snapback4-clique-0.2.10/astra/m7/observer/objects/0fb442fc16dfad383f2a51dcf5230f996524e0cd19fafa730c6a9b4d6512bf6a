@@ -1,0 +1,22 @@
+{
+  "milestone": "m1",
+  "coverage": {
+    "m1-a01": "signup-authenticated",
+    "m1-a02": "signup-authenticated",
+    "m1-a08": "profile-edit",
+    "m1-a10": "avatar-upload-render",
+    "m1-a11": "avatar-upload-render",
+    "m1-a04": "duplicate-email-visible",
+    "m1-a03": "duplicate-handle-visible"
+  },
+  "required": [
+    "m1-a01",
+    "m1-a02",
+    "m1-a03",
+    "m1-a04",
+    "m1-a08",
+    "m1-a10",
+    "m1-a11"
+  ],
+  "missing": []
+}

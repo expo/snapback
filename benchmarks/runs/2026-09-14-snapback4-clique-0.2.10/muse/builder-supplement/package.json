@@ -1,0 +1,35 @@
+{
+  "name": "muse-snapback4",
+  "version": "1.0.0",
+  "description": "",
+  "main": "expo-router/entry",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "web": "expo start --web --port 49341",
+    "export:web": "expo export --platform web --output-dir dist-web",
+    "export:ios": "expo export --platform ios --output-dir dist-ios",
+    "serve": "node scripts/serve.mjs",
+    "seed": "node scripts/seed.mjs",
+    "acceptance": "NODE_PATH=./choreography/node_modules node scripts/acceptance.mjs",
+    "backend": "snapback4 dev --port 49340",
+    "custom-client-demo": "node scripts/custom-client-demo.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "babel-preset-expo": "^57.0.11",
+    "expo": "^57.0.22",
+    "expo-router": "^57.0.21",
+    "expo-secure-store": "^57.0.4",
+    "expo-sqlite": "^57.0.3",
+    "expo-status-bar": "^57.0.1",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "react-native": "^0.86.3",
+    "react-native-web": "^0.21.2",
+    "snapback4": "^0.2.10",
+    "snapback4-expo": "^0.2.3"
+  }
+}

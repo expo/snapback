@@ -1,0 +1,21 @@
+{
+  "milestone": "m3",
+  "assertions": {
+    "m3-a03": "dm reuse",
+    "m3-a04": "create group",
+    "m3-a05": "second group coexists",
+    "m3-a10": "quoted excerpt",
+    "m3-a11": "quote jump is UI",
+    "m3-a14": "non-admin cannot remove",
+    "m3-a15": "seed idempotent"
+  },
+  "tests": [
+    "m3-a03",
+    "m3-a04",
+    "m3-a05",
+    "m3-a10",
+    "m3-a11",
+    "m3-a14",
+    "m3-a15"
+  ]
+}

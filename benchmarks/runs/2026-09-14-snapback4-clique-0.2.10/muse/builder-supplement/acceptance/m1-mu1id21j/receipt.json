@@ -1,0 +1,92 @@
+{
+  "milestone": "m1",
+  "url": "http://127.0.0.1:49340",
+  "web": "http://127.0.0.1:49341",
+  "at": "2026-09-14T17:19:48.742Z",
+  "pass": false,
+  "failures": 2,
+  "results": [
+    {
+      "assertion": "m1-a01",
+      "test": "signup new user succeeds",
+      "pass": true
+    },
+    {
+      "assertion": "m1-a02",
+      "test": "app lands authenticated (profile readable)",
+      "pass": false,
+      "error": "Error: profile unreadable: {\"complete\":true,\"data\":null,\"next\":null,\"nextExpiry\":null,\"seq\":64,\"tables\":[\"profiles\"],\"viewer\":\"user:01M2GEX8DV3FWG5M81FM1QZWGT\"}"
+    },
+    {
+      "assertion": "m1-a03",
+      "test": "duplicate handle rejected",
+      "pass": true
+    },
+    {
+      "assertion": "m1-a04",
+      "test": "duplicate email rejected",
+      "pass": true
+    },
+    {
+      "assertion": "m1-a04b",
+      "test": "duplicate email shows a visible error in the UI",
+      "pass": false,
+      "error": "Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'playwright' imported from /Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/muse-snapback4/scripts/acceptance.mjs\nDid you mean to import \"playwright/index.js\"?"
+    },
+    {
+      "assertion": "m1-a08",
+      "test": "display name + bio edit persists",
+      "pass": true
+    },
+    {
+      "assertion": "m1-a10",
+      "test": "fixture avatar upload succeeds",
+      "pass": true
+    },
+    {
+      "assertion": "m1-a11",
+      "test": "avatar renders on the profile (asset serves)",
+      "pass": true
+    }
+  ],
+  "coverage": [
+    {
+      "id": "m1-a01",
+      "test": "signup new user succeeds",
+      "pass": true
+    },
+    {
+      "id": "m1-a02",
+      "test": "app lands authenticated (profile readable)",
+      "pass": false
+    },
+    {
+      "id": "m1-a03",
+      "test": "duplicate handle rejected",
+      "pass": true
+    },
+    {
+      "id": "m1-a04",
+      "test": "duplicate email rejected",
+      "pass": true
+    },
+    {
+      "id": "m1-a08",
+      "test": "display name + bio edit persists",
+      "pass": true
+    },
+    {
+      "id": "m1-a10",
+      "test": "fixture avatar upload succeeds",
+      "pass": true
+    },
+    {
+      "id": "m1-a11",
+      "test": "avatar renders on the profile (asset serves)",
+      "pass": true
+    }
+  ],
+  "uncovered": [
+    "m1-a02"
+  ]
+}

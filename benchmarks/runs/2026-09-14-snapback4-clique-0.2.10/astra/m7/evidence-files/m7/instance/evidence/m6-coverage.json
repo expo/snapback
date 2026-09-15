@@ -1,0 +1,18 @@
+{
+  "milestone": "m6",
+  "coverage": {
+    "m6-a08": "push-text-no-connected-recipient",
+    "m6-a09": "push-once-photo-preview",
+    "m6-a10": "headless-documented-client",
+    "m6-a11": "headless-documented-client",
+    "m6-a13": "sample-schema-settlement-and-state"
+  },
+  "required": [
+    "m6-a08",
+    "m6-a09",
+    "m6-a10",
+    "m6-a11",
+    "m6-a13"
+  ],
+  "missing": []
+}

@@ -1,0 +1,44 @@
+{
+  "milestone": "m7",
+  "pass": true,
+  "cases": [
+    {
+      "name": "backfilled-counts-match-all-existing-conversations",
+      "pass": true
+    },
+    {
+      "name": "poll-creation-validation-and-member-authority",
+      "pass": true
+    },
+    {
+      "name": "vote-switch-and-stale-retry-remain-set-state",
+      "pass": true
+    },
+    {
+      "name": "settings-count-increments-and-tombstones-decrement",
+      "pass": true
+    },
+    {
+      "name": "poll-composer-and-offline-vote",
+      "pass": true
+    },
+    {
+      "name": "expiry-removes-polls-and-count-without-open-clients",
+      "pass": true
+    },
+    {
+      "name": "previously-green-suites-still-pass",
+      "pass": true
+    }
+  ],
+  "coverage": {
+    "m7-a06": "backfilled-counts-match-all-existing-conversations",
+    "m7-a01": "poll-creation-validation-and-member-authority",
+    "m7-a03": "vote-switch-and-stale-retry-remain-set-state",
+    "m7-a04": "vote-switch-and-stale-retry-remain-set-state",
+    "m7-a07": "settings-count-increments-and-tombstones-decrement",
+    "m7-a09": "previously-green-suites-still-pass"
+  },
+  "missing": [],
+  "recordedAt": "2026-09-15T01:10:04.043Z"
+}

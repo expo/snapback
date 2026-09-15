@@ -1,0 +1,16 @@
+{
+  "baseValid": true,
+  "composedValid": false,
+  "composedErrors": [
+    {
+      "instancePath": "",
+      "schemaPath": "#/allOf/1/required",
+      "keyword": "required",
+      "params": {
+        "missingProperty": "socialMessenger"
+      },
+      "message": "must have required property 'socialMessenger'"
+    }
+  ],
+  "reason": "A pre-grading builder record cannot honestly supply the required external driver/metering/grading block. The composed schema requires socialMessenger; its clocks.grading.sessions requires at least one actual grading session. No fabricated grading/driver session is supplied."
+}

@@ -1,0 +1,28 @@
+Starting Metro Bundler
+
+| (node:80053) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+iOS Bundled 3793ms node_modules/expo-router/entry.js (1176 modules)
+
+› Assets (24):
+node_modules/expo-router/assets/arrow_down.png (9.5KB)
+node_modules/expo-router/assets/error.png (469B)
+node_modules/expo-router/assets/file.png (138B)
+node_modules/expo-router/assets/forward.png (188B)
+node_modules/expo-router/assets/pkg.png (364B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.png (653B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon.png (4 variations | 566B)
+node_modules/expo-router/assets/react-navigation/elements/clear-icon.png (4 variations | 425B)
+node_modules/expo-router/assets/react-navigation/elements/close-icon.png (4 variations | 235B)
+node_modules/expo-router/assets/react-navigation/elements/search-icon.png (3 variations | 582B)
+node_modules/expo-router/assets/sitemap.png (465B)
+node_modules/expo-router/assets/unmatched.png (4.8KB)
+public/video-poster.png (2.1KB)
+
+› ios bundles (1):
+_expo/static/js/ios/entry-014cfc6bb7f1f6071503f60be3a1d60e.hbc (2.7MB)
+
+› Files (1):
+metadata.json (1.7KB)
+
+Exported: m7/artifacts/final-ios

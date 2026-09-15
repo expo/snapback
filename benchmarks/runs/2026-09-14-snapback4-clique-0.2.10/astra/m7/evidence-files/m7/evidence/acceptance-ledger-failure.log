@@ -1,0 +1,15 @@
+
+> clique@0.0.1 acceptance
+> node scripts/acceptance.mjs --milestone m7
+
+PASS backfilled-counts-match-all-existing-conversations
+PASS poll-creation-validation-and-member-authority
+PASS vote-switch-and-stale-retry-remain-set-state
+PASS settings-count-increments-and-tombstones-decrement
+PASS poll-composer-and-offline-vote
+PASS expiry-removes-polls-and-count-without-open-clients
+FAIL previously-green-suites-still-pass The expression evaluated to a falsy value:
+
+  assert.ok(results.every(r=>r.code===0&&r.pass))
+
+{"milestone":"m7","pass":false,"missing":["m7-a09"]}

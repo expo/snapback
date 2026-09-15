@@ -1,0 +1,12 @@
+{
+  "capturedAt": "2026-09-15T00:28:17.174881+00:00",
+  "scope": "Interim orchestrator analysis of the predeclared SQL trigger; no author ruling, rescore or final completed-cell recommendation.",
+  "files": [
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/SQL-TRIGGER-EVIDENCE-AUDIT.md",
+      "destination": "audits/SQL-TRIGGER-EVIDENCE-AUDIT.md",
+      "bytes": 15672,
+      "sha256": "f0d057513e6bda326c24b731d7a297e6f30fd08cd095bf6292b048c5d2822281"
+    }
+  ]
+}

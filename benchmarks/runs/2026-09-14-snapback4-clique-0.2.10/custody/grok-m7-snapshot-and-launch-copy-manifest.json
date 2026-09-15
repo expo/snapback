@@ -1,0 +1,24 @@
+{
+  "copiedAt": "2026-09-15T02:30:15.547715+00:00",
+  "method": "Verbatim selected completed audit and late PID/source observations. No app requests or packet writes.",
+  "files": [
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/GROK-0210-M7-SNAPSHOT-AUDIT.md",
+      "destination": "audits/GROK-0210-M7-SNAPSHOT-AUDIT.md",
+      "bytes": 15522,
+      "sha256": "86912ee90797594205ec3b4b3eb76c076dcee7b38bc78deadd46ef0e69a48a7f"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-full-report-pid-observation.json",
+      "destination": "grok/m7/custody/full-report-pid-observation.json",
+      "bytes": 518,
+      "sha256": "6564b8ea55e15d27a9bac9ad5e941988158dd8fd07b3676d0ea5a9eade860034"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/immediately-before-m7-source-integrity.json",
+      "destination": "muse/m7/custody/immediately-before-m7-source-integrity.json",
+      "bytes": 255,
+      "sha256": "49c8cf0dd479a69f8aa980e87a4adf9ff7362ccdcc9417ad50b173973d9fc0f5"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "scaleReplay": {
+    "start": 1789397301,
+    "end": 1789397754,
+    "wallSeconds": 453,
+    "actions": 167157,
+    "actors": 1008,
+    "url": "http://127.0.0.1:49342"
+  },
+  "namedO5": {
+    "u0500": { "following": 500, "conversations": 100, "expectedFollowing": 500, "expectedConversations": 100 },
+    "u0005": { "following": 5, "expectedFollowing": 5 },
+    "u0900": { "followers": 900, "posts": 200, "expectedFollowers": 900, "expectedPosts": 200 },
+    "u0901": { "following": 5, "expectedFollowing": 5 }
+  },
+  "pass": true
+}

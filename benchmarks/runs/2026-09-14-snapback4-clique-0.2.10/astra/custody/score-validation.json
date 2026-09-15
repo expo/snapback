@@ -1,0 +1,48 @@
+{
+  "observedAt": "2026-09-14T22:31:49.398455+00:00",
+  "kind": "Astra scorer public final answer validation",
+  "method": "Original codex -o FINAL.md bytes equal captured stdout apart from surrounding whitespace; one final JSON fence, expected model/family and13integer scores with notes; actual score exit0. No recursive extraction from prompt/transcript examples.",
+  "files": {
+    "scores/astra/FINAL.md": {
+      "bytes": 6081,
+      "sha256": "3c9bda8546ed251fe4f28ffbf0f56596664166ac9a3c60f93e4cd32997426d35"
+    },
+    "scores/astra/raw.out": {
+      "bytes": 6082,
+      "sha256": "728e93c6c70f84aac5f16e7c2fdd01a07da1c46b2836678cb9e34b0822d8a375"
+    },
+    "scores/astra/raw.err": {
+      "bytes": 12407,
+      "sha256": "9096e1ce52488bc9ffb335c6b5238e8959c7f84245cc0a98f2fd9f0b6e8f6e50"
+    },
+    "logs/astra-snapback4.score.start.json": {
+      "bytes": 1022,
+      "sha256": "9c03414500922bbb984aeb143866add36035044c62f57a9d74b84cdaa68bfad5"
+    },
+    "logs/astra-snapback4.score.end.json": {
+      "bytes": 352,
+      "sha256": "bd2bf49afbd17f90141c37778a21ca716b2164327498469fe226617ca92a2709"
+    },
+    "prompts/astra-snapback4.score.md": {
+      "bytes": 5052,
+      "sha256": "650475fffd2b32c75392508a42d9a8d09677118d617dbadde2e86b6751c0321a"
+    }
+  },
+  "wallSeconds": 140.434,
+  "scores": {
+    "overall": 82,
+    "setup_and_docs": 79,
+    "data_modeling": 84,
+    "authorization": 87,
+    "queries_and_live": 77,
+    "writes_and_transactions": 86,
+    "offline_sync": 80,
+    "media_assets": 93,
+    "background_work": 78,
+    "client_integration": 84,
+    "diagnostics_dev_loop": 75,
+    "scale_and_limits": 76,
+    "operations": 83
+  },
+  "qualification": "Received score preserved; its upsert-defect attribution conflicts with the independently reproduced accepted-rule disposition. No score adjustment."
+}

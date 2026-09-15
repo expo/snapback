@@ -1,0 +1,19 @@
+{
+  "milestone": "m7",
+  "assertions": {
+    "m7-a01": "create a group poll",
+    "m7-a03": "changing a vote adjusts counts",
+    "m7-a04": "duplicate vote intent does not flip state",
+    "m7-a06": "backfilled visible message counts",
+    "m7-a07": "counts increment with new messages",
+    "m7-a09": "previously green suites still pass"
+  },
+  "tests": [
+    "m7-a01",
+    "m7-a03",
+    "m7-a04",
+    "m7-a06",
+    "m7-a07",
+    "m7-a09"
+  ]
+}

@@ -1,0 +1,756 @@
+{
+  "laneId": "astra-clique-snapback4-full-20260913",
+  "model": "gpt-6-astra",
+  "effort": "medium",
+  "backend": "snapback4-0.2.10",
+  "native": [
+    {
+      "path": "m7/artifacts/final-ios/_expo/static/js/ios/entry-014cfc6bb7f1f6071503f60be3a1d60e.hbc",
+      "bytes": 2700438,
+      "sha256": "1749e8f09b9f2ed6e592c0d043ed5ec2eec9228cc74126ca8631b636a23b9a88"
+    }
+  ],
+  "phase": "m7",
+  "start": 1789433536,
+  "end": 1789436360,
+  "wallSeconds": 2824,
+  "status": "green",
+  "suite": {
+    "pass": true,
+    "cases": [
+      {
+        "name": "backfilled-counts-match-all-existing-conversations",
+        "pass": true
+      },
+      {
+        "name": "poll-creation-validation-and-member-authority",
+        "pass": true
+      },
+      {
+        "name": "vote-switch-and-stale-retry-remain-set-state",
+        "pass": true
+      },
+      {
+        "name": "settings-count-increments-and-tombstones-decrement",
+        "pass": true
+      },
+      {
+        "name": "poll-composer-and-offline-vote",
+        "pass": true
+      },
+      {
+        "name": "expiry-removes-polls-and-count-without-open-clients",
+        "pass": true
+      },
+      {
+        "name": "previously-green-suites-still-pass",
+        "pass": true
+      }
+    ],
+    "coverage": {
+      "milestone": "m7",
+      "coverage": {
+        "m7-a06": "backfilled-counts-match-all-existing-conversations",
+        "m7-a01": "poll-creation-validation-and-member-authority",
+        "m7-a03": "vote-switch-and-stale-retry-remain-set-state",
+        "m7-a04": "vote-switch-and-stale-retry-remain-set-state",
+        "m7-a07": "settings-count-increments-and-tombstones-decrement",
+        "m7-a09": "previously-green-suites-still-pass"
+      },
+      "required": [
+        "m7-a01",
+        "m7-a03",
+        "m7-a04",
+        "m7-a06",
+        "m7-a07",
+        "m7-a09"
+      ],
+      "missing": []
+    },
+    "receipt": "m7/evidence/m7-suite.json"
+  },
+  "choreography": {
+    "green": true,
+    "nonGreenCause": null,
+    "assertions": [
+      {
+        "id": "m7-a02-live-poll-tallies",
+        "pass": true,
+        "status": "passed",
+        "bestOf": 3
+      },
+      {
+        "id": "m7-a05-offline-vote-reconciles",
+        "pass": true,
+        "status": "passed",
+        "bestOf": 1
+      }
+    ],
+    "receipt": "m7/evidence/choreography.jsonl"
+  },
+  "snapshots": {
+    "primary": {
+      "pass": true,
+      "at": 1789433827745,
+      "before": "m7/pre-snapshot",
+      "after": "m7/post-migration-snapshot",
+      "checks": [
+        {
+          "persona": "alice",
+          "conversation": "d-alice-bob",
+          "messages": 6,
+          "messageCount": 6,
+          "assets": 0
+        },
+        {
+          "persona": "alice",
+          "conversation": "g-starter",
+          "messages": 9,
+          "messageCount": 9,
+          "assets": 0
+        },
+        {
+          "persona": "bob",
+          "conversation": "d-alice-bob",
+          "messages": 6,
+          "messageCount": 6,
+          "assets": 0
+        },
+        {
+          "persona": "bob",
+          "conversation": "g-starter",
+          "messages": 9,
+          "messageCount": 9,
+          "assets": 0
+        },
+        {
+          "persona": "carol",
+          "conversation": "g-starter",
+          "messages": 9,
+          "messageCount": 9,
+          "assets": 0
+        }
+      ],
+      "fields": [
+        "id",
+        "conversationId",
+        "senderId",
+        "at",
+        "arrival",
+        "kind",
+        "text",
+        "photo",
+        "oncePhoto",
+        "video",
+        "edited",
+        "deleted",
+        "replyToId",
+        "reactions",
+        "receipt",
+        "expiresAt",
+        "viewed"
+      ]
+    },
+    "correction": {
+      "pass": true,
+      "at": 1789434749368,
+      "before": "m7/pre-correction-snapshot",
+      "after": "m7/post-correction-snapshot",
+      "checks": [
+        {
+          "persona": "alice",
+          "conversation": "d-alice-bob",
+          "messages": 14,
+          "messageCount": 13,
+          "assets": 1
+        },
+        {
+          "persona": "alice",
+          "conversation": "g-starter",
+          "messages": 9,
+          "messageCount": 9,
+          "assets": 0
+        },
+        {
+          "persona": "alice",
+          "conversation": "m31789434155675g1",
+          "messages": 14,
+          "messageCount": 14,
+          "assets": 0
+        },
+        {
+          "persona": "alice",
+          "conversation": "m31789434155675g2",
+          "messages": 0,
+          "messageCount": 0,
+          "assets": 0
+        },
+        {
+          "persona": "alice",
+          "conversation": "m51789434219632g",
+          "messages": 2,
+          "messageCount": 2,
+          "assets": 0
+        },
+        {
+          "persona": "alice",
+          "conversation": "m51789434219632g2",
+          "messages": 1,
+          "messageCount": 1,
+          "assets": 0
+        },
+        {
+          "persona": "alice",
+          "conversation": "m7-1789433963725-expiry",
+          "messages": 0,
+          "messageCount": 0,
+          "assets": 0
+        },
+        {
+          "persona": "alice",
+          "conversation": "m7-1789433963725-group",
+          "messages": 4,
+          "messageCount": 2,
+          "assets": 0
+        },
+        {
+          "persona": "bob",
+          "conversation": "d-alice-bob",
+          "messages": 14,
+          "messageCount": 13,
+          "assets": 1
+        },
+        {
+          "persona": "bob",
+          "conversation": "g-starter",
+          "messages": 9,
+          "messageCount": 9,
+          "assets": 0
+        },
+        {
+          "persona": "bob",
+          "conversation": "m31789434155675g1",
+          "messages": 14,
+          "messageCount": 14,
+          "assets": 0
+        },
+        {
+          "persona": "bob",
+          "conversation": "m31789434155675g2",
+          "messages": 0,
+          "messageCount": 0,
+          "assets": 0
+        },
+        {
+          "persona": "bob",
+          "conversation": "m51789434219632g",
+          "messages": 2,
+          "messageCount": 2,
+          "assets": 0
+        },
+        {
+          "persona": "bob",
+          "conversation": "m51789434219632g2",
+          "messages": 1,
+          "messageCount": 1,
+          "assets": 0
+        },
+        {
+          "persona": "bob",
+          "conversation": "m7-1789433963725-expiry",
+          "messages": 0,
+          "messageCount": 0,
+          "assets": 0
+        },
+        {
+          "persona": "bob",
+          "conversation": "m7-1789433963725-group",
+          "messages": 4,
+          "messageCount": 2,
+          "assets": 0
+        },
+        {
+          "persona": "carol",
+          "conversation": "g-starter",
+          "messages": 9,
+          "messageCount": 9,
+          "assets": 0
+        },
+        {
+          "persona": "carol",
+          "conversation": "m31789434155675g1",
+          "messages": 14,
+          "messageCount": 14,
+          "assets": 0
+        },
+        {
+          "persona": "carol",
+          "conversation": "m31789434155675g2",
+          "messages": 0,
+          "messageCount": 0,
+          "assets": 0
+        },
+        {
+          "persona": "carol",
+          "conversation": "m51789434219632g",
+          "messages": 2,
+          "messageCount": 2,
+          "assets": 0
+        },
+        {
+          "persona": "carol",
+          "conversation": "m7-1789433963725-group",
+          "messages": 4,
+          "messageCount": 2,
+          "assets": 0
+        }
+      ],
+      "fields": [
+        "id",
+        "conversationId",
+        "senderId",
+        "at",
+        "arrival",
+        "kind",
+        "text",
+        "photo",
+        "oncePhoto",
+        "video",
+        "edited",
+        "deleted",
+        "replyToId",
+        "reactions",
+        "receipt",
+        "expiresAt",
+        "viewed"
+      ]
+    },
+    "starterMediaHashes": 18,
+    "populatedCorrectionMediaMessages": 3,
+    "populatedCorrectionReactedMessages": 0
+  },
+  "regressions": [
+    {
+      "milestone": "m1",
+      "code": 0,
+      "pass": true,
+      "cases": [
+        {
+          "name": "signup-authenticated",
+          "pass": true
+        },
+        {
+          "name": "profile-edit",
+          "pass": true
+        },
+        {
+          "name": "avatar-upload-render",
+          "pass": true
+        },
+        {
+          "name": "duplicate-email-visible",
+          "pass": true
+        },
+        {
+          "name": "duplicate-handle-visible",
+          "pass": true
+        },
+        {
+          "name": "seed-repeat-and-server-boundaries",
+          "pass": true
+        }
+      ],
+      "receipt": "m7/instance/evidence/m1-suite.json"
+    },
+    {
+      "milestone": "m2",
+      "code": 0,
+      "pass": true,
+      "cases": [
+        {
+          "name": "create-text",
+          "pass": true
+        },
+        {
+          "name": "create-two-images",
+          "pass": true
+        },
+        {
+          "name": "create-video",
+          "pass": true
+        },
+        {
+          "name": "follow-projection-global-self",
+          "pass": true
+        },
+        {
+          "name": "like-set-clear-idempotent",
+          "pass": true
+        },
+        {
+          "name": "repost-attribution-remove-followed",
+          "pass": true
+        },
+        {
+          "name": "direct-thread-order-and-feed-exclusion",
+          "pass": true
+        },
+        {
+          "name": "feed-pages-and-scroll",
+          "pass": true
+        },
+        {
+          "name": "link-tappable-no-preview",
+          "pass": true
+        },
+        {
+          "name": "m2-seed-repeat",
+          "pass": true
+        }
+      ],
+      "receipt": "m7/instance/evidence/m2-suite.json"
+    },
+    {
+      "milestone": "m3",
+      "code": 0,
+      "pass": true,
+      "cases": [
+        {
+          "name": "dm-deduplication",
+          "pass": true
+        },
+        {
+          "name": "groups-with-same-roster",
+          "pass": true
+        },
+        {
+          "name": "non-admin-removal-denied",
+          "pass": true
+        },
+        {
+          "name": "quoted-excerpt-and-jump",
+          "pass": true
+        },
+        {
+          "name": "starter-segments-idempotent",
+          "pass": true
+        }
+      ],
+      "receipt": "m7/instance/evidence/m3-suite.json"
+    },
+    {
+      "milestone": "m4",
+      "code": 0,
+      "pass": true,
+      "cases": [
+        {
+          "name": "photo-picker-upload-message",
+          "pass": true
+        },
+        {
+          "name": "video-picker-upload-message",
+          "pass": true
+        },
+        {
+          "name": "reaction-replacement-clear",
+          "pass": true
+        },
+        {
+          "name": "edited-label",
+          "pass": true
+        },
+        {
+          "name": "delete-revokes-asset",
+          "pass": true
+        },
+        {
+          "name": "server-edit-window",
+          "pass": true
+        }
+      ],
+      "receipt": "m7/instance/evidence/m4-suite.json"
+    },
+    {
+      "milestone": "m5",
+      "code": 0,
+      "pass": true,
+      "cases": [
+        {
+          "name": "view-once-first-open",
+          "pass": true
+        },
+        {
+          "name": "view-once-second-open-denied",
+          "pass": true
+        },
+        {
+          "name": "non-admin-rename-denied",
+          "pass": true
+        },
+        {
+          "name": "people-word-prefix",
+          "pass": true
+        },
+        {
+          "name": "chat-prefix-search",
+          "pass": true
+        },
+        {
+          "name": "global-search-grouping",
+          "pass": true
+        },
+        {
+          "name": "server-expiry-with-all-clients-closed",
+          "pass": true
+        }
+      ],
+      "receipt": "m7/instance/evidence/m5-suite.json"
+    },
+    {
+      "milestone": "m6",
+      "code": 0,
+      "pass": true,
+      "cases": [
+        {
+          "name": "push-text-no-connected-recipient",
+          "pass": true
+        },
+        {
+          "name": "push-once-photo-preview",
+          "pass": true
+        },
+        {
+          "name": "headless-documented-client",
+          "pass": true
+        },
+        {
+          "name": "sample-schema-settlement-and-state",
+          "pass": true
+        },
+        {
+          "name": "web-cold-offline-search-and-ordered-queue",
+          "pass": true
+        }
+      ],
+      "receipt": "m7/instance/evidence/m6-suite.json"
+    },
+    {
+      "milestone": "m8",
+      "code": 0,
+      "pass": true,
+      "cases": [
+        {
+          "name": "six-server-totals-match-independent-state",
+          "pass": true
+        },
+        {
+          "name": "server-utc-buckets-and-zero-days",
+          "pass": true
+        },
+        {
+          "name": "trending-ranked-ties-and-expired-window",
+          "pass": true
+        },
+        {
+          "name": "scheduled-digest-no-clients-restart-and-quiet-next-period",
+          "pass": true
+        }
+      ],
+      "receipt": "m7/instance/evidence/m8-suite.json"
+    }
+  ],
+  "corrections": [
+    {
+      "id": "paths",
+      "attribution": "agent-error",
+      "description": "Guessed several module paths; used file search to locate the actual harness and frozen poll widgets.",
+      "evidence": [
+        "m7/run-log.md"
+      ]
+    },
+    {
+      "id": "rules-and-indexing",
+      "attribution": "agent-error",
+      "description": "Used row dereferences in rules and treated list indexing as nonoptional; corrected rules and unwrapped validated option indices.",
+      "evidence": [
+        "m7/evidence/check-1.txt",
+        "m7/evidence/check-2.txt"
+      ]
+    },
+    {
+      "id": "nullable-sum",
+      "attribution": "agent-error",
+      "description": "A sum maintain cannot use int?. Staged nullable contribution, ran the backfill, then required the column and introduced the sum.",
+      "evidence": [
+        "m7/evidence/check-2.txt",
+        "m7/evidence/backfill.json"
+      ]
+    },
+    {
+      "id": "expiring-mutation-scan",
+      "attribution": "agent-error",
+      "description": "A mutation cannot scan expiring option/vote tables. Removed the unsupported sweep and later implemented bounded option-key point deletions.",
+      "evidence": [
+        "m7/evidence/check-3.txt",
+        "m7/evidence/why-fanout.txt"
+      ]
+    },
+    {
+      "id": "poll-label-revocation",
+      "attribution": "agent-error",
+      "description": "Review found option labels retained after a tombstone. Stored option keys, backfilled test-era polls, and used four explicit point deletes after a list-delete loop was refused.",
+      "evidence": [
+        "m7/evidence/check-deletion.txt",
+        "m7/evidence/check-deletion-2.txt",
+        "scripts/acceptance-m7.mjs"
+      ]
+    },
+    {
+      "id": "generated-aggregate-identity",
+      "attribution": "snapback4-defect",
+      "description": "A maintained compound key accepted during writes exceeded the identity bound during later schema adoption. Old schema reopened. Minimal reproduction confirmed the failure; replacing only the derived tally cache with indexed vote counts preserved data and enabled adoption.",
+      "evidence": [
+        "m7/evidence/aggregate-id-repro.json",
+        "m7/evidence/poll-tally-ids.json",
+        "m7/evidence/migration-correction.log",
+        "m7/evidence/migration-recovery.log"
+      ]
+    },
+    {
+      "id": "failed-adoption-sequencing",
+      "attribution": "agent-error",
+      "description": "Dependent export/comparison/suite commands continued after adoption failed, producing a setup-red attempt. Retained failed evidence and verified recovery before the next full run.",
+      "evidence": [
+        "m7/evidence/m7-suite-startup-failure.json",
+        "m7/evidence/acceptance-startup-failure.log"
+      ]
+    },
+    {
+      "id": "node-shim",
+      "attribution": "environment",
+      "description": "The shell shim resolved Node 25.9.0 despite the environment document declaring Node 24 first. Final acceptance, choreography, and native export used explicit Node 24.18.0.",
+      "evidence": [
+        "m7/evidence/toolchain-final.txt",
+        "m7/evidence/migration-correction.log"
+      ]
+    },
+    {
+      "id": "pid-ledger-order",
+      "attribution": "agent-error",
+      "description": "A late historical backend entry made the inherited restart helper choose an exited PID. It failed ESRCH without killing a process. Relabeled the historical CLI child and reran the full unchanged suite command.",
+      "evidence": [
+        "m7/evidence/pid-ledger-order-failure.jsonl",
+        "m7/evidence/m8-suite-ledger-failure.json",
+        "m7/evidence/m7-suite-ledger-failure.json"
+      ]
+    },
+    {
+      "id": "adapter-relative-path",
+      "attribution": "agent-error",
+      "description": "Preflight review caught fixture paths resolving relative to the M7 adapter directory; corrected before choreography.",
+      "evidence": [
+        "m7/prepare-choreography.mjs",
+        "m7/run-log.md"
+      ]
+    },
+    {
+      "id": "duplicate-question",
+      "attribution": "agent-error",
+      "description": "Screenshot review found duplicate question copy in the message shell and poll card. Changed only shell text to Poll; repeated choreography, screenshots, typecheck, and iOS export.",
+      "evidence": [
+        "m7/evidence/poll-ui-before-label-fix.png",
+        "m7/evidence/poll-ui.png",
+        "m7/evidence/choreography-final.log"
+      ]
+    },
+    {
+      "id": "report-template-quoting",
+      "attribution": "agent-error",
+      "description": "Markdown backticks were not escaped inside the JavaScript report template. Corrected formatting and reran generation; application verification was unaffected.",
+      "evidence": [
+        "m7/evidence/report-generation-error.txt"
+      ]
+    }
+  ],
+  "cleanup": [
+    {
+      "pid": 38153,
+      "name": "backend-restart",
+      "state": "SIGTERM",
+      "command": "./node_modules/snapback4-darwin-arm64/snapback4 dev --port 49340"
+    },
+    {
+      "pid": 86029,
+      "name": "initial-cli-child",
+      "state": "already-exited"
+    },
+    {
+      "pid": 67686,
+      "name": "backend-final-verified",
+      "state": "already-exited"
+    },
+    {
+      "pid": 54693,
+      "name": "backend-recovery",
+      "state": "already-exited"
+    },
+    {
+      "pid": 49199,
+      "name": "backend-final",
+      "state": "already-exited"
+    },
+    {
+      "pid": 19191,
+      "name": "backend-restart",
+      "state": "already-exited"
+    },
+    {
+      "pid": 23821,
+      "name": "web",
+      "state": "SIGTERM",
+      "command": "node /Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/expo/bin/cli start --web --port 49341"
+    },
+    {
+      "pid": 20190,
+      "name": "backend-evolved",
+      "state": "already-exited"
+    },
+    {
+      "pid": 86013,
+      "name": "backend",
+      "state": "already-exited"
+    },
+    {
+      "pid": 38155,
+      "name": "provider-worker",
+      "state": "already-exited"
+    },
+    {
+      "pid": 67729,
+      "name": "provider-worker",
+      "state": "already-exited"
+    },
+    {
+      "pid": 54697,
+      "name": "provider-worker",
+      "state": "already-exited"
+    },
+    {
+      "pid": 19194,
+      "name": "provider-worker",
+      "state": "already-exited"
+    },
+    {
+      "pid": 20199,
+      "name": "provider-worker",
+      "state": "already-exited"
+    },
+    {
+      "pid": 86031,
+      "name": "provider-worker",
+      "state": "already-exited"
+    }
+  ],
+  "noListeners": true,
+  "preM7CountStructure": false
+}

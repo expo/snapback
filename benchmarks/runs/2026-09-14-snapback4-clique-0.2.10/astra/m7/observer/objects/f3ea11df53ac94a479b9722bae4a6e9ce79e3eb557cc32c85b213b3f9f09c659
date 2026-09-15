@@ -1,0 +1,21 @@
+{
+  "milestone": "m7",
+  "pass": false,
+  "cases": [
+    {
+      "name": "suite-setup",
+      "pass": false,
+      "error": "fetch failed"
+    }
+  ],
+  "coverage": {},
+  "missing": [
+    "m7-a01",
+    "m7-a03",
+    "m7-a04",
+    "m7-a06",
+    "m7-a07",
+    "m7-a09"
+  ],
+  "recordedAt": "2026-09-15T01:10:29.903Z"
+}

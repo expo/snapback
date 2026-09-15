@@ -1,0 +1,10 @@
+{
+  "observedAt": "2026-09-15T00:51:39.740591+00:00",
+  "pid": 70646,
+  "lane": "astra",
+  "phaseAlreadyStarted": false,
+  "pollSeconds": 2,
+  "deadlineSeconds": 18000,
+  "observerSha256": "a93de82a0bd09abed732f27ce00283dd49d272e4a19fab3c9a457fe54bd97484",
+  "method": "Stable JSON/JSONL versions copied by hash; sensitive-looking evidence hashed only. Source contents hashed only, never copied. Original paths preserved in events. This is a passive observer, not a snapshot exporter, verifier or grader."
+}
