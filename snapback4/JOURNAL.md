@@ -19683,3 +19683,140 @@ before browser assertions. The lead's outside-sandbox browser run is still
 needed. No unrelated failure is claimed verified against the base commit.
 `./ref-check --verbose` passed with `0 errors, 0 unchecked`; `git diff --check`
 is clean. The final reference check is repeated after this append.
+
+## 2026-09-15 — W6R2: horizon advice preserves ascending prediction; foreign schedule names stay foreign
+
+Base: `718f0eebda54dd8b06880abc7e07b3648efbce28`. Both review findings
+reproduced before production edits. `N_NO_HORIZON` still warns about growth,
+but the suggested index is now compared with every eligible mutation's
+bound scans. An ascending page or a page on another index replaces the
+horizon declaration with advice naming the mutations that would lose
+prediction. A descending page on the suggested index keeps the declaration.
+Whole-partition point, rule, aggregate and insert-proof exemptions keep their
+existing behavior. The scan walk is the IR's existing traversal; no new
+serialized execution fact or runtime coverage mechanism was added.
+
+Recipe renaming now gives its parsed `feed.q` source an explicit `feed`
+module identity and compares qualified schedule targets with that identity.
+The output module, including the empty string, cannot make a foreign target
+local. `other.purgeRemoved` stays that target with output module arguments
+`feed`, empty and `other`, while the existing local qualified/unqualified
+positive tests pass. The regression also compiles the preserved target with
+a real job in `other.q`.
+
+The shared fixture reads a 20-row page and copies its rows using a fixed
+20-iteration range. While writing the fixture, a direct loop over the
+uncapped page correctly refused `E_STRUCTURAL_FANOUT`; using the already
+admitted bounded range isolates the reported prediction-advice defect.
+The initial device assertion also learned that confirmed rows omit `pending`
+rather than necessarily storing `pending: false`. Both fixture corrections
+preceded all production edits; neither was counted as reproducing N1.
+
+Measurements on each of the SQLite and memory device stores: 25 existing
+archive rows acquired in all cases, horizon size 500, page size 20. The
+unbounded mutation predicts 20 visible pending copies. An explicit horizon
+predicts 0, even though all 25 source rows were acquired. Following the old
+advice predicts 0; following the new advice predicts 20. Each final case
+converges to 20 confirmed copies with timestamps 0–19 after the authoritative
+commit. There are 2 real-runtime regression tests, each exercising 3 paths;
+3 exact-note cases; and 3 output-module arguments in the foreign-target
+regression. The largest modified source is `guide.rs`, 1,459 lines.
+
+Targeted commands from `snapback4/`, verbatim summaries:
+
+```text
+cargo test -p snapback4-lang --test residency_notes --test sparse_filter --no-fail-fast w6r2 -- --nocapture
+# Before (residency_notes, then sparse_filter):
+test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.01s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.01s
+# After:
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.03s
+
+cargo test -p snapback4-device --test device w6r2 -- --nocapture
+# Before:
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 139 filtered out; finished in 0.06s
+# After:
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 139 filtered out; finished in 0.07s
+
+cargo test -p snapback4-lang --test residency_notes --test sparse_filter --test guide --no-fail-fast
+# guide, residency_notes, sparse_filter:
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.32s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+```
+
+Before, all three note cases (ascending, descending, different index) emit
+this exact text; after, the descending case still emits it:
+
+```text
+chat.q:1:1 — N_NO_HORIZON: table archive: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start
+  rewrite: sync public last 500 by byTime
+  guide: sync
+```
+
+After, the ascending and different-index cases both emit this exact text:
+
+```text
+chat.q:1:1 — N_NO_HORIZON: table archive: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start
+  rewrite: a horizon would cost these mutations their prediction: chat.copyArchive; keep `sync public`
+  guide: sync
+```
+
+The minimal `bind/mod.rs` call-site change is beyond the lane's ownership
+list. The README, sync/prediction/feeds cards and existing code explanation
+were updated as the brief requires; no new diagnostic or language form was
+added. The fixture is shared by the language and device tests. No earlier
+journal entry was changed. No commit, push, tag or publication was performed.
+
+Blocking run from the repository root, with
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` before JS:
+
+```text
+bash snapback4/scripts/test.sh
+-- ok: cargo test (312 s)
+# Fixture wrapper:
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+# Clients:
+ℹ tests 365
+ℹ pass 364
+ℹ fail 1
+-- FAIL: client tests (64 s)
+== 1 failure(s) in 337 s
+```
+
+Across the 62 Rust result summaries: 991 passed, 0 failed, 4 ignored.
+Server/wasm builds, package build/typecheck, and both app typechecks passed.
+The client failure reported React-test cleanup `ENOTEMPTY`; the isolated
+rerun from `snapback4/` reported Chromium launch `SIGABRT`, matching the
+sandbox artifact named in the brief:
+
+```text
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 328.8
+```
+
+The lead's outside-sandbox browser validation remains. No unrelated failure
+is claimed to have been verified against the base commit. No client timeout
+batch needed the lower-concurrency rerun.
+
+For completeness, the fixture-writing attempts before the genuine red tests
+above ran these commands and produced these summaries (test setup was then
+corrected, without any production change):
+
+```text
+cargo test -p snapback4-lang --test residency_notes --test sparse_filter w6r2 -- --nocapture
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+cargo test -p snapback4-device --test device w6r2 -- --nocapture
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 139 filtered out; finished in 0.00s
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 139 filtered out; finished in 0.03s
+```
+
+`./ref-check --verbose` passed before this append:
+`ref-check: ok — 480 LLP docs, 8963 refs in 23746 files, 0 errors, 0 unchecked`.
+`git diff --check` was clean. Both checks are repeated after this append.

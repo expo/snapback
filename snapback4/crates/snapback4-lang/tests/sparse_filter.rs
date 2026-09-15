@@ -119,3 +119,21 @@ fn w6r1_qualified_schedule_targets_rename_only_local_operations() {
         }
     }
 }
+
+#[test]
+fn w6r2_foreign_schedule_targets_keep_their_module_with_any_output_module() {
+    let recipe = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).remove(0);
+    let foreign = recipe.replace(": purgeRemoved\n", ": other.purgeRemoved\n");
+    for module in ["feed", "", "other"] {
+        let renamed = snapback4_lang::recipe::prefix_module(&foreign, "feed", module).unwrap();
+        let (doc, diagnostics) = snapback4_lang::parse_document("feed.q", &renamed);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let target = &doc.schedules[0].target;
+        println!("output module={module:?}: target={target}");
+        assert_eq!(target, "other.purgeRemoved");
+        let external = "job purgeRemoved():\n  chunk p in feedRemovedEvents first 1 by byId:\n    delete feedRemovedEvents[p.id]\n".into();
+        let bound = snapback4_lang::compile(&[("feed.q".into(), renamed), ("other.q".into(), external)]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        assert_eq!(bound.schema.schedules[0].target, "other.purgeRemoved");
+    }
+}

@@ -961,7 +961,7 @@ holds, at every cold start, as the table grows: a public table of posts,
 or a group's receipts, is soon the whole cold start. `check` notes such a
 table (`N_NO_HORIZON`) unless the group cannot grow (one row per group, or
 a `cap` over it), or an eligible mutation's reads or insert proof need its
-whole partition (`guide prediction`); otherwise give a growing table a horizon (`last 500 by <index>`:
+whole partition (`guide prediction`); otherwise consider a growing table's horizon (`last 500 by <index>`:
 the newest N per group stay on the device, the rest are online and a
 local read past them says `complete: false`). A snapshot arrives in pages
 of 2,000 events, each staged in its own transaction and published
@@ -998,6 +998,11 @@ only codes with `DUPLICATE`, `RETRY` or `DEDUPE` words get retry advice.
 Application invariants such as `else EVENT_REMOVED` keep their guards.
 Ordinary mutation pages still get `N_NO_HORIZON` growing-table advice;
 point/exists reads, rule probes and insert proofs that need whole coverage do not.
+When an eligible mutation reads an ascending `first N` page, or a page on
+a different index from the suggested horizon, the note names the mutation
+that would lose prediction instead of recommending that horizon. A descending
+`last N` page on the horizon's own index may keep the rewrite; an exhausted
+horizon can still make that call queue without a predicted row.
 Add `predicts` before
 a mutation header's colon (`mutation like(postId: posts) predicts:`) to assert
 eligibility: `check` refuses `E_NOT_PREDICTABLE` at that header if any site
@@ -1025,7 +1030,8 @@ and name the declaration and file; rename the app helper and its callers.
 recipe's declarations and references through its syntax tree (`posts` →
 `feedPosts`, `deliver` → `feedDeliver`, `following` → `feedFollowing`),
 keeping the app's `posts` and `follows`. Index names are table-local and stay
-unchanged. Without a prefix a clash refuses and prints the prefixed command. A write failure removes newly created
+unchanged. Qualified schedule targets in another module keep their names,
+even when a local job has the same name. Without a prefix a clash refuses and prints the prefixed command. A write failure removes newly created
 files and preserves the existing `.gitignore`. Pass your app's client to the
 example; call `api.feed.feedRegister` during profile creation. Read-time merges are fine
 when the follow count is bounded small. `N_WIDE_MERGE` explains how a

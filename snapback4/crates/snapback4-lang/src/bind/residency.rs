@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 mod presence;
 mod inserts;
 mod horizons;
-pub(super) use horizons::{guard_notes, needs_whole_partition};
+pub(super) use horizons::{guard_notes, incompatible_horizon_pages, needs_whole_partition};
 
 pub fn execution(schema: &Schema, program: &Program) -> Execution {
     execution_with_presence(schema, program, None)

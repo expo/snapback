@@ -5,6 +5,51 @@ use serde_json::{Value as Json, json};
 use snapback4_core::{Context, Engine, Value, WriteState, wire};
 use snapback4_device::device::Queued;
 
+fn ascending_horizon_advice<H: Host>(host: &mut H) {
+    const SOURCE: &str = include_str!("../../../snapback4-lang/tests/fixtures/horizon-pages.q");
+    let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let advice = &bound.notes.iter().find(|n| n.code == "N_NO_HORIZON" && n.message.starts_with("table archive:")).unwrap().rewrite;
+    for (mode, sync, predicts) in [("unbounded", "sync public", true), ("horizon", "sync public last 500 by byTime", false),
+        ("advice", if advice.starts_with("sync ") { advice.as_str() } else { "sync public" }, true)] {
+        let (mut server, backend) = compile(&SOURCE.replacen("sync public", sync, 1));
+        for n in 0..25 { seed(&mut server, "archive", json!({"id":format!("a{n:02}"), "at":n})); }
+        let mut device = host.open(mode, Some(backend)).unwrap();
+        for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+        let acquired = device.query("archives", "bob", &json!({}), 1000).unwrap().data.as_array().unwrap().len();
+        assert_eq!(acquired, 25, "every existing row was acquired, even under last 500");
+        let new_ids: Vec<_> = (0..20).map(|n| format!("copy{n:02}")).collect();
+        let entry = Queued { id: "copy-write".into(), seq: 1, op: "copyArchive".into(), args: json!({}), viewer: "bob".into(), now: 1000,
+            new_ids: new_ids.clone(), predicted: vec![], predictable: true, sent_seq: None, observed_seq: None };
+        let admitted = device.admit(entry).unwrap();
+        let pending = device.query("copied", "bob", &json!({}), 1000).unwrap().data;
+        let pending = pending.as_array().unwrap();
+        assert!(pending.iter().all(|row| row.field("pending") == Ok(&Value::Bool(true))));
+        println!("{} {mode}: acquired={acquired} predicted_copies={} predictable={}", host.label(), pending.len(), admitted.predictable);
+        assert_eq!(pending.len(), if predicts { 20 } else { 0 });
+        assert_eq!(admitted.predictable, predicts);
+        let from = server.seq().unwrap();
+        let result = server.mutate("copyArchive", Some("copy-write"), Context::new("bob", Default::default()).at(1000).with_ids(new_ids)).unwrap();
+        assert!(matches!(result.state, WriteState::Sent { .. }), "{result:?}");
+        device.settle("copy-write", Some(server.seq().unwrap())).unwrap();
+        device.apply(&stream_page(&mut server, "bob", from), false).unwrap();
+        let confirmed = device.query("copied", "bob", &json!({}), 1000).unwrap().data;
+        let confirmed = confirmed.as_array().unwrap();
+        assert_eq!(confirmed.len(), 20);
+        for (n, row) in confirmed.iter().enumerate() {
+            assert_eq!(row.field("at"), Ok(&Value::Int(n as i64)));
+            assert_ne!(row.field("pending"), Ok(&Value::Bool(true)));
+        }
+        println!("{} {mode}: confirmed_copies={}", host.label(), confirmed.len());
+        host.close(mode, device);
+    }
+}
+
+#[test]
+fn w6r2_ascending_horizon_advice_sqlite() { ascending_horizon_advice(&mut Sqlite::new("ascending-horizon")); }
+#[test]
+fn w6r2_ascending_horizon_advice_memory() { ascending_horizon_advice(&mut Memory::new()); }
+
 #[test]
 fn horizon_guard_rewrite_restores_the_pending_message_on_both_stores() {
     const SOURCE: &str = include_str!("../../../snapback4-lang/tests/fixtures/prediction-horizons.q");
