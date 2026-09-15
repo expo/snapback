@@ -339,7 +339,7 @@ fn calibration_cursor_index_has_specific_code_and_cli_repair() {
 
 #[test]
 fn calibration_guide_cli_resolves_the_builders_words() {
-    for (word, target) in [("maintain", "maintains"), ("maintains", "maintains"), ("time", "language"), ("clock", "language"), ("replay", "personas"), ("seed", "personas")] {
+    for (word, target) in [("maintain", "maintains"), ("maintains", "maintains"), ("time", "language"), ("clock", "jobs"), ("replay", "personas"), ("seed", "personas")] {
         let output = std::process::Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["guide", word]).output().unwrap();
         assert!(output.status.success(), "{word}: {output:?}");
         assert_eq!(String::from_utf8(output.stdout).unwrap().trim_end(), snapback4_lang::guide::card(target).unwrap().trim_end());
