@@ -17472,3 +17472,23 @@ diagnostic or note before or after; its before failure was wrong runtime
 data. The largest changed code file is `guide.rs`, **1,364 lines**, below
 1,500. `git diff --check` passes. This entry is appended with all prior
 journal bytes unchanged; final ref-check is rerun after the append.
+
+## 2026-09-15 — Wave 4 landed after two blind review rounds (lead)
+
+W4a (`02d5b9bd9`) and W4b (`bbb6a0b5c`) were integrated on `sb4/w4-int`
+(`b1b9fd9ec`). Round 1: GPT NOT READY (five findings), Grok READY WITH
+CHANGES (five findings, one converging with GPT 3 on orphan journals without
+a usable backend). The repairs were W4R1a (`92a2be9a4`) and W4R1b
+(`2ec34d8ad`), integrated as `92b25485b`. Round 2: READY from both families,
+with no new defects; GPT's in-memory probes reproduced each repair.
+
+Lead verification on `92b25485b`, outside the sandbox:
+- `scripts/test.sh`: 0 failures in 293 s;
+- client tests at concurrency 2: 298/298;
+- real Chromium `witness/navigation-immediate.mjs`: 10 of 10;
+- `witness/navigation.mjs`: 2 durable writes;
+- ref-check: ok.
+
+Records: `llp/reviews/3000.007-agent-ergonomics-wave-4.*`, LLP 3000.007
+§20.13. Ships as 0.2.20 / expo 0.2.11.
+
