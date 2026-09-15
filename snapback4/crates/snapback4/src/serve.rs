@@ -850,7 +850,7 @@ fn handle(mut request: Request, shared: &Shared) {
             }
             let program = lock(&shared.bound).programs.iter().find(|p| p.program.name == op).map(|p| p.program.clone());
             let Some(program) = program else {
-                refuse_operation(request, shared, path, &payload, &principal, 404, Refusal::new("E_OP", "op", format!("unknown operation {op}")).guide("programs"));
+                respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("unknown operation {op}")).guide("programs")) }));
                 return;
             };
             let mut args = BTreeMap::new();
@@ -862,12 +862,12 @@ fn handle(mut request: Request, shared: &Shared) {
                                 args.insert(name.clone(), typed);
                             }
                             Err(why) => {
-                                refuse_operation(request, shared, path, &payload, &principal, 400, Refusal::new("E_INPUT", "input", format!("argument {name}: {why}")).guide("types"));
+                                respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", format!("argument {name}: {why}")).guide("types")) }));
                                 return;
                             }
                         },
                         None => {
-                            refuse_operation(request, shared, path, &payload, &principal, 400, Refusal::new("E_INPUT", "input", format!("{op} takes no argument {name}")).guide("programs"));
+                            respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", format!("{op} takes no argument {name}")).guide("programs")) }));
                             return;
                         }
                     }
@@ -915,11 +915,11 @@ fn handle(mut request: Request, shared: &Shared) {
                 }
             } else {
                 if program.kind == ProgramKind::Query {
-                    refuse_operation(request, shared, path, &payload, &viewer, 400, Refusal::new("E_OP", "op", format!("{op} is a query; POST /q/{op}")));
+                    respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("{op} is a query; POST /q/{op}"))) }));
                     return;
                 }
                 if program.kind == ProgramKind::Job {
-                    refuse_operation(request, shared, path, &payload, &viewer, 400, Refusal::new("E_OP", "op", format!("{op} is a job: a schedule fires it, or `snapback4 run {op}` does; no caller can")).guide("jobs"));
+                    respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("{op} is a job: a schedule fires it, or `snapback4 run {op}` does; no caller can")).guide("jobs")) }));
                     return;
                 }
                 let id = payload.get("id").and_then(Json::as_str).map(str::to_owned);
@@ -1161,21 +1161,6 @@ fn handle(mut request: Request, shared: &Shared) {
     }
 }
 
-// Queries and requests without a mutation ID keep their ordinary diagnostics.
-// A write-specific refusal uses the same atomic, principal-scoped receipt as
-// execution, rechecking an ID a concurrent keepalive may already have settled.
-fn refuse_operation(request: Request, shared: &Shared, path: &str, payload: &Json, principal: &str, status: u16, why: Refusal) {
-    if path.starts_with("/m/") && let Some(id) = payload.get("id").and_then(Json::as_str) {
-        let outcome = lock(&shared.engine).refuse_mutation(principal, Some(id), why);
-        match outcome {
-            Ok(outcome) => respond(request, 200, outcome.reply(Some(id))),
-            Err(error) => { let why = error.refusal(); respond(request, if why.retryable { 503 } else { 500 }, json!({ "state": "failed", "id": id, "why": refusal_json(&why) })); }
-        }
-    } else {
-        respond(request, status, json!({ "denied": refusal_json(&why) }));
-    }
-}
-
 // @ref LLP 3000.007#20.4 — pending web admissions travel as one ordered request; each write keeps its own transaction and at-most-once receipt.
 fn mutation_batch(request: Request, shared: &Shared, body: &str) {
     #[derive(serde::Deserialize)]
@@ -1229,11 +1214,6 @@ fn mutation_batch(request: Request, shared: &Shared, body: &str) {
                 }
                 Ok(outcome.reply(Some(&write.id)))
             })();
-            let outcome = outcome.or_else(|why| {
-                if !why.retryable && matches!(why.code.as_str(), "E_OP" | "E_INPUT") {
-                    engine.refuse_mutation(&principal, Some(&write.id), why).map(|outcome| outcome.reply(Some(&write.id))).map_err(|e| e.refusal())
-                } else { Err(why) }
-            });
             let receipt = outcome.unwrap_or_else(|why| json!({ "state": "failed", "id": write.id, "why": refusal_json(&why) }));
             let sent = receipt["state"] == "sent";
             receipts.push(receipt);

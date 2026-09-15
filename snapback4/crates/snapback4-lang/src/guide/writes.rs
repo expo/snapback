@@ -98,15 +98,9 @@ unknown server outcome, not a promise that the write did not apply. This page
 keeps its original id, arguments and minted ids in memory when persistence
 fails, including across a client close/reopen on the same store. Before sending
 any successor it retries that id through `/m` until a terminal receipt; a
-lost reply or retryable refusal keeps successors waiting.
-Unknown operations and invalid arguments record a terminal failure under the
-mutation id, so replay returns `failed` with `replayed: true` and releases the
-exposed predecessor without allowing that id to execute later.
-Subscribe to `onWrite`
+lost reply or retryable refusal keeps successors waiting. Subscribe to `onWrite`
 while the client is open: the failed admission later settles there with the
-same id, including `sent` if the server applied it. Its confirmed settlement
-is emitted before the following sync, so a sync persistence failure cannot
-suppress it. Do not resubmit it with a
+same id, including `sent` if the server applied it. Do not resubmit it with a
 new id. If the ordering record cannot be retained, `E_EXIT_ORDER` stops this
 page's write sending rather than discarding the predecessor.
 This pre-admission send is best-effort across document destruction: if both

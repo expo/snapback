@@ -904,7 +904,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     for (const entry of [...prefix, ...durable.filter(entry => !exits.pending.has(entry.id))]) {
       await exitDone;
       if (closed || exits.blocked) return;
-      if (!exits.pending.has(entry.id) && (entry.sent_seq != null || (!acquire && entry.observed_seq != null))) { if (acquire) await syncOnce(); continue; }
+      if (entry.sent_seq != null || (!acquire && entry.observed_seq != null)) { if (acquire) await syncOnce(); continue; }
       try {
         const result = await network(async () => {
           await exitDone;
@@ -925,7 +925,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids });
             if (response.ok) {
               const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined;
-              // Transport refusals may answer failed without recording the ID.
+              // Input validation may answer failed without recording the ID.
               // A replayed failure proves that even a delayed exit cannot apply it.
               const recordedFailure = json.state === "failed" && json.replayed === true;
               const terminal = json.state === "sent" || (exits.pending.has(entry.id) ? recordedFailure && why : why);
@@ -934,7 +934,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
                   const applied = await call({ op: "settle", id: entry.id, ...(json.state === "sent" ? { seq: Number(json.seq ?? 0) } : {}) });
                   if (applied.denied) return { ok: false as const };
                 }
-                return { ...response, terminal: true as const };
+                exits.pending.delete(entry.id);
               }
             }
             return response;
@@ -945,7 +945,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if ("retired" in result) continue;
         if ("restart" in result) { flushAgain = true; return; }
         const json = result.json;
-        if (!("terminal" in result)) { retryFlush(); return; }
+        const why = (json.why ?? json.denied) as Refusal | undefined;
+        if (result.obsoleteAuth || (why?.retryable && !(json.state === "failed" && json.replayed === true)) || exits.pending.has(entry.id) || (json.state !== "sent" && !why)) { retryFlush(); return; }
         retryMs = 250;
         const settle = settled.get(entry.id);
         settled.delete(entry.id);
@@ -954,14 +955,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), replayed: true }
             : { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), result: json.result }
           : { state: "failed", id: entry.id, why: (json.why as Refusal | undefined) ?? (json.denied as Refusal | undefined) ?? { code: "E_STORE", family: "store", message: "the server answered without a state", retryable: true } };
-        const exposed = exits.pending.has(entry.id);
-        if (!exposed && outcome.state === "sent" && acquire) await syncOnce();
-        // @ref LLP 3000.007#20.4 — keep exposure until notification, with no await between them; a later acquisition failure cannot erase settlement.
+        if (outcome.state === "sent") { if (acquire) await syncOnce(); }
+        else rerunTables(predictedTables(entry.predicted));
         settle?.(outcome);
         emitWrite(outcome);
-        exits.pending.delete(entry.id);
-        if (outcome.state === "sent") { if (exposed && acquire) await syncOnce(); }
-        else rerunTables(predictedTables(entry.predicted));
       } catch { retryFlush(); return; }
     }
   }
