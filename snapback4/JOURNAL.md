@@ -18640,3 +18640,20 @@ Blind reviews: GPT round-3 confirmation reported N3, which the lead fixed
 with a regression; Grok's confirmation was READY. LLP 3000.007 §20.14,
 `llp/reviews/3000.007-agent-ergonomics-wave-5.*`.
 
+## 2026-09-15 — 0.2.21 / expo 0.2.12 published (lead)
+
+Published from main `2a4c8b8d1` (wave 5, LLP 3000.007 §20.14) with
+`scripts/publish.mjs`:
+- **Suite:** 0 failures.
+- **Binary:** production darwin binary, 8,540,400 B, sha256 `4560d292…`;
+  Developer ID signed, not notarized.
+- **Consumer proof:** the installed-consumer proof passed.
+- **npm:** `snapback4-darwin-arm64@0.2.21` and `snapback4@0.2.21` published
+  at 13:47 UTC.
+
+`snapback4@0.2.21` became visible on the registry at 13:52:39, four seconds
+after the wrapper's last visibility check, so the wrapper exited before the
+native leg. The lead then rebuilt the xcframework and published
+`snapback4-expo@0.2.12`, which npm reported at 13:57 UTC. Next: the fifth
+Astra-medium calibration on these pins.
+
