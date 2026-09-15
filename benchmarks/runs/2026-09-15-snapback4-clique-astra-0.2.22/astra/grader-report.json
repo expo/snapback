@@ -1,0 +1,942 @@
+{
+  "reportVersion": 1,
+  "lane": {
+    "backend": "snapback4-0.2.22",
+    "runRecordPath": "/Users/ccheever/clique-sb4-20260915-astra-cal6/lanes/astra-snapback4/run-record.json",
+    "runScope": "full"
+  },
+  "wave": {
+    "id": "full-3models-astra",
+    "probeSetSha256": "none-uncommitted"
+  },
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5",
+    "sameFamilyGraded": false,
+    "calibrationPassed": false,
+    "sessionOutcome": "completed",
+    "rerunsUsed": 1,
+    "contaminated": false
+  },
+  "assertionManifest": {
+    "path": "/Users/ccheever/clique-sb4-20260915-astra-cal6/instrument/schema/social-messenger/assertions.json",
+    "version": "0.3.0-m8",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m1-a01": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (suite-receipts/m1-suite-1789504669788.json: signup-onboarding)"
+    },
+    "m1-a02": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m1 suite: signup-onboarding lands on profile onboarding/authenticated shell)"
+    },
+    "m1-a03": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m1 suite: unique-handle-visible); trace §5 P2 (API dupHandle -> E_CONSTRAINT)"
+    },
+    "m1-a04": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m1 suite: duplicate-email-visible)",
+      "note": "Suite asserts a visible sm-auth-error; it does not assert the error text."
+    },
+    "m1-a05": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace §4 (receipts/m1-choreography-grader-r1.jsonl: session-persists-on-relaunch; builder receipt evidence/m1-choreography-1789499807199.jsonl agrees)",
+      "note": "Web relaunch = page reload/reopen in the harness."
+    },
+    "m1-a06": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace §4 (m1 grader receipt: logout-remains-signed-out-on-relaunch)"
+    },
+    "m1-a07": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace §5 P1 (after /auth/logout: /q/me 401 E_AUTH, mutation 401, /changes 401, /auth/refresh 401)"
+    },
+    "m1-a08": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m1 suite: profile-edit)"
+    },
+    "m1-a09": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace §4, §10 (m1 grader receipt: profile-edit-live-visibility, 3 trials)",
+      "note": "Machine load at run: 13:39 load 7.36 8.58 7.93. Bound = harness live-observation timeout (10 s, no manual refresh).",
+      "bestOf3Ms": [
+        79.4,
+        77.2,
+        77.4
+      ]
+    },
+    "m1-a10": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m1 suite: avatar-upload-render)"
+    },
+    "m1-a11": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m1 suite: avatar-upload-render asserts a loaded <img> in sm-profile)"
+    },
+    "m1-a12": {
+      "result": "pass",
+      "method": "source-inspection",
+      "evidence": "trace §6 (snapback/schema.q `use identity password`; store _credentials.hash values are $argon2id$v=19$m=19456,t=2,p=1 PHC strings; API.md documents built-in Argon2)"
+    },
+    "m1-a13": {
+      "result": "pass",
+      "method": "source-inspection",
+      "evidence": "trace §6 (no fixture/grader password bytes in store or WAL; sessions stored as token_digest; client clears password state and persists only the session; 0 hits across backend/web logs and 199 builder log/bundle files)"
+    },
+    "m2-a01": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m2 suite: post-kinds)"
+    },
+    "m2-a02": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m2 suite: post-kinds, photo1+photo2 fixture images)"
+    },
+    "m2-a03": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m2 suite: post-kinds, fixture video)"
+    },
+    "m2-a04": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace §4, §10 (m2 grader receipt r1: feed-text/image/video-post-live-update, 3 trials each; r2 agrees)",
+      "note": "Per-trial measurement = slowest of the three post kinds. Load: 13:40 load 7.79 8.60 7.95. Bound = 10 s harness live timeout.",
+      "bestOf3Ms": [
+        303.1,
+        106.7,
+        121.2
+      ]
+    },
+    "m2-a05": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace §4 (m2 grader receipt: feed-author-avatar-and-display-name)"
+    },
+    "m2-a06": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m2 suite: following-projection); trace §5 P2 (API follow -> original in Following, 4/4 trials)"
+    },
+    "m2-a07": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "trace §5 P13, §10 (Alice own-profile follower count changed 0->1 without navigation after Bob tapped Follow; 3 trials)",
+      "note": "The frozen harness follow-unfollow-live-projection check observes Bob's feed, not Alice's follower count, so the grader measured this directly. Load: 13:59 load 8.02 7.57 7.67. Bound = 10 s.",
+      "bestOf3Ms": [
+        38,
+        39,
+        33
+      ]
+    },
+    "m2-a08": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m2 suite: following-projection); trace §5 P2 (after unfollow 0 entries from author)"
+    },
+    "m2-a09": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m2 suite: following-projection global check)"
+    },
+    "m2-a10": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m2 suite: following-projection)"
+    },
+    "m2-a11": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m2 suite: following-projection)"
+    },
+    "m2-a12": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m2 suite: browser-link-and-pagination opens example.com popup)",
+      "note": "Passes on web, but every link tap raises an uncaught TypeError (unbound Linking.openURL); see defect d-01 for native impact."
+    },
+    "m2-a13": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m2 suite: no iframe/preview card)",
+      "note": "Suite check is structural (no iframe); no unfurl code or OpenGraph fetch exists in src/."
+    },
+    "m2-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace §4, §10 (m2 grader receipt r1: like-unlike-live-count)",
+      "note": "Load: 13:40 load 7.79 8.60 7.95. Bound = 10 s.",
+      "bestOf3Ms": [
+        65.4,
+        54.1,
+        61.8
+      ]
+    },
+    "m2-a15": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m2 suite: like-set-clear-idempotency incl. same-ID replay)"
+    },
+    "m2-a16": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m2 suite: repost-set-clear-attribution); trace §4 (harness repost-toggle-live-attribution observes the sm-feed-repost-attribution label)",
+      "note": "Suite checks attribution in API data; the rendered label is confirmed by choreography."
+    },
+    "m2-a17": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m2 suite: repost-set-clear-attribution)"
+    },
+    "m2-a18": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m2 suite: repost-set-clear-attribution); trace §4 (repost-following-feed-surface passed best-of-3 in both grader runs)",
+      "note": "The related choreography disambiguation check missed in 3 of 6 grader attempts; see defect d-04."
+    },
+    "m2-a19": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace §4, §10 (m2 grader receipt r1: reply-live-thread-projection)",
+      "note": "Load: 13:40 load 7.79 8.60 7.95. Bound = 10 s.",
+      "bestOf3Ms": [
+        183.6,
+        398.1,
+        383
+      ]
+    },
+    "m2-a20": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m2 suite: direct-replies-only)"
+    },
+    "m2-a21": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m2 suite: direct-replies-only)"
+    },
+    "m2-a22": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m2 suite: browser-link-and-pagination, Following)",
+      "note": "Suite presses the \"Load more\" control; FeedList also loads on scroll (onScroll within 250 px of the end)."
+    },
+    "m2-a23": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m2 suite: browser-link-and-pagination, Global)"
+    },
+    "m2-a24": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m2 suite: unique entry IDs across all API pages in both tabs)",
+      "note": "Duplicate check is explicit; gap check is implicit (full cursor walk)."
+    },
+    "m2-a25": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m2 suite: following-projection with no follows)"
+    },
+    "m2-a26": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m2 suite: following-projection own repost)"
+    },
+    "m2-a27": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m2 suite); trace §5 P2 (self-follow refused CANNOT_FOLLOW_SELF; own counts exclude implicit edge)"
+    },
+    "m3-a01": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace §4, §10 (m3 grader receipt r1: dm-live-messages; r2, r3 agree)",
+      "note": "Load: 13:40 load 7.58 8.53 7.94. Bound = 10 s.",
+      "bestOf3Ms": [
+        403.2,
+        366.6,
+        463.7
+      ]
+    },
+    "m3-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace §4 (m3 grader receipts: sender-avatar-identity-when-rendered observed the exact sender identity on an app-rendered avatar node)"
+    },
+    "m3-a03": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m3 suite: dm-unique-pair)"
+    },
+    "m3-a04": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m3 suite: distinct-groups)"
+    },
+    "m3-a05": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m3 suite: distinct-groups)"
+    },
+    "m3-a06": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace §4, §10 (m3 grader receipt r1: typing-indicator-within-2s-expires-within-5s, boundary v2)",
+      "note": "Measurement = visibleAfterLastKeystrokeMs. Load: 13:40 load 7.58 8.53 7.94. Bound 2000 ms.",
+      "bestOf3Ms": [
+        11.2,
+        27.8,
+        13.2
+      ]
+    },
+    "m3-a07": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace §4, §10 (m3 grader receipts r1-r3: expiresAfterLastKeystrokeMs)",
+      "note": "Bound 5000 ms. r1 max 4338 ms; r2/r3 reached 4857-4869 ms (thin margin, still within bound). Load: 13:40 load 7.58 8.53 7.94.",
+      "bestOf3Ms": [
+        4318.8,
+        4338,
+        4318.7
+      ]
+    },
+    "m3-a08": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace §4, §10 (receipt-sent-delivered-read-transitions passed in grader runs r1, r2, r3)",
+      "note": "Harness runs this check once per segment; the three values are whole-check durations from three segment runs (loads 13:40 load 7.58 8.53 7.94; 13:49 load 6.54 7.51 7.89; 13:50 load 7.30 7.59 7.90). No numeric bound; exact semantic receipt tokens observed.",
+      "bestOf3Ms": [
+        1696.3,
+        2263.9,
+        2293.2
+      ]
+    },
+    "m3-a09": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace §4 (m3 grader receipts: group-receipt-waits-for-slowest-member, 3/3 runs)"
+    },
+    "m3-a10": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m3 suite: quoted-excerpt-and-jump); trace §4 (harness quoted-reply-excerpt-and-jump passed)"
+    },
+    "m3-a11": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m3 suite: jump scrolls message-sm0001 into view)"
+    },
+    "m3-a12": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace §4 (member-add-promote-remove-leave-and-live-cutoff, 3/3 runs); trace §5 P1 (removed member: history [], send NOT_MEMBER, not in inbox)"
+    },
+    "m3-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace §4 (member-add-promote-remove-leave-and-live-cutoff: removed member retains pre-removal history on her client)"
+    },
+    "m3-a14": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m3 suite: non-admin-denial); trace §5 P1 (NOT_ADMIN for remove/promote)"
+    },
+    "m3-a15": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m3 suite: seed-idempotency across m1-m3 segments)",
+      "note": "Suite compares one conversation's history IDs and the M1 skip count; the grader also observed repeated seeds in every later suite run without failures."
+    },
+    "m4-a01": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m4 suite: send-image through the UI picker)"
+    },
+    "m4-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace §4, §10 (m4 grader receipt: photo-message-live-render)",
+      "note": "Load: 13:41 load 11.63 9.59 8.36. Bound = 10 s.",
+      "bestOf3Ms": [
+        557.1,
+        588,
+        853.4
+      ]
+    },
+    "m4-a03": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m4 suite: send-video)"
+    },
+    "m4-a04": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace §4 (m4 grader receipt: video-message-live-playback)"
+    },
+    "m4-a05": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace §4, §10 (m4 grader receipt: reaction-live-replace-remove)",
+      "note": "Load: 13:41 load 11.63 9.59 8.36. Bound = 10 s.",
+      "bestOf3Ms": [
+        359.7,
+        361.4,
+        361.5
+      ]
+    },
+    "m4-a06": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m4 suite: reaction-replace-clear)"
+    },
+    "m4-a07": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m4 suite: reaction-replace-clear)"
+    },
+    "m4-a08": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace §4, §10 (m4 grader receipt: edit-live-visibility)",
+      "note": "Load: 13:41 load 11.63 9.59 8.36. Bound = 10 s.",
+      "bestOf3Ms": [
+        257.3,
+        252.8,
+        142.1
+      ]
+    },
+    "m4-a09": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m4 suite: edit-caption-label)"
+    },
+    "m4-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace §5 P3 (edit at +66 s -> EDIT_WINDOW_EXPIRED, row unchanged; delete at +126 s -> DELETE_WINDOW_EXPIRED); P9/P12 (undeclared timestamp args refused E_INPUT)"
+    },
+    "m4-a11": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace §4 (m4 grader receipt: delete-live-tombstone)"
+    },
+    "m4-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace §5 P3 (recipient asset 200 before delete, 404 E_ASSET_UNKNOWN after; sender 404; row tombstone with media cleared)"
+    },
+    "m5-a01": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace §5 P3 (24h option = 180 s; no connected clients; at +176 s present, at +186 s history/message/search empty and asset 404)"
+    },
+    "m5-a02": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "trace §5 P6 (connected client purged the bubble at +182.5 s; killed client relaunched online showed 0 expiring bubbles); trace §4 (harness disappearing-message-expiry-and-purge passed, both clients closed through expiry)"
+    },
+    "m5-a03": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "trace §5 P6 (after the relaunch sync, offline search for the shared term returned only the non-expiring control message; before expiry it returned both)"
+    },
+    "m5-a04": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m5 suite: first-view-render)"
+    },
+    "m5-a05": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m5 suite: second-view-denied); trace §4 (harness view-once-single-view-and-refusal: second UI open shows no viewer)",
+      "note": "Suite asserts server denial and the hidden viewer; the UI second-open attempt is covered by choreography."
+    },
+    "m5-a06": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace §5 P3 (recipient first fetch 200, second 410 E_ASSET_VIEWED; second group member gets their own single view 200 then 410)"
+    },
+    "m5-a07": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace §4 (m5 grader receipt: chat-color-background-sync)"
+    },
+    "m5-a08": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m5 suite: non-admin-rename NOT_ADMIN); trace §5 P1"
+    },
+    "m5-a09": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m5 suite: people-prefix \"car\" -> carol)"
+    },
+    "m5-a10": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m5 suite: chat-search, and \"offee\" does not match mid-word)"
+    },
+    "m5-a11": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m5 suite: global-search-groups in UI)"
+    },
+    "m5-a12": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace §4 (m5 grader receipt: warm-offline-search-over-synced-messages); trace §5 P6 (warm-offline search before expiry returned results)"
+    },
+    "m6-a01": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "evidence": "trace §8 (no iOS simulator recording or structured simulator receipt exists: builder and grader M6 segment summaries record ios-simulator-m6 pass:null status \"not-recorded\"; artifacts/m6-ios is a Hermes bundle export only)",
+      "note": "native-artifact assertion: absence of the simulator artifact cannot support the native claim (greenRequired:false, so M6 web green stands). Builder Node processDevice proofs are self-described as \"not iOS simulator proof\" and are builder assertions, so they are not scored."
+    },
+    "m6-a02": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "evidence": "trace §8 (no iOS simulator recording or structured simulator receipt exists: builder and grader M6 segment summaries record ios-simulator-m6 pass:null status \"not-recorded\"; artifacts/m6-ios is a Hermes bundle export only)",
+      "note": "native-artifact assertion: absence of the simulator artifact cannot support the native claim (greenRequired:false, so M6 web green stands). Builder Node processDevice proofs are self-described as \"not iOS simulator proof\" and are builder assertions, so they are not scored."
+    },
+    "m6-a03": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "evidence": "trace §8 (no iOS simulator recording or structured simulator receipt exists: builder and grader M6 segment summaries record ios-simulator-m6 pass:null status \"not-recorded\"; artifacts/m6-ios is a Hermes bundle export only)",
+      "note": "native-artifact assertion: absence of the simulator artifact cannot support the native claim (greenRequired:false, so M6 web green stands). Builder Node processDevice proofs are self-described as \"not iOS simulator proof\" and are builder assertions, so they are not scored."
+    },
+    "m6-a04": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "evidence": "trace §8 (no iOS simulator recording or structured simulator receipt exists: builder and grader M6 segment summaries record ios-simulator-m6 pass:null status \"not-recorded\"; artifacts/m6-ios is a Hermes bundle export only)",
+      "note": "native-artifact assertion: absence of the simulator artifact cannot support the native claim (greenRequired:false, so M6 web green stands). Builder Node processDevice proofs are self-described as \"not iOS simulator proof\" and are builder assertions, so they are not scored."
+    },
+    "m6-a05": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "evidence": "trace §8 (no iOS simulator recording or structured simulator receipt exists: builder and grader M6 segment summaries record ios-simulator-m6 pass:null status \"not-recorded\"; artifacts/m6-ios is a Hermes bundle export only)",
+      "note": "native-artifact assertion: absence of the simulator artifact cannot support the native claim (greenRequired:false, so M6 web green stands). Web equivalent observed: harness offline-message-queue-flush-in-order showed both queued messages pending (grader run r1). Builder Node processDevice proofs are self-described as \"not iOS simulator proof\" and are builder assertions, so they are not scored."
+    },
+    "m6-a06": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "evidence": "trace §8 (no iOS simulator recording or structured simulator receipt exists: builder and grader M6 segment summaries record ios-simulator-m6 pass:null status \"not-recorded\"; artifacts/m6-ios is a Hermes bundle export only)",
+      "note": "native-artifact assertion: absence of the simulator artifact cannot support the native claim (greenRequired:false, so M6 web green stands). Web equivalent observed: queued messages flushed and rendered on Bob in send order. Builder Node processDevice proofs are self-described as \"not iOS simulator proof\" and are builder assertions, so they are not scored."
+    },
+    "m6-a07": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "evidence": "trace §8 (no iOS simulator recording or structured simulator receipt exists: builder and grader M6 segment summaries record ios-simulator-m6 pass:null status \"not-recorded\"; artifacts/m6-ios is a Hermes bundle export only)",
+      "note": "native-artifact assertion: absence of the simulator artifact cannot support the native claim (greenRequired:false, so M6 web green stands). Web equivalent observed: flushed messages reached read. Builder Node processDevice proofs are self-described as \"not iOS simulator proof\" and are builder assertions, so they are not scored."
+    },
+    "m6-a08": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m6 suite rerun push-text-and-once); trace §5 P3 (payload keys chatId,preview,senderDisplayName,targetUserId; 111-char text previewed as its first 80 chars; video -> \"Video\")",
+      "note": "First grader m6 suite invocation failed this test because it ran ~20 s after the m5 suite closed Bob's clients (inside the 35 s disconnect grace); rerun after 50 s idle passed. See defect d-02."
+    },
+    "m6-a09": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace §5 P3 (view-once photo previewed \"Photo\"; caption not leaked)"
+    },
+    "m6-a10": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (demo ran green from the grader's clean checkout copy: suite-receipts/m6-custom-client-demo.json)"
+    },
+    "m6-a11": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2, §3 (demo source: login/issued token, chat.inbox, chat.history + cursor page, chat.send, documented polling receive)"
+    },
+    "m6-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace §5 P4 (raw HTTP from API.md only: login -> chat.inbox -> \"Weekend Plans\" -> chat.history data[0] is newest; field manifest complete; /changes long-poll works)",
+      "note": "Three inbox rows share the name \"Weekend Plans\" (two suite-created groups with no messages); API.md gives no name lookup, so selecting the row with a latest message took one extra step."
+    },
+    "m6-a13": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace §2 (m6 suite: sample-adapter-conformance, 50 actions acknowledged, 13 verbs, fixture validator log)",
+      "note": "Builder harness-validated receipt: evidence/m6-sample-verification.json."
+    },
+    "m7-a01": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace §11",
+      "note": "M7 is the fresh day-2 session the orchestrator runs after this grading (ENVIRONMENT.md); it had not been attempted, so no poll feature, backfilled count, or pre-M7 snapshot comparison exists. Scored not passed in O1."
+    },
+    "m7-a02": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "trace §11",
+      "note": "M7 is the fresh day-2 session the orchestrator runs after this grading (ENVIRONMENT.md); it had not been attempted, so no poll feature, backfilled count, or pre-M7 snapshot comparison exists. Scored not passed in O1."
+    },
+    "m7-a03": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace §11",
+      "note": "M7 is the fresh day-2 session the orchestrator runs after this grading (ENVIRONMENT.md); it had not been attempted, so no poll feature, backfilled count, or pre-M7 snapshot comparison exists. Scored not passed in O1."
+    },
+    "m7-a04": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace §11",
+      "note": "M7 is the fresh day-2 session the orchestrator runs after this grading (ENVIRONMENT.md); it had not been attempted, so no poll feature, backfilled count, or pre-M7 snapshot comparison exists. Scored not passed in O1."
+    },
+    "m7-a05": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "trace §11",
+      "note": "M7 is the fresh day-2 session the orchestrator runs after this grading (ENVIRONMENT.md); it had not been attempted, so no poll feature, backfilled count, or pre-M7 snapshot comparison exists. Scored not passed in O1."
+    },
+    "m7-a06": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace §11",
+      "note": "M7 is the fresh day-2 session the orchestrator runs after this grading (ENVIRONMENT.md); it had not been attempted, so no poll feature, backfilled count, or pre-M7 snapshot comparison exists. Scored not passed in O1."
+    },
+    "m7-a07": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace §11",
+      "note": "M7 is the fresh day-2 session the orchestrator runs after this grading (ENVIRONMENT.md); it had not been attempted, so no poll feature, backfilled count, or pre-M7 snapshot comparison exists. Scored not passed in O1."
+    },
+    "m7-a08": {
+      "result": "not-run",
+      "method": "snapshot-comparison",
+      "evidence": "trace §11",
+      "note": "M7 is the fresh day-2 session the orchestrator runs after this grading (ENVIRONMENT.md); it had not been attempted, so no poll feature, backfilled count, or pre-M7 snapshot comparison exists. Scored not passed in O1."
+    },
+    "m7-a09": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "trace §11",
+      "note": "M7 is the fresh day-2 session the orchestrator runs after this grading (ENVIRONMENT.md); it had not been attempted, so no poll feature, backfilled count, or pre-M7 snapshot comparison exists. Scored not passed in O1. Conditional regression item: previously-green milestones exist (M1-M6, M8 web-green), so not-applicable does not fit; recorded not-run because M7 never ran."
+    }
+  },
+  "coverageSpotVerification": {
+    "verdict": "honest",
+    "sampledAssertionIds": [
+      "m1-a03",
+      "m1-a10",
+      "m2-a08",
+      "m2-a16",
+      "m2-a22",
+      "m2-a25",
+      "m3-a03",
+      "m3-a11",
+      "m3-a15",
+      "m4-a06",
+      "m4-a09",
+      "m5-a05",
+      "m5-a09",
+      "m5-a11",
+      "m6-a08",
+      "m6-a11",
+      "m6-a13",
+      "m8-a01",
+      "m8-a04",
+      "m8-a07"
+    ],
+    "dishonestMilestones": [],
+    "detail": "The coverage manifests the grader regenerated from a clean checkout copy are byte-identical to the builder's evidence/m{1..6,8}-coverage.json. All 20 sampled mappings point at tests that exercise the assertion's observable. Weak but honest spots: m2-a16 checks repost attribution in API data (the rendered label is confirmed by choreography); m2-a22/a23 press the app's \"Load more\" control rather than scrolling; m5-a05 asserts the server 410 plus the hidden viewer rather than a second UI tap (choreography covers the tap); m3-a15 compares one conversation's IDs across repeated seeds. See trace §3."
+  },
+  "defects": [
+    {
+      "id": "d-01",
+      "severity": "major",
+      "milestone": "M2",
+      "summary": "Link taps call an unbound Linking.openURL (onPressLink={Linking.openURL} in src/posts.tsx, src/profile.tsx, src/chat.tsx). On web every tap throws an uncaught TypeError (\"reading '_dispatchEvent'\"), and the link opens only because window.open runs first. On iOS/Android, React Native's LinkingImpl.openURL reads this._validateURL first, so the tap throws before opening anything: post, profile, and message links cannot open the system browser on native (native effect inferred from source, not run).",
+      "evidence": "trace §9 d-01: logs/expo-web-49361.log \"Web ERROR [TypeError ... _dispatchEvent]\" at ui/src/linkify.tsx:27 during the m2 suite link tap; logs/acceptance-m2.log PAGE TypeError; node_modules/react-native/Libraries/Linking/Linking.js:47-48",
+      "relatedAssertionIds": [
+        "m2-a12"
+      ]
+    },
+    {
+      "id": "d-02",
+      "severity": "minor",
+      "milestone": "M6",
+      "summary": "The push seam never notifies a message that arrives within about 35 s after the recipient's last client disconnects: no notification is emitted and none is deferred. API.md documents the 35-second grace, but the brief's \"no connected client\" trigger is silently missed for that window. This also makes the M6 suite order-sensitive: it failed when run right after the M5 suite.",
+      "evidence": "trace §5 P11 (message at +10 s after disconnect never queued; +45 s queued); trace §2 first m6 suite run (suite-receipts/m6-suite-1789504705713.json push-text-and-once failed, rerun passed)",
+      "relatedAssertionIds": [
+        "m6-a08"
+      ]
+    },
+    {
+      "id": "d-03",
+      "severity": "minor",
+      "milestone": "M2",
+      "summary": "Client-callable recipe mutations are not validated against the app's posts table. feed.feedCreatePost accepts an arbitrary nonexistent postId and inserts a public feed event at the top of Global (post:null, which the client skips), so any user can fill Global and followers' Following pages with invisible entries. The digest counts feedPosts in newPostsInFollowing, so these ghost events would also inflate followers' digests (inferred from digest.q).",
+      "evidence": "trace §5 P2 (feed.feedCreatePost on a random id -> state sent; Global top entry postNull:true); snapback/feed.q feedCreatePost; snapback/digest.q periodPosts",
+      "relatedAssertionIds": [
+        "m2-a10",
+        "m8-a08"
+      ]
+    },
+    {
+      "id": "d-04",
+      "severity": "minor",
+      "milestone": "M2",
+      "summary": "The Following feed intermittently shows the unfollowed author's original next to the viewer's own repost. The frozen choreography check repost-following-feed-surface missed in 3 of 6 grader attempts (and 1 of 3 builder attempts) and passed only best-of-3. API-level projection was correct in 4/4 trials, so the fault is client-side. A latent cause in src/profile.tsx: the follow button reads a default {following:false} until followState loads, so an early tap sends active:true (re-follow) instead of unfollow. An 18-trial directed repro did not reproduce the miss, so the root cause is unconfirmed.",
+      "evidence": "trace §4 (receipts/m2-choreography-grader-r1.jsonl attempts 1 and 3, r2 attempt 2: \"viewer-repost of an unfollowed author was counted as a direct follow-projection hit\"); trace §5 P2, P7",
+      "relatedAssertionIds": [
+        "m2-a08",
+        "m2-a18",
+        "m2-a26"
+      ]
+    },
+    {
+      "id": "d-05",
+      "severity": "minor",
+      "milestone": "M6",
+      "summary": "From a clean checkout the M6 acceptance run needs .snapback4/audit-token (service credential for the effect log). README says where it lives but not how to mint it; the grader had to find `snapback4 token --service audit` in the CLI help.",
+      "evidence": "trace §1, §2 (README \"Insights, digest and replay\" section; scripts/m6-tests.mjs reads .snapback4/audit-token)",
+      "relatedAssertionIds": [
+        "m6-a08",
+        "m6-a10"
+      ]
+    },
+    {
+      "id": "d-06",
+      "severity": "cosmetic",
+      "milestone": "M3",
+      "summary": "The server accepts an empty text post with no media and an empty text message. The brief sets only maximum lengths, but empty bubbles and cards are meaningless content.",
+      "evidence": "trace §5 P2 (\"post empty text no media: ACCEPTED\", \"msg empty: ACCEPTED\")",
+      "relatedAssertionIds": []
+    }
+  ],
+  "probeResults": [],
+  "oDimensionScores": {
+    "O1": {
+      "score": 75,
+      "anchorsCited": "Between \"60: M1-M4 solid, later milestones patchy or failed on cap\" and \"90: every in-scope milestone green, including platform-proof artifacts\"; closer to 90 on breadth, held down by M7 and the missing native proofs.",
+      "justification": "101 of 119 in-scope assertions pass under independent grader execution (M1 13/13, M2 27/27, M3 15/15, M4 12/12, M5 12/12, M6 6/13, M7 0/9 not-run, M8 16/18). M1-M5 and M8 re-verified via suite, grader-run choreography, API probes, and web automation (assertionResults; m8-assertion-results.json). The 7 M6 and 2 M8 native simulator assertions fail for lack of any simulator artifact (trace §8). M7 is in the denominator as not passed because that fresh session had not run. iOS Hermes bundle exports exist per milestone."
+    },
+    "O2": {
+      "score": 68,
+      "anchorsCited": "Between \"60: a few medium defects off the happy path\" and \"90: only cosmetic nits\"; nearer 60 because of one major.",
+      "justification": "Beyond the checklist: one major (d-01, link taps throw; native link opening broken), four minor (d-02 notifications dropped within the 35 s grace, d-03 ghost feed events via unvalidated recipe mutations, d-04 intermittent Following misprojection in the UI, d-05 missing audit-token mint step for a clean checkout), one cosmetic (d-06). No crashes, data loss, or authorization failures were observed in core flows. Evidence: defects[], trace §9."
+    },
+    "O3": null,
+    "O4": {
+      "score": 40,
+      "anchorsCited": "Between \"30: cold-start offline shows an empty or broken app\" and \"60: reads work; offline writes lost or mis-ordered, or receipts wrong after flush\"; far from \"90: ... all behave as specced on the native proof — on full runs including M8's durable-queue restart and multi-device convergence evidence\".",
+      "justification": "No native artifact exists: ios-simulator-m6 and ios-simulator-m8 are \"not-recorded\" in both builder and grader segment summaries, and artifacts/m*-ios are Hermes exports only. Cold-start offline reads, media, search, view-once exclusion, and the durable-queue restart are therefore undemonstrated on the native proof. The web choreography artifacts do show warm-offline behavior working: two queued messages pending, flushed in order, and reaching read (M6 r1); warm-offline search (M5 r1, grader P6); dual-client offline convergence without loss or duplicates with receipts advancing (M8 r1). The builder labels the gap honestly (README, and processDevice proofs self-described as \"not iOS simulator proof\"). Web cold relaunch while offline cannot load the bundle (P6), as expected for web."
+    },
+    "O5": {
+      "band": 30,
+      "bandRationale": "First-match order 0, 30, 60, 90, 75 over the lane's recorded replay evidence; run-record.json is absent, so the inputs are evidence/scale-result.json, scale-verification-{10pct,50pct,full}.json, scale-probes-*.json, scale-degradation.json, and scale-clocks.json. Band 0 did not fire: settle accounting equals invariant-manifest-combined expectedState exactly (167,243 actions acknowledged), and the grader independently re-verified the retained final store (P10: u0500 follows 500 and has 100 conversations, u0005 follows 5, u0900 has 900 followers and 200 posts, u0901 follows exactly u0001-u0004 and u0900, g0001 has the exact 50-member roster and 10,000 unique messages over 200 pages, and a grader-seeded 10-user sample of following, conversation, and chat-message counts all match). The replay completed, so no cap was exhausted (resumed once after an interruption; the wall cap is uncalibrated). Band 30 fired: one degradation rule fails literally in the recorded probes. Trending mid-curve p95 at 50% is 1.915 ms, above the 10%->full line value of 1.832 ms (10% 1.808 ms, full 1.861 ms; the builder's own scale-degradation.json records pass:false). All other rules pass, and no probe timed out, errored, or returned incomplete. Caveats: the exceedance is 0.08 ms at k=20; absolute ceilings, the replay cap, and the frozen probe predicates were never calibrated or committed for this wave."
+    }
+  },
+  "timingRecords": [
+    {
+      "subject": "m1-a09",
+      "measurementsMs": [
+        79.4,
+        77.2,
+        77.4
+      ],
+      "bestMs": 77.2,
+      "boundMs": 10000,
+      "passed": true
+    },
+    {
+      "subject": "m2-a04",
+      "measurementsMs": [
+        303.1,
+        106.7,
+        121.2
+      ],
+      "bestMs": 106.7,
+      "boundMs": 10000,
+      "passed": true
+    },
+    {
+      "subject": "m2-a07",
+      "measurementsMs": [
+        38,
+        39,
+        33
+      ],
+      "bestMs": 33,
+      "boundMs": 10000,
+      "passed": true
+    },
+    {
+      "subject": "m2-a14",
+      "measurementsMs": [
+        65.4,
+        54.1,
+        61.8
+      ],
+      "bestMs": 54.1,
+      "boundMs": 10000,
+      "passed": true
+    },
+    {
+      "subject": "m2-a19",
+      "measurementsMs": [
+        183.6,
+        398.1,
+        383
+      ],
+      "bestMs": 183.6,
+      "boundMs": 10000,
+      "passed": true
+    },
+    {
+      "subject": "m3-a01",
+      "measurementsMs": [
+        403.2,
+        366.6,
+        463.7
+      ],
+      "bestMs": 366.6,
+      "boundMs": 10000,
+      "passed": true
+    },
+    {
+      "subject": "m3-a06",
+      "measurementsMs": [
+        11.2,
+        27.8,
+        13.2
+      ],
+      "bestMs": 11.2,
+      "boundMs": 2000,
+      "passed": true
+    },
+    {
+      "subject": "m3-a07",
+      "measurementsMs": [
+        4318.8,
+        4338,
+        4318.7
+      ],
+      "bestMs": 4318.7,
+      "boundMs": 5000,
+      "passed": true
+    },
+    {
+      "subject": "m3-a08",
+      "measurementsMs": [
+        1696.3,
+        2263.9,
+        2293.2
+      ],
+      "bestMs": 1696.3,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m4-a02",
+      "measurementsMs": [
+        557.1,
+        588,
+        853.4
+      ],
+      "bestMs": 557.1,
+      "boundMs": 10000,
+      "passed": true
+    },
+    {
+      "subject": "m4-a05",
+      "measurementsMs": [
+        359.7,
+        361.4,
+        361.5
+      ],
+      "bestMs": 359.7,
+      "boundMs": 10000,
+      "passed": true
+    },
+    {
+      "subject": "m4-a08",
+      "measurementsMs": [
+        257.3,
+        252.8,
+        142.1
+      ],
+      "bestMs": 142.1,
+      "boundMs": 10000,
+      "passed": true
+    }
+  ],
+  "evidenceTracePath": "/Users/ccheever/clique-sb4-20260915-astra-cal6/lanes/astra-snapback4/grading/trace.md",
+  "notes": "N=1 calibration run, not claim-eligible; grade is labeled uncalibrated-grader (claude has not passed calibration.md). Deviations: (1) no holdout probe set was committed, so phase 4 was skipped, probeSetSha256 = none-uncommitted, and probeResults is empty. (2) O3 is recorded null even though its applicability predicate (M6 green, M1-M5 attempted) holds, because applicability.json restricts O3's basis to the wave's rotated holdout probes and none exist. As a non-scored observation, every checklist-level trust-boundary check was correctly denied server-side: logout revocation, cross-user DM/history/asset/search access, removed-member delivery, view-once refetch, expired edit/delete windows (undeclared timestamp args rejected), expiry, and digest authorization. The only integrity gap found is d-03. (3) run-record.json is absent; grading used receipts and evidence. (4) Timing checks are best-of-3 with machine load recorded (other sessions share the host; load 6.5-11.6 on 18 cores). (5) The frozen schema admits only m1-m7 IDs, so the 18 M8 results are in m8-assertion-results.json. Subtotals: prior-101 = 85 pass / 101; M8 = 16 pass / 18; complete = 101 pass / 119. rerunsUsed=1: the grader's own shell word-splitting bug caused three choreography startup refusals (exit 2, no receipts), and the phase was re-run once correctly. Not contaminated: diary.md, essay.md, final-report.md, FINAL.md, run-log.md, record.json, and other lanes were never opened."
+}
