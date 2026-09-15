@@ -3299,3 +3299,153 @@ stays open. A second-platform replication is the next adoption input; an
 Office ARM Linux preflight found the runner idle but only 8,362,958,848 bytes
 free on its target, below the older builder's 10 GiB precondition. No Linux
 source transfer, build or measurement has started for this candidate.
+
+
+### Decoded-cursor reuse: fixed 0.2.18 native Linux replication
+
+The same ignored cursor candidate completed a second-platform comparison on
+Ubuntu 24.04 / AMD EPYC 9454, native x86_64, at **2026-09-15 08:25:29 UTC**.
+Both binaries use fixed source `053a5b288f6a0765e3f640e917e1cb3100244c86`
+(0.2.18), Rust 1.97.0, opt-level 3 / fat LTO / one codegen unit / panic abort,
+the packaged SQLite flag and MEMSTATUS enabled. Symbols are retained, with
+no sampler. Baseline `b9ecc9013ac32ac908c679f124039dae41b98a53b9fa4b94a6e0844b18c230ac`
+is 14,645,576 B; candidate
+`1bc1a4fdc1cf2d9fcfbaa62e6e9ae63b519324531f4255d98d8c97ba17e1cd8b`
+is 14,646,360 B. The runtime overlay is the same `read.rs` (`52046708…`)
+as the Darwin experiment: reuse within one eligible merge, with initial
+validation, canonical encoding, expression evaluation, meters, authority,
+expiry and scope/generation checks preserved. The four differential cases
+use the same test overlay (`e3c8d695…`). No core change is adopted here.
+
+The actual native build passed **368 candidate and eight baseline selected
+Rust test executions**, including exact full outcome/refusal equality for
+same, different, malformed-later and foreign-empty-discovery cursor inputs.
+All twelve build stages exited zero. The independent audit rejoined all
+37 public build files, the 762 source paths and both retained binary hashes;
+this is affected-source qualification, not a full workspace/client suite.
+Build receipt `a8b5f59c…`, transfer `b7f1ae17…` and actual review `18c0ee56…`
+remain under ignored-run prefix `membership-cursor-reuse-0218-linux-v1`.
+
+The unchanged historical instrument (`ebe5b64d…`) uses ordinary Node 24.21.0 /
+Undici 7.29.1 fetch. A fresh Linux setup created the 501-group,
+186-membership, 100,000-message fixture and six ordinary seven-day guests;
+one became the expired control only after the setup server stopped. The
+other five original sessions stayed fixed for all runs. Actual activation
+generation is 1. No Darwin database or credentials were transferred.
+The reviewed Linux controller (`d8e133db…`) ran excluded smoke B/C at 50
+samples, then formal trials 501–503 B/C, C/B, B/C at 500 samples per case.
+
+All **117,000 formal timed requests**, 7,020 excluded warmups and 162 untimed
+complete walks / 33,510 pages passed. All 234 case records report zero
+errors. Twenty-four full physical proofs agree on all three normalized app
+tables, with memberships 186→185→186. Exact feeds/threads, tied order,
+invalid/expired auth, cursors, acknowledged leave and same-session regrant
+pass. Each run uses a fresh app/server/database copy; leave/regrant occur on
+that same live server. All 42 recorded child groups stopped with expected
+exits and no cleanup or sanitization errors. The 3,900-request smoke is
+excluded, and neither workload was rerun.
+
+All **twelve continuation cases have lower median p50**, with p95 lower in
+ten and rate higher in eleven. Paired p50 improves in 29/36 comparisons.
+For the 150-group rotating feed at C8, p50 falls **3.292→2.849 ms (13.46%)**,
+p95 **4.802→4.134 ms (13.91%)**, and rate rises
+**2,214.4→2,659.8 requests/s (20.11%)**. Across all 39 cases, median
+p50/p95/p99/maximum improve in 32/27/17/19, and rate in 29. The p50 split
+is 32 gains, six losses and one tie. These are medians of three reported
+per-run statistics, not pooled request quantiles or significance estimates.
+Every table cell is baseline → candidate; latencies are milliseconds.
+
+| Case | p50 | p95 | p99 | Maximum | Requests/s |
+|---|---:|---:|---:|---:|---:|
+| groups5PointHotC1 | 0.571 → 0.584 | 0.856 → 0.806 | 0.909 → 0.994 | 8.899 → 10.409 | 1588.2 → 1588.8 |
+| groups5PointWorkingSetC1 | 0.540 → 0.540 | 0.724 → 0.723 | 0.809 → 0.892 | 9.759 → 8.357 | 1701.4 → 1737.7 |
+| groups5PointWorkingSetC8 | 1.242 → 1.235 | 3.465 → 2.786 | 12.638 → 22.241 | 15.214 → 24.891 | 4339.4 → 4455.7 |
+| groups5ThreadFirstC1 | 0.778 → 0.729 | 0.986 → 0.957 | 1.376 → 1.380 | 12.621 → 10.788 | 1185.8 → 1221.5 |
+| groups5ThreadFirstC8 | 1.493 → 1.495 | 1.918 → 1.916 | 10.127 → 11.054 | 10.500 → 11.671 | 4569.8 → 4695.3 |
+| groups5ThreadNextC1 | 0.803 → 0.751 | 1.000 → 0.941 | 1.420 → 1.433 | 4.680 → 4.489 | 1165.5 → 1237.7 |
+| groups5ThreadNextC8 | 1.506 → 1.508 | 1.867 → 1.945 | 9.204 → 8.975 | 9.494 → 9.341 | 4661.3 → 4726.5 |
+| groups5FeedFirstC1 | 1.022 → 0.843 | 1.182 → 1.246 | 1.755 → 1.642 | 9.045 → 8.547 | 923.0 → 1130.4 |
+| groups5FeedFirstC8 | 1.359 → 1.371 | 1.659 → 1.704 | 9.277 → 10.317 | 9.579 → 10.487 | 5179.5 → 5060.5 |
+| groups5FeedNextC1 | 1.128 → 1.100 | 1.348 → 1.264 | 1.831 → 1.744 | 7.336 → 7.306 | 867.7 → 868.3 |
+| groups5FeedNextC8 | 1.358 → 1.353 | 1.678 → 1.737 | 2.224 → 8.771 | 2.444 → 9.361 | 5565.8 → 5348.7 |
+| groups5FeedWorkingSetC1 | 1.260 → 1.104 | 1.430 → 1.543 | 1.992 → 1.981 | 8.774 → 7.888 | 775.3 → 861.0 |
+| groups5FeedWorkingSetC8 | 1.373 → 1.356 | 1.852 → 1.809 | 9.788 → 9.884 | 9.903 → 10.555 | 5113.3 → 5185.7 |
+| groups30PointHotC1 | 0.501 → 0.477 | 0.698 → 0.651 | 0.938 → 0.830 | 9.911 → 10.229 | 1754.1 → 1816.8 |
+| groups30PointWorkingSetC1 | 0.502 → 0.486 | 0.604 → 0.706 | 0.728 → 0.898 | 1.084 → 1.181 | 1923.1 → 1908.4 |
+| groups30PointWorkingSetC8 | 1.012 → 1.001 | 2.316 → 2.307 | 8.437 → 9.792 | 8.539 → 10.018 | 5794.7 → 5748.7 |
+| groups30ThreadFirstC1 | 0.754 → 0.740 | 0.883 → 1.049 | 1.412 → 1.503 | 8.766 → 9.308 | 1227.3 → 1196.5 |
+| groups30ThreadFirstC8 | 1.237 → 1.224 | 1.717 → 1.672 | 9.815 → 9.573 | 10.624 → 10.507 | 5572.7 → 5648.5 |
+| groups30ThreadNextC1 | 0.789 → 0.767 | 1.026 → 0.970 | 1.556 → 1.457 | 6.813 → 5.687 | 1173.0 → 1211.8 |
+| groups30ThreadNextC8 | 1.241 → 1.234 | 1.501 → 1.659 | 8.041 → 8.905 | 8.844 → 9.624 | 5656.4 → 5614.3 |
+| groups30FeedFirstC1 | 1.363 → 1.338 | 1.611 → 1.509 | 2.444 → 2.332 | 2.660 → 8.908 | 715.9 → 725.7 |
+| groups30FeedFirstC8 | 1.350 → 1.283 | 2.179 → 2.273 | 2.537 → 8.627 | 2.967 → 8.891 | 5436.9 → 5029.7 |
+| groups30FeedNextC1 | 1.503 → 1.390 | 2.231 → 1.973 | 2.766 → 2.472 | 9.100 → 7.976 | 628.9 → 691.7 |
+| groups30FeedNextC8 | 1.535 → 1.282 | 2.502 → 2.067 | 8.235 → 8.509 | 8.646 → 8.794 | 4385.9 → 5386.4 |
+| groups30FeedWorkingSetC1 | 1.542 → 1.426 | 2.235 → 2.084 | 2.745 → 2.486 | 9.231 → 9.056 | 622.3 → 660.0 |
+| groups30FeedWorkingSetC8 | 1.784 → 1.556 | 5.378 → 3.584 | 11.690 → 12.682 | 12.424 → 13.988 | 3581.3 → 3757.6 |
+| groups150PointHotC1 | 0.459 → 0.448 | 0.603 → 0.592 | 0.669 → 0.753 | 0.810 → 0.870 | 2065.8 → 2178.8 |
+| groups150PointWorkingSetC1 | 0.496 → 0.492 | 0.664 → 0.631 | 0.850 → 0.787 | 6.113 → 5.688 | 1901.2 → 1910.8 |
+| groups150PointWorkingSetC8 | 1.016 → 0.991 | 4.443 → 2.400 | 12.428 → 10.386 | 13.333 → 10.692 | 4388.2 → 5367.3 |
+| groups150ThreadFirstC1 | 0.745 → 0.740 | 0.909 → 0.934 | 1.299 → 1.384 | 10.228 → 9.307 | 1241.4 → 1275.4 |
+| groups150ThreadFirstC8 | 1.223 → 1.217 | 1.596 → 1.505 | 6.777 → 9.451 | 7.278 → 10.127 | 5863.2 → 5736.0 |
+| groups150ThreadNextC1 | 0.866 → 0.766 | 1.060 → 0.932 | 1.529 → 1.257 | 6.458 → 6.775 | 1091.9 → 1217.6 |
+| groups150ThreadNextC8 | 1.244 → 1.227 | 1.737 → 1.649 | 9.548 → 8.320 | 9.778 → 8.786 | 5391.6 → 5695.2 |
+| groups150FeedFirstC1 | 2.520 → 2.606 | 3.678 → 3.844 | 4.383 → 4.431 | 8.286 → 7.995 | 381.3 → 363.0 |
+| groups150FeedFirstC8 | 2.511 → 2.530 | 3.550 → 3.567 | 7.441 → 8.146 | 7.857 → 8.941 | 2988.7 → 2930.7 |
+| groups150FeedNextC1 | 3.161 → 2.683 | 4.703 → 4.142 | 5.178 → 4.631 | 8.826 → 8.646 | 290.6 → 347.0 |
+| groups150FeedNextC8 | 3.100 → 2.600 | 4.040 → 3.652 | 4.738 → 11.260 | 5.938 → 11.824 | 2443.7 → 2787.4 |
+| groups150FeedWorkingSetC1 | 3.624 → 3.091 | 5.203 → 4.519 | 5.659 → 4.925 | 6.135 → 5.412 | 253.8 → 299.5 |
+| groups150FeedWorkingSetC8 | 3.292 → 2.849 | 4.802 → 4.134 | 11.121 → 4.918 | 12.572 → 5.695 | 2214.4 → 2659.8 |
+
+The tail and control losses remain material. At 150 groups, first-page p50
+and rate medians worsen at both C1/C8, as in the Darwin result. Next-page C8
+p99 rises **4.738→11.260 ms**, with worse p99 in two of three pairs; its
+maximum rises 5.938→11.824 ms. Five-group next-page C8 p95 rises
+1.678→1.737 ms, p99 2.224→8.771 ms, and rate falls 5,565.8→5,348.7.
+Five-group rotating-page C1 p95 rises 1.430→1.543 ms. Thirty-group
+first-page C8 p99 rises 2.537→8.627 ms and rate falls 5,436.9→5,029.7.
+All **80 median and 264 paired losses** across six metrics, one median tie
+and zero paired ties remain in the independent summary and can be
+recomputed from the six full original formal records appended to
+`snapback4/metrics/storage.jsonl`. Largest individual case observations are
+20.998 ms baseline and 26.730 ms candidate, not median maxima.
+
+Twelve untimed RSS points give before medians 10,288→10,232 KiB and after
+medians 29,656→29,916 KiB. Paired after differences are +1,840, +260 and
+−3,920 KiB; these are not peaks or isolated cursor-allocation measurements.
+Run-start one-minute load observations range 0.815–2.311 on the shared
+96-CPU host; no CPU isolation or OS-cache residency measurement was made.
+Physical proofs and untimed walks warm inputs. Working-set samples cover
+bounded selections, not every possible input; native cache behavior remains.
+Rates include whole-case verifier/scheduling work. No current-main,
+registry-artifact, competitor, hosted/WAN, cold-cache, realtime, write,
+durability, device or memory-pressure claim follows from this fixed A/B.
+
+Both calculators passed unchanged on their first formal executions and
+agree on all 1,404 raw metric values, 468 medians, 234 median contrasts,
+702 paired contrasts, losses/counts/ties and twelve RSS points. The
+independent calculator was frozen **before formal result-file access** at
+08:22:22 UTC, after formal launch and the first baseline completion. Its
+original freeze record incorrectly said the formal run/data did not exist;
+the preserved timing annotation corrects that statement. The pre-freeze
+validation wrapper's case-order mismatch is also preserved; the calculator
+and arithmetic were unchanged. Formal admission used the successful root
+setup/smoke audit and the reviewed controller's own smoke requirement;
+the independent setup/smoke audit completed in parallel and passed.
+
+Failure history stays separate: the first source staging attempt timed out
+without starting a build, and its first read-only reconciliation could not
+read a protected service cwd. The reviewed second observer records narrowly
+identified service exclusions without asserting readable cwd or isolation;
+reconciled staging, native build, setup, smoke and formal then succeeded.
+No unknown process was signaled, no failed workload was substituted, and
+credentials/databases stayed remote. No production speedup follows from
+those control repairs.
+
+Ignored-run prefix `membership-cursor-reuse-0218-linux-http-v1` retains
+230 public formal files / 526,481 B, transfer `617fd603…`, completion
+`1f117852…`, root analysis `e0d0097f…`, independent summary `b2755637…`,
+and reconciliation `72fe3218…`. The Linux result replicates the continuation
+median improvement while preserving substantial tail and first-page
+tradeoffs. Core-owner adoption and a current matched competitor comparison
+remain open; this evidence landing changes no runtime or package.

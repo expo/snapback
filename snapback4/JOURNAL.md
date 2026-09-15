@@ -16508,3 +16508,43 @@ installed-consumer proof passed; `snapback4@0.2.19` and
 `snapback4-expo@0.2.10` at 07:37 UTC. Next: the fourth Astra-medium
 calibration on these pins.
 
+
+
+## 2026-09-15 — cursor continuation gain replicates on native Linux
+
+The fixed 0.2.18 ignored candidate completed the second-platform comparison
+on Ubuntu 24.04 / native AMD EPYC 9454. Native qualification passes 368
+candidate and eight baseline selected Rust test executions, including four
+full outcome/refusal equality cases. All 117,000 formal timed HTTP calls,
+7,020 excluded warmups, 162 untimed walks / 33,510 pages and 24 physical
+proofs pass. Fresh Linux guest sessions remain unchanged through live
+leave/regrant; all 42 recorded child groups stop with expected exits.
+
+All twelve continuation cases improve median p50, ten p95 and eleven rate;
+29/36 paired p50s improve. The 150-group rotating feed at eight clients
+falls 3.292→2.849 ms p50 and 4.802→4.134 ms p95, with throughput
+2,214.4→2,659.8 requests/s. This replicates the continuation median gain
+with the same cursor/runtime and differential-test overlays used on Darwin.
+
+The tails remain mixed: 150-group next-page C8 p99 rises 4.738→11.260 ms,
+and first-page p50/rate medians worsen at both C1/C8. Five-group next-page
+C8 also loses p95/p99/rate. The complete record preserves 80 median and 264
+paired losses across six metrics, the one median tie and twelve RSS points.
+After-workload RSS medians rise 260 KiB, with mixed paired differences.
+No host-isolation, memory-pressure, current-package or competitor claim is
+made. This experiment changes neither current core source nor package.
+
+Both unchanged calculators pass their first formal execution and agree on
+all raw values, medians, contrasts, counts/losses/ties and RSS. The independent
+calculator froze before formal result access, after launch and the first
+baseline completion; its original stale timing statement is corrected by a
+preserved annotation. The pre-freeze wrapper mismatch and failed initial
+staging/observation attempts remain recorded without relabeling failures.
+The successful formal workload was never restarted.
+
+Six full original formal records are appended to storage.jsonl. The existing
+benchmark README and core-owner issue retain the native build, setup,
+protocol, source/binary bindings, results and limitations. Second-platform
+replication is complete; evaluate the tail/first-page tradeoffs with the core
+owner before adoption and measure current competitors separately. The
+broader performance goal remains open.
