@@ -171,12 +171,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let history!: WriteHistory;
   let setLink!: (next: Link) => void;
   const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
-    history.remember(write);
     if (history.firstEmission(write.id)) {
       for (const listener of writeListeners) listener(write);
     }
     return write;
   };
+  const emitLocalFailure = (write: Extract<Write, { state: "failed" }>) => emitWrite(history.remember(write));
   const requestCredentials = () => ({ headers: { ...headers }, revision: credentialRevision });
 
   // The device opens on the backend the server sends, or on the one it
@@ -312,7 +312,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   // A kept sent entry can disappear on the first catch-up, before a screen mounts.
   for (const entry of await queued()) {
     const seq = entry.sent_seq ?? entry.observed_seq;
-    if (seq != null) await history.keep({ state: "sent", id: entry.id, seq, replayed: true });
+    if (entry.sent_seq == null && seq != null) await history.keep({ state: "sent", id: entry.id, seq, replayed: true });
   }
   // @ref LLP 3000.007#18.2 — observation fences answers before queued sync can retire the partition.
   function observeIncarnation(id?: string, force = false) {
@@ -573,7 +573,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if ((typeof page.store_id === "string" && page.store_id !== requestedStore) || Number(page.watermark) < watermark) {
           for (const entry of await queued()) {
             const seq = entry.sent_seq ?? entry.observed_seq;
-            if (seq != null) await history.keep({ state: "sent", id: entry.id, seq, replayed: true });
+            if (entry.sent_seq == null && seq != null) await history.keep({ state: "sent", id: entry.id, seq, replayed: true });
           }
           const observed = await call({ op: "observe_store", page });
           if (observed.denied) { refuseRestore(observed.denied); return false; }
@@ -589,7 +589,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             adoptedGeneration = true;
             for (const [id, sentSeq] of Object.entries(observation.retired)) {
               const receipt: Write = { state: "sent", id: id as Write["id"], seq: sentSeq, replayed: true };
-              await history.keep(receipt);
               settled.get(id)?.(receipt); settled.delete(id);
               emitWrite(receipt);
             }
@@ -888,7 +887,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   async function queued(): Promise<Queued[]> {
     const answer = await call({ op: "queued" });
     if (answer.denied) throw new Error(`${answer.denied.code}: ${answer.denied.message}`);
-    return (answer.ok as Queued[] | undefined) ?? [];
+    const entries = (answer.ok as Queued[] | undefined) ?? [];
+    history.retainEmissions(entries.map(entry => entry.id));
+    return entries;
   }
 
   let retry: ReturnType<typeof setTimeout> | undefined;
@@ -932,9 +933,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (closed) return;
       if (entry.sent_seq != null || (!acquire && entry.observed_seq != null)) {
         const receipt = { state: "sent" as const, id: entry.id, seq: entry.sent_seq ?? entry.observed_seq!, replayed: true as const };
-        await history.keep(receipt);
+        const known = await history.read(entry.id);
+        // A sent outbox entry already persisted its receipt before settlement.
+        // Re-reading it must neither refresh an evicted receipt nor emit again.
+        if (entry.sent_seq == null && !known) await history.keep(receipt);
         settled.get(entry.id)?.(receipt); settled.delete(entry.id);
-        emitWrite(receipt);
+        if (!known) emitWrite(receipt);
         if (acquire) await syncOnce();
         continue;
       }
@@ -1049,7 +1053,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     async mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write<R>> {
       const id = mintId();
       const unavailableWhy = unavailable();
-      if (unavailableWhy) return emitWrite({ state: "failed", id, why: unavailableWhy });
+      if (unavailableWhy) return emitLocalFailure({ state: "failed", id, why: unavailableWhy });
       const submission = ++submissions;
       const newIds: string[] = [];
       // The module mints ids for `new` from the ids we pass, so the server
@@ -1062,23 +1066,22 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       let pending: Extract<Write, { state: "pending" }> = { state: "pending", id };
       try {
         const admitted = await call({ op: "admit", entry: { id, seq: submission, op: op.name, args, viewer: principal, now: Date.now(), new_ids: newIds, predicted: [], predictable } satisfies Queued });
-        if (admitted.denied) { settled.delete(id); return emitWrite({ state: "failed", id, why: admitted.denied }); }
+        if (admitted.denied) { settled.delete(id); return emitLocalFailure({ state: "failed", id, why: admitted.denied }); }
         const entry = admitted.ok as Queued;
         if (!entry.predictable && !entry.predicted.length) pending = { ...pending, reason: !acquired
           ? "queued without a row: not acquired yet"
           : "queued without a row: local data does not justify prediction" };
-        history.remember(pending);
         rerunTables(predictedTables(entry.predicted));
       } catch (error) {
         settled.delete(id);
-        return emitWrite({ state: "failed", id, why: { code: "E_STORE", family: "store", message: `write ${id} admission outcome is unknown: ${String(error)}` } });
+        return emitLocalFailure({ state: "failed", id, why: { code: "E_STORE", family: "store", message: `write ${id} admission outcome is unknown: ${String(error)}` } });
       }
       if (closed) { settled.delete(id); return pending; }
       void flush();
-      if (link !== "online") return pending;
+      if (link !== "online") { settled.delete(id); return pending; }
       let timer: ReturnType<typeof setTimeout> | undefined;
       try { return await Promise.race([result, new Promise<Write>((resolve) => { timer = setTimeout(() => resolve(pending), 4_000); })]) as Write<R>; }
-      finally { clearTimeout(timer); }
+      finally { clearTimeout(timer); settled.delete(id); }
     },
     async write(id) {
       if (unavailable()) return undefined;

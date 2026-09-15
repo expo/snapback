@@ -100,7 +100,7 @@ async function fixture(t, tier, empty = false) {
           const response = await fetch(input, init), json = await response.json();
           return Response.json({ ...json, seq: 0 });
         }
-        if (mode === "busy" && (path === "/sync" || path.startsWith("/m/"))) return Response.json({ denied: {
+        if ((mode === "busy" && (path === "/sync" || path.startsWith("/m/"))) || (mode === "sent-queued" && path === "/sync")) return Response.json({ denied: {
           code: "E_RATE_LIMIT", family: "bound", message: "server is busy", retryable: true,
         } }, { status: 429 });
         if (path === "/schema" && mode === "after-adopt") {
@@ -122,7 +122,7 @@ async function fixture(t, tier, empty = false) {
     });
     clients.push(client); return client;
   };
-  return { open, backend, schemaPath, start, metadata, restore: () => { restore = true; }, core: () => core, mode: (next) => { mode = next; }, counts: () => ({ snapshots, catchups, posts }) };
+  return { open, backend, schemaPath, start, metadata, persist, restore: () => { restore = true; }, core: () => core, mode: (next) => { mode = next; }, counts: () => ({ snapshots, catchups, posts }) };
 }
 
 test("W5R1x: terminal history is bounded independently of unresolved writes", async t => {
@@ -376,3 +376,94 @@ for (const tier of ["wasm", "process"]) {
     t.diagnostic(`recovered outcomes: sent=1 failed=1; server sends=${f.counts().posts}`);
   });
 }
+
+
+const sentReceipt = (id, seq = 1) => ({ state: "sent", id, seq, replayed: true });
+const ok = reply => { assert.equal(reply.denied, undefined, JSON.stringify(reply)); return reply.ok; };
+const keepReceipt = (core, receipt) => core.call({ op: "keep_write", value: JSON.stringify(receipt) }).then(ok);
+
+function receiptLocks(t) {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "navigator"), held = new Set();
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { locks: { async request(name, options, body) {
+    if (held.has(name)) return body(null);
+    held.add(name);
+    try { return await body({ name }); } finally { held.delete(name); }
+  } } } });
+  t.after(() => previous ? Object.defineProperty(globalThis, "navigator", previous) : delete globalThis.navigator);
+}
+
+test("W5R2a: two native owners recover 600 completions without stale pending memory", { timeout: 60000 }, async t => {
+  const f = await fixture(t, "process"), client = await f.open(), a = f.core();
+  await f.open(); const b = f.core(); f.mode("offline");
+  const history = new WriteHistory({
+    read: async () => ok(await a.call({ op: "meta", key: "write-history" })),
+    save: value => a.call({ op: "keep_write", value }).then(ok),
+  });
+  const ids = [];
+  for (let n = 0; n < 600; n++) {
+    const pending = await client.mutate({ kind: "mutation", name: "add" }, { body: `owner A ${n}` });
+    assert.equal(pending.state, "pending"); ids.push(pending.id); history.remember(pending);
+    assert.equal((await client.write(pending.id)).state, "pending");
+    await keepReceipt(b, sentReceipt(pending.id, n + 1));
+    ok(await b.call({ op: "settle", id: pending.id, seq: n + 1 }));
+    ok(await b.call({ op: "dequeue", id: pending.id }));
+    assert.equal((await history.read(pending.id)).state, "sent");
+    assert.equal((await client.write(pending.id)).state, "sent");
+  }
+  const cachedPending = [...history.values.values()].filter(write => write.state === "pending").length;
+  const durable = JSON.parse(ok(await a.call({ op: "meta", key: "write-history" })));
+  t.diagnostic(`observed=600 durable=${durable.length} cached_pending=${cachedPending} memory=${history.values.size} outbox=${ok(await a.call({ op: "queued" })).length}`);
+  assert.equal(cachedPending, 0);
+  assert.ok(history.values.size <= 256);
+  assert.equal(await client.write(ids[0]), undefined, "an evicted completion cannot revert to pending");
+  assert.equal(await history.read(ids[0]), undefined);
+  for (const id of ids.slice(-256)) assert.equal((await client.write(id)).state, "sent");
+});
+
+for (const tier of ["wasm", "process"]) test(`W5R2a ${tier}: a sent queued id emits once beyond 256 other emissions`, { timeout: 60000 }, async t => {
+  const f = await fixture(t, tier); f.mode("online");
+  const client = await f.open(), events = [];
+  client.onWrite(write => events.push(write)); f.mode("sent-queued");
+  const first = await client.mutate({ kind: "mutation", name: "add" }, { body: "sent but not caught up" });
+  assert.equal(first.state, "sent");
+  assert.equal(ok(await f.core().call({ op: "queued" }))[0].sent_seq, first.seq);
+  // Acquired local refusals are terminal emissions too, with no outbox row.
+  for (let n = 0; n < 256; n++) assert.equal((await client.mutate({ kind: "mutation", name: "reject" }, {})).state, "failed");
+  // Evict A from the receipt window as well: its outbox row must pin emission.
+  for (let n = 0; n < 256; n++) await keepReceipt(f.core(), sentReceipt(`other-${n}`, n + 1));
+  assert.equal((await client.write(first.id)).state, "sent", "the queued terminal still owns its outcome");
+  const next = await client.mutate({ kind: "mutation", name: "add" }, { body: "trigger the next flush" });
+  assert.equal(next.state, "sent");
+  const count = events.filter(write => write.id === first.id).length;
+  t.diagnostic(`other_emissions=256 first_id_emissions=${count} queued=${ok(await f.core().call({ op: "queued" })).length}`);
+  assert.equal(count, 1);
+  assert.equal(events.filter(write => write.id === next.id).length, 1);
+  f.mode("online"); await client.sync();
+  assert.equal(ok(await f.core().call({ op: "queued" })).length, 0);
+  assert.equal(await client.write(first.id), undefined, "flushing a sent entry cannot refresh an evicted receipt");
+  assert.equal((await client.write(next.id)).state, "sent");
+});
+
+for (const size of [256, 128]) test(`W5R2a web: adopting 256 orphan receipts preserves ${size} destination receipts`, { timeout: 30000 }, async t => {
+  receiptLocks(t);
+  const f = await fixture(t, "wasm"); f.mode("online");
+  const client = await f.open(), destination = f.core();
+  const own = Array.from({ length: size }, (_, n) => sentReceipt(`A${n}`, n + 1));
+  for (const receipt of own) await keepReceipt(destination, receipt);
+  const orphanClient = await f.open(), orphan = f.core();
+  const incoming = Array.from({ length: 255 }, (_, n) => sentReceipt(`B${n}`, n + 1));
+  incoming.push(sentReceipt("A0", 9999)); // Destination wins an id collision too.
+  for (const receipt of incoming) await keepReceipt(orphan, receipt);
+  await orphanClient.close(); await client.sync();
+  const kept = JSON.parse(ok(await destination.call({ op: "meta", key: "write-history" })));
+  const surviving = kept.filter(receipt => receipt.id.startsWith("A")).length;
+  t.diagnostic(`destination=${size} orphan=256 surviving_destination=${surviving} adopted=${kept.length - surviving} durable=${kept.length}`);
+  assert.equal(surviving, size);
+  for (const receipt of own) assert.deepEqual(await client.write(receipt.id), receipt);
+  assert.equal(kept.length, 256);
+  assert.deepEqual(kept, [...incoming.slice(-(256 - size + 1), -1), ...own]);
+  assert.equal([...f.persist.stores.keys()].filter(name => name.includes(":tab-")).length, 0);
+  f.mode("offline"); await client.close();
+  const reopened = await f.open();
+  for (const receipt of own) assert.deepEqual(await reopened.write(receipt.id), receipt);
+});

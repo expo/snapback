@@ -15,46 +15,54 @@ function receipt(write: Terminal): Terminal {
     : { state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: `write refused: ${write.why.code}` } };
 }
 
-/** Client receipts, separate from the executable outbox. Persist before retiring
- * an entry, so a reopen can still name its outcome after the row has gone. */
+/** Persist before retiring an outbox entry. Durable receipts are read straight
+ * from the device; values holds only session outcomes (online/mock writes and
+ * local refusals before admission). Server event ids follow the outbox. */
 export class WriteHistory {
   private values = new Map<string, Write>();
   private terminal = new Set<string>();
-  private persisted = new Set<string>();
   private emitted = new Set<string>();
   constructor(private storage?: Storage) {}
 
   remember<T extends Write>(write: T): T {
+    // Durable clients read pending from the outbox; another owner may retire it.
+    if (this.storage && write.state === "pending") return write;
     if (write.state !== "pending" || !this.values.has(write.id)) this.values.set(write.id, write.state === "pending" ? write : receipt(write));
     if (write.state !== "pending") {
       this.terminal.add(write.id);
       if (this.terminal.size > WRITE_HISTORY_LIMIT) {
         const oldest = this.terminal.values().next().value!;
-        this.terminal.delete(oldest); this.values.delete(oldest); this.persisted.delete(oldest);
+        this.terminal.delete(oldest); this.values.delete(oldest); this.emitted.delete(oldest);
       }
     }
     return write;
   }
 
   async keep(write: Terminal): Promise<void> {
-    await this.storage?.save(JSON.stringify(receipt(write)));
-    if (this.storage) this.persisted.add(write.id);
-    this.remember(write);
+    if (this.storage) {
+      await this.storage.save(JSON.stringify(receipt(write)));
+      this.values.delete(write.id); this.terminal.delete(write.id);
+    } else this.remember(write);
   }
 
   async read(id: string): Promise<Write | undefined> {
     const saved = await this.storage?.read();
-    const current = this.values.get(id);
+    // @ref LLP 3000.007#20.4 — the device owns the receipt window; memory never retains a second server history.
     const durable = saved ? (JSON.parse(saved) as Terminal[]).find(write => write.id === id) : undefined;
-    if (durable) return durable;
-    if (this.persisted.has(id)) return undefined;
-    return current;
+    if (durable) { this.values.delete(id); this.terminal.delete(id); }
+    return durable ?? this.values.get(id);
+  }
+
+  retainEmissions(queued: Iterable<string>): void {
+    const retained = new Set(queued);
+    for (const id of this.values.keys()) retained.add(id);
+    for (const id of this.emitted) if (!retained.has(id)) this.emitted.delete(id);
   }
 
   firstEmission(id: string): boolean {
     if (this.emitted.has(id)) return false;
     this.emitted.add(id);
-    if (this.emitted.size > WRITE_HISTORY_LIMIT) this.emitted.delete(this.emitted.values().next().value!);
+    if (!this.storage && this.emitted.size > WRITE_HISTORY_LIMIT) this.emitted.delete(this.emitted.values().next().value!);
     return true;
   }
 }

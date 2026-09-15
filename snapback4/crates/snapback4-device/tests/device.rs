@@ -13,6 +13,7 @@ mod maintains;
 mod merge_cursor;
 mod store_reset;
 mod trending;
+mod receipt_history;
 
 use common::*;
 use snapback4_core::engine::WriteState;

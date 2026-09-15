@@ -18408,3 +18408,126 @@ Verification, with Node 24.18.0 on PATH and cargo run from `snapback4/`:
   serialized value form or existing corpus case changed. No other lane's
   implementation file changed; the README and this journal are the requested
   shared documentation updates. No commit, push, tag or publication was made.
+
+## 2026-09-15 — W5R2a: one durable receipt window, destination-first adoption
+
+Built from `79013faea0ebd4cf1471974b25f9f1f25509662c` for wave 5's final
+receipt-history review round. Kept durable recovery; the session-only fallback
+was not needed. Local clients now read server receipts directly from the one
+256-entry device metadata record and pending state from the current executable
+outbox. There is no second in-memory server-receipt window, persisted-id list,
+or pending-write cache to evict independently or to resurrect after another
+native owner settles a write. The existing session-only pre-admission refusals
+remain bounded to 256; online/mock history keeps its existing session contract.
+A mutation's waiting callback is released when its promise returns, including
+when it returns pending; later terminal events do not need that callback.
+
+`keep_write` accepts one new completion or an adopted older window. Adoption
+unions by id in the device transaction, keeps destination values on collisions,
+and places the destination after the incoming entries before trimming to 256.
+The web host transfers the orphan's window in one call and persists the result
+before removing the orphan. An orphan can fill spare capacity, never displace
+what the destination already holds. The stored receipt format is unchanged.
+
+Event ids follow the executable outbox snapshot the client already reads;
+there is no independently evicting 256-id server-event list. A sent entry's
+receipt was persisted before settlement, so repeated flushing, opening or
+retirement on replacement does not reinsert that receipt after eviction.
+A flush that already knows the terminal receipt skips its event. Reads may
+still report sent while the terminal outbox entry exists; after both the
+receipt and entry leave, they return undefined. The README and writes card
+state these rules. No new diagnostic or note was introduced.
+
+Before implementation all five new client regressions failed. Two native
+owners exercised 600 device-protocol settlements (the second owner writes the
+receipt, settles and removes the outbox entry): durable history stayed at 256,
+but the observing history retained 600 pending values. Afterward the same
+measurement is 256 durable receipts, 0 cached pending values, 0 cached server
+outcomes, and 0 outbox entries; the newest 256 remain sent and evicted ids are
+undefined. On both wasm and process devices, one real sent write held in the
+outbox followed by 256 local refusal emissions fired its event twice before,
+once after. The final regression also fills the durable window with 256 other
+receipts before flushing: the queued id remains sent, emits once, does not
+refresh its evicted receipt, and becomes undefined after catch-up removes it.
+
+The web tests use a full 256-receipt orphan window, including one colliding id.
+Before, destination windows of 256 and 128 retained only that one overlapping
+id. After, all 256/256 and 128/128 destination receipts remain readable before
+and after reopen; adoption contributes 0 and 128 receipts respectively, with
+256 total in either case and the destination's original collision value.
+The Rust scenario runs on SQLite and memory with destination sizes 0, 128 and
+256, and checks filling, collisions, ordering, repeat adoption, ordinary new
+completion eviction and reopen. This is device/window evidence, not a claim
+about physical power loss or 600 server executions.
+
+Targeted commands (from `snapback4/`, with
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` for JavaScript):
+
+```sh
+node --test --test-name-pattern=W5R2a packages/snapback4/test/acquisition.test.mjs
+cargo test -p snapback4-device --test device receipt_history_ -- --nocapture
+node --test packages/snapback4/test/acquisition.test.mjs
+cargo test -p snapback4-lang --test guide -- --nocapture
+node --test packages/snapback4/test/online-session.test.mjs packages/snapback4/test/store-reset-review.test.mjs
+node --test packages/snapback4/test/react.test.mjs
+node --test --test-name-pattern='offline then server identity mismatch' packages/snapback4/test/navigation-model.test.mjs
+```
+
+Verbatim count summaries, in that order (the first two include before/after):
+
+```text
+new client regressions before:
+ℹ pass 0
+ℹ fail 5
+new client regressions after:
+ℹ pass 5
+ℹ fail 0
+device before:
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 131 filtered out; finished in 0.02s
+device after:
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 131 filtered out; finished in 0.48s
+acquisition:
+ℹ pass 24
+ℹ fail 0
+guide:
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+client integration:
+ℹ pass 21
+ℹ fail 0
+isolated React:
+ℹ pass 0
+ℹ fail 1
+isolated navigation cleanup rerun:
+ℹ pass 1
+ℹ fail 0
+```
+
+`bash snapback4/scripts/test.sh` ran twice from the repository root with that
+Node PATH. The first run ended `== 2 failure(s) in 73 s`: Cargo discovered the
+new test helper as a standalone integration test, and an extra asynchronous
+metadata read in `queued()` broke a test double and changed transport-test
+interleavings. Both were introduced here and repaired: the helper moved under
+`tests/receipt_history/mod.rs`, and emission retention now uses the existing
+outbox snapshot synchronously, without another metadata read or host-chain
+step. The 21-test integration command above verifies those paths afterward.
+The first run's client counts were 305 passed / 5 failed; fixtures were 9/0.
+
+The final full run ended `== 1 failure(s) in 300 s`. Its 61 Rust result groups
+total 951 passed, 0 failed and 4 ignored (`-- ok: cargo test (294 s)`);
+fixtures report `ℹ pass 9` / `ℹ fail 0`; clients report `ℹ pass 308` /
+`ℹ fail 2`. The two client failures were Chromium SIGABRT in the sandbox,
+reproduced alone at 0/1 (318.727375 ms), and `ENOTEMPTY` removing the navigation
+fixture's temporary directory, green alone at 1/0 (334.882833 ms). No failure
+is claimed baseline-verified or pre-existing; the Chromium limitation is the
+one identified in the lane brief and still needs the lead's outside-sandbox
+run. All builds and typechecks pass. The wasm build measures 1,751,317 B raw /
+487,985 B gzip, versus 1,749,000 / 487,241 before: +2,317 raw / +744 gzip bytes,
+a build observation only.
+
+`./ref-check --verbose` is green. The largest changed code file is the existing
+`tests/device.rs` at 1,484 lines; its only change is the module declaration.
+The additional test module and the published writes card are the required
+minimal touches beyond the lane's implementation ownership list; README and
+this append-only journal are the requested shared documentation. No meter
+ceiling, serialized value-model form or existing corpus case changed. No
+commit, push, tag, publication, sub-agent or remote-machine work was performed.

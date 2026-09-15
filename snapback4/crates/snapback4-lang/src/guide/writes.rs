@@ -17,15 +17,19 @@ Writes that do not predict show pending with `usePendingWrite(op)` from
 terminal `sent` or `failed`, and `last` is the Write. Keep its mutation id in
 view state; `usePendingWrite(op, savedId)` resumes observation after reload
 without submitting again. `client.write(id)` reads the kept outcome (undefined
-for an unknown or evicted id); `onWrite` reports later terminal changes.
-The online and local clients retain at most 256 terminal outcomes in memory;
-unresolved writes are independent of that bound. The local device atomically
-keeps the last 256 server terminal receipts in one metadata record, deleting
-evicted receipts; event deduplication keeps at most 256 ids. Local server receipts
-survive reopen with the device store, including adoption of a closed web tab. Recovered success carries `replayed: true`
+for an unknown id or an evicted id that has left the outbox); `onWrite` reports
+later terminal changes. The online client retains at most 256 terminal outcomes
+in memory. The local client reads the device's one atomic window of the last
+256 server terminal receipts and its current outbox directly, so another native
+owner's settlement cannot leave a stale pending outcome. Reads and repeated
+flushes do not refresh the window. Queued terminal writes emit at most once
+per client: their event ids stay remembered until the outbox entry leaves.
+Local receipts survive reopen; adopting a
+closed web tab fills only spare capacity, with destination receipts newest and
+winning id collisions. Recovered success carries `replayed: true`
 and no result; recovered failure keeps code/family and `write refused: CODE`.
 Refusals before durable admission, the online tier and mock remember outcomes
-for their client lifetime only.
+for their client lifetime only, up to 256 terminal outcomes.
 
 `client.acquired` and `useAcquired()` report completed snapshot and catch-up
 for the current store, stay true offline, and reset with invalidated acquisition.

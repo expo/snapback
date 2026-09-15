@@ -368,11 +368,9 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
       // A reloaded secondary tab gets a new store name. Its value-free terminal
       // receipts must follow the outbox before the orphan store is removed.
       for (const change of saved) if (change.s === "m" && change.k === "client:write-history" && change.v) {
-        for (const receipt of JSON.parse(change.v)) {
-          destinationDirty = true;
-          const copied = JSON.parse(device.call(JSON.stringify({ op: "keep_write", value: JSON.stringify(receipt) })));
-          if (copied.denied) throw new Error(refusalText(JSON.stringify(copied)));
-        }
+        destinationDirty = true;
+        const copied = JSON.parse(device.call(JSON.stringify({ op: "keep_write", value: change.v })));
+        if (copied.denied) throw new Error(refusalText(JSON.stringify(copied)));
       }
       await settle(saved.filter(c => c.s === "j" && !entries.some(e => e.id === c.k && !removed.some(r => r.k === e.id))));
       destinationDirty = false;

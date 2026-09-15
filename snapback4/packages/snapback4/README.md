@@ -1564,16 +1564,21 @@ Keep the returned mutation `id` with the application's view state and pass it
 as `usePendingWrite(op, savedId)` after reload. Recovery observes that id; it
 never submits again. `await client.write(id)` also reads its latest outcome,
 and `onWrite` receives later terminal changes. An unknown id returns
-`undefined`, as does an evicted terminal id. The online and local clients keep
-at most 256 terminal outcomes in memory; unresolved writes are retained
-independently. The local client keeps the last 256 server terminal receipts
-in one bounded device metadata record, replacing evicted receipts atomically;
-event deduplication also retains at most 256 ids. Reopen keeps that receipt window:
+`undefined`, as does an evicted terminal id once it leaves the outbox. The
+online client keeps at most 256 terminal outcomes in memory. The local client
+reads terminal receipts directly from one device metadata record holding the
+last 256 server outcomes; it reads pending writes from the current outbox,
+so another native owner's settlement cannot leave a stale pending outcome.
+Neither receipt reads nor repeated flushes refresh the window. Queued terminal
+writes emit at most once per client: their event ids stay remembered until the
+outbox entry leaves. Reopen keeps that receipt window:
 recovered success has `replayed: true` and no historical result; recovered
 failure keeps its code and family with the message `write refused: CODE`.
 Refusals before durable admission, the online tier and mock remember outcomes
-only for that client lifetime. A secondary web tab transfers its receipts when
-its closed store is adopted. Rebuild the Expo native binary with this client
+only for that client lifetime, up to 256 terminal outcomes. A secondary web
+tab transfers its receipts when its closed store is adopted: destination
+receipts win id collisions and count as newest, so adopted receipts fill only
+spare capacity and cannot displace the destination's window. Rebuild the Expo native binary with this client
 version: acquisition is a device protocol field, and an older module refuses
 startup with `E_DEVICE_VERSION`.
 

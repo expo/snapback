@@ -795,19 +795,28 @@ impl<S: DeviceStore> Device<S> {
     }
 
     /// Replace the bounded terminal history atomically, also across native owners.
+    /// An adopted list precedes the destination window, which wins id collisions.
     /// Unresolved writes live independently in the executable outbox.
     // @ref LLP 3000.007#20.4 — receipt retention cannot evict an unresolved durable write.
     pub fn keep_write(&mut self, value: &str) -> Result<(), RuntimeError> {
         let parse = |text: &str| serde_json::from_str::<serde_json::Value>(text).map_err(|e| RuntimeError::Store(e.to_string()));
         let write = parse(value)?;
-        let id = write.get("id").and_then(|id| id.as_str()).ok_or_else(|| RuntimeError::Store("write receipt requires an id".into()))?;
+        // A list is an adopted older window; a single receipt is a new local completion.
+        let adopting = write.is_array();
+        let incoming = if adopting { write.as_array().unwrap().clone() } else { vec![write] };
+        for entry in &incoming {
+            if entry.get("id").and_then(|id| id.as_str()).is_none() { return Err(RuntimeError::Store("write receipt requires an id".into())); }
+        }
         let tx = self.store.transaction()?;
         let mut history = tx.meta("client:write-history")?.map(|text| parse(&text)).transpose()?.unwrap_or_else(|| serde_json::json!([]));
         let entries = history.as_array_mut().ok_or_else(|| RuntimeError::Store("write history must be a list".into()))?;
-        if !entries.iter().any(|entry| entry.get("id").and_then(|id| id.as_str()) == Some(id)) {
-            entries.push(write);
-            if entries.len() > 256 { entries.drain(..entries.len() - 256); }
+        let mut ids: std::collections::BTreeSet<String> = entries.iter().filter_map(|entry| entry["id"].as_str().map(str::to_owned)).collect();
+        let mut added = Vec::new();
+        for entry in incoming {
+            if ids.insert(entry["id"].as_str().unwrap().to_owned()) { added.push(entry); }
         }
+        if adopting { entries.splice(..0, added); } else { entries.extend(added); }
+        if entries.len() > 256 { entries.drain(..entries.len() - 256); }
         tx.set_meta("client:write-history", &history.to_string())?;
         tx.commit()
     }
