@@ -1,4 +1,4 @@
-// The React arm: one provider, five hooks, nothing a screen must reconcile.
+// The React arm: one provider and hooks over the client card.
 // Every hook returns a value from the card (contract.ts) and nothing else.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
@@ -157,7 +157,7 @@ export function usePage<A extends { c?: Cursor | null }, R extends readonly unkn
 
 /** A write. `run` never throws; `last` is the most recent outcome, including
  * queued settlement. A sent replay has `replayed: true` and no result. */
-export function useMutation<A, R>(op: Mutation<A, R>) {
+function useTrackedMutation<A, R>(op: Mutation<A, R>, id?: string) {
   const client = useClient();
   const [last, setLast] = useState<Write<R> | undefined>(undefined);
   const [inFlight, setInFlight] = useState(false);
@@ -169,6 +169,8 @@ export function useMutation<A, R>(op: Mutation<A, R>) {
       setInFlight(false);
     }
     const owner = lifetime.current;
+    if (id) owner.ids.set(id, owner.latest);
+    let restored = false;
     const unsubscribe = client.onWrite((write) => {
       const run = owner.ids.get(write.id);
       if (run == null) {
@@ -181,10 +183,16 @@ export function useMutation<A, R>(op: Mutation<A, R>) {
         return;
       }
       owner.ids.delete(write.id);
+      if (write.id === id) restored = true;
       if (owner.active && lifetime.current === owner && run === owner.latest) setLast(write as Write<R>);
     });
+    if (id) void client.write(id).then(write => {
+      if (!restored && owner.active && lifetime.current === owner && owner.latest === 0) {
+        setLast(write as Write<R> | undefined);
+      }
+    }).catch(() => { /* No receipt is not a failed mutation. Keep the subscribed outcome. */ });
     return () => { owner.active = false; unsubscribe(); };
-  }, [client, op]);
+  }, [client, op, id]);
   const run = useCallback(async (args: A): Promise<Write<R>> => {
     const owner = lifetime.current;
     const serial = ++owner.next;
@@ -216,6 +224,27 @@ export function useMutation<A, R>(op: Mutation<A, R>) {
     return outcome;
   }, [client, op]);
   return { run, last, inFlight };
+}
+
+/** A write's latest outcome and in-flight calls, including terminal settlement. */
+export function useMutation<A, R>(op: Mutation<A, R>) {
+  return useTrackedMutation(op);
+}
+
+/** Track one write from submit to sent/failed. Pass its saved mutation id to
+ * recover after remount/reopen without submitting it again. Unknown ids leave
+ * last undefined. pending includes the interval before mutate returns an id. */
+export function usePendingWrite<A, R>(op: Mutation<A, R>, id?: string) {
+  const write = useTrackedMutation(op, id);
+  return { ...write, pending: write.inFlight || write.last?.state === "pending" };
+}
+
+/** Durable acquisition, independent of whether the link is currently online. */
+export function useAcquired(): boolean {
+  const client = useClient();
+  const subscribe = useCallback((notify: () => void) => client.onAcquired(() => notify()), [client]);
+  const read = useCallback(() => client.acquired, [client]);
+  return useSyncExternalStore(subscribe, read, read);
 }
 
 /** A worker action. `run` returns its outcome; pass a pending id again to

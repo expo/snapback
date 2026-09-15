@@ -5,6 +5,7 @@
 // Every word a screen reads is on the card (contract.ts).
 
 import { changeFeed } from "./changes.ts";
+import { WriteHistory } from "./writes.ts";
 import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import { logout, logoutAll as revokeAllSessions, refreshSession as rotateSession, type Session, type SignIn } from "./auth.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
@@ -85,8 +86,10 @@ export function createClient(options: ClientOptions): Client {
   const linkListeners = new Set<(link: Link) => void>();
   const sessionListeners = new Set<(session: Session | null) => void>();
   const viewerListeners = new Set<(viewer: Principal | null) => void>();
+  const history = new WriteHistory();
   const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
   const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
+    history.remember(write);
     for (const listener of writeListeners) listener(write);
     return write;
   };
@@ -479,11 +482,15 @@ export function createClient(options: ClientOptions): Client {
       const settled = new Promise<Write>((resolve) => { settle = resolve; });
       const entry = { id, op: op as Mutation<unknown, unknown>, args, resolve: settle };
       pending.push(entry);
+      history.remember({ state: "pending", id });
       const attempt = flush();
       if (link !== "online") return { state: "pending", id };
       return Promise.race([settled, attempt.then((): Write => ({ state: "pending", id }))]) as Promise<Write<R>>;
 
     },
+    async write(id) { const receipt = await history.read(id); return !closed && credentials ? receipt : undefined; },
+    acquired: false,
+    onAcquired: () => () => {},
     async upload(bytes) {
       if (refreshing) await refreshing;
       if (closed) return { ok: false, why: ended() };

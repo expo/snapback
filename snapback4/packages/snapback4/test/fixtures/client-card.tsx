@@ -7,6 +7,9 @@ declare const local: Awaited<ReturnType<typeof createLocalClient>>;
 const online: Client = createClient({ url: "http://localhost:4400", persona: "alice" });
 const clients: Client[] = [local, online];
 for (const client of clients) {
+  const acquired: boolean = client.acquired;
+  client.onAcquired(value => { const ready: boolean = value; })();
+  void client.write("saved-mutation-id");
   client.session();
   client.onSession(session => { const token: string | undefined = session?.token; })();
   void client.refreshSession();

@@ -17577,3 +17577,65 @@ production benchmark binary. Original inputs, outputs and receipts are under
 is `signal-framing-0219-v1-source-evidence-independent-review.md` (68b3a763).
 The current three-backend comparison still requires a separately qualified
 build and fresh sessions; no timing or new competitor win is claimed here.
+
+## 2026-09-15 — W5c: acquisition and pending-write observation
+
+Added `client.acquired`, `onAcquired` and React's `useAcquired()`. The
+existing device acquisition marker now crosses `sync_state` as one boolean,
+checked against the current owner, backend and restore state in its read
+transaction. Snapshot pages alone leave it false; completed catch-up makes
+it true, including for an empty partition. Offline reopen and safe literal
+default widening preserve it; invalidating adoption and store replacement
+clear it. This requires rebuilding the Expo native binary to match the
+client; the existing E_DEVICE_VERSION handshake rejects an older module.
+The Expo reference opener (also the source of `init --expo`) and README
+openers await sync when online and skip that wait offline.
+
+Added `usePendingWrite(op, savedId?)`, using the existing mutation hook's
+submission, concurrency and terminal-event handling. Its pending flag starts
+at submission; a saved mutation id restores observation without resubmitting.
+`client.write(id)` recovers the pending outbox entry or terminal server receipt.
+The local client persists execution-only receipts before retiring an outbox
+entry. Success recovers with `replayed: true` and no historical result;
+failure keeps its code/family with a value-free message. Closed secondary web
+tabs transfer those receipts with their existing orphan adoption. Refusals
+before durable admission and the online/mock tiers retain lifetime-only
+outcomes. The two chat composers use the hook and distinguish Sending from
+Queued. The writes and prediction cards and package README describe the API.
+
+The online acquisition regression keeps the link online and serves six real
+server rows while delaying acquisition and mutation service. The write reports
+`queued without a row: not acquired yet`, with **0 predicted rows**. Once
+acquired, an offline write produces **1 predicted row**, on both wasm and
+process hosts. Other missing local evidence reports
+`queued without a row: local data does not justify prediction`; a predicted
+write has no such reason. Each host recovered **1 sent and 1 failed** receipt;
+the three server requests in that scenario include same-id replay. The
+secondary-tab regression kept **1 application**, with no duplicate. Executing
+the generated Expo opener called sync **1 time online, 0 times offline**.
+Wasm measured **1,743,785 → 1,744,036 B raw** and
+**485,491 → 485,593 B gzip** on the same build script (**+251 / +102 B**).
+
+Regression evidence at base `2862bfdadd6cf846029628151d2fb6a39006d2ed`:
+the initial five client/starter cases were **0 passed / 5 failed**;
+the device acquisition case was **0 passed / 1 failed**, then **1 / 0**.
+The secondary-tab receipt case separately reproduced **0 / 1** before its
+transfer fix. All six client/starter cases are now **6 / 0**; the affected
+client suites passed **134 / 0**, including README TypeScript compilation.
+The final blocking run completed in **326 s**: **892 Rust passed, 0 failed,
+4 ignored**; fixtures **9 / 0**; client tests **292 / 1**. The first run was
+**379 s**, with the same sole failing group. Chromium SIGABRT prevented the
+React harness from running; the original harness extracted from the base
+commit reproduces the same pre-application launch failure (**0 / 1**).
+The new React cases cover submit/pending/sent/failed, remount, replay,
+hydration races and client replacement, and await the lead's outside-sandbox
+run. No other failure is attributed to the base. The largest changed code
+file is **1,482 lines**. No ceilings or value serializations changed.
+
+What I learned: mounted mutation settlement was already solved by
+`useMutation`; the missing piece was recovering an outcome whose event ran
+before the new screen mounted. Acquisition also already existed durably in
+the device, but the client needed its actual state rather than inferring it
+from a watermark or an online link. The public metadata door intentionally
+namespaces client keys, so the acquisition flag belongs in the existing device
+state reply. This lane leaves its changes uncommitted for the lead.

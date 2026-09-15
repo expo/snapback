@@ -37,6 +37,7 @@ pub struct Backend {
 /// no other owner has started a mutation send after this capture.
 #[derive(Clone, Debug, Serialize)]
 pub struct SyncState {
+    pub acquired: bool,
     pub backend_required: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub restore_refusal: Option<Refusal>,
@@ -437,7 +438,10 @@ impl<S: DeviceStore> Device<S> {
             }
         }
         let restore_refusal = tx.meta(store_identity::RESTORE_REFUSED)?.map(|_| store_identity::restore_error().refusal());
-        let state = SyncState { backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()).is_err(), restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, send_revision: meta_u64(&tx, SEND_REVISION)? };
+        // @ref LLP 3000.007#18.2 — expose acquisition for this healthy owner, never a superseded store's marker.
+        let acquired = restore_refusal.is_none() && tx.meta(ACQUIRED)? == Some(self.generation.to_string());
+        let mut state = SyncState { acquired, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()).is_err(), restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, send_revision: meta_u64(&tx, SEND_REVISION)? };
+        state.acquired &= !state.backend_required;
         tx.rollback()?;
         Ok(state)
     }

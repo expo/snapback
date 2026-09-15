@@ -12,6 +12,28 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
   return { a: a.id, b }
 ```
 
+Writes that do not predict show pending with `usePendingWrite(op)` from
+`snapback4/react`: `run(args)` submits, `pending` covers submission through
+terminal `sent` or `failed`, and `last` is the Write. Keep its mutation id in
+view state; `usePendingWrite(op, savedId)` resumes observation after reload
+without submitting again. `client.write(id)` reads the kept outcome (undefined
+for an unknown id); `onWrite` reports later terminal changes. Local server receipts
+survive reopen with the device store, including adoption of a closed web tab. Recovered success carries `replayed: true`
+and no result; recovered failure keeps code/family and `write refused: CODE`.
+Refusals before durable admission, the online tier and mock remember outcomes
+for their client lifetime only.
+
+`client.acquired` and `useAcquired()` report completed snapshot and catch-up
+for the current store, stay true offline, and reset with invalidated acquisition.
+The online tier has no partition and reports false. In an opener, use
+`if (client.link() === "online") await client.sync()` before exposing a screen
+that needs immediate offline predictions; skip the wait on an offline cold start.
+If sync loses the link or the partition is refused, acquisition can remain false.
+A Write queued without a row before acquisition carries
+`reason: "queued without a row: not acquired yet"`; other missing local evidence
+says `queued without a row: local data does not justify prediction`.
+Predicted rows carry pending; a pending Write has no predicted result.
+
 `upsert` set-state writes (likes, reactions and votes) predict updates of
 rows the device holds. A missing row predicts an insert only when its synced
 group is held with no horizon, both the key and the materialized insert image

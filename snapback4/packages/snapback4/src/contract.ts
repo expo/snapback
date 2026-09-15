@@ -52,7 +52,7 @@ export interface Pending {
  * Pending rows show predictions; `id` is client-minted and stable across replay. */
 // @ref LLP 3000.007#17 — replay confirms execution without historical read authority
 export type Write<R = unknown> =
-  | { readonly state: "pending"; readonly id: string }
+  | { readonly state: "pending"; readonly id: string; readonly reason?: string }
   | { readonly state: "sent"; readonly id: string; readonly seq: number; readonly replayed?: false; readonly result: R }
   | { readonly state: "sent"; readonly id: string; readonly seq: number; readonly replayed: true; readonly result?: never }
   | { readonly state: "failed"; readonly id: string; readonly why: Refusal };
@@ -131,6 +131,9 @@ export interface Client {
   query<A, R>(op: Query<A, R>, args: A): Promise<Read<R>>;
   observe<A, R>(op: Query<A, R>, args: A): Observed<R>;
   mutate<A, R>(op: Mutation<A, R>, args: A): Promise<Write<R>>;
+  /** Recover a write by mutation id. Unknown ids return undefined. Local
+   * clients keep terminal receipts with their store, without historical results. */
+  write(id: string): Promise<Write | undefined>;
   act<A, R>(op: Action<A, R>, args: A, options?: ActOptions): Promise<Act<R>>;
   /** Send the bytes of a photo or video; place `asset.id` in a mutation's
    * `image`/`video` argument. Online only: an upload waits for no link. */
@@ -142,6 +145,10 @@ export interface Client {
   assetSource(id: string): { uri: string; headers: Record<string, string> };
   link(): Link;
   onLink(notify: (link: Link) => void): () => void;
+  /** Snapshot and catch-up have finished for this store. Stays true offline;
+   * reset invalidates it. The online tier has no partition and returns false. */
+  readonly acquired: boolean;
+  onAcquired(notify: (acquired: boolean) => void): () => void;
   viewer(): Principal | null;
   onViewer(notify: (viewer: Principal | null) => void): () => void;
   onWrite(notify: (write: Exclude<Write, { state: "pending" }>) => void): () => void;

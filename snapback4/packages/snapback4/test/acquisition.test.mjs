@@ -30,6 +30,9 @@ query one():
 query guarded():
   require exists notes['seed'] else MISSING
   return true
+mutation reject():
+  require exists notes['missing'] else MISSING
+  return true
 mutation add(body: text <=100):
   require exists notes['seed'] else MISSING
   return insert notes { body }
@@ -76,6 +79,9 @@ async function fixture(t, tier, empty = false) {
       fetch: async (input, init) => {
         const path = new URL(input).pathname;
         if (mode === "offline") throw new TypeError("offline reopen");
+        if (mode === "busy" && (path === "/sync" || path.startsWith("/m/"))) return Response.json({ denied: {
+          code: "E_RATE_LIMIT", family: "bound", message: "server is busy", retryable: true,
+        } }, { status: 429 });
         if (path === "/schema" && mode === "after-adopt") {
           const response = await fetch(input, init); mode = "sync-fails"; return response;
         }
@@ -109,7 +115,7 @@ function assertUnknown(answers) {
     assert.equal("data" in answer, false);
   }
 }
-async function unknown(client, t) { assertUnknown(await observations(client, t)); }
+async function unknown(client, t) { assert.equal(client.acquired, false); assertUnknown(await observations(client, t)); }
 
 for (const tier of ["wasm", "process"]) {
   test(`${tier}: schema alone is not acquisition; queued guarded writes survive offline reopen`, { timeout: 30000 }, async (t) => {
@@ -147,6 +153,7 @@ for (const tier of ["wasm", "process"]) {
     assert.ok(f.counts().snapshots > 1); assert.equal(f.counts().catchups, 0);
     await unknown(client, t);
     f.mode("online"); await client.sync();
+    assert.equal(client.acquired, true);
     const full = await client.query(query("all"), {});
     assert.equal(full.complete, true); assert.equal(full.data.length, 6); assert.ok(f.counts().catchups > 0);
     f.mode("offline"); await client.sync(); await client.close(); client = await f.open();
@@ -161,6 +168,7 @@ for (const tier of ["wasm", "process"]) {
     writeFileSync(f.schemaPath, evolved);
     await until(async () => (await f.backend()).generation !== old.generation, "server did not adopt the new generation");
     await client.close(); f.mode("sync-fails"); client = await f.open();
+    assert.equal(client.acquired, true, "safe default-only widening preserves acquisition");
     const inherited = await client.query(query("all"), {});
     assert.equal(inherited.complete, true); assert.equal(inherited.fresh, false); assert.equal(inherited.data.length, 7);
     assert.ok(inherited.data.every((row) => row.tag === "new"));
@@ -179,6 +187,7 @@ for (const tier of ["wasm", "process"]) {
     f.mode("after-adopt"); await client.sync(); await unknown(client, t);
     await client.close(); f.mode("offline"); client = await f.open(); await unknown(client, t);
     f.mode("online"); await client.sync();
+    assert.equal(client.acquired, true);
     const reacquired = await client.query(query("all"), {});
     assert.equal(reacquired.complete, true); assert.equal(reacquired.data.length, 7);
   });
@@ -186,11 +195,71 @@ for (const tier of ["wasm", "process"]) {
   test(`${tier}: a genuinely empty partition at sequence zero is acquired durably`, { timeout: 20000 }, async (t) => {
     const f = await fixture(t, tier, true);
     f.mode("online"); let client = await f.open();
+    assert.equal(client.acquired, true, "an empty partition is acquired too");
     assert.equal((await f.core().call({ op: "state" })).ok.watermark, 0);
     f.mode("offline"); await client.sync(); await client.close(); client = await f.open();
     const page = await client.query(query("all"), {}), count = await client.query(query("countAll"), {});
     assert.deepEqual(page.data, []); assert.equal(page.complete, true); assert.equal(page.fresh, false);
     assert.equal(count.data, 0); assert.equal(count.complete, true);
     assert.equal((await client.query(query("guarded"), {})).denied?.code, "MISSING", "acquired absence may justify the program's refusal");
+  });
+}
+
+for (const tier of ["wasm", "process"]) {
+  test(`W5c ${tier}: online reopen reports acquisition and a missing-row reason, then predicts`, { timeout: 30000 }, async (t) => {
+    const f = await fixture(t, tier);
+    let client = await f.open();
+    await client.close();
+    // Schema and server reads succeed while acquisition and writes wait online.
+    f.mode("busy"); client = await f.open();
+    assert.equal(client.link(), "online");
+    assert.equal(client.acquired, false);
+    assert.equal((await client.query(query("all"), {})).data.length, 6);
+    const changes = []; client.onAcquired(value => changes.push(value));
+    const pending = await client.mutate({ kind: "mutation", name: "add" }, { body: "before acquisition" });
+    assert.equal(pending.state, "pending");
+    assert.equal(pending.reason, "queued without a row: not acquired yet");
+    assert.equal(client.link(), "online", "pending does not imply a lost link");
+    assert.deepEqual((await f.core().call({ op: "queued" })).ok[0].predicted, []);
+    f.mode("online"); await client.sync();
+    assert.equal(client.acquired, true);
+    assert.deepEqual(changes, [true]);
+    await until(async () => (await client.write(pending.id))?.state === "sent", "queued write did not settle");
+    f.mode("offline"); await client.sync();
+    const predicted = await client.mutate({ kind: "mutation", name: "add" }, { body: "after acquisition" });
+    assert.equal(predicted.state, "pending");
+    assert.equal(predicted.reason, undefined);
+    const rows = await client.query(query("all"), {});
+    assert.equal(rows.data.filter(row => row.body === "after acquisition" && row.pending).length, 1);
+    await client.close(); client = await f.open();
+    assert.equal(client.acquired, true, "offline reopen keeps durable acquisition");
+    assert.equal((await client.write(predicted.id)).state, "pending");
+    t.diagnostic(`acquisition changes: ${JSON.stringify(changes)}; before: 0 predicted rows; after: 1 predicted row`);
+  });
+
+  test(`W5c ${tier}: pending writes recover by id through sent and failed, including settlement before reopen returns`, { timeout: 30000 }, async (t) => {
+    const f = await fixture(t, tier);
+    let client = await f.open();
+    const sent = await client.mutate({ kind: "mutation", name: "add" }, { body: "recover me" });
+    const failed = await client.mutate({ kind: "mutation", name: "reject" }, {});
+    assert.equal(sent.state, "pending"); assert.equal(failed.state, "pending");
+    assert.equal((await client.write(sent.id)).state, "pending");
+    assert.equal((await client.write(failed.id)).state, "pending");
+    await client.close(); f.mode("offline"); client = await f.open();
+    assert.equal((await client.write(sent.id)).state, "pending");
+    assert.equal((await client.write(failed.id)).state, "pending");
+    const terminal = []; client.onWrite(write => terminal.push(write));
+    f.mode("online"); await client.sync();
+    await until(() => terminal.length === 2, "both terminal outcomes did not arrive");
+    assert.equal((await client.write(sent.id)).state, "sent");
+    assert.equal((await client.write(failed.id)).why.code, "MISSING");
+    await client.close(); client = await f.open();
+    const recovered = await client.write(sent.id);
+    assert.equal(recovered.state, "sent"); assert.equal(recovered.replayed, true);
+    assert.equal("result" in recovered, false, "reopen carries identity only");
+    assert.equal((await client.write(failed.id)).state, "failed");
+    assert.equal((await client.write(failed.id)).why.code, "MISSING");
+    assert.equal(await client.write("unknown-id"), undefined, "unknown is never a fabricated pending receipt");
+    t.diagnostic(`recovered outcomes: sent=1 failed=1; server sends=${f.counts().posts}`);
   });
 }

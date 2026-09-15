@@ -3,6 +3,11 @@ pub(super) const CARD: &str = r##"# Prediction: queued writes and local rows
 
 `pending` means the write has not settled; `sent` means the server committed it.
 A predicted row carries `pending: true`; a pending write may have no predicted row.
+Writes that do not predict show pending with `usePendingWrite(op)` from
+`snapback4/react`; pass a saved mutation id as its second argument to observe
+that write after reload. See `guide writes` for terminal receipts and acquisition.
+`client.acquired` and `useAcquired()` say whether snapshot and catch-up finished;
+unacquired writes without a row report `queued without a row: not acquired yet`.
 
 Run `snapback4 check --residency` and `snapback4 why <op>` to see read sites:
 - `held`: the viewer's whole synced partition, or an inherited maintain.

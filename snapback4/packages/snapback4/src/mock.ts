@@ -5,6 +5,7 @@
 // against the card before the mechanism exists. Nothing here is measured.
 
 import type { Act, Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
+import { WriteHistory } from "./writes.ts";
 
 export type Row = Record<string, unknown> & { id: string; pending?: boolean };
 export type Tables = Record<string, Map<string, Row>>;
@@ -58,8 +59,10 @@ export function createMockClient(options: MockOptions): MockClient {
   const listeners = new Set<() => void>();
   const linkListeners = new Set<(link: Link) => void>();
   const viewerListeners = new Set<(viewer: Principal | null) => void>();
+  const history = new WriteHistory();
   const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
   const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
+    history.remember(write);
     for (const listener of writeListeners) listener(write);
     return write;
   };
@@ -137,6 +140,7 @@ export function createMockClient(options: MockOptions): MockClient {
       const table = op.name.split(".")[0] ?? "";
       for (const rowId of outcome) { const row = tables[table]?.get(rowId); if (row) row.pending = true; }
       bump();
+      history.remember({ state: "pending", id });
       if (link === "offline") {
         // Durable admission without a server: the write stays pending until the link returns.
         return await new Promise<Write<R>>((resolve) => {
@@ -149,6 +153,9 @@ export function createMockClient(options: MockOptions): MockClient {
         setTimeout(() => { settleOne(entry); bump(); }, delay);
       });
     },
+    async write(id) { const receipt = await history.read(id); return link === "signed-out" ? undefined : receipt; },
+    acquired: false,
+    onAcquired: () => () => {},
     async upload(bytes: Blob | ArrayBuffer | Uint8Array) {
       const size = bytes instanceof Blob ? bytes.size : bytes.byteLength;
       return { ok: true as const, asset: { id: mockId(), type: "image/png", bytes: size, width: 1, height: 1, duration: null } };
