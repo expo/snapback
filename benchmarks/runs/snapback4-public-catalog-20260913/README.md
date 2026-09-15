@@ -3776,3 +3776,83 @@ wire bodies. These results establish no cold-cache, hosted/WAN, concurrent
 query-load, device/realtime, comparator, publication or power-loss durability
 claim. Follow-up work must distinguish connection-retained state from
 allocator retention and overlapping response work before attributing RSS.
+
+
+### Sync reader reuse with cache cleanup: fixed 0.2.22 HTTP A/B — not adopted
+
+The second pooling variant flushes prepared statements and releases the
+reader's SQLite caches after successful sync and acknowledgement transactions,
+before returning the connection to the existing pool. Cleanup runs outside
+host locks; a cleanup failure discards the connection without changing the
+successful response. Snapshot/stream bytes, fresh authorization, transaction
+boundaries, fallback, epoch invalidation and ceilings remain unchanged.
+The candidate is **not adopted**: retained memory and large concurrent
+regressions remain. Its two source files and patch are preserved in the
+ignored ship run; the tracked runtime was never changed.
+
+The fixed source, native Linux host, production profile, packaged SQLite
+flag, Node version and ten cases match the preceding experimental design.
+This is a new six-run baseline/candidate batch, ordered B/C, C/B, B/C,
+with the middle pair reversing case order. The candidate passes 153 CLI
+tests and nine HTTP-bound tests; the immutable qualified baseline is reused.
+All **12,000 timed calls**, 1,200 excluded warmups, 192 ordinary-auth
+captures, 48 full walks and 144 reconstructed page hashes pass. Each run
+uses a fresh store and ordinary guests. All server/client groups stop.
+Smoke is excluded from the following medians of three per-run statistics.
+Latency is ms and rate is requests/s; C1/C8 denotes concurrency.
+
+| Case | p50 | p95 | p99 | Maximum | Rate |
+|---|---:|---:|---:|---:|---:|
+| snapshot64FirstC1 | 1.543 → 1.149 | 2.524 → 1.557 | 2.986 → 2.443 | 4.141 → 3.667 | 575.890 → 787.104 |
+| snapshot64FirstC8 | 5.452 → 2.891 | 10.050 → 7.347 | 13.486 → 12.418 | 22.303 → 13.620 | 1358.037 → 2343.806 |
+| snapshot4000FirstC1 | 29.251 → 28.517 | 33.194 → 32.234 | 35.608 → 33.390 | 39.112 → 36.595 | 29.650 → 30.219 |
+| snapshot4000FirstC8 | 62.254 → 60.412 | 85.851 → 82.946 | 140.246 → 95.987 | 154.985 → 108.982 | 120.171 → 123.161 |
+| snapshot4000NextC1 | 30.500 → 29.070 | 33.261 → 31.615 | 34.049 → 32.313 | 37.455 → 34.113 | 27.644 → 28.869 |
+| snapshot4000NextC8 | 59.267 → 60.830 | 77.647 → 79.236 | 95.072 → 91.393 | 107.503 → 108.874 | 127.091 → 128.366 |
+| stream4000C1 | 50.135 → 49.224 | 53.186 → 52.110 | 54.294 → 53.019 | 55.630 → 57.448 | 18.228 → 18.443 |
+| stream4000C8 | 62.549 → 62.670 | 114.823 → 116.001 | 160.484 → 165.889 | 182.145 → 181.481 | 110.789 → 109.913 |
+| streamEmptyC1 | 0.830 → 0.561 | 1.065 → 0.732 | 1.529 → 0.906 | 1.789 → 1.030 | 1136.892 → 1680.555 |
+| streamEmptyC8 | 4.060 → 1.365 | 7.549 → 2.114 | 8.990 → 2.791 | 9.692 → 3.048 | 1806.557 → 5461.496 |
+
+Empty-stream C8 median p50 falls **4.060 → 1.365 ms** and rate rises
+**1,806.557 → 5,461.496 requests/s**. Large next-snapshot C8 p50, p95
+and maximum regress; large-stream C8 p50, p95, p99 and rate regress.
+The original calculations retain **nine median and 27 paired metric
+losses**, counting elapsed and correlated rate separately. No loss is
+removed because it is small, and medians imply no statistical significance.
+
+Two untimed observations per process follow preparation/full walks and then
+the repeated cases, before final walks. Medians below are KiB.
+
+| Phase | Baseline RSS | Candidate RSS | Baseline reported VmHWM | Candidate reported VmHWM |
+|---|---:|---:|---:|---:|
+| Before cases | 22,024 | 20,204 | 25,204 | 25,060 |
+| After cases | 83,064 | 150,112 | 123,560 | 181,180 |
+
+After-case RSS rises **67,048 KiB (65.48 MiB)** in medians. Two paired
+RSS observations rise and one falls by 428 KiB; all three reported VmHWM
+observations rise. These process points do not isolate pool allocation or
+measure continuous peaks. The preceding native allocation diagnostic
+observed same-process VmHWM decreases, so reported VmHWM is retained as
+observed rather than treated as a validated monotonic peak. That limit also
+qualifies the preceding record’s lifetime-HWM wording. Separate first- and
+second-variant batches do not establish that cleanup caused an RSS reduction.
+
+Both original frozen calculators pass and reconcile 360 raw values, 120
+medians, 180 paired contrasts and all 12 resource points. The bounded final
+independent review verifies original completion, collection and invocation
+joins without rerunning the arithmetic. All 229 public originals and all
+losses are retained in storage workload `sync-reader-reuse-0222-v3-perf-formal`.
+The actual qualification, smoke, formal and review chronology is preserved,
+including local audit-parser and pre-execution metadata corrections; none
+is relabeled as a workload failure or used to justify a measurement rerun.
+
+Latency includes HTTP/text/JSON parsing; full-response hashing follows the
+timer but stays inside case elapsed/rate and can interfere across clients.
+The shared query/sync pool could also displace query-warmed state; a mixed
+query/sync test would be required before adopting a promising variant.
+This sync-only screen already fails. It establishes no new comparator,
+current-main, cold-start, device/realtime, restart or durability result.
+The [sync follow-up](../../../issues/20260914-snapback4-sync-concurrent-tail-latency.md)
+remains open. One optimization round remains; a candidate restricted to
+already-caught-up empty polls has not yet been written or measured.

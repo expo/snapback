@@ -19922,3 +19922,27 @@ under the ignored ship run; the tracked runtime and decision were restored.
 No runtime release or new competitor result follows. All ten cases and
 measurement limits are in the
 [benchmark record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md).
+
+
+## 2026-09-15 — sync cache cleanup still costs memory
+
+The second fixed 788c21d6 / 0.2.22 native HTTP pooling experiment flushes
+statements and releases SQLite caches before returning successful sync
+readers. Empty-stream C8 p50 falls 4.060 → 1.365 ms, but median process
+RSS after cases rises 83,064 → 150,112 KiB. Large concurrent snapshot
+and stream regressions remain. The candidate is not adopted.
+
+The candidate production build, 153 CLI tests and nine HTTP-bound tests
+pass. All 12,000 formal timed calls, 1,200 excluded warmups, auth checks
+and complete walks pass. Both original frozen calculations reconcile;
+independent review retains nine median and 27 paired losses, all process
+points and original invocation/collection records. Reported VmHWM is not
+a validated continuous peak, and separate first/second batches support no
+causal memory comparison. No mixed query/sync claim is made.
+
+The complete original evidence is appended to storage.jsonl and the
+[benchmark record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md).
+The existing sync ticket remains open. Candidate source and tests remain
+recoverable in the ignored ship run; tracked runtime was never changed.
+One optimization round remains. No runtime release or competitor result
+follows from this evidence update.

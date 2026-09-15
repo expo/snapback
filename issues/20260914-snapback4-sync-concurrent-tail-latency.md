@@ -64,3 +64,27 @@ watermark-bound acknowledgements and native-epoch invalidation. The full
 record is storage workload `sync-reader-reuse-0222-v1-perf-formal`; exact
 source and original evidence live in the existing benchmark record and
 `.llp/ship-runs/sb4-performance-20260913/`.
+
+
+## 2026-09-15 — cache cleanup does not resolve pooling tradeoffs
+
+The second fixed 788c21d6 / 0.2.22 variant flushes statements and releases
+SQLite caches before pooling successful sync readers. It passes 12,000
+timed requests, full auth/walk checks and original cleanup. Both frozen
+calculations and the independent review pass, retaining nine median and
+27 paired metric losses. The candidate is not adopted.
+
+Empty-stream C8 p50 improves 4.060 → 1.365 ms, but large next-snapshot C8
+p50/p95/maximum and large-stream C8 p50/p95/p99/rate regress. After-case
+RSS medians rise 83,064 → 150,112 KiB; two paired RSS observations rise
+and one falls. Reported VmHWM medians rise 123,560 → 181,180 KiB. These
+are process points, not causal allocation or validated continuous peaks;
+the native diagnostic's same-process VmHWM decreases qualify earlier
+lifetime-HWM wording. Separate batches cannot establish that cache cleanup
+caused an improvement relative to the first rejected variant.
+
+Evidence is storage workload `sync-reader-reuse-0222-v3-perf-formal` and
+the existing benchmark record. The tracked runtime never changed. One
+optimization round remains: investigate already-caught-up empty polls
+without pooling large sync responses. Any promising shared-pool candidate
+still needs a mixed query/sync check before adoption.
