@@ -76,6 +76,8 @@ extern "C" fn signal_received(signal: libc::c_int) {
     let saved_errno = unsafe { *errno };
     // @ref LLP 3000#7-decisions-during-execution — signal frames share a small alternate stack.
     let mut line = Line::<256>::new();
+    // A signal can interrupt stderr formatting after a partial line.
+    let _ = line.write_str("\n");
     line.prefix("SNAPBACK4_SIGNAL");
     let _ = line.write_str(" reason=");
     let _ = line.write_str(signal_name(signal));

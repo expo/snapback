@@ -138,6 +138,11 @@ fn subprocess_probe() {
         let mutex = std::sync::Mutex::new(()); let _guard = mutex.lock().unwrap();
         unsafe { std::ptr::read_volatile(mapped.cast::<u8>().add(16384)); }
         panic!("a truncated shared mapping should fault");
+    } else if kind == "partial-stderr" {
+        let mut stderr = std::io::stderr().lock();
+        stderr.write_all(b"snapback4 serve: http://127.0").unwrap();
+        unsafe { libc::raise(libc::SIGTERM); }
+        panic!("SIGTERM should terminate while stderr is locked");
     } else if kind == "panic" {
         let locked = std::sync::Mutex::new(());
         let thread = lifecycle::background("watcher", move || { let _guard = locked.lock().unwrap(); panic!("injected\npanic"); }).unwrap();
@@ -201,7 +206,14 @@ fn startup_refusals_name_the_unserved_generation() {
 fn a_real_mapping_fault_reports_before_the_os_terminates_the_process() {
     let dir = Directory::new(); let (status, log) = probe("mapping", &dir);
     assert_eq!(status.signal(), Some(libc::SIGBUS));
-    assert_eq!(log, format!("SNAPBACK4_SIGNAL verb=dev generation=7 reason=SIGBUS signal={}\n", libc::SIGBUS));
+    assert_eq!(log, format!("\nSNAPBACK4_SIGNAL verb=dev generation=7 reason=SIGBUS signal={}\n", libc::SIGBUS));
+}
+
+#[test]
+fn a_signal_diagnostic_starts_a_line_after_interrupted_stderr() {
+    let dir = Directory::new(); let (status, log) = probe("partial-stderr", &dir);
+    assert_eq!(status.signal(), Some(libc::SIGTERM));
+    assert_eq!(log, "snapback4 serve: http://127.0\nSNAPBACK4_SIGNAL verb=dev generation=7 reason=SIGTERM signal=15\n");
 }
 
 #[test]

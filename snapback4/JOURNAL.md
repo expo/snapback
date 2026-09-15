@@ -17541,3 +17541,39 @@ installed-consumer proof passed; `snapback4@0.2.20` and
 `snapback4-darwin-arm64@0.2.20` at 09:50 UTC; xcframework rebuilt and
 `snapback4-expo@0.2.11` at 09:52 UTC.
 
+## 2026-09-15 — signal records survive interrupted startup output
+
+The fresh Office ARM Linux 0.2.19 qualification exposed a real intermittent
+host diagnostic defect. A TERM arriving during the stderr startup banner
+produced `snapback4 serve: http://127.0SNAPBACK4_SIGNAL ...` on one line.
+The OS signal status was correct; the exact standalone-line assertion failed.
+The original run remains unqualified: CLI 120 passes / one failure, core
+44, language 40 and membership/page-admission 19 passes. All 29 original
+build records and 772 source hashes were collected, with the recorded groups
+absent. The builder's success-only summary parser omitted the failed group's
+13 passes; the independent audit records the actual totals above.
+
+The handler now starts its fixed signal record with a newline inside the
+existing 256-byte buffer and single raw write. It takes no Rust stderr lock;
+errno, signal disposition/status and application-worker cleanup are unchanged.
+A new subprocess regression holds stderr locked after writing a partial banner,
+raises TERM, and requires the exact separated record and SIGTERM status. The
+real mapping-fault assertion now includes the leading separator as well.
+
+A standalone production-panic probe using identical libc and compiler inputs
+reproduces the old joined line and passes with the candidate. The initial
+probe compile omitted libc's required panic=abort setting; that failed build
+is retained separately from the actual red/green executions. The complete
+normal-profile CLI suite then passed **134 tests**, including all **15
+lifecycle tests**, with no failures or skips; command wall time was 81.3 s.
+Reference validation passed: 480 LLPs, 8,926 references, no errors or unchecked
+references. Independent source review found no material issue.
+
+The preceding local production-profile CLI build failed before tests, with
+undefined device-library symbols and Cargo output-filename collision warnings.
+Its log and exit remain failures; the normal-profile pass does not qualify a
+production benchmark binary. Original inputs, outputs and receipts are under
+`.llp/ship-runs/sb4-performance-20260913/signal-framing-0219-v1/`; source review
+is `signal-framing-0219-v1-source-evidence-independent-review.md` (68b3a763).
+The current three-backend comparison still requires a separately qualified
+build and fresh sessions; no timing or new competitor win is claimed here.
