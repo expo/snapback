@@ -103,12 +103,15 @@ fn following_removal_reaches_every_reader_before_purge_on_both_stores() {
                         let admitted = ok(device.call(serde_json::json!({ "op":"admit", "entry": {
                             "id":op, "seq":seq, "op":op, "args":{"postId":post}, "viewer":viewer, "now":4, "predictable":true
                         }})));
-                        assert_eq!(admitted["predictable"], false, "online-only sources queue without a row");
+                        assert_eq!(admitted["predictable"], true, "public source ownership is held, so removal predicts");
                     }
                     let pending = query(&mut *device, "following", viewer, serde_json::json!({}), 10);
-                    assert_eq!(pending["data"], local["data"]);
+                    assert_eq!(rows(&pending).len(), 1, "only the old pushed event remains before server removal");
                 }
                 ok(apply(&mut *device, &removal[n], false));
+                if viewer == case::AUTHOR {
+                    for op in ["deletePost", "unrepost"] { ok(device.call(serde_json::json!({"op":"settle", "id":op, "seq":removal[n].watermark}))); }
+                }
                 let local = query(&mut *device, "following", viewer, serde_json::json!({}), 10);
                 assert_eq!(local["complete"], true);
                 assert!(rows(&local).is_empty(), "{label} {viewer}: {local}");
@@ -181,25 +184,24 @@ fn removal_authority<H: crate::common::Host>(mut host: H) {
         let entry: snapback4_device::device::Queued = serde_json::from_value(serde_json::json!({
             "id":"forge", "seq":1, "op":"forgeRemoval", "args":input, "viewer":case::INTRUDER, "now":10, "predictable":true
         })).unwrap();
-        let admitted = attacker.admit(entry).unwrap();
+        let refused = attacker.admit(entry).unwrap_err().refusal();
+        assert_eq!(refused.code, "E_RULE", "a held source proves the attacker is not its author");
         host.close(&attacker_store, attacker);
         let mut attacker = host.open(&attacker_store, None).unwrap();
         let seq = engine.seq().unwrap();
         let result = engine.mutate("forgeRemoval", Some("forge"), context(case::INTRUDER, &[("eventId", world::id("new-post")), ("markerId", world::id("new-post")), ("actorId", world::id(case::INTRUDER))]).at(10)).unwrap();
         victim.apply(&stream_page(&mut engine, case::PRIVATE, seq), false).unwrap();
         let after = victim.query("following", case::PRIVATE, &serde_json::json!({}), 10).unwrap();
-        println!("REMOVAL_AUTHORITY host={} hidden={hidden} state={} victim_unchanged={} predictable={}", host.label(), result.reply(Some("forge"))["state"], before.data == after.data, admitted.predictable);
+        println!("REMOVAL_AUTHORITY host={} hidden={hidden} state={} victim_unchanged={} local_refusal={}", host.label(), result.reply(Some("forge"))["state"], before.data == after.data, refused.code);
         assert_eq!(result.reply(Some("forge"))["why"]["code"], "E_RULE");
-        assert!(!admitted.predictable, "source ownership is checked online; no predicted tombstone");
         assert_eq!(serde_json::to_value(&before).unwrap(), serde_json::to_value(&after).unwrap());
-        attacker.settle("forge", None).unwrap();
         attacker.apply(&stream_page(&mut engine, case::INTRUDER, seq), false).unwrap();
         assert!(attacker.queued().unwrap().is_empty());
         let no_purge = engine.run_job("purgeRemoved", Default::default(), 11).unwrap();
         assert_eq!(no_purge.rows_written, 0);
         victim.apply(&stream_page(&mut engine, case::PRIVATE, seq), false).unwrap();
         assert_eq!(victim.query("following", case::PRIVATE, &serde_json::json!({}), 10).unwrap().data, before.data);
-        paired.push((serde_json::to_value(admitted).unwrap(), result.reply(Some("forge")), result.metered));
+        paired.push((serde_json::to_value(refused).unwrap(), result.reply(Some("forge")), result.metered));
         // Positive control: the actual owner removes, then purges, the event.
         let seq = engine.seq().unwrap();
         world::mutate(&mut engine, "deletePost", case::AUTHOR, &[("postId", world::id("new-post"))], 12);

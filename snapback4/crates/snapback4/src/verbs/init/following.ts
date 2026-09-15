@@ -8,9 +8,10 @@ import { api } from "../snapback/generated/api";
 // the app post id) and call its deliver helper in the same mutation. Following
 // joins the app's postCard and repost attribution; it copies no body or asset.
 // Bridge the app's follow/unfollow with the recipe's addFollow/dropFollow
-// helpers in ONE mutation; call those app operations instead of these wrappers.
+// helpers in ONE mutation. With --prefix, only the query wrapper is generated;
+// all recipe mutations are fn helpers, called only by the app mutations.
 // Backfill existing authors, events and edges before switching Following.
-// With --prefix feed, helpers are feedDeliver/feedAddFollow/feedDropFollow;
+// With --prefix feed, helpers include feedRegister/feedDeliver/feedAddFollow/feedDropFollow;
 // the module stays feed.q. With that prefix, the Quarry seams are:
 //   a = feedAuthors[viewer] ! else AUTHOR_NOT_FOUND
 //   event = insert feedPosts { id: postId, postId, actorId: viewer, authorId: p.authorId, repost: false, at: p.at, shared: a.shared }

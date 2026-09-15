@@ -1033,7 +1033,7 @@ keeping the app's `posts` and `follows`. Index names are table-local and stay
 unchanged. Qualified schedule targets in another module keep their names,
 even when a local job has the same name. Without a prefix a clash refuses and prints the prefixed command. A write failure removes newly created
 files and preserves the existing `.gitignore`. Pass your app's client to the
-example; call `api.feed.feedRegister` during profile creation. Read-time merges are fine
+example; call the `feedRegister()` helper inside the app's profile-save mutation. Read-time merges are fine
 when the follow count is bounded small. `N_WIDE_MERGE` explains how a
 principal-driven merge's read cost grows with the number of related principals
 and names this command as an example for Following;
@@ -1047,13 +1047,22 @@ no body or media is copied into the recipe. Its `follow`/`unfollow` mutate the
 app edge and call `feedAddFollow`/`feedDropFollow` as a one-mutation bridge.
 Backfill existing authors, reference events and edges before switching reads.
 The app cards must also be synced for an offline join; their own rules and
-horizons remain authoritative. The card gives the complete compilable example.
+horizons remain authoritative. With a prefix, standalone mutations become
+`fn` helpers: only `api.feed.feedFollowing` remains a client operation, and
+`src/following.ts` has no mutation wrappers. Clients cannot create ghost
+references or bypass the app's follow bridge through the installed recipe.
+The card gives the complete compilable example, including `saveProfile`.
 
 `snapback4 guide feeds` carries the complete Following recipe: private
 inboxes for small accounts, one public projection for celebrity posts,
 follow-time backfill, atomic unfollow purge, own posts and attributed
 reposts, and a cursor query that runs on the device. On the 51st follower,
 future events switch to broadcast; older events retain their delivery mode.
+Promotion skips a follower whose 32 pull slots are full; that reader keeps
+old pushed events but misses later broadcasts from this author until freeing
+a slot and unfollowing/refollowing. A saturated new follow of an already-shared
+author refuses `FEED_PULL_CAP`, rolling back the app edge too. A saturated
+author keeps their own shared events through an own-inbox copy.
 `deletePost` and `unrepost` hide source events through synced removal
 tombstones immediately after the removal commit is applied, then a scheduled
 system job purges private copies in bounded chunks; the feeds card explains
@@ -1095,32 +1104,36 @@ table authors:
   principal: principal
   shared: bool default false
   unique byPrincipal: principal
+  cap 1000
   public 'delivery mode is public'
   insert <- .principal = viewer
   update <- allow
-  online only
+  sync public
 
 table follows:
   followerId: principal
   followedId: principal
+  at: time default 0
   unique byPair: followerId, followedId
   by byFollowed: followedId, followerId
   cap 1000 by followerId
   cap 1000 by followedId
+  cap 100000
   public 'the follow graph is public'
   insert <- .followerId = viewer
   delete <- .followerId = viewer
-  online only
+  sync public
 
 table pulls:
   readerId: principal
   authorId: principal
   unique byReaderAuthor: readerId, authorId
   cap 32 by readerId
-  read <- .readerId = viewer
+  cap 32000
+  public 'pull routing is derived from the public follow graph'
   insert <- allow
   delete <- .readerId = viewer
-  sync
+  sync public
 
 table posts:                       -- originals and attributed reposts, one source event each
   actorId: principal
@@ -1133,11 +1146,12 @@ table posts:                       -- originals and attributed reposts, one sour
   by byActorTime: actorId, at, id
   by byTime: at, id
   cap 1000 by actorId
+  cap 60000
   immutable actorId, authorId, postId, repost, at, shared
   public 'original posts and attributed reposts are public'
   insert <- .actorId = viewer
   delete <- .actorId = viewer
-  online only
+  sync public
 
 table removedEvents:               -- compact tombstones for deleted public source events
   eventId: id                       -- shared identity across source and tombstone tables; checked by the insert rule
@@ -1194,30 +1208,43 @@ table broadcast:                   -- public celebrity events, stored once
 
 fn copy(p: posts, readerId: principal, shared: bool):
   if shared:
-    insert broadcast { readerId, eventId: p.id, actorId: p.actorId, authorId: p.authorId, postId: p.postId, repost: p.repost, at: p.at } if absent
+    insert broadcast { readerId, eventId: p.id, actorId: p.actorId, authorId: p.authorId, postId: p.postId, repost: p.repost, at: p.at }
   else:
-    insert feed { readerId, eventId: p.id, actorId: p.actorId, authorId: p.authorId, postId: p.postId, repost: p.repost, at: p.at } if absent
+    insert feed { readerId, eventId: p.id, actorId: p.actorId, authorId: p.authorId, postId: p.postId, repost: p.repost, at: p.at }
   return null
 
 mutation register():
   insert authors { principal: viewer } if absent
+  return null
+
+fn tryPull(readerId: principal, authorId: principal):
+  if exists pulls[readerId, authorId]:
+    return true
+  if count(pulls[readerId] first 32 by byReaderAuthor) = 32:
+    return false
+  insert pulls { readerId, authorId }
+  return true
 
 fn addFollow(authorId: principal):
   require authorId != viewer else CANNOT_FOLLOW_SELF
   a = authors[authorId] ! else AUTHOR_NOT_FOUND
   if exists follows[followerId = viewer, followedId = authorId]:
     return null
-  insert follows { followerId: viewer, followedId: authorId }
+  if a.shared:
+    require tryPull(viewer, authorId) else FEED_PULL_CAP
+  insert follows { followerId: viewer, followedId: authorId, at: now }
   if not a.shared:
     near = follows[authorId] first 51 by byFollowed
     if count(near) > 50:
       update authors[authorId] { shared: true }
-      insert pulls { readerId: authorId, authorId } if absent
-      for f in follows[authorId] first 51 by byFollowed:
-        insert pulls { readerId: f.followerId, authorId } if absent
-  if authors[authorId].shared = true:
-    insert pulls { readerId: viewer, authorId } if absent
-  for p in posts[authorId] last 200 by byActorTime:
+      tryPull(authorId, authorId)
+      for f in follows[authorId] first 1000 by byFollowed:
+        tryPull(f.followerId, authorId)
+  visited = 0
+  for p in posts[authorId] last 1000 by byActorTime:
+    if visited = 200:
+      break
+    visited = visited + 1
     if not p.shared:
       copy(p, viewer, false)
 
@@ -1243,9 +1270,11 @@ mutation unfollow(authorId: principal):
 fn deliver(p: posts):
   if p.shared:
     copy(p, viewer, true)
+    if not exists pulls[viewer, viewer]:
+      copy(p, viewer, false)
   else:
     copy(p, viewer, false)
-    for f in follows[viewer] first 50 by byFollowed:
+    for f in follows[viewer] first 1000 by byFollowed:
       copy(p, f.followerId, false)
   return null
 
@@ -1305,7 +1334,19 @@ The caps are explicit: 1,000 follows and source events per account,
 32,000 public broadcast entries plus 32,000 pending removal tombstones
 (1,000 per actor). Follow backfills the last 200 source
 events; caps refuse writes atomically when reached. The full recipe and
-its measured tradeoffs are on the feeds card.
+its measured tradeoffs are on the feeds card. Author modes, follow edges,
+pull routing and public source references sync in full to support synchronous
+offline `saveProfile`, `createPost` and `follow` after acquisition. This adds
+public metadata to cold sync; other readers' private inboxes stay private.
+The inbox keeps its full capped partition for complete Following pages.
+Edges carry `at: time default 0`, preserved on an idempotent follow.
+Global metadata caps are 1,000 authors, 100,000 edges, 32,000 pull routes
+and 60,000 source references. The feeds card publishes `test --residency`
+measurements: the wired 500-follow fixture acquires 3,095 rows / 335,403 B
+(up from 1,055 rows); its 5-follow reader acquires 2,600 rows. Both still
+read 20 complete entries with 82 examinations and 21 probes. The larger
+50,000-reference-event envelope acquires 78,566 rows for 500 follows;
+this restores prediction by paying more cold metadata acquisition.
 
 The feeds card also retains the ranked-feed and Trending recipes: a job
 scores the shared pool into `ranked`, and the device composes it with the

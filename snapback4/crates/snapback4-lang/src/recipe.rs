@@ -15,6 +15,13 @@ pub fn valid_prefix(prefix: &str) -> bool {
 
 pub fn following(prefix: &str, module: &str) -> Result<String, String> {
     let source = crate::guide::quarry(crate::guide::card("feeds").unwrap()).remove(0);
+    // @ref LLP 3000.007#20.3 — a wired app owns mutation authority; installed recipe operations are helpers, never a second client write API.
+    let source = if prefix.is_empty() { source } else {
+        let (doc, errors) = crate::parse_document("feed.q", &source);
+        if !errors.is_empty() { return Err(errors.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n")); }
+        let mutations: BTreeSet<_> = doc.programs.iter().filter(|p| p.kind == ProgramKind::Mutation).map(|p| p.site.line as usize).collect();
+        source.lines().enumerate().map(|(n, line)| if mutations.contains(&(n + 1)) { line.replacen("mutation ", "fn ", 1) } else { line.into() }).collect::<Vec<_>>().join("\n") + "\n"
+    };
     prefix_module(&source, prefix, module)
 }
 

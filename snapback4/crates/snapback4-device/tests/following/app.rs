@@ -76,3 +76,39 @@ fn w6r1_wired_cards_respect_rules_and_horizons_on_both_stores() {
     }
     run(&mut Sqlite::new("w6r1-cards")); run(&mut Memory::new());
 }
+
+#[test]
+fn w7a_wired_mutations_predict_offline_on_both_stores() {
+    fn run<H: crate::common::Host>(mut host: H) {
+        let bound = app::built();
+        let mut engine = snapback4_core::Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
+        app::mutate(&mut engine, "register", "alice", &[], 1);
+        app::mutate(&mut engine, "createPost", "alice", &[("postId", app::id("held-post")), ("body", Value::String("held card".into()))], 2);
+        let backend = Backend { generation: engine.generation(), schema: bound.schema, programs: bound.programs.into_iter().map(|p| p.program).collect() };
+        let mut device = host.open("w7a-predict", Some(backend.clone())).unwrap();
+        for (n, page) in snapshot_pages(&mut engine, "bob", 100).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
+        for (n, (op, args, table)) in [
+            ("saveProfile", serde_json::json!({"name":"Bob"}), "profiles"),
+            ("createPost", serde_json::json!({"postId":"offline-post", "body":"offline card"}), "posts"),
+            ("follow", serde_json::json!({"authorId":"alice"}), "follows"),
+        ].into_iter().enumerate() {
+            let now = 10 + n as i64;
+            let prediction = device.predict(&format!("social.{op}"), "bob", &args, now, vec![], 10 + n as u64).unwrap();
+            assert!(prediction.predicted.iter().any(|key| key.starts_with(&format!("{table}/"))), "{op}: {prediction:?}");
+            println!("W7a host={} op={op} predicted_rows={}", host.label(), prediction.predicted.len());
+            let input = args.as_object().unwrap().iter().map(|(k, v)| (k.as_str(), if k == "body" || k == "name" { Value::String(v.as_str().unwrap().into()) } else { app::id(v.as_str().unwrap()) })).collect::<Vec<_>>();
+            app::mutate(&mut engine, op, "bob", &input, now);
+        }
+        let local = device.query("social.following", "bob", &serde_json::json!({}), 100).unwrap();
+        assert!(local.complete, "{local:?}");
+        let post_ids = |page: &snapback4_core::QueryOutcome| page.data.as_array().unwrap().iter().map(|r| r.field("postId").unwrap().clone()).collect::<Vec<_>>();
+        assert_eq!(post_ids(&local), post_ids(&app::query(&mut engine, "bob")));
+        assert_eq!(post_ids(&local), vec![app::id("offline-post"), app::id("held-post")]);
+        let mut author = host.open("w7a-fanout", Some(backend)).unwrap();
+        for (n, page) in snapshot_pages(&mut engine, "alice", 100).iter().enumerate() { author.apply(page, n == 0).unwrap(); }
+        let prediction = author.predict("social.createPost", "alice", &serde_json::json!({"postId":"fanout-post", "body":"fanout"}), 20, vec![], 99).unwrap();
+        assert_eq!(prediction.predicted.len(), 4, "app post, event, own inbox and another reader's inbox");
+        println!("W7a host={} offline_fanout_predicted_rows=4", host.label());
+    }
+    run(Memory::new()); run(Sqlite::new("w7a-predict"));
+}

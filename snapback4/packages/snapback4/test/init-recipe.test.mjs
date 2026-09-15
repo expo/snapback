@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -38,5 +38,11 @@ test("Following recipe usage compiles against its generated API in fresh and Exp
     }));
     const api = program.getSourceFile(join(dir, "snapback/generated/api.ts"));
     assert.ok(api?.text.includes(`feed.${prefix ? `${prefix}Following` : "following"}`), "usage must import the real generated API");
+    if (prefix) {
+      assert.ok(!readFileSync(join(dir, "src/following.ts"), "utf8").includes("client.mutate("));
+      for (const name of ["Register", "Follow", "Unfollow", "CreatePost", "Repost", "DeletePost", "Unrepost"]) {
+        assert.ok(!api.text.includes(`"feed.${prefix}${name}"`), `${name} must be a helper, not a client operation`);
+      }
+    }
   }
 });

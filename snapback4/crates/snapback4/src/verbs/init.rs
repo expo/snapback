@@ -25,6 +25,11 @@ pub fn init(options: &Options) -> i32 {
         };
         files.push(("snapback/feed.q", source));
         let mut client = include_str!("init/following.ts").to_owned();
+        if !prefix.is_empty() {
+            client = client.lines().filter(|line| !line.starts_with("export const registerForFollowing") && !line.starts_with("export const followAuthor") && !line.starts_with("export const unfollowAuthor"))
+                .collect::<Vec<_>>().join("\n") + "\n";
+            client = client.replace("Client, Cursor, Principal", "Client, Cursor");
+        }
         for name in ["register", "follow", "unfollow", "following"] {
             client = client.replace(&format!("api.feed.{name}"), &format!("api.feed.{}", snapback4_lang::recipe::prefixed_name(prefix, name)));
         }

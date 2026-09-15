@@ -19895,3 +19895,334 @@ Two complete original-evidence records are appended to storage.jsonl; the
 includes every case and the source/host/correctness/timing limits. The
 private comparison continues separately; these results establish no new
 competitor ranking or moving-main speed claim.
+
+
+## 2026-09-15 — W7a: installed Following authority, offline prediction and saturated promotion
+
+Built against `80b4899f949eb597d6426d95dda82d0c2dcd0b97` for the 0.2.22
+calibration's d-03, H1/H2/H9 and ranks 1/3/8. Used the `llp-orient` context:
+LLP 3000 §6–§7 (prediction convergence and the Snapback 4 fence), LLP
+3000.007 §6.2/§6.8 (eligibility and measured acquisition), §14 (author
+rulings), §18.1 (bounded merge guidance), and §20.3 (Following). The latter
+now records the implemented tradeoff. No new LLP or workflow was created.
+
+### What changed
+
+With `--prefix`, the installer converts the recipe's seven standalone
+mutations into `fn` helpers through parser-selected declaration lines before
+renaming references. Only Following remains a client query; purge is a system
+job. Generated `src/following.ts` has no mutation wrappers. The installed
+`feedCreatePost` can no longer be called by a client to insert a ghost, and
+the app's own create/repost path creates or validates its app post. Unprefixed
+standalone reference-event operations remain available. W6R1's binding-safety
+witness now explicitly drives prefixed helpers through its test app.
+
+Author modes alone were not enough for prediction: the helpers also read
+follows and source events, write synced tables, and used `if absent` on
+another reader's private inbox. The recipe now fully syncs public modes,
+reference events, graph edges and pull routes, with global metadata caps of
+1,000 authors, 60,000 source events, 100,000 edges and 32,000 pull routes.
+Existing per-account limits and every engine meter ceiling stay unchanged.
+A fresh event or new follow establishes a fresh copy; unconditional copy
+inserts avoid a hidden inbox absence proof. Predicting loops cover the
+schema cap, and backfill stops after the newest 200 events. The wired card
+adds a real `saveProfile` example. Its profile save, post and follow predict
+on both stores after acquisition, including a post with another reader's
+private delivery. App post visibility remains its own rule, as the existing
+public/private/horizon witnesses verify.
+
+Promotion attempts each pull insertion and skips a reader already at 32.
+It succeeds with a saturated existing follower and with a saturated author.
+A skipped follower keeps pushed history but misses later broadcasts until
+freeing a slot and unfollowing/refollowing; `complete` covers installed lanes.
+A saturated author's own shared post gets an own-inbox copy. New follows of
+already-shared authors refuse `FEED_PULL_CAP` when no slot exists, atomically
+rolling back the app edge. The code is explained in `guide::CODES`.
+Edges record `at: now`; imported edges default to `0` for unknown age. A
+wall-clock import default initially made paired privacy fixtures unequal;
+using an explicit historical default preserves their identical public worlds.
+
+Removal now predicts, and a forged tombstone is refused locally as well as
+on the server. Its existing tests were updated to settle their predicted
+removal receipts before delivering a fresh repost, so an outstanding
+`unrepost` does not intentionally replay against that new event. All 901
+readers in the large removal scenario still observe removal, purge and
+re-repost on both stores. No private inbox is made public.
+
+### Measurements
+
+- Wired fixture: 502 authors, 505 bridged edges (5 and 500 follows), 526 app
+  cards including an image, and 2 reposts. `test --residency` measures the
+  500-follow reader at **3,095 rows / 335,403 B**, up from 1,055 rows.
+  Breakdown: authors 502 / 39,154 B; recipe edges 505 / 50,490 B; source
+  references 528 / 63,830 B; inbox 527 / 90,565 B; app edges 505 / 46,955 B;
+  app cards 526 / 44,235 B; reposts 2 / 174 B. Other tables are empty.
+- The 5-follow reader acquires **2,600 rows**. Both readers return **20/20**,
+  complete, with **82 examinations / 21 probes / 0 index entries**, on
+  the server and both device stores. Sampled p95 ms (5 / 500): server
+  **1.695 / 1.444**, memory **0.841 / 0.826**, SQLite **2.050 / 1.656**.
+  These are shared-host observations, not latency assertions.
+- The larger existing recipe fixture (1,000 authors, 50,000 events, 1,415
+  edges) acquires **78,566 rows** for 500 follows, including **25,050**
+  private entries. Its 5-follow reader acquires **53,816 rows**. This
+  fixture has no app-card joins. Measurements use real snapshots.
+- Offline `saveProfile` / `createPost` / `follow`: **2 / 3 / 3 predicted
+  rows** on each store; a post with one follower predicts **4 rows**.
+- Promotion: **51 followers**, **1 saturated follower skipped**, that
+  reader stays at **32 pulls**, and follower 51 receives the new broadcast.
+  A saturated author also stays at **32 pulls** and sees their own post.
+- Removal and purge: **901 readers** per store in the 900-follower case;
+  the maximal purge body still handles **1,001 copies / 1,002 writes**.
+- Largest changed code file: `snapback4-sim/tests/clique.rs`, **1,407**
+  newline-terminated lines (`wc -l`), below the 1,500-line cap.
+
+This deliberately pays more public metadata acquisition for synchronous
+prediction and complete backfill. It does not reduce cold sync or make it
+proportional only to this reader's follows; the card and README publish
+both fixture sizes. A deferred delivery/backfill job would make a different
+latency tradeoff and was not introduced.
+
+### Commands and verbatim results
+
+Cargo, Node and Bun commands ran from `snapback4/`, with this Node 24 prefix:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+The initial Cargo attempt was accidentally invoked from the repository root
+and exited before running tests; subsequent invocations used `snapback4/`.
+The ghost regression below was rerun with the original three implementation
+files read from the exact base commit, restoring this lane's files afterward;
+it confirms an actual sent ghost event, rather than merely an argument error.
+
+```sh
+cargo test -p snapback4 --test init w7a_prefixed_install_exposes_no_standalone_mutations -- --nocapture
+```
+
+Before (base implementation):
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 20 filtered out; finished in 1.75s
+```
+
+After:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 1.24s
+```
+
+```sh
+cargo test -p snapback4-sim --test clique w7a -- --nocapture
+```
+
+Before (prediction and saturated-follower regressions):
+
+```text
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 57 filtered out; finished in 0.09s
+```
+
+After (includes saturated-author positive control):
+
+```text
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 57 filtered out; finished in 0.19s
+```
+
+```sh
+cargo test -p snapback4-device --test device w7a -- --nocapture
+```
+
+After:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 141 filtered out; finished in 0.17s
+```
+
+```sh
+cargo test -p snapback4 --test init -- --nocapture
+```
+
+Final:
+
+```text
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.35s
+```
+
+```sh
+cargo test -p snapback4-lang --test guide -- --nocapture
+```
+
+Final:
+
+```text
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+```
+
+```sh
+cargo test -p snapback4-sim --test clique following_removal -- --nocapture
+```
+
+Final:
+
+```text
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 52 filtered out; finished in 1.69s
+```
+
+```sh
+cargo test -p snapback4-device --test device following_removal -- --nocapture
+```
+
+Final:
+
+```text
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 134 filtered out; finished in 209.55s
+```
+
+```sh
+node --test packages/snapback4/test/init-recipe.test.mjs
+```
+
+Final (six starter/prefix combinations):
+
+```text
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+```
+
+```sh
+cargo test -p snapback4 --test witness driver::cli_concurrent_runs_into_one_namespace_have_one_owner -- --exact --nocapture
+```
+
+Isolated repeat:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 3.89s
+```
+
+```sh
+node --test packages/snapback4/test/react.test.mjs
+```
+
+Isolated repeat: Chromium SIGABRT:
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+```
+
+The initial broader `cargo test -p snapback4-sim --test clique following --
+--nocapture` reported `15 passed; 2 failed; 1 ignored` (paired fixtures'
+wall-clock timestamps); the device counterpart `cargo test -p snapback4-device
+--test device following -- --nocapture` reported `13 passed; 3 failed`
+(the old no-prediction expectations). Those failures were addressed above;
+the final whole suite covers both groups. An intermediate device removal
+repeat then exposed the missing receipt settlements; the final targeted
+repeat above is green. None of these introduced failures is called inherited.
+
+From the repository root, with the same Node 24 prefix:
+
+```sh
+bash snapback4/scripts/test.sh
+```
+
+First full run (summed Rust results: 995 passed, 2 failed, 4 ignored):
+
+```text
+-- ok: cargo build (5 s)
+-- ok: wasm build (22 s)
+-- ok: package typecheck (2 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- FAIL: cargo test (497 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (12 s)
+ℹ tests 365
+ℹ pass 364
+ℹ fail 1
+-- FAIL: client tests (67 s)
+== 2 failure(s) in 528 s
+```
+
+Final full run (summed Rust results: 997 passed, 0 failed, 4 ignored):
+
+```text
+-- ok: cargo build (1 s)
+-- ok: wasm build (2 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (448 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (10 s)
+ℹ tests 365
+ℹ pass 364
+ℹ fail 1
+-- FAIL: client tests (65 s)
+== 1 failure(s) in 453 s
+```
+
+The first full run caught the removal test expectation and an intermittent
+CLI namespace-ownership witness failure; the witness passed alone and in
+the final run. The only final-suite failure is React's sandbox Chromium
+SIGABRT, reproduced by the isolated command above (the first run surfaced
+its cleanup as ENOTEMPTY). This matches the lane's supplied environment
+artifact; the lead must run that browser witness outside the sandbox.
+No product failure is asserted pre-existing without a base check.
+
+```sh
+./ref-check --verbose
+node scripts/caps.mjs
+```
+
+Ref-check is green. The extra root caps check reports an unrelated Snapback 1
+file, `crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs`, at 1,504
+lines and a 205/204 repository oversize count. `git show
+80b4899f949eb597d6426d95dda82d0c2dcd0b97:crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs`
+confirms 1,504 lines under the cap check's split convention at the exact
+base, and the file has no diff. It was left untouched. Every changed code
+file is below 1,500 lines. `git diff --check` passes.
+
+### Diagnostic text, scope and completion
+
+Ghost call before: sent, returning `id: ghost` and writing 2 rows. After:
+
+```text
+E_OP: unknown operation feed.feedCreatePost
+```
+
+Saturated follower promotion before (code `E_CONSTRAINT`):
+
+```text
+feedPulls holds at most 32 rows per group by readerId
+```
+
+Promotion now succeeds without a diagnostic. A new follow of an already-shared
+author with all pull slots occupied returns code `FEED_PULL_CAP` and message:
+
+```text
+the program refused with FEED_PULL_CAP
+```
+
+All four build items and the requested positive/negative scenarios are
+implemented. The full suite is qualified except for the supplied sandbox
+browser artifact. No engine code, meter ceiling, serialized value form,
+existing conformance case, chat app, worker or other lane's implementation
+was changed. The extra touched surfaces are the governing RFC §20.3 and
+existing device removal expectations; both document/test this recipe change.
+No commit, push, tag, publication, sub-agent or remote execution was made.
+
+Learned: hiding the installed mutation entry points closes the ghost path,
+but restoring prediction is a residency decision about every read and write
+in the helper chain. Full metadata and private inboxes can preserve
+synchronous semantics under the existing interpreter; their cold cost must
+be stated alongside the unchanged bounded query cost.

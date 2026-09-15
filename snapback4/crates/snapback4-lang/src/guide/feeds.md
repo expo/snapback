@@ -25,6 +25,7 @@ rename a builtin. App helpers named `copy` or `deliver` remain separate
 from the prefixed recipe helpers.
 A write failure removes newly created files and preserves `.gitignore`.
 The block below is the unprefixed source; init qualifies its schedule target.
+With a prefix, init also converts its standalone mutations to `fn` helpers.
 Qualified schedule targets in another module keep their names, even when
 a recipe job has the same name.
 
@@ -55,32 +56,36 @@ table authors:
   principal: principal
   shared: bool default false
   unique byPrincipal: principal
+  cap 1000
   public 'delivery mode is public'
   insert <- .principal = viewer
   update <- allow
-  online only
+  sync public
 
 table follows:
   followerId: principal
   followedId: principal
+  at: time default 0
   unique byPair: followerId, followedId
   by byFollowed: followedId, followerId
   cap 1000 by followerId
   cap 1000 by followedId
+  cap 100000
   public 'the follow graph is public'
   insert <- .followerId = viewer
   delete <- .followerId = viewer
-  online only
+  sync public
 
 table pulls:
   readerId: principal
   authorId: principal
   unique byReaderAuthor: readerId, authorId
   cap 32 by readerId
-  read <- .readerId = viewer
+  cap 32000
+  public 'pull routing is derived from the public follow graph'
   insert <- allow
   delete <- .readerId = viewer
-  sync
+  sync public
 
 table posts:                       -- originals and attributed reposts, one source event each
   actorId: principal
@@ -93,11 +98,12 @@ table posts:                       -- originals and attributed reposts, one sour
   by byActorTime: actorId, at, id
   by byTime: at, id
   cap 1000 by actorId
+  cap 60000
   immutable actorId, authorId, postId, repost, at, shared
   public 'original posts and attributed reposts are public'
   insert <- .actorId = viewer
   delete <- .actorId = viewer
-  online only
+  sync public
 
 table removedEvents:               -- compact tombstones for deleted public source events
   eventId: id                       -- shared identity across source and tombstone tables; checked by the insert rule
@@ -154,30 +160,43 @@ table broadcast:                   -- public celebrity events, stored once
 
 fn copy(p: posts, readerId: principal, shared: bool):
   if shared:
-    insert broadcast { readerId, eventId: p.id, actorId: p.actorId, authorId: p.authorId, postId: p.postId, repost: p.repost, at: p.at } if absent
+    insert broadcast { readerId, eventId: p.id, actorId: p.actorId, authorId: p.authorId, postId: p.postId, repost: p.repost, at: p.at }
   else:
-    insert feed { readerId, eventId: p.id, actorId: p.actorId, authorId: p.authorId, postId: p.postId, repost: p.repost, at: p.at } if absent
+    insert feed { readerId, eventId: p.id, actorId: p.actorId, authorId: p.authorId, postId: p.postId, repost: p.repost, at: p.at }
   return null
 
 mutation register():
   insert authors { principal: viewer } if absent
+  return null
+
+fn tryPull(readerId: principal, authorId: principal):
+  if exists pulls[readerId, authorId]:
+    return true
+  if count(pulls[readerId] first 32 by byReaderAuthor) = 32:
+    return false
+  insert pulls { readerId, authorId }
+  return true
 
 fn addFollow(authorId: principal):
   require authorId != viewer else CANNOT_FOLLOW_SELF
   a = authors[authorId] ! else AUTHOR_NOT_FOUND
   if exists follows[followerId = viewer, followedId = authorId]:
     return null
-  insert follows { followerId: viewer, followedId: authorId }
+  if a.shared:
+    require tryPull(viewer, authorId) else FEED_PULL_CAP
+  insert follows { followerId: viewer, followedId: authorId, at: now }
   if not a.shared:
     near = follows[authorId] first 51 by byFollowed
     if count(near) > 50:
       update authors[authorId] { shared: true }
-      insert pulls { readerId: authorId, authorId } if absent
-      for f in follows[authorId] first 51 by byFollowed:
-        insert pulls { readerId: f.followerId, authorId } if absent
-  if authors[authorId].shared = true:
-    insert pulls { readerId: viewer, authorId } if absent
-  for p in posts[authorId] last 200 by byActorTime:
+      tryPull(authorId, authorId)
+      for f in follows[authorId] first 1000 by byFollowed:
+        tryPull(f.followerId, authorId)
+  visited = 0
+  for p in posts[authorId] last 1000 by byActorTime:
+    if visited = 200:
+      break
+    visited = visited + 1
     if not p.shared:
       copy(p, viewer, false)
 
@@ -203,9 +222,11 @@ mutation unfollow(authorId: principal):
 fn deliver(p: posts):
   if p.shared:
     copy(p, viewer, true)
+    if not exists pulls[viewer, viewer]:
+      copy(p, viewer, false)
   else:
     copy(p, viewer, false)
-    for f in follows[viewer] first 50 by byFollowed:
+    for f in follows[viewer] first 1000 by byFollowed:
       copy(p, f.followerId, false)
   return null
 
@@ -262,9 +283,16 @@ schedule purgeRemovedEvery every 1m: purgeRemoved
 
 Call `register` during profile creation. `follow` and `unfollow` are
 idempotent; promotion is permanent and atomic with the follow that triggers
-it. The promotion adds a pull lane for the author and all 51 followers;
-it copies no old entry, so a pushed event and a broadcast event never
-represent the same delivery. A later follow copies only recent pushed
+it. Promotion attempts a pull lane for the author and all 51 followers,
+skipping anyone already at 32 pulls instead of refusing the promotion.
+A skipped follower keeps old private entries but receives no later broadcast
+from this author until they free a slot and unfollow/refollow. A new follow
+of an already-shared author with no slot refuses `FEED_PULL_CAP` atomically,
+including the app edge. `complete` covers the installed lanes, not skipped
+authors; show the cap refusal and require the reader to free a slot.
+A saturated author's own new shared events also get
+an own-inbox copy, so their own posts remain visible without a self pull.
+Ordinary promotion copies no old entry. A later follow copies only recent pushed
 events and reads shared events directly. Private inboxes and the bounded
 public broadcast projection sync in full: no exhausted horizon can turn
 an empty lane into an incomplete device answer. Unfollow removes private
@@ -282,9 +310,13 @@ in the same transaction. A guessed foreign event ID cannot hide or purge it.
 The immutable inbox `eventId` joins that tombstone on every Following read:
 removal is visible immediately on the server and on a device once it applies
 that commit, before private copies are purged. An offline device sees its
-last synced state. No private inbox or follow graph is additionally synced.
-These mutations, like `createPost` and `repost`, queue without prediction
-because their source reads are online-only. Repeating a removal is a no-op;
+last synced state. No other reader's private inbox is synced. Author delivery modes, follow
+edges, pull routing and public reference events sync in full, so registration,
+posting and following can predict after acquisition; app card reads still
+need the app's declared data. This deliberately pays metadata acquisition
+for synchronous offline backfill instead of waiting for a server job.
+The private inbox retains its full schema-capped partition: a horizon would
+make an exhausted lane incomplete. There is no cold-start reduction claim. Repeating a removal is a no-op;
 re-reposting creates a fresh event ID and works before or after cleanup.
 Never reuse event IDs. A repost is an independent attributed event;
 deleting the original does not delete someone else's repost event.
@@ -330,6 +362,44 @@ or redesign before exceeding this envelope. A follow backfills 200 events,
 not an unlimited historical archive. Public broadcast rows reach every
 device; at the measured envelope that is 200 rows, plus any pending removal
 tombstones. Cleanup is a bounded job; no exact horizon maintenance is involved.
+Public source references and routing also reach every device; their cost is
+measured below, not included in the 200-row broadcast count. Global metadata caps are
+1,000 authors, 100,000 edges, 32,000 pull routes and 60,000 source references.
+
+### Cold acquisition with prediction
+
+Measured by `snapback4 test --residency --fixture fixture --as dev:reader500`
+on the wired example below: 502 registered authors, 505 bridged edges
+(5 and 500 follows), 526 app cards including one image, and 2 reposts.
+Bytes are compact JSON row payloads, excluding transport framing.
+
+| Table | Cold rows | Bytes |
+|---|---:|---:|
+| `feedAuthors` | 502 | 39,154 |
+| `feedFollows` | 505 | 50,490 |
+| `feedPosts` | 528 | 63,830 |
+| `feedFeed` | 527 | 90,565 |
+| `follows` (app) | 505 | 46,955 |
+| `posts` (app) | 526 | 44,235 |
+| `reposts` (app) | 2 | 174 |
+| Broadcast, pulls, tombstones and profiles | 0 | 0 |
+| **Total** | **3,095** | **335,403** |
+
+The same fixture acquired 1,055 rows before the prediction change. Five
+follows now acquire 2,600 rows. On the server and both device stores,
+Following at 5 and 500 follows returns 20 entries, complete, with 82
+examinations and 21 probes. Offline `saveProfile`, `createPost` and `follow`
+produce 2, 3 and 3 predicted rows in the two-person write witness; posting
+with one follower produces 4. Prediction is provisional: server caps and
+concurrent changes can still refuse a queued write.
+
+The larger recipe envelope (1,000 authors, 50,000 reference events and
+1,415 edges) acquires **78,566 rows** for its 500-follow reader, measured
+from real snapshots on both stores; 25,050 are private inbox entries.
+That envelope has no app-card joins. Full metadata replication makes a new
+follow's synchronous backfill possible offline, and cold acquisition grows
+with this capped public corpus. It does not make cold sync proportional
+only to the reader's follow count.
 
 `where predicate` follows `by index` in a merge header and applies to every
 lane, with `.` bound to that lane's row. Its expressions, reads and helper
@@ -351,6 +421,10 @@ than filtering the global timeline.
 After installing with `--prefix feed`, keep the app's own `posts`, `follows`
 and `reposts`. Fold the corresponding statements below into its existing
 mutations; the example is `snapback/social.q` beside the installed module.
+Only `feedFollowing` remains client-callable in the prefixed recipe; the
+purge job runs as the system, and every former mutation is a `fn` helper
+so clients cannot bypass the app's post validation or follow bridge.
+Generated `src/following.ts` exports only the Following query wrapper.
 Both `createPost` and `repost` insert one reference event and call
 `feedDeliver(event)` in the same transaction. The recipe never owns or copies
 the media asset; Following joins `posts[.postId] postCard` and app repost
@@ -363,8 +437,15 @@ Route all future follow changes through them, and backfill existing edges
 through the same helpers before switching Following to this query. Register
 existing authors first; backfill their existing post/repost reference events
 before those edges so follow backfill can find them. Respect the recipe's
-200-event backfill and caps. The standalone recipe operations remain useful
-for a new app; an integrated app calls its own bridged operations.
+200-event backfill and caps. The unprefixed recipe keeps its standalone
+operations for a standalone reference-event model. A prefixed install exposes
+only the app's bridged mutations; `feedRegister()` belongs inside `saveProfile`.
+Call `feedDeliver` once per newly inserted event. Copy inserts are unconditional:
+a new source or new follow already establishes that this delivery is new,
+without an unknowable `if absent` probe into another reader's private inbox.
+The backfill loop covers the 1,000-event schema cap for prediction and stops
+after the newest 200 events; promotion and delivery loops cover the graph cap.
+New follow edges record `at: now`; an idempotent repeated follow preserves it.
 
 This example fully syncs public post cards and repost attribution under
 explicit caps. That adds their rows to acquisition; a private or online-only
@@ -396,7 +477,7 @@ table follows:
   public 'the app follow graph is public'
   insert <- .followerId = viewer
   delete <- .followerId = viewer
-  online only
+  sync public
 
 table reposts:
   actorId: principal
@@ -409,10 +490,24 @@ table reposts:
   delete <- .actorId = viewer
   sync public
 
+table profiles:
+  principal: principal
+  name: text <=100
+  unique byPrincipal: principal
+  cap 32000
+  public 'profile names are public'
+  insert <- .principal = viewer
+  update <- .principal = viewer
+  sync public
+
 shape postCard = { id, authorId, body, media, at }
 
+mutation saveProfile(name: text <=100):
+  upsert profiles[viewer] { principal: viewer, name }
+  feedRegister()
+
 mutation register():
-  insert feedAuthors { principal: viewer } if absent
+  feedRegister()
 
 mutation follow(authorId: principal):
   insert follows { followerId: viewer, followedId: authorId } if absent

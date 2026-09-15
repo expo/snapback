@@ -402,12 +402,15 @@ fn w6r1_recipe_refuses_builtin_shadow_before_writing_then_delivers_follower_51()
         fs::write(dir.0.join("snapback/helpers.q"), &helper).unwrap();
         let installed = recipe(&dir, &flags);
         assert!(installed.status.success(), "{installed:?}");
+        if !prefix.is_empty() {
+            helper.push_str("mutation register():\n  feedRegister()\nmutation follow(authorId: principal):\n  feedFollow(authorId)\nmutation createPost(postId: id):\n  feedCreatePost(postId)\n");
+        }
         let bound = snapback4_lang::compile(&[("helpers.q".into(), helper), ("feed.q".into(), fs::read_to_string(dir.0.join("snapback/feed.q")).unwrap())]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
         let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
         let name = |n: &str| snapback4_lang::recipe::prefixed_name(prefix, n);
         let mutate = |engine: &mut Engine, op: &str, viewer: &str, args| {
-            let out = engine.mutate(&format!("feed.{}", name(op)), None, Context::new(viewer, args).at(100)).unwrap();
+            let out = engine.mutate(&if prefix.is_empty() { format!("feed.{op}") } else { format!("helpers.{op}") }, None, Context::new(viewer, args).at(100)).unwrap();
             assert!(matches!(out.state, WriteState::Sent { .. }), "{:?}", out.state);
         };
         mutate(&mut engine, "register", "author", Default::default());
@@ -437,4 +440,55 @@ fn w6r1_prefixed_recipe_keeps_app_copy_and_deliver_helpers() {
     let mut engine = snapback4_core::Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     let read = engine.query("helpers", snapback4_core::Context::new("alice", Default::default())).unwrap();
     assert_eq!(snapback4_core::wire::to_json(&read.data), json!({"copy":11,"deliver":21}));
+}
+
+#[test]
+fn w7a_prefixed_install_exposes_no_standalone_mutations() {
+    let dir = Dir::new();
+    let installed = recipe(&dir, &["--prefix", "feed"]);
+    assert!(installed.status.success(), "{installed:?}");
+    let source = fs::read_to_string(dir.0.join("snapback/feed.q")).unwrap();
+    let bound = snapback4_lang::compile(&[("feed.q".into(), source)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = snapback4_core::Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed([("feedAuthors".into(), snapback4_core::value::object([("id", snapback4_core::Value::Id("attacker-author".into())), ("principal", snapback4_core::Value::Id("attacker".into())), ("shared", snapback4_core::Value::Bool(false))]))]).unwrap();
+    for op in ["CreatePost", "Register", "Follow", "Unfollow", "Repost", "DeletePost", "Unrepost"] {
+        let out = engine.mutate(&format!("feed.feed{op}"), None, snapback4_core::Context::new("attacker", [("postId".into(), snapback4_core::Value::Id("ghost".into()))].into()));
+        assert!(out.is_err(), "standalone {op} is client-callable: {out:?}");
+        if op == "CreatePost" { println!("W7a ghost call refused: {}", out.unwrap_err()); }
+    }
+    assert!(engine.store().rows("feedPosts").unwrap().is_empty());
+    assert!(engine.query("feed.feedFollowing", snapback4_core::Context::new("attacker", Default::default())).unwrap().complete);
+    let client = fs::read_to_string(dir.0.join("src/following.ts")).unwrap();
+    assert!(!client.contains("client.mutate("), "{client}");
+}
+
+#[path = "../../snapback4-sim/tests/common/following_app.rs"]
+mod following_fixture;
+
+#[test]
+fn w7a_residency_measures_the_wired_500_follow_reader() {
+    use std::io::Write;
+    let dir = Dir::new();
+    assert!(recipe(&dir, &["--prefix", "feed"]).status.success());
+    fs::write(dir.0.join("snapback/social.q"), following_fixture::app()).unwrap();
+    let bound = following_fixture::built();
+    let mut engine = snapback4_core::Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    following_fixture::seed(&mut engine);
+    let fixture = dir.0.join("fixture");
+    fs::create_dir(&fixture).unwrap();
+    for table in engine.schema().tables.keys() {
+        let mut file = fs::File::create(fixture.join(format!("{table}.jsonl"))).unwrap();
+        for row in engine.store().rows(table).unwrap() {
+            writeln!(file, "{}", snapback4_core::wire::to_json(&row)).unwrap();
+        }
+    }
+    let measured = Command::new(BIN).args(["test", "--residency", "--fixture", "fixture", "--as", "dev:reader500"]).current_dir(&dir.0).output().unwrap();
+    let output = String::from_utf8_lossy(&measured.stdout);
+    println!("{output}");
+    assert!(measured.status.success(), "{measured:?}");
+    assert!(output.contains("dev:reader500 feedFeed: 527 rows"), "{output}");
+    assert!(output.contains("dev:reader500 feedAuthors: 502 rows"), "{output}");
+    assert!(output.contains("dev:reader500 feedPosts: 528 rows"), "{output}");
+    assert!(output.contains("social.saveProfile: predicts") && output.contains("social.createPost: predicts") && output.contains("social.follow: predicts"), "{output}");
 }
