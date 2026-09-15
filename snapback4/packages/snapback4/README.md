@@ -1323,26 +1323,36 @@ keepalive request.
 An admission that finishes while the page is suspended rechecks the exit
 transport after its commit; on reopen, a matching server store identity and
 non-regressed head allow unknown writes to replay before the first sync finishes.
-Before `mutate` returns its promise, the web device records the mutation id,
-operation, arguments and minted row ids synchronously in localStorage, in call
-order. Same-origin navigation can therefore leave before IndexedDB admission
+With an exclusive Web Lock, the web device records the mutation id, operation,
+arguments and minted row ids synchronously in localStorage, in call order,
+before `mutate` returns its promise. Same-origin navigation can therefore leave before IndexedDB admission
 commits: the next client admits those records before new writes, then sends
 through the ordinary outbox with the original ids. A closed tab's records are
 adopted by the next device that opens the store, under the outbox's Web Lock.
+Recovery and new admissions take submission numbers from the same device counter;
+already-queued writes precede recovered orphan records. A matching orphan waiting
+for backend adoption installs the destination's authenticated backend first. An
+orphan missing its kept backend or store identity is skipped with its journal
+intact until a later matching open can establish ownership; a broken orphan does
+not prevent healthy stores from opening.
 Recovered records stay bound to their original backend store identity; a
 replacement retires them without sending them to the new backend.
 The journal allows at most 32 records and 256 KiB of UTF-8 keys and values per
 device store; a serialized record over 64 KiB is not journaled. Unavailable,
-throwing or full localStorage, an unidentified backend store, exceeded journal
-limits, or browser storage clearing leave unawaited navigation best-effort:
-that write can still be lost before IndexedDB commits. A destination must open
+throwing or full localStorage, missing Web Locks, an unidentified backend store,
+exceeded journal limits, or browser storage clearing leave unawaited navigation
+best-effort: that write can still be lost before IndexedDB commits. A destination must open
 a client to recover a record that never reached the outbox; keepalive remains
 best-effort and sends only admitted writes.
 For programmatic navigation, `await client.mutate(...)` before navigating
 is the strongest durable boundary; handle a `failed` outcome before leaving.
 `pending` means IndexedDB admission is durable and the server outcome still
-needs confirmation. A write-specific admission refusal removes its journal
-record and returns the ordinary failed outcome.
+needs confirmation. A write-specific admission refusal returns the ordinary failed
+outcome and removes its journal record, replaces it with a non-executable
+cancellation, or acknowledges it in IndexedDB. If both stores reject cancellation,
+the recovery outcome is indeterminate: the executable record can survive and a
+later recovery can admit it if the authored condition changes. The returned
+refusal alone does not guarantee preserved cancellation in that case.
 
 On the web one tab is one device: a second tab on the same store opens
 its own, and the writes a tab left queued when it closed are adopted by

@@ -16967,3 +16967,274 @@ was added or changed. No out-of-scope file was touched. No commit, push, tag,
 publication, dependency install, sub-agent, clone or remote machine was used.
 The lead owns `node witness/navigation-immediate.mjs` outside the sandbox:
 **10/10 is the target; the Chromium after-result is not measured by this lane**.
+
+## 2026-09-15 — W4R1a: repair the synchronous journal's first blind review
+
+Base: `b1b9fd9ec364fcebd74caf20f533759ae9a99521` (W4 integration).
+This lane changes only W4a's web host/journal, navigation-model tests, writes
+card, README navigation paragraph, LLP 3000.007 §20.4, and this appended entry.
+The lead owns commits and the real Chromium navigation witness.
+
+**Built and learned.** The reviews' A–E all reproduce. A's deferred recovery
+applied **132**, because the client cached its counter before adoption recovered
+submissions 1 and 2. Both recovery and ordinary web admission now use the device's
+next-submission allocator inside the serialized host chain; synchronous capture
+order also advances past records already held. No change to `local.ts` is needed.
+The resulting queued submissions are **1, 2, 3**, application order **123**,
+**3 applications**, **0 duplicates**.
+
+A matching orphan behind `backend_required` now installs the healthy destination's
+backend under the source lock before recovery. Its two records apply **12**, once
+each, and its database and journal go. Empty, unidentified and malformed-backend
+orphans are skipped individually, retaining their journals until a later matching
+open can establish ownership. Each of the three scenarios also recovers a healthy
+orphan and admits a primary write before the broken source is restored: final
+order **321**, **3 applications**. Skipping preserves the record and still requires
+identity checks and transfer acknowledgement before any future send. Destination
+commit failure remains fatal to that uncommitted VM; swallowing source failures
+must not accidentally publish uncommitted destination state.
+
+An authored refusal remains the caller's known refusal if cleanup fails. Removal
+falls back to a non-executable localStorage cancellation and an IDB acknowledgement.
+The independent-storage tests change the held authored condition before reopening:
+**0 unwanted applications** with either cancellation store available, **1** when
+neither store could cancel (the documented indeterminate recovery outcome).
+A later valid successor applies in all three cases. Cancellations saved only in
+localStorage are collected when removal becomes available again; an exclusive
+owner alone performs that cleanup. No terminal receipt or transport was added.
+
+Without Web Locks, capture and recovery are disabled. In the blocked-live-admission
+scenario the second owner applies **0** writes, capture holds **0** records, and
+the original owner applies its write **1** time after its save is released.
+Malformed percent-encoding is skipped per discovery key; the neighbouring real
+closed-tab journal applies and a valid successor gives order **12**. An already
+queued primary plus two orphan journals gives **3 sends**, **3 applications**,
+order **123**, **0 duplicates**. Before the first store identity, mutate captures
+**0** records and ordinary admission still applies **1** write without throwing.
+
+The README, writes card and §20.4 describe missing Web Locks and total cancellation
+failure explicitly. No parser form, emitted diagnostic code, meter ceiling, value
+serialization, corpus case, W4b merge/feed file, dependency or generated tracked
+artifact changes. The extra localStorage cancellation is host bookkeeping, not a
+new device value form. Earlier journal entries are unchanged.
+
+**Commands and evidence.** All JS commands below run from `snapback4/` after
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`; cargo also runs
+from `snapback4/`. The repository-root commands are labelled.
+
+The initial `bun run --cwd packages/snapback4 build` stopped with TS2307 for the
+absent generated `src/wasm/snapback4_device.js` and its declarations. The required
+`bash scripts/build-wasm.sh` succeeded and printed:
+
+```text
+wasm 1743785 B raw, 485491 B gzip
+```
+
+Subsequent `bun run --cwd packages/snapback4 build` runs succeeded (exit 0).
+No dependency installation was needed.
+
+`node --test --test-name-pattern='W4R1' packages/snapback4/test/navigation-model.test.mjs`
+on the unchanged base implementation, with the new tests:
+
+```text
+ℹ tests 12
+ℹ pass 4
+ℹ fail 8
+ℹ cancelled 0
+ℹ duration_ms 3399.281666
+```
+
+The eight failures cover A, B1, B2 empty and broken-backend, C localStorage-only
+and neither-store cancellation, D, and E. The controls already passing were B2's
+missing-identity skip, IDB-only cancellation, primary-before-orphan ordering, and
+unidentified-backend admission. The first fixed-code run reported:
+
+```text
+ℹ tests 12
+ℹ pass 11
+ℹ fail 1
+ℹ cancelled 0
+ℹ duration_ms 2432.564875
+```
+
+Its remaining failure was a test setup error: changing the server's guard row had
+not changed the device's held row before startup recovery. The test now acquires
+that row through an owner without journal recovery, then reopens with the lock;
+it tests a changed authored condition on both hosts. The B2 tests also prove a
+broken orphan cannot obstruct a healthy orphan. The focused run then reported:
+
+```text
+ℹ tests 12
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ duration_ms 2518.683792
+```
+
+`node --test packages/snapback4/test/navigation-model.test.mjs`, first full
+navigation run:
+
+```text
+ℹ tests 43
+ℹ pass 43
+ℹ fail 0
+ℹ cancelled 0
+ℹ duration_ms 14607.08075
+```
+
+`node --test --test-name-pattern='W4R1 C' packages/snapback4/test/navigation-model.test.mjs`
+adds cancellation collection after removal becomes available, against the first
+built fix, then against the rebuilt cleanup fix:
+
+```text
+ℹ tests 3
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ duration_ms 607.730084
+
+ℹ tests 3
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ duration_ms 619.550208
+```
+
+`node --test packages/snapback4/test/navigation-model.test.mjs`, final code:
+
+```text
+ℹ tests 43
+ℹ pass 43
+ℹ fail 0
+ℹ cancelled 0
+ℹ duration_ms 14698.213334
+```
+
+`cargo test -p snapback4-lang --test guide -- --nocapture`:
+
+```text
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+```
+
+`node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'`, first run
+before cancellation collection was rebuilt (the navigation file had already run):
+
+```text
+ℹ tests 287
+ℹ pass 286
+ℹ fail 1
+ℹ cancelled 0
+ℹ duration_ms 92788.753
+```
+
+The single failure is the supplied Chromium sandbox launch artifact in
+`react.test.mjs` (`exitCode=null, signal=SIGABRT`). It is not attributed to an
+independently verified pre-existing product failure. Final-code client and
+blocking-suite results follow below.
+
+`node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'`, final code:
+
+```text
+ℹ tests 287
+ℹ pass 286
+ℹ fail 1
+ℹ cancelled 0
+ℹ duration_ms 92894.429
+```
+
+Again, Chromium's `SIGABRT` at launch is the sole failure. The lead reruns
+Chromium outside the sandbox as the brief directs.
+
+The final navigation run measured the existing same-turn and held-save witnesses:
+
+| Records | Teardown | Applications | Order | Duplicate applications | Replay ms | Journal record bytes |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | same turn | 1 | 1 | 0 | 25 | 609 |
+| 1 | held save | 1 | 1 | 0 | 22 | 609 |
+| 2 | same turn | 2 | 12 | 0 | 27 | 1218 |
+| 2 | held save | 2 | 12 | 0 | 25 | 1218 |
+
+The record-size probe captures **1/2** records (**56,758 B** keys + values,
+largest record **56,612 B**); the journal-size probe captures **4/5**
+(**227,032 B**, largest **56,612 B**); the count probe captures **32/33**
+(**24,279 B**, largest **613 B**). All ordinary admissions still apply.
+These are Node-model timings and byte counts, not a Chromium or power-loss claim.
+The journal bounds stay **32 records**, **262,144 B** total keys + values,
+**65,536 B** per serialized record. Changed source file sizes are web.ts **474**,
+web-journal.ts **197**, navigation-model.test.mjs **638**, writes.rs **172** lines.
+
+The blocking suite's default-concurrency client phase also failed
+`sync store identity survives a server restart; a live client detects an equal-watermark replacement`
+at `store-reset.test.mjs:135`: its final recorded sync reply still had the old
+store identity. Both concurrency-2 client runs passed that test. The required
+isolated rerun on the final code:
+
+`node --test --test-name-pattern='sync store identity survives a server restart' packages/snapback4/test/store-reset.test.mjs`
+
+```text
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ duration_ms 2317.413333
+```
+
+The isolated test observed two different store identities at watermark **3**.
+This is a passing rerun after the loaded-suite failure, not a verified
+pre-existing-failure attribution.
+
+Repository root, after the final targeted and concurrency-2 client runs:
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`, then
+`bash snapback4/scripts/test.sh` (exit 1). The Rust summaries sum to
+**884 passed, 0 failed, 4 ignored**. Verbatim phase and JS summaries:
+
+```text
+-- ok: cargo build (11 s)
+-- ok: wasm build (1 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (2 s)
+-- ok: cargo test (311 s)
+-- ok: chat app typecheck (0 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ duration_ms 8474.059875
+-- ok: fixture wrapper tests (8 s)
+ℹ tests 287
+ℹ pass 285
+ℹ fail 2
+ℹ cancelled 0
+ℹ duration_ms 46370.356958
+-- FAIL: client tests (47 s)
+== 1 failure(s) in 326 s
+```
+
+No Rust lifecycle timeout occurred. No failure is labelled pre-existing without
+base verification; none is so labelled here. The client timing failure and its
+isolated green result are recorded above. Chromium revalidation remains with the
+lead, as instructed; this lane does not renew the earlier **10/10** browser claim.
+
+No diagnostic wording or diagnostic registry entry changed. C previously replaced
+the authored `LOCKED` with `E_STORE` on cancellation-save failure; it now returns
+the existing authored refusal unchanged:
+
+```json
+{"code":"LOCKED","family":"rule","guide":"programs","message":"the program refused with LOCKED","rule":"LOCKED","site":"media.q:23:3"}
+```
+
+All requested W4a findings and missing model cases are handled. No out-of-scope
+file was touched, and no commit, push, tag, publication, install, sub-agent, clone
+or remote machine was used.
+
+Repository-root `./ref-check --verbose`:
+
+```text
+ref-check: ok — 480 LLP docs, 8930 refs in 23703 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passes. The prior journal bytes remain an unchanged prefix,
+with exactly one new dated entry. The working tree contains exactly the seven
+intended W4a files listed above.

@@ -46,11 +46,18 @@ export function journalStores(namePrefix: string): string[] {
   try {
     const store = storage();
     if (!store) return [];
-    return [...new Set(keys(store).filter(key => key.startsWith(PREFIX)).map(key => decodeURIComponent(key.slice(PREFIX.length).split(":")[0]!)).filter(name => name.startsWith(namePrefix)))];
+    const names = new Set<string>();
+    for (const key of keys(store).filter(key => key.startsWith(PREFIX))) {
+      try {
+        const name = decodeURIComponent(key.slice(PREFIX.length).split(":")[0]!);
+        if (name.startsWith(namePrefix)) names.add(name);
+      } catch { /* One malformed key must not hide another tab's journal. */ }
+    }
+    return [...names];
   } catch { return []; }
 }
 
-function records(name: string): AdmissionRecord[] {
+function records(name: string, cleanup = false): AdmissionRecord[] {
   try {
     const store = storage();
     if (!store) return [];
@@ -59,7 +66,8 @@ function records(name: string): AdmissionRecord[] {
       const text = store.getItem(key);
       if (!text || bytes(text) > RECORD_BYTES) continue;
       try {
-        const record = JSON.parse(text) as AdmissionRecord;
+        const record = JSON.parse(text) as AdmissionRecord & { cancelled?: boolean };
+        if (record.key === key && record.cancelled === true) { if (cleanup) remove(key); continue; }
         const e = record.entry;
         if (record.key === key && typeof record.storeId === "string" && e && typeof e.id === "string" && Number.isSafeInteger(e.seq)
           && typeof e.op === "string" && Array.isArray(e.new_ids) && e.new_ids.every(id => typeof id === "string")
@@ -73,12 +81,14 @@ function records(name: string): AdmissionRecord[] {
 export class AdmissionJournal {
   private transfers = new Map<string, Transfer>();
   private storeId: string | undefined;
-  constructor(private readonly name: string) {}
+  private sequence = 0;
+  constructor(private readonly name: string, private readonly exclusive: boolean) {}
 
   load(saved: Change[]): void {
     this.transfers.clear();
     this.storeId = undefined;
     this.remember(saved);
+    for (const record of records(this.name, this.exclusive)) this.sequence = Math.max(this.sequence, record.entry.seq);
   }
 
   remember(changes: Change[]): void {
@@ -93,10 +103,12 @@ export class AdmissionJournal {
 
   // @ref LLP 3000.007#20.4 — capture before mutate's first await; only ordinary IDB admission may expose the write to transport.
   capture(request: Record<string, unknown>): AdmissionRecord | undefined {
+    if (!this.exclusive) return;
     try {
       const store = storage();
       if (!store || !this.storeId) return;
-      const entry = request.entry as Entry;
+      const requested = request.entry as Entry;
+      const entry = { ...requested, seq: this.sequence = Math.max(this.sequence + 1, requested.seq) };
       const key = `${prefix(this.name)}${encodeURIComponent(this.storeId)}:${entry.id}`;
       const record = JSON.parse(JSON.stringify({ key, storeId: this.storeId, entry })) as AdmissionRecord;
       const text = JSON.stringify(record);
@@ -114,10 +126,12 @@ export class AdmissionJournal {
   }
 
   refused(record: AdmissionRecord): Change[] {
-    // No admission committed and nothing was sent. Preserve the ordinary
-    // typed refusal even when IDB is down; only failed synchronous cleanup
-    // needs an IDB acknowledgement to suppress the leftover journal copy.
+    // No admission committed and nothing was sent. If removal fails, replace
+    // the executable copy with a cancellation; IDB is an independent fallback.
     remove(record.key);
+    if (!absent(record.key)) {
+      try { storage()?.setItem(record.key, JSON.stringify({ key: record.key, cancelled: true })); } catch { /* IDB may still acknowledge it. */ }
+    }
     return absent(record.key) ? [] : [this.transfer(record, false)];
   }
 
@@ -126,6 +140,7 @@ export class AdmissionJournal {
   // resurrect an admitted ID after its outbox entry/receipt has been retired.
   cleanup(queued: ReadonlyMap<string, unknown>): Change[] {
     const changes: Change[] = [];
+    if (!this.exclusive) return changes;
     for (const [id, transfer] of this.transfers) {
       remove(transfer.key);
       if (absent(transfer.key) && (!transfer.recovered || !queued.has(id))) changes.push({ s: "j", k: id, v: null });
@@ -145,9 +160,10 @@ export class AdmissionJournal {
   }
 
   async recover(device: WebDevice, settle: (extra?: Change[]) => Promise<void>, live = new Set<string>()): Promise<void> {
+    if (!this.exclusive) return;
     const state = invoke(device, { op: "sync_state" }).ok;
     if (!state?.store_id || state.restore_refusal || state.backend_required) return;
-    for (const record of records(this.name)) {
+    for (const record of records(this.name, true)) {
       const id = record.entry.id;
       if (live.has(id)) continue;
       if (this.transfers.has(id)) { remove(record.key); continue; }
@@ -161,11 +177,17 @@ export class AdmissionJournal {
         await settle([this.transfer(record, false)]);
         continue;
       }
-      const entry = { ...record.entry, seq: invoke(device, { op: "next_submission" }).ok };
-      const reply = invoke(device, { op: "admit", entry });
+      const reply = this.admit(device, record.entry);
       if (reply.denied && !writeRefusal(reply)) throw new Error(JSON.stringify(reply));
       await settle(reply.denied ? this.refused(record) : [this.transfer(record, true)]);
     }
+  }
+
+  // @ref LLP 3000.007#20.4 — recovery and live admission allocate from the device's durable counter inside the same serialized chain.
+  admit(device: WebDevice, entry: unknown): Record<string, unknown> {
+    const next = invoke(device, { op: "next_submission" });
+    if (next.denied) return next;
+    return invoke(device, { op: "admit", entry: { ...entry as Entry, seq: next.ok } });
   }
 }
 

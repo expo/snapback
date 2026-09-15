@@ -20,7 +20,8 @@ async function until(check, ms = 2000) {
   do { if (await check()) return true; await new Promise(r => setTimeout(r, 10)); } while (performance.now() < end);
   return false;
 }
-async function fixture(t) {
+async function fixture(t, { exclusive = true } = {}) {
+  if (exclusive) locks(t);
   const window = new EventTarget(), document = new EventTarget();
   const storage = new Map();
   const localStorage = {
@@ -56,6 +57,10 @@ mutation mark(digit: int):
 mutation reject(digit: int):
   require digit = 1 else WRONG_DIGIT
   insert messages { conversationId: 'c1', authorId: viewer, body: 'accepted', at: now }
+
+mutation guarded():
+  require exists audit['audit'] else LOCKED
+  insert messages { conversationId: 'c1', authorId: viewer, body: 'guarded', at: now }
 
 mutation payload(body: text <=100000):
   insert messages { conversationId: 'c1', authorId: viewer, body: 'payload', at: now }
@@ -438,3 +443,196 @@ for (const identity of ["same", "different", "missing", "restored"]) {
     }
   });
 }
+
+const mark = { kind: "mutation", name: "media.mark" };
+const storeName = f => [...f.persist.stores.keys()].find(n => n.startsWith("snapback4-") && !n.includes(":tab-") && n !== "snapback4-wasm");
+async function requireBackend(f, name) {
+  const storeId = (await f.persist.load(name)).find(c => c.k === "device:store_id").v;
+  await f.persist.save(name, [{ s: "m", k: "device:backend-required", v: storeId }]);
+}
+
+test("W4R1 A: deferred recovery allocates before an offline successor, then applies ABC", async t => {
+  const f = await fixture(t), first = await f.open();
+  const records = await loseAdmission(f, first, mark, [{ digit: 1 }, { digit: 2 }]);
+  await requireBackend(f, storeName(f));
+  let unavailable = false;
+  const sends = [];
+  const transport = (url, init) => {
+    if (unavailable || String(url).includes("/m/")) return Promise.reject(new TypeError("transport unavailable"));
+    return fetch(url, init);
+  };
+  const client = await f.open(transport);
+  assert.equal((await f.cores.at(-1).call({ op: "sync_state" })).ok.backend_required, false);
+  unavailable = true; await client.sync();
+  const successor = await client.mutate(mark, { digit: 3 });
+  assert.equal(successor.state, "pending");
+  const queued = f.durable();
+  await client.close();
+  const reopened = await f.open((url, init) => {
+    if (String(url).includes("/m/")) sends.push(JSON.parse(init.body));
+    return fetch(url, init);
+  });
+  await reopened.sync();
+  assert.equal((await f.audit()).ordering, 123);
+  assert.equal((await f.audit()).total, 3);
+  assert.deepEqual(queued.map(e => e.seq), [1, 2, 3]);
+  assert.deepEqual(sends.map(e => e.id), [...records.map(r => r.entry.id), successor.id]);
+  console.log(`W4R1 A: submissions=${queued.map(e => e.seq)}; applications=3; order=123; duplicates=0`);
+});
+
+test("W4R1 B1: a matching orphan installs the destination backend before recovery", async t => {
+  const f = await fixture(t), primary = await f.open(), orphan = await f.open();
+  const source = [...f.persist.stores.keys()].find(n => n.includes(":tab-"));
+  const records = await loseAdmission(f, orphan, mark, [{ digit: 1 }, { digit: 2 }]);
+  await requireBackend(f, source);
+  await primary.close();
+  const sends = [];
+  const reopened = await f.open((url, init) => {
+    if (String(url).includes("/m/")) sends.push(JSON.parse(init.body));
+    return fetch(url, init);
+  });
+  await reopened.sync();
+  assert.equal((await f.audit())?.ordering, 12);
+  assert.equal((await f.audit()).total, 2);
+  assert.deepEqual(sends.map(e => e.id), records.map(r => r.entry.id));
+  assert.equal(journalEntries(f).length, 0);
+  assert.ok(!f.persist.stores.has(source));
+});
+
+for (const fault of ["empty", "missing identity", "broken backend"]) test(`W4R1 B2: ${fault} orphan cannot fail open or hide a healthy orphan`, async t => {
+  const f = await fixture(t), primary = await f.open(), orphan = await f.open();
+  const source = [...f.persist.stores.keys()].find(n => n.includes(":tab-"));
+  const [record] = await loseAdmission(f, orphan, mark, [{ digit: 1 }]);
+  const saved = await f.persist.load(source);
+  if (fault === "empty") f.persist.stores.delete(source);
+  if (fault === "missing identity") await f.persist.save(source, [{ s: "m", k: "device:store_id", v: null }]);
+  if (fault === "broken backend") await f.persist.save(source, [{ s: "m", k: "device:backend", v: "{" }]);
+  const healthy = await f.open();
+  await loseAdmission(f, healthy, mark, [{ digit: 3 }]);
+  await primary.close();
+  const reopened = await f.open();
+  assert.equal((await reopened.mutate(mark, { digit: 2 })).state, "sent");
+  assert.ok(f.storage.has(record.key), "unidentifiable or unusable source stays recoverable");
+  assert.equal((await f.audit()).ordering, 32);
+  await reopened.close();
+  await f.persist.save(source, saved);
+  const again = await f.open(); await again.sync();
+  assert.equal((await f.audit()).ordering, 321);
+  assert.equal((await f.audit()).total, 3);
+  assert.equal(journalEntries(f).length, 0);
+  assert.ok(!f.persist.stores.has(source));
+});
+
+for (const available of ["localStorage", "IDB", "neither"]) test(`W4R1 C: known refusal with failed removal and ${available} cancellation`, async t => {
+  const f = await fixture(t), client = await f.open(), save = f.persist.save.bind(f.persist), setItem = f.localStorage.setItem;
+  f.localStorage.removeItem = () => { throw new Error("removal unavailable"); };
+  const gate = deferred(), entered = deferred();
+  // Hold the serialized device chain so capture succeeds before storage fails.
+  f.persist.save = async (name, changes) => { entered.resolve(); await gate.promise; await save(name, changes); };
+  const barrier = f.cores.at(-1).call({ op: "set_meta", key: "refusal-test", value: "1" });
+  await entered.promise;
+  const write = client.mutate({ kind: "mutation", name: "media.guarded" }, {});
+  assert.equal(journalEntries(f).length, 1);
+  if (available !== "localStorage") f.localStorage.setItem = () => { throw new Error("replacement unavailable"); };
+  if (available !== "IDB") f.persist.save = async () => { throw new Error("IDB unavailable"); };
+  gate.resolve(); await barrier;
+  const failed = await write;
+  f.persist.save = save; f.localStorage.setItem = setItem;
+  assert.equal(failed.why.code, "LOCKED", "bookkeeping must not replace a known authored refusal with E_STORE");
+  assert.equal(failed.state, "failed");
+  console.log(`W4R1 C: cancellation=${available}; refusal=${JSON.stringify(failed.why)}`);
+  await client.close();
+  // Change the authored condition after the refusal without opening its journal.
+  await fetch(f.server.api + "/m/media.mark", { method: "POST", headers: { "x-snapback-persona": "alice", "content-type": "application/json" }, body: JSON.stringify({ id: "unlock", args: { digit: 1 }, newIds: ["unlock-row"] }) }).then(r => r.json());
+  // A host without journal ownership can acquire the changed condition, but
+  // cannot recover the outstanding record. The next exclusive owner can.
+  const navigator = globalThis.navigator;
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: {} });
+  try {
+    const acquisition = await f.open(); await acquisition.sync(); await acquisition.close();
+  } finally { Object.defineProperty(globalThis, "navigator", { configurable: true, value: navigator }); }
+  const reopened = await f.open(); await reopened.sync();
+  const guarded = (await f.rows()).filter(r => r.body === "guarded");
+  assert.equal(guarded.length, available === "neither" ? 1 : 0, "only total cancellation failure leaves an indeterminate record");
+  assert.equal((await reopened.mutate({ kind: "mutation", name: "media.guarded" }, {})).state, "sent");
+  assert.equal((await f.rows()).filter(r => r.body === "guarded").length, guarded.length + 1);
+  f.localStorage.removeItem = key => f.storage.delete(key);
+  await reopened.close();
+  const cleaned = await f.open(); await cleaned.sync();
+  assert.equal(f.storage.size, 0, "successful removal also collects non-executable cancellations");
+});
+
+test("W4R1 D: without Web Locks a live admission is not captured or recovered by another owner", async t => {
+  const f = await fixture(t, { exclusive: false });
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: {} });
+  t.after(() => previous ? Object.defineProperty(globalThis, "navigator", previous) : delete globalThis.navigator);
+  const client = await f.open(), gate = deferred(), entered = deferred(), save = f.persist.save.bind(f.persist);
+  let blocked = false;
+  f.cleanup.push(() => gate.resolve());
+  f.persist.save = async (name, changes) => {
+    if (!blocked && changes.some(c => c.s === "o")) { blocked = true; entered.resolve(); await gate.promise; }
+    await save(name, changes);
+  };
+  const write = client.mutate(mark, { digit: 1 });
+  const captured = journalEntries(f).length;
+  await entered.promise;
+  const other = await f.open(); await other.sync();
+  assert.equal(await f.audit(), null, "the second owner must not execute the live admission");
+  assert.equal(captured, 0);
+  gate.resolve();
+  assert.equal((await write).state, "sent");
+  assert.equal((await f.audit()).total, 1);
+});
+
+test("W4R1 E: one malformed journal key does not hide a real closed tab journal", async t => {
+  const f = await fixture(t), primary = await f.open(), orphan = await f.open();
+  const [record] = await loseAdmission(f, orphan, mark, [{ digit: 1 }]);
+  f.storage.set("snapback4-admission:%E0%A4%A:bad", "{}");
+  f.persist.others = async () => []; // This browser has no indexedDB.databases().
+  await primary.close();
+  const client = await f.open(); await client.sync();
+  assert.equal((await f.audit())?.total, 1);
+  assert.ok(!f.storage.has(record.key));
+  assert.equal((await client.mutate(mark, { digit: 2 })).state, "sent");
+  assert.equal((await f.audit()).ordering, 12);
+});
+
+test("W4R1 missing: queued primary precedes two orphan journals with one application each", async t => {
+  const f = await fixture(t);
+  let offline = false;
+  const primary = await f.open((url, init) => offline ? Promise.reject(new TypeError("offline")) : fetch(url, init));
+  offline = true; await primary.sync();
+  const queued = await primary.mutate(mark, { digit: 1 });
+  assert.equal(queued.state, "pending");
+  const secondary = await f.open((url, init) => String(url).includes("/m/") ? Promise.reject(new TypeError("offline")) : fetch(url, init));
+  const records = await loseAdmission(f, secondary, mark, [{ digit: 2 }, { digit: 3 }]);
+  await primary.close();
+  const sends = [];
+  const client = await f.open((url, init) => {
+    if (String(url).includes("/m/")) sends.push(JSON.parse(init.body));
+    return fetch(url, init);
+  });
+  await client.sync();
+  assert.equal((await f.audit()).ordering, 123);
+  assert.equal((await f.audit()).total, 3);
+  assert.deepEqual(sends.map(e => e.id), [queued.id, ...records.map(r => r.entry.id)]);
+  console.log("W4R1 queued + orphan: applications=3; order=123; sends=3; duplicates=0");
+});
+
+test("W4R1 missing: before the first store identity mutation stays best-effort without throwing", async t => {
+  const f = await fixture(t);
+  const client = await f.open(async (url, init) => {
+    const response = await fetch(url, init);
+    if (["/probe", "/sync", "/changes"].some(p => String(url).includes(p))) {
+      const body = await response.json(); delete body.store_id; return Response.json(body);
+    }
+    return response;
+  });
+  assert.equal((await f.cores.at(-1).call({ op: "sync_state" })).ok.store_id, null);
+  let write;
+  assert.doesNotThrow(() => { write = client.mutate(mark, { digit: 1 }); });
+  assert.equal(journalEntries(f).length, 0);
+  assert.equal((await write).state, "sent");
+  assert.equal((await f.audit()).total, 1);
+});

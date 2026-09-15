@@ -54,7 +54,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         .catch((error) => { ready = null; throw error; });
       await ready;
       const store = await claim(name);
-      const journal = new AdmissionJournal(store.name);
+      const journal = new AdmissionJournal(store.name, store.exclusive);
       const admissions = new Set<string>();
       let device: WebDevice | undefined;
       let chain: Promise<unknown> = Promise.resolve();
@@ -158,9 +158,17 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
               // on the kept backend, with no store copy on successful calls.
               if (!device) await restore();
               if (request.op === "admit") await journal.recover(device!, settle, admissions);
-              const reply = JSON.parse(device!.call(JSON.stringify(request))) as Record<string, unknown>;
+              const reply = request.op === "admit" ? journal.admit(device!, request.entry) : JSON.parse(device!.call(JSON.stringify(request))) as Record<string, unknown>;
               if (!reply.denied && (request.op === "observe_store" || request.op === "apply")) journal.fence(device!);
-              await settle(!admission ? [] : !reply.denied ? [journal.transfer(admission, false)] : writeRefusal(reply) ? journal.refused(admission) : []);
+              try {
+                await settle(!admission ? [] : !reply.denied ? [journal.transfer(admission, false)] : writeRefusal(reply) ? journal.refused(admission) : []);
+              } catch (error) {
+                if (!admission || !writeRefusal(reply)) throw error;
+                // The refusal is known even when both cancellation stores fail.
+                // Discard any uncommitted memory; the docs call recovery indeterminate.
+                discard();
+                return reply;
+              }
               if (!reply.denied && ["adopt", "observe_store", "apply"].includes(String(request.op))) await journal.recover(device!, settle, admissions);
               if (!reply.denied && (request.op === "observe_store" || request.op === "apply")) await adoptOrphans(device!, name, store.name, persist, settle);
               return reply;
@@ -252,6 +260,7 @@ function refusalText(error: unknown): string {
 
 interface Claim {
   name: string;
+  exclusive: boolean;
   release(): Promise<void>;
 }
 
@@ -263,12 +272,12 @@ function lockManager(): LockManager | undefined {
  * tab-scoped store instead. Without the Web Locks API the name is shared. */
 async function claim(name: string): Promise<Claim> {
   const locks = lockManager();
-  if (!locks) return { name, async release() {} };
+  if (!locks) return { name, exclusive: false, async release() {} };
   const held = await hold(locks, name);
-  if (held) return { name, release: held };
+  if (held) return { name, exclusive: true, release: held };
   const own = `${name}:tab-${Math.random().toString(36).slice(2, 10)}`;
   const release = await hold(locks, own);
-  return { name: own, release: release ?? (async () => {}) };
+  return { name: own, exclusive: !!release, release: release ?? (async () => {}) };
 }
 
 /** Hold a lock until released; null when another holder has it. */
@@ -300,14 +309,28 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
     if (orphan === own) continue;
     const held = await hold(locks, orphan);
     if (!held) continue;
+    let destinationDirty = false;
     try {
       // @ref LLP 3000.007#18.2 — orphan receipts retain their source store until ownership can be resolved.
       let saved = await persist.load(orphan);
+      const state = JSON.parse(device.call(JSON.stringify({ op: "sync_state" }))).ok;
+      const destination = state?.store_id;
       if (journalStores(`${name}:tab-`).includes(orphan)) {
-        const sourceJournal = new AdmissionJournal(orphan);
+        // An evicted/unidentified store cannot establish the journal's owner.
+        // Leave it intact for a later matching open; never guess from the key.
+        if (!saved.some(c => c.s === "m" && c.k === "device:store_id" && c.v) || !saved.some(c => c.s === "m" && c.k === "device:backend" && c.v)) continue;
+        const sourceJournal = new AdmissionJournal(orphan, true);
         sourceJournal.load(saved);
         const sourceDevice = new WebDevice(null, JSON.stringify(saved.filter(c => c.s !== "j")));
         try {
+          const sourceState = JSON.parse(sourceDevice.call(JSON.stringify({ op: "sync_state" }))).ok;
+          if (sourceState?.backend_required && !sourceState.restore_refusal && sourceState.store_id === destination && !state.backend_required && !state.restore_refusal) {
+            // The destination has already authenticated and installed this store's backend.
+            const backend = JSON.parse(device.call(JSON.stringify({ op: "backend" }))).ok;
+            const adopted = JSON.parse(sourceDevice.call(JSON.stringify({ op: "adopt", backend, store_id: destination, send_revision: sourceState.send_revision })));
+            if (adopted.denied) throw new Error(refusalText(JSON.stringify(adopted)));
+            await persist.save(orphan, JSON.parse(sourceDevice.drain()));
+          }
           await sourceJournal.recover(sourceDevice, async (extra = []) => {
             const changes = [...JSON.parse(sourceDevice.drain()) as Change[], ...extra];
             await persist.save(orphan, changes);
@@ -319,8 +342,6 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
       }
       let source: string | null | undefined;
       for (const change of saved) if (change.s === "m" && change.k === "device:store_id") source = change.v;
-      const state = JSON.parse(device.call(JSON.stringify({ op: "sync_state" }))).ok;
-      const destination = state?.store_id;
       const latest = new Map<string, string | null>();
       for (const change of saved) if (change.s === "o") latest.set(change.k, change.v);
       const entries = [...latest.values()].filter((v): v is string => v !== null).map(v => JSON.parse(v) as { id: string; seq: number; sent_seq?: number | null; observed_seq?: number | null });
@@ -336,6 +357,7 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
         const known = entry.sent_seq != null || entry.observed_seq != null;
         if (known && (!source || !destination)) { unresolved = true; continue; }
         if ((!known || source === destination) && !existing.has(entry.id)) {
+          destinationDirty = true;
           const next = JSON.parse(device.call(JSON.stringify({ op: "next_submission" }))) as { ok?: number };
           const reply = JSON.parse(device.call(JSON.stringify({ op: "enqueue", entry: { ...entry, seq: next.ok ?? entry.seq, predictable: false, predicted: [] } })));
           if (reply.denied) throw new Error(refusalText(JSON.stringify(reply)));
@@ -344,8 +366,13 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
         removed.push({ s: "o", k: entry.id, v: null });
       }
       await settle(saved.filter(c => c.s === "j" && !entries.some(e => e.id === c.k && !removed.some(r => r.k === e.id))));
+      destinationDirty = false;
       if (unresolved || journalStores(`${name}:tab-`).includes(orphan)) await persist.save(orphan, removed);
       else await persist.remove(orphan);
+    } catch (error) {
+      // A broken orphan stays intact and must not prevent opening healthy stores.
+      // A destination commit failure still requires the caller to discard its VM.
+      if (destinationDirty) throw error;
     } finally {
       await held();
     }
