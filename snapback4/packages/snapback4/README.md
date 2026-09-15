@@ -1242,6 +1242,7 @@ import { api } from "../snapback/generated/api";
 async function openThread(conversationId: string) { // an existing conversation this viewer belongs to
   const online = createClient({ url: "http://127.0.0.1:4400", persona: "alice" });
   const client = await createLocalClient({ url: "http://127.0.0.1:4400", persona: "alice", device: webDevice() });
+  if (client.link() === "online") await client.sync();
   const thread = await client.query(api.thread, { conversationId });
   const write = await client.mutate(api.send, { conversationId, body: "hi" });
   const invitation = await client.act(api.invite, { email: "friend@example.com" }, { id: mintId() });
@@ -1261,6 +1262,15 @@ and catches up when the link returns. A device needs a kept backend to open
 offline. Merely installing that backend does not acquire its partition: until
 a snapshot and catch-up finish, partition-dependent reads fall back to the
 server or return `E_OFFLINE`, and writes queue without invented predictions.
+`client.acquired` and React's `useAcquired()` become true after the snapshot
+and catch-up finish for the current store, including an empty partition.
+They stay true offline and across an offline reopen, and become false when
+store replacement or schema adoption invalidates acquisition. The online tier
+has no local partition and reports false. `onAcquired` observes changes.
+Await `client.sync()` when `client.link() === "online"` before exposing a
+screen that needs offline prediction immediately; skip that wait on an offline
+cold start. A sync interrupted by link loss or a refused partition can return
+without acquisition, so the flag remains the authority.
 A successfully acquired empty partition is still known data. When upgrading a store that lacks acquisition metadata, one completed online
 sync is required;
 existing durable writes remain queued. Safe literal-default-only schema
@@ -1345,6 +1355,7 @@ const signedIn = await login(url, "alice@example.com", "a-long-password");
 if (!signedIn.ok) throw new Error(signedIn.why.message);
 const session = signedIn.session;
 const client = await createLocalClient({ url, session, device: processDevice({ dir: ".snapback4/devices" }) });
+if (client.link() === "online") await client.sync();
 await client.close();
 ```
 
@@ -1428,7 +1439,7 @@ type Read<T> =
   | { loading: true }
   | { denied: Refusal };
 type Write<R> =
-  | { state: "pending"; id: string }
+  | { state: "pending"; id: string; reason?: string }
   | { state: "sent"; id: string; seq: number; replayed?: false; result: R }
   | { state: "sent"; id: string; seq: number; replayed: true; result?: never }
   | { state: "failed"; id: string; why: Refusal };
@@ -1468,6 +1479,42 @@ ordinary query if needed; do not issue a new mutation to recover the old result.
 A queued write's eventual `onWrite` event and `useMutation.last` preserve the same
 fresh-or-replayed outcome; `useMutation.run()` returns the outcome of its call.
 Pending writes have no predicted result: their predicted rows carry `pending`.
+
+Writes that do not predict show pending with `usePendingWrite(op)`. Its
+`pending` flag starts at `run(args)` and stays true until `sent` or `failed`,
+including the interval before admission returns an id. `last` is the Write;
+`run` returns that call's outcome, like `useMutation`. A pre-acquisition write
+that queues without a row reports `reason: "queued without a row: not acquired yet"`.
+Other missing local evidence reports `reason: "queued without a row: local data does not justify prediction"`.
+A predicted write has no such reason; predictions remain visible on rows.
+
+```tsx
+import { useAcquired, usePendingWrite } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+export function PendingSend({ conversationId, savedId }: { conversationId: string; savedId?: string }) {
+  const acquired = useAcquired();
+  const send = usePendingWrite(api.send, savedId);
+  return <>
+    <button disabled={send.pending} onClick={() => void send.run({ conversationId, body: "hi" })}>Send</button>
+    {!acquired && <small>Local data is still acquiring.</small>}
+    {send.pending && <small role="status">{send.last?.state === "pending" ? send.last.reason ?? "Sending…" : "Sending…"}</small>}
+    {send.last?.state === "failed" && <small role="alert">{send.last.why.message}</small>}
+  </>;
+}
+```
+
+Keep the returned mutation `id` with the application's view state and pass it
+as `usePendingWrite(op, savedId)` after reload. Recovery observes that id; it
+never submits again. `await client.write(id)` also reads its latest outcome,
+and `onWrite` receives later terminal changes. An unknown id returns
+`undefined`. The local client keeps server terminal receipts in the device store:
+recovered success has `replayed: true` and no historical result; recovered
+failure keeps its code and family with the message `write refused: CODE`.
+Refusals before durable admission, the online tier and mock remember outcomes
+only for that client lifetime. A secondary web tab transfers its receipts when
+its closed store is adopted. Rebuild the Expo native binary with this client
+version: acquisition is a device protocol field, and an older module refuses
+startup with `E_DEVICE_VERSION`.
 
 `webDevice()` stores wasm bytes by SHA-256 digest in IndexedDB and opens from
 them without a network fetch on reload. It also persists the compiled backend
@@ -1539,6 +1586,7 @@ const client = await createLocalClient({
   url: "http://127.0.0.1:4400", guest: true, device: webDevice(),
   assets: { keep: "viewed", maxBytes: 64 * 1024 * 1024 },
 });
+if (client.link() === "online") await client.sync();
 ```
 
 `keep: "none"` is the default and purges previously retained media on open.
@@ -2176,9 +2224,11 @@ async function kept() {
   await keepSession(url, signedIn.session, sessionStore);
   return signedIn.session;
 }
-const client = nativeAvailable()
+const local = nativeAvailable()
   ? await createLocalClient({ url, guest: true, sessionStore, device: nativeDevice })
-  : createClient({ url, session: await kept() });   // Expo Go
+  : null;
+if (local?.link() === "online") await local.sync();
+const client = local ?? createClient({ url, session: await kept() });   // Expo Go
 ```
 
 `snapback4/react` works unchanged. Pass `assets: { keep: "viewed", maxBytes }`

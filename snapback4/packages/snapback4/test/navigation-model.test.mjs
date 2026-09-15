@@ -636,3 +636,19 @@ test("W4R1 missing: before the first store identity mutation stays best-effort w
   assert.equal((await write).state, "sent");
   assert.equal((await f.audit()).total, 1);
 });
+
+test("W5c a reloaded secondary tab recovers its terminal receipt by id", async t => {
+  const f = await fixture(t);
+  const primary = await f.open(), secondary = await f.open();
+  const sent = await secondary.mutate(send, { conversationId: "c1", body: "receipt survives tab store adoption" });
+  assert.equal(sent.state, "sent");
+  await secondary.sync();
+  await secondary.close();
+  const reloaded = await f.open();
+  const receipt = await reloaded.write(sent.id);
+  assert.equal(receipt?.state, "sent");
+  assert.equal(receipt.replayed, true);
+  assert.equal("result" in receipt, false);
+  assert.equal((await f.rows()).filter(row => row.body === "receipt survives tab store adoption").length, 1);
+  await primary.close();
+});

@@ -479,3 +479,27 @@ test("processDevice defaults to Node spawn and file writing in a new directory",
   assert.equal(result.error, undefined);
   assert.equal(result.status, 0, result.stdout + result.stderr);
 });
+
+
+test("W5c Expo starter waits for online acquisition and opens offline without syncing", async (t) => {
+  const { dir, run } = fixture(t);
+  run("init", "--expo");
+  const text = read(join(dir, "src/client.ts"));
+  const compiled = ts.transpileModule(text, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+  for (const link of ["online", "offline"]) {
+    let release, syncs = 0, opened = false;
+    const barrier = new Promise(resolve => { release = resolve; });
+    const client = { link: () => link, sync: () => { syncs++; return barrier; } };
+    const context = { exports: {}, process: { env: { EXPO_PUBLIC_SNAPBACK_PERSONA: "alice" } }, require: name => {
+      if (name === "snapback4/local") return { createLocalClient: async () => client };
+      if (name === "snapback4-expo") return { nativeAvailable: () => true, nativeDevice: {} };
+      return {};
+    } };
+    vm.runInNewContext(compiled, context);
+    const opening = context.exports.openClient().then(value => { opened = true; return value; });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(syncs, link === "online" ? 1 : 0);
+    assert.equal(opened, link === "offline");
+    release(); assert.equal(await opening, client);
+  }
+});

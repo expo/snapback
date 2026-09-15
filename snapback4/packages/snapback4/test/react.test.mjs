@@ -97,7 +97,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
 const harness = `
 import { StrictMode, act, createElement as h } from "react";
 import { createRoot } from "react-dom/client";
-import { SnapbackProvider, useQuery, usePage, useMutation, useAction, useViewer, useAsset } from "snapback4/react";
+import { SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, useAcquired, useAction, useViewer, useAsset } from "snapback4/react";
 import { Composer } from "web-composer";
 import { Thread } from "expo-thread";
 import { App as WebApp } from "web-app";
@@ -115,10 +115,14 @@ const sent = id => ({ state: "sent", id, seq: 1, result: { reused: id } });
 const failed = id => ({ state: "failed", id, why: { code: "E_INPUT", family: "input", message: "message refused" } });
 
 function controlled(read = () => ready([])) {
-  const records = [], writes = [], viewerListeners = new Set(), writeListeners = new Set();
+  const records = [], writes = [], viewerListeners = new Set(), writeListeners = new Set(), acquiredListeners = new Set();
+  const receipts = new Map();
   let viewer = "dev:test";
   const client = {
-    records, writes, closes: 0,
+    records, writes, receipts, closes: 0, acquired: false,
+    onAcquired(listener) { acquiredListeners.add(listener); return () => acquiredListeners.delete(listener); },
+    setAcquired(value) { client.acquired = value; for (const listener of acquiredListeners) listener(value); },
+    write: async id => receipts.get(id),
     observe(op, args) {
       const listeners = new Set();
       const record = {
@@ -141,7 +145,7 @@ function controlled(read = () => ready([])) {
     onViewer(listener) { viewerListeners.add(listener); return () => viewerListeners.delete(listener); },
     onWrite(listener) { writeListeners.add(listener); return () => writeListeners.delete(listener); },
     setViewer(next) { viewer = next; for (const listener of viewerListeners) listener(next); },
-    emitWrite(write) { for (const listener of writeListeners) listener(write); },
+    emitWrite(write) { receipts.set(write.id, write); for (const listener of writeListeners) listener(write); },
     close: async () => { client.closes++; },
   };
   return client;
@@ -271,6 +275,44 @@ const cases = {
     });
     equal(latest.last, early, "early replay notification wins over pending");
     check(!("result" in latest.last) && !latest.inFlight, "early replay has no invented result");
+    await unmount();
+  },
+  async "W5c acquisition and pending writes survive remount, receipt races and client replacement"() {
+    const client = controlled(); let latest, acquired;
+    function Probe({ id }) { latest = usePendingWrite(mutation, id); acquired = useAcquired(); return null; }
+    await mount(h(Probe), client);
+    check(acquired === false && !latest.pending, "an unacquired idle client is explicit");
+    await act(async () => client.setAcquired(true));
+    check(acquired === true, "acquisition notifies React");
+    let submit;
+    await act(async () => { submit = latest.run({}); });
+    check(latest.pending && latest.inFlight, "the chip starts at submit before an id returns");
+    await act(async () => { client.writes[0].resolve({ state: "pending", id: "held", reason: "queued without a row: not acquired yet" }); await submit; });
+    check(latest.pending && !latest.inFlight && latest.last.id === "held", "admitted pending keeps the chip");
+    await act(async () => client.emitWrite(sent("held")));
+    check(!latest.pending && latest.last.state === "sent", "sent removes pending");
+    await act(async () => { const p = latest.run({}); client.writes[1].resolve({ state: "pending", id: "refused" }); await p; });
+    await act(async () => client.emitWrite(failed("refused")));
+    check(!latest.pending && latest.last.state === "failed", "failed removes pending and preserves refusal");
+    await unmount();
+    const reopened = controlled(); reopened.acquired = true;
+    reopened.receipts.set("restored", { state: "pending", id: "restored" });
+    await mount(h(Probe, { id: "restored" }), reopened);
+    check(latest.pending && latest.last.id === "restored" && !latest.inFlight, "an id restores pending after reopen without resubmission");
+    const replay = { state: "sent", id: "restored", seq: 2, replayed: true };
+    await act(async () => reopened.emitWrite(replay));
+    equal(latest.last, replay, "replay preserves execution identity alone");
+    check(!latest.pending && reopened.writes.length === 0, "recovery never resubmits");
+    await unmount();
+    await mount(h(Probe, { id: "restored" }), reopened);
+    equal(latest.last, replay, "terminal receipt settled before mount is restored too");
+    const delayed = deferred(); reopened.write = () => delayed.promise;
+    await render(h(Probe, { id: "race" }), reopened);
+    await act(async () => reopened.emitWrite(failed("race")));
+    await act(async () => delayed.resolve({ state: "pending", id: "race" }));
+    check(latest.last.state === "failed" && !latest.pending, "late hydration cannot replace a terminal event");
+    await render(h(Probe, { id: "unknown" }), controlled());
+    check(latest.last === undefined && !latest.pending && acquired === false, "new client and unknown id clear the old outcome");
     await unmount();
   },
   async "useAction tracks concurrent results, retry ids and obsolete lifetimes"() {

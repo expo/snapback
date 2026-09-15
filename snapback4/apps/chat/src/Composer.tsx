@@ -1,9 +1,9 @@
 import { useRef, useState, type FormEvent } from "react";
-import { useLink, useMutation } from "snapback4/react";
+import { useLink, usePendingWrite } from "snapback4/react";
 import { api } from "../snapback/generated/api.ts";
 
 export function Composer({ conversationId }: { conversationId: string }) {
-  const send = useMutation(api.send);
+  const send = usePendingWrite(api.send);
   const link = useLink();
   const [body, setBody] = useState("");
   const [unsent, setUnsent] = useState<{ revision: number; body: string; message: string }[]>([]);
@@ -22,7 +22,7 @@ export function Composer({ conversationId }: { conversationId: string }) {
     <input aria-label="Message" value={body} placeholder={link === "offline" ? "Message (sends when back online)" : "Message"} onChange={(e) => { revision.current++; setBody(e.target.value); }} disabled={link === "signed-out"} />
     <button type="submit" disabled={send.inFlight || link === "signed-out"}>Send</button>
     {send.last?.state === "failed" ? <small role="alert">Not sent: {send.last.why.message}</small> : null}
-    {send.last?.state === "pending" ? <small role="status">Queued on this device.</small> : null}
+    {send.pending ? <small role="status">{send.inFlight ? "Sending…" : "Queued on this device."}</small> : null}
     {unsent.map((draft) => <p key={draft.revision} role="alert">
       Not sent: {draft.message}<br /><span>{draft.body}</span>{" "}
       <button type="button" onClick={() => setUnsent((drafts) => drafts.filter((d) => d !== draft))}>Dismiss unsent draft</button>

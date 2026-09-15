@@ -7,6 +7,7 @@
 // web (`snapback4/web`), the Expo module (`snapback4-expo`) and the
 // `snapback4 device` process for Node (`snapback4/native`) all fit.
 
+import { WriteHistory } from "./writes.ts";
 import { changeFeed } from "./changes.ts";
 import { exitTransport, type PendingSend } from "./local-exit.ts";
 import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
@@ -117,7 +118,7 @@ async function requireSyncProtocol(core: DeviceCore): Promise<void> {
   if (denied && typeof denied.code === "string" && denied.code !== "E_OP") throw new Error(`createLocalClient: ${denied.code}: native startup failed: ${denied.message}`);
   const state = reply?.ok as Record<string, unknown> | undefined;
   const uint = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-  if (denied || !state || typeof state.backend_required !== "boolean" || !(state.store_id === null || typeof state.store_id === "string") || !uint(state.watermark) || !uint(state.generation) || !uint(state.send_revision) || !Array.isArray(state.pending_ids) || state.pending_ids.length > 256 || !state.pending_ids.every((id) => typeof id === "string" && id.length > 0)) {
+  if (denied || !state || typeof state.backend_required !== "boolean" || typeof state.acquired !== "boolean" || !(state.store_id === null || typeof state.store_id === "string") || !uint(state.watermark) || !uint(state.generation) || !uint(state.send_revision) || !Array.isArray(state.pending_ids) || state.pending_ids.length > 256 || !state.pending_ids.every((id) => typeof id === "string" && id.length > 0)) {
     throw new Error("createLocalClient: E_DEVICE_VERSION: the device lacks the sync receipt protocol this client speaks. Update the device to match the client: rebuild the app's native binary for snapback4-expo (reloading JavaScript does not update a native module), or serve the wasm this package version ships.");
   }
 }
@@ -167,9 +168,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const sessionListeners = new Set<(session: Session | null) => void>();
   const viewerListeners = new Set<(viewer: Principal | null) => void>();
   const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
+  const emittedWrites = new Set<string>();
+  let history!: WriteHistory;
   let setLink!: (next: Link) => void;
   const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
-    for (const listener of writeListeners) listener(write);
+    history.remember(write);
+    if (!emittedWrites.has(write.id)) {
+      emittedWrites.add(write.id);
+      for (const listener of writeListeners) listener(write);
+    }
     return write;
   };
   const requestCredentials = () => ({ headers: { ...headers }, revision: credentialRevision });
@@ -198,6 +205,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let stopSuspend: (() => void) | undefined;
   let media: MediaCache | undefined;
   try {
+  history = new WriteHistory({
+    read: async id => (await call({ op: "meta", key: `write:${id}` })).ok as string | null,
+    save: async (id, value) => {
+      const reply = await call({ op: "set_meta", key: `write:${id}`, value });
+      if (reply.denied) throw new Error(`${reply.denied.code}: ${reply.denied.message}`);
+    },
+  });
   await requireSyncProtocol(core);
   if (backend) generation = Number(backend.generation ?? 0);
   else {
@@ -283,12 +297,32 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let storeIdentity = initialSync?.store_id ?? undefined;
   partitionDenied = initialSync?.restore_refusal ?? null;
   let incarnation = 0;
+  let acquired = false;
+  const acquiredListeners = new Set<(value: boolean) => void>();
+  function setAcquired(value: boolean) {
+    if (acquired === value) return;
+    acquired = value;
+    for (const listener of acquiredListeners) listener(value);
+  }
+  // @ref LLP 3000.007#18.2 — acquisition belongs to the current store; a reconnect alone cannot bless an old partition.
+  async function refreshAcquired() {
+    const revision = incarnation;
+    const state = (await call({ op: "sync_state" })).ok as { acquired: boolean } | undefined;
+    if (revision === incarnation) setAcquired(!closed && !sessionDead && partitionCurrent && state?.acquired === true);
+  }
+  await refreshAcquired();
+  // A kept sent entry can disappear on the first catch-up, before a screen mounts.
+  for (const entry of await queued()) {
+    const seq = entry.sent_seq ?? entry.observed_seq;
+    if (seq != null) await history.keep({ state: "sent", id: entry.id, seq, replayed: true });
+  }
   // @ref LLP 3000.007#18.2 — observation fences answers before queued sync can retire the partition.
   function observeIncarnation(id?: string, force = false) {
     if (!force && (id === undefined || id === storeIdentity)) return;
     storeIdentity = id;
     incarnation++;
     partitionCurrent = false;
+    setAcquired(false);
     caughtUp = false;
     lastSyncAt = 0;
     serverAnswers.clear();
@@ -362,6 +396,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const endSession = async () => {
     if (sessionDead) return;
     sessionDead = true;
+    setAcquired(false);
     session = null;
     rotating = false;
     credentialRevision += 1;
@@ -538,6 +573,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         let replacedStore = false;
         if (typeof page.store_id === "string") observeIncarnation(page.store_id);
         if ((typeof page.store_id === "string" && page.store_id !== requestedStore) || Number(page.watermark) < watermark) {
+          for (const entry of await queued()) {
+            const seq = entry.sent_seq ?? entry.observed_seq;
+            if (seq != null) await history.keep({ state: "sent", id: entry.id, seq, replayed: true });
+          }
           const observed = await call({ op: "observe_store", page });
           if (observed.denied) { refuseRestore(observed.denied); return false; }
           const observation = observed.ok as { reset: boolean; backend_required?: boolean; send_revision: number; retired: Record<string, number> };
@@ -552,6 +591,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             adoptedGeneration = true;
             for (const [id, sentSeq] of Object.entries(observation.retired)) {
               const receipt: Write = { state: "sent", id: id as Write["id"], seq: sentSeq, replayed: true };
+              await history.keep(receipt);
               settled.get(id)?.(receipt); settled.delete(id);
               emitWrite(receipt);
             }
@@ -575,6 +615,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             const nextBackend = await loadBackend(doFetch, base, request.headers, aborter.signal);
             if (closed || backendIncarnation !== incarnation) return false;
             const adopted = await call({ op: "adopt", backend: nextBackend, store_id: page.store_id ?? requestedStore ?? null, send_revision: page.send_revision });
+            await refreshAcquired();
             if (adopted.denied) return false;
             backend = nextBackend;
             generation = Number(nextBackend.generation ?? pageGeneration);
@@ -610,6 +651,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
       }
       if (!caughtUp) return false;
+      await refreshAcquired();
       seq = watermark;
       lastSyncAt = Date.now();
       await call({ op: "set_meta", key: "syncedAt", value: String(lastSyncAt) });
@@ -890,7 +932,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     for (const entry of await queued()) {
       await exitDone;
       if (closed) return;
-      if (entry.sent_seq != null || (!acquire && entry.observed_seq != null)) { if (acquire) await syncOnce(); continue; }
+      if (entry.sent_seq != null || (!acquire && entry.observed_seq != null)) {
+        const receipt = { state: "sent" as const, id: entry.id, seq: entry.sent_seq ?? entry.observed_seq!, replayed: true as const };
+        await history.keep(receipt);
+        settled.get(entry.id)?.(receipt); settled.delete(entry.id);
+        emitWrite(receipt);
+        if (acquire) await syncOnce();
+        continue;
+      }
       try {
         const result = await network(async () => {
           await exitDone;
@@ -904,6 +953,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             if (response.ok) {
               const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined;
               if (!response.obsoleteAuth && !why?.retryable && (json.state === "sent" || why)) {
+                await history.keep(json.state === "sent"
+                  ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), replayed: true }
+                  : { state: "failed", id: entry.id, why: why! });
                 const applied = await call({ op: "settle", id: entry.id, ...(json.state === "sent" ? { seq: Number(json.seq ?? 0) } : {}) });
                 if (applied.denied) return { ok: false as const };
               }
@@ -1009,21 +1061,41 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const program = backend!.programs.find((p) => p.name === op.name);
       const predictable = Boolean(program && schema && [...operationTables(program, schema)].every((t) => schema.tables[t]?.sync));
       const result = new Promise<Write>((resolve) => settled.set(id, resolve));
+      let pending: Extract<Write, { state: "pending" }> = { state: "pending", id };
       try {
         const admitted = await call({ op: "admit", entry: { id, seq: submission, op: op.name, args, viewer: principal, now: Date.now(), new_ids: newIds, predicted: [], predictable } satisfies Queued });
         if (admitted.denied) { settled.delete(id); return emitWrite({ state: "failed", id, why: admitted.denied }); }
-        rerunTables(predictedTables(((admitted.ok as Queued | undefined)?.predicted) ?? []));
+        const entry = admitted.ok as Queued;
+        if (!entry.predictable && !entry.predicted.length) pending = { ...pending, reason: !acquired
+          ? "queued without a row: not acquired yet"
+          : "queued without a row: local data does not justify prediction" };
+        history.remember(pending);
+        rerunTables(predictedTables(entry.predicted));
       } catch (error) {
         settled.delete(id);
         return emitWrite({ state: "failed", id, why: { code: "E_STORE", family: "store", message: `write ${id} admission outcome is unknown: ${String(error)}` } });
       }
-      if (closed) { settled.delete(id); return { state: "pending", id }; }
+      if (closed) { settled.delete(id); return pending; }
       void flush();
-      if (link !== "online") return { state: "pending", id };
+      if (link !== "online") return pending;
       let timer: ReturnType<typeof setTimeout> | undefined;
-      try { return await Promise.race([result, new Promise<Write>((resolve) => { timer = setTimeout(() => resolve({ state: "pending", id }), 4_000); })]) as Write<R>; }
+      try { return await Promise.race([result, new Promise<Write>((resolve) => { timer = setTimeout(() => resolve(pending), 4_000); })]) as Write<R>; }
       finally { clearTimeout(timer); }
     },
+    async write(id) {
+      if (unavailable()) return undefined;
+      const receipt = await history.read(id);
+      if (receipt && receipt.state !== "pending") return unavailable() ? undefined : receipt;
+      const entry = (await queued()).find(entry => entry.id === id);
+      if (unavailable()) return undefined;
+      if (!entry) { const latest = await history.read(id); return unavailable() ? undefined : latest; }
+      const seq = entry.sent_seq ?? entry.observed_seq;
+      if (seq != null) return { state: "sent", id, seq, replayed: true };
+      return receipt ?? { state: "pending", id, ...(!entry.predictable && !entry.predicted.length
+        ? { reason: !acquired ? "queued without a row: not acquired yet" : "queued without a row: local data does not justify prediction" } : {}) };
+    },
+    get acquired() { return acquired; },
+    onAcquired(listener) { acquiredListeners.add(listener); return () => acquiredListeners.delete(listener); },
     async upload(bytes) {
       const unavailableWhy = unavailable();
       if (unavailableWhy) return { ok: false as const, why: unavailableWhy };
@@ -1104,6 +1176,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     close() {
       if (closing) return closing;
       closed = true;
+      setAcquired(false);
+      acquiredListeners.clear();
       stopSuspend?.();
       aborter.abort();
       if (retry) clearTimeout(retry);

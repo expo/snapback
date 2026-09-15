@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Button, FlatList, StyleSheet, Text, TextInput, View } from "react-native";
-import { useMutation, usePage, useViewer } from "snapback4/react";
+import { usePendingWrite, usePage, useViewer } from "snapback4/react";
 import { api } from "../../chat/snapback/generated/api";
 
 // A screen is a query plus JSX; every word it reads is on the card: data,
@@ -8,7 +8,7 @@ import { api } from "../../chat/snapback/generated/api";
 export function Thread({ conversationId, onBack }: { conversationId: string; onBack(): void }) {
   const viewer = useViewer();
   const { items, hasMore, loadMore, read } = usePage(api.thread, { conversationId });
-  const send = useMutation(api.send);
+  const send = usePendingWrite(api.send);
   const [body, setBody] = useState("");
   const [unsent, setUnsent] = useState<{ revision: number; body: string; message: string }[]>([]);
   const revision = useRef(0);
@@ -44,7 +44,7 @@ export function Thread({ conversationId, onBack }: { conversationId: string; onB
       <Button title="Send" disabled={send.inFlight || !body.trim()} onPress={() => { void submit(); }} />
     </View>
     {send.last?.state === "failed" ? <Text style={styles.alert}>Not sent: {send.last.why.message}</Text> : null}
-    {send.last?.state === "pending" ? <Text style={styles.note}>Queued on this device.</Text> : null}
+    {send.pending ? <Text style={styles.note}>{send.inFlight ? "Sending…" : "Queued on this device."}</Text> : null}
     {unsent.map((draft) => <View key={draft.revision}>
       <Text style={styles.alert}>Not sent: {draft.message}</Text>
       <Text selectable>{draft.body}</Text>

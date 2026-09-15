@@ -27,7 +27,13 @@ export const tier: "native" | "online" = nativeAvailable() ? "native" : "online"
 
 export async function openClient(extra: Partial<LocalOptions> = {}): Promise<DeviceClient> {
   const as = extra.persona ?? persona;
-  if (tier === "native") return createLocalClient({ url, ...(as ? { persona: as } : { guest: true, sessionStore }), device: nativeDevice, waitSeconds: 20, fetch: extra.fetch });
+  if (tier === "native") {
+    const client = await createLocalClient({ url, ...(as ? { persona: as } : { guest: true, sessionStore }), device: nativeDevice, waitSeconds: 20, fetch: extra.fetch });
+    try {
+      if (client.link() === "online") await client.sync();
+      return client;
+    } catch (error) { await client.close(); throw error; }
+  }
   if (as) return createClient({ url, persona: as, fetch: extra.fetch });
   // The online tier keeps no session of its own: restore the one kept, or mint a guest.
   let session = await restoreSession(url, sessionStore);
