@@ -699,7 +699,8 @@ on the device, older rows are online-only, and a local read past them is
 `complete: false`. A synced table with no horizon delivers every row of
 every group a device holds, at every cold start, as the table grows;
 `check` notes it (N_NO_HORIZON) unless the group cannot grow (one row per
-group, or a `cap` over the group). A snapshot arrives in pages the client
+group, or a `cap` over the group), or its whole partition supplies an eligible
+mutation's reads or insert proof (`guide prediction`). A snapshot arrives in pages the client
 asks for 4,000 events at a time (2,000 by default on the wire, 10,000 at
 most), each applied in its own transaction. `POST /sync` takes JSON
 `{ from, limit, after, stream, pending, store_id? }`: up to 256 pending write IDs of
@@ -799,13 +800,16 @@ with the generation it serves. N_NOW_SERVER names a newly server-run query.
 N_NOT_PREDICTABLE groups distinct root causes and deduplicated sites into one
 note per mutation for lost eligibility or an added horizon risk, explicitly
 distinguishing a call that may queue from an operation that never predicts.
-Every check also summarizes all never-predicting mutations. A header such as
+Every check also summarizes all never-predicting mutations, blocked insert arms,
+and eligible mutations with horizon reads, naming their sites even when unchanged.
+A header such as
 `mutation post(body: text <=200) predicts:` asserts eligibility; a server
 site refuses E_NOT_PREDICTABLE at that header. See `guide prediction`.
 
 N_MAINTAIN_SYNCED names public inherited aggregates and group audiences
 with unbounded recipients or multiple values per group. It names mutations
-that would stop predicting if the maintain goes online only. When a dev
+that would stop predicting if the maintain goes online only. Repeats share one
+note with a line and source location for every maintain. When a dev
 store exists, check adds its measured value-row count before adoption. Run
 `test --residency --fixture dir --as alice` to measure cold rows and compact
 JSON row bytes per synced table and persona, plus totals and aggregate row

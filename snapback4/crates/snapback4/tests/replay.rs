@@ -76,6 +76,33 @@ fn help_lists_both_replay_holds() {
     assert!(text.contains("--replay") && text.contains("--hold-effects") && text.contains("--hold-schedules"), "{text}");
 }
 
+#[test]
+fn replay_startup_and_doctor_report_the_active_policy() {
+    let f = Fixture::new("startup-policy");
+    for replay in [true, false] {
+        let log = f.0.join("startup.log");
+        let mut command = Command::new(BIN);
+        command.current_dir(&f.0).args(["dev", "--port", "0", "--no-watch"]);
+        if replay { command.arg("--replay"); }
+        let mut child = command.stdout(Stdio::piped()).stderr(fs::File::create(&log).unwrap()).spawn().unwrap();
+        let mut line = String::new();
+        BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
+        let host = Host { child, address: line.trim().trim_start_matches("http://").into() };
+        assert!(!host.address.is_empty());
+        // A response establishes that all startup banners have been written.
+        assert_eq!(host.post("/m/send", json!({"id":format!("policy-{replay}"), "args":{}}), "x-snapback-persona: alice")["result"], 7);
+        let startup = fs::read_to_string(log).unwrap();
+        let doctor = f.command(&["doctor"]);
+        assert!(doctor.status.success(), "{doctor:?}");
+        let doctor = String::from_utf8(doctor.stdout).unwrap();
+        println!("{startup}\n{doctor}");
+        assert_eq!(startup.lines().any(|line| line == "snapback4 dev: replay on — new effects suppressed; schedules held"), replay);
+        let expected = if replay { "replay    on — new effects suppressed; schedules held (persisted dev policy)" } else { "replay    off — new effects enabled; schedules enabled (persisted dev policy)" };
+        assert!(doctor.lines().any(|line| line.trim_start() == expected), "{doctor}");
+        drop(host);
+    }
+}
+
 const WRITES: &str = "use personas alice\neffect notify\ntable items:\n  n: int\n  public 'replay test'\n  insert <- allow\n  update <- allow\nmutation put(id: id, n: int):\n  insert items {id, n}\n  emit notify {id, n}\n  return n\nmutation abort(id: id):\n  insert items {id, n: -1}\n  emit notify {id}\n  require false else ABORTED\nquery rows():\n  return items first 100 by byId\njob bump():\n  chunk row in items first 10 by byId:\n    update items[row.id] {n: row.n + 1}\n    emit notify {id: row.id}\nschedule bumping every 7d: bump\n";
 const PERSONA: &str = "x-snapback-persona: alice";
 

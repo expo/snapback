@@ -512,6 +512,9 @@ pub fn doctor(options: &Options) -> i32 {
         Ok(store) => {
             let generation = store.meta("generation").ok().flatten().unwrap_or_else(|| "unrecorded".into());
             lines.push(format!("store     {} at seq {}, generation {}", project.store_path().display(), store.seq().unwrap_or(0), generation));
+            let replay = store.meta("dev:replay").ok().flatten().as_deref() == Some("true");
+            let held = store.meta("dev:hold-schedules").ok().flatten().as_deref() == Some("true");
+            lines.push(format!("replay    {} — new effects {}; schedules {} (persisted dev policy)", if replay { "on" } else { "off" }, if replay { "suppressed" } else { "enabled" }, if held { "held" } else { "enabled" }));
             if let Ok(sizes) = store.sizes() {
                 storage = Some(sizes);
                 lines.push(format!("storage   rows {} ({} rows) · indexes {} · log {} ({} events, {:.1}× rows) · ops {} · file {}", human(sizes.rows), sizes.row_count, human(sizes.indexes), human(sizes.log), sizes.log_events, sizes.amplification(), human(sizes.ops), human(sizes.file)));

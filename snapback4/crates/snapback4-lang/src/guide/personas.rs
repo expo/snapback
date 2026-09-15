@@ -2,6 +2,8 @@
 pub(super) const CARD: &str = r##"# Personas
 
 For a replay mode that must not emit notifications, run `snapback4 dev --replay`.
+Startup prints `replay on — new effects suppressed; schedules held`.
+`doctor` reports the persisted dev replay and schedule policy, even after the host stops.
 New emits are counted as `suppressed` by `doctor`, with no queued payload:
 they are never delivered, including after restarting with or without `--replay`.
 Mutations and explicitly run jobs keep their writes, results and meters.

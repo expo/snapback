@@ -5,6 +5,37 @@ use serde_json::{Value as Json, json};
 use snapback4_core::{Context, Engine, Value, WriteState, wire};
 use snapback4_device::device::Queued;
 
+#[test]
+fn horizon_guard_rewrite_restores_the_pending_message_on_both_stores() {
+    const SOURCE: &str = include_str!("../../../snapback4-lang/tests/fixtures/prediction-horizons.q");
+    fn run<H: Host>(host: &mut H) {
+        for guarded in [true, false] {
+            let source = if guarded { SOURCE.to_owned() } else { SOURCE.replace("  require not exists messages[messageId] else DUPLICATE\n", "") };
+            let source = format!("{source}\nquery one(messageId: messages):\n  return messages[messageId]\n");
+            let (mut server, backend) = compile(&source);
+            seed(&mut server, "members", json!({"id":"member", "conversationId":"room", "principal":"bob"}));
+            let name = if guarded { "guarded" } else { "rewritten" };
+            let mut device = host.open(name, Some(backend)).unwrap();
+            for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+            let input = json!({"messageId":"message", "conversationId":"room", "body":"hello"});
+            let entry = Queued { id: "write".into(), seq: 1, op: "send".into(), args: input.clone(), viewer: "bob".into(), now: 1000,
+                new_ids: vec![], predicted: vec![], predictable: true, sent_seq: None, observed_seq: None };
+            let queued = device.admit(entry).unwrap();
+            assert_eq!(queued.predictable, !guarded, "{} {name}: {queued:?}", host.label());
+            let pending = device.query("one", "bob", &json!({"messageId":"message"}), 1000).unwrap().data;
+            assert_eq!(pending != Value::Null, !guarded);
+            if !guarded { assert_eq!(pending.field("pending"), Ok(&Value::Bool(true))); }
+            let context = Context::new("bob", args(&[("messageId", id("message")), ("conversationId", id("room")), ("body", Value::String("hello".into()))])).at(1000);
+            for _ in 0..2 { assert!(matches!(server.mutate("send", Some("write"), context.clone()).unwrap().state, WriteState::Sent { .. })); }
+            assert_eq!(server.store().rows("messages").unwrap().len(), 1, "the write id dedupes the retry");
+            println!("{} {name}: predicted_messages={} authoritative_messages=1 attempts=2", host.label(), usize::from(pending != Value::Null));
+            host.close(name, device);
+        }
+    }
+    run(&mut Sqlite::new("horizon-guard"));
+    run(&mut Memory::new());
+}
+
 fn queued(op: &str, seq: u64) -> Queued {
     Queued { id: op.into(), seq, op: op.into(), args: json!({"postId":"first"}), viewer: "bob".into(), now: 1000,
         new_ids: vec![format!("new-{seq}")], predicted: vec![], predictable: true, sent_seq: None, observed_seq: None }

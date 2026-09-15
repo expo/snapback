@@ -276,7 +276,9 @@ fn jobs_and_schedules_are_checked() {
     assert!(!bound.notes.iter().any(|n| n.code == "N_NO_HORIZON"), "{:?}", bound.notes);
     let uncapped = compile(CHAT.replace("  cap 50 by conversationId\n", ""));
     let horizons: Vec<&str> = uncapped.notes.iter().filter(|n| n.code == "N_NO_HORIZON").map(|n| n.message.as_str()).collect();
-    assert!(horizons.iter().any(|m| m.starts_with("table memberships:")), "{horizons:?}");
+    // Membership guards and insert-rule probes need the whole partition;
+    // recommending a horizon here would remove their absence proof.
+    assert!(!horizons.iter().any(|m| m.starts_with("table memberships:")), "{horizons:?}");
     assert!(!horizons.iter().any(|m| m.starts_with("table conversations:") || m.starts_with("table messages:") || m.starts_with("table messageCounts:")), "{horizons:?}");
     // A merge over hundreds of lanes is noted with its row count.
     let wide = compile(CHAT.replace("mutation edit(", "query everything(c: cursor ?):\n  return merge messages after c last 20 by byConvTime:\n    [m.conversationId] for m in memberships[viewer] first 500 by byPrincipalConversation\n\nmutation edit("));

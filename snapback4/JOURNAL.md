@@ -18657,3 +18657,124 @@ native leg. The lead then rebuilt the xcframework and published
 `snapback4-expo@0.2.12`, which npm reported at 13:57 UTC. Next: the fifth
 Astra-medium calibration on these pins.
 
+
+## 2026-09-15 — W6c: horizon prediction risks stay visible
+
+Built the H3/V1/V2/V7/V9 diagnostic changes from the 0.2.21 Clique
+calibration on base `35886bc2226f8e53b2537132714d6f3e6890f140`.
+Every check now has a third prediction-summary bucket for eligible mutations
+with horizon reads. The heading in `why` names those reads too, preserving
+the existing insert-arm headings and avoiding duplicate upsert-target advice.
+Horizon write-rule probes include the authored rule's location. The new
+`N_HORIZON_GUARD` explains an argument-id `require not exists` guard,
+distinguishes mutation write ids from application row ids, and offers guard
+removal only when retry dedupe is its purpose. It is not a mechanical fix.
+
+`N_NO_HORIZON` is silent for tables whose whole-partition reads or successful
+insert-arm proofs supply an eligible mutation. The ordinary growing-table
+control still gets its horizon rewrite. `N_WIDE_MERGE` points to feeds only
+for relationship-driven merges; membership search gets scope/cost advice and
+the search card. Repeated `N_MAINTAIN_SYNCED` notes share one envelope,
+retaining every maintain's site, prediction consequence and measured row
+count. The CLI attaches measurements to the individual lines; the two-count
+fixture preserves 2 and 1 value rows in both current-store and cold-row output.
+
+`dev --replay` prints its policy at startup; `doctor` shows the persisted dev
+replay and schedule policy even after the host stops. README and the prediction,
+residency, sync, personas and code cards describe the changed output. No
+runtime prediction rule, ceiling, value serialization or conformance case
+changed. The simulator's old uncapped-membership advisory expectation now
+asserts suppression because eligible membership guards need that partition.
+All changed code files are below 1,500 lines; the largest is guide.rs at 1,448.
+
+The compact Clique fixture has 6 maintains, reactions and 2 ledgers without
+horizons, send/createPost horizon reads, a membership search and a growing
+archive control. Its unchanged-check notes fall from **11 to 4**:
+N_NO_HORIZON 4 → 1; N_MAINTAIN_SYNCED 6 → 1; N_WIDE_MERGE 1 → 1;
+N_HORIZON_GUARD 0 → 1. This is the reduced fixture's measurement, not a
+rerun of the calibration's 16-note application. Four JSON checks, three text
+checks and three why calls retain identical advice (excluding elapsed time).
+On both SQLite and memory devices the original guard produces 0 pending
+messages and the rewrite produces 1; two attempts using the same write id
+leave 1 authoritative message. The runtime already did this: the change
+makes its conditions visible before the offline probe.
+
+Before, verbatim (the summary was absent and there was no guard-specific note):
+
+```text
+  chat.send: predicts: eligible
+    Horizon: point messages by byId: sync to members[.conversationId] last 500 by byConversation (site chat.q:83:22 (messages[messageId])); may queue without a row past the horizon
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+chat.q:35:1 — N_NO_HORIZON: table reactions: `sync to members[.conversationId]` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start
+  rewrite: sync to members[.conversationId] last 500 by byConversation
+  guide: sync
+chat.q:103:1 — N_WIDE_MERGE: query chat.search: the merge over messages reads up to 1000 lanes, one page of 21 each — up to 21000 rows per read; a read past the 8,192 examined ceiling returns `complete: false`
+  rewrite: measure with `snapback4 test --cost`; keep the lanes under 50 (`first 50` on the lane source), or write the feed on the way in: a table of entries per reader, synced to .reader, read as one page (`snapback4 guide feeds`)
+  guide: feeds
+```
+
+After, verbatim (reactions, intents and sentMessages have no N_NO_HORIZON):
+
+```text
+  chat.send: predicts: eligible except past the horizon at messages[messageId] (chat.q:83:22)
+2 mutations eligible, but these reads queue without a row past a horizon: chat.createPost (posts[postId] (chat.q:87:13), ranked insert rule: posts by byId (chat.q:32:3)), chat.send (messages[messageId] (chat.q:83:22)) — snapback4 why <op>
+chat.q:83:22 — N_HORIZON_GUARD: chat.send: `require not exists messages[messageId] else DUPLICATE` reads an argument id past a horizon; the write id already dedupes retries for this principal, and this guard costs offline prediction on a miss
+  rewrite: if this guard only dedupes retries, remove `require not exists messages[messageId] else DUPLICATE` and keep the insert; retry with the same mutation write id. A fresh write id is a new write; keep guards that enforce an application requirement
+  guide: prediction
+chat.q:103:1 — N_WIDE_MERGE: query chat.search: the merge over messages reads up to 1000 lanes, one page of 21 each — up to 21000 rows per read; a read past the 8,192 examined ceiling returns `complete: false`
+  rewrite: measure with `snapback4 test --cost`; bound lane discovery to the scopes this read needs, and pass a cursor to continue the result; fewer lanes reduce read cost
+  guide: search
+snapback4 dev: replay on — new effects suppressed; schedules held
+  replay    on — new effects suppressed; schedules held (persisted dev policy)
+  replay    off — new effects enabled; schedules enabled (persisted dev policy)
+```
+
+The archive control retains, verbatim:
+
+```text
+chat.q:63:1 — N_NO_HORIZON: table archive: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start
+  rewrite: sync public last 500 by byTime
+  guide: sync
+```
+
+Validation commands run from snapback4/ unless stated otherwise:
+
+- `cargo test -p snapback4-lang --test residency_notes horizon_calibration -- --nocapture`:
+  base **0 passed; 2 failed**, after **2 passed; 0 failed**. The fixture was
+  first corrected to compile before recording the diagnostic regression.
+- `cargo test -p snapback4 --test replay replay_startup_and_doctor_report_the_active_policy -- --nocapture`:
+  base **0 passed; 1 failed**, after **1 passed; 0 failed**.
+- `cargo test -p snapback4-lang --test residency_notes --test guide --test spelling --test sparse_filter -- --nocapture`:
+  guide **24/0**, residency_notes **25/0**, sparse_filter **4/0**, spelling **19/0**.
+- `cargo test -p snapback4 --test check --test replay -- --nocapture`:
+  check **21/0**, replay **11/0**.
+- `cargo test -p snapback4-device --test device horizon_guard_rewrite -- --nocapture`:
+  **1 passed; 0 failed**, covering both stores and both source forms.
+- With `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`,
+  `node --test packages/snapback4/test/react.test.mjs`: **0 passed; 1 failed**;
+  Chromium exits SIGABRT before the harness starts. This is the sandbox
+  artifact identified by the lane rules; no separate-base failure claim is made.
+- Repository-root `bash snapback4/scripts/test.sh`, with the same Node 24 PATH:
+  Rust **957 passed, 0 failed, 4 ignored** (sum of the suite summaries), fixture
+  wrapper **9 passed, 0 failed**, client **310 passed, 1 failed**. All build
+  and typecheck groups passed. The client failure is the same Chromium
+  SIGABRT reproduced alone above; no lifecycle timeout occurred in this run.
+  Verbatim suite summary:
+
+  ```text
+  -- ok: cargo test (466 s)
+  -- ok: fixture wrapper tests (10 s)
+  -- FAIL: client tests (69 s)
+  == 1 failure(s) in 490 s
+  ```
+
+- Repository-root `./ref-check --verbose`, with the same Node 24 PATH:
+  `ref-check: ok — 480 LLP docs, 8955 refs in 23747 files, 0 errors, 0 unchecked`.
+- `git diff --check`: clean. No commit, push, tag or publication performed.
+
+Learned: the stable operation facts must carry prediction caveats independently
+of change notes. A horizon recommendation is also a prediction change; the
+compiler should consult the existing read/insert proofs before offering it.
+Grouping advisories works only when their individual sites and measurements
+survive. The pending-row control proves the proposed guard rewrite without
+changing the interpreter or adding another ledger.

@@ -65,6 +65,13 @@ pub fn bind(documents: Vec<Document>) -> Bound {
                 site.site = format!("{location} ({name})");
             } else if site.site.starts_with("programs.") {
                 site.site = format!("{} ({} by {})", bound.site, site.table, site.index);
+            } else if site.class == snapback4_core::schema::SiteClass::Horizon && site.kind == "rule" {
+                let parts: Vec<_> = site.site.split_whitespace().collect();
+                if let [verb, table, rest @ ..] = parts.as_slice() && rest.last() == Some(&"rule") && catalog.tables.contains_key(*table) {
+                    let effect = if rest == ["insert", "rule"] { "insert" } else if *verb == "upsert" { "update" } else { verb };
+                    let location = catalog.site_for(&format!("tables.{table}.rules.{effect}"));
+                    site.site = format!("{location} ({table} {effect} rule: {} by {})", site.table, site.index);
+                }
             }
         }
         (bound.program.name.clone(), fact)
@@ -119,6 +126,7 @@ pub fn bind(documents: Vec<Document>) -> Bound {
     let mut notes: Vec<_> = programs.iter().flat_map(|p| p.notes.clone()).collect();
     notes.extend(completeness_notes(&catalog, &schema, &programs));
     notes.extend(residency::maintain_notes(&catalog, &schema));
+    notes.extend(residency::guard_notes(&schema, &programs));
     Bound { schema, programs, personas, diagnostics, notes }
 }
 
@@ -180,7 +188,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
     // holds reaches it, and stays. Say so once per table, with the index a
     // horizon would name, before the table grows.
     for (name, table, sync) in schema.synced() {
-        if sync.horizon.is_some() || schema.maintain_for(name).is_some() {
+        if sync.horizon.is_some() || schema.maintain_for(name).is_some() || residency::needs_whole_partition(schema, name) {
             continue;
         }
         let prefix: Vec<String> = match &sync.audience {
@@ -254,8 +262,9 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                 (format!("{} {}: read cost grows with the number of related principals (up to {lanes} lanes); a read past the {ceiling} examined ceiling returns `complete: false`", bound.program.kind.word(), bound.program.name),
                     "keep read-time merges for a bounded small number of related principals; for Following, `snapback4 init --recipe feeds`; measure with `snapback4 test --cost`")
             } else {
+                // @ref LLP 3000.007#18.1 — membership search needs scope lanes; a feeds recipe addresses relationship-driven reads.
                 (format!("{} {}: the merge over {} reads {work}; a read past the {ceiling} examined ceiling returns `complete: false`", bound.program.kind.word(), bound.program.name, merge.table()),
-                    "measure with `snapback4 test --cost`; keep the lanes under 50 (`first 50` on the lane source), or write the feed on the way in: a table of entries per reader, synced to .reader, read as one page (`snapback4 guide feeds`)")
+                    "measure with `snapback4 test --cost`; bound lane discovery to the scopes this read needs, and pass a cursor to continue the result; fewer lanes reduce read cost")
             };
             notes.push(
                 Diagnostic::new(
@@ -264,7 +273,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                     message,
                     rewrite,
                 )
-                .guide("feeds"),
+                .guide(if related_principals { "feeds" } else if merge.lanes.iter().any(|lane| lane.scan.prefix.iter().any(|key| matches!(key, snapback4_core::ir::IndexKeyExpr::WordPrefix(_)))) { "search" } else { "reads" }),
             );
         }
         // A job sweeps as the system principal, which every rule admits.

@@ -953,7 +953,8 @@ A table with no horizon delivers every row of every group the device
 holds, at every cold start, as the table grows: a public table of posts,
 or a group's receipts, is soon the whole cold start. `check` notes such a
 table (`N_NO_HORIZON`) unless the group cannot grow (one row per group, or
-a `cap` over it); give a growing table a horizon (`last 500 by <index>`:
+a `cap` over it), or an eligible mutation's reads or insert proof need its
+whole partition (`guide prediction`); otherwise give a growing table a horizon (`last 500 by <index>`:
 the newest N per group stay on the device, the rest are online and a
 local read past them says `complete: false`). A snapshot arrives in pages
 of 2,000 events, each staged in its own transaction and published
@@ -961,7 +962,8 @@ together with the last, so a device never shows half a snapshot.
 
 `online only` optionally documents a table with no sync. On a `maintain`,
 it opts out of inherited sync. `N_MAINTAIN_SYNCED` calls out public inherited
-aggregates and group audiences with unbounded recipients or multiple values per group.
+aggregates and group audiences with unbounded recipients or multiple values per group,
+grouped into one note retaining each maintain's source location.
 The note names mutations that would stop predicting if the maintain goes
 `online only`; `snapback4 test --residency` measures its cold rows. When a
 dev store exists, `check` includes its measured value-row count before adoption.
@@ -979,8 +981,11 @@ rewrite; `why <table>` includes the rule used for inference. The generated
 `N_NOT_PREDICTABLE` name changed sites, including added horizon risks.
 Each mutation gets one `N_NOT_PREDICTABLE` note with distinct root causes
 and deduplicated sites and rewrites.
-Every text `check` also summarizes mutations that never predict, with one
-reason each; JSON checks include `predictionSummary`. Add `predicts` before
+Every text `check` also summarizes mutations that never predict, blocked insert
+arms, and eligible mutations with horizon reads; JSON checks include `predictionSummary`.
+The horizon bucket and `why`'s qualified heading keep every read and site visible
+on unchanged checks. `N_HORIZON_GUARD` explains argument-id retry guards and their rewrite.
+Add `predicts` before
 a mutation header's colon (`mutation like(postId: posts) predicts:`) to assert
 eligibility: `check` refuses `E_NOT_PREDICTABLE` at that header if any site
 makes it `never`. This asserts eligibility, not that every call will predict;
@@ -1963,7 +1968,9 @@ step.
   lives in `.snapback4/store.sqlite` and persists across runs, and
   `--fresh` uses one in memory that dies with the process (acceptance
   scripts start from nothing). For a replay mode that must not emit notifications,
-  run `snapback4 dev --replay`: new emits are never delivered. The write's
+  run `snapback4 dev --replay`: new emits are never delivered. The
+  startup banner says effects are suppressed and schedules held; `doctor`
+  reports the persisted dev replay and schedule policy. The write's
   transaction keeps only a durable `suppressed` count, shown by `doctor`,
   with no queued payload. Mutations, explicitly run jobs, results and meters
   behave normally. Replay also holds schedule admission; restarting without

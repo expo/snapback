@@ -20,8 +20,11 @@ the call still needs its facts on this device and must fit the meter and rules.
 `mutation name(args) predicts:` asserts this eligibility: `check` refuses
 `E_NOT_PREDICTABLE` at the header if a server site makes it `never`, with
 the reason and rewrite. It does not promise prediction on every call.
-Every `check` summarizes mutations that never predict and insert arms that
-never predict, naming the first failed proof even on an unchanged program; `snapback4 why <op>` explains each site. A loss of eligibility
+Every `check` summarizes mutations that never predict, insert arms that
+never predict, and eligible mutations whose reads can queue without a row
+past a horizon, even on an unchanged program. `why` qualifies the heading:
+`predicts: eligible except past the horizon at …`, naming each read and site.
+A loss of eligibility
 produces one `N_NOT_PREDICTABLE` note per mutation, listing distinct root
 causes with deduplicated sites and rewrites.
 Every mutation can queue on the local client; eligibility is not a promise
@@ -87,6 +90,10 @@ already dedupes a retry for that principal; reuse that write id when retrying.
 A fresh mutation id is a new write, even if an application row id is reused.
 Adding `exists notes[id]` only for retry dedupe costs prediction on a miss
 past the horizon. Keep guards that express an actual application requirement.
+`require not exists notes[id] else DUPLICATE` on an argument id also gets a
+persistent `N_HORIZON_GUARD` note: remove it only if its purpose is retry dedupe.
+`N_NO_HORIZON` stays silent for a table whose whole partition supplies an
+eligible mutation's reads or insert proof; adding a window would cost prediction.
 
 `why countedPost` identifies the `online only` maintain: opting a maintain
 out of sync makes mutations reading it `predicts: never`. `notifyPost` stays
