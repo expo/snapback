@@ -6,7 +6,7 @@
 
 import { changeFeed } from "./changes.ts";
 import type { Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
-import { logout, type Session } from "./auth.ts";
+import { logout, logoutAll as revokeAllSessions, refreshSession as rotateSession, type Session, type SignIn } from "./auth.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
 
@@ -71,7 +71,8 @@ export function createClient(options: ClientOptions): Client {
   const base = options.url.replace(/\/$/, "");
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (options.persona) headers["x-snapback-persona"] = options.persona;
-  const token = options.session?.token ?? options.token;
+  let session = options.persona ? null : options.session ?? null;
+  const token = options.persona ? undefined : session?.token ?? options.token;
   if (token) headers.authorization = `Bearer ${token}`;
   let viewer: Principal | null = options.persona ? (`dev:${options.persona}` as Principal) : options.session ? (options.session.principal as Principal) : null;
   let credentials = Boolean(viewer || token);
@@ -82,6 +83,7 @@ export function createClient(options: ClientOptions): Client {
   let closing: Promise<void> | undefined;
   let seq = 0;
   const linkListeners = new Set<(link: Link) => void>();
+  const sessionListeners = new Set<(session: Session | null) => void>();
   const viewerListeners = new Set<(viewer: Principal | null) => void>();
   const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
   const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
@@ -104,16 +106,26 @@ export function createClient(options: ClientOptions): Client {
     }
   };
 
+  let credentialRevision = 0;
+  let refreshing: Promise<SignIn> | null = null;
+  let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+  const refreshBeforeExpiry = 24 * 60 * 60 * 1000;
+
   const endCredentials = () => {
-    setViewer(null);
+    if (!credentials) return;
+    session = null;
+    credentialRevision += 1;
+    if (refreshTimer) clearTimeout(refreshTimer);
     credentials = false;
     delete headers.authorization;
     delete headers["x-snapback-persona"];
+    setViewer(null);
     setLink("signed-out");
+    for (const listener of [...sessionListeners]) listener(null);
   };
 
   const setLink = (next: Link) => {
-    if (closed) return;
+    if (closed || (!credentials && next !== "signed-out")) return;
     if (link === next) return;
     link = next;
     for (const listener of linkListeners) listener(next);
@@ -147,6 +159,67 @@ export function createClient(options: ClientOptions): Client {
   const auth = (): Refusal => ({ code: "E_AUTH", family: "auth", message: "sign in to continue" });
   const ended = (): Refusal => ({ code: "E_CLOSED", family: "client", message: "this client is closed" });
 
+  const scheduleRefresh = (retryAfter?: number) => {
+    if (refreshTimer) clearTimeout(refreshTimer);
+    refreshTimer = undefined;
+    if (closed || !credentials || !session || session.kind === "action") return;
+    const untilDue = Math.max(0, session.expiresAt - Date.now() - refreshBeforeExpiry);
+    const requested = retryAfter ?? (untilDue === 0 ? 60_000 : untilDue);
+    const delay = Math.min(Math.max(1, requested), 2_147_000_000);
+    refreshTimer = setTimeout(() => {
+      refreshTimer = undefined;
+      if (requested > delay) scheduleRefresh();
+      else void refreshCurrent().catch(() => scheduleRefresh(60_000));
+    }, delay);
+    (refreshTimer as { unref?: () => void }).unref?.();
+  };
+
+  // @ref LLP 3000#7 — both client tiers keep short-lived sessions and rotate the bearer before expiry.
+  function refreshCurrent(): Promise<SignIn> {
+    if (closed) return Promise.resolve({ ok: false, why: ended() });
+    if (refreshing) return refreshing;
+    const token = headers.authorization?.slice("Bearer ".length);
+    if (!credentials || !token || options.persona) return Promise.resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
+    const expectedPrincipal = viewer;
+    credentialRevision += 1;
+    const work = (async (): Promise<SignIn> => {
+      const refreshed = await rotateSession(base, token, doFetch);
+      if (closed) return { ok: false, why: ended() };
+      if (!credentials) return { ok: false, why: auth() };
+      credentialRevision += 1;
+      if (!refreshed.ok) {
+        if (refreshed.why.code === "E_AUTH") endCredentials();
+        else if (refreshed.why.retryable) scheduleRefresh(60_000);
+        return refreshed;
+      }
+      if (expectedPrincipal !== null && refreshed.session.principal !== expectedPrincipal) {
+        endCredentials();
+        return { ok: false, why: { code: "E_AUTH", family: "auth", message: "a refreshed session changed principal" } };
+      }
+      session = refreshed.session;
+      headers.authorization = `Bearer ${session.token}`;
+      setViewer(session.principal as Principal);
+      for (const listener of [...sessionListeners]) listener(session);
+      setLink("online");
+      for (const watch of watches.values()) void refresh(watch);
+      scheduleRefresh();
+      return refreshed;
+    })();
+    refreshing = work;
+    void work.finally(() => { if (refreshing === work) refreshing = null; }).catch(() => {});
+    return work;
+  }
+
+  // A rotation invalidates the old token. Its late refusal is not a refusal
+  // of the replacement: retry at the new revision (writes keep their id).
+  async function obsoleteRefusal(why: Refusal | undefined, revision: number): Promise<boolean> {
+    if (why?.code !== "E_AUTH") return false;
+    if (refreshing) await refreshing;
+    if (revision !== credentialRevision && credentials && !closed) return true;
+    if (!closed) endCredentials();
+    return false;
+  }
+
   function post(path: string, body: unknown) {
     const request = sendPost(path, body);
     requests.add(request);
@@ -155,19 +228,19 @@ export function createClient(options: ClientOptions): Client {
   }
 
   async function sendPost(path: string, body: unknown): Promise<{ ok: true; json: Record<string, unknown> } | { ok: false }> {
-    if (closed) return { ok: false };
+    if (refreshing) await refreshing;
+    if (closed || !credentials) return { ok: false };
+    const revision = credentialRevision;
     let encoded: string;
     try { encoded = JSON.stringify(body); }
     catch { return { ok: true, json: { denied: { code: "E_INPUT", family: "input", message: "request arguments must be JSON-serializable" } } }; }
     try {
-      const response = await doFetch(`${base}${path}`, { method: "POST", headers, body: encoded, signal: aborter.signal });
+      const response = await doFetch(`${base}${path}`, { method: "POST", headers: { ...headers }, body: encoded, signal: aborter.signal });
       const json = (await response.json()) as Record<string, unknown>;
       if (closed) return { ok: false };
       if (response.status >= 500) { setLink("offline"); return { ok: false }; }
-      if (((json.denied ?? json.why) as Refusal | undefined)?.code === "E_AUTH") {
-        endCredentials();
-      }
-      else if (credentials && typeof json.viewer === "string") setViewer(json.viewer as Principal);
+      if (await obsoleteRefusal((json.denied ?? json.why) as Refusal | undefined, revision)) return sendPost(path, body);
+      if (credentials && typeof json.viewer === "string") setViewer(json.viewer as Principal);
       if (link !== "online" && credentials) setLink("online");
       return { ok: true, json };
     } catch {
@@ -216,6 +289,11 @@ export function createClient(options: ClientOptions): Client {
     try {
       const { read, tables, nextExpiry } = await runQuery(watch.op, watch.args);
       if (closed || watches.get(watch.key) !== watch) return;
+      if (!credentials) {
+        watch.snapshot = { denied: auth() };
+        notify(watch);
+        return;
+      }
       watch.tables = new Set(tables);
       if ("data" in read) {
         watch.lastServer = read;
@@ -241,14 +319,16 @@ export function createClient(options: ClientOptions): Client {
   let polling = false;
   let generation: number | undefined;
   async function probe() {
+    if (refreshing) await refreshing;
+    if (closed || !credentials) return;
+    const revision = credentialRevision;
     try {
-      const response = await doFetch(`${base}/probe`, { headers, signal: aborter.signal });
+      const response = await doFetch(`${base}/probe`, { headers: { ...headers }, signal: aborter.signal });
       let json: Record<string, unknown> = {};
       try { json = (await response.json()) as Record<string, unknown>; } catch {}
       if (closed) return;
-      if ((json.denied as Refusal | undefined)?.code === "E_AUTH") {
-        endCredentials();
-      } else if (response.status === 200 && json.ok === true && credentials) setLink("online");
+      if (await obsoleteRefusal(json.denied as Refusal | undefined, revision)) { await probe(); return; }
+      if (response.status === 200 && json.ok === true && credentials) setLink("online");
     } catch {}
   }
 
@@ -264,11 +344,13 @@ export function createClient(options: ClientOptions): Client {
         continue;
       }
       try {
-        const { response, json } = await changes(seq, options.waitSeconds ?? 25, headers);
-        if (json.denied?.code === "E_AUTH") {
-          endCredentials();
-          break;
-        }
+        if (refreshing) await refreshing;
+        if (closed || !credentials) break;
+        const revision = credentialRevision;
+        const { response, json } = await changes(seq, options.waitSeconds ?? 25, { ...headers });
+        if (closed) break;
+        if (await obsoleteRefusal(json.denied, revision)) continue;
+        if (!credentials) break;
         if (!response.ok || json.denied) throw new Error(`changes: HTTP ${response.status}`);
         const changedGeneration = generation !== undefined && json.generation !== undefined && generation !== json.generation;
         generation = json.generation;
@@ -403,16 +485,22 @@ export function createClient(options: ClientOptions): Client {
 
     },
     async upload(bytes) {
+      if (refreshing) await refreshing;
       if (closed) return { ok: false, why: ended() };
       if (!credentials || link === "signed-out") return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to upload" } };
-      const uploaded = await uploadAsset(base, headers, doFetch, bytes);
-      if (!uploaded.ok && uploaded.why.code === "E_AUTH") endCredentials();
+      const revision = credentialRevision;
+      const uploaded = await uploadAsset(base, { ...headers }, doFetch, bytes);
+      if (!uploaded.ok && await obsoleteRefusal(uploaded.why, revision)) return client.upload(bytes);
       if (!uploaded.ok && uploaded.why.code === "E_OFFLINE") setLink("offline");
       return uploaded;
     },
     async asset(id) {
-      const read = await fetchAsset(base, headers, doFetch, id);
-      if ("denied" in read && read.denied.code === "E_AUTH") endCredentials();
+      if (refreshing) await refreshing;
+      if (closed) return { denied: ended() };
+      if (!credentials) return { denied: auth() };
+      const revision = credentialRevision;
+      const read = await fetchAsset(base, { ...headers }, doFetch, id);
+      if ("denied" in read && await obsoleteRefusal(read.denied, revision)) return client.asset(id);
       return read;
     },
     assetSource: (id) => assetSource(base, headers, id),
@@ -430,7 +518,30 @@ export function createClient(options: ClientOptions): Client {
       writeListeners.add(listener);
       return () => writeListeners.delete(listener);
     },
+    session: () => session,
+    onSession(listener) {
+      sessionListeners.add(listener);
+      return () => sessionListeners.delete(listener);
+    },
+    refreshSession: refreshCurrent,
+    async logoutAll() {
+      if (refreshing) await refreshing;
+      if (closed) return { ok: false, why: ended() };
+      const bearer = headers.authorization?.slice("Bearer ".length);
+      if (!credentials || !bearer) return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions" } };
+      const revision = credentialRevision;
+      const revoked = await revokeAllSessions(base, bearer, doFetch);
+      if (revoked.ok) {
+        endCredentials();
+        await client.close();
+      } else {
+        if (await obsoleteRefusal(revoked.why, revision)) return client.logoutAll();
+        if (!credentials) await client.close();
+      }
+      return revoked;
+    },
     async signOut() {
+      if (refreshing) await refreshing;
       const bearer = headers.authorization?.slice("Bearer ".length);
       endCredentials();
       // Close immediately so outstanding work cannot reuse the credentials.
@@ -443,19 +554,23 @@ export function createClient(options: ClientOptions): Client {
       closed = true;
       aborter.abort();
       if (retry) clearTimeout(retry);
+      if (refreshTimer) clearTimeout(refreshTimer);
       for (const watch of watches.values()) if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
       watches.clear();
       linkListeners.clear();
       viewerListeners.clear();
+      sessionListeners.clear();
       for (const entry of pending) {
         const outcome = { state: "failed", id: entry.id, why: { ...ended(), message: `client closed before the outcome of write ${entry.id} was known` } } as const;
         entry.resolve(outcome);
         emitWrite(outcome);
       }
       writeListeners.clear();
-      closing = Promise.allSettled([flushing, ...requests]).then(() => { pending.length = 0; });
+      closing = Promise.allSettled([flushing, refreshing, ...requests]).then(() => { pending.length = 0; });
       return closing;
     },
   };
+  if (session && session.kind !== "action" && session.expiresAt - Date.now() <= refreshBeforeExpiry) void refreshCurrent();
+  else scheduleRefresh();
   return client;
 }

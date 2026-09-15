@@ -15079,3 +15079,47 @@ leaving only the documented Chromium launch artifact for the lead's
 outside-sandbox run. No failure is classified as pre-existing from an
 unverified base comparison. Reference validation and the whitespace check
 passed. No commit, push, tag or publication was made.
+
+## 2026-09-14 — W3e: the online session card and the development banner
+
+The 0.2.16 calibration's d-01 called `session()` on the online client and
+crashed. At base `d474d2cde4df59de478006cd9c697c03001a01b3`, the README's
+16-member card had 4 missing online implementations: `session`, `onSession`,
+`refreshSession` and `logoutAll`. They now belong to `Client` and both tiers
+implement them; `sync` is the one explicitly device-only member. The test
+extracts that list from the README and checks real client objects, reporting
+16 members, 1 device-only, 0 missing. Persona sessions are null; a bare-token
+client learns its session on refresh. Rotation adopts the replacement bearer
+before notification, coalesces concurrent calls, schedules near expiry, and
+retries obsolete authentication refusals with the same mutation ID. Sign-out
+and current-session refusal clear the session; offline logout-all retains it.
+
+Seven new client regressions went from 0 passed / 7 failed to 7 passed /
+0 failed (52.43575 ms before, 50.734167 ms after). The broader targeted run
+first passed 61 of 62: a successful query could overwrite a watch's signed-out
+state after the change feed refused the session. Fencing installation of that
+answer made it 62/62 (18,845.226 ms). The generated-TypeScript regression also
+caught a new dependency when it copied `contract.ts` alone: the session types
+now live in the self-contained contract and `auth.ts` re-exports them. Its
+isolated rerun passed 1/1 in 0.32 s. This is why a compile-time card and a
+runtime README check both matter; either alone missed the original gap.
+
+For d-05, the release paragraph and dev's stderr banner now say development
+only, name loopback personas and unauthenticated `/seed`, and point to
+`deploy` + `serve`. The real host regression went from 0/1 to 1/1
+(1.16 s before, 1.45 s after): dev accepts an unauthenticated seed and persona
+read (HTTP 200); serve refuses seed (403) and persona (401), then accepts a
+guest bearer (200) and sees zero rows from the refused seed. The personas
+card carries the same guidance. No server admission rule, meter ceiling,
+serialized value, corpus case, or diagnostic code changed. The guide suite
+passed 18/18 in 0.05 s; the largest changed source file is 1,306 lines.
+
+The first full `bash snapback4/scripts/test.sh` run reported 2 failing steps
+in 368 s (the now-fixed standalone-contract regression and client tests,
+including the now-fixed watch race). The final run reported 1 failing step
+in 297 s: client tests, 242 passed / 1 failed, solely Chromium SIGABRT in
+`react.test.mjs`. Its isolated rerun also reported 0 passed / 1 failed in
+444.826708 ms, matching the sandbox artifact named in the lane brief; the lead
+must rerun that browser test outside the sandbox. All final Rust tests,
+fixture tests, package/app typechecks and builds passed. No inherited-product
+failure is claimed. No commit, push, tag or publication was made.

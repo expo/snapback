@@ -2,6 +2,18 @@
 // screen may need. The mechanism is built to fit them; a screen that needs a
 // word not here is a defect in the mechanism, not a gap in the card.
 
+export interface Session {
+  readonly principal: string;
+  /** `guest` or `user` for built-in identity; an application-defined kind
+   * for a session minted by its service. */
+  readonly kind: string;
+  readonly token: string;
+  readonly expiresAt: number;
+}
+
+export type SignIn = { readonly ok: true; readonly session: Session } | { readonly ok: false; readonly why: Refusal };
+export type SessionRevocation = { readonly ok: true; readonly revoked: number } | { readonly ok: false; readonly why: Refusal };
+
 /** An opaque page position minted by whoever evaluated the page. Pass it back unchanged. */
 export type Cursor = string & { readonly __cursor: "Cursor" };
 /** The authenticated subject a rule sees as `viewer`. */
@@ -133,6 +145,13 @@ export interface Client {
   viewer(): Principal | null;
   onViewer(notify: (viewer: Principal | null) => void): () => void;
   onWrite(notify: (write: Exclude<Write, { state: "pending" }>) => void): () => void;
+  /** The current bearer session; null for personas and bare tokens until refreshed. */
+  session(): Session | null;
+  onSession(notify: (session: Session | null) => void): () => void;
+  /** Rotate the bearer and adopt the replacement before notifying listeners. */
+  refreshSession(): Promise<SignIn>;
+  /** Revoke every session for this principal and close after confirmation. */
+  logoutAll(): Promise<SessionRevocation>;
   /** Revoke this session when reachable, clear local credentials, and close. */
   signOut(): Promise<void>;
   close(): Promise<void>;

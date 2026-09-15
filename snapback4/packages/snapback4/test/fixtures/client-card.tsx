@@ -6,7 +6,13 @@ import { Image, Text } from "react-native";
 declare const local: Awaited<ReturnType<typeof createLocalClient>>;
 const online: Client = createClient({ url: "http://localhost:4400", persona: "alice" });
 const clients: Client[] = [local, online];
-for (const client of clients) void client.signOut();
+for (const client of clients) {
+  client.session();
+  client.onSession(session => { const token: string | undefined = session?.token; })();
+  void client.refreshSession();
+  void client.logoutAll();
+  void client.signOut();
+}
 export function Photo({ photo }: { photo: AssetState }) {
   return <>{photo.status === "ready" && <Image source={{ uri: photo.url }} />}
     {photo.status === "loading" && <Text>Loading photo…</Text>}

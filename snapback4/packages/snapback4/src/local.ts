@@ -26,7 +26,6 @@ import {
   refreshSession as rotateSession,
   restoreSession,
   type Session,
-  type SessionRevocation,
   type SessionStore,
   type SignIn,
 } from "./auth.ts";
@@ -64,12 +63,6 @@ export interface LocalOptions {
 
 export type LocalClient = Client & {
   sync(): Promise<void>;
-  session(): Session | null;
-  onSession(notify: (session: Session | null) => void): () => void;
-  /** Rotate this device's bearer and atomically adopt the replacement. */
-  refreshSession(): Promise<SignIn>;
-  /** Revoke every session for this principal and close this client. */
-  logoutAll(): Promise<SessionRevocation>;
 };
 
 interface Watch {
