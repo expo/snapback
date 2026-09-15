@@ -60,7 +60,7 @@ pub(super) fn call(request: Request, shared: &Shared, name: &str, body: &str) {
             _ => {
                 let args = engine.program(name).filter(|p| p.kind == ProgramKind::Action).ok_or_else(|| snapback4_core::RuntimeError::Structural { code: "E_ACTION_UNKNOWN", message: format!("no action {name} is declared") })
                     .and_then(|p| arguments(p, payload.get("args").unwrap_or(&json!({}))));
-                args.and_then(|args| engine.request_action(name, id, Context::new(&principal, args)))
+                args.and_then(|args| engine.request_action(name, id, Context::new(&principal, args).at(shared.now())))
             }
         }
     };
@@ -90,7 +90,7 @@ pub(super) fn claim(request: Request, shared: &Shared, body: &str) {
     let deadline = Instant::now() + Duration::from_secs(payload.get("wait").and_then(Json::as_u64).unwrap_or(0).min(25));
     loop {
         let worker = match service_of(&request, shared) { Ok(worker) => worker, Err(why) => return respond(request, 401, json!({ "denied": why })) };
-        let claimed = lock(&shared.engine).claim_actions(&worker, action, limit, lease, session, snapback4_core::now_ms());
+        let claimed = lock(&shared.engine).claim_actions(&worker, action, limit, lease, session, shared.now());
         match claimed {
             Ok(claims) if claims.is_empty() && Instant::now() < deadline => {
                 let seq = lock(&shared.seq);
@@ -112,7 +112,7 @@ pub(super) fn settle(request: Request, shared: &Shared, path: &str, body: &str) 
     let settled = if done { ActionSettled::Done(payload.get("result").cloned().unwrap_or(Json::Null)) }
         else { ActionSettled::Failed { error: payload.get("error").and_then(Json::as_str).unwrap_or("the handler failed").to_owned(), retry: payload.get("retry").and_then(Json::as_bool).unwrap_or(true) } };
     let Some(id) = decode_id(id) else { return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "the action id must be percent-encoded UTF-8") })); };
-    let answer = lock(&shared.engine).settle_action(&id, &worker, &token, settled, snapback4_core::now_ms());
+    let answer = lock(&shared.engine).settle_action(&id, &worker, &token, settled, shared.now());
     match answer {
         Ok(run) => { shared.committed.notify_all(); respond(request, 200, json!({ "ok": true, "request": outcome(&run, false) })); }
         Err(error) => { let why = failure(&error); respond(request, if why.retryable { 503 } else { 200 }, json!({ "denied": why })); }

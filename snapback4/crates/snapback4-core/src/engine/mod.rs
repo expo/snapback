@@ -835,7 +835,11 @@ impl Engine {
     /// Write rows as the system principal: rules are bypassed, validation,
     /// constraints, aggregates and partition events are not. One commit.
     pub fn seed(&mut self, rows: impl IntoIterator<Item = (String, Value)>) -> Result<u64, RuntimeError> {
-        let now = crate::now_ms();
+        self.seed_at(rows, crate::now_ms())
+    }
+
+    /// Development hosts supply their clock so seed commits share operation and stream time.
+    pub fn seed_at(&mut self, rows: impl IntoIterator<Item = (String, Value)>, now: i64) -> Result<u64, RuntimeError> {
         let tx = self.store.transaction()?;
         let seq = tx.next_seq()?;
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);

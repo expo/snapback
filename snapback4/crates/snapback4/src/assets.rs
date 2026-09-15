@@ -34,7 +34,7 @@ pub fn upload(request: Request, body: Vec<u8>, shared: &Shared) {
     }
     let stored = (|| {
         let sniffed = snapback4_core::assets::sniff(&body)?;
-        let upload = lock(&shared.engine).prepare_asset(&principal, sniffed, body.len() as u64, snapback4_core::now_ms())?;
+        let upload = lock(&shared.engine).prepare_asset(&principal, sniffed, body.len() as u64, shared.now())?;
         #[cfg(test)] crate::serve::test_work(&shared.upload_work);
         let upload = upload.write(&body)?;
         // Logout while disk I/O was in flight cannot publish a new asset.
@@ -60,7 +60,7 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
     }
     let _transfer = shared.asset_transfers.enter(id, &principal);
     let range_requested = request.headers().iter().any(|h| h.field.equiv("range"));
-    let granted = lock(&shared.engine).asset_access_request(&principal, id, snapback4_core::now_ms(), range_requested);
+    let granted = lock(&shared.engine).asset_access_request(&principal, id, shared.now(), range_requested);
     let grant = match granted {
         Ok(grant) => grant,
         Err(error) => {
@@ -116,7 +116,7 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
     }
     let delivered = request.respond_checked(response);
     if grant.once && delivered.is_ok() {
-        if let Err(error) = lock(&shared.engine).record_asset_view(&principal, id, snapback4_core::now_ms()) {
+        if let Err(error) = lock(&shared.engine).record_asset_view(&principal, id, shared.now()) {
             eprintln!("snapback4: one-view asset {id} was delivered to {principal}, but its view could not be recorded: {error}");
         }
     }

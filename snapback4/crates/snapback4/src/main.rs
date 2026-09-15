@@ -10,6 +10,7 @@ mod project;
 mod serve;
 mod dev_worker;
 mod dev_replay;
+mod dev_clock;
 mod lifecycle;
 mod verbs;
 
@@ -21,13 +22,14 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   init [dir] [--online|--expo]      start local-first, online-only, or with the Expo client
   check [--cost|--residency|--fix|--json] [--store path]  compile snapback/*.q; check store adoption; write types; build native jobs
   types                            compile and write snapback/generated/api.ts
-  dev [--port N] [--no-watch] [--fresh] [--hold-effects] [--hold-schedules]
+  dev [--port N] [--no-watch] [--fresh] [--hold-effects] [--hold-schedules] [--clock-offset +25h]
                                       hold worker claims or schedule admission during replay; serve on 127.0.0.1:4400, re-adopting on every save; --fresh: a store in memory
   deploy <dir> [--allow-destructive]  a release: the compiled backend into <dir>/releases/N, current → N
   rollback <dir>                   current → the previous release
   serve <dir> [--port N] [--bind IP]  serve HTTP on 127.0.0.1:4400 behind a TLS proxy; tokens only
     --i-understand-cleartext         required for a non-loopback bind; see README proxy contract
-  run <op> [json] --as <persona>   run one operation against the local store (a job runs whole, as the system)
+  run <op> [json] --as <persona> [--now <milliseconds|+duration>]   run one operation against the local store (a job runs whole, as the system)
+  clock advance <duration> [--port N]  advance a running dev clock, sweep expiry and run due jobs
   test [--fixture dir] [--as p] [--residency]    load a fixture, run every query, print the meters
   why <E_CODE | op | table>        explain a refusal, an operation's cost, or a table's rules
   guide [keyword]                  list cards and aliases, or print one card
@@ -48,6 +50,10 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
     let options = verbs::parse(&args);
+    if (verb == "serve" || options.flags.contains_key("release")) && (verb == "clock" || options.flags.contains_key("clock-offset") || options.flags.contains_key("now")) {
+        eprintln!("{}", dev_clock::release());
+        return ExitCode::from(1);
+    }
     let code = match verb {
         "--version" | "-V" | "version" => {
             println!("snapback4 {}", env!("CARGO_PKG_VERSION"));
@@ -60,6 +66,7 @@ fn main() -> ExitCode {
         "check" => verbs::check(&options),
         "types" => verbs::types(&options),
         "run" => verbs::run(&options),
+        "clock" => dev_clock::command(&options),
         "test" => verbs::test(&options),
         "why" => verbs::why(&options),
         "data" => verbs::data(&options),
@@ -88,8 +95,9 @@ fn main() -> ExitCode {
             let Some(project) = std::env::current_dir().ok().and_then(|dir| project::Project::locate(&dir)) else {
                 return Err("no snapback/schema.q here or above; run `snapback4 init` to start one".into());
             };
+            let clock_offset = options.flags.get("clock-offset").map(|text| dev_clock::offset(text)).transpose().map_err(|e| e.to_string())?.unwrap_or(0);
             let port: u16 = options.flags.get("port").and_then(|p| p.parse().ok()).unwrap_or(4400);
-            serve::serve(project, port, serve::Mode::Dev { watch: !options.flags.contains_key("no-watch"), fresh: options.flags.contains_key("fresh"), hold_effects: options.flags.contains_key("hold-effects"), hold_schedules: options.flags.contains_key("hold-schedules") }, "127.0.0.1")
+            serve::serve(project, port, serve::Mode::Dev { watch: !options.flags.contains_key("no-watch"), fresh: options.flags.contains_key("fresh"), hold_effects: options.flags.contains_key("hold-effects"), hold_schedules: options.flags.contains_key("hold-schedules"), clock_offset }, "127.0.0.1")
         }),
         other => {
             eprintln!("unknown verb {other}\n{HELP}");

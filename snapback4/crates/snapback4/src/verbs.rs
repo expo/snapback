@@ -279,6 +279,7 @@ pub fn run(options: &Options) -> i32 {
         eprintln!("usage: snapback4 run <operation> [json-args] --as <persona> [--json]");
         return 2;
     };
+    let now = match crate::dev_clock::run_now(options.flags.get("now")) { Ok(now) => now, Err(error) => { eprintln!("{error}"); return 1; } };
     let project = project_or_exit();
     let bound = compile_or_exit(&project, options.json);
     let Some(program) = bound.programs.iter().find(|p| &p.program.name == op).map(|p| p.program.clone()) else {
@@ -331,7 +332,7 @@ pub fn run(options: &Options) -> i32 {
         if options.flags.contains_key("as") {
             eprintln!("run: --as is ignored for a job; jobs run as the system");
         }
-        return match engine.run_job(op, args, snapback4_core::now_ms()) {
+        return match engine.run_job(op, args, now) {
             Ok(run) => {
                 for line in engine.take_native_logs() {
                     eprintln!("native {line}");
@@ -346,7 +347,7 @@ pub fn run(options: &Options) -> i32 {
             }
         };
     }
-    let context = Context::new(persona_principal(&persona), args);
+    let context = Context::new(persona_principal(&persona), args).at(now);
     if program.kind == ProgramKind::Query {
         match engine.query(op, context) {
             Ok(outcome) => {
