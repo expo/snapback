@@ -345,6 +345,8 @@ charged to that chunk's meter. Writes belong inside a chunk.
   lowers to a seek with N_SEEK. A full page's cursor is after its last result;
   a cut page continues after the last rule-visible examined row, including a
   filter rejection, never a hidden row. Non-uniform ranges stay incomplete.
+  Merged pages return no `next` for a non-uniform read or a meter or word-limit
+  cut, because a shared cursor cannot advance past an unfinished lane.
   A uniform filtered page is complete at N matches or the range's end, even
   without a cursor; a meter cut is incomplete.
 - **List operations:** pages, lists, and shaped collections share `sort`,
@@ -625,6 +627,9 @@ admitted non-uniform scope keeps its per-row costs and stays incomplete;
 hidden rows there still spend the query-wide examined/index-entry budget.
 The 32-word bound makes that lane incomplete without cutting later lanes;
 operator results name it in `word_cut_at`, separately from a meter cut in `capped_at`.
+Merged pages withhold `next` for a non-uniform read or a meter or word-limit
+cut, including a non-uniform read within budget, so cursor presence cannot
+reveal hidden-row costs.
 Reads inside `where` use their own rules and search terms. An empty
 matching result past a device horizon is incomplete too, so a held group
 can fall back to the server.
@@ -821,6 +826,11 @@ merge lane reads a second table with the same columns and plain index;
 each table keeps its own rule and sync. `cap N` without `by` caps the whole
 table. `N_SPARSE_FILTER` points here when a global timeline filter can spend
 the page meter on unrelated authors.
+
+A cursor from generation N works on N+1 when its table, index, direction
+and typed ordering suffix still match; it continues through current data.
+IDs break equal ordering keys and identify copies across projections;
+copies must keep the same ordering fields.
 
 ```quarry
 table authors:
