@@ -19820,3 +19820,17 @@ test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 139 filtered out
 `./ref-check --verbose` passed before this append:
 `ref-check: ok — 480 LLP docs, 8963 refs in 23746 files, 0 errors, 0 unchecked`.
 `git diff --check` was clean. Both checks are repeated after this append.
+
+## 2026-09-15 — Wave 6 landed as 0.2.22 / expo 0.2.12→0.2.13 (lead)
+
+Integration `sb4/w6-int` carries W6a–W6e, the round-1 repairs W6R1a/b/c, and the round-2 repair W6R2. Both families returned READY: Grok at round 2, GPT at the round-3 confirmation.
+
+Lead verification on `7bf1f4128`:
+- suite: 0 failures;
+- client tests: 377/377;
+- Chromium `navigation-immediate`: 10/10;
+- native Expo end-to-end: `{"witness":"published-ios","ok":true,"ms":23720}`;
+- ref-check: ok.
+
+Records: LLP 3000.007 §20.15 and `llp/reviews/3000.007-agent-ergonomics-wave-6.*`.
+
