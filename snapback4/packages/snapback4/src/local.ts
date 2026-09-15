@@ -99,6 +99,13 @@ interface Queued {
   now?: number;
 }
 
+interface StoreCapture {
+  store_id?: string | null;
+  watermark: number;
+  send_revision: number;
+  restore_refusal?: Refusal;
+}
+
 const PAGE = 4000;
 const REFRESH_BEFORE_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
@@ -276,8 +283,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const settled = new Map<string, (write: Write) => void>();
   let lastSyncAt = Number((await call({ op: "meta", key: "syncedAt" })).ok ?? 0);
   let caughtUp = false;
+  let identityChecked = false;
   let partitionCurrent = true;
-  let storeIdentity = ((await call({ op: "sync_state" })).ok as { store_id?: string | null })?.store_id ?? undefined;
+  const initialSync = (await call({ op: "sync_state" })).ok as { store_id?: string | null; restore_refusal?: Refusal };
+  let storeIdentity = initialSync?.store_id ?? undefined;
+  partitionDenied = initialSync?.restore_refusal ?? null;
   let incarnation = 0;
   // @ref LLP 3000.007#18.2 — observation fences answers before queued sync can retire the partition.
   function observeIncarnation(id?: string, force = false) {
@@ -298,6 +308,31 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
   }
 
+  function refuseRestore(denied?: Refusal) {
+    if (denied?.code !== "E_STORE_RESTORE") return;
+    partitionDenied = denied;
+    observeIncarnation(storeIdentity, true);
+    for (const watch of watches.values()) { watch.snapshot = { denied }; notify(watch); }
+  }
+
+  async function captureStore(): Promise<StoreCapture | undefined> {
+    const reply = await call({ op: "sync_state" });
+    if (reply.denied) return;
+    const capture = reply.ok as StoreCapture;
+    if (capture.restore_refusal) { refuseRestore(capture.restore_refusal); return; }
+    return capture;
+  }
+
+  // @ref LLP 3000.007#18.2 — a witnessed restore stays refused even if writes advance its head before the next sync.
+  async function observeHead(id: string | undefined, head: number, capture: StoreCapture): Promise<boolean> {
+    if (id === undefined || id !== capture.store_id || !(head < capture.watermark)) return true;
+    observeIncarnation(id, true);
+    const reply = await call({ op: "observe_store", page: { snapshot: false, events: [], more: false, store_id: id, watermark: head,
+      requested_watermark: capture.watermark, captured_watermark: capture.watermark, send_revision: capture.send_revision } });
+    refuseRestore(reply.denied);
+    return false;
+  }
+
   async function call(request: Record<string, unknown>): Promise<{ ok?: unknown; denied?: Refusal }> {
     const work = core.call(request);
     active.add(work);
@@ -316,6 +351,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (closed || (sessionDead && next !== "signed-out")) return;
     if (link === next) return;
     link = next;
+    if (next !== "online") {
+      identityChecked = false;
+      for (const watch of watches.values()) if ("data" in watch.snapshot && watch.snapshot.fresh) {
+        watch.snapshot = { ...watch.snapshot, fresh: false, ...(lastSyncAt ? { since: lastSyncAt } : {}) };
+        notify(watch);
+      }
+    }
     for (const listener of linkListeners) listener(next);
     if (next === "online") void flush();
     for (const watch of watches.values()) void rerun(watch);
@@ -445,6 +487,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
   let syncing: Promise<boolean> | null = null;
   function syncOnce(): Promise<boolean> {
+    if (partitionDenied?.code === "E_STORE_RESTORE") return Promise.resolve(false);
     if (syncing) return syncing;
     const result = network(syncRound);
     syncing = result;
@@ -453,7 +496,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   async function syncRound(): Promise<boolean> {
     caughtUp = false;
-    if (closed || sessionDead) return false;
+    if (closed || sessionDead || partitionDenied?.code === "E_STORE_RESTORE") return false;
     const state = (await call({ op: "state" })).ok as { watermark: number; generation: number } | undefined;
     let watermark = state?.watermark ?? 0;
     const touched = new Set<string>();
@@ -470,7 +513,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         try {
           const captured = await call({ op: "sync_state" });
           if (captured.denied) return false;
-          const { pending_ids: pending, send_revision, store_id, watermark: capturedWatermark, backend_required } = captured.ok as { pending_ids: string[]; send_revision: number; store_id?: string | null; watermark: number; backend_required?: boolean };
+          const { pending_ids: pending, send_revision, store_id, watermark: capturedWatermark, backend_required, restore_refusal } = captured.ok as { pending_ids: string[]; send_revision: number; store_id?: string | null; watermark: number; backend_required?: boolean; restore_refusal?: Refusal };
+          if (restore_refusal) { refuseRestore(restore_refusal); return false; }
           backendRequired = !!backend_required;
           requestedStore = store_id;
           const request = requestCredentials();
@@ -501,7 +545,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (typeof page.store_id === "string") observeIncarnation(page.store_id);
         if ((typeof page.store_id === "string" && page.store_id !== requestedStore) || Number(page.watermark) < watermark) {
           const observed = await call({ op: "observe_store", page });
-          if (observed.denied) return false;
+          if (observed.denied) { refuseRestore(observed.denied); return false; }
           const observation = observed.ok as { reset: boolean; backend_required?: boolean; send_revision: number; retired: Record<string, number> };
           page.send_revision = observation.send_revision;
           backendRequired = !!observation.backend_required;
@@ -555,7 +599,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         const applyingIncarnation = incarnation;
         const applied = await call({ op: "apply", page, first: !catchingUp && after === undefined });
         if (closed || applyingIncarnation !== incarnation) return false;
-        if (applied.denied) return false;
+        if (applied.denied) { refuseRestore(applied.denied); return false; }
         for (const table of ((applied.ok as { touched?: string[] } | undefined)?.touched ?? [])) touched.add(table);
         if (page.snapshot && page.more && page.next) {
           after = page.next as string;
@@ -567,6 +611,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (!page.more) {
           partitionCurrent = true;
           caughtUp = true;
+          identityChecked = true;
           break;
         }
       }
@@ -580,7 +625,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         for (const watch of watches.values()) void rerun(watch);
       } else if (!closed && touched.size > 0) {
         for (const watch of watches.values()) if (watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void rerun(watch);
-      } else if (!closed && caughtUp) {
+      } else if (!closed && caughtUp && identityChecked) {
         for (const watch of watches.values()) {
           if (serverRun(watch.op)) { void rerun(watch); continue; }
           if (watch.incarnation !== incarnation || !("data" in watch.snapshot) || watch.snapshot.fresh) continue;
@@ -595,13 +640,22 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   async function probe(): Promise<void> {
     try {
       const request = requestCredentials();
+      const probeIncarnation = incarnation;
+      const capture = await captureStore();
+      if (!capture) return;
       const response = await doFetch(`${base}/probe`, { headers: request.headers, signal: aborter.signal });
       let json: Record<string, unknown> = {};
       try { json = (await response.json()) as Record<string, unknown>; } catch {}
       if (closed) return;
       await refusedSession(json.denied ?? json.why, request.revision);
-      if (response.status === 200 && json.ok === true && !sessionDead) setLink("online");
-    } catch {}
+      if (response.status === 200 && json.ok === true && !sessionDead && probeIncarnation === incarnation) {
+        // @ref LLP 3000.007#18.2 — verify identity before reconnect can bless cached local answers or resume a long poll.
+        if (!await observeHead(typeof json.store_id === "string" ? json.store_id : undefined, Number(json.seq), capture)) return;
+        if (typeof json.store_id === "string") observeIncarnation(json.store_id, json.store_id === storeIdentity && Number(json.seq) < seq);
+        identityChecked = true;
+        setLink("online");
+      } else if (response.status !== 200 || json.ok !== true) setLink("offline");
+    } catch { setLink("offline"); }
   }
 
   const changes = changeFeed(doFetch, base, aborter.signal, () => setLink("offline"), () => { if (!closed && !sessionDead && link === "offline") void network(probe); });
@@ -612,19 +666,24 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!closed && !sessionDead) await probe();
       return false;
     }
+    if (!identityChecked) { await probe(); return !caughtUp; }
     try {
       const request = requestCredentials();
       const changeIncarnation = incarnation;
-      const { response, json } = await changes(seq, options.waitSeconds ?? 25, request.headers);
+      const capture = await captureStore();
+      if (!capture) return false;
+      const { response, json } = await changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity);
       if (!response.ok || json.denied) {
         await refusedSession(json.denied, request.revision);
         if (json.denied?.code === "E_AUTH") return false;
         throw new Error(`changes: HTTP ${response.status}`);
       }
       if (closed || changeIncarnation !== incarnation) return false;
+      if (!await observeHead(json.store_id, json.seq, capture)) return false;
       const replaced = json.store_id !== undefined && json.store_id !== storeIdentity;
-      if (replaced) observeIncarnation(json.store_id);
-      const changed = replaced || json.seq > seq || (json.generation !== undefined && json.generation !== generation);
+      const shrank = json.seq < seq;
+      if (replaced || shrank) observeIncarnation(json.store_id, shrank);
+      const changed = replaced || shrank || json.seq > seq || (json.generation !== undefined && json.generation !== generation);
       if (changed) {
         seq = Math.max(seq, json.seq);
         const touched = new Set(json.tables ?? []);
@@ -645,7 +704,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   function follow() {
     if (following) return;
     following = (async () => {
-      while (!closed && !sessionDead) {
+      while (!closed && !sessionDead && partitionDenied?.code !== "E_STORE_RESTORE") {
         if (caughtUp && !await waitForChange()) continue;
         let ok = false;
         try {
@@ -734,7 +793,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     // @ref LLP 3000.007#18.2 — a left group answers from delivered rows, online and offline, including watch reruns.
     if (outcome.denied) return outcome.unknown && !outcome.retained ? link === "online" ? server() : { read: { denied: offline() }, tables, nextExpiry: null } : { read: { denied: outcome.denied }, tables, nextExpiry: null };
     if (!outcome.retained && outcome.complete === false && link === "online" && !(await queued()).some((e) => e.observed_seq == null && (e.predictable ?? e.predicted.length > 0))) return server();
-    const fresh = link === "online" && caughtUp;
+    const fresh = link === "online" && caughtUp && identityChecked;
     const nextExpiry = typeof outcome.nextExpiry === "number" && Number.isFinite(outcome.nextExpiry) ? outcome.nextExpiry : null;
     return { read: { data: outcome.data as R, complete: outcome.complete !== false, fresh, next: (outcome.next as Cursor | null | undefined) ?? null, ...(fresh || !lastSyncAt ? {} : { since: lastSyncAt }) }, tables, nextExpiry };
   }
@@ -805,6 +864,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let ordinarySending = false;
   let flushAgain = false;
   function flush(): Promise<void> {
+    if (partitionDenied?.code === "E_STORE_RESTORE") return Promise.resolve();
     if (flushing) {
       flushAgain = true;
       return flushing;
@@ -824,7 +884,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return run;
   }
   function retryFlush() {
-    if (closed || sessionDead || retry) return;
+    if (closed || sessionDead || retry || partitionDenied?.code === "E_STORE_RESTORE") return;
     retry = setTimeout(() => { retry = undefined; void flush(); }, retryMs);
     (retry as { unref?: () => void }).unref?.();
     retryMs = Math.min(5000, retryMs * 2);

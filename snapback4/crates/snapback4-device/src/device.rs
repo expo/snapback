@@ -38,6 +38,8 @@ pub struct Backend {
 #[derive(Clone, Debug, Serialize)]
 pub struct SyncState {
     pub backend_required: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub restore_refusal: Option<Refusal>,
     pub store_id: Option<String>,
     pub watermark: u64,
     pub generation: u64,
@@ -203,6 +205,7 @@ fn meta_u64<T: DeviceTx>(tx: &T, key: &str) -> Result<u64, RuntimeError> {
 
 // @ref LLP 3000.008.001#4-read-and-write-outcomes — unacquired facts cannot justify a value or a predicted refusal.
 fn require_acquired<T: DeviceTx>(tx: &T, schema: &Schema, program: &Program) -> Result<(), RuntimeError> {
+    store_identity::require_healthy(tx)?;
     if tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) {
         return Err(RuntimeError::Prediction("this store's backend has not been adopted; reconnect to acquire it".into()));
     }
@@ -397,6 +400,7 @@ impl<S: DeviceStore> Device<S> {
     /// cannot apply an older sync response that omitted the write being sent.
     pub fn begin_send(&mut self) -> Result<u64, RuntimeError> {
         let tx = self.store.transaction()?;
+        store_identity::require_healthy(&tx)?;
         let revision = meta_u64(&tx, SEND_REVISION)?.checked_add(1).filter(|n| *n <= 9_007_199_254_740_991).ok_or_else(|| RuntimeError::Store("send revision overflow".into()))?;
         tx.set_meta(SEND_REVISION, &revision.to_string())?;
         tx.commit()?;
@@ -417,7 +421,8 @@ impl<S: DeviceStore> Device<S> {
                 }
             }
         }
-        let state = SyncState { backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || tx.meta(BACKEND_IDENTITY)?.as_deref() != Some(&self.backend_identity), store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, send_revision: meta_u64(&tx, SEND_REVISION)? };
+        let restore_refusal = tx.meta(store_identity::RESTORE_REFUSED)?.map(|_| store_identity::restore_error().refusal());
+        let state = SyncState { backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || tx.meta(BACKEND_IDENTITY)?.as_deref() != Some(&self.backend_identity), restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, send_revision: meta_u64(&tx, SEND_REVISION)? };
         tx.rollback()?;
         Ok(state)
     }
@@ -444,6 +449,10 @@ impl<S: DeviceStore> Device<S> {
     pub fn apply(&mut self, page: &StreamPage, first: bool) -> Result<Vec<String>, RuntimeError> {
         let tx = self.store.transaction()?;
         let observed = store_identity::observe(&tx, page)?;
+        if observed.restore_refused {
+            tx.commit()?;
+            return Err(store_identity::restore_error());
+        }
         if observed.reset {
             tx.commit()?;
             self.snapshot_owner = None;

@@ -23,7 +23,7 @@ export function changeFeed(doFetch: typeof fetch, base: string, lifetime: AbortS
     }
   };
   lifetime.addEventListener("abort", close, { once: true });
-  return async (seq: number, wait: number, headers: Record<string, string>) => {
+  return async (seq: number, wait: number, headers: Record<string, string>, storeIdentity?: string) => {
     const controller = new AbortController();
     active.add(controller);
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -44,7 +44,7 @@ export function changeFeed(doFetch: typeof fetch, base: string, lifetime: AbortS
     try {
       if (lifetime.aborted) controller.abort(lifetime.reason);
       const work = (async () => {
-        const response = await doFetch(`${base}/changes?since=${seq}&wait=${seconds}${streaming ? "&heartbeat=1" : ""}`, { headers, signal: controller.signal });
+        const response = await doFetch(`${base}/changes?since=${seq}&wait=${seconds}${streaming ? "&heartbeat=1" : ""}${storeIdentity === undefined ? "" : `&store_id=${encodeURIComponent(storeIdentity)}`}`, { headers, signal: controller.signal });
         if (controller.signal.aborted) throw controller.signal.reason;
         arm();
         let json: Change;

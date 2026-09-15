@@ -1067,6 +1067,15 @@ the same database; already-left groups cannot be reacquired. An identified
 same-store snapshot preserves ordinary retained history. A legacy backwards
 watermark counts as replacement only behind that request's own watermark,
 while its acquisition capture is still current.
+Reconnect verifies the backend identity before local answers become fresh;
+an unchanged store resumes its long poll without another sync. A matching
+`store_id` with a head below the device's watermark is a restore or shrink,
+not a replacement: `E_STORE_RESTORE` halts sync and refuses reads, including
+after an offline reopen. The old watermark and outbox remain in place.
+Stop that client and use a fresh device store and outbox for the restored
+backend; retry or backend adoption does not silently reacquire that identity.
+The poll or probe persists its restore refusal immediately, even if later
+writes advance the backend back to the old head before another sync.
 
 On the web, a failed save rejects the call and discards its uncommitted in-memory
 state. The next serialized call reopens the last persisted state; earlier
@@ -1686,8 +1695,9 @@ else. The server card and compiled metadata require a live principal.
 [{ name, kind }], tables: [{ name, sync }] }`); `GET /api.ts` the
 generated TypeScript; `GET /schema` the compiled backend; `GET
 /native.wasm` the native module when the backend has one. Authenticated
-`GET /probe` answers HTTP 200 `{ ok: true }`; clients require both the status
-and body before changing an offline link back to online. `POST /q/<op>`
+`GET /probe` answers HTTP 200 `{ ok: true, store_id, seq }`; clients require both the status
+and body before changing an offline link back to online. The local client checks
+the identity and head before restoring freshness or resuming a long poll. `POST /q/<op>`
 with `{ "args": {..} }` answers `{ data, complete, seq, next, nextExpiry,
 tables, viewer }` or `{ denied }`; `nextExpiry` is the earliest future expiry
 the visible read encountered, or null. `POST /m/<op>` with `{ "id", "args",
@@ -1716,10 +1726,13 @@ higher, while a server restart on the same database keeps its identity.
 An older server can omit this additive field; a backwards watermark still
 requires reacquisition, and a device with no stored identity reacquires once
 when it first learns one. There is no GET `/sync` route.
-`GET /changes?since=S&wait=N` requires the same principal and answers
+`GET /changes?since=S&wait=N&store_id=ID` accepts the optional previous identity,
+requires the same principal and answers
 `{ seq, tables, generation, store_id }` when a commit lands or after N seconds (25
 at most; 0 answers at once; at most
-500 commits are summarised). With `heartbeat=1`, an idle HTTP/1.1 response
+500 commits are summarised). A different identity or a head below `since`
+answers immediately; a regressed head is returned as `seq`. A matching
+identity still waits for a commit or the deadline. With `heartbeat=1`, an idle HTTP/1.1 response
 starts immediately and sends JSON whitespace every 2 seconds before the
 final JSON object. Proxies must forward chunks without buffering. Once
 streaming starts, the status is 200; check the final object for `denied`,

@@ -4,6 +4,38 @@ use serde_json::json;
 
 const SOURCE: &str = "table notes:\n  body: text <=100\n  public 'reset fixture'\n  insert <- allow\n  sync\nquery all():\n  return notes first 100 by byId\nmutation add(body: text <=100):\n  return insert notes { body }\n";
 
+fn same_store_restore(host: &mut dyn HostDyn, observe: &str) {
+    let (mut a, backend) = compile(SOURCE);
+    for n in 0..3 { a.seed([("notes".into(), snapback4_core::value::object([("id", id(&format!("old-{n}"))), ("body", Value::String("A".into()))]))]).unwrap(); }
+    let mut device = host.open("restore", Some(backend.clone())).unwrap();
+    identified_pages(&mut a, &mut *device, false);
+    let capture = ok(device.call(json!({ "op": "sync_state" })));
+    // Equal and advancing heads remain ordinary sync in the same store.
+    for watermark in [3, 4] { ok(device.call(json!({ "op": "apply", "page": { "snapshot": false, "events": [], "watermark": watermark, "more": false, "store_id": capture["store_id"] } }))); }
+    assert_eq!(query(&mut *device, "all", "alice", json!({}), 1)["complete"], true);
+    let stale = device.call(json!({ "op": observe, "page": { "snapshot": false, "events": [], "watermark": 2, "more": false, "store_id": capture["store_id"], "requested_watermark": 3, "captured_watermark": 3 } }));
+    assert_eq!(stale["denied"]["code"], "E_GENERATION", "a delayed capture cannot infer restore after another owner's progress");
+    assert_eq!(query(&mut *device, "all", "alice", json!({}), 1)["complete"], true);
+    let page = json!({ "snapshot": false, "events": [], "watermark": 1, "more": false, "store_id": capture["store_id"], "requested_watermark": 4, "captured_watermark": 4 });
+    let refusal = device.call(json!({ "op": observe, "page": page }));
+    assert_eq!(refusal["denied"]["code"], "E_STORE_RESTORE", "{refusal}");
+    assert_eq!(refusal["denied"]["message"], "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox");
+    assert_ne!(refusal["denied"]["retryable"], true);
+    assert_eq!(query(&mut *device, "all", "alice", json!({}), 1)["denied"]["code"], "E_STORE_RESTORE");
+    assert_eq!(state(&mut *device).0, 4);
+    assert_eq!(device.call(json!({ "op": "begin_send" }))["denied"]["code"], "E_STORE_RESTORE");
+    device.close();
+    let mut device = host.open("restore", Some(backend)).unwrap();
+    assert_eq!(query(&mut *device, "all", "alice", json!({}), 1)["denied"]["code"], "E_STORE_RESTORE");
+    assert_eq!(device.call(json!({ "op": "apply", "first": true, "page": { "snapshot": true, "events": [], "watermark": 4, "more": false, "store_id": capture["store_id"] } }))["denied"]["code"], "E_STORE_RESTORE", "same identity cannot silently reacquire even after its head recovers");
+    assert_eq!(state(&mut *device).0, 4);
+}
+
+#[test]
+fn same_store_restore_sqlite() { for op in ["observe_store", "apply"] { same_store_restore(&mut Sqlite::new("restore"), op); } }
+#[test]
+fn same_store_restore_memory() { for op in ["observe_store", "apply"] { same_store_restore(&mut Memory::new(), op); } }
+
 fn replaced(host: &mut dyn HostDyn) {
     let label = host.label();
     let (mut a, backend) = compile(SOURCE);

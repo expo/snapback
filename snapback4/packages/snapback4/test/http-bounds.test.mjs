@@ -87,7 +87,9 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
       assert.equal((await missing.json()).denied?.code, "E_AUTH");
       const admitted = await fetch(url + "/probe", { headers, signal: AbortSignal.timeout(1000) });
       assert.equal(admitted.status, 200);
-      assert.deepEqual(await admitted.json(), { ok: true });
+      const body = await admitted.json();
+      assert.deepEqual(body, { ok: true, seq: 0, store_id: body.store_id });
+      assert.match(body.store_id, /^[0-9a-f]{32}$/);
     });
     await t.test("catalog, generated API, native module, and change activity refuse anonymous callers", async () => {
       for (const path of ["/", "/schema", "/api.ts", "/native.wasm", "/changes?since=0&wait=0"]) {

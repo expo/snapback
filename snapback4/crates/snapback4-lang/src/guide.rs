@@ -639,6 +639,16 @@ replacement store. The reset persists the obligation to adopt that store's
 backend before acquisition publishes, including after retry or offline reopen.
 Replacement observation immediately invalidates freshness, remembered answers
 and watch snapshots; delayed reads from the previous store are retried.
+Change polls echo `store_id` and return immediately on a mismatch or a lower
+head. Reconnect probes carry the identity and head, checked before local
+freshness returns; a matching identity needs no extra sync. A matching
+`store_id` with a lower head refuses `E_STORE_RESTORE`: the backend was
+restored or shrank. Sync halts and reads refuse, including after offline
+reopen; the watermark and outbox stay in place. Stop the client and use a
+fresh device store and outbox for that restored backend. Retry and backend
+adoption do not silently reacquire the same identity.
+The poll or probe persists that refusal before another sync can forget a
+lower head that later writes advance again.
 Orphan known receipts keep their source identity until ownership is resolved;
 foreign known receipts retire, and unknown writes transfer without predictions.
 First identification of a legacy acquired device discards retained left-group

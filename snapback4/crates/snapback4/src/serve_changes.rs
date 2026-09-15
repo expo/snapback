@@ -16,6 +16,11 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
         Ok(principal) => principal,
         Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
     };
+    // @ref LLP 3000.007#18.2 — a replacement or restored head answers before the ordinary long wait.
+    let replaced = match lock(&shared.engine).store().meta("store_id") {
+        Ok(current) => params.get("store_id").is_some_and(|supplied| Some(supplied) != current.as_ref()),
+        Err(error) => return respond(request, 500, json!({ "denied": refusal_json(&error.refusal()) })),
+    };
     let heartbeat = params.get("heartbeat").is_some_and(|s| s == "1") && request.http_version().0 == 1 && request.http_version().1 >= 1;
     let mut response = PollResponse { request: Some(request), started: false };
     shared.presence.enter(&connected);
@@ -23,7 +28,7 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
         let mut beat = Instant::now();
         loop {
             let seq = lock(&shared.seq);
-            if *seq > since || Instant::now() >= deadline { break; }
+            if replaced || *seq != since || Instant::now() >= deadline { break; }
             if heartbeat && Instant::now() >= beat {
                 drop(seq);
                 response.heartbeat()?;
@@ -51,7 +56,7 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     };
     match changes {
         Ok((changes, store_id)) => {
-            let seq = changes.last().map(|(seq, _)| *seq).unwrap_or(since);
+            let seq = changes.last().map(|(seq, _)| *seq).unwrap_or_else(|| since.min(*lock(&shared.seq)));
             let mut tables: Vec<String> = changes.into_iter().flat_map(|(_, tables)| tables).collect();
             tables.sort();
             tables.dedup();

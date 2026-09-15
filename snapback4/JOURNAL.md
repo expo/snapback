@@ -10687,3 +10687,433 @@ ref-check: ok — 480 LLP docs, 8890 refs in 22938 files, 0 errors, 0 unchecked
 repeated after the journal append. HEAD remains
 `f69338c005af9fe6bc657af6287b22fd0934a3ed`; only the intended lane changes
 are left in the working tree for the lead.
+
+## 2026-09-14 — X1R2: immediate replacement detection and an explicit restore halt
+
+Base: `3266842c10eac426755010a346dbff29b6f47583`. Read the other
+family's review (`/Users/ccheever/projects/snapback-x1-review/grok.md`),
+X1R1's journal entry, the fence rules and LLP 3000.007 §14/§18 before
+implementation. All reproductions below ran with only test edits at that
+starting HEAD, before production edits. No commit, push, tag, publication,
+sub-agent, clone, remote execution, meter increase, value-model serialization
+change or modification of an existing corpus case was made.
+
+### Findings and implementation
+
+1. **Reproduced.** Equal-head replacement held `/changes` until its long
+   deadline, and both a wasm and a process `createLocalClient` republished
+   A as fresh and complete after B listened. `/changes` now accepts optional
+   `store_id` and answers immediately on mismatch; `/probe` adds identity
+   and head, checked before reconnect restores local freshness or resumes
+   its poll. A disconnected watch synchronously loses freshness. Matching
+   store reconnects resume without a sync.
+2. **Did not reproduce.** X1R1 already sets each watch to `{ loading: true }`
+   and notifies synchronously before `observe_store`. The new barrier test
+   reads `getSnapshot()` at that exact call boundary, then positively checks
+   B is delivered. No reset-turn implementation change was needed.
+3. **Reproduced.** A stopped backup restored at head 1 after the device had
+   applied head 3 returned all three old rows with `complete: true`. The
+   device now persists a restore refusal, preserving its watermark and
+   outbox, and returns `E_STORE_RESTORE` from observation, application, reads
+   and new sends. The client stops its sync retry loop; the refusal is
+   reported by `sync_state` so an offline or online reopen keeps the halt.
+   Backend adoption and a recovered same-ID head cannot silently reacquire.
+   A fresh device/outbox can acquire the restored database. Request-capture
+   checks still reject stale responses before they can infer restore.
+4. **Covered.** Both live wasm and native/process clients fail at base on
+   replacement with production waits (25 and 20 seconds). Both mid-paged
+   snapshot tests pass at base: an outbound `after` request is held, B starts
+   under `--fresh`, then B receives A's actual cursor and echoed identity.
+   No pagination implementation change was justified. The real Expo/iOS
+   host was not run; the native process harness requested by the brief was.
+
+The published README, sync card, `guide::CODES`, and §18.2 note describe
+the new wire fields and the coded restore halt. The only extra shared
+file beyond the HTTP/device/client paths is `snapback4-core/src/error.rs`: two
+match arms give the new refusal its `store` family and `sync` card. The
+HTTP admission suite also updates its exact `/probe` body assertion for
+the additive fields; its authentication assertions remain in place. No
+other lane's listed file was identified by this brief. The public client
+contract and all app callers remain valid; there is no changed source form.
+
+### Red/green commands and exact summaries
+
+Every Node/Bun command used:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+Cargo, Bun and targeted Node commands ran from `snapback4/`. The blocking
+script and reference checker ran from the repository root. Frozen installs
+were reused. Rebuild commands were `cargo build -p snapback4`,
+`bash scripts/build-wasm.sh`, `bun run --cwd packages/snapback4 build`,
+and `bun run --cwd packages/snapback4 typecheck`.
+
+Harness corrections before the valid base run: the reset-turn test now
+uses the fixture's scalar marker (the thread is a shaped result), and the
+restore copies the whole stopped `.snapback4` directory, including SQLite
+sidecars, instead of copying an uncheckpointed main file alone. Those setup
+failures are not counted as reproductions. An intermediate green run's idle
+sync assertion started during B's paged acquisition, because current server
+fallback had already answered B; it now starts after B's long poll resumes.
+That was a measurement-boundary correction, not an additional product fix.
+
+A later boundary regression exposed an actual gap in the first repair:
+a change poll witnessed head **5** below acquired head **10**, but the next
+sync had already advanced back to **10**. Deferring the refusal to that sync
+forgot the restore. This was red on the intermediate implementation, not a
+second starting-HEAD claim. Both change polls and probes now persist their
+lower-head evidence immediately through the capture-fenced device call;
+the new regression is green. Reconnect's restore test reads the restored
+head independently so it remains valid whether the probe or explicit sync
+observes it first.
+
+Items 1, 3 and 4 — valid base run (2 pass / 4 fail):
+
+```sh
+node --test packages/snapback4/test/store-reset-reconnect.test.mjs
+```
+
+```text
+✖ R2 item 1: changes with a foreign identity returns before its production wait (3062.0795ms)
+✖ R2 item 1/4: wasm reconnect at equal head never republishes A as fresh (wait=25) (2190.209916ms)
+✖ R2 item 1/4: process reconnect at equal head never republishes A as fresh (wait=20) (2064.450042ms)
+✔ R2 item 4: wasm replacement while a snapshot after request is in flight (59.556709ms)
+✔ R2 item 4: process replacement while a snapshot after request is in flight (66.480292ms)
+✖ R2 item 3: restoring the same store at a lower head halts reads and retries (1057.127333ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 2
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8553.71575
+```
+
+Items 1, 3 and 4 — first green targeted run:
+
+```sh
+node --test packages/snapback4/test/store-reset-reconnect.test.mjs
+```
+
+```text
+✔ R2 item 1: changes with a foreign identity returns before its production wait (1154.131459ms)
+✔ R2 item 1/4: wasm reconnect at equal head never republishes A as fresh (wait=25) (4374.620708ms)
+✔ R2 item 1/4: process reconnect at equal head never republishes A as fresh (wait=20) (4257.8095ms)
+✔ R2 item 4: wasm replacement while a snapshot after request is in flight (93.141375ms)
+✔ R2 item 4: process replacement while a snapshot after request is in flight (76.890125ms)
+✔ R2 item 3: restoring the same store at a lower head halts reads and retries (1291.194458ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11287.326625
+```
+
+Item 2 — base already green; round 1 covers the finding:
+
+```sh
+node --test --test-name-pattern='R2 item 2' packages/snapback4/test/store-reset-review.test.mjs
+```
+
+```text
+✔ R2 item 2: getSnapshot is cleared and notified in the reset turn (158.134542ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 201.672084
+```
+
+Item 2 plus the existing round 1 / IndexedDB regressions, green:
+
+```sh
+node --test packages/snapback4/test/store-reset-review.test.mjs packages/snapback4/test/store-reset-idb.test.mjs
+```
+
+```text
+✔ R2 item 2: getSnapshot is cleared and notified in the reset turn (174.321959ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 279.998791
+```
+
+Item 3 — red on SQLite and memory at base:
+
+```sh
+cargo test -p snapback4-device --test device same_store_restore -- --nocapture
+```
+
+```text
+test store_reset::same_store_restore_memory ... FAILED
+test store_reset::same_store_restore_sqlite ... FAILED
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 81 filtered out; finished in 0.02s
+```
+
+Item 3 — green, including direct apply, observation, stale captures, reopen, adoption and sends, within the existing replacement suite:
+
+```sh
+cargo test -p snapback4-device --test device store_reset -- --nocapture
+```
+
+```text
+test store_reset::same_store_restore_memory ... ok
+test store_reset::same_store_restore_sqlite ... ok
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 73 filtered out; finished in 0.27s
+```
+
+Published guide/compiler card verification:
+
+```sh
+cargo test -p snapback4-lang --test guide
+```
+
+```text
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+```
+
+### Measurements and diagnostic texts
+
+Measured in the final targeted run:
+
+- Foreign-identity `/changes`, `wait=25`: **4 ms** (base: its **3,000 ms**
+  abort deadline expired before the **25 s** response).
+- Equal-head replacement, wasm **25 s** wait: **2,155 ms**; native/process
+  **20 s** wait: **2,160 ms**, including reconnect scheduling and the
+  acquisition-to-idle-poll measurement boundary. Each observed **0** old
+  fresh+complete snapshots, **0** extra same-store restart syncs and **0**
+  idle syncs after replacement acquisition. These are shared-host samples,
+  not latency guarantees.
+- Paging on both client hosts: **2 of 5** A rows staged before the held
+  continuation; B final rows **3**, A final rows **0**.
+- Restore: backend head **3 → 1**, device watermark remains **3**; retry
+  syncs **0**; a fresh device acquires **1** row. The two-store core scenario
+  also accepts equal/advancing heads **3 → 4**, preserves watermark **4**
+  through the halt, and refuses on **2** entry points on **2** stores.
+- Final wasm: **1,672,588 B raw**, **465,012 B gzip**, versus base
+  **1,670,724 B raw**, **464,114 B gzip** (**+1,864 B**, **+898 B**).
+- Largest changed code file: `serve.rs`, **1,297 lines**.
+
+Before, the real restore read returned old data and no diagnostic. The
+base native observation returned this success envelope:
+
+```json
+{"ok":{"backend_required":false,"reset":false,"retired":{},"send_revision":1}}
+```
+
+After, the exact read/observation/application refusal message is:
+
+```text
+E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox
+```
+
+Its code is `E_STORE_RESTORE`, family `store`, guide `sync`, non-retryable.
+The long-poll gap also produced no diagnostic before; it returned too late.
+Item 2 and pagination needed no changed diagnostic.
+
+Recovered-head regression — intermediate red:
+
+```sh
+node --test --test-name-pattern='a lower change head' packages/snapback4/test/store-reset-review.test.mjs
+```
+
+```text
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 236.134792
+```
+
+Recovered-head regression — green:
+
+```sh
+node --test --test-name-pattern='a lower change head' packages/snapback4/test/store-reset-review.test.mjs
+```
+
+```text
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 247.530292
+```
+
+Combined replacement, review and persistence regressions after that repair:
+
+```sh
+node --test packages/snapback4/test/store-reset-reconnect.test.mjs packages/snapback4/test/store-reset-review.test.mjs packages/snapback4/test/store-reset-idb.test.mjs
+```
+
+```text
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10339.642334
+```
+
+The HTTP assertion updated for the additive probe fields, rerun alone:
+
+```sh
+node --test packages/snapback4/test/http-bounds.test.mjs
+```
+
+```text
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2350.008041
+```
+
+The sandbox Chromium failure, rerun alone:
+
+```sh
+node --test packages/snapback4/test/react.test.mjs
+```
+
+```text
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 375.577584
+```
+
+The React retry fails during Chromium launch with `signal=SIGABRT`, matching
+the environment artifact supplied in the brief. It does not reach the app
+assertions. I did not verify a clean-base browser run, and make no separately
+verified pre-existing-failure claim. The lead must rerun outside the sandbox.
+
+### Blocking suite
+
+All three invocations ran the full reporting suite. The first found the
+old exact `/probe` assertion (one failed subtest and its parent, fixed above)
+plus Chromium; the second leaves Chromium alone. The third includes the
+recovered-head regression and its fix.
+
+```sh
+bash snapback4/scripts/test.sh
+```
+
+First run — **762 Rust passes, 0 failures, 2 ignored**:
+
+```text
+-- ok: cargo build (1 s)
+-- ok: wasm build (2 s)
+-- ok: package typecheck (0 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (248 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (0 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+-- ok: fixture wrapper tests (8 s)
+ℹ tests 222
+ℹ pass 219
+ℹ fail 3
+ℹ cancelled 0
+-- FAIL: client tests (44 s)
+== 1 failure(s) in 253 s
+```
+
+Second run — **762 Rust passes, 0 failures, 2 ignored**:
+
+```text
+-- ok: cargo build (0 s)
+-- ok: wasm build (2 s)
+-- ok: package typecheck (0 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (188 s)
+-- ok: chat app typecheck (0 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+-- ok: fixture wrapper tests (6 s)
+ℹ tests 222
+ℹ pass 221
+ℹ fail 1
+ℹ cancelled 0
+-- FAIL: client tests (41 s)
+== 1 failure(s) in 192 s
+```
+
+Final run — **762 Rust passes, 0 failures, 2 ignored**; **9/9** fixture tests; **222/223** client tests:
+
+```text
+-- ok: cargo build (2 s)
+-- ok: wasm build (2 s)
+-- ok: package typecheck (0 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (241 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (0 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+-- ok: fixture wrapper tests (8 s)
+ℹ tests 223
+ℹ pass 222
+ℹ fail 1
+ℹ cancelled 0
+-- FAIL: client tests (43 s)
+== 1 failure(s) in 247 s
+```
+
+Only Chromium launch remains red. No lifecycle host timeout or client
+timeout wave occurred in these runs, so no concurrency-2 retry was needed.
+Every new round 2 test passed in the final suite. No requested implementation
+remains undone; the non-reproducing reset-turn and pagination findings have
+regressions and no speculative implementation change.
+
+```sh
+./ref-check --verbose
+git diff --check
+```
+
+The reference check immediately before this append reported:
+
+```text
+ref-check: ok — 480 LLP docs, 8893 refs in 22939 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` produced no output (exit 0). Both checks are repeated
+after this append. The starting HEAD is unchanged and all intended changes
+are left uncommitted for the lead.

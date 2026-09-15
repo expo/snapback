@@ -1,6 +1,17 @@
 //! Acquisition and receipts belong to one database incarnation.
 use super::*;
 
+pub(super) const RESTORE_REFUSED: &str = "device:restore-refused";
+
+pub(super) fn restore_error() -> RuntimeError {
+    RuntimeError::Structural { code: "E_STORE_RESTORE", message: "the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox".into() }
+}
+
+pub(super) fn require_healthy<T: DeviceTx>(tx: &T) -> Result<(), RuntimeError> {
+    if tx.meta(RESTORE_REFUSED)?.is_some() { return Err(restore_error()); }
+    Ok(())
+}
+
 // The installed program set is shared, but each native owner has its own
 // interpreter. Same-generation replacement must invalidate that interpreter.
 pub(super) fn backend_identity(backend: &Backend) -> String {
@@ -15,6 +26,8 @@ pub struct StoreObservation {
     pub backend_required: bool,
     pub send_revision: u64,
     pub retired: BTreeMap<String, u64>,
+    #[serde(skip)]
+    pub(super) restore_refused: bool,
 }
 
 // @ref LLP 3000.007#18.2 — replacement discards the old partition, never an unsent write or a known receipt.
@@ -38,7 +51,15 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<StoreObs
     let reset = (identity_changed && (previous.is_some() || tx.meta(ACQUIRED)?.is_some() || meta_u64(tx, WATERMARK)? > 0 || tx.meta(SNAPSHOT_OWNER)?.is_some()))
         || (page.store_id.is_none() && page.requested_watermark.is_some_and(|requested| page.watermark < requested) && page.captured_watermark == Some(watermark));
     let mut retired = BTreeMap::new();
+    // A matching identity with a lower head is a restore, not a new store.
+    // Persist the halt with the old watermark; neither retry nor adoption
+    // may silently turn the same identity into a fresh acquisition.
+    if !identity_changed && page.store_id.is_some() && page.watermark < watermark
+        && page.requested_watermark.is_none_or(|requested| page.watermark < requested) {
+        tx.set_meta(RESTORE_REFUSED, "1")?;
+    }
     if reset {
+        tx.delete_meta(&[RESTORE_REFUSED])?;
         tx.clear_rows()?;
         tx.base_clear()?;
         tx.staged_clear()?;
@@ -67,7 +88,7 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<StoreObs
         revision = revision.checked_add(1).filter(|n| *n <= 9_007_199_254_740_991).ok_or_else(|| RuntimeError::Store("send revision overflow".into()))?;
         tx.set_meta(SEND_REVISION, &revision.to_string())?;
     }
-    Ok(StoreObservation { reset, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()), send_revision: revision, retired })
+    Ok(StoreObservation { reset, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()), send_revision: revision, retired, restore_refused: tx.meta(RESTORE_REFUSED)?.is_some() })
 }
 
 impl<S: DeviceStore> Device<S> {
@@ -78,6 +99,7 @@ impl<S: DeviceStore> Device<S> {
         let observed = observe(&tx, page)?;
         tx.commit()?;
         if observed.reset { self.snapshot_owner = None; }
+        if observed.restore_refused { return Err(restore_error()); }
         Ok(observed)
     }
 }

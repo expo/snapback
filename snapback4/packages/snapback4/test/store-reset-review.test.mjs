@@ -26,6 +26,7 @@ async function fixture(t, count = 1) {
   let store = "A", offline = false, schemaFailures = 0, core, client, changes;
   let queryGate, localGate, mutationGate, localStarts = 0, queryStarts = 0, schemaCalls = 0, mutationStarts = 0, syncStarts = 0;
   const reads = [], clients = [], sends = [];
+  let observing;
   const fetcher = async (input, init = {}) => {
     if (offline && !init.keepalive) throw new TypeError("offline");
     const path = new URL(input).pathname;
@@ -54,6 +55,7 @@ async function fixture(t, count = 1) {
   async function open() {
     const opener = webDevice({ wasm, persist });
     client = await createLocalClient({ url: `http://reset.test/${encodeURIComponent(t.name)}`, persona: "alice", device: { async open(...a) { const opened = core = await opener.open(...a); return { ...opened, async call(request) {
+      if (request.op === "observe_store") observing?.();
       const reply = await opened.call(request);
       if (request.op === "query" && localGate) { localStarts++; await localGate.promise; }
       return reply;
@@ -64,12 +66,36 @@ async function fixture(t, count = 1) {
   await open();
   return { get client() { return client; }, get core() { return core; }, open, persist, reads, sends,
     replace() { store = "B"; }, offline(v) { offline = v; }, failSchema(n) { schemaFailures = n; },
+    onObserve(callback) { observing = callback; },
     stats() { return { queryStarts, localStarts, schemaCalls, mutationStarts, syncStarts }; },
     holdLocal() { return localGate = gate(); },
     holdQueries() { return queryGate = gate(); }, holdMutation() { return mutationGate = gate(); },
-    async changed() { await until(() => changes); const c = changes; changes = null; c.resolve({ seq: 10, store_id: store, generation: 1 }); await tick(); },
+    async changed(seq = 10) { await until(() => changes); const c = changes; changes = null; c.resolve({ seq, store_id: store, generation: 1 }); await tick(); },
   };
 }
+
+test("R2 item 2: getSnapshot is cleared and notified in the reset turn", async t => {
+  const f = await fixture(t), watch = f.client.observe({ kind: "query", name: "marker" }, {}), notices = [];
+  watch.subscribe(() => notices.push(watch.getSnapshot()));
+  await until(() => watch.getSnapshot().fresh);
+  assert.equal(watch.getSnapshot().data, "A");
+  let during;
+  f.onObserve(() => { during = watch.getSnapshot(); assert.deepEqual(during, { loading: true }); assert.deepEqual(notices.at(-1), during); });
+  f.replace(); await f.client.sync();
+  assert.deepEqual(during, { loading: true });
+  await until(() => watch.getSnapshot().data === "B");
+  assert.equal(watch.getSnapshot().fresh, true);
+});
+
+test("R2 item 3: a lower change head cannot be forgotten when the head recovers before sync", async t => {
+  const f = await fixture(t), op = { kind: "query", name: "marker" };
+  assert.equal((await f.client.query(op, {})).fresh, true);
+  // The poll witnesses a restored head, but the next /sync already reports
+  // the original head again. That does not repair the old partition's rows.
+  await f.changed(5); await f.client.sync();
+  assert.equal((await f.client.query(op, {})).denied?.code, "E_STORE_RESTORE");
+  assert.equal((await f.core.call({ op: "sync_state" })).ok.restore_refusal.code, "E_STORE_RESTORE");
+});
 
 test("finding 1: failed same-generation backend adoption survives retry and offline reopen", async t => {
   const f = await fixture(t);

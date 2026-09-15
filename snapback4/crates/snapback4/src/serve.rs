@@ -828,7 +828,13 @@ fn handle(mut request: Request, shared: &Shared) {
         (Method::Post, "/actions/claim") => actions::claim(request, shared, &body),
         (Method::Post, path) if path.starts_with("/actions/") => actions::settle(request, shared, path, &body),
         (Method::Get, "/probe") => match principal_of(&request, shared) {
-            Ok(_) => respond(request, 200, json!({ "ok": true })),
+            Ok(_) => {
+                let identity = { let engine = lock(&shared.engine); engine.store().meta("store_id").and_then(|id| engine.store().seq().map(|seq| (id, seq))) };
+                match identity {
+                    Ok((store_id, seq)) => respond(request, 200, json!({ "ok": true, "store_id": store_id, "seq": seq })),
+                    Err(error) => respond(request, 500, json!({ "denied": refusal_json(&error.refusal()) })),
+                }
+            },
             Err(refusal) => respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
         },
         (Method::Get, "/auth/config") => {
