@@ -32,10 +32,13 @@ pub struct Walk {
     pub all_complete: bool,
     pub ids: BTreeSet<String>,
     pub groups: BTreeMap<String, usize>,
+    ordered_ids: Vec<String>,
+    last_key: Option<(i64, String)>,
 }
 
 impl Walk {
     pub fn new() -> Self { Self { all_complete: true, ..Self::default() } }
+    pub fn start_batch(&mut self) { self.last_key = None; }
     pub fn add(&mut self, page: &QueryOutcome) {
         if self.pages == 0 { self.first_examined = page.metered.examined; }
         self.pages += 1;
@@ -45,16 +48,22 @@ impl Walk {
         self.all_complete &= page.complete;
         assert!(page.capped_at.is_none() && page.word_cut_at.is_none(), "{page:?}");
         let rows = page.data.as_array().unwrap();
-        for pair in rows.windows(2) {
-            let key = |row: &Value| (row.field("at").unwrap().as_int().unwrap(), row.field("id").unwrap().as_str().unwrap().to_owned());
-            assert!(key(&pair[0]) > key(&pair[1]), "newest first, id breaks ties");
-        }
         for row in rows {
-            assert!(self.ids.insert(row.field("id").unwrap().as_str().unwrap().to_owned()), "duplicate across pages");
+            let id = row.field("id").unwrap().as_str().unwrap().to_owned();
+            let key = (row.field("at").unwrap().as_int().unwrap(), id.clone());
+            assert!(self.last_key.as_ref().is_none_or(|last| last > &key), "newest first across page boundaries, id breaks ties");
+            self.last_key = Some(key);
+            assert!(self.ids.insert(id.clone()), "duplicate across pages");
+            self.ordered_ids.push(id);
             *self.groups.entry(row.field("roomId").unwrap().as_str().unwrap().to_owned()).or_default() += 1;
         }
     }
-    pub fn assert_matches(&self, memberships: usize, hits_per_room: usize) {
+    pub fn assert_matches(&self, memberships: usize, hits_per_room: usize, batch_size: usize) {
+        let expected = (0..memberships).step_by(batch_size).flat_map(|start| {
+            (24 - hits_per_room..24).rev().flat_map(move |n| (start..(start + batch_size).min(memberships)).rev().map(move |room| format!("r{room:04}-{n:02}")))
+        }).collect::<Vec<_>>();
+        assert_eq!(self.ids, expected.iter().cloned().collect(), "exact expected id set");
+        assert_eq!(self.ordered_ids, expected, "exact ordering throughout each batch, across page boundaries");
         assert_eq!(self.groups.len(), memberships);
         assert_eq!(self.ids.len(), memberships * hits_per_room);
         for room in 0..memberships { assert_eq!(self.groups[&format!("r{room:04}")], hits_per_room); }

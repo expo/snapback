@@ -1178,10 +1178,20 @@ table pulls:
   unique byReaderAuthor: readerId, authorId
   cap 32 by readerId
   cap 32000
-  public 'pull routing is derived from the public follow graph'
+  read <- .readerId = viewer
   insert <- allow
   delete <- .readerId = viewer
-  sync public
+  sync
+
+table pullCounts:                 -- server-only slot accounting; never lists installed authors
+  readerId: principal
+  used: int
+  unique byReader: readerId
+  cap 32000
+  public 'only the number of installed pulls is public; routes stay reader-private'
+  insert <- allow
+  update <- allow
+  online only
 
 table posts:                       -- originals and attributed reposts, one source event each
   actorId: principal
@@ -1266,11 +1276,19 @@ mutation register():
   return null
 
 fn tryPull(readerId: principal, authorId: principal):
-  if exists pulls[readerId, authorId]:
-    return true
-  if count(pulls[readerId] first 32 by byReaderAuthor) = 32:
+  if readerId = viewer:
+    if exists pulls[readerId, authorId]:
+      return true
+  slots = pullCounts[readerId]
+  used = 0
+  if slots != null:
+    used = slots.used
+  if used = 32:
     return false
+  -- Foreign inserts happen only on an author's first promotion: no route
+  -- for that author exists yet. Never probe another reader's private route.
   insert pulls { readerId, authorId }
+  upsert pullCounts[readerId] { readerId, used: used + 1 }
   return true
 
 fn addFollow(authorId: principal):
@@ -1308,6 +1326,8 @@ fn dropFollow(authorId: principal):
     delete feed[e.id]
   if exists pulls[viewer, authorId]:
     delete pulls[viewer, authorId]
+    slots = pullCounts[viewer] ! else FEED_PULL_COUNT_MISSING
+    update pullCounts[viewer] { used: slots.used - 1 }
   delete follows[followerId = viewer, followedId = authorId]
 
   return null
@@ -1382,19 +1402,31 @@ The caps are explicit: 1,000 follows and source events per account,
 32,000 public broadcast entries plus 32,000 pending removal tombstones
 (1,000 per actor). Follow backfills the last 200 source
 events; caps refuse writes atomically when reached. The full recipe and
-its measured tradeoffs are on the feeds card. Author modes, follow edges,
-pull routing and public source references sync in full to support synchronous
-offline `saveProfile`, `createPost` and `follow` after acquisition. This adds
-public metadata to cold sync; other readers' private inboxes stay private.
+its measured tradeoffs are on the feeds card. Author modes, public follow
+edges and public source references sync in full. Inbox entries and exact
+pull routes are readable and synced only by their reader. The online-only
+`pullCounts` table exposes each reader's installed-route count, not author
+IDs, so promotion can skip saturated readers atomically. The helpers update
+it with each route insert/delete; direct imports must include matching counts.
+This is an explicit aggregate disclosure. It adds no cold-sync rows.
+`saveProfile`, `register`, `createPost`, `repost`, `deletePost` and `unrepost`
+remain eligible when required cards and source events are held. `follow`
+and `unfollow` queue without rows because slot accounting is online-only;
+following backfills when the server commits it.
 The inbox keeps its full capped partition for complete Following pages.
 Edges carry `at: time default 0`, preserved on an idempotent follow.
 Global metadata caps are 1,000 authors, 100,000 edges, 32,000 pull routes
-and 60,000 source references. The feeds card publishes `test --residency`
+and 60,000 source references, plus 32,000 online count rows.
+The feeds card publishes `test --residency`
 measurements: the wired 500-follow fixture acquires 3,095 rows / 335,403 B
-(up from 1,055 rows); its 5-follow reader acquires 2,600 rows. Both still
-read 20 complete entries with 82 examinations and 21 probes. The larger
-50,000-reference-event envelope acquires 78,566 rows for 500 follows;
-this restores prediction by paying more cold metadata acquisition.
+(up from 1,055 rows); its 5-follow reader acquires 2,600 rows / 250,482 B.
+These counts apply to both predicting writes and queued follows; the fixture
+has no pull routes. Both still read 20 complete entries with 82 examinations
+and 21 probes. The larger 50,000-reference-event envelope acquires 77,665
+rows for 500 follows, down from 78,566: 901 foreign pull routes no longer
+arrive. Its five-follow and celebrity-plus-four readers acquire 52,915 and
+52,866 rows, with 0 and 1 own pulls respectively. The feeds card records
+the exact prediction boundary and acquisition tradeoff.
 
 The feeds card also retains the ranked-feed and Trending recipes: a job
 scores the shared pool into `ranked`, and the device composes it with the

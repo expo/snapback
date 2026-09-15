@@ -82,10 +82,20 @@ table pulls:
   unique byReaderAuthor: readerId, authorId
   cap 32 by readerId
   cap 32000
-  public 'pull routing is derived from the public follow graph'
+  read <- .readerId = viewer
   insert <- allow
   delete <- .readerId = viewer
-  sync public
+  sync
+
+table pullCounts:                 -- server-only slot accounting; never lists installed authors
+  readerId: principal
+  used: int
+  unique byReader: readerId
+  cap 32000
+  public 'only the number of installed pulls is public; routes stay reader-private'
+  insert <- allow
+  update <- allow
+  online only
 
 table posts:                       -- originals and attributed reposts, one source event each
   actorId: principal
@@ -170,11 +180,19 @@ mutation register():
   return null
 
 fn tryPull(readerId: principal, authorId: principal):
-  if exists pulls[readerId, authorId]:
-    return true
-  if count(pulls[readerId] first 32 by byReaderAuthor) = 32:
+  if readerId = viewer:
+    if exists pulls[readerId, authorId]:
+      return true
+  slots = pullCounts[readerId]
+  used = 0
+  if slots != null:
+    used = slots.used
+  if used = 32:
     return false
+  -- Foreign inserts happen only on an author's first promotion: no route
+  -- for that author exists yet. Never probe another reader's private route.
   insert pulls { readerId, authorId }
+  upsert pullCounts[readerId] { readerId, used: used + 1 }
   return true
 
 fn addFollow(authorId: principal):
@@ -212,6 +230,8 @@ fn dropFollow(authorId: principal):
     delete feed[e.id]
   if exists pulls[viewer, authorId]:
     delete pulls[viewer, authorId]
+    slots = pullCounts[viewer] ! else FEED_PULL_COUNT_MISSING
+    update pullCounts[viewer] { used: slots.used - 1 }
   delete follows[followerId = viewer, followedId = authorId]
 
   return null
@@ -310,11 +330,17 @@ in the same transaction. A guessed foreign event ID cannot hide or purge it.
 The immutable inbox `eventId` joins that tombstone on every Following read:
 removal is visible immediately on the server and on a device once it applies
 that commit, before private copies are purged. An offline device sees its
-last synced state. No other reader's private inbox is synced. Author delivery modes, follow
-edges, pull routing and public reference events sync in full, so registration,
-posting and following can predict after acquisition; app card reads still
-need the app's declared data. This deliberately pays metadata acquisition
-for synchronous offline backfill instead of waiting for a server job.
+last synced state. Inbox entries and installed pull routes are readable and
+synced only by their reader. Author delivery modes, public follow edges and
+public reference events sync in full for registration and post prediction;
+app card reads still need the app's declared data. `pullCounts` is online-only:
+it exposes only a reader's installed-route count, never the author IDs.
+Promotion uses that count to skip a saturated reader without reading their
+routes. The helpers update the count in the same transaction as each route
+insert/delete; importing routes directly must import the matching counts too.
+This is an explicit aggregate disclosure, not a claim that routing was already
+public. The online count makes `follow` and `unfollow` queue without predicted
+rows, even for calls that would not promote an author.
 The private inbox retains its full schema-capped partition: a horizon would
 make an exhausted lane incomplete. There is no cold-start reduction claim. Repeating a removal is a no-op;
 re-reposting creates a fresh event ID and works before or after cleanup.
@@ -362,11 +388,13 @@ or redesign before exceeding this envelope. A follow backfills 200 events,
 not an unlimited historical archive. Public broadcast rows reach every
 device; at the measured envelope that is 200 rows, plus any pending removal
 tombstones. Cleanup is a bounded job; no exact horizon maintenance is involved.
-Public source references and routing also reach every device; their cost is
-measured below, not included in the 200-row broadcast count. Global metadata caps are
-1,000 authors, 100,000 edges, 32,000 pull routes and 60,000 source references.
+Public source references also reach every device; their cost is measured
+below, not included in the 200-row broadcast count. Each reader acquires only
+their own pull routes, at most 32; the online counts acquire zero rows.
+Global metadata caps are 1,000 authors, 100,000 edges, 32,000 private pull
+routes, 32,000 online count rows and 60,000 source references.
 
-### Cold acquisition with prediction
+### Cold acquisition and the prediction boundary
 
 Measured by `snapback4 test --residency --fixture fixture --as dev:reader500`
 on the wired example below: 502 registered authors, 505 bridged edges
@@ -386,20 +414,38 @@ Bytes are compact JSON row payloads, excluding transport framing.
 | **Total** | **3,095** | **335,403** |
 
 The same fixture acquired 1,055 rows before the prediction change. Five
-follows now acquire 2,600 rows. On the server and both device stores,
+follows now acquire 2,600 rows / 250,482 bytes. Neither reader has a pull
+route in this wired fixture, and online counts contribute 0 rows / 0 bytes.
+On the server and both device stores,
 Following at 5 and 500 follows returns 20 entries, complete, with 82
-examinations and 21 probes. Offline `saveProfile`, `createPost` and `follow`
-produce 2, 3 and 3 predicted rows in the two-person write witness; posting
-with one follower produces 4. Prediction is provisional: server caps and
-concurrent changes can still refuse a queued write.
+examinations and 21 probes. On the same acquired shape, offline `saveProfile`
+and `createPost` produce 2 and 3 predicted rows in the two-person witness;
+posting with one follower produces 4. `follow` produces 0 predicted rows
+and backfills when the server commits it. Thus the acquisition counts above
+apply to both the predicting writes and the queued follow, not two variants
+with different privacy. Prediction is provisional: server caps and concurrent
+changes can still refuse a queued write.
+
+| Operation in the wired example | Offline behavior after acquisition |
+|---|---|
+| `saveProfile`, `register` | Predict |
+| `createPost`, `repost`, `deletePost`, `unrepost` | Predict when the required app cards and source events are held |
+| `follow`, `unfollow` | Queue without rows: online slot accounting is server state |
+| `following` | Reads the reader's installed lanes on the device |
+
+The standalone recipe has the same boundary: `register`, `createPost`,
+`repost`, `deletePost` and `unrepost` are eligible; `follow` and `unfollow`
+never predict. The purge is a system job.
 
 The larger recipe envelope (1,000 authors, 50,000 reference events and
-1,415 edges) acquires **78,566 rows** for its 500-follow reader, measured
-from real snapshots on both stores; 25,050 are private inbox entries.
-That envelope has no app-card joins. Full metadata replication makes a new
-follow's synchronous backfill possible offline, and cold acquisition grows
-with this capped public corpus. It does not make cold sync proportional
-only to the reader's follow count.
+1,415 edges) acquires **77,665 rows** for its 500-follow reader, measured
+from real snapshots on both stores; 25,050 are private inbox entries and
+0 are pull routes. The prior public-routing version acquired 78,566 rows:
+901 foreign routes no longer arrive. A five-follow reader acquires 52,915
+rows; a celebrity-plus-four reader acquires 52,866, including 1 own pull.
+That envelope has no app-card joins. Acquisition still grows with the
+capped public source corpus, not only the reader's follow count. Neither
+shape predicts a follow that reads online slot accounting.
 
 `where predicate` follows `by index` in a merge header and applies to every
 lane, with `.` bound to that lane's row. Its expressions, reads and helper
@@ -443,8 +489,10 @@ only the app's bridged mutations; `feedRegister()` belongs inside `saveProfile`.
 Call `feedDeliver` once per newly inserted event. Copy inserts are unconditional:
 a new source or new follow already establishes that this delivery is new,
 without an unknowable `if absent` probe into another reader's private inbox.
-The backfill loop covers the 1,000-event schema cap for prediction and stops
-after the newest 200 events; promotion and delivery loops cover the graph cap.
+The backfill loop covers the 1,000-event schema cap and stops after the
+newest 200 events; promotion and delivery loops cover the graph cap.
+Follow and unfollow queue because their slot accounting is online-only;
+profile saves and post creation remain eligible after acquisition.
 New follow edges record `at: now`; an idempotent repeated follow preserves it.
 
 This example fully syncs public post cards and repost attribution under
@@ -474,6 +522,7 @@ table follows:
   followedId: principal
   unique byPair: followerId, followedId
   cap 1000 by followerId
+  cap 100000
   public 'the app follow graph is public'
   insert <- .followerId = viewer
   delete <- .followerId = viewer

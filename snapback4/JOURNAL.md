@@ -20746,3 +20746,151 @@ What I learned: a dependency is useful for reserving memory but insufficient
 for cancelling an application's requested effect. The absence condition must
 be necessary across both boolean alternatives, and its metadata must cost the
 same even in the world where no durable grace record is needed.
+
+
+## 2026-09-15 — W7R1b: reader-private pull routes and exact search walks
+
+Base: `2cbe3f94bd22d6a9ebbb17c84f6f4e832fd7df2b`. The F3 review brief
+supersedes W7a's public-routing choice. `pulls` again reads and syncs only
+to its reader. The installed recipe comes from this card, so both prefixed
+and standalone installs get the same audience; no installer fork was needed.
+The README and generated client example state the prediction boundary.
+
+Atomic promotion still needs to know whether another reader has 32 routes.
+The recipe now keeps one online-only `pullCounts` row per reader, capped at
+32,000 rows like the global route population. Its **count is public**;
+its author IDs are not present, and the table syncs zero rows. This is an
+explicit aggregate disclosure, not a claim that routing was already public.
+The helpers increment/decrement it in the route's transaction. Raw fixture
+imports include matching counts; application adoption uses the helpers.
+Foreign route inserts occur only on the author's first promotion; an own
+route can be checked directly. No foreign route lookup is used to infer
+absence. The counter's global cap includes the author plus 1,000 followers.
+
+`saveProfile` and `createPost` remain eligible: the two-person witness
+predicts 2 and 3 rows on both stores; a post with one follower predicts 4.
+`follow` and `unfollow` are `predicts: never` and queue without rows because
+slot accounting is online-only, including calls that would not promote.
+The device witness uses durable admission, then settles and applies the
+server commit; Following converges to both expected posts. The CLI's
+residency assertion was updated by one line in `crates/snapback4/tests/init.rs`,
+the only file outside the lane's named ownership beyond the explicitly
+required README and journal. No presence, effects or worker file changed.
+
+The new saturation scenario runs on memory and SQLite: 51 followers,
+2 skipped routes (the saturated reader and author), 32 reader routes,
+2 posts after freeing a slot and refollowing, 0 duplicates. The saturated
+author retains its new post through an own-inbox copy. A refused new follow
+rolls back both app and recipe edges; `FEED_PULL_CAP` still says
+`the program refused with FEED_PULL_CAP`. Slot counts equal installed routes
+after recovery. Count rows never appear in acquisition. The audience witness
+checks positive own routes and zero foreign routes through cold acquisition,
+a streamed insert and reopen, including an unrelated account.
+
+Measured cold acquisition, from actual snapshots on both stores:
+
+| Shape | Follows | Rows | JSON payload bytes |
+|---|---:|---:|---:|
+| Wired app | 5 | 2,600 | 250,482 |
+| Wired app | 500 | 3,095 | 335,403 |
+| 50,000-event recipe | 5 | 52,915 | not measured |
+| 50,000-event recipe | 500 | 77,665 | not measured |
+| 50,000-event recipe, celebrity plus four | 5 | 52,866 | not measured |
+
+The wired counts apply to both the predicting writes and queued follows on
+the same acquired shape; neither wired reader has a pull route. The larger
+dense reader previously acquired 78,566 rows with public routing: 901 foreign
+routes no longer arrive. Its private inbox remains 25,050 rows. The larger
+five-follow reader has 0 pulls; the celebrity-plus-four reader has 1.
+Wired Following remains 20 complete entries, 82 examinations and 21 probes.
+No meter ceiling, serialized value form or existing corpus case changed.
+
+The search fixture now checks the exact expected ID set and complete ID
+sequence, including boundaries between pages. The server resets the ordering
+boundary only when it advances to a new membership batch. Crafted cursors
+cover positions below and above the lane range and at an actual hidden row's
+ordering key (inside the visible timestamp range), plus eight malformed
+descriptors/encodings. Four device query shapes on each store exercise 24
+valid walks and 64 refusals; three server shapes exercise 9 valid walks and
+24 refusals. These added cursor cases passed without an engine change.
+Full device holdings yield 2,400 / 12,000 / 24,000 exact hits at
+100 / 500 / 1,000 memberships, in 120 / 600 / 1,200 pages. Horizon-10
+holdings yield 400 / 2,000 / 4,000 hits and remain incomplete. Server batches
+walk all hits in 120 / 600 / 1,200 pages, with maximum examined 1,201;
+device pages have maximum examined 22. Hidden chat IDs never appear.
+
+What I learned: a reader audience applies to server mutation reads too.
+Changing only the rule made promotion treat foreign routes as absent and
+attempt a 33rd route; the new saturation test caught that refusal. Keeping
+exact installed routes private therefore needs explicit server accounting
+and a documented prediction cost. A public follow edge is not proof that
+its broadcast lane was installed. Count-only test assertions also miss ID
+substitution and incorrect ordering between pages; the fixture now tests both.
+
+### Verification
+
+Cargo commands below ran from `snapback4/`. Node-backed commands used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+The audience regression was run before any recipe change on the base above:
+
+```text
+cargo test -p snapback4-device --test device w7r1b_pull_audience -- --nocapture
+before: test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 145 filtered out; finished in 0.04s
+after: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 147 filtered out; finished in 0.10s
+```
+
+Final affected suites (the complete suite below includes the final assertions):
+
+```text
+cargo test -p snapback4-device --test device following -- --nocapture
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 131 filtered out; finished in 132.19s
+cargo test -p snapback4-device --test device search_global -- --nocapture
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 147 filtered out; finished in 25.21s
+cargo test -p snapback4-sim --test clique -- --nocapture
+test result: ok. 68 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 37.95s
+cargo test -p snapback4-lang --test guide
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+cargo test -p snapback4 --test init -- --nocapture
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.70s
+```
+
+An accidental Cargo invocation from the repository root failed during
+manifest resolution on the uninitialized `vendor/ibex`, before any test ran;
+it was immediately rerun from `snapback4/`. No bootstrap or install was run.
+Intermediate harness assertions (prediction refusal versus durable admission,
+the CLI's exact residency spelling, and the new counter's initial too-small
+cap) were corrected before the green affected runs; none is called pre-existing.
+
+From the repository root:
+
+```text
+bash snapback4/scripts/test.sh
+-- ok: cargo test (465 s)
+-- ok: fixture wrapper tests (11 s)
+-- FAIL: client tests (68 s)
+== 1 failure(s) in 484 s
+```
+
+The Rust per-binary summaries sum to **1,024 passed, 0 failed, 4 ignored**.
+Fixture wrappers: **9 passed, 0 failed**. Clients: **366 passed, 1 failed**.
+All builds and app checks/typechecks passed. The only failing test is
+`React hooks and reference-app lifetimes`: Chromium exits with `SIGABRT`
+at launch inside the sandbox. Its isolated rerun from `snapback4/`:
+
+```text
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 335.818291
+```
+
+This is the environment artifact named in the brief. No separate base-suite
+run was made, so it is not labeled pre-existing. The lead's outside-sandbox
+browser rerun remains. There were no lifecycle failures or en-masse client
+timeouts, so no low-concurrency client rerun was needed.
+
+`./ref-check --verbose` passed before this entry with 0 errors and
+0 unchecked; it is run again after this append. `git diff --check` is clean.
+The largest changed code file is `clique.rs` at 1,412 lines. No existing
+E_/N_ diagnostic text changed. Nothing was committed, pushed or published.

@@ -1,4 +1,5 @@
 mod fixture;
+mod cursors;
 use fixture::{source, seed, Walk};
 use snapback4_core::{Context, Engine, Value, engine::QueryOutcome};
 
@@ -32,6 +33,7 @@ fn w7d_server_search_walks_every_membership_and_measures_the_wide_alternative() 
             assert!(chats.complete, "membership discovery must itself be complete");
             discovery_examined += chats.metered.examined;
             batches += 1;
+            walk.start_batch();
             let mut cursor = None;
             loop {
                 let page = query(&mut engine, "searchChatBatch", batch.clone(), cursor, "cof");
@@ -43,7 +45,7 @@ fn w7d_server_search_walks_every_membership_and_measures_the_wide_alternative() 
             batch = chats.next;
             if batch.is_none() { break; }
         }
-        walk.assert_matches(memberships, 24);
+        walk.assert_matches(memberships, 24, 50);
         walk.print("server-batches", memberships);
         println!("W7d discovery: memberships={memberships} batches={batches} examined_total={discovery_examined}");
         assert_eq!(batches, memberships / 50);
@@ -71,4 +73,37 @@ fn w7d_empty_batches_do_not_end_discovery_and_cursors_are_not_interchangeable() 
     assert_eq!(found.data.as_array().unwrap().len(), 20);
     let error = engine.query("searchChatBatch", Context::new("dev:alice", [("q".into(), Value::String("cof".into())), ("c".into(), Value::String(chats.next.unwrap()))].into()).at(2000)).unwrap_err();
     assert!(error.to_string().contains("cursor"), "{error}");
+}
+
+#[test]
+fn w7r1b_server_search_cursor_positions_and_descriptors() {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), cursors::source())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::memory(bound.schema.clone(), bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed(cursors::seed()).unwrap();
+    for op in ["searchLane", "searchPair", "searchChatBatch"] {
+        let first = query(&mut engine, op, None, None, "cof");
+        let next = first.next.unwrap();
+        for (name, token, mut expected) in cursors::positions(&bound.schema, &next) {
+            if op == "searchLane" { expected.retain(|id| id.starts_with("r0000")); }
+            let mut cursor = Some(token);
+            let mut actual = Vec::new();
+            let mut pages = 0;
+            loop {
+                let page = query(&mut engine, op, None, cursor, "cof");
+                actual.extend(cursors::ids(&page));
+                cursor = page.next;
+                pages += 1;
+                assert!(pages < 10);
+                if cursor.is_none() { break; }
+            }
+            assert_eq!(actual, expected, "{op} {name}");
+        }
+        for (name, token) in cursors::malformed(&bound.schema, &next) {
+            let error = engine.query(op, Context::new("dev:alice", [("q".into(), Value::String("cof".into())), ("c".into(), Value::String(token))].into()).at(2000)).unwrap_err();
+            assert_eq!(error.code, "E_INPUT", "{op} {name}: {error}");
+            assert!(error.to_string().contains("cursor"));
+        }
+        println!("W7R1b cursor host=server op={op} valid_positions=3 malformed_descriptors=8 exact_order=true");
+    }
 }
