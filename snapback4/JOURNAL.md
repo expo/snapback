@@ -19946,3 +19946,60 @@ The existing sync ticket remains open. Candidate source and tests remain
 recoverable in the ignored ship run; tracked runtime was never changed.
 One optimization round remains. No runtime release or competitor result
 follows from this evidence update.
+## 2026-09-15 — Postgres evaluation backend (Codex)
+
+Author scope: "Build the evaluation prototype" — real Quarry queries and
+mutations, transactional sync records, and measurements before full
+CLI/deployment support. Built in the isolated `sb4/postgres-evaluation-20260915`
+lane from `35886bc22`; no production backend switch or package publication.
+
+Added opt-in `snapback4-core/postgres`, with the same `Runner` over Postgres
+canonical row images and ordered binary index keys. Extracted `PartitionRows`
+so both databases use the existing snapshot/stream authorization machinery.
+Rows, indexes, maintains, commit head, sync log, effect records and operation
+receipts commit atomically. Refused programs keep only their sanitized receipt;
+late database failures roll back everything. Read transactions use
+repeatable-read. Serialized writes reserve the head; serializable writes retry
+the complete operation, with a bound and backoff. The head is transactional,
+not a Postgres sequence whose allocation can overtake an earlier commit.
+
+`experiments/postgres` is an independent, unpublished Cargo harness with a
+compiled Quarry fixture, PostgreSQL/SQLite comparisons and the existing device.
+`bash scripts/test-postgres.sh` starts/stops a private socket-only cluster when
+no connection is supplied and retains its data for inspection. Ten tests pass:
+ordinary fixture conformance, atomic failure/replay, concurrent writes and
+refused-op races, matching rows/watermarks during concurrent commits, membership
+snapshot/stream paging, and a real device's offline prediction, persisted queue,
+reopen, lost-response retry, settlement and revocation. The tenth-test count
+includes a deliberate non-portability witness: 6,000-byte incompressible indexed
+text succeeds in SQLite but exceeds the generic Postgres B-tree tuple limit.
+It rolls back atomically; this is a documented limitation, not a supported case.
+
+Apple M5, 32 GiB, macOS 26.6.2; PostgreSQL 16.14 and bundled SQLite 3.53.2.
+Two recorded release runs (200 and 1,000 timed operations), 32 rooms × 25 items.
+The larger run: the Quarry inbox is 0.138 ms median in SQLite, 1.894 ms in
+Postgres, with 68 explicit database calls. A separately seeded native relational
+join returns the same fixture values in 0.082 ms, without general Snapback
+rules/meter/completeness. It is a planning lower bound, not an optimized
+Snapback query or a competitor comparison. Four disjoint Postgres writers:
+2,624 ops/s serialized, 2,182 serializable, 984 retries for 2,000 commits in the
+latter. There are no lost increments. SQLite WAL/FULL and Postgres's normal
+durability settings were enabled; these are not identical power-loss guarantees,
+and the local microbenchmark is not controlled sustained-load qualification.
+
+Interpretation: keep the application semantics shared, but evaluate batched/
+plan-oriented execution and an alternative commit-order design before
+productizing this adapter. Full deploy, auth hosting, migration/restore,
+external SQL writes, native modules, asset ledger, jobs/actions and effect
+workers remain out of scope. No wire or client contract change, no new LLP
+number, no new default gate. The temporary feature-level dependency on SQLite
+for shared server types is explicit. Full recipe, raw data and limitations:
+[`experiments/postgres/README.md`](./experiments/postgres/README.md).
+
+Verification: Postgres evaluation 10/10; core tests with the `postgres` feature;
+default core/device suites; complete language suite after the fresh worktree's
+`bun install --frozen-lockfile`; simulator library plus membership, maintains
+and review-corrections suites; core without default features; harness clippy;
+`ref-check --verbose` (0 errors, 0 unchecked). The initial language run stopped
+at its explicit missing-Bun-dependencies precondition, then passed after install.
+No browser, iOS, full CLI/deployment suite or production publication claimed.

@@ -1,0 +1,317 @@
+//! Experimental Postgres backend for evaluating real Quarry execution.
+//! Not a deploy target: no auth host, migrations, native module, asset ledger,
+//! jobs, actions, or effect worker. Callers are trusted hosts, as with Engine.
+//! @ref LLP 3000#7-decisions-during-execution — evaluate storage portability before productizing it
+mod log;
+mod store;
+pub use store::WriteMode;
+
+use super::{Context, MutationOutcome, QueryOutcome, WriteState, runner::Runner, validate};
+use crate::{
+    error::{Refusal, RuntimeError},
+    ir::{ArgType, Program, ProgramKind},
+    meter::{Ceilings, Cut, Meter, Metered},
+    partition::{self, PartitionRows, SnapshotCursor, SnapshotPage, StreamPage},
+    schema::Schema,
+    value::{Value, canonical_json},
+};
+use postgres::{Client, error::SqlState};
+use std::collections::BTreeMap;
+use store::{Store, decode, namespace};
+
+#[derive(Clone, Copy, Debug, Default, serde::Serialize)]
+pub struct Stats {
+    /// Explicit driver calls including BEGIN/COMMIT and cold prepares, not a
+    /// packet count. Implicit rollback when an errored transaction drops is omitted.
+    pub database_calls: u64,
+    pub transaction_retries: u64,
+}
+
+pub struct PostgresEngine {
+    store: Store,
+    schema: Schema,
+    programs: BTreeMap<String, Program>,
+    ceilings: Ceilings,
+    mode: WriteMode,
+    retries: u64,
+}
+
+impl PostgresEngine {
+    /// Create a NEW, isolated sb4_eval_* namespace; never replace an existing
+    /// schema. TLS/credentials are owned by the caller's configured Client.
+    pub fn create(
+        mut client: Client,
+        name: &str,
+        mut schema: Schema,
+        programs: impl IntoIterator<Item = Program>,
+    ) -> Result<Self, RuntimeError> {
+        let name = namespace(name)?;
+        schema.prepare_contribution_indexes();
+        let programs: BTreeMap<_, _> = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
+        supported(&schema, &programs)?;
+        let mut tx = client.transaction()?;
+        tx.batch_execute(&format!("CREATE SCHEMA {name}; SET search_path = {name}, pg_catalog;"))?;
+        tx.batch_execute(store::DDL)?;
+        tx.execute(
+            "INSERT INTO _backend VALUES (true,$1,$2,$3)",
+            &[&store::VERSION, &canonical_json(&schema), &canonical_json(&programs)],
+        )?;
+        tx.commit()?;
+        Self::attach(client, schema, programs)
+    }
+
+    /// Reopen persisted, immutable compiled content. No activation/migration API.
+    pub fn open(mut client: Client, name: &str) -> Result<Self, RuntimeError> {
+        let name = namespace(name)?;
+        client.batch_execute(&format!("SET search_path = {name}, pg_catalog;"))?;
+        let row = client.query_one("SELECT version,schema,programs FROM _backend WHERE singleton", &[])?;
+        if row.get::<_, &str>(0) != store::VERSION {
+            return Err(RuntimeError::Store("not this Postgres evaluation store version".into()));
+        }
+        let schema = decode(row.get(1))?;
+        let programs = decode(row.get(2))?;
+        supported(&schema, &programs)?;
+        Self::attach(client, schema, programs)
+    }
+
+    fn attach(mut client: Client, schema: Schema, programs: BTreeMap<String, Program>) -> Result<Self, RuntimeError> {
+        client.batch_execute("SET statement_timeout = '5s'; SET lock_timeout = '5s';")?;
+        Ok(Self { store: Store::new(client), schema, programs, ceilings: Ceilings::default(), mode: WriteMode::Serialized, retries: 0 })
+    }
+
+    pub fn schema(&self) -> &Schema {
+        &self.schema
+    }
+    pub fn programs(&self) -> &BTreeMap<String, Program> {
+        &self.programs
+    }
+    pub fn generation(&self) -> u64 {
+        1
+    }
+    pub fn set_ceilings(&mut self, ceilings: Ceilings) {
+        self.ceilings = ceilings;
+    }
+    pub fn set_write_mode(&mut self, mode: WriteMode) {
+        self.mode = mode;
+    }
+    pub fn stats(&self) -> Stats {
+        Stats { database_calls: self.store.calls.get(), transaction_retries: self.retries }
+    }
+
+    pub fn query(&mut self, name: &str, mut context: Context) -> Result<QueryOutcome, Refusal> {
+        context.generation = self.generation();
+        let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.into()))?;
+        if program.kind != ProgramKind::Query {
+            return Err(RuntimeError::UnknownOp(format!("{name} is not a query")).into());
+        }
+        validate::validate_inputs(&self.schema, program, &mut context.args)?;
+        context.now.get_or_insert_with(crate::now_ms);
+        let tx = self.store.transaction(None)?;
+        let seq = tx.next_seq()? - 1;
+        let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(self.ceilings, Cut::Cap), seq);
+        let data = runner.run(program)?;
+        runner.charge_output(&data)?;
+        let outcome = QueryOutcome {
+            complete: runner.meter.capped_at.is_none()
+                && runner.word_cut_at.is_none()
+                && !runner.non_uniform
+                && !runner.page_overflow
+                && !runner.page_position_lost(),
+            capped_at: runner.meter.capped_at.clone(),
+            word_cut_at: runner.word_cut_at.clone(),
+            next: runner.next_cursor()?,
+            data,
+            seq,
+            metered: runner.meter.used,
+            tables: runner.read_tables.iter().cloned().collect(),
+            next_expiry: runner.next_expiry,
+        };
+        drop(runner);
+        tx.rollback()?;
+        Ok(outcome)
+    }
+
+    pub fn replay(&mut self, viewer: &str, op: &str) -> Result<Option<MutationOutcome>, RuntimeError> {
+        let tx = self.store.transaction(None)?;
+        let receipt = tx.applied(viewer, op)?;
+        tx.rollback()?;
+        receipt.as_deref().map(MutationOutcome::from_receipt).transpose()
+    }
+
+    pub fn mutate(&mut self, name: &str, op: Option<&str>, mut context: Context) -> Result<MutationOutcome, RuntimeError> {
+        // Preserve the replay-before-validation contract, including unknown or
+        // renamed programs. Never return a historical result row on resend.
+        if let Some(op) = op
+            && let Some(outcome) = self.replay(&context.viewer, op)?
+        {
+            return Ok(outcome);
+        }
+        context.generation = self.generation();
+        let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.into()))?.clone();
+        if program.kind != ProgramKind::Mutation {
+            return Err(RuntimeError::UnknownOp(format!("{name} is not a mutation")));
+        }
+        if let Err(error) = validate::validate_inputs(&self.schema, &program, &mut context.args) {
+            return Ok(failed(error.refusal(), None, Metered::default()));
+        }
+        context.now.get_or_insert_with(crate::now_ms);
+        if context.entropy == 0 {
+            context.entropy = crate::ids::seed();
+        }
+        // @ref LLP 3000#7-decisions-during-execution — retries rerun Quarry, rules, maintains, and bookkeeping together
+        for attempt in 0..=32 {
+            match self.mutate_once(&program, op, context.clone()) {
+                Err(error) if retry_transaction(&error) && attempt < 32 => {
+                    self.retries += 1;
+                    let delay = (100_u64 << attempt.min(6)) + crate::ids::seed() % 250;
+                    std::thread::sleep(std::time::Duration::from_micros(delay));
+                }
+                outcome => return outcome,
+            }
+        }
+        unreachable!()
+    }
+
+    fn mutate_once(&mut self, program: &Program, op: Option<&str>, context: Context) -> Result<MutationOutcome, RuntimeError> {
+        let tx = self.store.transaction(Some(self.mode))?;
+        if let Some(op) = op
+            && let Some(receipt) = tx.applied(&context.viewer, op)?
+        {
+            let outcome = MutationOutcome::from_receipt(&receipt)?;
+            tx.rollback()?;
+            return Ok(outcome);
+        }
+        let viewer = context.viewer.clone();
+        let now = context.now.unwrap_or(0);
+        let seq = tx.next_seq()?;
+        tx.batch("SAVEPOINT program")?;
+        let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(self.ceilings, Cut::Abort), seq);
+        let ran = runner.run(program).and_then(|value| {
+            runner.check_final_exists()?;
+            runner.charge_output(&value)?;
+            Ok(value)
+        });
+        let metered = runner.meter.used;
+        let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
+        let events = std::mem::take(&mut runner.events);
+        let outbox = std::mem::take(&mut runner.outbox);
+        let writes = runner.rows_written;
+        drop(runner);
+        let outcome = match ran {
+            Ok(result) => {
+                tx.batch("RELEASE SAVEPOINT program")?;
+                tx.record_commit(seq, now, &program.name, &viewer, program.kind.word(), &tables, writes)?;
+                partition::append(&tx, seq, &events)?;
+                tx.record_effects(&outbox, seq, now)?;
+                MutationOutcome { state: WriteState::Sent { seq, result }, metered, tables, events: events.len(), replayed: false }
+            }
+            Err(error) if error.is_refusal() => {
+                tx.batch("ROLLBACK TO SAVEPOINT program; RELEASE SAVEPOINT program")?;
+                let current = if let RuntimeError::Conflict { current } = &error {
+                    let mut probe = Runner::new(
+                        &tx,
+                        &self.schema,
+                        Context::new(&viewer, BTreeMap::new()).at(now),
+                        Meter::new(Ceilings::default(), Cut::Cap),
+                        0,
+                    );
+                    probe.get(current).ok()
+                } else {
+                    None
+                };
+                failed(error.refusal(), current, metered)
+            }
+            Err(error) => return Err(error), // dropping the transaction rolls back ALL state
+        };
+        if let Some(op) = op {
+            let recorded_seq = match outcome.state {
+                WriteState::Sent { seq, .. } => seq,
+                WriteState::Failed { .. } => seq - 1,
+            };
+            tx.record_applied(&viewer, op, recorded_seq, &canonical_json(&outcome.receipt(Some(op))))?;
+        }
+        tx.commit()?;
+        Ok(outcome)
+    }
+
+    /// Fixture loading still uses the real validation, maintains and sync paths.
+    pub fn seed_at(&mut self, rows: impl IntoIterator<Item = (String, Value)>, now: i64) -> Result<u64, RuntimeError> {
+        let tx = self.store.transaction(Some(WriteMode::Serialized))?;
+        let seq = tx.next_seq()?;
+        let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+        let mut count = 0;
+        for (table, row) in rows {
+            runner.upsert(&table, &row.field("id")?.clone(), row)?;
+            count += 1;
+        }
+        runner.check_final_exists()?;
+        let events = std::mem::take(&mut runner.events);
+        let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
+        drop(runner);
+        if count > 0 {
+            tx.record_commit(seq, now, "seed", crate::SYSTEM_PRINCIPAL, "seed", &tables, count)?;
+            partition::append(&tx, seq, &events)?;
+        }
+        tx.commit()?;
+        Ok(count)
+    }
+
+    pub fn snapshot_page(
+        &mut self,
+        viewer: &str,
+        cursor: Option<SnapshotCursor>,
+        limit: usize,
+        now: i64,
+    ) -> Result<SnapshotPage, RuntimeError> {
+        let tx = self.store.transaction(None)?;
+        let page = partition::snapshot_page(&tx, &self.schema, viewer, cursor, limit, now)?;
+        tx.rollback()?;
+        Ok(page)
+    }
+
+    pub fn stream(&mut self, viewer: &str, watermark: u64, limit: usize, now: i64) -> Result<StreamPage, RuntimeError> {
+        let tx = self.store.transaction(None)?;
+        let page = partition::stream(&tx, &self.schema, viewer, watermark, limit, now)?;
+        tx.rollback()?;
+        Ok(page)
+    }
+}
+
+fn failed(why: Refusal, current: Option<Value>, metered: Metered) -> MutationOutcome {
+    MutationOutcome { state: WriteState::Failed { why, current }, metered, tables: Vec::new(), events: 0, replayed: false }
+}
+
+fn retry_transaction(error: &RuntimeError) -> bool {
+    let RuntimeError::Postgres(error) = error else {
+        return false;
+    };
+    let Some(error) = error.as_db_error() else {
+        return false;
+    };
+    error.code() == &SqlState::T_R_SERIALIZATION_FAILURE || error.code() == &SqlState::T_R_DEADLOCK_DETECTED
+        // Two concurrent refused operations can race only on their receipt;
+        // neither advances the commit head. Recheck that receipt from scratch.
+        || (error.code() == &SqlState::UNIQUE_VIOLATION && error.constraint() == Some("_ops_pkey"))
+}
+
+fn supported(schema: &Schema, programs: &BTreeMap<String, Program>) -> Result<(), RuntimeError> {
+    if let Some(issue) = crate::schema::validate(schema).first() {
+        return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
+    }
+    fn asset_arg(arg: &ArgType) -> bool {
+        match arg {
+            ArgType::Image { .. } | ArgType::Video { .. } => true,
+            ArgType::Optional(inner) | ArgType::List { of: Some(inner), .. } => asset_arg(inner),
+            _ => false,
+        }
+    }
+    if !schema.schedules.is_empty()
+        || schema.tables.values().any(|t| t.columns.values().any(|c| c.contains_asset()))
+        || programs
+            .values()
+            .any(|p| p.native || !matches!(p.kind, ProgramKind::Query | ProgramKind::Mutation) || p.args.values().any(asset_arg))
+    {
+        return Err(RuntimeError::Schema("Postgres evaluation supports data queries/mutations and transactional emit records only; assets, native modules, jobs, actions and schedules are not implemented".into()));
+    }
+    Ok(())
+}

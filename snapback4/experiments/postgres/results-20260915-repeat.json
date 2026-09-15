@@ -1,0 +1,218 @@
+{
+  "concurrency": [
+    {
+      "backend": "sqlite",
+      "disjoint": false,
+      "mode": "WAL/FULL",
+      "mutations": 2000,
+      "mutations_per_second": 14429.272665456412,
+      "seconds": 0.138607125,
+      "writers": 4
+    },
+    {
+      "backend": "postgres",
+      "database_calls": 36036,
+      "disjoint": false,
+      "mode": "Serialized",
+      "mutations": 2000,
+      "mutations_per_second": 2532.252188261555,
+      "retries": 0,
+      "seconds": 0.78981075,
+      "writers": 4
+    },
+    {
+      "backend": "postgres",
+      "database_calls": 41024,
+      "disjoint": false,
+      "mode": "Serializable",
+      "mutations": 2000,
+      "mutations_per_second": 2217.4192527000873,
+      "retries": 874,
+      "seconds": 0.901949416,
+      "writers": 4
+    },
+    {
+      "backend": "sqlite",
+      "disjoint": true,
+      "mode": "WAL/FULL",
+      "mutations": 2000,
+      "mutations_per_second": 15479.237103322685,
+      "seconds": 0.129205334,
+      "writers": 4
+    },
+    {
+      "backend": "postgres",
+      "database_calls": 36036,
+      "disjoint": true,
+      "mode": "Serialized",
+      "mutations": 2000,
+      "mutations_per_second": 2623.901876565424,
+      "retries": 0,
+      "seconds": 0.762223625,
+      "writers": 4
+    },
+    {
+      "backend": "postgres",
+      "database_calls": 43872,
+      "disjoint": true,
+      "mode": "Serializable",
+      "mutations": 2000,
+      "mutations_per_second": 2181.966358756884,
+      "retries": 984,
+      "seconds": 0.916604416,
+      "writers": 4
+    }
+  ],
+  "experiment": "Postgres Rows adapter, not production qualification",
+  "items_per_room": 25,
+  "mutation_latencies": [
+    {
+      "iterations": 1000,
+      "label": "sqlite/increment",
+      "mean_us": 63.42551900000006,
+      "p50_us": 54.042,
+      "p95_us": 90.541
+    },
+    {
+      "database_calls_per_operation": 18.001960784313727,
+      "iterations": 1000,
+      "label": "postgres/increment",
+      "mean_us": 497.6846640000005,
+      "p50_us": 441.208,
+      "p95_us": 797.875
+    }
+  ],
+  "native_inbox_plan": [
+    "Limit  (cost=4.02..4.10 rows=32 width=24) (actual time=0.011..0.013 rows=32 loops=1)",
+    "  Buffers: shared hit=2",
+    "  ->  Sort  (cost=4.02..4.10 rows=32 width=24) (actual time=0.011..0.012 rows=32 loops=1)",
+    "        Sort Key: m.room COLLATE \"C\", m.id COLLATE \"C\"",
+    "        Sort Method: quicksort  Memory: 27kB",
+    "        Buffers: shared hit=2",
+    "        ->  Hash Join  (cost=1.72..3.22 rows=32 width=24) (actual time=0.005..0.009 rows=32 loops=1)",
+    "              Hash Cond: (m.room = t.room)",
+    "              Buffers: shared hit=2",
+    "              ->  Seq Scan on native_memberships m  (cost=0.00..1.40 rows=32 width=16) (actual time=0.001..0.002 rows=32 loops=1)",
+    "                    Filter: (principal = 'alice'::text)",
+    "                    Buffers: shared hit=1",
+    "              ->  Hash  (cost=1.32..1.32 rows=32 width=13) (actual time=0.004..0.004 rows=32 loops=1)",
+    "                    Buckets: 1024  Batches: 1  Memory Usage: 10kB",
+    "                    Buffers: shared hit=1",
+    "                    ->  Seq Scan on native_totals t  (cost=0.00..1.32 rows=32 width=13) (actual time=0.001..0.002 rows=32 loops=1)",
+    "                          Buffers: shared hit=1",
+    "Planning:",
+    "  Buffers: shared hit=4",
+    "Planning Time: 0.061 ms",
+    "Execution Time: 0.017 ms"
+  ],
+  "postgres_settings": [
+    [
+      "fsync",
+      "on"
+    ],
+    [
+      "full_page_writes",
+      "on"
+    ],
+    [
+      "server_version",
+      "16.14 (Homebrew)"
+    ],
+    [
+      "shared_buffers",
+      "16384"
+    ],
+    [
+      "synchronous_commit",
+      "on"
+    ]
+  ],
+  "profile": "release",
+  "read_latencies": [
+    {
+      "iterations": 1000,
+      "label": "sqlite/item",
+      "mean_us": 6.325993000000003,
+      "p50_us": 5.708,
+      "p95_us": 7.542
+    },
+    {
+      "database_calls_per_operation": 5.0,
+      "iterations": 1000,
+      "label": "postgres/item",
+      "mean_us": 132.859972,
+      "metered": {
+        "examined": 1,
+        "heap_bytes": 592,
+        "index_entries": 0,
+        "output_bytes": 143,
+        "rows_written": 0,
+        "rule_probes": 1,
+        "steps": 3
+      },
+      "p50_us": 116.917,
+      "p95_us": 227.375
+    },
+    {
+      "iterations": 1000,
+      "label": "sqlite/page",
+      "mean_us": 26.755276000000038,
+      "p50_us": 24.833000000000002,
+      "p95_us": 32.583000000000006
+    },
+    {
+      "database_calls_per_operation": 5.0,
+      "iterations": 1000,
+      "label": "postgres/page",
+      "mean_us": 167.467426,
+      "metered": {
+        "examined": 21,
+        "heap_bytes": 11448,
+        "index_entries": 0,
+        "output_bytes": 2921,
+        "rows_written": 0,
+        "rule_probes": 1,
+        "steps": 4
+      },
+      "p50_us": 164.208,
+      "p95_us": 191.542
+    },
+    {
+      "iterations": 1000,
+      "label": "sqlite/inbox",
+      "mean_us": 143.179915,
+      "p50_us": 137.584,
+      "p95_us": 172.5
+    },
+    {
+      "database_calls_per_operation": 68.0,
+      "iterations": 1000,
+      "label": "postgres/inbox",
+      "mean_us": 2035.6336280000007,
+      "metered": {
+        "examined": 64,
+        "heap_bytes": 49701,
+        "index_entries": 0,
+        "output_bytes": 1643,
+        "rows_written": 0,
+        "rule_probes": 32,
+        "steps": 550
+      },
+      "p50_us": 1894.0829999999999,
+      "p95_us": 3176.2079999999996
+    },
+    {
+      "iterations": 1000,
+      "label": "postgres/native_sql_inbox_lower_bound",
+      "mean_us": 144.22541799999993,
+      "p50_us": 81.667,
+      "p95_us": 166.125
+    }
+  ],
+  "rooms": 32,
+  "schema": "sb4_eval_bench_28952_18d5e09817884fe0",
+  "sqlite_durability": "WAL, synchronous=FULL (not fullfsync); same machine as PostgreSQL",
+  "sqlite_file": "/var/folders/yp/_12yp6653wn7x0_vvt87c5q80000gn/T/sb4_eval_bench_28952_18d5e09817884fe0/store.sqlite",
+  "sqlite_version": "3.53.2",
+  "unix_ms": 1789496419639
+}

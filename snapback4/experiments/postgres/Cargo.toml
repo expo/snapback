@@ -1,0 +1,18 @@
+[package]
+name = "snapback4-postgres-evaluation"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# Deliberately outside the normal CLI/device publication workspace.
+[workspace]
+
+[dependencies]
+snapback4-core = { path = "../../crates/snapback4-core", default-features = false, features = ["postgres"] }
+snapback4-lang = { path = "../../crates/snapback4-lang" }
+snapback4-device = { path = "../../crates/snapback4-device" }
+postgres = "0.19.14"
+serde_json = "1"
+
+[profile.release]
+debug = 1
