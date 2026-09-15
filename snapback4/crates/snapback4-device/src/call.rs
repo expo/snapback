@@ -95,7 +95,10 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, request: &Json) -> Json {
                 Json::Null
             }
             "asset_home" => device.asset_home(text(request, "id")?, text(request, "viewer")?, request.get("now").and_then(Json::as_i64).unwrap_or(0))?,
-            "admit" => encoded(&device.admit(parse::<Queued>(arg(request, "entry")?)?)?)?,
+            "admit" => {
+                let entry = arg(request, "entry")?;
+                encoded(&device.admit_with_replay(parse::<Queued>(entry)?, entry.get("replay_candidate").and_then(Json::as_bool).unwrap_or(false))?)?
+            }
             "settle" => {
                 device.settle(text(request, "id")?, request.get("seq").and_then(Json::as_u64))?;
                 Json::Null

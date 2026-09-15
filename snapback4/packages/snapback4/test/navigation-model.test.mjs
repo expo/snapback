@@ -45,6 +45,7 @@ table audit:
   public 'navigation application counter'
   insert <- allow
   update <- allow
+  delete <- allow
   sync public
 
 mutation mark(digit: int):
@@ -58,6 +59,12 @@ mutation mark(digit: int):
 mutation reject(digit: int):
   require digit = 1 else WRONG_DIGIT
   insert messages { conversationId: 'c1', authorId: viewer, body: 'accepted', at: now }
+
+mutation answer(n: int):
+  return n
+
+mutation closeGate():
+  delete audit['audit']
 
 mutation guarded():
   require exists audit['audit'] else LOCKED
@@ -109,13 +116,13 @@ test("W6d: caller id reservations preserve synchronous journal custody without d
   t.diagnostic("caller_id_journal_records=1 durable_entries=1 applied=1");
 });
 
-async function loseAdmission(f, client, op, args) {
+async function loseAdmission(f, client, op, args, options) {
   const gate = deferred(), entered = deferred(), save = f.persist.save.bind(f.persist);
   f.persist.save = async (name, changes) => {
     if (changes.some(c => c.s === "o")) { entered.resolve(); await gate.promise; throw new Error("document destroyed before IDB commit"); }
     await save(name, changes);
   };
-  const writes = args.map(a => client.mutate(op, a));
+  const writes = args.map(a => client.mutate(op, a, options));
   const captured = journalEntries(f);
   const closing = client.close();
   await entered.promise; gate.resolve();
@@ -674,4 +681,77 @@ test("W5c a reloaded secondary tab recovers its terminal receipt by id", async t
   assert.equal("result" in receipt, false);
   assert.equal((await f.rows()).filter(row => row.body === "receipt survives tab store adoption").length, 1);
   await primary.close();
+});
+
+
+test("W6R1 web: two live tabs admit the same new caller ID and apply once", async t => {
+  const f = await fixture(t), sends = [];
+  let offline = false;
+  const transport = (url, init) => {
+    if (offline) return Promise.reject(new TypeError("offline"));
+    if (String(url).includes("/m/")) sends.push(JSON.parse(init.body));
+    return fetch(url, init);
+  };
+  const first = await f.open(transport), second = await f.open(transport), id = mintId();
+  offline = true; await first.sync(); await second.sync();
+  const a = first.mutate(mark, { digit: 1 }, { id }), b = second.mutate(mark, { digit: 1 }, { id });
+  assert.equal(journalEntries(f).length, 2, "each live owner captures synchronously in its own journal");
+  assert.equal((await a).state, "pending"); assert.equal((await b).state, "pending");
+  assert.equal(f.durable().length, 2); assert.ok(f.durable().every(e => e.id === id));
+  offline = false; await Promise.all([first.sync(), second.sync()]);
+  assert.ok(await until(async () => (await first.write(id))?.state === "sent" && (await second.write(id))?.state === "sent", 15000));
+  assert.equal((await f.audit()).total, 1); assert.equal((await f.rows()).length, 1);
+  assert.deepEqual(await first.write(id), await second.write(id));
+  assert.equal(sends.length, 2); assert.ok(sends.every(e => e.id === id));
+  t.diagnostic("live_web_tabs=2 journal_records=2 posts=2 applications=1");
+});
+
+for (const offlineReopen of [false, true]) test(`W6R1 journal: caller ID stays fenced across replacement (offline reopen=${offlineReopen})`, async t => {
+  const f = await fixture(t), client = await f.open(), id = mintId();
+  const [record] = await loseAdmission(f, client, mark, [{ digit: 1 }], { id });
+  assert.equal(record.entry.id, id);
+  if (offlineReopen) {
+    const offline = await f.open(() => Promise.reject(new TypeError("offline")));
+    assert.equal(f.durable().length, 1); assert.equal(f.durable()[0].id, id); await offline.close();
+  }
+  const sends = [];
+  const reopened = await f.open(async (url, init) => {
+    if (String(url).includes("/m/")) sends.push(JSON.parse(init.body));
+    const response = await fetch(url, init);
+    if (["/probe", "/sync", "/changes"].some(p => String(url).includes(p))) {
+      const body = await response.json(); if (body.store_id) body.store_id += "-replacement"; return Response.json(body);
+    }
+    return response;
+  });
+  await reopened.sync();
+  assert.equal(sends.length, 0); assert.equal(f.durable().length, 0); assert.equal(journalEntries(f).length, 0);
+  assert.equal(await f.audit(), null);
+  t.diagnostic(`caller_id_replacement_posts=0 remaining_journal=0 offline_reopen=${offlineReopen}`);
+});
+
+
+test("W6R1 journal: an evicted guarded caller ID survives failed admission persistence and reopen", async t => {
+  const f = await fixture(t), first = await f.open(), id = mintId(), guarded = { kind: "mutation", name: "media.guarded" };
+  assert.equal((await first.mutate(mark, { digit: 1 })).state, "sent");
+  const original = await first.mutate(guarded, {}, { id }); assert.equal(original.state, "sent");
+  assert.equal((await first.mutate({ kind: "mutation", name: "media.closeGate" }, {})).state, "sent");
+  for (let n = 0; n < 256; n++) assert.equal((await first.mutate({ kind: "mutation", name: "media.answer" }, { n })).state, "sent");
+  assert.equal(await first.write(id), undefined); await first.close();
+  const retry = await f.open();
+  const [record] = await loseAdmission(f, retry, guarded, [{}], { id });
+  assert.equal(record.entry.id, id); assert.equal(record.entry.replay_candidate, true);
+  assert.equal(journalEntries(f).length, 1, "the executable replay candidate survives a failed IDB save");
+  const posts = []; let offline = true;
+  const recovered = await f.open((url, init) => {
+    if (offline) return Promise.reject(new TypeError("offline"));
+    if (String(url).includes("/m/")) posts.push(JSON.parse(init.body));
+    return fetch(url, init);
+  });
+  assert.equal(f.durable().length, 1); assert.equal(f.durable()[0].id, id);
+  assert.equal(f.durable()[0].predictable, false); assert.deepEqual(f.durable()[0].predicted, []);
+  offline = false; await recovered.sync();
+  assert.ok(await until(async () => (await recovered.write(id))?.state === "sent", 15000));
+  assert.deepEqual(await recovered.write(id), { state: "sent", id, seq: original.seq, replayed: true });
+  assert.equal(posts.length, 1); assert.equal((await f.rows()).length, 2); assert.equal(await f.audit(), null);
+  t.diagnostic("evicting_writes=256 recovered_replay_candidates=1 replay_posts=1 duplicate_rows=0");
 });

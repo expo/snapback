@@ -38,3 +38,57 @@ fn receipt_history_adoption_fills_only_spare_capacity_on_both_stores() {
         }
     });
 }
+
+#[test]
+fn caller_id_admission_compares_before_prediction_on_both_stores() {
+    on_both(|host| {
+        let (mut engine, backend) = server();
+        let mut device = host.open("write-identity", Some(backend)).unwrap();
+        for (n, page) in snapshot_pages(&mut engine, "dev:alice", 4000).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
+        let entry = json!({ "id":"01ARZ3NDEKTSV4RRFFQ69G5FAV", "seq":1, "op":"send", "args":{"conversationId":"c1", "body":"first"},
+            "viewer":"dev:alice", "now":2000, "new_ids":["original-row"], "predicted":[], "predictable":true });
+        let original = ok(device.call(json!({ "op":"admit", "entry":entry })));
+        ok(device.call(json!({ "op":"begin_send" })));
+        let before = ok(device.call(json!({ "op":"sync_state" })));
+        let mut retry = entry.clone(); retry["seq"] = json!(99); retry["new_ids"] = json!(["replacement-row"]); retry["now"] = json!(3000);
+        assert_eq!(ok(device.call(json!({ "op":"admit", "entry":retry }))), original);
+        for (field, value) in [("args", json!({"conversationId":"c1", "body":"wrong"})), ("viewer", json!("dev:bob")), ("op", json!("missing"))] {
+            let mut conflict = retry.clone(); conflict[field] = value;
+            let denied = device.call(json!({ "op":"admit", "entry":conflict }));
+            assert_eq!(denied["denied"]["code"], "E_WRITE_ID_REUSE", "{denied}");
+            assert_eq!(denied["denied"]["family"], "input");
+            assert_eq!(denied["denied"]["guide"], "writes");
+        }
+        assert_eq!(ok(device.call(json!({ "op":"queued" }))), json!([original]));
+        assert_eq!(ok(device.call(json!({ "op":"sync_state" }))), before);
+        assert_eq!(ok(device.call(json!({ "op":"next_submission" }))), 2);
+        let read = query(&mut *device, "thread", "dev:alice", json!({"conversationId":"c1"}), 3000);
+        assert_eq!(rows(&read).iter().filter(|row| row["pending"] == true).count(), 1);
+    });
+}
+
+#[test]
+fn caller_id_replay_candidate_rolls_back_partial_predictions_on_both_stores() {
+    on_both(|host| {
+        let (mut engine, backend) = compile("table records:\n  n: int\n  public 'admission rollback'\n  insert <- allow\n  sync public\nmutation record(allowed: bool):\n  insert records { n: 1 }\n  require allowed else LOCKED\nquery records():\n  return records[] first 10 by byId\n");
+        let mut device = host.open("replay-rollback", Some(backend)).unwrap();
+        for (n, page) in snapshot_pages(&mut engine, "alice", 4000).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
+        let mut entry = json!({"id":"replay", "seq":1, "op":"record", "args":{"allowed":false}, "viewer":"alice", "now":1,
+            "new_ids":["rolled-back"], "predictable":true, "predicted":[]});
+        assert_eq!(device.call(json!({"op":"admit", "entry":entry}))["denied"]["code"], "LOCKED");
+        entry["replay_candidate"] = json!(true);
+        let candidate = ok(device.call(json!({"op":"admit", "entry":entry})));
+        assert_eq!(candidate["predictable"], false);
+        assert_eq!(candidate["predicted"], json!([]));
+        assert_eq!(candidate["new_ids"], entry["new_ids"]);
+        assert!(rows(&query(&mut *device, "records", "alice", json!({}), 1)).is_empty());
+        // Another already-open owner's stale submission number allocates next.
+        entry["id"] = json!("fresh"); entry["args"] = json!({"allowed":true}); entry["new_ids"] = json!(["fresh-row"]);
+        let fresh = ok(device.call(json!({"op":"admit", "entry":entry})));
+        assert_eq!(fresh["seq"], 2); assert_eq!(fresh["predictable"], true);
+        assert_eq!(rows(&query(&mut *device, "records", "alice", json!({}), 1)).len(), 1);
+        ok(device.call(json!({"op":"settle", "id":"fresh"})));
+        assert!(rows(&query(&mut *device, "records", "alice", json!({}), 1)).is_empty());
+        assert_eq!(ok(device.call(json!({"op":"queued"}))), json!([candidate]));
+    });
+}

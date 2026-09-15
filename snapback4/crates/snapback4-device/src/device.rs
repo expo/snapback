@@ -705,21 +705,43 @@ impl<S: DeviceStore> Device<S> {
     /// Admit a write: predict it where the device can (its rows land
     /// pending over their confirmed images) and queue it durably in
     /// submission order, in one transaction.
-    pub fn admit(&mut self, mut entry: Queued) -> Result<Queued, RuntimeError> {
-        let program = self.programs.get(&entry.op).ok_or_else(|| RuntimeError::UnknownOp(entry.op.clone()))?;
-        if program.kind == snapback4_core::ProgramKind::Action { return Err(RuntimeError::UnknownOp("an action cannot enter the device outbox; call client.act".into())); }
+    pub fn admit(&mut self, entry: Queued) -> Result<Queued, RuntimeError> {
+        self.admit_with_replay(entry, false)
+    }
+
+    /// A caller-supplied id may already have executed beyond the local receipt
+    /// window. Its prediction refusal cannot decide the server's replay outcome.
+    pub fn admit_with_replay(&mut self, mut entry: Queued, replay_candidate: bool) -> Result<Queued, RuntimeError> {
         let tx = self.store.transaction()?;
         store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
+        store_identity::require_healthy(&tx)?;
+        // @ref LLP 3000#6-the-simulators-invariants — at-most-once admission compares under the store's writer transaction, before any speculative row or id changes.
+        if let Some(data) = tx.outbox_get(&entry.id)? {
+            let original: Queued = decoded(&data)?;
+            if original.op != entry.op || original.args != entry.args || original.viewer != entry.viewer {
+                return Err(RuntimeError::Structural { code: "E_WRITE_ID_REUSE", message: "write id already belongs to a different operation or arguments; retry the original input or use a new id".into() });
+            }
+            tx.rollback()?;
+            return Ok(original);
+        }
+        let program = self.programs.get(&entry.op);
+        match program {
+            Some(program) if program.kind == snapback4_core::ProgramKind::Action && !replay_candidate => return Err(RuntimeError::UnknownOp("an action cannot enter the device outbox; call client.act".into())),
+            None if !replay_candidate => return Err(RuntimeError::UnknownOp(entry.op.clone())),
+            _ => {}
+        }
+        entry.seq = entry.seq.max(tx.outbox_max_seq()?.max(meta_u64(&tx, SUBMISSION)?) + 1);
+        entry.predictable &= program.is_some_and(|p| p.kind == snapback4_core::ProgramKind::Mutation);
         if entry.predictable {
             tx.savepoint("admit")?;
-            match predictions::run(&tx, &self.schema, program, &entry) {
+            match predictions::run(&tx, &self.schema, program.unwrap(), &entry) {
                 Ok((predicted, new_ids)) => {
                     entry.predicted = predicted;
                     entry.new_ids = new_ids;
                     entry.predictable = true;
                     tx.release("admit")?;
                 }
-                Err(RuntimeError::Prediction(_)) => {
+                Err(error) if matches!(error, RuntimeError::Prediction(_)) || (replay_candidate && error.is_refusal()) => {
                     tx.rollback_to("admit")?;
                     entry.predictable = false;
                     entry.predicted.clear();
@@ -727,7 +749,7 @@ impl<S: DeviceStore> Device<S> {
                 Err(error) => return Err(error),
             }
         }
-        predictions::enqueue(&tx, &entry)?;
+        tx.outbox_insert(entry.seq, &entry.id, &encoded(&entry)?)?;
         tx.set_meta(SUBMISSION, &entry.seq.to_string())?;
         tx.commit()?;
         Ok(entry)

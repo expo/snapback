@@ -12,8 +12,9 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
   return { a: a.id, b }
 ```
 
-For replay adapters and retry-safe intents, pass `{ id }` from your own fixture
-or intent id; a retry returns the original outcome and never applies twice:
+For replay adapters and retry-safe intents, pass a `mintId()` you stored with
+the intent or fixture; arbitrary fixture strings still need an application ledger.
+Pass it as `{ id }`; a retry returns the original outcome and never applies twice:
 `client.mutate(api.send, args, { id })`. The id must have the `mintId()` form:
 26 uppercase Crockford base32 digits (0123456789ABCDEFGHJKMNPQRSTVWXYZ), with
 the first digit 0–7; malformed ids return local `failed` with `E_WRITE_ID`.
@@ -22,7 +23,9 @@ prediction still mints separate row ids through `new_ids`.
 A retry of a pending write on the same client returns the same Write object;
 a settled retry returns its retained receipt, without historical result values.
 Online, web and native clients share this rule; a recovered queued write is
-reused before prediction or admission. `client.write(id)` and
+reused before prediction or admission. Already-open owners of one device store
+compare and admit under its transaction: equal input reuses the original entry
+and row ids, and conflicting input changes nothing, even during a send. `client.write(id)` and
 `usePendingWrite(op, id)` observe that same id.
 
 Reusing an id with different operation names or JSON arguments returns local
@@ -38,6 +41,13 @@ used ids for its lifetime (ids only after the bounded input/receipt window);
 if a known id has lost its receipt and left the outbox, it refuses
 `E_WRITE_RECEIPT_EXPIRED` instead of admitting it again. Reopen to recover that
 outcome through the server. The server guarantee belongs to that backend store.
+For a caller-supplied id with no local outcome, a prediction or validation refusal
+queues the write without a row so the server can answer from its replay record.
+The journal preserves this replay eligibility through navigation. If the server
+has no record, it executes or refuses the write against its current state.
+Separate live web tabs have separate outboxes; the server deduplicates their
+requests under the same principal and id. Different principals may use the same
+id independently.
 
 Writes that do not predict show pending with `usePendingWrite(op)` from
 `snapback4/react`: `run(args)` submits, `pending` covers submission through

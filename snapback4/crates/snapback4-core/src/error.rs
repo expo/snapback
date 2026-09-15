@@ -165,6 +165,7 @@ impl RuntimeError {
     pub fn family(&self) -> &'static str {
         match self {
             Self::Input(_) | Self::Value(_) | Self::AggregateOverflow { .. } => "input",
+            Self::Structural { code: "E_WRITE_ID_REUSE", .. } => "input",
             Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE") => "action",
             Self::Structural { code: "E_STORE_RESTORE", .. } => "store",
             Self::Schema(_) | Self::Structural { .. } => "schema",
@@ -213,6 +214,10 @@ impl RuntimeError {
             }
             Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE") => refusal.guide = Some("actions".into()),
             Self::Structural { code: "E_STORE_RESTORE", .. } => refusal.guide = Some("sync".into()),
+            Self::Structural { code: "E_WRITE_ID_REUSE", message } => {
+                refusal.message = message.clone();
+                refusal.guide = Some("writes".into());
+            }
             Self::Bound { kind, ceiling, site, .. } => {
                 // The ceiling, never the count: the count would measure rows
                 // the viewer may not read.

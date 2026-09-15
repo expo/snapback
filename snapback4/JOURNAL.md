@@ -19499,3 +19499,98 @@ ref-check: ok — 480 LLP docs, 8958 refs in 23752 files, 0 errors, 0 unchecked
 `git diff --check` passed; reference and whitespace checks are repeated with
 this entry included. The journal is append-only and this is the lane's single
 entry. All intended changes remain uncommitted for the lead.
+
+## 2026-09-15 — W6R1b: caller write ids across owners and receipt eviction
+
+Built the wave-6 round-1 caller-id corrections from
+`3bfef6725f2c12b860a81ec866c8560416f85645`. Device admission now compares
+operation, JSON arguments and viewer inside the writer transaction before
+prediction. Equal input returns the original entry, including its submission
+number, timestamp and minted row ids; conflicting input returns
+`E_WRITE_ID_REUSE` without a prediction, outbox replacement, receipt or terminal
+event. Fresh admissions allocate after the durable submission counter inside
+that same transaction. SQLite's existing immediate transaction and the memory
+host's serialized calls already provide the required boundary; neither store
+implementation needed a change. The two-owner client witness uses two native
+processes on one SQLite file, and two already-open native-shaped clients over
+one serialized wasm memory device. Separate live web tabs retain their existing
+independent stores and are deduplicated at the server.
+
+A caller-supplied id with no local outcome now carries `replay_candidate` in its
+synchronous admission request and navigation journal. A prediction or validation
+refusal rolls back its savepoint and queues without rows, so the server can
+consult its authoritative replay record. This also covers a changed or missing
+local operation; the server's replay lookup precedes current-generation shape
+validation. An admitted no-row entry needs only its existing `predictable: false`
+state; the flag is not a new serialized value or an outbox state. A restore halt
+still refuses admission. The request flag required a minimal device dispatcher
+change in `call.rs`; `snapback4-core/src/error.rs` gives the already-published
+`E_WRITE_ID_REUSE` code its input family, unchanged message and writes guide.
+Those are the two supporting production files outside the lane's named files.
+No worker, recipe/diagnostics lane, meter ceiling or existing corpus case changed.
+
+The first client regression run was `ℹ tests 17`, `ℹ pass 4`, `ℹ fail 13`;
+its fixed run was `ℹ tests 17`, `ℹ pass 17`, `ℹ fail 0`. The direct device
+regression first reported
+`test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 135 filtered out; finished in 0.11s`
+and then
+`test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 135 filtered out; finished in 0.11s`.
+Adding an overlapping retry on the losing client found another race: it could
+collect the winner's pending receipt while the first losing call refused.
+`node --test --test-name-pattern=conflicting packages/snapback4/test/write-ids.test.mjs`
+went from `ℹ pass 0` / `ℹ fail 4` to `ℹ pass 4` / `ℹ fail 0` after sharing the
+admission refusal with overlapping callers. A losing reservation is forgotten
+so a later retry can recover the original input. Retrying a known id after
+sign-out returns the call's authentication refusal without overwriting the sent
+receipt or emitting another terminal event; the closed-client witness also
+passes. No `writeIdFor` helper was added: the writes card, README and contract
+now say to store a `mintId()` with the intent or fixture; arbitrary fixture
+strings still need an application ledger.
+
+Measurements on both device stores: **1 original prediction, 1 durable entry,
+1 applied row and 0 conflicting terminal events**, for equal/conflicting input
+both offline and during an in-flight send. After **256** other completions evict
+an explicit-row or guarded write's receipt, reopen queues **0** predicted rows,
+makes **1** recovery POST and receives the original `sent, replayed: true`
+receipt, with **0** duplicate rows. A fresh id still receives the server's real
+refusal. The previous explicit-row message was
+`records already has a row with id R`; the guard message was
+`the program refused with LOCKED`. Both retries now report pending with
+`queued without a row: local data does not justify prediction` and then replay
+success. The reuse message remains
+`write id already belongs to a different operation or arguments; retry the original input or use a new id`.
+The same id under **2 principals** produces **2 independent applications** and
+**2 POSTs**, on online, memory and native clients. **2 live web tabs** capture
+**2 synchronous journal records**, send **2 POSTs** and apply **1** write.
+Caller-id journal replacement tests send **0** writes, including after offline
+recovery; these inject a replacement identity in real sync replies. A separate
+lost-admission-save/changed-guard witness retains **1** replay candidate across
+reopen and makes **1** replay POST. The wasm build measured **1,752,840 B raw /
+488,262 B gzip**, versus base **1,751,309 B / 487,926 B**: **+1,531 B raw /
++336 B gzip**. The largest changed code file is **1,261 lines**.
+
+Targeted verification used Node **24.18.0**, with Cargo and Bun in `snapback4/`.
+`cargo test -p snapback4-device --test device caller_id -- --nocapture` passed
+**2/2** (including rollback of partial predictions and stale submission order).
+`cargo test -p snapback4-lang --test guide` passed **25/25**.
+`node --test packages/snapback4/test/write-ids.test.mjs packages/snapback4/test/navigation-model.test.mjs packages/snapback4/test/client-seams.test.mjs`
+passed **92/92** in **22,721.008375 ms**. Its preceding run was **91/92** because
+the new journal fixture's gate-deletion mutation lacked a delete rule; adding
+that fixture rule made the recovery test pass. The initial package build lacked
+generated wasm bindings; the normal wasm build supplied them. Reference checking
+and `git diff --check` passed before this append. Browser tests here are the
+Node model; the lead retains the outside-sandbox Chromium run.
+
+The full `bash snapback4/scripts/test.sh` completed with
+`== 1 failure(s) in 533 s`: client tests alone. Its **62 Rust targets** totaled
+**973 passed, 0 failed, 4 ignored**; fixtures were **9/9**, and every build,
+package/app typecheck and app check passed. The complete client group reported
+`ℹ tests 353`, `ℹ pass 352`, `ℹ fail 1` in **69,383.712125 ms**. Its only red was
+`React hooks and reference-app lifetimes`: Chromium exited with `SIGABRT` at
+launch. `node --test packages/snapback4/test/react.test.mjs` reproduced
+`ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1` in **969.522459 ms**. This is the sandbox
+artifact named by the lane brief; no failure is claimed verified pre-existing
+against the base commit. The long suite remained green in Rust while the
+larger ownership/filter tests ran. Reference validation with the journal passed
+with **0 errors and 0 unchecked**; it is checked again after this final append.
+No commit, push, tag, publication, subagent or remote-machine work was done.

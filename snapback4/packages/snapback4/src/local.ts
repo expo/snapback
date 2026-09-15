@@ -87,6 +87,7 @@ interface Queued {
   new_ids: string[];
   predicted: string[];
   predictable?: boolean;
+  replay_candidate?: boolean;
   sent_seq?: number | null;
   observed_seq?: number | null;
   viewer?: string;
@@ -1058,7 +1059,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     async mutate<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
       const id = options?.id === undefined ? mintId() : options.id;
       const unavailableWhy = unavailable();
-      if (unavailableWhy) return emitLocalFailure({ state: "failed", id, why: unavailableWhy });
+      if (unavailableWhy) {
+        const failed = { state: "failed" as const, id, why: unavailableWhy };
+        return mutationIds.knows(id) ? failed : emitLocalFailure(failed);
+      }
       return mutationIds.run<R>(id, op.name, args, () => client.write(id), async (args, pending) => {
         const submission = ++submissions;
         const newIds: string[] = [];
@@ -1070,8 +1074,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         const predictable = Boolean(program && schema && [...operationTables(program, schema)].every((t) => schema.tables[t]?.sync));
         const result = new Promise<Write>((resolve) => settled.set(id, resolve));
         try {
-          const admitted = await call({ op: "admit", entry: { id, seq: submission, op: op.name, args, viewer: principal, now: Date.now(), new_ids: newIds, predicted: [], predictable } satisfies Queued });
-          if (admitted.denied) { settled.delete(id); return emitLocalFailure({ state: "failed", id, why: admitted.denied }); }
+          // @ref LLP 3000.007#20.4 — capture replay eligibility with the synchronous journal entry; recovery must also defer local refusals to the server.
+          const admitted = await call({ op: "admit", entry: { id, seq: submission, op: op.name, args, viewer: principal, now: Date.now(), new_ids: newIds, predicted: [], predictable, replay_candidate: options?.id !== undefined } satisfies Queued });
+          if (admitted.denied) {
+            settled.delete(id);
+            const failed = { state: "failed" as const, id, why: admitted.denied };
+            return admitted.denied.code === "E_WRITE_ID_REUSE" ? failed : emitLocalFailure(failed);
+          }
           const entry = admitted.ok as Queued;
           if (!entry.predictable && !entry.predicted.length) Object.assign(pending, { reason: !acquired
             ? "queued without a row: not acquired yet"

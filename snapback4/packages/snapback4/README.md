@@ -1623,8 +1623,9 @@ spare capacity and cannot displace the destination's window. Rebuild the Expo na
 version: acquisition is a device protocol field, and an older module refuses
 startup with `E_DEVICE_VERSION`.
 
-For replay adapters and retry-safe intents, pass `{ id }` from your own fixture
-or intent id; a retry returns the original outcome and never applies twice:
+For replay adapters and retry-safe intents, pass a `mintId()` you stored with
+the intent or fixture; arbitrary fixture strings still need an application ledger.
+Pass it as `{ id }`; a retry returns the original outcome and never applies twice:
 `client.mutate(op, args, { id })`. Online, web and native clients accept the
 `mintId()` form: 26 uppercase Crockford base32 digits
 (0123456789ABCDEFGHJKMNPQRSTVWXYZ), starting with 0–7. A malformed id returns
@@ -1635,9 +1636,12 @@ mutation id in the outbox, `/m` request, receipt, `client.write(id)` and
 
 A same-client retry while pending returns the same Write object; a settled
 retry returns its retained receipt, without historical results. Reopen reuses
-queued writes before predicting or admitting them. Different operation names
-or JSON arguments under the same id return local `E_WRITE_ID_REUSE` when the
-input is known: unresolved submissions, this client's last 256 terminal input
+queued writes before predicting or admitting them. Already-open owners of one
+device store compare and admit under its transaction: equal input keeps the
+original entry and row ids, and conflicting input changes nothing during a send.
+Different operation names or JSON arguments under the same id return local
+`E_WRITE_ID_REUSE` when the input is known: unresolved submissions, this
+client's last 256 terminal input
 identities, or the recovered outbox. Object key order does not matter. The
 refusal does not replace the original outcome or emit a terminal event for it.
 A receipt recovered after reopen has no arguments to compare and returns the
@@ -1648,6 +1652,12 @@ its lifetime (ids only after the bounded input/receipt window); a known id
 whose receipt was evicted and whose outbox entry is gone returns
 `E_WRITE_RECEIPT_EXPIRED` instead of being admitted again. Reopen to ask the
 server for that outcome. At-most-once belongs to the same backend store.
+For a caller-supplied id with no local outcome, a prediction or validation refusal
+queues without a row so the server can consult its replay record. The synchronous
+journal preserves that replay eligibility across navigation. Without a replay
+record, the server executes or refuses against its current state. Separate live
+web tabs have separate outboxes; the server deduplicates their requests under
+the same principal and id. Different principals may use the same id independently.
 
 `webDevice()` stores wasm bytes by SHA-256 digest in IndexedDB and opens from
 them without a network fetch on reload. It also persists the compiled backend
