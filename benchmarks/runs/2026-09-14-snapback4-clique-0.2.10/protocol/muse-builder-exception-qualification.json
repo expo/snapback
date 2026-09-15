@@ -1,0 +1,47 @@
+{
+  "observedAt": "2026-09-14T22:24:03.380303+00:00",
+  "packet": "/Users/ccheever/clique-sb4-20260913-relaxed-3models",
+  "allowedWave": "muse",
+  "allowedPhases": [
+    "score",
+    "grade",
+    "m7"
+  ],
+  "builderPid": 65229,
+  "builderExit": 130,
+  "purpose": "Permit only the interrupted completed Muse builder past the builder-completion predicate; all other frozen runner predicates remain. This is not a successful builder-process claim.",
+  "files": {
+    "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scripts/run_phase.py": {
+      "bytes": 9637,
+      "sha256": "d72aba2dfcfd7a93c16de72349e430345682f63f12553b1a4f6ca5465f659c62"
+    },
+    "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/muse-snapback4.start.json": {
+      "bytes": 1132,
+      "sha256": "1615f85e9a1c24bb9bb96063cde9d6d929f94eb3f23e4539311bb5b3d4389f18"
+    },
+    "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/muse-snapback4.end.json": {
+      "bytes": 373,
+      "sha256": "f7350ce568c0d436c6c97e235288a0fc836a523224e483599bb398dff1c28ea5"
+    },
+    "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/muse-snapback4.ndjson": {
+      "bytes": 26312916,
+      "sha256": "c8a0c70bf14c6d82fb9f805ae635070d1951d27949874c6f8b67d7ffbec54f92"
+    },
+    "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/muse-snapback4/final-report.md": {
+      "bytes": 9618,
+      "sha256": "c7713e01ea72b85b3e6b9026df1b03e0f16eefdd39222a2bdfe5f9f8d9b5b5ea"
+    },
+    "/Users/ccheever/clique-sb4-20260913-relaxed-3models/PACKAGE_PINS.json": {
+      "bytes": 75,
+      "sha256": "ad2e75038e36faa24ca51878201878c4b108184a94674f701d49148dd02bdd0f"
+    },
+    "/Users/ccheever/clique-sb4-20260913-relaxed-3models/REGISTRY_RECEIPTS.json": {
+      "bytes": 1931,
+      "sha256": "5dc610787aa1ebd338f5413c9a085e85fc7671769d71deb21878a906301be81b"
+    },
+    "/Users/ccheever/projects/snapback-lanebriefs/muse-tail-interruption-20260914.json": {
+      "bytes": 4809,
+      "sha256": "74af9fdfa8e79a5c777d23bf93a5fa71f419df6dc6047a030ac17037dfce8109"
+    }
+  }
+}

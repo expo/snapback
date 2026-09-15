@@ -1,0 +1,14 @@
+{
+  "historyPage50To1": 1.2143963074007678,
+  "following500To5": 1.879948914453035,
+  "celebrityWriteToFiveFollower": 0.7773814753732631,
+  "celebrityFollowerReadToFiveFollow": 1.177003512154585,
+  "insightsFullTo10": 0.8250407186413518,
+  "trendingFullTo10": 1.0171673875512441,
+  "insightsMidpointBelowLine": true,
+  "trendingMidpointBelowLine": true,
+  "globalSearchCurveValid": false,
+  "globalSearchReason": "HTTP query returned complete:false and zero rows; full-corpus replica search separately passed, but no corrected three-size curve is claimed.",
+  "timeoutsOrErrors": [],
+  "scoredO5": "not adjudicated; external hidden probes remain pending"
+}

@@ -1,0 +1,66 @@
+{
+  "milestone": "m6",
+  "url": "http://127.0.0.1:49340",
+  "web": "http://127.0.0.1:49341",
+  "at": "2026-09-14T20:33:30.671Z",
+  "pass": false,
+  "failures": 1,
+  "results": [
+    {
+      "assertion": "m6-a08",
+      "test": "push payload logged for offline peer message",
+      "pass": true
+    },
+    {
+      "assertion": "m6-a09",
+      "test": "view-once photo previews as Photo in push",
+      "pass": true
+    },
+    {
+      "assertion": "m6-a10",
+      "test": "custom-client demo runs green",
+      "pass": true
+    },
+    {
+      "assertion": "m6-a11",
+      "test": "demo exercises every listed operation",
+      "pass": true
+    },
+    {
+      "assertion": "m6-a13",
+      "test": "sample-50 action log replays green",
+      "pass": false,
+      "error": "Error: sample post not searchable"
+    }
+  ],
+  "coverage": [
+    {
+      "id": "m6-a08",
+      "test": "push payload logged for offline peer message",
+      "pass": true
+    },
+    {
+      "id": "m6-a09",
+      "test": "view-once photo previews as Photo in push",
+      "pass": true
+    },
+    {
+      "id": "m6-a10",
+      "test": "custom-client demo runs green",
+      "pass": true
+    },
+    {
+      "id": "m6-a11",
+      "test": "demo exercises every listed operation",
+      "pass": true
+    },
+    {
+      "id": "m6-a13",
+      "test": "sample-50 action log replays green",
+      "pass": false
+    }
+  ],
+  "uncovered": [
+    "m6-a13"
+  ]
+}

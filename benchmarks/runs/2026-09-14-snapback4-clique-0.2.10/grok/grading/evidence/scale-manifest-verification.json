@@ -1,0 +1,71 @@
+{
+  "verifiedAt": "2026-09-14T23:54:15.812Z",
+  "method": "admin read-only `snapback4 sql` over the grader's fresh replay store",
+  "perEntityDiffs": [],
+  "actual": {
+    "users": 1008,
+    "profiles": 1008,
+    "followEdges": 5921,
+    "posts": 50228,
+    "topLevelPosts": 48224,
+    "replies": 2004,
+    "activeLikes": 5008,
+    "activeReposts": 1004,
+    "conversations": 1002,
+    "dms": 901,
+    "groups": 101,
+    "memberships": 2053,
+    "messages": 100015,
+    "textMessages": 99105,
+    "mediaMessages": 910,
+    "quotedReplies": 2736,
+    "activeReactions": 2000,
+    "disappearingSettingsEnabled": 0
+  },
+  "perChat": {
+    "checked": 1002,
+    "mismatches": 0,
+    "examples": []
+  },
+  "perGroupMembers": {
+    "checked": 101,
+    "mismatches": 0,
+    "examples": []
+  },
+  "perUserFollowing": {
+    "checked": 1008,
+    "mismatches": 0,
+    "examples": []
+  },
+  "perUserConversations": {
+    "checked": 1008,
+    "mismatches": 0,
+    "examples": []
+  },
+  "named": {
+    "ok": true,
+    "u0500": {
+      "following": 500,
+      "conversations": 100
+    },
+    "u0005": {
+      "following": 5
+    },
+    "u0900": {
+      "followers": 900,
+      "posts": 200
+    },
+    "u0901": {
+      "following": [
+        "u0001",
+        "u0002",
+        "u0003",
+        "u0004",
+        "u0900"
+      ]
+    },
+    "g0001members": 50,
+    "g0001messages": 10000
+  },
+  "conforms": true
+}

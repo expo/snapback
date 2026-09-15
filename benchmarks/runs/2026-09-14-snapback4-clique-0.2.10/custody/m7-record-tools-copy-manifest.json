@@ -1,0 +1,30 @@
+{
+  "observedAt": "2026-09-15T01:45:47.963494+00:00",
+  "files": [
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/capture-final-m7.py",
+      "destination": "protocol/capture-final-m7.py",
+      "bytes": 4542,
+      "sha256": "d1f27fad0a9111e8738d11fa56c49e10176b40962c9412787127ed38b2e836ac"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/observe-m7-processes.py",
+      "destination": "protocol/observe-m7-processes.py",
+      "bytes": 3513,
+      "sha256": "a2ba14bcc565ff1e9a515d45c3f0074213cfcdb19d3bcdfefddd66bac228e9b2"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/stage-cell-m7-record.py",
+      "destination": "protocol/stage-cell-m7-record.py",
+      "bytes": 8493,
+      "sha256": "3dbe154dd6879af2e4733b552b89c7de8b61a65f862f1baf8b99225d4bfbda80"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/immediately-before-m7-source-integrity.json",
+      "destination": "grok/m7/custody/immediately-before-m7-source-integrity.json",
+      "bytes": 254,
+      "sha256": "27e28fc80f21cd65665d0c2cbffaadbed0f365c9b8a20a350d9490223608f732"
+    }
+  ],
+  "scope": "Operational capture/archival helpers used after Astra completion, and actual Grok pre-M7 source check. These are not frozen benchmark instrument changes."
+}

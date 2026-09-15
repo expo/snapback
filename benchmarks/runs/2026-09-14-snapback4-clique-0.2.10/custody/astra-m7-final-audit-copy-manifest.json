@@ -1,0 +1,12 @@
+{
+  "observedAt": "2026-09-15T01:56:46.175586+00:00",
+  "files": [
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/ASTRA-0210-M7-AUDIT.md",
+      "destination": "audits/ASTRA-0210-M7-AUDIT.md",
+      "bytes": 22064,
+      "sha256": "b135b294d27587b042524fdf01d1498a65c2b1718ac154d6dd34741db89de396"
+    }
+  ],
+  "scope": "Verbatim completed-phase orchestrator evidence/access audit; not independent grade, blind review or author ruling."
+}

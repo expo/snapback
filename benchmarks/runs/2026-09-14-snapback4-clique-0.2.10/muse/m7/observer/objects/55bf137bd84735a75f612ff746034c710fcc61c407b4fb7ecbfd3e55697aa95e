@@ -1,0 +1,720 @@
+{
+  "persona": "alice",
+  "email": "alice@example.com",
+  "me": {
+    "at": 1789439768479,
+    "avatar": {
+      "bytes": 729,
+      "duration": null,
+      "height": 256,
+      "id": "01M2HEQXWNNNA9F2KN5R8CMF02",
+      "type": "image/png",
+      "width": 256
+    },
+    "bio": "Coffee, cameras, and neighborhood walks.",
+    "displayName": "Alice Alvarez",
+    "handle": "alice",
+    "link": "https://example.com/alice",
+    "location": "Oakland, CA",
+    "principal": "user:01M2HEQXWGWB7GFBCCM8XMXZTY"
+  },
+  "inbox": [
+    {
+      "conversation": {
+        "at": 1789439768891,
+        "background": null,
+        "color": null,
+        "creatorId": "user:01M2HEQXWGWB7GFBCCM8XMXZTY",
+        "description": null,
+        "disappearing": "off",
+        "dmKey": "d-alice-bob",
+        "id": "d-alice-bob",
+        "kind": "dm",
+        "name": null
+      },
+      "conversationId": "d-alice-bob",
+      "lastReadAt": null,
+      "role": "admin"
+    },
+    {
+      "conversation": {
+        "at": 1789439768893,
+        "background": null,
+        "color": null,
+        "creatorId": "user:01M2HEQXWGWB7GFBCCM8XMXZTY",
+        "description": "Coffee, a walk, and dinner.",
+        "disappearing": "off",
+        "dmKey": "g-starter",
+        "id": "g-starter",
+        "kind": "group",
+        "name": "Weekend Plans"
+      },
+      "conversationId": "g-starter",
+      "lastReadAt": null,
+      "role": "admin"
+    }
+  ],
+  "convs": [
+    {
+      "conversationId": "d-alice-bob",
+      "inboxRow": {
+        "conversation": {
+          "at": 1789439768891,
+          "background": null,
+          "color": null,
+          "creatorId": "user:01M2HEQXWGWB7GFBCCM8XMXZTY",
+          "description": null,
+          "disappearing": "off",
+          "dmKey": "d-alice-bob",
+          "id": "d-alice-bob",
+          "kind": "dm",
+          "name": null
+        },
+        "conversationId": "d-alice-bob",
+        "lastReadAt": null,
+        "role": "admin"
+      },
+      "messages": [
+        {
+          "at": 1789439768910,
+          "authorId": "user:01M2HEQXXKMWMAPZ3W9DBTP040",
+          "body": "On my way.",
+          "clip": null,
+          "conversationId": "d-alice-bob",
+          "editedAt": null,
+          "expiresAt": null,
+          "id": "sm0006",
+          "kind": "text",
+          "photo": null,
+          "photoOnce": null,
+          "pollQuestion": null,
+          "quoteId": "sm0005",
+          "tombstone": false,
+          "total": 6
+        },
+        {
+          "at": 1789439768907,
+          "authorId": "user:01M2HEQXWGWB7GFBCCM8XMXZTY",
+          "body": "Perfect, see you there.",
+          "clip": null,
+          "conversationId": "d-alice-bob",
+          "editedAt": null,
+          "expiresAt": null,
+          "id": "sm0005",
+          "kind": "text",
+          "photo": null,
+          "photoOnce": null,
+          "pollQuestion": null,
+          "quoteId": null,
+          "tombstone": false,
+          "total": 6
+        },
+        {
+          "at": 1789439768905,
+          "authorId": "user:01M2HEQXXKMWMAPZ3W9DBTP040",
+          "body": "I will bring the route map.",
+          "clip": null,
+          "conversationId": "d-alice-bob",
+          "editedAt": null,
+          "expiresAt": null,
+          "id": "sm0004",
+          "kind": "text",
+          "photo": null,
+          "photoOnce": null,
+          "pollQuestion": null,
+          "quoteId": null,
+          "tombstone": false,
+          "total": 6
+        },
+        {
+          "at": 1789439768903,
+          "authorId": "user:01M2HEQXWGWB7GFBCCM8XMXZTY",
+          "body": "Exactly. Six thirty.",
+          "clip": null,
+          "conversationId": "d-alice-bob",
+          "editedAt": null,
+          "expiresAt": null,
+          "id": "sm0003",
+          "kind": "text",
+          "photo": null,
+          "photoOnce": null,
+          "pollQuestion": null,
+          "quoteId": "sm0002",
+          "tombstone": false,
+          "total": 6
+        },
+        {
+          "at": 1789439768900,
+          "authorId": "user:01M2HEQXXKMWMAPZ3W9DBTP040",
+          "body": "Yes. Corner place?",
+          "clip": null,
+          "conversationId": "d-alice-bob",
+          "editedAt": null,
+          "expiresAt": null,
+          "id": "sm0002",
+          "kind": "text",
+          "photo": null,
+          "photoOnce": null,
+          "pollQuestion": null,
+          "quoteId": "sm0001",
+          "tombstone": false,
+          "total": 6
+        },
+        {
+          "at": 1789439768898,
+          "authorId": "user:01M2HEQXWGWB7GFBCCM8XMXZTY",
+          "body": "Coffee after work?",
+          "clip": null,
+          "conversationId": "d-alice-bob",
+          "editedAt": null,
+          "expiresAt": null,
+          "id": "sm0001",
+          "kind": "text",
+          "photo": null,
+          "photoOnce": null,
+          "pollQuestion": null,
+          "quoteId": null,
+          "tombstone": false,
+          "total": 6
+        }
+      ],
+      "threadCount": 6,
+      "reactions": [],
+      "aggregates": [
+        {
+          "delivered": 1,
+          "messageId": "sm0006",
+          "read": 0,
+          "state": "delivered",
+          "total": 1
+        },
+        {
+          "delivered": 1,
+          "messageId": "sm0005",
+          "read": 0,
+          "state": "delivered",
+          "total": 1
+        },
+        {
+          "delivered": 1,
+          "messageId": "sm0004",
+          "read": 0,
+          "state": "delivered",
+          "total": 1
+        },
+        {
+          "delivered": 1,
+          "messageId": "sm0003",
+          "read": 0,
+          "state": "delivered",
+          "total": 1
+        },
+        {
+          "delivered": 1,
+          "messageId": "sm0002",
+          "read": 0,
+          "state": "delivered",
+          "total": 1
+        },
+        {
+          "delivered": 1,
+          "messageId": "sm0001",
+          "read": 0,
+          "state": "delivered",
+          "total": 1
+        }
+      ],
+      "members": [
+        {
+          "conversationId": "d-alice-bob",
+          "id": "01M2HEQY9V8HS9W1HAMT645WQ1",
+          "joinedAt": 1789439768891,
+          "lastReadAt": null,
+          "principal": "user:01M2HEQXWGWB7GFBCCM8XMXZTY",
+          "profile": {
+            "at": 1789439768479,
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M2HEQXWNNNA9F2KN5R8CMF02",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "Coffee, cameras, and neighborhood walks.",
+            "displayName": "Alice Alvarez",
+            "handle": "alice",
+            "link": "https://example.com/alice",
+            "location": "Oakland, CA",
+            "principal": "user:01M2HEQXWGWB7GFBCCM8XMXZTY"
+          },
+          "role": "admin"
+        },
+        {
+          "conversationId": "d-alice-bob",
+          "id": "01M2HEQY9V8WFVSAT73XPHEX4Y",
+          "joinedAt": 1789439768891,
+          "lastReadAt": null,
+          "principal": "user:01M2HEQXXKMWMAPZ3W9DBTP040",
+          "profile": {
+            "at": 1789439768509,
+            "avatar": {
+              "bytes": 758,
+              "duration": null,
+              "height": 256,
+              "id": "01M2HEQXXP4MMNQP82WMJAQYNC",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "Bikes, bread, and tiny software tools.",
+            "displayName": "Bob Bennett",
+            "handle": "bob",
+            "link": "https://example.com/bob",
+            "location": "Berkeley, CA",
+            "principal": "user:01M2HEQXXKMWMAPZ3W9DBTP040"
+          },
+          "role": "member"
+        }
+      ],
+      "views": []
+    },
+    {
+      "conversationId": "g-starter",
+      "inboxRow": {
+        "conversation": {
+          "at": 1789439768893,
+          "background": null,
+          "color": null,
+          "creatorId": "user:01M2HEQXWGWB7GFBCCM8XMXZTY",
+          "description": "Coffee, a walk, and dinner.",
+          "disappearing": "off",
+          "dmKey": "g-starter",
+          "id": "g-starter",
+          "kind": "group",
+          "name": "Weekend Plans"
+        },
+        "conversationId": "g-starter",
+        "lastReadAt": null,
+        "role": "admin"
+      },
+      "messages": [
+        {
+          "at": 1789440129937,
+          "authorId": "user:01M2HEQXWGWB7GFBCCM8XMXZTY",
+          "body": null,
+          "clip": null,
+          "conversationId": "g-starter",
+          "editedAt": null,
+          "expiresAt": null,
+          "id": "m7-choreo-mu22g8zz",
+          "kind": "poll",
+          "photo": null,
+          "photoOnce": null,
+          "pollQuestion": "What time Saturday?",
+          "quoteId": null,
+          "tombstone": false,
+          "total": 11
+        },
+        {
+          "at": 1789439853099,
+          "authorId": "user:01M2HEQXWGWB7GFBCCM8XMXZTY",
+          "body": null,
+          "clip": null,
+          "conversationId": "g-starter",
+          "editedAt": null,
+          "expiresAt": null,
+          "id": "probe-poll-1",
+          "kind": "poll",
+          "photo": null,
+          "photoOnce": null,
+          "pollQuestion": "Lunch pick?",
+          "quoteId": null,
+          "tombstone": true,
+          "total": 11
+        },
+        {
+          "at": 1789439768931,
+          "authorId": "user:01M2HEQXWGWB7GFBCCM8XMXZTY",
+          "body": "Locked in. See you Saturday.",
+          "clip": null,
+          "conversationId": "g-starter",
+          "editedAt": null,
+          "expiresAt": null,
+          "id": "sm0015",
+          "kind": "text",
+          "photo": null,
+          "photoOnce": null,
+          "pollQuestion": null,
+          "quoteId": null,
+          "tombstone": false,
+          "total": 11
+        },
+        {
+          "at": 1789439768929,
+          "authorId": "user:01M2HEQXXKMWMAPZ3W9DBTP040",
+          "body": "Please do, for three.",
+          "clip": null,
+          "conversationId": "g-starter",
+          "editedAt": null,
+          "expiresAt": null,
+          "id": "sm0014",
+          "kind": "text",
+          "photo": null,
+          "photoOnce": null,
+          "pollQuestion": null,
+          "quoteId": "sm0013",
+          "tombstone": false,
+          "total": 11
+        },
+        {
+          "at": 1789439768926,
+          "authorId": "user:01M2HEQXYGWFPH6K6ZA88FFWBG",
+          "body": "Should I book dinner?",
+          "clip": null,
+          "conversationId": "g-starter",
+          "editedAt": null,
+          "expiresAt": null,
+          "id": "sm0013",
+          "kind": "text",
+          "photo": null,
+          "photoOnce": null,
+          "pollQuestion": null,
+          "quoteId": null,
+          "tombstone": false,
+          "total": 11
+        },
+        {
+          "at": 1789439768924,
+          "authorId": "user:01M2HEQXYGWFPH6K6ZA88FFWBG",
+          "body": "I will bring snacks.",
+          "clip": null,
+          "conversationId": "g-starter",
+          "editedAt": null,
+          "expiresAt": null,
+          "id": "sm0012",
+          "kind": "text",
+          "photo": null,
+          "photoOnce": null,
+          "pollQuestion": null,
+          "quoteId": null,
+          "tombstone": false,
+          "total": 11
+        },
+        {
+          "at": 1789439768922,
+          "authorId": "user:01M2HEQXWGWB7GFBCCM8XMXZTY",
+          "body": "West trail it is.",
+          "clip": null,
+          "conversationId": "g-starter",
+          "editedAt": null,
+          "expiresAt": null,
+          "id": "sm0011",
+          "kind": "text",
+          "photo": null,
+          "photoOnce": null,
+          "pollQuestion": null,
+          "quoteId": "sm0010",
+          "tombstone": false,
+          "total": 11
+        },
+        {
+          "at": 1789439768919,
+          "authorId": "user:01M2HEQXXKMWMAPZ3W9DBTP040",
+          "body": "The west trail is dry now.",
+          "clip": null,
+          "conversationId": "g-starter",
+          "editedAt": null,
+          "expiresAt": null,
+          "id": "sm0010",
+          "kind": "text",
+          "photo": null,
+          "photoOnce": null,
+          "pollQuestion": null,
+          "quoteId": null,
+          "tombstone": false,
+          "total": 11
+        },
+        {
+          "at": 1789439768917,
+          "authorId": "user:01M2HEQXYGWFPH6K6ZA88FFWBG",
+          "body": "I can meet everyone at ten.",
+          "clip": null,
+          "conversationId": "g-starter",
+          "editedAt": null,
+          "expiresAt": null,
+          "id": "sm0009",
+          "kind": "text",
+          "photo": null,
+          "photoOnce": null,
+          "pollQuestion": null,
+          "quoteId": null,
+          "tombstone": false,
+          "total": 11
+        },
+        {
+          "at": 1789439768914,
+          "authorId": "user:01M2HEQXYGWFPH6K6ZA88FFWBG",
+          "body": "Coffee is a definite yes.",
+          "clip": null,
+          "conversationId": "g-starter",
+          "editedAt": null,
+          "expiresAt": null,
+          "id": "sm0008",
+          "kind": "text",
+          "photo": null,
+          "photoOnce": null,
+          "pollQuestion": null,
+          "quoteId": "sm0007",
+          "tombstone": false,
+          "total": 11
+        },
+        {
+          "at": 1789439768912,
+          "authorId": "user:01M2HEQXWGWB7GFBCCM8XMXZTY",
+          "body": "Saturday plan: coffee, lake, then noodles.",
+          "clip": null,
+          "conversationId": "g-starter",
+          "editedAt": null,
+          "expiresAt": null,
+          "id": "sm0007",
+          "kind": "text",
+          "photo": null,
+          "photoOnce": null,
+          "pollQuestion": null,
+          "quoteId": null,
+          "tombstone": false,
+          "total": 11
+        }
+      ],
+      "threadCount": 11,
+      "reactions": [],
+      "aggregates": [
+        {
+          "delivered": 1,
+          "messageId": "m7-choreo-mu22g8zz",
+          "read": 0,
+          "state": "sent",
+          "total": 2
+        },
+        {
+          "delivered": 1,
+          "messageId": "probe-poll-1",
+          "read": 0,
+          "state": "sent",
+          "total": 2
+        },
+        {
+          "delivered": 1,
+          "messageId": "sm0015",
+          "read": 0,
+          "state": "sent",
+          "total": 2
+        },
+        {
+          "delivered": 1,
+          "messageId": "sm0014",
+          "read": 0,
+          "state": "sent",
+          "total": 2
+        },
+        {
+          "delivered": 2,
+          "messageId": "sm0013",
+          "read": 0,
+          "state": "delivered",
+          "total": 2
+        },
+        {
+          "delivered": 2,
+          "messageId": "sm0012",
+          "read": 0,
+          "state": "delivered",
+          "total": 2
+        },
+        {
+          "delivered": 1,
+          "messageId": "sm0011",
+          "read": 0,
+          "state": "sent",
+          "total": 2
+        },
+        {
+          "delivered": 1,
+          "messageId": "sm0010",
+          "read": 0,
+          "state": "sent",
+          "total": 2
+        },
+        {
+          "delivered": 2,
+          "messageId": "sm0009",
+          "read": 0,
+          "state": "delivered",
+          "total": 2
+        },
+        {
+          "delivered": 2,
+          "messageId": "sm0008",
+          "read": 0,
+          "state": "delivered",
+          "total": 2
+        },
+        {
+          "delivered": 1,
+          "messageId": "sm0007",
+          "read": 0,
+          "state": "sent",
+          "total": 2
+        }
+      ],
+      "members": [
+        {
+          "conversationId": "g-starter",
+          "id": "01M2HEQY9X8BA39KK6AWMCAVGD",
+          "joinedAt": 1789439768893,
+          "lastReadAt": null,
+          "principal": "user:01M2HEQXWGWB7GFBCCM8XMXZTY",
+          "profile": {
+            "at": 1789439768479,
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M2HEQXWNNNA9F2KN5R8CMF02",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "Coffee, cameras, and neighborhood walks.",
+            "displayName": "Alice Alvarez",
+            "handle": "alice",
+            "link": "https://example.com/alice",
+            "location": "Oakland, CA",
+            "principal": "user:01M2HEQXWGWB7GFBCCM8XMXZTY"
+          },
+          "role": "admin"
+        },
+        {
+          "conversationId": "g-starter",
+          "id": "01M2HEQY9XYTDKS7N58ZDK75G2",
+          "joinedAt": 1789439768893,
+          "lastReadAt": null,
+          "principal": "user:01M2HEQXXKMWMAPZ3W9DBTP040",
+          "profile": {
+            "at": 1789439768509,
+            "avatar": {
+              "bytes": 758,
+              "duration": null,
+              "height": 256,
+              "id": "01M2HEQXXP4MMNQP82WMJAQYNC",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "Bikes, bread, and tiny software tools.",
+            "displayName": "Bob Bennett",
+            "handle": "bob",
+            "link": "https://example.com/bob",
+            "location": "Berkeley, CA",
+            "principal": "user:01M2HEQXXKMWMAPZ3W9DBTP040"
+          },
+          "role": "member"
+        },
+        {
+          "conversationId": "g-starter",
+          "id": "01M2HEQYA0MND4S8PJE35D0P2F",
+          "joinedAt": 1789439768896,
+          "lastReadAt": null,
+          "principal": "user:01M2HEQXYGWFPH6K6ZA88FFWBG",
+          "profile": {
+            "at": 1789439768536,
+            "avatar": {
+              "bytes": 729,
+              "duration": null,
+              "height": 256,
+              "id": "01M2HEQXYKT1P6Y02GDFGB899M",
+              "type": "image/png",
+              "width": 256
+            },
+            "bio": "Ceramics student and relentless list maker.",
+            "displayName": "Carol Chen",
+            "handle": "carol",
+            "link": "https://example.com/carol",
+            "location": "San Francisco, CA",
+            "principal": "user:01M2HEQXYGWFPH6K6ZA88FFWBG"
+          },
+          "role": "member"
+        }
+      ],
+      "views": []
+    }
+  ],
+  "profiles": [
+    {
+      "at": 1789439768479,
+      "avatar": {
+        "bytes": 729,
+        "duration": null,
+        "height": 256,
+        "id": "01M2HEQXWNNNA9F2KN5R8CMF02",
+        "type": "image/png",
+        "width": 256
+      },
+      "bio": "Coffee, cameras, and neighborhood walks.",
+      "displayName": "Alice Alvarez",
+      "handle": "alice",
+      "link": "https://example.com/alice",
+      "location": "Oakland, CA",
+      "principal": "user:01M2HEQXWGWB7GFBCCM8XMXZTY"
+    },
+    {
+      "at": 1789439768509,
+      "avatar": {
+        "bytes": 758,
+        "duration": null,
+        "height": 256,
+        "id": "01M2HEQXXP4MMNQP82WMJAQYNC",
+        "type": "image/png",
+        "width": 256
+      },
+      "bio": "Bikes, bread, and tiny software tools.",
+      "displayName": "Bob Bennett",
+      "handle": "bob",
+      "link": "https://example.com/bob",
+      "location": "Berkeley, CA",
+      "principal": "user:01M2HEQXXKMWMAPZ3W9DBTP040"
+    },
+    {
+      "at": 1789439768536,
+      "avatar": {
+        "bytes": 729,
+        "duration": null,
+        "height": 256,
+        "id": "01M2HEQXYKT1P6Y02GDFGB899M",
+        "type": "image/png",
+        "width": 256
+      },
+      "bio": "Ceramics student and relentless list maker.",
+      "displayName": "Carol Chen",
+      "handle": "carol",
+      "link": "https://example.com/carol",
+      "location": "San Francisco, CA",
+      "principal": "user:01M2HEQXYGWFPH6K6ZA88FFWBG"
+    }
+  ],
+  "media": [
+    {
+      "id": "01M2HEQXWNNNA9F2KN5R8CMF02",
+      "sha256": "283773fb9ae8f07a00e335fdd37fd9f836845594d8be3352ee0fab542c4c9984",
+      "bytes": 729
+    },
+    {
+      "id": "01M2HEQXXP4MMNQP82WMJAQYNC",
+      "sha256": "9b49a333e2841ea99f6a708bc098a967d473183c134b5de9f35b6c36a72544d5",
+      "bytes": 758
+    },
+    {
+      "id": "01M2HEQXYKT1P6Y02GDFGB899M",
+      "sha256": "283773fb9ae8f07a00e335fdd37fd9f836845594d8be3352ee0fab542c4c9984",
+      "bytes": 729
+    }
+  ]
+}

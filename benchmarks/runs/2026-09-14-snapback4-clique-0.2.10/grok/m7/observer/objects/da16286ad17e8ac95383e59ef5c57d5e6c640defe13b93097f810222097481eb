@@ -1,0 +1,51 @@
+{
+  "milestone": "m1",
+  "pass": true,
+  "results": [
+    {
+      "id": "m1-a01",
+      "name": "signup succeeds",
+      "ok": true
+    },
+    {
+      "id": "m1-a02",
+      "name": "signup lands authenticated",
+      "ok": true
+    },
+    {
+      "id": "m1-a03",
+      "name": "duplicate handle rejected",
+      "ok": true
+    },
+    {
+      "id": "m1-a04",
+      "name": "duplicate email rejected",
+      "ok": true
+    },
+    {
+      "id": "m1-a08",
+      "name": "edit display name and bio persist",
+      "ok": true
+    },
+    {
+      "id": "m1-a10",
+      "name": "avatar upload succeeds",
+      "ok": true
+    },
+    {
+      "id": "m1-a11",
+      "name": "avatar renders on profile",
+      "ok": true
+    }
+  ],
+  "coverage": {
+    "m1-a01": "signup succeeds",
+    "m1-a02": "signup lands authenticated",
+    "m1-a03": "duplicate handle rejected",
+    "m1-a04": "duplicate email rejected",
+    "m1-a08": "edit display name and bio persist",
+    "m1-a10": "avatar upload succeeds",
+    "m1-a11": "avatar renders on profile"
+  },
+  "at": "2026-09-15T02:00:51.882Z"
+}

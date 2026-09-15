@@ -1,0 +1,21 @@
+{
+  "milestone": "m7",
+  "coverage": {
+    "m7-a06": "backfilled-counts-match-all-existing-conversations",
+    "m7-a01": "poll-creation-validation-and-member-authority",
+    "m7-a03": "vote-switch-and-stale-retry-remain-set-state",
+    "m7-a04": "vote-switch-and-stale-retry-remain-set-state",
+    "m7-a07": "settings-count-increments-and-tombstones-decrement"
+  },
+  "required": [
+    "m7-a01",
+    "m7-a03",
+    "m7-a04",
+    "m7-a06",
+    "m7-a07",
+    "m7-a09"
+  ],
+  "missing": [
+    "m7-a09"
+  ]
+}

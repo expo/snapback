@@ -1,0 +1,6 @@
+
+> clique@0.0.1 acceptance
+> node scripts/acceptance.mjs --milestone m7
+
+FAIL suite-setup fetch failed
+{"milestone":"m7","pass":false,"missing":["m7-a01","m7-a03","m7-a04","m7-a06","m7-a07","m7-a09"]}

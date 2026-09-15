@@ -1,0 +1,66 @@
+{
+  "capturedAt": "2026-09-15T00:53:01.993129+00:00",
+  "scope": "Completed Muse independent grade and unchanged all-grade aggregation; no raw logs, stores or credential-bearing scripts.",
+  "files": [
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/grade/DONE",
+      "destination": "muse/grading/DONE",
+      "bytes": 15,
+      "sha256": "4f789b550719415b35f8da81224d7581af09581c0613ab558d257fb31a6f64f3"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/grade/custody.json",
+      "destination": "muse/grading/custody.json",
+      "bytes": 1583,
+      "sha256": "89bf0f0e00a13adba1545d4b9ac6585fd75054fa3d5e843e438e784c44c14bb7"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/grade/grader-report.json",
+      "destination": "muse/grading/grader-report.json",
+      "bytes": 48263,
+      "sha256": "437b3b58daebd13b88223df2971ad941a794e5f1392819e97e2d35ce72a6edcd"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/grade/m8-assertion-results.json",
+      "destination": "muse/grading/m8-assertion-results.json",
+      "bytes": 6334,
+      "sha256": "554c57fecb9bfb2663c79363a2c72ac82335e8e9ad0bfdb652c44f02f35bd85c"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/grade/muse-snapback4.grade.end.json",
+      "destination": "logs/muse-snapback4.grade.end.json",
+      "bytes": 380,
+      "sha256": "3ed363e9081c2830f12b72d664ab862f3210e16d4d6fff4f60b7fb7b91649a9d"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/grade/muse-snapback4.grade.start.json",
+      "destination": "logs/muse-snapback4.grade.start.json",
+      "bytes": 973,
+      "sha256": "93a1cfe08da00848c5906cde92f29bbf254542ea2b3cc553dbdd66199a61eac7"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/grade/trace.md",
+      "destination": "muse/grading/trace.md",
+      "bytes": 27734,
+      "sha256": "ebc51f533ef998cd22b98628f495e49144226ac3d6de58575d9ac5df5ede59f0"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/grades/summary.json",
+      "destination": "grades/summary.json",
+      "bytes": 1890,
+      "sha256": "f7c08765b0d3bb9da8b53c6bbe5cc313eb55e8e1556f9b3d7f89d68565bfd71b"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/grades/summary.md",
+      "destination": "grades/summary.md",
+      "bytes": 777,
+      "sha256": "10c97e3dfdcf172bbfa21a7e4dfe3d2e393f6dcfa5f9d5099bcc13f0fcd3e141"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/grade-summary-execution-20260915.json",
+      "destination": "protocol/grade-summary-execution-20260915.json",
+      "bytes": 696,
+      "sha256": "8f73a1d54a78c180710f30fff499716b7e1bbd4571356f26880e479bd80f487f"
+    }
+  ]
+}

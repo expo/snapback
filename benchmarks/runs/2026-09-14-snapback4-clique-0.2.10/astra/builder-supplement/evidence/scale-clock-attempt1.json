@@ -1,0 +1,11 @@
+{
+  "startEpoch": 1789390639.473,
+  "checkpointExcludedMs": 0,
+  "status": "failed",
+  "starterSettled": 86,
+  "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n'text' !== 'reply'\n\n    at verify (file:///Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/scripts/verify-scale.mjs:161:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async file:///Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/scripts/scale.mjs:38:15\n    at async Replay.file (file:///Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/scripts/replay.mjs:170:9)\n    at async file:///Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/scripts/scale.mjs:36:3",
+  "endEpoch": 1789390717.714,
+  "wallSeconds": 78.2409999370575,
+  "replaySeconds": 78.2409999370575,
+  "settled": 24863
+}

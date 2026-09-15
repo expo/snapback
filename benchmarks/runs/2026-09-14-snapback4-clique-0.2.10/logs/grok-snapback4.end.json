@@ -1,0 +1,11 @@
+{
+  "lane": "grok-snapback4",
+  "phase": "builder",
+  "pid": 91061,
+  "endedAt": "2026-09-14T16:47:32Z",
+  "endedEpoch": 1789404452,
+  "wallSeconds": 11928.612,
+  "exitCode": 0,
+  "stdout": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.ndjson",
+  "stderr": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.stderr.log"
+}

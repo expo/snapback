@@ -1,0 +1,21 @@
+{
+  "at": "2026-09-14T22:23:24.734817+00:00",
+  "pid": 58444,
+  "command": "bash /Users/ccheever/projects/snapback-lanebriefs/clique-cell.sh 0.2.10 0.2.3",
+  "signal": "SIGSTOP",
+  "scope": "Exact serial shell only; active Astra scorer and its run_phase parent continue.",
+  "reason": "Take over downstream phase scheduling after qualified Muse builder exit130; preserve all-scores-before-grades and all-grades-before-M7 order. Original shell will be terminated only after the active score writes its end. No benchmark phase or frozen input changed.",
+  "terminationRequestedAt": "2026-09-14T22:27:06.072191+00:00",
+  "termination": "SIGTERM then SIGCONT to exact paused driver58444 after Astra score end; no phase processes signalled.",
+  "activeScoreEnd": {
+    "lane": "astra-snapback4",
+    "phase": "score",
+    "pid": 88090,
+    "endedAt": "2026-09-14T22:23:52Z",
+    "endedEpoch": 1789424632,
+    "wallSeconds": 140.434,
+    "exitCode": 0,
+    "stdout": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scores/astra/raw.out",
+    "stderr": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scores/astra/raw.err"
+  }
+}

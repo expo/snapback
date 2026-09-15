@@ -1,0 +1,855 @@
+[
+  {
+    "milestone": "m1",
+    "status": "green",
+    "end": 1789385172,
+    "firstGreen": 1789385148.624,
+    "summary": {
+      "version": "0.3.8-m8",
+      "runId": "d5d83384-b76d-42a1-a58d-6de1117b8706",
+      "recordedAt": "2026-09-14T11:25:48.624Z",
+      "type": "segment-summary",
+      "segment": "m1",
+      "assertion": "__segment__",
+      "implemented": true,
+      "required": true,
+      "status": "passed",
+      "pass": true,
+      "timings": [
+        {
+          "attempt": 1,
+          "pass": true,
+          "startedAt": null,
+          "durationMs": 3767.7,
+          "settlementWaitMs": 1508.3,
+          "metrics": {}
+        }
+      ],
+      "bestOf": 1,
+      "details": {
+        "selection": "segment aggregate",
+        "selectedAttempt": 1,
+        "reason": null
+      },
+      "assertions": {
+        "total": 3,
+        "required": 3,
+        "implemented": 3,
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      },
+      "suite": {
+        "pass": true,
+        "receipt": "evidence/m1-suite.json",
+        "receiptSha256": "sha256:8da5166f2646c6f89ed5f686fb254e45649f0d232bf3a4b21a31b1190d458e65",
+        "outcomeClass": null
+      },
+      "choreography": {
+        "browserPass": true,
+        "requiredExternal": [],
+        "externalPass": true,
+        "supplementalExternal": [],
+        "pass": true
+      },
+      "green": true,
+      "nonGreenCause": null,
+      "outcomeClass": null,
+      "setupIdentity": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/setup-identity.json",
+        "sha256": "sha256:316a0b20968dd665a3eee8712cf533f052cb8f9cf090b52435708731fa611609"
+      },
+      "setup": {
+        "schemaVersion": "social-messenger.setup-identity.v1",
+        "instrumentPin": "social-messenger@0.3.8-m8",
+        "backend": {
+          "kind": "snapback",
+          "version": "4-0.2.10"
+        },
+        "runtime": {
+          "qualifiedBinary": {
+            "claimed": true,
+            "path": "node_modules/snapback4-darwin-arm64/snapback4",
+            "sha256": "sha256:af4e26be10419df9428bf6be0c7513de07d227e33f77cdb464c4d93dc2a0767d"
+          },
+          "wrapper": {
+            "claimed": false,
+            "reason": "Server runs the installed platform binary directly"
+          }
+        },
+        "packageClosure": {
+          "mode": "packed",
+          "prepack": "verified",
+          "artifacts": [
+            {
+              "name": "snapback4",
+              "version": "0.2.10",
+              "sha256": "sha256:37dbfacb5e6d09709609f37628103a2d8e81f04765bd24b23e57f3e71873932d"
+            },
+            {
+              "name": "snapback4-expo",
+              "version": "0.2.3",
+              "sha256": "sha256:0b85003902fefba707519be7b0863b71583313fbe4e67d2d335a2ff1e73d1191"
+            },
+            {
+              "name": "snapback4-darwin-arm64",
+              "version": "0.2.10",
+              "sha256": "sha256:90dc5a12fe10edef61c15224c1f1d0ce29a340b8ec363027a247156edabedee7"
+            }
+          ]
+        },
+        "toolchain": {
+          "node": {
+            "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+            "version": "v24.18.0"
+          },
+          "bun": "1.3.12",
+          "npm": "11.16.0",
+          "playwright": "1.62.1",
+          "browser": "chromium"
+        },
+        "host": {
+          "id": "Apple M5 Max lane astra",
+          "platform": "darwin",
+          "arch": "arm64"
+        }
+      }
+    },
+    "start": 1789384513
+  },
+  {
+    "milestone": "m2",
+    "status": "green",
+    "end": 1789385774,
+    "firstGreen": 1789385723.914,
+    "summary": {
+      "version": "0.3.8-m8",
+      "runId": "457a3a05-97be-412b-b606-1a0c8cf3faaf",
+      "recordedAt": "2026-09-14T11:35:23.914Z",
+      "type": "segment-summary",
+      "segment": "m2",
+      "assertion": "__segment__",
+      "implemented": true,
+      "required": true,
+      "status": "passed",
+      "pass": true,
+      "timings": [
+        {
+          "attempt": 1,
+          "pass": true,
+          "startedAt": null,
+          "durationMs": 15866.2,
+          "settlementWaitMs": 9833.3,
+          "metrics": {}
+        }
+      ],
+      "bestOf": 1,
+      "details": {
+        "selection": "segment aggregate",
+        "selectedAttempt": 1,
+        "reason": null
+      },
+      "assertions": {
+        "total": 9,
+        "required": 9,
+        "implemented": 9,
+        "passed": 9,
+        "failed": 0,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      },
+      "suite": {
+        "pass": true,
+        "receipt": "evidence/m2-suite-at-choreo-1789385706497.json",
+        "receiptSha256": "sha256:175df6f739b727e3034890fb253aca9c1abc95a4d9f15e9347a3d895b4ce99ef",
+        "outcomeClass": null
+      },
+      "choreography": {
+        "browserPass": true,
+        "requiredExternal": [],
+        "externalPass": true,
+        "supplementalExternal": [],
+        "pass": true
+      },
+      "green": true,
+      "nonGreenCause": null,
+      "outcomeClass": null,
+      "setupIdentity": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/setup-identity.json",
+        "sha256": "sha256:316a0b20968dd665a3eee8712cf533f052cb8f9cf090b52435708731fa611609"
+      },
+      "setup": {
+        "schemaVersion": "social-messenger.setup-identity.v1",
+        "instrumentPin": "social-messenger@0.3.8-m8",
+        "backend": {
+          "kind": "snapback",
+          "version": "4-0.2.10"
+        },
+        "runtime": {
+          "qualifiedBinary": {
+            "claimed": true,
+            "path": "node_modules/snapback4-darwin-arm64/snapback4",
+            "sha256": "sha256:af4e26be10419df9428bf6be0c7513de07d227e33f77cdb464c4d93dc2a0767d"
+          },
+          "wrapper": {
+            "claimed": false,
+            "reason": "Server runs the installed platform binary directly"
+          }
+        },
+        "packageClosure": {
+          "mode": "packed",
+          "prepack": "verified",
+          "artifacts": [
+            {
+              "name": "snapback4",
+              "version": "0.2.10",
+              "sha256": "sha256:37dbfacb5e6d09709609f37628103a2d8e81f04765bd24b23e57f3e71873932d"
+            },
+            {
+              "name": "snapback4-expo",
+              "version": "0.2.3",
+              "sha256": "sha256:0b85003902fefba707519be7b0863b71583313fbe4e67d2d335a2ff1e73d1191"
+            },
+            {
+              "name": "snapback4-darwin-arm64",
+              "version": "0.2.10",
+              "sha256": "sha256:90dc5a12fe10edef61c15224c1f1d0ce29a340b8ec363027a247156edabedee7"
+            }
+          ]
+        },
+        "toolchain": {
+          "node": {
+            "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+            "version": "v24.18.0"
+          },
+          "bun": "1.3.12",
+          "npm": "11.16.0",
+          "playwright": "1.62.1",
+          "browser": "chromium"
+        },
+        "host": {
+          "id": "Apple M5 Max lane astra",
+          "platform": "darwin",
+          "arch": "arm64"
+        }
+      }
+    }
+  },
+  {
+    "milestone": "m3",
+    "status": "green",
+    "end": 1789386487,
+    "firstGreen": 1789386460.668,
+    "summary": {
+      "version": "0.3.8-m8",
+      "runId": "4485e576-b4fa-4274-9705-ff903efe9f3e",
+      "recordedAt": "2026-09-14T11:47:40.668Z",
+      "type": "segment-summary",
+      "segment": "m3",
+      "assertion": "__segment__",
+      "implemented": true,
+      "required": true,
+      "status": "passed",
+      "pass": true,
+      "timings": [
+        {
+          "attempt": 1,
+          "pass": true,
+          "startedAt": null,
+          "durationMs": 45867.7,
+          "settlementWaitMs": 32371.6,
+          "metrics": {}
+        }
+      ],
+      "bestOf": 1,
+      "details": {
+        "selection": "segment aggregate",
+        "selectedAttempt": 1,
+        "reason": null
+      },
+      "assertions": {
+        "total": 7,
+        "required": 5,
+        "implemented": 6,
+        "passed": 6,
+        "failed": 0,
+        "skipped": 1,
+        "notImplemented": 1,
+        "requiredUnimplemented": 0
+      },
+      "suite": {
+        "pass": true,
+        "receipt": "evidence/m3-suite-at-choreo-1789386412781.json",
+        "receiptSha256": "sha256:4944c800e185d2a0d235d4c24b7c9b1c7be9d7a91234a16319593d539df95167",
+        "outcomeClass": null
+      },
+      "choreography": {
+        "browserPass": true,
+        "requiredExternal": [],
+        "externalPass": true,
+        "supplementalExternal": [],
+        "pass": true
+      },
+      "green": true,
+      "nonGreenCause": null,
+      "outcomeClass": null,
+      "setupIdentity": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/setup-identity.json",
+        "sha256": "sha256:316a0b20968dd665a3eee8712cf533f052cb8f9cf090b52435708731fa611609"
+      },
+      "setup": {
+        "schemaVersion": "social-messenger.setup-identity.v1",
+        "instrumentPin": "social-messenger@0.3.8-m8",
+        "backend": {
+          "kind": "snapback",
+          "version": "4-0.2.10"
+        },
+        "runtime": {
+          "qualifiedBinary": {
+            "claimed": true,
+            "path": "node_modules/snapback4-darwin-arm64/snapback4",
+            "sha256": "sha256:af4e26be10419df9428bf6be0c7513de07d227e33f77cdb464c4d93dc2a0767d"
+          },
+          "wrapper": {
+            "claimed": false,
+            "reason": "Server runs the installed platform binary directly"
+          }
+        },
+        "packageClosure": {
+          "mode": "packed",
+          "prepack": "verified",
+          "artifacts": [
+            {
+              "name": "snapback4",
+              "version": "0.2.10",
+              "sha256": "sha256:37dbfacb5e6d09709609f37628103a2d8e81f04765bd24b23e57f3e71873932d"
+            },
+            {
+              "name": "snapback4-expo",
+              "version": "0.2.3",
+              "sha256": "sha256:0b85003902fefba707519be7b0863b71583313fbe4e67d2d335a2ff1e73d1191"
+            },
+            {
+              "name": "snapback4-darwin-arm64",
+              "version": "0.2.10",
+              "sha256": "sha256:90dc5a12fe10edef61c15224c1f1d0ce29a340b8ec363027a247156edabedee7"
+            }
+          ]
+        },
+        "toolchain": {
+          "node": {
+            "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+            "version": "v24.18.0"
+          },
+          "bun": "1.3.12",
+          "npm": "11.16.0",
+          "playwright": "1.62.1",
+          "browser": "chromium"
+        },
+        "host": {
+          "id": "Apple M5 Max lane astra",
+          "platform": "darwin",
+          "arch": "arm64"
+        }
+      },
+      "typingObservationBoundaryVersion": "v2"
+    }
+  },
+  {
+    "milestone": "m4",
+    "status": "green",
+    "end": 1789387065,
+    "firstGreen": 1789387042.145,
+    "summary": {
+      "version": "0.3.8-m8",
+      "runId": "bc2e587f-c2e0-4d9f-b418-b088d830dfac",
+      "recordedAt": "2026-09-14T11:57:22.145Z",
+      "type": "segment-summary",
+      "segment": "m4",
+      "assertion": "__segment__",
+      "implemented": true,
+      "required": true,
+      "status": "passed",
+      "pass": true,
+      "timings": [
+        {
+          "attempt": 1,
+          "pass": true,
+          "startedAt": null,
+          "durationMs": 22765.8,
+          "settlementWaitMs": 16426,
+          "metrics": {}
+        }
+      ],
+      "bestOf": 1,
+      "details": {
+        "selection": "segment aggregate",
+        "selectedAttempt": 1,
+        "reason": null
+      },
+      "assertions": {
+        "total": 5,
+        "required": 5,
+        "implemented": 5,
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      },
+      "suite": {
+        "pass": true,
+        "receipt": "evidence/m4-suite-at-choreo-1789387016893.json",
+        "receiptSha256": "sha256:b93e7c00ed5739ec3851de50d4528f49fa48eeab7ffff05198c5d2c3ad8220bd",
+        "outcomeClass": null
+      },
+      "choreography": {
+        "browserPass": true,
+        "requiredExternal": [],
+        "externalPass": true,
+        "supplementalExternal": [],
+        "pass": true
+      },
+      "green": true,
+      "nonGreenCause": null,
+      "outcomeClass": null,
+      "setupIdentity": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/setup-identity.json",
+        "sha256": "sha256:316a0b20968dd665a3eee8712cf533f052cb8f9cf090b52435708731fa611609"
+      },
+      "setup": {
+        "schemaVersion": "social-messenger.setup-identity.v1",
+        "instrumentPin": "social-messenger@0.3.8-m8",
+        "backend": {
+          "kind": "snapback",
+          "version": "4-0.2.10"
+        },
+        "runtime": {
+          "qualifiedBinary": {
+            "claimed": true,
+            "path": "node_modules/snapback4-darwin-arm64/snapback4",
+            "sha256": "sha256:af4e26be10419df9428bf6be0c7513de07d227e33f77cdb464c4d93dc2a0767d"
+          },
+          "wrapper": {
+            "claimed": false,
+            "reason": "Server runs the installed platform binary directly"
+          }
+        },
+        "packageClosure": {
+          "mode": "packed",
+          "prepack": "verified",
+          "artifacts": [
+            {
+              "name": "snapback4",
+              "version": "0.2.10",
+              "sha256": "sha256:37dbfacb5e6d09709609f37628103a2d8e81f04765bd24b23e57f3e71873932d"
+            },
+            {
+              "name": "snapback4-expo",
+              "version": "0.2.3",
+              "sha256": "sha256:0b85003902fefba707519be7b0863b71583313fbe4e67d2d335a2ff1e73d1191"
+            },
+            {
+              "name": "snapback4-darwin-arm64",
+              "version": "0.2.10",
+              "sha256": "sha256:90dc5a12fe10edef61c15224c1f1d0ce29a340b8ec363027a247156edabedee7"
+            }
+          ]
+        },
+        "toolchain": {
+          "node": {
+            "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+            "version": "v24.18.0"
+          },
+          "bun": "1.3.12",
+          "npm": "11.16.0",
+          "playwright": "1.62.1",
+          "browser": "chromium"
+        },
+        "host": {
+          "id": "Apple M5 Max lane astra",
+          "platform": "darwin",
+          "arch": "arm64"
+        }
+      }
+    }
+  },
+  {
+    "milestone": "m5",
+    "status": "green",
+    "end": 1789388094,
+    "firstGreen": 1789388057.553,
+    "summary": {
+      "version": "0.3.8-m8",
+      "runId": "8ae1ac7b-7722-46ae-8873-0e1d8fcc7c5e",
+      "recordedAt": "2026-09-14T12:14:17.553Z",
+      "type": "segment-summary",
+      "segment": "m5",
+      "assertion": "__segment__",
+      "implemented": true,
+      "required": true,
+      "status": "passed",
+      "pass": true,
+      "timings": [
+        {
+          "attempt": 1,
+          "pass": true,
+          "startedAt": null,
+          "durationMs": 336766.2,
+          "settlementWaitMs": 4477,
+          "metrics": {}
+        }
+      ],
+      "bestOf": 1,
+      "details": {
+        "selection": "segment aggregate",
+        "selectedAttempt": 1,
+        "reason": null
+      },
+      "assertions": {
+        "total": 4,
+        "required": 2,
+        "implemented": 4,
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      },
+      "suite": {
+        "pass": true,
+        "receipt": "evidence/m5-suite-at-choreo-1789387718956.json",
+        "receiptSha256": "sha256:ee605897f2b3fd6a168c11ffa1bd20ec1140589f543fb7852c69a98b3e3e40bc",
+        "outcomeClass": null
+      },
+      "choreography": {
+        "browserPass": true,
+        "requiredExternal": [],
+        "externalPass": true,
+        "supplementalExternal": [],
+        "pass": true
+      },
+      "green": true,
+      "nonGreenCause": null,
+      "outcomeClass": null,
+      "setupIdentity": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/setup-identity.json",
+        "sha256": "sha256:316a0b20968dd665a3eee8712cf533f052cb8f9cf090b52435708731fa611609"
+      },
+      "setup": {
+        "schemaVersion": "social-messenger.setup-identity.v1",
+        "instrumentPin": "social-messenger@0.3.8-m8",
+        "backend": {
+          "kind": "snapback",
+          "version": "4-0.2.10"
+        },
+        "runtime": {
+          "qualifiedBinary": {
+            "claimed": true,
+            "path": "node_modules/snapback4-darwin-arm64/snapback4",
+            "sha256": "sha256:af4e26be10419df9428bf6be0c7513de07d227e33f77cdb464c4d93dc2a0767d"
+          },
+          "wrapper": {
+            "claimed": false,
+            "reason": "Server runs the installed platform binary directly"
+          }
+        },
+        "packageClosure": {
+          "mode": "packed",
+          "prepack": "verified",
+          "artifacts": [
+            {
+              "name": "snapback4",
+              "version": "0.2.10",
+              "sha256": "sha256:37dbfacb5e6d09709609f37628103a2d8e81f04765bd24b23e57f3e71873932d"
+            },
+            {
+              "name": "snapback4-expo",
+              "version": "0.2.3",
+              "sha256": "sha256:0b85003902fefba707519be7b0863b71583313fbe4e67d2d335a2ff1e73d1191"
+            },
+            {
+              "name": "snapback4-darwin-arm64",
+              "version": "0.2.10",
+              "sha256": "sha256:90dc5a12fe10edef61c15224c1f1d0ce29a340b8ec363027a247156edabedee7"
+            }
+          ]
+        },
+        "toolchain": {
+          "node": {
+            "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+            "version": "v24.18.0"
+          },
+          "bun": "1.3.12",
+          "npm": "11.16.0",
+          "playwright": "1.62.1",
+          "browser": "chromium"
+        },
+        "host": {
+          "id": "Apple M5 Max lane astra",
+          "platform": "darwin",
+          "arch": "arm64"
+        }
+      }
+    }
+  },
+  {
+    "milestone": "m6",
+    "status": "green",
+    "end": 1789388792,
+    "firstGreen": 1789388772.926,
+    "summary": {
+      "version": "0.3.8-m8",
+      "runId": "38e23eee-0966-4a3f-8831-c5471bd96cdd",
+      "recordedAt": "2026-09-14T12:26:12.926Z",
+      "type": "segment-summary",
+      "segment": "m6",
+      "assertion": "__segment__",
+      "implemented": true,
+      "required": true,
+      "status": "passed",
+      "pass": true,
+      "timings": [
+        {
+          "attempt": 1,
+          "pass": true,
+          "startedAt": null,
+          "durationMs": 1632.8,
+          "settlementWaitMs": 1045.3,
+          "metrics": {}
+        }
+      ],
+      "bestOf": 1,
+      "details": {
+        "selection": "segment aggregate",
+        "selectedAttempt": 1,
+        "reason": null
+      },
+      "assertions": {
+        "total": 1,
+        "required": 1,
+        "implemented": 1,
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      },
+      "suite": {
+        "pass": true,
+        "receipt": "evidence/m6-suite-at-choreo-1789388769758.json",
+        "receiptSha256": "sha256:3ee778e63e2f910b0d704f36d62882cbbe4f9bf5c24c59b0c8eccf177de51ae1",
+        "outcomeClass": null
+      },
+      "choreography": {
+        "browserPass": true,
+        "requiredExternal": [],
+        "externalPass": true,
+        "supplementalExternal": [
+          {
+            "id": "ios-simulator-m6",
+            "pass": null,
+            "receipt": null,
+            "status": "not-recorded",
+            "reason": "M6 simulator evidence is recorded separately from web green",
+            "requiredForGreen": false
+          }
+        ],
+        "pass": true
+      },
+      "green": true,
+      "nonGreenCause": null,
+      "outcomeClass": null,
+      "setupIdentity": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/setup-identity.json",
+        "sha256": "sha256:316a0b20968dd665a3eee8712cf533f052cb8f9cf090b52435708731fa611609"
+      },
+      "setup": {
+        "schemaVersion": "social-messenger.setup-identity.v1",
+        "instrumentPin": "social-messenger@0.3.8-m8",
+        "backend": {
+          "kind": "snapback",
+          "version": "4-0.2.10"
+        },
+        "runtime": {
+          "qualifiedBinary": {
+            "claimed": true,
+            "path": "node_modules/snapback4-darwin-arm64/snapback4",
+            "sha256": "sha256:af4e26be10419df9428bf6be0c7513de07d227e33f77cdb464c4d93dc2a0767d"
+          },
+          "wrapper": {
+            "claimed": false,
+            "reason": "Server runs the installed platform binary directly"
+          }
+        },
+        "packageClosure": {
+          "mode": "packed",
+          "prepack": "verified",
+          "artifacts": [
+            {
+              "name": "snapback4",
+              "version": "0.2.10",
+              "sha256": "sha256:37dbfacb5e6d09709609f37628103a2d8e81f04765bd24b23e57f3e71873932d"
+            },
+            {
+              "name": "snapback4-expo",
+              "version": "0.2.3",
+              "sha256": "sha256:0b85003902fefba707519be7b0863b71583313fbe4e67d2d335a2ff1e73d1191"
+            },
+            {
+              "name": "snapback4-darwin-arm64",
+              "version": "0.2.10",
+              "sha256": "sha256:90dc5a12fe10edef61c15224c1f1d0ce29a340b8ec363027a247156edabedee7"
+            }
+          ]
+        },
+        "toolchain": {
+          "node": {
+            "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+            "version": "v24.18.0"
+          },
+          "bun": "1.3.12",
+          "npm": "11.16.0",
+          "playwright": "1.62.1",
+          "browser": "chromium"
+        },
+        "host": {
+          "id": "Apple M5 Max lane astra",
+          "platform": "darwin",
+          "arch": "arm64"
+        }
+      }
+    }
+  },
+  {
+    "milestone": "m8",
+    "status": "green",
+    "end": 1789390619,
+    "firstGreen": 1789390571.742,
+    "summary": {
+      "version": "0.3.8-m8",
+      "runId": "a99d75a9-240b-43e3-b0c1-77415417fd41",
+      "recordedAt": "2026-09-14T12:56:11.742Z",
+      "type": "segment-summary",
+      "segment": "m8",
+      "assertion": "__segment__",
+      "implemented": true,
+      "required": true,
+      "status": "passed",
+      "pass": true,
+      "timings": [
+        {
+          "attempt": 1,
+          "pass": true,
+          "startedAt": null,
+          "durationMs": 6087.8,
+          "settlementWaitMs": 4349.5,
+          "metrics": {}
+        }
+      ],
+      "bestOf": 1,
+      "details": {
+        "selection": "segment aggregate",
+        "selectedAttempt": 1,
+        "reason": null
+      },
+      "assertions": {
+        "total": 5,
+        "required": 5,
+        "implemented": 5,
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      },
+      "suite": {
+        "pass": true,
+        "receipt": "evidence/m8-suite-at-choreo-1789390564054.json",
+        "receiptSha256": "sha256:5d78e2a31785fce8ca32faae85eb71a97fde5df401cb2be81e5112fda0944c0f",
+        "outcomeClass": null
+      },
+      "choreography": {
+        "browserPass": true,
+        "requiredExternal": [],
+        "externalPass": true,
+        "supplementalExternal": [
+          {
+            "id": "ios-simulator-m8",
+            "pass": null,
+            "receipt": null,
+            "status": "not-recorded",
+            "reason": "M8 simulator evidence is recorded separately from web green",
+            "requiredForGreen": false
+          }
+        ],
+        "pass": true
+      },
+      "green": true,
+      "nonGreenCause": null,
+      "outcomeClass": null,
+      "setupIdentity": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/setup-identity.json",
+        "sha256": "sha256:316a0b20968dd665a3eee8712cf533f052cb8f9cf090b52435708731fa611609"
+      },
+      "setup": {
+        "schemaVersion": "social-messenger.setup-identity.v1",
+        "instrumentPin": "social-messenger@0.3.8-m8",
+        "backend": {
+          "kind": "snapback",
+          "version": "4-0.2.10"
+        },
+        "runtime": {
+          "qualifiedBinary": {
+            "claimed": true,
+            "path": "node_modules/snapback4-darwin-arm64/snapback4",
+            "sha256": "sha256:af4e26be10419df9428bf6be0c7513de07d227e33f77cdb464c4d93dc2a0767d"
+          },
+          "wrapper": {
+            "claimed": false,
+            "reason": "Server runs the installed platform binary directly"
+          }
+        },
+        "packageClosure": {
+          "mode": "packed",
+          "prepack": "verified",
+          "artifacts": [
+            {
+              "name": "snapback4",
+              "version": "0.2.10",
+              "sha256": "sha256:37dbfacb5e6d09709609f37628103a2d8e81f04765bd24b23e57f3e71873932d"
+            },
+            {
+              "name": "snapback4-expo",
+              "version": "0.2.3",
+              "sha256": "sha256:0b85003902fefba707519be7b0863b71583313fbe4e67d2d335a2ff1e73d1191"
+            },
+            {
+              "name": "snapback4-darwin-arm64",
+              "version": "0.2.10",
+              "sha256": "sha256:90dc5a12fe10edef61c15224c1f1d0ce29a340b8ec363027a247156edabedee7"
+            }
+          ]
+        },
+        "toolchain": {
+          "node": {
+            "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+            "version": "v24.18.0"
+          },
+          "bun": "1.3.12",
+          "npm": "11.16.0",
+          "playwright": "1.62.1",
+          "browser": "chromium"
+        },
+        "host": {
+          "id": "Apple M5 Max lane astra",
+          "platform": "darwin",
+          "arch": "arm64"
+        }
+      }
+    }
+  }
+]

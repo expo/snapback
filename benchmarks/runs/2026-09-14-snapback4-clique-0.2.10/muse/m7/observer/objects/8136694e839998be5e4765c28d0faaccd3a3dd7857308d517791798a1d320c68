@@ -1,0 +1,31 @@
+{
+  "persona": "dave",
+  "email": "dave@example.com",
+  "me": {
+    "at": 1789439768561,
+    "avatar": {
+      "bytes": 758,
+      "duration": null,
+      "height": 256,
+      "id": "01M2HEQXZAC4DSA0VRW23V7XK7",
+      "type": "image/png",
+      "width": 256
+    },
+    "bio": "Live music, trail maps, and spicy noodles.",
+    "displayName": "Dave Diaz",
+    "handle": "dave",
+    "link": "https://example.com/dave",
+    "location": "Portland, OR",
+    "principal": "user:01M2HEQXZ86R00FG6J6MJNTZHH"
+  },
+  "inbox": [],
+  "convs": [],
+  "profiles": [],
+  "media": [
+    {
+      "id": "01M2HEQXZAC4DSA0VRW23V7XK7",
+      "sha256": "9b49a333e2841ea99f6a708bc098a967d473183c134b5de9f35b6c36a72544d5",
+      "bytes": 758
+    }
+  ]
+}

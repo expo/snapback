@@ -1,0 +1,21 @@
+{
+  "observedAt": "2026-09-15T02:29:24.523385+00:00",
+  "source": "Explicit full PID table and killed list in Grok m7/final-report.md and run-log.md plus runner child",
+  "pids": [
+    29621,
+    29627,
+    29630,
+    79827,
+    79830,
+    80051,
+    46099,
+    46102,
+    46214,
+    76532,
+    59663
+  ],
+  "psExit": 1,
+  "stdout": "",
+  "stderr": "",
+  "limit": "Late selected named PID observation; no signals, complete end inventory or current listening-socket claim. Muse phase is now running on shared ports."
+}

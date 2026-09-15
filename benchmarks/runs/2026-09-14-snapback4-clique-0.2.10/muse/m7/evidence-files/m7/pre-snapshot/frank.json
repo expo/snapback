@@ -1,0 +1,31 @@
+{
+  "persona": "frank",
+  "email": "frank@example.com",
+  "me": {
+    "at": 1789439768610,
+    "avatar": {
+      "bytes": 758,
+      "duration": null,
+      "height": 256,
+      "id": "01M2HEQY0TG3NWPQ31BXSX5P0R",
+      "type": "image/png",
+      "width": 256
+    },
+    "bio": "Weekend cook and weekday data wrangler.",
+    "displayName": "Frank Flores",
+    "handle": "frank",
+    "link": "https://example.com/frank",
+    "location": "Austin, TX",
+    "principal": "user:01M2HEQY0R9J96S3VX9KSF7WJN"
+  },
+  "inbox": [],
+  "convs": [],
+  "profiles": [],
+  "media": [
+    {
+      "id": "01M2HEQY0TG3NWPQ31BXSX5P0R",
+      "sha256": "9b49a333e2841ea99f6a708bc098a967d473183c134b5de9f35b6c36a72544d5",
+      "bytes": 758
+    }
+  ]
+}

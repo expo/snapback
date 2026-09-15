@@ -1,0 +1,2422 @@
+{
+  "observedAt": "2026-09-15T02:29:24.736440+00:00",
+  "lane": "grok",
+  "files": [
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/m7/run-log.md",
+      "destination": "grok/m7/run-log.md",
+      "original": {
+        "bytes": 4633,
+        "sha256": "182c52c7f4c97805e780ee79fd415834753b54fe44d5841e2182d996065fc86c"
+      },
+      "archived": {
+        "bytes": 4633,
+        "sha256": "182c52c7f4c97805e780ee79fd415834753b54fe44d5841e2182d996065fc86c"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/m7/diary.md",
+      "destination": "grok/m7/diary.md",
+      "original": {
+        "bytes": 2645,
+        "sha256": "176c1afff338e4827a0cfd16efeb2290f0f1b15afde33ea975da9ba3b6d79b69"
+      },
+      "archived": {
+        "bytes": 2645,
+        "sha256": "176c1afff338e4827a0cfd16efeb2290f0f1b15afde33ea975da9ba3b6d79b69"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/m7/essay-paragraphs.md",
+      "destination": "grok/m7/essay-paragraphs.md",
+      "original": {
+        "bytes": 2550,
+        "sha256": "17053f92eec426a69e289f491bb3855985b835fff550ed23a5446f6593e5a385"
+      },
+      "archived": {
+        "bytes": 2550,
+        "sha256": "17053f92eec426a69e289f491bb3855985b835fff550ed23a5446f6593e5a385"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/m7/final-report.md",
+      "destination": "grok/m7/final-report.md",
+      "original": {
+        "bytes": 3856,
+        "sha256": "6cdbbaf57baf4aa62fd6d98efa961f8908f2760c284f213eb59146440bae8cd8"
+      },
+      "archived": {
+        "bytes": 3856,
+        "sha256": "6cdbbaf57baf4aa62fd6d98efa961f8908f2760c284f213eb59146440bae8cd8"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.m7.start.json",
+      "destination": "logs/grok-snapback4.m7.start.json",
+      "original": {
+        "bytes": 1106,
+        "sha256": "719f4a4c71f10c666aa87daf4b9d2df8834d12c3c969d1579f5faac95c687285"
+      },
+      "archived": {
+        "bytes": 1106,
+        "sha256": "719f4a4c71f10c666aa87daf4b9d2df8834d12c3c969d1579f5faac95c687285"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/start.json",
+      "destination": "grok/m7/observer/start.json",
+      "original": {
+        "bytes": 507,
+        "sha256": "6efbcce28d2fa776dd8dcca1cc3c116faa0f791496add82b98e91a49356a3562"
+      },
+      "archived": {
+        "bytes": 507,
+        "sha256": "6efbcce28d2fa776dd8dcca1cc3c116faa0f791496add82b98e91a49356a3562"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.m7.end.json",
+      "destination": "logs/grok-snapback4.m7.end.json",
+      "original": {
+        "bytes": 371,
+        "sha256": "66f1d5bd2f4c3c11a1409839a82fb692c673b84a45a56fb724bbcd5f5e479778"
+      },
+      "archived": {
+        "bytes": 371,
+        "sha256": "66f1d5bd2f4c3c11a1409839a82fb692c673b84a45a56fb724bbcd5f5e479778"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/end.json",
+      "destination": "grok/m7/observer/end.json",
+      "original": {
+        "bytes": 537,
+        "sha256": "fe124cd0cab510fe65ea56144238b42a3990d188f1c46240b0a9d71204a8e0f7"
+      },
+      "archived": {
+        "bytes": 537,
+        "sha256": "fe124cd0cab510fe65ea56144238b42a3990d188f1c46240b0a9d71204a8e0f7"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-final-identities.json",
+      "destination": "grok/m7/custody/m7-final-identities.json",
+      "original": {
+        "bytes": 42845,
+        "sha256": "db1b39e8e4f04965d1045f642f03f914c0262906108654776cee72e6cad902f8"
+      },
+      "archived": {
+        "bytes": 42845,
+        "sha256": "db1b39e8e4f04965d1045f642f03f914c0262906108654776cee72e6cad902f8"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-late-process-observation.json",
+      "destination": "grok/m7/custody/m7-late-process-observation.json",
+      "original": {
+        "bytes": 1036,
+        "sha256": "cb690ff83a7e49fa4465cc00e55ac1494fe2fe45368b7ef831f276dfdb424bad"
+      },
+      "archived": {
+        "bytes": 1036,
+        "sha256": "cb690ff83a7e49fa4465cc00e55ac1494fe2fe45368b7ef831f276dfdb424bad"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/immediately-before-m7-source-integrity.json",
+      "destination": "grok/m7/custody/immediately-before-m7-source-integrity.json",
+      "original": {
+        "bytes": 254,
+        "sha256": "27e28fc80f21cd65665d0c2cbffaadbed0f365c9b8a20a350d9490223608f732"
+      },
+      "archived": {
+        "bytes": 254,
+        "sha256": "27e28fc80f21cd65665d0c2cbffaadbed0f365c9b8a20a350d9490223608f732"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/events.jsonl",
+      "destination": "grok/m7/observer/events.jsonl",
+      "original": {
+        "bytes": 31579,
+        "sha256": "ce09001b1f08a859e2d2631a07188f4b471732fa2fff956f4b687c6d808b0689"
+      },
+      "archived": {
+        "bytes": 31579,
+        "sha256": "ce09001b1f08a859e2d2631a07188f4b471732fa2fff956f4b687c6d808b0689"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/source-versions/9f03933e25341182d3c1c576f7bc1ed571e38920c23dc6465fbfae0f48e1a87d.json",
+      "destination": "grok/m7/observer/first-source-manifest.json",
+      "original": {
+        "bytes": 17769,
+        "sha256": "ffd577edaf76b0660d00df3cf6a51ec451092fc6c00cc9f4f079cd07390a700e"
+      },
+      "archived": {
+        "bytes": 17769,
+        "sha256": "ffd577edaf76b0660d00df3cf6a51ec451092fc6c00cc9f4f079cd07390a700e"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/source-versions/d9946fb9aa1d7541de770bfb7846f14a4f1e34ee286783bc1c3d3ec21219990b.json",
+      "destination": "grok/m7/observer/last-source-manifest.json",
+      "original": {
+        "bytes": 22926,
+        "sha256": "d05b6fbe8142ff9cf22c01ae988dfc493cd31e955c7ed5547d0cc69fec57eff3"
+      },
+      "archived": {
+        "bytes": 22926,
+        "sha256": "d05b6fbe8142ff9cf22c01ae988dfc493cd31e955c7ed5547d0cc69fec57eff3"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/9c40d3f7556a3ad9f888510dee9890697bb621429bb8b0488f755d00bdd0fe9a",
+      "destination": "grok/m7/observer/objects/9c40d3f7556a3ad9f888510dee9890697bb621429bb8b0488f755d00bdd0fe9a",
+      "original": {
+        "bytes": 1400,
+        "sha256": "9c40d3f7556a3ad9f888510dee9890697bb621429bb8b0488f755d00bdd0fe9a"
+      },
+      "archived": {
+        "bytes": 1400,
+        "sha256": "9c40d3f7556a3ad9f888510dee9890697bb621429bb8b0488f755d00bdd0fe9a"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/9c40d3f7556a3ad9f888510dee9890697bb621429bb8b0488f755d00bdd0fe9a",
+      "destination": "grok/m7/evidence-files/setup-identity.json",
+      "original": {
+        "bytes": 1400,
+        "sha256": "9c40d3f7556a3ad9f888510dee9890697bb621429bb8b0488f755d00bdd0fe9a"
+      },
+      "archived": {
+        "bytes": 1400,
+        "sha256": "9c40d3f7556a3ad9f888510dee9890697bb621429bb8b0488f755d00bdd0fe9a"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/849f23e3cb31605822c5d967c689f058a1fc8a613689a2f6446eae2191bab03f",
+      "destination": "grok/m7/observer/objects/849f23e3cb31605822c5d967c689f058a1fc8a613689a2f6446eae2191bab03f",
+      "original": {
+        "bytes": 4272,
+        "sha256": "849f23e3cb31605822c5d967c689f058a1fc8a613689a2f6446eae2191bab03f"
+      },
+      "archived": {
+        "bytes": 4272,
+        "sha256": "849f23e3cb31605822c5d967c689f058a1fc8a613689a2f6446eae2191bab03f"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/849f23e3cb31605822c5d967c689f058a1fc8a613689a2f6446eae2191bab03f",
+      "destination": "grok/m7/evidence-files/receipts/m1.jsonl",
+      "original": {
+        "bytes": 4272,
+        "sha256": "849f23e3cb31605822c5d967c689f058a1fc8a613689a2f6446eae2191bab03f"
+      },
+      "archived": {
+        "bytes": 4272,
+        "sha256": "849f23e3cb31605822c5d967c689f058a1fc8a613689a2f6446eae2191bab03f"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/2f04f0e2bdf436cb137c8cf46e6e4fcee3de7263bee68cf252eecce570a715cf",
+      "destination": "grok/m7/observer/objects/2f04f0e2bdf436cb137c8cf46e6e4fcee3de7263bee68cf252eecce570a715cf",
+      "original": {
+        "bytes": 1726,
+        "sha256": "2f04f0e2bdf436cb137c8cf46e6e4fcee3de7263bee68cf252eecce570a715cf"
+      },
+      "archived": {
+        "bytes": 1726,
+        "sha256": "2f04f0e2bdf436cb137c8cf46e6e4fcee3de7263bee68cf252eecce570a715cf"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/2f04f0e2bdf436cb137c8cf46e6e4fcee3de7263bee68cf252eecce570a715cf",
+      "destination": "grok/m7/evidence-files/receipts/m1.jsonl.observations.jsonl",
+      "original": {
+        "bytes": 1726,
+        "sha256": "2f04f0e2bdf436cb137c8cf46e6e4fcee3de7263bee68cf252eecce570a715cf"
+      },
+      "archived": {
+        "bytes": 1726,
+        "sha256": "2f04f0e2bdf436cb137c8cf46e6e4fcee3de7263bee68cf252eecce570a715cf"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/b6f32549e002c3ca17ec0845624cf766d8dbf6e5875a98b2aea7c6cb990aa595",
+      "destination": "grok/m7/observer/objects/b6f32549e002c3ca17ec0845624cf766d8dbf6e5875a98b2aea7c6cb990aa595",
+      "original": {
+        "bytes": 10243,
+        "sha256": "b6f32549e002c3ca17ec0845624cf766d8dbf6e5875a98b2aea7c6cb990aa595"
+      },
+      "archived": {
+        "bytes": 10243,
+        "sha256": "b6f32549e002c3ca17ec0845624cf766d8dbf6e5875a98b2aea7c6cb990aa595"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/b6f32549e002c3ca17ec0845624cf766d8dbf6e5875a98b2aea7c6cb990aa595",
+      "destination": "grok/m7/evidence-files/receipts/m2.jsonl",
+      "original": {
+        "bytes": 10243,
+        "sha256": "b6f32549e002c3ca17ec0845624cf766d8dbf6e5875a98b2aea7c6cb990aa595"
+      },
+      "archived": {
+        "bytes": 10243,
+        "sha256": "b6f32549e002c3ca17ec0845624cf766d8dbf6e5875a98b2aea7c6cb990aa595"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/13663f62d13c71e48d48218d3aa925023dd3229a935af607d40eb3063f9e3b63",
+      "destination": "grok/m7/observer/objects/13663f62d13c71e48d48218d3aa925023dd3229a935af607d40eb3063f9e3b63",
+      "original": {
+        "bytes": 7551,
+        "sha256": "13663f62d13c71e48d48218d3aa925023dd3229a935af607d40eb3063f9e3b63"
+      },
+      "archived": {
+        "bytes": 7551,
+        "sha256": "13663f62d13c71e48d48218d3aa925023dd3229a935af607d40eb3063f9e3b63"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/13663f62d13c71e48d48218d3aa925023dd3229a935af607d40eb3063f9e3b63",
+      "destination": "grok/m7/evidence-files/receipts/m2.jsonl.observations.jsonl",
+      "original": {
+        "bytes": 7551,
+        "sha256": "13663f62d13c71e48d48218d3aa925023dd3229a935af607d40eb3063f9e3b63"
+      },
+      "archived": {
+        "bytes": 7551,
+        "sha256": "13663f62d13c71e48d48218d3aa925023dd3229a935af607d40eb3063f9e3b63"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/19506d40a48528ae84f006d9d7f5875c3b87539c397a8c545fb6e2a2668419fc",
+      "destination": "grok/m7/observer/objects/19506d40a48528ae84f006d9d7f5875c3b87539c397a8c545fb6e2a2668419fc",
+      "original": {
+        "bytes": 9063,
+        "sha256": "19506d40a48528ae84f006d9d7f5875c3b87539c397a8c545fb6e2a2668419fc"
+      },
+      "archived": {
+        "bytes": 9063,
+        "sha256": "19506d40a48528ae84f006d9d7f5875c3b87539c397a8c545fb6e2a2668419fc"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/19506d40a48528ae84f006d9d7f5875c3b87539c397a8c545fb6e2a2668419fc",
+      "destination": "grok/m7/evidence-files/receipts/m3.jsonl",
+      "original": {
+        "bytes": 9063,
+        "sha256": "19506d40a48528ae84f006d9d7f5875c3b87539c397a8c545fb6e2a2668419fc"
+      },
+      "archived": {
+        "bytes": 9063,
+        "sha256": "19506d40a48528ae84f006d9d7f5875c3b87539c397a8c545fb6e2a2668419fc"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/9b1d679a92cee361aebb407c92f3072ab36c338c10fb0c22f3b6e1d82d11d184",
+      "destination": "grok/m7/observer/objects/9b1d679a92cee361aebb407c92f3072ab36c338c10fb0c22f3b6e1d82d11d184",
+      "original": {
+        "bytes": 3838,
+        "sha256": "9b1d679a92cee361aebb407c92f3072ab36c338c10fb0c22f3b6e1d82d11d184"
+      },
+      "archived": {
+        "bytes": 3838,
+        "sha256": "9b1d679a92cee361aebb407c92f3072ab36c338c10fb0c22f3b6e1d82d11d184"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/9b1d679a92cee361aebb407c92f3072ab36c338c10fb0c22f3b6e1d82d11d184",
+      "destination": "grok/m7/evidence-files/receipts/m3.jsonl.observations.jsonl",
+      "original": {
+        "bytes": 3838,
+        "sha256": "9b1d679a92cee361aebb407c92f3072ab36c338c10fb0c22f3b6e1d82d11d184"
+      },
+      "archived": {
+        "bytes": 3838,
+        "sha256": "9b1d679a92cee361aebb407c92f3072ab36c338c10fb0c22f3b6e1d82d11d184"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/2c93ea9d3935bf116186f42ef200b9bb09d55fc0f1ea332f0fa23fdb10d1228e",
+      "destination": "grok/m7/observer/objects/2c93ea9d3935bf116186f42ef200b9bb09d55fc0f1ea332f0fa23fdb10d1228e",
+      "original": {
+        "bytes": 8801,
+        "sha256": "2c93ea9d3935bf116186f42ef200b9bb09d55fc0f1ea332f0fa23fdb10d1228e"
+      },
+      "archived": {
+        "bytes": 8801,
+        "sha256": "2c93ea9d3935bf116186f42ef200b9bb09d55fc0f1ea332f0fa23fdb10d1228e"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/2c93ea9d3935bf116186f42ef200b9bb09d55fc0f1ea332f0fa23fdb10d1228e",
+      "destination": "grok/m7/evidence-files/receipts/m4.jsonl",
+      "original": {
+        "bytes": 8801,
+        "sha256": "2c93ea9d3935bf116186f42ef200b9bb09d55fc0f1ea332f0fa23fdb10d1228e"
+      },
+      "archived": {
+        "bytes": 8801,
+        "sha256": "2c93ea9d3935bf116186f42ef200b9bb09d55fc0f1ea332f0fa23fdb10d1228e"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/c4a75ee9dfab208473a9db510247ca011a69ae20a0c13904b20755d9de3f0b45",
+      "destination": "grok/m7/observer/objects/c4a75ee9dfab208473a9db510247ca011a69ae20a0c13904b20755d9de3f0b45",
+      "original": {
+        "bytes": 3446,
+        "sha256": "c4a75ee9dfab208473a9db510247ca011a69ae20a0c13904b20755d9de3f0b45"
+      },
+      "archived": {
+        "bytes": 3446,
+        "sha256": "c4a75ee9dfab208473a9db510247ca011a69ae20a0c13904b20755d9de3f0b45"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/c4a75ee9dfab208473a9db510247ca011a69ae20a0c13904b20755d9de3f0b45",
+      "destination": "grok/m7/evidence-files/receipts/m4.jsonl.observations.jsonl",
+      "original": {
+        "bytes": 3446,
+        "sha256": "c4a75ee9dfab208473a9db510247ca011a69ae20a0c13904b20755d9de3f0b45"
+      },
+      "archived": {
+        "bytes": 3446,
+        "sha256": "c4a75ee9dfab208473a9db510247ca011a69ae20a0c13904b20755d9de3f0b45"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/09a9a9ee11955cc11107d3b079d34f950ff4298128ef051613ba39b95148d62e",
+      "destination": "grok/m7/observer/objects/09a9a9ee11955cc11107d3b079d34f950ff4298128ef051613ba39b95148d62e",
+      "original": {
+        "bytes": 4943,
+        "sha256": "09a9a9ee11955cc11107d3b079d34f950ff4298128ef051613ba39b95148d62e"
+      },
+      "archived": {
+        "bytes": 4943,
+        "sha256": "09a9a9ee11955cc11107d3b079d34f950ff4298128ef051613ba39b95148d62e"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/09a9a9ee11955cc11107d3b079d34f950ff4298128ef051613ba39b95148d62e",
+      "destination": "grok/m7/evidence-files/receipts/m5.jsonl",
+      "original": {
+        "bytes": 4943,
+        "sha256": "09a9a9ee11955cc11107d3b079d34f950ff4298128ef051613ba39b95148d62e"
+      },
+      "archived": {
+        "bytes": 4943,
+        "sha256": "09a9a9ee11955cc11107d3b079d34f950ff4298128ef051613ba39b95148d62e"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/ad653e2b0b85416e041624a49b1acc509f649e93bc57a037acb30bdf1dbe7b58",
+      "destination": "grok/m7/observer/objects/ad653e2b0b85416e041624a49b1acc509f649e93bc57a037acb30bdf1dbe7b58",
+      "original": {
+        "bytes": 1459,
+        "sha256": "ad653e2b0b85416e041624a49b1acc509f649e93bc57a037acb30bdf1dbe7b58"
+      },
+      "archived": {
+        "bytes": 1459,
+        "sha256": "ad653e2b0b85416e041624a49b1acc509f649e93bc57a037acb30bdf1dbe7b58"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/ad653e2b0b85416e041624a49b1acc509f649e93bc57a037acb30bdf1dbe7b58",
+      "destination": "grok/m7/evidence-files/receipts/m5.jsonl.observations.jsonl",
+      "original": {
+        "bytes": 1459,
+        "sha256": "ad653e2b0b85416e041624a49b1acc509f649e93bc57a037acb30bdf1dbe7b58"
+      },
+      "archived": {
+        "bytes": 1459,
+        "sha256": "ad653e2b0b85416e041624a49b1acc509f649e93bc57a037acb30bdf1dbe7b58"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/6ee33d30bb681aa6ae151eda44930a245c8a64620dca6bf800789b84b882a714",
+      "destination": "grok/m7/observer/objects/6ee33d30bb681aa6ae151eda44930a245c8a64620dca6bf800789b84b882a714",
+      "original": {
+        "bytes": 3688,
+        "sha256": "6ee33d30bb681aa6ae151eda44930a245c8a64620dca6bf800789b84b882a714"
+      },
+      "archived": {
+        "bytes": 3688,
+        "sha256": "6ee33d30bb681aa6ae151eda44930a245c8a64620dca6bf800789b84b882a714"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/6ee33d30bb681aa6ae151eda44930a245c8a64620dca6bf800789b84b882a714",
+      "destination": "grok/m7/evidence-files/receipts/m6.jsonl",
+      "original": {
+        "bytes": 3688,
+        "sha256": "6ee33d30bb681aa6ae151eda44930a245c8a64620dca6bf800789b84b882a714"
+      },
+      "archived": {
+        "bytes": 3688,
+        "sha256": "6ee33d30bb681aa6ae151eda44930a245c8a64620dca6bf800789b84b882a714"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/36b3254c5a09ad319f4eeca4b10eccd209a3ff31b730d802fd285a75c2adcf91",
+      "destination": "grok/m7/observer/objects/36b3254c5a09ad319f4eeca4b10eccd209a3ff31b730d802fd285a75c2adcf91",
+      "original": {
+        "bytes": 562,
+        "sha256": "36b3254c5a09ad319f4eeca4b10eccd209a3ff31b730d802fd285a75c2adcf91"
+      },
+      "archived": {
+        "bytes": 562,
+        "sha256": "36b3254c5a09ad319f4eeca4b10eccd209a3ff31b730d802fd285a75c2adcf91"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/36b3254c5a09ad319f4eeca4b10eccd209a3ff31b730d802fd285a75c2adcf91",
+      "destination": "grok/m7/evidence-files/receipts/m6.jsonl.observations.jsonl",
+      "original": {
+        "bytes": 562,
+        "sha256": "36b3254c5a09ad319f4eeca4b10eccd209a3ff31b730d802fd285a75c2adcf91"
+      },
+      "archived": {
+        "bytes": 562,
+        "sha256": "36b3254c5a09ad319f4eeca4b10eccd209a3ff31b730d802fd285a75c2adcf91"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/f9e138a37e43b364babb865140fb43dd7da0707e29b696b7b59f3c0ac1cf0c57",
+      "destination": "grok/m7/observer/objects/f9e138a37e43b364babb865140fb43dd7da0707e29b696b7b59f3c0ac1cf0c57",
+      "original": {
+        "bytes": 6119,
+        "sha256": "f9e138a37e43b364babb865140fb43dd7da0707e29b696b7b59f3c0ac1cf0c57"
+      },
+      "archived": {
+        "bytes": 6119,
+        "sha256": "f9e138a37e43b364babb865140fb43dd7da0707e29b696b7b59f3c0ac1cf0c57"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/f9e138a37e43b364babb865140fb43dd7da0707e29b696b7b59f3c0ac1cf0c57",
+      "destination": "grok/m7/evidence-files/receipts/m8.jsonl",
+      "original": {
+        "bytes": 6119,
+        "sha256": "f9e138a37e43b364babb865140fb43dd7da0707e29b696b7b59f3c0ac1cf0c57"
+      },
+      "archived": {
+        "bytes": 6119,
+        "sha256": "f9e138a37e43b364babb865140fb43dd7da0707e29b696b7b59f3c0ac1cf0c57"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/83ab3108f8a785228cfad9f1758476dabdc28b0c2073ec81f02efb63e36591fb",
+      "destination": "grok/m7/observer/objects/83ab3108f8a785228cfad9f1758476dabdc28b0c2073ec81f02efb63e36591fb",
+      "original": {
+        "bytes": 1729,
+        "sha256": "83ab3108f8a785228cfad9f1758476dabdc28b0c2073ec81f02efb63e36591fb"
+      },
+      "archived": {
+        "bytes": 1729,
+        "sha256": "83ab3108f8a785228cfad9f1758476dabdc28b0c2073ec81f02efb63e36591fb"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/83ab3108f8a785228cfad9f1758476dabdc28b0c2073ec81f02efb63e36591fb",
+      "destination": "grok/m7/evidence-files/receipts/m8.jsonl.observations.jsonl",
+      "original": {
+        "bytes": 1729,
+        "sha256": "83ab3108f8a785228cfad9f1758476dabdc28b0c2073ec81f02efb63e36591fb"
+      },
+      "archived": {
+        "bytes": 1729,
+        "sha256": "83ab3108f8a785228cfad9f1758476dabdc28b0c2073ec81f02efb63e36591fb"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/12ff29852e92e89df86f49d0a0d3bff25c9857c140647f727fac55c4da1cc09a",
+      "destination": "grok/m7/observer/objects/12ff29852e92e89df86f49d0a0d3bff25c9857c140647f727fac55c4da1cc09a",
+      "original": {
+        "bytes": 456,
+        "sha256": "12ff29852e92e89df86f49d0a0d3bff25c9857c140647f727fac55c4da1cc09a"
+      },
+      "archived": {
+        "bytes": 456,
+        "sha256": "12ff29852e92e89df86f49d0a0d3bff25c9857c140647f727fac55c4da1cc09a"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/12ff29852e92e89df86f49d0a0d3bff25c9857c140647f727fac55c4da1cc09a",
+      "destination": "grok/m7/evidence-files/acceptance/m1-coverage.json",
+      "original": {
+        "bytes": 456,
+        "sha256": "12ff29852e92e89df86f49d0a0d3bff25c9857c140647f727fac55c4da1cc09a"
+      },
+      "archived": {
+        "bytes": 456,
+        "sha256": "12ff29852e92e89df86f49d0a0d3bff25c9857c140647f727fac55c4da1cc09a"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/bf0e3d71610d7645571bb885b5e222bd24cb7dbb7a1243e2b61ac4f84fb5f8bd",
+      "destination": "grok/m7/observer/objects/bf0e3d71610d7645571bb885b5e222bd24cb7dbb7a1243e2b61ac4f84fb5f8bd",
+      "original": {
+        "bytes": 1070,
+        "sha256": "bf0e3d71610d7645571bb885b5e222bd24cb7dbb7a1243e2b61ac4f84fb5f8bd"
+      },
+      "archived": {
+        "bytes": 1070,
+        "sha256": "bf0e3d71610d7645571bb885b5e222bd24cb7dbb7a1243e2b61ac4f84fb5f8bd"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/6bd1840f10ada8168c1ce107862db28ebef32c09c6d1f9e5dff857d473fac656",
+      "destination": "grok/m7/observer/objects/6bd1840f10ada8168c1ce107862db28ebef32c09c6d1f9e5dff857d473fac656",
+      "original": {
+        "bytes": 1335,
+        "sha256": "6bd1840f10ada8168c1ce107862db28ebef32c09c6d1f9e5dff857d473fac656"
+      },
+      "archived": {
+        "bytes": 1335,
+        "sha256": "6bd1840f10ada8168c1ce107862db28ebef32c09c6d1f9e5dff857d473fac656"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/6bd1840f10ada8168c1ce107862db28ebef32c09c6d1f9e5dff857d473fac656",
+      "destination": "grok/m7/evidence-files/acceptance/m2-coverage.json",
+      "original": {
+        "bytes": 1335,
+        "sha256": "6bd1840f10ada8168c1ce107862db28ebef32c09c6d1f9e5dff857d473fac656"
+      },
+      "archived": {
+        "bytes": 1335,
+        "sha256": "6bd1840f10ada8168c1ce107862db28ebef32c09c6d1f9e5dff857d473fac656"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/f0842f695293694787ddbb17c41a76aa006e13964973dad257363342987a0a9e",
+      "destination": "grok/m7/observer/objects/f0842f695293694787ddbb17c41a76aa006e13964973dad257363342987a0a9e",
+      "original": {
+        "bytes": 3188,
+        "sha256": "f0842f695293694787ddbb17c41a76aa006e13964973dad257363342987a0a9e"
+      },
+      "archived": {
+        "bytes": 3188,
+        "sha256": "f0842f695293694787ddbb17c41a76aa006e13964973dad257363342987a0a9e"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/e7ca1696121b4aac0affd53a95666df3dde9aa86991b38d52402b5c478cda32e",
+      "destination": "grok/m7/observer/objects/e7ca1696121b4aac0affd53a95666df3dde9aa86991b38d52402b5c478cda32e",
+      "original": {
+        "bytes": 395,
+        "sha256": "e7ca1696121b4aac0affd53a95666df3dde9aa86991b38d52402b5c478cda32e"
+      },
+      "archived": {
+        "bytes": 395,
+        "sha256": "e7ca1696121b4aac0affd53a95666df3dde9aa86991b38d52402b5c478cda32e"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/e7ca1696121b4aac0affd53a95666df3dde9aa86991b38d52402b5c478cda32e",
+      "destination": "grok/m7/evidence-files/acceptance/m3-coverage.json",
+      "original": {
+        "bytes": 395,
+        "sha256": "e7ca1696121b4aac0affd53a95666df3dde9aa86991b38d52402b5c478cda32e"
+      },
+      "archived": {
+        "bytes": 395,
+        "sha256": "e7ca1696121b4aac0affd53a95666df3dde9aa86991b38d52402b5c478cda32e"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/d01077d4e55c2fb642c09fe0413ac3e6b561620b89671ed6f82abb062bcc2e30",
+      "destination": "grok/m7/observer/objects/d01077d4e55c2fb642c09fe0413ac3e6b561620b89671ed6f82abb062bcc2e30",
+      "original": {
+        "bytes": 948,
+        "sha256": "d01077d4e55c2fb642c09fe0413ac3e6b561620b89671ed6f82abb062bcc2e30"
+      },
+      "archived": {
+        "bytes": 948,
+        "sha256": "d01077d4e55c2fb642c09fe0413ac3e6b561620b89671ed6f82abb062bcc2e30"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/8487c2f0576e7645ef9c6b1c3881f390311f5a6cd65250982d3322ca9ad5b011",
+      "destination": "grok/m7/observer/objects/8487c2f0576e7645ef9c6b1c3881f390311f5a6cd65250982d3322ca9ad5b011",
+      "original": {
+        "bytes": 291,
+        "sha256": "8487c2f0576e7645ef9c6b1c3881f390311f5a6cd65250982d3322ca9ad5b011"
+      },
+      "archived": {
+        "bytes": 291,
+        "sha256": "8487c2f0576e7645ef9c6b1c3881f390311f5a6cd65250982d3322ca9ad5b011"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/8487c2f0576e7645ef9c6b1c3881f390311f5a6cd65250982d3322ca9ad5b011",
+      "destination": "grok/m7/evidence-files/acceptance/m4-coverage.json",
+      "original": {
+        "bytes": 291,
+        "sha256": "8487c2f0576e7645ef9c6b1c3881f390311f5a6cd65250982d3322ca9ad5b011"
+      },
+      "archived": {
+        "bytes": 291,
+        "sha256": "8487c2f0576e7645ef9c6b1c3881f390311f5a6cd65250982d3322ca9ad5b011"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/f41b71c5072729ff65028b51559351bc237484cbafb308ed4fc313d68254b56a",
+      "destination": "grok/m7/observer/objects/f41b71c5072729ff65028b51559351bc237484cbafb308ed4fc313d68254b56a",
+      "original": {
+        "bytes": 692,
+        "sha256": "f41b71c5072729ff65028b51559351bc237484cbafb308ed4fc313d68254b56a"
+      },
+      "archived": {
+        "bytes": 692,
+        "sha256": "f41b71c5072729ff65028b51559351bc237484cbafb308ed4fc313d68254b56a"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/0baeba24637ad6d160f4443be851e1776af3b8df63fc2a9a73996e9592c239a5",
+      "destination": "grok/m7/observer/objects/0baeba24637ad6d160f4443be851e1776af3b8df63fc2a9a73996e9592c239a5",
+      "original": {
+        "bytes": 389,
+        "sha256": "0baeba24637ad6d160f4443be851e1776af3b8df63fc2a9a73996e9592c239a5"
+      },
+      "archived": {
+        "bytes": 389,
+        "sha256": "0baeba24637ad6d160f4443be851e1776af3b8df63fc2a9a73996e9592c239a5"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/0baeba24637ad6d160f4443be851e1776af3b8df63fc2a9a73996e9592c239a5",
+      "destination": "grok/m7/evidence-files/acceptance/m5-coverage.json",
+      "original": {
+        "bytes": 389,
+        "sha256": "0baeba24637ad6d160f4443be851e1776af3b8df63fc2a9a73996e9592c239a5"
+      },
+      "archived": {
+        "bytes": 389,
+        "sha256": "0baeba24637ad6d160f4443be851e1776af3b8df63fc2a9a73996e9592c239a5"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/a7fcd0a5105c2ecae42e822f2155667f02baa3f5fc43ab88bbb13b7b06c785ba",
+      "destination": "grok/m7/observer/objects/a7fcd0a5105c2ecae42e822f2155667f02baa3f5fc43ab88bbb13b7b06c785ba",
+      "original": {
+        "bytes": 912,
+        "sha256": "a7fcd0a5105c2ecae42e822f2155667f02baa3f5fc43ab88bbb13b7b06c785ba"
+      },
+      "archived": {
+        "bytes": 912,
+        "sha256": "a7fcd0a5105c2ecae42e822f2155667f02baa3f5fc43ab88bbb13b7b06c785ba"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/320dd3e074d8f1aa8615e0656d4f011de6c635a23bab2e0713206b00dcbb7499",
+      "destination": "grok/m7/observer/objects/320dd3e074d8f1aa8615e0656d4f011de6c635a23bab2e0713206b00dcbb7499",
+      "original": {
+        "bytes": 320,
+        "sha256": "320dd3e074d8f1aa8615e0656d4f011de6c635a23bab2e0713206b00dcbb7499"
+      },
+      "archived": {
+        "bytes": 320,
+        "sha256": "320dd3e074d8f1aa8615e0656d4f011de6c635a23bab2e0713206b00dcbb7499"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/320dd3e074d8f1aa8615e0656d4f011de6c635a23bab2e0713206b00dcbb7499",
+      "destination": "grok/m7/evidence-files/acceptance/m6-coverage.json",
+      "original": {
+        "bytes": 320,
+        "sha256": "320dd3e074d8f1aa8615e0656d4f011de6c635a23bab2e0713206b00dcbb7499"
+      },
+      "archived": {
+        "bytes": 320,
+        "sha256": "320dd3e074d8f1aa8615e0656d4f011de6c635a23bab2e0713206b00dcbb7499"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/e4fe31f2a44c31a357fb4433374ee8fd8fdd856869417cacba636520f3fecf06",
+      "destination": "grok/m7/observer/objects/e4fe31f2a44c31a357fb4433374ee8fd8fdd856869417cacba636520f3fecf06",
+      "original": {
+        "bytes": 750,
+        "sha256": "e4fe31f2a44c31a357fb4433374ee8fd8fdd856869417cacba636520f3fecf06"
+      },
+      "archived": {
+        "bytes": 750,
+        "sha256": "e4fe31f2a44c31a357fb4433374ee8fd8fdd856869417cacba636520f3fecf06"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/465dfb8c7d8a042441bca535feaa132691d79049cfdba82a3fc2838ac6811c0f",
+      "destination": "grok/m7/observer/objects/465dfb8c7d8a042441bca535feaa132691d79049cfdba82a3fc2838ac6811c0f",
+      "original": {
+        "bytes": 351,
+        "sha256": "465dfb8c7d8a042441bca535feaa132691d79049cfdba82a3fc2838ac6811c0f"
+      },
+      "archived": {
+        "bytes": 351,
+        "sha256": "465dfb8c7d8a042441bca535feaa132691d79049cfdba82a3fc2838ac6811c0f"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/465dfb8c7d8a042441bca535feaa132691d79049cfdba82a3fc2838ac6811c0f",
+      "destination": "grok/m7/evidence-files/acceptance/m8-coverage.json",
+      "original": {
+        "bytes": 351,
+        "sha256": "465dfb8c7d8a042441bca535feaa132691d79049cfdba82a3fc2838ac6811c0f"
+      },
+      "archived": {
+        "bytes": 351,
+        "sha256": "465dfb8c7d8a042441bca535feaa132691d79049cfdba82a3fc2838ac6811c0f"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/15a71625fe357db20884422a295c3b6ca463382c687a983690f7803433180335",
+      "destination": "grok/m7/observer/objects/15a71625fe357db20884422a295c3b6ca463382c687a983690f7803433180335",
+      "original": {
+        "bytes": 836,
+        "sha256": "15a71625fe357db20884422a295c3b6ca463382c687a983690f7803433180335"
+      },
+      "archived": {
+        "bytes": 836,
+        "sha256": "15a71625fe357db20884422a295c3b6ca463382c687a983690f7803433180335"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/983a3ebc82952f635a556f2434e454516911cbef308c95b97fc683259b90ea36",
+      "destination": "grok/m7/observer/objects/983a3ebc82952f635a556f2434e454516911cbef308c95b97fc683259b90ea36",
+      "original": {
+        "bytes": 61,
+        "sha256": "983a3ebc82952f635a556f2434e454516911cbef308c95b97fc683259b90ea36"
+      },
+      "archived": {
+        "bytes": 61,
+        "sha256": "983a3ebc82952f635a556f2434e454516911cbef308c95b97fc683259b90ea36"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/983a3ebc82952f635a556f2434e454516911cbef308c95b97fc683259b90ea36",
+      "destination": "grok/m7/evidence-files/acceptance/suite-status-m1.json",
+      "original": {
+        "bytes": 61,
+        "sha256": "983a3ebc82952f635a556f2434e454516911cbef308c95b97fc683259b90ea36"
+      },
+      "archived": {
+        "bytes": 61,
+        "sha256": "983a3ebc82952f635a556f2434e454516911cbef308c95b97fc683259b90ea36"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/d5823364d91f41178d645ccb7ecf68edc30aea22776ead1caa13c1e0e50f5e73",
+      "destination": "grok/m7/observer/objects/d5823364d91f41178d645ccb7ecf68edc30aea22776ead1caa13c1e0e50f5e73",
+      "original": {
+        "bytes": 61,
+        "sha256": "d5823364d91f41178d645ccb7ecf68edc30aea22776ead1caa13c1e0e50f5e73"
+      },
+      "archived": {
+        "bytes": 61,
+        "sha256": "d5823364d91f41178d645ccb7ecf68edc30aea22776ead1caa13c1e0e50f5e73"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/d5823364d91f41178d645ccb7ecf68edc30aea22776ead1caa13c1e0e50f5e73",
+      "destination": "grok/m7/evidence-files/acceptance/suite-status-m2.json",
+      "original": {
+        "bytes": 61,
+        "sha256": "d5823364d91f41178d645ccb7ecf68edc30aea22776ead1caa13c1e0e50f5e73"
+      },
+      "archived": {
+        "bytes": 61,
+        "sha256": "d5823364d91f41178d645ccb7ecf68edc30aea22776ead1caa13c1e0e50f5e73"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/f41f88d280ca8757ae4701bfdf181d75ab65b66573472388e8458f0020dce5e2",
+      "destination": "grok/m7/observer/objects/f41f88d280ca8757ae4701bfdf181d75ab65b66573472388e8458f0020dce5e2",
+      "original": {
+        "bytes": 61,
+        "sha256": "f41f88d280ca8757ae4701bfdf181d75ab65b66573472388e8458f0020dce5e2"
+      },
+      "archived": {
+        "bytes": 61,
+        "sha256": "f41f88d280ca8757ae4701bfdf181d75ab65b66573472388e8458f0020dce5e2"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/f41f88d280ca8757ae4701bfdf181d75ab65b66573472388e8458f0020dce5e2",
+      "destination": "grok/m7/evidence-files/acceptance/suite-status-m3.json",
+      "original": {
+        "bytes": 61,
+        "sha256": "f41f88d280ca8757ae4701bfdf181d75ab65b66573472388e8458f0020dce5e2"
+      },
+      "archived": {
+        "bytes": 61,
+        "sha256": "f41f88d280ca8757ae4701bfdf181d75ab65b66573472388e8458f0020dce5e2"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/9434036bc93e48aa578afede61a2b1c36241c82ea39fbe6ecf7d57016117445a",
+      "destination": "grok/m7/observer/objects/9434036bc93e48aa578afede61a2b1c36241c82ea39fbe6ecf7d57016117445a",
+      "original": {
+        "bytes": 61,
+        "sha256": "9434036bc93e48aa578afede61a2b1c36241c82ea39fbe6ecf7d57016117445a"
+      },
+      "archived": {
+        "bytes": 61,
+        "sha256": "9434036bc93e48aa578afede61a2b1c36241c82ea39fbe6ecf7d57016117445a"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/9434036bc93e48aa578afede61a2b1c36241c82ea39fbe6ecf7d57016117445a",
+      "destination": "grok/m7/evidence-files/acceptance/suite-status-m4.json",
+      "original": {
+        "bytes": 61,
+        "sha256": "9434036bc93e48aa578afede61a2b1c36241c82ea39fbe6ecf7d57016117445a"
+      },
+      "archived": {
+        "bytes": 61,
+        "sha256": "9434036bc93e48aa578afede61a2b1c36241c82ea39fbe6ecf7d57016117445a"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/0c029baa0c574d90a9b7bffe7a469e9937c2c16c212050a4c3be0692ecdc0a49",
+      "destination": "grok/m7/observer/objects/0c029baa0c574d90a9b7bffe7a469e9937c2c16c212050a4c3be0692ecdc0a49",
+      "original": {
+        "bytes": 61,
+        "sha256": "0c029baa0c574d90a9b7bffe7a469e9937c2c16c212050a4c3be0692ecdc0a49"
+      },
+      "archived": {
+        "bytes": 61,
+        "sha256": "0c029baa0c574d90a9b7bffe7a469e9937c2c16c212050a4c3be0692ecdc0a49"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/0c029baa0c574d90a9b7bffe7a469e9937c2c16c212050a4c3be0692ecdc0a49",
+      "destination": "grok/m7/evidence-files/acceptance/suite-status-m5.json",
+      "original": {
+        "bytes": 61,
+        "sha256": "0c029baa0c574d90a9b7bffe7a469e9937c2c16c212050a4c3be0692ecdc0a49"
+      },
+      "archived": {
+        "bytes": 61,
+        "sha256": "0c029baa0c574d90a9b7bffe7a469e9937c2c16c212050a4c3be0692ecdc0a49"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/bf9483b5845967e8cc72cb0907af3bb2fe86bc61f41115eaf99252838d8bd257",
+      "destination": "grok/m7/observer/objects/bf9483b5845967e8cc72cb0907af3bb2fe86bc61f41115eaf99252838d8bd257",
+      "original": {
+        "bytes": 61,
+        "sha256": "bf9483b5845967e8cc72cb0907af3bb2fe86bc61f41115eaf99252838d8bd257"
+      },
+      "archived": {
+        "bytes": 61,
+        "sha256": "bf9483b5845967e8cc72cb0907af3bb2fe86bc61f41115eaf99252838d8bd257"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/bf9483b5845967e8cc72cb0907af3bb2fe86bc61f41115eaf99252838d8bd257",
+      "destination": "grok/m7/evidence-files/acceptance/suite-status-m6.json",
+      "original": {
+        "bytes": 61,
+        "sha256": "bf9483b5845967e8cc72cb0907af3bb2fe86bc61f41115eaf99252838d8bd257"
+      },
+      "archived": {
+        "bytes": 61,
+        "sha256": "bf9483b5845967e8cc72cb0907af3bb2fe86bc61f41115eaf99252838d8bd257"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/6e7448cea52a888d1918f6731060a2ced934149c705fb3b600aec9f97afd0d64",
+      "destination": "grok/m7/observer/objects/6e7448cea52a888d1918f6731060a2ced934149c705fb3b600aec9f97afd0d64",
+      "original": {
+        "bytes": 61,
+        "sha256": "6e7448cea52a888d1918f6731060a2ced934149c705fb3b600aec9f97afd0d64"
+      },
+      "archived": {
+        "bytes": 61,
+        "sha256": "6e7448cea52a888d1918f6731060a2ced934149c705fb3b600aec9f97afd0d64"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/6e7448cea52a888d1918f6731060a2ced934149c705fb3b600aec9f97afd0d64",
+      "destination": "grok/m7/evidence-files/acceptance/suite-status-m8.json",
+      "original": {
+        "bytes": 61,
+        "sha256": "6e7448cea52a888d1918f6731060a2ced934149c705fb3b600aec9f97afd0d64"
+      },
+      "archived": {
+        "bytes": 61,
+        "sha256": "6e7448cea52a888d1918f6731060a2ced934149c705fb3b600aec9f97afd0d64"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/156b5d0f4de19110e736727ecbe35b29d1a9a1cd40cc98cca0b541bce182c5ef",
+      "destination": "grok/m7/observer/objects/156b5d0f4de19110e736727ecbe35b29d1a9a1cd40cc98cca0b541bce182c5ef",
+      "original": {
+        "bytes": 13758,
+        "sha256": "156b5d0f4de19110e736727ecbe35b29d1a9a1cd40cc98cca0b541bce182c5ef"
+      },
+      "archived": {
+        "bytes": 13758,
+        "sha256": "156b5d0f4de19110e736727ecbe35b29d1a9a1cd40cc98cca0b541bce182c5ef"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/156b5d0f4de19110e736727ecbe35b29d1a9a1cd40cc98cca0b541bce182c5ef",
+      "destination": "grok/m7/evidence-files/m7/pre-snapshot/alice.json",
+      "original": {
+        "bytes": 13758,
+        "sha256": "156b5d0f4de19110e736727ecbe35b29d1a9a1cd40cc98cca0b541bce182c5ef"
+      },
+      "archived": {
+        "bytes": 13758,
+        "sha256": "156b5d0f4de19110e736727ecbe35b29d1a9a1cd40cc98cca0b541bce182c5ef"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/e32cc2cd808f6b91802a259278100bea65378244a643ba7d2a0f92743a8c15b6",
+      "destination": "grok/m7/observer/objects/e32cc2cd808f6b91802a259278100bea65378244a643ba7d2a0f92743a8c15b6",
+      "original": {
+        "bytes": 13758,
+        "sha256": "e32cc2cd808f6b91802a259278100bea65378244a643ba7d2a0f92743a8c15b6"
+      },
+      "archived": {
+        "bytes": 13758,
+        "sha256": "e32cc2cd808f6b91802a259278100bea65378244a643ba7d2a0f92743a8c15b6"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/e32cc2cd808f6b91802a259278100bea65378244a643ba7d2a0f92743a8c15b6",
+      "destination": "grok/m7/evidence-files/m7/pre-snapshot/bob.json",
+      "original": {
+        "bytes": 13758,
+        "sha256": "e32cc2cd808f6b91802a259278100bea65378244a643ba7d2a0f92743a8c15b6"
+      },
+      "archived": {
+        "bytes": 13758,
+        "sha256": "e32cc2cd808f6b91802a259278100bea65378244a643ba7d2a0f92743a8c15b6"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/32d4fdac36c9f0061bfe27f3d6dd043246797183d1aaf0065e64ca90d25e6e25",
+      "destination": "grok/m7/observer/objects/32d4fdac36c9f0061bfe27f3d6dd043246797183d1aaf0065e64ca90d25e6e25",
+      "original": {
+        "bytes": 9282,
+        "sha256": "32d4fdac36c9f0061bfe27f3d6dd043246797183d1aaf0065e64ca90d25e6e25"
+      },
+      "archived": {
+        "bytes": 9282,
+        "sha256": "32d4fdac36c9f0061bfe27f3d6dd043246797183d1aaf0065e64ca90d25e6e25"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/32d4fdac36c9f0061bfe27f3d6dd043246797183d1aaf0065e64ca90d25e6e25",
+      "destination": "grok/m7/evidence-files/m7/pre-snapshot/carol.json",
+      "original": {
+        "bytes": 9282,
+        "sha256": "32d4fdac36c9f0061bfe27f3d6dd043246797183d1aaf0065e64ca90d25e6e25"
+      },
+      "archived": {
+        "bytes": 9282,
+        "sha256": "32d4fdac36c9f0061bfe27f3d6dd043246797183d1aaf0065e64ca90d25e6e25"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/f8ba4af99a9d51d09dd24d5abd2a71b598b1b4077e78c25539e501d394cc3d1b",
+      "destination": "grok/m7/observer/objects/f8ba4af99a9d51d09dd24d5abd2a71b598b1b4077e78c25539e501d394cc3d1b",
+      "original": {
+        "bytes": 421,
+        "sha256": "f8ba4af99a9d51d09dd24d5abd2a71b598b1b4077e78c25539e501d394cc3d1b"
+      },
+      "archived": {
+        "bytes": 421,
+        "sha256": "f8ba4af99a9d51d09dd24d5abd2a71b598b1b4077e78c25539e501d394cc3d1b"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/f8ba4af99a9d51d09dd24d5abd2a71b598b1b4077e78c25539e501d394cc3d1b",
+      "destination": "grok/m7/evidence-files/m7/pre-snapshot/dave.json",
+      "original": {
+        "bytes": 421,
+        "sha256": "f8ba4af99a9d51d09dd24d5abd2a71b598b1b4077e78c25539e501d394cc3d1b"
+      },
+      "archived": {
+        "bytes": 421,
+        "sha256": "f8ba4af99a9d51d09dd24d5abd2a71b598b1b4077e78c25539e501d394cc3d1b"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/8d768c6778e22c0ddc4c5b2e0d5d97749c0e82bec811793ba51bcf2e486f36b8",
+      "destination": "grok/m7/observer/objects/8d768c6778e22c0ddc4c5b2e0d5d97749c0e82bec811793ba51bcf2e486f36b8",
+      "original": {
+        "bytes": 421,
+        "sha256": "8d768c6778e22c0ddc4c5b2e0d5d97749c0e82bec811793ba51bcf2e486f36b8"
+      },
+      "archived": {
+        "bytes": 421,
+        "sha256": "8d768c6778e22c0ddc4c5b2e0d5d97749c0e82bec811793ba51bcf2e486f36b8"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/8d768c6778e22c0ddc4c5b2e0d5d97749c0e82bec811793ba51bcf2e486f36b8",
+      "destination": "grok/m7/evidence-files/m7/pre-snapshot/erin.json",
+      "original": {
+        "bytes": 421,
+        "sha256": "8d768c6778e22c0ddc4c5b2e0d5d97749c0e82bec811793ba51bcf2e486f36b8"
+      },
+      "archived": {
+        "bytes": 421,
+        "sha256": "8d768c6778e22c0ddc4c5b2e0d5d97749c0e82bec811793ba51bcf2e486f36b8"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/65019579b7778802f1e56b535fd2948959986d542899c41a54a291576e51caa5",
+      "destination": "grok/m7/observer/objects/65019579b7778802f1e56b535fd2948959986d542899c41a54a291576e51caa5",
+      "original": {
+        "bytes": 422,
+        "sha256": "65019579b7778802f1e56b535fd2948959986d542899c41a54a291576e51caa5"
+      },
+      "archived": {
+        "bytes": 422,
+        "sha256": "65019579b7778802f1e56b535fd2948959986d542899c41a54a291576e51caa5"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/65019579b7778802f1e56b535fd2948959986d542899c41a54a291576e51caa5",
+      "destination": "grok/m7/evidence-files/m7/pre-snapshot/frank.json",
+      "original": {
+        "bytes": 422,
+        "sha256": "65019579b7778802f1e56b535fd2948959986d542899c41a54a291576e51caa5"
+      },
+      "archived": {
+        "bytes": 422,
+        "sha256": "65019579b7778802f1e56b535fd2948959986d542899c41a54a291576e51caa5"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/f214c7a8bf1314458747bbed8935b57365e9a9c4a257f1d43dd1cd62dfd36b13",
+      "destination": "grok/m7/observer/objects/f214c7a8bf1314458747bbed8935b57365e9a9c4a257f1d43dd1cd62dfd36b13",
+      "original": {
+        "bytes": 422,
+        "sha256": "f214c7a8bf1314458747bbed8935b57365e9a9c4a257f1d43dd1cd62dfd36b13"
+      },
+      "archived": {
+        "bytes": 422,
+        "sha256": "f214c7a8bf1314458747bbed8935b57365e9a9c4a257f1d43dd1cd62dfd36b13"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/f214c7a8bf1314458747bbed8935b57365e9a9c4a257f1d43dd1cd62dfd36b13",
+      "destination": "grok/m7/evidence-files/m7/pre-snapshot/grace.json",
+      "original": {
+        "bytes": 422,
+        "sha256": "f214c7a8bf1314458747bbed8935b57365e9a9c4a257f1d43dd1cd62dfd36b13"
+      },
+      "archived": {
+        "bytes": 422,
+        "sha256": "f214c7a8bf1314458747bbed8935b57365e9a9c4a257f1d43dd1cd62dfd36b13"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/88c86ffd61f5d60c5ec8bc8f17adcd2b0805cfe96c967fd6bf42d1d3a4855be8",
+      "destination": "grok/m7/observer/objects/88c86ffd61f5d60c5ec8bc8f17adcd2b0805cfe96c967fd6bf42d1d3a4855be8",
+      "original": {
+        "bytes": 422,
+        "sha256": "88c86ffd61f5d60c5ec8bc8f17adcd2b0805cfe96c967fd6bf42d1d3a4855be8"
+      },
+      "archived": {
+        "bytes": 422,
+        "sha256": "88c86ffd61f5d60c5ec8bc8f17adcd2b0805cfe96c967fd6bf42d1d3a4855be8"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/88c86ffd61f5d60c5ec8bc8f17adcd2b0805cfe96c967fd6bf42d1d3a4855be8",
+      "destination": "grok/m7/evidence-files/m7/pre-snapshot/henry.json",
+      "original": {
+        "bytes": 422,
+        "sha256": "88c86ffd61f5d60c5ec8bc8f17adcd2b0805cfe96c967fd6bf42d1d3a4855be8"
+      },
+      "archived": {
+        "bytes": 422,
+        "sha256": "88c86ffd61f5d60c5ec8bc8f17adcd2b0805cfe96c967fd6bf42d1d3a4855be8"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/aff5e84f5c6ad2efb2eca984d9df5c3d4cd8dc0246f02d125b340cd018ca2fea",
+      "destination": "grok/m7/observer/objects/aff5e84f5c6ad2efb2eca984d9df5c3d4cd8dc0246f02d125b340cd018ca2fea",
+      "original": {
+        "bytes": 2613,
+        "sha256": "aff5e84f5c6ad2efb2eca984d9df5c3d4cd8dc0246f02d125b340cd018ca2fea"
+      },
+      "archived": {
+        "bytes": 2613,
+        "sha256": "aff5e84f5c6ad2efb2eca984d9df5c3d4cd8dc0246f02d125b340cd018ca2fea"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/aff5e84f5c6ad2efb2eca984d9df5c3d4cd8dc0246f02d125b340cd018ca2fea",
+      "destination": "grok/m7/evidence-files/m7/pre-snapshot/manifest.json",
+      "original": {
+        "bytes": 2613,
+        "sha256": "aff5e84f5c6ad2efb2eca984d9df5c3d4cd8dc0246f02d125b340cd018ca2fea"
+      },
+      "archived": {
+        "bytes": 2613,
+        "sha256": "aff5e84f5c6ad2efb2eca984d9df5c3d4cd8dc0246f02d125b340cd018ca2fea"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/280db3e2f9c84274f8b20b2a4a656ed8634c206a2c3f4254364b99a9609f5289",
+      "destination": "grok/m7/observer/objects/280db3e2f9c84274f8b20b2a4a656ed8634c206a2c3f4254364b99a9609f5289",
+      "original": {
+        "bytes": 407,
+        "sha256": "280db3e2f9c84274f8b20b2a4a656ed8634c206a2c3f4254364b99a9609f5289"
+      },
+      "archived": {
+        "bytes": 407,
+        "sha256": "280db3e2f9c84274f8b20b2a4a656ed8634c206a2c3f4254364b99a9609f5289"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/280db3e2f9c84274f8b20b2a4a656ed8634c206a2c3f4254364b99a9609f5289",
+      "destination": "grok/m7/evidence-files/m7/snapshot-compare.json",
+      "original": {
+        "bytes": 407,
+        "sha256": "280db3e2f9c84274f8b20b2a4a656ed8634c206a2c3f4254364b99a9609f5289"
+      },
+      "archived": {
+        "bytes": 407,
+        "sha256": "280db3e2f9c84274f8b20b2a4a656ed8634c206a2c3f4254364b99a9609f5289"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/898d07ea8cadd849f207d0d49cfbfc049c9f86ee3f4cf5bd89cec57cba9795b1",
+      "destination": "grok/m7/observer/objects/898d07ea8cadd849f207d0d49cfbfc049c9f86ee3f4cf5bd89cec57cba9795b1",
+      "original": {
+        "bytes": 13758,
+        "sha256": "898d07ea8cadd849f207d0d49cfbfc049c9f86ee3f4cf5bd89cec57cba9795b1"
+      },
+      "archived": {
+        "bytes": 13758,
+        "sha256": "898d07ea8cadd849f207d0d49cfbfc049c9f86ee3f4cf5bd89cec57cba9795b1"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/898d07ea8cadd849f207d0d49cfbfc049c9f86ee3f4cf5bd89cec57cba9795b1",
+      "destination": "grok/m7/evidence-files/m7/post-snapshot/alice.json",
+      "original": {
+        "bytes": 13758,
+        "sha256": "898d07ea8cadd849f207d0d49cfbfc049c9f86ee3f4cf5bd89cec57cba9795b1"
+      },
+      "archived": {
+        "bytes": 13758,
+        "sha256": "898d07ea8cadd849f207d0d49cfbfc049c9f86ee3f4cf5bd89cec57cba9795b1"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/0ee8c98d804b864a489c11c3ca39a12220e3814be1eea6c782fc6ac050f24e67",
+      "destination": "grok/m7/observer/objects/0ee8c98d804b864a489c11c3ca39a12220e3814be1eea6c782fc6ac050f24e67",
+      "original": {
+        "bytes": 13758,
+        "sha256": "0ee8c98d804b864a489c11c3ca39a12220e3814be1eea6c782fc6ac050f24e67"
+      },
+      "archived": {
+        "bytes": 13758,
+        "sha256": "0ee8c98d804b864a489c11c3ca39a12220e3814be1eea6c782fc6ac050f24e67"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/0ee8c98d804b864a489c11c3ca39a12220e3814be1eea6c782fc6ac050f24e67",
+      "destination": "grok/m7/evidence-files/m7/post-snapshot/bob.json",
+      "original": {
+        "bytes": 13758,
+        "sha256": "0ee8c98d804b864a489c11c3ca39a12220e3814be1eea6c782fc6ac050f24e67"
+      },
+      "archived": {
+        "bytes": 13758,
+        "sha256": "0ee8c98d804b864a489c11c3ca39a12220e3814be1eea6c782fc6ac050f24e67"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/7ce06000c20e7b3cf768a99dc57ee7254742a0963a48160cafc4d488b2fc8b50",
+      "destination": "grok/m7/observer/objects/7ce06000c20e7b3cf768a99dc57ee7254742a0963a48160cafc4d488b2fc8b50",
+      "original": {
+        "bytes": 9282,
+        "sha256": "7ce06000c20e7b3cf768a99dc57ee7254742a0963a48160cafc4d488b2fc8b50"
+      },
+      "archived": {
+        "bytes": 9282,
+        "sha256": "7ce06000c20e7b3cf768a99dc57ee7254742a0963a48160cafc4d488b2fc8b50"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/7ce06000c20e7b3cf768a99dc57ee7254742a0963a48160cafc4d488b2fc8b50",
+      "destination": "grok/m7/evidence-files/m7/post-snapshot/carol.json",
+      "original": {
+        "bytes": 9282,
+        "sha256": "7ce06000c20e7b3cf768a99dc57ee7254742a0963a48160cafc4d488b2fc8b50"
+      },
+      "archived": {
+        "bytes": 9282,
+        "sha256": "7ce06000c20e7b3cf768a99dc57ee7254742a0963a48160cafc4d488b2fc8b50"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/d71fffc0ce20b22e72d02b6130210e970ee799167196eb9f2dde8cb5e1b452b1",
+      "destination": "grok/m7/observer/objects/d71fffc0ce20b22e72d02b6130210e970ee799167196eb9f2dde8cb5e1b452b1",
+      "original": {
+        "bytes": 421,
+        "sha256": "d71fffc0ce20b22e72d02b6130210e970ee799167196eb9f2dde8cb5e1b452b1"
+      },
+      "archived": {
+        "bytes": 421,
+        "sha256": "d71fffc0ce20b22e72d02b6130210e970ee799167196eb9f2dde8cb5e1b452b1"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/d71fffc0ce20b22e72d02b6130210e970ee799167196eb9f2dde8cb5e1b452b1",
+      "destination": "grok/m7/evidence-files/m7/post-snapshot/dave.json",
+      "original": {
+        "bytes": 421,
+        "sha256": "d71fffc0ce20b22e72d02b6130210e970ee799167196eb9f2dde8cb5e1b452b1"
+      },
+      "archived": {
+        "bytes": 421,
+        "sha256": "d71fffc0ce20b22e72d02b6130210e970ee799167196eb9f2dde8cb5e1b452b1"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/c5ad79c32404d67825d72285a90f63f8afee47f5cce86d980cbb207d25ec6248",
+      "destination": "grok/m7/observer/objects/c5ad79c32404d67825d72285a90f63f8afee47f5cce86d980cbb207d25ec6248",
+      "original": {
+        "bytes": 421,
+        "sha256": "c5ad79c32404d67825d72285a90f63f8afee47f5cce86d980cbb207d25ec6248"
+      },
+      "archived": {
+        "bytes": 421,
+        "sha256": "c5ad79c32404d67825d72285a90f63f8afee47f5cce86d980cbb207d25ec6248"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/c5ad79c32404d67825d72285a90f63f8afee47f5cce86d980cbb207d25ec6248",
+      "destination": "grok/m7/evidence-files/m7/post-snapshot/erin.json",
+      "original": {
+        "bytes": 421,
+        "sha256": "c5ad79c32404d67825d72285a90f63f8afee47f5cce86d980cbb207d25ec6248"
+      },
+      "archived": {
+        "bytes": 421,
+        "sha256": "c5ad79c32404d67825d72285a90f63f8afee47f5cce86d980cbb207d25ec6248"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/e753ede8202c22f95ada2d50240f5fb723b18b5d646fc8e2a4c4745412915611",
+      "destination": "grok/m7/observer/objects/e753ede8202c22f95ada2d50240f5fb723b18b5d646fc8e2a4c4745412915611",
+      "original": {
+        "bytes": 422,
+        "sha256": "e753ede8202c22f95ada2d50240f5fb723b18b5d646fc8e2a4c4745412915611"
+      },
+      "archived": {
+        "bytes": 422,
+        "sha256": "e753ede8202c22f95ada2d50240f5fb723b18b5d646fc8e2a4c4745412915611"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/e753ede8202c22f95ada2d50240f5fb723b18b5d646fc8e2a4c4745412915611",
+      "destination": "grok/m7/evidence-files/m7/post-snapshot/frank.json",
+      "original": {
+        "bytes": 422,
+        "sha256": "e753ede8202c22f95ada2d50240f5fb723b18b5d646fc8e2a4c4745412915611"
+      },
+      "archived": {
+        "bytes": 422,
+        "sha256": "e753ede8202c22f95ada2d50240f5fb723b18b5d646fc8e2a4c4745412915611"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/1af8bfc33adbd5a397a22bb3a1bcc86d87afe4bbeae1e375bc6080ebcebf0a8e",
+      "destination": "grok/m7/observer/objects/1af8bfc33adbd5a397a22bb3a1bcc86d87afe4bbeae1e375bc6080ebcebf0a8e",
+      "original": {
+        "bytes": 422,
+        "sha256": "1af8bfc33adbd5a397a22bb3a1bcc86d87afe4bbeae1e375bc6080ebcebf0a8e"
+      },
+      "archived": {
+        "bytes": 422,
+        "sha256": "1af8bfc33adbd5a397a22bb3a1bcc86d87afe4bbeae1e375bc6080ebcebf0a8e"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/1af8bfc33adbd5a397a22bb3a1bcc86d87afe4bbeae1e375bc6080ebcebf0a8e",
+      "destination": "grok/m7/evidence-files/m7/post-snapshot/grace.json",
+      "original": {
+        "bytes": 422,
+        "sha256": "1af8bfc33adbd5a397a22bb3a1bcc86d87afe4bbeae1e375bc6080ebcebf0a8e"
+      },
+      "archived": {
+        "bytes": 422,
+        "sha256": "1af8bfc33adbd5a397a22bb3a1bcc86d87afe4bbeae1e375bc6080ebcebf0a8e"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/97a89126f476c54b63ae78c49d6069fbe32ed8daf98da0e46d304948494a8f23",
+      "destination": "grok/m7/observer/objects/97a89126f476c54b63ae78c49d6069fbe32ed8daf98da0e46d304948494a8f23",
+      "original": {
+        "bytes": 422,
+        "sha256": "97a89126f476c54b63ae78c49d6069fbe32ed8daf98da0e46d304948494a8f23"
+      },
+      "archived": {
+        "bytes": 422,
+        "sha256": "97a89126f476c54b63ae78c49d6069fbe32ed8daf98da0e46d304948494a8f23"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/97a89126f476c54b63ae78c49d6069fbe32ed8daf98da0e46d304948494a8f23",
+      "destination": "grok/m7/evidence-files/m7/post-snapshot/henry.json",
+      "original": {
+        "bytes": 422,
+        "sha256": "97a89126f476c54b63ae78c49d6069fbe32ed8daf98da0e46d304948494a8f23"
+      },
+      "archived": {
+        "bytes": 422,
+        "sha256": "97a89126f476c54b63ae78c49d6069fbe32ed8daf98da0e46d304948494a8f23"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/68a09502fba7180dda51ff050fa1e57f41b0b5f009fd9fa88a1209b2c9deb699",
+      "destination": "grok/m7/observer/objects/68a09502fba7180dda51ff050fa1e57f41b0b5f009fd9fa88a1209b2c9deb699",
+      "original": {
+        "bytes": 2613,
+        "sha256": "68a09502fba7180dda51ff050fa1e57f41b0b5f009fd9fa88a1209b2c9deb699"
+      },
+      "archived": {
+        "bytes": 2613,
+        "sha256": "68a09502fba7180dda51ff050fa1e57f41b0b5f009fd9fa88a1209b2c9deb699"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/68a09502fba7180dda51ff050fa1e57f41b0b5f009fd9fa88a1209b2c9deb699",
+      "destination": "grok/m7/evidence-files/m7/post-snapshot/manifest.json",
+      "original": {
+        "bytes": 2613,
+        "sha256": "68a09502fba7180dda51ff050fa1e57f41b0b5f009fd9fa88a1209b2c9deb699"
+      },
+      "archived": {
+        "bytes": 2613,
+        "sha256": "68a09502fba7180dda51ff050fa1e57f41b0b5f009fd9fa88a1209b2c9deb699"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/12ff29852e92e89df86f49d0a0d3bff25c9857c140647f727fac55c4da1cc09a",
+      "destination": "grok/m7/evidence-files/acceptance/m1-coverage.json",
+      "original": {
+        "bytes": 456,
+        "sha256": "12ff29852e92e89df86f49d0a0d3bff25c9857c140647f727fac55c4da1cc09a"
+      },
+      "archived": {
+        "bytes": 456,
+        "sha256": "12ff29852e92e89df86f49d0a0d3bff25c9857c140647f727fac55c4da1cc09a"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/da16286ad17e8ac95383e59ef5c57d5e6c640defe13b93097f810222097481eb",
+      "destination": "grok/m7/observer/objects/da16286ad17e8ac95383e59ef5c57d5e6c640defe13b93097f810222097481eb",
+      "original": {
+        "bytes": 1070,
+        "sha256": "da16286ad17e8ac95383e59ef5c57d5e6c640defe13b93097f810222097481eb"
+      },
+      "archived": {
+        "bytes": 1070,
+        "sha256": "da16286ad17e8ac95383e59ef5c57d5e6c640defe13b93097f810222097481eb"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/da16286ad17e8ac95383e59ef5c57d5e6c640defe13b93097f810222097481eb",
+      "destination": "grok/m7/evidence-files/acceptance/m1.json",
+      "original": {
+        "bytes": 1070,
+        "sha256": "da16286ad17e8ac95383e59ef5c57d5e6c640defe13b93097f810222097481eb"
+      },
+      "archived": {
+        "bytes": 1070,
+        "sha256": "da16286ad17e8ac95383e59ef5c57d5e6c640defe13b93097f810222097481eb"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/6bd1840f10ada8168c1ce107862db28ebef32c09c6d1f9e5dff857d473fac656",
+      "destination": "grok/m7/evidence-files/acceptance/m2-coverage.json",
+      "original": {
+        "bytes": 1335,
+        "sha256": "6bd1840f10ada8168c1ce107862db28ebef32c09c6d1f9e5dff857d473fac656"
+      },
+      "archived": {
+        "bytes": 1335,
+        "sha256": "6bd1840f10ada8168c1ce107862db28ebef32c09c6d1f9e5dff857d473fac656"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/3711c72c11cd916e042a73705ca287cb7ef96b488107e21a7652b599cabc3c37",
+      "destination": "grok/m7/observer/objects/3711c72c11cd916e042a73705ca287cb7ef96b488107e21a7652b599cabc3c37",
+      "original": {
+        "bytes": 3188,
+        "sha256": "3711c72c11cd916e042a73705ca287cb7ef96b488107e21a7652b599cabc3c37"
+      },
+      "archived": {
+        "bytes": 3188,
+        "sha256": "3711c72c11cd916e042a73705ca287cb7ef96b488107e21a7652b599cabc3c37"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/3711c72c11cd916e042a73705ca287cb7ef96b488107e21a7652b599cabc3c37",
+      "destination": "grok/m7/evidence-files/acceptance/m2.json",
+      "original": {
+        "bytes": 3188,
+        "sha256": "3711c72c11cd916e042a73705ca287cb7ef96b488107e21a7652b599cabc3c37"
+      },
+      "archived": {
+        "bytes": 3188,
+        "sha256": "3711c72c11cd916e042a73705ca287cb7ef96b488107e21a7652b599cabc3c37"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/9346affcaa0dbfeefd190e2f1d7858662d2e3b69bddd87554e35b24056e329d4",
+      "destination": "grok/m7/observer/objects/9346affcaa0dbfeefd190e2f1d7858662d2e3b69bddd87554e35b24056e329d4",
+      "original": {
+        "bytes": 445,
+        "sha256": "9346affcaa0dbfeefd190e2f1d7858662d2e3b69bddd87554e35b24056e329d4"
+      },
+      "archived": {
+        "bytes": 445,
+        "sha256": "9346affcaa0dbfeefd190e2f1d7858662d2e3b69bddd87554e35b24056e329d4"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/9346affcaa0dbfeefd190e2f1d7858662d2e3b69bddd87554e35b24056e329d4",
+      "destination": "grok/m7/evidence-files/acceptance/m7-coverage.json",
+      "original": {
+        "bytes": 445,
+        "sha256": "9346affcaa0dbfeefd190e2f1d7858662d2e3b69bddd87554e35b24056e329d4"
+      },
+      "archived": {
+        "bytes": 445,
+        "sha256": "9346affcaa0dbfeefd190e2f1d7858662d2e3b69bddd87554e35b24056e329d4"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/0e0c8797ebf6bcc1f6d5345934a348b1e72a0c5ef5327ef6c7c4be511a5d402c",
+      "destination": "grok/m7/observer/objects/0e0c8797ebf6bcc1f6d5345934a348b1e72a0c5ef5327ef6c7c4be511a5d402c",
+      "original": {
+        "bytes": 1024,
+        "sha256": "0e0c8797ebf6bcc1f6d5345934a348b1e72a0c5ef5327ef6c7c4be511a5d402c"
+      },
+      "archived": {
+        "bytes": 1024,
+        "sha256": "0e0c8797ebf6bcc1f6d5345934a348b1e72a0c5ef5327ef6c7c4be511a5d402c"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/0e0c8797ebf6bcc1f6d5345934a348b1e72a0c5ef5327ef6c7c4be511a5d402c",
+      "destination": "grok/m7/evidence-files/acceptance/m7.json",
+      "original": {
+        "bytes": 1024,
+        "sha256": "0e0c8797ebf6bcc1f6d5345934a348b1e72a0c5ef5327ef6c7c4be511a5d402c"
+      },
+      "archived": {
+        "bytes": 1024,
+        "sha256": "0e0c8797ebf6bcc1f6d5345934a348b1e72a0c5ef5327ef6c7c4be511a5d402c"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/556d012378029710add39ff7a082442dfd731e61cfc166b73d2398a71807d139",
+      "destination": "grok/m7/observer/objects/556d012378029710add39ff7a082442dfd731e61cfc166b73d2398a71807d139",
+      "original": {
+        "bytes": 61,
+        "sha256": "556d012378029710add39ff7a082442dfd731e61cfc166b73d2398a71807d139"
+      },
+      "archived": {
+        "bytes": 61,
+        "sha256": "556d012378029710add39ff7a082442dfd731e61cfc166b73d2398a71807d139"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/556d012378029710add39ff7a082442dfd731e61cfc166b73d2398a71807d139",
+      "destination": "grok/m7/evidence-files/acceptance/suite-status-m7.json",
+      "original": {
+        "bytes": 61,
+        "sha256": "556d012378029710add39ff7a082442dfd731e61cfc166b73d2398a71807d139"
+      },
+      "archived": {
+        "bytes": 61,
+        "sha256": "556d012378029710add39ff7a082442dfd731e61cfc166b73d2398a71807d139"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/e7ca1696121b4aac0affd53a95666df3dde9aa86991b38d52402b5c478cda32e",
+      "destination": "grok/m7/evidence-files/acceptance/m3-coverage.json",
+      "original": {
+        "bytes": 395,
+        "sha256": "e7ca1696121b4aac0affd53a95666df3dde9aa86991b38d52402b5c478cda32e"
+      },
+      "archived": {
+        "bytes": 395,
+        "sha256": "e7ca1696121b4aac0affd53a95666df3dde9aa86991b38d52402b5c478cda32e"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/bb74c79cb571ae7f164ec49afb89a579ea312f0c53e5cb216e356ce9e5a270d5",
+      "destination": "grok/m7/observer/objects/bb74c79cb571ae7f164ec49afb89a579ea312f0c53e5cb216e356ce9e5a270d5",
+      "original": {
+        "bytes": 948,
+        "sha256": "bb74c79cb571ae7f164ec49afb89a579ea312f0c53e5cb216e356ce9e5a270d5"
+      },
+      "archived": {
+        "bytes": 948,
+        "sha256": "bb74c79cb571ae7f164ec49afb89a579ea312f0c53e5cb216e356ce9e5a270d5"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/bb74c79cb571ae7f164ec49afb89a579ea312f0c53e5cb216e356ce9e5a270d5",
+      "destination": "grok/m7/evidence-files/acceptance/m3.json",
+      "original": {
+        "bytes": 948,
+        "sha256": "bb74c79cb571ae7f164ec49afb89a579ea312f0c53e5cb216e356ce9e5a270d5"
+      },
+      "archived": {
+        "bytes": 948,
+        "sha256": "bb74c79cb571ae7f164ec49afb89a579ea312f0c53e5cb216e356ce9e5a270d5"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/8487c2f0576e7645ef9c6b1c3881f390311f5a6cd65250982d3322ca9ad5b011",
+      "destination": "grok/m7/evidence-files/acceptance/m4-coverage.json",
+      "original": {
+        "bytes": 291,
+        "sha256": "8487c2f0576e7645ef9c6b1c3881f390311f5a6cd65250982d3322ca9ad5b011"
+      },
+      "archived": {
+        "bytes": 291,
+        "sha256": "8487c2f0576e7645ef9c6b1c3881f390311f5a6cd65250982d3322ca9ad5b011"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/07a588b9fb4814ab84dc40824aa2565fbb3cdf73ebddc8220d446817f9f41b11",
+      "destination": "grok/m7/observer/objects/07a588b9fb4814ab84dc40824aa2565fbb3cdf73ebddc8220d446817f9f41b11",
+      "original": {
+        "bytes": 692,
+        "sha256": "07a588b9fb4814ab84dc40824aa2565fbb3cdf73ebddc8220d446817f9f41b11"
+      },
+      "archived": {
+        "bytes": 692,
+        "sha256": "07a588b9fb4814ab84dc40824aa2565fbb3cdf73ebddc8220d446817f9f41b11"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/07a588b9fb4814ab84dc40824aa2565fbb3cdf73ebddc8220d446817f9f41b11",
+      "destination": "grok/m7/evidence-files/acceptance/m4.json",
+      "original": {
+        "bytes": 692,
+        "sha256": "07a588b9fb4814ab84dc40824aa2565fbb3cdf73ebddc8220d446817f9f41b11"
+      },
+      "archived": {
+        "bytes": 692,
+        "sha256": "07a588b9fb4814ab84dc40824aa2565fbb3cdf73ebddc8220d446817f9f41b11"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/0baeba24637ad6d160f4443be851e1776af3b8df63fc2a9a73996e9592c239a5",
+      "destination": "grok/m7/evidence-files/acceptance/m5-coverage.json",
+      "original": {
+        "bytes": 389,
+        "sha256": "0baeba24637ad6d160f4443be851e1776af3b8df63fc2a9a73996e9592c239a5"
+      },
+      "archived": {
+        "bytes": 389,
+        "sha256": "0baeba24637ad6d160f4443be851e1776af3b8df63fc2a9a73996e9592c239a5"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/0b33c172d1706bb3f55f581f0539d9e2fdbc28848cfebb404d955373a97f77c8",
+      "destination": "grok/m7/observer/objects/0b33c172d1706bb3f55f581f0539d9e2fdbc28848cfebb404d955373a97f77c8",
+      "original": {
+        "bytes": 912,
+        "sha256": "0b33c172d1706bb3f55f581f0539d9e2fdbc28848cfebb404d955373a97f77c8"
+      },
+      "archived": {
+        "bytes": 912,
+        "sha256": "0b33c172d1706bb3f55f581f0539d9e2fdbc28848cfebb404d955373a97f77c8"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/0b33c172d1706bb3f55f581f0539d9e2fdbc28848cfebb404d955373a97f77c8",
+      "destination": "grok/m7/evidence-files/acceptance/m5.json",
+      "original": {
+        "bytes": 912,
+        "sha256": "0b33c172d1706bb3f55f581f0539d9e2fdbc28848cfebb404d955373a97f77c8"
+      },
+      "archived": {
+        "bytes": 912,
+        "sha256": "0b33c172d1706bb3f55f581f0539d9e2fdbc28848cfebb404d955373a97f77c8"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/320dd3e074d8f1aa8615e0656d4f011de6c635a23bab2e0713206b00dcbb7499",
+      "destination": "grok/m7/evidence-files/acceptance/m6-coverage.json",
+      "original": {
+        "bytes": 320,
+        "sha256": "320dd3e074d8f1aa8615e0656d4f011de6c635a23bab2e0713206b00dcbb7499"
+      },
+      "archived": {
+        "bytes": 320,
+        "sha256": "320dd3e074d8f1aa8615e0656d4f011de6c635a23bab2e0713206b00dcbb7499"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/1b806464baf8cdf27e6353c0a9c0bcf59b08875e942a5d52d40fc9c6b3eb1dff",
+      "destination": "grok/m7/observer/objects/1b806464baf8cdf27e6353c0a9c0bcf59b08875e942a5d52d40fc9c6b3eb1dff",
+      "original": {
+        "bytes": 750,
+        "sha256": "1b806464baf8cdf27e6353c0a9c0bcf59b08875e942a5d52d40fc9c6b3eb1dff"
+      },
+      "archived": {
+        "bytes": 750,
+        "sha256": "1b806464baf8cdf27e6353c0a9c0bcf59b08875e942a5d52d40fc9c6b3eb1dff"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/1b806464baf8cdf27e6353c0a9c0bcf59b08875e942a5d52d40fc9c6b3eb1dff",
+      "destination": "grok/m7/evidence-files/acceptance/m6.json",
+      "original": {
+        "bytes": 750,
+        "sha256": "1b806464baf8cdf27e6353c0a9c0bcf59b08875e942a5d52d40fc9c6b3eb1dff"
+      },
+      "archived": {
+        "bytes": 750,
+        "sha256": "1b806464baf8cdf27e6353c0a9c0bcf59b08875e942a5d52d40fc9c6b3eb1dff"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/465dfb8c7d8a042441bca535feaa132691d79049cfdba82a3fc2838ac6811c0f",
+      "destination": "grok/m7/evidence-files/acceptance/m8-coverage.json",
+      "original": {
+        "bytes": 351,
+        "sha256": "465dfb8c7d8a042441bca535feaa132691d79049cfdba82a3fc2838ac6811c0f"
+      },
+      "archived": {
+        "bytes": 351,
+        "sha256": "465dfb8c7d8a042441bca535feaa132691d79049cfdba82a3fc2838ac6811c0f"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/524a8475fa71943b3420fc58db2e046879103a15d2e3b6c3874b56b0821a7536",
+      "destination": "grok/m7/observer/objects/524a8475fa71943b3420fc58db2e046879103a15d2e3b6c3874b56b0821a7536",
+      "original": {
+        "bytes": 836,
+        "sha256": "524a8475fa71943b3420fc58db2e046879103a15d2e3b6c3874b56b0821a7536"
+      },
+      "archived": {
+        "bytes": 836,
+        "sha256": "524a8475fa71943b3420fc58db2e046879103a15d2e3b6c3874b56b0821a7536"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/524a8475fa71943b3420fc58db2e046879103a15d2e3b6c3874b56b0821a7536",
+      "destination": "grok/m7/evidence-files/acceptance/m8.json",
+      "original": {
+        "bytes": 836,
+        "sha256": "524a8475fa71943b3420fc58db2e046879103a15d2e3b6c3874b56b0821a7536"
+      },
+      "archived": {
+        "bytes": 836,
+        "sha256": "524a8475fa71943b3420fc58db2e046879103a15d2e3b6c3874b56b0821a7536"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/f48e3609d91d2642603f8ce48af3031b940f8e46d3a9730223fbd9184a7fe73b",
+      "destination": "grok/m7/observer/objects/f48e3609d91d2642603f8ce48af3031b940f8e46d3a9730223fbd9184a7fe73b",
+      "original": {
+        "bytes": 1059,
+        "sha256": "f48e3609d91d2642603f8ce48af3031b940f8e46d3a9730223fbd9184a7fe73b"
+      },
+      "archived": {
+        "bytes": 1059,
+        "sha256": "f48e3609d91d2642603f8ce48af3031b940f8e46d3a9730223fbd9184a7fe73b"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/5b7b3b714a167727b7c84bcf224b7ed6b97d57ef671847503cb28815260a17c3",
+      "destination": "grok/m7/observer/objects/5b7b3b714a167727b7c84bcf224b7ed6b97d57ef671847503cb28815260a17c3",
+      "original": {
+        "bytes": 864,
+        "sha256": "5b7b3b714a167727b7c84bcf224b7ed6b97d57ef671847503cb28815260a17c3"
+      },
+      "archived": {
+        "bytes": 864,
+        "sha256": "5b7b3b714a167727b7c84bcf224b7ed6b97d57ef671847503cb28815260a17c3"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/12bcbad37d0dd5be2372d0f11a0aecddce69df7a90ec21269e19577c1e5a9bd5",
+      "destination": "grok/m7/observer/objects/12bcbad37d0dd5be2372d0f11a0aecddce69df7a90ec21269e19577c1e5a9bd5",
+      "original": {
+        "bytes": 4538,
+        "sha256": "12bcbad37d0dd5be2372d0f11a0aecddce69df7a90ec21269e19577c1e5a9bd5"
+      },
+      "archived": {
+        "bytes": 4538,
+        "sha256": "12bcbad37d0dd5be2372d0f11a0aecddce69df7a90ec21269e19577c1e5a9bd5"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/22286ef9f77c343d996c891b7e72b914d44a3fdf397c4bb4fcbd3b9efdceeaca",
+      "destination": "grok/m7/observer/objects/22286ef9f77c343d996c891b7e72b914d44a3fdf397c4bb4fcbd3b9efdceeaca",
+      "original": {
+        "bytes": 1421,
+        "sha256": "22286ef9f77c343d996c891b7e72b914d44a3fdf397c4bb4fcbd3b9efdceeaca"
+      },
+      "archived": {
+        "bytes": 1421,
+        "sha256": "22286ef9f77c343d996c891b7e72b914d44a3fdf397c4bb4fcbd3b9efdceeaca"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/3ff050964521456b845fa3bdf2ac70444edba3ee2a80ebd791a32040802907c1",
+      "destination": "grok/m7/observer/objects/3ff050964521456b845fa3bdf2ac70444edba3ee2a80ebd791a32040802907c1",
+      "original": {
+        "bytes": 1059,
+        "sha256": "3ff050964521456b845fa3bdf2ac70444edba3ee2a80ebd791a32040802907c1"
+      },
+      "archived": {
+        "bytes": 1059,
+        "sha256": "3ff050964521456b845fa3bdf2ac70444edba3ee2a80ebd791a32040802907c1"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/0cbe4ed00d4b6441f89db2541fca849fbaca2515cc0a6b27139a2666bc2b397d",
+      "destination": "grok/m7/observer/objects/0cbe4ed00d4b6441f89db2541fca849fbaca2515cc0a6b27139a2666bc2b397d",
+      "original": {
+        "bytes": 864,
+        "sha256": "0cbe4ed00d4b6441f89db2541fca849fbaca2515cc0a6b27139a2666bc2b397d"
+      },
+      "archived": {
+        "bytes": 864,
+        "sha256": "0cbe4ed00d4b6441f89db2541fca849fbaca2515cc0a6b27139a2666bc2b397d"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/b4fb89e40170427b452a496801d540c2351ece1b081205d4e6d4b94936948ddd",
+      "destination": "grok/m7/observer/objects/b4fb89e40170427b452a496801d540c2351ece1b081205d4e6d4b94936948ddd",
+      "original": {
+        "bytes": 3872,
+        "sha256": "b4fb89e40170427b452a496801d540c2351ece1b081205d4e6d4b94936948ddd"
+      },
+      "archived": {
+        "bytes": 3872,
+        "sha256": "b4fb89e40170427b452a496801d540c2351ece1b081205d4e6d4b94936948ddd"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/b4fb89e40170427b452a496801d540c2351ece1b081205d4e6d4b94936948ddd",
+      "destination": "grok/m7/evidence-files/receipts/m7.jsonl",
+      "original": {
+        "bytes": 3872,
+        "sha256": "b4fb89e40170427b452a496801d540c2351ece1b081205d4e6d4b94936948ddd"
+      },
+      "archived": {
+        "bytes": 3872,
+        "sha256": "b4fb89e40170427b452a496801d540c2351ece1b081205d4e6d4b94936948ddd"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/e1aa0ac667b0f5f39efc4215b77cc73ddbc63df743e02dbee416ad923a217729",
+      "destination": "grok/m7/observer/objects/e1aa0ac667b0f5f39efc4215b77cc73ddbc63df743e02dbee416ad923a217729",
+      "original": {
+        "bytes": 1420,
+        "sha256": "e1aa0ac667b0f5f39efc4215b77cc73ddbc63df743e02dbee416ad923a217729"
+      },
+      "archived": {
+        "bytes": 1420,
+        "sha256": "e1aa0ac667b0f5f39efc4215b77cc73ddbc63df743e02dbee416ad923a217729"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/m7-observer/objects/e1aa0ac667b0f5f39efc4215b77cc73ddbc63df743e02dbee416ad923a217729",
+      "destination": "grok/m7/evidence-files/receipts/m7.jsonl.observations.jsonl",
+      "original": {
+        "bytes": 1420,
+        "sha256": "e1aa0ac667b0f5f39efc4215b77cc73ddbc63df743e02dbee416ad923a217729"
+      },
+      "archived": {
+        "bytes": 1420,
+        "sha256": "e1aa0ac667b0f5f39efc4215b77cc73ddbc63df743e02dbee416ad923a217729"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/app/_layout.tsx",
+      "destination": "grok/m7/source/app/_layout.tsx",
+      "original": {
+        "bytes": 2169,
+        "sha256": "7e0a4b0a974cca718ecea89e63bf9897b027e8ae2800b2131e92b90987b5d67f"
+      },
+      "archived": {
+        "bytes": 2169,
+        "sha256": "7e0a4b0a974cca718ecea89e63bf9897b027e8ae2800b2131e92b90987b5d67f"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/app/chats.tsx",
+      "destination": "grok/m7/source/app/chats.tsx",
+      "original": {
+        "bytes": 2904,
+        "sha256": "98569d4dce4aeef33b586729526a89dd2f4a78b5873ccacb828887d4f0ae6406"
+      },
+      "archived": {
+        "bytes": 2904,
+        "sha256": "98569d4dce4aeef33b586729526a89dd2f4a78b5873ccacb828887d4f0ae6406"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/app/conversation/[handle]/index.tsx",
+      "destination": "grok/m7/source/app/conversation/[handle]/index.tsx",
+      "original": {
+        "bytes": 1908,
+        "sha256": "f04b9762dfe431a2aac772a015df21a856a90b76e5132adee8ae4b97f31aa622"
+      },
+      "archived": {
+        "bytes": 1908,
+        "sha256": "f04b9762dfe431a2aac772a015df21a856a90b76e5132adee8ae4b97f31aa622"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/app/conversation/[handle]/settings.tsx",
+      "destination": "grok/m7/source/app/conversation/[handle]/settings.tsx",
+      "original": {
+        "bytes": 3377,
+        "sha256": "9f2c9354b8e36bfe8b3076eef0a42b59c0eb780c6ccbdcd46b0d8fbed41fc75f"
+      },
+      "archived": {
+        "bytes": 3377,
+        "sha256": "9f2c9354b8e36bfe8b3076eef0a42b59c0eb780c6ccbdcd46b0d8fbed41fc75f"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/app/conversation/group/[group].tsx",
+      "destination": "grok/m7/source/app/conversation/group/[group].tsx",
+      "original": {
+        "bytes": 1048,
+        "sha256": "b77c17880432babc16fefc822cc9550ec5a250ae59c0a83ffe422c0cfb482927"
+      },
+      "archived": {
+        "bytes": 1048,
+        "sha256": "b77c17880432babc16fefc822cc9550ec5a250ae59c0a83ffe422c0cfb482927"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/app/conversation/group/[group]/settings.tsx",
+      "destination": "grok/m7/source/app/conversation/group/[group]/settings.tsx",
+      "original": {
+        "bytes": 9005,
+        "sha256": "8e182272b8fa0501e4959c22d11cebb9aad4c6136f3b59f2f62d15af53194101"
+      },
+      "archived": {
+        "bytes": 9005,
+        "sha256": "8e182272b8fa0501e4959c22d11cebb9aad4c6136f3b59f2f62d15af53194101"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/app/feed.tsx",
+      "destination": "grok/m7/source/app/feed.tsx",
+      "original": {
+        "bytes": 6276,
+        "sha256": "8a5f03d7a10130845d2c1c7649f21be6227c50897cc3d6284e0ef38e5ce24c06"
+      },
+      "archived": {
+        "bytes": 6276,
+        "sha256": "8a5f03d7a10130845d2c1c7649f21be6227c50897cc3d6284e0ef38e5ce24c06"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/app/index.tsx",
+      "destination": "grok/m7/source/app/index.tsx",
+      "original": {
+        "bytes": 159,
+        "sha256": "445c8855e1975128e020664e25da6308432d1f7671a70f99a2a99e675bd5f159"
+      },
+      "archived": {
+        "bytes": 159,
+        "sha256": "445c8855e1975128e020664e25da6308432d1f7671a70f99a2a99e675bd5f159"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/app/insights.tsx",
+      "destination": "grok/m7/source/app/insights.tsx",
+      "original": {
+        "bytes": 1164,
+        "sha256": "ba0ef9597ef8f98f363e8cf2c3437abc3eea96b4b80d45a1ee43358a13fd86e7"
+      },
+      "archived": {
+        "bytes": 1164,
+        "sha256": "ba0ef9597ef8f98f363e8cf2c3437abc3eea96b4b80d45a1ee43358a13fd86e7"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/app/me.tsx",
+      "destination": "grok/m7/source/app/me.tsx",
+      "original": {
+        "bytes": 684,
+        "sha256": "af43873affb8a23b76a099c6b764dfa3e5a40809aa1231ae172c9d09285a257b"
+      },
+      "archived": {
+        "bytes": 684,
+        "sha256": "af43873affb8a23b76a099c6b764dfa3e5a40809aa1231ae172c9d09285a257b"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/app/new-chat.tsx",
+      "destination": "grok/m7/source/app/new-chat.tsx",
+      "original": {
+        "bytes": 2384,
+        "sha256": "3d216a46b052ebc5aec1a7fbe0d5dfcf087c0bced68aef95b719854abc343171"
+      },
+      "archived": {
+        "bytes": 2384,
+        "sha256": "3d216a46b052ebc5aec1a7fbe0d5dfcf087c0bced68aef95b719854abc343171"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/app/post/[id].tsx",
+      "destination": "grok/m7/source/app/post/[id].tsx",
+      "original": {
+        "bytes": 2331,
+        "sha256": "807874240f86e96b5922087df26bb01936fa71877ddf18c54e3c91577ba259dd"
+      },
+      "archived": {
+        "bytes": 2331,
+        "sha256": "807874240f86e96b5922087df26bb01936fa71877ddf18c54e3c91577ba259dd"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/app/profile/[handle].tsx",
+      "destination": "grok/m7/source/app/profile/[handle].tsx",
+      "original": {
+        "bytes": 3085,
+        "sha256": "5aaf4d20c3829970db71a5d945141536f47d81184e7af0dd10c49fd6d1ce7f6a"
+      },
+      "archived": {
+        "bytes": 3085,
+        "sha256": "5aaf4d20c3829970db71a5d945141536f47d81184e7af0dd10c49fd6d1ce7f6a"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/app/profile/edit.tsx",
+      "destination": "grok/m7/source/app/profile/edit.tsx",
+      "original": {
+        "bytes": 2500,
+        "sha256": "af7f18403904afec48df4760af9407df69c449b25ba6013ef48de41917e05086"
+      },
+      "archived": {
+        "bytes": 2500,
+        "sha256": "af7f18403904afec48df4760af9407df69c449b25ba6013ef48de41917e05086"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/app/search.tsx",
+      "destination": "grok/m7/source/app/search.tsx",
+      "original": {
+        "bytes": 1930,
+        "sha256": "b7ef1a171d7aa96228e8b6292f7bb752814c19d6ad5d9052947e438bb7fe8269"
+      },
+      "archived": {
+        "bytes": 1930,
+        "sha256": "b7ef1a171d7aa96228e8b6292f7bb752814c19d6ad5d9052947e438bb7fe8269"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/app/settings.tsx",
+      "destination": "grok/m7/source/app/settings.tsx",
+      "original": {
+        "bytes": 1317,
+        "sha256": "55722c80e1bb5ae2934d01a0ae98515cb1ef810b1de737ef7641cf9e3b98f631"
+      },
+      "archived": {
+        "bytes": 1317,
+        "sha256": "55722c80e1bb5ae2934d01a0ae98515cb1ef810b1de737ef7641cf9e3b98f631"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/snapback/schema.q",
+      "destination": "grok/m7/source/snapback/schema.q",
+      "original": {
+        "bytes": 39985,
+        "sha256": "2040a14bbbd282db27e9ff9456d43acc13e149c0587e88e39aec765bcbb7017f"
+      },
+      "archived": {
+        "bytes": 39985,
+        "sha256": "2040a14bbbd282db27e9ff9456d43acc13e149c0587e88e39aec765bcbb7017f"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/src/AppProviders.tsx",
+      "destination": "grok/m7/source/src/AppProviders.tsx",
+      "original": {
+        "bytes": 2691,
+        "sha256": "4ae04b783413b95a48bd425e84b24c4f78a4dd133761b8b6aba680e2157a6086"
+      },
+      "archived": {
+        "bytes": 2691,
+        "sha256": "4ae04b783413b95a48bd425e84b24c4f78a4dd133761b8b6aba680e2157a6086"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/src/AssetMedia.tsx",
+      "destination": "grok/m7/source/src/AssetMedia.tsx",
+      "original": {
+        "bytes": 966,
+        "sha256": "6f6c8d772174b30f1dc38a2f0a440183a4591a88451c99cc1faf6583094a661f"
+      },
+      "archived": {
+        "bytes": 966,
+        "sha256": "6f6c8d772174b30f1dc38a2f0a440183a4591a88451c99cc1faf6583094a661f"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/src/ConversationThread.tsx",
+      "destination": "grok/m7/source/src/ConversationThread.tsx",
+      "original": {
+        "bytes": 19603,
+        "sha256": "fd1c6a7ef43f1d792cb66d72ed36f0810b8b236b6e36f658ef9103370573255f"
+      },
+      "archived": {
+        "bytes": 19603,
+        "sha256": "fd1c6a7ef43f1d792cb66d72ed36f0810b8b236b6e36f658ef9103370573255f"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/src/DeliverySync.tsx",
+      "destination": "grok/m7/source/src/DeliverySync.tsx",
+      "original": {
+        "bytes": 1363,
+        "sha256": "ec5eb6cd99629a5fb99f99ab0450e2de18905a5b42ca4e9b884dace0499ec10d"
+      },
+      "archived": {
+        "bytes": 1363,
+        "sha256": "ec5eb6cd99629a5fb99f99ab0450e2de18905a5b42ca4e9b884dace0499ec10d"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/src/FeedItem.tsx",
+      "destination": "grok/m7/source/src/FeedItem.tsx",
+      "original": {
+        "bytes": 4854,
+        "sha256": "197bcf3f051ccd964f473a34230f607c179158852f9d1cbc427fdcc801857a2a"
+      },
+      "archived": {
+        "bytes": 4854,
+        "sha256": "197bcf3f051ccd964f473a34230f607c179158852f9d1cbc427fdcc801857a2a"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/src/PollMessage.tsx",
+      "destination": "grok/m7/source/src/PollMessage.tsx",
+      "original": {
+        "bytes": 3806,
+        "sha256": "a2a6fe01162897aa49fd9de468806377f58b061a9d756d748e82b8b1857cf69f"
+      },
+      "archived": {
+        "bytes": 3806,
+        "sha256": "a2a6fe01162897aa49fd9de468806377f58b061a9d756d748e82b8b1857cf69f"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/src/WebFile.tsx",
+      "destination": "grok/m7/source/src/WebFile.tsx",
+      "original": {
+        "bytes": 1919,
+        "sha256": "5b0c0ea697192915b192c2483960b3a69e221a65e2142131018e80b19af1b7e2"
+      },
+      "archived": {
+        "bytes": 1919,
+        "sha256": "5b0c0ea697192915b192c2483960b3a69e221a65e2142131018e80b19af1b7e2"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/src/api.generated.ts",
+      "destination": "grok/m7/source/src/api.generated.ts",
+      "original": {
+        "bytes": 52465,
+        "sha256": "adca4a4a924ff482748ec407d75df25f1bfb4e7fb3e3e4608927bde4b4e86303"
+      },
+      "archived": {
+        "bytes": 52465,
+        "sha256": "adca4a4a924ff482748ec407d75df25f1bfb4e7fb3e3e4608927bde4b4e86303"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/src/client.ts",
+      "destination": "grok/m7/source/src/client.ts",
+      "original": {
+        "bytes": 3919,
+        "sha256": "dc05991959cfd3f834fdb7f43cd4910cbf24d195edd306caf09fe5ed9018b938"
+      },
+      "archived": {
+        "bytes": 3919,
+        "sha256": "dc05991959cfd3f834fdb7f43cd4910cbf24d195edd306caf09fe5ed9018b938"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/src/ops.ts",
+      "destination": "grok/m7/source/src/ops.ts",
+      "original": {
+        "bytes": 2050,
+        "sha256": "8d4f8f007794e55b31e2d496f9e75075d43facc1a6d8a41d4737b1856ef08d62"
+      },
+      "archived": {
+        "bytes": 2050,
+        "sha256": "8d4f8f007794e55b31e2d496f9e75075d43facc1a6d8a41d4737b1856ef08d62"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/src/url.ts",
+      "destination": "grok/m7/source/src/url.ts",
+      "original": {
+        "bytes": 96,
+        "sha256": "afbd46b529652b517f2e8272cefabf623728d87f4c262a7b4fe497e5429490fa"
+      },
+      "archived": {
+        "bytes": 96,
+        "sha256": "afbd46b529652b517f2e8272cefabf623728d87f4c262a7b4fe497e5429490fa"
+      },
+      "literalRedactions": 0
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/API.md",
+      "destination": "grok/m7/source/API.md",
+      "original": {
+        "bytes": 2217,
+        "sha256": "f96551b5f8fd6b52c2170ca0076bf94c3a08a762eba92f09aaa81eefd599582b"
+      },
+      "archived": {
+        "bytes": 2217,
+        "sha256": "f96551b5f8fd6b52c2170ca0076bf94c3a08a762eba92f09aaa81eefd599582b"
+      },
+      "literalRedactions": 0
+    }
+  ],
+  "derivedFiles": [
+    "grok/m7/observer/source-change-history.json",
+    "grok/m7/observer/selected-events.json"
+  ],
+  "selectedSourcePaths": [
+    "app/_layout.tsx",
+    "app/chats.tsx",
+    "app/conversation/[handle]/index.tsx",
+    "app/conversation/[handle]/settings.tsx",
+    "app/conversation/group/[group].tsx",
+    "app/conversation/group/[group]/settings.tsx",
+    "app/feed.tsx",
+    "app/index.tsx",
+    "app/insights.tsx",
+    "app/me.tsx",
+    "app/new-chat.tsx",
+    "app/post/[id].tsx",
+    "app/profile/[handle].tsx",
+    "app/profile/edit.tsx",
+    "app/search.tsx",
+    "app/settings.tsx",
+    "snapback/schema.q",
+    "src/AppProviders.tsx",
+    "src/AssetMedia.tsx",
+    "src/ConversationThread.tsx",
+    "src/DeliverySync.tsx",
+    "src/FeedItem.tsx",
+    "src/PollMessage.tsx",
+    "src/WebFile.tsx",
+    "src/api.generated.ts",
+    "src/client.ts",
+    "src/ops.ts",
+    "src/url.ts"
+  ],
+  "selectedObjectCount": 73,
+  "capturingToolSha256": "3dbe154dd6879af2e4733b552b89c7de8b61a65f862f1baf8b99225d4bfbda80",
+  "limits": "Selective archive of received M7 artifacts, not a grade or runnable clone. All observer events are inventoried, but only safe evidence under m7 or observed after phase start is copied, excluding generated residency, provider logs and objects over 1 MB. Earlier inherited scale receipts remain outside this M7 copy. Intermediate original source manifests remain external; a derived change history and the first/last original manifests are local. Script bodies remain hash-only; selected application sources use explicit conservative literal redactions with separate original/archive hashes. The two-second observer can miss writes. Raw model streams, stores, credentials and most generated artifacts are omitted."
+}

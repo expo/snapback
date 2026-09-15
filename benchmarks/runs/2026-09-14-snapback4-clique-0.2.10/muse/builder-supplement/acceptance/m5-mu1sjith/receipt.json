@@ -1,0 +1,73 @@
+{
+  "milestone": "m5",
+  "url": "http://127.0.0.1:49340",
+  "web": "http://127.0.0.1:49341",
+  "at": "2026-09-14T22:04:46.567Z",
+  "pass": true,
+  "failures": 0,
+  "results": [
+    {
+      "assertion": "m5-a04",
+      "test": "view-once photo first open works",
+      "pass": true
+    },
+    {
+      "assertion": "m5-a05",
+      "test": "view-once photo second open denied",
+      "pass": true
+    },
+    {
+      "assertion": "m5-a08",
+      "test": "non-admin cannot rename the group",
+      "pass": true
+    },
+    {
+      "assertion": "m5-a09",
+      "test": "people search finds carol by prefix",
+      "pass": true
+    },
+    {
+      "assertion": "m5-a10",
+      "test": "in-chat search finds a seeded string",
+      "pass": true
+    },
+    {
+      "assertion": "m5-a11",
+      "test": "global search groups results by chat",
+      "pass": true
+    }
+  ],
+  "coverage": [
+    {
+      "id": "m5-a04",
+      "test": "view-once photo first open works",
+      "pass": true
+    },
+    {
+      "id": "m5-a05",
+      "test": "view-once photo second open denied",
+      "pass": true
+    },
+    {
+      "id": "m5-a08",
+      "test": "non-admin cannot rename the group",
+      "pass": true
+    },
+    {
+      "id": "m5-a09",
+      "test": "people search finds carol by prefix",
+      "pass": true
+    },
+    {
+      "id": "m5-a10",
+      "test": "in-chat search finds a seeded string",
+      "pass": true
+    },
+    {
+      "id": "m5-a11",
+      "test": "global search groups results by chat",
+      "pass": true
+    }
+  ],
+  "uncovered": []
+}

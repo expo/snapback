@@ -1,0 +1,479 @@
+{
+  "generatedAt": "2026-09-15T01:03:51.510269+00:00",
+  "scope": "Received baseline builder-family holistic and pre-M7 independent grades only. Values copied/derived from named archived sources; no rescore, calibration claim, post-M7 grade or causal estimate. See README and audits for classification/method deviations.",
+  "cases": [
+    {
+      "pin": "0.2.6",
+      "modelFamily": "astra",
+      "holistic": {
+        "overall": 84,
+        "setup_and_docs": 87,
+        "data_modeling": 82,
+        "authorization": 94,
+        "queries_and_live": 73,
+        "writes_and_transactions": 92,
+        "offline_sync": 84,
+        "media_assets": 85,
+        "background_work": 93,
+        "client_integration": 80,
+        "diagnostics_dev_loop": 91,
+        "scale_and_limits": 69,
+        "operations": 86
+      },
+      "grade": {
+        "prior101": {
+          "pass": 84,
+          "fail": 8,
+          "not-run": 9,
+          "not-applicable": 0
+        },
+        "m8Only18": {
+          "pass": 16,
+          "fail": 2,
+          "not-run": 0,
+          "not-applicable": 0
+        },
+        "complete119": {
+          "pass": 100,
+          "fail": 10,
+          "not-run": 9,
+          "not-applicable": 0
+        }
+      },
+      "oDimensions": {
+        "O1": {
+          "score": 74
+        },
+        "O2": {
+          "score": 76
+        },
+        "O3": null,
+        "O4": {
+          "score": 35
+        },
+        "O5": {
+          "band": 30
+        }
+      },
+      "sources": [
+        {
+          "path": "benchmarks/runs/2026-09-13-snapback4-clique-0004/holistic/all.json",
+          "sha256": "c4ca5b3c0c2b899adfa1c7ec8e7533e74a2f19e08c1431c366bdad20d6d3e9d8"
+        },
+        {
+          "path": "benchmarks/runs/2026-09-13-snapback4-clique-0004/astra/grading/grader-report.json",
+          "sha256": "410c4cd24f4e13539692c96f4f1776fc0241d6214a163623c2591ff37a636e9f"
+        },
+        {
+          "path": "benchmarks/runs/2026-09-13-snapback4-clique-0004/astra/grading/m8-assertion-results.json",
+          "sha256": "64a9f62500f52c625576f602c8941f4d6ab7e86c4acf3cf421d58e5e29694b38"
+        }
+      ]
+    },
+    {
+      "pin": "0.2.6",
+      "modelFamily": "grok",
+      "holistic": {
+        "overall": 70,
+        "setup_and_docs": 80,
+        "data_modeling": 83,
+        "authorization": 63,
+        "queries_and_live": 61,
+        "writes_and_transactions": 71,
+        "offline_sync": 68,
+        "media_assets": 85,
+        "background_work": 79,
+        "client_integration": 55,
+        "diagnostics_dev_loop": 72,
+        "scale_and_limits": 43,
+        "operations": 65
+      },
+      "grade": {
+        "prior101": {
+          "pass": 60,
+          "fail": 17,
+          "not-run": 24,
+          "not-applicable": 0
+        },
+        "m8Only18": {
+          "pass": 10,
+          "fail": 1,
+          "not-run": 7,
+          "not-applicable": 0
+        },
+        "complete119": {
+          "pass": 70,
+          "fail": 18,
+          "not-run": 31,
+          "not-applicable": 0
+        }
+      },
+      "oDimensions": {
+        "O1": {
+          "score": 10
+        },
+        "O2": {
+          "score": 25
+        },
+        "O3": null,
+        "O4": null,
+        "O5": null
+      },
+      "sources": [
+        {
+          "path": "benchmarks/runs/2026-09-13-snapback4-clique-0004/holistic/all.json",
+          "sha256": "c4ca5b3c0c2b899adfa1c7ec8e7533e74a2f19e08c1431c366bdad20d6d3e9d8"
+        },
+        {
+          "path": "benchmarks/runs/2026-09-13-snapback4-clique-0004/grok/grading/grader-report.json",
+          "sha256": "30112e495f85977a396ae5fb6e53cbb4263b3d62471f3e04fdd320b234efc982"
+        },
+        {
+          "path": "benchmarks/runs/2026-09-13-snapback4-clique-0004/grok/grading/m8-assertion-results.json",
+          "sha256": "90becd30f8bbb91a28dba470a8a0e8519b71638a39aa0c3d9c4fa3b235f6f743"
+        }
+      ]
+    },
+    {
+      "pin": "0.2.6",
+      "modelFamily": "muse",
+      "holistic": {
+        "overall": 80,
+        "setup_and_docs": 80,
+        "data_modeling": 78,
+        "authorization": 85,
+        "queries_and_live": 78,
+        "writes_and_transactions": 85,
+        "offline_sync": 80,
+        "media_assets": 72,
+        "background_work": 85,
+        "client_integration": 82,
+        "diagnostics_dev_loop": 82,
+        "scale_and_limits": 60,
+        "operations": 70
+      },
+      "grade": {
+        "prior101": {
+          "pass": 79,
+          "fail": 13,
+          "not-run": 8,
+          "not-applicable": 1
+        },
+        "m8Only18": {
+          "pass": 15,
+          "fail": 3,
+          "not-run": 0,
+          "not-applicable": 0
+        },
+        "complete119": {
+          "pass": 94,
+          "fail": 16,
+          "not-run": 8,
+          "not-applicable": 1
+        }
+      },
+      "oDimensions": {
+        "O1": {
+          "score": 30
+        },
+        "O2": {
+          "score": 40
+        },
+        "O3": null,
+        "O4": null,
+        "O5": {
+          "band": 0
+        }
+      },
+      "sources": [
+        {
+          "path": "benchmarks/runs/2026-09-13-snapback4-clique-0004/holistic/all.json",
+          "sha256": "c4ca5b3c0c2b899adfa1c7ec8e7533e74a2f19e08c1431c366bdad20d6d3e9d8"
+        },
+        {
+          "path": "benchmarks/runs/2026-09-13-snapback4-clique-0004/muse/grading/grader-report.json",
+          "sha256": "e4e031cc1757c0a892fd172c9b232588cba2118db6ed55eabd3f6ab517893f88"
+        },
+        {
+          "path": "benchmarks/runs/2026-09-13-snapback4-clique-0004/muse/grading/m8-assertion-results.json",
+          "sha256": "6cc08be217d09b86a57d24ff787f25cdd7bbf6dc8b922cf940c94e6a3af5c030"
+        }
+      ]
+    },
+    {
+      "pin": "0.2.9",
+      "modelFamily": "astra",
+      "holistic": {
+        "overall": 85,
+        "setup_and_docs": 78,
+        "data_modeling": 88,
+        "authorization": 91,
+        "queries_and_live": 74,
+        "writes_and_transactions": 94,
+        "offline_sync": 82,
+        "media_assets": 96,
+        "background_work": 93,
+        "client_integration": 90,
+        "diagnostics_dev_loop": 88,
+        "scale_and_limits": 82,
+        "operations": 87
+      },
+      "grade": {
+        "prior101": {
+          "pass": 85,
+          "fail": 7,
+          "not-run": 9,
+          "not-applicable": 0
+        },
+        "m8Only18": {
+          "pass": 16,
+          "fail": 2,
+          "not-run": 0,
+          "not-applicable": 0
+        },
+        "complete119": {
+          "pass": 101,
+          "fail": 9,
+          "not-run": 9,
+          "not-applicable": 0
+        }
+      },
+      "oDimensions": {
+        "O1": {
+          "score": 72
+        },
+        "O2": {
+          "score": 78
+        },
+        "O3": null,
+        "O4": {
+          "score": 10
+        },
+        "O5": {
+          "band": 75
+        }
+      },
+      "sources": [
+        {
+          "path": "benchmarks/runs/2026-09-14-snapback4-clique-astra-0.2.9/astra/holistic-score.md",
+          "sha256": "a462ebcff45d0237cae3569aab977941013261412e4578503fffb84624106105"
+        },
+        {
+          "path": "benchmarks/runs/2026-09-14-snapback4-clique-astra-0.2.9/astra/grading/grader-report.json",
+          "sha256": "1ed9dfa9c8f61934fed4a358dc8ee62404055daae241b0bc0f18f2370cb93f6d"
+        },
+        {
+          "path": "benchmarks/runs/2026-09-14-snapback4-clique-astra-0.2.9/astra/grading/m8-assertion-results.json",
+          "sha256": "bb5a411a6c1b322f3238bce7fc5a4ba7c3d07f428f9f16ce3fcba6d3189a903c"
+        }
+      ]
+    },
+    {
+      "pin": "0.2.10",
+      "modelFamily": "astra",
+      "holistic": {
+        "overall": 82,
+        "setup_and_docs": 79,
+        "data_modeling": 84,
+        "authorization": 87,
+        "queries_and_live": 77,
+        "writes_and_transactions": 86,
+        "offline_sync": 80,
+        "media_assets": 93,
+        "background_work": 78,
+        "client_integration": 84,
+        "diagnostics_dev_loop": 75,
+        "scale_and_limits": 76,
+        "operations": 83
+      },
+      "grade": {
+        "prior101": {
+          "pass": 83,
+          "fail": 2,
+          "not-run": 16,
+          "not-applicable": 0
+        },
+        "m8Only18": {
+          "pass": 16,
+          "fail": 0,
+          "not-run": 2,
+          "not-applicable": 0
+        },
+        "complete119": {
+          "pass": 99,
+          "fail": 2,
+          "not-run": 18,
+          "not-applicable": 0
+        }
+      },
+      "oDimensions": {
+        "O1": {
+          "score": 75
+        },
+        "O2": {
+          "score": 72
+        },
+        "O3": {
+          "score": 85
+        },
+        "O4": {
+          "score": 25
+        },
+        "O5": {
+          "band": 30
+        }
+      },
+      "sources": [
+        {
+          "path": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/scores/all.json",
+          "sha256": "946a03dc13cf2b4bc7dae75810a69c00d3b47856d5bf7ee35102b4e519db47fb"
+        },
+        {
+          "path": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/astra/grading/grader-report.json",
+          "sha256": "484346a9dfe388c10e763928fcdd301c4577f8a140c6f84e25cfac9a50b74ef1"
+        },
+        {
+          "path": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/astra/grading/m8-assertion-results.json",
+          "sha256": "43e7653e0085d72b69347cc61a08cc0a7db1e79ea7f46c3a5c53cbabb3c17aa5"
+        }
+      ]
+    },
+    {
+      "pin": "0.2.10",
+      "modelFamily": "grok",
+      "holistic": {
+        "overall": 63,
+        "setup_and_docs": 71,
+        "data_modeling": 85,
+        "authorization": 63,
+        "queries_and_live": 57,
+        "writes_and_transactions": 77,
+        "offline_sync": 37,
+        "media_assets": 79,
+        "background_work": 81,
+        "client_integration": 48,
+        "diagnostics_dev_loop": 79,
+        "scale_and_limits": 83,
+        "operations": 69
+      },
+      "grade": {
+        "prior101": {
+          "pass": 68,
+          "fail": 17,
+          "not-run": 16,
+          "not-applicable": 0
+        },
+        "m8Only18": {
+          "pass": 3,
+          "fail": 13,
+          "not-run": 2,
+          "not-applicable": 0
+        },
+        "complete119": {
+          "pass": 71,
+          "fail": 30,
+          "not-run": 18,
+          "not-applicable": 0
+        }
+      },
+      "oDimensions": {
+        "O1": {
+          "score": 18
+        },
+        "O2": {
+          "score": 20
+        },
+        "O3": null,
+        "O4": null,
+        "O5": null
+      },
+      "sources": [
+        {
+          "path": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/scores/all.json",
+          "sha256": "946a03dc13cf2b4bc7dae75810a69c00d3b47856d5bf7ee35102b4e519db47fb"
+        },
+        {
+          "path": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/grok/grading/grader-report.json",
+          "sha256": "276dbb2fd0e4a2e7b952da76e602186d1c38b94844d088ce8baf6c95e6c8d272"
+        },
+        {
+          "path": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/grok/grading/m8-assertion-results.json",
+          "sha256": "8ab620e811535be9592f4f496734eff8eea465cbadd807e677f7d690dea1b987"
+        }
+      ]
+    },
+    {
+      "pin": "0.2.10",
+      "modelFamily": "muse",
+      "holistic": {
+        "overall": 82,
+        "setup_and_docs": 90,
+        "data_modeling": 90,
+        "authorization": 95,
+        "queries_and_live": 78,
+        "writes_and_transactions": 72,
+        "offline_sync": 70,
+        "media_assets": 85,
+        "background_work": 88,
+        "client_integration": 80,
+        "diagnostics_dev_loop": 70,
+        "scale_and_limits": 55,
+        "operations": 75
+      },
+      "grade": {
+        "prior101": {
+          "pass": 84,
+          "fail": 1,
+          "not-run": 16,
+          "not-applicable": 0
+        },
+        "m8Only18": {
+          "pass": 14,
+          "fail": 2,
+          "not-run": 2,
+          "not-applicable": 0
+        },
+        "complete119": {
+          "pass": 98,
+          "fail": 3,
+          "not-run": 18,
+          "not-applicable": 0
+        }
+      },
+      "oDimensions": {
+        "O1": {
+          "score": 58
+        },
+        "O2": {
+          "score": 45
+        },
+        "O3": null,
+        "O4": {
+          "score": 25
+        },
+        "O5": null
+      },
+      "sources": [
+        {
+          "path": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/scores/all.json",
+          "sha256": "946a03dc13cf2b4bc7dae75810a69c00d3b47856d5bf7ee35102b4e519db47fb"
+        },
+        {
+          "path": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/muse/grading/grader-report.json",
+          "sha256": "437b3b58daebd13b88223df2971ad941a794e5f1392819e97e2d35ce72a6edcd"
+        },
+        {
+          "path": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/muse/grading/m8-assertion-results.json",
+          "sha256": "554c57fecb9bfb2663c79363a2c72ac82335e8e9ad0bfdb652c44f02f35bd85c"
+        }
+      ]
+    }
+  ],
+  "draftVerification": {
+    "notesPath": "/Users/ccheever/projects/snapback-lanebriefs/CELL-MEASUREMENT-NOTES-DRAFT.md",
+    "notesSha256": "677e31efe7a3f078d405f81987f01c0d768135f5815feb9e58bcfc188059cb8b",
+    "holisticCellsChecked": 91,
+    "gradePartitionRowsChecked": 7,
+    "oDimensionCellsChecked": 35
+  }
+}

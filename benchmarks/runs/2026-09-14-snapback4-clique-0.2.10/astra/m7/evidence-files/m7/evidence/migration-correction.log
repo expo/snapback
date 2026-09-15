@@ -1,0 +1,29 @@
+cannot open the store: E_INPUT: identity exceeds 144 canonical tagged UTF-8 bytes
+node:internal/errors:998
+  const err = new Error(message);
+              ^
+
+Error: Command failed: /Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4 run counts.backfill {} --json
+cannot open the store: E_INPUT: identity exceeds 144 canonical tagged UTF-8 bytes
+
+    at genericNodeError (node:internal/errors:998:15)
+    at wrappedFn (node:internal/errors:543:14)
+    at checkExecSyncError (node:child_process:925:11)
+    at execFileSync (node:child_process:961:15)
+    at file:///Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/m7/migrate.mjs:16:14
+    at ModuleJob.run (node:internal/modules/esm/module_job:437:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:639:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  status: 2,
+  signal: null,
+  output: [
+    null,
+    '',
+    'cannot open the store: E_INPUT: identity exceeds 144 canonical tagged UTF-8 bytes\n'
+  ],
+  pid: 49184,
+  stdout: '',
+  stderr: 'cannot open the store: E_INPUT: identity exceeds 144 canonical tagged UTF-8 bytes\n'
+}
+
+Node.js v25.9.0

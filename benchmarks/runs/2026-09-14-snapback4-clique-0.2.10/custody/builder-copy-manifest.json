@@ -1,0 +1,1584 @@
+{
+  "observedAt": "2026-09-14T23:33:06.895702+00:00",
+  "files": [
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder/API.md",
+      "destination": "astra/builder/API.md",
+      "bytes": 6187,
+      "sha256": "bf1f9a2f86c7eed8db17ce1d0cbcd9284cc0ed450d7755e175bf35fdff75e924"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder/FINAL.md",
+      "destination": "astra/builder/FINAL.md",
+      "bytes": 546,
+      "sha256": "15dc689df9d780cdec31f574e830bd1455c718e8734b77508a711842697d60a5"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder/README.md",
+      "destination": "astra/builder/README.md",
+      "bytes": 5172,
+      "sha256": "f2588abb7c9e4fb6d96b939a8b9fe6f120cfbbfab51ce4f3267b2322e7dfec0b"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder/astra-snapback4.end.json",
+      "destination": "logs/astra-snapback4.end.json",
+      "bytes": 373,
+      "sha256": "dcb4002cfae0c4899609576303799fa7e8cea1f192ec33aba281a5df321c8177"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder/astra-snapback4.start.json",
+      "destination": "logs/astra-snapback4.start.json",
+      "bytes": 1128,
+      "sha256": "0bddde7642aab92f1945ca242a502b120da312cfd14badb6c8baa88480849016"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder/custody.json",
+      "destination": "astra/builder/custody.json",
+      "bytes": 23479,
+      "sha256": "e3a2e2e0d55759a75191ae03b12c2d74d0a43db407ecc8d68b8c12015a6221ff"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder/diary.md",
+      "destination": "astra/builder/diary.md",
+      "bytes": 10823,
+      "sha256": "126c4683cc9723d0d7fde7bf13d05e6643cedcc6f7347773e2ed49fbed69369c"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder/essay.md",
+      "destination": "astra/builder/essay.md",
+      "bytes": 10028,
+      "sha256": "4b078757cc4d8250ebd85d1097fceb692858a8cb63bab367f8fa1f2c41395efe"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder/final-report.md",
+      "destination": "astra/builder/final-report.md",
+      "bytes": 27213,
+      "sha256": "8ea68cd343a8b79606cd3f0513c17ef9e015db0cb9f33cfffdf23907389150bc"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder/milestones.json",
+      "destination": "astra/builder/milestones.json",
+      "bytes": 25884,
+      "sha256": "69e3be2756608a02d939d3ece5f9eac8ace819a9ac630e6342f4ab6937759c3e"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder/run-log.md",
+      "destination": "astra/builder/run-log.md",
+      "bytes": 21926,
+      "sha256": "66e3cd68668e68c7d88e5c3f3601daa24afa9464206e92b051e119e5c682823b"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder/setup-identity.json",
+      "destination": "astra/builder/setup-identity.json",
+      "bytes": 1481,
+      "sha256": "316a0b20968dd665a3eee8712cf533f052cb8f9cf090b52435708731fa611609"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder/suite-status.json",
+      "destination": "astra/builder/suite-status.json",
+      "bytes": 513,
+      "sha256": "5ebf7eae19a5eafb85e9544b03cef1abca1a14906d17177c1c349cd7fb173e5b"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-supplement/correction-events.json",
+      "destination": "astra/builder-supplement/correction-events.json",
+      "bytes": 16674,
+      "sha256": "a46b5f8fe0a1317b83fdcc2e5081c3b0e89cba3e376070300d612af596d7b641"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-supplement/coverage-manifest.json",
+      "destination": "astra/builder-supplement/coverage-manifest.json",
+      "bytes": 5466,
+      "sha256": "86792f37661a926f2be35a375f8ee038e678bf5f34ac7390f1bc6e50ee40b1b4"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-supplement/custody.json",
+      "destination": "astra/builder-supplement/custody.json",
+      "bytes": 2170,
+      "sha256": "efa4a4e2e3858408bbd89fb28fc33855e468b2539b5ce0cbe1f7be50c9efe81f"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-supplement/evidence/final-binary-sha256.txt",
+      "destination": "astra/builder-supplement/evidence/final-binary-sha256.txt",
+      "bytes": 112,
+      "sha256": "0fa6e27288dcfbc5e083d74cb3c90468fdb4b6041ecc3f0bfe00c8278dc41b47"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-supplement/evidence/resolved-package-pins.txt",
+      "destination": "astra/builder-supplement/evidence/resolved-package-pins.txt",
+      "bytes": 185,
+      "sha256": "b14eb326da6b13337d6ac2d0c965acf1031dc1849ab8b97cbc595df788461212"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-supplement/evidence/run-record-validation.json",
+      "destination": "astra/builder-supplement/evidence/run-record-validation.json",
+      "bytes": 612,
+      "sha256": "548878f8b72947db49e40f3716b9ec39002d39d9d26e073d7d30d04725225763"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-supplement/evidence/scale-clock-attempt1.json",
+      "destination": "astra/builder-supplement/evidence/scale-clock-attempt1.json",
+      "bytes": 924,
+      "sha256": "2c251199c9bec21294e64cf70a91267a66728b42d9afd72f06c6e633f6d52990"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-supplement/evidence/scale-clock.json",
+      "destination": "astra/builder-supplement/evidence/scale-clock.json",
+      "bytes": 1109,
+      "sha256": "81b088128f3200aef3e63b607767cb92b060573c7865fedc42f94d44411c7b9b"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-supplement/evidence/shutdown.json",
+      "destination": "astra/builder-supplement/evidence/shutdown.json",
+      "bytes": 774,
+      "sha256": "e9e9f4782934245b9e7a5f26bf09f59deb5c1c033c1a56fda093ece82c976acd"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-supplement/final-report-data.json",
+      "destination": "astra/builder-supplement/final-report-data.json",
+      "bytes": 26647,
+      "sha256": "980cc6bb8733fdb72ff0f174ccbb5a1e2a5af9632e9e422ff568e846663c7485"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-supplement/hand-authored-lines.json",
+      "destination": "astra/builder-supplement/hand-authored-lines.json",
+      "bytes": 5617,
+      "sha256": "f8ec9bf865b335f7da240a7fa9a20a25d312f6a4bd5a865948d899eb0913e4a4"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-supplement/native-artifacts.json",
+      "destination": "astra/builder-supplement/native-artifacts.json",
+      "bytes": 1612,
+      "sha256": "b7d659aa0315ef344c5885cbbdb0fc005a9b477d263ff9b3e6fcb517903b2942"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-supplement/performance-summary.json",
+      "destination": "astra/builder-supplement/performance-summary.json",
+      "bytes": 656,
+      "sha256": "f14c11bf52f0b884cddb2b127fe1df13c1521080516b15855bec0854873496be"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-supplement/run-record.json",
+      "destination": "astra/builder-supplement/run-record.json",
+      "bytes": 16440,
+      "sha256": "49684e89e107c4e6e0d17317eb7d4744d5720193bead6debe680d2a0bbcdbcc7"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-quarry/analytics.q",
+      "destination": "astra/builder-quarry/analytics.q",
+      "bytes": 4763,
+      "sha256": "4b6fda6b5495ac9a944a43d2135c397da4e6c262dd49b0e52b1385ade3aef0c5"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-quarry/chat.q",
+      "destination": "astra/builder-quarry/chat.q",
+      "bytes": 10137,
+      "sha256": "20e8297644afd86a2c8f0414a00ad4e24990f1a824e1078701a71b7f4f82841b"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-quarry/config.q",
+      "destination": "astra/builder-quarry/config.q",
+      "bytes": 407,
+      "sha256": "9386d3f37359b59ede18b02ffd02892a93331a9b81b36bbc4a1a03980ec547ec"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-quarry/custody.json",
+      "destination": "astra/builder-quarry/custody.json",
+      "bytes": 1939,
+      "sha256": "31dd82bdd8315ca828a18438151489ecc389b711ca545aa584adf3cc6bd6afac"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-quarry/digest-schedule.q",
+      "destination": "astra/builder-quarry/digest-schedule.q",
+      "bytes": 95,
+      "sha256": "e83f55757ff3599b976e39f4420346b30c2e93b7c90d78b7a01770c892ed9819"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-quarry/features.q",
+      "destination": "astra/builder-quarry/features.q",
+      "bytes": 1596,
+      "sha256": "1a5f30dd07d011af31f8690253a0d71fc9c27486fd1c90e875f59b7f9a3fdb36"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-quarry/media.q",
+      "destination": "astra/builder-quarry/media.q",
+      "bytes": 4227,
+      "sha256": "02fb10d614927b22f15a72f14cb87e4e7f534088a530bfa3c9622c58443c9034"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-quarry/order.q",
+      "destination": "astra/builder-quarry/order.q",
+      "bytes": 880,
+      "sha256": "4b896329e48e18fe7acc70bd727e2efc290f06ac08545ba7bfe6818333fd980a"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-quarry/push.q",
+      "destination": "astra/builder-quarry/push.q",
+      "bytes": 415,
+      "sha256": "cd7cc04be55e55633751b167b41d4a38fdb28a8923ca3fb3efa8c60b0300cc58"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-quarry/replay.q",
+      "destination": "astra/builder-quarry/replay.q",
+      "bytes": 99,
+      "sha256": "c29781b75fe73d5a4c7f83cb49642ed6887dc16222f01b00b2a6b2fe53cf6970"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-quarry/schema.q",
+      "destination": "astra/builder-quarry/schema.q",
+      "bytes": 1107,
+      "sha256": "e7b2968e4f9fbdfa1c374231aa2684d0bdbbb41734dcd46a6c378aedbd76a86b"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-quarry/social.q",
+      "destination": "astra/builder-quarry/social.q",
+      "bytes": 5645,
+      "sha256": "670f5a295cac3ff3e8908961def3994dc38647626798b224327aeb03295e2082"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/builder-quarry/worker.mjs",
+      "destination": "astra/builder-quarry/worker.mjs",
+      "bytes": 1574,
+      "sha256": "25bfc0e05c77f30e20cb0d172fc3935f07b788f3c006b74640bf0d18109bcc1a"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/score-validation.json",
+      "destination": "astra/custody/score-validation.json",
+      "bytes": 1837,
+      "sha256": "48fa6519cc5d5ac5a2a4ec238f5d9898798604feb9a3fe4f599de7c816780638"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/ui-kit-custody.json",
+      "destination": "astra/custody/ui-kit-custody.json",
+      "bytes": 7776,
+      "sha256": "75da7a6836372da5f169e36a6143f899e8b641418dfe04e33a3e8c38559a45ac"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scores/astra/FINAL.md",
+      "destination": "astra/holistic-score.md",
+      "bytes": 6081,
+      "sha256": "3c9bda8546ed251fe4f28ffbf0f56596664166ac9a3c60f93e4cd32997426d35"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/astra-snapback4.score.start.json",
+      "destination": "logs/astra-snapback4.score.start.json",
+      "bytes": 1022,
+      "sha256": "9c03414500922bbb984aeb143866add36035044c62f57a9d74b84cdaa68bfad5"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/astra-snapback4.score.end.json",
+      "destination": "logs/astra-snapback4.score.end.json",
+      "bytes": 352,
+      "sha256": "bd2bf49afbd17f90141c37778a21ca716b2164327498469fe226617ca92a2709"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder/API.md",
+      "destination": "grok/builder/API.md",
+      "bytes": 2217,
+      "sha256": "f96551b5f8fd6b52c2170ca0076bf94c3a08a762eba92f09aaa81eefd599582b"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder/custody.json",
+      "destination": "grok/builder/custody.json",
+      "bytes": 11099,
+      "sha256": "0c9c3c91626a62c7d4c8a011331f43efa2ef037bba7c7ac015f57622bc41ff44"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder/diary.md",
+      "destination": "grok/builder/diary.md",
+      "bytes": 5047,
+      "sha256": "4ef8f651d67794f75d8f5a2518f741c9dd17be596a703734b5a7bbcf005e3baf"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder/essay.md",
+      "destination": "grok/builder/essay.md",
+      "bytes": 8045,
+      "sha256": "0fdc42f5aefd99820afce54a35933cd8c8e73d36e4d17204688242dcfa8f3a4a"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder/final-report.md",
+      "destination": "grok/builder/final-report.md",
+      "bytes": 7176,
+      "sha256": "cf175e4bd109123859b36cde612c826e80f261dede28732dde7ea5318ee2bbcb"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder/grok-snapback4.end.json",
+      "destination": "logs/grok-snapback4.end.json",
+      "bytes": 371,
+      "sha256": "fa742edd630087be25ace55c85a9f393c9c727744a5db6cfbde4c33133b5b26a"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder/grok-snapback4.start.json",
+      "destination": "logs/grok-snapback4.start.json",
+      "bytes": 1099,
+      "sha256": "42f00cc21f66fd6f2816ee0f1d900794eed33f68c4025b91a5f1f485baffbf01"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder/run-log.md",
+      "destination": "grok/builder/run-log.md",
+      "bytes": 3969,
+      "sha256": "111ab7e444bfd4592894fbc0e2798072859e7cf295cde628f5b24ae3c5f12d0d"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder/setup-identity.json",
+      "destination": "grok/builder/setup-identity.json",
+      "bytes": 1400,
+      "sha256": "9c40d3f7556a3ad9f888510dee9890697bb621429bb8b0488f755d00bdd0fe9a"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/acceptance/m1-coverage.json",
+      "destination": "grok/builder-supplement/acceptance/m1-coverage.json",
+      "bytes": 456,
+      "sha256": "12ff29852e92e89df86f49d0a0d3bff25c9857c140647f727fac55c4da1cc09a"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/acceptance/m1.json",
+      "destination": "grok/builder-supplement/acceptance/m1.json",
+      "bytes": 1070,
+      "sha256": "bf0e3d71610d7645571bb885b5e222bd24cb7dbb7a1243e2b61ac4f84fb5f8bd"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/acceptance/m2-coverage.json",
+      "destination": "grok/builder-supplement/acceptance/m2-coverage.json",
+      "bytes": 1335,
+      "sha256": "6bd1840f10ada8168c1ce107862db28ebef32c09c6d1f9e5dff857d473fac656"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/acceptance/m2.json",
+      "destination": "grok/builder-supplement/acceptance/m2.json",
+      "bytes": 3188,
+      "sha256": "f0842f695293694787ddbb17c41a76aa006e13964973dad257363342987a0a9e"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/acceptance/m3-coverage.json",
+      "destination": "grok/builder-supplement/acceptance/m3-coverage.json",
+      "bytes": 395,
+      "sha256": "e7ca1696121b4aac0affd53a95666df3dde9aa86991b38d52402b5c478cda32e"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/acceptance/m3.json",
+      "destination": "grok/builder-supplement/acceptance/m3.json",
+      "bytes": 948,
+      "sha256": "d01077d4e55c2fb642c09fe0413ac3e6b561620b89671ed6f82abb062bcc2e30"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/acceptance/m4-coverage.json",
+      "destination": "grok/builder-supplement/acceptance/m4-coverage.json",
+      "bytes": 291,
+      "sha256": "8487c2f0576e7645ef9c6b1c3881f390311f5a6cd65250982d3322ca9ad5b011"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/acceptance/m4.json",
+      "destination": "grok/builder-supplement/acceptance/m4.json",
+      "bytes": 692,
+      "sha256": "f41b71c5072729ff65028b51559351bc237484cbafb308ed4fc313d68254b56a"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/acceptance/m5-coverage.json",
+      "destination": "grok/builder-supplement/acceptance/m5-coverage.json",
+      "bytes": 389,
+      "sha256": "0baeba24637ad6d160f4443be851e1776af3b8df63fc2a9a73996e9592c239a5"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/acceptance/m5.json",
+      "destination": "grok/builder-supplement/acceptance/m5.json",
+      "bytes": 912,
+      "sha256": "a7fcd0a5105c2ecae42e822f2155667f02baa3f5fc43ab88bbb13b7b06c785ba"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/acceptance/m6-coverage.json",
+      "destination": "grok/builder-supplement/acceptance/m6-coverage.json",
+      "bytes": 320,
+      "sha256": "320dd3e074d8f1aa8615e0656d4f011de6c635a23bab2e0713206b00dcbb7499"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/acceptance/m6.json",
+      "destination": "grok/builder-supplement/acceptance/m6.json",
+      "bytes": 750,
+      "sha256": "e4fe31f2a44c31a357fb4433374ee8fd8fdd856869417cacba636520f3fecf06"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/acceptance/m8-coverage.json",
+      "destination": "grok/builder-supplement/acceptance/m8-coverage.json",
+      "bytes": 351,
+      "sha256": "465dfb8c7d8a042441bca535feaa132691d79049cfdba82a3fc2838ac6811c0f"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/acceptance/m8.json",
+      "destination": "grok/builder-supplement/acceptance/m8.json",
+      "bytes": 836,
+      "sha256": "15a71625fe357db20884422a295c3b6ca463382c687a983690f7803433180335"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/acceptance/suite-status-m1.json",
+      "destination": "grok/builder-supplement/acceptance/suite-status-m1.json",
+      "bytes": 61,
+      "sha256": "983a3ebc82952f635a556f2434e454516911cbef308c95b97fc683259b90ea36"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/acceptance/suite-status-m2.json",
+      "destination": "grok/builder-supplement/acceptance/suite-status-m2.json",
+      "bytes": 61,
+      "sha256": "d5823364d91f41178d645ccb7ecf68edc30aea22776ead1caa13c1e0e50f5e73"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/acceptance/suite-status-m3.json",
+      "destination": "grok/builder-supplement/acceptance/suite-status-m3.json",
+      "bytes": 61,
+      "sha256": "f41f88d280ca8757ae4701bfdf181d75ab65b66573472388e8458f0020dce5e2"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/acceptance/suite-status-m4.json",
+      "destination": "grok/builder-supplement/acceptance/suite-status-m4.json",
+      "bytes": 61,
+      "sha256": "9434036bc93e48aa578afede61a2b1c36241c82ea39fbe6ecf7d57016117445a"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/acceptance/suite-status-m5.json",
+      "destination": "grok/builder-supplement/acceptance/suite-status-m5.json",
+      "bytes": 61,
+      "sha256": "0c029baa0c574d90a9b7bffe7a469e9937c2c16c212050a4c3be0692ecdc0a49"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/acceptance/suite-status-m6.json",
+      "destination": "grok/builder-supplement/acceptance/suite-status-m6.json",
+      "bytes": 61,
+      "sha256": "bf9483b5845967e8cc72cb0907af3bb2fe86bc61f41115eaf99252838d8bd257"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/acceptance/suite-status-m8.json",
+      "destination": "grok/builder-supplement/acceptance/suite-status-m8.json",
+      "bytes": 61,
+      "sha256": "6e7448cea52a888d1918f6731060a2ced934149c705fb3b600aec9f97afd0d64"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/app/insights.tsx",
+      "destination": "grok/builder-supplement/app/insights.tsx",
+      "bytes": 1164,
+      "sha256": "ba0ef9597ef8f98f363e8cf2c3437abc3eea96b4b80d45a1ee43358a13fd86e7"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/app/search.tsx",
+      "destination": "grok/builder-supplement/app/search.tsx",
+      "bytes": 1930,
+      "sha256": "b7ef1a171d7aa96228e8b6292f7bb752814c19d6ad5d9052947e438bb7fe8269"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/custody.json",
+      "destination": "grok/builder-supplement/custody.json",
+      "bytes": 9503,
+      "sha256": "a7da4560129de24d7b42e811c818e9dbb5d6418374ad86b14cff10416d751271"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/receipts/m1.jsonl",
+      "destination": "grok/builder-supplement/receipts/m1.jsonl",
+      "bytes": 4272,
+      "sha256": "849f23e3cb31605822c5d967c689f058a1fc8a613689a2f6446eae2191bab03f"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/receipts/m1.jsonl.observations.jsonl",
+      "destination": "grok/builder-supplement/receipts/m1.jsonl.observations.jsonl",
+      "bytes": 1726,
+      "sha256": "2f04f0e2bdf436cb137c8cf46e6e4fcee3de7263bee68cf252eecce570a715cf"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/receipts/m2.jsonl",
+      "destination": "grok/builder-supplement/receipts/m2.jsonl",
+      "bytes": 10243,
+      "sha256": "b6f32549e002c3ca17ec0845624cf766d8dbf6e5875a98b2aea7c6cb990aa595"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/receipts/m2.jsonl.observations.jsonl",
+      "destination": "grok/builder-supplement/receipts/m2.jsonl.observations.jsonl",
+      "bytes": 7551,
+      "sha256": "13663f62d13c71e48d48218d3aa925023dd3229a935af607d40eb3063f9e3b63"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/receipts/m3.jsonl",
+      "destination": "grok/builder-supplement/receipts/m3.jsonl",
+      "bytes": 9063,
+      "sha256": "19506d40a48528ae84f006d9d7f5875c3b87539c397a8c545fb6e2a2668419fc"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/receipts/m3.jsonl.observations.jsonl",
+      "destination": "grok/builder-supplement/receipts/m3.jsonl.observations.jsonl",
+      "bytes": 3838,
+      "sha256": "9b1d679a92cee361aebb407c92f3072ab36c338c10fb0c22f3b6e1d82d11d184"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/receipts/m4.jsonl",
+      "destination": "grok/builder-supplement/receipts/m4.jsonl",
+      "bytes": 8801,
+      "sha256": "2c93ea9d3935bf116186f42ef200b9bb09d55fc0f1ea332f0fa23fdb10d1228e"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/receipts/m4.jsonl.observations.jsonl",
+      "destination": "grok/builder-supplement/receipts/m4.jsonl.observations.jsonl",
+      "bytes": 3446,
+      "sha256": "c4a75ee9dfab208473a9db510247ca011a69ae20a0c13904b20755d9de3f0b45"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/receipts/m5.jsonl",
+      "destination": "grok/builder-supplement/receipts/m5.jsonl",
+      "bytes": 4943,
+      "sha256": "09a9a9ee11955cc11107d3b079d34f950ff4298128ef051613ba39b95148d62e"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/receipts/m5.jsonl.observations.jsonl",
+      "destination": "grok/builder-supplement/receipts/m5.jsonl.observations.jsonl",
+      "bytes": 1459,
+      "sha256": "ad653e2b0b85416e041624a49b1acc509f649e93bc57a037acb30bdf1dbe7b58"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/receipts/m6.jsonl",
+      "destination": "grok/builder-supplement/receipts/m6.jsonl",
+      "bytes": 3688,
+      "sha256": "6ee33d30bb681aa6ae151eda44930a245c8a64620dca6bf800789b84b882a714"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/receipts/m6.jsonl.observations.jsonl",
+      "destination": "grok/builder-supplement/receipts/m6.jsonl.observations.jsonl",
+      "bytes": 562,
+      "sha256": "36b3254c5a09ad319f4eeca4b10eccd209a3ff31b730d802fd285a75c2adcf91"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/receipts/m8.jsonl",
+      "destination": "grok/builder-supplement/receipts/m8.jsonl",
+      "bytes": 6119,
+      "sha256": "f9e138a37e43b364babb865140fb43dd7da0707e29b696b7b59f3c0ac1cf0c57"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/receipts/m8.jsonl.observations.jsonl",
+      "destination": "grok/builder-supplement/receipts/m8.jsonl.observations.jsonl",
+      "bytes": 1729,
+      "sha256": "83ab3108f8a785228cfad9f1758476dabdc28b0c2073ec81f02efb63e36591fb"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/replay/scale-result.json",
+      "destination": "grok/builder-supplement/replay/scale-result.json",
+      "bytes": 107,
+      "sha256": "57e31fd0f9dd4ea361c3adb52c107d90a965b3d12883d8487d1d7322ea278241"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/replay/scale-start.json",
+      "destination": "grok/builder-supplement/replay/scale-start.json",
+      "bytes": 51,
+      "sha256": "091aba8817c77a0bbcca6f70ac7f016c4e2af4eae81a9520d28acf419bbbac2d"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/replay/scale-verification.json",
+      "destination": "grok/builder-supplement/replay/scale-verification.json",
+      "bytes": 537,
+      "sha256": "4b84a78177c7a29a01683b852c47a726b9ff04ab1998f0ff46cf473c9f6c82c7"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/scale-instance/snapback/schema.q",
+      "destination": "grok/builder-supplement/scale-instance/snapback/schema.q",
+      "bytes": 33551,
+      "sha256": "33d51873276b72176f28f6a2f0641544e4fc9fdb54c0d7b5262d04a0bc3fbfd7"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/scale-instance/snapback/worker.ts",
+      "destination": "grok/builder-supplement/scale-instance/snapback/worker.ts",
+      "bytes": 1039,
+      "sha256": "0bdfd9e50ab5e0ac444c2e6bf6cd4dc5dd367bc61a211c07ea730d5dcec4fa5f"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/snapback/schema.q",
+      "destination": "grok/builder-supplement/snapback/schema.q",
+      "bytes": 34516,
+      "sha256": "f71d0b6102eba07f4b75906d8e344d266273b88d6f8ede7528fd23a4ea7935fd"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/snapback/worker.ts",
+      "destination": "grok/builder-supplement/snapback/worker.ts",
+      "bytes": 1039,
+      "sha256": "0bdfd9e50ab5e0ac444c2e6bf6cd4dc5dd367bc61a211c07ea730d5dcec4fa5f"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/observed-attempts/20260914T145648Z/custody.json",
+      "destination": "grok/observed-attempts/20260914T145648Z/custody.json",
+      "bytes": 1202,
+      "sha256": "a2bfab4a09de38d9e0e6adfcbb3305414b794a52b4d56ab05e5a5ec3fc578b88"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/observed-attempts/20260914T145648Z/m1.jsonl",
+      "destination": "grok/observed-attempts/20260914T145648Z/m1.jsonl",
+      "bytes": 4272,
+      "sha256": "849f23e3cb31605822c5d967c689f058a1fc8a613689a2f6446eae2191bab03f"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/observed-attempts/20260914T145648Z/m2.jsonl",
+      "destination": "grok/observed-attempts/20260914T145648Z/m2.jsonl",
+      "bytes": 11135,
+      "sha256": "59f0680cdb77483daa649d5a0db3306b15338d1a2c7a1ac4fa8886b8fa17727e"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/observed-attempts/20260914T151614Z/custody.json",
+      "destination": "grok/observed-attempts/20260914T151614Z/custody.json",
+      "bytes": 731,
+      "sha256": "8bad71957fb5901abadeb00aeae4470d2423c8104e266d36cf8e0788cffdee15"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/observed-attempts/20260914T151614Z/m3.jsonl",
+      "destination": "grok/observed-attempts/20260914T151614Z/m3.jsonl",
+      "bytes": 9307,
+      "sha256": "ce774d24dbe1e7b93465c38785f0a822ac870f74a8b4d360346f59d24a2bab2b"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/observed-attempts/20260914T153608Z/custody.json",
+      "destination": "grok/observed-attempts/20260914T153608Z/custody.json",
+      "bytes": 795,
+      "sha256": "ba66149825ba11381a17c4f5aeb30787e0ea752b7c5ea2b4cbe6f3cabd7fba20"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/observed-attempts/20260914T153608Z/m2.jsonl",
+      "destination": "grok/observed-attempts/20260914T153608Z/m2.jsonl",
+      "bytes": 10243,
+      "sha256": "b6f32549e002c3ca17ec0845624cf766d8dbf6e5875a98b2aea7c6cb990aa595"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/observed-attempts/20260914T165248Z/custody.json",
+      "destination": "grok/observed-attempts/20260914T165248Z/custody.json",
+      "bytes": 2439,
+      "sha256": "6bace80cc9c9c77a54f79863eeb8c328c664e8684143f1cd3296b6f052e497b4"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/observed-attempts/20260914T165248Z/m3.jsonl",
+      "destination": "grok/observed-attempts/20260914T165248Z/m3.jsonl",
+      "bytes": 9063,
+      "sha256": "19506d40a48528ae84f006d9d7f5875c3b87539c397a8c545fb6e2a2668419fc"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/observed-attempts/20260914T165248Z/m4.jsonl",
+      "destination": "grok/observed-attempts/20260914T165248Z/m4.jsonl",
+      "bytes": 8801,
+      "sha256": "2c93ea9d3935bf116186f42ef200b9bb09d55fc0f1ea332f0fa23fdb10d1228e"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/observed-attempts/20260914T165248Z/m5.jsonl",
+      "destination": "grok/observed-attempts/20260914T165248Z/m5.jsonl",
+      "bytes": 4943,
+      "sha256": "09a9a9ee11955cc11107d3b079d34f950ff4298128ef051613ba39b95148d62e"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/observed-attempts/20260914T165248Z/m6.jsonl",
+      "destination": "grok/observed-attempts/20260914T165248Z/m6.jsonl",
+      "bytes": 3688,
+      "sha256": "6ee33d30bb681aa6ae151eda44930a245c8a64620dca6bf800789b84b882a714"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/observed-attempts/20260914T165248Z/m8.jsonl",
+      "destination": "grok/observed-attempts/20260914T165248Z/m8.jsonl",
+      "bytes": 6119,
+      "sha256": "f9e138a37e43b364babb865140fb43dd7da0707e29b696b7b59f3c0ac1cf0c57"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/score-validation.json",
+      "destination": "grok/custody/score-validation.json",
+      "bytes": 1397,
+      "sha256": "7fe1d042eadc2175cddc398a98d503a5da31137130d3612ed4bc1a60fd66588f"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/ui-kit-custody.json",
+      "destination": "grok/custody/ui-kit-custody.json",
+      "bytes": 7791,
+      "sha256": "52da7aebbf2747856a5b4006f284123bc9e3150beb335c73d94479285a773ee7"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scores/grok/raw.out",
+      "destination": "grok/holistic-score.md",
+      "bytes": 5344,
+      "sha256": "9d4d500ff725dd4dc779974082a05f2ebf5bda0811654c247f57f76a2323a265"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.score.start.json",
+      "destination": "logs/grok-snapback4.score.start.json",
+      "bytes": 1054,
+      "sha256": "9ad800fdde67df3ac4c3f17fe208c58513a6f71c81ef7bc18c1a108864e7d0e5"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.score.end.json",
+      "destination": "logs/grok-snapback4.score.end.json",
+      "bytes": 349,
+      "sha256": "46e5d7d6bc3c576437b55d5c92f59660baed60240a045cd8d091f391f71b8e3b"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder/API.md",
+      "destination": "muse/builder/API.md",
+      "bytes": 4251,
+      "sha256": "8f21716db990c9b4c3009555de1835d86140f1a6dfdaa6cd274e36301226e6cb"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder/custody.json",
+      "destination": "muse/builder/custody.json",
+      "bytes": 21374,
+      "sha256": "00f0920f8a0244ddbb55672b4addd8b4073b177d8c1525f49f791cf601a6f5b3"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder/diary.md",
+      "destination": "muse/builder/diary.md",
+      "bytes": 1036,
+      "sha256": "6c9a4e06337344fe238f301f97889af2738f83533c5c7d57e8df5d248d856cfb"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder/essay.md",
+      "destination": "muse/builder/essay.md",
+      "bytes": 8760,
+      "sha256": "37b5b1d8436ca480b8cf975df15873423c33c85f49ec829b4f77ba05f51f594e"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder/final-report.md",
+      "destination": "muse/builder/final-report.md",
+      "bytes": 9618,
+      "sha256": "c7713e01ea72b85b3e6b9026df1b03e0f16eefdd39222a2bdfe5f9f8d9b5b5ea"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder/muse-snapback4.end.json",
+      "destination": "logs/muse-snapback4.end.json",
+      "bytes": 373,
+      "sha256": "f7350ce568c0d436c6c97e235288a0fc836a523224e483599bb398dff1c28ea5"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder/muse-snapback4.start.json",
+      "destination": "logs/muse-snapback4.start.json",
+      "bytes": 1132,
+      "sha256": "1615f85e9a1c24bb9bb96063cde9d6d929f94eb3f23e4539311bb5b3d4389f18"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder/run-log.md",
+      "destination": "muse/builder/run-log.md",
+      "bytes": 1895,
+      "sha256": "449124af43626f4bfac4b2606d7efdb00dc962bb993f012b56f7ed17c12b3573"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder/setup-identity.json",
+      "destination": "muse/builder/setup-identity.json",
+      "bytes": 1160,
+      "sha256": "4d8c7e6bcf1b165c352098329535d286fdfdaa8626b2e0bc8f0a704afd19c2de"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder/suite-status.json",
+      "destination": "muse/builder/suite-status.json",
+      "bytes": 604,
+      "sha256": "b22038d669c5c100afba60f8d7e10c1efdd80a7df1f56df1a6552933c48622a8"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m1-mu1id21j/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m1-mu1id21j/receipt.json",
+      "bytes": 2303,
+      "sha256": "9f2a0ee0aa1115de2eeec0c68f0fa186148c015216d4b8623af2f679791a7cf2"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m1-mu1idau1/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m1-mu1idau1/receipt.json",
+      "bytes": 1846,
+      "sha256": "a2867fb4e6a61e97f41c6cb92f8f5161ba2fafbcb7fdaa98844ee7914fef38bf"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m1-mu1ifgid/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m1-mu1ifgid/receipt.json",
+      "bytes": 1846,
+      "sha256": "62c7b27f372140443bc2d93bd2ab784e70e1c45a461d738fd39ff1e1cc887c76"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m1-mu1pmoe5/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m1-mu1pmoe5/receipt.json",
+      "bytes": 1846,
+      "sha256": "5e3f2382a92c94beda39c73c2aff3e295963cbd03dd42d34930d996996e27233"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m1-mu1s2e08/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m1-mu1s2e08/receipt.json",
+      "bytes": 1846,
+      "sha256": "2ab12a91808ddbffe11332d554daf4435de76bd10c431652794f690ed4735768"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m1-mu1sjb00/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m1-mu1sjb00/receipt.json",
+      "bytes": 1846,
+      "sha256": "ba89d7586d998c8b9b0c73a0e9ecfc1b882740266d96da65af9c9d32c9e80e9f"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m2-mu1ikglq/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m2-mu1ikglq/receipt.json",
+      "bytes": 4971,
+      "sha256": "b561ee32c5235a4ed313c89acc040f5d37a1d8cc28770084bc9b6383db2757e8"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m2-mu1ilibs/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m2-mu1ilibs/receipt.json",
+      "bytes": 5166,
+      "sha256": "df83f17b16fda5d6b08b07f11d366c3277540fc69734ee7ca9d6e399e5df5d7a"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m2-mu1ilpty/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m2-mu1ilpty/receipt.json",
+      "bytes": 5166,
+      "sha256": "eb17282aa39ba73342b18d5f8836369a968f51abf0c91045a1f9285ebb33781d"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m2-mu1im3ff/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m2-mu1im3ff/receipt.json",
+      "bytes": 5034,
+      "sha256": "80d9c2f5f4978adb29b8af210c6272c1731e1d5e3e4b869133075d0a605f4513"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m2-mu1pmphj/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m2-mu1pmphj/receipt.json",
+      "bytes": 5034,
+      "sha256": "ea2d024d59e1516a66a5e2c567b5055692198275403b7729781c057f8d21e8b0"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m2-mu1s2eur/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m2-mu1s2eur/receipt.json",
+      "bytes": 5034,
+      "sha256": "cd9c5a6dbef8f1e648bec9bb48cc48a0f57ad64e12d0b7c9ce57457d193cef27"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m2-mu1sjbuh/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m2-mu1sjbuh/receipt.json",
+      "bytes": 5034,
+      "sha256": "511e36f32948dcb726fc78383981e6a4010a0c3d50139da6b88cd5ca1ab5f3bf"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m3-mu1jej6g/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m3-mu1jej6g/receipt.json",
+      "bytes": 2961,
+      "sha256": "10ebe19590a34fcc2ebb1af18bbacf4ba032d521fdefecca37fc61895172a84d"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m3-mu1jeuph/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m3-mu1jeuph/receipt.json",
+      "bytes": 2692,
+      "sha256": "711aa14c8ce0eee6b948edcf23ac3bbf0d0fa93d0914b3784e056a4d01e22130"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m3-mu1kyynf/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m3-mu1kyynf/receipt.json",
+      "bytes": 2692,
+      "sha256": "9ad0aab3b7b18085b594a4cca581d2c63ad32bf453140db0c804693b078e4864"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m3-mu1kz78z/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m3-mu1kz78z/receipt.json",
+      "bytes": 2692,
+      "sha256": "d7282afc53b0eb5a1d02f83e6a92c7a2b5dae28c17ffb052d6d32b3fbe823159"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m3-mu1kzgfy/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m3-mu1kzgfy/receipt.json",
+      "bytes": 2692,
+      "sha256": "28b04a2d491ad9a4f5c551ba40bf70e2788ddb24819841b913d8904ade7ff7cb"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m3-mu1l0uyb/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m3-mu1l0uyb/receipt.json",
+      "bytes": 2987,
+      "sha256": "ec1a4a143ba416a7d4b560b296d30e962f9b1aa20fde4b33032d19ba1cb02808"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m3-mu1pmpwv/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m3-mu1pmpwv/receipt.json",
+      "bytes": 2987,
+      "sha256": "f335f18ab648c3c4cfc98728f03e1d903d4f8450c2e3015771394d7947b6ca66"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m3-mu1s2f55/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m3-mu1s2f55/receipt.json",
+      "bytes": 2987,
+      "sha256": "36f3ee663389ccd10f3b2e042e2baa3f06e80c2da952ffdd2920b9178584af24"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m3-mu1sjc4p/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m3-mu1sjc4p/receipt.json",
+      "bytes": 2987,
+      "sha256": "ffada34fef3518c7c1bf25998fc1f4dffcd0766edc1ccd750c84b1f0dba119e5"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m4-mu1mb1lw/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m4-mu1mb1lw/receipt.json",
+      "bytes": 666,
+      "sha256": "fa9163303d06c1b2078a7f236a047a72b534825ef469b0611601aec4cc8548d1"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m4-mu1mbmws/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m4-mu1mbmws/receipt.json",
+      "bytes": 1405,
+      "sha256": "a05a216f6302794fe2b82bbe548b9e390f6e10a2e7cc61a5f0ffbd23431c4f65"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m4-mu1mc5bp/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m4-mu1mc5bp/receipt.json",
+      "bytes": 1347,
+      "sha256": "03e4bd2dc2608c4e855ab55c4dce0e71b0b309f423af027d1be348cc33ec7c14"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m4-mu1pmwlb/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m4-mu1pmwlb/receipt.json",
+      "bytes": 1347,
+      "sha256": "7ebaf12823e7c374ec62e082e240200fde7233d6a69414822031d72472a790a7"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m4-mu1s2lqy/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m4-mu1s2lqy/receipt.json",
+      "bytes": 1347,
+      "sha256": "60bae0f7f616c47588a10d3b403517cffb6e604311107ae0a32371862658717f"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m4-mu1sjinw/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m4-mu1sjinw/receipt.json",
+      "bytes": 1347,
+      "sha256": "eed8672af98805320e6359741efea9d0b7049f50a001c8d1603a02bdf4c40dd4"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m5-mu1oxyxm/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m5-mu1oxyxm/receipt.json",
+      "bytes": 1538,
+      "sha256": "fb7acdd7ab037e14096513053dd2ff37ff7320bc44e53068637538799f7fb9b2"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m5-mu1rmngk/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m5-mu1rmngk/receipt.json",
+      "bytes": 1538,
+      "sha256": "371b7d81b6b87e789d3d8e23683358723703d1f43587d8e4d20705924dc92f0c"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m5-mu1s065o/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m5-mu1s065o/receipt.json",
+      "bytes": 1538,
+      "sha256": "2cef86bdabf6cc2a34bea8c45b4ef52ea1da31eca70203b7cb42b5e90d82ab13"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m5-mu1s2m1h/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m5-mu1s2m1h/receipt.json",
+      "bytes": 1538,
+      "sha256": "eb22f19966ea722f68c34490648e12abe830ca1c9ebe6ea8bcbff5d370065369"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m5-mu1sjith/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m5-mu1sjith/receipt.json",
+      "bytes": 1538,
+      "sha256": "20426038a31b199bb6722c797e894b324fbd324802a157aaaec093ad856eaff8"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m6-mu1p765c/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m6-mu1p765c/receipt.json",
+      "bytes": 1974,
+      "sha256": "c3be5b0aeac85fedfcf64fc9c913716f146678ad456aad9e90ca7c086457574f"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m6-mu1p7bjy/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m6-mu1p7bjy/receipt.json",
+      "bytes": 2045,
+      "sha256": "f17ade920e3eb916e31f03c760097e9df8f4d0f1d7f6474c2f3e63f1acb47701"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m6-mu1p8fp2/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m6-mu1p8fp2/receipt.json",
+      "bytes": 1905,
+      "sha256": "2599403b2752b4083942a8a587ffae9b5920c4ad03732f0a1244ad813a28c481"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m6-mu1pa48y/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m6-mu1pa48y/receipt.json",
+      "bytes": 1416,
+      "sha256": "f52e2ac3bc6de6e1a2eef12d9adf8d5f1514cfdb2cfda7ecd447fff308be17c0"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m6-mu1pajfh/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m6-mu1pajfh/receipt.json",
+      "bytes": 1345,
+      "sha256": "5a89049ea37b3c0721054aae0a4da206487dcc4336d97f5de3728f97f0d600dc"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m6-mu1s2mao/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m6-mu1s2mao/receipt.json",
+      "bytes": 1345,
+      "sha256": "21afa15520c5ad65a4fdff0e30686b2fcd6ada7bb58a9170f4f1ab3ef5da2f20"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m6-mu1sjiza/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m6-mu1sjiza/receipt.json",
+      "bytes": 1345,
+      "sha256": "bf8fd4a2320fd8eb280f877e8cd5e1c213063ec2d8f9a107c6d9247ea00d73dd"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m8-mu1pg2ol/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m8-mu1pg2ol/receipt.json",
+      "bytes": 1544,
+      "sha256": "38b167cb53f60082deda062f16691a46c9a84732f7ccc55abe58a24a4d934906"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m8-mu1s2ngs/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m8-mu1s2ngs/receipt.json",
+      "bytes": 1544,
+      "sha256": "29438b50eadbfbced174810ab14dc5acfa286ec1c3eae584196c4cca9c5a99a2"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/acceptance/m8-mu1sjkas/receipt.json",
+      "destination": "muse/builder-supplement/acceptance/m8-mu1sjkas/receipt.json",
+      "bytes": 1544,
+      "sha256": "db3675bac6f9cfbdd3df6a222963f3ee7d94c33fec07ef985ce2a146ee3d6095"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/adapter.json",
+      "destination": "muse/builder-supplement/adapter.json",
+      "bytes": 817,
+      "sha256": "fd371a2dfc91ec8df9827d0db129a6db5d16bf6a09aa268ca4664f3f5a28acad"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/app/insights.tsx",
+      "destination": "muse/builder-supplement/app/insights.tsx",
+      "bytes": 1709,
+      "sha256": "6cc3e15784215e183be81994e48e768c04c2bacca9b9ee5b909cbcba7aa1a8b9"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/app/search.tsx",
+      "destination": "muse/builder-supplement/app/search.tsx",
+      "bytes": 4790,
+      "sha256": "0b26a7dedcf382280ef922b5145cb0899da975a86e743bcf9e164d5a4c0bdc7f"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/app.json",
+      "destination": "muse/builder-supplement/app.json",
+      "bytes": 521,
+      "sha256": "d35cc3e3805847d719b143f98e5f265b6fb240633ab6767e9ae3dba7da38fc94"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/config/digest.json",
+      "destination": "muse/builder-supplement/config/digest.json",
+      "bytes": 177,
+      "sha256": "c389728f1505612d3ac2a44597efa12a83042666a34432f27cf832e54fdfdc21"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/config/windows.json",
+      "destination": "muse/builder-supplement/config/windows.json",
+      "bytes": 438,
+      "sha256": "c43a0ae50d80488f7e52f652d682b8e9d443b00e95269c71a4f98ac4fb870764"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/custody.json",
+      "destination": "muse/builder-supplement/custody.json",
+      "bytes": 17348,
+      "sha256": "c27a9015fa38248b2ccf30035df2b3ee2caeebe5d7ebc95335d4027a8a50eddc"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/original-validator-check.json",
+      "destination": "muse/builder-supplement/original-validator-check.json",
+      "bytes": 1653,
+      "sha256": "4758668b9aae050f6ced44b33e65b474191b4ecba7d76f34b72ef960fb6e43f3"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/package.json",
+      "destination": "muse/builder-supplement/package.json",
+      "bytes": 1109,
+      "sha256": "bcc97eec4c8e4997a0c7839e8bee648980480d2103b834ef17244b305c395545"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-all.jsonl",
+      "destination": "muse/builder-supplement/receipts-all.jsonl",
+      "bytes": 40669,
+      "sha256": "b513acd77137209cb5febee69131add44e289e73bdcf8c18f6834579aab8dc3b"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-all2.jsonl",
+      "destination": "muse/builder-supplement/receipts-all2.jsonl",
+      "bytes": 39231,
+      "sha256": "807b91229212a0a339e919e550648529a8c6de80311745ab2b9d201e31888e95"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-all3.jsonl",
+      "destination": "muse/builder-supplement/receipts-all3.jsonl",
+      "bytes": 39244,
+      "sha256": "f7df0a7751833098ed3b8af030380cc44de6582dd24cd773735f876c17103181"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-all4.jsonl",
+      "destination": "muse/builder-supplement/receipts-all4.jsonl",
+      "bytes": 38936,
+      "sha256": "9f424568c70afd8acc42aed963cd7c141fa5060f3fdcffa8c28fd14dffc69152"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-all5.jsonl",
+      "destination": "muse/builder-supplement/receipts-all5.jsonl",
+      "bytes": 38938,
+      "sha256": "b57a0ebeac7750a6c3879784b03cb591fb65917e7705634ef80059d3ef1761e8"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m1.jsonl",
+      "destination": "muse/builder-supplement/receipts-m1.jsonl",
+      "bytes": 4070,
+      "sha256": "8f324b12dfc6f07aa0c78378521e3f0c160d546e45e456dcc1786f6808347824"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m2.jsonl",
+      "destination": "muse/builder-supplement/receipts-m2.jsonl",
+      "bytes": 10201,
+      "sha256": "68189b46413886a900215a309592d405cbaa1eaaf09aeba95f1bb5f49527e256"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m3.jsonl",
+      "destination": "muse/builder-supplement/receipts-m3.jsonl",
+      "bytes": 7914,
+      "sha256": "d9d763b7f83b8bd9831220564dd9257de20e160f2f161701710d3801c1fe2445"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m3b.jsonl",
+      "destination": "muse/builder-supplement/receipts-m3b.jsonl",
+      "bytes": 7889,
+      "sha256": "a2707a8b3c971d859de6dec010cff000f7c975c3270d15ed536720aee6830cc7"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m3c.jsonl",
+      "destination": "muse/builder-supplement/receipts-m3c.jsonl",
+      "bytes": 7880,
+      "sha256": "94322c74db3f7ac727072ea0d4fde0c150c4c69a053eecb940751da660a90cb2"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m3d.jsonl",
+      "destination": "muse/builder-supplement/receipts-m3d.jsonl",
+      "bytes": 7885,
+      "sha256": "5c744e5af020f5c9fc1dbc467f9ca9f4eac11a88485e3764810a348d2a891c1a"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m3e.jsonl",
+      "destination": "muse/builder-supplement/receipts-m3e.jsonl",
+      "bytes": 7881,
+      "sha256": "d96e94a259ac28282e6243b878655279e748f8c727e32614e5921e7ecf8a8205"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m3f.jsonl",
+      "destination": "muse/builder-supplement/receipts-m3f.jsonl",
+      "bytes": 7753,
+      "sha256": "31fa8cf82813abf9449f469d36efee9e0bf9c975d5ecc7166e841a8ca31f3f17"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m3g.jsonl",
+      "destination": "muse/builder-supplement/receipts-m3g.jsonl",
+      "bytes": 7753,
+      "sha256": "16b994bccb2fed6bafce020aae6cf75862769dc26b74d9aa026d4e35ddca2714"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m3w.jsonl",
+      "destination": "muse/builder-supplement/receipts-m3w.jsonl",
+      "bytes": 7921,
+      "sha256": "43665ddc294ab2380a5dbf64ca27117b96f9d6e8031c076731f7a38aa673a97b"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m4.jsonl",
+      "destination": "muse/builder-supplement/receipts-m4.jsonl",
+      "bytes": 6362,
+      "sha256": "5f5da4e8788edea8a0261aefd5d260f69b69b642f7f34811ead379bea3d090e5"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m4b.jsonl",
+      "destination": "muse/builder-supplement/receipts-m4b.jsonl",
+      "bytes": 5423,
+      "sha256": "7b58302cb451eb25002ed1bc648b5c7c4f9cd3c885bbe90c552b28e7abe0312b"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m5.jsonl",
+      "destination": "muse/builder-supplement/receipts-m5.jsonl",
+      "bytes": 4017,
+      "sha256": "a1cda96de4cb26a552ba5628fe2fc2788f1acd45c088e576478e65ea1452c215"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m5b.jsonl",
+      "destination": "muse/builder-supplement/receipts-m5b.jsonl",
+      "bytes": 4441,
+      "sha256": "eb224f7d6837f4727c68dbf3b7e0846da4e5a9f9cb92dbcce64d06125398c39f"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m5c.jsonl",
+      "destination": "muse/builder-supplement/receipts-m5c.jsonl",
+      "bytes": 4441,
+      "sha256": "0d24e10be210f082345f9a5a404d1c63ec2dd1969cb6310fbceb951bb9bb4526"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m5d.jsonl",
+      "destination": "muse/builder-supplement/receipts-m5d.jsonl",
+      "bytes": 4198,
+      "sha256": "bf77ff869b6c531deb496f9354ce202c2194c228d0498e7a0fba85e73855a0c6"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m5e.jsonl",
+      "destination": "muse/builder-supplement/receipts-m5e.jsonl",
+      "bytes": 4013,
+      "sha256": "60da48f558e8e8390bdb558335319621894d784b31536e4df6f07d8ebb390e3f"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m6.jsonl",
+      "destination": "muse/builder-supplement/receipts-m6.jsonl",
+      "bytes": 2694,
+      "sha256": "5889825a7cf1c2df96d0856b9371d48e45568ef5f84de944fe6e4017bb23d054"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m6b.jsonl",
+      "destination": "muse/builder-supplement/receipts-m6b.jsonl",
+      "bytes": 3019,
+      "sha256": "e829378f5434fcd4e87d9e66bf180d483c68bcce554ba53e70724e7413234bf5"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m6c.jsonl",
+      "destination": "muse/builder-supplement/receipts-m6c.jsonl",
+      "bytes": 3021,
+      "sha256": "e0d28f7ec684df7992f0a3b81f68b829743d1dadb79e0a1bf1654da0496899eb"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m6d.jsonl",
+      "destination": "muse/builder-supplement/receipts-m6d.jsonl",
+      "bytes": 3021,
+      "sha256": "f6bae1898ebc434d48b1084180527b1753c07b6ca05c091722275e26b4ee262c"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m6dbg.jsonl",
+      "destination": "muse/builder-supplement/receipts-m6dbg.jsonl",
+      "bytes": 3023,
+      "sha256": "614b11265979ed9b4c392e5cfbd4c3f7c20351cab7fe660f5bf5d693b6a0dbe4"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m6e.jsonl",
+      "destination": "muse/builder-supplement/receipts-m6e.jsonl",
+      "bytes": 3023,
+      "sha256": "45dbfe4eff95f0098baca95fe8f6eba4e8cbde78fe8fcac83f70b4049ea74d6f"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m6f.jsonl",
+      "destination": "muse/builder-supplement/receipts-m6f.jsonl",
+      "bytes": 2696,
+      "sha256": "4128f0c1d75798b4881d21a2b93afa99708e5f8b3e2b5258777f1168c358b3eb"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/receipts-m8.jsonl",
+      "destination": "muse/builder-supplement/receipts-m8.jsonl",
+      "bytes": 4832,
+      "sha256": "e6d1eab376c3b4a18255ce7932431b877bbb9846ff7fe1a11d1ce1512c760005"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/snapback/schema.q",
+      "destination": "muse/builder-supplement/snapback/schema.q",
+      "bytes": 38792,
+      "sha256": "e78ec02f3b1e06deaa5924fa66cf63649e217681c128cf1c304efc3b3e3ed9c2"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/snapback/worker.mjs",
+      "destination": "muse/builder-supplement/snapback/worker.mjs",
+      "bytes": 2651,
+      "sha256": "5af1bb235801118fca9d6501b258e244fe6bdda043b365ec0eb39386a0f6316c"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/tsconfig.json",
+      "destination": "muse/builder-supplement/tsconfig.json",
+      "bytes": 389,
+      "sha256": "de1e6023df1031b34507d494d36397e1827b9a17efe6e8b67be7b8aca56987e2"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T173023Z/custody.json",
+      "destination": "muse/observed-attempts/20260914T173023Z/custody.json",
+      "bytes": 812,
+      "sha256": "d49daec797b3d51305e46f29ba70b076e08af27947799de8c158d4de6eab3f01"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T173023Z/receipts-m1.jsonl",
+      "destination": "muse/observed-attempts/20260914T173023Z/receipts-m1.jsonl",
+      "bytes": 4070,
+      "sha256": "8f324b12dfc6f07aa0c78378521e3f0c160d546e45e456dcc1786f6808347824"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T175013Z/custody.json",
+      "destination": "muse/observed-attempts/20260914T175013Z/custody.json",
+      "bytes": 813,
+      "sha256": "997b03813ef7645c21d1a647b8bbe25cdde415102a474a24936bea5c535628c5"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T175013Z/receipts-m2.jsonl",
+      "destination": "muse/observed-attempts/20260914T175013Z/receipts-m2.jsonl",
+      "bytes": 10201,
+      "sha256": "68189b46413886a900215a309592d405cbaa1eaaf09aeba95f1bb5f49527e256"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T181051Z/custody.json",
+      "destination": "muse/observed-attempts/20260914T181051Z/custody.json",
+      "bytes": 740,
+      "sha256": "52b6f513a8d1869e6e106dbd60b02c972d81fc2f6ce7a26c4b6ab60b022e84f6"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T181051Z/receipts-m3.jsonl",
+      "destination": "muse/observed-attempts/20260914T181051Z/receipts-m3.jsonl",
+      "bytes": 7882,
+      "sha256": "a8f37904aa54731a6deebe5376a3a3e5ac6e1c5857a26a813458f7465b0066c0"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T183110Z/custody.json",
+      "destination": "muse/observed-attempts/20260914T183110Z/custody.json",
+      "bytes": 740,
+      "sha256": "d8c3a4295e31e5c18ed49d84aa20e4a59242c12fbc5fad32896f8d17215dcde9"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T183110Z/receipts-m3.jsonl",
+      "destination": "muse/observed-attempts/20260914T183110Z/receipts-m3.jsonl",
+      "bytes": 7914,
+      "sha256": "d9d763b7f83b8bd9831220564dd9257de20e160f2f161701710d3801c1fe2445"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T201217Z/custody.json",
+      "destination": "muse/observed-attempts/20260914T201217Z/custody.json",
+      "bytes": 740,
+      "sha256": "a73584d6aaf2c1940695847dd22e8645e5564c8b5644d8e9c3641c4d897ca307"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T201217Z/receipts-m4.jsonl",
+      "destination": "muse/observed-attempts/20260914T201217Z/receipts-m4.jsonl",
+      "bytes": 5637,
+      "sha256": "581e4e3d9ca88d04bd53ccd4ef77e26655001e1560670396f240936b2ae00705"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T203213Z/custody.json",
+      "destination": "muse/observed-attempts/20260914T203213Z/custody.json",
+      "bytes": 1174,
+      "sha256": "1e923bfd99f4ecd00c96f2b22d9b102196265ac48ed8a9ff048315302c8550d6"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T203213Z/receipts-m4.jsonl",
+      "destination": "muse/observed-attempts/20260914T203213Z/receipts-m4.jsonl",
+      "bytes": 6362,
+      "sha256": "5f5da4e8788edea8a0261aefd5d260f69b69b642f7f34811ead379bea3d090e5"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T203213Z/receipts-m5.jsonl",
+      "destination": "muse/observed-attempts/20260914T203213Z/receipts-m5.jsonl",
+      "bytes": 4017,
+      "sha256": "a1cda96de4cb26a552ba5628fe2fc2788f1acd45c088e576478e65ea1452c215"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T205145Z/custody.json",
+      "destination": "muse/observed-attempts/20260914T205145Z/custody.json",
+      "bytes": 1611,
+      "sha256": "5790cf011b58b4feab9f58ae8fc9fe1470bfda1807474c8fb9a2165ae9b250b5"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T205145Z/receipts-m3b.jsonl",
+      "destination": "muse/observed-attempts/20260914T205145Z/receipts-m3b.jsonl",
+      "bytes": 7889,
+      "sha256": "a2707a8b3c971d859de6dec010cff000f7c975c3270d15ed536720aee6830cc7"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T205145Z/receipts-m6.jsonl",
+      "destination": "muse/observed-attempts/20260914T205145Z/receipts-m6.jsonl",
+      "bytes": 2694,
+      "sha256": "5889825a7cf1c2df96d0856b9371d48e45568ef5f84de944fe6e4017bb23d054"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T205145Z/receipts-m8.jsonl",
+      "destination": "muse/observed-attempts/20260914T205145Z/receipts-m8.jsonl",
+      "bytes": 4832,
+      "sha256": "e6d1eab376c3b4a18255ce7932431b877bbb9846ff7fe1a11d1ce1512c760005"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T211201Z/custody.json",
+      "destination": "muse/observed-attempts/20260914T211201Z/custody.json",
+      "bytes": 2488,
+      "sha256": "4e44d43776bbc3b6919e5a8bccfe15e7928dd64c0f2f4fcd1a72bf9a06fc6d6b"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T211201Z/receipts-m3c.jsonl",
+      "destination": "muse/observed-attempts/20260914T211201Z/receipts-m3c.jsonl",
+      "bytes": 7880,
+      "sha256": "94322c74db3f7ac727072ea0d4fde0c150c4c69a053eecb940751da660a90cb2"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T211201Z/receipts-m3d.jsonl",
+      "destination": "muse/observed-attempts/20260914T211201Z/receipts-m3d.jsonl",
+      "bytes": 7885,
+      "sha256": "5c744e5af020f5c9fc1dbc467f9ca9f4eac11a88485e3764810a348d2a891c1a"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T211201Z/receipts-m3e.jsonl",
+      "destination": "muse/observed-attempts/20260914T211201Z/receipts-m3e.jsonl",
+      "bytes": 7881,
+      "sha256": "d96e94a259ac28282e6243b878655279e748f8c727e32614e5921e7ecf8a8205"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T211201Z/receipts-m3w.jsonl",
+      "destination": "muse/observed-attempts/20260914T211201Z/receipts-m3w.jsonl",
+      "bytes": 7921,
+      "sha256": "43665ddc294ab2380a5dbf64ca27117b96f9d6e8031c076731f7a38aa673a97b"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T211201Z/receipts-m4b.jsonl",
+      "destination": "muse/observed-attempts/20260914T211201Z/receipts-m4b.jsonl",
+      "bytes": 5423,
+      "sha256": "7b58302cb451eb25002ed1bc648b5c7c4f9cd3c885bbe90c552b28e7abe0312b"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T213142Z/custody.json",
+      "destination": "muse/observed-attempts/20260914T213142Z/custody.json",
+      "bytes": 3363,
+      "sha256": "88f4a627f7fef963ec9f773218a3783bb1e75096f00837c8a5970a0a62143cdb"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T213142Z/receipts-m3f.jsonl",
+      "destination": "muse/observed-attempts/20260914T213142Z/receipts-m3f.jsonl",
+      "bytes": 7753,
+      "sha256": "31fa8cf82813abf9449f469d36efee9e0bf9c975d5ecc7166e841a8ca31f3f17"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T213142Z/receipts-m6b.jsonl",
+      "destination": "muse/observed-attempts/20260914T213142Z/receipts-m6b.jsonl",
+      "bytes": 3019,
+      "sha256": "e829378f5434fcd4e87d9e66bf180d483c68bcce554ba53e70724e7413234bf5"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T213142Z/receipts-m6c.jsonl",
+      "destination": "muse/observed-attempts/20260914T213142Z/receipts-m6c.jsonl",
+      "bytes": 3021,
+      "sha256": "e0d28f7ec684df7992f0a3b81f68b829743d1dadb79e0a1bf1654da0496899eb"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T213142Z/receipts-m6d.jsonl",
+      "destination": "muse/observed-attempts/20260914T213142Z/receipts-m6d.jsonl",
+      "bytes": 3021,
+      "sha256": "f6bae1898ebc434d48b1084180527b1753c07b6ca05c091722275e26b4ee262c"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T213142Z/receipts-m6dbg.jsonl",
+      "destination": "muse/observed-attempts/20260914T213142Z/receipts-m6dbg.jsonl",
+      "bytes": 3023,
+      "sha256": "614b11265979ed9b4c392e5cfbd4c3f7c20351cab7fe660f5bf5d693b6a0dbe4"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T213142Z/receipts-m6e.jsonl",
+      "destination": "muse/observed-attempts/20260914T213142Z/receipts-m6e.jsonl",
+      "bytes": 3023,
+      "sha256": "45dbfe4eff95f0098baca95fe8f6eba4e8cbde78fe8fcac83f70b4049ea74d6f"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T213142Z/receipts-m6f.jsonl",
+      "destination": "muse/observed-attempts/20260914T213142Z/receipts-m6f.jsonl",
+      "bytes": 2696,
+      "sha256": "4128f0c1d75798b4881d21a2b93afa99708e5f8b3e2b5258777f1168c358b3eb"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T215136Z/custody.json",
+      "destination": "muse/observed-attempts/20260914T215136Z/custody.json",
+      "bytes": 1615,
+      "sha256": "2b922dcf4a8dbfbfa02acc5095a68995d30cdb28d8f47f658481562be56831b5"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T215136Z/receipts-m5b.jsonl",
+      "destination": "muse/observed-attempts/20260914T215136Z/receipts-m5b.jsonl",
+      "bytes": 4441,
+      "sha256": "eb224f7d6837f4727c68dbf3b7e0846da4e5a9f9cb92dbcce64d06125398c39f"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T215136Z/receipts-m5c.jsonl",
+      "destination": "muse/observed-attempts/20260914T215136Z/receipts-m5c.jsonl",
+      "bytes": 4441,
+      "sha256": "0d24e10be210f082345f9a5a404d1c63ec2dd1969cb6310fbceb951bb9bb4526"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T215136Z/receipts-m5d.jsonl",
+      "destination": "muse/observed-attempts/20260914T215136Z/receipts-m5d.jsonl",
+      "bytes": 4198,
+      "sha256": "bf77ff869b6c531deb496f9354ce202c2194c228d0498e7a0fba85e73855a0c6"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T220950Z/custody.json",
+      "destination": "muse/observed-attempts/20260914T220950Z/custody.json",
+      "bytes": 1176,
+      "sha256": "b055fe50fce5a90e8c96431af4773e803b474300ca46fc422c604fb909917a4c"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T220950Z/receipts-m3g.jsonl",
+      "destination": "muse/observed-attempts/20260914T220950Z/receipts-m3g.jsonl",
+      "bytes": 7753,
+      "sha256": "16b994bccb2fed6bafce020aae6cf75862769dc26b74d9aa026d4e35ddca2714"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/observed-attempts/20260914T220950Z/receipts-m5e.jsonl",
+      "destination": "muse/observed-attempts/20260914T220950Z/receipts-m5e.jsonl",
+      "bytes": 4013,
+      "sha256": "60da48f558e8e8390bdb558335319621894d784b31536e4df6f07d8ebb390e3f"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/installed-files-20260914T1913.json",
+      "destination": "muse/custody/installed-files-20260914T1913.json",
+      "bytes": 9516,
+      "sha256": "eb4be09cd936d0ac9ebaebf9ca8a5643dbdb3a2e999922c9b575b4b6612b3499"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/installed-files-after-builder.json",
+      "destination": "muse/custody/installed-files-after-builder.json",
+      "bytes": 9494,
+      "sha256": "3f03c2798a5a3074cdb42089b0109b4597e7c9a170d3cc048c4bd571bc0e05ff"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/m5-expiry-after-builder.json",
+      "destination": "muse/custody/m5-expiry-after-builder.json",
+      "bytes": 1047,
+      "sha256": "ffa341aefbc4c7b27359766b0ff78c6f4ec728316e1e3fecc7c4879750e482c2"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scores/muse/FINAL.md",
+      "destination": "muse/holistic-score.md",
+      "bytes": 3514,
+      "sha256": "41116f29df34c342db3d05dc2b3098ebb8e0d504a34ff165d485852166aa585b"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scores/muse/FINAL.provenance.json",
+      "destination": "muse/holistic-score.provenance.json",
+      "bytes": 2557,
+      "sha256": "cb49e687e3a60993dce60ec4d2422a61d02a268a11bd5fa1ff51e8f29867fd71"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/muse-snapback4.score.start.json",
+      "destination": "logs/muse-snapback4.score.start.json",
+      "bytes": 1081,
+      "sha256": "a4d0603fc7e91b007b3c483a5a8dda5bf505852d0e73abf130709b31f8c24a00"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/muse-snapback4.score.end.json",
+      "destination": "logs/muse-snapback4.score.end.json",
+      "bytes": 348,
+      "sha256": "631e972cc3be4e4b21f0918899a8e3631d4f7312865724ad895a655644bb3e40"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/PACKAGE_PINS.json",
+      "destination": "PACKAGE_PINS.json",
+      "bytes": 75,
+      "sha256": "ad2e75038e36faa24ca51878201878c4b108184a94674f701d49148dd02bdd0f"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/SNAPBACK4_VERSION",
+      "destination": "SNAPBACK4_VERSION",
+      "bytes": 7,
+      "sha256": "011cfdb24c667a75861adfffaabe68e66358d982f437b47270ef09d86c6c6cd7"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/SNAPBACK4_EXPO_VERSION",
+      "destination": "SNAPBACK4_EXPO_VERSION",
+      "bytes": 6,
+      "sha256": "3ab94c04d24986f3af288ba1cda2c0bbddbc5a89dff097182805f54578e1ea75"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scores/all.json",
+      "destination": "scores/all.json",
+      "bytes": 16116,
+      "sha256": "946a03dc13cf2b4bc7dae75810a69c00d3b47856d5bf7ee35102b4e519db47fb"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scores/summary.md",
+      "destination": "scores/summary.md",
+      "bytes": 2028,
+      "sha256": "29ea21e1d00351f57f022988339b5d505468d2fe6e9a9a8c84bbe944f62e40d9"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/before-grade-source-integrity.json",
+      "destination": "custody/before-grade-source-integrity.json",
+      "bytes": 452,
+      "sha256": "25c3e04030a332426068d995f0a95dcec9620b67d145947086fc05eebf81092e"
+    }
+  ],
+  "limits": "Selected completed builder and score evidence copied without normalization. Grok holistic-score.md is its received plain public output including the preface. Raw model transcripts, stores, credentials, node_modules and generated app code are omitted. Source-only and raw-log hashes in custody receipts do not mean those files are archived. Original receipt success is not independently certified by copying it. The final record still requires all grades and M7 phases."
+}

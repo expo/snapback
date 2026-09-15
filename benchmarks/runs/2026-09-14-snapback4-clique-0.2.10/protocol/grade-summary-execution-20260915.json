@@ -1,0 +1,17 @@
+{
+  "startedAt": "2026-09-15T00:51:39.560603+00:00",
+  "endedAt": "2026-09-15T00:51:39.597324+00:00",
+  "command": [
+    "python3",
+    "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scripts/summarize_grades.py"
+  ],
+  "cwd": "/Users/ccheever/clique-sb4-20260913-relaxed-3models",
+  "scriptSha256": "afe2432995a4e570b792478296313da96f1b994f3b789c5616beb4c3fc7f6a3c",
+  "exitCode": 0,
+  "stdout": "validated three complete 119-assertion grades and wrote prior-101/M8 subtotals\n",
+  "stderr": "",
+  "outputs": {
+    "summary.json": "f7c08765b0d3bb9da8b53c6bbe5cc313eb55e8e1556f9b3d7f89d68565bfd71b",
+    "summary.md": "10c97e3dfdcf172bbfa21a7e4dfe3d2e393f6dcfa5f9d5099bcc13f0fcd3e141"
+  }
+}

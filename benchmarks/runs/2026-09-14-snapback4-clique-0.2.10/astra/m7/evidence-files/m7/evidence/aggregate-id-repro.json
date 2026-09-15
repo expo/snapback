@@ -1,0 +1,41 @@
+[
+  {
+    "args": [
+      "run",
+      "add",
+      "{\"conversationKey\":\"ccccccccccccccccccccccc\",\"messageKey\":\"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm\",\"optionKey\":\"oooooooooooooooooooooooooooooooooooo\"}",
+      "--as",
+      "alice",
+      "--json"
+    ],
+    "status": 0,
+    "stdout": "{\"events\":2,\"metered\":{\"examined\":0,\"heap_bytes\":1302,\"index_entries\":3,\"output_bytes\":230,\"rows_written\":2,\"rule_probes\":0,\"steps\":14},\"result\":{\"conversationKey\":\"ccccccccccccccccccccccc\",\"id\":\"01M2HA0G73HSNDWNET6QHVKMVW\",\"messageKey\":\"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm\",\"optionKey\":\"oooooooooooooooooooooooooooooooooooo\"},\"seq\":1,\"state\":\"sent\"}\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "run",
+      "all",
+      "{}",
+      "--as",
+      "alice",
+      "--json"
+    ],
+    "status": 2,
+    "stdout": "",
+    "stderr": "cannot open the store: E_INPUT: identity exceeds 144 canonical tagged UTF-8 bytes\n"
+  },
+  {
+    "args": [
+      "run",
+      "all",
+      "{}",
+      "--as",
+      "alice",
+      "--json"
+    ],
+    "status": 0,
+    "stdout": "{\"complete\":true,\"data\":[{\"conversationKey\":\"ccccccccccccccccccccccc\",\"id\":\"01M2HA0G73HSNDWNET6QHVKMVW\",\"messageKey\":\"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm\",\"optionKey\":\"oooooooooooooooooooooooooooooooooooo\"}],\"metered\":{\"examined\":1,\"heap_bytes\":517,\"index_entries\":0,\"output_bytes\":242,\"rows_written\":0,\"rule_probes\":0,\"steps\":2},\"next\":null}\n",
+    "stderr": ""
+  }
+]

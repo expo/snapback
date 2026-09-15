@@ -1,0 +1,54 @@
+{
+  "observedAt": "2026-09-15T00:09:12.326269+00:00",
+  "files": [
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/grade/DONE",
+      "destination": "grok/grading/DONE",
+      "bytes": 15,
+      "sha256": "faa58c66a602aab105cac0a3bf1247b953799d8c55a30af21af3e6e37e345293"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/grade/custody.json",
+      "destination": "grok/grading/custody.json",
+      "bytes": 1673,
+      "sha256": "bda7e3fca3d5af49765473e08027b6d9a353241ec57166a56a8d407e0d806387"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/grade/grader-report.json",
+      "destination": "grok/grading/grader-report.json",
+      "bytes": 55363,
+      "sha256": "276dbb2fd0e4a2e7b952da76e602186d1c38b94844d088ce8baf6c95e6c8d272"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/grade/grok-snapback4.grade.end.json",
+      "destination": "logs/grok-snapback4.grade.end.json",
+      "bytes": 380,
+      "sha256": "1df6c1f27b987ab7c4e7761a569f973bbe8929930fed7588c89aafaeaefe0b6b"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/grade/grok-snapback4.grade.start.json",
+      "destination": "logs/grok-snapback4.grade.start.json",
+      "bytes": 973,
+      "sha256": "022461ad506731186429a39368490ae67979b792797e9f76926ef09bdf6f9e7a"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/grade/m8-assertion-results.json",
+      "destination": "grok/grading/m8-assertion-results.json",
+      "bytes": 6079,
+      "sha256": "8ab620e811535be9592f4f496734eff8eea465cbadd807e677f7d690dea1b987"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/grade/trace.md",
+      "destination": "grok/grading/trace.md",
+      "bytes": 23458,
+      "sha256": "f2d3ea8cbd23165b5ceee8665d936fcba6821c83e944cad1ccbeacae5918ca5f"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/grade/validation.json",
+      "destination": "grok/grading/validation.json",
+      "bytes": 1963,
+      "sha256": "49edd1cc8297ba5ab8c1f1a772aeb07f1db33a0d570d8dc685299cf3ac6f7c6b"
+    }
+  ],
+  "limits": "Completed received grade copied verbatim. Underlying private working checkouts/scripts/stores and raw model transcript remain external. No score adjustment or claim of independent post-M7 grading."
+}

@@ -1,0 +1,17 @@
+{
+  "observedAt": "2026-09-15T02:09:29.481631+00:00",
+  "pid": 59622,
+  "reason": "phase-end-present",
+  "wallSeconds": 1668.901,
+  "phaseEnd": {
+    "lane": "grok-snapback4",
+    "phase": "m7",
+    "pid": 59663,
+    "endedAt": "2026-09-15T02:09:28Z",
+    "endedEpoch": 1789438168,
+    "wallSeconds": 1667.198,
+    "exitCode": 0,
+    "stdout": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.m7.ndjson",
+    "stderr": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.m7.stderr.log"
+  }
+}

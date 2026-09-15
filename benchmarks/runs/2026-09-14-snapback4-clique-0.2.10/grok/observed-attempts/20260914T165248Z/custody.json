@@ -1,0 +1,87 @@
+{
+  "observedAt": "2026-09-14T16:52:48.402084+00:00",
+  "scope": "Complete currently available choreography attempts during the active builder; these are not final milestone dispositions. Exact previously captured receipt hashes are skipped. Frozen packet untouched.",
+  "files": {
+    "m3.jsonl": {
+      "bytes": 9063,
+      "sha256": "19506d40a48528ae84f006d9d7f5875c3b87539c397a8c545fb6e2a2668419fc",
+      "recordedAt": "2026-09-14T16:34:13.051Z",
+      "green": false,
+      "assertions": {
+        "total": 7,
+        "required": 5,
+        "implemented": 6,
+        "passed": 3,
+        "failed": 3,
+        "skipped": 1,
+        "notImplemented": 1,
+        "requiredUnimplemented": 0
+      }
+    },
+    "m4.jsonl": {
+      "bytes": 8801,
+      "sha256": "2c93ea9d3935bf116186f42ef200b9bb09d55fc0f1ea332f0fa23fdb10d1228e",
+      "recordedAt": "2026-09-14T16:39:52.878Z",
+      "green": false,
+      "assertions": {
+        "total": 5,
+        "required": 5,
+        "implemented": 5,
+        "passed": 1,
+        "failed": 4,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      }
+    },
+    "m5.jsonl": {
+      "bytes": 4943,
+      "sha256": "09a9a9ee11955cc11107d3b079d34f950ff4298128ef051613ba39b95148d62e",
+      "recordedAt": "2026-09-14T16:42:41.675Z",
+      "green": false,
+      "assertions": {
+        "total": 4,
+        "required": 2,
+        "implemented": 4,
+        "passed": 1,
+        "failed": 3,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      }
+    },
+    "m6.jsonl": {
+      "bytes": 3688,
+      "sha256": "6ee33d30bb681aa6ae151eda44930a245c8a64620dca6bf800789b84b882a714",
+      "recordedAt": "2026-09-14T16:43:16.023Z",
+      "green": false,
+      "assertions": {
+        "total": 1,
+        "required": 1,
+        "implemented": 1,
+        "passed": 0,
+        "failed": 1,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      }
+    },
+    "m8.jsonl": {
+      "bytes": 6119,
+      "sha256": "f9e138a37e43b364babb865140fb43dd7da0707e29b696b7b59f3c0ac1cf0c57",
+      "recordedAt": "2026-09-14T16:44:34.414Z",
+      "green": false,
+      "assertions": {
+        "total": 5,
+        "required": 5,
+        "implemented": 5,
+        "passed": 1,
+        "failed": 4,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      }
+    }
+  },
+  "skipped": {}
+}

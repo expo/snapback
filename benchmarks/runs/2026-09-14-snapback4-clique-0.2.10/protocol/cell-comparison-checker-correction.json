@@ -1,0 +1,10 @@
+{
+  "observedAt": "2026-09-15T03:09:11.585891+00:00",
+  "attemptedTool": "/Users/ccheever/projects/snapback-lanebriefs/verify-cell-comparison.py",
+  "toolSha256": "12e44b6e7b44bbb8d6098ac4af9517088466314db0711518a0ae7b2a7dade98f",
+  "actualExit": 1,
+  "error": "TypeError while treating non-category backend metadata as scored cells",
+  "disposition": "Use v2 to select the 13 named comparison categories. No received score, grade or narrative changed. Prior helper remains archived.",
+  "replacementTool": "/Users/ccheever/projects/snapback-lanebriefs/verify-cell-comparison.v2.py",
+  "replacementSha256": "538c98d4bf23104951c0e8ced015528fcabd1193516347729a116b748b17057f"
+}

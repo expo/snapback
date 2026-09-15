@@ -1,0 +1,3017 @@
+{
+  "addableMembers": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "programs.addableMembers.0",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.addableMembers.1",
+        "table": "profiles",
+        "index": "byAt",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan profiles by byAt: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.addableMembers.2",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NOT_MEMBER"
+    ]
+  },
+  "backfillFollows": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "programs.backfillFollows.0",
+        "table": "followBackfills",
+        "index": "byId",
+        "kind": "scan",
+        "class": "server",
+        "reason": "scan followBackfills by byId: online only",
+        "rewrite": "sync followBackfills to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.backfillFollows.1",
+        "table": "posts",
+        "index": "byAuthorTime",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan posts by byAuthorTime: sync public last 200 by byTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.backfillFollows.2",
+        "table": "reposts",
+        "index": "byPrincipalAt",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan reposts by byPrincipalAt: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "delete followBackfills",
+        "table": "followBackfills",
+        "index": "byId",
+        "kind": "write",
+        "class": "server",
+        "reason": "write followBackfills by byId: online only",
+        "rewrite": "sync followBackfills to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": []
+  },
+  "convLatest": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "programs.convLatest.0",
+        "table": "memberships",
+        "index": "byPrincipalConv",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan memberships by byPrincipalConv: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.convLatest.1",
+        "table": "messages",
+        "index": "byConvTime",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan messages by byConvTime: sync to memberships[.conversationId] last 500 by byConvTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "convoAggregates": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "programs.convoAggregates.0",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.convoAggregates.1",
+        "table": "messages",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point messages by byId: sync to memberships[.conversationId] last 500 by byConvTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.convoAggregates.2",
+        "table": "receipts",
+        "index": "byMsgPrincipal",
+        "kind": "scan",
+        "class": "server",
+        "reason": "scan receipts by byMsgPrincipal: online only",
+        "rewrite": "sync receipts to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.convoAggregates.3",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NOT_MEMBER"
+    ]
+  },
+  "convoReactions": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "programs.convoReactions.0",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.convoReactions.1",
+        "table": "msgReactions",
+        "index": "byConvAt",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan msgReactions by byConvAt: sync to memberships[.conversationId] last 100 by byConvAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": [
+      "NOT_MEMBER"
+    ]
+  },
+  "createPost": {
+    "predicts": "never",
+    "sites": [
+      {
+        "site": "programs.createPost.0",
+        "table": "posts",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point posts by byId: sync public last 200 by byTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.createPost.1",
+        "table": "follows",
+        "index": "byFollowed",
+        "kind": "scan",
+        "class": "server",
+        "reason": "scan follows by byFollowed: online only",
+        "rewrite": "sync follows to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "insert fanouts",
+        "table": "fanouts",
+        "index": "byId",
+        "kind": "write",
+        "class": "server",
+        "reason": "write fanouts by byId: online only",
+        "rewrite": "sync fanouts to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": [
+      "DURATION_UNKNOWN",
+      "MIXED_MEDIA",
+      "NEED_IMAGE",
+      "NEED_VIDEO",
+      "TOO_LONG"
+    ]
+  },
+  "createReply": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "programs.createReply.0",
+        "table": "posts",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point posts by byId: sync public last 200 by byTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.createReply.1",
+        "table": "replies",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point replies by byId: sync public last 200 by byAuthorTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": [
+      "NOT_FOUND"
+    ]
+  },
+  "deleteMessage": {
+    "predicts": "never",
+    "sites": [
+      {
+        "site": "programs.deleteMessage.0",
+        "table": "messages",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point messages by byId: sync to memberships[.conversationId] last 500 by byConvTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.deleteMessage.1",
+        "table": "sysconfig",
+        "index": "byKey",
+        "kind": "point",
+        "class": "server",
+        "reason": "point sysconfig by byKey: online only",
+        "rewrite": "sync sysconfig to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:889:3",
+        "table": "messages",
+        "index": "byId",
+        "kind": "write target",
+        "class": "horizon",
+        "reason": "write target messages by byId: sync to memberships[.conversationId] last 500 by byConvTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": [
+      "DELETE_WINDOW",
+      "EDIT_DELETED",
+      "NOT_AUTHOR",
+      "NOT_FOUND"
+    ]
+  },
+  "digestTick": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "programs.digestTick.0",
+        "table": "sysconfig",
+        "index": "byKey",
+        "kind": "point",
+        "class": "server",
+        "reason": "point sysconfig by byKey: online only",
+        "rewrite": "sync sysconfig to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.digestTick.1",
+        "table": "profiles",
+        "index": "byId",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan profiles by byId: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.digestTick.2",
+        "table": "digestSent",
+        "index": "byUserPeriod",
+        "kind": "point",
+        "class": "server",
+        "reason": "point digestSent by byUserPeriod: online only",
+        "rewrite": "sync digestSent to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.digestTick.3",
+        "table": "follows",
+        "index": "byFollowedAt",
+        "kind": "scan",
+        "class": "server",
+        "reason": "scan follows by byFollowedAt: online only",
+        "rewrite": "sync follows to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.digestTick.4",
+        "table": "feed",
+        "index": "byReaderTime",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan feed by byReaderTime: sync to .readerId last 200 by byReaderTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.digestTick.5",
+        "table": "memberships",
+        "index": "byPrincipalConv",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan memberships by byPrincipalConv: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.digestTick.6",
+        "table": "messages",
+        "index": "byConvTime",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan messages by byConvTime: sync to memberships[.conversationId] last 500 by byConvTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "insert digestSent",
+        "table": "digestSent",
+        "index": "byId",
+        "kind": "write",
+        "class": "server",
+        "reason": "write digestSent by byId: online only",
+        "rewrite": "sync digestSent to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": []
+  },
+  "dmCreate": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "programs.dmCreate.0",
+        "table": "profiles",
+        "index": "byHandle",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byHandle: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.dmCreate.1",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "point",
+        "class": "held",
+        "reason": "point conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.dmCreate.2",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.dmCreate.3",
+        "table": "memberships",
+        "index": "byPrincipalConv",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan memberships by byPrincipalConv: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.dmCreate.4",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "point",
+        "class": "held",
+        "reason": "point conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.dmCreate.5",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "insert memberships rule",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "insert memberships rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "after insert",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "insert memberships rule",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "insert memberships rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "insert memberships rule",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "insert memberships rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "CANNOT_DM_SELF",
+      "NOT_FOUND"
+    ]
+  },
+  "dmWith": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "programs.dmWith.0",
+        "table": "profiles",
+        "index": "byHandle",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byHandle: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.dmWith.1",
+        "table": "memberships",
+        "index": "byPrincipalConv",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan memberships by byPrincipalConv: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.dmWith.2",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "point",
+        "class": "held",
+        "reason": "point conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.dmWith.3",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NOT_FOUND"
+    ]
+  },
+  "editMessage": {
+    "predicts": "never",
+    "sites": [
+      {
+        "site": "programs.editMessage.0",
+        "table": "messages",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point messages by byId: sync to memberships[.conversationId] last 500 by byConvTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.editMessage.1",
+        "table": "sysconfig",
+        "index": "byKey",
+        "kind": "point",
+        "class": "server",
+        "reason": "point sysconfig by byKey: online only",
+        "rewrite": "sync sysconfig to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:877:3",
+        "table": "messages",
+        "index": "byId",
+        "kind": "write target",
+        "class": "horizon",
+        "reason": "write target messages by byId: sync to memberships[.conversationId] last 500 by byConvTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": [
+      "CAPTION_LONG",
+      "EDIT_DELETED",
+      "EDIT_WINDOW",
+      "EMPTY_BODY",
+      "NOT_AUTHOR",
+      "NOT_FOUND"
+    ]
+  },
+  "fanOut": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "programs.fanOut.0",
+        "table": "fanouts",
+        "index": "byId",
+        "kind": "scan",
+        "class": "server",
+        "reason": "scan fanouts by byId: online only",
+        "rewrite": "sync fanouts to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.fanOut.1",
+        "table": "follows",
+        "index": "byFollowed",
+        "kind": "scan",
+        "class": "server",
+        "reason": "scan follows by byFollowed: online only",
+        "rewrite": "sync follows to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "delete fanouts",
+        "table": "fanouts",
+        "index": "byId",
+        "kind": "write",
+        "class": "server",
+        "reason": "write fanouts by byId: online only",
+        "rewrite": "sync fanouts to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": []
+  },
+  "feedCounts": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "programs.feedCounts.0",
+        "table": "likes",
+        "index": "byPostPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point likes by byPostPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.feedCounts.1",
+        "table": "reposts",
+        "index": "byPostPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point reposts by byPostPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.feedCounts.2",
+        "table": "likeCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point likeCounts by byGroup: online only",
+        "rewrite": "sync likeCounts to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.feedCounts.3",
+        "table": "repostCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point repostCounts by byGroup: online only",
+        "rewrite": "sync repostCounts to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.feedCounts.4",
+        "table": "replyCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point replyCounts by byGroup: online only",
+        "rewrite": "sync replyCounts to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": []
+  },
+  "followState": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "programs.followState.0",
+        "table": "profiles",
+        "index": "byHandle",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byHandle: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.followState.1",
+        "table": "follows",
+        "index": "byPair",
+        "kind": "point",
+        "class": "server",
+        "reason": "point follows by byPair: online only",
+        "rewrite": "sync follows to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": [
+      "NOT_FOUND"
+    ]
+  },
+  "followUser": {
+    "predicts": "never",
+    "sites": [
+      {
+        "site": "programs.followUser.0",
+        "table": "profiles",
+        "index": "byHandle",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byHandle: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.followUser.1",
+        "table": "follows",
+        "index": "byFollowed",
+        "kind": "scan",
+        "class": "server",
+        "reason": "scan follows by byFollowed: online only",
+        "rewrite": "sync follows to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.followUser.2",
+        "table": "posts",
+        "index": "byAuthorTime",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan posts by byAuthorTime: sync public last 200 by byTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.followUser.3",
+        "table": "reposts",
+        "index": "byPrincipalAt",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan reposts by byPrincipalAt: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "insert follows",
+        "table": "follows",
+        "index": "byId",
+        "kind": "write",
+        "class": "server",
+        "reason": "write follows by byId: online only",
+        "rewrite": "sync follows to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "insert followBackfills",
+        "table": "followBackfills",
+        "index": "byId",
+        "kind": "write",
+        "class": "server",
+        "reason": "write followBackfills by byId: online only",
+        "rewrite": "sync followBackfills to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": [
+      "CANNOT_FOLLOW_SELF",
+      "NOT_FOUND"
+    ]
+  },
+  "followerList": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "programs.followerList.0",
+        "table": "profiles",
+        "index": "byHandle",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byHandle: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.followerList.1",
+        "table": "follows",
+        "index": "byFollowedAt",
+        "kind": "scan",
+        "class": "server",
+        "reason": "scan follows by byFollowedAt: online only",
+        "rewrite": "sync follows to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.followerList.2",
+        "table": "profiles",
+        "index": "byPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": [
+      "NOT_FOUND"
+    ]
+  },
+  "followingFeed": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "programs.followingFeed.0",
+        "table": "feed",
+        "index": "byReaderTime",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan feed by byReaderTime: sync to .readerId last 200 by byReaderTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.followingFeed.1",
+        "table": "posts",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point posts by byId: sync public last 200 by byTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.followingFeed.2",
+        "table": "profiles",
+        "index": "byPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.followingFeed.3",
+        "table": "reposts",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point reposts by byId: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "followingList": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "programs.followingList.0",
+        "table": "profiles",
+        "index": "byHandle",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byHandle: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.followingList.1",
+        "table": "follows",
+        "index": "byFollowerAt",
+        "kind": "scan",
+        "class": "server",
+        "reason": "scan follows by byFollowerAt: online only",
+        "rewrite": "sync follows to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.followingList.2",
+        "table": "profiles",
+        "index": "byPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": [
+      "NOT_FOUND"
+    ]
+  },
+  "globalFeed": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "programs.globalFeed.0",
+        "table": "globalfeed",
+        "index": "byTime",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan globalfeed by byTime: sync public last 200 by byTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.globalFeed.1",
+        "table": "posts",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point posts by byId: sync public last 200 by byTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.globalFeed.2",
+        "table": "profiles",
+        "index": "byPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.globalFeed.3",
+        "table": "reposts",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point reposts by byId: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "groupCreate": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "programs.groupCreate.0",
+        "table": "profiles",
+        "index": "byHandle",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byHandle: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.groupCreate.1",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "point",
+        "class": "held",
+        "reason": "point conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "after insert",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "insert memberships rule",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "insert memberships rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "insert memberships rule",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "insert memberships rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "CANNOT_ADD_SELF",
+      "NOT_FOUND"
+    ]
+  },
+  "historyPage": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "programs.historyPage.0",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.historyPage.1",
+        "table": "messages",
+        "index": "byConvTime",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan messages by byConvTime: sync to memberships[.conversationId] last 500 by byConvTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.historyPage.2",
+        "table": "messageCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point messageCounts by byGroup: online only",
+        "rewrite": "sync messageCounts to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.historyPage.2",
+        "table": "messages",
+        "index": "byConvTime",
+        "kind": "aggregate source",
+        "class": "horizon",
+        "reason": "aggregate source messages by byConvTime: sync to memberships[.conversationId] last 500 by byConvTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": [
+      "NOT_MEMBER"
+    ]
+  },
+  "inbox": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "programs.inbox.0",
+        "table": "memberships",
+        "index": "byPrincipalConv",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan memberships by byPrincipalConv: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.inbox.1",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "point",
+        "class": "held",
+        "reason": "point conversations by byId: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": []
+  },
+  "leaveChat": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "programs.leaveChat.0",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.leaveChat.1",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "delete memberships rule",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "delete memberships rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NOT_FOUND",
+      "NOT_MEMBER"
+    ]
+  },
+  "likeSet": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "programs.likeSet.0",
+        "table": "posts",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point posts by byId: sync public last 200 by byTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.likeSet.1",
+        "table": "likes",
+        "index": "byPostPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point likes by byPostPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.likeSet.2",
+        "table": "likes",
+        "index": "byPostPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point likes by byPostPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": [
+      "NOT_FOUND"
+    ]
+  },
+  "markDelivered": {
+    "predicts": "never",
+    "sites": [
+      {
+        "site": "programs.markDelivered.0",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.markDelivered.1",
+        "table": "receipts",
+        "index": "byConvPrincipal",
+        "kind": "scan",
+        "class": "server",
+        "reason": "scan receipts by byConvPrincipal: online only",
+        "rewrite": "sync receipts to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:916:5",
+        "table": "receipts",
+        "index": "byId",
+        "kind": "write target",
+        "class": "server",
+        "reason": "write target receipts by byId: online only",
+        "rewrite": "sync receipts to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "update receipts",
+        "table": "receipts",
+        "index": "byId",
+        "kind": "write",
+        "class": "server",
+        "reason": "write receipts by byId: online only",
+        "rewrite": "sync receipts to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": [
+      "NOT_MEMBER"
+    ]
+  },
+  "markRead": {
+    "predicts": "never",
+    "sites": [
+      {
+        "site": "programs.markRead.0",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:921:3",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "write target",
+        "class": "held",
+        "reason": "write target memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.markRead.1",
+        "table": "receipts",
+        "index": "byConvPrincipal",
+        "kind": "scan",
+        "class": "server",
+        "reason": "scan receipts by byConvPrincipal: online only",
+        "rewrite": "sync receipts to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "schema.q:924:5",
+        "table": "receipts",
+        "index": "byId",
+        "kind": "write target",
+        "class": "server",
+        "reason": "write target receipts by byId: online only",
+        "rewrite": "sync receipts to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "update memberships rule",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "update memberships rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "update receipts",
+        "table": "receipts",
+        "index": "byId",
+        "kind": "write",
+        "class": "server",
+        "reason": "write receipts by byId: online only",
+        "rewrite": "sync receipts to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": [
+      "NOT_MEMBER"
+    ]
+  },
+  "memberAdd": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "programs.memberAdd.0",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.memberAdd.1",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "point",
+        "class": "held",
+        "reason": "point conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.memberAdd.2",
+        "table": "profiles",
+        "index": "byHandle",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byHandle: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "insert memberships rule",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "insert memberships rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NOT_ADMIN",
+      "NOT_A_GROUP",
+      "NOT_FOUND"
+    ]
+  },
+  "memberRemove": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "programs.memberRemove.0",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.memberRemove.1",
+        "table": "profiles",
+        "index": "byHandle",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byHandle: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.memberRemove.2",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.memberRemove.3",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "delete memberships rule",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "delete memberships rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NOT_ADMIN",
+      "NOT_FOUND"
+    ]
+  },
+  "membersOf": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "programs.membersOf.0",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.membersOf.1",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.membersOf.2",
+        "table": "profiles",
+        "index": "byPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": [
+      "NOT_MEMBER"
+    ]
+  },
+  "myConvIds": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "programs.myConvIds.0",
+        "table": "memberships",
+        "index": "byPrincipalConv",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan memberships by byPrincipalConv: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.myConvIds.1",
+        "table": "messageCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point messageCounts by byGroup: online only",
+        "rewrite": "sync messageCounts to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.myConvIds.1",
+        "table": "messages",
+        "index": "byConvTime",
+        "kind": "aggregate source",
+        "class": "horizon",
+        "reason": "aggregate source messages by byConvTime: sync to memberships[.conversationId] last 500 by byConvTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "myInsights": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "programs.myInsights.0",
+        "table": "posts",
+        "index": "byAuthorTime",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan posts by byAuthorTime: sync public last 200 by byTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.myInsights.1",
+        "table": "likes",
+        "index": "byAuthorAt",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan likes by byAuthorAt: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.myInsights.2",
+        "table": "postCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point postCounts by byGroup: online only",
+        "rewrite": "sync postCounts to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.myInsights.3",
+        "table": "likesReceived",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point likesReceived by byGroup: online only",
+        "rewrite": "sync likesReceived to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.myInsights.4",
+        "table": "repostsReceived",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point repostsReceived by byGroup: online only",
+        "rewrite": "sync repostsReceived to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.myInsights.5",
+        "table": "repliesReceived",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point repliesReceived by byGroup: online only",
+        "rewrite": "sync repliesReceived to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.myInsights.6",
+        "table": "followerCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point followerCounts by byGroup: online only",
+        "rewrite": "sync followerCounts to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.myInsights.7",
+        "table": "followingCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point followingCounts by byGroup: online only",
+        "rewrite": "sync followingCounts to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": []
+  },
+  "myProfile": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "programs.myProfile.0",
+        "table": "profiles",
+        "index": "byPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "myViews": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "programs.myViews.0",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.myViews.1",
+        "table": "views",
+        "index": "byConvPrincipal",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan views by byConvPrincipal: sync to .principal last 100 by byPrincipalConv",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": [
+      "NOT_MEMBER"
+    ]
+  },
+  "myWindows": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "programs.myWindows.0",
+        "table": "sysconfig",
+        "index": "byKey",
+        "kind": "point",
+        "class": "server",
+        "reason": "point sysconfig by byKey: online only",
+        "rewrite": "sync sysconfig to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": []
+  },
+  "openViewOnce": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "programs.openViewOnce.0",
+        "table": "messages",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point messages by byId: sync to memberships[.conversationId] last 500 by byConvTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.openViewOnce.1",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.openViewOnce.2",
+        "table": "views",
+        "index": "byMsgPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point views by byMsgPrincipal: sync to .principal last 100 by byPrincipalConv",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "insert views rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "insert views rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "ALREADY_VIEWED",
+      "NOT_FOUND",
+      "NOT_MEMBER",
+      "NOT_VIEWONCE"
+    ]
+  },
+  "principalProfiles": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "programs.principalProfiles.0",
+        "table": "profiles",
+        "index": "byPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "profileByHandle": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "programs.profileByHandle.0",
+        "table": "profiles",
+        "index": "byHandle",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byHandle: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": [
+      "NOT_FOUND"
+    ]
+  },
+  "profileCounts": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "programs.profileCounts.0",
+        "table": "profiles",
+        "index": "byHandle",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byHandle: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.profileCounts.1",
+        "table": "postCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point postCounts by byGroup: online only",
+        "rewrite": "sync postCounts to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.profileCounts.2",
+        "table": "followerCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point followerCounts by byGroup: online only",
+        "rewrite": "sync followerCounts to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.profileCounts.3",
+        "table": "followingCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point followingCounts by byGroup: online only",
+        "rewrite": "sync followingCounts to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": [
+      "NOT_FOUND"
+    ]
+  },
+  "profilePosts": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "programs.profilePosts.0",
+        "table": "profiles",
+        "index": "byHandle",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byHandle: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.profilePosts.1",
+        "table": "posts",
+        "index": "byAuthorTime",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan posts by byAuthorTime: sync public last 200 by byTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.profilePosts.2",
+        "table": "profiles",
+        "index": "byPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": [
+      "NOT_FOUND"
+    ]
+  },
+  "promoteAdmin": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "programs.promoteAdmin.0",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.promoteAdmin.1",
+        "table": "profiles",
+        "index": "byHandle",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byHandle: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.promoteAdmin.2",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:731:3",
+        "table": "memberships",
+        "index": "byId",
+        "kind": "write target",
+        "class": "held",
+        "reason": "write target memberships by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "update memberships rule",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "update memberships rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NOT_ADMIN",
+      "NOT_FOUND",
+      "NOT_MEMBER"
+    ]
+  },
+  "quotesFor": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "programs.quotesFor.0",
+        "table": "messages",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point messages by byId: sync to memberships[.conversationId] last 500 by byConvTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.quotesFor.1",
+        "table": "profiles",
+        "index": "byPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "reactMessage": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "programs.reactMessage.0",
+        "table": "messages",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point messages by byId: sync to memberships[.conversationId] last 500 by byConvTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.reactMessage.1",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.reactMessage.2",
+        "table": "msgReactions",
+        "index": "byMsgPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point msgReactions by byMsgPrincipal: sync to memberships[.conversationId] last 100 by byConvAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.reactMessage.3",
+        "table": "msgReactions",
+        "index": "byMsgPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point msgReactions by byMsgPrincipal: sync to memberships[.conversationId] last 100 by byConvAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:900:5",
+        "table": "msgReactions",
+        "index": "byMsgPrincipal",
+        "kind": "write target",
+        "class": "horizon",
+        "reason": "write target msgReactions by byMsgPrincipal: sync to memberships[.conversationId] last 100 by byConvAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "upsert msgReactions rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "upsert msgReactions rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "upsert msgReactions insert rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "upsert msgReactions insert rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NOT_FOUND",
+      "NOT_MEMBER"
+    ]
+  },
+  "renameChat": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "programs.renameChat.0",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "point",
+        "class": "held",
+        "reason": "point conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.renameChat.1",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:743:3",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "write target",
+        "class": "held",
+        "reason": "write target conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "update conversations rule",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "update conversations rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "after insert",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NOT_ADMIN",
+      "NOT_A_GROUP",
+      "NOT_FOUND"
+    ]
+  },
+  "repostSet": {
+    "predicts": "never",
+    "sites": [
+      {
+        "site": "programs.repostSet.0",
+        "table": "posts",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point posts by byId: sync public last 200 by byTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.repostSet.1",
+        "table": "reposts",
+        "index": "byPostPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point reposts by byPostPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.repostSet.2",
+        "table": "follows",
+        "index": "byFollowed",
+        "kind": "scan",
+        "class": "server",
+        "reason": "scan follows by byFollowed: online only",
+        "rewrite": "sync follows to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.repostSet.3",
+        "table": "reposts",
+        "index": "byPostPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point reposts by byPostPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.repostSet.4",
+        "table": "reposts",
+        "index": "byPostPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point reposts by byPostPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.repostSet.5",
+        "table": "globalfeed",
+        "index": "byKey",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point globalfeed by byKey: sync public last 200 by byTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.repostSet.6",
+        "table": "feed",
+        "index": "byReaderKey",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point feed by byReaderKey: sync to .readerId last 200 by byReaderTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "insert fanouts",
+        "table": "fanouts",
+        "index": "byId",
+        "kind": "write",
+        "class": "server",
+        "reason": "write fanouts by byId: online only",
+        "rewrite": "sync fanouts to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": [
+      "NOT_FOUND"
+    ]
+  },
+  "searchAll": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "programs.searchAll.0",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.searchAll.1",
+        "table": "messages",
+        "index": "byWords",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan messages by byWords: sync to memberships[.conversationId] last 500 by byConvTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "searchAllOnline": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "programs.searchAllOnline.0",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.searchAllOnline.1",
+        "table": "messages",
+        "index": "byWords",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan messages by byWords: sync to memberships[.conversationId] last 500 by byConvTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.searchAllOnline.2",
+        "table": "messageCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point messageCounts by byGroup: online only",
+        "rewrite": "sync messageCounts to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.searchAllOnline.2",
+        "table": "messages",
+        "index": "byConvTime",
+        "kind": "aggregate source",
+        "class": "horizon",
+        "reason": "aggregate source messages by byConvTime: sync to memberships[.conversationId] last 500 by byConvTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "searchChat": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "programs.searchChat.0",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.searchChat.1",
+        "table": "messages",
+        "index": "byConvWords",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan messages by byConvWords: sync to memberships[.conversationId] last 500 by byConvTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": [
+      "NOT_MEMBER"
+    ]
+  },
+  "searchPeople": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "programs.searchPeople.0",
+        "table": "profiles",
+        "index": "byNameWords",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan profiles by byNameWords: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "sendMedia": {
+    "predicts": "never",
+    "sites": [
+      {
+        "site": "programs.sendMedia.0",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.sendMedia.1",
+        "table": "messages",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point messages by byId: sync to memberships[.conversationId] last 500 by byConvTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.sendMedia.2",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "point",
+        "class": "held",
+        "reason": "point conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.sendMedia.3",
+        "table": "sysconfig",
+        "index": "byKey",
+        "kind": "point",
+        "class": "server",
+        "reason": "point sysconfig by byKey: online only",
+        "rewrite": "sync sysconfig to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.sendMedia.4",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.sendMedia.5",
+        "table": "profiles",
+        "index": "byPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.sendMedia.6",
+        "table": "sysconfig",
+        "index": "byKey",
+        "kind": "point",
+        "class": "server",
+        "reason": "point sysconfig by byKey: online only",
+        "rewrite": "sync sysconfig to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "connected",
+        "table": "connected",
+        "index": "principal",
+        "kind": "presence",
+        "class": "server",
+        "reason": "connected[principal] is known only by the server",
+        "rewrite": "remove connected from this query; observe presence separately online"
+      },
+      {
+        "site": "insert messages rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "insert messages rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "insert receipts",
+        "table": "receipts",
+        "index": "byId",
+        "kind": "write",
+        "class": "server",
+        "reason": "write receipts by byId: online only",
+        "rewrite": "sync receipts to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "insert receipts rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "insert receipts rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "CAPTION_LONG",
+      "DURATION_UNKNOWN",
+      "MIXED_MEDIA",
+      "NEED_IMAGE",
+      "NEED_VIDEO",
+      "NOT_FOUND",
+      "NOT_MEMBER",
+      "TOO_LONG",
+      "VIEWONCE_VIDEO"
+    ]
+  },
+  "sendText": {
+    "predicts": "never",
+    "sites": [
+      {
+        "site": "programs.sendText.0",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.sendText.1",
+        "table": "messages",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point messages by byId: sync to memberships[.conversationId] last 500 by byConvTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.sendText.2",
+        "table": "messages",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point messages by byId: sync to memberships[.conversationId] last 500 by byConvTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.sendText.3",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "point",
+        "class": "held",
+        "reason": "point conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.sendText.4",
+        "table": "sysconfig",
+        "index": "byKey",
+        "kind": "point",
+        "class": "server",
+        "reason": "point sysconfig by byKey: online only",
+        "rewrite": "sync sysconfig to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.sendText.5",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "scan",
+        "class": "held",
+        "reason": "scan memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.sendText.6",
+        "table": "profiles",
+        "index": "byPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.sendText.7",
+        "table": "sysconfig",
+        "index": "byKey",
+        "kind": "point",
+        "class": "server",
+        "reason": "point sysconfig by byKey: online only",
+        "rewrite": "sync sysconfig to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "connected",
+        "table": "connected",
+        "index": "principal",
+        "kind": "presence",
+        "class": "server",
+        "reason": "connected[principal] is known only by the server",
+        "rewrite": "remove connected from this query; observe presence separately online"
+      },
+      {
+        "site": "insert messages rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "insert messages rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "insert receipts",
+        "table": "receipts",
+        "index": "byId",
+        "kind": "write",
+        "class": "server",
+        "reason": "write receipts by byId: online only",
+        "rewrite": "sync receipts to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "insert receipts rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "insert receipts rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "BAD_QUOTE",
+      "EMPTY_BODY",
+      "NOT_FOUND",
+      "NOT_MEMBER"
+    ]
+  },
+  "setChatBackground": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "programs.setChatBackground.0",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.setChatBackground.1",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "point",
+        "class": "held",
+        "reason": "point conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.setChatBackground.2",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:766:3",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "write target",
+        "class": "held",
+        "reason": "write target conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "update conversations rule",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "update conversations rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "after insert",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NOT_ADMIN",
+      "NOT_FOUND",
+      "NOT_MEMBER"
+    ]
+  },
+  "setChatColor": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "programs.setChatColor.0",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.setChatColor.1",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "point",
+        "class": "held",
+        "reason": "point conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.setChatColor.2",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:758:3",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "write target",
+        "class": "held",
+        "reason": "write target conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "update conversations rule",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "update conversations rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "after insert",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NOT_ADMIN",
+      "NOT_FOUND",
+      "NOT_MEMBER"
+    ]
+  },
+  "setChatDescription": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "programs.setChatDescription.0",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "point",
+        "class": "held",
+        "reason": "point conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.setChatDescription.1",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:750:3",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "write target",
+        "class": "held",
+        "reason": "write target conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "update conversations rule",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "update conversations rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "after insert",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NOT_ADMIN",
+      "NOT_A_GROUP",
+      "NOT_FOUND"
+    ]
+  },
+  "setDisappearing": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "programs.setDisappearing.0",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.setDisappearing.1",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "point",
+        "class": "held",
+        "reason": "point conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.setDisappearing.2",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:774:3",
+        "table": "conversations",
+        "index": "byId",
+        "kind": "write target",
+        "class": "held",
+        "reason": "write target conversations by byId: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "update conversations rule",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "update conversations rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "after insert",
+        "table": "memberships",
+        "index": "byConvPrincipalRole",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipalRole: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NOT_ADMIN",
+      "NOT_FOUND",
+      "NOT_MEMBER"
+    ]
+  },
+  "thread": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "programs.thread.0",
+        "table": "posts",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point posts by byId: sync public last 200 by byTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.thread.1",
+        "table": "replies",
+        "index": "byParent",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan replies by byParent: sync public last 200 by byAuthorTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.thread.2",
+        "table": "profiles",
+        "index": "byPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.thread.3",
+        "table": "profiles",
+        "index": "byPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": [
+      "NOT_FOUND"
+    ]
+  },
+  "threadMessages": {
+    "runs": "device",
+    "sites": [
+      {
+        "site": "programs.threadMessages.0",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.threadMessages.1",
+        "table": "messages",
+        "index": "byConvTime",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan messages by byConvTime: sync to memberships[.conversationId] last 500 by byConvTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.threadMessages.2",
+        "table": "msgReactions",
+        "index": "byMsgPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point msgReactions by byMsgPrincipal: sync to memberships[.conversationId] last 100 by byConvAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": [
+      "NOT_MEMBER"
+    ]
+  },
+  "trending": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "programs.trending.0",
+        "table": "posts",
+        "index": "byTime",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan posts by byTime: sync public last 200 by byTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.trending.1",
+        "table": "likeCounts",
+        "index": "byGroup",
+        "kind": "point",
+        "class": "server",
+        "reason": "point likeCounts by byGroup: online only",
+        "rewrite": "sync likeCounts to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.trending.2",
+        "table": "posts",
+        "index": "byId",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point posts by byId: sync public last 200 by byTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.trending.3",
+        "table": "profiles",
+        "index": "byPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  },
+  "typingIn": {
+    "runs": "server",
+    "sites": [
+      {
+        "site": "programs.typingIn.0",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "programs.typingIn.1",
+        "table": "typing",
+        "index": "byConvPrincipal",
+        "kind": "scan",
+        "class": "server",
+        "reason": "scan typing by byConvPrincipal: online only",
+        "rewrite": "sync typing to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": [
+      "NOT_MEMBER"
+    ]
+  },
+  "typingPing": {
+    "predicts": "never",
+    "sites": [
+      {
+        "site": "programs.typingPing.0",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "point",
+        "class": "held",
+        "reason": "point memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "schema.q:929:3",
+        "table": "typing",
+        "index": "byConvPrincipal",
+        "kind": "write target",
+        "class": "server",
+        "reason": "write target typing by byConvPrincipal: online only",
+        "rewrite": "sync typing to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "upsert typing",
+        "table": "typing",
+        "index": "byId",
+        "kind": "write",
+        "class": "server",
+        "reason": "write typing by byId: online only",
+        "rewrite": "sync typing to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "upsert typing rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "upsert typing rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "upsert typing insert rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      },
+      {
+        "site": "upsert typing insert rule",
+        "table": "memberships",
+        "index": "byConvPrincipal",
+        "kind": "rule",
+        "class": "held",
+        "reason": "rule memberships by byConvPrincipal: held, no horizon",
+        "rewrite": ""
+      }
+    ],
+    "requires": [
+      "NOT_MEMBER"
+    ]
+  },
+  "unfollowUser": {
+    "predicts": "never",
+    "sites": [
+      {
+        "site": "programs.unfollowUser.0",
+        "table": "profiles",
+        "index": "byHandle",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byHandle: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.unfollowUser.1",
+        "table": "follows",
+        "index": "byPair",
+        "kind": "point",
+        "class": "server",
+        "reason": "point follows by byPair: online only",
+        "rewrite": "sync follows to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.unfollowUser.2",
+        "table": "followBackfills",
+        "index": "byPair",
+        "kind": "point",
+        "class": "server",
+        "reason": "point followBackfills by byPair: online only",
+        "rewrite": "sync followBackfills to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.unfollowUser.3",
+        "table": "followBackfills",
+        "index": "byPair",
+        "kind": "point",
+        "class": "server",
+        "reason": "point followBackfills by byPair: online only",
+        "rewrite": "sync followBackfills to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "programs.unfollowUser.4",
+        "table": "feed",
+        "index": "byReaderAuthor",
+        "kind": "scan",
+        "class": "horizon",
+        "reason": "scan feed by byReaderAuthor: sync to .readerId last 200 by byReaderTime",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "delete follows",
+        "table": "follows",
+        "index": "byId",
+        "kind": "write",
+        "class": "server",
+        "reason": "write follows by byId: online only",
+        "rewrite": "sync follows to its read-rule audience, or read a compact synced projection"
+      },
+      {
+        "site": "delete followBackfills",
+        "table": "followBackfills",
+        "index": "byId",
+        "kind": "write",
+        "class": "server",
+        "reason": "write followBackfills by byId: online only",
+        "rewrite": "sync followBackfills to its read-rule audience, or read a compact synced projection"
+      }
+    ],
+    "requires": [
+      "NOT_FOUND"
+    ]
+  },
+  "upsertProfile": {
+    "predicts": "eligible",
+    "sites": [
+      {
+        "site": "programs.upsertProfile.0",
+        "table": "profiles",
+        "index": "byPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "schema.q:580:3",
+        "table": "profiles",
+        "index": "byPrincipal",
+        "kind": "write target",
+        "class": "horizon",
+        "reason": "write target profiles by byPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      },
+      {
+        "site": "programs.upsertProfile.1",
+        "table": "profiles",
+        "index": "byPrincipal",
+        "kind": "point",
+        "class": "horizon",
+        "reason": "point profiles by byPrincipal: sync public last 2000 by byAt",
+        "rewrite": "remove a redundant guard, or read a synced fact without a horizon"
+      }
+    ],
+    "requires": []
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "startedAt": "2026-09-15T03:10:08.330439+00:00",
+  "endedAt": "2026-09-15T03:10:13.296096+00:00",
+  "command": [
+    "python3",
+    "./ref-check",
+    "--verbose"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-relaxed-record",
+  "exitCode": 0,
+  "wallSeconds": 4.966,
+  "log": "/Users/ccheever/projects/snapback-lanebriefs/cell-ref-check-20260915T031008.log",
+  "logSha256": "b46e67990d78f9a74811d958639769f58bb7b91917e02500a81110719ffa9ba7",
+  "limits": "Repository reference/metadata check only; no application runtime or independent grade rerun."
+}

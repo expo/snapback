@@ -1,0 +1,246 @@
+{
+  "derivedAt": "2026-09-15T02:59:59.241945+00:00",
+  "packet": "/Users/ccheever/clique-sb4-20260913-relaxed-3models",
+  "pins": {
+    "snapback4": "0.2.10",
+    "snapback4-expo": "0.2.3",
+    "frozen": true
+  },
+  "firstStart": "2026-09-14T11:15:05Z",
+  "finalEnd": "2026-09-15T02:43:55Z",
+  "elapsedFirstStartToFinalEndSeconds": 55730,
+  "sumRunnerWallsSeconds": 53413.774,
+  "phaseCount": 12,
+  "zeroExits": 11,
+  "phases": [
+    {
+      "wave": "astra",
+      "phase": "builder",
+      "model": "gpt-6-astra",
+      "effort": "medium",
+      "pid": 51228,
+      "startedAt": "2026-09-14T11:15:05Z",
+      "endedAt": "2026-09-14T13:28:43Z",
+      "actualExit": 0,
+      "wallSeconds": 8018.002,
+      "start": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/astra-snapback4.start.json",
+        "sha256": "0bddde7642aab92f1945ca242a502b120da312cfd14badb6c8baa88480849016"
+      },
+      "end": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/astra-snapback4.end.json",
+        "sha256": "dcb4002cfae0c4899609576303799fa7e8cea1f192ec33aba281a5df321c8177"
+      }
+    },
+    {
+      "wave": "astra",
+      "phase": "score",
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "pid": 88090,
+      "startedAt": "2026-09-14T22:21:31Z",
+      "endedAt": "2026-09-14T22:23:52Z",
+      "actualExit": 0,
+      "wallSeconds": 140.434,
+      "start": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/astra-snapback4.score.start.json",
+        "sha256": "9c03414500922bbb984aeb143866add36035044c62f57a9d74b84cdaa68bfad5"
+      },
+      "end": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/astra-snapback4.score.end.json",
+        "sha256": "bd2bf49afbd17f90141c37778a21ca716b2164327498469fe226617ca92a2709"
+      }
+    },
+    {
+      "wave": "astra",
+      "phase": "grade",
+      "model": "claude-opus-5",
+      "effort": "provider-default",
+      "pid": 49963,
+      "startedAt": "2026-09-14T22:37:26Z",
+      "endedAt": "2026-09-14T23:20:42Z",
+      "actualExit": 0,
+      "wallSeconds": 2596.349,
+      "start": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/astra-snapback4.grade.start.json",
+        "sha256": "87b16778de32eb57b2d143380460a203b2edc919d719cbbb841868c800a80649"
+      },
+      "end": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/astra-snapback4.grade.end.json",
+        "sha256": "9979c378182b18797a74c65050cde5f9c48808cce39d06dff720c0d2efa1cb76"
+      }
+    },
+    {
+      "wave": "astra",
+      "phase": "m7",
+      "model": "gpt-6-astra",
+      "effort": "medium",
+      "pid": 74767,
+      "startedAt": "2026-09-15T00:52:06Z",
+      "endedAt": "2026-09-15T01:39:57Z",
+      "actualExit": 0,
+      "wallSeconds": 2870.258,
+      "start": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/astra-snapback4.m7.start.json",
+        "sha256": "8a631f9043e2fc22958be1ebb355fa30d3cf781ffa8cbf7b5a8546cae3e1700c"
+      },
+      "end": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/astra-snapback4.m7.end.json",
+        "sha256": "b6b90e3b35cd68b56951075ad638148e4c80f9699a9912268e8cdd74810a0e7d"
+      }
+    },
+    {
+      "wave": "grok",
+      "phase": "builder",
+      "model": "grok-4.6",
+      "effort": "xhigh",
+      "pid": 91061,
+      "startedAt": "2026-09-14T13:28:43Z",
+      "endedAt": "2026-09-14T16:47:32Z",
+      "actualExit": 0,
+      "wallSeconds": 11928.612,
+      "start": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.start.json",
+        "sha256": "42f00cc21f66fd6f2816ee0f1d900794eed33f68c4025b91a5f1f485baffbf01"
+      },
+      "end": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.end.json",
+        "sha256": "fa742edd630087be25ace55c85a9f393c9c727744a5db6cfbde4c33133b5b26a"
+      }
+    },
+    {
+      "wave": "grok",
+      "phase": "score",
+      "model": "grok-4.6",
+      "effort": "xhigh",
+      "pid": 46199,
+      "startedAt": "2026-09-14T22:27:06Z",
+      "endedAt": "2026-09-14T22:33:53Z",
+      "actualExit": 0,
+      "wallSeconds": 407.165,
+      "start": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.score.start.json",
+        "sha256": "9ad800fdde67df3ac4c3f17fe208c58513a6f71c81ef7bc18c1a108864e7d0e5"
+      },
+      "end": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.score.end.json",
+        "sha256": "46e5d7d6bc3c576437b55d5c92f59660baed60240a045cd8d091f391f71b8e3b"
+      }
+    },
+    {
+      "wave": "grok",
+      "phase": "grade",
+      "model": "claude-opus-5",
+      "effort": "provider-default",
+      "pid": 24101,
+      "startedAt": "2026-09-14T23:25:36Z",
+      "endedAt": "2026-09-15T00:02:00Z",
+      "actualExit": 0,
+      "wallSeconds": 2184.473,
+      "start": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.grade.start.json",
+        "sha256": "022461ad506731186429a39368490ae67979b792797e9f76926ef09bdf6f9e7a"
+      },
+      "end": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.grade.end.json",
+        "sha256": "1df6c1f27b987ab7c4e7761a569f973bbe8929930fed7588c89aafaeaefe0b6b"
+      }
+    },
+    {
+      "wave": "grok",
+      "phase": "m7",
+      "model": "grok-4.6",
+      "effort": "xhigh",
+      "pid": 59663,
+      "startedAt": "2026-09-15T01:41:40Z",
+      "endedAt": "2026-09-15T02:09:28Z",
+      "actualExit": 0,
+      "wallSeconds": 1667.198,
+      "start": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.m7.start.json",
+        "sha256": "719f4a4c71f10c666aa87daf4b9d2df8834d12c3c969d1579f5faac95c687285"
+      },
+      "end": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/grok-snapback4.m7.end.json",
+        "sha256": "66f1d5bd2f4c3c11a1409839a82fb692c673b84a45a56fb724bbcd5f5e479778"
+      }
+    },
+    {
+      "wave": "muse",
+      "phase": "builder",
+      "model": "muse-spark-1.3",
+      "effort": "xhigh",
+      "pid": 65229,
+      "startedAt": "2026-09-14T16:47:32Z",
+      "endedAt": "2026-09-14T22:21:31Z",
+      "actualExit": 130,
+      "wallSeconds": 20039.027,
+      "start": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/muse-snapback4.start.json",
+        "sha256": "1615f85e9a1c24bb9bb96063cde9d6d929f94eb3f23e4539311bb5b3d4389f18"
+      },
+      "end": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/muse-snapback4.end.json",
+        "sha256": "f7350ce568c0d436c6c97e235288a0fc836a523224e483599bb398dff1c28ea5"
+      }
+    },
+    {
+      "wave": "muse",
+      "phase": "score",
+      "model": "muse-spark-1.3",
+      "effort": "xhigh",
+      "pid": 23755,
+      "startedAt": "2026-09-14T22:34:50Z",
+      "endedAt": "2026-09-14T22:36:06Z",
+      "actualExit": 0,
+      "wallSeconds": 75.485,
+      "start": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/muse-snapback4.score.start.json",
+        "sha256": "a4d0603fc7e91b007b3c483a5a8dda5bf505852d0e73abf130709b31f8c24a00"
+      },
+      "end": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/muse-snapback4.score.end.json",
+        "sha256": "631e972cc3be4e4b21f0918899a8e3631d4f7312865724ad895a655644bb3e40"
+      }
+    },
+    {
+      "wave": "muse",
+      "phase": "grade",
+      "model": "claude-opus-5",
+      "effort": "provider-default",
+      "pid": 23512,
+      "startedAt": "2026-09-15T00:06:09Z",
+      "endedAt": "2026-09-15T00:49:20Z",
+      "actualExit": 0,
+      "wallSeconds": 2591.524,
+      "start": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/muse-snapback4.grade.start.json",
+        "sha256": "93a1cfe08da00848c5906cde92f29bbf254542ea2b3cc553dbdd66199a61eac7"
+      },
+      "end": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/muse-snapback4.grade.end.json",
+        "sha256": "3ed363e9081c2830f12b72d664ab862f3210e16d4d6fff4f60b7fb7b91649a9d"
+      }
+    },
+    {
+      "wave": "muse",
+      "phase": "m7",
+      "model": "muse-spark-1.3",
+      "effort": "xhigh",
+      "pid": 6364,
+      "startedAt": "2026-09-15T02:28:59Z",
+      "endedAt": "2026-09-15T02:43:55Z",
+      "actualExit": 0,
+      "wallSeconds": 895.247,
+      "start": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/muse-snapback4.m7.start.json",
+        "sha256": "91f7ae705cf155b33ee33ceda8b2d70f8a87a1da41603d18862d2e9e5de4ccef"
+      },
+      "end": {
+        "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/logs/muse-snapback4.m7.end.json",
+        "sha256": "42ae9a9c6619c5d007b8af42bf959d7bc340db98a01cb812463d6eed3964ffa5"
+      }
+    }
+  ],
+  "limits": "Derived from actual start/end records; exit0 is not a semantic success or protocol-compliance verdict. Sum of monotonic runner walls excludes inter-phase gaps and is distinct from integer-epoch whole-cell elapsed time. Reported builder clocks remain in verbatim narratives. All grades precede M7; no independent post-M7 grade exists."
+}

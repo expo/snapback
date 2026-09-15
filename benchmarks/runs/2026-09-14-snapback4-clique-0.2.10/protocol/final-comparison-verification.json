@@ -1,0 +1,218 @@
+{
+  "observedAt": "2026-09-15T03:09:11.713999+00:00",
+  "checks": {
+    "holisticCells": 91,
+    "gradePartitionRows": 7,
+    "oDimensionCells": 35,
+    "mainTableRows": 7,
+    "currentM7Rows": 3,
+    "allMatch": true
+  },
+  "documents": {
+    "README.md": {
+      "bytes": 18336,
+      "sha256": "0585d99395ea1b92baed9f0dcbb9ea1ab290faf928b07f5a9e816afaf98027d0"
+    },
+    "MEASUREMENT-NOTES.md": {
+      "bytes": 27861,
+      "sha256": "a1fc0b32fb86900cf5b435717bbc5e00292a3b15162bc8f625cc8dd688af0318"
+    },
+    "comparison.json": {
+      "bytes": 13195,
+      "sha256": "aec15535e570e04940dbcd8f09a362ea2d4da96dde3d364452c5e7282b182571"
+    }
+  },
+  "sources": [
+    {
+      "path": "benchmarks/runs/2026-09-13-snapback4-clique-0004/holistic/all.json",
+      "sha256": "c4ca5b3c0c2b899adfa1c7ec8e7533e74a2f19e08c1431c366bdad20d6d3e9d8"
+    },
+    {
+      "path": "benchmarks/runs/2026-09-13-snapback4-clique-0004/astra/grading/grader-report.json",
+      "sha256": "410c4cd24f4e13539692c96f4f1776fc0241d6214a163623c2591ff37a636e9f"
+    },
+    {
+      "path": "benchmarks/runs/2026-09-13-snapback4-clique-0004/astra/grading/m8-assertion-results.json",
+      "sha256": "64a9f62500f52c625576f602c8941f4d6ab7e86c4acf3cf421d58e5e29694b38"
+    },
+    {
+      "path": "benchmarks/runs/2026-09-13-snapback4-clique-0004/holistic/all.json",
+      "sha256": "c4ca5b3c0c2b899adfa1c7ec8e7533e74a2f19e08c1431c366bdad20d6d3e9d8"
+    },
+    {
+      "path": "benchmarks/runs/2026-09-13-snapback4-clique-0004/grok/grading/grader-report.json",
+      "sha256": "30112e495f85977a396ae5fb6e53cbb4263b3d62471f3e04fdd320b234efc982"
+    },
+    {
+      "path": "benchmarks/runs/2026-09-13-snapback4-clique-0004/grok/grading/m8-assertion-results.json",
+      "sha256": "90becd30f8bbb91a28dba470a8a0e8519b71638a39aa0c3d9c4fa3b235f6f743"
+    },
+    {
+      "path": "benchmarks/runs/2026-09-13-snapback4-clique-0004/holistic/all.json",
+      "sha256": "c4ca5b3c0c2b899adfa1c7ec8e7533e74a2f19e08c1431c366bdad20d6d3e9d8"
+    },
+    {
+      "path": "benchmarks/runs/2026-09-13-snapback4-clique-0004/muse/grading/grader-report.json",
+      "sha256": "e4e031cc1757c0a892fd172c9b232588cba2118db6ed55eabd3f6ab517893f88"
+    },
+    {
+      "path": "benchmarks/runs/2026-09-13-snapback4-clique-0004/muse/grading/m8-assertion-results.json",
+      "sha256": "6cc08be217d09b86a57d24ff787f25cdd7bbf6dc8b922cf940c94e6a3af5c030"
+    },
+    {
+      "path": "benchmarks/runs/2026-09-14-snapback4-clique-astra-0.2.9/astra/holistic-score.md",
+      "sha256": "a462ebcff45d0237cae3569aab977941013261412e4578503fffb84624106105"
+    },
+    {
+      "path": "benchmarks/runs/2026-09-14-snapback4-clique-astra-0.2.9/astra/grading/grader-report.json",
+      "sha256": "1ed9dfa9c8f61934fed4a358dc8ee62404055daae241b0bc0f18f2370cb93f6d"
+    },
+    {
+      "path": "benchmarks/runs/2026-09-14-snapback4-clique-astra-0.2.9/astra/grading/m8-assertion-results.json",
+      "sha256": "bb5a411a6c1b322f3238bce7fc5a4ba7c3d07f428f9f16ce3fcba6d3189a903c"
+    },
+    {
+      "path": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/scores/all.json",
+      "sha256": "946a03dc13cf2b4bc7dae75810a69c00d3b47856d5bf7ee35102b4e519db47fb"
+    },
+    {
+      "path": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/astra/grading/grader-report.json",
+      "sha256": "484346a9dfe388c10e763928fcdd301c4577f8a140c6f84e25cfac9a50b74ef1"
+    },
+    {
+      "path": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/astra/grading/m8-assertion-results.json",
+      "sha256": "43e7653e0085d72b69347cc61a08cc0a7db1e79ea7f46c3a5c53cbabb3c17aa5"
+    },
+    {
+      "path": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/scores/all.json",
+      "sha256": "946a03dc13cf2b4bc7dae75810a69c00d3b47856d5bf7ee35102b4e519db47fb"
+    },
+    {
+      "path": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/grok/grading/grader-report.json",
+      "sha256": "276dbb2fd0e4a2e7b952da76e602186d1c38b94844d088ce8baf6c95e6c8d272"
+    },
+    {
+      "path": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/grok/grading/m8-assertion-results.json",
+      "sha256": "8ab620e811535be9592f4f496734eff8eea465cbadd807e677f7d690dea1b987"
+    },
+    {
+      "path": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/scores/all.json",
+      "sha256": "946a03dc13cf2b4bc7dae75810a69c00d3b47856d5bf7ee35102b4e519db47fb"
+    },
+    {
+      "path": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/muse/grading/grader-report.json",
+      "sha256": "437b3b58daebd13b88223df2971ad941a794e5f1392819e97e2d35ce72a6edcd"
+    },
+    {
+      "path": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/muse/grading/m8-assertion-results.json",
+      "sha256": "554c57fecb9bfb2663c79363a2c72ac82335e8e9ad0bfdb652c44f02f35bd85c"
+    }
+  ],
+  "execution": [
+    {
+      "pin": "0.2.6",
+      "family": "astra",
+      "phase": "builder",
+      "source": "benchmarks/runs/2026-09-13-snapback4-clique-0004/astra/astra-snapback4.end.json",
+      "bytes": 367,
+      "sha256": "9e7d88715e65aff3a64c574159dc6387662bc49d5a5a42fd2205822b99037774",
+      "wallSeconds": 9614.013,
+      "actualExit": 0
+    },
+    {
+      "pin": "0.2.6",
+      "family": "grok",
+      "phase": "builder",
+      "source": "benchmarks/runs/2026-09-13-snapback4-clique-0004/grok/grok-snapback4.end.json",
+      "bytes": 364,
+      "sha256": "ce275137c7381a69f76135406f69b38a1fee7d534959dbd76ad61877a8a91872",
+      "wallSeconds": 12499.35,
+      "actualExit": 0
+    },
+    {
+      "pin": "0.2.6",
+      "family": "muse",
+      "phase": "builder",
+      "source": "benchmarks/runs/2026-09-13-snapback4-clique-0004/muse/muse-snapback4.end.json",
+      "bytes": 367,
+      "sha256": "b1e1aba56798930e8118481d692355855c1cb4e6349c1f170be0cff64d142b28",
+      "wallSeconds": 17657.686,
+      "actualExit": 130
+    },
+    {
+      "pin": "0.2.9",
+      "family": "astra",
+      "phase": "builder",
+      "source": "benchmarks/runs/2026-09-14-snapback4-clique-astra-0.2.9/logs/astra-snapback4.end.json",
+      "bytes": 365,
+      "sha256": "6155c611debf8167ab579a889e2a48fa60b4ef10c932b74311f5ed177035b526",
+      "wallSeconds": 6889.565,
+      "actualExit": 0
+    },
+    {
+      "pin": "0.2.10",
+      "family": "astra",
+      "phase": "builder",
+      "source": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/logs/astra-snapback4.end.json",
+      "bytes": 373,
+      "sha256": "dcb4002cfae0c4899609576303799fa7e8cea1f192ec33aba281a5df321c8177",
+      "wallSeconds": 8018.002,
+      "actualExit": 0
+    },
+    {
+      "pin": "0.2.10",
+      "family": "grok",
+      "phase": "builder",
+      "source": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/logs/grok-snapback4.end.json",
+      "bytes": 371,
+      "sha256": "fa742edd630087be25ace55c85a9f393c9c727744a5db6cfbde4c33133b5b26a",
+      "wallSeconds": 11928.612,
+      "actualExit": 0
+    },
+    {
+      "pin": "0.2.10",
+      "family": "muse",
+      "phase": "builder",
+      "source": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/logs/muse-snapback4.end.json",
+      "bytes": 373,
+      "sha256": "f7350ce568c0d436c6c97e235288a0fc836a523224e483599bb398dff1c28ea5",
+      "wallSeconds": 20039.027,
+      "actualExit": 130
+    },
+    {
+      "pin": "0.2.10",
+      "family": "astra",
+      "phase": "m7",
+      "source": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/logs/astra-snapback4.m7.end.json",
+      "bytes": 374,
+      "sha256": "b6b90e3b35cd68b56951075ad638148e4c80f9699a9912268e8cdd74810a0e7d",
+      "wallSeconds": 2870.258,
+      "actualExit": 0
+    },
+    {
+      "pin": "0.2.10",
+      "family": "grok",
+      "phase": "m7",
+      "source": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/logs/grok-snapback4.m7.end.json",
+      "bytes": 371,
+      "sha256": "66f1d5bd2f4c3c11a1409839a82fb692c673b84a45a56fb724bbcd5f5e479778",
+      "wallSeconds": 1667.198,
+      "actualExit": 0
+    },
+    {
+      "pin": "0.2.10",
+      "family": "muse",
+      "phase": "m7",
+      "source": "benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/logs/muse-snapback4.m7.end.json",
+      "bytes": 369,
+      "sha256": "42ae9a9c6619c5d007b8af42bf959d7bc340db98a01cb812463d6eed3964ffa5",
+      "wallSeconds": 895.247,
+      "actualExit": 0
+    }
+  ],
+  "tool": {
+    "bytes": 6542,
+    "sha256": "538c98d4bf23104951c0e8ced015528fcabd1193516347729a116b748b17057f"
+  },
+  "limits": "Checks stated table numbers against received artifacts. Does not certify narrative interpretation, grade semantics, equivalent coverage, calibration or causality. Earlier comparison.json draftVerification retains its historical draft hash; this receipt binds final document bytes."
+}

@@ -1,0 +1,27 @@
+{
+  "observedAt": "2026-09-15T01:22:52.397693+00:00",
+  "originMain": "6fec8146c268a76bc2d2a0bfca4529ebfa8792f1",
+  "files": [
+    {
+      "path": "snapback4/crates/snapback4-core/src/schema.rs",
+      "sha256": "4d294b7a2a02b5695513addea5d191d3b8f516eb3ed2f8484f2dda1d5bcc80a5",
+      "matchesOriginMain": true
+    },
+    {
+      "path": "snapback4/crates/snapback4-core/src/engine/write.rs",
+      "sha256": "f4039e1d5cafa49256bcffe0fcaf2dba802a05bf523d124dff0e4896ecd97dfe",
+      "matchesOriginMain": true
+    },
+    {
+      "path": "snapback4/crates/snapback4-core/src/value.rs",
+      "sha256": "bde1e18617afec6521237ae4668e363989a793447394665ddd696c893f1ce552",
+      "matchesOriginMain": true
+    },
+    {
+      "path": "snapback4/crates/snapback4-core/src/store/activation.rs",
+      "sha256": "ef566f44d1274665fc3fef49611d5a18a853e5c91480796855dd416ba5c04b80",
+      "matchesOriginMain": true
+    }
+  ],
+  "limit": "Current source identity only, not current-main runtime reproduction."
+}

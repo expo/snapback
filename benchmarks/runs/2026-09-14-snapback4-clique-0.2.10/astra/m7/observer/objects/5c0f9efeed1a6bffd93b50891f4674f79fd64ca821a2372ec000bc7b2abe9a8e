@@ -1,0 +1,72 @@
+{
+  "milestone": "m2",
+  "pass": true,
+  "cases": [
+    {
+      "name": "create-text",
+      "pass": true
+    },
+    {
+      "name": "create-two-images",
+      "pass": true
+    },
+    {
+      "name": "create-video",
+      "pass": true
+    },
+    {
+      "name": "follow-projection-global-self",
+      "pass": true
+    },
+    {
+      "name": "like-set-clear-idempotent",
+      "pass": true
+    },
+    {
+      "name": "repost-attribution-remove-followed",
+      "pass": true
+    },
+    {
+      "name": "direct-thread-order-and-feed-exclusion",
+      "pass": true
+    },
+    {
+      "name": "feed-pages-and-scroll",
+      "pass": true
+    },
+    {
+      "name": "link-tappable-no-preview",
+      "pass": true
+    },
+    {
+      "name": "m2-seed-repeat",
+      "pass": true
+    }
+  ],
+  "coverage": {
+    "m2-a01": "create-text",
+    "m2-a02": "create-two-images",
+    "m2-a03": "create-video",
+    "m2-a06": "follow-projection-global-self",
+    "m2-a08": "follow-projection-global-self",
+    "m2-a09": "follow-projection-global-self",
+    "m2-a10": "follow-projection-global-self",
+    "m2-a11": "follow-projection-global-self",
+    "m2-a25": "follow-projection-global-self",
+    "m2-a26": "follow-projection-global-self",
+    "m2-a27": "follow-projection-global-self",
+    "m2-a15": "like-set-clear-idempotent",
+    "m2-a16": "repost-attribution-remove-followed",
+    "m2-a17": "repost-attribution-remove-followed",
+    "m2-a18": "repost-attribution-remove-followed",
+    "m2-a20": "direct-thread-order-and-feed-exclusion",
+    "m2-a21": "direct-thread-order-and-feed-exclusion",
+    "m2-a22": "feed-pages-and-scroll",
+    "m2-a23": "feed-pages-and-scroll",
+    "m2-a24": "feed-pages-and-scroll",
+    "m2-a12": "link-tappable-no-preview",
+    "m2-a13": "link-tappable-no-preview"
+  },
+  "missing": [],
+  "recordedAt": "2026-09-15T01:02:35.314Z"
+}

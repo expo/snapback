@@ -1,0 +1,32 @@
+{
+  "observedAt": "2026-09-15T02:49:56.284402+00:00",
+  "lane": "muse",
+  "phaseEndedAt": "2026-09-15T02:43:55Z",
+  "selectedPids": [
+    6364,
+    13990,
+    67534,
+    67552
+  ],
+  "sources": [
+    {
+      "path": "m7/run-log.md",
+      "sha256": "c7378eb13f5ae64a26b7f28015e81028afcf720f96daf8ddd2594813c95c9945"
+    },
+    {
+      "path": "m7/final-report.md",
+      "sha256": "d23766080d1f7954453637be8d48bffa7e2f40871cdbfd888bfa056751fb40a0"
+    }
+  ],
+  "ps": {
+    "exitCode": 1,
+    "stdout": "",
+    "stderr": ""
+  },
+  "assignedListeningSockets": {
+    "exitCode": 1,
+    "stdout": "",
+    "stderr": ""
+  },
+  "limits": "One late observation of PIDs explicitly named in M7 narratives and matching PID JSON ledgers plus the phase child, and listeners in the assigned port range. No signals or app requests. Absence is not a complete process inventory at phase end; any live PID may have been reused and needs ownership inspection before action. ps records executable names without arguments to avoid exposing credentials."
+}

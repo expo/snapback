@@ -1,0 +1,12 @@
+{
+  "copiedAt": "2026-09-15T02:51:59.057306+00:00",
+  "method": "Fixed-cut bounded audit read in full and copied verbatim, not an independent grade.",
+  "files": [
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/MUSE-0210-M7-SNAPSHOT-AUDIT.md",
+      "destination": "audits/MUSE-0210-M7-SNAPSHOT-AUDIT.md",
+      "bytes": 16774,
+      "sha256": "c9a0be79ca9549e0596a7a21478813a916925507b226a75ac15ced71fe9ad7c5"
+    }
+  ]
+}

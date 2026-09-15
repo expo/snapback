@@ -1,0 +1,10 @@
+{"at":1789433599720,"name":"backend","pid":86013,"cwd":"/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/m7/instance","command":["/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/.bin/snapback4","dev","--port","49340","--no-watch"]}
+{"at":1789433806158,"name":"backend-evolved","pid":20190,"cwd":"/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/m7/instance","command":["/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4","dev","--port","49340","--no-watch"]}
+{"at":1789433827854,"name":"web","pid":23821,"cwd":"/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4","command":["/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/expo/bin/cli","start","--web","--port","49341"]}
+{"name":"provider-worker","pid":86031,"parent":86029}
+{"name":"provider-worker","pid":20199,"parent":20190}
+{"name":"backend-restart","pid":19191,"args":["./node_modules/snapback4-darwin-arm64/snapback4","dev","--port","49340"]}
+{"name":"provider-worker","pid":19194,"parent":19191}
+{"at":1789434629043,"name":"backend-final","pid":49199,"cwd":"/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/m7/instance","command":["/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4","dev","--port","49340","--no-watch"]}
+{"at":1789434666506,"name":"backend-recovery","pid":54693,"cwd":"/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/m7/instance","command":["/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4","dev","--port","49340","--no-watch"]}
+{"name":"provider-worker","pid":54697,"parent":54693}

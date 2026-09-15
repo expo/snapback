@@ -1,0 +1,7 @@
+{
+  "observedAt": "2026-09-15T01:41:40.526123+00:00",
+  "phase": "before actual M7 launch",
+  "sourceFiles": 62,
+  "changedSincePreM7Capture": [],
+  "scope": "Original builder-manifest scope only; source hashes are not the custom-client API snapshot."
+}

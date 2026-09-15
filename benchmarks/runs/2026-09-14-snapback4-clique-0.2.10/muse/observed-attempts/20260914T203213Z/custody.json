@@ -1,0 +1,39 @@
+{
+  "observedAt": "2026-09-14T20:32:13.664998+00:00",
+  "scope": "Complete currently available choreography attempts during the active builder; these are not final milestone dispositions. Exact previously captured receipt hashes are skipped. Frozen packet untouched.",
+  "files": {
+    "receipts-m4.jsonl": {
+      "bytes": 6362,
+      "sha256": "5f5da4e8788edea8a0261aefd5d260f69b69b642f7f34811ead379bea3d090e5",
+      "recordedAt": "2026-09-14T20:21:57.271Z",
+      "green": true,
+      "assertions": {
+        "total": 5,
+        "required": 5,
+        "implemented": 5,
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      }
+    },
+    "receipts-m5.jsonl": {
+      "bytes": 4017,
+      "sha256": "a1cda96de4cb26a552ba5628fe2fc2788f1acd45c088e576478e65ea1452c215",
+      "recordedAt": "2026-09-14T20:29:07.114Z",
+      "green": true,
+      "assertions": {
+        "total": 4,
+        "required": 2,
+        "implemented": 4,
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      }
+    }
+  },
+  "skipped": {}
+}

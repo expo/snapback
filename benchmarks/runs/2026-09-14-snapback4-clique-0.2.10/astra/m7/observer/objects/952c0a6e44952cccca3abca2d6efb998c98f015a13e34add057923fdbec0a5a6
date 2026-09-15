@@ -1,0 +1,22 @@
+{
+  "milestone": "m3",
+  "coverage": {
+    "m3-a03": "dm-deduplication",
+    "m3-a04": "groups-with-same-roster",
+    "m3-a05": "groups-with-same-roster",
+    "m3-a14": "non-admin-removal-denied",
+    "m3-a10": "quoted-excerpt-and-jump",
+    "m3-a11": "quoted-excerpt-and-jump",
+    "m3-a15": "starter-segments-idempotent"
+  },
+  "required": [
+    "m3-a03",
+    "m3-a04",
+    "m3-a05",
+    "m3-a10",
+    "m3-a11",
+    "m3-a14",
+    "m3-a15"
+  ],
+  "missing": []
+}

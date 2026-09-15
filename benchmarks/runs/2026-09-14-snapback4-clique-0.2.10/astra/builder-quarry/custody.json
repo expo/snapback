@@ -1,0 +1,54 @@
+{
+  "observedAt": "2026-09-14T13:39:48.871399+00:00",
+  "note": "Quarry and worker source selected for reporting/integration shape audit; hashes agree with original pre-grade source manifest. Worker uses environment variable references, no credential values.",
+  "files": {
+    "snapback/analytics.q": {
+      "bytes": 4763,
+      "sha256": "4b6fda6b5495ac9a944a43d2135c397da4e6c262dd49b0e52b1385ade3aef0c5"
+    },
+    "snapback/chat.q": {
+      "bytes": 10137,
+      "sha256": "20e8297644afd86a2c8f0414a00ad4e24990f1a824e1078701a71b7f4f82841b"
+    },
+    "snapback/config.q": {
+      "bytes": 407,
+      "sha256": "9386d3f37359b59ede18b02ffd02892a93331a9b81b36bbc4a1a03980ec547ec"
+    },
+    "snapback/digest-schedule.q": {
+      "bytes": 95,
+      "sha256": "e83f55757ff3599b976e39f4420346b30c2e93b7c90d78b7a01770c892ed9819"
+    },
+    "snapback/features.q": {
+      "bytes": 1596,
+      "sha256": "1a5f30dd07d011af31f8690253a0d71fc9c27486fd1c90e875f59b7f9a3fdb36"
+    },
+    "snapback/media.q": {
+      "bytes": 4227,
+      "sha256": "02fb10d614927b22f15a72f14cb87e4e7f534088a530bfa3c9622c58443c9034"
+    },
+    "snapback/order.q": {
+      "bytes": 880,
+      "sha256": "4b896329e48e18fe7acc70bd727e2efc290f06ac08545ba7bfe6818333fd980a"
+    },
+    "snapback/push.q": {
+      "bytes": 415,
+      "sha256": "cd7cc04be55e55633751b167b41d4a38fdb28a8923ca3fb3efa8c60b0300cc58"
+    },
+    "snapback/replay.q": {
+      "bytes": 99,
+      "sha256": "c29781b75fe73d5a4c7f83cb49642ed6887dc16222f01b00b2a6b2fe53cf6970"
+    },
+    "snapback/schema.q": {
+      "bytes": 1107,
+      "sha256": "e7b2968e4f9fbdfa1c374231aa2684d0bdbbb41734dcd46a6c378aedbd76a86b"
+    },
+    "snapback/social.q": {
+      "bytes": 5645,
+      "sha256": "670f5a295cac3ff3e8908961def3994dc38647626798b224327aeb03295e2082"
+    },
+    "snapback/worker.mjs": {
+      "bytes": 1574,
+      "sha256": "25bfc0e05c77f30e20cb0d172fc3935f07b788f3c006b74640bf0d18109bcc1a"
+    }
+  }
+}

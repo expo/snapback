@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "profile": "production",
+  "periodSeconds": 86400,
+  "periodAnchorUtc": "08:00:00",
+  "oneDigestPerUserPerPeriod": true,
+  "serverTimeAuthoritative": true
+}

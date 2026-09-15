@@ -1,0 +1,19 @@
+{
+  "milestone": "m5",
+  "assertions": {
+    "m5-a04": "view-once first open",
+    "m5-a05": "view-once second denied",
+    "m5-a08": "non-admin cannot rename",
+    "m5-a09": "people search car -> carol",
+    "m5-a10": "in-chat search",
+    "m5-a11": "global search grouped by chat"
+  },
+  "tests": [
+    "m5-a04",
+    "m5-a05",
+    "m5-a08",
+    "m5-a09",
+    "m5-a10",
+    "m5-a11"
+  ]
+}

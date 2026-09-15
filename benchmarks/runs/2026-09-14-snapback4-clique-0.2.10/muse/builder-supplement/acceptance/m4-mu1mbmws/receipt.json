@@ -1,0 +1,66 @@
+{
+  "milestone": "m4",
+  "url": "http://127.0.0.1:49340",
+  "web": "http://127.0.0.1:49341",
+  "at": "2026-09-14T19:10:40.956Z",
+  "pass": false,
+  "failures": 1,
+  "results": [
+    {
+      "assertion": "m4-a01",
+      "test": "photo message sends end-to-end",
+      "pass": true
+    },
+    {
+      "assertion": "m4-a03",
+      "test": "video message sends end-to-end",
+      "pass": true
+    },
+    {
+      "assertion": "m4-a06",
+      "test": "reaction switch replaces (one per user per message)",
+      "pass": false,
+      "error": "Error: switch failed"
+    },
+    {
+      "assertion": "m4-a07",
+      "test": "reaction remove clears the row",
+      "pass": true
+    },
+    {
+      "assertion": "m4-a09",
+      "test": "edited message carries new body plus editedAt",
+      "pass": true
+    }
+  ],
+  "coverage": [
+    {
+      "id": "m4-a01",
+      "test": "photo message sends end-to-end",
+      "pass": true
+    },
+    {
+      "id": "m4-a03",
+      "test": "video message sends end-to-end",
+      "pass": true
+    },
+    {
+      "id": "m4-a06",
+      "test": "reaction switch replaces (one per user per message)",
+      "pass": false
+    },
+    {
+      "id": "m4-a07",
+      "test": "reaction remove clears the row",
+      "pass": true
+    },
+    {
+      "id": "m4-a09",
+      "test": "edited message carries new body plus editedAt",
+      "pass": true
+    }
+  ],
+  "uncovered": [
+    "m4-a06"
+  ]
+}

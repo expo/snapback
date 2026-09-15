@@ -1,0 +1,125 @@
+{
+  "observedAt": "2026-09-14T23:56:24.741945+00:00",
+  "files": [
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/src/client.ts",
+      "destination": "grok/builder-supplement/src/client.ts",
+      "bytes": 3919,
+      "sha256": "dc05991959cfd3f834fdb7f43cd4910cbf24d195edd306caf09fe5ed9018b938",
+      "sourceStage": "immutable post-builder capture"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/grok/builder-supplement/src/FeedItem.tsx",
+      "destination": "grok/builder-supplement/src/FeedItem.tsx",
+      "bytes": 4854,
+      "sha256": "197bcf3f051ccd964f473a34230f607c179158852f9d1cbc427fdcc801857a2a",
+      "sourceStage": "immutable post-builder capture"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/lib/client.tsx",
+      "destination": "muse/builder-supplement/lib/client.tsx",
+      "bytes": 10298,
+      "sha256": "0dc4f4dbda438a21a1237bdb1a08f3ab0a4b85afbf012e97d196b5281152e381",
+      "sourceStage": "immutable post-builder capture"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/lib/helpers.tsx",
+      "destination": "muse/builder-supplement/lib/helpers.tsx",
+      "bytes": 7435,
+      "sha256": "f0b33d8348fc4ba0c1c57fcf2b08e923b7744ff0f9b2c26791fbbbdcd92c42e8",
+      "sourceStage": "immutable post-builder capture"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/app/chat/[id]/settings.tsx",
+      "destination": "muse/builder-supplement/app/chat/[id]/settings.tsx",
+      "bytes": 9419,
+      "sha256": "2eadd4b90ce45c87c178bc2f3ea0322663b0f05596155b84df2e4b9caf534ea4",
+      "sourceStage": "immutable post-builder capture"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/app/_layout.tsx",
+      "destination": "muse/builder-supplement/app/_layout.tsx",
+      "bytes": 2184,
+      "sha256": "13aee5c4c54df610aa97c71f712bb49367dac157531969608dbc603bd0f2b0f1",
+      "sourceStage": "immutable post-builder capture"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/choreography/lib-json-schema.mjs",
+      "destination": "muse/builder-supplement/choreography/lib-json-schema.mjs",
+      "bytes": 721,
+      "sha256": "2cc6007cc27fed1ddcbff62cd6e5d72e4b58c513953a15805b79e44076fbf371",
+      "sourceStage": "immutable post-builder capture"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/muse/builder-supplement/snapback/generated/residency.json",
+      "destination": "muse/builder-supplement/snapback/generated/residency.json",
+      "bytes": 93993,
+      "sha256": "51377e46b20680199db24826258feb5aa523c27e58662c192e5f98747b7686e3",
+      "sourceStage": "immutable post-builder capture"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/evidence/full-replica-search.json",
+      "destination": "astra/additional-evidence/full-replica-search.json",
+      "bytes": 1051,
+      "sha256": "32ffce321f3050f6bdeb950b8b15423aa592f74df1e0ee9302eb1a551b1776e9",
+      "sourceStage": "completed Astra lane observed after grade, before M7; earlier hash matched where explicitly supplied"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/evidence/scale-probes-10pct.json",
+      "destination": "astra/additional-evidence/scale-probes-10pct.json",
+      "bytes": 7728,
+      "sha256": "a56e9270b8baa7233e2bb8455478a004ae971a2a59b86fa370456acfae58e9b9",
+      "sourceStage": "completed Astra lane observed after grade, before M7; earlier hash matched where explicitly supplied"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/evidence/scale-probes-50pct.json",
+      "destination": "astra/additional-evidence/scale-probes-50pct.json",
+      "bytes": 8313,
+      "sha256": "89223831be0101189233a255b56954656a7a84620a8620e19af6ad27bc7e18e0",
+      "sourceStage": "completed Astra lane observed after grade, before M7; earlier hash matched where explicitly supplied"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/evidence/scale-probes-final.json",
+      "destination": "astra/additional-evidence/scale-probes-final.json",
+      "bytes": 8322,
+      "sha256": "969facacf6a973400ed0a45be6dcb2ac651f5b8bb75d98619d1e108d1c48a21a",
+      "sourceStage": "completed Astra lane observed after grade, before M7; earlier hash matched where explicitly supplied"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/evidence/scale-verification-final-extended.json",
+      "destination": "astra/additional-evidence/scale-verification-final-extended.json",
+      "bytes": 883,
+      "sha256": "1c5a5a3e79f8a67eb5232442429c2a913bff66bfe96eb26e17b98f3998fc6881",
+      "sourceStage": "completed Astra lane observed after grade, before M7; earlier hash matched where explicitly supplied"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/evidence/m3-choreography.jsonl",
+      "destination": "astra/additional-evidence/m3-choreography.jsonl",
+      "bytes": 8276,
+      "sha256": "8747d4d3ba1a39e87ed20083df509dd96745ba7da57ada05eaa3ce148e2de32f",
+      "sourceStage": "completed Astra lane observed after grade, before M7; earlier hash matched where explicitly supplied"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/grading/evidence/web-removal-race-results.json",
+      "destination": "astra/grading/evidence/web-removal-race-results.json",
+      "bytes": 1274,
+      "sha256": "9e158ec53e9c5cf3ea385436530c0e18e53ad044b00d0334ccba84695848f182",
+      "sourceStage": "completed Astra independent grade; earlier audit hash matched"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/grading/evidence/web-removal-settled-results.json",
+      "destination": "astra/grading/evidence/web-removal-settled-results.json",
+      "bytes": 1059,
+      "sha256": "b42b402e1a40234eaf15c4fe683f757499f8a388e8c5342d274e8d094329c72a",
+      "sourceStage": "completed Astra independent grade; earlier audit hash matched"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/CELL-ARCHIVE-COVERAGE-AUDIT.md",
+      "destination": "audits/CELL-ARCHIVE-COVERAGE-AUDIT.md",
+      "bytes": 9626,
+      "sha256": "35a9d1c8ab12a3a3f684b05cab8f21a14dac1b3f3b5a11d3df04e77bbefc62e7",
+      "sourceStage": "bounded orchestrator audit of earlier staging snapshot; counts exclude these later additions"
+    }
+  ],
+  "limits": "Selected supporting files, not a complete application archive. Muse generated residency is an explicit exception to earlier generated-artifact omissions. No raw transcripts, stores or credentials copied. New observations do not retroactively establish before-grade custody where none is stated."
+}

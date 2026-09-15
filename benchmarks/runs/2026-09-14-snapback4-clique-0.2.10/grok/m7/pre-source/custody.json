@@ -1,0 +1,992 @@
+{
+  "observedAt": "2026-09-15T00:06:31.689417+00:00",
+  "lane": "grok",
+  "stage": "after completed grade, before M7 start",
+  "files": {
+    "app.json": {
+      "original": {
+        "bytes": 598,
+        "sha256": "8c8d4cae3c3723a5c4f0b67f2641492721d46d1a4f00f569b8233aaab733a8ab"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/app.json",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 598,
+        "sha256": "8c8d4cae3c3723a5c4f0b67f2641492721d46d1a4f00f569b8233aaab733a8ab"
+      }
+    },
+    "app/_layout.tsx": {
+      "original": {
+        "bytes": 2169,
+        "sha256": "7e0a4b0a974cca718ecea89e63bf9897b027e8ae2800b2131e92b90987b5d67f"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/app/_layout.tsx",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 2169,
+        "sha256": "7e0a4b0a974cca718ecea89e63bf9897b027e8ae2800b2131e92b90987b5d67f"
+      }
+    },
+    "app/chats.tsx": {
+      "original": {
+        "bytes": 2904,
+        "sha256": "98569d4dce4aeef33b586729526a89dd2f4a78b5873ccacb828887d4f0ae6406"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/app/chats.tsx",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 2904,
+        "sha256": "98569d4dce4aeef33b586729526a89dd2f4a78b5873ccacb828887d4f0ae6406"
+      }
+    },
+    "app/conversation/[handle].tsx": {
+      "original": {
+        "bytes": 1769,
+        "sha256": "ebdaa747521fe43c663d9b8704954eeec5c22d508626dc9b0d00cb6a15999aac"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/app/conversation/[handle].tsx",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 1769,
+        "sha256": "ebdaa747521fe43c663d9b8704954eeec5c22d508626dc9b0d00cb6a15999aac"
+      }
+    },
+    "app/conversation/group/[group].tsx": {
+      "original": {
+        "bytes": 1048,
+        "sha256": "b77c17880432babc16fefc822cc9550ec5a250ae59c0a83ffe422c0cfb482927"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/app/conversation/group/[group].tsx",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 1048,
+        "sha256": "b77c17880432babc16fefc822cc9550ec5a250ae59c0a83ffe422c0cfb482927"
+      }
+    },
+    "app/conversation/group/[group]/settings.tsx": {
+      "original": {
+        "bytes": 8356,
+        "sha256": "a02472db6b6a41a726d19c44b967ee0c77eace30529f7e616a05fda556412952"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/app/conversation/group/[group]/settings.tsx",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 8356,
+        "sha256": "a02472db6b6a41a726d19c44b967ee0c77eace30529f7e616a05fda556412952"
+      }
+    },
+    "app/feed.tsx": {
+      "original": {
+        "bytes": 6276,
+        "sha256": "8a5f03d7a10130845d2c1c7649f21be6227c50897cc3d6284e0ef38e5ce24c06"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/app/feed.tsx",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 6276,
+        "sha256": "8a5f03d7a10130845d2c1c7649f21be6227c50897cc3d6284e0ef38e5ce24c06"
+      }
+    },
+    "app/index.tsx": {
+      "original": {
+        "bytes": 159,
+        "sha256": "445c8855e1975128e020664e25da6308432d1f7671a70f99a2a99e675bd5f159"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/app/index.tsx",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 159,
+        "sha256": "445c8855e1975128e020664e25da6308432d1f7671a70f99a2a99e675bd5f159"
+      }
+    },
+    "app/insights.tsx": {
+      "original": {
+        "bytes": 1164,
+        "sha256": "ba0ef9597ef8f98f363e8cf2c3437abc3eea96b4b80d45a1ee43358a13fd86e7"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/app/insights.tsx",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 1164,
+        "sha256": "ba0ef9597ef8f98f363e8cf2c3437abc3eea96b4b80d45a1ee43358a13fd86e7"
+      }
+    },
+    "app/me.tsx": {
+      "original": {
+        "bytes": 684,
+        "sha256": "af43873affb8a23b76a099c6b764dfa3e5a40809aa1231ae172c9d09285a257b"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/app/me.tsx",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 684,
+        "sha256": "af43873affb8a23b76a099c6b764dfa3e5a40809aa1231ae172c9d09285a257b"
+      }
+    },
+    "app/new-chat.tsx": {
+      "original": {
+        "bytes": 2384,
+        "sha256": "3d216a46b052ebc5aec1a7fbe0d5dfcf087c0bced68aef95b719854abc343171"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/app/new-chat.tsx",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 2384,
+        "sha256": "3d216a46b052ebc5aec1a7fbe0d5dfcf087c0bced68aef95b719854abc343171"
+      }
+    },
+    "app/post/[id].tsx": {
+      "original": {
+        "bytes": 2331,
+        "sha256": "807874240f86e96b5922087df26bb01936fa71877ddf18c54e3c91577ba259dd"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/app/post/[id].tsx",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 2331,
+        "sha256": "807874240f86e96b5922087df26bb01936fa71877ddf18c54e3c91577ba259dd"
+      }
+    },
+    "app/profile/[handle].tsx": {
+      "original": {
+        "bytes": 3085,
+        "sha256": "5aaf4d20c3829970db71a5d945141536f47d81184e7af0dd10c49fd6d1ce7f6a"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/app/profile/[handle].tsx",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 3085,
+        "sha256": "5aaf4d20c3829970db71a5d945141536f47d81184e7af0dd10c49fd6d1ce7f6a"
+      }
+    },
+    "app/profile/edit.tsx": {
+      "original": {
+        "bytes": 2500,
+        "sha256": "af7f18403904afec48df4760af9407df69c449b25ba6013ef48de41917e05086"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/app/profile/edit.tsx",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 2500,
+        "sha256": "af7f18403904afec48df4760af9407df69c449b25ba6013ef48de41917e05086"
+      }
+    },
+    "app/search.tsx": {
+      "original": {
+        "bytes": 1930,
+        "sha256": "b7ef1a171d7aa96228e8b6292f7bb752814c19d6ad5d9052947e438bb7fe8269"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/app/search.tsx",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 1930,
+        "sha256": "b7ef1a171d7aa96228e8b6292f7bb752814c19d6ad5d9052947e438bb7fe8269"
+      }
+    },
+    "app/settings.tsx": {
+      "original": {
+        "bytes": 1317,
+        "sha256": "55722c80e1bb5ae2934d01a0ae98515cb1ef810b1de737ef7641cf9e3b98f631"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/app/settings.tsx",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 1317,
+        "sha256": "55722c80e1bb5ae2934d01a0ae98515cb1ef810b1de737ef7641cf9e3b98f631"
+      }
+    },
+    "babel.config.js": {
+      "original": {
+        "bytes": 101,
+        "sha256": "52db31902de488f2d5d368c3f449a449364d0d6d70450165c37fe7a1745838d8"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/babel.config.js",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 101,
+        "sha256": "52db31902de488f2d5d368c3f449a449364d0d6d70450165c37fe7a1745838d8"
+      }
+    },
+    "choreography/README.md": {
+      "original": {
+        "bytes": 17876,
+        "sha256": "c724e6b432ee8d2420f1e64b91f7412f2406671f9ad1e888dd28af6df5dc7847"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/choreography/README.md",
+      "redactions": {
+        "literalAssignments": 1,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 17878,
+        "sha256": "510a4f2ceacab0c15413e566fe3c0493acf31f5e5be4159b8255d78eb2ca1831"
+      }
+    },
+    "choreography/RUNBOOK.md": {
+      "original": {
+        "bytes": 8809,
+        "sha256": "7b68c0c6a335774ac5e101ef0415058c66ac12aaa683772346f112f99e3b8a1d"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/choreography/RUNBOOK.md",
+      "redactions": {
+        "literalAssignments": 2,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 8779,
+        "sha256": "9cdf521033b082c9980079171efd305019281d624a2592b0f733a39abbb46d02"
+      }
+    },
+    "choreography/choreography.mjs": {
+      "original": {
+        "bytes": 117581,
+        "sha256": "cc600295f80d40b89910a1bf01eb3c7d8b9c24625c9741035ca3844f80418fcc"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/choreography/choreography.mjs",
+      "redactions": {
+        "literalAssignments": 1,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 117593,
+        "sha256": "1aed0e6388c62751f6b17468448eb53098dc416868003ae4ba4857cf22bcaac2"
+      }
+    },
+    "choreography/control-lane.mjs": {
+      "original": {
+        "bytes": 38354,
+        "sha256": "937f38b09a15d510576e18b20dba78274e2fd57900dd4753cc766f1ff06057b9"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/choreography/control-lane.mjs",
+      "redactions": {
+        "literalAssignments": 1,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 38356,
+        "sha256": "27c6857afd0a9446cea18ef09103d8988181bae503896387df5f0c0363d5e2eb"
+      }
+    },
+    "choreography/package.json": {
+      "original": {
+        "bytes": 302,
+        "sha256": "a2cda3361f89e28b1b805ce4fa12a8414938126b495b6b2817d12c102969309c"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/choreography/package.json",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 302,
+        "sha256": "a2cda3361f89e28b1b805ce4fa12a8414938126b495b6b2817d12c102969309c"
+      }
+    },
+    "choreography/receipts-format.md": {
+      "original": {
+        "bytes": 10723,
+        "sha256": "1c247f0d7dc0edc84f2138bde37b1be39c01b3d3fe1247da1fbc0efef3e32b4d"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/choreography/receipts-format.md",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 10723,
+        "sha256": "1c247f0d7dc0edc84f2138bde37b1be39c01b3d3fe1247da1fbc0efef3e32b4d"
+      }
+    },
+    "choreography/receipts.schema.json": {
+      "original": {
+        "bytes": 27080,
+        "sha256": "5970f62483fa58358bc2cc08692a74925112de300a696eac61aa54853e9a1c39"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/choreography/receipts.schema.json",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 27080,
+        "sha256": "5970f62483fa58358bc2cc08692a74925112de300a696eac61aa54853e9a1c39"
+      }
+    },
+    "choreography/self-test.mjs": {
+      "original": {
+        "bytes": 44163,
+        "sha256": "6bf78419ad72a8efd40dc9125d5ec1dac753018ad79d9d4e68374e5379f32703"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/choreography/self-test.mjs",
+      "redactions": {
+        "literalAssignments": 1,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 44161,
+        "sha256": "80325062e58f6c3ecee4a18e392515b1e2e540906c715a242ea5e70c20e72e54"
+      }
+    },
+    "choreography/setup-identity.mjs": {
+      "original": {
+        "bytes": 6790,
+        "sha256": "a2e965b0a6db8e5ed7ec9c361035a0f5fb0252a261f4d44f8825463278da9420"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/choreography/setup-identity.mjs",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 6790,
+        "sha256": "a2e965b0a6db8e5ed7ec9c361035a0f5fb0252a261f4d44f8825463278da9420"
+      }
+    },
+    "choreography/setup-identity.schema.json": {
+      "original": {
+        "bytes": 4167,
+        "sha256": "bbc54559dc14fe2bb0b2f0a4a74ddaf10a2a5b16f36ebbc2346a00238f32058b"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/choreography/setup-identity.schema.json",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 4167,
+        "sha256": "bbc54559dc14fe2bb0b2f0a4a74ddaf10a2a5b16f36ebbc2346a00238f32058b"
+      }
+    },
+    "choreography/simulator.md": {
+      "original": {
+        "bytes": 8903,
+        "sha256": "a89a7af573e0d3716b78207a7b159e9e056a8d83405553f49e868d29ae4cca3f"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/choreography/simulator.md",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 8903,
+        "sha256": "a89a7af573e0d3716b78207a7b159e9e056a8d83405553f49e868d29ae4cca3f"
+      }
+    },
+    "choreography/startup.test.mjs": {
+      "original": {
+        "bytes": 8966,
+        "sha256": "0cc638f5c88d201afdebb85c95325b336485a38d15dbf0cc8877b5b46075f562"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/choreography/startup.test.mjs",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 8966,
+        "sha256": "0cc638f5c88d201afdebb85c95325b336485a38d15dbf0cc8877b5b46075f562"
+      }
+    },
+    "choreography/w9-coterie-browser.mjs": {
+      "original": {
+        "bytes": 8543,
+        "sha256": "0bb80fcfb1a0587b588f5c7d4b56b91a90d2e1088bfc44243d9ede4497ab8d89"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/choreography/w9-coterie-browser.mjs",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 8543,
+        "sha256": "0bb80fcfb1a0587b588f5c7d4b56b91a90d2e1088bfc44243d9ede4497ab8d89"
+      }
+    },
+    "choreography/w9-host-preflight.mjs": {
+      "original": {
+        "bytes": 3803,
+        "sha256": "4d8b8d0105892f899e7f3a171d0215788984880b8f2e2e4e33a5f7846668913a"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/choreography/w9-host-preflight.mjs",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 3803,
+        "sha256": "4d8b8d0105892f899e7f3a171d0215788984880b8f2e2e4e33a5f7846668913a"
+      }
+    },
+    "choreography/w9-native-host.mjs": {
+      "original": {
+        "bytes": 8601,
+        "sha256": "1afdf0852a7469352609be725fbdb977da177d5b4f4eb81b33874db4894db924"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/choreography/w9-native-host.mjs",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 8601,
+        "sha256": "1afdf0852a7469352609be725fbdb977da177d5b4f4eb81b33874db4894db924"
+      }
+    },
+    "config/digest.json": {
+      "original": {
+        "bytes": 182,
+        "sha256": "f5ddbd66bd4d791056a39b8cd4e77488c6822e6cbcdf65d97689be489851ea60"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/config/digest.json",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 182,
+        "sha256": "f5ddbd66bd4d791056a39b8cd4e77488c6822e6cbcdf65d97689be489851ea60"
+      }
+    },
+    "config/windows.json": {
+      "original": {
+        "bytes": 418,
+        "sha256": "e1b5bde4676e2ab1d9c20c77d70b24bf33d4d96436c474c6abf635e708dd6b8a"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/config/windows.json",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 418,
+        "sha256": "e1b5bde4676e2ab1d9c20c77d70b24bf33d4d96436c474c6abf635e708dd6b8a"
+      }
+    },
+    "package-lock.json": {
+      "original": {
+        "bytes": 329926,
+        "sha256": "971fae50e3a551d6bb0261f2261e9f9649b3ac92e31e3d01406d36579475bbea"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/package-lock.json",
+      "redactions": {
+        "literalAssignments": 4,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 329964,
+        "sha256": "1e439255ba7d248b5ee2b665fd6e789c06dcfb81fe9642ec5cfcbfc29a7149b8"
+      }
+    },
+    "package.json": {
+      "original": {
+        "bytes": 1337,
+        "sha256": "ed56c42a1702987481bfc675e87ad60f2a8aff3adaa1cda9e5be07d23aa1d7ad"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/package.json",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 1337,
+        "sha256": "ed56c42a1702987481bfc675e87ad60f2a8aff3adaa1cda9e5be07d23aa1d7ad"
+      }
+    },
+    "scripts/acceptance.mjs": {
+      "original": {
+        "bytes": 23927,
+        "sha256": "40c7d7ba2996abe2b488f59104e47f027aa905709cb1e9baf4d2205138eb8690"
+      },
+      "matchesBuilderHash": true,
+      "copied": false,
+      "reason": "Script source may contain test credentials; hash only"
+    },
+    "scripts/custom-client-demo.mjs": {
+      "original": {
+        "bytes": 1828,
+        "sha256": "1b4ef286ce51cd329ce0edf35f2c89bdd8bb4f66fcc3f00c45c26a172d78f267"
+      },
+      "matchesBuilderHash": true,
+      "copied": false,
+      "reason": "Script source may contain test credentials; hash only"
+    },
+    "scripts/diag-dm.mjs": {
+      "original": {
+        "bytes": 2503,
+        "sha256": "783cc962f0a0dede955681fd9a06e8eaa350b4ff0ce13af6a3859ac751b2dad4"
+      },
+      "matchesBuilderHash": true,
+      "copied": false,
+      "reason": "Script source may contain test credentials; hash only"
+    },
+    "scripts/export-ios-hermes.mjs": {
+      "original": {
+        "bytes": 1063,
+        "sha256": "3dfc2e3f837e1ca76d471f7ef4e60fbbfe91ef53e1ebc04f8327a54ae6d8edb6"
+      },
+      "matchesBuilderHash": true,
+      "copied": false,
+      "reason": "Script source may contain test credentials; hash only"
+    },
+    "scripts/lib/actions.mjs": {
+      "original": {
+        "bytes": 1203,
+        "sha256": "e4a42c90805f3aec8428b792b219270f87cbe16568b3e5c885c425d84608939c"
+      },
+      "matchesBuilderHash": true,
+      "copied": false,
+      "reason": "Script source may contain test credentials; hash only"
+    },
+    "scripts/lib/replay-core.mjs": {
+      "original": {
+        "bytes": 10683,
+        "sha256": "4a6dd23d87d428f8dd6e41137222997093320028c1fc81f0f351f41595d69bba"
+      },
+      "matchesBuilderHash": true,
+      "copied": false,
+      "reason": "Script source may contain test credentials; hash only"
+    },
+    "scripts/replay.mjs": {
+      "original": {
+        "bytes": 1307,
+        "sha256": "96a2fea6228f950c71d8a6906a9473e9c6e59565c698f8f76201add3072f1194"
+      },
+      "matchesBuilderHash": true,
+      "copied": false,
+      "reason": "Script source may contain test credentials; hash only"
+    },
+    "scripts/scale-replay.mjs": {
+      "original": {
+        "bytes": 2054,
+        "sha256": "14cffa0a1c0d1b570d6bae7d8f59fa701fe93cd6dfd8d4595ee19d8f1d997afb"
+      },
+      "matchesBuilderHash": true,
+      "copied": false,
+      "reason": "Script source may contain test credentials; hash only"
+    },
+    "scripts/seed.mjs": {
+      "original": {
+        "bytes": 2496,
+        "sha256": "53dd60774fad1b078c8697975ca30e6850506fe4b1820bb3b76945a3e110cb0e"
+      },
+      "matchesBuilderHash": true,
+      "copied": false,
+      "reason": "Script source may contain test credentials; hash only"
+    },
+    "scripts/start-backend.mjs": {
+      "original": {
+        "bytes": 930,
+        "sha256": "b5831f90bf08427d45dc05f6decfac501d487c602110c680c8584248a3994932"
+      },
+      "matchesBuilderHash": true,
+      "copied": false,
+      "reason": "Script source may contain test credentials; hash only"
+    },
+    "scripts/write-setup-identity.mjs": {
+      "original": {
+        "bytes": 2219,
+        "sha256": "1f01ddb2336f11347903fbc83cd00659b39d08f97c7d801be9c2bf9e58aed220"
+      },
+      "matchesBuilderHash": true,
+      "copied": false,
+      "reason": "Script source may contain test credentials; hash only"
+    },
+    "snapback/generated/api.ts": {
+      "original": {
+        "bytes": 48776,
+        "sha256": "7447264bb67b2bd889238711a1778d49dd3cfe056e885104ec42660b9dd54b2b"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/snapback/generated/api.ts",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 48776,
+        "sha256": "7447264bb67b2bd889238711a1778d49dd3cfe056e885104ec42660b9dd54b2b"
+      }
+    },
+    "snapback/generated/residency.json": {
+      "original": {
+        "bytes": 93733,
+        "sha256": "9fb83e0a0d1adf1dced44b7c300ddb6f39d250e8decef5df08e4a56a134112b9"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/snapback/generated/residency.json",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 93733,
+        "sha256": "9fb83e0a0d1adf1dced44b7c300ddb6f39d250e8decef5df08e4a56a134112b9"
+      }
+    },
+    "snapback/schema.q": {
+      "original": {
+        "bytes": 34516,
+        "sha256": "f71d0b6102eba07f4b75906d8e344d266273b88d6f8ede7528fd23a4ea7935fd"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/snapback/schema.q",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 34516,
+        "sha256": "f71d0b6102eba07f4b75906d8e344d266273b88d6f8ede7528fd23a4ea7935fd"
+      }
+    },
+    "snapback/worker.ts": {
+      "original": {
+        "bytes": 1039,
+        "sha256": "0bdfd9e50ab5e0ac444c2e6bf6cd4dc5dd367bc61a211c07ea730d5dcec4fa5f"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/snapback/worker.ts",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 1039,
+        "sha256": "0bdfd9e50ab5e0ac444c2e6bf6cd4dc5dd367bc61a211c07ea730d5dcec4fa5f"
+      }
+    },
+    "src/AppProviders.tsx": {
+      "original": {
+        "bytes": 2691,
+        "sha256": "4ae04b783413b95a48bd425e84b24c4f78a4dd133761b8b6aba680e2157a6086"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/src/AppProviders.tsx",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 2691,
+        "sha256": "4ae04b783413b95a48bd425e84b24c4f78a4dd133761b8b6aba680e2157a6086"
+      }
+    },
+    "src/AssetMedia.tsx": {
+      "original": {
+        "bytes": 966,
+        "sha256": "6f6c8d772174b30f1dc38a2f0a440183a4591a88451c99cc1faf6583094a661f"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/src/AssetMedia.tsx",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 966,
+        "sha256": "6f6c8d772174b30f1dc38a2f0a440183a4591a88451c99cc1faf6583094a661f"
+      }
+    },
+    "src/ConversationThread.tsx": {
+      "original": {
+        "bytes": 17019,
+        "sha256": "b241cd389bcf4939e1e3851670259a6e3b051967ec97a1bab64dd6a6f5e377ec"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/src/ConversationThread.tsx",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 17019,
+        "sha256": "b241cd389bcf4939e1e3851670259a6e3b051967ec97a1bab64dd6a6f5e377ec"
+      }
+    },
+    "src/DeliverySync.tsx": {
+      "original": {
+        "bytes": 1363,
+        "sha256": "ec5eb6cd99629a5fb99f99ab0450e2de18905a5b42ca4e9b884dace0499ec10d"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/src/DeliverySync.tsx",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 1363,
+        "sha256": "ec5eb6cd99629a5fb99f99ab0450e2de18905a5b42ca4e9b884dace0499ec10d"
+      }
+    },
+    "src/FeedItem.tsx": {
+      "original": {
+        "bytes": 4854,
+        "sha256": "197bcf3f051ccd964f473a34230f607c179158852f9d1cbc427fdcc801857a2a"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/src/FeedItem.tsx",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 4854,
+        "sha256": "197bcf3f051ccd964f473a34230f607c179158852f9d1cbc427fdcc801857a2a"
+      }
+    },
+    "src/WebFile.tsx": {
+      "original": {
+        "bytes": 1919,
+        "sha256": "5b0c0ea697192915b192c2483960b3a69e221a65e2142131018e80b19af1b7e2"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/src/WebFile.tsx",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 1919,
+        "sha256": "5b0c0ea697192915b192c2483960b3a69e221a65e2142131018e80b19af1b7e2"
+      }
+    },
+    "src/api.generated.ts": {
+      "original": {
+        "bytes": 48776,
+        "sha256": "7447264bb67b2bd889238711a1778d49dd3cfe056e885104ec42660b9dd54b2b"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/src/api.generated.ts",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 48776,
+        "sha256": "7447264bb67b2bd889238711a1778d49dd3cfe056e885104ec42660b9dd54b2b"
+      }
+    },
+    "src/client.ts": {
+      "original": {
+        "bytes": 3919,
+        "sha256": "dc05991959cfd3f834fdb7f43cd4910cbf24d195edd306caf09fe5ed9018b938"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/src/client.ts",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 3919,
+        "sha256": "dc05991959cfd3f834fdb7f43cd4910cbf24d195edd306caf09fe5ed9018b938"
+      }
+    },
+    "src/ops.ts": {
+      "original": {
+        "bytes": 2050,
+        "sha256": "8d4f8f007794e55b31e2d496f9e75075d43facc1a6d8a41d4737b1856ef08d62"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/src/ops.ts",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 2050,
+        "sha256": "8d4f8f007794e55b31e2d496f9e75075d43facc1a6d8a41d4737b1856ef08d62"
+      }
+    },
+    "src/url.ts": {
+      "original": {
+        "bytes": 96,
+        "sha256": "afbd46b529652b517f2e8272cefabf623728d87f4c262a7b4fe497e5429490fa"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/src/url.ts",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 96,
+        "sha256": "afbd46b529652b517f2e8272cefabf623728d87f4c262a7b4fe497e5429490fa"
+      }
+    },
+    "tsconfig.json": {
+      "original": {
+        "bytes": 303,
+        "sha256": "b6a3ea46536ea0603d354a10830f7611d9e2d13e327271761a9dcb03017d3c57"
+      },
+      "matchesBuilderHash": true,
+      "copied": true,
+      "path": "source/tsconfig.json",
+      "redactions": {
+        "literalAssignments": 0,
+        "tokenPatterns": 0
+      },
+      "archived": {
+        "bytes": 303,
+        "sha256": "b6a3ea46536ea0603d354a10830f7611d9e2d13e327271761a9dcb03017d3c57"
+      }
+    }
+  },
+  "capturingToolSha256": "8a8180cbdb95498cdd83c6e9f85cdcfb933271bedb6d084e0164af4ade3029ba",
+  "limits": "Only the original builder source-manifest scope is captured. Later additions are outside this copy. Source bodies with credential-looking literal assignments are explicitly redacted and have distinct archive hashes. This is not a runnable clone, custom-client snapshot, grade or original-byte identity claim for redacted files. Script bodies are now hash-only; the copy is deliberately incomplete.",
+  "curation": {
+    "at": "2026-09-15T00:08:21.360208+00:00",
+    "reason": "Tighten script archival after received Grok grade identifies hard-coded fixture defaults; script bodies removed from this newly created external copy. Original packet files unchanged.",
+    "hashOnlyScriptPaths": [
+      "scripts/acceptance.mjs",
+      "scripts/custom-client-demo.mjs",
+      "scripts/diag-dm.mjs",
+      "scripts/export-ios-hermes.mjs",
+      "scripts/lib/actions.mjs",
+      "scripts/lib/replay-core.mjs",
+      "scripts/replay.mjs",
+      "scripts/scale-replay.mjs",
+      "scripts/seed.mjs",
+      "scripts/start-backend.mjs",
+      "scripts/write-setup-identity.mjs"
+    ]
+  }
+}

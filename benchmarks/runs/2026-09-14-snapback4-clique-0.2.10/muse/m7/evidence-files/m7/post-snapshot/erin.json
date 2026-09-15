@@ -1,0 +1,31 @@
+{
+  "persona": "erin",
+  "email": "erin@example.com",
+  "me": {
+    "at": 1789439768585,
+    "avatar": {
+      "bytes": 729,
+      "duration": null,
+      "height": 256,
+      "id": "01M2HEQY02QT7XWD9DT4M5W0H9",
+      "type": "image/png",
+      "width": 256
+    },
+    "bio": "Designing kinder interfaces and growing herbs.",
+    "displayName": "Erin Evans",
+    "handle": "erin",
+    "link": "https://example.com/erin",
+    "location": "Seattle, WA",
+    "principal": "user:01M2HEQY008VKJFGKTK7QSBVVV"
+  },
+  "inbox": [],
+  "convs": [],
+  "profiles": [],
+  "media": [
+    {
+      "id": "01M2HEQY02QT7XWD9DT4M5W0H9",
+      "sha256": "283773fb9ae8f07a00e335fdd37fd9f836845594d8be3352ee0fab542c4c9984",
+      "bytes": 729
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Clique",
+    "slug": "clique",
+    "scheme": "clique",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "social.clique.app"
+    },
+    "android": {
+      "package": "social.clique.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": ["expo-router", "expo-secure-store", "expo-sqlite"],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

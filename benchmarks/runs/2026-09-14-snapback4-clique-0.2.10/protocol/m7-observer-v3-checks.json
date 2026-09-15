@@ -1,0 +1,16 @@
+{
+  "checkedAt": "2026-09-15T00:33:35.265537+00:00",
+  "method": "Temporary synthetic packet only; no real packet reads, writes or process signals. Preserves both replaced snapshot and root receipt versions; checks exclusions, source scope and phase-end stop.",
+  "observerSha256": "a93de82a0bd09abed732f27ce00283dd49d272e4a19fab3c9a457fe54bd97484",
+  "checks": {
+    "both_snapshot_versions_retained": true,
+    "both_root_receipt_versions_retained": true,
+    "sensitive_evidence_hash_only": true,
+    "excluded_names_symlinks_dependencies": true,
+    "source_coverage": true,
+    "source_contents_hash_only": true,
+    "root_configuration_not_copied": true,
+    "stops_after_phase_end": true,
+    "packet_inputs_unmodified": true
+  }
+}

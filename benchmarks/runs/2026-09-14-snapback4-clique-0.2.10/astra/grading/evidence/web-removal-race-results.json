@@ -1,0 +1,52 @@
+{
+  "m3-a12-harness-sequence-repro": {
+    "pass": false,
+    "detail": {
+      "pass": false,
+      "runs": [
+        {
+          "i": 0,
+          "removedSaw": null,
+          "serverRecipientsIncludeRemoved": false,
+          "rosterStillHasRemoved": false,
+          "rosterRole": null
+        },
+        {
+          "i": 1,
+          "removedSaw": 4,
+          "serverRecipientsIncludeRemoved": true,
+          "rosterStillHasRemoved": true,
+          "rosterRole": "member"
+        },
+        {
+          "i": 2,
+          "removedSaw": 127,
+          "serverRecipientsIncludeRemoved": true,
+          "rosterStillHasRemoved": true,
+          "rosterRole": "admin"
+        },
+        {
+          "i": 3,
+          "removedSaw": 129,
+          "serverRecipientsIncludeRemoved": true,
+          "rosterStillHasRemoved": true,
+          "rosterRole": "admin"
+        },
+        {
+          "i": 4,
+          "removedSaw": null,
+          "serverRecipientsIncludeRemoved": false,
+          "rosterStillHasRemoved": false,
+          "rosterRole": null
+        },
+        {
+          "i": 5,
+          "removedSaw": 126,
+          "serverRecipientsIncludeRemoved": true,
+          "rosterStillHasRemoved": true,
+          "rosterRole": "admin"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,12 @@
+
+> clique@0.0.1 acceptance
+> node scripts/acceptance.mjs --milestone m7
+
+PASS backfilled-counts-match-all-existing-conversations
+PASS poll-creation-validation-and-member-authority
+PASS vote-switch-and-stale-retry-remain-set-state
+PASS settings-count-increments-and-tombstones-decrement
+PASS poll-composer-and-offline-vote
+PASS expiry-removes-polls-and-count-without-open-clients
+PASS previously-green-suites-still-pass
+{"milestone":"m7","pass":true,"missing":[]}

@@ -1,0 +1,35 @@
+{
+  "milestone": "m6",
+  "pass": true,
+  "cases": [
+    {
+      "name": "push-text-no-connected-recipient",
+      "pass": true
+    },
+    {
+      "name": "push-once-photo-preview",
+      "pass": true
+    },
+    {
+      "name": "headless-documented-client",
+      "pass": true
+    },
+    {
+      "name": "sample-schema-settlement-and-state",
+      "pass": true
+    },
+    {
+      "name": "web-cold-offline-search-and-ordered-queue",
+      "pass": true
+    }
+  ],
+  "coverage": {
+    "m6-a08": "push-text-no-connected-recipient",
+    "m6-a09": "push-once-photo-preview",
+    "m6-a10": "headless-documented-client",
+    "m6-a11": "headless-documented-client",
+    "m6-a13": "sample-schema-settlement-and-state"
+  },
+  "missing": [],
+  "recordedAt": "2026-09-15T01:29:38.254Z"
+}

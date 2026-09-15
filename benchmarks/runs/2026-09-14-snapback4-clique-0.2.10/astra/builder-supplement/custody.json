@@ -1,0 +1,59 @@
+{
+  "observedAt": "2026-09-14T13:39:24.657166+00:00",
+  "stage": "after-builder-before-grade-and-m7",
+  "note": "Supplement to the original capture for the builder-specific correction ledger name and supporting records; original capture unchanged.",
+  "files": {
+    "correction-events.json": {
+      "bytes": 16674,
+      "sha256": "a46b5f8fe0a1317b83fdcc2e5081c3b0e89cba3e376070300d612af596d7b641"
+    },
+    "final-report-data.json": {
+      "bytes": 26647,
+      "sha256": "980cc6bb8733fdb72ff0f174ccbb5a1e2a5af9632e9e422ff568e846663c7485"
+    },
+    "run-record.json": {
+      "bytes": 16440,
+      "sha256": "49684e89e107c4e6e0d17317eb7d4744d5720193bead6debe680d2a0bbcdbcc7"
+    },
+    "coverage-manifest.json": {
+      "bytes": 5466,
+      "sha256": "86792f37661a926f2be35a375f8ee038e678bf5f34ac7390f1bc6e50ee40b1b4"
+    },
+    "native-artifacts.json": {
+      "bytes": 1612,
+      "sha256": "b7d659aa0315ef344c5885cbbdb0fc005a9b477d263ff9b3e6fcb517903b2942"
+    },
+    "performance-summary.json": {
+      "bytes": 656,
+      "sha256": "f14c11bf52f0b884cddb2b127fe1df13c1521080516b15855bec0854873496be"
+    },
+    "hand-authored-lines.json": {
+      "bytes": 5617,
+      "sha256": "f8ec9bf865b335f7da240a7fa9a20a25d312f6a4bd5a865948d899eb0913e4a4"
+    },
+    "evidence/scale-clock.json": {
+      "bytes": 1109,
+      "sha256": "81b088128f3200aef3e63b607767cb92b060573c7865fedc42f94d44411c7b9b"
+    },
+    "evidence/scale-clock-attempt1.json": {
+      "bytes": 924,
+      "sha256": "2c251199c9bec21294e64cf70a91267a66728b42d9afd72f06c6e633f6d52990"
+    },
+    "evidence/run-record-validation.json": {
+      "bytes": 612,
+      "sha256": "548878f8b72947db49e40f3716b9ec39002d39d9d26e073d7d30d04725225763"
+    },
+    "evidence/shutdown.json": {
+      "bytes": 774,
+      "sha256": "e9e9f4782934245b9e7a5f26bf09f59deb5c1c033c1a56fda093ece82c976acd"
+    },
+    "evidence/final-binary-sha256.txt": {
+      "bytes": 112,
+      "sha256": "0fa6e27288dcfbc5e083d74cb3c90468fdb4b6041ecc3f0bfe00c8278dc41b47"
+    },
+    "evidence/resolved-package-pins.txt": {
+      "bytes": 185,
+      "sha256": "b14eb326da6b13337d6ac2d0c965acf1031dc1849ab8b97cbc595df788461212"
+    }
+  }
+}

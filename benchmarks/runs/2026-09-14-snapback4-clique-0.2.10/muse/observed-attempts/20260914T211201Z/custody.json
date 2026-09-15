@@ -1,0 +1,87 @@
+{
+  "observedAt": "2026-09-14T21:12:01.120255+00:00",
+  "scope": "Complete currently available choreography attempts during the active builder; these are not final milestone dispositions. Exact previously captured receipt hashes are skipped. Frozen packet untouched.",
+  "files": {
+    "receipts-m3c.jsonl": {
+      "bytes": 7880,
+      "sha256": "94322c74db3f7ac727072ea0d4fde0c150c4c69a053eecb940751da660a90cb2",
+      "recordedAt": "2026-09-14T20:53:38.813Z",
+      "green": false,
+      "assertions": {
+        "total": 7,
+        "required": 5,
+        "implemented": 6,
+        "passed": 5,
+        "failed": 1,
+        "skipped": 1,
+        "notImplemented": 1,
+        "requiredUnimplemented": 0
+      }
+    },
+    "receipts-m3d.jsonl": {
+      "bytes": 7885,
+      "sha256": "5c744e5af020f5c9fc1dbc467f9ca9f4eac11a88485e3764810a348d2a891c1a",
+      "recordedAt": "2026-09-14T20:56:34.475Z",
+      "green": false,
+      "assertions": {
+        "total": 7,
+        "required": 5,
+        "implemented": 6,
+        "passed": 5,
+        "failed": 1,
+        "skipped": 1,
+        "notImplemented": 1,
+        "requiredUnimplemented": 0
+      }
+    },
+    "receipts-m3e.jsonl": {
+      "bytes": 7881,
+      "sha256": "d96e94a259ac28282e6243b878655279e748f8c727e32614e5921e7ecf8a8205",
+      "recordedAt": "2026-09-14T20:58:40.613Z",
+      "green": false,
+      "assertions": {
+        "total": 7,
+        "required": 5,
+        "implemented": 6,
+        "passed": 5,
+        "failed": 1,
+        "skipped": 1,
+        "notImplemented": 1,
+        "requiredUnimplemented": 0
+      }
+    },
+    "receipts-m3w.jsonl": {
+      "bytes": 7921,
+      "sha256": "43665ddc294ab2380a5dbf64ca27117b96f9d6e8031c076731f7a38aa673a97b",
+      "recordedAt": "2026-09-14T21:02:00.978Z",
+      "green": false,
+      "assertions": {
+        "total": 7,
+        "required": 5,
+        "implemented": 6,
+        "passed": 5,
+        "failed": 1,
+        "skipped": 1,
+        "notImplemented": 1,
+        "requiredUnimplemented": 0
+      }
+    },
+    "receipts-m4b.jsonl": {
+      "bytes": 5423,
+      "sha256": "7b58302cb451eb25002ed1bc648b5c7c4f9cd3c885bbe90c552b28e7abe0312b",
+      "recordedAt": "2026-09-14T21:07:27.255Z",
+      "green": true,
+      "assertions": {
+        "total": 5,
+        "required": 5,
+        "implemented": 5,
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      }
+    }
+  },
+  "skipped": {}
+}

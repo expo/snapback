@@ -1,0 +1,236 @@
+{
+  "schemaVersion": 1,
+  "lane": "snapback",
+  "laneVariant": "bare",
+  "carrier": "web",
+  "brief": "social-messenger",
+  "harness": {
+    "name": "Codex API session; native usage accounting retained externally by harness",
+    "model": "gpt-6-astra",
+    "effort": "medium",
+    "environment": {
+      "snapback4": "0.2.10",
+      "snapback4-expo": "0.2.3",
+      "node": "24.18.0",
+      "expo": "57.0.22",
+      "platform": "macOS arm64 Apple M5 Max"
+    }
+  },
+  "timestamps": {
+    "startedAt": "2026-09-14T11:15:13.000Z",
+    "finishedAt": "2026-09-14T13:28:32.000Z"
+  },
+  "firstGreenProofAt": "2026-09-14T11:25:48.624Z",
+  "wallClock": {
+    "totalSeconds": 7999,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null,
+      "replay": 1149.2360000610352,
+      "m7Session": null
+    }
+  },
+  "tokens": {
+    "input": null,
+    "output": null,
+    "source": null,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null,
+      "replay": null,
+      "m7Session": null
+    }
+  },
+  "correctionLoops": [
+    {
+      "attribution": "environment",
+      "summary": "error/retry attribution=environment source=diagnostic evidence=evidence/choreography-install.txt; copied read-only permissions prevented npm install; chmod only lane copies. Node 24 explicit PATH used; CLI initial launch delayed then succeeded, cause ambiguous.",
+      "evidence": "run-log.md:12"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "server stopped pid=1714 to enable Metro watch; first-pass type errors attribution=agent-error evidence=evidence/types-m1-direct.txt corrected FeedTabs active prop and union query.",
+      "evidence": "run-log.md:16"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "correction loop attribution=agent-error source=diagnostic evidence=evidence/m1-acceptance.txt; M1 profile-edit failed after signup passed; form was interactive before async profile initialization. Gate rendering until initialization.",
+      "evidence": "run-log.md:18"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "correction loop iteration=2 attribution=agent-error source=diagnostic evidence=evidence/profiles-debug.json,app/profile/edit.tsx; profile form spread carried id/principal/avatar into strict mutation arguments; whitelist textual fields.",
+      "evidence": "run-log.md:19"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "correction loop attribution=agent-error source=fixture evidence=evidence/inspect-avatar.txt; avatar upload/render worked; suite incorrectly required role=img on RN Web wrapper. Check actual loaded img naturalWidth.",
+      "evidence": "run-log.md:20"
+    },
+    {
+      "attribution": "environment",
+      "summary": "error/retry attribution=environment source=diagnostic evidence=evidence/m1-choreo-output.txt; frozen choreography imports ../metering; copied adjacent metering, linked frozen fixtures/schema read-only.",
+      "evidence": "run-log.md:21"
+    },
+    {
+      "attribution": "environment",
+      "summary": "instrument workaround attribution=environment source=diagnostic evidence=evidence/m1-choreo-output-retry.txt,scripts/instrument-loader.mjs,scripts/schema-validator.mjs; frozen snapshot lacks ../../lib/json-schema.mjs and outside-lane writes forbidden. Retain harness unchanged, supply missing schema-validator dependency via Node loader using pinned AJV2020; all checks retained; disclose nonstandard dependency adaptation.",
+      "evidence": "run-log.md:22"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "knowledge lookup source=package README/guide attribution=agent-error evidence=evidence/guide-feeds.txt,evidence/check-m2-retry.txt; named shape after where parsed as null shape; fixed explicit shape braces and named follow keys. N_WIDE_MERGE retained as scale risk; aggregates online-only to avoid corpus-size aggregate sync.",
+      "evidence": "run-log.md:25"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "correction loop attribution=agent-error source=fixture evidence=evidence/m2-choreo-output.txt,choreography-adapter.json; default harness media directory points outside snapshot. Set supported fixture-directory adapter to instrument/fixtures; original failed receipts retained.",
+      "evidence": "run-log.md:26"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "correction loop attribution=agent-error source=fixture evidence=evidence/m2-choreo-output.txt; harness toggles follow then directly clicks feed tabs. Added actual feed-tab navigation in shared shell on profile routes. Suite scrolling changed to bounded target-driven scrolling, not fixed wheel count. Accidental empty /tmp/unused-empty file created and immediately removed; no external content inspected.",
+      "evidence": "run-log.md:27"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "correction attribution=agent-error evidence=scripts/choreo.mjs; freeze suite receipt bytes per choreography invocation so future acceptance runs cannot invalidate hash linkage. Final proof will run serially after outstanding attempts settle.",
+      "evidence": "run-log.md:28"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "correction loop attribution=agent-error source=diagnostic evidence=evidence/m2-choreo-output.txt; Expo Stack retained inactive composers in DOM causing duplicate contract IDs. Use Expo Router Slot to render only active route.",
+      "evidence": "run-log.md:29"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "correction loop attribution=ambiguous source=diagnostic evidence=evidence/m2-pagination-global.png; FlatList displayed only initial window with footer while API page returned 20. Replace feed container with paged ScrollView with end-triggered loadMore; retains server cursor paging, avoids RN Web virtualization interaction.",
+      "evidence": "run-log.md:30"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "M2 suite now passes complete coverage after serial run; evidence=evidence/m2-acceptance-final.txt; choreography final rerun in progress. Correction attribution=agent-error: transient syntax error during ScrollView replacement caused one earlier browser startup failure; corrected before final rerun.",
+      "evidence": "run-log.md:31"
+    },
+    {
+      "attribution": "snapback-defect",
+      "subAttribution": "defect",
+      "summary": "correction loop attribution=snapback4-defect subAttribution=defect source=diagnostic evidence=evidence/m3-retention-direct.txt,evidence/compiled-schema.json,evidence/guide-sync.txt; messages and conversation compile with leave=delivered-history, but plain device history becomes [] after removal despite documented retained read semantics. Try retaining audience membership rows too; no package source read.",
+      "evidence": "run-log.md:35"
+    },
+    {
+      "attribution": "snapback-defect",
+      "subAttribution": "defect",
+      "summary": "workaround validated attribution=snapback4-defect subAttribution=defect source=diagnostic evidence=evidence/m3-retention-no-horizon.txt,evidence/m3-retention-confirmed.txt; horizon removes retained messages. Remove message sync horizon; retain default audience-table semantics. Full per-chat history increases cold-sync workload, measure at M6. Removed temporary diagnostic API/global. Use Expo Crypto UUIDs for Hermes runtime compatibility.",
+      "evidence": "run-log.md:36"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "error attribution=agent-error source=diagnostic evidence=evidence/m4-roster-persona.txt; CLI run discovered legacy message rows missing new required fields after schema adoption. Defaults apply only on insert. Add scheduled Quarry normalization for prior rows before restart. M4 picker verification also under diagnosis.",
+      "evidence": "run-log.md:39"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "correction loop attribution=agent-error source=diagnostic evidence=evidence/m4-before-picker.png,evidence/backend.stderr.log; empty error string rendered as raw View text triggered RN warning overlay covering attach button. Coerce condition to boolean. Required-column schema migration first refused; make new fields optional for normalization, then tighten after backfill.",
+      "evidence": "run-log.md:40"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "correction loop attribution=agent-error evidence=evidence/m4-acceptance-retry.txt,evidence/m4-backfill-check.json; picker works, suite queried server before optimistic send settled. Poll actual server history for authoritative settlement. Legacy normalization completed with zero missing fields; tightened schema and removed recurring migration schedule.",
+      "evidence": "run-log.md:41"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "M5 correction loop attribution=agent-error source=diagnostic evidence=evidence/m5-acceptance.txt; closed RN Modal retained image during exit animation. Conditionally mount viewer to synchronously clear consumed media DOM on close.",
+      "evidence": "run-log.md:46"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "M6 correction loop attribution=agent-error source=diagnostic evidence=evidence/check-m6.txt,evidence/why-fanout-m6.txt; emitting over accumulated recipient list loses structural capped-group provenance; iterate original capped membership page instead.",
+      "evidence": "run-log.md:51"
+    },
+    {
+      "attribution": "snapback-defect",
+      "subAttribution": "defect",
+      "summary": "M6 correction loop attribution=snapback4-defect subAttribution=docs-gap source=package README/guide,diagnostic evidence=evidence/guide-presence-m6.txt,evidence/check-m6-retry.txt,evidence/check-m6-dispatch.txt; connected in send yields N_NOT_PREDICTABLE despite documented least-speculative prediction. Durable pushCandidate effect relays to service-only Quarry dispatch then notify, preserving predictable send. Eligibility evaluated at near-immediate worker dispatch, not original commit.",
+      "evidence": "run-log.md:55"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "M6 correction loop attribution=agent-error source=diagnostic evidence=evidence/m6-acceptance.txt; replayed mutations intentionally omit historical result; recover DM ID through actual pair query. Cold-offline proof locator matched original and quoted Coffee text; select first existing bubble.",
+      "evidence": "run-log.md:59"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "M6 correction loop attribution=agent-error source=diagnostic evidence=evidence/m6-acceptance-retry.txt; history assertion assumed original starter message remained in newest 50 after accumulated tests. Verify freshly acknowledged content at cold reload; indexed Coffee search remains separate.",
+      "evidence": "run-log.md:60"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "M8 correction loop attribution=agent-error source=diagnostic evidence=evidence/m8-seed-diagnostic.txt; add explicit row ID to old ranking fixture. Preserve social write prediction by syncing bounded ranking and like-count read models instead of reading online-only state in the mutation.",
+      "evidence": "run-log.md:69"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "M8 correction loop attribution=agent-error source=package README/guide,diagnostic evidence=evidence/check-m8-prediction.txt,evidence/why-maintain-sync.txt,evidence/check-m8-prediction-retry.txt; maintains inherit source sync and do not accept explicit sync properties. Remove online-only override; inherited public like-count sync restores prediction.",
+      "evidence": "run-log.md:70"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "M8 correction loop attribution=agent-error source=diagnostic evidence=scripts/acceptance-m8.mjs; zero-day test now independently counts each day to tolerate intentional old-post fixtures on retries; corrected missing statement separator caught by node --check.",
+      "evidence": "run-log.md:71"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "M8 correction loop attribution=agent-error source=diagnostic evidence=evidence/m8-durable-web.txt; wait for reaction mutation admission before closing page and for all three queued operations after reconnect, not only the first two messages.",
+      "evidence": "run-log.md:78"
+    },
+    {
+      "attribution": "snapback-defect",
+      "subAttribution": "defect",
+      "summary": "M8 workaround validated attribution=snapback4-defect subAttribution=defect source=diagnostic evidence=evidence/m8-reaction-diagnostic.jsonl,evidence/m8-durable-web-explicit.txt,evidence/m8-durable-web.json; replacing reactions upsert with explicit exists/update/insert restores local prediction and durable offline reaction. Removed temporary diagnostic logger.",
+      "evidence": "run-log.md:80"
+    },
+    {
+      "attribution": "environment",
+      "summary": "M8 correction loop attribution=environment source=fixture evidence=evidence/m8-choreo.txt,choreography/choreography.mjs:2653; frozen cross-device read-state check goes directly to CHOREO_BASE_URL and expects chat rows, while default app root is the feed. Use supported CHOREO_BASE_URL input pointing to this same app /chats for M8; no harness source edit or check skip.",
+      "evidence": "run-log.md:81"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "M8 correction loop attribution=agent-error source=diagnostic evidence=evidence/m8-arrival-order-probe.json,evidence/check-m8-order.txt,evidence/m8-arrival-order-fixed.json; same-ms UUID tie ordering violated server arrival. Add transactional arrival clock, order history by it, and use precise read/delivery watermarks. Quarry rejects time multiplication; convert to integer milliseconds with division before scaling. Historical rows backfilled without changing original timestamps.",
+      "evidence": "run-log.md:82"
+    },
+    {
+      "attribution": "environment",
+      "summary": "environment correction: formatter installation completed; npx formatter child stalled before output (owned file descriptors identify PIDs 73042 and 73104), not npm install itself. Stop only those task PIDs and invoke formatter with absolute Node. source=diagnostic evidence=evidence/formatter-install.txt,evidence/format.txt.",
+      "evidence": "run-log.md:83"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "M8 adapter correction attribution=agent-error source=fixture evidence=scripts/replay.mjs,evidence/m8-adapter-conformance-final.txt; preserve fixture-provided intent mutation IDs and entity-create IDs directly, replacing prior stable hash mapping. Re-ran full 50-action state conformance on dev; all 13 verbs pass. Formatter pinned prettier@3.6.2 is tooling only; Snapback pins unchanged.",
+      "evidence": "run-log.md:88"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "scale error attribution=ambiguous source=diagnostic evidence=evidence/scale-clock.json Expected values to be strictly equal:",
+      "evidence": "run-log.md:94"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "scale correction loop attribution=agent-error source=diagnostic evidence=evidence/scale-clock-attempt1.json; checkpoint counts matched; reply postType is fixture reply versus backend text+parentId. Correct verifier mapping. Resume hashes every skipped acknowledged action, appends receipts, preserves original own-clock start and includes diagnosis wall time; no replayed action is silently skipped.",
+      "evidence": "run-log.md:100"
+    }
+  ],
+  "handAuthoredLoc": {
+    "lines": 6028,
+    "files": 73,
+    "sharedUiLines": null
+  },
+  "diary": "diary.md",
+  "notes": "Base-record schema validated. Current composed social-messenger record awaits external driver-stamped orientation/native metering and grading sessions; no grader or native usage data was fabricated. Detailed milestone/receipt/scale data is in final-report-data.json. Phase splits are unavailable rather than reconstructed. First observed green and final corrected boundary are distinguished in final-report.md. Scale correction/resume and diagnostic time remain inside its original cumulative clock."
+}

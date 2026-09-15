@@ -1,0 +1,30 @@
+{
+  "copiedAt": "2026-09-15T03:06:07.932049+00:00",
+  "method": "Verbatim packet completed-execution README and external record-check helpers. A copied helper is not itself proof that its check passed; separate run receipts supply that evidence.",
+  "files": [
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/README.md",
+      "destination": "PACKET-README.md",
+      "bytes": 23297,
+      "sha256": "1e01a10142b79beca21c4c6c52bb0687eccf3c429313b8fdf2694a808e25734a"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/verify-completed-cell-record.py",
+      "destination": "protocol/verify-completed-cell-record.py",
+      "bytes": 5572,
+      "sha256": "ff66349b146c68116f20646addeea2327c34f926272dab9554e282ecd273c79a"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/verify-cell-comparison.py",
+      "destination": "protocol/verify-cell-comparison.py",
+      "bytes": 6535,
+      "sha256": "12e44b6e7b44bbb8d6098ac4af9517088466314db0711518a0ae7b2a7dade98f"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/scan-cell-archive-secrets.py",
+      "destination": "protocol/scan-cell-archive-secrets.py",
+      "bytes": 2492,
+      "sha256": "4deacf242a98638e7c3f8484558b9245eead23e366bc569d4a1a28da98810139"
+    }
+  ]
+}

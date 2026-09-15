@@ -1,0 +1,12 @@
+test_changed_builder_end_refused (__main__.QualificationChecks) ... ok
+test_changed_final_report_refused (__main__.QualificationChecks) ... ok
+test_changed_qualification_refused (__main__.QualificationChecks) ... ok
+test_exact_one_expression_change (__main__.QualificationChecks) ... ok
+test_global_nonzero_completion_still_refuses (__main__.QualificationChecks) ... ok
+test_only_builder_path_qualifies (__main__.QualificationChecks) ... ok
+test_qualified_actual_builder (__main__.QualificationChecks) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.032s
+
+OK

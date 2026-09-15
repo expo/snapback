@@ -1,0 +1,18 @@
+{
+  "milestone": "m4",
+  "coverage": {
+    "m4-a01": "photo-picker-upload-message",
+    "m4-a03": "video-picker-upload-message",
+    "m4-a06": "reaction-replacement-clear",
+    "m4-a07": "reaction-replacement-clear",
+    "m4-a09": "edited-label"
+  },
+  "required": [
+    "m4-a01",
+    "m4-a03",
+    "m4-a06",
+    "m4-a07",
+    "m4-a09"
+  ],
+  "missing": []
+}

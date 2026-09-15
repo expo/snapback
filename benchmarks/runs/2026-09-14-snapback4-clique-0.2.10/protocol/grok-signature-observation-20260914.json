@@ -1,0 +1,228 @@
+{
+  "publishedControl": {
+    "path": "/Users/ccheever/projects/snapback-ceremony-third/runs/run-1/node_modules/snapback4-darwin-arm64/snapback4",
+    "resolvedPath": "/Users/ccheever/projects/snapback-ceremony-third/runs/run-1/node_modules/snapback4-darwin-arm64/snapback4",
+    "isSymlink": false,
+    "bytes": 7728288,
+    "sha256": "af4e26be10419df9428bf6be0c7513de07d227e33f77cdb464c4d93dc2a0767d",
+    "codesignExit": 0,
+    "signatureMetadata": [
+      "Format=Mach-O thin (arm64)",
+      "CodeDirectory v=20400 size=60056 flags=0x20002(adhoc,linker-signed) hashes=1873+0 location=embedded",
+      "Signature=adhoc",
+      "TeamIdentifier=not set",
+      "Sealed Resources=none"
+    ],
+    "macho": {
+      "headerAndCommandsBytes": 2192,
+      "signature": {
+        "dataOffset": 7668208,
+        "dataBytes": 60080
+      },
+      "sections": {
+        "__TEXT,__text": {
+          "size": 6829744,
+          "filePayload": true,
+          "sha256": "4e5bc97f2d99977e297a6632e97523478a100b90ecf7d972261a3f6c790925be"
+        },
+        "__TEXT,__stubs": {
+          "size": 2292,
+          "filePayload": true,
+          "sha256": "86cf56b0f41441bd861c71b262a9d4b6fc3481e1843640184a79d7cf0fe7031c"
+        },
+        "__TEXT,__stub_helper": {
+          "size": 2316,
+          "filePayload": true,
+          "sha256": "6c3eb95f938a54f310b57f2b3112631c5a8806f69ceb6a5d66231f921de856b0"
+        },
+        "__TEXT,__const": {
+          "size": 472148,
+          "filePayload": true,
+          "sha256": "675b2d3c0e9f10b131282565c1040f7694169b9c44e6f8ed518bf5c6f82bce4b"
+        },
+        "__TEXT,__gcc_except_tab": {
+          "size": 8444,
+          "filePayload": true,
+          "sha256": "81ee4489f46b6ed4726693a63875a5c510e04c949aa661abd0f378c4e92d0489"
+        },
+        "__TEXT,__cstring": {
+          "size": 103158,
+          "filePayload": true,
+          "sha256": "a81e36d04e16891184a67fac137960fbe97d9983882d0535f60b3d16ee9798f8"
+        },
+        "__TEXT,__unwind_info": {
+          "size": 24128,
+          "filePayload": true,
+          "sha256": "d94f9739a833202a618f7a5861d5741d1f44701889e42522e8fd9e27f47215d0"
+        },
+        "__TEXT,__eh_frame": {
+          "size": 37384,
+          "filePayload": true,
+          "sha256": "3208263d8445f83eea4c1bfdb5e1402dda6ee62b9cb8aa3ddefc827efbc3cc26"
+        },
+        "__DATA_CONST,__got": {
+          "size": 32,
+          "filePayload": true,
+          "sha256": "4b9b82d7dbfcf94fd6b7d8996c810a3d2141850aad2c2e6f20d94875c622910d"
+        },
+        "__DATA_CONST,__const": {
+          "size": 105472,
+          "filePayload": true,
+          "sha256": "fdc2601756ffeeab69b294c9504d187fcb9989b99f3a0356cf4ce328302f32f8"
+        },
+        "__DATA,__la_symbol_ptr": {
+          "size": 1528,
+          "filePayload": true,
+          "sha256": "124453517f5af4dcfd51b8b130ce2692ffe4503474ea9d14fb7e5751c6dfb2e6"
+        },
+        "__DATA,__data": {
+          "size": 17512,
+          "filePayload": true,
+          "sha256": "e41a2c2dabfa0f51ea5a954f84c3b38dc780a3a5d8cbece5ca18b221038aec2c"
+        },
+        "__DATA,__thread_vars": {
+          "size": 216,
+          "filePayload": true,
+          "sha256": "c443c42bcaa6e846bafc688afda1be055884d277545350a170e1efcfcbff2f91"
+        },
+        "__DATA,__thread_data": {
+          "size": 33,
+          "filePayload": true,
+          "sha256": "a65da3a8c2866e0b7a3394aa55334eafefc46a0afe38987cb10a8ecbcc2fd419"
+        },
+        "__DATA,__thread_bss": {
+          "size": 96,
+          "filePayload": false
+        },
+        "__DATA,__bss": {
+          "size": 1256,
+          "filePayload": false
+        },
+        "__DATA,__common": {
+          "size": 8,
+          "filePayload": false
+        }
+      },
+      "payloadBeforeSignatureSha256": "17596504e9c1da27b09e115f2f5b8e20eb1f2c0e4df341c3650f4b9524be4167",
+      "payloadBeforeSignatureBytes": 7666016
+    }
+  },
+  "grokInstalled": {
+    "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/node_modules/snapback4-darwin-arm64/snapback4",
+    "resolvedPath": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/node_modules/snapback4-darwin-arm64/snapback4",
+    "isSymlink": false,
+    "bytes": 7701616,
+    "sha256": "929be28d4907839a25b88d9ec456b2a1a18c44921e8e223f86e6982c64cb8ed2",
+    "codesignExit": 0,
+    "signatureMetadata": [
+      "Format=Mach-O thin (arm64)",
+      "CodeDirectory v=20400 size=15181 flags=0x0(none) hashes=469+2 location=embedded",
+      "Authority=Apple Development: Charles Cheever (JD7WF73G5F)",
+      "Authority=Apple Worldwide Developer Relations Certification Authority",
+      "Authority=Apple Root CA",
+      "TeamIdentifier=CUW59GZ74D",
+      "Sealed Resources=none",
+      "Internal requirements count=1 size=176"
+    ],
+    "macho": {
+      "headerAndCommandsBytes": 2192,
+      "signature": {
+        "dataOffset": 7668208,
+        "dataBytes": 33408
+      },
+      "sections": {
+        "__TEXT,__text": {
+          "size": 6829744,
+          "filePayload": true,
+          "sha256": "4e5bc97f2d99977e297a6632e97523478a100b90ecf7d972261a3f6c790925be"
+        },
+        "__TEXT,__stubs": {
+          "size": 2292,
+          "filePayload": true,
+          "sha256": "86cf56b0f41441bd861c71b262a9d4b6fc3481e1843640184a79d7cf0fe7031c"
+        },
+        "__TEXT,__stub_helper": {
+          "size": 2316,
+          "filePayload": true,
+          "sha256": "6c3eb95f938a54f310b57f2b3112631c5a8806f69ceb6a5d66231f921de856b0"
+        },
+        "__TEXT,__const": {
+          "size": 472148,
+          "filePayload": true,
+          "sha256": "675b2d3c0e9f10b131282565c1040f7694169b9c44e6f8ed518bf5c6f82bce4b"
+        },
+        "__TEXT,__gcc_except_tab": {
+          "size": 8444,
+          "filePayload": true,
+          "sha256": "81ee4489f46b6ed4726693a63875a5c510e04c949aa661abd0f378c4e92d0489"
+        },
+        "__TEXT,__cstring": {
+          "size": 103158,
+          "filePayload": true,
+          "sha256": "a81e36d04e16891184a67fac137960fbe97d9983882d0535f60b3d16ee9798f8"
+        },
+        "__TEXT,__unwind_info": {
+          "size": 24128,
+          "filePayload": true,
+          "sha256": "d94f9739a833202a618f7a5861d5741d1f44701889e42522e8fd9e27f47215d0"
+        },
+        "__TEXT,__eh_frame": {
+          "size": 37384,
+          "filePayload": true,
+          "sha256": "3208263d8445f83eea4c1bfdb5e1402dda6ee62b9cb8aa3ddefc827efbc3cc26"
+        },
+        "__DATA_CONST,__got": {
+          "size": 32,
+          "filePayload": true,
+          "sha256": "4b9b82d7dbfcf94fd6b7d8996c810a3d2141850aad2c2e6f20d94875c622910d"
+        },
+        "__DATA_CONST,__const": {
+          "size": 105472,
+          "filePayload": true,
+          "sha256": "fdc2601756ffeeab69b294c9504d187fcb9989b99f3a0356cf4ce328302f32f8"
+        },
+        "__DATA,__la_symbol_ptr": {
+          "size": 1528,
+          "filePayload": true,
+          "sha256": "124453517f5af4dcfd51b8b130ce2692ffe4503474ea9d14fb7e5751c6dfb2e6"
+        },
+        "__DATA,__data": {
+          "size": 17512,
+          "filePayload": true,
+          "sha256": "e41a2c2dabfa0f51ea5a954f84c3b38dc780a3a5d8cbece5ca18b221038aec2c"
+        },
+        "__DATA,__thread_vars": {
+          "size": 216,
+          "filePayload": true,
+          "sha256": "c443c42bcaa6e846bafc688afda1be055884d277545350a170e1efcfcbff2f91"
+        },
+        "__DATA,__thread_data": {
+          "size": 33,
+          "filePayload": true,
+          "sha256": "a65da3a8c2866e0b7a3394aa55334eafefc46a0afe38987cb10a8ecbcc2fd419"
+        },
+        "__DATA,__thread_bss": {
+          "size": 96,
+          "filePayload": false
+        },
+        "__DATA,__bss": {
+          "size": 1256,
+          "filePayload": false
+        },
+        "__DATA,__common": {
+          "size": 8,
+          "filePayload": false
+        }
+      },
+      "payloadBeforeSignatureSha256": "17596504e9c1da27b09e115f2f5b8e20eb1f2c0e4df341c3650f4b9524be4167",
+      "payloadBeforeSignatureBytes": 7666016
+    }
+  },
+  "observedAt": "2026-09-14T14:17:36.514906+00:00",
+  "comparison": {
+    "sectionPayloadsEqual": true,
+    "payloadAfterLoadCommandsBeforeSignatureEqual": true,
+    "sectionCount": 17,
+    "limitation": "Equal section and pre-signature payload hashes do not erase the signing/load-command deviation or establish that re-signing caused the host launch recovery."
+  }
+}

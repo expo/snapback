@@ -1,0 +1,20 @@
+{
+  "milestone": "m8",
+  "coverage": {
+    "m8-a01": "six-server-totals-match-independent-state",
+    "m8-a03": "server-utc-buckets-and-zero-days",
+    "m8-a04": "server-utc-buckets-and-zero-days",
+    "m8-a05": "trending-ranked-ties-and-expired-window",
+    "m8-a06": "trending-ranked-ties-and-expired-window",
+    "m8-a07": "trending-ranked-ties-and-expired-window"
+  },
+  "required": [
+    "m8-a01",
+    "m8-a03",
+    "m8-a04",
+    "m8-a05",
+    "m8-a06",
+    "m8-a07"
+  ],
+  "missing": []
+}

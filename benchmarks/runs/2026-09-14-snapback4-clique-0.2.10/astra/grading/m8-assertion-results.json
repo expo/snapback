@@ -1,0 +1,115 @@
+{
+  "reportVersion": 1,
+  "lane": "astra-snapback4",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/instrument/schema/social-messenger/assertions.json",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#4-api-probes (m8-a01-api) + fresh-instance insights + trace.md#5 (m8-a01-a03-a04-web)",
+      "suiteResult": "pass",
+      "note": "Fresh starter instance: Alice posts 4 (3 originals + 1 reply), likes 2, reposts 1, replies 1, followers 4, following 2, matching starter-m2.log. Dev instance totals equal independent SQL, and all six UI tiles match. 'Posts' includes replies (spec-ambiguous)."
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#8-choreography-receipts (m8-a02-insights-like-refresh: builder 44->45, grader 17->18)"
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "trace.md#5-web-automation (m8-a01-a03-a04-web); fresh-insights-alice.json (today bucket 4 posts/2 likes)",
+      "suiteResult": "pass"
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "trace.md#5-web-automation (7 day rows, zero days rendered 'Posts 0 Likes received 0')",
+      "suiteResult": "pass"
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#4-api-probes (m8-a05-a07-api-relative) + trace.md#5 (m8-a05-web)",
+      "suiteResult": "pass"
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#4-api-probes (old 25 h post inserted through the documented dev /seed fixture route, liked by 4 users: absent)",
+      "suiteResult": "pass",
+      "note": "A >24 h post cannot be created without a time seam; the dev fixture route was used, as in the builder suite. Replies with more likes are also absent."
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#4-api-probes (3-like tie: newer ranked before older)",
+      "suiteResult": "pass"
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#7-digest; evidence/g-digest-summary.json",
+      "note": "No clients connected (isolated fresh instance, shortened 2-minute config). Target got exactly one digest {newFollowers 2, newPostsInFollowing 2, unreadMessages 2, unreadChats 2}. Outsider got {0,0,5,3}. The script expected 4/2 for the outsider but forgot the outsider's own G3 membership; 5/3 is correct. Emitted 24 ms after period end."
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#7-digest (quiet persona and follower-only persona: no digest)"
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#7-digest (no digest for the target in the following quiet period)"
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#7-digest (restart at +50 s mid-period and again 8 s after emission: still exactly one per user per period)"
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md#7-digest (G2 without target, G3 after target removal, tombstoned DM message, and a read DM message all excluded)"
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#8-choreography-receipts (m8-a13-same-account-message-live: builder 501 ms, grader 362 ms)"
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#8-choreography-receipts (m8-a14-cross-device-read-state: builder + grader pass)"
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#8-choreography-receipts (m8-a15-dual-offline-convergence: builder + grader pass)"
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#8-choreography-receipts (m8-a16-dual-offline-receipts: builder + grader pass)"
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#9-native-artifacts (supplementalExternal ios-simulator-m6/m8 status not-recorded; native-artifacts.json lists Hermes bundles only)",
+      "note": "No iOS-simulator durable-restart artifact recorded (ios-simulator-m8 not-recorded)."
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "trace.md#9-native-artifacts (supplementalExternal ios-simulator-m6/m8 status not-recorded; native-artifacts.json lists Hermes bundles only)",
+      "note": "No iOS-simulator artifact recorded."
+    }
+  }
+}

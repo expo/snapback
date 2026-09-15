@@ -1,0 +1,66 @@
+{
+  "observedAt": "2026-09-14T22:31:01.416Z",
+  "method": "Read-only revalidation using unchanged packet-root benchmark support validator and frozen schemas; no browser rerun or correctness claim.",
+  "validatorSha256": "7b882f6147e6efde88bc41f4dbc6806e712fb54c2e1b47a214a5d59e96f02660",
+  "rows": 340,
+  "failures": [],
+  "setupErrors": [],
+  "finalSweep": [
+    {
+      "segment": "m1",
+      "green": true,
+      "suitePath": "acceptance/m1-mu1sjb00/receipt.json",
+      "hashMatches": true,
+      "pass": true,
+      "uncovered": []
+    },
+    {
+      "segment": "m2",
+      "green": true,
+      "suitePath": "acceptance/m2-mu1sjbuh/receipt.json",
+      "hashMatches": true,
+      "pass": true,
+      "uncovered": []
+    },
+    {
+      "segment": "m3",
+      "green": true,
+      "suitePath": "acceptance/m3-mu1sjc4p/receipt.json",
+      "hashMatches": true,
+      "pass": true,
+      "uncovered": []
+    },
+    {
+      "segment": "m4",
+      "green": true,
+      "suitePath": "acceptance/m4-mu1sjinw/receipt.json",
+      "hashMatches": true,
+      "pass": true,
+      "uncovered": []
+    },
+    {
+      "segment": "m5",
+      "green": true,
+      "suitePath": "acceptance/m5-mu1sjith/receipt.json",
+      "hashMatches": true,
+      "pass": true,
+      "uncovered": []
+    },
+    {
+      "segment": "m6",
+      "green": true,
+      "suitePath": "acceptance/m6-mu1sjiza/receipt.json",
+      "hashMatches": true,
+      "pass": true,
+      "uncovered": []
+    },
+    {
+      "segment": "m8",
+      "green": true,
+      "suitePath": "acceptance/m8-mu1sjkas/receipt.json",
+      "hashMatches": true,
+      "pass": true,
+      "uncovered": []
+    }
+  ]
+}

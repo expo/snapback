@@ -1,0 +1,120 @@
+{
+  "observedAt": "2026-09-14T23:34:10.830173+00:00",
+  "files": [
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/grade/grader-report.json",
+      "destination": "astra/grading/grader-report.json",
+      "bytes": 42992,
+      "sha256": "484346a9dfe388c10e763928fcdd301c4577f8a140c6f84e25cfac9a50b74ef1"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/grade/astra-snapback4.grade.start.json",
+      "destination": "logs/astra-snapback4.grade.start.json",
+      "bytes": 978,
+      "sha256": "87b16778de32eb57b2d143380460a203b2edc919d719cbbb841868c800a80649"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/grade/astra-snapback4.grade.end.json",
+      "destination": "logs/astra-snapback4.grade.end.json",
+      "bytes": 383,
+      "sha256": "9979c378182b18797a74c65050cde5f9c48808cce39d06dff720c0d2efa1cb76"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/grade/DONE",
+      "destination": "astra/grading/DONE",
+      "bytes": 15,
+      "sha256": "3cb2e3e5685070d5efa40b42a51738790dfe4e54b6d72ff57a8aeb5d6519fb7d"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/grade/validation.json",
+      "destination": "astra/grading/validation.json",
+      "bytes": 1967,
+      "sha256": "386d4243ba0755f8271934dda9153f502be3fb6833bddc89a408f0bee84b22d2"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/grade/custody.json",
+      "destination": "astra/grading/custody.json",
+      "bytes": 1635,
+      "sha256": "92dd3eecea2ac88d7b75adc264d9c572c441ce885e2db720a01fcc90fe3df384"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/grade/trace.md",
+      "destination": "astra/grading/trace.md",
+      "bytes": 30525,
+      "sha256": "dec71c913b62b4f2d4e326f20233c721a6fc10d498de7c3e225b47ab1f8615e5"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-custody-0.2.10/astra/grade/m8-assertion-results.json",
+      "destination": "astra/grading/m8-assertion-results.json",
+      "bytes": 5005,
+      "sha256": "43e7653e0085d72b69347cc61a08cc0a7db1e79ea7f46c3a5c53cbabb3c17aa5"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/ANCHOR-AUDIT-20260914.md",
+      "destination": "audits/ANCHOR-AUDIT-20260914.md",
+      "bytes": 29497,
+      "sha256": "c2598ffb33fe82b05293b59ba8f83b1a39d2f2991649d0275c6c51b38c9936f4"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/ASTRA-0210-ACCESS-AUDIT.md",
+      "destination": "audits/ASTRA-0210-ACCESS-AUDIT.md",
+      "bytes": 8708,
+      "sha256": "ad0fce6fc9d323949249ed285fe7e1ce32109f532069f6fa3336436fa45701c9"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/ASTRA-0210-ACCESS-AUDIT.json",
+      "destination": "audits/ASTRA-0210-ACCESS-AUDIT.json",
+      "bytes": 87391,
+      "sha256": "8882e9c3720195b1a675121ce8164949d9c79f62f63b2aa4a7f49fd0fff3efc0"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/ASTRA-REPORTING-COMPARISON-20260914.md",
+      "destination": "audits/ASTRA-REPORTING-COMPARISON-20260914.md",
+      "bytes": 18290,
+      "sha256": "3e2034a15c026e09816e5b357746dfa97c2f7289b5442a4a2b692d901d04e024"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/GROK-0210-ACCESS-AUDIT.md",
+      "destination": "audits/GROK-0210-ACCESS-AUDIT.md",
+      "bytes": 11954,
+      "sha256": "1b10c3c348377536bea0206bf22f7942d53598d44cb83b5a2d0a69a8252da186"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/GROK-0210-ACCESS-AUDIT.json",
+      "destination": "audits/GROK-0210-ACCESS-AUDIT.json",
+      "bytes": 259885,
+      "sha256": "2ccb606ae6c679c8cccdce8029ce7f8539e629a4b0e93b6f725a8ce36d74c5f5"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/GROK-REPORTING-COMPARISON-20260914.md",
+      "destination": "audits/GROK-REPORTING-COMPARISON-20260914.md",
+      "bytes": 16442,
+      "sha256": "a81a0a5b477f0a5718856224cbc503c6de704ef671aad1da75763eda463a3794"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/MUSE-0210-ACCESS-AUDIT.md",
+      "destination": "audits/MUSE-0210-ACCESS-AUDIT.md",
+      "bytes": 13717,
+      "sha256": "93645a37db6a17e4976152a6da293def35013bb7e566dd1192095549e3ea61c2"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/MUSE-0210-ACCESS-AUDIT.json",
+      "destination": "audits/MUSE-0210-ACCESS-AUDIT.json",
+      "bytes": 419642,
+      "sha256": "d05c56ae111f79c9ea7e0fd2c79596a1a5a67545eedb2917e87d9291564203e8"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/MUSE-REPORTING-COMPARISON-20260914.md",
+      "destination": "audits/MUSE-REPORTING-COMPARISON-20260914.md",
+      "bytes": 21597,
+      "sha256": "5ef2c87cbaac942576fad7beb8c906725d4de835d5e74c196de5e3b940c84c97"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/ASTRA-0210-GRADE-AUDIT.md",
+      "destination": "audits/ASTRA-0210-GRADE-AUDIT.md",
+      "bytes": 19041,
+      "sha256": "147a517613b19d3f25c7159ffed57b5a0f5c2613cf1f424ed47b2a0b042ebdfd"
+    }
+  ],
+  "limits": "Verbatim completed outputs and bounded orchestrator audits; not additional blind reviews or grades. Referenced external files are not necessarily archived. Raw transcripts and stores are omitted."
+}

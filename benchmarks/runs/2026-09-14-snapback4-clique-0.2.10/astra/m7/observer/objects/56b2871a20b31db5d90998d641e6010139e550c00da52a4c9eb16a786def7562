@@ -1,0 +1,62 @@
+{
+  "pass": true,
+  "at": 1789433827745,
+  "before": "m7/pre-snapshot",
+  "after": "m7/post-migration-snapshot",
+  "checks": [
+    {
+      "persona": "alice",
+      "conversation": "d-alice-bob",
+      "messages": 6,
+      "messageCount": 6,
+      "assets": 0
+    },
+    {
+      "persona": "alice",
+      "conversation": "g-starter",
+      "messages": 9,
+      "messageCount": 9,
+      "assets": 0
+    },
+    {
+      "persona": "bob",
+      "conversation": "d-alice-bob",
+      "messages": 6,
+      "messageCount": 6,
+      "assets": 0
+    },
+    {
+      "persona": "bob",
+      "conversation": "g-starter",
+      "messages": 9,
+      "messageCount": 9,
+      "assets": 0
+    },
+    {
+      "persona": "carol",
+      "conversation": "g-starter",
+      "messages": 9,
+      "messageCount": 9,
+      "assets": 0
+    }
+  ],
+  "fields": [
+    "id",
+    "conversationId",
+    "senderId",
+    "at",
+    "arrival",
+    "kind",
+    "text",
+    "photo",
+    "oncePhoto",
+    "video",
+    "edited",
+    "deleted",
+    "replyToId",
+    "reactions",
+    "receipt",
+    "expiresAt",
+    "viewed"
+  ]
+}

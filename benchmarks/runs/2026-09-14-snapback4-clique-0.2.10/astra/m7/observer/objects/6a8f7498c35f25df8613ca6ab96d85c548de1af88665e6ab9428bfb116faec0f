@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "social-messenger.choreography-adapter.v1",
+  "fixtures": {
+    "directory": "../instrument/fixtures",
+    "groupTitle": "Poll choreography 1789436038698"
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "at": "2026-09-15T02:41:21.556Z",
+  "url": "http://127.0.0.1:49340",
+  "personas": {
+    "alice": {
+      "file": "alice.json",
+      "sha256": "da7053fe87361c3cd8549e42890eb30cd826e11aaf8cc75371a8e91d29f09925",
+      "conversations": 2,
+      "messages": 16
+    },
+    "bob": {
+      "file": "bob.json",
+      "sha256": "ba968dc5a2c0947082dc43d2a1af3eda564c681bfb709dd099f5193aea698e4c",
+      "conversations": 2,
+      "messages": 16
+    },
+    "carol": {
+      "file": "carol.json",
+      "sha256": "54045ffa606e958d8ff1510b52d2a74773020dbc14e28ebb6f0344c7db56b1d8",
+      "conversations": 1,
+      "messages": 10
+    },
+    "dave": {
+      "file": "dave.json",
+      "sha256": "8136694e839998be5e4765c28d0faaccd3a3dd7857308d517791798a1d320c68",
+      "conversations": 0,
+      "messages": 0
+    },
+    "erin": {
+      "file": "erin.json",
+      "sha256": "50bf13f974a4e67859caa2ec80df7fbd2cf269f8826894e8eefd034fbc3a5ced",
+      "conversations": 0,
+      "messages": 0
+    },
+    "frank": {
+      "file": "frank.json",
+      "sha256": "fa45447775ce02e66eb0da5fcb617040a1559a7805dc5137fa4798fe9f64a53b",
+      "conversations": 0,
+      "messages": 0
+    },
+    "grace": {
+      "file": "grace.json",
+      "sha256": "b06f1cdb0d5e266d08205f27e779c752587354fcb0ccfb1d4e79c66dc715f00a",
+      "conversations": 0,
+      "messages": 0
+    },
+    "henry": {
+      "file": "henry.json",
+      "sha256": "2cc33d9e1909b17c0ec09fa1f821c6334a5b9f69f1ae46cd137c6092837f08dc",
+      "conversations": 0,
+      "messages": 0
+    }
+  }
+}

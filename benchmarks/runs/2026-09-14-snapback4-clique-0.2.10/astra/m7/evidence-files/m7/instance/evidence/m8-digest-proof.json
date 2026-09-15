@@ -1,0 +1,18 @@
+{
+  "pass": true,
+  "start": 1789435680000,
+  "end": 1789435800000,
+  "targetDigest": {
+    "kind": "digest",
+    "newFollowers": 1,
+    "newPostsInFollowing": 1,
+    "periodEnd": 1789435800000,
+    "periodStart": 1789435680000,
+    "targetUserId": "user:01M2HAY7075X0XZ595SKY21DQ6",
+    "unreadChats": 1,
+    "unreadMessages": 1
+  },
+  "quietNoDigest": true,
+  "nextPeriodNoDigest": true,
+  "restarted": true
+}

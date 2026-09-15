@@ -1,0 +1,17 @@
+{
+  "copiedAt": "2026-09-15T02:55:18.100474+00:00",
+  "files": [
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/muse-m7-builder-exception-20260915T022859816502Z.start.json",
+      "destination": "protocol/muse-m7-builder-exception-20260915T022859816502Z.start.json",
+      "bytes": 841,
+      "sha256": "3c9ba156e1997c39a8d9b64fce2e10ef9adff378fdaff3c085ea19f9bb42d3c4"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/muse-m7-builder-exception-20260915T022859816502Z.end.json",
+      "destination": "protocol/muse-m7-builder-exception-20260915T022859816502Z.end.json",
+      "bytes": 3192,
+      "sha256": "5bf11f1979390b46998ab12a419b578623215189898350c88c87fd6dda7f9bb4"
+    }
+  ]
+}

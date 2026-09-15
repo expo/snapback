@@ -1,0 +1,133 @@
+{
+  "pass": true,
+  "at": 1789434223479,
+  "method": "Custom-client API asset bytes compared to authoritative starter fixture bytes after migration",
+  "checks": [
+    {
+      "actor": "alice",
+      "label": "alice avatar",
+      "assetId": "01M2H8VV7R9B5CEBDBEAEKBAT4",
+      "fixture": "media/avatar-alice.png",
+      "sha256": "283773fb9ae8f07a00e335fdd37fd9f836845594d8be3352ee0fab542c4c9984"
+    },
+    {
+      "actor": "bob",
+      "label": "bob avatar",
+      "assetId": "01M2H8VV8JQM58YFDJ34TNAQT1",
+      "fixture": "media/avatar-bob.png",
+      "sha256": "9b49a333e2841ea99f6a708bc098a967d473183c134b5de9f35b6c36a72544d5"
+    },
+    {
+      "actor": "carol",
+      "label": "carol avatar",
+      "assetId": "01M2H8VV96D97V3HETPPS5QQMD",
+      "fixture": "media/avatar-alice.png",
+      "sha256": "283773fb9ae8f07a00e335fdd37fd9f836845594d8be3352ee0fab542c4c9984"
+    },
+    {
+      "actor": "dave",
+      "label": "dave avatar",
+      "assetId": "01M2H8VVA24CPJ4PZQXZERBD11",
+      "fixture": "media/avatar-bob.png",
+      "sha256": "9b49a333e2841ea99f6a708bc098a967d473183c134b5de9f35b6c36a72544d5"
+    },
+    {
+      "actor": "erin",
+      "label": "erin avatar",
+      "assetId": "01M2H8VVAMSS7JR82R1MHNCP1Y",
+      "fixture": "media/avatar-alice.png",
+      "sha256": "283773fb9ae8f07a00e335fdd37fd9f836845594d8be3352ee0fab542c4c9984"
+    },
+    {
+      "actor": "frank",
+      "label": "frank avatar",
+      "assetId": "01M2H8VVBFTXJQ8G17CDM8GSV0",
+      "fixture": "media/avatar-bob.png",
+      "sha256": "9b49a333e2841ea99f6a708bc098a967d473183c134b5de9f35b6c36a72544d5"
+    },
+    {
+      "actor": "grace",
+      "label": "grace avatar",
+      "assetId": "01M2H8VVC1FYT4EM3CSKSWYQEN",
+      "fixture": "media/avatar-alice.png",
+      "sha256": "283773fb9ae8f07a00e335fdd37fd9f836845594d8be3352ee0fab542c4c9984"
+    },
+    {
+      "actor": "henry",
+      "label": "henry avatar",
+      "assetId": "01M2H8VVCPNE9TCYP6TPFN5SAN",
+      "fixture": "media/avatar-bob.png",
+      "sha256": "9b49a333e2841ea99f6a708bc098a967d473183c134b5de9f35b6c36a72544d5"
+    },
+    {
+      "actor": "alice",
+      "label": "sp0002 image 1",
+      "assetId": "01M2H8VVPKR8K9P74574JSKYNE",
+      "fixture": "media/img-02.png",
+      "sha256": "ef284acb000e375fa4cffc07b3e2d228e47a6bf3b1f9078b4b7399d23c440101"
+    },
+    {
+      "actor": "alice",
+      "label": "sp0002 image 2",
+      "assetId": "01M2H8VVQ0XYAFZ6CSF8SVHNBX",
+      "fixture": "media/img-03.png",
+      "sha256": "eb986767458c2d0799441334b7ccdd70cc35e3296cea376c84f6e8f3a3774dd8"
+    },
+    {
+      "actor": "alice",
+      "label": "sp0003 video",
+      "assetId": "01M2H8VVQ606KZDBDW18WB8YPN",
+      "fixture": "media/vid-01.mp4",
+      "sha256": "7e22b943746b2c858910252162f624cac396eb9e4f4100ae80e70431b7883d5f"
+    },
+    {
+      "actor": "carol",
+      "label": "sp0008 image 1",
+      "assetId": "01M2H8VVQH5ZVTWEK7ED7ZN7GA",
+      "fixture": "media/img-02.png",
+      "sha256": "ef284acb000e375fa4cffc07b3e2d228e47a6bf3b1f9078b4b7399d23c440101"
+    },
+    {
+      "actor": "carol",
+      "label": "sp0008 image 2",
+      "assetId": "01M2H8VVQPYCG712SP72Y10J8P",
+      "fixture": "media/img-03.png",
+      "sha256": "eb986767458c2d0799441334b7ccdd70cc35e3296cea376c84f6e8f3a3774dd8"
+    },
+    {
+      "actor": "carol",
+      "label": "sp0009 video",
+      "assetId": "01M2H8VVQWKNDG1Q5FC6EGMEJ8",
+      "fixture": "media/vid-01.mp4",
+      "sha256": "7e22b943746b2c858910252162f624cac396eb9e4f4100ae80e70431b7883d5f"
+    },
+    {
+      "actor": "erin",
+      "label": "sp0014 image 1",
+      "assetId": "01M2H8VVRMERC8YF2RB43QPSC3",
+      "fixture": "media/img-02.png",
+      "sha256": "ef284acb000e375fa4cffc07b3e2d228e47a6bf3b1f9078b4b7399d23c440101"
+    },
+    {
+      "actor": "erin",
+      "label": "sp0014 image 2",
+      "assetId": "01M2H8VVRVTK0DAYK7258FS7S8",
+      "fixture": "media/img-03.png",
+      "sha256": "eb986767458c2d0799441334b7ccdd70cc35e3296cea376c84f6e8f3a3774dd8"
+    },
+    {
+      "actor": "grace",
+      "label": "sp0020 image 1",
+      "assetId": "01M2H8VVSAD93YQCDJ3CW65Q1X",
+      "fixture": "media/img-02.png",
+      "sha256": "ef284acb000e375fa4cffc07b3e2d228e47a6bf3b1f9078b4b7399d23c440101"
+    },
+    {
+      "actor": "grace",
+      "label": "sp0020 image 2",
+      "assetId": "01M2H8VVSF1SC1XYKEA8C3JW0H",
+      "fixture": "media/img-03.png",
+      "sha256": "eb986767458c2d0799441334b7ccdd70cc35e3296cea376c84f6e8f3a3774dd8"
+    }
+  ]
+}

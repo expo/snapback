@@ -1,0 +1,119 @@
+{
+  "observedAt": "2026-09-14T21:31:42.147605+00:00",
+  "scope": "Complete currently available choreography attempts during the active builder; these are not final milestone dispositions. Exact previously captured receipt hashes are skipped. Frozen packet untouched.",
+  "files": {
+    "receipts-m3f.jsonl": {
+      "bytes": 7753,
+      "sha256": "31fa8cf82813abf9449f469d36efee9e0bf9c975d5ecc7166e841a8ca31f3f17",
+      "recordedAt": "2026-09-14T21:14:01.522Z",
+      "green": true,
+      "assertions": {
+        "total": 7,
+        "required": 5,
+        "implemented": 6,
+        "passed": 6,
+        "failed": 0,
+        "skipped": 1,
+        "notImplemented": 1,
+        "requiredUnimplemented": 0
+      }
+    },
+    "receipts-m6b.jsonl": {
+      "bytes": 3019,
+      "sha256": "e829378f5434fcd4e87d9e66bf180d483c68bcce554ba53e70724e7413234bf5",
+      "recordedAt": "2026-09-14T21:19:02.187Z",
+      "green": false,
+      "assertions": {
+        "total": 1,
+        "required": 1,
+        "implemented": 1,
+        "passed": 0,
+        "failed": 1,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      }
+    },
+    "receipts-m6c.jsonl": {
+      "bytes": 3021,
+      "sha256": "e0d28f7ec684df7992f0a3b81f68b829743d1dadb79e0a1bf1654da0496899eb",
+      "recordedAt": "2026-09-14T21:19:26.596Z",
+      "green": false,
+      "assertions": {
+        "total": 1,
+        "required": 1,
+        "implemented": 1,
+        "passed": 0,
+        "failed": 1,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      }
+    },
+    "receipts-m6d.jsonl": {
+      "bytes": 3021,
+      "sha256": "f6bae1898ebc434d48b1084180527b1753c07b6ca05c091722275e26b4ee262c",
+      "recordedAt": "2026-09-14T21:21:16.817Z",
+      "green": false,
+      "assertions": {
+        "total": 1,
+        "required": 1,
+        "implemented": 1,
+        "passed": 0,
+        "failed": 1,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      }
+    },
+    "receipts-m6dbg.jsonl": {
+      "bytes": 3023,
+      "sha256": "614b11265979ed9b4c392e5cfbd4c3f7c20351cab7fe660f5bf5d693b6a0dbe4",
+      "recordedAt": "2026-09-14T21:21:47.594Z",
+      "green": false,
+      "assertions": {
+        "total": 1,
+        "required": 1,
+        "implemented": 1,
+        "passed": 0,
+        "failed": 1,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      }
+    },
+    "receipts-m6e.jsonl": {
+      "bytes": 3023,
+      "sha256": "45dbfe4eff95f0098baca95fe8f6eba4e8cbde78fe8fcac83f70b4049ea74d6f",
+      "recordedAt": "2026-09-14T21:24:50.078Z",
+      "green": false,
+      "assertions": {
+        "total": 1,
+        "required": 1,
+        "implemented": 1,
+        "passed": 0,
+        "failed": 1,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      }
+    },
+    "receipts-m6f.jsonl": {
+      "bytes": 2696,
+      "sha256": "4128f0c1d75798b4881d21a2b93afa99708e5f8b3e2b5258777f1168c358b3eb",
+      "recordedAt": "2026-09-14T21:29:41.963Z",
+      "green": true,
+      "assertions": {
+        "total": 1,
+        "required": 1,
+        "implemented": 1,
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      }
+    }
+  },
+  "skipped": {}
+}

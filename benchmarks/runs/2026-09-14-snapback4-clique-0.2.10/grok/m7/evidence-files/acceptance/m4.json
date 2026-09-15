@@ -1,0 +1,39 @@
+{
+  "milestone": "m4",
+  "pass": true,
+  "results": [
+    {
+      "id": "m4-a01",
+      "name": "photo message",
+      "ok": true
+    },
+    {
+      "id": "m4-a03",
+      "name": "video message",
+      "ok": true
+    },
+    {
+      "id": "m4-a06",
+      "name": "reaction replace",
+      "ok": true
+    },
+    {
+      "id": "m4-a07",
+      "name": "reaction remove",
+      "ok": true
+    },
+    {
+      "id": "m4-a09",
+      "name": "edited label",
+      "ok": true
+    }
+  ],
+  "coverage": {
+    "m4-a01": "photo message",
+    "m4-a03": "video message",
+    "m4-a06": "reaction replace",
+    "m4-a07": "reaction remove",
+    "m4-a09": "edited label"
+  },
+  "at": "2026-09-15T02:01:23.880Z"
+}

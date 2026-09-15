@@ -1,0 +1,45 @@
+{
+  "milestone": "m5",
+  "pass": true,
+  "results": [
+    {
+      "id": "m5-a04",
+      "name": "view-once first open",
+      "ok": true
+    },
+    {
+      "id": "m5-a05",
+      "name": "view-once second denied",
+      "ok": true
+    },
+    {
+      "id": "m5-a08",
+      "name": "non-admin cannot rename",
+      "ok": true
+    },
+    {
+      "id": "m5-a09",
+      "name": "people search car -> carol",
+      "ok": true
+    },
+    {
+      "id": "m5-a10",
+      "name": "in-chat search",
+      "ok": true
+    },
+    {
+      "id": "m5-a11",
+      "name": "global search grouped by chat",
+      "ok": true
+    }
+  ],
+  "coverage": {
+    "m5-a04": "view-once first open",
+    "m5-a05": "view-once second denied",
+    "m5-a08": "non-admin cannot rename",
+    "m5-a09": "people search car -> carol",
+    "m5-a10": "in-chat search",
+    "m5-a11": "global search grouped by chat"
+  },
+  "at": "2026-09-15T02:01:24.065Z"
+}

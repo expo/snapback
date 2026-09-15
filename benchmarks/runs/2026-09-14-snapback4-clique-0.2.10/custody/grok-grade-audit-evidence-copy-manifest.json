@@ -1,0 +1,30 @@
+{
+  "capturedAt": "2026-09-15T00:18:32.057818+00:00",
+  "scope": "Completed Grok grade audit and three matched selected API/scale receipts; no raw log, private scripts or store. Audit is not a new independent grade.",
+  "files": [
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/GROK-0210-GRADE-AUDIT.md",
+      "destination": "audits/GROK-0210-GRADE-AUDIT.md",
+      "bytes": 19155,
+      "sha256": "12acaee85a370e74a7a60061dd917898f9225792243a2569d5a8c4765f2a8ce4"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/grading/evidence/scale-manifest-verification.json",
+      "destination": "grok/grading/evidence/scale-manifest-verification.json",
+      "bytes": 1391,
+      "sha256": "672517f6ae842a0de262353a5e98fa10e09b8f6cb4f852f27a563d56f27eb6f8"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/grading/evidence/trending-api.json",
+      "destination": "grok/grading/evidence/trending-api.json",
+      "bytes": 275,
+      "sha256": "b03fb6a0abdfb9b6c20e4f6b610f206efce682b735ea2bd674faca09ea8e6dd5"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/grok-snapback4/grading/evidence/m8-insights-fresh.json",
+      "destination": "grok/grading/evidence/m8-insights-fresh.json",
+      "bytes": 744,
+      "sha256": "930ba38474f03407ac943245ee617962a0a6b5e4ccacaa3cf9f6e8708620457c"
+    }
+  ]
+}

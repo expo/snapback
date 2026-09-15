@@ -1,0 +1,88 @@
+{
+  "milestone": "m1",
+  "url": "http://127.0.0.1:49340",
+  "web": "http://127.0.0.1:49341",
+  "at": "2026-09-14T22:04:37.288Z",
+  "pass": true,
+  "failures": 0,
+  "results": [
+    {
+      "assertion": "m1-a01",
+      "test": "signup new user succeeds",
+      "pass": true
+    },
+    {
+      "assertion": "m1-a02",
+      "test": "app lands authenticated (session resolves)",
+      "pass": true
+    },
+    {
+      "assertion": "m1-a03",
+      "test": "duplicate handle rejected",
+      "pass": true
+    },
+    {
+      "assertion": "m1-a04",
+      "test": "duplicate email rejected",
+      "pass": true
+    },
+    {
+      "assertion": "m1-a04b",
+      "test": "duplicate email shows a visible error in the UI",
+      "pass": true
+    },
+    {
+      "assertion": "m1-a08",
+      "test": "display name + bio edit persists",
+      "pass": true
+    },
+    {
+      "assertion": "m1-a10",
+      "test": "fixture avatar upload succeeds",
+      "pass": true
+    },
+    {
+      "assertion": "m1-a11",
+      "test": "avatar renders on the profile (asset serves)",
+      "pass": true
+    }
+  ],
+  "coverage": [
+    {
+      "id": "m1-a01",
+      "test": "signup new user succeeds",
+      "pass": true
+    },
+    {
+      "id": "m1-a02",
+      "test": "app lands authenticated (session resolves)",
+      "pass": true
+    },
+    {
+      "id": "m1-a03",
+      "test": "duplicate handle rejected",
+      "pass": true
+    },
+    {
+      "id": "m1-a04",
+      "test": "duplicate email rejected",
+      "pass": true
+    },
+    {
+      "id": "m1-a08",
+      "test": "display name + bio edit persists",
+      "pass": true
+    },
+    {
+      "id": "m1-a10",
+      "test": "fixture avatar upload succeeds",
+      "pass": true
+    },
+    {
+      "id": "m1-a11",
+      "test": "avatar renders on the profile (asset serves)",
+      "pass": true
+    }
+  ],
+  "uncovered": []
+}

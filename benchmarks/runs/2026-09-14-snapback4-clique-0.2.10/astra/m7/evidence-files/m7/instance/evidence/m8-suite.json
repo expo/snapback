@@ -1,0 +1,32 @@
+{
+  "milestone": "m8",
+  "pass": true,
+  "cases": [
+    {
+      "name": "six-server-totals-match-independent-state",
+      "pass": true
+    },
+    {
+      "name": "server-utc-buckets-and-zero-days",
+      "pass": true
+    },
+    {
+      "name": "trending-ranked-ties-and-expired-window",
+      "pass": true
+    },
+    {
+      "name": "scheduled-digest-no-clients-restart-and-quiet-next-period",
+      "pass": true
+    }
+  ],
+  "coverage": {
+    "m8-a01": "six-server-totals-match-independent-state",
+    "m8-a03": "server-utc-buckets-and-zero-days",
+    "m8-a04": "server-utc-buckets-and-zero-days",
+    "m8-a05": "trending-ranked-ties-and-expired-window",
+    "m8-a06": "trending-ranked-ties-and-expired-window",
+    "m8-a07": "trending-ranked-ties-and-expired-window"
+  },
+  "missing": [],
+  "recordedAt": "2026-09-15T01:32:04.055Z"
+}

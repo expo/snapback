@@ -1,0 +1,132 @@
+{
+  "observedAt": "2026-09-14T23:38:23.685353+00:00",
+  "files": [
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/INSTRUMENT.sha256",
+      "destination": "INSTRUMENT.sha256",
+      "bytes": 19403,
+      "sha256": "b495fed56611a6d3fb7e1e592fafb6bfbc224f222ce72039ffbf963ed82548f9"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/INSTRUMENT_COMMIT",
+      "destination": "INSTRUMENT_COMMIT",
+      "bytes": 41,
+      "sha256": "952b520bb9a7e512968734b63c5a8249c61701d974df614f52237d75c283aa6e"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/PROMPT_TEMPLATES.sha256",
+      "destination": "PROMPT_TEMPLATES.sha256",
+      "bytes": 463,
+      "sha256": "33e54d45d451400c38d9e1f738ebcd0181b0fc6c8fbf97de60e4fc15033b0f2e"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/GRADER_ASSERTIONS_101.txt",
+      "destination": "GRADER_ASSERTIONS_101.txt",
+      "bytes": 707,
+      "sha256": "af35c50188ec18e3c201d0b6f8911804b9548f867c94bf481f03185ea93df9db"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/MODEL_AVAILABILITY.md",
+      "destination": "MODEL_AVAILABILITY.md",
+      "bytes": 1641,
+      "sha256": "e363db6fa3fbb3bc59794d17ab716c167d8f6e83a916a8f5c0f958b1c5241f56"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/REGISTRY_RECEIPTS.json",
+      "destination": "REGISTRY_RECEIPTS.json",
+      "bytes": 1931,
+      "sha256": "5dc610787aa1ebd338f5413c9a085e85fc7671769d71deb21878a906301be81b"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/muse-tail-interruption-20260914.json",
+      "destination": "protocol/muse-tail-interruption-20260914.json",
+      "bytes": 4809,
+      "sha256": "74af9fdfa8e79a5c777d23bf93a5fa71f419df6dc6047a030ac17037dfce8109"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-driver-takeover-20260914.json",
+      "destination": "protocol/cell-driver-takeover-20260914.json",
+      "bytes": 1132,
+      "sha256": "12d980ef95f50ea3ba03b073f5d4f0e2159a7eb950dc66f5936b20b2bf460c40"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/muse-builder-exception-qualification.json",
+      "destination": "protocol/muse-builder-exception-qualification.json",
+      "bytes": 2060,
+      "sha256": "0a7dfc94696e5216cbe44f91e7c0c96a73a382505af3b81d25be585bf40dc6ea"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/muse-post-interruption-phase.py",
+      "destination": "protocol/muse-post-interruption-phase.py",
+      "bytes": 5819,
+      "sha256": "c9402bb392e900a1e56fc869d8b1252d94780bb954130e42bfae0351af574486"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/test-muse-post-interruption-phase.py",
+      "destination": "protocol/test-muse-post-interruption-phase.py",
+      "bytes": 2491,
+      "sha256": "e2e9237bbe813203b29df0c62e5cd207fe54ebe46222cc3dc8de2f3f3527fb27"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/muse-post-interruption-tests.log",
+      "destination": "protocol/muse-post-interruption-tests.log",
+      "bytes": 607,
+      "sha256": "02f4b69caa380bfc8626588c0a8bda8cf18e1c2baaa7d11c888418f6a287a754"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/cell-capture-muse-score-final.py",
+      "destination": "protocol/cell-capture-muse-score-final.py",
+      "bytes": 15106,
+      "sha256": "695d4a4c86289fba0115153bff14c1a8ab0d3f21f8707af1ec3cac537df5d04c"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/grok-signature-observation-20260914.json",
+      "destination": "protocol/grok-signature-observation-20260914.json",
+      "bytes": 8375,
+      "sha256": "abd7adae24ca5ad53b742c535caf68d0ac5ed886bb32f7833588fba1ee11c822"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/muse-score-builder-exception-20260914T223450856187Z.end.json",
+      "destination": "protocol/muse-score-builder-exception-20260914T223450856187Z.end.json",
+      "bytes": 3122,
+      "sha256": "d6f232e57bd1459e8be169e82fa809f86321878c1145ec281beb17332f89cdbb"
+    },
+    {
+      "source": "/Users/ccheever/projects/snapback-lanebriefs/muse-score-builder-exception-20260914T223450856187Z.start.json",
+      "destination": "protocol/muse-score-builder-exception-20260914T223450856187Z.start.json",
+      "bytes": 848,
+      "sha256": "b15b5c47db007954ea98d9e6a63c2cd71f564ccec6a35c54f06fd1c2a25f93da"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scripts/run_phase.py",
+      "destination": "protocol/frozen-packet-scripts/run_phase.py",
+      "bytes": 9637,
+      "sha256": "d72aba2dfcfd7a93c16de72349e430345682f63f12553b1a4f6ca5465f659c62"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scripts/summarize_grades.py",
+      "destination": "protocol/frozen-packet-scripts/summarize_grades.py",
+      "bytes": 4885,
+      "sha256": "afe2432995a4e570b792478296313da96f1b994f3b789c5616beb4c3fc7f6a3c"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scripts/aggregate_scores.py",
+      "destination": "protocol/frozen-packet-scripts/aggregate_scores.py",
+      "bytes": 4266,
+      "sha256": "c46a9011ecc7f06f199849636685d8a3eb6335d38143bb3956807a75aeba0a3b"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scripts/render.py",
+      "destination": "protocol/frozen-packet-scripts/render.py",
+      "bytes": 7372,
+      "sha256": "6dba08361be98dd5dc480024fe3f607425e7e212d23f199cc3b3431aca173900"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/scripts/verify.py",
+      "destination": "protocol/frozen-packet-scripts/verify.py",
+      "bytes": 5897,
+      "sha256": "d1168d097b46e10df25c55635ea81f59a109cadef137d2604735f9db189d24c4"
+    }
+  ],
+  "limits": "Selected original packet and external-driver artifacts. These do not modify the frozen instrument or adjudicate phase outcomes. Later Muse override lifecycle files will be copied after their phases end."
+}

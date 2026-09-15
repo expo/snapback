@@ -1,0 +1,30 @@
+{
+  "observedAt": "2026-09-15T01:50:28.294945+00:00",
+  "files": [
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/m7/evidence/acceptance-final.log",
+      "destination": "astra/m7/evidence-files/m7/evidence/acceptance-final.log",
+      "bytes": 463,
+      "sha256": "db84216a1d0bb6bae7a0c5c3d64a21d0bc760d934f3a2e94408a5d05d72efac7"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/m7/evidence/acceptance-startup-failure.log",
+      "destination": "astra/m7/evidence-files/m7/evidence/acceptance-startup-failure.log",
+      "bytes": 201,
+      "sha256": "9c1e6e8092bd15bfd65412e16fa627b990491e7ea800bdec7cfc7ebfbd84e20f"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/m7/evidence/acceptance-ledger-failure.log",
+      "destination": "astra/m7/evidence-files/m7/evidence/acceptance-ledger-failure.log",
+      "bytes": 567,
+      "sha256": "ec930c276d74dddea18dc70ea0f82f885b26fab9348b3a6e52e45431d943f109"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4/m7/pids.jsonl",
+      "destination": "astra/m7/evidence-files/m7/pids.jsonl",
+      "bytes": 2699,
+      "sha256": "463eeaf3bf809247e9d71d5dc6f7706898718563c2f6bd0ede7affb42b75b94a"
+    }
+  ],
+  "scope": "Safe final and failed acceptance terminal outputs and final public PID ledger, selected by completed-phase audit; no raw model transcript or credentials."
+}

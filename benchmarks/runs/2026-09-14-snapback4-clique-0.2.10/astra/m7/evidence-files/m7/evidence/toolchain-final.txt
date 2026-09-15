@@ -1,0 +1,6 @@
+v24.18.0
+clique@0.0.1 /Users/ccheever/clique-sb4-20260913-relaxed-3models/lanes/astra-snapback4
+├─┬ snapback4-expo@0.2.3
+│ └── snapback4@0.2.10 deduped
+└── snapback4@0.2.10
+

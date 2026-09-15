@@ -1,0 +1,136 @@
+{
+  "reportVersion": 1,
+  "lane": "grok-snapback4",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "/Users/ccheever/clique-sb4-20260913-relaxed-3models/instrument/schema/social-messenger/assertions.json",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "fail",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#T3-M8 (evidence/ui-m8-insights.png; evidence/m8-insights-fresh.json)",
+      "note": "The Insights screen throws 'Cannot read properties of undefined (reading map)' because app/insights.tsx passes six scalar props where the kit's InsightsSummary expects `totals`. The server insights query does return the correct six totals on a fresh starter seed (posts 3, likes 2, reposts 1, replies 1, followers 4, following 2 for Alice)."
+    },
+    "m8-a02": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#T2 (m8-a02-insights-like-refresh failed in lane and grader runs)",
+      "note": "sm-insights-total-likes-received is never visible because the screen crashes (d-01)."
+    },
+    "m8-a03": {
+      "result": "fail",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#T3-M8 (evidence/ui-m8-insights.png; m8-insights-fresh.json)",
+      "note": "The 7-day breakdown never renders (same crash). The API buckets today's posts under the UTC day."
+    },
+    "m8-a04": {
+      "result": "fail",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#T3-M8 (same)",
+      "note": "Not rendered because of the crash. The API returns all 7 days, with zeros for inactive days."
+    },
+    "m8-a05": {
+      "result": "fail",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#T3-M8 (evidence/ui-m8-trending.png; evidence/trending-api.json)",
+      "note": "The Trending tab throws 'Cannot read properties of undefined (reading trim)' because app/feed.tsx passes children to the kit's TrendingRow, which expects `post`. The server trending query ranks the most-liked post first."
+    },
+    "m8-a06": {
+      "result": "fail",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#T3-M8 (same crash; schema.q trending filters at >= now-86400000)",
+      "note": "The screen crashes. The server filter excludes posts older than 24 h by source; this could not be exercised live without a clock seam. The server only ranks the newest 200 posts in the window (d-14)."
+    },
+    "m8-a07": {
+      "result": "fail",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#T3-M8 (same crash; trending-api.json idxP3=1 idxP2=2)",
+      "note": "The screen crashes. The server breaks a 3-3 tie newest-first and excludes replies."
+    },
+    "m8-a08": {
+      "result": "fail",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#T3-M8 (evidence/digest-periods.txt; m8-checkout/push-log.jsonl summarized in trace)",
+      "note": "Every client was closed and activity was seeded in a controlled period. newFollowers and newPostsInFollowing were correct, but unreadMessages/unreadChats are lifetime counters, not per-period. Bob's digest reported unreadMessages 13 where the period's surviving unread was 2, and the count included a deleted message. Users with only stale unread also got digests."
+    },
+    "m8-a09": {
+      "result": "fail",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#T3-M8 (digest period Pb and Pc)",
+      "note": "Carol had no activity in the period yet received a digest in every period (unreadMessages 5, left over from seeding)."
+    },
+    "m8-a10": {
+      "result": "fail",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#T3-M8 (digest periods Pb and Pd)",
+      "note": "Two periods with no new activity emitted 3 and 4 digests (Alice, Bob, Carol, and Grace in Pd)."
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#T3-M8 (restart at Pc+60 s; digest log)",
+      "note": "The backend was killed and restarted mid-period. Exactly one digest per user per period was emitted, with no re-emission of earlier periods (digestEmissions unique key)."
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#T3-M8 (dave/erin digests unreadMessages 0 while non-member groups had new messages)",
+      "note": "Unread counts come only from the target's own memberships."
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#T2 (m8-a13-same-account-message-live passed: lane 3899.8 ms, grader 4480.4 ms)"
+    },
+    "m8-a14": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#T2 (m8-a14-cross-device-read-state failed in lane and grader runs)"
+    },
+    "m8-a15": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#T2 (m8-a15-dual-offline-convergence failed: error overlay intercepts send while offline)"
+    },
+    "m8-a16": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#T2 (m8-a16-dual-offline-receipts failed)"
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#T2 (lane receipts/m8.jsonl: ios-simulator-m8 not-recorded)",
+      "note": "No native artifact."
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#T2 (same)",
+      "note": "No native artifact."
+    }
+  }
+}
