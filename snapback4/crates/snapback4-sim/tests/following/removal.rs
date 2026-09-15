@@ -77,6 +77,16 @@ fn following_removal_short_and_empty_pages_keep_the_source_cursor() {
 }
 
 #[test]
+fn following_removal_cut_withholds_events_and_bodies() {
+    let mut e = engine();
+    case::seed_cut_page(&mut e);
+    case::check_cut_page("server", |ceilings| {
+        e.set_ceilings(ceilings);
+        e.query("following", Context::new(case::reader(0), BTreeMap::new()).at(300)).unwrap()
+    });
+}
+
+#[test]
 fn following_removal_does_not_observe_or_delete_another_readers_private_rows() {
     use serde_json::json;
     use snapback4_core::value::object;
