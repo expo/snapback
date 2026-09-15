@@ -422,7 +422,14 @@ impl Runner<'_> {
                 };
                 if found.is_none() {
                     // @ref LLP 3000.007#20.5 — a final-exists miss needs the same readable, fully held group proof as upsert absence; a local hit needs no absence proof.
-                    if self.device && !self.upsert_absence_proven(target, index, &key)? {
+                    // Budget spent only while establishing device coverage is the device's
+                    // uncertainty, not the write's: the server needs no such proof.
+                    let proven = self.device && match self.upsert_absence_proven(target, index, &key) {
+                        Ok(proven) => proven,
+                        Err(RuntimeError::Bound { .. }) => false,
+                        Err(error) => return Err(error),
+                    };
+                    if self.device && !proven {
                         let first_unknown = self.missing_fact.is_none();
                         self.unknown_fact(target, index, &key, "after insert");
                         if first_unknown && let Some(message) = &mut self.missing_fact {

@@ -10340,3 +10340,20 @@ then calls `simctl terminate <udid> <bundle>`; a replaced instance is still
 left running with `E_WITNESS_APP`. The fixture now fails `spawn kill` as the
 runtime does and records the PID each terminate stops (witness tests 19 of 19).
 
+## 2026-09-14 — wave 2 review round 3, settled by the lead (LLP 3000.007 §20.11)
+
+GPT's third check of `e01cc8afa` confirmed A, C (and the `toJSON` envelope)
+and D and left three Medium items; Grok's third check returned READY.
+- An empty `receipt({})` after `done` wrote `{"witness":{"step":"between-steps"}}`
+  and the driver rejected it because it required an application field.
+  `between-steps` rows only come from `receipt()`, so any such row is accepted
+  after `done` and any other step still fails (`protocol.rs` unit test).
+- A device's final-exists coverage proof that exhausts the meter surfaced as a
+  local `E_BOUND` refusal while the server commits. The proof's
+  `RuntimeError::Bound` now means "not proven": the miss is unknown and the
+  write queues. `a_final_exists_proof_that_exhausts_the_meter_queues_instead_of_refusing`
+  (`rule_probes: 0`): red `E_BOUND` at `e01cc8afa`, green `E_PREDICT`.
+- The window between the launched-PID check and `simctl terminate` is accepted
+  and stated in §20.10 (no PID-targeted terminate in the simulator; dedicated
+  simulator).
+

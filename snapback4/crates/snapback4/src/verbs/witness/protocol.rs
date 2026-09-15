@@ -87,7 +87,9 @@ pub fn sequence(rows: &[Value], expected: &[&str], final_file: bool) -> Result<(
     for row in rows {
         let step = row["witness"]["step"].as_str().unwrap(); // receipts validated the envelope
         if done {
-            if step != "between-steps" || row.as_object().unwrap().len() <= 1 {
+            // `between-steps` rows come only from receipt() calls, including an empty
+            // receipt; any other step after `done` is a step change.
+            if step != "between-steps" {
                 return Err(error("E_WITNESS_STEP", format!("app changed step after done: {step}")));
             }
         } else if milestone(step) {
@@ -145,4 +147,18 @@ fn timestamp(at: &str) -> bool {
     let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
     let days = match month { 2 if leap => 29, 2 => 28, 4 | 6 | 9 | 11 => 30, 1 | 3 | 5 | 7 | 8 | 10 | 12 => 31, _ => 0 };
     day > 0 && day <= days && n(11, 13) < 24 && n(14, 16) < 60 && n(17, 19) < 60
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn an_empty_receipt_after_done_is_accepted_and_a_step_change_is_not() {
+        let rows = [json!({"witness": {"step": "offline-done"}}), json!({"witness": {"step": "done"}}), json!({"witness": {"step": "between-steps"}})];
+        assert!(sequence(&rows, &["offline-done", "done"], true).is_ok());
+        let changed = [json!({"witness": {"step": "offline-done"}}), json!({"witness": {"step": "done"}}), json!({"witness": {"step": "history:running"}})];
+        assert!(sequence(&changed, &["offline-done", "done"], true).is_err());
+    }
 }
