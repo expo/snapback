@@ -87,6 +87,20 @@ fn accumulated_recipient_list_fanout_is_located_and_has_a_concrete_rewrite() {
     assert!(matches!(result.state, snapback4_core::WriteState::Sent { .. }));
 }
 
+// Two loops may reuse a binding name; the diagnostic must locate the loop
+// that fails admission, not the first loop with that name.
+#[test]
+fn a_reused_loop_binding_locates_the_failing_loop() {
+    let source = "table members:\n  room: id\n  principal: principal\n  by byRoom: room, id\n  cap 50 by room\n  public 'roster'\n  sync\neffect notify\nmutation send(room: id):\n  recipients = []\n  for m in members[room] first 50 by byRoom:\n    if m.principal != viewer:\n      recipients = recipients + [m.principal]\n  for p in recipients:\n    emit notify { recipient: p }\n  for p in members[room] first 50 by byRoom:\n    emit notify { recipient: p.principal }\n";
+    let b = bind(source);
+    assert_eq!(b.diagnostics.len(), 1, "{:?}", b.diagnostics);
+    let d = &b.diagnostics[0];
+    println!("{d}");
+    assert_eq!(d.code, "E_STRUCTURAL_FANOUT");
+    assert_eq!((d.site.line, d.site.col), (14, 3), "{d}");
+    assert!(d.message.contains("recipients"), "{d}");
+}
+
 #[test]
 fn wide_matching_merge_note_is_conditional_when_the_read_completes() {
     let source = format!("{}\nquery searchAll(q: text <=100, c: cursor ?):\n  return merge messages matching q after c last 20 by byRoomWords:\n    [m.roomId] for m in members[viewer] first 1000 by byPrincipalRoom\n", include_str!("../../snapback4-sim/tests/search_merge/schema.q"));

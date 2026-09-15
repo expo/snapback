@@ -8816,3 +8816,14 @@ ref-check: ok — 474 LLP docs, 8869 refs in 22863 files, 0 errors, 0 unchecked
 
 `git diff --check` passed. The JOURNAL prefix is byte-identical to the base;
 this dated entry is append-only.
+
+## 2026-09-14 — wave-2 review: Grok finding 5 (reused loop binding) does not reproduce (lead)
+
+Grok's wave-2 review (Low, `engine/admission.rs:208`) held that two `for x in …`
+loops with the same binding share the admission site `for/x`, so
+`E_STRUCTURAL_FANOUT` could locate and rewrite the wrong loop. The binder's
+`declare` gives every loop item a unique runtime binding, so the IR bindings,
+the admission sites and the binder's source map never collide.
+`a_reused_loop_binding_locates_the_failing_loop` (two `for p in` loops, the
+failing one first) passes at `0e9fdddba` and stays as a guard.
+
