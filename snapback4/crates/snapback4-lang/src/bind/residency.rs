@@ -6,6 +6,8 @@ use snapback4_core::schema::{Audience, Execution, ResidencySite, RuleExpr, Schem
 use std::collections::{BTreeMap, BTreeSet};
 mod presence;
 mod inserts;
+mod horizons;
+pub(super) use horizons::{guard_notes, needs_whole_partition};
 
 pub fn execution(schema: &Schema, program: &Program) -> Execution {
     execution_with_presence(schema, program, None)
@@ -174,6 +176,7 @@ pub fn prediction_reason(schema: &Schema, site: &ResidencySite) -> String {
 pub fn prediction_summary(bound: &Bound) -> Option<String> {
     let mut never = Vec::new();
     let mut inserts = Vec::new();
+    let mut horizons = Vec::new();
     for (name, fact) in &bound.schema.operations {
         if !bound.programs.iter().any(|p| p.program.name == *name && p.program.kind == ProgramKind::Mutation) { continue; }
         if fact.predicts.as_deref() == Some("never") && let Some(site) = fact.sites.iter().find(|site| site.class == SiteClass::Server) {
@@ -182,10 +185,15 @@ pub fn prediction_summary(bound: &Bound) -> Option<String> {
         if let Some(site) = fact.sites.iter().find(|site| inserts::blocked(site)) {
             inserts.push(format!("{name} ({})", site.reason));
         }
+        let reads = horizons::reads(fact);
+        if fact.predicts.as_deref() == Some("eligible") && !reads.is_empty() {
+            horizons.push(format!("{name} ({})", reads.join(", ")));
+        }
     }
     let mut parts = Vec::new();
     if !never.is_empty() { parts.push(format!("{} mutations never predict: {}", never.len(), never.join(", "))); }
     if !inserts.is_empty() { parts.push(format!("{} {} insert arms that never predict: {}", inserts.len(), if inserts.len() == 1 { "mutation has" } else { "mutations have" }, inserts.join(", "))); }
+    if !horizons.is_empty() { parts.push(format!("{} {} eligible, but these reads queue without a row past a horizon: {}", horizons.len(), if horizons.len() == 1 { "mutation" } else { "mutations" }, horizons.join(", "))); }
     (!parts.is_empty()).then(|| format!("{} — snapback4 why <op>", parts.join("; ")))
 }
 
@@ -204,6 +212,11 @@ pub(super) fn maintain_notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnost
         let consequence = if readers.is_empty() { "no currently eligible mutation reads it".into() } else { format!("{} would stop predicting if {name} goes `online only`", readers.join(", ")) };
         Some(Diagnostic::new(&catalog.site_for(&format!("tables.{name}")), "N_MAINTAIN_SYNCED", format!("maintain {name}: {} inherited from {source}; one value row per {} reaches {}; {consequence}", sync.line(), schema.maintain_for(name)?.by.join(", "), if sync.audience == Audience::Public { "every device" } else { "every member of the group" }), "keep inherited sync for local readers, or add `online only` to opt out; measure cold rows with `snapback4 test --residency`").guide("residency"))
     }).collect();
+    if notes.len() > 1 {
+        let message = format!("{} synced maintains:\n{}", notes.len(), notes.iter().map(|note| format!("  {} (site {})", note.message, note.site)).collect::<Vec<_>>().join("\n"));
+        notes[0].message = message;
+        notes.truncate(1);
+    }
     // @ref LLP 3000.007#8 — item 7: a readable maintain can disclose a hidden source's write delta.
     for maintain in &schema.maintains {
         let (Some(source), Some(target)) = (schema.table(&maintain.source), schema.table(&maintain.target)) else { continue };
@@ -217,6 +230,11 @@ pub(super) fn maintain_notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnost
         notes.push(Diagnostic::new(&catalog.site_for(&format!("tables.{}", maintain.target)), "N_MAINTAIN_DELTA", format!("maintain {} may disclose the delta of a hidden {} row: insert/delete and a potentially wider update rule affect this readable target; filter/key/value dependencies: {}", maintain.target, maintain.source, maintain.dependencies().into_iter().collect::<Vec<_>>().join(", ")), "treat the maintain as a declared read channel; restrict its read rule or the source update rule if the delta is private").guide("rules"));
     }
     notes
+}
+
+/// A grouped note retains each maintain's own line, so measurements can still attach by name.
+pub fn maintain_note_names(note: &Diagnostic, name: &str) -> bool {
+    note.code == "N_MAINTAIN_SYNCED" && note.message.lines().any(|line| line.trim_start().starts_with(&format!("maintain {name}:")))
 }
 
 fn old_read(rule: &RuleExpr) -> RuleExpr {
@@ -306,11 +324,15 @@ pub fn table_line(schema: &Schema, name: &str) -> String {
 
 pub fn operation_lines(name: &str, fact: &Execution) -> String {
     let blocked = fact.sites.iter().find(|site| inserts::blocked(site));
-    let word = match (fact.runs.as_deref(), fact.predicts.as_deref()) { (Some(runs), _) => format!("runs: {runs}"), (_, Some("eligible")) => match blocked {
+    let mut word = match (fact.runs.as_deref(), fact.predicts.as_deref()) { (Some(runs), _) => format!("runs: {runs}"), (_, Some("eligible")) => match blocked {
         Some(site) if site.kind == inserts::UPSERT_BLOCKED => format!("predicts: updates only — inserts into {} queue without a row", site.table),
         Some(site) => format!("predicts: inserts queue without a row — insert if absent into {} cannot prove absence", site.table),
         None => "predicts: eligible".into(),
     }, _ => "predicts: never; queued without a row".into() };
+    let reads = horizons::reads(fact);
+    if fact.predicts.as_deref() == Some("eligible") && !reads.is_empty() {
+        word.push_str(&format!("{} past the horizon at {}", if blocked.is_some() { "; also queues" } else { " except" }, reads.join(", ")));
+    }
     let mut lines = vec![format!("  {name}: {word}")];
     if fact.connected_effects_only { lines.push(format!("    {CONNECTED_EFFECTS}")); }
     for site in &fact.sites {

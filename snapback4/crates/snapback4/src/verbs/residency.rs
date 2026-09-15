@@ -61,7 +61,7 @@ pub fn measure(engine: &mut Engine, bound: &Bound, personas: &[String]) -> Resul
     for maintain in &bound.schema.maintains {
         if maintain.residency.inherited_from.is_some() {
             let rows = engine.store().rows(&maintain.target)?.len();
-            let note = if bound.notes.iter().any(|note| note.code == "N_MAINTAIN_SYNCED" && note.message.starts_with(&format!("maintain {}:", maintain.target))) { " — N_MAINTAIN_SYNCED" } else { "" };
+            let note = if bound.notes.iter().any(|note| residency::maintain_note_names(note, &maintain.target)) { " — N_MAINTAIN_SYNCED" } else { "" };
             println!("  maintain {} (measurement): {rows} value rows in the fixture/store{note}", maintain.target);
         }
     }
@@ -76,9 +76,12 @@ pub(super) fn maintain_measurements(project: &crate::project::Project, bound: &m
     if !path.exists() { return Ok(()); }
     let store = snapback4_core::Store::open_read_only(&path).map_err(|e| e.to_string())?;
     for maintain in &bound.schema.maintains {
-        if let Some(note) = bound.notes.iter_mut().find(|note| note.code == "N_MAINTAIN_SYNCED" && note.message.starts_with(&format!("maintain {}:", maintain.target))) {
+        if let Some(note) = bound.notes.iter_mut().find(|note| residency::maintain_note_names(note, &maintain.target)) {
             let rows = store.count(&maintain.target).map_err(|e| e.to_string())?;
-            note.message.push_str(&format!("; current store measurement: {rows} value rows (before adoption; cold rows per viewer: `snapback4 test --residency`)"));
+            let prefix = format!("maintain {}:", maintain.target);
+            note.message = note.message.lines().map(|line| if line.trim_start().starts_with(&prefix) {
+                format!("{line}; current store measurement: {rows} value rows (before adoption; cold rows per viewer: `snapback4 test --residency`)")
+            } else { line.to_owned() }).collect::<Vec<_>>().join("\n");
         }
     }
     Ok(())

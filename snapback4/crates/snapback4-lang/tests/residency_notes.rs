@@ -401,3 +401,62 @@ fn insert_arm_nullable_unique_image_distinguishes_null_from_a_known_lookup() {
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     assert_eq!(snapback4_lang::bind::residency::prediction_summary(&b), None);
 }
+
+const HORIZONS: &str = include_str!("fixtures/prediction-horizons.q");
+fn horizon_fixture(source: &str) -> Bound {
+    let b = compile(&[("chat.q".into(), source.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    b
+}
+
+#[test]
+fn horizon_calibration_summary_and_heading_persist() {
+    use snapback4_lang::bind::residency::{change_notes, operation_lines, prediction_summary};
+    let first = horizon_fixture(HORIZONS);
+    let heading = operation_lines("chat.send", &first.schema.operations["chat.send"]);
+    let summary = prediction_summary(&first);
+    println!("heading:\n{heading}\nsummary: {summary:?}\nnotes: {}", first.notes.len());
+    assert_eq!(heading.lines().next().unwrap(), "  chat.send: predicts: eligible except past the horizon at messages[messageId] (chat.q:83:22)");
+    let summary = summary.unwrap();
+    assert_eq!(summary, "2 mutations eligible, but these reads queue without a row past a horizon: chat.createPost (posts[postId] (chat.q:87:13), ranked insert rule: posts by byId (chat.q:32:3)), chat.send (messages[messageId] (chat.q:83:22)) — snapback4 why <op>");
+    for _ in 0..3 {
+        let next = horizon_fixture(HORIZONS);
+        assert_eq!(prediction_summary(&next).as_deref(), Some(summary.as_str()));
+        assert_eq!(operation_lines("chat.send", &next.schema.operations["chat.send"]), heading);
+        assert_eq!(next.notes, first.notes);
+        assert!(change_notes(&next, &first.schema.operations).is_empty());
+    }
+    let fixed = horizon_fixture(&HORIZONS.replace("  require not exists messages[messageId] else DUPLICATE\n", ""));
+    assert_eq!(operation_lines("chat.send", &fixed.schema.operations["chat.send"]).lines().next().unwrap(), "  chat.send: predicts: eligible");
+    assert!(!prediction_summary(&fixed).unwrap().contains("chat.send"));
+}
+
+#[test]
+fn horizon_calibration_advice_preserves_prediction_and_groups_sites() {
+    let b = horizon_fixture(HORIZONS);
+    println!("notes: {}", b.notes.len());
+    for note in &b.notes { println!("{note}"); }
+    let no_horizon: Vec<_> = b.notes.iter().filter(|n| n.code == "N_NO_HORIZON").collect();
+    assert_eq!(no_horizon.len(), 1);
+    assert!(no_horizon[0].message.starts_with("table archive:"));
+    assert_eq!(no_horizon[0].rewrite, "sync public last 500 by byTime");
+    let grouped: Vec<_> = b.notes.iter().filter(|n| n.code == "N_MAINTAIN_SYNCED").collect();
+    assert_eq!(grouped.len(), 1);
+    for (name, line) in [("messageCounts", 69), ("reactionCounts", 71), ("postCounts", 73), ("postTimes", 75), ("rankCounts", 77), ("rankTotal", 79)] {
+        assert!(grouped[0].message.contains(&format!("maintain {name}:")), "{}", grouped[0]);
+        assert!(grouped[0].message.contains(&format!("chat.q:{line}:1")), "{}", grouped[0]);
+    }
+    let search = b.notes.iter().find(|n| n.code == "N_WIDE_MERGE").unwrap();
+    assert_eq!(search.guide, "search");
+    assert!(!search.rewrite.contains("feed"));
+    assert!(search.rewrite.contains("snapback4 test --cost"));
+    let guard = b.notes.iter().find(|n| n.code == "N_HORIZON_GUARD").unwrap();
+    assert_eq!(guard.to_string(), "chat.q:83:22 — N_HORIZON_GUARD: chat.send: `require not exists messages[messageId] else DUPLICATE` reads an argument id past a horizon; the write id already dedupes retries for this principal, and this guard costs offline prediction on a miss\n  rewrite: if this guard only dedupes retries, remove `require not exists messages[messageId] else DUPLICATE` and keep the insert; retry with the same mutation write id. A fresh write id is a new write; keep guards that enforce an application requirement\n  guide: prediction");
+    assert!(!guard.mechanical, "a guard may be an application requirement");
+    assert_eq!(b.notes.len(), 4);
+    for name in ["chat.react", "chat.acceptIntent", "chat.recordSent"] { assert_eq!(b.schema.operations[name].predicts.as_deref(), Some("eligible")); }
+    // If prediction is deliberately disabled, the growing tables get ordinary advice again.
+    let server = horizon_fixture(&HORIZONS.replace("mutation react(conversationId: id, messageId: id):", "mutation react(conversationId: id, messageId: id): server")
+        .replace("mutation acceptIntent(key: id):", "mutation acceptIntent(key: id): server").replace("mutation recordSent(key: id):", "mutation recordSent(key: id): server"));
+    assert_eq!(server.notes.iter().filter(|n| n.code == "N_NO_HORIZON").count(), 4);
+}

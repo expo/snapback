@@ -374,9 +374,9 @@ fn b2_why_fanout_is_one_paragraph_and_an_example() {
 #[test]
 fn b2_maintain_note_measures_the_current_store_and_cold_snapshot() {
     let p = Project::new();
-    let source = include_str!("../../snapback4-lang/tests/fixtures/residency-notes.q");
-    p.source(source);
-    let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    let source = format!("{}\nmaintain ownerCounts: count likes by owner\n  read <- allow\n", include_str!("../../snapback4-lang/tests/fixtures/residency-notes.q"));
+    p.source(&source);
+    let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
     let mut e = Engine::new(Store::open(&p.store()).unwrap(), b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     let table = &e.schema().tables["likes"];
     e.seed([( "l1", "p1"), ("l2", "p1"), ("l3", "p2")].map(|(id, post)| ("likes".into(), wire::row_from_json(table, &json!({"id":id,"postId":post,"owner":"alice"})).unwrap()))).unwrap();
@@ -386,12 +386,45 @@ fn b2_maintain_note_measures_the_current_store_and_cold_snapshot() {
     let text = String::from_utf8(output.stdout).unwrap();
     println!("{text}");
     assert!(text.contains("current store measurement: 2 value rows"), "{text}");
+    assert!(text.contains("current store measurement: 1 value rows"), "{text}");
+    assert_eq!(text.matches("N_MAINTAIN_SYNCED:").count(), 1);
+    assert!(text.lines().any(|line| line.contains("maintain likeCounts:") && line.contains("2 value rows")));
+    assert!(text.lines().any(|line| line.contains("maintain ownerCounts:") && line.contains("1 value rows")));
     assert!(text.contains("createPost, like, repost would stop predicting"));
     let output = p.run(&["test", "--residency", "--as", "alice"]);
     assert!(output.status.success(), "{output:?}");
     let text = String::from_utf8(output.stdout).unwrap();
     println!("{text}");
     assert!(text.contains("alice likeCounts: 2 rows"), "{text}");
+    assert!(text.contains("alice ownerCounts: 1 rows"), "{text}");
+    assert!(text.contains("maintain ownerCounts (measurement): 1 value rows in the fixture/store — N_MAINTAIN_SYNCED"), "{text}");
+}
+
+#[test]
+fn horizon_check_and_why_keep_the_same_advice_across_checks() {
+    let p = Project::new();
+    p.source("");
+    fs::write(p.0.join("snapback/chat.q"), include_str!("../../snapback4-lang/tests/fixtures/prediction-horizons.q")).unwrap();
+    let first = p.run(&["check", "--json"]);
+    assert!(first.status.success(), "{first:?}");
+    let first = parsed(&first);
+    assert_eq!(first["notes"].as_array().unwrap().len(), 4);
+    let summary = first["predictionSummary"].as_str().unwrap();
+    assert!(summary.contains("chat.send (messages[messageId] (chat.q:83:22))"), "{summary}");
+    for _ in 0..3 {
+        let next = p.run(&["check", "--json"]);
+        assert!(next.status.success(), "{next:?}");
+        let next = parsed(&next);
+        assert_eq!(next["notes"], first["notes"]);
+        assert_eq!(next["predictionSummary"], first["predictionSummary"]);
+        let text = p.run(&["check"]);
+        assert!(text.status.success(), "{text:?}");
+        assert_eq!(String::from_utf8_lossy(&text.stdout).matches(summary).count(), 1);
+        let why = p.run(&["why", "chat.send"]);
+        assert!(why.status.success(), "{why:?}");
+        assert!(String::from_utf8_lossy(&why.stdout).lines().any(|line| line == "  chat.send: predicts: eligible except past the horizon at messages[messageId] (chat.q:83:22)"));
+    }
+    println!("persistent CLI: 4 JSON checks, 3 text checks, 3 why calls; 4 notes each");
 }
 
 #[test]

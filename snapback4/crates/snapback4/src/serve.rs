@@ -270,6 +270,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
         None => eprintln!("snapback4 serve: http://{address}  (release {}, generation {generation}, tokens only)", project.root.display()),
     }
     if dev { eprintln!("snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both."); }
+    if replay { eprintln!("snapback4 dev: replay on — new effects suppressed; schedules held"); }
     let mut background = Vec::new();
     if let Mode::Dev { watch: true, .. } = mode {
         let shared = shared.clone();
