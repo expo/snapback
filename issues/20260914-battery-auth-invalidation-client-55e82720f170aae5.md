@@ -10,12 +10,12 @@
 **Battery gate:** `auth-invalidation-client`
 **Failure signature:** `sha256:55e82720f170aae5772d5d813efd49dbe11271da14cee2cb5f042ec8c24da8f0`
 **First observed run:** `local.20260914T214631Z.8f56e50f6d78`
-**Last observed run:** `local.20260915T080414Z.0c6b0c03cfea`
-**Last processed run:** `local.20260915T080414Z.0c6b0c03cfea`
+**Last observed run:** `local.20260915T190403Z.ca4844fb29ff`
+**Last processed run:** `local.20260915T190403Z.ca4844fb29ff`
 **Detected at revision:** `8f56e50f6d78cad0378c07114505a0eac5752580`
-**Last observed revision:** `0c6b0c03cfea21d65eab728035ef87776a4144a3`
-**Consecutive red runs:** `2`
-**Escalation:** `pending (2/4)`
+**Last observed revision:** `ca4844fb29ff71c92ad531a4bc2fa0e53b20d5fe`
+**Consecutive red runs:** `3`
+**Escalation:** `pending (3/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary

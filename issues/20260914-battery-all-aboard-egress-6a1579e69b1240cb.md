@@ -10,12 +10,12 @@
 **Battery gate:** `all-aboard-egress`
 **Failure signature:** `sha256:6a1579e69b1240cbe9dec533ad1d4aa7dbe94974f2d10456e2896129fe83783f`
 **First observed run:** `local.20260914T104118Z.86928d068765`
-**Last observed run:** `local.20260915T080414Z.0c6b0c03cfea`
-**Last processed run:** `local.20260915T080414Z.0c6b0c03cfea`
+**Last observed run:** `local.20260915T190403Z.ca4844fb29ff`
+**Last processed run:** `local.20260915T190403Z.ca4844fb29ff`
 **Detected at revision:** `86928d068765e3d57c68747e4f2359950b8ff7d1`
-**Last observed revision:** `0c6b0c03cfea21d65eab728035ef87776a4144a3`
-**Consecutive red runs:** `3`
-**Escalation:** `pending (3/4)`
+**Last observed revision:** `ca4844fb29ff71c92ad531a4bc2fa0e53b20d5fe`
+**Consecutive red runs:** `4`
+**Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
@@ -40,3 +40,8 @@ node demos/all-aboard/tests/acceptance/egress.mjs
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
 this signature. Four consecutive red observations require author escalation.
+
+## Author escalation
+
+This root-failure signature remained red for 4 consecutive scheduled
+battery runs. Escalate to the author (Charlie Cheever) before the next run.
