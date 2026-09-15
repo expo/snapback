@@ -12438,3 +12438,32 @@ files and commit the merge. The failed staging attempt changed no index
 state; no commit or merge-abort was attempted. Nothing else in the brief
 remains unfinished except this sandbox-owned index operation and Chromium
 verification outside the sandbox.
+
+## 2026-09-15 — scan preparation A/B rejects this candidate
+
+The fixed-source experiment on d0ea081923 (0.2.15) is complete. An ignored
+core candidate reuses two pure schema/IR analyses within one plain lazy
+merge, keeping every live verdict, expiry, dependency, meter and page/cursor
+operation fresh. Its corrected test fixture passed 318 selected Rust test
+executions; the earlier test-compile failure remains preserved. All six
+ordinary HTTP runs passed 117,000 timed case calls, 7,020 excluded warmups,
+162 untimed complete walks / 33,510 pages and the complete fixture, auth,
+leave/regrant and owned-process checks. Both frozen calculators passed
+unchanged and their values reconcile.
+
+This version is not recommended for adoption. The 150-group rotating feed
+at eight clients moves 19.176 → 24.454 ms p50 and 36.245 → 55.225 ms p95;
+throughput falls 375.8 → 282.9 requests/s. It loses elapsed/rate in every
+pair, as does the 150-group next page. Smaller concurrent feeds improve,
+and point/thread controls vary; the result does not identify a cause or
+establish a uniform regression. After-workload RSS medians fall 848 KiB,
+but two of three paired RSS observations rise. The benchmark record and
+six raw-preserving ledger entries retain every loss and the measurement
+limits. The next investigation must address the larger repeated scan and
+materialization costs while preserving the live authority contract. Core
+implementation remains with its owner; no candidate runtime is landed.
+
+Main reached 0.2.16 before this evidence landing, with changes to core
+read/rule/admission/schema and host behavior at integration parent
+1a4a50da8. This fixed d0ea batch does not qualify that newer runtime or its
+performance; the next experiment must qualify its own source.

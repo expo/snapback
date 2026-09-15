@@ -1,6 +1,6 @@
 # Snapback 4: requalify and reduce membership-feed query cost
 
-Status: Open — fixed 0.2.13 repeated scan/decode work quantified; current-source optimization and uninstrumented validation pending
+Status: Open — fixed 0.2.15 scan-preparation candidate measured; large concurrent targets regress, candidate not adopted
 Priority: P1
 Systems: Snapback 4 online membership feeds, query execution
 Implementation owner: Snapback 4 core lead (LLP 3000 decision 4)
@@ -99,22 +99,43 @@ TCP_NODELAY while this immutable run was in flight. Rules/store and host
 serve match d813, but that is insufficient to claim current-source timing.
 The next candidate must incorporate the newer cursor/completeness semantics.
 
+Fixed-source preparation experiment, completed 2026-09-15 02:03:08 UTC:
+
+Both ordinary production binaries use d0ea081923 (0.2.15), incorporating
+the newer page/cursor/socket behavior. The ignored candidate reuses only
+two static schema/IR analyses per original plain-merge template. It passes
+318 selected Rust test executions and all six HTTP runs: 117,000 timed
+case calls, 7,020 excluded warmups, 162 untimed walks / 33,510 pages,
+complete physical/auth/result/leave/regrant checks and owned cleanup.
+The original failed V1 test compilation and excluded smokes remain separate.
+
+Main reached 0.2.16 before this evidence landing. Integration parent
+1a4a50da8 changes core read/rule/admission/schema and host behavior from
+the measured d0ea inputs; this batch does not qualify the newer runtime
+or establish its performance.
+
+**Do not adopt this version from the measured evidence.** The 150-group
+rotating C8 feed's median p50 rises 19.176 → 24.454 ms (+27.52%), p95 rises
+36.245 → 55.225 ms (+52.37%), and throughput falls 375.8 → 282.9 requests/s
+(−24.72%). Its elapsed time worsens in all three pairs, as does the
+150-group next page. Smaller concurrent feeds improve, so the result is
+mixed; no causal attribution or new competitor comparison follows. All
+losses, control variation and RSS/HWM observations remain in the evidence.
+
 Next work:
 
-1. Requalify the proposed candidate on a fixed current source, including
-   the new page/cursor/completeness changes. Use coarse or sampled timing
-   if more attribution is needed; the detailed observer's shares cannot
-   substitute for ordinary query performance.
-2. Let the core owner measure a reduction in repeated scan preparation,
-   collections or materialization. Pure schema/IR preparation reuse and
-   bounded batching are candidates, not established wins. Live authority
-   or result caching is not permitted. Preserve fresh transactions,
-   membership/expiry checks, static dependency/probe accounting, all
-   meters/cut/refusal order, typed cursors, defaults and exact ordered results.
-3. Run affected differential/privacy regressions and the ordinary scoped
-   HTTP A/B, including membership leave/regrant and concurrent feeds. Retain
-   tails, memory/write costs and all losses; compare current competitors
-   separately after the candidate is qualified.
+1. Target the remaining repeated indexed collections and row materialization,
+   or establish the cause of the large concurrent losses with coarse/sampled
+   attribution. The rejected preparation patch and expensive diagnostic
+   shares must not be presented as a performance win.
+2. Keep core implementation with its owner. Live authority or result caching
+   is not permitted. Preserve fresh transactions, membership/expiry checks,
+   static dependency/probe accounting, all meters/cut/refusal order, typed
+   cursors, defaults and exact ordered results.
+3. Qualify the next candidate on its actual current inputs, with affected
+   differential/privacy tests and ordinary HTTP A/B including leave/regrant
+   and concurrent feeds. Retain tails, memory/write costs and all losses;
+   compare current competitors separately after a candidate is qualified.
 
 Evidence: [benchmark record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md),
 including original result objects in `snapback4/metrics/storage.jsonl`.
@@ -134,3 +155,11 @@ The core-scope record is the ledger workload
 `membership-http-core-scope-diagnostic`: V2 qualification `a3dedaef…`,
 V3 formal transfer `c23f67d0…`, independent summary `29b6fa3b…`,
 reconciliation `4483be1c…`, and source-drift mapping `070c5afe…`.
+
+The 0.2.15 ordinary A/B uses ignored-run prefix
+`membership-scan-preparation-0215-v2-http-v1`: formal transfer `24400ba3…`,
+completion `4f5cf9ec…`, root summary `1668fa83…`, independent summary
+`ee74ee95…`, reconciliation `0a2cc6bc…`. Both frozen calculators passed
+unchanged; all 1,404 run values, 468 medians, 234 median contrasts,
+702 paired contrasts and twelve memory snapshots reconcile. The six ledger
+objects preserve their full original formal records.
