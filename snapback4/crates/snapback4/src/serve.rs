@@ -692,7 +692,7 @@ fn handle(mut request: Request, shared: &Shared) {
     // Check identity before upload admission or allocating any large body.
     // The route rechecks after reading, so expiry/revocation during a slow
     // upload cannot retain the authority held at its start.
-    if method == Method::Post && (path == "/assets" || path == "/sync" || path.starts_with("/q/") || path.starts_with("/m/") || path.starts_with("/a/")
+    if method == Method::Post && (path == "/assets" || path == "/sync" || path == "/m" || path.starts_with("/q/") || path.starts_with("/m/") || path.starts_with("/a/")
         || matches!(path.as_str(), "/auth/refresh" | "/auth/logout" | "/auth/logout-all")) {
         if let Err(refusal) = principal_of(&request, shared) {
             return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
@@ -720,6 +720,7 @@ fn handle(mut request: Request, shared: &Shared) {
             "/assets" => crate::assets::UPLOAD_CEILING,
             "/seed" => SEED_REQUEST_CEILING,
             "/sync" => SYNC_REQUEST_CEILING,
+            "/m" => 64 * 1024,
             path if path.starts_with("/auth/") => crate::auth::BODY_CEILING,
             _ => JSON_REQUEST_CEILING,
         };
@@ -755,6 +756,7 @@ fn handle(mut request: Request, shared: &Shared) {
     };
     match (method, path.as_str()) {
         (Method::Post, "/dev/clock/advance") => maintenance::advance(request, shared, &body),
+        (Method::Post, "/m") => mutation_batch(request, shared, &body),
         (Method::Post, path) if path.starts_with("/a/") => actions::call(request, shared, path.trim_start_matches("/a/"), &body),
         (Method::Post, "/actions/claim") => actions::claim(request, shared, &body),
         (Method::Post, path) if path.starts_with("/actions/") => actions::settle(request, shared, path, &body),
@@ -1157,6 +1159,70 @@ fn handle(mut request: Request, shared: &Shared) {
         }
         _ => respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("no route {path}; operations are POST /q/<op> and POST /m/<op>"))) })),
     }
+}
+
+// @ref LLP 3000.007#20.4 — pending web admissions travel as one ordered request; each write keeps its own transaction and at-most-once receipt.
+fn mutation_batch(request: Request, shared: &Shared, body: &str) {
+    #[derive(serde::Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct Batch { writes: Vec<BatchWrite> }
+    #[derive(serde::Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct BatchWrite {
+        id: String,
+        op: String,
+        #[serde(default)]
+        args: Json,
+        #[serde(default, rename = "newIds")]
+        new_ids: Vec<String>,
+    }
+    let principal = match principal_of(&request, shared) {
+        Ok(principal) => principal,
+        Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
+    };
+    let batch = match serde_json::from_str::<Batch>(body) {
+        Ok(batch) if !batch.writes.is_empty() && batch.writes.len() <= 32 && batch.writes.iter().all(|w| !w.id.is_empty() && !w.op.is_empty()) => batch,
+        _ => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "POST /m takes { writes: [{ id, op, args, newIds }] }: 1 to 32 writes with nonempty ids and operation names").guide("writes")) })),
+    };
+    let mut receipts = Vec::new();
+    {
+        // Hold the writer across the list, so a duplicate batch, ordinary
+        // replay or schema adoption cannot interleave its successors.
+        let mut engine = lock(&shared.engine);
+        for write in batch.writes {
+            let outcome = (|| -> Result<Json, Refusal> {
+                if let Some(outcome) = engine.replay(&principal, &write.id).map_err(|e| e.refusal())? {
+                    return Ok(outcome.reply(Some(&write.id)));
+                }
+                let program = engine.program(&write.op).ok_or_else(|| Refusal::new("E_OP", "op", format!("unknown operation {}", write.op)).guide("programs"))?;
+                if program.kind != ProgramKind::Mutation {
+                    return Err(Refusal::new("E_OP", "op", format!("{} is a {}; POST /m takes mutations", write.op, program.kind.word())).guide("programs"));
+                }
+                let mut args = BTreeMap::new();
+                if let Json::Object(fields) = &write.args {
+                    for (name, value) in fields {
+                        let kind = program.args.get(name).ok_or_else(|| Refusal::new("E_INPUT", "input", format!("{} takes no argument {name}", write.op)).guide("programs"))?;
+                        args.insert(name.clone(), wire::from_json(kind, value).map_err(|why| Refusal::new("E_INPUT", "input", format!("argument {name}: {why}")).guide("types"))?);
+                    }
+                }
+                let context = Context::new(&principal, args).with_ids(write.new_ids);
+                let outcome = engine.mutate(&write.op, Some(&write.id), context).map_err(|e| e.refusal())?;
+                if let WriteState::Sent { seq, .. } = &outcome.state {
+                    let mut current = lock(&shared.seq);
+                    *current = (*current).max(*seq);
+                    shared.committed.notify_all();
+                }
+                Ok(outcome.reply(Some(&write.id)))
+            })();
+            let receipt = outcome.unwrap_or_else(|why| json!({ "state": "failed", "id": write.id, "why": refusal_json(&why) }));
+            let sent = receipt["state"] == "sent";
+            receipts.push(receipt);
+            // A failure (including a retryable store error) never lets the
+            // remainder pass an unsettled predecessor. The device replays it.
+            if !sent { break; }
+        }
+    }
+    respond(request, 200, json!({ "writes": receipts }));
 }
 
 #[cfg(test)]

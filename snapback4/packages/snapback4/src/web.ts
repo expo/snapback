@@ -58,6 +58,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       // Committed outbox entries, mirrored from persisted changes, so a page
       // being hidden can send what IndexedDB already holds.
       const committed = new Map<string, { seq: number; id: string; op: string; args: unknown; new_ids: string[]; sent_seq?: number | null }>();
+      const committedListeners = new Set<() => void>();
       const remember = (changes: Change[]) => {
         for (const change of changes) if (change.s === "o") {
           if (change.v === null) committed.delete(change.k);
@@ -74,6 +75,9 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         if (changes.length) {
           await persist.save(store.name, changes);
           remember(changes);
+          // An unawaited mutate may finish admission after pagehide. Recheck
+          // the suspended page only once its outbox transaction has committed.
+          if (changes.some(change => change.s === "o")) for (const notify of committedListeners) notify();
         }
       };
       const restore = async (backend?: BackendJson | null): Promise<void> => {
@@ -95,6 +99,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         onSuspend(flush) {
           if (typeof window === "undefined" || typeof document === "undefined") return () => {};
           const page = window, doc = document;
+          let suspended = false;
           const beginSend = () => {
             if (closing || !device) return false;
             // Invalidate any sync already in flight, including a bfcache page's
@@ -106,20 +111,28 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
             chain = chain.then(async () => { if (device) await settle(); }).catch(() => discard());
             return true;
           };
-          const suspend = () => {
-            if (closing || !device) return;
+          const dispatch = () => {
+            if (!suspended || closing || !device) return;
             const entries: PendingSend[] = [...committed.values()].filter(e => e.sent_seq == null).sort((a, b) => a.seq - b.seq)
               .map(e => ({ id: e.id, op: e.op, args: e.args, newIds: e.new_ids }));
-            if (entries.length) flush(entries, beginSend);
+            // An empty committed queue can still have client submissions
+            // waiting for their first VM turn or IndexedDB commit.
+            flush(entries, beginSend);
           };
-          const hidden = () => { if (doc.visibilityState === "hidden") suspend(); };
+          const suspend = () => { suspended = true; dispatch(); };
+          const resume = () => { suspended = false; };
+          const hidden = () => { if (doc.visibilityState === "hidden") suspend(); else resume(); };
           const stop = () => {
             page.removeEventListener("pagehide", suspend);
+            page.removeEventListener("pageshow", resume);
             doc.removeEventListener("visibilitychange", hidden);
+            committedListeners.delete(dispatch);
             suspendListeners.delete(stop);
           };
           page.addEventListener("pagehide", suspend);
+          page.addEventListener("pageshow", resume);
           doc.addEventListener("visibilitychange", hidden);
+          committedListeners.add(dispatch);
           suspendListeners.add(stop);
           return stop;
         },

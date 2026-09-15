@@ -15123,3 +15123,174 @@ in 297 s: client tests, 242 passed / 1 failed, solely Chromium SIGABRT in
 must rerun that browser test outside the sandbox. All final Rust tests,
 fixture tests, package/app typechecks and builds passed. No inherited-product
 failure is claimed. No commit, push, tag or publication was made.
+
+## 2026-09-14 — W3a: a web outbox head survives immediate navigation
+
+Read the 0.2.16 F1 evidence and the identical 0.2.12 choreography failure:
+`removed member received a new live group message`. The ordinary request
+could be in flight at `pagehide`, suppressing the keepalive request, and
+reopening waited for the whole initial sync before replay. The Node model
+reproduced both, plus admission finishing after the page was suspended.
+The reproduction base is `826108972b7b6969a97d40d7503effa64faa95c3`.
+During verification HEAD advanced to `c2b78619907655503a9da7b56170b0ee48d8a33a`
+with benchmark records only; no `snapback4/` code changed in that advance.
+
+Built the LLP 3000.007 §20.4 handoff with §18.2's store fence. The ordinary
+sender records its mutation id while sending and persisting settlement;
+exit may overlap only that same oldest committed head. Its outcome remains
+unknown until a durable receipt or sync acknowledgement arrives. A completed
+outbox commit rechecks a suspended page, and `pageshow`/visible stops that
+recheck. Reopening a web device probes the persisted server store identity
+and head before replaying unknown writes ahead of initial acquisition;
+missing/different identity, backend replacement and a regressed head keep
+the existing sync/restore path. Mutation ids and row ids are preserved.
+The 65,536-byte shared keepalive body budget and 1,000 ms exit wait remain.
+
+The first implementation also tried early replay on native shared stores.
+The existing native snapshot/sender test exposed a deadlock: the new owner
+waited for a send whose fixture released it only after acquisition started.
+Its isolated result was 0 passed, 0 failed, 1 cancelled (12,004 ms). Early
+replay is now web-only; that same isolated test passed in 119.812 ms, and
+all lifecycle tests passed in the final affected run. This was an introduced
+regression, repaired here, not an attributed baseline failure.
+
+The README and writes card describe the new handoff and recommend awaiting
+`client.mutate(...)` before programmatic navigation for durable admission.
+The optional public `flush()` was considered and not added: `mutate` already
+provides that admission boundary, and a new public network-wait contract is
+unnecessary for this repair. No diagnostic or note was added or changed.
+
+Validation used Node 24.18.0, with
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` before JS commands.
+Commands below run from `snapback4/` unless the repository root is named.
+
+- `node --test --test-name-pattern='unawaited|finishing|same store' packages/snapback4/test/navigation-model.test.mjs`:
+  before `ℹ tests 6`, `ℹ pass 0`, `ℹ fail 6`, `ℹ cancelled 0`;
+  after `ℹ tests 6`, `ℹ pass 6`, `ℹ fail 0`, `ℹ cancelled 0`.
+- `node --test --test-concurrency=2 packages/snapback4/test/navigation-model.test.mjs packages/snapback4/test/web-navigation.test.mjs packages/snapback4/test/local-e2e.test.mjs packages/snapback4/test/client-lifecycle.test.mjs`:
+  `ℹ tests 74`, `ℹ pass 74`, `ℹ fail 0`, `ℹ cancelled 0`,
+  `ℹ duration_ms 31985.715958`.
+- Repository root, `bash snapback4/scripts/test.sh`:
+  `-- ok: cargo test (339 s)`; fixture tests `ℹ tests 9`, `ℹ pass 9`,
+  `ℹ fail 0`; client tests `ℹ tests 245`, `ℹ pass 244`, `ℹ fail 1`,
+  `ℹ cancelled 0`; `-- FAIL: client tests (44 s)`;
+  `== 1 failure(s) in 356 s`. The only failure is the supplied sandbox
+  artifact: `react.test.mjs`, Chromium `exitCode=null, signal=SIGABRT`.
+  Builds, wasm, package/app typechecks, guide compilation and Rust tests pass.
+- Repository root, `./ref-check --verbose`: 480 LLP documents, zero errors
+  and zero unchecked references. `git diff --check` passes. The largest
+  changed code file is `local.ts`, 1,174 lines.
+
+Final affected-run measurements: for 1 and 2 writes, with ordinary delivery
+aborted before application or after application but before its reply, exit
+requests changed from 0 to 1; the oldest write reached the server before
+reopen in all four cases. Reopen took 23/23/18/25 ms respectively, ending
+with 1/2/1/2 rows and 0 duplicates. Late admission produced 1 exit request
+and 1 row only after commit. With first sync held, the reopened client sent
+1 write and the server applied it before that sync was released. Three
+identity controls (different, missing, restored) sent 0 premature writes.
+
+`witness/navigation-immediate.mjs` adds ten real-document cases: awaited
+pending/sent, unawaited calls, two writes, 0/5 ms navigation, a held ordinary
+request, a 3 s first sync, and a destination with no client for 10 s. The
+builder-shaped admin removal increments an independent counter to expose
+double application. Its Quarry compiled and the real-server source probe
+reported `navigation witness source: 3 operations; 2 same-ID requests; 1 application; 0 duplicates; passed`.
+`node --check witness/navigation-immediate.mjs` passes. Chromium was not
+launched for this witness inside the sandbox. The lead's exact command,
+from `snapback4/` with the Node PATH above, is
+`node witness/navigation-immediate.mjs`; run the same witness against the
+base implementation and this implementation to record its JSON lines before
+and after. Browser timings and the actual ten-second destination remain
+unmeasured here. No commit, push, tag or publication was performed by this lane.
+
+## 2026-09-14 — W3a2: send an unawaited write before admission can commit
+
+The lead's Chromium run at W3a's HEAD passed eight of ten cases. The two
+zero-delay unawaited cases applied zero writes: the page left before its
+IndexedDB admission committed. W3a's Node model had awaited the ordinary
+send or tested a page that survived until admission finished. Added the
+missing same-turn unload and held-save cases for both one and two writes,
+against base `092baded2869a0af168f6b301c0e1a2d15fa654e`: four failures,
+each observing zero synchronous exit requests. An initial draft of the
+test's text-concatenation audit exceeded its declared text bound; the actual
+reproduction uses an integer order audit and a non-idempotent application
+counter, with a cleanly compiled fixture.
+
+The client now captures the mutation id, operation, a JSON snapshot of the
+arguments and minted ids synchronously, before its first admission await.
+Web suspension reports even an empty committed queue. A durable unconfirmed
+predecessor retains W3a's oldest-head path, including its same-ID ordinary
+retry; only with no durable predecessor and no ordinary send in flight can
+pending admissions take the new path. Completed or failed admissions remove
+their memory records before asynchronous media reconciliation. An ordinary
+flush rechecks the exit wait after its queued read, which can cross a
+suspension event.
+
+The small additive server change is `POST /m` with `{ writes: [...] }`:
+one authenticated request, a 65,536-byte body limit, one to 32 writes,
+executed in order under the existing writer lock. Every write retains its
+own transaction, rules, meter and mutation-id receipt. The reply contains
+per-write receipts and stops at the first refusal; the ordinary outbox
+replays the rest. Replay is checked before current operation/argument
+validation, preserving outcomes across changed programs. The client sends
+the longest prefix that fits the shared body budget (at most 32), or the
+single head, without skipping a blocked predecessor. No meter ceiling,
+serialized value form, public client card word or existing corpus case changed.
+
+The README and writes card state the limit explicitly: this pre-admission
+send is best-effort. If the browser drops it before admission commits, the
+write can still be lost. Await `client.mutate(...)` before navigating and
+handle a failed outcome; `pending` is the durable admission boundary. The
+loss model confirms two submitted writes produce zero applications after
+reopen when both keepalive and admission are lost, and two when admission
+commits. Argument-mutation, durable-predecessor, failed-admission cleanup,
+UTF-8 quota and count-boundary controls also pass.
+
+Validation used Node 24.18.0, with
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` before JS.
+Commands run from `snapback4/` unless the repository root is named; logs
+are in `/tmp/w3a2-*.log` on this machine.
+
+- `node --test --test-name-pattern='immediate .* before admission' packages/snapback4/test/navigation-model.test.mjs`:
+  before `ℹ tests 4`, `ℹ pass 0`, `ℹ fail 4`, `ℹ cancelled 0`;
+  after `ℹ tests 4`, `ℹ pass 4`, `ℹ fail 0`, `ℹ cancelled 0`.
+- `cargo test -p snapback4 --test replay ordered_mutation_batch -- --nocapture`:
+  before `test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 4 filtered out; finished in 1.64s`;
+  after `test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 1.26s`.
+- `cargo test -p snapback4 --test replay -- --nocapture`:
+  `test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.45s`.
+- `bun run --cwd packages/snapback4 build`: exit 0.
+- `node --test --test-concurrency=2 packages/snapback4/test/navigation-model.test.mjs packages/snapback4/test/web-navigation.test.mjs packages/snapback4/test/local-e2e.test.mjs packages/snapback4/test/client-lifecycle.test.mjs`:
+  first `ℹ tests 79`, `ℹ pass 79`, `ℹ fail 0`, `ℹ cancelled 0`;
+  final `ℹ tests 83`, `ℹ pass 83`, `ℹ fail 0`, `ℹ cancelled 0`,
+  `ℹ duration_ms 29131.438709`.
+- Repository root, `bash snapback4/scripts/test.sh`:
+  `-- ok: cargo test (279 s)`; fixtures `ℹ tests 9`, `ℹ pass 9`,
+  `ℹ fail 0`; client `ℹ tests 254`, `ℹ pass 253`, `ℹ fail 1`,
+  `ℹ cancelled 0`; `-- FAIL: client tests (45 s)`;
+  `== 1 failure(s) in 283 s`. The only failure is the supplied Chromium
+  sandbox artifact in `react.test.mjs`: `exitCode=null, signal=SIGABRT`.
+  There were no lifecycle or client-concurrency timeouts. No failure is
+  attributed to a separately verified pre-existing baseline.
+- Repository root, `./ref-check --verbose`: 480 LLP documents, zero errors
+  and zero unchecked references. `git diff --check` passes. The largest
+  changed code file is `serve.rs`, 1,371 lines.
+
+Final affected-run measurements, same-turn then held-save: one write applied
+before admission in 19/15 ms, two in 17/19 ms. Each case sent one exit
+request with zero durable entries at that boundary. One-write bodies were
+308 bytes; two-write bodies 670 bytes. Application counts before admission
+and after replay were 1/1 and 2/2, with zero duplicate counter increments
+and unchanged minted row ids. The multibyte quota case sent two ordered
+writes in one 64,142-byte request, below 65,536; the count-boundary server
+test accepted all 32 writes. Existing stalled-response recovery took
+1,009/1,007 ms with zero duplicates, retaining the 1,000 ms wait policy.
+
+No new diagnostic code or note was added; the batch route uses the existing
+E_INPUT/E_OP refusals and guide cards. The brief did not request a diagnostic
+text comparison. All touched files are within the authorized client,
+additive server, tests, published docs and journal scope. No commit, push,
+tag or publication was made. `witness/navigation-immediate.mjs` remains
+unchanged for the lead to run with `node witness/navigation-immediate.mjs`
+outside the sandbox; its actual Chromium after-result is not measured here.
