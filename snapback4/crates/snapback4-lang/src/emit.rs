@@ -51,6 +51,7 @@ pub fn typescript(bound: &Bound) -> String {
             let word = fact.runs.as_ref().map(|word| format!("runs: {word}")).or_else(|| fact.predicts.as_ref().map(|word| format!("predicts: {word}"))).unwrap_or_default();
             let mut comment = format!("Arguments: {}. Result: {}. {word}. Horizon sites: {}. Require codes: {}.", args_ts(&program.args), ty_ts(&program.result), if horizon.is_empty() { "none" } else { &horizon }, if fact.requires.is_empty() { "none".into() } else { fact.requires.join(", ") });
             if fact.connected_effects_only { comment.push_str(&format!(" {}.", crate::bind::residency::CONNECTED_EFFECTS)); }
+            if program.program.kind == ProgramKind::Mutation { comment.push_str(" Call client.mutate(op, args, { id }) to retry an intent with its original write id; replay returns a receipt without historical results."); }
             out.push_str(&format!("{indent}/** {} */\n", comment.replace("*/", "* /")));
             out.push_str(&format!("{indent}{}: {kind}<{}, {}>;\n", property(short), args_ts(&program.args), ty_ts(&program.result)));
         }

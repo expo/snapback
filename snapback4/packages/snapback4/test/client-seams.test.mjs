@@ -4,13 +4,14 @@ import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { createRequire } from "node:module";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createClient } from "../dist/client.js";
+import { createClient, mintId } from "../dist/client.js";
 import { createLocalClient } from "../dist/local.js";
 import { processDevice } from "../dist/native.js";
+import { memoryPersistence, webDevice } from "../dist/web.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
@@ -58,6 +59,8 @@ mutation answerNull():
   return null
 mutation answer(n: int):
   return { n: n }
+mutation answerPair(a: int, b: int):
+  return { a, b }
 mutation attach(photo: image <=100000, until: time ?):
   require photo.width = 1 else WRONG_WIDTH
   return insert photos { owner: viewer, photo, until }
@@ -99,7 +102,132 @@ async function fixture(t, release = false) {
   const cores = [];
   const device = { async open(name, backend) { const core = await native.open(name, backend); cores.push(core); return core; } };
   const post = async (path, body, persona = true) => (await fetch(url + path, { method: "POST", headers: persona ? { "x-snapback-persona": "alice" } : {}, body: JSON.stringify(body) })).json();
-  return { url, device, cores, clients, post, log: () => log };
+  const web = webDevice({ wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")), persist: memoryPersistence() });
+  return { url, device, web, cores, clients, post, log: () => log };
+}
+
+for (const tier of ["online", "web", "native"]) {
+  async function callerFixture(t) {
+    const f = await fixture(t);
+    let offline = false, drop = false;
+    const attempts = [], replies = [];
+    const open = async () => {
+      const options = { url: f.url, persona: "alice", waitSeconds: 1, fetch: async (input, init) => {
+        if (offline) throw new TypeError("offline");
+        if (!String(input).includes("/m/")) return fetch(input, init);
+        attempts.push({ path: new URL(input).pathname, ...JSON.parse(init.body) });
+        const response = await fetch(input, init);
+        replies.push(await response.clone().json());
+        if (drop) { drop = false; throw new TypeError("committed acknowledgement lost"); }
+        return response;
+      } };
+      const client = tier === "online" ? createClient(options) : await createLocalClient({ ...options, device: tier === "web" ? f.web : f.device });
+      f.clients.push(client);
+      if (!offline && tier !== "online") await client.sync();
+      return client;
+    };
+    return { ...f, open, attempts, replies, offline: value => { offline = value; }, drop: () => { drop = true; } };
+  }
+
+  test(`W6d ${tier}: caller id retries share pending writes and retained receipts`, async t => {
+    const f = await callerFixture(t), client = await f.open(), id = mintId();
+    f.offline(true);
+    if (tier === "online") await client.query({ kind: "query", name: "receipts" }, {});
+    else await client.sync();
+    const events = []; client.onWrite(write => events.push(write));
+    const args = { n: 43 };
+    const [first, concurrent] = await Promise.all([
+      client.mutate(mutation("record"), args, { id }), client.mutate(mutation("record"), { n: 43 }, { id }),
+    ]);
+    assert.equal(first.id, id); assert.equal(first.state, "pending");
+    assert.strictEqual(concurrent, first, "a concurrent admission returns the same Write object");
+    assert.strictEqual(await client.mutate(mutation("record"), { n: 43 }, { id }), first);
+    args.n = 99;
+    for (const [op, changed] of [["record", { n: 44 }], ["answer", { n: 43 }]]) {
+      const refused = await client.mutate(mutation(op), changed, { id });
+      assert.equal(refused.state, "failed"); assert.equal(refused.why.code, "E_WRITE_ID_REUSE");
+      assert.equal((await client.write(id)).state, "pending", "a conflicting retry cannot replace the original outcome");
+    }
+    f.offline(false);
+    if (tier !== "online") await client.sync();
+    const sent = await until(() => events.find(write => write.id === id && write.state === "sent"));
+    const receipt = { state: "sent", id, seq: sent.seq, replayed: true };
+    assert.deepEqual(await client.mutate(mutation("record"), { n: 43 }, { id }), receipt);
+    assert.deepEqual(await client.write(id), receipt);
+    assert.equal((await client.mutate(mutation("record"), { n: 44 }, { id })).why.code, "E_WRITE_ID_REUSE");
+    assert.equal(f.attempts.length, 1); assert.equal(f.attempts[0].id, id);
+    const rows = (await f.post("/q/receipts", { args: {} })).data;
+    assert.equal(rows.length, 1); assert.equal(rows[0].n, 43); assert.notEqual(rows[0].id, id);
+    if (tier !== "online") assert.ok(f.attempts[0].newIds.includes(rows[0].id), "prediction row ids remain separate from the write id");
+    assert.equal(events.filter(write => write.id === id).length, 1);
+    t.diagnostic(`tier=${tier} posts=1 applied=1 terminal_events=1`);
+  });
+
+  test(`W6d ${tier}: malformed caller ids fail locally`, async t => {
+    const f = await callerFixture(t), client = await f.open();
+    for (const id of ["", "fixture-1", "0".repeat(25), "0".repeat(27), "8" + "0".repeat(25), "0".repeat(25) + "I", "0".repeat(25) + "a", null, 42]) {
+      const write = await client.mutate(mutation("record"), { n: 1 }, { id });
+      assert.equal(write.state, "failed", JSON.stringify(write)); assert.equal(write.why.code, "E_WRITE_ID");
+      assert.equal(typeof write.id, "string", "even an untyped JavaScript caller receives a Write-shaped refusal");
+    }
+    assert.equal(f.attempts.length, 0);
+    const valid = await client.mutate(mutation("record"), { n: 1 }, { id: "7" + "Z".repeat(25) });
+    assert.equal(valid.state, "sent"); assert.equal(f.attempts.length, 1);
+  });
+
+  test(`W6d ${tier}: input key order is immaterial and an evicted receipt never readmits on the same client`, { timeout: 60000 }, async t => {
+    const f = await callerFixture(t), client = await f.open(), id = mintId();
+    const first = await client.mutate(mutation("answerPair"), { a: 1, b: 2 }, { id });
+    assert.equal(first.state, "sent");
+    const receipt = { state: "sent", id, seq: first.seq, replayed: true };
+    assert.deepEqual(await client.mutate(mutation("answerPair"), { b: 2, a: 1 }, { id }), receipt);
+    assert.equal(f.attempts.length, 1);
+    for (let n = 0; n < 256; n++) assert.equal((await client.mutate(mutation("answer"), { n })).state, "sent");
+    assert.equal(await client.write(id), undefined);
+    const expired = await client.mutate(mutation("answerPair"), { a: 1, b: 2 }, { id });
+    assert.equal(expired.state, "failed"); assert.equal(expired.why.code, "E_WRITE_RECEIPT_EXPIRED");
+    assert.equal(f.attempts.length, 257, "receipt eviction does not enqueue a known id again");
+    await client.close(); const reopened = await f.open();
+    assert.deepEqual(await reopened.mutate(mutation("answer"), { n: 99 }, { id }), receipt);
+    assert.equal(f.attempts.length, 258, "without retained local evidence the server's original outcome wins");
+    t.diagnostic(`tier=${tier} retained_receipts=256 known_id_readmissions=0 server_recovery_posts=1`);
+  });
+
+  test(`W6d ${tier}: two client POSTs with the caller id apply once after a lost reply`, async t => {
+    const f = await callerFixture(t), client = await f.open(), id = mintId();
+    f.drop();
+    const first = await client.mutate(mutation("record"), { n: 7 }, { id });
+    assert.equal(first.id, id);
+    await client.mutate(mutation("record"), { n: 7 }, { id });
+    await until(async () => (await client.write(id))?.state === "sent");
+    assert.equal(f.attempts.length, 2); assert.deepEqual(f.attempts[1], f.attempts[0]);
+    const receipt = { state: "sent", id, seq: f.replies[0].seq, replayed: true };
+    assert.deepEqual(f.replies[1], receipt); assert.deepEqual(await client.write(id), receipt);
+    assert.equal((await f.post("/q/receipts", { args: {} })).data.length, 1);
+    // A new client has no argument identity: the server replays even a changed op/args.
+    await client.close(); const reopened = await f.open();
+    assert.deepEqual(await reopened.mutate(mutation("answer"), { n: 99 }, { id }), receipt);
+    assert.equal(f.attempts.length, tier === "online" ? 3 : 2);
+    t.diagnostic(`tier=${tier} retry_posts=2 applied=1 historical_results=0`);
+  });
+
+  if (tier !== "online") test(`W6d ${tier}: reopen deduplicates the queued caller id before prediction`, async t => {
+    const f = await callerFixture(t), client = await f.open(), id = mintId();
+    f.offline(true); await client.sync();
+    assert.equal((await client.mutate(mutation("record"), { n: 8 }, { id })).state, "pending");
+    await client.close(); const reopened = await f.open();
+    const first = await reopened.mutate(mutation("record"), { n: 8 }, { id });
+    assert.equal(first.id, id); assert.equal(first.state, "pending");
+    assert.strictEqual(await reopened.mutate(mutation("record"), { n: 8 }, { id }), first);
+    assert.equal((await reopened.mutate(mutation("record"), { n: 9 }, { id })).why.code, "E_WRITE_ID_REUSE");
+    const predicted = await reopened.query({ kind: "query", name: "receipts" }, {});
+    assert.equal(predicted.data.length, 1); assert.equal(predicted.data[0].pending, true);
+    f.offline(false); await reopened.sync();
+    await until(async () => (await reopened.write(id))?.state === "sent");
+    assert.equal(f.attempts.length, 1);
+    assert.equal((await f.post("/q/receipts", { args: {} })).data.length, 1);
+    t.diagnostic(`tier=${tier} reopened_queued=1 predictions=1 posts=1 applied=1`);
+  });
 }
 
 test("sent results reach online, process-device and queued-write callers", async t => {
@@ -182,6 +310,9 @@ import { useMutation } from ${JSON.stringify(join(packageRoot, "dist/react.js"))
 type Value = { n: number };
 declare const client: Client;
 declare const op: Mutation<{}, Value>;
+const identified: Promise<Write<Value>> = client.mutate(op, {}, { id: "01ARZ3NDEKTSV4RRFFQ69G5FAV" });
+// @ts-expect-error a caller id must be a string
+client.mutate(op, {}, { id: 42 });
 function inspect(write: Write<Value>) {
   if (write.state === "pending") {
     // @ts-expect-error pending is not a predicted result

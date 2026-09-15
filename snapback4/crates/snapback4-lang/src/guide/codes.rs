@@ -1,4 +1,7 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_WRITE_ID", "family input — write id must be 26 uppercase Crockford base32 digits, starting with 0–7 (the mintId() form). Mint once and keep the id with the intent; guide writes."),
+    ("E_WRITE_ID_REUSE", "family input — write id already belongs to a different operation or arguments; retry the original input or use a new id. The original write remains unchanged; guide writes."),
+    ("E_WRITE_RECEIPT_EXPIRED", "family input — this client already used the write id, but its receipt is no longer retained; reopen the client to ask the server for the original outcome. The client never admits a known id twice; guide writes."),
     ("E_QUARRY_MODIFIER_SCOPE", "by immediately after an unparenthesized read inside where could belong to the inner or outer read. Parenthesize the inner read, or move the modifier before where; check --fix preserves the inner index by adding parentheses. guide reads."),
     ("E_REPLAY_DEV_ONLY", "--replay requires dev without --release; serve and releases always emit effects normally. Use snapback4 dev --replay to suppress new effects and hold schedules; guide replay."),
     ("E_STORE_RESTORE", "family store — the same backend store identity reports a head below this device's watermark. Sync and reads halt; stop the client and use a fresh device store and outbox for the restored backend. A retry or backend adoption does not reacquire the same identity. See `guide sync`."),

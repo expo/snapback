@@ -19,6 +19,7 @@ async function localPersona() {
       if (op === "state") return { ok: { watermark: 0, generation: 1, native: null } };
       if (op === "backend") return { ok: backend };
       if (op === "queued") return { ok: [] };
+      if (op === "meta") return { ok: null };
       if (op === "apply") return { ok: { touched: [] } };
       return { ok: true };
     } }) },

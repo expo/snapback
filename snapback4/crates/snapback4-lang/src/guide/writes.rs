@@ -12,6 +12,33 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
   return { a: a.id, b }
 ```
 
+For replay adapters and retry-safe intents, pass `{ id }` from your own fixture
+or intent id; a retry returns the original outcome and never applies twice:
+`client.mutate(api.send, args, { id })`. The id must have the `mintId()` form:
+26 uppercase Crockford base32 digits (0123456789ABCDEFGHJKMNPQRSTVWXYZ), with
+the first digit 0–7; malformed ids return local `failed` with `E_WRITE_ID`.
+Mint once and keep the id with the intent. It identifies the write, not a row;
+prediction still mints separate row ids through `new_ids`.
+A retry of a pending write on the same client returns the same Write object;
+a settled retry returns its retained receipt, without historical result values.
+Online, web and native clients share this rule; a recovered queued write is
+reused before prediction or admission. `client.write(id)` and
+`usePendingWrite(op, id)` observe that same id.
+
+Reusing an id with different operation names or JSON arguments returns local
+`E_WRITE_ID_REUSE` while the client knows the input: unresolved submissions,
+its last 256 terminal input identities, or its recovered outbox. Object key
+order does not matter. This refusal does not replace the original write or emit
+a terminal event for it. A receipt recovered after reopen holds no arguments,
+so it returns the original outcome without comparing inputs. When neither
+outbox nor receipt knows an id, the request reaches the server: its record is
+keyed by principal and mutation id, and an existing record wins even if the
+operation or arguments differ. Use a new id for a new intent. A client remembers
+used ids for its lifetime (ids only after the bounded input/receipt window);
+if a known id has lost its receipt and left the outbox, it refuses
+`E_WRITE_RECEIPT_EXPIRED` instead of admitting it again. Reopen to recover that
+outcome through the server. The server guarantee belongs to that backend store.
+
 Writes that do not predict show pending with `usePendingWrite(op)` from
 `snapback4/react`: `run(args)` submits, `pending` covers submission through
 terminal `sent` or `failed`, and `last` is the Write. Keep its mutation id in
