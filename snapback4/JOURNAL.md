@@ -9904,3 +9904,143 @@ diagnostic before/after text for this lane. No application spelling changed.
 `git diff --check` passes, and the journal's prefix is byte-identical to the
 base with this one appended dated entry. Nothing was committed, pushed,
 tagged or published.
+
+## 2026-09-14 — W2R2a: final-exists device misses need an absence proof
+
+Base: `bca8bfe70d320c1d466c6a700493465662b2205e` (`sb4/w2-int`). Read
+Grok's re-check finding 4 and section 2, lane F and W2R1u, and the governing
+LLP 3000.007 §20.5, §8.7, §15/§17 and §18 rulings. The shared final-exists
+check now reuses `upsert_absence_proven` on a device miss. A refusal needs
+a key that proves readability and a fully held synced group without a
+horizon; an unproved miss records an unknown fact, which the existing local
+prediction mapping turns into `E_PREDICT`. Admission then queues the write
+without a predicted row. A local hit still satisfies the postcondition.
+The writes and prediction cards and package README state these conditions.
+No new language form, diagnostic code or note was added.
+
+Both ordinary insert and upsert were red at the base: Alice's private
+`targets {name: "x"}` is missing from Bob's device, so both stores refused
+`E_CONSTRAINT` while the server committed Bob's source row. The four named
+store/write-form regressions now queue instead. Eight new tests include
+those four regressions, direct `E_PREDICT` checks, viewer-pinned held-group
+success and refusal controls, and unpinned local-hit controls. The known
+miss still gives exactly the server's complete `E_CONSTRAINT` refusal;
+the successful predicted row, after removing `pending`, equals the server
+result and settled local row. Both stores exercise admission, reopen and
+settlement. No meter ceiling, serialized value form or corpus case changed.
+
+The existing observation helper records full query envelopes, all seven
+meters, all table reads, admission, the outbox, reopen and settlement. Three
+worlds have identical viewer holdings and seed sequence: no target, a hidden
+nonmatching target, and a hidden matching target. Their complete device
+observations match through reopen. The absent and hidden-nonmatching worlds
+also match the complete server observation, including first/retry bodies,
+receipt, meters, committed delta, effects, stream, snapshot and settlement.
+The matching hidden witness legitimately changes the server's postcondition
+outcome; that commit and the other worlds' refusals are each checked instead
+of demanding identical authoritative outcomes. This is an in-process
+observation, not an HTTP or browser-notification measurement.
+
+### Red before, green after
+
+Only the test files were changed for the final red run; production sources
+were still exactly the base above. Cargo commands run from `snapback4/`.
+
+```text
+cargo test -p snapback4-device --test device upsert::final_exists -- --nocapture
+test result: FAILED. 3 passed; 5 failed; 0 ignored; 0 measured; 73 filtered out; finished in 0.26s
+cargo test -p snapback4-device --test device upsert::final_exists -- --nocapture
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 73 filtered out; finished in 0.32s
+cargo test -p snapback4-device --test device -- --nocapture
+test result: ok. 81 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 47.68s
+cargo test -p snapback4-lang --test guide -- --nocapture
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+```
+
+The blocking suite, from the repository root, with the pinned Node PATH:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+-- ok: cargo build (16 s)
+-- ok: wasm build (31 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (301 s)
+-- ok: chat app typecheck (0 s)
+-- ok: expo app typecheck (1 s)
+-- ok: fixture wrapper tests (11 s)
+-- FAIL: client tests (46 s)
+== 1 failure(s) in 351 s
+```
+
+Rust's 54 summary lines total 758 passed, 0 failed, 2 ignored. Fixture and
+client summaries, respectively:
+
+```text
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ skipped 0
+ℹ tests 197
+ℹ pass 196
+ℹ fail 1
+ℹ skipped 0
+```
+
+The sole failure was `React hooks and reference-app lifetimes` in
+`packages/snapback4/test/react.test.mjs`, Chromium `SIGABRT`. Rerun alone
+from `snapback4/`, with the same pinned Node PATH:
+
+```text
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ skipped 0
+ℹ duration_ms 477.062625
+```
+
+The isolated run also reports Chromium `SIGABRT`. This is the sandbox
+artifact explicitly identified by the lane brief, not an independently
+base-verified pre-existing-failure claim. No lifecycle or mass client timeout
+occurred. The lead still needs the browser test outside the sandbox. Logs:
+`/tmp/w2r2a-final-exists-red.log`, `/tmp/w2r2a-final-exists-green.log`,
+`/tmp/w2r2a-device.log`, `/tmp/w2r2a-guide.log`, `/tmp/w2r2a-suite.log`,
+`/tmp/w2r2a-react.log`, `/tmp/w2r2a-ref-check.log`.
+
+Measurements: 4 false local refusals in the primary insert/upsert/store
+reproduction become 0; each uncertain write goes from 0 queued entries to
+1, with 0 predicted rows. Held successes still predict 1 source row. The
+rebuilt wasm is 1,651,659 B raw and 458,591 B gzip; no size improvement is
+claimed. The 5 changed/new code files are all below 1,500 lines (largest:
+`engine/write.rs`, 628). No out-of-scope file was touched. Nothing was
+committed, pushed, tagged or published.
+
+Direct prediction's diagnostic fields for both write forms and stores:
+
+```text
+before code: E_CONSTRAINT
+before message: inserting into sources requires a matching row in targets by the end of the mutation
+after code: E_PREDICT
+after message: E_PREDICT: site after insert: this device cannot establish targets by byName at key ["x"]; the probe key does not establish a fully held, readable group without a horizon
+```
+
+Admission consumes the latter as a queued unpredicted write. The server's
+constraint diagnostic is unchanged. Lesson: whole-table sync metadata does
+not prove that a private probe's key is absent; final postconditions need
+the same viewer-specific absence proof as the insert arm itself.
+
+Final root checks:
+
+```text
+./ref-check --verbose
+ref-check: ok — 480 LLP docs, 8886 refs in 22934 files, 0 errors, 0 unchecked
+git diff --check
+```
+
+`git diff --check` exits 0. The journal's base prefix is byte-identical,
+with exactly this one dated entry appended. HEAD remains the named base;
+the working tree contains only the 7 intended source, test and documentation
+files listed above.
