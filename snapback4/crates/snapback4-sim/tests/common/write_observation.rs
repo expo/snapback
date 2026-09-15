@@ -106,14 +106,19 @@ fn backend(e: &Engine) -> Backend {
     }
     Backend { generation: e.generation(), schema: e.schema().clone(), programs }
 }
+fn query_envelope(result: snapback4_core::QueryOutcome) -> Json {
+    let mut envelope = serde_json::to_value(&result).unwrap();
+    envelope["data"] = wire::to_json(&result.data);
+    envelope
+}
 fn local<H: Host>(device: &mut Device<H::Store>, viewer: &str, query: &(&str, Json)) -> Json {
     let tables: Vec<_> = device.schema().tables.keys().cloned().collect();
     let rows: BTreeMap<_, _> = tables.iter().map(|table| {
         let result = device.query(&format!("__observation_{table}"), viewer, &json!({}), 1000);
-        (table.clone(), match result { Ok(result) => json!({"data":wire::to_json(&result.data),"complete":result.complete}), Err(why) => json!({"why":why}) })
+        (table.clone(), match result { Ok(result) => query_envelope(result), Err(why) => json!({"why":why}) })
     }).collect();
     let query = match device.query(query.0, viewer, &query.1, 1000) {
-        Ok(result) => json!({"data":wire::to_json(&result.data),"complete":result.complete}), Err(why) => json!({"why":why}),
+        Ok(result) => query_envelope(result), Err(why) => json!({"why":why}),
     };
     json!({"rows":rows,"query":query,"outbox":device.queued().unwrap()})
 }
@@ -131,7 +136,7 @@ fn prepare<H: Host>(host: &mut H, backend: &Backend, snapshot: &Json, entry: &Qu
 }
 fn settle<H: Host>(host: &mut H, mut device: Device<H::Store>, mut observation: Json, result: &MutationOutcome, page: &StreamPage, entry: &Queued, query: &(&str, Json)) -> Json {
     let seq = match result.state { WriteState::Sent { seq, .. } => Some(seq), WriteState::Failed { .. } => None };
-    device.settle(&entry.id, seq).unwrap();
+    if device.queued().unwrap().iter().any(|queued| queued.id == entry.id) { device.settle(&entry.id, seq).unwrap(); }
     device.apply(page, false).unwrap();
     observation["settled"] = local::<H>(&mut device, &entry.viewer, query);
     assert!(device.queued().unwrap().is_empty(), "settles sent and failed operations");

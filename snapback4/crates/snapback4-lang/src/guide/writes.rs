@@ -12,9 +12,13 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
   return { a: a.id, b }
 ```
 
-`upsert` set-state writes (likes, reactions and votes) predict only updates of
-rows the device holds; a missing row queues without a prediction. See
-`guide prediction` for a predictable insert/delete set-membership recipe.
+`upsert` set-state writes (likes, reactions and votes) predict updates of
+rows the device holds. A missing row predicts an insert only when its synced
+group is held with no horizon, both the key and the materialized insert image
+prove readability, and the device holds every row that can collide on a
+secondary unique index or count toward an affected cap. Defaults are part of
+that image. Otherwise it queues without a predicted row, including in a left
+group. See `guide prediction` for the conditions and a set-membership recipe.
 
 Defaults fill missing insert columns on the writing host, including the insert
 branch of `upsert`; updates and existing-row upserts never reapply defaults.
@@ -68,9 +72,8 @@ hidden sends only the oldest unconfirmed write with keepalive when no ordinary
 send is in flight. A blocked or oversized head is never skipped; clients share
 the browser's 64 KiB body budget. Unsent/unconfirmed writes stay durable for retry on reopen with
 the same mutation id, so replay cannot apply a write twice.
-A missing `upsert` predicts its insert when the synced group has no horizon
-and the key proves readability (public rows, or a viewer-keyed rule); otherwise
-a device write-target miss queues without a predicted row and still sends `/m`.
+A device write-target miss that cannot prove the insert conditions above
+queues without a predicted row and still sends `/m`.
 A reference column checks the id's shape, not that
 its target exists: when a mutation needs a visible target, guard first —
 `require exists prompts[promptId] else PROMPT_NOT_FOUND` — a metered point

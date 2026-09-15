@@ -226,9 +226,12 @@ keep their placement. An explicit asset id on a row you cannot read must be your
 own upload, even if it equals the retained id. Update authority is checked
 before asset diagnostics. A readable maintain is an explicit delta read channel;
 `N_MAINTAIN_DELTA` notes potentially wider source update authority.
-A missing `upsert` predicts its insert when the synced group has no horizon
-and the key proves readability (public rows, or a viewer-keyed rule); otherwise
-a device missing a write target queues without a predicted row and still sends `/m`.
+A missing `upsert` predicts its insert when the synced group is held with no
+horizon, both the key and the materialized insert image prove readability,
+and the viewer-readable partition covers every secondary unique lookup and
+affected cap group. The image includes key columns, patch and defaults; a
+whole-table cap needs the whole public table. Left groups and unproved
+conditions queue without a predicted row and still send `/m` (guide prediction).
 The at-most-once record stores the replay body, with value-free diagnostic
 messages and no `result` or `current`. Replay returns
 execution identity only, with `replayed: true`; historical `result` and

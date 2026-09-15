@@ -3,7 +3,8 @@ use super::runner::{Flow, Runner};
 use super::rules::rule_probes;
 use crate::error::{MeterKind, RuntimeError};
 use crate::ir::{Builtin, Expr, IndexKeyExpr, Input, KeyProvenance, LoopDomain, Read, Scan, Stmt, WriteCondition};
-use crate::schema::{ColumnType, Effect, Table, materialize_optional_fields};
+use crate::schema::{ColumnType, Constraint, Effect, Table, materialize_optional_fields};
+use crate::rows::index_values;
 use crate::value::Value;
 
 impl Runner<'_> {
@@ -74,6 +75,35 @@ impl Runner<'_> {
         Ok(readable && !self.beyond_horizon)
     }
 
+    // @ref LLP 3000.007#20.5 — key absence is not insert authority: the materialized image and every colliding/counting population need the same held-group proof.
+    pub(super) fn prove_upsert_insert(&mut self, table: &str, addressed_index: &str, row: &Value) -> Result<(), RuntimeError> {
+        let definition = self.schema.tables[table].clone();
+        let image_key = index_values(definition.index(addressed_index).expect("addressed index"), row);
+        if !self.upsert_absence_proven(table, addressed_index, &image_key)? {
+            return Err(self.write_miss(table, addressed_index, &image_key));
+        }
+        // byId is either the already-proven addressed key or a fresh minted id.
+        // Every application unique key can collide with a different, hidden row.
+        for (name, index) in definition.indexes.iter().filter(|(name, index)| index.unique && name.as_str() != "byId" && name.as_str() != addressed_index) {
+            let key = index_values(index, row);
+            if !key.contains(&Value::Null) && !self.upsert_absence_proven(table, name, &key)? {
+                return Err(self.write_miss(table, name, &key));
+            }
+        }
+        for constraint in &definition.constraints {
+            if let Constraint::Cap { by, .. } = constraint {
+                let key: Vec<_> = by.iter().map(|field| row.field(field).cloned().unwrap_or(Value::Null)).collect();
+                let Some((name, _)) = definition.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(by)) else {
+                    return Err(RuntimeError::Schema(format!("cap by {} has no leading index", by.join(", "))));
+                };
+                // An empty prefix is a whole-table cap: only full public sync
+                // covers it. A private viewer partition cannot count hidden rows.
+                if !self.upsert_absence_proven(table, name, &key)? { return Err(self.write_miss(table, name, &key)); }
+            }
+        }
+        Ok(())
+    }
+
     pub(super) fn write_target(&mut self, target: &Read, patch: &Expr, upsert: bool, condition: Option<&WriteCondition>, valued: bool) -> Result<Value, RuntimeError> {
         self.target_attempt(|runner| runner.resolve_write_target(target, patch, upsert, condition, valued))
     }
@@ -121,7 +151,7 @@ impl Runner<'_> {
             fields.insert("id".into(), id.clone());
             let row = Value::Row(fields.into());
             self.meter.heap(row.heap_bytes())?;
-            self.insert_upsert(&target.table, row)?;
+            self.insert_upsert(&target.table, &target.index, row)?;
             id
         };
         // Only an ordinary read of the final row can enter the author's program.
