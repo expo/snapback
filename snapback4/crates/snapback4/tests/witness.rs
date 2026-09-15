@@ -49,13 +49,13 @@ fn bound_port_is_refused_without_stopping_its_owner() {
 
 #[test]
 fn receipts_refuse_malformed_and_truncated_lines_and_preserve_app_objects() {
-    let bytes = b"{\"arbitrary\": [1, null, {\"pass\": true}]}\n";
+    let bytes = b"{\"arbitrary\": [1, null, {\"pass\": true}], \"witness\": {\"at\": \"2026-09-14T00:00:00.000Z\", \"step\": \"launched\"}}\n";
     assert_eq!(protocol::receipts(bytes, true).unwrap()[0]["arbitrary"][2]["pass"], true);
     assert!(protocol::receipts(b"not JSON\n", true).unwrap_err().contains("receipt line 1 is not JSON"));
     assert!(protocol::receipts(b"[]\n", true).unwrap_err().contains("not an object"));
     assert!(protocol::receipts(b"{}", true).is_err());
     assert!(protocol::receipts(b"", true).is_err());
-    assert_eq!(protocol::receipts(b"{}\n{", false).unwrap().len(), 1);
+    assert_eq!(protocol::receipts(&[bytes.as_slice(), b"{"].concat(), false).unwrap().len(), 1);
 }
 
 #[test]
@@ -92,12 +92,17 @@ mod driver {
             fs::set_permissions(dir.join("xcrun"), fs::Permissions::from_mode(0o755)).unwrap();
             Self(dir)
         }
-        fn run(&self, mode: &str, port: u16) -> std::process::Output {
-            Command::new(env!("CARGO_BIN_EXE_snapback4"))
-                .args(["witness", "ios", "--bundle-id", "dev.test", "--segment", "offline", "--artifacts", "artifacts", "--port", &port.to_string(), "--timeout", "5", "--prime"])
+        fn command(&self, mode: &str, port: u16, artifacts: &std::path::Path) -> Command {
+            let mut command = Command::new(env!("CARGO_BIN_EXE_snapback4"));
+            command.args(["witness", "ios", "--bundle-id", "dev.test", "--segment", "offline", "--port", &port.to_string(), "--timeout", "5", "--prime"])
+                .arg("--artifacts").arg(artifacts)
                 .args(if mode == "relaunch" { vec!["--relaunch"] } else { vec![] })
                 .current_dir(&self.0).env("PATH", format!("{}:{}", self.0.display(), std::env::var("PATH").unwrap_or_default()))
-                .env("WITNESS_TEST_DIR", &self.0).env("WITNESS_TEST_MODE", mode).output().unwrap()
+                .env("WITNESS_TEST_DIR", &self.0).env("WITNESS_TEST_MODE", mode);
+            command
+        }
+        fn run(&self, mode: &str, port: u16) -> std::process::Output {
+            self.command(mode, port, std::path::Path::new("artifacts")).output().unwrap()
         }
         fn port() -> u16 { std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap().local_addr().unwrap().port() }
     }
@@ -142,4 +147,103 @@ mod driver {
             assert_eq!(manifest["exitStatus"], 1);
         }
     }
+    fn invalid_protocol(mode: &str, code: &str) {
+        let fixture = Fixture::new(); let output = fixture.run(mode, Fixture::port());
+        assert!(!output.status.success(), "{mode} incorrectly passed");
+        assert!(String::from_utf8_lossy(&output.stderr).contains(code), "{mode}: {}", String::from_utf8_lossy(&output.stderr));
+        let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap()).unwrap();
+        assert_eq!(manifest["exitStatus"], 1);
+        if mode == "failed-batch" {
+            assert!(!manifest["events"].as_array().unwrap().iter().any(|e| e["step"] == "reconnect-signaled"));
+        }
+    }
+    #[test]
+    fn cli_rejects_failure_in_the_milestone_batch() { invalid_protocol("failed-batch", "E_WITNESS_STEP"); }
+    #[test]
+    fn cli_rejects_failure_appended_after_done() { invalid_protocol("failed-after-done", "E_WITNESS_STEP"); }
+    #[test]
+    fn cli_rejects_milestone_appended_after_done() { invalid_protocol("reordered-after-done", "E_WITNESS_STEP"); }
+    #[test]
+    fn cli_rejects_step_change_appended_after_done() { invalid_protocol("step-after-done", "E_WITNESS_STEP"); }
+    #[test]
+    fn cli_rejects_malformed_envelope() { invalid_protocol("envelope", "E_WITNESS_RECEIPT"); }
+    #[test]
+    fn cli_refuses_an_existing_app_and_never_terminates_a_replacement() {
+        let fixture = Fixture::new(); let output = fixture.run("running", Fixture::port());
+        assert!(!output.status.success(), "existing app was taken over");
+        assert!(String::from_utf8_lossy(&output.stderr).contains("E_WITNESS_APP: dev.test is already running on dedicated; quit it before starting the witness"));
+        assert!(!fixture.0.join("process-events.jsonl").exists());
+        assert!(!fixture.0.join(".snapback4").exists());
+        let fixture = Fixture::new(); let output = fixture.run("replacement", Fixture::port());
+        assert!(!output.status.success());
+        assert_eq!(fs::read_to_string(fixture.0.join("app-pid")).unwrap(), "9999");
+        let events = fs::read_to_string(fixture.0.join("process-events.jsonl")).unwrap();
+        assert!(!events.contains("9999"));
+    }
+    #[test]
+    fn cli_preserves_every_existing_output() {
+        for suffix in ["run.json", "screen.mp4", "receipts.jsonl", "device.log", "video.log", "launch.log", "backend.log", "backend-stdout.log", "log-stderr.log"] {
+            let fixture = Fixture::new(); fs::create_dir(fixture.0.join("artifacts")).unwrap();
+            let path = fixture.0.join(format!("artifacts/offline-ios-{suffix}")); fs::write(&path, "previous run").unwrap();
+            let output = fixture.run("normal", Fixture::port());
+            assert!(!output.status.success(), "overwrote {suffix}");
+            assert!(String::from_utf8_lossy(&output.stderr).contains("E_WITNESS_ARTIFACT"));
+            assert_eq!(fs::read_to_string(path).unwrap(), "previous run");
+            assert!(!fixture.0.join("process-events.jsonl").exists());
+        }
+    }
+    #[test]
+    fn cli_restart_and_relaunch_keep_logs_and_terminate_only_launched_pids() {
+        let fixture = Fixture::new(); let port = Fixture::port(); let output = fixture.run("relaunch", port);
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+        let stdout = fs::read_to_string(fixture.0.join("artifacts/offline-ios-backend-stdout.log")).unwrap();
+        assert_eq!(stdout.lines().filter(|s| *s == format!("http://127.0.0.1:{port}")).count(), 2);
+        let launch = fs::read_to_string(fixture.0.join("artifacts/offline-ios-launch.log")).unwrap();
+        for n in 1..=3 { assert!(launch.contains(&format!("launch-stderr-{n}"))); }
+        let events: Vec<Value> = fs::read_to_string(fixture.0.join("process-events.jsonl")).unwrap().lines().map(|l| serde_json::from_str(l).unwrap()).collect();
+        assert_eq!(events.len(), 6);
+        for (i, pair) in events.chunks(2).enumerate() {
+            assert_eq!(pair[0]["launch"], 7001 + i); assert_eq!(pair[1]["terminate"], 7001 + i);
+            assert!(!pair[0]["args"].to_string().contains("--terminate-running-process"));
+        }
+    }
+
+    #[test]
+    fn cli_concurrent_runs_into_one_namespace_have_one_owner() {
+        let first = Fixture::new(); let second = Fixture::new(); let artifacts = first.0.join("artifacts");
+        let mut one = first.command("normal", Fixture::port(), &artifacts);
+        let mut two = second.command("normal", Fixture::port(), &artifacts);
+        two.env("WITNESS_TEST_UDID", "another-simulator");
+        let one = one.stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).spawn().unwrap();
+        let two = two.stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).spawn().unwrap();
+        let outputs = [one.wait_with_output().unwrap(), two.wait_with_output().unwrap()];
+        assert_eq!(outputs.iter().filter(|o| o.status.success()).count(), 1, "{:?}", outputs);
+        let loser = outputs.iter().find(|o| !o.status.success()).unwrap();
+        assert!(String::from_utf8_lossy(&loser.stderr).contains("E_WITNESS_ARTIFACT"));
+        let manifest: Value = serde_json::from_slice(&fs::read(artifacts.join("offline-ios-run.json")).unwrap()).unwrap();
+        assert_eq!(manifest["exitStatus"], 0);
+        for suffix in ["receipts.jsonl", "screen.mp4", "device.log"] {
+            assert_eq!(manifest["artifacts"][suffix]["sha256"], protocol::artifact(&artifacts.join(format!("offline-ios-{suffix}"))).unwrap()["sha256"]);
+        }
+        assert!(artifacts.join("offline-ios-reserved").is_file());
+    }
+
+}
+
+
+#[test]
+fn artifact_reservation_has_one_winner_before_any_output_exists() {
+    use std::sync::{Arc, Barrier};
+    let dir = std::env::temp_dir().join(format!("sb4-witness-reserve-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let gate = Arc::new(Barrier::new(2));
+    let threads: Vec<_> = (0..2).map(|_| {
+        let dir = dir.clone(); let gate = gate.clone();
+        std::thread::spawn(move || { gate.wait(); protocol::reserve_artifacts(&dir, "same-segment") })
+    }).collect();
+    let results: Vec<_> = threads.into_iter().map(|t| t.join().unwrap()).collect();
+    assert_eq!(results.iter().filter(|r| r.is_ok()).count(), 1, "{results:?}");
+    assert!(protocol::reserve_artifacts(&dir, "another-segment").is_ok());
+    assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 2); // markers only; no output can decide this race
+    std::fs::remove_dir_all(dir).unwrap();
 }

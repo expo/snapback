@@ -3,7 +3,7 @@
 mod protocol;
 use protocol::*;
 use serde_json::{Value, json};
-use std::{collections::BTreeMap, fs::{self, File}, io::Read, path::{Path, PathBuf}, process::{Child, Command, ExitStatus, Stdio}, sync::atomic::{AtomicBool, Ordering}, thread::sleep, time::{Duration, Instant}};
+use std::{collections::BTreeMap, fs::{self, File, OpenOptions}, io::{Read, Write}, path::{Path, PathBuf}, process::{Child, Command, ExitStatus, Stdio}, sync::atomic::{AtomicBool, Ordering}, thread::sleep, time::{Duration, Instant}};
 
 static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 extern "C" fn interrupt(_: libc::c_int) { INTERRUPTED.store(true, Ordering::Relaxed); }
@@ -86,7 +86,7 @@ fn simctl(args: &[&str], timeout: Duration) -> Result<String> {
     Ok(text.trim().to_owned())
 }
 
-fn output(path: &Path) -> Result<File> { File::create(path).map_err(|e| error("E_WITNESS_ARTIFACT", format!("{}: {e}", path.display()))) }
+fn output(path: &Path) -> Result<File> { OpenOptions::new().create(true).append(true).open(path).map_err(|e| error("E_WITNESS_ARTIFACT", format!("{}: {e}", path.display()))) }
 fn read_rows(path: &Path, final_file: bool) -> Result<Vec<Value>> {
     match fs::read(path) {
         Ok(bytes) => receipts(&bytes, final_file),
@@ -97,48 +97,74 @@ fn read_rows(path: &Path, final_file: bool) -> Result<Vec<Value>> {
 
 struct Run {
     options: Options, udid: String, container: PathBuf, run: String, dir: PathBuf,
-    backend: Option<Owned>, video: Option<Owned>, logs: Option<Owned>, app_started: bool,
-    manifest: Value, events: Vec<Value>, consumed: usize,
+    backend: Option<Owned>, video: Option<Owned>, logs: Option<Owned>, app_pid: Option<u32>,
+    manifest: Value, events: Vec<Value>, observed: Vec<Value>,
 }
 impl Run {
     fn event(&mut self, step: &str) { self.events.push(json!({ "step": step, "at": now() })); eprintln!("witness: {step}"); }
     fn receipts(&self) -> PathBuf { self.dir.join("receipts.jsonl") }
     fn path(&self, suffix: &str) -> PathBuf { self.options.artifacts.join(format!("{}-ios-{suffix}", self.options.segment)) }
+    fn running_app(&self) -> Result<Option<u32>> {
+        app_pid(&simctl(&["spawn", &self.udid, "launchctl", "list"], self.options.timeout)?, &self.options.bundle)
+    }
+    fn require_stopped(&self) -> Result<()> {
+        if self.running_app()?.is_some() { return Err(error("E_WITNESS_APP", format!("{} is already running on {}; quit it before starting the witness", self.options.bundle, self.udid))); }
+        Ok(())
+    }
+    // @ref LLP 3000.007#20.10 — the launch PID owns cleanup, never the bundle alone
     fn terminate(&mut self) -> Result<()> {
-        // simctl's --terminate-running-process is the atomic absence check on
-        // launch. An app we launched must terminate successfully; an initially
-        // absent app is harmless, but other simctl failures are not swallowed.
-        let result = simctl(&["terminate", &self.udid, &self.options.bundle], self.options.timeout);
-        if let Err(problem) = result {
-            if self.app_started || !(problem.contains("found nothing to terminate") || problem.contains("not running")) { return Err(problem); }
+        let Some(pid) = self.app_pid else { return Ok(()); };
+        match self.running_app()? {
+            None => { self.app_pid = None; return Ok(()); }
+            Some(current) if current != pid => {
+                self.app_pid = None;
+                return Err(error("E_WITNESS_APP", format!("{} on {} was replaced by PID {current}; leaving that instance running", self.options.bundle, self.udid)));
+            }
+            Some(_) => {}
         }
-        self.app_started = false; self.event("app-terminated"); Ok(())
+        simctl(&["spawn", &self.udid, "kill", "-TERM", &pid.to_string()], self.options.timeout)?;
+        let end = Instant::now() + self.options.timeout;
+        while self.running_app()? == Some(pid) {
+            if Instant::now() >= end { return Err(error("E_WITNESS_TIMEOUT", format!("app PID {pid} did not stop"))); }
+            tick()?;
+        }
+        self.app_pid = None;
+        self.events.push(json!({ "step": "app-terminated", "pid": pid, "at": now() })); Ok(())
     }
     fn launch(&mut self, prime: bool) -> Result<()> {
+        self.require_stopped()?;
         let segment = if prime { "prime" } else { &self.options.segment };
         let config = json!({ "run": self.run, "segment": segment, "timeoutMs": self.options.timeout.as_millis() });
         let mut command = Command::new("xcrun");
-        command.args(["simctl", "launch", "--terminate-running-process", &self.udid, &self.options.bundle])
+        command.args(["simctl", "launch", &self.udid, &self.options.bundle])
             .env("SIMCTL_CHILD_SNAPBACK4_WITNESS", config.to_string())
-            .stdin(Stdio::null()).stdout(Stdio::null()).stderr(output(&self.path("launch.log"))?);
+            .stdin(Stdio::null()).stdout(Stdio::piped()).stderr(output(&self.path("launch.log"))?);
         let mut child = Owned::spawn(&mut command)?;
-        // A launch may succeed before simctl returns; cleanup owns this app now.
-        self.app_started = true;
+        let mut stdout = child.0.stdout.take().unwrap();
+        let reader = std::thread::spawn(move || { let mut text = String::new(); let _ = stdout.read_to_string(&mut text); text });
         let end = Instant::now() + self.options.timeout;
-        loop {
-            if let Some(status) = child.status()? {
-                if !status.success() { return Err(error("E_WITNESS_SIMULATOR", format!("app launch failed ({status}); see {}", self.path("launch.log").display()))); }
-                break;
-            }
+        let status = (|| -> Result<ExitStatus> { loop {
+            if let Some(status) = child.status()? { return Ok(status); }
             if Instant::now() >= end { return Err(error("E_WITNESS_TIMEOUT", "app launch timed out")); }
             tick()?;
-        }
-        self.event(if prime { "prime-launched" } else { "offline-launched" }); Ok(())
+        } })();
+        if status.is_err() { let _ = child.stop(libc::SIGTERM); }
+        let text = reader.join().unwrap_or_default();
+        let prefix = format!("{}: ", self.options.bundle);
+        // Even an interrupted or failed simctl may already have reported the
+        // app it launched. Record that PID before any fallible log write.
+        self.app_pid = text.lines().find_map(|l| l.strip_prefix(&prefix).and_then(|p| p.trim().parse::<u32>().ok())).filter(|p| *p > 0);
+        output(&self.path("launch.log"))?.write_all(text.as_bytes()).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+        let status = status?;
+        if !status.success() { return Err(error("E_WITNESS_APP", format!("app launch failed ({status}); see {}", self.path("launch.log").display()))); }
+        let pid = self.app_pid.ok_or_else(|| error("E_WITNESS_APP", "simctl launch did not report an app PID; cannot claim ownership"))?;
+        self.events.push(json!({ "step": if prime { "prime-launched" } else { "offline-launched" }, "pid": pid, "at": now() })); Ok(())
     }
     fn start_backend(&mut self) -> Result<()> {
         let reservation = reserve(self.options.port)?;
         let binary = std::env::current_exe().map_err(|e| error("E_WITNESS_BACKEND", e))?;
         let stdout = self.path("backend-stdout.log");
+        let offset = fs::metadata(&stdout).map_or(0, |m| m.len()) as usize;
         let mut command = Command::new(binary);
         command.args(["dev", "--port", &self.options.port.to_string(), "--no-watch"])
             .stdin(Stdio::null()).stdout(output(&stdout)?).stderr(output(&self.path("backend.log"))?);
@@ -149,7 +175,7 @@ impl Run {
             let child = self.backend.as_mut().unwrap();
             if let Some(status) = child.status()? { return Err(error("E_WITNESS_BACKEND", format!("dev exited ({status}); see {}", self.path("backend.log").display()))); }
             // Only our child's readiness announcement can satisfy startup.
-            if fs::read_to_string(&stdout).unwrap_or_default().lines().any(|line| line == format!("http://127.0.0.1:{}", self.options.port)) && !refused(self.options.port)? { break; }
+            if fs::read_to_string(&stdout).unwrap_or_default().get(offset..).unwrap_or_default().lines().any(|line| line == format!("http://127.0.0.1:{}", self.options.port)) && !refused(self.options.port)? { break; }
             if Instant::now() >= end { return Err(error("E_WITNESS_BACKEND", "dev did not become ready before the step timeout")); }
             tick()?;
         }
@@ -176,25 +202,28 @@ impl Run {
             if let Some(child) = &mut self.backend { child.alive("backend").map_err(|e| error("E_WITNESS_BACKEND", e))?; }
             if offline && !refused(self.options.port)? { return Err(error("E_WITNESS_BACKEND", "backend port became reachable during the offline step")); }
             let rows = read_rows(&self.receipts(), false)?;
-            for (index, row) in rows.iter().enumerate().skip(self.consumed) {
-                if let Some(step) = row["witness"]["step"].as_str() {
-                    if step.ends_with(":failed") { return Err(error("E_WITNESS_STEP", format!("app step {step}; see receipts and device log"))); }
-                    if ["primed", "relaunch", "offline-done", "done"].contains(&step) && step != expected {
-                        return Err(error("E_WITNESS_STEP", format!("expected {expected}, received {step}")));
-                    }
-                    if step == expected {
-                        let later = &rows[index + 1..];
-                        if later.iter().any(|row| row["witness"]["step"].as_str().is_some_and(|s| ["primed", "relaunch", "offline-done", "done"].contains(&s))) {
-                            return Err(error("E_WITNESS_STEP", "app emitted a later milestone before the driver advanced"));
-                        }
-                        self.consumed = rows.len(); self.event(expected); return Ok(());
-                    }
+            if !rows.starts_with(&self.observed) { return Err(error("E_WITNESS_RECEIPT", "previously observed receipts changed during the run")); }
+            sequence(&rows, &self.expected(), false)?;
+            let mut reached = false;
+            for row in rows.iter().skip(self.observed.len()) {
+                let step = row["witness"]["step"].as_str().unwrap();
+                if milestone(step) {
+                    if reached { return Err(error("E_WITNESS_STEP", "app emitted a later milestone before the driver advanced")); }
+                    if step != expected { return Err(error("E_WITNESS_STEP", format!("expected {expected}, received {step}"))); }
+                    reached = true;
                 }
             }
-            self.consumed = rows.len();
+            self.observed = rows;
+            if reached { self.event(expected); return Ok(()); }
             if Instant::now() >= end { return Err(error("E_WITNESS_TIMEOUT", format!("app did not reach {expected} within {} seconds", self.options.timeout.as_secs()))); }
             tick()?;
         }
+    }
+    fn expected(&self) -> Vec<&str> {
+        let mut steps = Vec::new();
+        if self.options.prime { steps.push("primed"); }
+        if self.options.relaunch { steps.push("relaunch"); }
+        steps.extend(["offline-done", "done"]); steps
     }
     fn capture(&mut self) -> Result<()> {
         let mut video = Command::new("xcrun");
@@ -236,7 +265,7 @@ impl Run {
         video?; logs?; self.event("recording-stopped"); Ok(())
     }
     fn execute(&mut self) -> Result<()> {
-        self.terminate()?;
+        self.require_stopped()?;
         self.start_backend()?;
         if self.options.prime { self.launch(true)?; self.wait_step("primed", false)?; self.terminate()?; }
         self.stop_backend()?;
@@ -278,7 +307,10 @@ impl Run {
                 Err(e) => { if problem.is_none() { problem = Some(e); } },
             }
         }
-        if let Err(e) = read_rows(&self.path("receipts.jsonl"), true) { if problem.is_none() { problem = Some(e); } }
+        if let Err(e) = read_rows(&self.path("receipts.jsonl"), true).and_then(|rows| {
+            if !rows.starts_with(&self.observed) { return Err(error("E_WITNESS_RECEIPT", "previously observed receipts changed during the run")); }
+            sequence(&rows, &self.expected(), true)
+        }) { if problem.is_none() { problem = Some(e); } }
         if result.is_ok() && let Some(e) = &problem { self.manifest["exitStatus"] = json!(1); self.manifest["error"] = json!(e); }
         fs::write(self.path("run.json"), serde_json::to_vec_pretty(&self.manifest).unwrap()).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         if let Some(e) = problem { return Err(e); } Ok(())
@@ -287,7 +319,7 @@ impl Run {
 impl Drop for Run {
     fn drop(&mut self) {
         let _ = self.finish_capture();
-        if self.app_started { let _ = self.terminate(); }
+        if self.app_pid.is_some() { let _ = self.terminate(); }
         if let Some(mut backend) = self.backend.take() { let _ = backend.stop(libc::SIGTERM); }
     }
 }
@@ -308,11 +340,10 @@ fn prepare(options: Options) -> Result<Run> {
     }
     if build["CFBundleIdentifier"] != options.bundle { return Err(error("E_WITNESS_APP", "installed Info.plist bundle identifier does not match --bundle-id")); }
     let _reservation = reserve(options.port)?;
-    fs::create_dir_all(&options.artifacts).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
-    // Refuse to overwrite a previous run, including a failed one.
-    for suffix in ["run.json", "screen.mp4", "receipts.jsonl", "device.log", "video.log", "launch.log", "backend.log"] {
-        if options.artifacts.join(format!("{}-ios-{suffix}", options.segment)).exists() { return Err(error("E_WITNESS_ARTIFACT", "segment artifacts already exist; choose a fresh --artifacts directory or --segment")); }
+    if app_pid(&simctl(&["spawn", &udid, "launchctl", "list"], options.timeout)?, &options.bundle)?.is_some() {
+        return Err(error("E_WITNESS_APP", format!("{} is already running on {udid}; quit it before starting the witness", options.bundle)));
     }
+    reserve_artifacts(&options.artifacts, &options.segment)?;
     let run = format!("{}-{}", now(), std::process::id());
     let dir = container.join("Documents/.snapback4-witness").join(&run);
     fs::create_dir_all(&dir).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
@@ -323,8 +354,9 @@ fn prepare(options: Options) -> Result<Run> {
         "segment": options.segment, "prime": options.prime, "relaunch": options.relaunch, "startedAt": now(), "timestampUnit": "unix-ms",
         "backend": { "command": [binary.to_string_lossy(), "dev", "--port", options.port.to_string(), "--no-watch"],
             "cwd": cwd, "store": project.join(".snapback4/store.sqlite"), "origin": format!("http://127.0.0.1:{}", options.port), "port": options.port },
-        "container": container, "run": run });
-    Ok(Run { options, udid, container, run, dir, backend: None, video: None, logs: None, app_started: false, manifest, events: Vec::new(), consumed: 0 })
+        "container": container, "run": run, "reservation": options.artifacts.join(format!("{}-ios-reserved", options.segment)),
+        "outputs": OUTPUTS.iter().map(|suffix| options.artifacts.join(format!("{}-ios-{suffix}", options.segment))).collect::<Vec<_>>() });
+    Ok(Run { options, udid, container, run, dir, backend: None, video: None, logs: None, app_pid: None, manifest, events: Vec::new(), observed: Vec::new() })
 }
 
 pub fn run(args: &[String]) -> i32 {
@@ -337,7 +369,7 @@ pub fn run(args: &[String]) -> i32 {
         INTERRUPTED.store(false, Ordering::Relaxed);
         // On failure finalize capture before collecting and hashing artifacts.
         let cleanup = run.finish_capture();
-        let app = if run.app_started { run.terminate() } else { Ok(()) };
+        let app = if run.app_pid.is_some() { run.terminate() } else { Ok(()) };
         let backend = if run.backend.is_some() { run.stop_backend() } else { Ok(()) };
         let result = result.and(cleanup).and(app).and(backend);
         let saved = run.save(&result);

@@ -56,3 +56,23 @@ test("Expo package exports the witness and its types", () => {
   assert.ok(pkg.files.includes("src"));
   assert.ok(pkg.files.includes("ios"));
 });
+
+
+test("receipt serialization cannot replace the witness envelope", async () => {
+  const { createWitness } = await import("../../snapback4-expo/src/witness-core.ts");
+  const lines = [];
+  const w = createWitness({ witnessLaunch: JSON.stringify({ segment: "offline", timeoutMs: 1000 }),
+    witnessAppend: line => lines.push(JSON.parse(line)), witnessSignaled: () => true });
+  for (const value of ["not-an-object", [], null, { witness: { step: "done" } }]) {
+    await assert.rejects(w.receipt({ toJSON() { return value; } }), /E_WITNESS_RECEIPT/);
+  }
+  await w.receipt({ toJSON() { return { app: "serialized" }; } });
+  let calls = 0;
+  await w.receipt({ get app() { calls++; return { nested: true }; } });
+  assert.equal(calls, 1);
+  assert.deepEqual(lines.map(row => row.app), ["serialized", { nested: true }]);
+  for (const row of lines) { assert.equal(row.witness.step, "launched"); assert.ok(Number.isFinite(Date.parse(row.witness.at))); }
+  const object = { get app() { object.witness = { step: "done" }; return true; } };
+  await w.receipt(object);
+  assert.equal(lines.at(-1).witness.step, "launched");
+});

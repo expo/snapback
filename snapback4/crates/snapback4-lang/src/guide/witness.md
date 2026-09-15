@@ -82,6 +82,9 @@ available booted iOS simulator must exist. `--timeout 120` is the default
 number of seconds per driver step. The app's configured origin must be
 `http://127.0.0.1:<port>`; the kit does not change its client configuration.
 A Release build embeds its JavaScript and needs no Metro server.
+Quit the named app before starting: an already running instance is refused
+with `E_WITNESS_APP`, and termination targets only the PID reported by the
+driver's own launch, leaving a replacement instance running.
 
 `--prime` first launches with `segment === "prime"`, waits for the completed
 `primed` step, and terminates the app. It then stops the backend, verifies
@@ -91,6 +94,8 @@ segment. Complete `offline-done`, await `waitFor("reconnect")`, then complete
 only if it succeeds. Receipts inside a step carry `name:running`; failure
 records `name:failed`. Steps are sequential. `receipt(object)` preserves the
 object's fields and adds only `witness: { at, step }`; `witness` is reserved.
+The helper serializes the app object before adding that envelope; custom
+`toJSON` results must still be objects without `witness`.
 `at` is an ISO timestamp. The helper appends and syncs each JSONL line in
 Documents. The driver writes a run-specific reconnect file only after its
 backend announces readiness again; container files require no simulator
@@ -119,6 +124,12 @@ artifacts, malformed receipts, failed steps, timeouts and backend failures
 exit nonzero with an `E_WITNESS_*` diagnostic. Existing artifacts are never
 overwritten; choose a fresh directory for a retry. Keep the manifest with
 the exact video and receipt files it hashes.
+A persistent `<segment>-ios-reserved` marker exclusively reserves all output
+names; concurrent runs cannot share them, and backend/launch logs append
+across restart and relaunch.
+Every complete receipt is validated, including rows after a milestone and
+again at collection; after `done`, only app receipts with the unchanged
+`between-steps` state are accepted.
 
 The manifest binds this execution's artifacts. It does not independently
 verify the truth of application assertions, prove physical-device behavior,
