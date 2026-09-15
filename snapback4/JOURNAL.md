@@ -16381,3 +16381,28 @@ was used. The working tree contains only the nine intended changed files.
 Final reference-check repeat after the full suite and journal append:
 `ref-check: ok — 480 LLP docs, 8932 refs in 23703 files, 0 errors, 0 unchecked`.
 HEAD remains the base hash above; no commit was made.
+
+## 2026-09-15 — Wave 3 descope at the review round limit (lead)
+
+The GPT confirmation of round 3 (`69fc90316`) returned NOT READY with three
+new defects (N1 High: a non-uniform scan's result shape distinguished hidden
+and absent worlds; N2: a schema-adoption race recorded a permanent refusal;
+N3: a throwing settlement listener duplicated notifications). Every round had
+closed its findings and opened new ones inside the same two mechanisms. At
+the three-round limit the lead changed approach instead of a fourth round.
+
+Reverted on `sb4/w3-land`, newest first: W3R3e `1bc1fb442`, W3R3c
+`08e47f4d2`, W3R1a `6c1c43810`, W3R1f `bb28c8716`, W3a2 `4eacb45b6`. Journal
+entries stay. Kept: W3a, W3b, W3b2, W3c, W3d, W3e, W3R1c (the `N_NO_CURSOR`
+ceiling and the narrowed `init` ESM boundary; its batch clock fix left with
+the batch route), W3R2 (owner-only tombstones, source-located grouped notes,
+the language card) and the integration fixes. Conflicts were resolved to
+keep W3R2's authority fixture beside the removed cut fixture, and the
+development-clock route beside the removed `POST /m` batch route.
+
+Residuals, stated on the writes and feeds cards, the README and LLP 3000.007
+§20.4 and §20.12: an unawaited `mutate` followed by same-turn navigation can
+lose the write (Chromium `navigation-immediate` 8 of 10 expected); a page the
+meter cuts before its tombstone lookups finish is `complete: false` and can
+show an event removed since the last purge. The pre-existing raw-reader
+rule-probe cut behaviour is unchanged.
