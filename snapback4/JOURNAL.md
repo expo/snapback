@@ -17531,3 +17531,13 @@ protocol, source/binary bindings, results and limitations. Second-platform
 replication is complete; evaluate the tail/first-page tradeoffs with the core
 owner before adoption and measure current competitors separately. The
 broader performance goal remains open.
+
+## 2026-09-15 — 0.2.20 / expo 0.2.11 published (lead)
+
+Published from main `1534efd85` (wave 4, LLP 3000.007 §20.13) by
+`scripts/publish.mjs`: suite 0 failures in 303 s; production darwin binary
+8,458,224 B, sha256 `10571ea2…`, Developer ID signed (not notarized);
+installed-consumer proof passed; `snapback4@0.2.20` and
+`snapback4-darwin-arm64@0.2.20` at 09:50 UTC; xcframework rebuilt and
+`snapback4-expo@0.2.11` at 09:52 UTC.
+
