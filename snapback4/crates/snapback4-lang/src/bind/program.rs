@@ -537,7 +537,8 @@ impl<'a> Binder<'a> {
                 source = Some(scan);
                 binding = self.declare(name, Ty::Row(domain.table.clone()));
             }
-            let read = ReadExpr { table: table.to_owned(), keys: lane.prefix.iter().enumerate().map(|(position, value)| ast::KeyPart { column: lane.columns.as_ref().and_then(|c| c.get(position).cloned().flatten()), value: value.clone(), site: value.site().clone() }).collect(), index: Some(merge.index.clone()), range: Some(ast::RangeSpec { order: merge.order, take: merge.take, cursor: None, site: lane.site.clone() }), matching: matching.clone(), filter: None, seeks: Vec::new(), site: lane.site.clone() };
+            // @ref LLP 3000.007#20.12 — a merge predicate uses each lane's existing metered filter, before a candidate can be emitted.
+            let read = ReadExpr { table: table.to_owned(), keys: lane.prefix.iter().enumerate().map(|(position, value)| ast::KeyPart { column: lane.columns.as_ref().and_then(|c| c.get(position).cloned().flatten()), value: value.clone(), site: value.site().clone() }).collect(), index: Some(merge.index.clone()), range: Some(ast::RangeSpec { order: merge.order, take: merge.take, cursor: None, site: lane.site.clone() }), matching: matching.clone(), filter: merge.filter.clone(), seeks: Vec::new(), site: lane.site.clone() };
             let (mut scan, _) = self.scan(&read, &mut setup)?;
             self.pop_scope();
             scan.after = cursor_expr.clone().map(Box::new);

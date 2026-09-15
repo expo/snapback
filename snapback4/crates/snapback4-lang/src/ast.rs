@@ -129,6 +129,7 @@ pub struct MergeLane {
 pub struct MergeExpr {
     pub table: String,
     pub matching: Option<Box<Expr>>,
+    pub filter: Option<Box<Expr>>,
     pub index: String,
     pub order: Order,
     pub take: u32,

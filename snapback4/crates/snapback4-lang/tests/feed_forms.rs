@@ -48,3 +48,93 @@ fn whole_table_cap_is_enforced_across_different_owners() {
     assert_eq!(engine.seed([row(2)]).unwrap_err().code(), "E_CONSTRAINT");
     assert_eq!(engine.snapshot("dev:reader").unwrap().0.len(), 2);
 }
+
+fn filtered_merges(surface: bool) {
+    use snapback4_core::ir::{Expr, Stmt};
+    for cross in [false, true] {
+        let predicate = "not exists removed[eventId = .id]";
+        let mut source = source().replace("read <- .owner = viewer", "read <- allow");
+        if !cross { source = source.replace("shared[viewer]", "['dev:b']"); }
+        if surface { source = source.replace("last 2 by byOwnerTime:", &format!("last 2 by byOwnerTime where {predicate}:")); }
+        source.push_str(&format!("table removed:\n  eventId: id\n  unique byEvent: eventId\n  public 'tombstones'\nquery predicate(c: cursor ?):\n  return inbox[viewer] after c first 1 by byOwnerTime where {predicate}\n"));
+        let mut bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+        if !surface {
+            // Exercise the existing engine before the merge-header syntax is
+            // admitted: copy an already compiled scan predicate into its lanes.
+            let scan = snapback4_core::ir::scans(&bound.programs.iter().find(|p| p.program.name == "predicate").unwrap().program)[0].clone();
+            let program = &mut bound.programs.iter_mut().find(|p| p.program.name == "page").unwrap().program;
+            let Stmt::Return(Expr::Merge(merge)) = program.body.last_mut().unwrap() else { panic!("direct merge return") };
+            for lane in &mut merge.lanes { lane.scan.filter = scan.filter.clone(); }
+        }
+        let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+        let mut rows = (0..12).map(|n| (if cross && n % 2 == 1 { "shared" } else { "inbox" }.into(), object([
+            ("id", Value::Id(format!("r{n:02}"))), ("owner", Value::Id(if !cross && n % 2 == 1 { "dev:b" } else { "dev:a" }.into())),
+            ("at", Value::Int(n)), ("body", Value::String(format!("BODY-{n:02}"))),
+        ]))).collect::<Vec<_>>();
+        rows.extend((2..10).map(|n| ("removed".into(), object([("id", Value::Id(format!("t{n}"))), ("eventId", Value::Id(format!("r{n:02}")))]))));
+        engine.seed(rows).unwrap();
+        let query_context = |cursor: Option<String>| Context::new("dev:a", BTreeMap::from([("c".into(), cursor.map(Value::String).unwrap_or(Value::Null))])).at(300);
+        let full = engine.query("page", query_context(None)).unwrap();
+        assert!(full.complete);
+        assert_eq!(full.data.as_array().unwrap().len(), 2);
+        let mut checked_partial = false;
+        for ceiling in 1..=full.metered.examined {
+            engine.set_ceilings(snapback4_core::Ceilings { examined: ceiling, ..Default::default() });
+            let page = engine.query("page", query_context(None)).unwrap();
+            for row in page.data.as_array().unwrap() { assert!(!(2..10).contains(&row.field("at").unwrap().as_int().unwrap())); }
+            if page.capped_at.is_some() { assert!(!page.complete); assert!(page.next.is_none()); checked_partial |= !page.data.as_array().unwrap().is_empty(); }
+        }
+        assert!(checked_partial, "a cut can retain already checked live entries");
+        engine.set_ceilings(Default::default());
+        let mut cursor = None;
+        let mut ids = Vec::new();
+        for _ in 0..4 {
+            let page = engine.query("page", query_context(cursor)).unwrap();
+            assert!(page.complete);
+            ids.extend(page.data.as_array().unwrap().iter().map(|r| r.field("id").unwrap().as_str().unwrap().to_owned()));
+            cursor = page.next;
+            if cursor.is_none() { break; }
+        }
+        assert!(cursor.is_none());
+        assert_eq!(ids, ["r11", "r10", "r01", "r00"]);
+        println!("FILTERED_MERGE surface={surface} cross={cross} uncut_examined={} full_rows=2 continued_live_rows=4", full.metered.examined);
+    }
+}
+
+#[test]
+fn filtered_merge_engine_withholds_cut_predicates() { filtered_merges(false); }
+
+#[test]
+fn filtered_merge_header_admits_metered_predicates() { filtered_merges(true); }
+
+#[test]
+fn filtered_merge_without_cursor_keeps_its_existing_incomplete_word() {
+    let source = source().replace("after c last 2 by byOwnerTime:", "last 2 by byOwnerTime where .body != '':");
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.notes.iter().any(|note| note.code == "N_NO_CURSOR"));
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed((0..3).map(|n| ("inbox".into(), object([("id", Value::Id(format!("r{n}"))), ("owner", Value::Id("dev:a".into())), ("at", Value::Int(n)), ("body", Value::String("live".into()))])))).unwrap();
+    let page = engine.query("page", Context::new("dev:a", Default::default())).unwrap();
+    assert_eq!(page.data.as_array().unwrap().len(), 2);
+    assert!(!page.complete);
+    assert!(page.next.is_none());
+    assert!(page.capped_at.is_none());
+}
+
+#[test]
+fn filtered_matching_merge_uses_the_same_predicate_and_bool_check() {
+    let source = "table items:\n  owner: principal\n  body: text <=50\n  by byWords: owner, words(body), id\n  read <- .owner = viewer\nquery page(c: cursor ?):\n  return merge items matching 'hello' after c first 1 by byWords where .body != 'hello removed':\n    [viewer]\n";
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed(["hello removed", "hello live"].into_iter().enumerate().map(|(n, body)| ("items".into(), object([("id", Value::Id(format!("r{n}"))), ("owner", Value::Id("dev:a".into())), ("body", Value::String(body.into()))])))).unwrap();
+    let page = engine.query("page", Context::new("dev:a", Default::default())).unwrap();
+    assert!(page.complete);
+    assert_eq!(page.data.as_array().unwrap()[0].field("body").unwrap(), &Value::String("hello live".into()));
+    let bad = snapback4_lang::compile(&[("schema.q".into(), source.replace(".body != 'hello removed'", ".body"))]);
+    assert!(bad.diagnostics.iter().any(|d| d.code == "E_QUARRY_TYPE" && d.message.starts_with("where needs a bool predicate")));
+}

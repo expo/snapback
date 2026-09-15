@@ -211,13 +211,9 @@ mutation unrepost(postId: id):
   return null
 
 query following(c: cursor ?):
-  page = merge feed after c last 20 by byReaderTime:
+  return merge feed after c last 20 by byReaderTime where not exists removedEvents[eventId = .eventId]:
     [viewer]
     broadcast[p.authorId] for p in pulls[viewer] first 32 by byReaderAuthor
-  visible = []
-  for e in page:
-    visible = visible + [null if exists removedEvents[eventId = e.eventId] else e]
-  return visible
 
 job purgeRemoved():
   chunk p in removedEvents first 1 by byId:
@@ -256,18 +252,24 @@ re-reposting creates a fresh event ID and works before or after cleanup.
 Never reuse event IDs. A repost is an independent attributed snapshot;
 deleting the original does not delete someone else's repost event.
 
-Following checks at most 20 merged entries with at most 20 tombstone point
-reads and returns one row-or-null slot per entry. Render only non-null slots
-(`page.data.filter(row => row !== null)`); a removed slot contains no body.
-Keeping one slot per source entry preserves the merge's cursor. It assumes
-removals are rare: a rendered page may be short or empty with `complete: true`,
-meaning this source page was fully checked, not that 20 live entries were
-found. Continue through `next` even on an empty rendered page;
-the cursor advances over the source entries, including removed ones. A
-meter cut or incomplete input keeps `complete: false`; no refill loop
-spends an unbounded amount of work trying to fill a page. A page cut before
-its tombstone lookups finish can still show an event removed since the last
-purge, so treat an incomplete page as provisional.
+Following checks removal inside each merge lane's `where` predicate, after
+that lane's read rule and before emitting an entry. Each tombstone lookup
+is a metered probe against the public, fully synced `removedEvents` table.
+If the predicate cuts, the scan stops before that entry: no unchecked event
+ID or body is returned. Already checked live entries may remain in the page;
+a cut page reads `complete: false` and has no `next`, since the merge's
+shared cursor cannot safely advance every unfinished lane. Retry the same
+cursor after cleanup; there is no cut continuation. This recipe does not change ordinary point-read or read-rule
+probe semantics.
+
+Pages contain live rows without null slots. The cursor query fills up to
+20 live entries, continuing through removed entries under the same meter;
+with all lanes uniform and in budget it is complete at 20 matches or the
+end, and `next` continues after the last returned live entry. More removals
+cost more examinations and probes, so a long removed run can still cut the
+page. At the 40-event test with its newest 20 removed, the first live page
+examines 82 rows and makes 41 tombstone probes, returning 20 live rows and
+a continuation; ceiling 25 returns no rows, incomplete, without a cursor.
 
 The minute schedule runs `purgeRemoved` as the system, one removed event
 per chunk. The event index and cap bound each chunk to 1,001 private copies
@@ -286,6 +288,11 @@ or redesign before exceeding this envelope. A follow backfills 200 events,
 not an unlimited historical archive. Public broadcast rows reach every
 device; at the measured envelope that is 200 rows, plus any pending removal
 tombstones. Cleanup is a bounded job; no exact horizon maintenance is involved.
+
+`where predicate` follows `by index` in a merge header and applies to every
+lane, with `.` bound to that lane's row. Its expressions, reads and helper
+bodies follow ordinary filtered-scan rules. Keep `after c`: a merge without
+a cursor remains incomplete when more matches exist.
 
 A merge lane may name another table (`broadcast[p.authorId]`); it must
 have the header table's columns and the same plain index. The first lane

@@ -216,7 +216,7 @@ table posts:
   delete <- .authorId = viewer
   sync public last 200 by byTime      -- everyone holds the same rows
 
-table feed:                         -- rendered private inbox; `guide feeds` covers delivery and the removal limit
+table feed:                         -- rendered private inbox; `guide feeds` covers delivery and removal
   readerId: principal
   eventId: posts
   authorId: principal
@@ -360,8 +360,8 @@ query thread(roomId: rooms, c: cursor ?):                            -- `cursor 
 query inbox(c: cursor ?):
   return members[viewer] after c first 50 by byPrincipalRoom { roomId, room: rooms[.roomId], unread: messageCounts[.roomId] }
 
-query following(c: cursor ?):        -- private inbox plus capped pulled authors; removal and null slots need the full recipe on `snapback4 guide feeds`
-  page = merge feed after c last 20 by byReaderTime:
+query following(c: cursor ?):        -- private inbox plus capped pulled authors; the metered tombstone predicate needs the full recipe on `snapback4 guide feeds`
+  page = merge feed after c last 20 by byReaderTime where .body != '':
     [viewer]
     broadcast[p.authorId] for p in pulls[viewer] first 32 by byReaderAuthor
   return page { *, mine: reactions[.eventId, viewer] }

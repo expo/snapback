@@ -5,12 +5,41 @@ use std::collections::BTreeMap;
 mod case;
 #[path = "../common/write_observation.rs"]
 mod observation;
+#[path = "../common/nonuniform_probe.rs"]
+mod nonuniform;
 
 fn engine() -> Engine {
     let bound = world::compiled(&world::source());
     assert!(bound.notes.is_empty(), "{:?}", bound.notes);
     assert!(bound.schema.operations.contains_key("unrepost"), "feeds must publish removal");
     Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap()
+}
+
+#[test]
+fn following_removal_cut_never_returns_unchecked_events() {
+    let mut e = engine();
+    case::seed_cut(&mut e);
+    case::check_cut("server", |ceilings| {
+        e.set_ceilings(ceilings);
+        e.query("following", Context::new(case::reader(0), BTreeMap::new()).at(300)).unwrap()
+    });
+}
+
+#[test]
+fn following_removal_n1_hidden_absent_probe_sweep() {
+    let cost = nonuniform::EXAMINED_SWEEP;
+    let mut worlds = Vec::new();
+    for hidden in [false, true] {
+        let bound = world::compiled(nonuniform::SOURCE);
+        let mut e = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+        e.seed(nonuniform::rows(hidden)).unwrap();
+        worlds.push(nonuniform::sweep(cost, |name, ceilings| { e.set_ceilings(ceilings); e.query(name, nonuniform::context()) }));
+        e.set_ceilings(Default::default());
+        e.seed([nonuniform::visible()]).unwrap();
+        nonuniform::positive(e.query("page", nonuniform::context()).unwrap());
+    }
+    assert_eq!(worlds[0], worlds[1]);
+    println!("N1 host=server ceilings=1..={cost} probe_limits=2 forms=3 identical_pairs={} positive_controls=2", worlds[0].len());
 }
 
 // @ref LLP 3000.007#20.3 — source removal preserves private inboxes; the system purges bounded copies.
@@ -27,7 +56,7 @@ fn following_removal_purges_promoted_pushes_and_allows_fresh_reposts() {
         assert_eq!(case::event_rows(&e, "old-pushed"), followers + 1, "author does not touch private copies");
         for viewer in std::iter::once(case::AUTHOR.to_owned()).chain((0..followers).map(case::reader)) {
             let page = case::page(&mut e, &viewer);
-            assert!(page.data.as_array().unwrap().iter().all(|row| *row == Value::Null), "removed events vanished before purge");
+            assert!(page.data.as_array().unwrap().is_empty(), "removed events vanished before purge");
             assert!(page.next.is_none());
         }
         world::mutate(&mut e, "repost", case::AUTHOR, &[("postId", world::id(case::ORIGINAL))], 7);
@@ -53,7 +82,7 @@ fn following_removal_purges_promoted_pushes_and_allows_fresh_reposts() {
 }
 
 #[test]
-fn following_removal_short_and_empty_pages_keep_the_source_cursor() {
+fn following_removal_fills_live_pages_and_continues_through_removed_entries() {
     let mut e = engine();
     case::seed(&mut e, 5);
     for n in 0..40 {
@@ -63,8 +92,15 @@ fn following_removal_short_and_empty_pages_keep_the_source_cursor() {
     assert_eq!(before.data.as_array().unwrap().len(), 20);
     for n in 20..40 { world::mutate(&mut e, "deletePost", case::AUTHOR, &[("postId", world::id(&format!("page-{n:02}")))], 200 + n); }
     let after = case::page(&mut e, &case::reader(0));
-    assert!(after.data.as_array().unwrap().iter().all(|row| *row == Value::Null));
-    assert_eq!(after.next, before.next, "even an empty filtered page advances over its source entries");
+    assert_eq!(after.data.as_array().unwrap().len(), 20);
+    assert_ne!(after.next, before.next, "the page fills past tombstones and positions after its last live result");
+    let continued = e.query("following", Context::new(case::reader(0), world::args(&[("c", Value::String(before.next.unwrap()))])).at(300)).unwrap();
+    assert!(continued.complete);
+    assert_eq!(continued.data, after.data, "a cursor acquired before removal still reaches the live suffix");
+    let tail = e.query("following", Context::new(case::reader(0), world::args(&[("c", Value::String(after.next.clone().unwrap()))])).at(300)).unwrap();
+    assert!(tail.complete);
+    assert_eq!(tail.data.as_array().unwrap().len(), 3);
+    assert!(tail.next.is_none());
     let ids = case::all(&mut e, &case::reader(0));
     assert_eq!(ids.len(), 23);
     assert_eq!(ids.iter().collect::<std::collections::BTreeSet<_>>().len(), 23);
@@ -177,7 +213,7 @@ fn following_removal_foreign_tombstone_preserves_private_worlds() {
             world::mutate(&mut e, "deletePost", case::AUTHOR, &[("postId", world::id("new-post"))], 1002);
             assert_eq!(e.store().rows("removedEvents").unwrap().len(), 1);
             let removed = case::page(&mut e, case::PRIVATE);
-            assert_eq!(removed.data.as_array().unwrap()[0] == Value::Null, hidden);
+            assert_eq!(removed.data.as_array().unwrap().is_empty(), hidden);
             assert_eq!(e.store().rows("feed").unwrap(), inbox, "only the system cleans private copies");
             e.run_job("purgeRemoved", BTreeMap::new(), 1003).unwrap();
             assert_eq!(case::event_rows(&e, "new-post"), 0);

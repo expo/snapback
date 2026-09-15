@@ -1,6 +1,67 @@
 use super::*;
 #[path = "../../../snapback4-sim/tests/common/following_removal.rs"]
 mod case;
+#[path = "../../../snapback4-sim/tests/common/nonuniform_probe.rs"]
+mod nonuniform;
+
+fn n1_probe_sweep<S: snapback4_device::store::DeviceStore>(mut store: S, label: &str) {
+    use snapback4_core::rows::Rows;
+    use snapback4_device::store::DeviceTx;
+    let cost = nonuniform::EXAMINED_SWEEP;
+    let (_, backend) = compile(nonuniform::SOURCE);
+    store.install(&backend.schema, &Default::default(), false).unwrap();
+    let mut worlds = Vec::new();
+    for hidden in [false, true] {
+        let tx = store.transaction().unwrap();
+        // Adversarial online-only rows exercise the non-uniform rule path;
+        // this is an interpreter/store regression, not a delivery claim.
+        for (table, row) in nonuniform::rows(hidden) { tx.put(&table, &backend.schema.tables[&table], &row, None).unwrap(); }
+        worlds.push(nonuniform::sweep(cost, |name, ceilings| {
+            let program = backend.programs.iter().find(|p| p.name == name).unwrap();
+            snapback4_core::engine::local::query(&tx, &backend.schema, program, nonuniform::context(), ceilings)
+        }));
+        let (table, row) = nonuniform::visible();
+        tx.put(&table, &backend.schema.tables[&table], &row, None).unwrap();
+        let program = backend.programs.iter().find(|p| p.name == "page").unwrap();
+        nonuniform::positive(snapback4_core::engine::local::query(&tx, &backend.schema, program, nonuniform::context(), Default::default()).unwrap());
+        tx.rollback().unwrap();
+    }
+    assert_eq!(worlds[0], worlds[1]);
+    println!("N1 host={label} ceilings=1..={cost} probe_limits=2 forms=3 identical_pairs={} positive_controls=2", worlds[0].len());
+}
+
+#[test]
+fn following_removal_n1_memory() { n1_probe_sweep(snapback4_device::memory::MemoryStore::new(), "memory"); }
+
+#[test]
+fn following_removal_n1_sqlite() { n1_probe_sweep(snapback4_core::Store::memory().unwrap(), "sqlite"); }
+
+fn removal_cut<S: snapback4_device::store::DeviceStore>(mut store: S, label: &str) {
+    use snapback4_core::rows::Rows;
+    let (mut engine, backend) = compile(&world::source());
+    case::seed_cut(&mut engine);
+    store.install(&backend.schema, &Default::default(), false).unwrap();
+    let tx = store.transaction().unwrap();
+    // Public dispatch fixes the ceilings. Install exactly this reader's real
+    // snapshot on each device store and use the shared metered interpreter.
+    for page in snapshot_pages(&mut engine, &case::reader(0), 1000) {
+        for event in page.events {
+            if let Some(data) = event.data {
+                let table = &backend.schema.tables[&event.table];
+                let row = snapback4_core::wire::row_from_json(table, &data).unwrap();
+                tx.put(&event.table, table, &row, None).unwrap();
+            }
+        }
+    }
+    let program = backend.programs.iter().find(|p| p.name == "following").unwrap();
+    case::check_cut(label, |ceilings| snapback4_core::engine::local::query(&tx, &backend.schema, program, context(&case::reader(0), &[]).at(300), ceilings).unwrap());
+}
+
+#[test]
+fn following_removal_cut_memory() { removal_cut(snapback4_device::memory::MemoryStore::new(), "memory"); }
+
+#[test]
+fn following_removal_cut_sqlite() { removal_cut(snapback4_core::Store::memory().unwrap(), "sqlite"); }
 
 #[test]
 fn following_removal_reaches_every_reader_before_purge_on_both_stores() {
@@ -43,13 +104,13 @@ fn following_removal_reaches_every_reader_before_purge_on_both_stores() {
                 ok(apply(&mut *device, &removal[n], false));
                 let local = query(&mut *device, "following", viewer, serde_json::json!({}), 10);
                 assert_eq!(local["complete"], true);
-                assert!(rows(&local).iter().all(serde_json::Value::is_null), "{label} {viewer}: {local}");
+                assert!(rows(&local).is_empty(), "{label} {viewer}: {local}");
                 for page in [&repost[n], &purged[n]] {
                     assert!(!page.more);
                     ok(apply(&mut *device, page, false));
                     let local = query(&mut *device, "following", viewer, serde_json::json!({}), 10);
                     assert_eq!(local["complete"], true);
-                    let visible: Vec<_> = rows(&local).iter().filter(|row| !row.is_null()).collect();
+                    let visible = rows(&local);
                     assert_eq!(visible.len(), 1);
                     assert_eq!(visible[0]["eventId"], fresh);
                 }
@@ -61,11 +122,11 @@ fn following_removal_reaches_every_reader_before_purge_on_both_stores() {
 }
 
 #[test]
-fn following_removal_empty_slots_keep_pagination_on_both_stores() {
+fn following_removal_fills_live_pages_on_both_stores() {
     on_both(|host| {
         let (mut engine, backend) = compile(&world::source());
         case::seed(&mut engine, 5);
-        for n in 0..25 {
+        for n in 0..40 {
             world::mutate(&mut engine, "createPost", case::AUTHOR, &[("postId", world::id(&format!("page-{n:02}"))), ("body", Value::String("page".into()))], 100 + n);
         }
         let viewer = case::reader(0);
@@ -75,15 +136,19 @@ fn following_removal_empty_slots_keep_pagination_on_both_stores() {
         assert_eq!(first["complete"], true);
         assert!(first["next"].is_string());
         let before = engine.seq().unwrap();
-        for n in 5..25 { world::mutate(&mut engine, "deletePost", case::AUTHOR, &[("postId", world::id(&format!("page-{n:02}")))], 200 + n); }
+        for n in 20..40 { world::mutate(&mut engine, "deletePost", case::AUTHOR, &[("postId", world::id(&format!("page-{n:02}")))], 200 + n); }
         ok(apply(&mut *device, &stream_page(&mut engine, &viewer, before), false));
         let removed = query(&mut *device, "following", &viewer, serde_json::json!({}), 300);
         assert_eq!(removed["complete"], true);
-        assert_eq!(removed["next"], first["next"]);
-        assert!(rows(&removed).iter().all(serde_json::Value::is_null));
+        assert_ne!(removed["next"], first["next"]);
+        assert_eq!(rows(&removed).len(), 20);
+        assert!(rows(&removed).iter().all(|r| !r.is_null()));
+        let continued = query(&mut *device, "following", &viewer, serde_json::json!({"c":first["next"]}), 300);
+        assert_eq!(continued["complete"], true);
+        assert_eq!(continued["data"], removed["data"]);
         let next = query(&mut *device, "following", &viewer, serde_json::json!({"c":removed["next"]}), 300);
         assert_eq!(next["complete"], true);
-        assert_eq!(rows(&next).len(), 8);
+        assert_eq!(rows(&next).len(), 3);
         assert!(next["next"].is_null());
         let online = engine.query("following", context(&viewer, &[("c", Value::String(removed["next"].as_str().unwrap().into()))])).unwrap();
         assert_eq!(next["data"], snapback4_core::wire::to_json(&online.data));
@@ -134,7 +199,7 @@ fn removal_authority<H: crate::common::Host>(mut host: H) {
         victim.apply(&stream_page(&mut engine, case::PRIVATE, seq), false).unwrap();
         let removed = victim.query("following", case::PRIVATE, &serde_json::json!({}), 13).unwrap();
         assert!(removed.complete);
-        assert_eq!(removed.data.as_array().unwrap()[0] == Value::Null, hidden);
+        assert_eq!(removed.data.as_array().unwrap().is_empty(), hidden);
         let seq = engine.seq().unwrap();
         engine.run_job("purgeRemoved", Default::default(), 14).unwrap();
         victim.apply(&stream_page(&mut engine, case::PRIVATE, seq), false).unwrap();

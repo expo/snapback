@@ -106,3 +106,25 @@ fn a_filled_uniform_filter_is_complete_without_a_cursor_too() {
     assert_eq!(page.metered.examined, 4);
     assert!(page.next.is_none());
 }
+
+#[test]
+fn predicate_probe_cut_withholds_row_and_direct_cursor_uses_its_visible_key() {
+    let source = "table items:\n  owner: principal\n  body: text <=50\n  by byOwner: owner, id\n  read <- .owner = viewer\ntable removed:\n  eventId: id\n  unique byEvent: eventId\n  public 'tombstones'\nquery page(c: cursor ?):\n  return items[viewer] after c first 2 by byOwner where not exists removed[eventId = .id]\n";
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed((0..3).map(|n| ("items".into(), object([("id", Value::Id(format!("r{n}"))), ("owner", Value::Id("dev:alice".into())), ("body", Value::String(format!("BODY-{n}")))])))).unwrap();
+    engine.seed([("removed".into(), object([("id", Value::Id("marker".into())), ("eventId", Value::Id("r1".into()))]))]).unwrap();
+    engine.set_ceilings(Ceilings { examined: 3, ..Default::default() });
+    let page = engine.query("page", context(None)).unwrap();
+    assert!(!page.complete);
+    assert_eq!(page.metered.examined, 4);
+    assert_eq!(page.data.as_array().unwrap().len(), 1);
+    assert_eq!(page.data.as_array().unwrap()[0].field("id").unwrap(), &Value::Id("r0".into()));
+    let cursor = page.next.unwrap();
+    assert_eq!(decode_cursor(engine.schema(), &cursor).unwrap().values, [Value::Id("r1".into())]);
+    let tail = engine.query("page", context(Some(&cursor))).unwrap();
+    assert!(tail.complete);
+    assert_eq!(tail.data.as_array().unwrap()[0].field("id").unwrap(), &Value::Id("r2".into()));
+}

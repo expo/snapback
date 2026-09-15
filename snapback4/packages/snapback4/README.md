@@ -429,7 +429,7 @@ charged to that chunk's meter. Writes belong inside a chunk.
   `t[prefix] first N by index` (ascending; `t first N by index` is the
   whole table's page), `t[prefix] after c last N by index` (descending,
   from a cursor; the modifiers come in that order), `merge t [after c]
-  first N by index:` with `[lane]` lines (one ordered page over several
+  first N by index [where predicate]:` with `[lane]` lines (one ordered page over several
   prefixes; a lane may be `[f.col] for f in t[prefix] first N by index`;
   uniform lanes with a non-nullable unique index or an index ending in
   `id` read one head per lane, then advance the winning lanes; other
@@ -452,8 +452,11 @@ charged to that chunk's meter. Writes belong inside a chunk.
   filter rejection, never a hidden row. Non-uniform ranges stay incomplete.
   Merged pages return no `next` for a non-uniform read or a meter or word-limit
   cut, because a shared cursor cannot advance past an unfinished lane.
-  A uniform filtered page is complete at N matches or the range's end, even
-  without a cursor; a meter cut is incomplete.
+  A uniform filtered scan is complete at N matches or the range's end, even
+  without a cursor; a meter cut is incomplete. A merge header's `where`
+  applies the predicate in every lane before emission; a cut predicate never
+  emits its unchecked row. Filtered merges retain the merge's cursor rules:
+  use `after c` for a complete page when more matches exist.
 - **List operations:** pages, lists, and shaped collections share `sort`,
   `slice`, `count`, `sum`, `group`, `first`, `last`, `at`, `join`, and `for`,
   subject to their element types. Aggregating a page aggregates that page;
@@ -938,14 +941,21 @@ future events switch to broadcast; older events retain their delivery mode.
 `deletePost` and `unrepost` hide source events through synced removal
 tombstones immediately after the removal commit is applied, then a scheduled
 system job purges private copies in bounded chunks; the feeds card explains
-short-page completeness, rendering only non-null slots, and fresh re-reposts.
+live-page completeness, metered filtering, and fresh re-reposts.
 The tombstone insert rule requires its ID to equal the event ID and its actor
 to own the existing source. Keep `removeEvent`, called by these two mutations,
 as the only insert; it writes the marker before deleting the source in the
 same transaction. A guessed foreign event ID cannot hide or purge it.
-Render `(page.data ?? []).filter(row => row !== null)`. A page the meter cuts
-before its tombstone lookups finish reads `complete: false` and can still show
-an event removed since the last purge; treat an incomplete page as provisional.
+The tombstone check runs inside each merge lane's `where` predicate before
+an entry is emitted. A cut stops before the unchecked entry: no removed ID
+or body is returned. Checked live entries may remain, with `complete: false`
+and no `next`; retry the same cursor after cleanup.
+Pages contain live rows without null slots and fill through removed entries
+under the meter. With uniform lanes and enough budget, the cursor query is
+complete at 20 live matches or the end, and continues after its last live
+entry. Longer removed runs cost more examinations and probes. An offline
+device still sees its last synced state. Ordinary point reads and read-rule
+probes keep their existing semantics.
 The card lists its schema caps and measured cold-sync tradeoff. A named
 merge lane reads a second table with the same columns and plain index;
 each table keeps its own rule and sync. `cap N` without `by` caps the whole
@@ -1148,13 +1158,9 @@ mutation unrepost(postId: id):
   return null
 
 query following(c: cursor ?):
-  page = merge feed after c last 20 by byReaderTime:
+  return merge feed after c last 20 by byReaderTime where not exists removedEvents[eventId = .eventId]:
     [viewer]
     broadcast[p.authorId] for p in pulls[viewer] first 32 by byReaderAuthor
-  visible = []
-  for e in page:
-    visible = visible + [null if exists removedEvents[eventId = e.eventId] else e]
-  return visible
 
 job purgeRemoved():
   chunk p in removedEvents first 1 by byId:

@@ -22,7 +22,7 @@ pub fn expression(expr: &Expr) -> String {
         },
         Expr::Call { name, args, .. } => format!("{name}({})", args.iter().map(expression).collect::<Vec<_>>().join(", ")),
         Expr::Read(read) => read_expr(read),
-        Expr::Merge(merge) => format!("merge {}{}{} {} {} by {}:", merge.table, merge.matching.as_ref().map_or(String::new(), |q| format!(" matching {}", expression(q))), merge.cursor.as_ref().map_or(String::new(), |c| format!(" after {}", expression(c))), if merge.order == Order::Asc { "first" } else { "last" }, merge.take, merge.index),
+        Expr::Merge(merge) => format!("merge {}{}{} {} {} by {}{}:", merge.table, merge.matching.as_ref().map_or(String::new(), |q| format!(" matching {}", expression(q))), merge.cursor.as_ref().map_or(String::new(), |c| format!(" after {}", expression(c))), if merge.order == Order::Asc { "first" } else { "last" }, merge.take, merge.index, merge.filter.as_ref().map_or(String::new(), |p| format!(" where {}", expression(p)))),
         Expr::Exists { read, .. } => format!("exists {}", read_expr(read)),
         Expr::Created { read, .. } => format!("created {}", read_expr(read)),
         Expr::Assert { value, code, .. } => format!("{} ! else {code}", expression(value)),

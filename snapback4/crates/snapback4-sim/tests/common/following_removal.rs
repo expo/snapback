@@ -79,7 +79,7 @@ pub fn all(engine: &mut Engine, viewer: &str) -> Vec<String> {
     for _ in 0..10 {
         let result = engine.query("following", Context::new(viewer, args(&[("c", cursor.map(Value::String).unwrap_or(Value::Null))])).at(10)).unwrap();
         assert!(result.complete);
-        ids.extend(result.data.as_array().unwrap().iter().filter(|row| **row != Value::Null).map(|row| row.field("eventId").unwrap().as_str().unwrap().to_owned()));
+        ids.extend(result.data.as_array().unwrap().iter().map(|row| row.field("eventId").unwrap().as_str().unwrap().to_owned()));
         cursor = result.next;
         if cursor.is_none() { return ids; }
     }
@@ -104,4 +104,43 @@ pub fn seed_authority(engine: &mut Engine, hidden: bool) {
         ("actorId", id(AUTHOR)), ("authorId", id(AUTHOR)), ("postId", id("new-post")),
         ("repost", Value::Bool(false)), ("body", Value::String("private body".into())), ("at", Value::Int(2)),
     ]))]).unwrap();
+}
+
+pub fn seed_cut(engine: &mut Engine) {
+    seed(engine, 5);
+    for n in 0..40 {
+        mutate(engine, "createPost", AUTHOR, &[("postId", id(&format!("cut-{n:02}"))), ("body", Value::String(format!("CUT-BODY-{n:02}")))], 100 + n);
+    }
+    let before = page(engine, &reader(0));
+    assert_eq!(before.data.as_array().unwrap().len(), 20);
+    assert!(before.next.is_some());
+    for n in 20..40 { mutate(engine, "deletePost", AUTHOR, &[("postId", id(&format!("cut-{n:02}")))], 200 + n); }
+}
+
+pub fn wire(page: &snapback4_core::QueryOutcome) -> serde_json::Value {
+    serde_json::json!({"data":snapback4_core::wire::to_json(&page.data), "complete":page.complete, "next":page.next, "seq":page.seq, "tables":page.tables, "nextExpiry":page.next_expiry})
+}
+
+// @ref LLP 3000.007#20.12 — every returned event must have completed its public tombstone predicate.
+pub fn check_cut(host: &str, mut query: impl FnMut(snapback4_core::Ceilings) -> snapback4_core::QueryOutcome) {
+    let uncut = query(Default::default());
+    assert!(uncut.complete);
+    let cost = uncut.metered.examined;
+    let mut leaked = Vec::new();
+    let mut unsafe_cursors = Vec::new();
+    for ceiling in 1..=cost {
+        let page = query(snapback4_core::Ceilings { examined: ceiling, ..Default::default() });
+        let json = wire(&page).to_string();
+        let removed = (20..40).filter(|n| json.contains(&format!("cut-{n:02}")) || json.contains(&format!("CUT-BODY-{n:02}"))).count();
+        if removed > 0 { leaked.push((ceiling, removed)); }
+        if page.capped_at.is_some() && page.next.is_some() { unsafe_cursors.push(ceiling); }
+        if ceiling == 25 {
+            println!("REMOVAL_CUT host={host} ceiling=25 examined={} removed={removed} complete={} next={} rows={}", page.metered.examined, page.complete, page.next.is_some(), page.data.as_array().map_or(0, |rows| rows.len()));
+            assert!(!page.complete);
+        }
+    }
+    println!("REMOVAL_SWEEP host={host} ceilings=1..={cost} leaked_ceilings={} unsafe_cursors={} uncut_rows={} uncut_probes={} uncut_next={}", leaked.len(), unsafe_cursors.len(), uncut.data.as_array().unwrap().len(), uncut.metered.rule_probes, uncut.next.is_some());
+    assert!(leaked.is_empty(), "unchecked removed events on {host}: {leaked:?}");
+    assert!(unsafe_cursors.is_empty(), "cut merge continuations on {host}: {unsafe_cursors:?}");
+    assert!(uncut.data.as_array().unwrap().iter().all(|row| *row != Value::Null));
 }

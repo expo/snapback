@@ -348,6 +348,7 @@ impl Parser {
         }
         self.take("by")?;
         let index = self.word()?.value;
+        let filter = if self.maybe("where") { Some(Box::new(self.expression(0, &[":"])?)) } else { None };
         self.take(":")?;
         self.newline()?;
         if !self.at_kind(Kind::Indent) {
@@ -384,7 +385,7 @@ impl Parser {
         if lanes.is_empty() {
             return Err(syntax_with(&site, "merge requires at least one lane", "[viewer]"));
         }
-        Ok(MergeExpr { table, matching, index, order, take, cursor, lanes, site })
+        Ok(MergeExpr { table, matching, filter, index, order, take, cursor, lanes, site })
     }
 
     pub(super) fn parse_shape_fields(&mut self) -> Fallible<Vec<ShapeField>> {
