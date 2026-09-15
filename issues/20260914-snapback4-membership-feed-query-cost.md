@@ -250,3 +250,42 @@ Full results and failure history are in the benchmark README's decoded-cursor
 section. Ignored-run prefix `membership-cursor-reuse-0218-http-v2` binds
 transfer `0af2f0db…`, independent summary `fdbf3550…`, and evidence review
 `c1a88176…`. The broader repeated-scan/materialization work remains open.
+
+
+## 2026-09-15 — native Linux replication, tail tradeoff remains
+
+The same fixed 053a5b288 / 0.2.18 cursor candidate completed on native x86
+Linux / AMD EPYC 9454. All 368 candidate and eight baseline selected Rust
+executions pass, including the four full outcome/refusal equality cases.
+All 117,000 formal HTTP calls, 7,020 excluded warmups, 162 untimed walks /
+33,510 pages, 24 full physical proofs and 42 owned-group exits pass. The
+fixture and five live seven-day sessions were created on Linux and stay
+fixed through acknowledged leave and regrant; no Darwin credentials moved.
+
+All twelve continuation cases improve median p50; ten improve p95 and
+eleven rate. The 150-group rotating C8 feed falls 3.292→2.849 ms p50 and
+4.802→4.134 ms p95, with rate 2,214.4→2,659.8 requests/s. Paired
+continuation p50 improves 29/36, so this does not reproduce Darwin's all-pair
+result. Both unchanged calculators agree on all values, contrasts and RSS.
+
+The next-page C8 p99 at 150 groups rises 4.738→11.260 ms, with losses in
+two pairs. The five-group next-page C8 p95/p99/rate also regress; 150-group
+first-page p50/rate medians worsen at both concurrency levels. Across all
+39 cases there are 80 median and 264 paired losses over six metrics. RSS
+after medians rise 260 KiB, with mixed paired differences. These losses and
+the warm/shared-host limits remain in the complete benchmark record.
+
+Second-platform replication is now complete. Adoption remains with the
+core owner: assess the replicated continuation gain against the first-page
+and tail tradeoffs before changing current source. No core patch, ceiling,
+live-result/auth cache or comparator claim is adopted by this ticket. A
+current matched comparator run remains needed for the broader goal; the
+latest three-backend membership result is still the earlier 0.2.10 batch.
+
+Evidence prefix `membership-cursor-reuse-0218-linux-http-v1` binds formal
+transfer `617fd603…`, completion `1f117852…`, independent summary
+`b2755637…` and reconciliation `72fe3218…`. All 230 public formal files
+rehash. The independent calculator froze before result access, after formal
+launch; the preserved annotation corrects its original timing statement.
+The original failed staging/observation attempts remain distinct from the
+successful build and workloads. No live run remains.
