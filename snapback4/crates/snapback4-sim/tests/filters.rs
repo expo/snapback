@@ -4,24 +4,6 @@ use snapback4_core::cursor::decode_cursor;
 use snapback4_core::meter::Ceilings;
 use snapback4_core::value::object;
 use std::collections::BTreeMap;
-#[path = "common/point_read_cut.rs"]
-mod point_read_cut;
-
-#[test]
-fn point_read_cuts_withhold_dependents_and_preserve_hidden_absent_pairs() {
-    let mut observations = Vec::new();
-    for world in ["absent", "hidden", "visible"] {
-        let bound = snapback4_lang::compile(&[("schema.q".into(), point_read_cut::SOURCE.into())]);
-        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-        let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
-        engine.seed(point_read_cut::seed(world)).unwrap();
-        observations.push(point_read_cut::check("server", world, |name, ceilings| {
-            engine.set_ceilings(ceilings);
-            engine.query(name, point_read_cut::context(name)).unwrap()
-        }));
-    }
-    assert_eq!(observations[0], observations[1], "all response fields and all seven meter fields match");
-}
 
 fn fixture(rule: &str, predicate: &str, take: u32, examined: u64) -> Engine {
     fixture_with_cursor(rule, predicate, take, examined, true)

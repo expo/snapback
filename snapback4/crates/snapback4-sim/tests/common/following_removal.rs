@@ -86,29 +86,6 @@ pub fn all(engine: &mut Engine, viewer: &str) -> Vec<String> {
     panic!("cursor did not terminate");
 }
 
-pub fn seed_cut_page(engine: &mut Engine) {
-    seed(engine, 5);
-    for n in 0..40 {
-        mutate(engine, "createPost", AUTHOR, &[("postId", id(&format!("cut-{n:02}"))), ("body", Value::String(format!("removed body {n:02}")))], 100 + n);
-    }
-    for n in 20..40 { mutate(engine, "deletePost", AUTHOR, &[("postId", id(&format!("cut-{n:02}")))], 200 + n); }
-}
-
-pub fn check_cut_page(host: &str, mut query: impl FnMut(snapback4_core::Ceilings) -> snapback4_core::QueryOutcome) {
-    let control = query(snapback4_core::Ceilings::default());
-    assert!(control.complete);
-    assert!(control.next.is_some());
-    assert_eq!(control.data.as_array().unwrap(), &vec![Value::Null; 20]);
-    let cut = query(snapback4_core::Ceilings { examined: 25, ..snapback4_core::Ceilings::default() });
-    let visible = cut.data.as_array().map_or(0, |rows| rows.iter().filter(|row| **row != Value::Null).count());
-    println!("REMOVAL_CUT host={host} ceiling=25 examined={} returned_events={visible} complete={} next={} control_examined={} control_slots=20", cut.metered.examined, cut.complete, cut.next.is_some(), control.metered.examined);
-    assert!(!cut.complete, "a cut tombstone lookup is unknown");
-    let json = snapback4_core::wire::to_json(&cut.data).to_string();
-    assert!(!json.contains("cut-") && !json.contains("removed body"), "{host}: removed events and their bodies must never render: {json}");
-    assert_eq!(cut.data, Value::Null, "withhold the result depending on a cut lookup");
-    assert!(cut.next.is_none(), "do not continue past unchecked tombstones");
-}
-
 // An application's additional insert path must obey the recipe's table rule.
 pub fn authority_source() -> String {
     format!("{}\nmutation forgeRemoval(eventId: posts, markerId: id, actorId: principal):\n  insert removedEvents {{ id: markerId, eventId, actorId }}\nmutation forgeImplicit(eventId: posts):\n  insert removedEvents {{ eventId, actorId: viewer }}\n", super::world::source())

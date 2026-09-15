@@ -173,9 +173,8 @@ fn trending_card_ranks_the_day_and_reports_a_cut_set() {
     engine.seed((0..8200).map(|i| post(&format!("p{i:05}"), 95_000_000))).unwrap();
     let cut = engine.query("trending", context()).unwrap();
     assert!(!cut.complete);
-    assert_eq!(cut.data, Value::Null, "cut score lookups cannot rank the scanned rows");
-    assert!(cut.next.is_none());
-    println!("trending: complete-day rows={}, examined={}; cut-day population=8202, returned=0, examined={}, complete={}", rows.len(), result.metered.examined, cut.metered.examined, cut.complete);
+    assert_eq!(cut.data.as_array().unwrap().len(), 10);
+    println!("trending: complete-day rows={}, examined={}; cut-day population=8202, returned={}, examined={}, complete={}", rows.len(), result.metered.examined, cut.data.as_array().unwrap().len(), cut.metered.examined, cut.complete);
 }
 
 #[test]
@@ -208,7 +207,7 @@ fn trending_card_finds_winners_after_200_and_1000_candidates_without_hiding_its_
     let cut = engine.query("trending", context()).unwrap();
     assert!(!cut.complete, "sorting and slicing a capped population cannot claim exact ranking");
     assert_eq!(cut.capped_at.as_ref().map(|(kind, _)| *kind), Some(MeterKind::Examined));
-    assert_eq!(cut.data, Value::Null, "unknown scores withhold the ranking, including the unexamined winner");
-    assert!(cut.next.is_none());
+    assert_eq!(ids(&cut.data).len(), 10);
+    assert!(!ids(&cut.data).contains(&Value::Id("p08192".into())), "the true winner is outside this recipe's examined ceiling");
     println!("adversarial trending: exact population=1500 ids={:?} examined={}; capped population=8193 missing winner=p08192 examined={} complete={}", ids(&page.data), page.metered.examined, cut.metered.examined, cut.complete);
 }

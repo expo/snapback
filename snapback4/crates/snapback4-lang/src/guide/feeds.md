@@ -257,19 +257,17 @@ Never reuse event IDs. A repost is an independent attributed snapshot;
 deleting the original does not delete someone else's repost event.
 
 Following checks at most 20 merged entries with at most 20 tombstone point
-reads and, when those lookups complete, returns one row-or-null slot per entry.
-Render only non-null slots (`(page.data ?? []).filter(row => row !== null)`);
-a removed slot contains no body.
+reads and returns one row-or-null slot per entry. Render only non-null slots
+(`page.data.filter(row => row !== null)`); a removed slot contains no body.
 Keeping one slot per source entry preserves the merge's cursor. It assumes
 removals are rare: a rendered page may be short or empty with `complete: true`,
 meaning this source page was fully checked, not that 20 live entries were
 found. Continue through `next` even on an empty rendered page;
 the cursor advances over the source entries, including removed ones. A
-meter cut or incomplete input keeps `complete: false`. A cut tombstone lookup
-is unknown, never false: the whole result is withheld as `data: null`, with
-`complete: false` and no `next` past an unchecked event. No removed event or
-body is returned by that read. No refill loop spends an unbounded amount of
-work trying to fill a page.
+meter cut or incomplete input keeps `complete: false`; no refill loop
+spends an unbounded amount of work trying to fill a page. A page cut before
+its tombstone lookups finish can still show an event removed since the last
+purge, so treat an incomplete page as provisional.
 
 The minute schedule runs `purgeRemoved` as the system, one removed event
 per chunk. The event index and cap bound each chunk to 1,001 private copies
@@ -405,11 +403,7 @@ mutation setAffinity(readerId: principal, postId: posts, score: int):
   upsert affinity[readerId, postId] { readerId, postId, score, at: now }
 ```
 
-`trending()` seeks the trailing day and ranks it when the scan and score
-lookups fit the 8,192-row examined ceiling. A cut score lookup is unknown,
-so the query withholds its ranking as `data: null`, `complete: false`, with
-no `next`. When the day outgrows the ceiling, use the maintained `ranked`
-recipe beside it.
+`trending()` seeks the trailing day up to the 8,192-row examined ceiling and ranks that set; a day past the ceiling is `complete: false`, so its top ten is of an incomplete set. When the day outgrows the ceiling, use the maintained `ranked` recipe beside it.
 
 A maintain that groups by something other than its source's audience (a
 score by post over private votes) reaches no device as a value; the job's

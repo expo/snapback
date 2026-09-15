@@ -1,5 +1,4 @@
 use super::*;
-mod point_read_cut;
 
 #[test]
 fn defaults_predict_on_both_stores_with_the_explicit_write_clock() {

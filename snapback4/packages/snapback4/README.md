@@ -448,19 +448,12 @@ charged to that chunk's meter. Writes belong inside a chunk.
   only rows passing both count toward N. `.` is the row, and indexed reads
   inside the predicate are metered probes. A lone next-column comparison
   lowers to a seek with N_SEEK. A full page's cursor is after its last result;
-  a scan cut outside a point lookup continues after the last rule-visible
-  examined row, including a filter rejection, never a hidden row.
-  Non-uniform ranges stay incomplete.
+  a cut page continues after the last rule-visible examined row, including a
+  filter rejection, never a hidden row. Non-uniform ranges stay incomplete.
   Merged pages return no `next` for a non-uniform read or a meter or word-limit
   cut, because a shared cursor cannot advance past an unfinished lane.
   A uniform filtered page is complete at N matches or the range's end, even
   without a cursor; a meter cut is incomplete.
-  A point lookup cut before its row or absence is established is unknown,
-  never null or false. This includes `exists`, page shapes, helpers and
-  `where`: the whole query returns `data: null`, `complete: false`, with no
-  `next` past unchecked work. Completed hidden and absent lookups still agree.
-  Live aggregate reads keep their observed partial-count contract once their
-  row is established; `exists` still needs a completed lookup.
 - **List operations:** pages, lists, and shaped collections share `sort`,
   `slice`, `count`, `sum`, `group`, `first`, `last`, `at`, `join`, and `for`,
   subject to their element types. Aggregating a page aggregates that page;
@@ -950,11 +943,9 @@ The tombstone insert rule requires its ID to equal the event ID and its actor
 to own the existing source. Keep `removeEvent`, called by these two mutations,
 as the only insert; it writes the marker before deleting the source in the
 same transaction. A guessed foreign event ID cannot hide or purge it.
-Render `(page.data ?? []).filter(row => row !== null)`. If a tombstone lookup
-is cut, it is unknown, never false: the query returns `data: null`,
-`complete: false` and no `next`, withholding every event and body in that
-result. Completed tombstone lookups keep the source page's cursor, even
-when all 20 slots are null.
+Render `(page.data ?? []).filter(row => row !== null)`. A page the meter cuts
+before its tombstone lookups finish reads `complete: false` and can still show
+an event removed since the last purge; treat an incomplete page as provisional.
 The card lists its schema caps and measured cold-sync tradeoff. A named
 merge lane reads a second table with the same columns and plain index;
 each table keeps its own rule and sync. `cap N` without `by` caps the whole
@@ -1182,9 +1173,8 @@ its measured tradeoffs are on the feeds card.
 
 The feeds card also retains the ranked-feed and Trending recipes: a job
 scores the shared pool into `ranked`, and the device composes it with the
-reader's own signals. If Trending's scan and score lookups exceed the
-examined-row ceiling, a cut score lookup withholds the ranking as `data: null`,
-`complete: false`, with no `next`; use the maintained ranking when that set grows.
+reader's own signals. Trending over a day that exceeds the examined-row
+ceiling is incomplete; use the maintained ranking when that set grows.
 The card's `vote` predicts its first offline upsert when the post is held;
 the viewer's votes have no horizon and are capped at 1,000 per viewer.
 
