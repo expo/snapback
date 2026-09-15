@@ -197,8 +197,11 @@ mutation edit(messageId: messages, body: text <=4000):
   device holding it. A null time never expires. Disappearing messages
   are one field on insert, `expiresAt: now + ttl if ttl != null else
   null` with `ttl: int ?`; nothing else to write. A `maintain` over an
-  expiring table counts a row until the sweep removes it (exact within a
-  second), while a read of the row is null at once.
+  expiring table recomputes its live source group at read time, before the
+  sweep; a partial device or a meter cut reports `complete: false`.
+  Value-order indexes over expiring sources are refused
+  (`E_QUARRY_MAINTAIN_EXPIRE`); `guide feeds` gives the scheduled Trending
+  recipe with predictable likes and an explicit score lag.
 
 ### Write authority
 
@@ -323,9 +326,12 @@ it. Ordinary writes keep it valid; rows can move between pages. Only existing no
 appear. Author attribution stays a source field. A value-order page pins
 every group field before value in its index;
 value, id alone gives a global ranking. A UTC day is not a rolling
-24-hour window: exact trailing-day Trending and zero-like candidates keep the
-ranked/expiry recipe. Value ordering over an expiring source is refused; live
-unranked reads still recompute selected, unexpired contributions.
+24-hour window: the scheduled Trending recipe on `guide feeds` includes
+zero-like candidates and keeps likes predictable, with scores lagging one
+schedule period plus execution/sync delay. It ranks likes on posts younger
+than 24 hours, not recent likes on older posts. Value ordering over an
+expiring source is refused; live unranked reads still recompute selected,
+unexpired contributions.
 
 A maintain inherits source sync only when every audience column survives as
 a bare key, with no target horizon. It stays until-revoked even when its source
@@ -1186,8 +1192,16 @@ its measured tradeoffs are on the feeds card.
 
 The feeds card also retains the ranked-feed and Trending recipes: a job
 scores the shared pool into `ranked`, and the device composes it with the
-reader's own signals. Trending over a day that exceeds the examined-row
-ceiling is incomplete; use the maintained ranking when that set grows.
+reader's own signals. Trending's `create` and `like` write only their source
+rows and predict when their required data is held; no mutation updates
+another author's post or ranking row. The schedule alone writes `ranked`
+from non-expiring like counts and post time every minute. Scores and new
+candidates lag by one period plus queue, execution and sync delay; chunks
+commit independently. Candidates expire at post time plus 24 hours before
+any sweep. This is a post-time window, not recent likes on older posts.
+The immediate `trendingNow` alternative is incomplete when the day's posts
+or nested reads exceed the meter; a complete ranked page does not certify
+score freshness.
 The card's `vote` predicts its first offline upsert when the post is held;
 the viewer's votes have no horizon and are capped at 1,000 per viewer.
 

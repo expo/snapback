@@ -344,21 +344,6 @@ table votes:
 maintain postScore: sum votes of direction by postId
   read <- allow
 
-table likes:
-  postId: posts
-  principal: principal
-  unique byPostPrincipal: postId, principal
-  public 'likes are public'
-  insert <- .principal = viewer
-  delete <- .principal = viewer
-
-maintain likeCounts: count likes by postId
-  read <- allow
-
-query trending():
-  day = posts[at > now - 86400000] first 8192 by byTime { id, at, likes: likeCounts[.id] }
-  return slice(sort(day, '-likes', '-at'), 0, 10)
-
 table ranked:                       -- layer 1: one shared page, scored by the server
   postId: posts
   score: int
@@ -415,11 +400,117 @@ mutation setAffinity(readerId: principal, postId: posts, score: int):
   upsert affinity[readerId, postId] { readerId, postId, score, at: now }
 ```
 
-`trending()` seeks the trailing day up to the 8,192-row examined ceiling and ranks that set; a day past the ceiling is `complete: false`, so its top ten is of an incomplete set. When the day outgrows the ceiling, use the maintained `ranked` recipe beside it.
-
 A maintain that groups by something other than its source's audience (a
 score by post over private votes) reaches no device as a value; the job's
 `ranked` row is what puts the score on every device. Time decay is the
 cadence: the order refreshes when the job runs. A native job (guide native)
 can score with floats and a real loop; the tables and the sync are the
 same.
+
+## Trending: predictable likes, scheduled rank
+
+This scheduled ranked-table recipe ranks posts younger than 24 hours by
+their non-expiring like count, then post time, then id. Zero-like posts are
+candidates too. This is a window over **post time**, not a count of likes
+in the last 24 hours on arbitrarily old posts. `create` writes only a post;
+`like` and `unlike` write only the viewer's like. The engine updates
+`likeCounts`, and the schedule alone writes `ranked`. No mutation updates
+another author's post or ranking row, and no `update <- allow` is needed.
+
+```quarry
+table posts:
+  authorId: principal
+  body: text <=6000
+  at: time
+  by byTime: at, id
+  immutable authorId, at
+  public 'posts are public'
+  insert <- .authorId = viewer
+  sync public last 2000 by byTime
+
+table likes:
+  postId: posts
+  principal: principal
+  unique byPostPrincipal: postId, principal
+  by byPrincipal: principal, id
+  cap 1000 by principal
+  read <- .principal = viewer
+  insert <- .principal = viewer
+  delete <- .principal = viewer
+  sync to .principal
+
+maintain likeCounts: count likes by postId
+  read <- allow
+  online only
+
+table ranked:
+  postId: posts
+  score: int
+  at: time
+  expiresAt: time
+  unique byPost: postId
+  by byScore: score, at, id
+  by byExpiresAt: expiresAt
+  public 'the scheduled ranking is public'
+  insert <- deny
+  update <- deny
+  delete <- deny
+  expire at .expiresAt
+  sync public last 500 by byScore
+
+mutation create(body: text <=6000):
+  return insert posts { authorId: viewer, body, at: now }
+
+mutation like(postId: posts):
+  require exists posts[postId] else POST_NOT_FOUND
+  return insert likes { postId, principal: viewer } if absent
+
+mutation unlike(postId: posts):
+  delete likes[postId, viewer]
+
+query myLike(postId: posts):
+  return exists likes[postId, viewer]
+
+job scoreTrending():
+  chunk p in posts first 100 by byId:
+    if p.at > now - 86400000 and p.at <= now:
+      upsert ranked[p.id] { postId: p.id, score: likeCounts[p.id], at: p.at, expiresAt: p.at + 86400000 }
+schedule trendingEvery every 1m: scoreTrending
+
+query trending(c: cursor ?):
+  return ranked after c last 10 by byScore { *, post: posts[.postId] }
+
+query trendingNow():
+  day = posts[at > now - 86400000, at <= now] first 8192 by byTime { id, at, likes: likeCounts[.id] }
+  return slice(sort(day, '-likes', '-at', '-id'), 0, 10)
+```
+
+`like` predicts when the post is held and the viewer's like partition has
+finished acquisition. That partition has no horizon; its cap is 1,000 likes
+per viewer. Repeated likes are idempotent. The online-only maintain is an
+engine side effect and does not cost source-write prediction. Local `myLike`
+changes immediately, while Trending keeps the last delivered scores.
+
+**Exactness limit:** scores and new candidates lag by one schedule period
+(1 minute) when the job runs promptly. Queueing, chunk execution and device
+sync can add delay; an offline device keeps its delivered scores. Each
+100-post chunk commits independently, so a pass is not an atomic snapshot
+of the whole ranking. Once writes stop and the next pass finishes, scores
+converge to the maintained counts. The job walks posts in bounded chunks;
+old posts are skipped. It never copies a capped count as exact.
+
+Candidate expiry is immediate at `post.at + 24h` on each host's clock,
+before the physical sweep, even if the next scoring pass has not run.
+`complete` describes the ranked page's coverage, not score freshness; a
+device exhausted past its 500-row acquisition horizon reports incomplete.
+Post bodies outside its post horizon can be null. Cursors traverse stored
+score/time/id order, including ties; a rescore can move rows between pages.
+
+For an immediate answer, the live bounded query `trendingNow()` ranks the
+trailing post day up to the 8,192-row examined ceiling. A day or its nested
+reads past the meter is `complete: false`, so its top ten is of an incomplete
+set. A maintain over expiring likes cannot replace that with an exact value
+index (`E_QUARRY_MAINTAIN_EXPIRE`): stored contributions survive until the
+sweep, while live values change at expiry. Rechecking only stored winners
+can miss another group's new rank. Use this scheduled recipe when score lag
+is acceptable; it does not promise exact rolling-like-window ranking.

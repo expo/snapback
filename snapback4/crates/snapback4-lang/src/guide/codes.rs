@@ -4,7 +4,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_CLOCK_DEV_ONLY", "clock controls require dev; serve always uses wall time. Use dev --clock-offset, clock advance or a local run --now; guide clock."),
     ("E_CLOCK_INPUT", "clock advances need a positive whole duration with ms, s, m, h, d or w; run --now accepts Unix milliseconds or +duration. Backward advances and out-of-range times are refused; guide clock."),
     ("E_QUARRY_MAINTAIN", "maintain predicates use row-local typed scalar comparisons; group keys are bare columns or day/hour/bucket of required time columns; scalar reads need the complete key. Follow the expression-specific rewrite; guide maintains."),
-    ("E_QUARRY_MAINTAIN_EXPIRE", "a value-order maintain index cannot stay exact when its source expires without a commit. Use a live bounded query or the scheduled ranked-table recipe; guide expire."),
+    ("E_QUARRY_MAINTAIN_EXPIRE", "a value-order maintain index cannot stay exact when its source expires without a commit. Use a live bounded query or guide feeds' scheduled Trending recipe: like stays predictable, and scores from non-expiring counts and post time lag by one schedule period."),
     ("E_WITNESS_INPUT", "invalid witness arguments, launch configuration or signal label. Use snapback4 guide witness for the flags and app recipe. guide witness."),
     ("E_WITNESS_PLATFORM", "witness ios requires macOS, Xcode and an installed iOS simulator. guide witness."),
     ("E_WITNESS_SIMULATOR", "a simulator could not be selected or simctl failed. Boot a dedicated iOS simulator and pass its --udid; never select an ambiguous booted set. guide witness."),

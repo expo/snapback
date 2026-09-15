@@ -88,8 +88,12 @@ valid across ordinary writes in that generation; scores can move between pages. 
 appear: an unliked post does not acquire a zero-like candidate. Author
 attribution remains a validated source field, with no automatic join.
 
-A UTC day is not a rolling 24-hour window. Exact trailing-day Trending,
-including zero-like posts, keeps the ranked/expiry recipe on guide feeds.
+A UTC day is not a rolling 24-hour window. The scheduled Trending recipe
+on guide feeds includes zero-like posts and keeps likes predictable: only
+the schedule writes ranked rows, from non-expiring counts and post time.
+Its window is over posts, not recent likes on older posts; scores lag by
+one schedule period plus execution/sync delay. The live bounded query on
+that card gives an immediate answer, incomplete when the meter cuts it.
 A value-order index over an expiring source is refused: use a live bounded
 query or the scheduled ranked-table recipe. Unranked expiring aggregates
 recompute live contributions before the sweep; every expiring maintain uses

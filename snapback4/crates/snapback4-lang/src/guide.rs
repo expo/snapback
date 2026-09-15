@@ -836,8 +836,11 @@ maintain in the program; its live value cannot be probed at one unit. Value
 equalities on non-expiring maintains and ordinary tables remain supported.
 Value-order indexes over expiring sources are refused by check
 (E_QUARRY_MAINTAIN_EXPIRE) and raw schema adoption: use a live bounded query,
-or the scheduled ranked-table recipe. Stored order cannot rank live values
-between expiry and the physical sweep.
+or the scheduled ranked-table recipe on guide feeds. Its `like` stays
+predictable: only the schedule writes `ranked`, from non-expiring like counts
+and post time. Scores lag by one schedule period plus execution/sync delay;
+the 24-hour window is over posts, not recent likes on older posts.
+Stored order cannot rank live values between expiry and the physical sweep.
 A partial device counts only held live
 sources and says `complete: false`. A meter cut returns the contribution
 examined so far, also incomplete. A zero sum keeps its group while sources
