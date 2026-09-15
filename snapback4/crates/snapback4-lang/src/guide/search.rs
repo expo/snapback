@@ -1,5 +1,5 @@
 //! Search card, compiled with every other keyword card by tests/guide.rs.
-pub const CARD: &str = r##"# Search: word prefixes, on the server and on the device
+pub const CARD: &str = concat!(r##"# Search: word prefixes, on the server and on the device
 
 ```quarry
 table members:
@@ -77,4 +77,6 @@ results name it in `word_cut_at`, separately from a meter cut in `capped_at`.
 Merged pages return no `next` for a non-uniform read or a meter or word-limit
 cut: one cursor cannot advance past an unfinished lane. Reads inside
 `where` use their own rules and search terms. Even an empty matching result
-past a device horizon is incomplete; a held group can fall back to the server."##;
+past a device horizon is incomplete; a held group can fall back to the server.
+
+"##, include_str!("search_all.md"));

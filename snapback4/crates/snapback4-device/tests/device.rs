@@ -6,6 +6,7 @@ mod common;
 mod language;
 mod membership;
 mod search_merge;
+mod search_global;
 mod presence;
 mod upsert;
 mod following;

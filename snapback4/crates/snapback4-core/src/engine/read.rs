@@ -519,7 +519,8 @@ impl Runner<'_> {
         let prefix = self.prefix_values(scan)?;
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
-        let bounds = self.bounds(scan, table, index, Some(&prefix))?;
+        // @ref LLP 3000.007#18.1 — generated word lanes share the search's merge cursor, not a direct cursor scoped to one word.
+        let bounds = self.bounds(scan, table, index, if word.is_some() { None } else { Some(&prefix) })?;
         let take = self.take(&scan.take)?;
         self.scan_prepared(scan, prefix, bounds, take, word)
     }

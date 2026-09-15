@@ -242,6 +242,19 @@ fn every_card_compiles_clean() {
         let text = card(keyword).unwrap_or_else(|| panic!("no card for {keyword}"));
         let blocks = quarry(text);
         for (n, block) in blocks.iter().enumerate() {
+            if *keyword == "search" && n == 1 {
+                // The lane brief explicitly permits notes documented by this section.
+                // Keep the exception on this block and these exact two sites; every
+                // other card and every server operation must still compile silently.
+                let bound = compile(block);
+                assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+                assert_eq!(bound.notes.iter().map(|note| (note.code.as_str(), note.site.line, note.guide.as_str())).collect::<Vec<_>>(),
+                    [("N_NO_HORIZON", 10, "sync"), ("N_NEVER_COMPLETE", 20, "search")]);
+                assert!(bound.notes[0].message.starts_with("table messages:"));
+                assert!(bound.notes[1].message.starts_with("query searchHeld:"));
+                assert!(text.contains("This block intentionally emits two notes"));
+                continue;
+            }
             clean(&format!("card {keyword}, block {}", n + 1), &in_context(block));
         }
     }
@@ -249,6 +262,14 @@ fn every_card_compiles_clean() {
     assert_eq!(card("quarry"), Some(LANGUAGE));
     assert_eq!(card("nonsense"), None);
     assert_eq!(quarry(LANGUAGE).len(), 1, "the language card is one program");
+}
+
+#[test]
+fn w7d_every_chat_search_is_on_the_card() {
+    let text = card("search").unwrap();
+    let section = text.split_once("## Search every chat I'm in").expect("the 100–1,000 membership recipe").1;
+    assert!(!quarry(section).is_empty(), "the recommendation includes compiled Quarry");
+    for form in ["searchHeld", "searchChats", "searchChatBatch"] { assert!(section.contains(form), "missing {form}"); }
 }
 
 /// The package README's Quarry binds clean, and no Quarry hides in an

@@ -20138,6 +20138,177 @@ First full run (summed Rust results: 995 passed, 2 failed, 4 ignored):
 -- FAIL: cargo test (497 s)
 -- ok: chat app typecheck (1 s)
 -- ok: expo app typecheck (1 s)
+
+## 2026-09-15 — W7d: search every chat at 100–1,000 memberships
+
+Lane `sb4/w7d`, base `80b4899f949eb597d6426d95dda82d0c2dcd0b97`.
+The search card now carries a complete full-history device form and a
+server walk with two independent cursors: discover 50 memberships, exhaust
+that batch's matching-result cursor, then advance membership discovery.
+The README points to it. N_WIDE_MERGE for matching searches points to this
+section, and the code catalog explains why one result cursor cannot
+continue undiscovered chats or a meter-cut merge. Group results by chat;
+a single globally ordered stream needs every batch's head. The card names
+horizons, live membership changes, the 32-word bound and meter cuts.
+
+The new device witness found a real cursor defect before the fix: an eager
+word lane validated its shared merge token as a direct cursor scoped to
+one word, rejecting page two with `E_INPUT: cursor: cursor token describes
+a different prefix or generation`. The minimal core change passes no
+direct-prefix scope while validating a generated word lane, matching the
+existing lazy lane path. Direct plain-page prefix/generation checks and all
+serialized forms remain unchanged. This extra core file was necessary to
+make the recommended device walk work. LLP 3000.007 §18.1 records it.
+
+The fixture is the card's actual Quarry, extracted by the shared test
+helper. It has 30 messages per held chat: 24 coffee hits and 6 tea misses,
+a single first-term word prefix, tied timestamps across chats, and one
+unreadable chat containing newer hits. Device tests acquire, close and
+reopen both SQLite and memory stores. Every expected id appears once and
+results group into every expected chat; the unreadable chat stays absent.
+
+| Memberships | Full hits / chats | Full acquired messages | Device first / total examined | Server first / total examined |
+|---|---|---|---|---|
+| 100 | 2,400 / 100 | 3,000 | 22 / 2,638 | 1,201 / 79,181 |
+| 500 | 12,000 / 500 | 15,000 | 22 / 13,198 | 1,201 / 396,149 |
+| 1,000 | 24,000 / 1,000 | 30,000 | 22 / 26,398 | 1,201 / 792,359 |
+
+Both device stores give the same counts. Every full-sync device page and
+bounded server page is complete; result pages number 120 / 600 / 1,200.
+Server totals include 101 / 509 / 1,019 examined from 2 / 10 / 20 separate
+membership discovery calls. The result walks alone examine 79,080 /
+395,640 / 791,340, with maximum per-page 1,201. Device maximum is 22.
+A ten-message acquisition horizon instead acquires 1,000 / 5,000 / 10,000
+messages and finds 400 / 2,000 / 4,000 hits, in 20 / 100 / 200 pages, with
+438 / 2,198 / 4,398 examined in the walk. Every horizon page is incomplete,
+even an empty search. All four held hits per chat are found; twenty older
+hits per chat are not acquired. These are examined counts, not latency.
+
+The unbatched 1,000-lane alternative examines 2,400 / 8,358 / 8,880 on the
+first page at 100 / 500 / 1,000 memberships. Only 100 is complete and has a
+cursor; the larger two are meter-cut with no continuation. Additional
+attempted charges after the cut explain a ledger above the 8,192 ceiling.
+The separate global-word-scope test shows a device-wide prefix exceeding
+32 distinct words while each chat's scoped matching search still fits.
+
+The optional maintained per-reader inbox was investigated by copy cost and
+not built: at 100 readers per chat, this fixture would require 300,000 /
+1,500,000 / 3,000,000 copies, with up to 100 new copies per send plus edit,
+delete, expiry, join and revocation maintenance. Those are arithmetic
+counts, not an inbox benchmark. A maintain over messages does not expand
+one source row into all memberships. It fails the brief's “only if cheap”
+condition for shared messages already held on devices.
+
+The card intentionally emits N_NO_HORIZON for full message acquisition and
+N_NEVER_COMPLETE for the unscoped query's server execution. The guide test
+allows only those two named sites in this one block. Every other card block
+and both scoped server operations remain note-free. No diagnostic code was added;
+no meter ceiling, value serialization or existing corpus case changed. No
+commit, push, tag or publication was made.
+
+### Targeted verification and red-before-green
+
+Commands below ran from `snapback4/`. Summary lines are verbatim.
+
+Before: the section is absent; Cargo stops after this binary.
+
+```text
+cargo test -p snapback4-lang --test residency_notes --test guide w7d -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 25 filtered out; finished in 0.00s
+```
+
+Before: the note still carries the generic advice.
+
+```text
+cargo test -p snapback4-lang --test residency_notes w7d -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 32 filtered out; finished in 0.00s
+```
+
+After: both regressions pass.
+
+```text
+cargo test -p snapback4-lang --test residency_notes --test guide w7d -- --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 25 filtered out; finished in 0.00s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 32 filtered out; finished in 0.00s
+```
+
+The new block first failed on its two intentional notes; the explicitly allowed exception was then limited to those sites.
+
+```text
+cargo test -p snapback4-lang --test guide every_card_compiles_clean -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 25 filtered out; finished in 0.05s
+```
+
+After: all guide and residency-note tests pass.
+
+```text
+cargo test -p snapback4-lang --test guide --test residency_notes
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.31s
+```
+
+Test setup failure: the helper supplied undeclared arguments; corrected before measurement.
+
+```text
+cargo test -p snapback4-sim --test clique w7d -- --nocapture
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 57 filtered out; finished in 0.24s
+```
+
+After the helper correction: complete walks and empty-batch continuation pass.
+
+```text
+cargo test -p snapback4-sim --test clique w7d -- --nocapture
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 57 filtered out; finished in 25.29s
+```
+
+Before the core fix: page two rejects the search cursor.
+
+```text
+cargo test -p snapback4-device --test device w7d -- --nocapture
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 141 filtered out; finished in 0.91s
+```
+
+After the core fix: both stores and the horizon/word-limit cases pass.
+
+```text
+cargo test -p snapback4-device --test device w7d -- --nocapture
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 141 filtered out; finished in 32.26s
+```
+
+Existing scoped-search authority, cursor, word-limit and meter cases.
+
+```text
+cargo test -p snapback4-sim --test search_merge -- --nocapture
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+```
+
+One accidental launch of the residency-note command from the repository
+root stopped at missing `vendor/ibex/Cargo.toml`, before compilation; the
+command was immediately rerun from `snapback4/`. No root build was made.
+A logging wrapper also tried to assign zsh's read-only `status` after
+ref-check and the full suite; their actual results are taken from their
+complete logs, not that wrapper's exit. Later wrappers use `w7d_rc`.
+
+### Blocking suite and environment
+
+From the repository root:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+```
+
+Verbatim top-level and JS summary lines:
+
+```text
+-- ok: cargo build (15 s)
+-- ok: wasm build (14 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (453 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (0 s)
 ℹ tests 9
 ℹ pass 9
 ℹ fail 0
@@ -20358,3 +20529,56 @@ The lead's outside-sandbox React run remains necessary. All builds, app
 checks and typechecks passed. `./ref-check --verbose` passed with **0 errors,
 0 unchecked**. No E_/N_ diagnostic text changed, and no commit or publication
 was made by this lane.
+
+-- FAIL: client tests (70 s)
+== 1 failure(s) in 485 s
+```
+
+The Rust per-binary summaries total 997 passed, 0 failed,
+4 ignored (sum, not a separate harness summary). The full suite
+includes the final measurement assertions. It took 485 seconds on this
+shared host; no gate budget or meter ceiling was raised.
+
+The sole failing client test is `React hooks and reference-app lifetimes`:
+Chromium aborts at `browserType.launch`, before exercising the app,
+with `signal=SIGABRT`. The brief names this sandbox artifact. Isolated
+rerun from `snapback4/`, with the same Node 24 PATH:
+
+```text
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+```
+
+The lead's outside-sandbox Chromium rerun remains. No failure is labeled
+pre-existing without a baseline verification; no separate base-suite run
+was made. Base identity is recorded above. No lifecycle timeout or client
+timeout batch occurred, so no low-concurrency client rerun was needed.
+
+`./ref-check --verbose` passed before this journal append:
+
+```text
+ref-check: ok — 480 LLP docs, 8965 refs in 23786 files, 0 errors, 0 unchecked
+```
+
+The check is repeated after the append. `git diff --check` is clean;
+every changed code file is below 1,500 lines (device.rs is 1,485).
+
+### N_WIDE_MERGE, verbatim before and after
+
+Before, from the new regression on the base implementation:
+
+```text
+schema.q:32:1 — N_WIDE_MERGE: query searchAll: the merge over messages reads up to 1000 lanes, one page of 21 each — up to 21000 rows per read; a read past the 8,192 examined ceiling returns `complete: false`
+  rewrite: measure with `snapback4 test --cost`; bound lane discovery to the scopes this read needs, and pass a cursor to continue the result; fewer lanes reduce read cost
+  guide: search
+```
+
+After:
+
+```text
+schema.q:32:1 — N_WIDE_MERGE: query searchAll: the merge over messages reads up to 1000 lanes, one page of 21 each — up to 21000 rows per read; a read past the 8,192 examined ceiling returns `complete: false`
+  rewrite: `snapback4 guide search`, section "Search every chat I'm in": search held messages with one unscoped words index, or page memberships 50 at a time and exhaust each matching merge with its own result cursor before advancing the membership cursor; a result cursor alone does not continue undiscovered chats or a meter-cut merge. Measure with `snapback4 test --cost`
+  guide: search
+```
