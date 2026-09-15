@@ -1210,9 +1210,12 @@ in React) and stops when it is null, so nothing reads a token after
 sign-out. `logoutAll()` does the same after the server confirms every
 session for the principal was revoked; an offline refusal leaves this
 session in place so the operation can be retried. The online client takes
-`url` with `persona`, `session` or `token`, and has the same card without a
-device; applications that keep its session use `refreshSession(url,
-token)` and replace the online client with the returned session.
+`url` with `persona`, `session` or `token`, and has the same card except
+`sync()`, which is device-only. It keeps its session in memory and rotates
+near expiry; `refreshSession()` adopts the new bearer before `onSession`
+receives it. A persona client's `session()` is null; a bare-token client's
+is null until `refreshSession()` returns the session. Applications that
+persist an online session keep its replacements from `onSession`.
 
 **Node.** `dir` is required, and a blank string refuses the same way, before the opener is returned; stores live there and the directory is created on first open. `binary` uses `SNAPBACK4_BIN`, then the platform package (or a repository build); `spawn` and `writeFile` default to Node’s functions.
 
@@ -1890,6 +1893,8 @@ server sweeps expiry and fires schedules once a second, runs queued job
 chunks each tick, and sweeps unplaced assets once a minute.
 
 ## 6. Release
+
+`snapback4 dev` is development only — it admits loopback personas and an unauthenticated `/seed`; deploy with `snapback4 deploy` + `snapback4 serve`, which refuse both.
 
 - **`snapback4 deploy <dir> [--allow-destructive]`** (from inside the
   project) compiles it, classifies the change against the current release

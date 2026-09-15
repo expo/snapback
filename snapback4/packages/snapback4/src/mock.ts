@@ -162,6 +162,10 @@ export function createMockClient(options: MockOptions): MockClient {
     viewer: () => viewer,
     onViewer(notify) { viewerListeners.add(notify); return () => viewerListeners.delete(notify); },
     onWrite(notify) { writeListeners.add(notify); return () => writeListeners.delete(notify); },
+    session: () => null,
+    onSession: () => () => {},
+    async refreshSession() { return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } }; },
+    async logoutAll() { return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions" } }; },
     async signOut() { client.setLink("signed-out"); await client.close(); },
     async close() { listeners.clear(); linkListeners.clear(); viewerListeners.clear(); writeListeners.clear(); },
     setLink(next) {

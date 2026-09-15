@@ -3,19 +3,9 @@
 // device's to keep (in memory, or wherever the app keeps secrets). A
 // deployed server refuses development personas, so this is the only door.
 
-import type { Refusal } from "./contract.ts";
+import type { Refusal, Session, SignIn, SessionRevocation } from "./contract.ts";
 
-export interface Session {
-  readonly principal: string;
-  /** `guest` or `user` for built-in identity; an application-defined kind
-   * for a session minted by its service. */
-  readonly kind: string;
-  readonly token: string;
-  readonly expiresAt: number;
-}
-
-export type SignIn = { readonly ok: true; readonly session: Session } | { readonly ok: false; readonly why: Refusal };
-export type SessionRevocation = { readonly ok: true; readonly revoked: number } | { readonly ok: false; readonly why: Refusal };
+export type { Session, SignIn, SessionRevocation } from "./contract.ts";
 
 const offline = (): Refusal => ({ code: "E_OFFLINE", family: "link", message: "the server is unreachable", retryable: true });
 const refused = (message: string): Refusal => ({ code: "E_AUTH", family: "auth", message });

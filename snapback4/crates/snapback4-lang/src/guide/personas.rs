@@ -8,7 +8,10 @@ pub(super) const CARD: &str = r##"# Personas
 development door: the socket peer, `Host`, and optional browser `Origin` must
 all be literal loopback/local http(s) values. Foreign, opaque, malformed and
 duplicate Origins are refused before routing, and CORS reflects only an
-admitted local Origin. A deployed server (`snapback4 serve`) refuses personas
+admitted local Origin. `snapback4 dev` is development only: it admits
+loopback personas and an unauthenticated `POST /seed` as the system principal;
+deploy with `snapback4 deploy` + `snapback4 serve`.
+A deployed server (`snapback4 serve`) refuses personas
 and seed, defaults to `127.0.0.1`, and requires
 `--i-understand-cleartext` for a non-loopback HTTP bind. Put a TLS terminator
 in front, preserve `Authorization` and `Origin`, strip persona headers, and
@@ -31,7 +34,12 @@ perform the same Argon2 verification work.
 Ordinary guest and password sessions last seven days. `refreshSession`
 atomically exchanges a live token; `logoutAll` revokes every session for the
 principal. The client refreshes near expiry and uses an in-memory session
-store by default. `localStorageSessionStore()` is an explicit compatibility
+store by default. Both online and local clients expose `session()`,
+`onSession`, `refreshSession()` and `logoutAll()`: rotation adopts the bearer
+before notification, and sign-out or a current-session refusal clears it.
+Personas have no session; a bare-token online client has none until refresh
+returns one. Only the local client has `sync()`.
+`localStorageSessionStore()` is an explicit compatibility
 choice whose token can be read by same-origin script; native apps should pass
 their secure store.
 

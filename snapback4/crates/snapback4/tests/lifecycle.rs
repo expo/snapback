@@ -410,3 +410,38 @@ fn memory_and_sqlite_serialize_adoption_after_replay_then_run_the_backfill() {
         assert_eq!(engine.store().rows("repostEdges").unwrap().len(), 62);
     }
 }
+
+#[test]
+fn development_banner_and_release_auth_boundary() {
+    let dir = Directory::new();
+    fs::write(dir.0.join("snapback/schema.q"), "use personas alice\nuse identity guests\ntable items:\n  body: text <=100\n  read <- allow\nquery all():\n  return items[] first 10 by byId\n").unwrap();
+    let request = |port, path: &str, body: Value, credential: &str| -> (u16, Value) {
+        let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
+        stream.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+        let body = body.to_string();
+        write!(stream, "POST {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Type: application/json\r\n{credential}Content-Length: {}\r\n\r\n{body}", body.len()).unwrap();
+        let mut answer = String::new(); stream.read_to_string(&mut answer).unwrap();
+        let (head, body) = answer.split_once("\r\n\r\n").unwrap();
+        (head.split_whitespace().nth(1).unwrap().parse().unwrap(), serde_json::from_str(body).unwrap())
+    };
+    let rows = json!([{"table":"items","row":{"id":"one","body":"development"}}]);
+    let dev = Host::start(&dir, &["dev"]);
+    assert_eq!(request(dev.port, "/seed", rows.clone(), ""), (200, json!({"seeded":1})));
+    let (status, read) = request(dev.port, "/q/all", json!({"args":{}}), "x-snapback-persona: alice\r\n");
+    assert_eq!(status, 200); assert_eq!(read["data"][0]["body"], "development");
+    let banner = dev.log();
+    drop(dev);
+    let deployment = dir.0.join("release");
+    let result = dir.run(&["deploy", deployment.to_str().unwrap()]);
+    assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
+    let release = Host::start(&dir, &["serve", deployment.to_str().unwrap()]);
+    let (status, seed) = request(release.port, "/seed", rows, "");
+    assert_eq!(status, 403); assert_eq!(seed["denied"]["message"], "seeding is a development door");
+    let (status, persona) = request(release.port, "/q/all", json!({"args":{}}), "x-snapback-persona: alice\r\n");
+    assert_eq!(status, 401); assert_eq!(persona["denied"]["code"], "E_AUTH");
+    let (status, guest) = request(release.port, "/auth/guest", json!({}), "");
+    assert_eq!(status, 200);
+    let (status, read) = request(release.port, "/q/all", json!({"args":{}}), &format!("Authorization: Bearer {}\r\n", guest["session"]["token"].as_str().unwrap()));
+    assert_eq!(status, 200); assert_eq!(read["data"], json!([]), "refused seed never writes release data");
+    assert!(banner.contains("snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both."), "{banner}");
+}
