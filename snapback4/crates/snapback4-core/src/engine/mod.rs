@@ -24,6 +24,8 @@ pub mod write;
 mod maintains;
 mod write_target;
 mod receipt;
+#[cfg(feature = "postgres")]
+pub mod postgres;
 
 #[cfg(feature = "sqlite")]
 use crate::assets::{self, Asset, AssetKind, asset_id};

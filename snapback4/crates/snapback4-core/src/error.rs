@@ -126,6 +126,9 @@ pub enum RuntimeError {
     #[cfg(feature = "sqlite")]
     #[error("E_STORE: {0}")]
     Sql(#[from] rusqlite::Error),
+    #[cfg(feature = "postgres")]
+    #[error("E_STORE: {0}")]
+    Postgres(#[from] postgres::Error),
     #[error("E_STORE: {0}")]
     Store(String),
 }
@@ -155,6 +158,8 @@ impl RuntimeError {
             Self::Native { code, .. } => code.clone(),
             #[cfg(feature = "sqlite")]
             Self::Sql(_) => "E_STORE".into(),
+            #[cfg(feature = "postgres")]
+            Self::Postgres(_) => "E_STORE".into(),
             Self::Store(_) => "E_STORE".into(),
         }
     }
@@ -180,6 +185,8 @@ impl RuntimeError {
             Self::Native { .. } => "native",
             #[cfg(feature = "sqlite")]
             Self::Sql(_) => "store",
+            #[cfg(feature = "postgres")]
+            Self::Postgres(_) => "store",
             Self::Store(_) => "store",
         }
     }
@@ -187,6 +194,10 @@ impl RuntimeError {
     /// Whether a program's refusal is the caller's to repair (as opposed to
     /// a store failure the caller should retry later).
     fn is_store_failure(&self) -> bool {
+        #[cfg(feature = "postgres")]
+        if matches!(self, Self::Postgres(_)) {
+            return true;
+        }
         #[cfg(feature = "sqlite")]
         if matches!(self, Self::Sql(_)) {
             return true;
@@ -247,6 +258,8 @@ impl RuntimeError {
             }
             #[cfg(feature = "sqlite")]
             Self::Sql(_) => refusal.retryable = true,
+            #[cfg(feature = "postgres")]
+            Self::Postgres(_) => refusal.retryable = true,
             Self::Store(_) => refusal.retryable = true,
             Self::Asset { message, .. } => {
                 refusal.message = message.clone();

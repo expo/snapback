@@ -13,6 +13,10 @@ Start at [`AGENTS.md`](./AGENTS.md). The root is
 scope is [`NOT-DOING.md`](./NOT-DOING.md); the chronology is
 [`JOURNAL.md`](./JOURNAL.md).
 
+Storage experiment: [Postgres evaluation prototype](./experiments/postgres/README.md)
+runs real Quarry queries, mutations and sync against Postgres. It is opt-in,
+not a CLI/deployment target; SQLite remains the shipped backend.
+
 | | |
 |---|---|
 | `crates/snapback4-core` | the engine: value model, schema with `sync`, IR, one key encoding, the SQLite store, rules with hoisting, the runtime meter, the interpreter, the partition log, at-most-once writes, the day-two classifier |
