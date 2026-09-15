@@ -33,7 +33,7 @@ fn follow_driven_wide_merge_names_the_cost_and_adoption_command() {
         let note = bound.notes.iter().find(|n| n.code == "N_WIDE_MERGE").unwrap();
         println!("{note}");
         assert_eq!(note.message, "query following: read cost grows with the number of related principals (up to 1001 lanes); a read past the 8,192 examined ceiling returns `complete: false`");
-        assert_eq!(note.rewrite, "keep read-time merges for a bounded small number of related principals; for Following, `snapback4 init --recipe feeds`; measure with `snapback4 test --cost`");
+        assert_eq!(note.rewrite, "keep read-time merges for a bounded small number of related principals; for Following, `snapback4 init --recipe feeds --prefix feed`; measure with `snapback4 test --cost`");
         assert_eq!(note.guide, "feeds");
     }
 }
@@ -96,5 +96,26 @@ fn w6a_prefixing_uses_syntax_and_preserves_literals_fields_and_locals() {
             .chain(doc.functions.into_iter().map(|f| f.name)).chain(doc.programs.into_iter().map(|p| p.name))
             .chain(doc.schedules.into_iter().map(|s| s.name)).collect::<Vec<_>>();
         assert_eq!(names(after), names(before).iter().map(|n| snapback4_lang::recipe::prefixed_name(prefix, n)).collect::<Vec<_>>());
+    }
+}
+
+#[test]
+fn w6r1_qualified_schedule_targets_rename_only_local_operations() {
+    let recipe = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).remove(0);
+    for prefix in ["", "feed"] {
+        for module in ["", "feed"] {
+            let source = recipe.replace(": purgeRemoved\n", ": feed.purgeRemoved\n");
+            let renamed = snapback4_lang::recipe::prefix_module(&source, prefix, module).unwrap();
+            let target = format!("feed.{}", snapback4_lang::recipe::prefixed_name(prefix, "purgeRemoved"));
+            assert!(renamed.contains(&format!(": {target}\n")), "{target}");
+            let bound = snapback4_lang::compile(&[("feed.q".into(), renamed)]);
+            assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+            assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+        }
+        for target in ["other.purgeRemoved", "external"] {
+            let source = recipe.replace(": purgeRemoved\n", &format!(": {target}\n"));
+            let renamed = snapback4_lang::recipe::prefix_module(&source, prefix, "feed").unwrap();
+            assert!(renamed.contains(&format!(": {target}\n")), "external target must keep its meaning");
+        }
     }
 }

@@ -1,6 +1,6 @@
 # Feeds: complete Following with a small celebrity merge
 
-> Adopt: `snapback4 init --recipe feeds`\
+> Adopt: `snapback4 init --recipe feeds --prefix feed`\
 > Writes `snapback/feed.q` and typed `src/following.ts`; then run `snapback4 check`.\
 > A read-time merge is fine when the follow count is bounded small.
 
@@ -18,6 +18,11 @@ is `api.feed.feedFollowing` and the schedule calls `feed.feedPurgeRemoved`.
 Existing destination files and non-directory parents refuse before any
 write. Init compiles the existing sources plus the recipe in memory first;
 unprefixed clashes name both declarations and print the prefixed command.
+An app declaration that shadows an unrenamed recipe reference, such as the
+builtin `count`, also refuses and names the declaration and its file. Rename
+that app declaration and its callers before installing; a prefix cannot
+rename a builtin. App helpers named `copy` or `deliver` remain separate
+from the prefixed recipe helpers.
 A write failure removes newly created files and preserves `.gitignore`.
 The block below is the unprefixed source; init qualifies its schedule target.
 

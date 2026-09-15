@@ -1,6 +1,6 @@
 //! Install the feeds card as a module, retaining its comments and formatting.
 use crate::{ast::*, diag::Site, lexer::{Kind, Token}};
-use std::collections::{BTreeMap};
+use std::collections::{BTreeMap, BTreeSet};
 
 pub fn prefixed_name(prefix: &str, name: &str) -> String {
     if prefix.is_empty() { return name.into(); }
@@ -22,6 +22,16 @@ pub fn following(prefix: &str, module: &str) -> Result<String, String> {
 // Index names are table-local. Keeping them also preserves the identical
 // index names required by the inbox/broadcast merge; none need renaming.
 pub fn prefix_module(source: &str, prefix: &str, module: &str) -> Result<String, String> {
+    rename_module(source, prefix, module).map(|(source, _)| source)
+}
+
+/// Global references left outside the recipe's declarations, including builtins.
+/// An app declaration with one of these names could silently change its binding.
+pub fn unrenamed_references(source: &str) -> Result<BTreeSet<String>, String> {
+    rename_module(source, "", "").map(|(_, references)| references)
+}
+
+fn rename_module(source: &str, prefix: &str, module: &str) -> Result<(String, BTreeSet<String>), String> {
     if !prefix.is_empty() && !valid_prefix(prefix) { return Err("--prefix needs a Quarry identifier, for example --prefix feed".into()); }
     let source = source.replace("\r\n", "\n").replace('\r', "\n");
     let (doc, errors) = crate::parse_document("feed.q", &source);
@@ -32,7 +42,7 @@ pub fn prefix_module(source: &str, prefix: &str, module: &str) -> Result<String,
         .chain(doc.programs.iter().map(|d| &d.name)).chain(doc.schedules.iter().map(|d| &d.name))
         .chain(doc.effects.iter().map(|d| &d.name)).chain(doc.actions.iter().map(|d| &d.name))
         .map(|n| (n.clone(), prefixed_name(prefix, n))).collect();
-    let mut edit = Rename { tokens, names, edits: BTreeMap::new() };
+    let mut edit = Rename { tokens, names, edits: BTreeMap::new(), unrenamed: BTreeSet::new() };
     for table in &doc.tables {
         edit.name(&table.site, &table.name, 1);
         for col in &table.columns {
@@ -69,9 +79,21 @@ pub fn prefix_module(source: &str, prefix: &str, module: &str) -> Result<String,
     for effect in &doc.effects { edit.name(&effect.site, &effect.name, 1); }
     for schedule in &doc.schedules {
         edit.name(&schedule.site, &schedule.name, 1);
-        let target = prefixed_name(prefix, &schedule.target);
-        let target = if module.is_empty() { target } else { format!("{module}.{target}") };
-        edit.replace(&schedule.site, &schedule.target, 2, target);
+        // Qualified targets lex as module, dot, operation. A foreign target
+        // keeps its meaning even when a local operation has the same name.
+        let (qualifier, operation) = schedule.target.rsplit_once('.').map_or((None, schedule.target.as_str()), |(module, operation)| (Some(module), operation));
+        if !doc.programs.iter().any(|p| p.name == operation) || qualifier.is_some_and(|q| !module.is_empty() && q != module) {
+            edit.unrenamed.insert(schedule.target.clone());
+            continue;
+        }
+        if qualifier.is_some() {
+            let operation_site = edit.tokens.iter().rev().find(|t| t.site.line == schedule.site.line && t.kind == Kind::Word && t.value == operation).unwrap().site.clone();
+            edit.name(&operation_site, operation, 0);
+        } else {
+            let target = prefixed_name(prefix, operation);
+            let target = if module.is_empty() { target } else { format!("{module}.{target}") };
+            edit.replace(&schedule.site, operation, 2, target);
+        }
     }
     // Apply only AST-selected identifier tokens, from the right, so byte
     // offsets never shift and comments/string contents are never candidates.
@@ -81,13 +103,14 @@ pub fn prefix_module(source: &str, prefix: &str, module: &str) -> Result<String,
         let offset = line.char_indices().nth(col as usize - 1).unwrap().0;
         line.replace_range(offset..offset + old.len(), &new);
     }
-    Ok(lines.join("\n"))
+    Ok((lines.join("\n"), edit.unrenamed))
 }
 
 struct Rename {
     tokens: Vec<Token>,
     names: BTreeMap<String, String>,
     edits: BTreeMap<(u32, u32), (String, String)>,
+    unrenamed: BTreeSet<String>,
 }
 
 impl Rename {
@@ -98,6 +121,7 @@ impl Rename {
     }
     fn name(&mut self, site: &Site, name: &str, skip: usize) {
         if let Some(new) = self.names.get(name) { self.replace(site, name, skip, new.clone()); }
+        else { self.unrenamed.insert(name.into()); }
     }
     fn type_(&mut self, site: &Site, ty: &ScalarType) {
         match &ty.kind {

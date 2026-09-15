@@ -130,6 +130,25 @@ fn check_recipe(dir: &Path, files: &[(&str, String)]) -> Result<(), String> {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Vec::new(),
         Err(error) => return Err(format!("{}: {error}", project.schema_dir().display())),
     };
+    // Compilation alone cannot catch a helper that binds ahead of a builtin.
+    // Check the syntax-selected names left unrenamed before adding any files.
+    let recipe = files.iter().find(|(name, _)| *name == "snapback/feed.q").unwrap();
+    let references = snapback4_lang::recipe::unrenamed_references(&recipe.1)?;
+    for (file, text) in &sources {
+        let (document, _) = snapback4_lang::parse_document(file, text);
+        for (kind, name, site) in document.functions.iter().map(|d| ("fn", &d.name, &d.site))
+            .chain(document.tables.iter().map(|d| ("table", &d.name, &d.site)))
+            .chain(document.maintains.iter().map(|d| ("maintain", &d.name, &d.site)))
+            .chain(document.shapes.iter().map(|d| ("shape", &d.name, &d.site)))
+            .chain(document.programs.iter().map(|d| ("operation", &d.name, &d.site)))
+            .chain(document.effects.iter().map(|d| ("effect", &d.name, &d.site)))
+            .chain(document.actions.iter().map(|d| ("action", &d.name, &d.site)))
+            .chain(document.schedules.iter().map(|d| ("schedule", &d.name, &d.site))) {
+            if references.contains(name) {
+                return Err(format!("recipe cannot be installed; no files written\n  {kind} {name} in {}:{}:{} would shadow the recipe's unrenamed reference `{name}` in snapback/feed.q\n  rename the app declaration `{name}` and its callers, then run init again", project.schema_dir().join(&site.file).display(), site.line, site.col));
+            }
+        }
+    }
     sources.extend(files.iter().filter(|(name, _)| name.ends_with(".q")).map(|(name, text)| (Path::new(name).file_name().unwrap().to_string_lossy().into_owned(), text.clone())));
     let bound = snapback4_lang::compile(&sources);
     if bound.diagnostics.is_empty() { return Ok(()); }

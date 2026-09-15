@@ -988,7 +988,13 @@ and deduplicated sites and rewrites.
 Every text `check` also summarizes mutations that never predict, blocked insert
 arms, and eligible mutations with horizon reads; JSON checks include `predictionSummary`.
 The horizon bucket and `why`'s qualified heading keep every read and site visible
-on unchanged checks. `N_HORIZON_GUARD` explains argument-id retry guards and their rewrite.
+on unchanged checks. This includes the expiring source behind a live-aggregate
+write-rule probe: prediction needs that source without a horizon.
+`N_HORIZON_GUARD` distinguishes the argument row id from the mutation write id;
+only codes with `DUPLICATE`, `RETRY` or `DEDUPE` words get retry advice.
+Application invariants such as `else EVENT_REMOVED` keep their guards.
+Ordinary mutation pages still get `N_NO_HORIZON` growing-table advice;
+point/exists reads, rule probes and insert proofs that need whole coverage do not.
 Add `predicts` before
 a mutation header's colon (`mutation like(postId: posts) predicts:`) to assert
 eligibility: `check` refuses `E_NOT_PREDICTABLE` at that header if any site
@@ -1009,7 +1015,10 @@ client example `src/following.ts`, then `snapback4 check` to generate
 creates the normal starter plus the recipe in an empty directory. Existing
 destination files and non-directory parents refuse before any write. Init
 first compiles the existing `snapback/*.q` sources plus the recipe in memory;
-name clashes report both declarations and files. `--prefix feed` renames the
+name clashes report both declarations and files. App declarations that shadow
+unrenamed recipe references, such as builtin `count`, refuse before writing
+and name the declaration and file; rename the app helper and its callers.
+`--prefix feed` renames the
 recipe's declarations and references through its syntax tree (`posts` →
 `feedPosts`, `deliver` → `feedDeliver`, `following` → `feedFollowing`),
 keeping the app's `posts` and `follows`. Index names are table-local and stay

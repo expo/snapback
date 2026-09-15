@@ -28,12 +28,7 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
             && table.sync.as_ref().is_some_and(|sync| match &sync.audience { Audience::Target { table, .. } => schema.tables[table].expire.is_some(), _ => false }) {
             rule_sites(schema, &table.rules.read, &format!("{} temporary audience", read.site), &mut fact.sites, &mut BTreeSet::new());
         }
-        // An expiring aggregate is recomputed from its source on the device.
-        if let Some(maintain) = schema.maintain_for(&read.table)
-            && schema.tables[&maintain.source].expire.is_some() {
-            let index = schema.tables[&maintain.source].indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(&maintain.by)).map(|(name, _)| name.as_str()).unwrap_or("byId");
-            fact.sites.push(site(schema, &read.site, &maintain.source, index, "aggregate source"));
-        }
+        aggregate_source_site(schema, &read.table, &read.site, &mut fact.sites);
     }
     let mut requires = BTreeSet::new();
     let mut inspected_sites = Vec::new();
@@ -58,6 +53,7 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
             for constraint in &definition.constraints {
                 if let snapback4_core::schema::Constraint::FinalExistsOnInsert { table, index, .. } = constraint {
                     fact.sites.push(site(schema, "after insert", table, index, "rule"));
+                    aggregate_source_site(schema, table, "after insert", &mut fact.sites);
                 }
             }
         }
@@ -83,10 +79,20 @@ fn site(schema: &Schema, location: &str, table: &str, index: &str, kind: &str) -
     ResidencySite { site: location.into(), table: table.into(), index: index.into(), kind: kind.into(), class, reason, rewrite }
 }
 
+// @ref LLP 3000.007#6.2 — rule probes and explicit reads both need the expiring source to establish a live aggregate on a device.
+fn aggregate_source_site(schema: &Schema, table: &str, location: &str, sites: &mut Vec<ResidencySite>) {
+    if let Some(maintain) = schema.maintain_for(table)
+        && schema.tables[&maintain.source].expire.is_some() {
+        let index = schema.tables[&maintain.source].indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(&maintain.by)).map(|(name, _)| name.as_str()).unwrap_or("byId");
+        sites.push(site(schema, location, &maintain.source, index, "aggregate source"));
+    }
+}
+
 fn rule_sites(schema: &Schema, rule: &RuleExpr, location: &str, sites: &mut Vec<ResidencySite>, seen: &mut BTreeSet<String>) {
     match rule {
         RuleExpr::Exists { table, index, .. } => {
             sites.push(site(schema, location, table, index, "rule"));
+            aggregate_source_site(schema, table, location, sites);
             if seen.insert(table.clone()) && let Some(table) = schema.tables.get(table) { rule_sites(schema, &table.rules.read, location, sites, seen); }
         }
         RuleExpr::And(rules) | RuleExpr::Or(rules) => for rule in rules { rule_sites(schema, rule, location, sites, seen); },

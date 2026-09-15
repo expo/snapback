@@ -90,10 +90,18 @@ already dedupes a retry for that principal; reuse that write id when retrying.
 A fresh mutation id is a new write, even if an application row id is reused.
 Adding `exists notes[id]` only for retry dedupe costs prediction on a miss
 past the horizon. Keep guards that express an actual application requirement.
+The argument row id and the mutation write id are separate identities:
+retrying the same write id dedupes that mutation for that principal; a new
+write id with the same row id is a different write.
 `require not exists notes[id] else DUPLICATE` on an argument id also gets a
 persistent `N_HORIZON_GUARD` note: remove it only if its purpose is retry dedupe.
+The note is limited to codes with `DUPLICATE`, `RETRY` or `DEDUPE` words;
+`else EVENT_REMOVED` expresses an application invariant and gets no such advice.
 `N_NO_HORIZON` stays silent for a table whose whole partition supplies an
-eligible mutation's reads or insert proof; adding a window would cost prediction.
+eligible mutation's point/exists read, rule probe or insert proof. A rule
+probe against a live aggregate also needs its expiring source without a
+horizon, and that dependency appears in the persistent prediction summary.
+Ordinary pages still get growing-table advice; they do not prove absence.
 
 `why countedPost` identifies the `online only` maintain: opting a maintain
 out of sync makes mutations reading it `predicts: never`. `notifyPost` stays

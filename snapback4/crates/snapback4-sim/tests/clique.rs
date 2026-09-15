@@ -1351,3 +1351,6 @@ fn development_advances_preserve_remaining_effect_lease_time_and_overdue_claims(
         assert_eq!(engine.settle_effect(&effect.id, "service:new", snapback4_core::Settled::Done { result: None }, 302_003).unwrap().state, "sent");
     }
 }
+
+#[test]
+fn w6r1_wired_following_privacy_tombstones_and_broadcast() { following_app::review_server_scenario(); }

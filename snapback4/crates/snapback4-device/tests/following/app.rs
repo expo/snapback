@@ -51,3 +51,28 @@ fn wired<H: crate::common::Host>(mut host: H) {
 fn w6a_wired_following_memory() { wired(Memory::new()); }
 #[test]
 fn w6a_wired_following_sqlite() { wired(Sqlite::new("w6a")); }
+
+#[test]
+fn w6r1_wired_cards_respect_rules_and_horizons_on_both_stores() {
+    fn run<H: crate::common::Host>(host: &mut H) {
+        for mode in ["public", "private", "horizon"] {
+            for celebrity in [false, true] {
+                let bound = app::review_built(mode);
+                let mut engine = snapback4_core::Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
+                app::review_seed(&mut engine, celebrity);
+                let backend = Backend { generation: engine.generation(), schema: bound.schema, programs: bound.programs.into_iter().map(|p| p.program).collect() };
+                for viewer in ["reader", "author"] {
+                    let name = format!("{mode}-{celebrity}-{viewer}");
+                    let mut device = host.open(&name, Some(backend.clone())).unwrap();
+                    for (n, page) in snapshot_pages(&mut engine, viewer, 100).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
+                    let local = device.query("social.following", viewer, &serde_json::json!({}), 100_000).unwrap();
+                    app::review_cards(&local, mode == "private" && viewer == "reader", mode == "horizon");
+                    if mode != "horizon" { assert_eq!(local.data, app::query(&mut engine, viewer).data); }
+                    println!("W6R1 host={} mode={mode} celebrity={celebrity} viewer={viewer}: entries=2 complete={} examined={}", host.label(), local.complete, local.metered.examined);
+                    host.close(&name, device);
+                }
+            }
+        }
+    }
+    run(&mut Sqlite::new("w6r1-cards")); run(&mut Memory::new());
+}

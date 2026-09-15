@@ -19070,3 +19070,432 @@ known Chromium sandbox SIGABRT in `react.test.mjs`; rerunning
 failure is claimed reproduced against the base commit. Reference validation
 passed with 0 errors and 0 unchecked; changed code tops out at **1,448 lines**.
 The tree is left uncommitted, with no push, tag or publication.
+
+## 2026-09-15 — W6R1a: recipe binding safety and precise horizon advice
+
+Built review findings A–E from wave-6 base
+`3bfef6725f2c12b860a81ec866c8560416f85645`. Governing context: LLP 3000
+§6–§7 (the simulator invariants and execution decisions), LLP 3000.007
+§6.2 (site-based residency), §18.1 (wide-merge guidance), §20.3 (Following),
+and §20.5 (insert proofs), under the author's §14 rulings. No core value
+serialization, meter ceiling, existing conformance case, client/caller-id
+file or worker changed. No commit, push, tag or publication was made.
+
+Recipe installation now checks the global references that its syntax walker
+leaves unrenamed, including builtins, against the app's declarations before
+writing. The review's `fn count(value: json <=100000): 0` previously installed
+successfully; now it refuses with the declaration and file. Renaming that
+helper allows installation and restores the 51st-follower promotion/delivery.
+The prefix keeps app `copy` and `deliver` functions separate, proved both by
+calling the app helpers and by running recipe delivery beside zero-returning
+app helpers. Qualified schedule targets are handled as module and operation
+tokens; a declared local operation is renamed, and external targets retain
+their spelling. Empty/nonempty prefixes and qualified/unqualified targets
+are covered. The relationship-driven `N_WIDE_MERGE` and feeds-card adopt
+line now use `snapback4 init --recipe feeds --prefix feed`.
+
+Rule probes into a live aggregate collect its expiring-source dependency,
+using the same collector as explicit aggregate reads. This includes the
+final `after insert <- exists` constraint: a final-review regression was red
+before adding the same dependency there. The source appears in persistent
+prediction summaries and suppresses a horizon recommendation that would
+remove prediction. Whole-partition suppression now includes only point/exists,
+rule/live-aggregate and successful insert-arm sites; an ordinary held page
+still gets growing-table advice. On both stores, a live rule predicts with
+one fully held source row, queues without a row with a one-row source horizon,
+and the server refuses a write after that source expires without a sweep.
+
+For `N_HORIZON_GUARD`, chose to skip application-invariant codes rather than
+infer that a row-id check is redundant. Only underscore-delimited `DUPLICATE`,
+`RETRY` or `DEDUPE` words trigger the advisory. The text explicitly distinguishes
+the argument row id from the mutation write id and still makes removal
+conditional on retry-only intent. `EVENT_REMOVED` receives no such note;
+its ordinary horizon residency remains visible. README, feeds and prediction
+cards explain these decisions. No new diagnostic code was introduced.
+
+The additional wired Following witnesses use the published app-card join
+with public, private and horizon-limited app posts, each before and after
+celebrity promotion. Both stores return null private cards to a non-author;
+the author still reads them. A one-row horizon returns the recent card and
+null for the older card with `complete: false`. Foreign tombstone writes refuse on the server without changing the feed,
+and the author's ordinary removal succeeds; both-store witnesses read
+that same wired schema and server state. The public reference-event metadata remains the
+recipe's explicitly public surface; it does not grant access to private
+app content.
+
+Measurements: installation checks both prefixes (empty and `feed`); **51**
+followers promote the author; **52** pull rows cover the author plus followers;
+a subsequent post writes **1** broadcast entry and delivers **1** entry to
+follower 51 with **3** examined rows. Wired witnesses return **2** entries,
+with **8** examined for pushed delivery and **9** for the broadcast branch,
+on both stores. The private reader receives **0** app cards; the author
+receives **2**. A **1**-row horizon supplies **1** of the **2** app cards and
+reports incomplete. These are deterministic correctness/meter observations,
+not latency or competitor claims. The largest changed code file is **1,356**
+lines (`snapback4-sim/tests/clique.rs`).
+
+### Commands and red/green evidence
+
+Every Cargo command below ran from `snapback4/`. Every JS-bearing command
+used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` first.
+The initial A–E regressions ran over unchanged production sources at the
+base above; the final-exists regression ran before its one-line extension.
+Early test-authoring mistakes (a Rust closure lifetime, a missing test-helper
+qualification, reuse of a device store across distinct backends, and a
+private-sync fixture missing its audience index) were corrected before the
+reported green results; those are not product regressions or baseline claims.
+
+```text
+cargo test -p snapback4-lang --test residency_notes w6r1_ -- --nocapture
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 25 filtered out; finished in 0.00s
+```
+
+```text
+cargo test -p snapback4-lang --test sparse_filter -- --nocapture
+test result: FAILED. 5 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+```
+
+```text
+cargo test -p snapback4 --test init w6r1_ -- --nocapture
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 1.08s
+```
+
+```text
+cargo test -p snapback4-device --test device w6r1_ -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 135 filtered out; finished in 0.00s
+```
+
+```text
+cargo test -p snapback4-lang --test residency_notes --test sparse_filter --test spelling -- --nocapture
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.49s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
+```
+
+```text
+cargo test -p snapback4 --test init -- --nocapture
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.88s
+```
+
+```text
+cargo test -p snapback4-lang --test residency_notes w6r1_final_exists -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.00s
+```
+
+```text
+cargo test -p snapback4-lang --test residency_notes --test sparse_filter --test spelling --test guide -- --nocapture
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.87s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+```
+
+```text
+cargo test -p snapback4 --test init w6r1_ -- --nocapture
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 1.33s
+```
+
+```text
+cargo test -p snapback4-sim --test clique w6r1_ -- --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 56 filtered out; finished in 0.36s
+```
+
+```text
+cargo test -p snapback4-device --test device w6r1_ -- --nocapture
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 135 filtered out; finished in 1.08s
+```
+
+```text
+cargo test -p snapback4-lang --test guide -- --nocapture
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+```
+
+```text
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+```
+
+The first sparse-filter run's failures are B and D; its five passing tests
+include the positive small-merge and renamed-recipe controls. The first init
+run's passing case proves the app `copy`/`deliver` collision allegation does
+not reproduce with a prefix. The final language command reports, in order,
+guide, residency notes, sparse-filter, and spelling suites. The additional
+wired cases were missing coverage, not reproduced product defects; their
+positive/refusal witnesses required no production change.
+
+### Diagnostic texts, verbatim
+
+B, before:
+
+```text
+schema.q:14:1 — N_WIDE_MERGE: query following: read cost grows with the number of related principals (up to 1001 lanes); a read past the 8,192 examined ceiling returns `complete: false`
+  rewrite: keep read-time merges for a bounded small number of related principals; for Following, `snapback4 init --recipe feeds`; measure with `snapback4 test --cost`
+  guide: feeds
+```
+
+B, after:
+
+```text
+schema.q:14:1 — N_WIDE_MERGE: query following: read cost grows with the number of related principals (up to 1001 lanes); a read past the 8,192 examined ceiling returns `complete: false`
+  rewrite: keep read-time merges for a bounded small number of related principals; for Following, `snapback4 init --recipe feeds --prefix feed`; measure with `snapback4 test --cost`
+  guide: feeds
+```
+
+A previously exited 0 with empty stderr. After, for both prefixes:
+
+```text
+init: recipe cannot be installed; no files written
+  fn count in ./snapback/helpers.q:1:1 would shadow the recipe's unrenamed reference `count` in snapback/feed.q
+  rename the app declaration `count` and its callers, then run init again
+```
+
+E, before, for an application invariant:
+
+```text
+schema.q:7:22 — N_HORIZON_GUARD: act: `require not exists tombstones[eventId] else EVENT_REMOVED` reads an argument id past a horizon; the write id already dedupes retries for this principal, and this guard costs offline prediction on a miss
+  rewrite: if this guard only dedupes retries, remove `require not exists tombstones[eventId] else EVENT_REMOVED` and keep the insert; retry with the same mutation write id. A fresh write id is a new write; keep guards that enforce an application requirement
+  guide: prediction
+```
+
+After: no `N_HORIZON_GUARD` for `EVENT_REMOVED`. A retry condition still
+gets the advisory, now with distinct identities:
+
+```text
+schema.q:7:22 — N_HORIZON_GUARD: act: `require not exists tombstones[eventId] else DUPLICATE` reads the argument row id `eventId`, not the mutation write id; a miss past the horizon cannot prove row absence, so this call queues without a predicted row
+  rewrite: if this guard only dedupes retries, remove `require not exists tombstones[eventId] else DUPLICATE` and keep the insert; retry with the same mutation write id for this principal. That id dedupes the mutation, not the argument row id; a new mutation write id with the same row id is a different write. Keep guards that enforce an application requirement
+  guide: prediction
+```
+
+C, before, advice that would remove prediction:
+
+```text
+schema.q:1:1 — N_NO_HORIZON: table sessions: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start
+  rewrite: sync public last 500 by byExpiry
+  guide: sync
+```
+
+After: that note is absent, and adding the horizon is visible persistently:
+
+```text
+1 mutation eligible, but these reads queue without a row past a horizon: act (sessions by byOwner (insert actions rule)) — snapback4 why <op>
+```
+
+The ordinary archive-page control previously had no growing-table note;
+after:
+
+```text
+schema.q:1:1 — N_NO_HORIZON: table archive: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start
+  rewrite: sync public last 500 by byTime
+  guide: sync
+```
+
+### Scope and remaining qualification
+
+All requested production fixes and missing coverage are implemented. The
+extra files outside the narrow ownership list are regression suites:
+`snapback4-lang/tests/sparse_filter.rs`, its one-line sibling expectation in
+`tests/spelling.rs`, the new `tests/fixtures/rule-live-horizon.q`,
+`snapback4-sim/tests/clique.rs` and `tests/common/following_app.rs`, and
+`snapback4-device/tests/following/app.rs` and `tests/maintains/mod.rs`.
+README and this journal are the requested published-surface/report updates.
+No other lane's production files were touched; `bind/program/reads.rs` needed
+no change because `N_SPARSE_FILTER` already carried the prefixed command.
+The work is uncommitted for the lead.
+
+### Full blocking suite and final checks
+
+First run, started before the final-exists extension: Rust totals **980 passed / 0 failed / 4 ignored**, across 62 targets.
+
+```text
+# repository root, Node 24 PATH as above
+bash snapback4/scripts/test.sh
+-- ok: cargo build (2 s)
+-- ok: wasm build (13 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.26s
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.86s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.64s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.38s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.28s
+test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.17s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.53s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.52s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.09s
+test result: ok. 137 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 46.83s
+test result: ok. 90 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 28.08s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.36s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.03s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.70s
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 69.64s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.80s
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.84s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.42s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 56 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 44.50s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.55s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.91s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.98s
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 91.61s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.65s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.86s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.66s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.87s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+-- ok: cargo test (484 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (0 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (8 s)
+ℹ tests 332
+ℹ pass 331
+ℹ fail 1
+-- FAIL: client tests (65 s)
+== 1 failure(s) in 502 s
+   client tests
+```
+
+Final run, including the final-exists extension: Rust totals **981 passed / 0 failed / 4 ignored**, across 62 targets.
+
+```text
+# repository root, Node 24 PATH as above
+bash snapback4/scripts/test.sh
+-- ok: cargo build (3 s)
+-- ok: wasm build (2 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (3 s)
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.16s
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.62s
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.06s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.40s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.88s
+test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.95s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.03s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.56s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+test result: ok. 137 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 37.78s
+test result: ok. 90 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 24.40s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.67s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.70s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 61.74s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.41s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.50s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 56 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 33.86s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.79s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 40.64s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.66s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.80s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.02s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.44s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+-- ok: cargo test (368 s)
+-- ok: chat app typecheck (0 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (9 s)
+ℹ tests 332
+ℹ pass 331
+ℹ fail 1
+-- FAIL: client tests (66 s)
+== 1 failure(s) in 377 s
+   client tests
+```
+
+Both full runs completed all builds and typechecks. Only Chromium's sandbox
+launch `SIGABRT` in `packages/snapback4/test/react.test.mjs` remains, matching
+the environment artifact named in the lane brief; its isolated rerun above
+also aborts. No timing failure or other product failure remains. No failure
+is claimed independently reproduced against untouched base
+`3bfef6725f2c12b860a81ec866c8560416f85645`; the base hash binds the initial
+A–E regression runs, not an invented browser qualification. The lead still
+needs the browser run outside this sandbox. No failed test was skipped or
+weakened, and no ceiling was raised.
+
+`./ref-check --verbose` passed after both full runs and before this append:
+
+```text
+ref-check: ok — 480 LLP docs, 8958 refs in 23752 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passed; reference and whitespace checks are repeated with
+this entry included. The journal is append-only and this is the lane's single
+entry. All intended changes remain uncommitted for the lead.

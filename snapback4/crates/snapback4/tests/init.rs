@@ -379,3 +379,62 @@ fn w6a_prefix_requires_a_recipe_and_a_valid_identifier_before_writing() {
         assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0);
     }
 }
+
+#[test]
+fn w6r1_recipe_refuses_builtin_shadow_before_writing_then_delivers_follower_51() {
+    use snapback4_core::{Context, Engine, Value as QValue, WriteState};
+    for prefix in ["", "feed"] {
+        let dir = Dir::new();
+        fs::create_dir_all(dir.0.join("snapback")).unwrap();
+        fs::write(dir.0.join("snapback/schema.q"), "-- existing app\n").unwrap();
+        let helper = "fn count(value: json <=100000): 0\n";
+        fs::write(dir.0.join("snapback/helpers.q"), helper).unwrap();
+        let flags = if prefix.is_empty() { vec![] } else { vec!["--prefix", prefix] };
+        let refused = recipe(&dir, &flags);
+        assert_eq!(refused.status.code(), Some(1), "{refused:?}");
+        let error = String::from_utf8_lossy(&refused.stderr);
+        println!("{error}");
+        assert!(error.contains("fn count") && error.contains("snapback/helpers.q:1:1") && error.contains("no files written"), "{error}");
+        for name in ["snapback/feed.q", "src/following.ts", ".gitignore"] { assert!(!dir.0.join(name).exists()); }
+        assert_eq!(fs::read_to_string(dir.0.join("snapback/helpers.q")).unwrap(), helper);
+        let mut helper = helper.replace("fn count", "fn appCount");
+        if !prefix.is_empty() { helper.push_str("fn copy(value: json <=100000): 0\nfn deliver(value: json <=100000): 0\n"); }
+        fs::write(dir.0.join("snapback/helpers.q"), &helper).unwrap();
+        let installed = recipe(&dir, &flags);
+        assert!(installed.status.success(), "{installed:?}");
+        let bound = snapback4_lang::compile(&[("helpers.q".into(), helper), ("feed.q".into(), fs::read_to_string(dir.0.join("snapback/feed.q")).unwrap())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+        let name = |n: &str| snapback4_lang::recipe::prefixed_name(prefix, n);
+        let mutate = |engine: &mut Engine, op: &str, viewer: &str, args| {
+            let out = engine.mutate(&format!("feed.{}", name(op)), None, Context::new(viewer, args).at(100)).unwrap();
+            assert!(matches!(out.state, WriteState::Sent { .. }), "{:?}", out.state);
+        };
+        mutate(&mut engine, "register", "author", Default::default());
+        for n in 1..=51 { mutate(&mut engine, "follow", &format!("reader{n:02}"), [("authorId".into(), QValue::Id("author".into()))].into()); }
+        assert_eq!(engine.store().rows(&name("authors")).unwrap()[0].field("shared").unwrap(), &QValue::Bool(true));
+        mutate(&mut engine, "createPost", "author", [("postId".into(), QValue::Id("post51".into()))].into());
+        let read = engine.query(&format!("feed.{}", name("following")), Context::new("reader51", Default::default())).unwrap();
+        assert!(read.complete);
+        assert_eq!(read.data.as_array().unwrap().len(), 1);
+        assert_eq!(read.data.as_array().unwrap()[0].field("postId").unwrap(), &QValue::Id("post51".into()));
+        println!("W6R1 prefix={prefix:?}: followers=51 shared=true broadcast={} delivered51=1 examined={}", engine.store().rows(&name("broadcast")).unwrap().len(), read.metered.examined);
+    }
+}
+
+#[test]
+fn w6r1_prefixed_recipe_keeps_app_copy_and_deliver_helpers() {
+    let dir = Dir::new();
+    fs::create_dir_all(dir.0.join("snapback")).unwrap();
+    let source = "fn copy(value: int): value + 10\nfn deliver(value: int): value + 20\nquery helpers():\n  return { copy: copy(1), deliver: deliver(1) }\n";
+    fs::write(dir.0.join("snapback/schema.q"), source).unwrap();
+    let output = recipe(&dir, &["--prefix", "feed"]);
+    assert!(output.status.success(), "{output:?}");
+    let feed = fs::read_to_string(dir.0.join("snapback/feed.q")).unwrap();
+    assert!(feed.contains("feedCopy(p, viewer, true)") && feed.contains("feedDeliver(p)"));
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into()), ("feed.q".into(), feed)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = snapback4_core::Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    let read = engine.query("helpers", snapback4_core::Context::new("alice", Default::default())).unwrap();
+    assert_eq!(snapback4_core::wire::to_json(&read.data), json!({"copy":11,"deliver":21}));
+}

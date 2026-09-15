@@ -114,3 +114,64 @@ pub fn server_scenario() {
     }
     println!("W6a server: 505 bridged edges, 526 app cards, 2 idempotent reposts, 3 removed events hidden before purge");
 }
+
+// Review witnesses keep the published app-card join while varying only its
+// declared visibility/acquisition. Reference events never grant card access.
+pub fn review_built(mode: &str) -> snapback4_lang::Bound {
+    let mut source = app();
+    if mode == "private" {
+        source = source.replacen("  cap 60000", "  by byAuthorId: authorId, id\n  cap 60000", 1).replace("public 'app post cards are public'", "read <- .authorId = viewer").replacen("sync public", "sync to .authorId", 1);
+    } else if mode == "horizon" {
+        source = source.replacen("  cap 60000", "  by byTime: at, id\n  cap 60000", 1).replacen("sync public", "sync public last 1 by byTime", 1);
+    }
+    source.push_str("\nmutation forge(eventId: id):\n  insert feedRemovedEvents { id: eventId, eventId, actorId: viewer }\n");
+    let bound = snapback4_lang::compile(&[("feed.q".into(), snapback4_lang::recipe::following("feed", "feed").unwrap()), ("social.q".into(), source)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    bound
+}
+
+pub fn review_seed(engine: &mut Engine, celebrity: bool) {
+    for viewer in ["author", "reader"] { mutate(engine, "register", viewer, &[], 1); }
+    mutate(engine, "follow", "reader", &[("authorId", id("author"))], 2);
+    mutate(engine, "createPost", "author", &[("postId", id("old")), ("body", Value::String("old private body".into()))], 3);
+    if celebrity {
+        for n in 0..50 { mutate(engine, "follow", &format!("reader{n:02}"), &[("authorId", id("author"))], 4); }
+        assert_eq!(engine.store().rows("feedAuthors").unwrap().iter().find(|r| r.field("principal") == Ok(&id("author"))).unwrap().field("shared").unwrap(), &Value::Bool(true));
+        assert_eq!(engine.store().rows("feedPulls").unwrap().len(), 52);
+    }
+    mutate(engine, "createPost", "author", &[("postId", id("new")), ("body", Value::String("new private body".into()))], 5);
+    assert_eq!(engine.store().rows("feedBroadcast").unwrap().len(), usize::from(celebrity));
+    let before = query(engine, "reader");
+    let refused = engine.mutate("social.forge", None, context("reader", &[("eventId", id("new"))])).unwrap();
+    assert!(matches!(refused.state, WriteState::Failed { .. }), "{:?}", refused.state);
+    assert!(engine.store().rows("feedRemovedEvents").unwrap().is_empty());
+    assert_eq!(query(engine, "reader").data, before.data);
+}
+
+pub fn review_cards(page: &QueryOutcome, private: bool, horizon: bool) {
+    assert_eq!(page.complete, !horizon, "{page:?}");
+    let entries = page.data.as_array().unwrap();
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0].field("postId").unwrap(), &id("new"));
+    assert_eq!(entries[1].field("postId").unwrap(), &id("old"));
+    for (n, entry) in entries.iter().enumerate() {
+        let card = entry.field("post").unwrap();
+        if private || (horizon && n == 1) { assert_eq!(card, &Value::Null); }
+        else { assert_eq!(card.field("body").unwrap(), &Value::String(format!("{} private body", if n == 0 { "new" } else { "old" }))); }
+    }
+}
+
+pub fn review_server_scenario() {
+    for mode in ["public", "private", "horizon"] {
+        for celebrity in [false, true] {
+            let bound = review_built(mode);
+            let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+            review_seed(&mut engine, celebrity);
+            for viewer in ["reader", "author"] { review_cards(&query(&mut engine, viewer), mode == "private" && viewer == "reader", false); }
+            if celebrity { review_cards(&query(&mut engine, "reader49"), mode == "private", false); }
+            mutate(&mut engine, "deletePost", "author", &[("postId", id("new"))], 6);
+            assert_eq!(query(&mut engine, "reader").data.as_array().unwrap().len(), 1);
+            println!("W6R1 server mode={mode} celebrity={celebrity}: feed_rows=2 foreign_tombstone_refused=1 owned_removal=1");
+        }
+    }
+}

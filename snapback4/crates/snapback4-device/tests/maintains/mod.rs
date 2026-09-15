@@ -130,3 +130,34 @@ mutation leave(room: text <=30):
 }
 
 mod review;
+
+#[test]
+fn w6r1_rule_live_aggregate_prediction_on_both_stores() {
+    fn run<H: Host>(host: &mut H) {
+        let source = include_str!("../../../snapback4-lang/tests/fixtures/rule-live-horizon.q");
+        for horizon in [false, true] {
+            let source = if horizon { source.replacen("sync public", "sync public last 1 by byExpiry", 1) } else { source.into() };
+            let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+            assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+            assert!(bound.schema.operations["act"].sites.iter().any(|s| s.table == "sessions" && s.kind == "aggregate source"));
+            let (mut server, backend) = compile(&source);
+            server.seed([("sessions".into(), snapback4_core::value::object([("id", Value::Id("s".into())), ("owner", Value::Id("bob".into())), ("expiresAt", Value::Int(1000))]))]).unwrap();
+            let name = if horizon { "rule-live-horizon" } else { "rule-live-whole" };
+            let mut device = host.open(name, Some(backend)).unwrap();
+            for (i, page) in crate::snapshot_pages_at(&mut server, "bob", 100, 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+            let before = server.seq().unwrap();
+            let queued = device.admit(Queued { id:"act-write".into(), seq:1, op:"act".into(), args:json!({}), viewer:"bob".into(), now:100, new_ids:vec!["action".into()], predicted:vec![], predictable:true, sent_seq:None, observed_seq:None }).unwrap();
+            assert_eq!(queued.predictable, !horizon, "{queued:?}");
+            assert_eq!(queued.predicted.is_empty(), horizon);
+            let out = server.mutate("act", Some("act-write"), Context::new("bob", Default::default()).at(100).with_ids(["action".into()])).unwrap();
+            assert!(matches!(out.state, WriteState::Sent { .. }));
+            device.apply(&stream_page(&mut server, "bob", before), false).unwrap();
+            // An unswept aggregate row cannot authorize a write after its only source expires.
+            let expired = server.mutate("act", Some("expired"), Context::new("bob", Default::default()).at(1000).with_ids(["late".into()])).unwrap();
+            assert!(matches!(expired.state, WriteState::Failed { .. }));
+            println!("W6R1 host={} live rule horizon={horizon} source_rows=1 predicted={} confirmed=1 expired_refused=1", host.label(), !horizon);
+            host.close(name, device);
+        }
+    }
+    run(&mut Sqlite::new("w6r1-live")); run(&mut Memory::new());
+}

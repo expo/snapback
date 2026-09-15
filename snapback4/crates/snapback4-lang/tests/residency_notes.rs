@@ -451,7 +451,7 @@ fn horizon_calibration_advice_preserves_prediction_and_groups_sites() {
     assert!(!search.rewrite.contains("feed"));
     assert!(search.rewrite.contains("snapback4 test --cost"));
     let guard = b.notes.iter().find(|n| n.code == "N_HORIZON_GUARD").unwrap();
-    assert_eq!(guard.to_string(), "chat.q:83:22 — N_HORIZON_GUARD: chat.send: `require not exists messages[messageId] else DUPLICATE` reads an argument id past a horizon; the write id already dedupes retries for this principal, and this guard costs offline prediction on a miss\n  rewrite: if this guard only dedupes retries, remove `require not exists messages[messageId] else DUPLICATE` and keep the insert; retry with the same mutation write id. A fresh write id is a new write; keep guards that enforce an application requirement\n  guide: prediction");
+    assert_eq!(guard.to_string(), "chat.q:83:22 — N_HORIZON_GUARD: chat.send: `require not exists messages[messageId] else DUPLICATE` reads the argument row id `messageId`, not the mutation write id; a miss past the horizon cannot prove row absence, so this call queues without a predicted row\n  rewrite: if this guard only dedupes retries, remove `require not exists messages[messageId] else DUPLICATE` and keep the insert; retry with the same mutation write id for this principal. That id dedupes the mutation, not the argument row id; a new mutation write id with the same row id is a different write. Keep guards that enforce an application requirement\n  guide: prediction");
     assert!(!guard.mechanical, "a guard may be an application requirement");
     assert_eq!(b.notes.len(), 4);
     for name in ["chat.react", "chat.acceptIntent", "chat.recordSent"] { assert_eq!(b.schema.operations[name].predicts.as_deref(), Some("eligible")); }
@@ -459,4 +459,59 @@ fn horizon_calibration_advice_preserves_prediction_and_groups_sites() {
     let server = horizon_fixture(&HORIZONS.replace("mutation react(conversationId: id, messageId: id):", "mutation react(conversationId: id, messageId: id): server")
         .replace("mutation acceptIntent(key: id):", "mutation acceptIntent(key: id): server").replace("mutation recordSent(key: id):", "mutation recordSent(key: id): server"));
     assert_eq!(server.notes.iter().filter(|n| n.code == "N_NO_HORIZON").count(), 4);
+}
+
+#[test]
+fn w6r1_rule_live_aggregate_keeps_source_coverage_and_summary() {
+    use snapback4_lang::bind::residency::{operation_lines, prediction_summary};
+    let source = include_str!("fixtures/rule-live-horizon.q");
+    let b = clean(source);
+    for note in &b.notes { println!("{note}"); }
+    assert!(!b.notes.iter().any(|n| n.code == "N_NO_HORIZON" && n.message.starts_with("table sessions:")));
+    let sites = &b.schema.operations["act"].sites;
+    assert!(sites.iter().any(|s| s.table == "sessions" && s.kind == "aggregate source" && s.class == snapback4_core::schema::SiteClass::Held));
+    let b = clean(&source.replacen("sync public", "sync public last 1 by byExpiry", 1));
+    let summary = prediction_summary(&b).unwrap();
+    println!("{summary}\n{}", operation_lines("act", &b.schema.operations["act"]));
+    assert!(summary.contains("sessions by byOwner"), "{summary}");
+    assert!(operation_lines("act", &b.schema.operations["act"]).lines().next().unwrap().contains("sessions by byOwner"));
+}
+
+#[test]
+fn w6r1_ordinary_mutation_page_keeps_growing_table_advice() {
+    let source = "table archive:\n  at: time\n  by byTime: at, id\n  public 'archive'\n  sync public\nmutation page():\n  return archive last 20 by byTime\n";
+    let b = clean(source);
+    assert_eq!(b.schema.operations["page"].predicts.as_deref(), Some("eligible"));
+    let note = b.notes.iter().find(|n| n.code == "N_NO_HORIZON").expect("a page needs no whole-partition proof");
+    println!("{note}");
+    assert_eq!(note.rewrite, "sync public last 500 by byTime");
+    let bounded = clean(&source.replace("sync public", &note.rewrite));
+    assert_eq!(bounded.schema.operations["page"].predicts.as_deref(), Some("eligible"));
+    assert!(!bounded.notes.iter().any(|n| n.code == "N_NO_HORIZON"));
+}
+
+#[test]
+fn w6r1_horizon_guard_distinguishes_row_invariants_from_write_retries() {
+    let source = "table tombstones:\n  at: time\n  by byTime: at, id\n  public 'tombstones'\n  sync public last 20 by byTime\nmutation act(eventId: tombstones):\n  require not exists tombstones[eventId] else EVENT_REMOVED\n  return null\n";
+    for code in ["EVENT_REMOVED", "DUPLICATE", "RETRY"] {
+        let b = clean(&source.replace("EVENT_REMOVED", code));
+        let note = b.notes.iter().find(|n| n.code == "N_HORIZON_GUARD");
+        if let Some(note) = note { println!("{note}"); }
+        assert_eq!(note.is_some(), code != "EVENT_REMOVED");
+        if let Some(note) = note {
+            assert!(note.message.contains("argument row id `eventId`, not the mutation write id"));
+            assert!(note.rewrite.contains("a new mutation write id with the same row id is a different write"));
+        }
+        assert_eq!(b.schema.operations["act"].predicts.as_deref(), Some("eligible"));
+    }
+}
+
+#[test]
+fn w6r1_final_exists_live_aggregate_also_keeps_source_coverage() {
+    let source = include_str!("fixtures/rule-live-horizon.q").replace("insert <- exists liveCounts[.owner]", "insert <- allow\n  after insert <- exists liveCounts[.owner]");
+    let b = clean(&source);
+    assert!(!b.notes.iter().any(|n| n.code == "N_NO_HORIZON" && n.message.starts_with("table sessions:")));
+    assert!(b.schema.operations["act"].sites.iter().any(|s| s.table == "sessions" && s.kind == "aggregate source"));
+    let bounded = clean(&source.replacen("sync public", "sync public last 1 by byExpiry", 1));
+    assert!(snapback4_lang::bind::residency::prediction_summary(&bounded).unwrap().contains("sessions by byOwner (after insert)"));
 }

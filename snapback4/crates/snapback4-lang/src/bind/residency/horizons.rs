@@ -11,17 +11,18 @@ pub(super) fn reads(fact: &Execution) -> Vec<String> {
         }).collect::<BTreeSet<_>>().into_iter().collect()
 }
 
-// A held read (including a guard or rule probe) or a successful insert proof
-// depends on full coverage. Do not recommend a window that removes it.
+// Point/exists reads, live aggregates and successful insert proofs need
+// whole coverage on a miss. Ordinary pages do not establish absence.
 pub(in crate::bind) fn needs_whole_partition(schema: &Schema, name: &str) -> bool {
     schema.operations.values().any(|fact| fact.predicts.as_deref() == Some("eligible") && fact.sites.iter().any(|site|
-        site.table == name && site.class == SiteClass::Held && !inserts::blocked(site) && site.kind != "write target"))
+        site.table == name && site.class == SiteClass::Held && matches!(site.kind.as_str(), "point" | "rule" | "aggregate source" | "upsert insert" | "insert if absent")))
 }
 
 pub(in crate::bind) fn guard_notes(schema: &Schema, programs: &[super::super::BoundProgram]) -> Vec<Diagnostic> {
     let mut notes = Vec::new();
     for bound in programs.iter().filter(|bound| bound.program.kind == ProgramKind::Mutation) {
         guards(&bound.program.body, &mut |condition, code| {
+            if !code.split('_').any(|word| matches!(word, "DUPLICATE" | "RETRY" | "DEDUPE")) { return; }
             let Expr::Unary { op: ir::UnaryOp::Not, value } = condition else { return };
             let Expr::Exists(read) = value.as_ref() else { return };
             let [Expr::Variable(arg)] = read.key.as_slice() else { return };
@@ -30,8 +31,8 @@ pub(in crate::bind) fn guard_notes(schema: &Schema, programs: &[super::super::Bo
             let Some((location, spelling)) = bound.sources.get(&read.site) else { return };
             let guard = format!("require not exists {spelling} else {code}");
             notes.push(Diagnostic::new(location, "N_HORIZON_GUARD",
-                format!("{}: `{guard}` reads an argument id past a horizon; the write id already dedupes retries for this principal, and this guard costs offline prediction on a miss", bound.program.name),
-                format!("if this guard only dedupes retries, remove `{guard}` and keep the insert; retry with the same mutation write id. A fresh write id is a new write; keep guards that enforce an application requirement"))
+                format!("{}: `{guard}` reads the argument row id `{arg}`, not the mutation write id; a miss past the horizon cannot prove row absence, so this call queues without a predicted row", bound.program.name),
+                format!("if this guard only dedupes retries, remove `{guard}` and keep the insert; retry with the same mutation write id for this principal. That id dedupes the mutation, not the argument row id; a new mutation write id with the same row id is a different write. Keep guards that enforce an application requirement"))
                 .guide("prediction"));
         });
     }
