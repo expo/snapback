@@ -62,11 +62,15 @@ function project(t, source, entry) {
     const args = serve ? ["serve", release, "--port", "0", "--worker", entryPath] : ["dev", "--port", "0", ...(watch ? [] : ["--no-watch"])];
     const child = spawn(binary, args, { cwd: directory, env: { ...process.env, SNAPBACK_NODE: NODE, ...env }, stdio: ["ignore", "pipe", "pipe"] });
     let log = "", url, exited = false, spawnError;
+    const output = { stdout: [], stderr: [] };
     const done = new Promise(resolve => { child.once("exit", () => { exited = true; resolve(); }); child.once("error", error => { spawnError = error; exited = true; resolve(); }); });
-    for (const stream of [child.stdout, child.stderr]) stream.on("data", bytes => { log += bytes; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+    for (const [name, stream] of [["stdout", child.stdout], ["stderr", child.stderr]]) stream.on("data", bytes => {
+      output[name].push(Buffer.from(bytes)); log += bytes; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];
+    });
     let stopping;
     const host = {
       child, release, log: () => safe(log),
+      rawOutput: () => ({ stdout: Buffer.concat(output.stdout), stderr: Buffer.concat(output.stderr) }),
       stop() {
         return stopping ??= (async () => {
           if (exited) return;
@@ -96,11 +100,11 @@ function project(t, source, entry) {
       return { status: response.status, ...await response.json() };
     };
     const call = (name, id, args = {}, credential) => post(`/a/${name}?wait=0`, { id, args }, credential);
-    const collect = (name, id, args = {}, credential) => until(async () => {
+    const collect = (name, id, args = {}, credential, diagnostics = host.log) => until(async () => {
       const value = await call(name, id, args, credential);
       if (value.denied) throw Error(JSON.stringify(value));
       return value.state === "pending" ? undefined : value;
-    }, `action ${name}/${id} settling`, 15_000, host.log);
+    }, `action ${name}/${id} settling`, 15_000, diagnostics);
     return Object.assign(host, { url, token, post, call, collect, command });
   }
   return { directory, command, checked, start, writeEntry(text) { writeFileSync(join(directory, "snapback/server.ts"), text); } };
@@ -226,20 +230,22 @@ export default worker; await worker.done;
   await accepted(() => writeFileSync(baseConfig, "{}\n"), "resolved");
 });
 
-test("dev discovers generated server handlers, preserves read/write receipts and scopes and redacts secrets", { timeout: 25_000 }, async t => {
-  const secret = "a2-test-secret-crosses-the-pipe-boundary";
+test("dev discovers generated server handlers, preserves read/write receipts and scopes and redacts secrets", { timeout: 60_000 }, async t => {
+  // Longer than the supervisor redactor's 4096-byte read buffer: even
+  // coalesced child writes must cross actual reader boundaries. Any leaked
+  // byte is detectable, not only a contiguous copy of the complete secret.
+  const secret = "\u001f".repeat(8193);
   const p = project(t, `${notes}
 action inspect(body: text <=200) returns { detail: json <=12000 } secrets [MAIL_KEY]
 action other() returns {} secrets [OTHER_KEY]
+action logSecret(sink: enum('stdout', 'stderr')) returns {} secrets [MAIL_KEY]
 `, `${imports}
-async function splitLog(stream: NodeJS.WriteStream, prefix: string) {
-  const value = process.env.MAIL_KEY!;
-  stream.write(prefix + value.slice(0, 11)); await delay(20);
-  stream.write(value.slice(11, 24)); await delay(20);
-  stream.write(value.slice(24) + ":end\\n");
+async function splitLog(stream: NodeJS.WriteStream, sink: string, value: string) {
+  const write = (text: string) => new Promise<void>((resolve, reject) => stream.write(text, error => error ? reject(error) : resolve()));
+  await write("[redaction:" + sink + ":begin]\\n" + value.slice(0, 11)); await delay(20);
+  await write(value.slice(11, 24)); await delay(20);
+  await write(value.slice(24) + "\\n[redaction:" + sink + ":end]\\n");
 }
-await splitLog(process.stdout, "stdout-secret:");
-await splitLog(process.stderr, "stderr-secret:");
 const worker = server({actions:{
   async inspect({body}, ctx) {
     const id = ctx.writeIdFor("save");
@@ -249,7 +255,8 @@ const worker = server({actions:{
     return {detail:{principal:ctx.principal, first, replay, read, secrets:Object.keys(ctx.secrets), frozen:Object.isFrozen(ctx.secrets), own:Object.getPrototypeOf(ctx.secrets) === null, unrelated:process.env.A2_PARENT_ONLY ?? null}};
   },
   async other() { return {}; },
-}}, ${options});
+  async logSecret({sink}, ctx) { await splitLog(process[sink], sink, ctx.secrets.MAIL_KEY); return {}; },
+}}, {...${options}, lease:30});
 export default worker;
 await worker.done;
 `);
@@ -265,7 +272,39 @@ await worker.done;
   assert.equal(detail.read.fresh, true); assert.equal(typeof detail.read.complete, "boolean"); assert.equal(Object.hasOwn(detail.read, "cut"), true);
   assert.equal(detail.read.data.length, 1); assert.equal(detail.read.data[0].owner, "dev:alice");
   assert.deepEqual((await f.post("/q/mine", { args: {} }, f.token)).data, []);
-  await until(() => f.log().includes("stdout-secret:[REDACTED]:end") && f.log().includes("stderr-secret:[REDACTED]:end"), "both split log streams redacted");
+
+  const markers = sink => ({ begin: `[redaction:${sink}:begin]`, end: `[redaction:${sink}:end]` });
+  const diagnostics = () => JSON.stringify(Object.fromEntries(Object.entries(f.rawOutput()).map(([name, bytes]) => {
+    const text = bytes.toString("utf8");
+    return [name, { bytes: bytes.length, secretByte: bytes.includes(0x1f), escapedSecretByte: /\\u001f/i.test(text),
+      redactions: text.split("[REDACTED]").length - 1,
+      markers: Object.fromEntries(["stdout", "stderr"].map(sink => [sink, {begin:text.indexOf(markers(sink).begin), end:text.indexOf(markers(sink).end)}])),
+      text: safe(text).replace(/\u001f+/g, value => `<SECRET-BYTES:${value.length}>`)
+        .replace(/(?:\\u001f)+/gi, value => `<SECRET-ESCAPES:${value.length / 6}>`)
+        .replaceAll("other-declared-secret", "<OTHER-SECRET>").replaceAll("must-not-reach-child", "<PARENT-ENV>"),
+    }];
+  })), null, 2);
+  const noLeaks = () => {
+    for (const bytes of Object.values(f.rawOutput())) {
+      assert.equal(bytes.includes(0x1f), false, diagnostics());
+      assert.equal(/\\u001f/i.test(bytes.toString("utf8")), false, diagnostics());
+    }
+  };
+  // Both child pipes feed supervisor stderr. Their chunk writes can interleave,
+  // so adjacency in the parent's merged log was an invalid assumption. Request
+  // only one emitting action at a time, then observe its END through that pipe
+  // before starting the next. Startup and normal receipt checks already passed.
+  for (const sink of ["stdout", "stderr"]) {
+    const logged = await f.collect("logSecret", `log-${sink}`, {sink}, undefined, diagnostics);
+    assert.equal(logged.state, "done", diagnostics());
+    const {begin, end} = markers(sink);
+    await until(() => f.rawOutput().stderr.includes(end), `${sink} redaction END observed`, 10_000, diagnostics);
+    const text = f.rawOutput().stderr.toString("utf8"), start = text.indexOf(begin), finish = text.indexOf(end);
+    assert.ok(start >= 0 && finish > start, diagnostics());
+    assert.equal(text.split(begin).length - 1, 1, diagnostics()); assert.equal(text.split(end).length - 1, 1, diagnostics());
+    assert.equal(text.slice(start + begin.length, finish).split("[REDACTED]").length - 1, 1, diagnostics());
+    noLeaks();
+  }
   assert.equal(f.log().includes(secret), false); assert.equal(f.log().includes("must-not-reach-child"), false);
   assert.doesNotMatch(f.log(), /token \(printed once\)/);
 });
