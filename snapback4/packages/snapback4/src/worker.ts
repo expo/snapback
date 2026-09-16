@@ -42,6 +42,10 @@ export interface ActionMeta {
   readonly principal: string;
   readonly attempt: number;
   readonly at: number;
+  /** Generated action contract identity. Older hand-written workers may ignore it. */
+  readonly contract?: string;
+  /** Absolute epoch milliseconds, or no operation deadline. */
+  readonly deadline?: number | null;
   /** Pass to createClient({ url, session: meta.session }); reads and writes
    * run under this request's viewer. It cannot refresh and dies with the lease. */
   readonly session: Session;
@@ -73,6 +77,8 @@ export interface WorkerOptions {
   /** Stops the loop when aborted. */
   readonly signal?: AbortSignal;
   readonly onError?: (error: unknown) => void;
+  /** Sanitize error text before logging or recording failed work. */
+  readonly redact?: (message: string) => string;
 }
 
 export interface Worker {
@@ -101,7 +107,10 @@ export function runWorker(options: WorkerOptions): Worker {
   if (options.signal?.aborted) stop.abort();
   else options.signal?.addEventListener("abort", abort, { once: true });
   let principal: string | null = null;
-  const report = options.onError ?? ((error: unknown) => console.error("snapback4 worker:", error));
+  const rawReport = options.onError ?? ((error: unknown) => console.error("snapback4 worker:", error));
+  const redact = options.redact ?? ((message: string) => message);
+  const message = (error: unknown) => redact(error instanceof Error ? error.message : String(error));
+  const report = (error: unknown) => rawReport(options.redact ? new Error(message(error)) : error);
   const post = async (path: string, body: unknown, lease?: string): Promise<unknown> => {
     const response = await doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(lease ? { "x-snapback-action-lease": lease } : {}) }, body: JSON.stringify(body), signal: stop.signal });
     return response.json();
@@ -115,13 +124,13 @@ export function runWorker(options: WorkerOptions): Worker {
       const queued = `effect ${effect.id} is queued and not claimed by this worker; claim it first`;
       // Match the server's complete queued refusal, never a substring or
       // a later listing that could describe another attempt. Unknown stays loud.
-      if (reply.denied.message === queued || reply.denied.message === `E_EFFECT_LEASE: ${queued}`) console.info(`snapback4 worker: ${message}; the effect was requeued`);
+      if (reply.denied.message === queued || reply.denied.message === `E_EFFECT_LEASE: ${queued}`) console.info(redact(`snapback4 worker: ${message}; the effect was requeued`));
       else report(new Error(message));
     } else if (reply.denied) report(new Error(`${reply.denied.code}: ${reply.denied.message}`));
     return !reply.denied;
   };
   const perform = async (effect: Effect) => {
-    const handler = effects[effect.effect] as EffectHandler | undefined;
+    const handler = Object.hasOwn(effects, effect.effect) ? effects[effect.effect] as EffectHandler | undefined : undefined;
     const meta: EffectMeta = { id: effect.id, effect: effect.effect, attempt: effect.attempt, seq: effect.seq, at: effect.at, worker: principal ?? "" };
     if (!handler) {
       await settle(effect, { error: `this worker has no handler for ${effect.effect}`, retry: false });
@@ -131,23 +140,26 @@ export function runWorker(options: WorkerOptions): Worker {
       const result = await handler(effect.payload as never, meta);
       await settle(effect, { result: result === undefined ? null : result });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
       let recorded = false;
-      try { recorded = await settle(effect, { error: message, retry: !(error instanceof GiveUp) }); }
+      try { recorded = await settle(effect, { error: message(error), retry: !(error instanceof GiveUp) }); }
       finally { if (!recorded) report(error); }
     }
   };
   const performAction = async (request: ActionRequest) => {
     const { args, ...meta } = request;
-    const handler = actions[request.action] as ActionHandler | undefined;
-    let outcome: { result: unknown } | { error: string; retry: boolean };
+    const handler = Object.hasOwn(actions, request.action) ? actions[request.action] as ActionHandler | undefined : undefined;
+    const actionMessage = (error: unknown) => message(error).split(request.session.token).join("[REDACTED]");
+    let outcome: { result: unknown } | { error: string; retry: boolean; code?: string };
     try {
       if (!handler) throw new GiveUp(`this worker has no handler for ${request.action}`);
       outcome = { result: (await handler(args, meta)) ?? null };
-    } catch (error) { outcome = { error: error instanceof Error ? error.message : String(error), retry: !(error instanceof GiveUp) }; }
+    } catch (error) {
+      const code = error instanceof GiveUp ? (error as { refusal?: Refusal }).refusal?.code : undefined;
+      outcome = { error: actionMessage(error), retry: !(error instanceof GiveUp), ...(code ? { code } : {}) };
+    }
     if ("result" in outcome) {
       try { JSON.stringify(outcome); }
-      catch (error) { outcome = { error: error instanceof Error ? error.message : String(error), retry: false }; }
+      catch (error) { outcome = { error: actionMessage(error), retry: false }; }
     }
     const settle = async (value: typeof outcome) => {
       const reply = await post(`/actions/${encodeURIComponent(request.id)}/${"result" in value ? "done" : "failed"}`, value, request.session.token) as { denied?: Refusal };
@@ -159,8 +171,9 @@ export function runWorker(options: WorkerOptions): Worker {
       // leaves the lease to expire, never re-executes a settled action here.
       const why = (error as { refusal?: Refusal }).refusal;
       if ("result" in outcome && (why?.code === "E_BOUND" || why?.code === "E_INPUT")) {
-        await settle({ error: error instanceof Error ? error.message : String(error), retry: false });
-      } else throw error;
+        try { await settle({ error: actionMessage(error), retry: false }); }
+        catch (error) { throw new Error(actionMessage(error)); }
+      } else throw new Error(actionMessage(error));
     }
   };
   const pause = () => new Promise<void>((resolve) => {
