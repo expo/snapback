@@ -86,7 +86,9 @@ export function startServer(manifest: ServerManifest, handlers: ServerHandlers, 
       const scopedRedact = (message: string) => redact(message.split(meta.session.token).join("[REDACTED]"));
       const lifetime = context(meta, Object.freeze(secrets), { ...options, url, token }, scopedRedact);
       try {
+        lifetime.context.invocation.signal.throwIfAborted();
         const result = await handler(args, lifetime.context as never);
+        lifetime.context.invocation.signal.throwIfAborted();
         return JSON.parse(strictJson(result, "E_ACTION_RESULT")) as unknown;
       } finally { await lifetime.close(); }
     };

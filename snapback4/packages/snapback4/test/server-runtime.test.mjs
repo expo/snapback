@@ -330,8 +330,16 @@ test("a deadline aborts cooperatively without waiting for status polling", async
     assert.equal(ctx.invocation.cancelled, false);
     return { code: (await ctx.query(query("late"), {})).denied.code };
   }, { claim: { deadline: Date.now() + 25 }, statusIntervalMs: 1000 });
-  assert.deepEqual(result.settled.body, { result: { code: "E_ACTION_DEADLINE" } });
+  assert.equal(result.settled.body.code, "E_ACTION_DEADLINE");
+  assert.equal(result.settled.body.retry, false);
   assert.equal(result.requests.some(r => r.path.endsWith("/status")), false);
+});
+
+test("a claim past its deadline never enters the handler", async () => {
+  let calls = 0;
+  const result = await invoke(() => { calls++; return null; }, { claim: { deadline: Date.now() - 1 } });
+  assert.equal(calls, 0);
+  assert.equal(result.settled.body.code, "E_ACTION_DEADLINE");
 });
 
 test("lease refusal from status aborts context authority", async () => {
@@ -339,7 +347,20 @@ test("lease refusal from status aborts context authority", async () => {
     await new Promise(resolve => ctx.invocation.signal.addEventListener("abort", resolve, { once: true }));
     return { code: (await ctx.query(query("late"), {})).denied.code };
   }, { wire(path) { if (path.endsWith("/status")) return { denied: { code: "E_ACTION_LEASE", family: "action", message: "lease lost" } }; } });
-  assert.deepEqual(result.settled.body, { result: { code: "E_ACTION_LEASE" } });
+  assert.equal(result.settled.body.code, "E_ACTION_LEASE");
+  assert.equal(result.settled.body.retry, false);
+});
+
+test("unreachable status aborts the context with a retryable outcome", async () => {
+  const result = await invoke(async (_, ctx) => {
+    await new Promise(resolve => ctx.invocation.signal.addEventListener("abort", resolve, { once: true }));
+    const read = await ctx.query(query("late"), {});
+    assert.equal(read.denied.code, "E_OFFLINE");
+    assert.equal(read.denied.retryable, true);
+    throw ctx.invocation.signal.reason;
+  }, { wire(path) { if (path.endsWith("/status")) throw Error("status transport lost"); } });
+  assert.equal(result.settled.body.retry, true);
+  assert.equal(result.requests.some(r => r.path.startsWith("/q/")), false);
 });
 
 test("handler completion aborts a hung status fetch and closes retained contexts", async () => {

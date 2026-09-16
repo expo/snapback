@@ -40,7 +40,7 @@ export function context(
     cancelled = why.code === "E_ACTION_CANCELLED";
     if (pollTimer) clearTimeout(pollTimer);
     if (deadlineTimer) clearTimeout(deadlineTimer);
-    lifetime.abort(new ServerError(why.code, why.message, why.family));
+    lifetime.abort(why.retryable ? new Retry(`${why.code}: ${why.message}`) : new ServerError(why.code, why.message, why.family));
     void client.close();
   };
   const refusal = (): Refusal | undefined => {
