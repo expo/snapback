@@ -1068,7 +1068,7 @@ fn actions_retry_backoff_give_up_and_the_eighth_expired_lease_are_terminal() {
 }
 
 #[test]
-fn actions_durable_replay_survives_reopen_and_result_bounds_keep_the_lease() {
+fn actions_durable_replay_survives_reopen_and_result_bounds_are_terminal() {
     use snapback4_core::{Store, engine::actions::ActionSettled};
     let path = std::env::temp_dir().join(format!("sb4-action-{}-{}", std::process::id(), snapback4_core::now_ms()));
     std::fs::create_dir_all(&path).unwrap();
@@ -1080,13 +1080,13 @@ fn actions_durable_replay_survives_reopen_and_result_bounds_keep_the_lease() {
     let mut engine = Engine::open(Store::open(&file).unwrap()).unwrap();
     let claim = engine.claim_actions("service:worker", None, 1, 60_000, 60, 1).unwrap().remove(0);
     let huge = serde_json::json!("x".repeat(snapback4_core::Ceilings::default().output_bytes as usize));
-    assert_eq!(engine.settle_action("durable", "service:worker", &claim.session.token, ActionSettled::Done(huge), 2).unwrap_err().code(), "E_BOUND");
-    engine.settle_action("durable", "service:worker", &claim.session.token, ActionSettled::Done(serde_json::json!({ "ok": true })), 3).unwrap();
+    assert_eq!(engine.settle_action("durable", "service:worker", &claim.session.token, ActionSettled::Done(huge), 2).unwrap().error_code.as_deref(), Some("E_ACTION_RESULT"));
+    assert_eq!(engine.settle_action("durable", "service:worker", &claim.session.token, ActionSettled::Done(serde_json::json!({ "ok": true })), 3).unwrap_err().code(), "E_ACTION_LEASE");
     drop(engine);
     let mut engine = Engine::open(Store::open(&file).unwrap()).unwrap();
     let (run, replayed) = engine.request_action("invite", "durable", action_context("dev:alice", 4)).unwrap();
     assert!(replayed);
-    assert_eq!(run.result.unwrap(), serde_json::json!({ "ok": true }));
+    assert!(run.result.is_none()); assert_eq!(run.error_code.as_deref(), Some("E_ACTION_RESULT"));
     assert_eq!(run.attempt, 1);
     drop(engine);
     std::fs::remove_dir_all(path).unwrap();

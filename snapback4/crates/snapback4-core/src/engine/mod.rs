@@ -397,8 +397,15 @@ impl Engine {
             if schedule.every_ms == 0 || schedule.every_ms > i64::MAX as u64 || schedule.offset_ms >= schedule.every_ms {
                 return Err(RuntimeError::Schema(format!("schedule {} has an invalid period or offset", schedule.name)));
             }
-            if !programs.get(&schedule.target).is_some_and(|program| program.kind == ProgramKind::Job) {
-                return Err(RuntimeError::Schema(format!("schedule {} names missing job {}; restore or remove the schedule", schedule.name, schedule.target)));
+            let Some(program) = programs.get(&schedule.target).filter(|p| matches!(p.kind, ProgramKind::Job | ProgramKind::Action)) else {
+                return Err(RuntimeError::Schema(format!("schedule {} names missing job or action {}; restore or remove the schedule", schedule.name, schedule.target)));
+            };
+            if program.kind == ProgramKind::Action {
+                let seat = schedule.service.as_deref().filter(|seat| crate::identity::is_service(seat)).ok_or_else(|| RuntimeError::Schema("a scheduled action requires its declared service seat".into()))?;
+                actions::authorize(program, seat)?;
+            } else if schedule.service.is_some() { return Err(RuntimeError::Schema("a scheduled job cannot name a service seat".into())); }
+            if program.args.iter().any(|(name, kind)| !matches!(name.as_str(), "periodStart" | "periodEnd") || *kind != crate::ir::ArgType::Time) {
+                return Err(RuntimeError::Schema("scheduled work takes periodStart: time and periodEnd: time, or nothing".into()));
             }
         }
         store.activate(schema, Some(programs), false, |tx, changed| {
