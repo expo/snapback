@@ -258,7 +258,9 @@ headers cannot be supplied. HTTP 204, 205 and 304 must have empty bodies.
 `dev` still binds loopback by default. Explicit
 `dev --bind 0.0.0.0 --i-understand-cleartext` permits provider ingress through a
 trusted TLS proxy. Only an exact declared POST path bypasses the development
-loopback gate; personas, seed, schema, queries, worker doors, unknown paths,
+loopback gate. Development binding accepts only loopback or wildcard IPs
+(`0.0.0.0`/`::`), preserving a loopback path for the supervised worker. The
+personas, seed, schema, queries, worker doors, unknown paths,
 query variants and mismatched methods remain gated. Route waits have 16 slots
 separate from the 32 worker/long-poll slots and 32 short requests. Unverified
 tickets are ephemeral, bounded and fenced: a verifier/core crash before

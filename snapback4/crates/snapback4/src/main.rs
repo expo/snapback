@@ -104,7 +104,7 @@ fn main() -> ExitCode {
             };
             let clock_offset = options.flags.get("clock-offset").map(|text| dev_clock::offset(text)).transpose().map_err(|e| e.to_string())?.unwrap_or(0);
             let port: u16 = options.flags.get("port").and_then(|p| p.parse().ok()).unwrap_or(4400);
-            let bind = verbs::release_bind(&options)?;
+            let bind = development_bind(&options)?;
             serve::serve(project, port, serve::Mode::Dev { watch: !options.flags.contains_key("no-watch"), fresh: options.flags.contains_key("fresh") || options.flags.contains_key("memory"), replay: options.flags.contains_key("replay"), hold_effects: options.flags.contains_key("hold-effects"), hold_schedules: options.flags.contains_key("hold-schedules"), clock_offset }, &bind.to_string())
         }),
         other => {
@@ -115,8 +115,27 @@ fn main() -> ExitCode {
     ExitCode::from(code as u8)
 }
 
+fn development_bind(options: &verbs::Options) -> Result<std::net::IpAddr, String> {
+    let address = verbs::release_bind(options)?;
+    if !address.is_loopback() && !address.is_unspecified() {
+        return Err("dev --bind needs a loopback or wildcard IP (0.0.0.0 or ::): its worker and development doors still connect through loopback".into());
+    }
+    Ok(address)
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn development_binding_preserves_a_loopback_path_for_the_supervised_worker() {
+        let parse = |args: &[&str]| super::verbs::parse(&args.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>());
+        assert!(super::development_bind(&parse(&["dev"])).unwrap().is_loopback());
+        assert!(super::development_bind(&parse(&["dev", "--bind", "0.0.0.0"])).is_err());
+        assert!(super::development_bind(&parse(&["dev", "--bind", "192.0.2.10", "--i-understand-cleartext"])).is_err());
+        for wildcard in ["0.0.0.0", "::"] {
+            assert!(super::development_bind(&parse(&["dev", "--bind", wildcard, "--i-understand-cleartext"])).unwrap().is_unspecified());
+        }
+    }
+
     #[test]
     fn early_response_does_not_wait_for_an_unread_request_body() {
         use std::io::{BufRead, BufReader, Write};
