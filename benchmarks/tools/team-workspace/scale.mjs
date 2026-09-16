@@ -7,7 +7,7 @@ export const PROFILES = Object.freeze({
 });
 export const DUE_OFFSET_MS = 30 * 24 * 60 * 60 * 1000;
 export const accountAlias = i => `large.user.${String(i).padStart(4, '0')}`;
-const email = alias => alias.replaceAll('.', '-') + '@workroom.test';
+const email = alias => alias.replace('.user.', '-').replaceAll('.', '-') + '@workroom.test';
 const statuses = ['open', 'in-progress', 'blocked', 'done', 'cancelled'];
 
 // @ref LLP 3000.009#101-the-brief — the envelope is an action log over authorized writes, not a database import.
