@@ -341,6 +341,10 @@ pub fn operation_lines(name: &str, fact: &Execution) -> String {
         word.push_str(&format!("{} past the horizon at {}", if blocked.is_some() { "; also queues" } else { " except" }, reads.join(", ")));
     }
     let mut lines = vec![format!("  {name}: {word}")];
+    // @ref LLP 3000.007#6.2 — horizon-free held sites establish coverage; runtime cuts still describe each answer.
+    if fact.held && fact.sites.iter().all(|site| site.class == SiteClass::Held) {
+        lines.push("    complete over held rows — all sources sync without a horizon; runtime meter, word limits and page continuation still apply".into());
+    }
     if fact.connected_effects_only { lines.push(format!("    {CONNECTED_EFFECTS}")); }
     for site in &fact.sites {
         // The insert explanation also names the upsert target; do not follow it

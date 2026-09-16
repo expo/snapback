@@ -706,3 +706,45 @@ fn w7c_meter_store_readiness_and_aggregate_discovery_are_on_the_cards() {
         for text in [".snapback4/store.sqlite", "--release", "store.sqlite", "each isolated", "first stdout line"] { assert!(doc.contains(text), "missing {text}"); }
     }
 }
+
+#[test]
+fn w9a_expiry_cards_explain_and_select_the_readers_deadline() {
+    for name in ["expire", "reads"] {
+        let text = card(name).unwrap();
+        let prose = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        for sentence in [
+            "A row already returned stays in that answer until the next answer; a live reader that must hide it at its deadline drops it locally by `expiresAt`.",
+            "The server will not return the row again after expiry, but does not push a removal at the instant of expiry.",
+        ] { assert!(prose.contains(sentence), "{name}: missing {sentence}"); }
+        assert!(text.contains("const paint = () => render(rows.filter(row => row.expiresAt === null || row.expiresAt > Date.now()));\npaint(); const timers = rows.flatMap(row => row.expiresAt === null ? [] : [setTimeout(paint, Math.max(0, row.expiresAt - Date.now()))]);"), "{name}: missing two-line client form");
+        let block = quarry(text).into_iter().find(|block| block.contains("query expiring")).expect("compiled expiry query");
+        let bound = clean(name, &in_context(&block));
+        let query = bound.programs.iter().find(|p| p.program.name.starts_with("expiring")).unwrap();
+        assert!(snapback4_lang::emit::typescript(&bound).contains("expiresAt: number | null"));
+        assert!(block.contains("{ id, body, expiresAt }"), "{} selects its deadline", query.program.name);
+    }
+}
+
+#[test]
+fn w9a_reads_and_refusals_explain_hidden_pages_and_readable_membership() {
+    for name in ["reads", "refusals"] {
+        let text = card(name).unwrap().split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(text.contains("A read denied by a table's rule answers as an empty page, not a refusal, and a client cannot tell it apart from an empty readable page — by design, so that a hidden row cannot be probed."), "{name}");
+        assert!(text.contains("For access UI, use a membership query the viewer may read, such as a conversation lookup readable by its members: a member gets the conversation even when its message page is empty."), "{name}");
+        assert!(text.contains("An explicit `require … else CODE` still refuses with the program's code."), "{name}");
+    }
+}
+
+#[test]
+fn w9a_held_search_leads_with_guarantee_then_cost_then_refusal() {
+    let text = card("search").unwrap().split_once("## Search every chat I'm in").unwrap().1;
+    let prose = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let guarantee = prose.find("With horizon-free sources, `searchHeld` is complete over held rows: it reads one unscoped words index over the messages this device holds, with no membership merge or per-reader copy.").expect("positive held guarantee");
+    let cost = prose.find("Cold acquisition costs every live message in every held chat").unwrap();
+    let refusal = prose.find("refuses E_QUERY_HELD").unwrap();
+    assert!(guarantee < cost && cost < refusal);
+    assert!(prose.contains("Runtime meter cuts, the 32-word limit and page continuation still apply; `complete` describes each returned page, and `fresh` separately describes sync freshness."));
+    assert!(prose.contains("The local clients never fall back to the server for a held query, even at a horizon, meter cut or word cut."));
+    let wide = explain_code("N_WIDE_MERGE").unwrap();
+    assert!(wide.contains("Inspect structural costs with `snapback4 check --cost`; if a held query answers this read, delete the merge."));
+}

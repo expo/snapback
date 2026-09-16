@@ -13,13 +13,21 @@ missing coverage or a page without continuation. For `complete: false` with
 `cut: null`, render "Results may be incomplete", even when empty; never "no matches".
 A complete empty page has `cut: null` and `complete: true`.
 
+A read denied by a table's rule answers as an empty page, not a refusal,
+and a client cannot tell it apart from an empty readable page — by design,
+so that a hidden row cannot be probed. For access UI, use a membership query
+the viewer may read, such as a conversation lookup readable by its members:
+a member gets the conversation even when its message page is empty.
+An explicit `require … else CODE` still refuses with the program's code.
+
 Declare `query name(..) held:` for a device-only answer. `check` prints
 `runs: device (held; server refuses E_QUERY_HELD; no server fallback)`.
 `dev`, `serve` and `run` refuse it with E_QUERY_HELD and a guide search rewrite;
 the local clients answer from held rows, online or offline, without server
-fallback even at a horizon or cut. The marker neither acquires rows nor
-promises completeness. For full server history, use the scoped server walk
-on the search card.
+fallback even at a horizon or cut. With horizon-free sources, `check` states
+that the query is complete over held rows. Runtime meter cuts, word limits
+and page continuation still apply; the marker does not acquire rows.
+For full server history beyond holdings, use the scoped server walk on the search card.
 
 To inspect a real account's server work under loopback `dev`, use the online
 client `createClient({ url, session })` (or a bearer `token`); meters are available by default.
@@ -62,6 +70,29 @@ query readForms(roomId: rooms, messageId: messages, c: cursor ?):
   chain = walk rooms[roomId] up .parentId depth 8            -- the row, its parent, and so on: at most 8 rows
   return { one, must, member, admin, newest, chain }
 ```
+
+For an expiring table, return the deadline with each row:
+
+```quarry
+query expiringMessages(roomId: rooms, c: cursor ?):
+  return messages[roomId] after c last 20 by byRoomTime { id, body, expiresAt }
+```
+
+A row already returned stays in that answer until the next answer; a live
+reader that must hide it at its deadline drops it locally by `expiresAt`.
+The server will not return the row again after expiry, but does not push a
+removal at the instant of expiry. Select the deadline in the query, as above.
+Given `rows` from a ready answer and your `render` function, render now and
+schedule another render at each non-null deadline (epoch milliseconds):
+
+```ts
+const paint = () => render(rows.filter(row => row.expiresAt === null || row.expiresAt > Date.now()));
+paint(); const timers = rows.flatMap(row => row.expiresAt === null ? [] : [setTimeout(paint, Math.max(0, row.expiresAt - Date.now()))]);
+```
+
+Clear these timers with `timers.forEach(clearTimeout)` before replacing the
+answer or unmounting. This short-lived-row example uses the client's clock
+and timer scheduling; `null` never expires.
 
 The table names are the language card's. A page's read rule is checked
 once when the prefix decides it, else per row, and a page whose rule still depends

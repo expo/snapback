@@ -119,7 +119,7 @@ fn wide_matching_merge_note_is_conditional_when_the_read_completes() {
     assert!(note.message.contains("a read past the 8,192 examined ceiling returns `complete: false`"), "{note}");
     assert!(!note.message.contains("the page is cut"));
     assert!(!note.message.contains("follow count"), "room memberships are not a follows-shaped read: {note}");
-    assert!(note.rewrite.contains("snapback4 test --cost"));
+    assert!(note.rewrite.contains("snapback4 check --cost"));
 }
 
 #[test]
@@ -128,7 +128,7 @@ fn w7d_wide_membership_search_points_to_the_complete_walk() {
     let b = clean(&source);
     let note = b.notes.iter().find(|n| n.code == "N_WIDE_MERGE").unwrap();
     println!("{note}");
-    assert_eq!(note.to_string(), "schema.q:32:1 — N_WIDE_MERGE: query searchAll: the merge over messages reads up to 1000 lanes, one page of 21 each — up to 21000 rows per read; a read past the 8,192 examined ceiling returns `complete: false`\n  rewrite: `snapback4 guide search`, section \"Search every chat I'm in\": search held messages with one unscoped words index, or page memberships 50 at a time and exhaust each matching merge with its own result cursor before advancing the membership cursor; a result cursor alone does not continue undiscovered chats or a meter-cut merge. Measure with `snapback4 test --cost`\n  guide: search");
+    assert_eq!(note.to_string(), "schema.q:32:1 — N_WIDE_MERGE: query searchAll: the merge over messages reads up to 1000 lanes, one page of 21 each — up to 21000 rows per read; a read past the 8,192 examined ceiling returns `complete: false`\n  rewrite: `snapback4 guide search`, section \"Search every chat I'm in\": search held messages with one unscoped words index, or page memberships 50 at a time and exhaust each matching merge with its own result cursor before advancing the membership cursor; a result cursor alone does not continue undiscovered chats or a meter-cut merge. Measure with `snapback4 check --cost`; if a held query answers this read, delete the merge\n  guide: search");
 }
 
 #[test]
@@ -458,7 +458,7 @@ fn horizon_calibration_advice_preserves_prediction_and_groups_sites() {
     let search = b.notes.iter().find(|n| n.code == "N_WIDE_MERGE").unwrap();
     assert_eq!(search.guide, "search");
     assert!(!search.rewrite.contains("feed"));
-    assert!(search.rewrite.contains("snapback4 test --cost"));
+    assert!(search.rewrite.contains("snapback4 check --cost"));
     let guard = b.notes.iter().find(|n| n.code == "N_HORIZON_GUARD").unwrap();
     assert_eq!(guard.to_string(), "chat.q:83:22 — N_HORIZON_GUARD: chat.send: `require not exists messages[messageId] else DUPLICATE` reads the argument row id `messageId`, not the mutation write id; a miss past the horizon cannot prove row absence, so this call queues without a predicted row\n  rewrite: if this guard only dedupes retries, remove `require not exists messages[messageId] else DUPLICATE` and keep the insert; retry with the same mutation write id for this principal. That id dedupes the mutation, not the argument row id; a new mutation write id with the same row id is a different write. Keep guards that enforce an application requirement\n  guide: prediction");
     assert!(!guard.mechanical, "a guard may be an application requirement");

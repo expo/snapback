@@ -5,6 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import ts from "typescript";
+import { runInNewContext } from "node:vm";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (path) => readFileSync(path, "utf8");
@@ -113,4 +114,27 @@ test("Expo Go README session store normalizes SecureStore keys and round-trips a
   await store.delete(key);
   assert.equal(await store.get(key), null);
   assert.deepEqual(keys, Array(4).fill("snapback4_session_http___127.0.0.1_4400"));
+});
+
+
+test("W9a expiry client form drops deadlines locally and keeps null lifetimes", () => {
+  const paths = ["../../crates/snapback4-lang/src/guide.rs", "../../crates/snapback4-lang/src/guide/reads.rs", "README.md"];
+  for (const path of paths) {
+    const source = read(join(root, path)).match(/const paint = [^\n]+\n\s*paint\(\); const timers = [^\n]+/)?.[0];
+    assert.ok(source, `${path}: two-line expiry client form`);
+    let now = 1000;
+    const rows = [{ id: "kept", expiresAt: null }, { id: "due", expiresAt: 1000 }, { id: "later", expiresAt: 1100 }];
+    const painted = [];
+    const timers = [];
+    runInNewContext(source, {
+      rows, render: visible => painted.push(Array.from(visible, row => row.id)), Date: { now: () => now },
+      setTimeout: (fn, delay) => { timers.push({ fn, delay }); return timers.length; },
+    });
+    assert.deepEqual(painted, [["kept", "later"]]);
+    assert.deepEqual(timers.map(timer => timer.delay), [0, 100]);
+    now = 1100;
+    timers[1].fn();
+    assert.deepEqual(painted.at(-1), ["kept"]);
+    assert.equal(rows.length, 3, "the received answer stays intact; rendering drops the expired row");
+  }
 });

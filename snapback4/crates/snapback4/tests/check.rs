@@ -633,3 +633,24 @@ fn w8r1b_release_from_a_used_dev_store_never_returns_read_meters() {
     }
     println!("release from dev: retained_rows=1 same_store_identity=1 dev_meter_fields=1 release_meter_fields=0 requests=2");
 }
+
+#[test]
+fn w9a_check_states_held_completeness_only_with_horizon_free_sources() {
+    let p = Project::new();
+    let source = "table messages:\n  body: text <=100\n  public 'messages'\n  sync\ntable labels:\n  body: text <=100\n  public 'labels'\n  sync\nquery heldRows(c: cursor ?) held:\n  a = messages after c first 20 by byId\n  b = labels after c first 20 by byId\n  return { a, b }\nquery ordinary(c: cursor ?):\n  return messages after c first 20 by byId\n";
+    let positive = "    complete over held rows — all sources sync without a horizon; runtime meter, word limits and page continuation still apply";
+    for horizon in [false, true] {
+        p.source(&if horizon { source.replacen("  sync\n", "  sync last 20 by byId\n", 1) } else { source.into() });
+        for args in [vec!["check"], vec!["check", "--cost"], vec!["check", "--residency"], vec!["why", "heldRows"]] {
+            let output = p.run(&args);
+            assert!(output.status.success(), "{output:?}");
+            let text = String::from_utf8_lossy(&output.stdout);
+            assert_eq!(text.lines().filter(|line| *line == positive).count(), usize::from(!horizon), "{args:?}: {text}");
+            assert!(text.contains("heldRows: runs: device (held; server refuses E_QUERY_HELD; no server fallback)"), "{text}");
+            if horizon { assert!(text.contains("incomplete past the horizon; no server fallback"), "{text}"); }
+            if args.contains(&"--cost") { assert!(text.contains("scan messages.byId first 20"), "{text}"); }
+        }
+    }
+    let output = p.run(&["why", "ordinary"]);
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("complete over held rows"));
+}

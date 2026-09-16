@@ -22099,3 +22099,206 @@ xcframework rebuilt, and `snapback4-expo@0.2.15` at 06:18 UTC.
 
 Next: the eighth Astra-medium calibration on these pins.
 
+
+## 2026-09-16 — W9a: reader expiry, held completeness and honest read guidance
+
+Built on `ce6cdccebafa0f5fea4fdadf997de1b1e0efb782` (0.2.24). The expiry
+and reads cards now select `expiresAt` in compiled Quarry and show the same
+two-line client renderer: paint the live rows, then schedule paints at their
+non-null deadlines. The README provides its typed cleanup wrapper. An answer
+already returned keeps its rows until the next answer; the server excludes
+expired rows on a new read, but promises no removal push at the deadline.
+The example uses the client's clock and timer scheduling for short-lived rows.
+
+`check` (including `--cost` and `--residency`) and `why` now print a positive
+completeness line for a held query only when every classified read site is
+`Held`. A single `Horizon` site suppresses it. This uses the existing facts
+of LLP 3000.007 §6.2; it changes neither dispatch nor the read contract.
+The line keeps runtime meter, word and continuation limits explicit. The
+search card leads with the guarantee, then acquisition costs, then its
+unchanged server refusal and lack of fallback (LLP 3000.007 §18.1, §20.17).
+The reads and refusals cards, plus the README, explain that a table-rule
+denial is indistinguishable from an empty readable page, and direct access
+UI to a membership/conversation query the viewer may read. An explicit
+`require` still refuses with its author's code. No new cut reason was added.
+
+All three N_WIDE_MERGE rewrite branches and its code explanation now name
+`snapback4 check --cost`, and say to delete the merge if a held query answers
+that read. The calibration's `cli-help.txt` is not present in this checkout;
+the built CLI's `--help` was captured as `/private/tmp/w9a-cli-help.txt`:
+line 4 lists `check [--cost|--residency|--fix|--json]`, and line 14 lists
+`test [--fixture dir] [--as p] [--residency]`. The CLI regression also runs
+`check --cost` successfully. No new code or note identifier was introduced.
+
+Measurements: 90 targeted language tests pass after 8 intentional regression
+failures before the fixes; the held-query CLI regression goes from 0/1 to
+1/1. It checks 2 source configurations (both horizon-free, one with a
+horizon) through 4 command forms, plus an ordinary-query control. The client
+example goes from 0/1 to 1/1 and runs from 3 published copies: 3 input rows,
+2 timers (0 and 100 ms), 2 rows painted initially and 1 at the later deadline;
+the null lifetime survives, and the original 3-row answer is unchanged.
+The README check compiles 16 TypeScript blocks against 38 public functions.
+All 11 changed code files fit the cap; the largest is 1,438 lines.
+No latency or storage benchmark was requested or claimed.
+
+The exact targeted commands and verbatim summary lines follow. The first
+README typecheck ran before the generated wasm bindings existed and failed
+with two TS2307 missing-module diagnostics; after the suite's wasm build it
+passes. This was a build prerequisite, not a product-failure attribution.
+
+```text
+Base: ce6cdccebafa0f5fea4fdadf997de1b1e0efb782
+Targeted commands run from snapback4/. Before all JS: export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+
+Language regressions before fixes
+cargo test -p snapback4-lang --test guide --test residency_notes --test sparse_filter --test spelling --no-fail-fast
+test result: FAILED. 27 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test result: FAILED. 30 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.06s
+test result: FAILED. 7 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: FAILED. 18 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+Language regressions after fixes
+cargo test -p snapback4-lang --test guide --test residency_notes --test sparse_filter --test spelling --no-fail-fast
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.53s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+Language final wording
+cargo test -p snapback4-lang --test guide --test residency_notes --test sparse_filter --test spelling --no-fail-fast
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.33s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+Held check before fixes
+cargo test -p snapback4 --test check w9a_ -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 28 filtered out; finished in 1.21s
+
+Held check after fixes
+cargo test -p snapback4 --test check w9a_ -- --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 1.31s
+
+Expiry client before fixes
+node --test --test-name-pattern=W9a packages/snapback4/test/readme-examples.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 139.1355
+
+Expiry client after fixes
+node --test --test-name-pattern=W9a packages/snapback4/test/readme-examples.test.mjs
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+ℹ duration_ms 169.577917
+
+README before generated wasm build
+node --test packages/snapback4/test/readme-examples.test.mjs
+ℹ 16 README blocks; 38 public functions; 713.20 ms
+ℹ tests 4
+ℹ pass 3
+ℹ fail 1
+ℹ duration_ms 892.687541
+
+README after generated wasm build
+node --test packages/snapback4/test/readme-examples.test.mjs
+ℹ 16 README blocks; 38 public functions; 699.67 ms
+ℹ tests 4
+ℹ pass 4
+ℹ fail 0
+ℹ duration_ms 871.918708
+
+React isolated rerun
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 448.52975
+
+Full suite (repository root)
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+-- ok: cargo build (2 s)
+-- ok: wasm build (14 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (2 s)
+-- ok: cargo test (668 s)
+-- ok: chat app typecheck (0 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (9 s)
+ℹ tests 384
+ℹ pass 383
+ℹ fail 1
+-- FAIL: client tests (70 s)
+== 1 failure(s) in 687 s
+Rust total: (1066, 0, 4) (passed, failed, ignored)
+
+```
+
+The full blocking suite took 687 s and has one failed group: client tests,
+383 passed / 1 failed. The sole failure is Chromium SIGABRT in
+`react.test.mjs`, matching the environment artifact named in the lane brief;
+the isolated rerun also fails at launch. Rust has 1,066 passed, 0 failed,
+4 ignored across 62 summaries; fixtures are 9/9; builds and typechecks pass.
+No lifecycle failure or mass client timeout occurred. The lead needs the
+React witness outside the sandbox. No failure is claimed pre-existing:
+there was no separate base-code suite run. Full output is
+`/private/tmp/w9a-full-suite.log`, with targeted summaries in
+`/private/tmp/w9a-validation.txt`. Root `./ref-check --verbose` passed with
+0 errors and 0 unchecked references before this entry and is repeated after it.
+
+N_WIDE_MERGE, the membership-search regression, before:
+
+```text
+schema.q:32:1 — N_WIDE_MERGE: query searchAll: the merge over messages reads up to 1000 lanes, one page of 21 each — up to 21000 rows per read; a read past the 8,192 examined ceiling returns `complete: false`
+  rewrite: `snapback4 guide search`, section "Search every chat I'm in": search held messages with one unscoped words index, or page memberships 50 at a time and exhaust each matching merge with its own result cursor before advancing the membership cursor; a result cursor alone does not continue undiscovered chats or a meter-cut merge. Measure with `snapback4 test --cost`
+  guide: search
+```
+
+After:
+
+```text
+schema.q:32:1 — N_WIDE_MERGE: query searchAll: the merge over messages reads up to 1000 lanes, one page of 21 each — up to 21000 rows per read; a read past the 8,192 examined ceiling returns `complete: false`
+  rewrite: `snapback4 guide search`, section "Search every chat I'm in": search held messages with one unscoped words index, or page memberships 50 at a time and exhaust each matching merge with its own result cursor before advancing the membership cursor; a result cursor alone does not continue undiscovered chats or a meter-cut merge. Measure with `snapback4 check --cost`; if a held query answers this read, delete the merge
+  guide: search
+```
+
+The relationship-driven rewrite also changed, verbatim:
+
+```text
+Before: keep read-time merges for a bounded small number of related principals; for Following, `snapback4 init --recipe feeds --prefix feed`; measure with `snapback4 test --cost`
+After: keep read-time merges for a bounded small number of related principals; for Following, `snapback4 init --recipe feeds --prefix feed`; measure with `snapback4 check --cost`; if a held query answers this read, delete the merge
+```
+
+The other wide-merge rewrite changed, verbatim:
+
+```text
+Before: measure with `snapback4 test --cost`; bound lane discovery to the scopes this read needs, and pass a cursor to continue the result; fewer lanes reduce read cost
+After: measure with `snapback4 check --cost`; bound lane discovery to the scopes this read needs, and pass a cursor to continue the result; fewer lanes reduce read cost; if a held query answers this read, delete the merge
+```
+
+The newly printed positive line is:
+
+```text
+    complete over held rows — all sources sync without a horizon; runtime meter, word limits and page continuation still apply
+```
+
+What I learned: the compiler already had the coverage facts the builder
+needed, but presented them only as dispatch and site details. Naming the
+positive class beside its runtime limits supplies the missing vocabulary
+without promising an uncut page. Likewise, expiry is a fact about each new
+read, while a displayed answer needs its own clock-driven rendering. The
+empty-page nondisclosure rule needs to be stated where client authors read
+about refusals, not only on the authorization card.
+
+All requested implementation is complete. Changes are limited to the
+language crate's binder, guides and existing tests, the CLI's existing check
+tests, the package README and its existing example tests, and this journal.
+No out-of-scope file, runtime ceiling, serialized form or existing corpus
+case changed. No commit, push, tag, publication, sub-agent or remote machine
+was used; the lead owns the landing.

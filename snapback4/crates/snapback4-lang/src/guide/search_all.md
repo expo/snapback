@@ -36,25 +36,28 @@ query searchChatBatch(q: text <=100, batch: cursor ?, c: cursor ?):
     [m.roomId] for m in members[viewer] after batch first 50 by byPrincipalRoom
 ```
 
-This block intentionally emits N_NO_HORIZON for `messages` (full history
-is acquired). The scoped server operations compile without notes. `held`
-makes `searchHeld` device-only: `check` explains the dispatch, and calling
-it through `dev`, `serve` or `run` refuses E_QUERY_HELD with a rewrite to
-this scoped server walk. The local clients never fall back to the server
-for a held query, even when its answer is incomplete.
+**Device holdings.** With horizon-free sources, `searchHeld` is complete
+over held rows: it reads one unscoped words index over the messages this
+device holds, with no membership merge or per-reader copy. `check` states
+this guarantee positively. Use the local client and continue with `c: read.next`.
+Runtime meter cuts, the 32-word limit and page continuation still apply;
+`complete` describes each returned page, and `fresh` separately describes
+sync freshness.
 
-**Device holdings.** `searchHeld` reads one unscoped words index over the
-messages this device holds, with no membership merge or per-reader copy.
-Use the local client and continue with `c: read.next`. Full acquisition
-with the schema above can return complete pages. Cold acquisition costs
-every live message in every held chat; the query's cheap read does not make
-that acquisition cheap. Add `last 200 by byRoomTime` to the messages sync
+Cold acquisition costs every live message in every held chat; the query's
+cheap read does not make that acquisition cheap. This block intentionally emits N_NO_HORIZON
+for `messages` (full history is acquired). The scoped server operations
+compile without notes. Add `last 200 by byRoomTime` to the messages sync
 line to acquire only the newest 200 per chat. That bounds acquisition,
 not later holdings, and word search then reports `complete: false`, even
 on an empty match: it cannot prove that older server history has no match.
 Offline, label these results as searched on this device. Online, use the
-scoped server walk for complete history; calling `searchHeld` on the server
-refuses E_QUERY_HELD.
+scoped server walk for complete history beyond holdings.
+
+`held` makes `searchHeld` device-only: `check` explains the dispatch, and
+calling it through `dev`, `serve` or `run` refuses E_QUERY_HELD with a rewrite
+to this scoped server walk. The local clients never fall back to the server
+for a held query, even at a horizon, meter cut or word cut.
 
 **Server batches.** Begin with `batch = null`. Call `searchChats(c: batch)`
 and save its `next`. With that same batch start, call `searchChatBatch`

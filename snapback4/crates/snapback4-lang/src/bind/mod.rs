@@ -270,14 +270,14 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             let (message, rewrite) = if matching {
                 // @ref LLP 3000.007#18.1 — page scope discovery separately; a matching merge cursor cannot recover an unfinished lane.
                 (format!("{} {}: the merge over {} reads {work}; a read past the {ceiling} examined ceiling returns `complete: false`", bound.program.kind.word(), bound.program.name, merge.table()),
-                    "`snapback4 guide search`, section \"Search every chat I'm in\": search held messages with one unscoped words index, or page memberships 50 at a time and exhaust each matching merge with its own result cursor before advancing the membership cursor; a result cursor alone does not continue undiscovered chats or a meter-cut merge. Measure with `snapback4 test --cost`")
+                    "`snapback4 guide search`, section \"Search every chat I'm in\": search held messages with one unscoped words index, or page memberships 50 at a time and exhaust each matching merge with its own result cursor before advancing the membership cursor; a result cursor alone does not continue undiscovered chats or a meter-cut merge. Measure with `snapback4 check --cost`; if a held query answers this read, delete the merge")
             } else if related_principals {
                 (format!("{} {}: read cost grows with the number of related principals (up to {lanes} lanes); a read past the {ceiling} examined ceiling returns `complete: false`", bound.program.kind.word(), bound.program.name),
-                    "keep read-time merges for a bounded small number of related principals; for Following, `snapback4 init --recipe feeds --prefix feed`; measure with `snapback4 test --cost`")
+                    "keep read-time merges for a bounded small number of related principals; for Following, `snapback4 init --recipe feeds --prefix feed`; measure with `snapback4 check --cost`; if a held query answers this read, delete the merge")
             } else {
                 // @ref LLP 3000.007#18.1 — membership search needs scope lanes; a feeds recipe addresses relationship-driven reads.
                 (format!("{} {}: the merge over {} reads {work}; a read past the {ceiling} examined ceiling returns `complete: false`", bound.program.kind.word(), bound.program.name, merge.table()),
-                    "measure with `snapback4 test --cost`; bound lane discovery to the scopes this read needs, and pass a cursor to continue the result; fewer lanes reduce read cost")
+                    "measure with `snapback4 check --cost`; bound lane discovery to the scopes this read needs, and pass a cursor to continue the result; fewer lanes reduce read cost; if a held query answers this read, delete the merge")
             };
             notes.push(
                 Diagnostic::new(

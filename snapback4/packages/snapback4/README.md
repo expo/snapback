@@ -201,7 +201,11 @@ mutation edit(messageId: messages, body: text <=4000):
   leading with it, `by byExpiresAt: expiresAt`). A row past that time is
   absent to every reader on every host from that moment, before any rule;
   the server sweeps it within a second and the deletion streams to each
-  device holding it. A null time never expires. Disappearing messages
+  device holding it. An already returned answer keeps the row until the
+  next answer; a live reader that must hide it at its deadline drops it
+  locally by `expiresAt` (the client example below). The server will not
+  return it again after expiry, but does not push a removal at that instant.
+  A null time never expires. Disappearing messages
   are one field on insert, `expiresAt: now + ttl if ttl != null else
   null` with `ttl: int ?`; nothing else to write. A `maintain` over an
   expiring table recomputes its live source group at read time, before the
@@ -824,6 +828,9 @@ The card records whole-walk costs, horizon measurements, the 32-word
 limit (global on the device, per chat on the server), and the per-reader
 copy cost. A meter-cut matching merge cannot be continued with a result
 cursor alone. The card intentionally documents N_NO_HORIZON for full sync.
+With horizon-free sources, `check` states that `searchHeld` is complete over
+held rows. Runtime meter cuts, the 32-word limit and page continuation still
+apply; `fresh` separately describes sync freshness.
 Its `query searchHeld(q: text <=100, c: cursor ?) held:` declaration is
 device-only: `check` explains it, and `dev`, `serve` and `run` refuse
 E_QUERY_HELD with a rewrite pointing to the scoped server walk on `guide search`.
@@ -1744,6 +1751,27 @@ The precise reason remains in development-only `Read.meter.cut` (`"meter"`,
 If the server cannot answer the query, declare `query … held:` to answer
 from the device; the server refuses it with E_QUERY_HELD (see the search card).
 A complete empty page has `cut: null` and `complete: true`.
+
+A read denied by a table's rule answers as an empty page, not a refusal,
+and a client cannot tell it apart from an empty readable page — by design,
+so that a hidden row cannot be probed. For access UI, use a membership query
+the viewer may read, such as a conversation lookup readable by its members:
+a member gets the conversation even when its message page is empty.
+An explicit `require … else CODE` still refuses with the program's code.
+
+For a live page of expiring rows, select `expiresAt` in the query and pass
+its ready rows to this renderer. It filters on the client's clock and
+schedules a render at each deadline, without waiting for a server answer.
+Call the returned cleanup before replacing the answer or unmounting.
+This example is for short-lived rows; JavaScript timer scheduling applies.
+
+```ts
+function showExpiringRows<T extends { expiresAt: number | null }>(rows: T[], render: (rows: T[]) => void) {
+  const paint = () => render(rows.filter(row => row.expiresAt === null || row.expiresAt > Date.now()));
+  paint(); const timers = rows.flatMap(row => row.expiresAt === null ? [] : [setTimeout(paint, Math.max(0, row.expiresAt - Date.now()))]);
+  return () => timers.forEach(clearTimeout);
+}
+```
 
 `complete` says this is everything the query can answer: false when the
 meter cut the page, when a scan's read rule is not decided by its prefix

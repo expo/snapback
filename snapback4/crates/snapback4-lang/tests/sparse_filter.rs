@@ -33,7 +33,7 @@ fn follow_driven_wide_merge_names_the_cost_and_adoption_command() {
         let note = bound.notes.iter().find(|n| n.code == "N_WIDE_MERGE").unwrap();
         println!("{note}");
         assert_eq!(note.message, "query following: read cost grows with the number of related principals (up to 1001 lanes); a read past the 8,192 examined ceiling returns `complete: false`");
-        assert_eq!(note.rewrite, "keep read-time merges for a bounded small number of related principals; for Following, `snapback4 init --recipe feeds --prefix feed`; measure with `snapback4 test --cost`");
+        assert_eq!(note.rewrite, "keep read-time merges for a bounded small number of related principals; for Following, `snapback4 init --recipe feeds --prefix feed`; measure with `snapback4 check --cost`; if a held query answers this read, delete the merge");
         assert_eq!(note.guide, "feeds");
     }
 }

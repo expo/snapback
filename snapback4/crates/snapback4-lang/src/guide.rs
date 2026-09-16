@@ -846,7 +846,26 @@ table stories:
 
 mutation postStory(body: text <=500, ttl: int ?):
   return insert stories { authorId: viewer, body, expiresAt: now + ttl if ttl != null else null }
+
+query expiringStories(c: cursor ?):
+  return stories[viewer] after c last 20 by byAuthorTime { id, body, expiresAt }
 ```
+
+A row already returned stays in that answer until the next answer; a live
+reader that must hide it at its deadline drops it locally by `expiresAt`.
+The server will not return the row again after expiry, but does not push a
+removal at the instant of expiry. Select the deadline in the query, as above.
+Given `rows` from a ready answer and your `render` function, render now and
+schedule another render at each non-null deadline (epoch milliseconds):
+
+```ts
+const paint = () => render(rows.filter(row => row.expiresAt === null || row.expiresAt > Date.now()));
+paint(); const timers = rows.flatMap(row => row.expiresAt === null ? [] : [setTimeout(paint, Math.max(0, row.expiresAt - Date.now()))]);
+```
+
+Clear these timers with `timers.forEach(clearTimeout)` before replacing the
+answer or unmounting. This short-lived-row example uses the client's clock
+and timer scheduling; `null` never expires.
 
 In tests, use `snapback4 clock advance <dur>` or `POST /dev/clock/advance`; each example line advances the running dev once.
 
@@ -1387,6 +1406,13 @@ asset, action, prediction, generation, store; the client adds link (the server i
 unreachable) and client (the client itself refused, as after `close()`).
 `snapback4 why <CODE>` explains one. Reads never raise a rule refusal: a
 hidden row is null, and a page omits it.
+
+A read denied by a table's rule answers as an empty page, not a refusal,
+and a client cannot tell it apart from an empty readable page — by design,
+so that a hidden row cannot be probed. For access UI, use a membership query
+the viewer may read, such as a conversation lookup readable by its members:
+a member gets the conversation even when its message page is empty.
+An explicit `require … else CODE` still refuses with the program's code.
 
 `dev` keeps failed schema adoption visible in `doctor`, repeats its reason on the first failing job or sweep, and retries locked stores and generation failures without another save. `doctor` compares the live host generation with the store; `--no-watch` hosts need a restart after another process adopts.
 While that adoption failure is pending, identical background store and generation failures are suppressed. Changed reasons print at most twice per error code in each 60-second window; further changes count as suppressed too. Recovery or a changed adoption failure reports the suppressed count and resets it.
