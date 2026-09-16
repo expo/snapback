@@ -1613,6 +1613,8 @@ before `mutate` returns its promise. Same-origin navigation can therefore leave 
 commits: the next client admits those records before new writes, then sends
 through the ordinary outbox with the original ids. A closed tab's records are
 adopted by the next device that opens the store, under the outbox's Web Lock.
+Adoption runs with that device's first sync, so a receipt from a closed tab
+answers `client.write(id)` once that sync completes, not at the moment it opens.
 Recovery and new admissions take submission numbers from the same device counter;
 already-queued writes precede recovered orphan records. A matching orphan waiting
 for backend adoption installs the destination's authenticated backend first. An

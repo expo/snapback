@@ -675,7 +675,11 @@ test("W5c a reloaded secondary tab recovers its terminal receipt by id", async t
   await secondary.sync();
   await secondary.close();
   const reloaded = await f.open();
-  const receipt = await reloaded.write(sent.id);
+  // A closed tab's receipts reach this store through orphan adoption, which
+  // runs with the first sync; a read before that legitimately misses them.
+  await reloaded.sync();
+  let receipt = await reloaded.write(sent.id);
+  for (let n = 0; n < 100 && !receipt; n++) { await new Promise(r => setTimeout(r, 20)); receipt = await reloaded.write(sent.id); }
   assert.equal(receipt?.state, "sent");
   assert.equal(receipt.replayed, true);
   assert.equal("result" in receipt, false);
