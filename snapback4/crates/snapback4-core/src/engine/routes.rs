@@ -74,7 +74,11 @@ impl Engine {
             tx.rollback()?;
             return Ok((run, true));
         }
-        let request = serde_json::to_value(envelope).map_err(|_| refused("E_ROUTE_INPUT", "cannot encode route envelope"))?;
+        // Verification sees incoming credentials, but durable handlers receive
+        // bound authority, not a reusable bearer/cookie copied into work storage.
+        let mut retained = envelope.clone();
+        retained.headers.retain(|(name, _)| !matches!(name.to_ascii_lowercase().as_str(), "authorization" | "proxy-authorization" | "cookie" | "x-snapback-persona"));
+        let request = serde_json::to_value(retained).map_err(|_| refused("E_ROUTE_INPUT", "cannot encode route envelope"))?;
         context.args = BTreeMap::from([("request".into(), wire::untyped(&request).map_err(|message| refused("E_ROUTE_INPUT", message))?)]);
         let raw = json!({"request": request});
         if serde_json::to_vec(&context.args).map_err(|error| RuntimeError::Input(error.to_string()))?.len() as u64 > self.ceilings.heap_bytes {

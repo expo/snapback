@@ -21,7 +21,7 @@ pub(in crate::serve) fn claim(request: Request, shared: &Shared, body: &str) {
         let (worker, claimed) = {
             let engine = lock(&shared.engine);
             let worker = match service_of_locked(&request, shared, &engine) {
-                Ok(worker) => worker, Err(why) => return respond(request, 401, json!({ "denied": why })),
+                Ok(worker) => worker, Err(why) => { drop(engine); return respond(request, 401, json!({ "denied": why })); }
             };
             let now = Instant::now();
             let now_ms = shared.now();
@@ -66,7 +66,7 @@ pub(in crate::serve) fn settle(request: Request, shared: &Shared, path: &str, bo
     let payload = match serde_json::from_str::<Settlement>(body) { Ok(payload) => payload, Err(_) => return refuse(request, 400, "E_ROUTE_INPUT", "verification settlement needs allow, deny or unavailable") };
     let answer = {
         let mut engine = lock(&shared.engine);
-        let worker = match service_of_locked(&request, shared, &engine) { Ok(worker) => worker, Err(why) => return respond(request, 401, json!({ "denied": why })) };
+        let worker = match service_of_locked(&request, shared, &engine) { Ok(worker) => worker, Err(why) => { drop(engine); return respond(request, 401, json!({ "denied": why })); } };
         let mut tickets = lock(&shared.route_verification.tickets);
         match tickets.get_mut(id) {
             Some(ticket) if ticket.outcome.is_none() && ticket.deadline > Instant::now() && ticket.deadline_ms > shared.now()

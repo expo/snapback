@@ -115,6 +115,19 @@ fn verified_retries_join_one_body_and_retain_the_first_authenticated_envelope() 
     assert_eq!(engine.request_action("anything", "route:v1:predictable", Context::new("dev:alice", BTreeMap::new()).at(0)).unwrap_err().code(), "E_INPUT");
     assert_eq!(engine.request_action("@route/billing", "ordinary-id", Context::new("service:billing", BTreeMap::new()).at(0)).unwrap_err().code(), "E_ACTION_UNKNOWN");
     assert!(engine.request_session_route("billing", &contract, &request(b"wrong-door"), Context::new("dev:alice", BTreeMap::new()).at(0)).is_err());
+    assert_eq!(engine.replay_action(&first.id, "service:billing", "@route/billing", &serde_json::json!({"request": snapback4_core::wire::to_json(&first.args["request"])}), 6).unwrap_err().code(), "E_ACTION_UNKNOWN");
+}
+
+#[test]
+fn route_work_does_not_retain_reusable_ingress_credentials() {
+    let mut engine = engine();
+    let mut envelope = request(b"event");
+    for name in ["Authorization", "proxy-authorization", "COOKIE", "x-snapback-persona"] { envelope.headers.push((name.into(), "do-not-retain".into())); }
+    let run = engine.request_verified_route("billing", &spec().contract("billing"), &envelope, 0, 0).unwrap().0;
+    let recorded = snapback4_core::wire::to_json(&run.args["request"]);
+    assert_eq!(recorded["headers"], json!([["X-Signature", "signature"]]));
+    assert_eq!(recorded["bodyHex"], encode_bytes_hex(b"event"));
+    assert!(!serde_json::to_string(&run.args).unwrap().contains("do-not-retain"));
 }
 
 #[test]

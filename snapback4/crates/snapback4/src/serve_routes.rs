@@ -88,13 +88,14 @@ pub(super) fn ingress(mut request: Request, shared: &Shared, name: &str, route: 
     drop(bytes);
     if Instant::now() >= deadline || shared.now() >= deadline_ms { return unavailable(request); }
     let (mut run, principal) = if route.service.is_some() {
-        let generation = match lock(&shared.engine).route_service_generation(name, &contract) {
+        let authority = lock(&shared.engine).route_service_generation(name, &contract);
+        let generation = match authority {
             Ok((_, generation)) => generation, Err(_) => return unavailable(request),
         };
         let id = match verification_token() { Ok(id) => id, Err(_) => return unavailable(request) };
         {
             let mut tickets = lock(&shared.route_verification.tickets);
-            if tickets.len() >= ROUTE_WORKERS { return unavailable(request); }
+            if tickets.len() >= ROUTE_WORKERS { drop(tickets); return unavailable(request); }
             tickets.insert(id.clone(), Ticket { name: name.into(), contract: contract.clone(), generation, envelope,
                 deadline, deadline_ms, lease: None, outcome: None });
         }
@@ -127,7 +128,8 @@ pub(super) fn ingress(mut request: Request, shared: &Shared, name: &str, route: 
         }
         // Recheck even an immediately settled replay: revocation and adoption
         // must not turn a retained response into a new authority grant.
-        run = match lock(&shared.engine).route_request_at(name, &contract, &run.id, &principal, shared.now()) {
+        let collected = lock(&shared.engine).route_request_at(name, &contract, &run.id, &principal, shared.now());
+        run = match collected {
             Ok(run) => run, Err(_) => return unavailable(request),
         };
         if run.state == "done" { return completed(request, &run); }

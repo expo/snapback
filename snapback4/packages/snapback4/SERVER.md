@@ -43,7 +43,7 @@ revokes the previous child's family at startup, including after SIGKILL.
 ## Handler context
 
 `check` and `dev` generate `snapback/generated/server.ts` from declared
-actions. Import its `server` function in the application's server entry:
+actions and routes. Import its `server` function in the application's server entry:
 
 ```ts
 import { server } from "./generated/server.ts";
@@ -172,3 +172,90 @@ claims; hand-written wire workers must request `fenced: true` and return the
 compatible and do not gain the same-worker successor fence. Only a service
 may call `POST /effects/<id>/cancel`; cancellation cannot stop provider I/O
 already in flight.
+
+## Routes and webhooks
+
+```quarry
+route reportDownload: post "/report-download" wait 5s
+route billingHook: post "/hooks/provider-billing" as service:billing secrets [BILLING_KEY] retry 8 backoff 2s wait 5s
+```
+
+The generated `Routes` map requires every declared handler, with the same flat
+qualified names as actions. A route and action may share a name. Routes never
+appear in the client API or public action registry. Empty action/route maps may
+be omitted; a supplied empty map accepts no undeclared handler.
+
+```ts
+import { server } from "./generated/server.ts";
+import { api } from "./generated/api.ts";
+import { GiveUp, Retry } from "snapback4/worker";
+
+export default server({ routes: {
+  async reportDownload(req, ctx) {
+    // Runs under the caller's live session and ordinary read rules.
+    return new Response(await reports.export(await req.rawBody(), ctx));
+  },
+  billingHook: {
+    async verify(req, { secrets, signal }) {
+      return billing.verify(await req.rawBody(), req.headers,
+        secrets.BILLING_KEY, { signal });
+    },
+    async handle(req, ctx) {
+      const event = billing.decode(await req.rawBody());
+      const saved = await ctx.mutate(api.applyBillingEvent, event,
+        { id: ctx.writeIdFor("apply") });
+      if (saved.state === "pending") throw new Retry("the write is uncertain");
+      if (saved.state !== "sent") throw new GiveUp("the event was refused");
+      return new Response(null, { status: 204 });
+    },
+  },
+} });
+```
+
+Here `billing` and `reports` are application adapters, not built-in services.
+The application mutation deduplicates provider event IDs and checks revisions
+to handle out-of-order deliveries. Body deduplication does not order distinct
+events. Use `ctx.step` for external side effects, including reconciliation after
+an uncertain outcome; no database transaction spans the handler.
+
+A default route requires a live bearer session. Only an explicit
+`as service:<seat>` route uses a provider verifier. Its `verify` callback has
+declared secrets and an abort signal, **no delegated database context**. Return
+exactly `true` or `false`; false answers 403 (`E_ROUTE_VERIFY`) with no durable
+admission. An exception, missing verifier or unavailable core answers 503.
+Verify exact raw bytes before parsing. Each call to `rawBody()` returns a fresh
+copy, and every delivery verifies anew, including retries of completed work.
+
+After verification the core durably admits one private action under the
+declared service seat, before `handle` runs. Retries with identical body bytes
+join that invocation despite fresh signature headers. Session-route IDs are
+also scoped to the principal and originating session family. Revocation or
+changed declarations cannot rebind old work to fresh authority. The handler
+receives the first verified envelope with Authorization, Proxy-Authorization,
+Cookie and x-snapback-persona removed; other headers and body bytes are stored
+as work payloads. Only the body, not header spelling, is byte-exact.
+
+The request waits up to declared `wait` (default 5s, maximum 25s), including
+verification. A settled response is returned; otherwise 503 (`E_ROUTE_PENDING`)
+asks for the same-body retry. A 503 alone does not prove admission. Disconnects
+and worker crashes do not undo admitted work. Plain `GiveUp` records a redacted
+application refusal and acknowledges it with bare 204; `ParkStep` and typed
+runtime errors are not acknowledgements. Exceptions and explicit 5xx handler
+responses follow the retry policy, never a cached successful 5xx completion.
+
+This increment supports static POST paths only, without query strings,
+captures, GET routes or streaming forwarding. Request/response bodies are at
+most 64 KiB, headers 64 fields/16 KiB. A `Response` is fully buffered, with a
+10s bound (or earlier invocation cancellation), before settlement. Invalid or
+oversized responses fail terminally with `E_ROUTE_RESULT`, because effects may
+already have occurred. `Set-Cookie` fields stay separate; transport framing
+headers cannot be supplied. HTTP 204, 205 and 304 must have empty bodies.
+
+`dev` still binds loopback by default. Explicit
+`dev --bind 0.0.0.0 --i-understand-cleartext` permits provider ingress through a
+trusted TLS proxy. Only an exact declared POST path bypasses the development
+loopback gate; personas, seed, schema, queries, worker doors, unknown paths,
+query variants and mismatched methods remain gated. Route waits have 16 slots
+separate from the 32 worker/long-poll slots and 32 short requests. Unverified
+tickets are ephemeral, bounded and fenced: a verifier/core crash before
+admission yields a retry, not an unauthorized durable invocation.

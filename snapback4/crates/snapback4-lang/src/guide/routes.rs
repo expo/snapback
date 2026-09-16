@@ -71,6 +71,10 @@ copy of the exact body bytes each time. Verify those bytes before decoding;
 JSON key order, whitespace and encodings are not normalized. Bodies are bounded
 at 64 KiB; request and response headers at 64 fields and 16 KiB. A malformed
 envelope refuses E_ROUTE_INPUT. Transport-owned response headers are forbidden.
+Verification sees all incoming fields. After authentication, Authorization,
+Proxy-Authorization, Cookie and x-snapback-persona are removed before durable
+storage and handler dispatch; the handler uses its bound `ctx.principal` and
+database context. Other fields and body bytes are retained as work payloads.
 
 After session authentication or provider verification, the core admits private
 durable work keyed by the route and body digest. A duplicate delivery joins
@@ -95,7 +99,9 @@ Responses are buffered completions, not streaming receipts: a handler must
 return a Response with status 200–599, at most 64 KiB of body and valid bounded
 headers. Status 204, 205 or 304 cannot have a body. Invalid responses refuse
 E_ROUTE_RESULT terminally, because external effects may already have happened.
-`dev` accepts non-loopback requests only at declared route paths; development
+`dev --bind 0.0.0.0 --i-understand-cleartext` explicitly opens a non-loopback
+listener; default binding remains loopback. Use a trusted TLS proxy for provider
+traffic. Only exact declared POST paths accept non-loopback requests; development
 personas still cannot authenticate a remote request. An undeclared path gains
 no access. This surface adds no SQL context or application SQL execution.
 "##;

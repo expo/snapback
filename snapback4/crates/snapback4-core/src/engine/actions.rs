@@ -228,6 +228,9 @@ impl Engine {
     }
 
     pub fn replay_action(&self, id: &str, principal: &str, name: &str, args: &Json, now: i64) -> Result<Option<ActionRequest>, RuntimeError> {
+        // The public action fast path must not collect private route responses
+        // before ingress has authenticated this delivery (including a replay).
+        if id.starts_with(super::routes::ID_PREFIX) || name.starts_with(crate::schema::routes::ACTION_PREFIX) { return Err(unknown()); }
         replay(self.store.conn(), id, principal, name, args, now)
     }
 
