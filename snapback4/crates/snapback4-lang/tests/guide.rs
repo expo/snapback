@@ -29,6 +29,43 @@ use std::path::{Path, PathBuf};
 
 const README: &str = concat!(include_str!("../../../packages/snapback4/README.md"), "\n", include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md"), "\n", include_str!("../../../packages/snapback4/SERVER.md"));
 
+#[test]
+fn w10a_readme_opening_is_one_way_into_the_published_surface() {
+    let readme = include_str!("../../../packages/snapback4/README.md");
+    let opening = readme.split("## 1.").next().unwrap();
+    for text in ["README.md", "CLIENT-AND-OPERATIONS.md", "./CLIENT-AND-OPERATIONS.md#4-the-client", "Start here", "snapback4 guide <card>", "snapback4 why <code>", "terminal", "cold-offline"] {
+        assert!(opening.contains(text), "the first page omits {text}");
+    }
+    for card in ["language", "rules", "sync", "residency", "prediction", "reads", "writes", "effects", "jobs", "personas", "assets"] {
+        assert!(opening.contains(&format!("guide {card}")), "start path omits {card}");
+    }
+    assert!(!readme.to_lowercase().contains("there is no other documentation"));
+    assert!(include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md").contains("## 4. The client"));
+}
+
+#[test]
+fn w10a_effect_and_job_names_are_explained_where_a_module_declares_both() {
+    let source = "effect notify\ntable notices:\n  body: text <=100\n  read <- allow\njob daily():\n  chunk n in notices first 50 by byId:\n    emit notify { body: n.body }\nschedule dailyDigest every 1d: digest.daily\n";
+    let bound = snapback4_lang::compile(&[("digest.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+    assert_eq!(bound.schema.effects, ["notify"]);
+    assert_eq!(bound.schema.schedules[0].target, "digest.daily");
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed([("notices".into(), snapback4_core::value::object([("id", id("n1")), ("body", text("hello"))]))]).unwrap();
+    let run = engine.run_job("digest.daily", BTreeMap::new(), 1000).unwrap();
+    assert_eq!(run.state, JobState::Done);
+    let effects = engine.effects(Some("queued"), 10).unwrap();
+    assert_eq!(effects.len(), 1);
+    assert_eq!(effects[0].effect, "notify");
+    for (name, doc) in [("jobs", card("jobs").unwrap()), ("effects", card("effects").unwrap()), ("README", README)] {
+        let prose = doc.split_whitespace().collect::<Vec<_>>().join(" ");
+        for phrase in ["Effects are global declarations", "jobs are module-qualified operations", "digest.q", "emit notify", "effects: { notify:", "digest.daily"] {
+            assert!(prose.contains(phrase), "{name} omits {phrase}");
+        }
+    }
+}
+
 fn compile(source: &str) -> snapback4_lang::Bound {
     snapback4_lang::compile(&[("schema.q".to_owned(), source.to_owned())])
 }

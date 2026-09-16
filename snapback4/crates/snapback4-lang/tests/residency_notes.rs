@@ -356,6 +356,28 @@ fn calibration_capped_members_page_needs_no_cursor_note() {
 }
 
 #[test]
+fn w10a_no_cursor_names_both_remedies_and_the_capped_control_is_silent() {
+    let source = "table typing:\n  conversationId: id\n  principal: principal\n  unique byConversationPrincipal: conversationId, principal\n  public 'typing roster'\nquery typingNow(conversationId: id):\n  return typing[conversationId] first 50 by byConversationPrincipal\n";
+    let b = compile(&[("chat.q".into(), source.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert_eq!(b.notes.len(), 1);
+    let note = &b.notes[0];
+    println!("W10a diagnostic:\n{note}");
+    assert_eq!(note.to_string(), "chat.q:6:1 — N_NO_CURSOR: query chat.typingNow returns a page of 50 typing rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on\n  rewrite: declare `c: cursor ?` and page with `after c` — chat.typingNow(.., c: cursor ?): return typing[..] after c last 50 by <index>; or declare `cap 50 by conversationId` on table typing if that is the intended group limit; other metered work can still cut the read\n  guide: reads");
+    for fixed in [source.replace("  public 'typing roster'", "  cap 50 by conversationId\n  public 'typing roster'"), source.replace("conversationId: id):", "conversationId: id, c: cursor ?):").replace("first 50", "after c first 50")] {
+        let b = compile(&[("chat.q".into(), fixed)]);
+        assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+        assert!(b.notes.is_empty(), "{:?}", b.notes);
+        let mut e = Engine::memory(b.schema.clone(), b.programs.into_iter().map(|p| p.program)).unwrap();
+        e.seed((0..50).map(|i| ("typing".into(), wire::row_from_json(&b.schema.tables["typing"], &json!({"id":format!("t{i}"), "conversationId":"room", "principal":format!("p{i}")})).unwrap()))).unwrap();
+        let read = e.query("chat.typingNow", Context::new("alice", [("conversationId".into(), snapback4_core::Value::Id("room".into()))].into())).unwrap();
+        assert!(read.complete);
+        assert_eq!(read.data.as_array().unwrap().len(), 50);
+        println!("W10a remedy: notes=0, rows=50, complete=true");
+    }
+}
+
+#[test]
 fn capped_page_cursor_note_respects_default_examined_ceiling() {
     let source = |cap, cursor| format!("table rows:\n  owner: principal\n  by byOwner: owner, id\n  cap {cap} by owner\n  public 'bounded rows'\nquery list({}):\n  return rows[viewer] {}first {cap} by byOwner\n", if cursor { "c: cursor ?" } else { "" }, if cursor { "after c " } else { "" });
     let b = clean(&source(9000, false));
@@ -376,7 +398,10 @@ fn capped_page_cursor_note_respects_default_examined_ceiling() {
     for (cap, expected) in [(9000, true), (8191, false), (8192, false), (8193, true)] {
         let b = clean(&source(cap, false));
         let note = b.notes.iter().find(|n| n.code == "N_NO_CURSOR");
-        if let Some(note) = note { println!("{note}"); }
+        if let Some(note) = note {
+            println!("{note}");
+            assert!(note.rewrite.contains("or declare `cap 8192 by owner`"), "{note}");
+        }
         assert_eq!(note.is_some(), expected, "cap {cap}");
     }
 }
@@ -407,6 +432,8 @@ fn calibration_merge_of_capped_groups_still_needs_a_cursor() {
     let source = "table members:\n  conversationId: id\n  principal: principal\n  unique byConversationPrincipal: conversationId, principal\n  cap 50 by conversationId\n  public 'roster'\nquery settings():\n  return merge members first 50 by byConversationPrincipal:\n    ['one']\n    ['two']\n";
     let b = clean(source);
     assert!(b.notes.iter().any(|n| n.code == "N_NO_CURSOR"), "two groups can have 100 rows: {:?}", b.notes);
+    let note = b.notes.iter().find(|n| n.code == "N_NO_CURSOR").unwrap();
+    assert!(note.rewrite.contains("still needs continuation") && !note.rewrite.contains("or declare"), "{note}");
 }
 
 

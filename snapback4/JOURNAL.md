@@ -23445,3 +23445,79 @@ A1/C1's measurements are unchanged: **all C1 targets missed**. No tuning,
 benchmark rerun, control, pilot, ceiling freeze or publication ran here.
 Next is the separately commissioned A3 route/webhook boundary. SQL reads
 remain admitted for D in their authorized-input form, outside the first cell.
+
+
+## 2026-09-16 — W10a: one entry path and inline help for repeated diagnostics
+
+Built against `441ef82c15a8d541048a5d6c001e364cdd8b5c4f`, for the
+0.2.25 calibration's ranks 1, 2, 6 and 7. The README opening now names
+`README.md`, `CLIENT-AND-OPERATIONS.md` and the separately linked `SERVER.md`,
+explains their scopes, and points straight to §4 The client from the start
+path, including the app's cold-offline shell responsibility. The literal
+"no other documentation" claim was already absent at this base; the vague
+"linked client/server references" still failed the new first-page assertion.
+
+A text `check` pre-counts each code/card pair and prints its existing `why`
+excerpt under the first occurrence when the pair occurs at least twice.
+Two is the first recurrence: a singleton stays compact, and help arrives
+without another command as soon as the same issue repeats. At most three
+excerpts print, in diagnostic order, with each site's existing `guide:`
+pointer preserved. Each excerpt retains `why`'s 4,096-byte bound; the maximum
+extra output including separating blank lines is 12,291 bytes. JSON envelopes
+and the `why` command's selection and truncation behavior are unchanged.
+The reads excerpt now includes both `Read.cut` and dev's `Read.meter` at the
+point where N_NO_CURSOR appears, rather than requiring another card lookup.
+
+N_NO_CURSOR keeps its message and adds a concrete table-cap alternative:
+`cap 50 by conversationId` for the typing fixture's page of 50. The proposed
+cap uses the actual pinned columns and never exceeds the examined ceiling.
+It is explicitly conditional on that being the intended data constraint;
+other metered work can still cut a read. Merges, matching scans and maintained
+pages get no misleading promise that a lane or generated table cap supplies
+continuation. Existing cap suppression and all runtime ceilings are unchanged.
+
+Used the brief's documentation alternative for naming. Effects are global
+schema declarations consumed by a worker registry; jobs are module-qualified
+operations consumed by schedules and `run`. Unifying them reaches schema,
+emission, durable dispatch names, generated handlers and in-repo workers,
+so it is not a small naming-only change. Both cards and the README now show
+`digest.q` declaring `effect notify` and `job daily()`: `emit notify`, the
+worker's `effects: { notify: ... }`, and `digest.daily` as the schedule target.
+The executable witness runs that job and observes one queued `notify` effect.
+
+Measurements: 1 note prints 0 excerpts; 2 and 20 notes each print 1 excerpt
+of 1,732 UTF-8 bytes including its final newline, identically across two
+successive checks. Four repeated refusal kinds print 3 excerpts, adding
+2,881 bytes. Both the cursor remedy and the cap remedy return 50 rows,
+`complete: true`, with 0 notes. The largest edited code file has 1,474 newline
+characters (1,475 lines by `caps`' trailing-line convention), below 1,500.
+The lesson is that a pointer alone is not consumed; the useful content must
+appear at the repeated diagnostic, with a bound that does not multiply by
+its number of sites. A cap is a write constraint, not merely note suppression.
+
+Regression evidence (Cargo commands run from `snapback4/`):
+
+- `cargo test -p snapback4-lang --test guide --test residency_notes --no-fail-fast w10a_ -- --nocapture`: before, guide 0 passed/2 failed and residency notes 0 passed/1 failed; after, 2/0 and 1/0. The naming witness ran successfully before its missing-card assertion failed.
+- `cargo test -p snapback4 --test check w10a_ -- --nocapture`: before 0 passed/3 failed; after 3 passed/0 failed. The fixtures cover single/repeated notes and refusals, JSON, stable ordering and the whole-check excerpt bound.
+- `cargo test -p snapback4-lang --test guide --test residency_notes --no-fail-fast`: 34 passed/0 failed (0.12 s) and 37 passed/0 failed (2.59 s).
+- `cargo test -p snapback4 --test check --no-fail-fast`: 38 passed/0 failed (12.18 s).
+
+Final blocking run from the repository root, with
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`:
+`bash snapback4/scripts/test.sh` finished `== 1 failure(s) in 878 s`.
+Rust: 1,165 passed, 0 failed, 4 ignored across 69 harness summaries;
+`-- ok: cargo test (856 s)`. Fixtures: 9 passed, 0 failed. Client:
+`ℹ tests 439`, `ℹ pass 438`, `ℹ fail 1`; `-- FAIL: client tests (68 s)`.
+All build, wasm, package and app typecheck/check stages passed. The sole red
+is the documented sandbox Chromium SIGABRT at `react.test.mjs:74`, before
+any browser assertions. Isolated `node --test packages/snapback4/test/react.test.mjs`
+under Node 24 reproduces it: `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`,
+`ℹ duration_ms 387.410167`. Its test, client/app source, witness helper,
+package manifests and lockfile are unchanged from the named base, verified
+with `git diff --exit-code`; this witness launches no backend. No clean-base
+full-suite rerun or outside-sandbox browser pass is claimed.
+
+Final `./ref-check --verbose`: `ref-check: ok — 481 LLP docs, 9019 refs in 23935 files, 0 errors, 0 unchecked`.
+No out-of-scope file, runtime/value-model/ceiling change, commit, push, tag,
+publication, external machine or sub-agent. The lead must rerun the browser
+witness outside the sandbox; the full suite is reported red, not waived green.

@@ -72,21 +72,41 @@ fn compile_or_exit(project: &Project, json: bool) -> Bound {
         }
     };
     if !bound.diagnostics.is_empty() {
-        report_diagnostics(&bound, json);
+        report_diagnostics(&bound, json, false);
         std::process::exit(1);
     }
     bound
 }
 
-fn report_diagnostics(bound: &Bound, json: bool) {
+fn report_diagnostics(bound: &Bound, json: bool, explain_repeats: bool) {
     if json {
         println!("{}", json!({ "ok": false, "problems": bound.diagnostics }));
         return;
     }
-    for diagnostic in &bound.diagnostics {
-        eprintln!("{diagnostic}\n");
+    for report in diagnostic_reports(&bound.diagnostics, "", explain_repeats) {
+        eprintln!("{report}");
     }
     eprintln!("check: {} problem{}", bound.diagnostics.len(), if bound.diagnostics.len() == 1 { "" } else { "s" });
+}
+
+// @ref LLP 3000.007#20.1 — bring the diagnostic's own card to the builder at the repeated problem.
+fn diagnostic_reports(diagnostics: &[snapback4_lang::Diagnostic], prefix: &str, explain_repeats: bool) -> Vec<String> {
+    let mut counts = BTreeMap::new();
+    for diagnostic in diagnostics {
+        *counts.entry((&diagnostic.code, &diagnostic.guide)).or_insert(0) += 1;
+    }
+    // Two is the first recurrence; pre-counting puts help under its first site.
+    // At most three existing bounded why excerpts add <= 12,291 bytes, including blank lines.
+    let mut remaining = if explain_repeats { 3 } else { 0 };
+    diagnostics.iter().map(|diagnostic| {
+        let mut report = format!("{prefix}{diagnostic}\n");
+        if counts.remove(&(&diagnostic.code, &diagnostic.guide)).is_some_and(|count| count >= 2)
+            && remaining > 0 && let Some(explanation) = diagnostic.explanation() {
+            report.push_str(&format!("\n{explanation}\n"));
+            remaining -= 1;
+        }
+        report
+    }).collect()
 }
 
 pub fn check(options: &Options) -> i32 {
@@ -97,7 +117,7 @@ pub fn check(options: &Options) -> i32 {
         Err(code) => return code,
     };
     if !bound.diagnostics.is_empty() {
-        report_diagnostics(&bound, options.json);
+        report_diagnostics(&bound, options.json, true);
         if !options.json && let Some(summary) = snapback4_lang::bind::residency::prediction_summary(&bound) { println!("{summary}"); }
         return 1;
     }
@@ -107,7 +127,7 @@ pub fn check(options: &Options) -> i32 {
         Err(error) => { eprintln!("cannot check store adoption: {error}"); return 2; }
     }
     if !bound.diagnostics.is_empty() {
-        report_diagnostics(&bound, options.json);
+        report_diagnostics(&bound, options.json, true);
         if !options.json && let Some(summary) = snapback4_lang::bind::residency::prediction_summary(&bound) { println!("{summary}"); }
         return 1;
     }
@@ -142,8 +162,8 @@ pub fn check(options: &Options) -> i32 {
         println!("{}", json!({ "ok": true, "tables": bound.schema.tables.len(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
     } else {
         println!("check: ok — {} tables ({synced} synced), {} operations, no problems{}, {:.1} ms{}", bound.schema.tables.len(), bound.programs.len(), if bound.notes.is_empty() { String::new() } else { format!(", {} note{}", bound.notes.len(), if bound.notes.len() == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0, match &native { Some(b) => format!("; native: {} → {} ({} B, {} ms)", b.jobs.join(", "), b.path.display(), b.bytes, b.ms), None => String::new() });
-        for note in &bound.notes {
-            println!("note: {note}\n");
+        for report in diagnostic_reports(&bound.notes, "note: ", true) {
+            println!("{report}");
         }
     }
     if !options.json && let Some(summary) = snapback4_lang::bind::residency::prediction_summary(&bound) { println!("{summary}"); }

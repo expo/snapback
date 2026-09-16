@@ -233,7 +233,14 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             });
             if !page.opaque_cursor && !group_complete && returned.contains(site) && noted.insert(site) {
                 let (table, take) = (&page.table, page.take.maximum());
-                notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on", bound.program.kind.word(), bound.program.name), format!("declare `c: cursor ?` and page with `after c` — {}(.., c: cursor ?): return {}[..] after c last {take} by <index>", bound.program.name, table)).guide("reads"));
+                let cap = if page.merge_site.is_none() && schema.maintain_for(table).is_none() && schema.tables[table].indexes[&page.index].is_plain() {
+                    let limit = take.min(snapback4_core::Ceilings::default().examined);
+                    let by = if pinned.is_empty() { String::new() } else { format!(" by {}", pinned.join(", ")) };
+                    format!("or declare `cap {limit}{by}` on table {table} if that is the intended group limit; other metered work can still cut the read")
+                } else {
+                    "a table `cap N by column` can replace a cursor for a single plain group page that pins column and covers N within the examined ceiling; this merge, matching or maintained page still needs continuation".into()
+                };
+                notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on", bound.program.kind.word(), bound.program.name), format!("declare `c: cursor ?` and page with `after c` — {}(.., c: cursor ?): return {}[..] after c last {take} by <index>; {cap}", bound.program.name, table)).guide("reads"));
             }
         }
         // Wide merges still pay for lane discovery and authorization, even
