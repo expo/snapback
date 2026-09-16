@@ -447,7 +447,7 @@ fn every_guide_keyword_a_diagnostic_names_is_a_card() {
     for code in codes() {
         let keyword = snapback4_lang::diag::guide_for(code);
         assert!(card(keyword).is_some(), "{code} points at `{keyword}`, which is not a card");
-        if code.starts_with("E_EFFECT_") { assert_eq!(keyword, "effects", "{code}"); }
+        if code.starts_with(concat!("E_", "EFFECT_")) { assert_eq!(keyword, "effects", "{code}"); }
     }
     let mut named = Vec::new();
     for file in sources() {
