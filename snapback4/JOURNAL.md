@@ -23172,3 +23172,67 @@ Lead verification on `4c0d23bf0`:
 
 Records: LLP 3000.007 §20.18 and `llp/reviews/3000.007-agent-ergonomics-wave-9.*`.
 
+## 2026-09-16 — Application SQL reads admitted (Charlie; recorded by lead)
+
+Charlie ruled: "admit application SQL reads". LLP 3000.009 §14.4 records the
+admission, and §6.2 governs read-only SQL over authorized inputs on both stores.
+The pending recommendation in LLP 3000.007 §10.3 is resolved and the Moves
+line is added to `NOT-DOING.md`. Authorization precedes selection, ordering
+and limits; this is not the unrestricted developer-inspection `sql` verb.
+
+Increment D's author-decision gate is removed. Its implementation, dual-store
+qualification and C1 key-bound dependency remain; A1/C1 integration, A2, A3
+and the Workroom fixture pack stay first. The first Snapback brief cell still
+excludes SQL reads. No SQL writes into managed data, Quarry-to-SQL lowering,
+implementation claim or publication is authorized by this ruling.
+
+## 2026-09-16 — A1/C1 integrated, verified and measured on an idle host (lead)
+
+From clean main `e16baf3483`, cherry-picked `-x` A1 `1dd4c9d35` then C1
+`92d9cbede` as `49e5c2850` and `1548af2c4`; neither branch was merged.
+Conflicts retain W7/W8 adoption, read-only inspection, memory mode,
+presence/grace witnesses and README content across its split. The Postgres
+tail retains the evaluation adapter's absence of presence deferral.
+
+Fixes after integration: legacy read-only doctor accounting and release path;
+an explicit prefetch benchmark switch; stale grace and dual-store replay
+assertions brought onto A1's same-input contract; experiment lockfile local
+package versions aligned with W8. Fresh blind Codex Sol and Grok reviews
+cleared the final code `ba92d4f32`; Codex found the raced `E_ID_REUSED` HTTP
+500, now HTTP 200 with a direct classifier/concurrent-request witness and
+18/18 write-ID client tests passing. Prior lane fix rounds remain recorded.
+
+Verification was serialized on idle `450b`, not `expo-build-1000`:
+
+- `bash scripts/test.sh`: 1,072 Rust passes, one stale replay assertion (fixed
+  and focused rerun passes), four ignored; clients 400/401; other stages pass,
+  including fixture wrappers 9/9. This is **not a green full-suite claim**.
+- Untouched main `e16baf3483` in a separate clean worktree reproduces the same
+  acquisition-readiness assertion (394/395 clients). Filed a separate baseline
+  ticket. The handoff's three fixture cases pass without `ECONNREFUSED`;
+  their teardown-race ticket is closed.
+- `bash scripts/test-postgres.sh`: pass, with 15 conformance, one device, two
+  key-bound, five cache/adoption and 18 corpus harness tests. SQLite corpus
+  211 passed / 83 skips; Postgres 208 / 86. All 22,086 precharge positions
+  match; named skips are not passes. Postgres's unbound id replay stays open
+  for C3, with its ticket moved from the lane's nested issues directory to
+  the root working set.
+
+PG16.15 was extracted user-locally on the Ryzen 5 3600 / 128 GiB Ubuntu host;
+no system service was installed. The final `--bench` on/off pair used default
+200 iterations, 20 warmups, four writers × 100 commits, WAL/FULL and PG
+fsync/synchronous-commit/full-page-writes on. Before/after samples showed
+98–100% CPU idle and no swap traffic, with no other suite on the machine.
+
+**All C1 targets missed:** page on/off 5.22× / 3.51× SQLite, inbox 3.10× /
+7.64×, serialized 446–461 / 449–458 commits/s against 5,000/s. Inbox calls
+are eight / 68. No tuning. The first idle attempt hit serializable retry
+exhaustion and lost its result to a panic. The harness now joins writers,
+retains completed cells and explicit failed cells, checks successful commit
+counts, writes JSON, then exits nonzero. Both retained runs still exit 1 for
+serializable failures; those cells claim no throughput and have a follow-up.
+
+Full evidence, raw JSON, log hashes and received review links:
+[`W9-INTEGRATION-REPORT.md`](./experiments/postgres/W9-INTEGRATION-REPORT.md).
+RFC 3000.009 §10.2's A1/C1 rows carry the evidence and misses. No version bump
+or publication; next are A2, A3 and the Workroom fixture pack before controls.

@@ -654,6 +654,22 @@ and its original message are unchanged. Codes follow `require`: UPPER_SNAKE,
 never `E_`; they are declared at the use site, not looked up in a registry.
 Hidden collisions retain their ordinary authorization refusal, and `insert … if
 absent` still returns null on a visible clash.
+Every encoded index key must fit 2048 bytes, including every component and
+the appended row id. `check` uses declared column bounds, up to four UTF-8
+bytes per text character, and encoding overhead; E_INDEX_KEY_BYTES names
+the column to bound with `text <=N`. This declaration check is the primary
+admission gate at `check` and source adoption. Existing SQLite stores also
+scan their index entries before adoption; opening an existing Postgres store
+does the same. One bounded query reports an offending table, index and exact
+entry count with E_INDEX_KEY_BYTES. Fresh stores skip this scan. Rewrite the
+old rows by shortening indexed values or deleting them, then adopt declarations
+whose bounds fit. A device reset discards its old entries instead.
+Writes on SQLite, Postgres and devices refuse new oversized keys. Deletes
+always remain available; updates may retain or shorten existing oversized keys
+without growing their lengths or count, so old violations can be removed.
+Word entries use the search token cap.
+Table and index names together are limited to 512 UTF-8 bytes, reserving
+their space alongside the encoded key in the Postgres layout.
 
 Every table has `byId`. A point read (`t[key]`, `update`, `delete`,
 `upsert`) needs a unique index over exactly the key's columns; `exists

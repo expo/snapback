@@ -26,12 +26,12 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
                                       --replay: suppress new effects and hold schedules; --hold-effects: pause claims, keep effects for later; serve on 127.0.0.1:4400, re-adopting on every save; --fresh/--memory: a store in memory that dies with this process
   deploy <dir> [--allow-destructive]  a release: the compiled backend into <dir>/releases/N, current → N
   rollback <dir>                   current → the previous release
-  serve <dir> [--port N] [--bind IP]  serve HTTP on 127.0.0.1:4400 behind a TLS proxy; tokens only
+  serve <dir> [--port N] [--bind IP] [--worker <path>]  serve HTTP on 127.0.0.1:4400 behind a TLS proxy; tokens only
     --i-understand-cleartext         required for a non-loopback bind; see README proxy contract
   run <op> [json] --as <persona|principal-id> [--now <milliseconds|+duration>]   run one operation against the local store (a job runs whole, as the system)
   clock advance <duration> [--port N]  advance a running dev clock, sweep expiry and run due jobs
   test [--fixture dir] [--as p] [--residency]    load a fixture, run every query, print the meters
-  why <CODE | op | table>          explain a refusal/note with its card, an operation's cost, or a table's rules
+  why <E_CODE | op | table | id>   explain a refusal or note with its card section, an operation's cost, a table's rules, or work by id; --release <dir>, --values
   guide [keyword]                  list cards and aliases, or print one card
   data <table> [--limit N]         inspect stored rows as an administrator (bypasses read rules)
   sql <SELECT> [--release dir] [--limit N] [--json]  read-only inspection of your store (not rule-filtered)
@@ -96,6 +96,9 @@ fn main() -> ExitCode {
             0
         }
         "dev" => lifecycle::run("dev", || {
+            if options.flags.contains_key("worker") {
+                return Err("dev does not accept --worker; put the entry at snapback/worker.ts, .mts or .mjs, or use serve --worker <path>".into());
+            }
             let Some(project) = std::env::current_dir().ok().and_then(|dir| project::Project::locate(&dir)) else {
                 return Err("no snapback/schema.q here or above; run `snapback4 init` to start one".into());
             };

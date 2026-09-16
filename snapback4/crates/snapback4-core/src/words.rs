@@ -15,6 +15,8 @@ pub const CONTRACT: &str = "nfc-lower-alnum-1";
 
 /// A token longer than this is cut: a prefix of a word is still a word.
 pub const MAX_TOKEN_CHARS: usize = 64;
+/// Worst-case UTF-8 body of that same token cap (indexed and queried alike).
+pub const MAX_TOKEN_BYTES: usize = 4 * MAX_TOKEN_CHARS;
 /// A row contributes at most this many distinct tokens per index; a text
 /// column is bounded, so this bounds the entries one write costs.
 pub const MAX_TOKENS_PER_ROW: usize = 512;
@@ -95,6 +97,15 @@ mod tests {
         assert_eq!(tokens(&long)[0].chars().count(), MAX_TOKEN_CHARS);
         let many: String = (0..1_000).map(|n| format!("w{n} ")).collect();
         assert_eq!(tokens(&many).len(), MAX_TOKENS_PER_ROW);
+    }
+
+    #[test]
+    fn long_unicode_words_and_query_terms_share_the_portable_cap() {
+        let text = "𐐨".repeat(100);
+        let indexed = tokens(&text);
+        assert_eq!(indexed[0].len(), MAX_TOKEN_BYTES);
+        assert_eq!(terms(&text), indexed);
+        assert!(row_matches(&indexed, &terms(&text)));
     }
 
     #[test]

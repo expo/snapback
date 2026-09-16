@@ -175,8 +175,8 @@ impl RuntimeError {
     pub fn family(&self) -> &'static str {
         match self {
             Self::Input(_) | Self::Value(_) | Self::AggregateOverflow { .. } => "input",
-            Self::Structural { code: "E_WRITE_ID_REUSE", .. } => "input",
-            Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE") => "action",
+            Self::Structural { code: "E_WRITE_ID_REUSE" | "E_ID_REUSED", .. } => "input",
+            Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE" | "E_ACTION_AUTHORITY") => "action",
             Self::Structural { code: "E_STORE_RESTORE", .. } => "store",
             Self::Schema(_) | Self::Structural { .. } => "schema",
             Self::Rule { .. } | Self::Auth(_) => "auth",
@@ -234,9 +234,9 @@ impl RuntimeError {
                 refusal.rewrite = Some("iterate the original capped group, read the page in a query, or use a job chunk; `snapback4 check` locates the source and names the bound".into());
                 refusal.guide = Some("programs".into());
             }
-            Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE") => refusal.guide = Some("actions".into()),
+            Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE" | "E_ACTION_AUTHORITY") => refusal.guide = Some("actions".into()),
             Self::Structural { code: "E_STORE_RESTORE", .. } => refusal.guide = Some("sync".into()),
-            Self::Structural { code: "E_WRITE_ID_REUSE", message } => {
+            Self::Structural { code: "E_WRITE_ID_REUSE" | "E_ID_REUSED", message } => {
                 refusal.message = message.clone();
                 refusal.guide = Some("writes".into());
             }

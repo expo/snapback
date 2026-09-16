@@ -125,6 +125,42 @@ fn wait_until(mut predicate: impl FnMut() -> bool) {
 }
 
 #[test]
+fn raced_mutation_id_refusal_keeps_its_terminal_http_status() {
+    // Exercise the post-preflight error classifier directly: a socket race
+    // may otherwise happen to be caught by the earlier replay check.
+    assert_eq!(mutation_error_status(&snapback4_core::store::id_reused().refusal()), 200);
+    let mut transient = Refusal::new("E_STORE_BUSY", "store", "retry later");
+    transient.retryable = true;
+    assert_eq!(mutation_error_status(&transient), 503);
+    assert_eq!(mutation_error_status(&Refusal::new("E_STORE", "store", "failed")), 500);
+
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
+        "use personas alice\nmutation answer(n: int):\n  return n\n");
+    let gate = Arc::new(std::sync::Barrier::new(13));
+    let threads: Vec<_> = (0..12).map(|n| {
+        let gate = gate.clone();
+        let address = host.address;
+        thread::spawn(move || {
+            let payload = json!({ "id": "raced-input", "args": { "n": n } }).to_string();
+            gate.wait();
+            exchange(address, &format!("POST /m/answer HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: {}\r\n\r\n{payload}", payload.len()))
+        })
+    }).collect();
+    gate.wait();
+    let replies: Vec<_> = threads.into_iter().map(|thread| {
+        let response = thread.join().unwrap();
+        assert_eq!(status(&response), 200, "{response}");
+        body(&response)
+    }).collect();
+    assert_eq!(replies.iter().filter(|reply| reply["state"] == "sent").count(), 1);
+    for reply in replies.iter().filter(|reply| reply["state"] != "sent") {
+        assert_eq!(reply["state"], "failed");
+        assert_eq!(reply["why"]["code"], "E_ID_REUSED");
+        assert!(!reply["why"]["retryable"].as_bool().unwrap_or(false));
+    }
+}
+
+#[test]
 fn foreign_origins_and_rebound_hosts_cannot_seed_or_impersonate() {
     let host = Host::new(true);
     for origin in [

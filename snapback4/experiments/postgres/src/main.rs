@@ -13,6 +13,14 @@ use std::{
     time::Instant,
 };
 
+fn prefetch_enabled() -> bool {
+    match std::env::var("SNAPBACK4_EVAL_PREFETCH").as_deref() {
+        Ok("off") => false,
+        Ok("on") | Err(_) => true,
+        Ok(_) => panic!("SNAPBACK4_EVAL_PREFETCH must be on or off"),
+    }
+}
+
 fn timings(label: &str, n: usize, mut run: impl FnMut() -> Value, expected: Option<&Value>) -> Json {
     for _ in 0..20 {
         let value = run();
@@ -41,20 +49,23 @@ fn concurrent_pg(name: &str, mode: WriteMode, disjoint: bool, n: usize) -> Json 
             let gate = gate.clone();
             std::thread::spawn(move || {
                 let mut pg = PostgresEngine::open(connect(), &name).unwrap();
+                pg.set_prefetch(prefetch_enabled());
                 pg.set_write_mode(mode);
                 let slot = format!("c{}", if disjoint { writer } else { 0 });
                 gate.wait();
+                let mut completed = 0;
+                let mut failure = None;
                 for i in 0..n {
-                    sent(
-                        &pg.mutate(
+                    match pg.mutate(
                             "increment",
                             Some(&format!("{mode:?}-{disjoint}-{writer}-{i}")),
                             context("alice", &[("slot", id(&slot))]),
-                        )
-                        .unwrap(),
-                    );
+                        ) {
+                        Ok(outcome) => { sent(&outcome); completed += 1; }
+                        Err(error) => { failure = Some(error.to_string()); break; }
+                    }
                 }
-                pg.stats()
+                (pg.stats(), completed, failure)
             })
         })
         .collect();
@@ -62,13 +73,24 @@ fn concurrent_pg(name: &str, mode: WriteMode, disjoint: bool, n: usize) -> Json 
     gate.wait();
     let mut retries = 0;
     let mut calls = 0;
+    let mut completed = Vec::new();
+    let mut failures = Vec::new();
     for handle in handles {
-        let stats = handle.join().unwrap();
+        // Join every writer even after a transaction exhausts its retry
+        // budget; no writer from a failed cell may overlap the next cell.
+        let (stats, count, failure) = handle.join().unwrap();
         retries += stats.transaction_retries;
         calls += stats.database_calls;
+        completed.push(count);
+        failures.push(failure);
     }
     let elapsed = start.elapsed().as_secs_f64();
-    json!({"backend":"postgres","mode":format!("{mode:?}"),"disjoint":disjoint,"writers":4,"mutations":4*n,"seconds":elapsed,"mutations_per_second":4.0*n as f64/elapsed,"retries":retries,"database_calls":calls})
+    let complete = failures.iter().all(Option::is_none);
+    json!({"backend":"postgres","mode":format!("{mode:?}"),"disjoint":disjoint,"writers":4,
+        "status":if complete {"complete"} else {"failed"}, "requested_mutations":4*n,
+        "mutations":completed.iter().sum::<usize>(), "completed_per_writer":completed, "failures":failures,
+        "seconds":elapsed,"mutations_per_second":complete.then_some(4.0*n as f64/elapsed),
+        "retries":retries,"database_calls":calls})
 }
 
 fn concurrent_sqlite(path: &std::path::Path, disjoint: bool, n: usize) -> Json {
@@ -83,28 +105,77 @@ fn concurrent_sqlite(path: &std::path::Path, disjoint: bool, n: usize) -> Json {
                 let mut sqlite = Engine::open(store).unwrap();
                 let slot = format!("c{}", if disjoint { writer } else { 0 });
                 gate.wait();
+                let mut completed = 0;
+                let mut failure = None;
                 for i in 0..n {
-                    sent(
-                        &sqlite
-                            .mutate("increment", Some(&format!("{disjoint}-{writer}-{i}")), context("alice", &[("slot", id(&slot))]))
-                            .unwrap(),
-                    );
+                    match sqlite.mutate("increment", Some(&format!("{disjoint}-{writer}-{i}")), context("alice", &[("slot", id(&slot))])) {
+                        Ok(outcome) => { sent(&outcome); completed += 1; }
+                        Err(error) => { failure = Some(error.to_string()); break; }
+                    }
                 }
+                (completed, failure)
             })
         })
         .collect();
     let start = Instant::now();
     gate.wait();
+    let mut completed = Vec::new();
+    let mut failures = Vec::new();
     for handle in handles {
-        handle.join().unwrap();
+        let (count, failure) = handle.join().unwrap();
+        completed.push(count);
+        failures.push(failure);
     }
     let elapsed = start.elapsed().as_secs_f64();
-    json!({"backend":"sqlite","mode":"WAL/FULL","disjoint":disjoint,"writers":4,"mutations":4*n,"seconds":elapsed,"mutations_per_second":4.0*n as f64/elapsed})
+    let complete = failures.iter().all(Option::is_none);
+    json!({"backend":"sqlite","mode":"WAL/FULL","disjoint":disjoint,"writers":4,
+        "status":if complete {"complete"} else {"failed"}, "requested_mutations":4*n,
+        "mutations":completed.iter().sum::<usize>(), "completed_per_writer":completed, "failures":failures,
+        "seconds":elapsed,"mutations_per_second":complete.then_some(4.0*n as f64/elapsed)})
+}
+
+fn committed_to(cells: &[Json], backend: &str, slot: usize) -> i64 {
+    cells.iter().filter(|cell| cell["backend"] == backend).map(|cell| {
+        let counts = cell["completed_per_writer"].as_array().unwrap();
+        if cell["disjoint"] == true { counts[slot].as_i64().unwrap() }
+        else if slot == 0 { counts.iter().map(|count| count.as_i64().unwrap()).sum() }
+        else { 0 }
+    }).sum()
+}
+
+// Isolate the SQLite regression cells from the optional Postgres stress
+// modes. Reuse the exact fixture, timings, durability and writer functions.
+fn sqlite_only(n: usize) -> Json {
+    let (schema, programs) = compiled();
+    let directory = std::env::temp_dir().join(namespace("sqlite_bench"));
+    std::fs::create_dir(&directory).unwrap();
+    let path = directory.join("store.sqlite");
+    let store = Store::open(&path).unwrap();
+    store.conn().execute_batch("PRAGMA synchronous=FULL").unwrap();
+    let mut sqlite = Engine::new(store, schema, programs).unwrap();
+    sqlite.seed_at(fixture(32, 25), 10).unwrap();
+    let ctx = context("alice", &[("itemId", id("r000-i0000"))]);
+    let expected = sqlite.query("item", ctx.clone()).unwrap().data;
+    let point = timings("sqlite/item", n, || sqlite.query("item", ctx.clone()).unwrap().data, Some(&expected));
+    let concurrency: Vec<_> = [false, true].into_iter().map(|disjoint| concurrent_sqlite(&path, disjoint, n / 2)).collect();
+    for slot in 0..4 {
+        let result = sqlite.query("counter", context("alice", &[("slot", id(format!("c{slot}")))])).unwrap();
+        assert_eq!(result.data.field("value").unwrap(), &Value::Int(committed_to(&concurrency, "sqlite", slot)));
+    }
+    json!({"experiment":"C1 SQLite point and four-writer regression cells", "sqlite_file":path,
+        "unix_ms":snapback4_core::now_ms(), "profile":if cfg!(debug_assertions){"debug"}else{"release"},
+        "rooms":32,"items_per_room":25,"read_latencies":[point],"concurrency":concurrency,
+        "sqlite_version":sqlite.store().conn().query_row("SELECT sqlite_version()",[],|r|r.get::<_,String>(0)).unwrap(),
+        "sqlite_durability":"WAL, synchronous=FULL (not fullfsync)"})
 }
 
 fn main() {
     let n: usize = std::env::args().nth(1).map(|s| s.parse().expect("iteration count")).unwrap_or(200);
     assert!((20..=10_000).contains(&n), "use 20..10000 iterations");
+    if std::env::args().nth(2).as_deref() == Some("--sqlite-only") {
+        write_result(sqlite_only(n));
+        return;
+    }
     let (schema, programs) = compiled();
     let name = namespace("bench");
     let directory = std::env::temp_dir().join(&name);
@@ -114,6 +185,7 @@ fn main() {
     store.conn().execute_batch("PRAGMA synchronous=FULL").unwrap();
     let mut sqlite = Engine::new(store, schema.clone(), programs.clone()).unwrap();
     let mut pg = PostgresEngine::create(connect(), &name, schema, programs).unwrap();
+    pg.set_prefetch(prefetch_enabled());
     let rows = fixture(32, 25);
     sqlite.seed_at(rows.clone(), 10).unwrap();
     pg.seed_at(rows, 10).unwrap();
@@ -213,19 +285,24 @@ fn main() {
         &Value::Int((n + 20) as i64)
     );
     for slot in 0..4 {
-        let expected_sqlite = (n / 2 * if slot == 0 { 5 } else { 1 }) as i64;
         for (value, expected) in [
-            (sqlite.query("counter", context("alice", &[("slot", id(format!("c{slot}")))])).unwrap().data, expected_sqlite),
-            (pg.query("counter", context("alice", &[("slot", id(format!("c{slot}")))])).unwrap().data, expected_sqlite * 2),
+            (sqlite.query("counter", context("alice", &[("slot", id(format!("c{slot}")))])).unwrap().data, committed_to(&concurrency, "sqlite", slot)),
+            (pg.query("counter", context("alice", &[("slot", id(format!("c{slot}")))])).unwrap().data, committed_to(&concurrency, "postgres", slot)),
         ] {
             assert_eq!(value.field("value").unwrap(), &Value::Int(expected));
         }
     }
     let output = json!({"experiment":"Postgres Rows adapter, not production qualification", "schema":name,"sqlite_file":path,
         "unix_ms":snapback4_core::now_ms(),"profile":if cfg!(debug_assertions){"debug"}else{"release"},"rooms":32,"items_per_room":25,
+        "prefetch":prefetch_enabled(),
         "sqlite_version":sqlite.store().conn().query_row("SELECT sqlite_version()",[],|r|r.get::<_,String>(0)).unwrap(),
         "sqlite_durability":"WAL, synchronous=FULL (not fullfsync); same machine as PostgreSQL", "postgres_settings":settings,
         "read_latencies":reads,"mutation_latencies":writes,"concurrency":concurrency,"native_inbox_plan":explain});
+    write_result(output);
+}
+
+fn write_result(output: Json) {
+    let failed = output["concurrency"].as_array().is_some_and(|cells| cells.iter().any(|cell| cell["status"] == "failed"));
     let text = serde_json::to_string_pretty(&output).unwrap();
     if let Ok(path) = std::env::var("SNAPBACK4_EVAL_OUTPUT") {
         use std::io::Write;
@@ -234,4 +311,5 @@ fn main() {
         file.write_all(b"\n").unwrap();
     }
     println!("{text}");
+    if failed { eprintln!("benchmark incomplete: a writer cell failed; completed cells are retained, no throughput claimed for failed cells"); std::process::exit(1); }
 }

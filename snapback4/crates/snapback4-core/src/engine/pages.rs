@@ -17,22 +17,27 @@ type Bindings = BTreeMap<String, Origin>;
 #[path = "page_collectors.rs"]
 mod collectors;
 
+#[path = "prefetch.rs"]
+mod prefetch;
+
 
 #[derive(Default)]
 pub(super) struct Plan {
     pub returns: BTreeMap<String, String>,
     pub collectors: BTreeMap<String, String>,
+    pub prefetch: prefetch::Plan,
 }
 
-pub(super) fn plan(program: &Program) -> Plan {
-    if program.kind != ProgramKind::Query { return Plan::default(); }
+pub(super) fn plan(program: &Program, schema: &crate::schema::Schema, prefetch_enabled: bool) -> Plan {
+    let prefetch = if prefetch_enabled { prefetch::plan(program).admit(schema) } else { prefetch::Plan::default() };
+    if program.kind != ProgramKind::Query { return Plan { prefetch, ..Plan::default() }; }
     let mut collectors = BTreeMap::new();
     let returns = returned_origins(program, false, &mut collectors).into_iter().filter_map(|(path, origin)| result_page(&origin).map(|(site, _)| (path, site.to_owned()))).collect();
     if !collectors.is_empty() {
         let flow = collectors::returned_collectors(program);
         collectors.retain(|path, _| flow.returned.contains(path) || !flow.visited.contains(path));
     }
-    Plan { returns, collectors }
+    Plan { returns, collectors, prefetch }
 }
 
 /// Read sites whose pages flow to a query return, including cursorless pages.

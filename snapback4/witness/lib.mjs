@@ -2,6 +2,7 @@
 // page, a seeded `snapback4 dev`, and a browser with a CDP session for the
 // heap. Each witness seeds its own rows and measures its own thing.
 import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { mkdtempSync, cpSync, rmSync, readFileSync, writeFileSync, globSync, existsSync } from "node:fs";
@@ -58,11 +59,12 @@ export async function devServer({ seed, extraSource = "", port = 4460 + (process
   if (extraSource) writeFileSync(join(app, "snapback/media.q"), extraSource);
   const api = `http://127.0.0.1:${port}`;
   const server = spawn(binary(), ["dev", "--port", String(port), "--no-watch"], { cwd: app, stdio: ["ignore", "ignore", "inherit"] });
+  const exited = once(server, "exit");
   for (let i = 0; i < 100; i++) { try { await fetch(api); break; } catch { await new Promise((r) => setTimeout(r, 50)); } }
   const t0 = performance.now();
   const seeded = await fetch(`${api}/seed`, { method: "POST", body: JSON.stringify(seed) }).then((r) => r.json());
   const seedMs = +(performance.now() - t0).toFixed(1);
-  return { api, app, seeded: seeded.seeded, seedMs, close() { server.kill(); rmSync(app, { recursive: true, force: true }); } };
+  return { api, app, seeded: seeded.seeded, seedMs, async close() { server.kill(); await exited; rmSync(app, { recursive: true, force: true }); } };
 }
 
 /** Bundle the client into a page, start a seeded dev server, open Chromium. */
@@ -114,13 +116,13 @@ export async function launch({ seed, extraSource = "", headless = true }) {
       await browser.close();
       pageServer.close();
       rmSync(harness, { recursive: true, force: true });
-      dev.close();
+      await dev.close();
     },
   };
   } catch (error) {
     await browser?.close();
     pageServer.close();
-    dev.close();
+    await dev.close();
     rmSync(harness, { recursive: true, force: true });
     throw error;
   }

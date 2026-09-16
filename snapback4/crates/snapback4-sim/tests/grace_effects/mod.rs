@@ -44,7 +44,10 @@ fn grace_effects_deadline_and_replay_deliver_once() {
     let mut engine = build(SOURCE, Store::memory().unwrap());
     engine.set_presence(Some(Arc::new(Grace { live: 0, deadline: Some(36_000) })));
     send(&mut engine);
-    assert!(engine.mutate("push", Some("message"), Context::new("alice", BTreeMap::new()).at(12_000)).unwrap().replayed);
+    // Replay keeps W7's one-effect behavior only for the same admitted input.
+    // A1 binds the id to its arguments before it considers the new program.
+    assert_eq!(engine.mutate("push", Some("message"), Context::new("alice", BTreeMap::new()).at(12_000)).unwrap_err().code(), "E_ID_REUSED");
+    assert!(engine.mutate("push", Some("message"), Context::new("alice", args(&[("p", id("bob"))])).at(12_000)).unwrap().replayed);
     assert!(engine.claim_effects("worker", None, 10, 60_000, 35_999).unwrap().is_empty());
     engine.set_presence(None);
     let claimed = engine.claim_effects("worker", None, 10, 60_000, 36_000).unwrap();

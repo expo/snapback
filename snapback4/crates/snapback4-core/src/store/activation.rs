@@ -46,6 +46,18 @@ impl Store {
         let sql = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let before = identity(&sql)?;
         if before != self.identity { return Err(RuntimeError::Generation("another engine activated this store; reopen it before activating source".into())); }
+        // One bounded result, no row images. Fresh stores have no schema;
+        // an explicit device reset discards the old entries in this transaction.
+        if before.0.is_some() && !reset {
+            let violation: Option<(String, i64)> = sql.query_row(
+                "SELECT c.name, COUNT(*) FROM i JOIN _catalog c ON c.num = i.ti WHERE length(i.k) > ?1 GROUP BY i.ti ORDER BY i.ti LIMIT 1",
+                [crate::rows::MAX_INDEX_KEY_BYTES as i64], |row| Ok((row.get(0)?, row.get(1)?))
+            ).optional()?;
+            if let Some((name, count)) = violation {
+                let (table, index) = name.rsplit_once('.').unwrap_or((&name, "unknown"));
+                return Err(crate::rows::index_key_refusal(table, index, count as u64));
+            }
+        }
         let schema_hash = schema.hash();
         let activation_hash = programs.map(|programs| digest(&(schema, programs)));
         let schema_changed = before.0.as_deref() != Some(&schema_hash);
