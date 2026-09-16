@@ -9,11 +9,13 @@ route billing: post "/hooks/billing" as service:billing secrets [BILLING_KEY] re
 A declaration publishes one static POST path. Exporting a TypeScript function
 does not publish it. Paths are absolute ASCII, at most 256 bytes, with nonempty
 segments containing letters, digits, `_`, `-` or `.`. Empty and dot segments,
-trailing slashes, escapes, captures, queries and core endpoint paths refuse
+trailing slashes, escapes, captures, queries and core endpoint paths (including `/probe`) refuse
 E_ROUTE_DECLARATION. `route name: post "/hooks/name"` is the minimal form.
 There is no Quarry body, argument list, result declaration or `<-` rule.
 
-The default route requires a live session and its handler runs as that caller.
+The default route requires a live session and its handler runs as that caller;
+a missing session answers HTTP 401. Provider routes refuse development personas
+with HTTP 401, including loopback requests.
 `as service:<seat>` declares a provider route whose verifier checks the provider
 signature before any work is admitted. A seat has 1–64 letters, digits, `_` or
 `-`. Both kinds may declare secrets. `secrets`, `retry`, `backoff`, `deadline`
@@ -57,8 +59,10 @@ export default server({ routes: {
 `Response` or `Promise<Response>`. `ServiceRoute<S>` requires both `verify`
 and `handle`. The verifier receives only declared `secrets` and an abort
 `signal`; it has no delegated database context. Return `false` for an invalid
-signature: HTTP 401, with no durable admission. An exception or unavailable
-verifier answers 503. Verification should have no side effects. Every provider
+signature: HTTP 403 with E_ROUTE_VERIFY, with no durable admission. An exception
+or unavailable verifier answers 503 with E_ROUTE_PENDING; that response alone
+does not prove admission. An expired or mismatched verifier claim refuses
+E_ROUTE_LEASE. Verification should have no side effects. Every provider
 retry verifies afresh, including retries collecting an already settled response.
 
 `req.method` is `"POST"`, `req.path` is the declared path and `req.headers` is

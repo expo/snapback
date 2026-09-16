@@ -69,7 +69,7 @@ fn invalid_methods_paths_authority_and_body_forms_are_located_refusals() {
     }
     let long_path = format!("/{}", "a".repeat(256));
     refused(&format!("route bad: post \"{long_path}\"\n"), "static absolute ASCII path");
-    for reserved in ["q", "m", "a", "actions", "effects", "routes", "assets", "auth", "dev", "seed", "sync", "changes", "schema", "api.ts", "native.wasm"] {
+    for reserved in ["q", "m", "a", "actions", "effects", "routes", "assets", "auth", "dev", "seed", "sync", "changes", "schema", "api.ts", "native.wasm", "probe"] {
         refused(&format!("route bad: post \"/{reserved}\"\n"), "core HTTP endpoint");
         refused(&format!("route bad: post \"/{reserved}/hook\"\n"), "core HTTP endpoint");
     }
@@ -84,6 +84,18 @@ fn invalid_methods_paths_authority_and_body_forms_are_located_refusals() {
         assert!(bound.diagnostics.iter().any(|d| d.code == "E_ROUTE_DECLARATION" && d.guide == "routes"), "{name}: {:?}", bound.diagnostics);
         assert!(bound.schema.routes.is_empty());
     }
+}
+
+#[test]
+fn verification_refusals_explain_the_route_boundary() {
+    for code in ["E_ROUTE_VERIFY", "E_ROUTE_PENDING", "E_ROUTE_LEASE"] {
+        assert_eq!(snapback4_lang::diag::guide_for(code), "routes");
+        let explanation = snapback4_lang::guide::explain_code(code).unwrap();
+        assert!(explanation.contains("Full card: snapback4 guide routes"), "{explanation}");
+    }
+    let card = snapback4_lang::guide::card("routes").unwrap();
+    assert!(card.contains("HTTP 403 with E_ROUTE_VERIFY, with no durable admission"));
+    assert!(card.contains("does not prove admission"));
 }
 
 #[test]
