@@ -15,6 +15,8 @@ use std::fmt;
 
 mod work;
 pub use work::{ActionSpec, WorkPolicy, WorkSpec};
+pub mod routes;
+pub use routes::RouteSpec;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Schema {
@@ -39,6 +41,9 @@ pub struct Schema {
     pub action_specs: BTreeMap<String, ActionSpec>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub effect_specs: BTreeMap<String, WorkSpec>,
+    /// Only these paths publish application HTTP handlers.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub routes: BTreeMap<String, RouteSpec>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -717,6 +722,15 @@ pub struct SchemaIssue {
 pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     let mut issues = Vec::new();
     let issue = |issues: &mut Vec<SchemaIssue>, path: String, message: String| issues.push(SchemaIssue { path, message });
+    let mut route_paths = BTreeSet::new();
+    for (name, route) in &schema.routes {
+        let path = format!("routes.{name}");
+        if name.is_empty() || name.len() > 128 || name.split('.').any(|part| part.is_empty() || !part.bytes().enumerate().all(|(i, b)| b.is_ascii_alphabetic() || b == b'_' || (i > 0 && b.is_ascii_digit()))) {
+            issue(&mut issues, path.clone(), "a route name is a qualified identifier of at most 128 bytes".into());
+        }
+        if let Err(message) = route.validate() { issue(&mut issues, path.clone(), message); }
+        if !route_paths.insert(&route.path) { issue(&mut issues, path, "two route declarations publish the same POST path".into()); }
+    }
     for (table_name, table) in &schema.tables {
         let path = format!("tables.{table_name}");
         if table.columns.get("id") != Some(&ColumnType::Id) {
