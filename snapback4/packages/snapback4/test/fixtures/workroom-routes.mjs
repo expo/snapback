@@ -174,9 +174,20 @@ route billing: post "/billing/webhook" as service:billing secrets [HOOK_KEY] ret
       } else if (check === "past-due-readable") assert.equal((await application()).state.plan, "past_due");
       else if (check === "backlog-restart-durable-ack") {
         const {state, audit} = await application(); assert.equal(state.plan, "pro"); assert.equal(state.seatLimit, 20); assert.equal(state.revision, 6);
-        assert.deepEqual(audit.map(value => value.revision).sort((a, b) => a - b), [2, 3, 4, 5, 6]);
+        // The forced 503 can defer revision 5 until after revision 6 commits.
+        // Latest-wins means that delivery is acknowledged as stale, not that
+        // every older backlog event must manufacture an audit change.
+        const revisions = audit.map(value => value.revision).sort((a, b) => a - b);
+        assert.deepEqual(revisions.filter(revision => revision !== 5), [2, 3, 4, 6]);
+        assert.equal(new Set(revisions).size, revisions.length, "no revision applies twice");
         const inspected = await status(); assert.ok(backlogIds.every(id => inspected.deliveries.some(value => value.id === id && value.ack)));
-        for (const event of backlogEvents) assert.equal(p.records("handled").filter(value => value.event === event).length, 1);
+        for (const event of backlogEvents) {
+          const handled = p.records("handled").filter(value => value.event === event);
+          assert.equal(handled.length, 1);
+          const work = p.inspect("SELECT state, error_code FROM _requests WHERE id = ?", handled[0].id)[0];
+          assert.equal(work.state, "done");
+          assert.equal(work.error_code, revisions.includes(handled[0].revision) ? null : "E_ROUTE_REFUSED", "a skipped stale revision must be a recorded application refusal");
+        }
         assert.equal(await snapshot(), finalSnapshot); assert.equal(refused, 1); assert.equal(dropped, 1);
       } else assert.fail(`unexpected canonical assertion: ${check}`);
     } else assert.fail(`unexpected canonical operation: ${action.op}`);

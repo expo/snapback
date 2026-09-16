@@ -26,3 +26,9 @@ Evidence retained under `/tmp/sb4-w9-evidence.nndUKm/`:
 `a2-supervision-checks.log`, `a2-w5c-baseline-recheck.log`.
 The ten-pass baseline log SHA-256 is
 `5a6ca8917f2864fc5d0abf065aff822c4f79ecede2494df95bb9f29b40476084`.
+
+2026-09-16 A3 qualification: the same assertion recurred in the complete
+suite at `d38c7dfcf` (clients 469/471), then passed in the immediate isolated
+run alongside the other failed client case. This is a second observation,
+not a proven inherited baseline or a claimed fix. Retained logs:
+`a3-full-suite.log`, `a3-failure-isolation.log` in the same evidence directory.
