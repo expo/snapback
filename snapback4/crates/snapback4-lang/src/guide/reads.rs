@@ -122,12 +122,31 @@ read: `posts[viewer] where exists follows[viewer, .authorId] last 20 by byAuthor
 An immediate `by` after an unparenthesized inner read is ambiguous
 (`E_QUARRY_MODIFIER_SCOPE`): parenthesize the inner read, or move the modifier
 before `where`. `check --fix` preserves the inner index by adding parentheses:
-`where exists (follows[viewer, .authorId] by byPair)`. A page a query returns without
+`where exists (follows[viewer, .authorId] by byPair)`.
+
+## Pages without a cursor
+
+A page a query returns without
 a cursor cannot be continued: an unfiltered page with more rows reads
 `complete: false` with no `next` (N_NO_CURSOR); declare `c: cursor ?` and
-page with `after c`. A single-group page omits this note only when its bound
+page with `after c`, or declare `cap 50 by conversationId` on the table
+for a page of 50 pinned by `conversationId`, if 50 is the intended group limit.
+An unscoped plain page can use `cap 50` on the whole table instead.
+A cap refuses writes beyond its limit: it is a data constraint, not a hint.
+A single-group page omits this note only when its bound
 covers the group cap and that cap fits the default 8,192-row examined ceiling.
-Other metered work can still cut a read. A merge reads plain lanes, or matching lanes over a
+Other metered work and authorization can still make an answer incomplete;
+a per-lane cap does not bound a merge. Inspect `Read.cut`: `meter` means narrow
+the read or continue with `next`, `words` means narrow the search term, and null
+does not establish completeness. For `complete: false` with `cut: null`, render
+"Results may be incomplete", even when empty. Loopback dev's online client
+includes `Read.meter` by default: examine `examined`, `indexEntries`, `probes`
+and `cut` on the returned answer. Local device reads have no meter; `serve`
+never returns these development counters.
+
+## Merges, seeks and continuation
+
+A merge reads plain lanes, or matching lanes over a
 words index (guide search). Uniform plain merge lanes with a unique index or one ending
 in `id` read one head each, then advance the winning lanes; `check` notes
 a merge past 50 lanes (N_WIDE_MERGE). The meter counts examined rows and

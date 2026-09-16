@@ -68,6 +68,93 @@ impl Drop for Project { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0)
 fn parsed(output: &Output) -> Value { serde_json::from_slice(&output.stdout).unwrap_or_else(|_| panic!("{output:?}")) }
 
 #[test]
+fn w10a_repeated_notes_explain_once_under_the_first_occurrence() {
+    let p = Project::new();
+    for count in [1, 2, 20] {
+        let source = format!("table messages:\n  body: text <=100\n  read <- allow\n{}", (0..count).map(|i| format!("query page{i}():\n  return messages first 10 by byId\n")).collect::<String>());
+        p.source(&source);
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+        assert!(bound.diagnostics.is_empty());
+        assert_eq!(bound.notes.len(), count);
+        let explanation = bound.notes[0].explanation().unwrap();
+        for _ in 0..2 {
+            let output = p.run(&["check"]);
+            assert!(output.status.success(), "{output:?}");
+            let text = String::from_utf8(output.stdout).unwrap();
+            assert_eq!(text.matches("note: ").count(), count);
+            assert_eq!(text.matches("  guide: reads").count(), count);
+            let excerpts = usize::from(count >= 2);
+            assert_eq!(text.matches("Full card: snapback4 guide reads").count(), excerpts, "{text}");
+            if count >= 2 {
+                assert!(text.contains(&format!("note: {}\n\n{explanation}\n\nnote: {}", bound.notes[0], bound.notes[1])), "{text}");
+                assert!(explanation.contains("Read.cut") && explanation.contains("Read.meter"), "the unvisited reads card must reach the builder: {explanation}");
+                assert!(explanation.len() + 1 <= 4096);
+            }
+            println!("W10a check: notes={count}, inline sections={excerpts}, excerpt bytes={}", if excerpts == 0 { 0 } else { explanation.len() + 1 });
+        }
+        let output = p.run(&["check", "--json"]);
+        assert!(output.status.success());
+        assert_eq!(parsed(&output)["notes"].as_array().unwrap().len(), count);
+        assert!(output.stderr.is_empty());
+    }
+}
+
+#[test]
+fn w10a_repeated_refusals_explain_once_and_preserve_json() {
+    let p = Project::new();
+    for count in [1, 2] {
+        let source = format!("table messages:\n  body: text <=100\n  read <- allow\n{}", (0..count).map(|i| format!("query broken{i}():\n  return missing{i}\n")).collect::<String>());
+        p.source(&source);
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+        assert_eq!(bound.diagnostics.len(), count);
+        let output = p.run(&["check"]);
+        assert_eq!(output.status.code(), Some(1));
+        let text = String::from_utf8(output.stderr).unwrap();
+        assert_eq!(text.matches("Full card: snapback4 guide language").count(), usize::from(count >= 2), "{text}");
+        if count >= 2 {
+            let explanation = bound.diagnostics[0].explanation().unwrap();
+            assert!(text.contains(&format!("{}\n\n{explanation}\n\n{}", bound.diagnostics[0], bound.diagnostics[1])), "{text}");
+            assert!(explanation.len() + 1 <= 4096);
+        }
+        let output = p.run(&["check", "--json"]);
+        assert_eq!(output.status.code(), Some(1));
+        assert_eq!(parsed(&output)["problems"].as_array().unwrap().len(), count);
+        assert!(output.stderr.is_empty());
+    }
+}
+
+#[test]
+fn w10a_inline_sections_have_a_check_wide_bound_and_stable_order() {
+    let p = Project::new();
+    let source = "table messages:\n  body: text <=100\n  read <- allow\nquery missingA():\n  return absentA\nquery missingB():\n  return absentB\nquery typeA():\n  return 1 + true\nquery typeB():\n  return 2 + true\nquery placementA():\n  insert messages { body: 'a' }\nquery placementB():\n  insert messages { body: 'b' }\nquery emitA():\n  emit notify { body: 'a' }\nquery emitB():\n  emit notify { body: 'b' }\n";
+    p.source(source);
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    let mut counts = std::collections::BTreeMap::new();
+    for d in &bound.diagnostics { *counts.entry((&d.code, &d.guide)).or_insert(0) += 1; }
+    assert_eq!(counts.values().filter(|n| **n >= 2).count(), 4, "{:?}", bound.diagnostics);
+    let output = p.run(&["check"]);
+    assert_eq!(output.status.code(), Some(1));
+    let text = String::from_utf8(output.stderr).unwrap();
+    assert_eq!(text.matches("Full card: snapback4 guide ").count(), 3, "{text}");
+    let mut expected = String::new();
+    let mut shown = std::collections::BTreeSet::new();
+    let mut added_bytes = 0;
+    for d in &bound.diagnostics {
+        expected.push_str(&format!("{d}\n\n"));
+        if shown.len() < 3 && shown.insert((&d.code, &d.guide)) {
+            let explanation = d.explanation().unwrap();
+            added_bytes += explanation.len() + 2;
+            expected.push_str(&format!("{explanation}\n\n"));
+        }
+    }
+    expected.push_str(&format!("check: {} problems\n", bound.diagnostics.len()));
+    assert_eq!(text, expected);
+    assert!(added_bytes <= 3 * 4097);
+    println!("W10a refusal bound: repeated kinds=4, inline sections=3, added bytes={added_bytes}, maximum added bytes=12291");
+    assert_eq!(p.run(&["check"]).stderr, text.as_bytes());
+}
+
+#[test]
 fn w9b_why_prints_a_codes_card_paragraph() {
     let p = Project::new();
     for (code, card, paragraph) in [

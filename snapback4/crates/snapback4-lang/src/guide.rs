@@ -1056,6 +1056,11 @@ With `--fresh`, the count dies with the in-memory store; `doctor` and local
 
 Jobs in `snapback/jobs.q` are named `jobs.<name>` even in that file's schedules;
 `schema.q` jobs use their bare names. `check --fix` qualifies an unambiguous bare module job.
+Effects are global declarations shared by every file; jobs are module-qualified
+operations. The worker dispatches by the declared effect name, while schedules
+and `run` address an operation. If `digest.q` declares `effect notify` and
+`job daily()`, write `emit notify { ... }`, register `effects: { notify: ... }`
+in the worker, and schedule `digest.daily` (`schedule dailyDigest every 1d: digest.daily`).
 
 ```quarry
 table invites:
@@ -1217,6 +1222,12 @@ reads. A query, not a mutation, can be native too (LLP 3000.005 §9)."##,
         "actions" => actions::CARD,
         "routes" => routes::CARD,
         "effects" => r##"# Effects: the outside world, performed by a worker
+
+Effects are global declarations shared by every file; jobs are module-qualified
+operations. The worker dispatches by the declared effect name, while schedules
+and `run` address an operation. If `digest.q` declares `effect notify` and
+`job daily()`, write `emit notify { ... }`, register `effects: { notify: ... }`
+in the worker, and schedule `digest.daily` (`schedule dailyDigest every 1d: digest.daily`).
 
 For a replay mode that must not emit notifications, run `snapback4 dev --replay`.
 New emits are counted as `suppressed` by `doctor`, with no queued payload:
@@ -1422,6 +1433,11 @@ unreachable) and client (the client itself refused, as after `close()`).
 the code, followed by the full-card command. If there is no dedicated section,
 it says so and prints the card's opening prose. Output is at most 4,096 UTF-8
 bytes including the pointer and final newline; a shortened excerpt says so.
+When the same code and card occur twice in one text `check`, the same excerpt
+prints once under the first occurrence; every site keeps its `guide:` pointer.
+At most three excerpts print in diagnostic order: 12,291 extra bytes including
+separating blank lines. A single occurrence stays compact; `check --json`
+keeps its structured diagnostics. `why` remains available on demand.
 Reads never raise a rule refusal: a
 hidden row is null, and a page omits it.
 

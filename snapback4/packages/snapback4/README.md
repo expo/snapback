@@ -18,19 +18,27 @@ For an online or Expo starter, replace `init` above with `init --online`
 or `init --expo`, then run `npm install` before `check` to install the
 merged dependencies. The initial exact pin matches the starter's dependency.
 
-This guide and its linked client/server references describe the published
-surface; the diagnostics carry the rest (every refusal names its
-code, its site and a rewrite, and `snapback4 why <CODE>` explains it).
+This `README.md` covers the app layout, Quarry and sync (§1–3).
+[CLIENT-AND-OPERATIONS.md](./CLIENT-AND-OPERATIONS.md#4-the-client) continues
+with the client (§4), development (§5), releases (§6) and Expo (§7);
+[SERVER.md](./SERVER.md) covers TypeScript server handlers.
+`snapback4 guide <card>` and `snapback4 why <code>` answer without leaving
+the terminal. Every refusal names its code, its site and a rewrite.
 Every Quarry block in this file and in the guide is compiled by the
 package's own suite, and the language card is run, so nothing here
 promises a form the compiler refuses.
 
-Start here: read `snapback4 guide language` for Quarry, then `guide rules`
+**Start here:** read §1 below for the app layout, then open
+`snapback4 guide language` for Quarry and `guide rules`
 for authorization, `guide sync` and `guide residency` for what the device holds,
 and `guide prediction` for offline writes. Use `guide reads` and `guide writes`
 as you build screens; `guide replay`, `guide effects`, `guide jobs` and
 `guide clock` cover seeds, notifications and tests. Read `guide personas`
-when wiring sign-in, and `guide assets` when adding media.
+when wiring sign-in, `guide assets` when adding media, and `guide actions`
+for TypeScript server work. Before wiring a client, continue at
+[§4 The client in CLIENT-AND-OPERATIONS.md](./CLIENT-AND-OPERATIONS.md#4-the-client):
+client setup, the read/write card, React, sign-in and the app's responsibility
+for delivering its shell on a cold-offline start begin there.
 
 ## 1. The shape of an app
 
@@ -627,6 +635,11 @@ its next boundary. A job in `snapback/jobs.q` is named `jobs.<name>` in
 every schedule; `schema.q` jobs use bare names. `check --fix` qualifies an
 unambiguous bare module job. `snapback4 run <job> '{..}'` runs one here and now.
 Jobs are not on `api.ts`.
+Effects are global declarations shared by every file; jobs are module-qualified
+operations. The worker dispatches by the declared effect name, while schedules
+and `run` address an operation. If `digest.q` declares `effect notify` and
+`job daily()`, write `emit notify { ... }`, register `effects: { notify: ... }`
+in the worker, and schedule `digest.daily` (`schedule dailyDigest every 1d: digest.daily`).
 
 ### Native jobs and reads
 
@@ -848,6 +861,10 @@ at a horizon or cut. `held` does not acquire data or promise completeness.
 
 ### Effects
 
+Effects use their global declared name even when the emitting job lives in a
+module: `digest.q`'s `daily` job is `digest.daily`, while its `effect notify`
+is `notify` in both `emit notify { ... }` and the worker's `effects: { notify: ... }`.
+
 ```quarry
 effect notify
 
@@ -990,6 +1007,18 @@ partition holds exactly what the viewer may read. `check` says so
 page omits the cursor note when its bound covers the group cap and that cap
 fits the default 8,192-row examined ceiling. Larger caps still need a cursor;
 other metered work can also cut a read.
+For a page of 50 pinned by `conversationId`, either declare `c: cursor ?`
+and page with `after c`, or add `cap 50 by conversationId` to the table if
+that is the intended group limit. An unscoped plain page can use `cap 50`.
+The cap refuses writes beyond its limit; a per-lane cap does not bound a merge.
+
+When the same code and card occur twice in one text `check`, its card excerpt
+prints once under the first occurrence, with the `guide:` pointer kept at
+every site. At most three excerpts print per check, each at most 4,096 UTF-8
+bytes including its full-card pointer and final newline (12,291 extra bytes
+including separating blank lines). A single occurrence stays compact;
+`check --json` keeps its structured diagnostics. `why <code>` still opens
+the excerpt on demand.
 
 ## 3. Sync: the viewer's partition is the unit of sync
 
