@@ -116,3 +116,34 @@ Evidence: storage workload `sync-reader-reuse-0222-v4-perf-formal`, the
 existing benchmark record, and original expiry receipt `de209c31…`.
 The failed first qualification wrapper and root smoke hash check remain
 preserved; their narrow corrections did not rerun the measured workload.
+
+
+## 2026-09-16 — mixed traffic closes the pooling experiment without adoption
+
+The unchanged third/final candidate passes the original six-run mixed
+query/poll experiment: 73,728 timed requests, 3,120 excluded warmups, all
+auth/fixture/freshness proofs and owned-process cleanup. Both first frozen
+calculations agree; independent evidence review reports no material finding.
+
+Mixed C32 point/page p50 falls 3.937/4.713 → 2.279/2.735 ms, but both
+immediate post-mixed C16 query probes lose all six median metrics. Their
+p50 and rate worsen in every pair; point p99 rises 1.720 → 11.927 ms and
+page p99 8.340 → 21.243 ms. Rates decline 9.67% and 10.28%. All 34 median
+and 120 paired metric losses remain. After-case RSS medians fall
+40,532 → 33,564 KiB, with all final pairs lower; these process points
+do not establish causality, isolated pool allocation or continuous peaks.
+
+Disposition: do not adopt this pooling variant; end the three-round
+optimization effort and retain every original. Prior snapshot regressions
+remain unresolved, so this underlying sync-tail ticket stays open. The
+conditional expiry-memory workload was not run; it could not remove the
+measured query/snapshot regressions. No fourth runtime revision is made.
+A future approach needs a distinct measured cause and must respect the
+existing three-round rule, core ownership, fresh authorization and
+transactions, acknowledgement boundaries and response ceilings.
+
+Full evidence: storage workload `mixed-reader-reuse-0222-v4-v2-formal`,
+the existing benchmark record, completion `e4293592…`, agreement
+`ae1b937a…` and independent review `a3d607f0…`. These are fixed 0.2.22
+finite-wave hot-query/poll measurements, not current-main or competitor
+results, steady-arrival saturation, or server-side pool-occupancy evidence.

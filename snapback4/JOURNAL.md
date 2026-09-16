@@ -21372,3 +21372,33 @@ bump; the suite ran green over the merge.
 
 Next: the seventh Astra-medium calibration on these pins.
 
+
+
+## 2026-09-16 — mixed traffic leaves sync pooling unadopted
+
+The performance lane completed the original mixed query/empty-poll
+comparison on the unchanged third/final fixed 788c21d6 / 0.2.22 candidate.
+All six runs, 73,728 timed requests, 3,120 excluded warmups, ordinary-auth,
+full-walk and post-write freshness proofs pass. Both first frozen
+calculators pass unchanged and their saved results reconcile; independent
+evidence review finds no material custody issue. All owned processes stop.
+
+Mixed C32 point/page p50 improves 3.937/4.713 → 2.279/2.735 ms. Both
+immediate post-mixed C16 query probes lose all six median metrics, with
+p50/rate worse in every pair. Point/page p99 rises 1.720/8.340 →
+11.927/21.243 ms. All 34 median and 120 paired metric losses remain.
+Final RSS points are lower in all pairs, with medians 40,532 → 33,564 KiB;
+this is not causal memory or isolated pool-allocation evidence.
+
+The pooling optimization effort ends without adopting any of its three
+runtime variants. The original snapshot losses remain and the sync-tail
+ticket stays open. The conditional expiry-memory measurement is not run;
+the same-watermark expiry correctness test remains a separate passing
+result. Candidate source and original failed/preliminary records remain
+recoverable in the ignored run. No runtime change or release is made.
+
+All 229 original public files, raw timings and complete calculations are
+appended to storage.jsonl. The [benchmark record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
+retains all 24 operation cases, resource points, limits and evidence pins.
+This finite-wave, warm local test supplies no current-main, competitor,
+steady-arrival, device, cold-start, durability or peak-memory claim.

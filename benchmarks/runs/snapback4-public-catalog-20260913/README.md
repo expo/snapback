@@ -3952,3 +3952,114 @@ but remains in case rates and can interfere across concurrent callbacks.
 The fixture is warm, with no cache reset or CPU isolation. This screen
 makes no new comparator, current-main, cold-start, device/realtime,
 restart, durability or publication claim.
+
+
+### Mixed queries and empty polls: final pooling variant not adopted (2026-09-16)
+
+The unchanged third/final runtime candidate was measured on fixed
+`788c21d6` / 0.2.22, using the same retained native x86 Linux baseline and
+candidate binaries as the preceding sync screen. The Ubuntu 24.04 / AMD
+EPYC 9454 host, production profile, packaged SQLite flag, MEMSTATUS and
+Node 24.21.0 / Undici 7.29.1 are unchanged. No runtime revision is part of
+this experiment. It does not measure the subsequently published 0.2.23.
+
+All six original runs completed in B/C, C/B, B/C order. Each fresh store
+uses three ordinary guests and the existing two-group fixture with 8,192
+bulk messages per group. Owner/reader/outsider views have 16,462/8,231/0
+rows. Exact auth, edit/delete, leave/regrant, own-acknowledgement and
+complete snapshot/stream checks pass. The mixed instrument adds point,
+first-page and real-cursor continuation proofs, exact dependency tables,
+viewer/sequence/completeness/expiry metadata and hidden/missing controls.
+After timing, an acknowledged ordinary edit changes a held row; fresh
+point/page reads and changed/empty polls reflect it, with outsider exclusion.
+
+Per run, there are 20 groups and 24 per-operation cases, each with 512
+timed requests. Solo point/page/poll controls use C4/C8/C16/C32. Mixed
+point+poll and page+poll groups use total C8/C32, half each operation, and
+are immediately followed by a matched query-only C4/C16 probe with no
+additional warmup. Other groups have two full-concurrency warmup waves.
+Equal-width waves wait at a barrier, alternate the first-issued operation,
+and keep equal operation counts throughout. The middle pair reverses
+block order while retaining mixed/post-probe adjacency.
+
+All **73,728 timed requests and 3,120 excluded warmups** pass, alongside
+192 ordinary-auth captures, 48 complete large walks, 144 reconstructed
+full-page hashes, 162 query proofs and 24 freshness proofs. All six client
+processes and launch-recorded server groups terminate as planned. No
+actual process-restart workload is claimed. The excluded smoke passed
+3,072 requests and 1,040 warmups before formal admission.
+
+Cells are baseline → candidate medians of three per-run statistics.
+Latency is milliseconds, with nearest-rank percentiles. Rates are
+requests/s, using each whole group interval including response hashes and
+scheduling. Both mixed operations share that interval and equal counts,
+so their identical rates are by construction, not independent saturation.
+
+| Case / operation | p50 | p95 | p99 | Maximum | Requests/s |
+|---|---:|---:|---:|---:|---:|
+| pointOnlyC4/point | 0.755 → 0.774 | 1.058 → 1.130 | 1.273 → 1.711 | 5.038 → 5.207 | 3516.7 → 3411.9 |
+| pageOnlyC4/page | 0.887 → 0.902 | 1.201 → 1.280 | 1.733 → 1.870 | 8.082 → 6.239 | 3152.4 → 3086.5 |
+| pollOnlyC4/poll | 1.540 → 0.512 | 2.073 → 0.630 | 2.375 → 1.087 | 5.801 → 5.183 | 2027.3 → 5455.4 |
+| pointOnlyC8/point | 0.725 → 0.703 | 1.360 → 0.975 | 7.262 → 7.371 | 7.660 → 7.595 | 6391.3 → 6797.2 |
+| pageOnlyC8/page | 1.171 → 1.156 | 1.853 → 1.537 | 10.571 → 10.058 | 11.248 → 10.589 | 3863.0 → 4033.1 |
+| pollOnlyC8/poll | 2.916 → 0.667 | 3.907 → 0.800 | 4.336 → 0.967 | 4.566 → 1.053 | 2059.2 → 7891.4 |
+| pointOnlyC16/point | 1.264 → 1.257 | 2.455 → 1.711 | 10.518 → 8.068 | 14.960 → 10.636 | 5846.6 → 6437.2 |
+| pageOnlyC16/page | 1.792 → 1.784 | 6.888 → 2.859 | 11.323 → 10.118 | 11.870 → 10.543 | 4631.1 → 4774.6 |
+| pollOnlyC16/poll | 5.352 → 1.153 | 8.294 → 1.302 | 8.955 → 1.519 | 9.668 → 1.755 | 1878.1 → 9002.8 |
+| pointOnlyC32/point | 2.416 → 2.376 | 19.397 → 12.528 | 19.753 → 13.578 | 19.841 → 13.675 | 6038.5 → 7196.9 |
+| pageOnlyC32/page | 3.484 → 3.888 | 12.627 → 11.425 | 13.940 → 13.021 | 14.752 → 13.354 | 4456.8 → 4411.6 |
+| pollOnlyC32/poll | 10.302 → 2.133 | 17.326 → 6.418 | 18.714 → 6.985 | 19.395 → 7.162 | 1727.5 → 9137.4 |
+| pointPollMixedC8/point | 0.929 → 0.706 | 1.429 → 0.852 | 5.267 → 8.346 | 9.510 → 8.987 | 2075.0 → 3507.9 |
+| pointPollMixedC8/poll | 1.387 → 0.658 | 2.010 → 0.828 | 5.574 → 8.564 | 9.668 → 9.070 | 2075.0 → 3507.9 |
+| pointPostMixedC4/point | 0.497 → 0.495 | 0.588 → 0.574 | 0.757 → 0.980 | 1.209 → 9.173 | 5943.7 → 5440.3 |
+| pagePollMixedC8/page | 1.159 → 0.931 | 1.787 → 1.155 | 5.221 → 7.060 | 9.357 → 9.046 | 1895.3 → 2843.1 |
+| pagePollMixedC8/poll | 1.477 → 0.595 | 2.159 → 0.879 | 8.129 → 1.531 | 9.765 → 8.005 | 1895.3 → 2843.1 |
+| pagePostMixedC4/page | 0.800 → 0.788 | 1.086 → 0.926 | 1.727 → 1.178 | 8.182 → 7.125 | 3360.4 → 3643.4 |
+| pointPollMixedC32/point | 3.937 → 2.279 | 7.153 → 2.897 | 13.400 → 10.899 | 14.000 → 11.960 | 1924.8 → 3675.7 |
+| pointPollMixedC32/poll | 5.037 → 2.250 | 8.392 → 2.940 | 13.920 → 10.831 | 14.867 → 11.596 | 1924.8 → 3675.7 |
+| pointPostMixedC16/point | 1.048 → 1.127 | 1.353 → 1.583 | 1.720 → 11.927 | 1.988 → 12.138 | 8593.6 → 7763.0 |
+| pagePollMixedC32/page | 4.713 → 2.735 | 10.779 → 7.763 | 12.929 → 11.603 | 14.176 → 11.958 | 1821.0 → 3402.1 |
+| pagePollMixedC32/poll | 5.528 → 2.322 | 11.861 → 6.551 | 14.375 → 11.138 | 15.047 → 11.620 | 1821.0 → 3402.1 |
+| pagePostMixedC16/page | 1.728 → 1.812 | 7.106 → 10.613 | 8.340 → 21.243 | 8.630 → 21.524 | 4942.2 → 4434.0 |
+
+The mixed C32 point and page gains coexist with consistent immediate
+post-mixed C16 losses. Both post-probes lose all six median metrics, and
+their p50/rate worsen in every pair. Point p99 rises 1.720 → 11.927 ms
+and page p99 8.340 → 21.243 ms; rates decline 9.67% and 10.28%. Mixed
+C8 point/query-poll p99 and other solo-query/paired tails also regress.
+All **34 median and 120 paired metric losses** remain in the record,
+including elapsed time and rate as separate correlated metrics.
+
+The 132 untimed, PID/start-time-bound resource points cover before, after
+every group and after the cases. Before-case RSS medians are
+20,808 → 20,832 KiB; after-case medians are 40,532 → 33,564 KiB. Final
+candidate RSS is lower in each pair, while some intermediate points rise.
+These observations do not isolate pool allocation, prove cache displacement,
+show causal memory reduction or establish continuous peak memory. Reported
+VmHWM retains the previously documented diagnostic qualification.
+
+Both frozen calculators pass on their first formal invocations. Saved
+results reconcile 864 raw metric values, 288 medians, 576 contrast records,
+132 resource points and 88 resource medians. The original 229 public files
+(12,229,276 bytes), every raw timing vector and all gains/losses are retained
+in storage workload `mixed-reader-reuse-0222-v4-v2-formal`. Completion
+`e4293592…`, transfer `9521a8bb…`, agreement `ae1b937a…` and independent
+review `a3d607f0…` bind the record. The staged-only first instrument and
+all pre-data draft corrections are preserved; no formal workload reran.
+
+**The candidate is not adopted.** This ends the three-round pooling
+optimization effort; candidate source stays recoverable in the ignored
+run. The original snapshot losses remain, and the
+[sync tail follow-up](../../../issues/20260914-snapback4-sync-concurrent-tail-latency.md)
+stays open. The conditional expiry-memory experiment is not run because
+these measured query/snapshot tradeoffs already leave adoption unsupported.
+The separate same-watermark expiry correctness result still stands.
+
+This is a warm loopback, finite-wave test of hot points and first pages,
+not a rotating query working set or continuous-arrival load. HTTP/text/JSON
+parsing ends the latency timer; response hashing follows it but can delay
+overlapping client callbacks. Client operation windows do not measure
+server concurrency or pool occupancy. No current-main, competitor,
+hosted/WAN, cold-start, device/realtime, durability or publication claim
+follows. Core/store/contract ownership and the existing runtime remain
+unchanged.
