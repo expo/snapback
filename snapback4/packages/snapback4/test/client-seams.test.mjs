@@ -122,8 +122,16 @@ query rows():
   return { principal: viewer, rows: records[viewer] first 10 by byOwner }
 `;
 
-for (const release of [false, true]) test(`W7c ${release ? "serve ignores" : "dev exposes"} opt-in meters for a real account`, async t => {
+for (const release of [false, true]) test(`W7c ${release ? "serve ignores" : "dev exposes"} meters by default and explicitly for a real account`, async t => {
   const f = await fixture(t, release, meterSource);
+  const status = await fetch(`${f.url}/dev/status`);
+  assert.equal(status.status, release ? 403 : 200);
+  if (!release) {
+    const health = await status.json();
+    assert.equal(typeof health.storeId, "string"); assert.equal(health.generation, 1);
+    const foreign = await fetch(`${f.url}/dev/status`, { headers: { origin: "https://example.com" } });
+    assert.equal(foreign.status, 403);
+  }
   const registered = await signup(f.url, "meter@example.com", "password-123");
   assert.equal(registered.ok, true, JSON.stringify(registered));
   const session = registered.session, replies = [];
@@ -158,12 +166,12 @@ for (const release of [false, true]) test(`W7c ${release ? "serve ignores" : "de
     t.diagnostic(`meter=${JSON.stringify(read.meter)}`);
   }
   const plain = createClient({ url: f.url, session }); f.clients.push(plain);
-  assert.equal(Object.hasOwn(await plain.query(op, {}), "meter"), false);
+  assert.equal(Object.hasOwn(await plain.query(op, {}), "meter"), !release);
   for (const value of [undefined, "0", "1"]) {
     const response = await fetch(`${f.url}/q/rows`, { method: "POST", headers: { authorization: `Bearer ${session.token}`, ...(value === undefined ? {} : { "x-snapback-meter": value }) }, body: JSON.stringify({ args: {} }) });
     const body = await response.json();
     assert.deepEqual(body.data, read.data);
-    assert.equal(Object.hasOwn(body, "meter"), !release && value === "1");
+    assert.equal(Object.hasOwn(body, "meter"), !release);
   }
   const denied = await (await fetch(`${f.url}/q/rows`, { method: "POST", headers: { "x-snapback-meter": "1" }, body: "{}" })).json();
   assert.equal(denied.denied.code, "E_AUTH"); assert.equal(Object.hasOwn(denied, "meter"), false);
@@ -613,18 +621,19 @@ for (const release of [false, true]) test(`W7r1 hidden versus absent non-uniform
     const query = async meter => (await fetch(`${f.url}/q/scan`, { method: "POST", headers: { ...headers, ...(meter ? { "x-snapback-meter": "1" } : {}) }, body: '{"args":{}}' })).json();
     const opted = await query(true), plain = await query(false);
     assert.deepEqual(plain.data, []); assert.equal(plain.complete, false);
-    assert.equal(Object.hasOwn(plain, "meter"), false);
+    assert.equal(Object.hasOwn(plain, "meter"), !release);
     assert.equal(Object.hasOwn(opted, "meter"), !release);
     for (const key of ["metered", "capped_at", "cappedAt"]) { assert.equal(Object.hasOwn(opted, key), false); }
     observations.push({ opted, plain });
   }
-  assert.deepEqual(observations[0].plain, observations[1].plain);
+  const withoutMeter = ({ meter, ...rest }) => rest;
+  assert.deepEqual(withoutMeter(observations[0].plain), withoutMeter(observations[1].plain));
   if (release) assert.deepEqual(observations[0].opted, observations[1].opted);
   else {
     const [absent, hidden] = observations.map(x => x.opted.meter);
     assert.ok(hidden.examined > absent.examined);
     assert.notDeepEqual(hidden, absent);
-    assert.deepEqual(observations.map(x => { const { meter, ...rest } = x.opted; return rest; }), observations.map(x => x.plain));
+    assert.deepEqual(observations.map(x => { const { meter, ...rest } = x.opted; return rest; }), observations.map(x => withoutMeter(x.plain)));
     t.diagnostic(`absent=${JSON.stringify(absent)} hidden=${JSON.stringify(hidden)}`);
   }
 });

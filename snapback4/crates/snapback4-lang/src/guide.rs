@@ -930,15 +930,15 @@ the engine mutex. Uploads are online only; there is nothing to queue."##,
         "reads" => r##"# Reads
 
 To inspect a real account's server work under loopback `dev`, use the online
-client `createClient({ url, session, meter: true })` (or a bearer `token`).
+client `createClient({ url, session })` (or a bearer `token`); meters are available by default.
 Successful `query` and `observe` answers include `Read.meter`:
 `{ examined, indexEntries, probes, steps, heapBytes, outputBytes, rowsWritten }`.
 These are the engine's counters for that answer, not latency or process memory;
 `probes` is rule_probes and `heapBytes` is charged heap work. A remembered
 offline watch keeps the counters of its last server answer. Local device reads
 have no meter; use the online client to inspect the server for the same account.
-On the wire, opt in with `x-snapback-meter: 1` on `POST /q/<op>`.
-Without it dev omits the field; `serve` ignores the header and never returns
+`meter: true` and `x-snapback-meter: 1` on `POST /q/<op>` remain explicit forms.
+Loopback dev includes the field without either; `serve` ignores the header and never returns
 meters. The counters can reflect hidden work and are development-only.
 `snapback4 run <op> '<json args>' --as <principal id> --json` also prints
 the engine's `metered` counters against `.snapback4/store.sqlite`.
@@ -1323,7 +1323,7 @@ mutation send(roomId: id, body: text <=4000):
 
 This send stays eligible to predict because presence decides only effects; the server commits the effects and defers grace-only decisions until their deadline.
 Prediction also evaluates the safe untaken presence arms and discards their effects, so it pays at least their server cost. Effect ids never consume `new` or an insert's ids.
-With no live poll but an unexpired presence grace, an absence-conditioned push is queued for the grace deadline: up to 35 seconds. A reconnect during that window cancels it, even if that poll ends before claim or the server restarts. A live poll at claim also cancels it. The effect is recorded as `satisfied` with `result: { outcome: 'presence_reconnected' }` and zero attempts; it is never handed to a worker. Without a reconnect it becomes claimable once, using the existing lease protocol. No grace means immediate admission; an already live poll still suppresses the push.
+With no live poll but an unexpired presence grace, an absence-conditioned push is queued for the grace deadline: up to 35 seconds. `doctor` shows the deferred count and next deadline; `GET /effects` exposes each deadline as `nextAt`. In tests close that window with `snapback4 clock advance 36s` or `POST /dev/clock/advance` with `{ "duration": "36s" }`; a real-time poll budget must exceed 35 seconds. A reconnect during that window cancels it, even if that poll ends before claim or the server restarts. A live poll at claim also cancels it. The effect is recorded as `satisfied` with `result: { outcome: 'presence_reconnected' }` and zero attempts; it is never handed to a worker. Without a reconnect it becomes claimable once, using the existing lease protocol. No grace means immediate admission; an already live poll still suppresses the push.
 Cancellation requires a proven necessary absence guard: `if not exists connected[p]`, its aliases, conjunctions of absence tests or nested absence guards. Several necessary absences wait for the latest grace deadline; a reconnect within any one principal's own window satisfies that guard. Payload-only reads (`emit audit { online: exists connected[p] }`), `not exists connected[p] or force`, and boolean forms without this proof remain immediate and are never cancelled by reconnect.
 Potential dependency allocation, propagation and emission copies reserve the same heap allowance with or without grace on the server and device; actual allocations stay metered.
 For dispatch-time presence or any other presence-dependent decision, emit unconditionally and have the worker call a service mutation that reads `connected`.
@@ -1351,7 +1351,7 @@ The loop is `POST /effects/claim { effect?, limit?, lease?, wait? }` (a
 lease in seconds; `wait` long-polls until something is due), then `POST
 /effects/<id>/done { result? }` or `POST /effects/<id>/failed { error,
 retry }`; `GET /effects?state=` lists them (queued, running, sent,
-failed) and `doctor` counts them. A thrown handler retries with backoff
+satisfied, failed) and `doctor` counts them, including pending grace deferrals. A thrown handler retries with backoff
 (2 s, 4 s, ... up to 5 min) until the eighth attempt, then rests as
 `failed`; throw `GiveUp` to fail at once. A worker that dies loses its
 lease and the effect is claimed again (E_EFFECT_LEASE for the one that
@@ -1432,7 +1432,7 @@ On a device the word is unknown: a query that reads it is `complete: false`.
 A mutation stays eligible to predict when presence decides only effects, so its rows are independent of presence and the server commits the effects and defers grace-only decisions until their deadline.
 For those effects-only mutations, a live poll counts as connected; grace alone defers the push for up to 35 seconds instead of losing it. A reconnect in the window, or a live poll at claim, cancels the push with the recorded `satisfied` outcome `presence_reconnected` (guide effects). Only a proven necessary absence guard authorizes cancellation; payload-only reads and alternative guards remain immediate. Grace deadlines and recorded reconnects survive restart; `clock advance` makes a waiting effect due along with its grace.
 Presence-derived values may use comparisons, `exists`, boolean logic and field values. Arithmetic, fallible builtins, reads, `new` or refusals controlled by presence keep `predicts: never`, as do conditional values without a fixed-size proof. Prediction charges both safe presence arms, so it may reach a bound even when the server would fit. If an untaken arm needs a combined guard's value refinement, the device queues without a row; put the data guard outside presence.
-In tests: `snapback4 clock advance 36s` expires the grace after a poll ends; open polls stay connected, and online client queries read the server's updated answer (guide clock).
+In tests: `snapback4 clock advance 36s` or `POST /dev/clock/advance` with `{ "duration": "36s" }` closes the up-to-35-second deferral after a poll ends; open polls stay connected, and online client queries read the server's updated answer (guide clock).
 `snapback4 run` reads nobody as connected."##,
         "bounds" => r##"# Bounds and the meter
 
@@ -1465,6 +1465,8 @@ asset, action, prediction, generation, store; the client adds link (the server i
 unreachable) and client (the client itself refused, as after `close()`).
 `snapback4 why <CODE>` explains one. Reads never raise a rule refusal: a
 hidden row is null, and a page omits it.
+
+`dev` keeps failed schema adoption visible in `doctor`, repeats its reason on the first failing job or sweep, and retries locked stores and generation failures without another save. `doctor` compares the live host generation with the store; `--no-watch` hosts need a restart after another process adopts.
 
 `dev` and `serve` also report process events on stderr: SNAPBACK4_EXIT
 (a returned startup/listener error or normal stop), SNAPBACK4_PANIC (any

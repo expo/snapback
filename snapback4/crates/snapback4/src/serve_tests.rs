@@ -33,6 +33,7 @@ impl Host {
         engine.set_presence(Some(presence.clone()));
         let generation = engine.generation();
         let shared = Arc::new(Shared {
+            adoption: Mutex::new(adoption::Status::new(String::new())),
             engine: Mutex::new(engine),
             readers: Mutex::new(QueryReaders::default()),
             bound: Mutex::new(bound),

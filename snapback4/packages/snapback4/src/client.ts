@@ -20,7 +20,7 @@ export interface ClientOptions {
   readonly session?: Session;
   /** A bare bearer token, when the app keeps sessions itself. */
   readonly token?: string;
-  /** Include engine work on reads from loopback dev; serve ignores this request. */
+  /** Explicitly request engine work; loopback dev includes it by default and serve never returns it. */
   readonly meter?: boolean;
   readonly fetch?: typeof fetch;
   /** How long a change poll waits at the server, in seconds. */
@@ -267,7 +267,7 @@ export function createClient(options: ClientOptions): Client {
     const at = Number(json.seq ?? 0);
     const next = (json.next as Cursor | null | undefined) ?? null;
     const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
-    const meter = options.meter && json.meter ? { meter: json.meter as ReadMeter } : {};
+    const meter = json.meter ? { meter: json.meter as ReadMeter } : {};
     return { read: { data: json.data as R, complete: json.complete !== false, fresh: true, next, ...meter }, tables: (json.tables as string[] | undefined) ?? [], seq: at, nextExpiry };
   }
 

@@ -450,9 +450,16 @@ fn grace_push_is_deferred_until_clock_advance_then_delivered_once() {
     let delay = effect["nextAt"].as_i64().unwrap() - effect["at"].as_i64().unwrap();
     assert!((1..=35_000).contains(&delay), "{effect}");
     assert_eq!(host.auth_request("POST", "/effects/claim", json!({}), &auth)["effects"], json!([]));
+    let before = output_json(f.command(&["doctor", "--json"]));
+    let lines = before["lines"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect::<Vec<_>>().join("\n");
+    assert!(lines.contains("1 deferred (next at "), "{lines}");
+    assert!(lines.contains(&effect["nextAt"].to_string()), "{lines}");
     let start = Instant::now();
     let port = host.address.rsplit(':').next().unwrap();
     assert_eq!(output_json(f.command(&["clock", "advance", "36s", "--port", port]))["advancedMs"], 36_000);
+    let after = output_json(f.command(&["doctor", "--json"]));
+    let lines = after["lines"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect::<Vec<_>>().join("\n");
+    assert!(lines.contains("0 deferred"), "{lines}");
     let claimed = host.auth_request("POST", "/effects/claim", json!({}), &auth);
     assert_eq!(claimed["effects"].as_array().unwrap().len(), 1, "{claimed}");
     assert_eq!(claimed["effects"][0]["id"], effect["id"]);
