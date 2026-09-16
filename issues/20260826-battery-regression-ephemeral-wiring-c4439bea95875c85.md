@@ -13,12 +13,12 @@
 **Battery gate:** `regression-ephemeral-wiring`
 **Failure signature:** `sha256:c4439bea95875c859480fa4e09069233d5ec81a3f542104509213bf8625d5247`
 **First observed run:** `local.20260826T121823Z.f69e9b16cbe8`
-**Last observed run:** `local.20260916T051524Z.fbf2c6042249`
-**Last processed run:** `local.20260916T051524Z.fbf2c6042249`
+**Last observed run:** `local.20260916T152410Z.9d9a5cb67d30`
+**Last processed run:** `local.20260916T152410Z.9d9a5cb67d30`
 **Detected at revision:** `f69e9b16cbe835a3d99d598bc739acccb27365d1`
-**Last observed revision:** `fbf2c6042249ffb1b8b21cea660939688718671f`
-**Consecutive red runs:** `1`
-**Escalation:** `pending (1/4)`
+**Last observed revision:** `9d9a5cb67d30ae688a3d86ce88016056340a0b7f`
+**Consecutive red runs:** `2`
+**Escalation:** `pending (2/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
