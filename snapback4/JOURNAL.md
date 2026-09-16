@@ -23526,3 +23526,16 @@ idle measurements remain unchanged: **all three targets missed**. No tuning
 or benchmark rerun, publication, pilot, frozen ceiling or benchmark control
 cell occurred. Application SQL reads are admitted for D's authorized-input
 form, not implemented by A3; publication remains Charlie's decision.
+
+## 2026-09-16 — A3 final artifact-only main refresh (lead)
+
+Correction to the immediately preceding integration snapshot: the final fetch
+found main `441ef82c1`, a separately run Clique calibration's nine benchmark
+artifact files, after A3 qualification completed. This session neither ran
+that calibration nor put load on expo-build-1000. The 22 owned A3 commits
+rebased cleanly, from reviewed evidence `57594e2a6` to `654e8ebe2`, with an
+empty diff across all Snapback4 content, governing RFC, received reviews and
+the receipt ticket. The crates/packages tree identities are recorded in the
+A3 report. There was no semantic conflict or reason to repeat heavy tests.
+The old reviewed branch is retained as `llp-ship/sb4-w9-20260916/a3-reviewed`.
+This follow-up records the refreshed base and changes no product behavior.
