@@ -37,12 +37,11 @@ pub(crate) fn source(project: &Project) -> Option<PathBuf> {
 }
 
 pub(crate) fn server_source(project: &Project) -> Option<PathBuf> {
-    ["snapback/server.ts", "snapback/server.mts", "snapback/server.mjs"].into_iter().map(|p| project.root.join(p)).find(|p| p.is_file())
+    project.server_source()
 }
 
 pub(crate) fn node() -> PathBuf {
-    let pinned = std::env::var_os("HOME").map(PathBuf::from).map(|p| p.join(".volta/tools/image/node/24.18.0/bin/node"));
-    std::env::var_os("SNAPBACK_NODE").map(PathBuf::from).or_else(|| pinned.filter(|p| p.is_file())).unwrap_or_else(|| PathBuf::from("node"))
+    crate::project::node()
 }
 
 pub(crate) struct DevWorker {

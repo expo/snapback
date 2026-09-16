@@ -38,6 +38,7 @@ test("README TypeScript examples compile and call every public function", (t) =>
   mkdirSync(join(scratch, "src"));
   mkdirSync(join(scratch, "snapback/generated"), { recursive: true });
   writeFileSync(join(scratch, "snapback/generated/api.ts"), apiStub);
+  writeFileSync(join(scratch, "snapback/generated/server.ts"), 'import type { ServerManifest } from "snapback4/server";\nexport declare const manifest: ServerManifest;\n');
   const readme = ["README.md", "CLIENT-AND-OPERATIONS.md"].map(name => read(join(root, name))).join("\n");
   const blocks = [...readme.matchAll(/^```(tsx?)\s*\n([\s\S]*?)^```\s*$/gm)].map((match, index) => {
     const line = readme.slice(0, match.index).split("\n").length + 1;

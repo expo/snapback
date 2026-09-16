@@ -55,13 +55,42 @@ pub(crate) fn authority(conn: &Connection, token_digest: &str, principal: &str, 
         params![token_digest, principal, now], |row| Ok((row.get(0)?, row.get(1)?)),
     ).optional()?;
     let (family, expires_at) = found.ok_or_else(|| RuntimeError::Auth("the admitting session is no longer live".into()))?;
-    Ok(Authority { family, generation: principal_generation(conn, principal)?, expires_at })
+    let generation = principal_generation(conn, principal)?;
+    let standing = authority_expiry(conn, principal, &family, generation, now)?
+        .ok_or_else(|| RuntimeError::Auth("the admitting session's authority is no longer live".into()))?;
+    Ok(Authority { family, generation, expires_at: expires_at.min(standing) })
 }
 
 pub(crate) fn authority_expiry(conn: &Connection, principal: &str, family: &str, generation: i64, now: i64) -> Result<Option<i64>, RuntimeError> {
-    if principal_generation(conn, principal)? != generation { return Ok(None); }
-    Ok(conn.query_row("SELECT MAX(expires_at) FROM _sessions WHERE principal = ?1 AND COALESCE(family, token_digest) = ?2 AND expires_at > ?3",
-        params![principal, family, now], |row| row.get(0))?)
+    // A child admitted by an action session borrows the whole authority chain,
+    // not just the parent credential's row. Check iteratively, so revoking an
+    // ancestor takes effect before a worker polls or settles the parent.
+    // @ref LLP 3000.009#5.1 — delegated work cannot outlive its admitting authority.
+    let current_generation = principal_generation(conn, principal)?;
+    let (mut family, mut generation, mut bound) = (family.to_owned(), generation, i64::MAX);
+    let mut seen = std::collections::BTreeSet::new();
+    loop {
+        if generation != current_generation || !seen.insert(family.clone()) { return Ok(None); }
+        let session: Option<(String, String, i64)> = conn.query_row(
+            "SELECT token_digest, kind, expires_at FROM _sessions WHERE principal = ?1 AND COALESCE(family, token_digest) = ?2 AND expires_at > ?3 ORDER BY expires_at DESC LIMIT 1",
+            params![principal, family, now], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?))).optional()?;
+        let Some((digest, kind, expires)) = session else { return Ok(None); };
+        bound = bound.min(expires);
+        if kind != "action" { return Ok(Some(bound)); }
+        let parent: Option<(Option<String>, Option<i64>, Option<i64>, i64, Option<i64>)> = conn.query_row(
+            "SELECT family, principal_generation, service_generation, lease_until, deadline FROM _requests WHERE session_digest = ?1 AND principal = ?2 AND state = 'running' AND lease_until > ?3 AND (deadline IS NULL OR deadline > ?3)",
+            params![digest, principal, now], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))).optional()?;
+        let Some((parent_family, parent_generation, service_generation, lease, deadline)) = parent else { return Ok(None); };
+        bound = bound.min(lease).min(deadline.unwrap_or(i64::MAX));
+        if let Some(service_generation) = service_generation {
+            return Ok((service_generation == current_generation).then_some(bound));
+        }
+        match (parent_family, parent_generation) {
+            (Some(next), Some(next_generation)) => { family = next; generation = next_generation; }
+            (None, None) => return Ok(Some(bound)), // Legacy work and development personas.
+            _ => return Ok(None),
+        }
+    }
 }
 
 fn random_bytes(n: usize) -> Result<Vec<u8>, RuntimeError> {

@@ -117,3 +117,22 @@ fn a_scheduled_action_is_admitted_once_under_its_service_seat() {
     assert_eq!(claim.session.principal, "service:billing");
     assert_eq!(engine.action_counts().unwrap().get("running"), Some(&1));
 }
+
+#[test]
+fn nested_actions_borrow_the_whole_chain_before_parent_status_is_polled() {
+    let mut engine = engine();
+    let owner = identity::custom_session(engine.store(), "member:alice", "member", 0, 1).unwrap();
+    engine.request_action("work", "parent", Context::new(&owner.principal, BTreeMap::new()).with_session(&owner.token).at(0)).unwrap();
+    let parent = claim(&mut engine, 0);
+    engine.request_action("work", "child", Context::new(&owner.principal, BTreeMap::new()).with_session(&parent).at(1)).unwrap();
+    let child = claim(&mut engine, 1);
+    engine.request_action("work", "grandchild", Context::new(&owner.principal, BTreeMap::new()).with_session(&child).at(2)).unwrap();
+    assert!(identity::resolve(engine.store(), &child, 2).unwrap().is_some());
+    identity::close_session(engine.store(), &owner.token).unwrap();
+    // No parent status/settlement call has removed either delegated credential.
+    assert!(identity::resolve(engine.store(), &parent, 3).unwrap().is_none());
+    assert!(identity::resolve(engine.store(), &child, 3).unwrap().is_none());
+    assert!(engine.claim_actions("service:worker", None, 10, 1_000, 1, 3).unwrap().is_empty());
+    assert_eq!(engine.request_action("work", "raced-admission", Context::new(&owner.principal, BTreeMap::new()).with_session(&child).at(3)).unwrap_err().code(), "E_AUTH");
+    assert_eq!(engine.action_counts().unwrap().get("failed"), Some(&1));
+}

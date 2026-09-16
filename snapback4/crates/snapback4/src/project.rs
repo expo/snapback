@@ -27,6 +27,10 @@ impl Project {
         self.root.join("snapback")
     }
 
+    pub fn server_source(&self) -> Option<PathBuf> {
+        ["snapback/server.ts", "snapback/server.mts", "snapback/server.mjs"].into_iter().map(|p| self.root.join(p)).find(|p| p.is_file())
+    }
+
     pub fn generated_dir(&self) -> PathBuf {
         self.schema_dir().join("generated")
     }
@@ -153,8 +157,8 @@ impl Project {
     /// promise that the application's separate build might eventually check.
     // @ref LLP 3000.009#10.2 — A2 type errors are reported at check.
     pub fn check_server(&self) -> Result<(), String> {
-        let Some(entry) = crate::dev_worker::server_source(self) else { return Ok(()); };
-        let mut child = std::process::Command::new(crate::dev_worker::node())
+        let Some(entry) = self.server_source() else { return Ok(()); };
+        let mut child = std::process::Command::new(node())
             .arg("--max-old-space-size=256").arg("--input-type=module").arg("-e")
             .arg(include_str!("server_check.mjs")).arg(&self.root).arg(entry)
             .current_dir(&self.root).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped())
@@ -226,6 +230,11 @@ impl Project {
         }
         Ok(engine)
     }
+}
+
+pub(crate) fn node() -> PathBuf {
+    let pinned = std::env::var_os("HOME").map(PathBuf::from).map(|p| p.join(".volta/tools/image/node/24.18.0/bin/node"));
+    std::env::var_os("SNAPBACK_NODE").map(PathBuf::from).or_else(|| pinned.filter(|p| p.is_file())).unwrap_or_else(|| PathBuf::from("node"))
 }
 
 /// A development persona's principal id.

@@ -2,6 +2,21 @@
 
 [Back to the package guide](./README.md).
 
+For TypeScript actions use the generated `server()` wrapper described in
+[server handlers](./SERVER.md); it enforces the application's precise handler
+signatures. A custom runtime host can use the lower-level registry entry below
+with that generated manifest and already checked handlers. It does not infer
+application-specific argument/result types itself:
+
+```ts
+import { startServer, type ServerHandlers } from "snapback4/server";
+import { manifest } from "../snapback/generated/server";
+
+function hostCheckedHandlers(handlers: ServerHandlers, signal: AbortSignal) {
+  return startServer(manifest, handlers, { signal });
+}
+```
+
 ## 4. The client
 
 The generated `api` groups a module’s operations under `api.<module>`: `api.social.follow`, not `api.follow` (§1).
