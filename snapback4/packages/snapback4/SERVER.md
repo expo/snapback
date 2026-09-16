@@ -4,8 +4,8 @@
 actions. Import its `server` function in the application's server entry:
 
 ```ts
-import { server } from "./generated/server";
-import { api } from "./generated/api";
+import { server } from "./generated/server.ts";
+import { api } from "./generated/api.ts";
 import { GiveUp } from "snapback4/worker";
 
 export default server({
@@ -33,6 +33,20 @@ exactly the declared action handlers, with flat qualified names such as
 handler runs. Optional `effects` retain `snapback4/worker`'s `EffectHandler`
 signature; they must name declared effects.
 
+Install `typescript` and `@types/node` in the application. `check` and `dev`
+typecheck the conventional server entry and its imports without executing it;
+UI files outside that graph are not checked. Handler checks remain strict even
+with a permissive application tsconfig. Node 24 runs erasable TypeScript;
+relative imports need their `.ts` extension. `dev` rechecks changed server
+sources before adopting the schema and restarting the supervised child.
+
+Both `dev` and `serve --worker <entry>` construct an explicit environment from
+runtime variables and declared secrets, and redact their values in child
+stdout/stderr, including across chunks. A missing secret refuses startup.
+`deploy` does not yet package the server's TypeScript import graph: provision
+that entry and its dependencies explicitly for `serve --worker`. This is not
+a bundled-release or publication claim.
+
 `server()` returns a `Worker` with `done` and `principal()`. It reads
 `SNAPBACK_URL` and `SNAPBACK_SERVICE_TOKEN`; `ServerOptions` can supply explicit
 `url`, `token`, `env`, `fetch` and `signal` for a host or test.
@@ -50,6 +64,11 @@ completion abort that signal and close database access. Cancellation is
 cooperative: pass the signal to provider SDKs that accept one. Status polling
 runs only while the handler runs; the core remains authoritative on each
 request.
+
+Cancel an action with `POST /actions/<id>/cancel` under its originating
+principal's standing authority. Cancellation never rolls back committed
+writes or provider effects. A `pending` write stays uncertain after cancellation;
+reconcile it with the same write id instead of treating it as a failed write.
 
 `ctx.secrets` is a frozen own-property map containing only the action's
 declared names. Missing or empty values fail with `E_SECRET_MISSING` before
@@ -83,3 +102,18 @@ Action results are validated as JSON before settlement; the core validates
 the declared shape and bounds. Invalid results fail terminally because
 external effects may already have happened. `runWorker` remains available
 for existing hand-written workers.
+
+Work ids and step outcomes are retained for the lifetime of the store; there
+is no automatic retention expiry or id reuse. `why <id>` prints step state,
+input/outcome digests and the provider key, not values unless `--values` is set.
+Parked work is not retried automatically; this increment has no operator
+resume command. Reconcile externally before deliberately issuing new intent.
+
+Effects retain their legacy handler signature and at-least-once semantics,
+not the action context or `ctx.step`. Their declared retry/deadline/cancellation
+policy is frozen at emission. Current `runWorker` requests fenced effect
+claims; hand-written wire workers must request `fenced: true` and return the
+`leaseToken` as `x-snapback-effect-lease`. Legacy unfenced claims remain
+compatible and do not gain the same-worker successor fence. Only a service
+may call `POST /effects/<id>/cancel`; cancellation cannot stop provider I/O
+already in flight.

@@ -30,7 +30,7 @@ when offline).
 
 ```ts
 // snapback/server.ts; mail is the application's provider adapter.
-import { server } from "./generated/server";
+import { server } from "./generated/server.ts";
 export default server({ actions: {
   async invite({ email }, ctx) {
     const sent = await ctx.step("invite", { email }, key =>
@@ -145,4 +145,9 @@ queued/running/done/failed requests. `why <id> [--release dir]` describes an
 action, mutation or effect, including bindings, attempts, settlement and
 payload sizes/digests; `--values` also prints stored arguments and results.
 Mutation arguments and results are not recorded; their binding keeps only
-the operation name, argument digest and admission time beside the receipt."##;
+the operation name, argument digest and admission time beside the receipt.
+Install TypeScript and @types/node in the app: `check` and `dev` check the
+server entry's import graph strictly without running it. Node 24 requires
+extensions on relative TypeScript imports. Work and step records have no
+automatic retention expiry; their ids are never silently reusable. Parked
+work needs operator reconciliation; there is no resume command in this slice."##;

@@ -129,6 +129,10 @@ pub(super) fn settle(request: Request, shared: &Shared, path: &str, body: &str) 
         if let Some((id, tail)) = tail.split_once("/steps/") {
             if let Some((name, verb)) = tail.rsplit_once('/') {
                 if let (Some(id), Some(name)) = (decode_id(id), decode_id(name)) {
+                    let field = match verb { "begin" => Some("input"), "done" => Some("result"), _ => None };
+                    if field.is_some_and(|field| payload.get(field).is_none()) {
+                        return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "a step begin requires input and a step done requires result (null is explicit)") }));
+                    }
                     let answer = {
                         let mut engine = lock(&shared.engine);
                         match verb {

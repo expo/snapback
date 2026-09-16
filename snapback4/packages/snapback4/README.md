@@ -441,17 +441,18 @@ makes the query incomplete.
 ### Actions
 
 ```quarry
-action invite(email: text <=200)
+action invite(email: text <=200) returns { invitation: id } secrets [MAIL_API_KEY]
 action refreshModel() <- viewer = 'service:ranker'
 ```
 
 An action has typed arguments and no Quarry body: the application's
-TypeScript worker performs it and returns a JSON result. `<- allow` is
+TypeScript handler performs it and returns a declared object. `<- allow` is
 the default (any signed-in principal); `deny` pauses it, and a rule over
 `viewer` can admit a named service. It cannot read tables or arguments.
-The generated operation is `Action<A, R = unknown>`, `kind: "action"`,
-server-run and never predicted. See `guide actions`; its declaration is
-compiled on that card beside the language card.
+`check` generates `Action<A, R>` and `snapback/generated/server.ts` handler
+signatures; omitting `returns` preserves `unknown`. Invalid results fail
+terminally. See [the server context](./SERVER.md) and `guide actions` for
+durable steps, secrets, retry/deadline/cancellation policies and service schedules.
 
 Admission binds the session family and principal generation. Refresh preserves
 the family; revocation, logout-all or expiry before claim records terminal
@@ -466,15 +467,16 @@ prior behavior. Object key order does not matter.
 
 `serve <release-dir> --worker <path>` supervises Node 24 with restart backoff
 and shutdown. The worker receives only `PATH`, `HOME`, `TMPDIR`, `LANG`,
-`LC_ALL`, `TZ`, `NODE_OPTIONS`, `SNAPBACK_URL` and a fresh, unprinted
-`SNAPBACK_SERVICE_TOKEN` for `service:worker`. `dev` still inherits its
-parent's environment until declared secrets arrive in A2. `doctor --release
-<dir>` reports worker counts; `why <id> [--release dir]` reports work metadata
-and payload sizes/digests, with actual payloads only under `--values`.
+`LC_ALL`, `TZ`, `NODE_OPTIONS`, `SNAPBACK_URL`, declared secrets and a fresh,
+unprinted `SNAPBACK_SERVICE_TOKEN` for `service:worker`; `dev` constructs the
+same explicit environment. `doctor --release <dir>` reports worker counts;
+`why <id> [--release dir]` reports work and step metadata and payload
+sizes/digests, with actual payloads only under `--values`.
 Mutation arguments and results are not recorded. Supervised child sessions
 last at most one day; the host replaces the child within that window and
 revokes the previous child's family at startup, including after SIGKILL.
-`dev --worker` is refused; use `snapback/worker.ts`, `.mts` or `.mjs`.
+`dev` prefers `snapback/server.ts`, `.mts` or `.mjs`, then legacy `worker.*`;
+`dev --worker` is refused. `serve --worker` needs an explicitly deployed entry.
 
 ### Queries, mutations and jobs
 
@@ -924,7 +926,7 @@ The data plane never calls out. `emit name { payload }` in a mutation or
 a job keeps the payload durably in the same commit as the rows (a
 refused mutation emits nothing), and a worker — a process the
 application runs with a service token, §4 — performs it and settles it.
-A failure retries with backoff up to eight attempts; a worker that dies
+A failure follows its declared policy (eight attempts by default); a worker that dies
 loses its lease and the effect is claimed again; two workers never hold
 one effect. `snapback4 doctor` counts them. A scheduled job that emits
 once per period is the digest recipe.

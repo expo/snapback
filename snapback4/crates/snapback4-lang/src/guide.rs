@@ -1349,7 +1349,7 @@ curl -X POST http://127.0.0.1:4400/dev/clock/advance -H 'Content-Type: applicati
 
 `clock advance` extends held effect leases by the advanced duration, preserving their remaining real-time lifetime; retry `nextAt` still follows the dev clock.
 
-The loop is `POST /effects/claim { effect?, limit?, lease?, wait? }` (a
+The loop is `POST /effects/claim { effect?, limit?, lease?, wait?, fenced? }` (a
 lease in seconds; `wait` long-polls until something is due), then `POST
 /effects/<id>/done { result? }` or `POST /effects/<id>/failed { error,
 retry }`; `GET /effects?state=` lists them (queued, running, sent,
@@ -1361,6 +1361,11 @@ settles late). `runWorker` includes the server's code and message; only a
 recorded `queued` state is informational and says requeued. Other states
 and unknown outcomes go to `onError` (or stderr). A handler error whose
 settlement cannot be recorded is reported separately with its original stack.
+Current `runWorker` sets `fenced: true` and returns each claim's `leaseToken`
+in `x-snapback-effect-lease`; old same-service attempts cannot settle successors.
+Legacy unfenced claims retain their compatibility protocol. A service can
+`POST /effects/<id>/cancel` when the declaration permits it; this cannot
+undo provider I/O already in flight. Work ids have no automatic expiry or reuse.
 Two workers never hold one effect. `meta.id` is the
 idempotency key a provider should see. A scheduled job that `emit`s once
 per period is the digest recipe."##,

@@ -235,6 +235,11 @@ test("raw HTTP settlement validates declared results terminally and never reclai
     assert.equal(claims.requests.length, 1);
     const claim = claims.requests[0];
     assert.equal(typeof claim.contract, "string"); assert.equal(claim.deadline, null);
+    const step = `/actions/${id}/steps/explicit-null`;
+    assert.equal((await f.post(step + "/begin", {}, f.token, claim.session.token)).status, 400);
+    assert.equal((await f.post(step + "/begin", { input: null }, f.token, claim.session.token)).step.state, "run");
+    assert.equal((await f.post(step + "/done", {}, f.token, claim.session.token)).status, 400);
+    assert.equal((await f.post(step + "/done", { result: null }, f.token, claim.session.token)).ok, true);
     const settled = await f.post(`/actions/${id}/done`, { result }, f.token, claim.session.token);
     assert.equal(settled.ok, true, JSON.stringify(settled));
     assert.equal(settled.request.why.code, "E_ACTION_RESULT");
