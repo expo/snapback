@@ -81,6 +81,8 @@ export interface WorkerOptions {
   /** Stops the loop when aborted. */
   readonly signal?: AbortSignal;
   readonly onError?: (error: unknown) => void;
+  /** Lifecycle hook for a supervisor sharing authentication with other loops. */
+  readonly onAuthFailure?: () => void;
   /** Sanitize error text before logging or recording failed work. */
   readonly redact?: (message: string) => string;
 }
@@ -115,9 +117,16 @@ export function runWorker(options: WorkerOptions): Worker {
   const redact = options.redact ?? ((message: string) => message);
   const message = (error: unknown) => redact(error instanceof Error ? error.message : String(error));
   const report = (error: unknown) => rawReport(options.redact ? new Error(message(error)) : error);
+  const authenticationEnded = (why?: Refusal) => {
+    if (why?.family !== "auth" || stop.signal.aborted) return;
+    stop.abort();
+    try { options.onAuthFailure?.(); } catch (error) { report(error); }
+  };
   const post = async (path: string, body: unknown, lease?: string, effectLease?: string): Promise<unknown> => {
     const response = await doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(lease ? { "x-snapback-action-lease": lease } : {}), ...(effectLease ? { "x-snapback-effect-lease": effectLease } : {}) }, body: JSON.stringify(body), signal: stop.signal });
-    return response.json();
+    const reply = await response.json() as { denied?: Refusal };
+    authenticationEnded(reply.denied);
+    return reply;
   };
   const settle = async (effect: Effect, outcome: { result: unknown } | { error: string; retry: boolean }) => {
     const path = "result" in outcome ? `/effects/${encodeURIComponent(effect.id)}/done` : `/effects/${encodeURIComponent(effect.id)}/failed`;
