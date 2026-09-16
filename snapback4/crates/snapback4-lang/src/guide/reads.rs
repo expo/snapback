@@ -24,9 +24,13 @@ Declare `query name(..) held:` for a device-only answer. `check` prints
 `runs: device (held; server refuses E_QUERY_HELD; no server fallback)`.
 `dev`, `serve` and `run` refuse it with E_QUERY_HELD and a guide search rewrite;
 the local clients answer from held rows, online or offline, without server
-fallback even at a horizon or cut. With horizon-free sources, `check` states
-that the query is complete over held rows. Runtime meter cuts, word limits
-and page continuation still apply; the marker does not acquire rows.
+fallback even at a horizon or cut. With horizon-free sources, `check` reports
+horizon-free source coverage. Answer completeness still depends on runtime
+authorization, limits and continuation; the marker does not acquire rows.
+An unscoped search through expiring memberships can remain non-uniform and
+incomplete below every limit. A `first 1` page without a cursor is incomplete
+when its range contains two held rows. Read `complete` on each answer; a held query with an
+online-only source or no read sites gets no source-coverage line.
 For full server history beyond holdings, use the scoped server walk on the search card.
 
 To inspect a real account's server work under loopback `dev`, use the online

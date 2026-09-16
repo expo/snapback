@@ -706,10 +706,10 @@ fn w8r1b_release_from_a_used_dev_store_never_returns_read_meters() {
 }
 
 #[test]
-fn w9a_check_states_held_completeness_only_with_horizon_free_sources() {
+fn w9a_check_states_held_source_coverage_only_without_horizons() {
     let p = Project::new();
     let source = "table messages:\n  body: text <=100\n  public 'messages'\n  sync\ntable labels:\n  body: text <=100\n  public 'labels'\n  sync\nquery heldRows(c: cursor ?) held:\n  a = messages after c first 20 by byId\n  b = labels after c first 20 by byId\n  return { a, b }\nquery ordinary(c: cursor ?):\n  return messages after c first 20 by byId\n";
-    let positive = "    complete over held rows — all sources sync without a horizon; runtime meter, word limits and page continuation still apply";
+    let positive = "    horizon-free source coverage — all sources sync without a horizon; answer completeness still depends on runtime authorization, limits and continuation";
     for horizon in [false, true] {
         p.source(&if horizon { source.replacen("  sync\n", "  sync last 20 by byId\n", 1) } else { source.into() });
         for args in [vec!["check"], vec!["check", "--cost"], vec!["check", "--residency"], vec!["why", "heldRows"]] {
@@ -723,7 +723,7 @@ fn w9a_check_states_held_completeness_only_with_horizon_free_sources() {
         }
     }
     let output = p.run(&["why", "ordinary"]);
-    assert!(!String::from_utf8_lossy(&output.stdout).contains("complete over held rows"));
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("horizon-free source coverage"));
 }
 
 #[test]

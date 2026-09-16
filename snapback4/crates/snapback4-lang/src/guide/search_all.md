@@ -36,13 +36,19 @@ query searchChatBatch(q: text <=100, batch: cursor ?, c: cursor ?):
     [m.roomId] for m in members[viewer] after batch first 50 by byPrincipalRoom
 ```
 
-**Device holdings.** With horizon-free sources, `searchHeld` is complete
-over held rows: it reads one unscoped words index over the messages this
-device holds, with no membership merge or per-reader copy. `check` states
-this guarantee positively. Use the local client and continue with `c: read.next`.
+**Device holdings.** With horizon-free sources, `check` reports horizon-free
+source coverage for `searchHeld`: it reads one unscoped words index over the
+messages this device holds, with no membership merge or per-reader copy.
+Use the local client and continue with `c: read.next`.
 Runtime meter cuts, the 32-word limit and page continuation still apply;
 `complete` describes each returned page, and `fresh` separately describes
 sync freshness.
+Expiring memberships require runtime audience checks; an unscoped matching
+read can remain non-uniform and `complete: false` below every meter and word
+limit. A page bound without continuation can also make an answer incomplete.
+For the non-expiring membership shape above, a full scan of acquired rows
+without a cut is complete. The source-coverage line alone promises no answer's
+completeness and is absent for a horizon, an online-only source or zero read sites.
 
 Cold acquisition costs every live message in every held chat; the query's
 cheap read does not make that acquisition cheap. This block intentionally emits N_NO_HORIZON

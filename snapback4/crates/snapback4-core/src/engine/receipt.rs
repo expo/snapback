@@ -26,13 +26,14 @@ impl MutationOutcome {
         body
     }
 
-    // @ref LLP 3000.007#17 — store the replay body: no historical values, even in a diagnostic message.
+    // @ref LLP 3000.007#17 — store the replay body: no historical values, even in diagnostic messages or named-constraint detail.
     pub fn receipt(&self, id: Option<&str>) -> Json {
         let mut body = self.reply(id);
         body.as_object_mut().expect("reply object").remove("result");
         body.as_object_mut().expect("reply object").remove("current");
         if let WriteState::Failed { why, .. } = &self.state {
             body["why"]["message"] = Json::String(format!("the program refused with {}", why.code));
+            body["why"].as_object_mut().expect("refusal object").remove("detail");
         }
         body["replayed"] = Json::Bool(true);
         body
@@ -48,6 +49,7 @@ impl MutationOutcome {
                 let mut why: Refusal = serde_json::from_value(body["why"].clone()).map_err(|e| RuntimeError::Store(e.to_string()))?;
                 // @ref LLP 3000.007#17 — even a historical W-shaped receipt cannot return row-derived diagnostic text.
                 why.message = format!("the program refused with {}", why.code);
+                why.detail = None;
                 WriteState::Failed { why, current: None }
             }
             _ => return Err(malformed()),

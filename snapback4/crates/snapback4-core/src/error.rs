@@ -14,7 +14,7 @@ pub struct Refusal {
     pub code: String,
     pub family: String,
     pub message: String,
-    /// Original constraint text for development, separate from the author's user-facing message.
+    /// Original constraint text for live development refusals; durable receipts and replays omit this row-derived detail.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

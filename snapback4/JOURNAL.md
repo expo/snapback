@@ -22626,3 +22626,220 @@ block a bounded effect-only list. Constraint wording belongs beside the
 constraint, but its hook must remain after the hidden-collision check. The
 existing language has use-site codes, so matching `require` means sharing its
 validator rather than adding a new registry.
+
+
+## 2026-09-16 — W9R1a: receipt detail and provable held-source coverage
+
+Base: `663cfd6226b7719ed19f98fe7d5e9599ca47a45e`. Implemented the two
+wave-9 review findings in the assigned lane. Orientation followed
+LLP 3000 §6–§7 and LLP 3000.007 §6.2, §14, §17 and §18: a receipt keeps
+execution identity without historical row content, and residency describes
+sources while the shared evaluator decides each answer's completeness.
+
+A named unique collision still carries its original `detail` in the live
+refusal. Durable receipt creation removes the field, and historical receipt
+decoding clears it defensively. The existing paired revocation observation
+now runs with both unnamed and named composite constraints, whose retained
+`PRIVATE` column the mutation never supplied; the historical observation
+also plants old detail. Four device regressions cover current/historical
+receipts on memory/SQLite, drop the first response, reopen the pending
+outbox, apply revocation, deliver the retry, persist its terminal receipt,
+settle and reopen again. Each also admits a non-colliding write by the new
+owner while the revoked reader continues to see no row.
+
+For the completeness finding I chose the narrower, statically proved fact,
+horizon-free source coverage. Adding answer-completeness analysis to the
+printer would duplicate the evaluator's authorization, truncation and
+continuation decisions. Both counterexamples classify every site as Held
+and still return `complete: false` with no meter or word cut. The printer
+now also requires at least one site, so a constant held query makes no
+vacuous coverage claim. The reads card, search card, README and their
+existing text assertions agree; no parser form or diagnostic code changed.
+
+The line before, verbatim:
+
+```text
+    complete over held rows — all sources sync without a horizon; runtime meter, word limits and page continuation still apply
+```
+
+The line now printed, verbatim:
+
+```text
+    horizon-free source coverage — all sources sync without a horizon; answer completeness still depends on runtime authorization, limits and continuation
+```
+
+The named-constraint retry's `why` before, verbatim JSON:
+
+```json
+{"code":"DUPLICATE","detail":"counters.bySecretAmount already has a row where secret, amount = 'PRIVATE', {\"Int\":0}","family":"constraint","guide":"indexes","message":"the program refused with DUPLICATE","rule":"DUPLICATE"}
+```
+
+After, verbatim JSON (the live refusal retains the detail shown above):
+
+```json
+{"code":"DUPLICATE","family":"constraint","guide":"indexes","message":"the program refused with DUPLICATE","rule":"DUPLICATE"}
+```
+
+Measurements are deterministic counters, identical on memory and SQLite.
+The Clique fixture uses `messages` with
+`read <- exists members[.conversationId, viewer]`,
+`sync to members[.conversationId]`, and an unscoped `byWords` index.
+Each device acquires through the engine's snapshot, closes and reopens
+before querying at time 1,000. The temporary membership expires at 10,000.
+
+| Case | Acquired messages | Returned rows | Complete | Examined | Index entries | Rule probes | Steps | Heap bytes | Output bytes |
+|---|---:|---:|---|---:|---:|---:|---:|---:|---:|
+| Full Clique matching scan | 2 | 2 | true | 2 | 2 | 0 | 9 | 800 | 211 |
+| Expiring membership matching scan | 2 | 2 | false | 2 | 2 | 2 | 9 | 800 | 211 |
+| `first 1`, no cursor | 2 | 1 | false | 2 | 0 | 0 | 2 | 394 | 111 |
+| `sync … last 1` matching scan | 1 | 1 | false | 1 | 2 | 0 | 8 | 406 | 111 |
+| Online-only source | 0 | 0 | false | 0 | 1 | 0 | 4 | 6 | 12 |
+| Constant held query (`7`) | 2 | 0 (scalar) | true | 0 | 0 | 0 | 2 | 0 | 9 |
+
+Every row above has 0 written rows, 0 meter cuts, 0 word cuts and no next
+cursor. The source-coverage line is present in the first three cases and
+absent in the last three. The four receipt scenarios each measure 1 dropped
+response, 1 retry, 1 settled write, 0 retained detail fields and 1 admitted
+positive write. No ceiling was changed.
+
+Red-before-fix and green-after-fix commands ran from `snapback4/`; all red
+runs used the base production code, with only test changes. Their exact
+summary lines follow (red, then green). The first device-receipt compile
+attempt needed a mutable reopened-device binding; it failed with E0596
+before executing tests and was corrected before the recorded red run.
+
+```text
+
+cargo test -p snapback4-sim --test write_authority receipts_store -- --nocapture
+red:
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 34 filtered out; finished in 0.10s
+green:
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 34 filtered out; finished in 0.09s
+
+cargo test -p snapback4-sim --test write_authority historical_w_receipt -- --nocapture
+red:
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 34 filtered out; finished in 0.02s
+green:
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 34 filtered out; finished in 0.04s
+
+cargo test -p snapback4-device --test write_authority w9r1a -- --nocapture
+red:
+test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.04s
+green:
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.04s
+
+cargo test -p snapback4-sim --test residency w9r1a -- --nocapture
+red:
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.02s
+green:
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.03s
+
+cargo test -p snapback4-device --test device w9r1a -- --nocapture
+red:
+test result: FAILED. 0 passed; 8 failed; 0 ignored; 0 measured; 163 filtered out; finished in 0.08s
+green:
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 163 filtered out; finished in 0.09s
+
+cargo test -p snapback4-lang --test guide -- --nocapture
+test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+cargo test -p snapback4 --test check w9a_check_states -- --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 33 filtered out; finished in 2.67s
+```
+
+The final guide verification, after tightening "two held rows" to "its range
+contains two held rows", passed again:
+
+```text
+cargo test -p snapback4-lang --test guide -- --nocapture
+test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+```
+
+Blocking-suite command, from the repository root, with Node 24 pinned:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh > /private/tmp/w9r1a-full-suite.log 2>&1
+```
+
+Verbatim step and fixture/client summaries:
+
+```text
+== cargo build
+-- ok: cargo build (2 s)
+== wasm build
+-- ok: wasm build (26 s)
+== package typecheck
+-- ok: package typecheck (2 s)
+== package build
+-- ok: package build (0 s)
+== chat app check
+-- ok: chat app check (0 s)
+== cargo test
+-- ok: cargo test (544 s)
+== chat app typecheck
+-- ok: chat app typecheck (1 s)
+== expo app typecheck
+-- ok: expo app typecheck (1 s)
+== fixture wrapper tests
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+-- ok: fixture wrapper tests (11 s)
+== client tests
+ℹ tests 384
+ℹ pass 382
+ℹ fail 2
+ℹ cancelled 0
+-- FAIL: client tests (66 s)
+== 1 failure(s) in 574 s
+```
+
+Rust totals, summed across 63 target summaries: 1,096 passed, 0 failed,
+4 ignored. The run took 574 seconds on this shared machine; no lifecycle
+failure occurred. The client phase had one navigation failure
+(`ECONNREFUSED` from its local server) and the brief's Chromium SIGABRT.
+The navigation test passed alone; React reproduced SIGABRT alone:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+node --test --test-name-pattern='W4R1 C: known refusal with failed removal and neither cancellation' packages/snapback4/test/navigation-model.test.mjs
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+```
+
+The lead must rerun React outside the sandbox. I make no independently
+base-verified pre-existing-failure claim; the regression reds above are
+verified against the named base production code. No requested implementation
+was omitted. Source attribution and `why` routing are untouched. The only
+supporting change beyond the named crate/test/doc scope is the CLI's
+`crates/snapback4/tests/check.rs`: its existing expected output and test name
+now say source coverage. No runtime ceiling, serialized value form, existing
+corpus case, app form or caller changed, and no new diagnostic code required
+a CODES entry. No formatter, install, commit, push, tag, publication,
+sub-agent, clone or other machine was used.
+
+Before this append, `./ref-check --verbose` passed:
+
+```text
+ref-check: ok — 481 LLP docs, 8988 refs in 23854 files, 0 errors, 0 unchecked
+```
+
+It is repeated after this entry. `git diff --check` is clean. Full logs and
+every verbatim per-target summary are in `/private/tmp/w9r1a-full-suite.log`
+and `/private/tmp/w9r1a-validation.txt`.
+
+What I learned: adding a diagnostic field extends the disclosure boundary,
+so both receipt creation and replay need to account for it. Source residency
+is useful evidence, but runtime authorization and the ability to continue a
+page are independent facts; the compiler should name only the evidence it
+actually established.

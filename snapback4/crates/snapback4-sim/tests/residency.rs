@@ -6,6 +6,7 @@ use snapback4_core::schema::{Audience, SiteClass};
 use snapback4_core::value::object;
 use snapback4_lang::{Bound, bind::residency};
 use std::collections::BTreeMap;
+#[path = "common/held_coverage.rs"] mod held_coverage;
 
 const CLIQUE: &str = r#"
 use personas alice, bob
@@ -99,6 +100,42 @@ fn id(value: &str) -> Value { Value::Id(value.into()) }
 fn engine(bound: &Bound) -> Engine { Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()).filter(|p| !p.native)).unwrap() }
 fn inferred() -> String {
     CLIQUE.replace("sync public", "sync").replace("sync to memberships[.id]", "sync").replace("sync to memberships[.conversationId]", "sync").replace("sync to .principal", "sync")
+}
+
+fn held_coverage_case(case: &str, op: &str, complete: bool, count: usize, covered: bool) {
+    let bound = compile(&held_coverage::source(case));
+    let mut engine = engine(&bound);
+    engine.seed(held_coverage::seed()).unwrap();
+    let (events, _) = engine.snapshot_at("alice", 1000).unwrap();
+    let rows = MemoryRows::new();
+    for event in events { if let Some(row) = event.data { rows.put(&event.table, &bound.schema.tables[&event.table], &row, None).unwrap(); } }
+    let args = if op == "searchHeld" { BTreeMap::from([("q".into(), Value::String("cof".into())), ("c".into(), Value::Null)]) } else { BTreeMap::new() };
+    let program = &bound.programs.iter().find(|p| p.program.name == op).unwrap().program;
+    let read = snapback4_core::engine::local::query(&rows, &bound.schema, program, Context::new("alice", args).at(1000), Ceilings::default()).unwrap();
+    assert_eq!(read.complete, complete, "{read:?}");
+    assert_eq!(read.data.as_array().unwrap().len(), count);
+    assert!(read.capped_at.is_none() && read.word_cut_at.is_none());
+    held_coverage::assert_line(&bound.schema, op, covered);
+}
+
+#[test]
+fn w9r1a_temporary_audience_coverage_does_not_promise_completeness() {
+    held_coverage_case("temporary", "searchHeld", false, 2, true);
+}
+
+#[test]
+fn w9r1a_truncated_held_page_coverage_does_not_promise_completeness() {
+    held_coverage_case("full", "firstHeld", false, 1, true);
+}
+
+#[test]
+fn w9r1a_clique_source_coverage_has_nonvacuous_positive_and_negative_controls() {
+    held_coverage_case("full", "searchHeld", true, 2, true);
+    held_coverage_case("horizon", "searchHeld", false, 1, false);
+    held_coverage_case("online", "searchHeld", false, 0, false);
+    let bound = compile(&held_coverage::source("full"));
+    assert!(bound.schema.operations["constantHeld"].sites.is_empty());
+    held_coverage::assert_line(&bound.schema, "constantHeld", false);
 }
 
 #[test]

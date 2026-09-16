@@ -840,9 +840,13 @@ The card records whole-walk costs, horizon measurements, the 32-word
 limit (global on the device, per chat on the server), and the per-reader
 copy cost. A meter-cut matching merge cannot be continued with a result
 cursor alone. The card intentionally documents N_NO_HORIZON for full sync.
-With horizon-free sources, `check` states that `searchHeld` is complete over
-held rows. Runtime meter cuts, the 32-word limit and page continuation still
-apply; `fresh` separately describes sync freshness.
+With horizon-free sources, `check` reports horizon-free source coverage for
+`searchHeld`. Answer completeness still depends on runtime authorization,
+limits and continuation; `fresh` separately describes sync freshness.
+An unscoped search through expiring memberships can be non-uniform and
+incomplete below every limit; `first 1` without a cursor is incomplete when
+its range contains two held rows. Read `complete` on each answer. A horizon, an online-only
+source or zero read sites gets no source-coverage line.
 Its `query searchHeld(q: text <=100, c: cursor ?) held:` declaration is
 device-only: `check` explains it, and `dev`, `serve` and `run` refuse
 E_QUERY_HELD with a rewrite pointing to the scoped server walk on `guide search`.

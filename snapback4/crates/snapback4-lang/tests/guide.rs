@@ -759,13 +759,14 @@ fn w9a_reads_and_refusals_explain_hidden_pages_and_readable_membership() {
 }
 
 #[test]
-fn w9a_held_search_leads_with_guarantee_then_cost_then_refusal() {
+fn w9a_held_search_leads_with_coverage_then_cost_then_refusal() {
     let text = card("search").unwrap().split_once("## Search every chat I'm in").unwrap().1;
     let prose = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    let guarantee = prose.find("With horizon-free sources, `searchHeld` is complete over held rows: it reads one unscoped words index over the messages this device holds, with no membership merge or per-reader copy.").expect("positive held guarantee");
+    let coverage = prose.find("With horizon-free sources, `check` reports horizon-free source coverage for `searchHeld`: it reads one unscoped words index over the messages this device holds, with no membership merge or per-reader copy.").expect("positive source coverage");
     let cost = prose.find("Cold acquisition costs every live message in every held chat").unwrap();
     let refusal = prose.find("refuses E_QUERY_HELD").unwrap();
-    assert!(guarantee < cost && cost < refusal);
+    assert!(coverage < cost && cost < refusal);
+    assert!(prose.contains("Expiring memberships require runtime audience checks; an unscoped matching read can remain non-uniform and `complete: false` below every meter and word limit."));
     assert!(prose.contains("Runtime meter cuts, the 32-word limit and page continuation still apply; `complete` describes each returned page, and `fresh` separately describes sync freshness."));
     assert!(prose.contains("The local clients never fall back to the server for a held query, even at a horizon, meter cut or word cut."));
     let wide = explain_code("N_WIDE_MERGE").unwrap();

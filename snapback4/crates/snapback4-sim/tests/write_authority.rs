@@ -585,24 +585,31 @@ fn w2_cap_refusals_never_name_retained_group_values() {
 
 #[test]
 fn w2_receipts_store_the_replay_body_before_revocation_including_diagnostics() {
-    let source = SOURCE.replace("  immutable frozen", "  unique bySecretAmount: secret, amount\n  immutable frozen");
-    let mut observations = Vec::new();
-    for secret in ["REVOKED1", "REVOKED2"] {
-        let mut e = world(&source, true, 7);
-        seed(&mut e, "records", vec![row("other", "other", "alice", 0, "PRIVATE")]);
-        let (_, observation) = observation::observe_with_intervention(&mut e, "edit", "alice", json!({"key":"lookup"}), "lost", ("one", json!({"key":"lookup"})), |e| {
-            seed(e, "records", vec![row("target", "lookup", "carol", 7, secret), row("other", "other", "carol", 0, secret)]);
-            assert_eq!(value(e, "alice"), Value::Null);
-        });
-        let first = observation.body();
-        assert_eq!(first["why"]["code"], "E_CONSTRAINT");
-        assert!(first["why"]["message"].as_str().unwrap().contains("PRIVATE"));
-        let receipt: Json = serde_json::from_str(&observation.receipt).unwrap();
-        assert!(!receipt.to_string().contains("PRIVATE"));
-        for field in ["code", "site", "rewrite", "guide", "family", "retryable"] { assert_eq!(receipt["why"][field], first["why"][field]); }
-        observations.push(observation);
+    for named in [false, true] {
+        let constraint = if named { " else DUPLICATE" } else { "" };
+        let source = SOURCE.replace("  immutable frozen", &format!("  unique bySecretAmount: secret, amount{constraint}\n  immutable frozen"));
+        let mut observations = Vec::new();
+        for secret in ["REVOKED1", "REVOKED2"] {
+            let mut e = world(&source, true, 7);
+            seed(&mut e, "records", vec![row("other", "other", "alice", 0, "PRIVATE")]);
+            let (_, observation) = observation::observe_with_intervention(&mut e, "edit", "alice", json!({"key":"lookup"}), "lost", ("one", json!({"key":"lookup"})), |e| {
+                seed(e, "records", vec![row("target", "lookup", "carol", 7, secret), row("other", "other", "carol", 0, secret)]);
+                assert_eq!(value(e, "alice"), Value::Null);
+            });
+            let first = observation.body();
+            assert_eq!(first["why"]["code"], if named { "DUPLICATE" } else { "E_CONSTRAINT" });
+            assert!(first["why"][if named { "detail" } else { "message" }].as_str().unwrap().contains("PRIVATE"));
+            let receipt: Json = serde_json::from_str(&observation.receipt).unwrap();
+            assert!(!receipt.to_string().contains("PRIVATE"));
+            assert!(receipt["why"].get("detail").is_none());
+            let retry: Json = serde_json::from_slice(&observation.retry_http_body).unwrap();
+            assert_eq!(retry, receipt);
+            for device in &observation.devices { assert_eq!(device["settled"]["query"]["data"], Json::Null); }
+            for field in ["code", "site", "rewrite", "guide", "family", "rule", "retryable"] { assert_eq!(receipt["why"][field], first["why"][field]); }
+            observations.push(observation);
+        }
+        equal_observations(&observations);
     }
-    equal_observations(&observations);
 }
 
 #[test]
@@ -713,6 +720,7 @@ fn w3_historical_w_receipt_is_resanitized_on_replay() {
         let (_, observation) = observation::observe_with_historical_receipt(&mut e, "conditional", "alice", json!({"key":"lookup","expected":0}), "historical", ("one", json!({"key":"lookup"})), |first| {
             let mut historical = first.reply(Some("historical")); // W stored current and the old why.
             historical["why"]["message"] = json!("row-derived PRIVATE diagnostic");
+            historical["why"]["detail"] = json!("row-derived PRIVATE detail");
             historical
         }, |e| {
             seed(e, "records", vec![row("target", "lookup", "carol", 7, secret)]);

@@ -2,6 +2,7 @@ use super::common::*;
 #[path = "../../../snapback4-sim/tests/search_global/fixture.rs"] mod fixture;
 #[path = "../../../snapback4-sim/tests/search_global/cursors.rs"] mod cursors;
 use fixture::{source, seed, Walk};
+mod coverage;
 
 fn held_search<H: Host>(host: &mut H) {
     for memberships in [100, 500, 1000] {
