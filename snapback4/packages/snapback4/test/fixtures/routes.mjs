@@ -44,7 +44,7 @@ query mine():
   return journal[viewer] first 50 by byOwner
 `;
 
-export function entry(routes, { setup = "", lease = 10 } = {}) {
+export function entry(routes, { setup = "", lease = 10, wait = 1, actions } = {}) {
   return `import { server } from "./generated/server.ts";
 import { api } from "./generated/api.ts";
 import { type RouteRequest, type VerificationContext, type ServerContext, ParkStep, ServerError } from "snapback4/server";
@@ -70,7 +70,7 @@ async function save<S extends string>(ctx: ServerContext<S>, body: string) {
   return result;
 }
 ${setup}
-const worker = server({routes:${routes}}, {signal:stop.signal, lease:${lease}, wait:1, batch:1, statusIntervalMs:50});
+const worker = server({${actions === undefined ? "" : `actions:${actions},`}routes:${routes}}, {signal:stop.signal, lease:${lease}, wait:${wait}, batch:1, statusIntervalMs:50});
 export default worker;
 record("ready", {pid:process.pid});
 await worker.done;
@@ -128,8 +128,8 @@ export function fixture(t, schema, source) {
     const minted = command(["token", "--service", "route-test-driver"]);
     assert.equal(minted.status, 0, safe(minted.stderr));
     const token = minted.stdout.trim(), url = `http://127.0.0.1:${port}`;
-    const send = async (path, body = Buffer.alloc(0), { headers = {}, method = "POST", origin = url, signal } = {}) => {
-      const response = await fetch(origin + path, {method, headers, ...(method === "POST" ? {body} : {}), signal:signal ? AbortSignal.any([signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000)});
+    const send = async (path, body = Buffer.alloc(0), { headers = {}, method = "POST", origin = url, signal, timeoutMs = 15_000 } = {}) => {
+      const response = await fetch(origin + path, {method, headers, ...(method === "POST" ? {body} : {}), signal:signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs)});
       const bytes = Buffer.from(await response.arrayBuffer()); let json;
       try { json = JSON.parse(bytes.toString("utf8")); } catch {}
       return {status:response.status, headers:response.headers, bytes, text:bytes.toString("utf8"), json};

@@ -274,3 +274,46 @@ test("raw body and header bounds refuse before verification or private work admi
   assert.equal(accepted.status, 200, accepted.text.slice(0, 500) + "\n" + f.log()); assert.deepEqual(accepted.bytes, boundary);
   assert.equal(p.records("handled").length, 1);
 });
+
+test("32 idle actions and 129 service routes still verify and complete the last route", {timeout:75_000}, async t => {
+  const actions = Array.from({length:32}, (_, i) => `idle${String(i).padStart(3, "0")}`);
+  const routes = Array.from({length:129}, (_, i) => `route${String(i).padStart(3, "0")}`);
+  const last = routes.at(-1), path = `/hooks/${last}`;
+  const schema = actions.map(name => `action ${name}() returns {}\n`).join("")
+    + routes.map(name => `route ${name}: post "/hooks/${name}" as service:billing secrets [HOOK_KEY] wait 25s\n`).join("");
+  const source = entry(`{${routes.map(name => `${JSON.stringify(name)}:routeHandler`).join(",")}}`, {
+    // Long waits expose slot starvation and require bounded chunk rotation.
+    wait:25,
+    actions:`{${actions.map(name => `${JSON.stringify(name)}:() => { record("unexpected-idle-action", {name:${JSON.stringify(name)}}); return {}; }`).join(",")}}`,
+    setup:`const routeHandler = {
+      async verify(req:RouteRequest, ctx:VerificationContext<"HOOK_KEY">) {
+        const ok = await verify(req, ctx);
+        record("registry-verified", {path:req.path, delivery:req.headers.get("x-delivery"), ok});
+        return ok;
+      },
+      async handle(req:RouteRequest, ctx:ServerContext<"HOOK_KEY">) {
+        await save(ctx, "last registered route");
+        const value = {id:ctx.invocation.id, path:req.path, principal:ctx.principal, delivery:req.headers.get("x-delivery")};
+        record("registry-handled", value);
+        return Response.json(value);
+      },
+    };`,
+  });
+  const p = fixture(t, schema, source), f = await p.start(), body = Buffer.from("large-registry-delivery");
+  const first = await f.signed(path, body, {headers:{"x-delivery":"first"}, timeoutMs:30_000});
+  assert.equal(first.status, 200, first.text + "\n" + f.log());
+  assert.deepEqual(first.json, {id:runs(p)[0]?.id, path, principal:"service:billing", delivery:"first"});
+  assert.deepEqual(p.records("registry-verified"), [{path, delivery:"first", ok:true}]);
+  assert.deepEqual(p.records("registry-handled"), [first.json]);
+
+  // Collection of an already settled body must reach that last verifier
+  // afresh, while retaining the first admitted envelope and outcome.
+  const replay = await f.signed(path, body, {headers:{"x-delivery":"replay"}, timeoutMs:30_000});
+  assert.equal(replay.status, 200, replay.text + "\n" + f.log()); assert.deepEqual(replay.json, first.json);
+  assert.deepEqual(p.records("registry-verified"), [{path, delivery:"first", ok:true}, {path, delivery:"replay", ok:true}]);
+  assert.deepEqual(p.records("registry-handled"), [first.json]);
+  assert.equal(p.records("unexpected-idle-action").length, 0);
+  const work = runs(p); assert.equal(work.length, 1); assert.equal(work[0].name, `@route/${last}`);
+  assert.equal(work[0].state, "done"); assert.equal(work[0].attempts, 1);
+  assert.equal(p.inspect("SELECT * FROM r").length, 1); assert.equal(f.workerPids().length, 1, f.log());
+});
