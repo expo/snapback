@@ -23360,3 +23360,29 @@ Before that final change, Node 24.13.1 passed 17/17 tests and independently
 verified both retained full 598,224-action packs with identical manifests.
 The final content-binding witness and two-family delta review are next; no
 control, pilot, frozen budget, backend claim or publication has run.
+
+## 2026-09-16 — Workroom pack qualified and independently cleared (lead)
+
+Final deterministic-pack boundary `91b549609` passes 18/18 focused tests on
+Node 24.13.1 / `450b`, including the installed React peer's real rendering.
+Both retained full packs pass the stricter verifier at 598,224 actions and
+raw SHA-256 `bdc929ebdc04a71758b6cc8186faa3542c908cd63e401ea013027f5b0125966a`.
+The run log is `/tmp/sb4-w9-evidence.nndUKm/fixture-content-checks.log`, SHA-256
+`e7894fef09c6afa6aaffe9899f29b62374638a70bea0917fe8f6ab20146425f6`.
+Fresh mutually blind Sol xhigh and Grok 4.6 xhigh final delta reviews both
+returned READY; their actual rounds and dispositions are retained in
+`llp/reviews/3000.009-workroom-fixtures.{sol,grok}.md`.
+
+Rebased onto main `545f92a22` as `8c8617b51`, preserving both journal append
+histories; all fixture/brief bytes are unchanged from the tested/reviewed pin.
+`ref-check --verbose` passes. Root `check-inventories` was run and failed on
+untouched Snapback 1 inventory/guide drift and missing fresh-worktree generated
+artifacts (including `scripts/caps.test.mjs`, diagnostics and guide size).
+Its named source inputs are unchanged from main; no fixture inventory drift
+was reported. That ambient root failure was not repaired by changing this
+pack or a frozen inventory. Evidence is retained in `fixture-inventories.log`.
+
+The Draft brief and known-hash receipt remain explicit: the pack is ready
+before controls, but no backend adapter replay, pilot, control, ceiling freeze
+or publication has been performed. A3 is still required for Snapback's webhook
+journey; application SQL remains admitted later in D, outside the first cell.
