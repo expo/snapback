@@ -1,0 +1,303 @@
+{
+  "concurrency": [
+    {
+      "backend": "sqlite",
+      "completed_per_writer": [
+        100,
+        100,
+        100,
+        100
+      ],
+      "disjoint": false,
+      "failures": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "mode": "WAL/FULL",
+      "mutations": 400,
+      "mutations_per_second": 164.8024404129955,
+      "requested_mutations": 400,
+      "seconds": 2.427148524,
+      "status": "complete",
+      "writers": 4
+    },
+    {
+      "backend": "postgres",
+      "completed_per_writer": [
+        100,
+        100,
+        100,
+        100
+      ],
+      "database_calls": 6024,
+      "disjoint": false,
+      "failures": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "mode": "Serialized",
+      "mutations": 400,
+      "mutations_per_second": 446.4773226661418,
+      "requested_mutations": 400,
+      "retries": 0,
+      "seconds": 0.895902165,
+      "status": "complete",
+      "writers": 4
+    },
+    {
+      "backend": "postgres",
+      "completed_per_writer": [
+        100,
+        100,
+        100,
+        100
+      ],
+      "database_calls": 9592,
+      "disjoint": false,
+      "failures": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "mode": "Serializable",
+      "mutations": 400,
+      "mutations_per_second": 436.1029425880332,
+      "requested_mutations": 400,
+      "retries": 446,
+      "seconds": 0.917214632,
+      "status": "complete",
+      "writers": 4
+    },
+    {
+      "backend": "sqlite",
+      "completed_per_writer": [
+        100,
+        100,
+        100,
+        100
+      ],
+      "disjoint": true,
+      "failures": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "mode": "WAL/FULL",
+      "mutations": 400,
+      "mutations_per_second": 166.53839074875643,
+      "requested_mutations": 400,
+      "seconds": 2.401848596,
+      "status": "complete",
+      "writers": 4
+    },
+    {
+      "backend": "postgres",
+      "completed_per_writer": [
+        100,
+        100,
+        100,
+        100
+      ],
+      "database_calls": 6024,
+      "disjoint": true,
+      "failures": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "mode": "Serialized",
+      "mutations": 400,
+      "mutations_per_second": 461.3315004202246,
+      "requested_mutations": 400,
+      "retries": 0,
+      "seconds": 0.867055468,
+      "status": "complete",
+      "writers": 4
+    },
+    {
+      "backend": "postgres",
+      "completed_per_writer": [
+        90,
+        100,
+        100,
+        10
+      ],
+      "database_calls": 7140,
+      "disjoint": true,
+      "failures": [
+        "E_STORE: db error",
+        null,
+        null,
+        "E_STORE: db error"
+      ],
+      "mode": "Serializable",
+      "mutations": 300,
+      "mutations_per_second": null,
+      "requested_mutations": 400,
+      "retries": 259,
+      "seconds": 0.699773757,
+      "status": "failed",
+      "writers": 4
+    }
+  ],
+  "experiment": "Postgres Rows adapter, not production qualification",
+  "items_per_room": 25,
+  "mutation_latencies": [
+    {
+      "iterations": 200,
+      "label": "sqlite/increment",
+      "mean_us": 5563.968405,
+      "p50_us": 5496.237,
+      "p95_us": 5621.954000000001
+    },
+    {
+      "database_calls_per_operation": 15.00909090909091,
+      "iterations": 200,
+      "label": "postgres/increment",
+      "mean_us": 2428.282844999999,
+      "p50_us": 2569.3030000000003,
+      "p95_us": 2638.593
+    }
+  ],
+  "native_inbox_plan": [
+    "Limit  (cost=4.02..4.10 rows=32 width=24) (actual time=0.075..0.082 rows=32 loops=1)",
+    "  Buffers: shared hit=2",
+    "  ->  Sort  (cost=4.02..4.10 rows=32 width=24) (actual time=0.074..0.078 rows=32 loops=1)",
+    "        Sort Key: m.room COLLATE \"C\", m.id COLLATE \"C\"",
+    "        Sort Method: quicksort  Memory: 27kB",
+    "        Buffers: shared hit=2",
+    "        ->  Hash Join  (cost=1.72..3.22 rows=32 width=24) (actual time=0.042..0.061 rows=32 loops=1)",
+    "              Hash Cond: (m.room = t.room)",
+    "              Buffers: shared hit=2",
+    "              ->  Seq Scan on native_memberships m  (cost=0.00..1.40 rows=32 width=16) (actual time=0.004..0.011 rows=32 loops=1)",
+    "                    Filter: (principal = 'alice'::text)",
+    "                    Buffers: shared hit=1",
+    "              ->  Hash  (cost=1.32..1.32 rows=32 width=13) (actual time=0.020..0.020 rows=32 loops=1)",
+    "                    Buckets: 1024  Batches: 1  Memory Usage: 10kB",
+    "                    Buffers: shared hit=1",
+    "                    ->  Seq Scan on native_totals t  (cost=0.00..1.32 rows=32 width=13) (actual time=0.002..0.008 rows=32 loops=1)",
+    "                          Buffers: shared hit=1",
+    "Planning:",
+    "  Buffers: shared hit=4",
+    "Planning Time: 0.140 ms",
+    "Execution Time: 0.109 ms"
+  ],
+  "postgres_settings": [
+    [
+      "fsync",
+      "on"
+    ],
+    [
+      "full_page_writes",
+      "on"
+    ],
+    [
+      "server_version",
+      "16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)"
+    ],
+    [
+      "shared_buffers",
+      "16384"
+    ],
+    [
+      "synchronous_commit",
+      "on"
+    ]
+  ],
+  "prefetch": true,
+  "profile": "release",
+  "read_latencies": [
+    {
+      "iterations": 200,
+      "label": "sqlite/item",
+      "mean_us": 14.607874999999996,
+      "p50_us": 14.357,
+      "p95_us": 16.361
+    },
+    {
+      "database_calls_per_operation": 5.0,
+      "iterations": 200,
+      "label": "postgres/item",
+      "mean_us": 188.18362500000006,
+      "metered": {
+        "examined": 1,
+        "heap_bytes": 592,
+        "index_entries": 0,
+        "output_bytes": 143,
+        "rows_written": 0,
+        "rule_probes": 1,
+        "steps": 3
+      },
+      "p50_us": 187.28199999999998,
+      "p95_us": 196.68
+    },
+    {
+      "iterations": 200,
+      "label": "sqlite/page",
+      "mean_us": 58.86136000000001,
+      "p50_us": 58.43,
+      "p95_us": 63.519
+    },
+    {
+      "database_calls_per_operation": 5.0,
+      "iterations": 200,
+      "label": "postgres/page",
+      "mean_us": 306.60633499999994,
+      "metered": {
+        "examined": 21,
+        "heap_bytes": 11448,
+        "index_entries": 0,
+        "output_bytes": 2921,
+        "rows_written": 0,
+        "rule_probes": 1,
+        "steps": 4
+      },
+      "p50_us": 305.024,
+      "p95_us": 314.85200000000003
+    },
+    {
+      "iterations": 200,
+      "label": "sqlite/inbox",
+      "mean_us": 323.744155,
+      "p50_us": 322.748,
+      "p95_us": 330.42199999999997
+    },
+    {
+      "database_calls_per_operation": 8.0,
+      "iterations": 200,
+      "label": "postgres/inbox",
+      "mean_us": 999.7007700000001,
+      "metered": {
+        "examined": 64,
+        "heap_bytes": 49701,
+        "index_entries": 0,
+        "output_bytes": 1643,
+        "rows_written": 0,
+        "rule_probes": 32,
+        "steps": 550
+      },
+      "p50_us": 999.6009999999999,
+      "p95_us": 1009.469
+    },
+    {
+      "iterations": 200,
+      "label": "postgres/native_sql_inbox_lower_bound",
+      "mean_us": 178.4446749999999,
+      "p50_us": 176.94299999999998,
+      "p95_us": 187.743
+    }
+  ],
+  "rooms": 32,
+  "schema": "sb4_eval_bench_2955430_18f8a01dc9e10105",
+  "sqlite_durability": "WAL, synchronous=FULL (not fullfsync); same machine as PostgreSQL",
+  "sqlite_file": "/tmp/sb4_eval_bench_2955430_18f8a01dc9e10105/store.sqlite",
+  "sqlite_version": "3.53.2",
+  "unix_ms": 1789555536485
+}

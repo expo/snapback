@@ -1,7 +1,24 @@
 # Handoff: LLP 3000.009 increments A1 and C1 — integrate, verify, measure, land
 
 **Opened:** 2026-09-16 · **Owner:** unassigned (was: the Claude session of
-2026-09-15) · **State:** open
+2026-09-15) · **State:** continuing (A1/C1 integration record below; A2/A3/fixtures next)
+
+## 2026-09-16 continuation update
+
+The A1/C1 candidate now integrates both cherry-picks on main `e16baf3483`,
+with final reviewed/measured code `ba92d4f32`. The
+[integration report](../snapback4/experiments/postgres/W9-INTEGRATION-REPORT.md)
+is the current verification and measurement record: the PG suite passes,
+the client red is reproduced on clean main, and all C1 performance targets
+are missed in an idle PG16 on/off pair. Failed serializable cells are retained.
+The fixture-shutdown ticket is closed; the Postgres id-binding ticket remains
+open for C3. Charlie admitted application SQL reads (RFC §14.4), without
+reordering the first brief cell or authorizing publication.
+
+Remaining after this integration landing: A2, A3 and the fixture pack, then
+the brief's freeze/pilot protocol before any control cells. The original
+handoff below is retained as the record of what was received; its statements
+that A1/C1 are unintegrated are historical, not the current state.
 
 Two implementation lanes for [LLP 3000.009](../llp/3000.009-general-purpose-backend.rfc.md)
 are complete, reviewed, fixed once, committed and pushed. They are not yet on
