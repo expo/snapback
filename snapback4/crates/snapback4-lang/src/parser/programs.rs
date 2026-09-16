@@ -98,7 +98,8 @@ impl Parser {
         let before_body = self.diagnostics.len();
         let (prelude, body) = if kind == ProgramKind::Job { self.parse_chunks()? } else { (Vec::new(), self.parse_block()?) };
         if body.is_empty() {
-            // @ref LLP 3000.007#18.5 — recovery's empty operation adds no repair beyond the earlier error in its own body.
+            // @ref LLP 3000.007#20.19 — default `check` hides a recovery diagnostic only
+            // when an earlier error in the same operation's own body already explains it.
             let mut diagnostic = syntax(&kind_token.site, format!("{} {name} has an empty body", kind_token.value));
             // A job's parsed prelude cannot explain missing chunks; that repair is independent.
             if kind != ProgramKind::Job {
