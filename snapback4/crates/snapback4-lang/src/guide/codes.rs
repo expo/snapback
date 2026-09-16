@@ -1,4 +1,5 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_INDEX_KEY_BYTES", "family schema — an encoded index key, including its components, encoding overhead and appended id, must fit 2048 bytes on every store; table and index labels together have 512 UTF-8 bytes. Bound indexed text with <=N, reduce the composite key or shorten the labels; check names the column and suggests a bound. Writes enforce the same limits. guide indexes."),
     ("E_WRITE_ID", "family input — write id must be 26 uppercase Crockford base32 digits, starting with 0–7 (the mintId() form). Mint once and keep the id with the intent; guide writes."),
     ("E_WRITE_ID_REUSE", "family input — write id already belongs to a different operation or arguments; retry the original input or use a new id. The original write remains unchanged; guide writes."),
     ("E_WRITE_RECEIPT_EXPIRED", "family input — this client already used the write id, but its receipt is no longer retained; reopen the client to ask the server for the original outcome. The client never admits a known id twice; guide writes."),

@@ -102,9 +102,39 @@ fn concurrent_sqlite(path: &std::path::Path, disjoint: bool, n: usize) -> Json {
     json!({"backend":"sqlite","mode":"WAL/FULL","disjoint":disjoint,"writers":4,"mutations":4*n,"seconds":elapsed,"mutations_per_second":4.0*n as f64/elapsed})
 }
 
+// Isolate the SQLite regression cells from the optional Postgres stress
+// modes. Reuse the exact fixture, timings, durability and writer functions.
+fn sqlite_only(n: usize) -> Json {
+    let (schema, programs) = compiled();
+    let directory = std::env::temp_dir().join(namespace("sqlite_bench"));
+    std::fs::create_dir(&directory).unwrap();
+    let path = directory.join("store.sqlite");
+    let store = Store::open(&path).unwrap();
+    store.conn().execute_batch("PRAGMA synchronous=FULL").unwrap();
+    let mut sqlite = Engine::new(store, schema, programs).unwrap();
+    sqlite.seed_at(fixture(32, 25), 10).unwrap();
+    let ctx = context("alice", &[("itemId", id("r000-i0000"))]);
+    let expected = sqlite.query("item", ctx.clone()).unwrap().data;
+    let point = timings("sqlite/item", n, || sqlite.query("item", ctx.clone()).unwrap().data, Some(&expected));
+    let concurrency: Vec<_> = [false, true].into_iter().map(|disjoint| concurrent_sqlite(&path, disjoint, n / 2)).collect();
+    for slot in 0..4 {
+        let result = sqlite.query("counter", context("alice", &[("slot", id(format!("c{slot}")))])).unwrap();
+        assert_eq!(result.data.field("value").unwrap(), &Value::Int((n / 2 * if slot == 0 { 5 } else { 1 }) as i64));
+    }
+    json!({"experiment":"C1 SQLite point and four-writer regression cells", "sqlite_file":path,
+        "unix_ms":snapback4_core::now_ms(), "profile":if cfg!(debug_assertions){"debug"}else{"release"},
+        "rooms":32,"items_per_room":25,"read_latencies":[point],"concurrency":concurrency,
+        "sqlite_version":sqlite.store().conn().query_row("SELECT sqlite_version()",[],|r|r.get::<_,String>(0)).unwrap(),
+        "sqlite_durability":"WAL, synchronous=FULL (not fullfsync)"})
+}
+
 fn main() {
     let n: usize = std::env::args().nth(1).map(|s| s.parse().expect("iteration count")).unwrap_or(200);
     assert!((20..=10_000).contains(&n), "use 20..10000 iterations");
+    if std::env::args().nth(2).as_deref() == Some("--sqlite-only") {
+        write_result(sqlite_only(n));
+        return;
+    }
     let (schema, programs) = compiled();
     let name = namespace("bench");
     let directory = std::env::temp_dir().join(&name);
@@ -226,6 +256,10 @@ fn main() {
         "sqlite_version":sqlite.store().conn().query_row("SELECT sqlite_version()",[],|r|r.get::<_,String>(0)).unwrap(),
         "sqlite_durability":"WAL, synchronous=FULL (not fullfsync); same machine as PostgreSQL", "postgres_settings":settings,
         "read_latencies":reads,"mutation_latencies":writes,"concurrency":concurrency,"native_inbox_plan":explain});
+    write_result(output);
+}
+
+fn write_result(output: Json) {
     let text = serde_json::to_string_pretty(&output).unwrap();
     if let Ok(path) = std::env::var("SNAPBACK4_EVAL_OUTPUT") {
         use std::io::Write;

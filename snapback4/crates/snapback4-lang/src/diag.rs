@@ -120,7 +120,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_QUARRY_PLACEMENT" => "programs",
         "E_UNBOUND_LOOP" | "E_UNBOUND_SCAN" => "bounds",
         "E_SYNC" => "sync",
-        "E_SCHEMA_CONSTRAINT" => "indexes",
+        "E_SCHEMA_CONSTRAINT" | "E_INDEX_KEY_BYTES" => "indexes",
         "E_EMIT_IN_QUERY" => "programs",
         "E_EFFECT_UNKNOWN" | "E_EFFECT_LEASE" => "effects",
         _ => "language",

@@ -1,0 +1,39 @@
+{
+  "concurrency": [
+    {
+      "backend": "sqlite",
+      "disjoint": false,
+      "mode": "WAL/FULL",
+      "mutations": 400,
+      "mutations_per_second": 162.67537952854363,
+      "seconds": 2.458884689,
+      "writers": 4
+    },
+    {
+      "backend": "sqlite",
+      "disjoint": true,
+      "mode": "WAL/FULL",
+      "mutations": 400,
+      "mutations_per_second": 158.50939615247958,
+      "seconds": 2.5235097079999997,
+      "writers": 4
+    }
+  ],
+  "experiment": "C1 SQLite point and four-writer regression cells",
+  "items_per_room": 25,
+  "profile": "release",
+  "read_latencies": [
+    {
+      "iterations": 200,
+      "label": "sqlite/item",
+      "mean_us": 14.902535000000023,
+      "p50_us": 14.748,
+      "p95_us": 15.319
+    }
+  ],
+  "rooms": 32,
+  "sqlite_durability": "WAL, synchronous=FULL (not fullfsync)",
+  "sqlite_file": "/tmp/sb4_eval_sqlite_bench_2510701_18f39767d06704a7/store.sqlite",
+  "sqlite_version": "3.53.2",
+  "unix_ms": 1789521107916
+}

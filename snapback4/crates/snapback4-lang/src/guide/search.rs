@@ -49,6 +49,11 @@ or digit). The columns before it are the search's scope; the columns
 after it order the page and end in `id`, so a cursor continues it. A
 words index serves `matching` and nothing else, and cannot be unique.
 
+Indexed tokens and query terms are both truncated to 64 Unicode characters
+after folding (at most 256 UTF-8 bytes). Longer terms therefore search with
+that truncated prefix. The full composite word entry, including scope,
+ordering columns and appended id, must fit the portable 2048-byte index key.
+
 `matching q` folds the text the same way. Its first term selects every
 word it is a prefix of ("cof": coffee, coffers, cofounder — one seek each,
 at most 32 words per scope, else the page is `complete: false`), and those words

@@ -11,6 +11,47 @@ use crate::key;
 use crate::schema::{Index, Table};
 use crate::value::Value;
 
+/// Portable encoded composite key ceiling, including the appended row id.
+/// @ref LLP 3000.009#4.3 — one admission bound on every store and host.
+pub const MAX_INDEX_KEY_BYTES: usize = 2048;
+/// The prototype also stores both labels in its B-tree primary key. Reserve
+/// their space explicitly rather than assuming identifiers have bounded size.
+pub const MAX_INDEX_LABEL_BYTES: usize = 512;
+
+/// Compute once, validate before any store changes, then reuse for the writes.
+/// Existing violations may stay equal or shrink; deletion never uses this gate.
+pub struct IndexWrite<'a> {
+    pub name: &'a str,
+    pub before: Vec<Vec<u8>>,
+    pub after: Vec<Vec<u8>>,
+}
+
+pub fn index_write<'a>(name: &str, table: &'a Table, row: &Value, old: Option<&Value>, id: &str) -> Result<Vec<IndexWrite<'a>>, RuntimeError> {
+    table.indexes.iter().map(|(index_name, index)| {
+        let before = old.map(|row| stored_index_keys(table, index, row, id)).unwrap_or_default();
+        let after = stored_index_keys(table, index, row, id);
+        if name.len().saturating_add(index_name.len()) > MAX_INDEX_LABEL_BYTES && before.is_empty() && !after.is_empty() {
+            return Err(RuntimeError::Structural { code: "E_INDEX_KEY_BYTES", message: format!("table and index names for {name}.{index_name} exceed {MAX_INDEX_LABEL_BYTES} combined UTF-8 bytes; shorten the names (guide indexes)") });
+        }
+        // Pair oversized entries longest-first. A word index may have many;
+        // neither their lengths nor their count may grow past the old keys.
+        if after.iter().any(|key| key.len() > MAX_INDEX_KEY_BYTES) {
+            let mut previous: Vec<_> = before.iter().map(Vec::len).filter(|n| *n > MAX_INDEX_KEY_BYTES).collect();
+            let mut next: Vec<_> = after.iter().map(Vec::len).filter(|n| *n > MAX_INDEX_KEY_BYTES).collect();
+            previous.sort_unstable_by(|a, b| b.cmp(a));
+            next.sort_unstable_by(|a, b| b.cmp(a));
+            if next.len() > previous.len() || next.iter().zip(&previous).any(|(a, b)| a > b) {
+                return Err(index_key_refusal(name, index_name, next.len() as u64));
+            }
+        }
+        Ok(IndexWrite { name: index_name, before, after })
+    }).collect()
+}
+
+pub fn index_key_refusal(table: &str, index: &str, count: u64) -> RuntimeError {
+    RuntimeError::Structural { code: "E_INDEX_KEY_BYTES", message: format!("{table}.{index}: {count} index entries exceed {MAX_INDEX_KEY_BYTES} encoded bytes including the id; delete or shorten the indexed values, then declare text <=N bounds that fit and retry adoption (guide indexes)") }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Dir {
     Asc,
@@ -127,9 +168,21 @@ pub fn index_values(index: &Index, row: &Value) -> Vec<Value> {
 }
 
 /// The store as the interpreter sees it.
+#[derive(Clone, Debug)]
+pub enum PrefetchRequest {
+    Get { table: String, id: String },
+    Lookup { table: String, index: String, key: Vec<Value> },
+}
+
 pub trait Rows {
     /// A device-only fact: this scan pins a delivered-history group it left.
     fn retained_group(&self, _table: &str, _index: &str, _prefix: &[Value]) -> Result<bool, RuntimeError> { Ok(false) }
+
+    /// Speculative physical reads only; errors, rules and charges stay with
+    /// the eventual logical read. Devices and SQLite deliberately do nothing.
+    fn prefetch(&self, _requests: &[PrefetchRequest]) {}
+    /// Avoid planning and constructing speculative keys on hosts with no fill.
+    fn prefetch_enabled(&self) -> bool { false }
 
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError>;
     /// The first row whose index components equal `key` exactly.
@@ -215,12 +268,11 @@ impl Rows for MemoryRows {
     }
     fn put(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> {
         let id = row.field("id")?.as_str()?.to_owned();
+        let keys = index_write(table_name, table, row, old, &id)?;
         let mut entries = self.entries.borrow_mut();
         let mut written = 0;
-        for (index_name, index) in &table.indexes {
-            let ti = format!("{table_name}.{index_name}");
-            let before = old.map(|row| stored_index_keys(table, index, row, &id)).unwrap_or_default();
-            let after = stored_index_keys(table, index, row, &id);
+        for IndexWrite { name, before, after } in keys {
+            let ti = format!("{table_name}.{name}");
             for key in before.iter().filter(|key| !after.contains(key)) {
                 entries.remove(&(ti.clone(), key.clone()));
                 written += 1;

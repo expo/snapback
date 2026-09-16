@@ -415,11 +415,10 @@ impl Rows for MemoryTx<'_> {
     }
     fn put(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> {
         let id = row.field("id")?.as_str()?.to_owned();
+        let keys = snapback4_core::rows::index_write(table_name, table, row, old, &id)?;
         let mut written = 0;
-        for (index_name, index) in &table.indexes {
-            let ti = format!("{table_name}.{index_name}");
-            let before = old.map(|row| stored_index_keys(table, index, row, &id)).unwrap_or_default();
-            let after = stored_index_keys(table, index, row, &id);
+        for snapback4_core::rows::IndexWrite { name, before, after } in keys {
+            let ti = format!("{table_name}.{name}");
             for key in before.iter().filter(|key| !after.contains(key)) {
                 self.set_entry((ti.clone(), key.clone()), None);
                 written += 1;

@@ -42,25 +42,33 @@ pub(super) struct Store {
     pub client: Client,
     cache: BTreeMap<&'static str, Statement>,
     pub calls: Cell<u64>,
+    pub prefetch: bool,
+    pub marked_reads: Cell<u64>,
+    pub page_reads: Cell<u64>,
+    pub prefetch_rows: Cell<u64>,
+    pub prefetch_bytes: Cell<u64>,
 }
 
 impl Store {
     pub fn new(client: Client) -> Self {
-        Self { client, cache: BTreeMap::new(), calls: Cell::new(0) }
+        Self { client, cache: BTreeMap::new(), calls: Cell::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
     }
 
     pub fn transaction(&mut self, mode: Option<WriteMode>) -> Result<Tx<'_>, RuntimeError> {
         self.calls.set(self.calls.get() + 1);
+        self.page_reads.set(0);
         let isolation = match mode {
             None => IsolationLevel::RepeatableRead,
             Some(WriteMode::Serialized) => IsolationLevel::ReadCommitted,
             Some(WriteMode::Serializable) => IsolationLevel::Serializable,
         };
         let inner = self.client.build_transaction().isolation_level(isolation).read_only(mode.is_none()).start()?;
-        let tx = Tx { inner: RefCell::new(inner), cache: RefCell::new(&mut self.cache), calls: &self.calls };
+        let tx = Tx { inner: RefCell::new(inner), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
+            rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), tail: RefCell::new(super::tail::Tail::default()) };
         if mode == Some(WriteMode::Serialized) {
             // @ref LLP 3000#7-decisions-during-execution — a watermark covers commit order, not sequence allocation
-            tx.query("SELECT seq FROM _head WHERE singleton FOR UPDATE", &[])?;
+            let head = tx.query("SELECT seq FROM _head WHERE singleton FOR UPDATE", &[])?[0].get::<_, i64>(0) as u64;
+            tx.head.set(Some(head));
         }
         Ok(tx)
     }
@@ -69,7 +77,15 @@ impl Store {
 pub(super) struct Tx<'a> {
     inner: RefCell<Transaction<'a>>,
     cache: RefCell<&'a mut BTreeMap<&'static str, Statement>>,
-    calls: &'a Cell<u64>,
+    pub(super) calls: &'a Cell<u64>,
+    pub(super) marked_reads: &'a Cell<u64>,
+    pub(super) page_reads: &'a Cell<u64>,
+    pub(super) prefetch_rows: &'a Cell<u64>,
+    pub(super) prefetch_bytes: &'a Cell<u64>,
+    pub(super) rows_cache: RefCell<super::prefetch::Cache>,
+    pub(super) prefetch_enabled: bool,
+    pub(super) head: Cell<Option<u64>>,
+    pub(super) tail: RefCell<super::tail::Tail>,
 }
 
 pub(super) fn signed(n: u64) -> Result<i64, RuntimeError> {
@@ -107,18 +123,36 @@ impl Tx<'_> {
     }
 
     pub fn execute(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)]) -> Result<u64, RuntimeError> {
+        self.flush_tail()?;
         let statement = self.prepared(sql)?;
         self.calls.set(self.calls.get() + 1);
         Ok(self.inner.borrow_mut().execute(&statement, params)?)
     }
 
     pub fn batch(&self, sql: &'static str) -> Result<(), RuntimeError> {
+        if sql.to_ascii_uppercase().contains("ROLLBACK") {
+            return Err(RuntimeError::Store("use the explicit transaction/savepoint rollback method".into()));
+        }
         self.calls.set(self.calls.get() + 1);
         self.inner.borrow_mut().batch_execute(sql)?;
         Ok(())
     }
 
+    pub fn rollback_program(&self) -> Result<(), RuntimeError> {
+        self.rows_cache.borrow_mut().clear();
+        self.calls.set(self.calls.get() + 1);
+        self.inner.borrow_mut().batch_execute("ROLLBACK TO SAVEPOINT program; RELEASE SAVEPOINT program")?;
+        Ok(())
+    }
+
+    pub(super) fn rollback_prefetch(&self) -> Result<(), RuntimeError> {
+        self.calls.set(self.calls.get() + 1);
+        self.inner.borrow_mut().batch_execute("ROLLBACK TO SAVEPOINT prefetch; RELEASE SAVEPOINT prefetch")?;
+        Ok(())
+    }
+
     pub fn commit(self) -> Result<(), RuntimeError> {
+        self.flush_tail()?;
         self.calls.set(self.calls.get() + 1);
         self.inner.into_inner().commit()?;
         Ok(())
@@ -140,16 +174,10 @@ impl Tx<'_> {
         touched: &[String],
         writes: u64,
     ) -> Result<(), RuntimeError> {
-        let seq = signed(seq)?;
-        // This UPDATE orders successful transactions; nextval would allow a
-        // later watermark to overtake an uncommitted earlier mutation.
-        if self.execute("UPDATE _head SET seq = $1 WHERE singleton AND seq = $2", &[&seq, &(seq - 1)])? != 1 {
-            return Err(RuntimeError::Store("Postgres commit head changed without a serialization failure".into()));
-        }
-        self.execute(
-            "INSERT INTO _commits VALUES ($1,$2,$3,$4,$5,$6,$7)",
-            &[&seq, &at, &program, &principal, &kind, &canonical_json(&touched), &signed(writes)?],
-        )?;
+        self.tail.borrow_mut().commit = Some(super::tail::Commit {
+            seq, at, program: program.into(), principal: principal.into(), kind: kind.into(),
+            touched: canonical_json(&touched), writes,
+        });
         Ok(())
     }
 
@@ -163,18 +191,19 @@ impl Tx<'_> {
     }
 
     pub fn record_effects(&self, outbox: &[(String, String, Value)], seq: u64, now: i64) -> Result<(), RuntimeError> {
-        for (id, effect, payload) in outbox {
-            self.execute(
-                "INSERT INTO _outbox VALUES ($1,$2,$3,$4,'queued',0,$5)",
-                &[id, &signed(seq)?, effect, &canonical_json(payload), &now],
-            )?;
-        }
+        let mut tail = self.tail.borrow_mut();
+        debug_assert!(tail.commit.as_ref().is_some_and(|commit| commit.seq == seq && commit.at == now), "effects require their matching commit tail");
+        tail.effects.extend_from_slice(outbox);
         Ok(())
     }
 }
 
 impl Rows for Tx<'_> {
+    fn prefetch(&self, requests: &[crate::rows::PrefetchRequest]) { self.fill_prefetch(requests); }
+    fn prefetch_enabled(&self) -> bool { self.prefetch_enabled }
+
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
+        if let Some(answer) = self.rows_cache.borrow().get(table, id) { return Ok(answer); }
         self.query("SELECT data FROM r WHERE t = $1 AND id = $2", &[&table, &id])?.first().map(|r| decode(r.get::<_, &str>(0))).transpose()
     }
 
@@ -186,6 +215,7 @@ impl Rows for Tx<'_> {
                 index.components.len()
             )));
         }
+        if let Some(answer) = self.rows_cache.borrow().lookup(table, name, values) { return Ok(answer); }
         Ok(self.scan(table, name, values, &Bounds::default(), Dir::Asc, 1)?.into_iter().next().map(|(row, _)| row))
     }
 
@@ -226,20 +256,20 @@ impl Rows for Tx<'_> {
     }
 
     fn put(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> {
+        self.rows_cache.borrow_mut().invalidate(table_name);
         let id = row.field("id")?.as_str()?;
+        let keys = crate::rows::index_write(table_name, table, row, old, id)?;
         let data = canonical_json(row);
         let sql = if old.is_some() { "UPDATE r SET data = $3 WHERE t = $1 AND id = $2" } else { "INSERT INTO r VALUES ($1,$2,$3)" };
         self.execute(sql, &[&table_name, &id, &data])?;
         let mut entries = 0;
-        for (name, index) in &table.indexes {
-            let before = old.map(|old| stored_index_keys(table, index, old, id)).unwrap_or_default();
-            let after = stored_index_keys(table, index, row, id);
+        for crate::rows::IndexWrite { name, before, after } in keys {
             for key in before.iter().filter(|k| !after.contains(k)) {
-                self.execute("DELETE FROM i WHERE t = $1 AND ix = $2 AND k = $3", &[&table_name, name, key])?;
+                self.execute("DELETE FROM i WHERE t = $1 AND ix = $2 AND k = $3", &[&table_name, &name, key])?;
                 entries += 1;
             }
             for key in after.iter().filter(|k| !before.contains(k)) {
-                self.execute("INSERT INTO i VALUES ($1,$2,$3,$4)", &[&table_name, name, key, &id])?;
+                self.execute("INSERT INTO i VALUES ($1,$2,$3,$4)", &[&table_name, &name, key, &id])?;
                 entries += 1;
             }
         }
@@ -247,6 +277,7 @@ impl Rows for Tx<'_> {
     }
 
     fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> {
+        self.rows_cache.borrow_mut().invalidate(table_name);
         let id = old.field("id")?.as_str()?;
         self.execute("DELETE FROM r WHERE t = $1 AND id = $2", &[&table_name, &id])?;
         let mut entries = 0;

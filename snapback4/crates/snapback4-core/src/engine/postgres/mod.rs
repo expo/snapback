@@ -4,6 +4,10 @@
 //! @ref LLP 3000#7-decisions-during-execution — evaluate storage portability before productizing it
 mod log;
 mod store;
+mod prefetch;
+mod tail;
+#[cfg(test)]
+mod tests;
 pub use store::WriteMode;
 
 use super::{Context, MutationOutcome, QueryOutcome, WriteState, runner::Runner, validate};
@@ -18,6 +22,7 @@ use crate::{
 use postgres::{Client, error::SqlState};
 use std::collections::BTreeMap;
 use store::{Store, decode, namespace};
+use crate::rows::Rows;
 
 #[derive(Clone, Copy, Debug, Default, serde::Serialize)]
 pub struct Stats {
@@ -25,6 +30,11 @@ pub struct Stats {
     /// packet count. Implicit rollback when an errored transaction drops is omitted.
     pub database_calls: u64,
     pub transaction_retries: u64,
+    pub prefetch_marked_reads: u64,
+    /// Largest marked page in the most recent transaction.
+    pub prefetch_page_reads: u64,
+    pub prefetch_rows_transferred: u64,
+    pub prefetch_bytes_transferred: u64,
 }
 
 pub struct PostgresEngine {
@@ -34,6 +44,7 @@ pub struct PostgresEngine {
     ceilings: Ceilings,
     mode: WriteMode,
     retries: u64,
+    precharge: Metered,
 }
 
 impl PostgresEngine {
@@ -71,12 +82,20 @@ impl PostgresEngine {
         let schema = decode(row.get(1))?;
         let programs = decode(row.get(2))?;
         supported(&schema, &programs)?;
+        // Existing immutable stores adopt this portable admission policy at open.
+        // Return one offending index and its exact count, never its row payloads.
+        if let Some(row) = client.query(
+            "SELECT t, ix, COUNT(*) FROM i WHERE octet_length(k) > $1 GROUP BY t, ix ORDER BY t, ix LIMIT 1",
+            &[&(crate::rows::MAX_INDEX_KEY_BYTES as i32)],
+        )?.first() {
+            return Err(crate::rows::index_key_refusal(row.get(0), row.get(1), row.get::<_, i64>(2) as u64));
+        }
         Self::attach(client, schema, programs)
     }
 
     fn attach(mut client: Client, schema: Schema, programs: BTreeMap<String, Program>) -> Result<Self, RuntimeError> {
         client.batch_execute("SET statement_timeout = '5s'; SET lock_timeout = '5s';")?;
-        Ok(Self { store: Store::new(client), schema, programs, ceilings: Ceilings::default(), mode: WriteMode::Serialized, retries: 0 })
+        Ok(Self { store: Store::new(client), schema, programs, ceilings: Ceilings::default(), mode: WriteMode::Serialized, retries: 0, precharge: Metered::default() })
     }
 
     pub fn schema(&self) -> &Schema {
@@ -94,8 +113,15 @@ impl PostgresEngine {
     pub fn set_write_mode(&mut self, mode: WriteMode) {
         self.mode = mode;
     }
+    /// Evaluation switch: only physical access changes, never the runner.
+    pub fn set_prefetch(&mut self, enabled: bool) { self.store.prefetch = enabled; }
+    /// Differential evaluation: reserve budget before the first logical charge.
+    pub fn set_meter_precharge(&mut self, used: Metered) { self.precharge = used; }
+
     pub fn stats(&self) -> Stats {
-        Stats { database_calls: self.store.calls.get(), transaction_retries: self.retries }
+        Stats { database_calls: self.store.calls.get(), transaction_retries: self.retries,
+            prefetch_marked_reads: self.store.marked_reads.get(), prefetch_page_reads: self.store.page_reads.get(), prefetch_rows_transferred: self.store.prefetch_rows.get(),
+            prefetch_bytes_transferred: self.store.prefetch_bytes.get() }
     }
 
     pub fn query(&mut self, name: &str, mut context: Context) -> Result<QueryOutcome, Refusal> {
@@ -109,6 +135,7 @@ impl PostgresEngine {
         let tx = self.store.transaction(None)?;
         let seq = tx.next_seq()? - 1;
         let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(self.ceilings, Cut::Cap), seq);
+        runner.meter.used = self.precharge;
         let data = runner.run(program)?;
         runner.charge_output(&data)?;
         let outcome = QueryOutcome {
@@ -186,6 +213,7 @@ impl PostgresEngine {
         let seq = tx.next_seq()?;
         tx.batch("SAVEPOINT program")?;
         let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(self.ceilings, Cut::Abort), seq);
+        runner.meter.used = self.precharge;
         let ran = runner.run(program).and_then(|value| {
             runner.check_final_exists()?;
             runner.charge_output(&value)?;
@@ -206,7 +234,7 @@ impl PostgresEngine {
                 MutationOutcome { state: WriteState::Sent { seq, result }, metered, tables, events: events.len(), replayed: false }
             }
             Err(error) if error.is_refusal() => {
-                tx.batch("ROLLBACK TO SAVEPOINT program; RELEASE SAVEPOINT program")?;
+                tx.rollback_program()?;
                 let current = if let RuntimeError::Conflict { current } = &error {
                     let mut probe = Runner::new(
                         &tx,
@@ -232,6 +260,36 @@ impl PostgresEngine {
         }
         tx.commit()?;
         Ok(outcome)
+    }
+
+    /// Load rows exactly as given: validated and indexed, rules, constraints
+    /// and aggregates skipped, partition events emitted. For fixtures whose
+    /// aggregates are already computed and for the conformance corpus.
+    pub fn load(&mut self, rows: impl IntoIterator<Item = (String, Value)>) -> Result<u64, RuntimeError> {
+        let now = crate::now_ms();
+        let tx = self.store.transaction(Some(WriteMode::Serialized))?;
+        let seq = tx.next_seq()?;
+        let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+        let mut count = 0;
+        for (table_name, row) in rows {
+            validate::validate_row(&self.schema, &table_name, &row)?;
+            let table = self.schema.table(&table_name).expect("validated").clone();
+            let id = row.field("id")?.as_str()?.to_owned();
+            let old = tx.get(&table_name, &id)?;
+            tx.put(&table_name, &table, &row, old.as_ref())?;
+            partition::row_changed(&mut runner, &table_name, old.as_ref(), Some(&row))?;
+            runner.written_tables.insert(table_name);
+            count += 1;
+        }
+        let events = std::mem::take(&mut runner.events);
+        let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
+        drop(runner);
+        if count > 0 {
+            tx.record_commit(seq, now, "load", crate::SYSTEM_PRINCIPAL, "load", &tables, count)?;
+            partition::append(&tx, seq, &events)?;
+        }
+        tx.commit()?;
+        Ok(count)
     }
 
     /// Fixture loading still uses the real validation, maintains and sync paths.
