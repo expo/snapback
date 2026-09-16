@@ -93,18 +93,22 @@ instead of `outcomeRubric` and `invariantPlatformScore`:
 - `builder` retains evidence pointers, B1–B10 as explicit 0–100/null values,
   and the separate 0–100/null `holisticBeforeTotal` captured before computed
   totals are shown;
-- `graders.astra`, `.grok`, and `.muse` are independent outcome panels. Each
-  records its exact scorer identity, status, evidence pointers, O1–O5 as
-  explicit 0–100/null values, and its own 100-point `combinedTotal` using the
-  shared builder dimensions.
+- `outcome` records the exact grader identity, status, evidence pointers,
+  O1–O5 as explicit 0–100/null values, and the 100-point `combinedTotal` using
+  this record's builder dimensions.
+
+The built app's model and effort remain `harness.model` and `harness.effort` on
+that same lane record; `outcome.grader` identifies the independent grader.
 
 The brief's declared weights are used as point contributions: O1–O5 are
 13/8/10/8/6 and B1–B10 are 6/6/8/5/5/4/5/6/6/4. A grader's combined total is
 null if any O or B dimension is null. There are no intermediate layer totals
-and no Astra/Grok/Muse average. An unavailable panel is valid only with all O
+and no cross-record average. An unavailable outcome is valid only with all O
 dimensions and its combined total null, plus an evidence pointer explaining
-the unavailability. This records the current Draft instrument without treating
-calibration as settled.
+the unavailability. Astra, Grok, and Muse builds therefore use three separate
+lane records, each with its own builder experience and independently graded
+outcome. Their model/effort matrix is preregistered outside this schema. This
+records the current Draft instrument without treating calibration as settled.
 
 Publish every dimension. Across briefs, aggregate with preregistered
 noninferiority/dominance counts, never by averaging dimensions a brief did not

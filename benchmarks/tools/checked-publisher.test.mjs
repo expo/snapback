@@ -47,30 +47,35 @@ function scoreDimensions(fields, value) {
   return Object.fromEntries(fields.map((field) => [field, value]));
 }
 
-function workroomRecord({ complete = true } = {}) {
+function workroomRecord({
+  builderValue = 80,
+  outcomeValue = 80,
+  outcomeStatus = 'scored',
+  grader = 'synthetic-grader-1',
+} = {}) {
   const record = fixtureJson('pass/records/snapback-r01.json');
   record.brief = 'team-workspace';
   delete record.rubric;
   delete record.recordDigest;
-  const builderValue = complete ? 80 : null;
-  const panel = (scorer, value) => ({
-    scorer,
-    status: complete ? 'scored' : 'unavailable',
-    evidence: [`synthetic/${scorer}.md`],
-    dimensions: scoreDimensions(WORKROOM_OUTCOME_FIELDS, value),
-    combinedTotal: complete ? value * 0.45 + 44 : null,
-  });
+  const outcomeUnavailable = outcomeStatus === 'unavailable';
+  const outcomeScore = outcomeUnavailable ? null : outcomeValue;
+  const builderContribution = builderValue === null ? null : builderValue * 0.55;
+  const outcomeContribution = outcomeScore === null ? null : outcomeScore * 0.45;
   record.workroomScore = {
     source: 'benchmarks/briefs/team-workspace.md#scoring',
     builder: {
       evidence: ['synthetic/builder.md'],
       dimensions: scoreDimensions(WORKROOM_BUILDER_FIELDS, builderValue),
-      holisticBeforeTotal: complete ? 73 : null,
+      holisticBeforeTotal: builderValue === null ? null : 73,
     },
-    graders: {
-      astra: panel('gpt-6-astra', complete ? 80 : null),
-      grok: panel('grok-4.6', complete ? 60 : null),
-      muse: panel('muse-spark', complete ? 100 : null),
+    outcome: {
+      grader,
+      status: outcomeStatus,
+      evidence: [`synthetic/${grader}.md`],
+      dimensions: scoreDimensions(WORKROOM_OUTCOME_FIELDS, outcomeScore),
+      combinedTotal: builderContribution === null || outcomeContribution === null
+        ? null
+        : builderContribution + outcomeContribution,
     },
   };
   return record;
@@ -153,39 +158,69 @@ test('known missing metrics must be explicit nulls', () => {
   );
 });
 
-test('Workroom admits complete independent panels and honest all-null panels', () => {
+test('Workroom admits one complete outcome and an honest all-null unavailable outcome', () => {
   const schema = JSON.parse(readFileSync(resolve(ROOT, 'benchmarks/schema/run-record.schema.json'), 'utf8'));
   const complete = workroomRecord();
   assert.equal(
     validateMachineRecord({ root: ROOT, schema, file: 'synthetic-workroom-complete.json', record: complete }),
     complete,
   );
-  assert.deepEqual(
-    Object.values(complete.workroomScore.graders).map((panel) => panel.combinedTotal),
-    [80, 71, 89],
-  );
-  const weighted = workroomRecord();
-  weighted.workroomScore.builder.dimensions = Object.fromEntries(
-    WORKROOM_BUILDER_FIELDS.map((field, index) => [field, (index + 1) * 10]),
-  );
-  for (const panel of Object.values(weighted.workroomScore.graders)) {
-    panel.dimensions = Object.fromEntries(
-      WORKROOM_OUTCOME_FIELDS.map((field, index) => [field, (index + 1) * 20]),
-    );
-    panel.combinedTotal = 53;
-  }
-  assert.equal(
-    validateMachineRecord({ root: ROOT, schema, file: 'synthetic-workroom-weights.json', record: weighted }),
-    weighted,
-  );
-  const unavailable = workroomRecord({ complete: false });
+  assert.equal(complete.workroomScore.outcome.combinedTotal, 80);
+  const unavailable = workroomRecord({
+    builderValue: null,
+    outcomeValue: null,
+    outcomeStatus: 'unavailable',
+  });
   assert.equal(
     validateMachineRecord({ root: ROOT, schema, file: 'synthetic-workroom-unavailable.json', record: unavailable }),
     unavailable,
   );
 });
 
-test('Workroom rejects missing dimensions, wrong totals, null-derived totals, and out-of-range scores', () => {
+test('Workroom combines each distinct run builder only with that run outcome', () => {
+  const schema = JSON.parse(readFileSync(resolve(ROOT, 'benchmarks/schema/run-record.schema.json'), 'utf8'));
+  const builderA = workroomRecord({ builderValue: 80, outcomeValue: 60 });
+  const builderB = workroomRecord({ builderValue: 20, outcomeValue: 60 });
+  builderA.harness.model = 'synthetic-builder-a';
+  builderB.harness.model = 'synthetic-builder-b';
+  assert.equal(builderA.workroomScore.outcome.combinedTotal, 71);
+  assert.equal(builderB.workroomScore.outcome.combinedTotal, 38);
+  assert.equal(validateMachineRecord({ root: ROOT, schema, file: 'builder-a.json', record: builderA }), builderA);
+  assert.equal(validateMachineRecord({ root: ROOT, schema, file: 'builder-b.json', record: builderB }), builderB);
+});
+
+test('Workroom recomputes fractional scores with the unequal declared weights', () => {
+  const schema = JSON.parse(readFileSync(resolve(ROOT, 'benchmarks/schema/run-record.schema.json'), 'utf8'));
+  const weighted = workroomRecord();
+  const builderValues = [10.5, 20.25, 30.75, 40.125, 50.875, 60.5, 70.25, 80.75, 90.125, 99.5];
+  const outcomeValues = [12.5, 33.25, 48.75, 71.5, 94.25];
+  weighted.workroomScore.builder.dimensions = Object.fromEntries(
+    WORKROOM_BUILDER_FIELDS.map((field, index) => [field, builderValues[index]]),
+  );
+  weighted.workroomScore.outcome.dimensions = Object.fromEntries(
+    WORKROOM_OUTCOME_FIELDS.map((field, index) => [field, outcomeValues[index]]),
+  );
+  weighted.workroomScore.outcome.combinedTotal = 49.555;
+  assert.equal(
+    validateMachineRecord({ root: ROOT, schema, file: 'synthetic-workroom-fractional.json', record: weighted }),
+    weighted,
+  );
+});
+
+test('Workroom B8 null forces the combined total to remain null', () => {
+  const schema = JSON.parse(readFileSync(resolve(ROOT, 'benchmarks/schema/run-record.schema.json'), 'utf8'));
+  const record = workroomRecord();
+  record.workroomScore.builder.dimensions.b8Day2Evolution = null;
+  record.workroomScore.outcome.combinedTotal = null;
+  assert.equal(validateMachineRecord({ root: ROOT, schema, file: 'workroom-b8-null.json', record }), record);
+  record.workroomScore.outcome.combinedTotal = 74;
+  assert.throws(
+    () => validateMachineRecord({ root: ROOT, schema, file: 'workroom-b8-total.json', record }),
+    expectReason('WORKROOM_SCORE_NULL_AGGREGATE'),
+  );
+});
+
+test('Workroom rejects old panels, missing dimensions, wrong totals, unavailable scores, and legacy rubrics', () => {
   const schema = JSON.parse(readFileSync(resolve(ROOT, 'benchmarks/schema/run-record.schema.json'), 'utf8'));
   const validate = (record) => validateMachineRecord({
     root: ROOT,
@@ -199,19 +234,19 @@ test('Workroom rejects missing dimensions, wrong totals, null-derived totals, an
   assert.throws(() => validate(missing), expectReason('SCHEMA_CONFORMANCE'));
 
   const wrongTotal = workroomRecord();
-  wrongTotal.workroomScore.graders.astra.combinedTotal = 81;
+  wrongTotal.workroomScore.outcome.combinedTotal = 81;
   assert.throws(() => validate(wrongTotal), expectReason('WORKROOM_SCORE_AGGREGATION_MISMATCH'));
 
   const nullDerived = workroomRecord();
-  nullDerived.workroomScore.graders.astra.dimensions.o3TrustBoundaries = null;
+  nullDerived.workroomScore.outcome.dimensions.o3TrustBoundaries = null;
   assert.throws(() => validate(nullDerived), expectReason('WORKROOM_SCORE_NULL_AGGREGATE'));
 
   const outOfRange = workroomRecord();
   outOfRange.workroomScore.builder.dimensions.b10Diagnostics = 101;
   assert.throws(() => validate(outOfRange), expectReason('SCHEMA_CONFORMANCE'));
 
-  const unavailableWithScore = workroomRecord({ complete: false });
-  unavailableWithScore.workroomScore.graders.grok.dimensions.o1FunctionalCompleteness = 0;
+  const unavailableWithScore = workroomRecord({ outcomeValue: null, outcomeStatus: 'unavailable' });
+  unavailableWithScore.workroomScore.outcome.dimensions.o1FunctionalCompleteness = 0;
   assert.throws(() => validate(unavailableWithScore), expectReason('WORKROOM_SCORE_STATUS_MISMATCH'));
 
   const undeclaredDimension = workroomRecord();
@@ -221,6 +256,11 @@ test('Workroom rejects missing dimensions, wrong totals, null-derived totals, an
   const legacyRubric = workroomRecord();
   legacyRubric.rubric = {};
   assert.throws(() => validate(legacyRubric), expectReason('SCHEMA_CONFORMANCE'));
+
+  const oldPanels = workroomRecord();
+  oldPanels.workroomScore.graders = { astra: oldPanels.workroomScore.outcome };
+  delete oldPanels.workroomScore.outcome;
+  assert.throws(() => validate(oldPanels), expectReason('SCHEMA_CONFORMANCE'));
 });
 
 test('record digest mismatch fails before publication', () => {

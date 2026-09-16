@@ -130,7 +130,7 @@ function workroomContribution(dimensions, weights) {
 
 function validateWorkroomScore(record, file) {
   if (!record.workroomScore) return;
-  rejectUnknownWorkroomFields(record.workroomScore, ['source', 'builder', 'graders'], 'workroomScore', file);
+  rejectUnknownWorkroomFields(record.workroomScore, ['source', 'builder', 'outcome'], 'workroomScore', file);
   rejectUnknownWorkroomFields(
     record.workroomScore.builder,
     ['evidence', 'dimensions', 'holisticBeforeTotal'],
@@ -143,42 +143,40 @@ function validateWorkroomScore(record, file) {
     'workroomScore.builder.dimensions',
     file,
   );
-  rejectUnknownWorkroomFields(record.workroomScore.graders, ['astra', 'grok', 'muse'], 'workroomScore.graders', file);
   const builderContribution = workroomContribution(
     record.workroomScore.builder.dimensions,
     WORKROOM_BUILDER_WEIGHTS,
   );
-  for (const [grader, panel] of Object.entries(record.workroomScore.graders)) {
-    const label = `workroomScore.graders.${grader}`;
-    rejectUnknownWorkroomFields(
-      panel,
-      ['scorer', 'status', 'evidence', 'dimensions', 'combinedTotal'],
-      label,
-      file,
-    );
-    rejectUnknownWorkroomFields(panel.dimensions, Object.keys(WORKROOM_OUTCOME_WEIGHTS), `${label}.dimensions`, file);
-    const outcomeValues = Object.values(panel.dimensions);
-    if (panel.status === 'unavailable'
-        && (outcomeValues.some((value) => value !== null) || panel.combinedTotal !== null)) {
-      fail('WORKROOM_SCORE_STATUS_MISMATCH', `${file}: ${label} is unavailable but contains a score or total`);
-    }
-    const outcomeContribution = workroomContribution(panel.dimensions, WORKROOM_OUTCOME_WEIGHTS);
-    if (builderContribution === null || outcomeContribution === null) {
-      if (panel.combinedTotal !== null) {
-        fail(
-          'WORKROOM_SCORE_NULL_AGGREGATE',
-          `${file}: workroomScore.graders.${grader}.combinedTotal must be null when either scoring layer is incomplete`,
-        );
-      }
-      continue;
-    }
-    const recomputed = builderContribution + outcomeContribution;
-    if (panel.combinedTotal === null || Math.abs(panel.combinedTotal - recomputed) > 1e-9) {
+  const outcome = record.workroomScore.outcome;
+  const label = 'workroomScore.outcome';
+  rejectUnknownWorkroomFields(
+    outcome,
+    ['grader', 'status', 'evidence', 'dimensions', 'combinedTotal'],
+    label,
+    file,
+  );
+  rejectUnknownWorkroomFields(outcome.dimensions, Object.keys(WORKROOM_OUTCOME_WEIGHTS), `${label}.dimensions`, file);
+  const outcomeValues = Object.values(outcome.dimensions);
+  if (outcome.status === 'unavailable'
+      && (outcomeValues.some((value) => value !== null) || outcome.combinedTotal !== null)) {
+    fail('WORKROOM_SCORE_STATUS_MISMATCH', `${file}: ${label} is unavailable but contains a score or total`);
+  }
+  const outcomeContribution = workroomContribution(outcome.dimensions, WORKROOM_OUTCOME_WEIGHTS);
+  if (builderContribution === null || outcomeContribution === null) {
+    if (outcome.combinedTotal !== null) {
       fail(
-        'WORKROOM_SCORE_AGGREGATION_MISMATCH',
-        `${file}: ${label}.combinedTotal=${panel.combinedTotal} but the declared weights recompute to ${recomputed}`,
+        'WORKROOM_SCORE_NULL_AGGREGATE',
+        `${file}: ${label}.combinedTotal must be null when either scoring layer is incomplete`,
       );
     }
+    return;
+  }
+  const recomputed = builderContribution + outcomeContribution;
+  if (outcome.combinedTotal === null || Math.abs(outcome.combinedTotal - recomputed) > 1e-9) {
+    fail(
+      'WORKROOM_SCORE_AGGREGATION_MISMATCH',
+      `${file}: ${label}.combinedTotal=${outcome.combinedTotal} but the declared weights recompute to ${recomputed}`,
+    );
   }
 }
 

@@ -28,12 +28,16 @@
         "o5PerformanceAtScaleEnvelope": { "type": ["number", "null"], "minimum": 0, "maximum": 100 }
       }
     },
-    "workroomOutcomePanel": {
+    "workroomOutcome": {
       "type": "object",
-      "required": ["scorer", "status", "evidence", "dimensions", "combinedTotal"],
+      "required": ["grader", "status", "evidence", "dimensions", "combinedTotal"],
       "additionalProperties": false,
       "properties": {
-        "scorer": { "type": "string", "minLength": 1 },
+        "grader": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Exact identity of the grader for this lane record; scorer families and effort are preregistered outside this schema."
+        },
         "status": { "enum": ["scored", "unavailable"] },
         "evidence": { "$ref": "#/$defs/scoreEvidence" },
         "dimensions": { "$ref": "#/$defs/workroomOutcomeDimensions" },
@@ -334,8 +338,8 @@
     },
     "workroomScore": {
       "type": "object",
-      "description": "Workroom's declared two-layer score. Builder experience is shared by the three independent outcome panels; no cross-panel average is defined.",
-      "required": ["source", "builder", "graders"],
+      "description": "Workroom's declared two-layer score for one independently built lane: this builder's experience plus this lane's independently graded outcome.",
+      "required": ["source", "builder", "outcome"],
       "additionalProperties": false,
       "properties": {
         "source": { "const": "benchmarks/briefs/team-workspace.md#scoring" },
@@ -381,16 +385,7 @@
             }
           }
         },
-        "graders": {
-          "type": "object",
-          "required": ["astra", "grok", "muse"],
-          "additionalProperties": false,
-          "properties": {
-            "astra": { "$ref": "#/$defs/workroomOutcomePanel" },
-            "grok": { "$ref": "#/$defs/workroomOutcomePanel" },
-            "muse": { "$ref": "#/$defs/workroomOutcomePanel" }
-          }
-        }
+        "outcome": { "$ref": "#/$defs/workroomOutcome" }
       }
     },
     "authParity": {
