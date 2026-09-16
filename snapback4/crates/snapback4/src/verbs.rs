@@ -844,6 +844,7 @@ fn arg_word(kind: &ir::ArgType) -> String {
 mod releases;
 pub use releases::{deploy, rollback, serve_release};
 pub(crate) use releases::deployment_lock;
+pub(crate) use releases::release_bind;
 
 /// `token --service <name> [--days N] [--release <dir>]`: a bearer session
 /// for a service principal, printed once. A service is a worker's seat: it

@@ -1013,7 +1013,7 @@ step.
   the effects by state and the failed ones;
   **`guide [keyword]`** lists cards and aliases, or prints one card: language,
   types, indexes, maintains, rules, sync, residency, prediction, evolution, expire, assets, reads, shapes, writes,
-  programs, jobs, native, feeds, search, effects, actions, services, presence,
+  programs, jobs, native, feeds, search, effects, actions, routes, services, presence,
   bounds, refusals, personas, witness (`guide <E_CODE>` explains a code);
   Natural words resolve too: `offline` → prediction, `pagination` → reads,
   `migration` → evolution, `sql` → personas, `push` → effects. An unknown

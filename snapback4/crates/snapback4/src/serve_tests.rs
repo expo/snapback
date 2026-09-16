@@ -7,6 +7,9 @@ use std::thread::{self, JoinHandle};
 #[path = "../tests/serve_adoption/mod.rs"]
 mod adoption_tests;
 
+#[path = "../tests/serve_routes/mod.rs"]
+mod route_tests;
+
 const SCHEMA: &str = "use identity\ntable items:\n  n: int\n  photo: image <=1024 ?\n  read <- allow\n  insert <- deny\n  sync public\nquery who():\n  return viewer\n";
 
 struct Host {

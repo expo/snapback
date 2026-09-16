@@ -1416,7 +1416,7 @@ retryable? }`: `code` and `family` are stable, `rewrite` compiles, `guide`
 names a card, `rule` is the program's own code on a `require` or named unique refusal, and
 `retryable` says the same request may succeed later. The engine's families:
 input, schema, auth, rule (your `require` codes), constraint, bound, op,
-asset, action, prediction, generation, store; the client adds link (the server is
+asset, action, route, prediction, generation, store; the client adds link (the server is
 unreachable) and client (the client itself refused, as after `close()`).
 `snapback4 why <CODE>` prints its explanation and the card paragraph naming
 the code, followed by the full-card command. If there is no dedicated section,

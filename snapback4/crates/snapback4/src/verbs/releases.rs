@@ -181,7 +181,7 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
     crate::serve::serve(release, port, crate::serve::Mode::Release { expected: current, worker }, &bind.to_string())
 }
 
-fn release_bind(options: &Options) -> Result<std::net::IpAddr, String> {
+pub(crate) fn release_bind(options: &Options) -> Result<std::net::IpAddr, String> {
     let bind = options.flags.get("bind").map(String::as_str).unwrap_or("127.0.0.1");
     let address: std::net::IpAddr = bind.parse().map_err(|_| "--bind must be a literal IPv4 or IPv6 address".to_owned())?;
     if !address.is_loopback() {
