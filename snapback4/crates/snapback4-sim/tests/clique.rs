@@ -1373,30 +1373,6 @@ fn w7a_wired_writes_respect_the_private_routing_prediction_boundary() {
 }
 
 #[test]
-fn w7a_promotion_skips_a_saturated_follower() {
-    use snapback4_core::value::object;
-    let bound = following_app::built();
-    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
-    following_app::mutate(&mut engine, "register", "author", &[], 1);
-    engine.seed((0..32).map(|n| ("feedPulls".into(), object([("id", id(&format!("pull{n}"))), ("readerId", id("reader00")), ("authorId", id(&format!("shared{n}")))]))).collect::<Vec<_>>()).unwrap();
-    engine.seed([("feedPullCounts".into(), object([("id", id("count-reader00")), ("readerId", id("reader00")), ("used", Value::Int(32))]))]).unwrap();
-    for n in 0..51 { following_app::mutate(&mut engine, "follow", &format!("reader{n:02}"), &[("authorId", id("author"))], 2); }
-    assert_eq!(engine.store().rows("feedAuthors").unwrap()[0].field("shared").unwrap(), &Value::Bool(true));
-    assert_eq!(engine.store().rows("feedPulls").unwrap().iter().filter(|r| r.field("readerId") == Ok(&id("reader00"))).count(), 32);
-    following_app::mutate(&mut engine, "createPost", "author", &[("postId", id("real")), ("body", Value::String("real app post".into()))], 3);
-    assert_eq!(following_app::query(&mut engine, "reader50").data.as_array().unwrap().len(), 1);
-    assert_eq!(engine.store().rows("feedFollows").unwrap()[0].field("at").unwrap(), &Value::Int(2));
-    assert!(following_app::query(&mut engine, "reader00").data.as_array().unwrap().is_empty(), "a skipped pull does not silently exceed the cap");
-    following_app::mutate(&mut engine, "unfollow", "reader00", &[("authorId", id("author"))], 4);
-    let refused = engine.mutate("social.follow", None, following_app::context("reader00", &[("authorId", id("author"))])).unwrap();
-    let WriteState::Failed { why, .. } = refused.state else { panic!("saturated new follow must refuse"); };
-    assert_eq!(why.code, "FEED_PULL_CAP");
-    println!("W7a saturated new follow: {}: {}", why.code, why.message);
-    assert_eq!(engine.store().rows("follows").unwrap().len(), 50, "the app edge rolled back too");
-    println!("W7a promotion: followers=51 skipped=1 saturated_pulls=32 broadcast=1 delivered_to_follower51=1 at=2");
-}
-
-#[test]
 fn w7a_saturated_author_keeps_own_posts_and_ghost_reposts_refuse() {
     use snapback4_core::value::object;
     let bound = following_app::built();

@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 mod world;
 mod removal;
 mod slots;
+mod promotion;
 
 #[test]
 fn w10b_wired_repost_resolves_an_event_reference() {

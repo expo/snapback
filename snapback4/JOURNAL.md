@@ -24796,3 +24796,247 @@ wrote the four commonest (`E_QUARRY_SYNTAX`, `E_QUARRY_UNKNOWN`, `E_QUARRY_PLACE
 and censused the rest — the list by card is in the W10R2 entry above. That census is
 wave 11's largest single item: until it is closed, `why <CODE>` answers about half of
 all refusals with a card opening rather than an explanation.
+
+## 2026-09-16 — W11a: promotion preserves an existing follower's delivery
+
+Lane W11a (Codex, gpt-6-astra), based on
+`e08f1573c08a09e367876eff011ffd9824fee527`. Implements the H1 mitigation in
+`benchmarks/runs/2026-09-16-snapback4-clique-astra-0.2.26/friction-review.md`
+and records the changed decision in LLP 3000.007 §20.3. This deliberately
+changes the intentional shipped saturation policy; it is not a wave-10
+regression. The recipe previously committed promotion while skipping a
+follower at 32 pulls, leaving that still-subscribed reader without later
+posts. Documentation of that loss was not an acceptable product outcome.
+
+The promotion loop now requires every follower's `tryPull` to succeed,
+including the triggering reader. `FEED_PROMOTION_PULL_CAP` rolls back the
+entire triggering transaction: app and recipe edges, author mode, installed
+routes, online counts and delivery changes. The author stays unshared and
+all existing readers keep receiving private pushes. The author's optional
+self route and own-inbox fallback remain. A direct new follow of an already
+shared author still uses `FEED_PULL_CAP`. The feeds card, package README,
+code explanations and diagnostic-to-card mapping describe how to act: each
+saturated follower must free a shared-author slot, then the refused follow
+can be retried with a new write ID. Freeing only the caller's slot cannot
+fix a different follower. If those readers cannot free slots, decline the
+new follow and preserve pushed delivery. More than 32 shared authors needs
+a separate serving design; neither the cap nor the merge width increased.
+
+Tests replace the previous expected-skip policy. The exact reader-first
+case fills 32 routes, follows Q while Q is unshared, then adds 49 further
+followers before the 50th further follow attempts promotion. A second case
+places the one saturated reader last among existing followers, after 49
+other follower routes have been attempted. Both compare every stored table
+and the sync sequence before/after refusal and require zero committed events.
+The next post reaches all 50 existing readers. The 31-slot control promotes
+and reaches all 51 readers. Freeing one slot permits promotion without
+unfollowing/refollowing Q; private history plus new broadcasts survive device
+reopen on memory and SQLite. The direct shared-follow cap refusal remains
+covered. Changed policy paragraphs and the new explanation are asserted
+verbatim; every published Quarry block compiles without diagnostics or notes.
+
+Measured counters (examined / index entries / rows written):
+
+| Case | Examined | Index entries | Attempted writes | Committed events on refusal |
+|---|---:|---:|---:|---:|
+| Saturated first follower | 108 | 17 | 5 | 0 |
+| Saturated last existing follower | 157 | 360 | 103 | 0 |
+| Successful promotion, one old event backfilled | 161 | 380 | 108 | — |
+| Retry after freeing a slot, two old events backfilled | 162 | 389 | 109 | — |
+| Maximum 917-event backfill, including app edge | 1160 | 8625 | 1024 | — |
+
+The bound is unchanged: two writes for each of 52 routes (author plus 51
+followers), one recipe edge, one author-mode update and one app edge give
+`2 * 52 + 3 = 107`; `1024 - 107 = 917` remain for backfill. `require` adds
+no writes. A capacity refusal occurs before backfill and rolls back every
+attempted write, including earlier followers' routes. The measurements
+confirm the existing bound rather than raising it. The original author's
+self-route fallback regression also remains in the simulator suite.
+
+Commands below ran from `snapback4/` unless marked repository root. Logs
+were redirected to `/tmp/w11a-*.log`. The behavioral and card regressions
+were run with test-only changes against the base implementation before the
+one-line recipe change. The positive controls already passed on that base.
+
+```text
+cargo test -p snapback4-sim --test clique w11a -- --nocapture
+before:
+test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 87 filtered out; finished in 0.35s
+after:
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 87 filtered out; finished in 0.38s
+```
+
+```text
+cargo test -p snapback4-device --test device w11a -- --nocapture
+before:
+test result: FAILED. 2 passed; 4 failed; 0 ignored; 0 measured; 179 filtered out; finished in 0.91s
+after:
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 179 filtered out; finished in 0.94s
+```
+
+```text
+cargo test -p snapback4-lang --test guide w11a -- --nocapture
+before:
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 37 filtered out; finished in 0.00s
+```
+
+```text
+cargo test -p snapback4-lang --test guide
+after, all guide tests:
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+```
+
+```text
+cargo test -p snapback4 --test init w10r1b_51st_follow_fits_the_write_ceiling_with_the_app_edge -- --nocapture
+after:
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.49s
+```
+
+The full run includes the final additional assertions that a direct shared
+follow still refuses the reader's own full slots atomically.
+
+```sh
+# repository root
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh > /tmp/w11a-suite.log 2>&1
+```
+
+Verbatim step summaries:
+
+```text
+-- ok: cargo build (6 s)
+-- ok: wasm build (15 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (2 s)
+-- FAIL: cargo test (994 s)
+-- ok: chat app typecheck (0 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+-- ok: fixture wrapper tests (13 s)
+ℹ tests 484
+ℹ pass 481
+ℹ fail 2
+ℹ cancelled 1
+ℹ skipped 0
+-- FAIL: client tests (84 s)
+== 2 failure(s) in 1018 s
+```
+
+Summing the Rust summary lines gives **1,224 passed, 13 failed, 4 ignored**.
+All 13 failures are fixture-compilation failures in device `native_reads`
+(eight) and simulator `native` (five):
+
+```text
+error: failed to open `/Users/ccheever/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/unicode-ident-1.0.25.crate`
+
+Caused by:
+  Operation not permitted (os error 1)
+```
+
+The cache file is absent; the sandbox cannot create it in the shared Cargo
+cache. Both affected targets were rerun unchanged and reproduced the same
+error. No clean-base suite was run, and no failure is labelled pre-existing.
+
+```text
+cargo test -p snapback4-device --test native_reads
+test result: FAILED. 0 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.24s
+```
+
+```text
+cargo test -p snapback4-sim --test native
+test result: FAILED. 2 passed; 5 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.57s
+```
+
+The client run failed Chromium at `react.test.mjs:74` with `SIGABRT`, the
+sandbox artifact named in the lane brief. It also timed out the dev
+hidden/absent fixture startup and cancelled the healthy-heartbeat test on
+its 18-second timeout. Both timing-sensitive tests passed individually:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+node --test --test-name-pattern='healthy heartbeat polls, buffered native fetch and browser connectivity hints' packages/snapback4/test/transport-http.test.mjs
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ duration_ms 11167.028541
+```
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+node --test --test-name-pattern='W7r1 hidden versus absent non-uniform reads under dev' packages/snapback4/test/client-seams.test.mjs
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ duration_ms 154.949416
+```
+
+No lifecycle timeout occurred. Outside-sandbox qualification of Chromium
+and the native fixtures remains for the lead; this lane does not claim the
+blocking suite green. One initial targeted Cargo invocation was accidentally
+made at the repository root and exited before tests because
+`vendor/ibex/Cargo.toml` was absent; it was corrected to `snapback4/` without
+bootstrapping or changing Snapback 1.
+
+Before the fix, promotion emitted no refusal: the regression observed
+`Sent { seq: 86, result: Null }`. After the fix, the returned code is
+`FEED_PROMOTION_PULL_CAP` and its authored-require message is verbatim
+`the program refused with FEED_PROMOTION_PULL_CAP`. The actionable recipe
+explanation is provided by `why` (the core's generic authored-require envelope
+is unchanged):
+
+```text
+./target/debug/snapback4 why FEED_PROMOTION_PULL_CAP
+FEED_PROMOTION_PULL_CAP: a follower already uses all 32 shared-author slots. The triggering follow and promotion were rolled back; existing followers still receive private pushes. Show this refusal in the app. Have each saturated follower unfollow a shared author, then retry the refused follow with a new write ID. Freeing only the caller's slot cannot fix another follower's full slots; if they cannot free a slot, decline the new follow and keep pushed delivery. More than 32 shared authors needs a separate serving design. guide feeds.
+
+# Feeds: complete Following with a small celebrity merge
+
+Call `register` during profile creation. `follow` and `unfollow` are
+idempotent; promotion is permanent and atomic with the follow that triggers
+it. Promotion requires a pull lane for every follower, including the triggering
+reader. If any follower already uses all 32 shared-author slots,
+`FEED_PROMOTION_PULL_CAP` refuses the whole follow/promotion transaction,
+including the app edge, author mode, routes and counts. Existing followers
+keep receiving private pushes; no follower is silently skipped.
+
+Full card: snapback4 guide feeds
+```
+
+The existing `FEED_PULL_CAP` explanation changed from:
+
+```text
+FEED_PULL_CAP: the Following recipe's reader already pulls 32 shared authors. Free a pull slot by unfollowing a shared author, then follow again. Promotion skips saturated readers instead of refusing; those readers keep old pushed entries but miss new broadcasts until they free a slot and unfollow/refollow. guide feeds.
+```
+
+to:
+
+```text
+FEED_PULL_CAP: the Following recipe's reader already pulls 32 shared authors. Free a pull slot by unfollowing a shared author, then retry the refused follow with a new write ID. The app and recipe follow edges were rolled back. guide feeds.
+```
+
+Reference check before this append:
+
+```text
+./ref-check --verbose
+ref-check: ok — 481 LLP docs, 9032 refs in 23982 files, 0 errors, 0 unchecked
+```
+
+The only supporting file outside the brief's named implementation/test/docs
+paths is LLP 3000.007: §20.3 and its Revised header now record the new policy
+so the governing decision does not contradict the recipe. The diagnostic
+mapping change is one entry; no core or client implementation changed.
+All requested promotion work is complete; broader serving designs were not
+attempted. No meter ceiling, serialized form, existing corpus case, commit,
+push, tag or publication changed. No sub-agents, clone or remote execution.
+`git diff --check` passed. All nine changed Rust sources fit the line cap;
+the largest is `crates/snapback4-sim/tests/clique.rs` at **1,465 lines**.
+The prior journal was checked byte-for-byte against HEAD before this single
+append; its earlier entries are unchanged.
