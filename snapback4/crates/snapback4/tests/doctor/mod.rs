@@ -39,3 +39,34 @@ fn w8r1b_doctor_effect_line_keeps_one_snapshot_across_a_concurrent_claim() {
     println!("doctor: concurrent_claims=1 snapshot_queued=1 snapshot_deferred=1 next_read_running=1 next_read_deferred=0 suppressed=7");
     drop(reader); std::fs::remove_dir_all(path).unwrap();
 }
+// Runtime-only codes cannot be produced by Quarry source. Exercise the same
+// report function check uses with located diagnostic pairs, including those codes.
+#[test]
+fn w11_check_renderer_has_a_dedicated_excerpt_for_every_registered_code() {
+    let mut cards = std::collections::BTreeSet::new();
+    let mut largest = 0;
+    for code in snapback4_lang::guide::codes() {
+        let mut bound = snapback4_lang::compile(&[]);
+        bound.diagnostics = [1, 2].into_iter().map(|line| snapback4_lang::Diagnostic::new(
+            &snapback4_lang::diag::Site::new("fixture.q", line, 1), code, "fixture refusal", "fixture repair",
+        )).collect();
+        let (reports, hidden) = super::problem_reports(&bound, true, false);
+        assert_eq!(hidden, 0);
+        assert_eq!(reports.len(), 2);
+        let keyword = snapback4_lang::diag::guide_for(code);
+        cards.insert(keyword);
+        let pointer = format!("Full card: snapback4 guide {keyword}");
+        assert_eq!(reports[0].matches(&pointer).count(), 1, "{code}: {}", reports[0]);
+        assert!(!reports[1].contains(&pointer), "{code}: {}", reports[1]);
+        let explanation = bound.diagnostics[0].explanation_section().unwrap();
+        let section = explanation.split_once("\n\n").unwrap().1;
+        assert!(section.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|word| word == code), "{explanation}");
+        assert!(!explanation.contains("No dedicated section"));
+        assert!(reports[0].contains(&explanation));
+        largest = largest.max(explanation.len() + 1);
+        bound.diagnostics.truncate(1);
+        let (single, _) = super::problem_reports(&bound, true, false);
+        assert!(!single[0].contains(&pointer));
+    }
+    println!("W11 check renderer: codes={} cards={} repeats=2 excerpts=1 single_excerpts=0 maximum_bytes={largest}", snapback4_lang::guide::codes().len(), cards.len());
+}

@@ -1,0 +1,105 @@
+//! The types card. Quarry examples are compiled by tests/guide.rs.
+pub(super) const CARD: &str = r##"# Types
+
+E_QUARRY_TYPE means the expression's type does not fit its position.
+The diagnostic names the expected and actual types and the source location.
+A table reference is that table's typed id, not its row: read `table[id]`
+before selecting fields. Narrow an optional value with `if x != null:`,
+`x ! else CODE` or `x ?? default` before using it where a present value is
+required. Use the declared enum type when its variants cannot all widen
+to the helper's text bound; changing a type never converts stored values.
+
+```quarry
+table everything:
+  who: principal                      -- the authenticated subject; `viewer` is one
+  tag: id                             -- an opaque identity
+  parent: everything ?                -- a reference to a table's row: its id
+  n: int                              -- an integer within ±(2^53 − 1); there are no floats
+  at: time                            -- milliseconds since the epoch; `now` is one
+  ok: bool
+  price: money USD                    -- money CUR [scale]: integer minor units, scale 2 unless given
+  ratio: decimal 4                    -- decimal S: an integer scaled by 10^S
+  name: text 1..80                    -- text <=N, or text M..N
+  handle: text 3..20 format handle    -- format handle | url is checked on every write
+  site: text <=200 format url ?
+  kind: enum('a', 'b')                -- a text literal in this position is a variant
+  meta: json <=4000 ?
+  raw: bytes <=1024 ?
+  photo: image <=10000000 once ?      -- an upload (guide assets); `once` serves one view per principal
+  clip: video <=50000000 ?
+  tags: [text <=20] <=8               -- a bounded list of a scalar type; `?` after the whole type, never on the element
+  unique byHandle: handle else HANDLE_TAKEN 'That handle is taken.'
+  read <- .who = viewer
+  insert <- .who = viewer
+  update <- deny
+  delete <- deny
+
+fn label(kind: text <=1): kind
+query enumLabel(kind: enum('a', 'b')):
+  return label(kind)
+
+query typed(c: cursor ?, handle: text 3..20 format handle):   -- arguments take the same types, plus `cursor ?`
+  return everything[handle]
+```
+
+`?` after a type makes it optional: null when absent, and an omitted
+optional argument reads as null. Text literals in id positions are ids. A
+`<table>` reference is a typed id, with no implicit existence check and no
+delete cascade: the string `"null"` is an id, and JSON null only fits an
+optional type; when a target must be visible, `require exists t[id] else
+CODE` before the write (guide writes). `=`
+and `!=` are total (null equals null); `<` and friends need present operands:
+narrow with `if x != null:`, `x ! else CODE`, or `x ?? default`. A null guard
+also narrows a bound row's field (`r.changedAt != null`), until the local is rebound. `time`
+arithmetic: `time - time` is an int, `time + int` a time. `/` and `%` give
+the Euclidean quotient and remainder of ints or times; zero refuses `E_DIV_ZERO`.
+An enum is accepted as `text <=N` only if every variant fits N characters
+and contains no control characters except tab, LF and CR,
+including when both types are optional. This is a static, total widening;
+it adds no runtime conversion. Otherwise give the helper parameter the enum
+type. `(now / 1) * 1000` explicitly scales integer milliseconds; a scaled
+count belongs in an `int` column. Bind an optional helper result once before
+its null guard: repeated calls are separate values.
+Text `+` concatenates; `count(text)` counts characters. Loop-built strings and
+lists are heap-bound; a write still validates their actual column lengths.
+A column may end with `default <literal | now | viewer>`. Omitted insert
+fields take their defaults before rules run; explicit values, including null
+on an optional column, win. `now` and `viewer` use the writing host's context.
+An added required column with a literal default also fills absent fields in
+old images on every host, without rewriting rows or logging partition events.
+Changing a required default rechecks its existing unique indexes and caps too.
+`data` and `sql` show that interpretation; device persistence exports are raw storage images.
+Optional columns still read null when absent. New required `default now` or
+`default viewer` columns adopt only an empty table; otherwise use an optional
+column or a literal default. `check` reads `.snapback4/store.sqlite` when it
+exists (or `--store path`); `E_ADOPT` locates each successor refusal and its
+rewrite, as `dev` refuses the save. Without a store, check only compiles.
+Pages, lists and shaped collections share the list operations: `sort`, `slice`,
+`count`, `sum`, `group`, `first`, `last`, `at`, `join` and `for`. Their elements
+must still fit the operation: `join` joins texts; `sum(page, .amount)` projects numbers.
+
+## Runtime values that do not fit
+
+E_TYPE means a runtime value has the wrong kind for the operation using it.
+For example, a raw program cannot add the text `'3'` as an integer; supply
+`3` as a number and compile the program against its schema. Read the
+message's expected and actual types, correct seeds or wire inputs, and
+use the generated API types. Changing a declaration does not convert old
+values; repair the values before narrowing their type.
+
+E_OVERFLOW means integer arithmetic left the value model's range of
+−9,007,199,254,740,991 through 9,007,199,254,740,991. For example,
+`9007199254740991 + 1` cannot be represented. Bound the inputs and
+intermediate arithmetic before adding or multiplying. Decimal and money
+columns store integer minor units in that same range; they do not provide
+larger integers. For an overflowing maintain, reduce its contributions or
+split the grouping; the refusal names the maintain and value column without
+revealing a hidden computed sum, and the failed write rolls back.
+
+E_FIELD means a runtime field selection has no such field. For example,
+a raw object `{ title: 'hello' }` has no `body`; select `title` or construct
+the declared object instead. Compile the program so field names are checked,
+and narrow an optional row with `row ! else NOT_FOUND` when presence is
+required. Ordinary Quarry field access propagates a null base as null;
+that is not evidence that the row exists.
+"##;

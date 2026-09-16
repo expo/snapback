@@ -60,4 +60,23 @@ in `return expr` or a bare `return`; calls work in statements and expressions.
 A helper return exits only the helper, and its locals cannot capture the caller's.
 It never repositions or reclassifies an enclosing page.
 Queries cannot write or mint ids, including through a helper; the call site names
-the write that does not belong."##;
+the write that does not belong.
+
+## Calling and naming operations
+
+E_OP means the requested operation or route does not exist, or was called
+through the wrong door. For example, `client.mutate(api.thread, args)`
+cannot run a query; use `client.query(api.thread, args)`. Run
+`snapback4 check` and use the generated API's module-qualified names.
+Call actions with `client.act`; run jobs with `snapback4 run <job> '{}'`
+or a schedule, since jobs are not client operations. Check the HTTP path
+when the message instead names an unknown route.
+
+E_OP_RESERVED means an application's refusal code starts with the
+platform's reserved `E_` prefix. For example,
+`require allowed else E_AUTH` must use
+`require allowed else NOT_MEMBER`. Pick an UPPER_SNAKE application code
+at the use site and handle that code on the client. The same rule applies
+to a unique index's `else` hook; it does not require adding the code to the
+platform registry.
+"##;

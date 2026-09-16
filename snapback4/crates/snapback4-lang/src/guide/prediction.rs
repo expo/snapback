@@ -188,4 +188,16 @@ mutation setLike(postId: id, liked: bool) predicts:
     delete likes[viewer, postId]
   return null
 ```
+
+
+## A call that cannot produce local rows
+
+E_PREDICT means the device cannot establish this call's prediction from
+its held facts or submission IDs. For example, an `upsert` missing beyond
+a sync horizon cannot assume the target is absent. The local client keeps
+the write queued without predicted rows and lets the server judge it;
+observe its pending/failed/sent state instead of treating missing local
+rows as success. Inspect `snapback4 why <op>` and the named site. Acquire
+the required partition, or redesign the read to need held facts; never
+invent an empty row or mint different IDs on replay.
 "##;

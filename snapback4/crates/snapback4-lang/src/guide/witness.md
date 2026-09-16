@@ -137,3 +137,82 @@ simulate loss of every network connection, or establish media, search,
 view-once exclusion or recipient `read` state unless your app asserts and
 renders those observations. The deterministic simulator remains the main
 engine harness; this witness covers native process, storage and UI boundaries.
+
+
+## Refused witness runs
+
+E_WITNESS_INPUT means a flag, launch configuration or signal label is
+invalid. For example, invoking `witness ios` without a bundle ID cannot
+select an app. Use `snapback4 witness ios --bundle-id com.example.chat`
+with the dedicated simulator, segment, port and fresh artifacts directory
+shown above. Follow the named invalid argument; signal labels must match
+the runner's supported step protocol.
+
+E_WITNESS_PLATFORM means the iOS witness lacks its required host tools.
+For example, running it on Linux cannot drive an iOS simulator. Run on
+macOS with Xcode and its command-line tools selected, and install an iOS
+simulator runtime. Verify `xcrun simctl list devices available --json`
+before invoking the witness; the deterministic simulator remains available
+for engine scenarios without that native UI host.
+
+E_WITNESS_SIMULATOR means selection was ambiguous or simctl failed.
+For example, two booted iOS simulators cannot be chosen by omission.
+Use `xcrun simctl list devices available --json`, boot the intended dedicated
+device, and pass its exact `--udid`. If simctl itself fails, repair that
+simulator/runtime first; do not let the witness choose someone else's device.
+
+E_WITNESS_PORT means the requested backend port is occupied. For example,
+a manual `snapback4 dev` already listening on 4400 prevents the witness
+from owning its backend there. Stop that server if it is yours, or choose
+a free `--port` and rebuild/configure the app for that origin. The witness
+never kills an existing listener to reclaim a port.
+
+E_WITNESS_BACKEND means the owned backend failed to become ready, exited
+early, or did not leave its port refusing connections after stop. For
+example, a refused schema can prevent the first listening URL. Inspect the
+backend log, run `snapback4 check` in the app, repair the startup failure,
+and retry in a fresh artifacts directory. Confirm the configured origin
+and port; only the backend owned by this witness may be stopped.
+
+E_WITNESS_PROCESS means a child command could not start, exited early or
+could not be stopped. For example, a failed screen-recording child cannot
+produce evidence for the run. Inspect the named capture/backend log and
+command, repair its tool or permissions, and retry with a fresh artifacts
+directory. Preserve the failed run's logs and stop only its recorded child
+processes, never every process with the same name.
+
+E_WITNESS_ARTIFACT means an expected artifact is absent, empty, changed
+containers or would overwrite an earlier run. For example, reusing
+`--artifacts artifacts/offline` after a completed run collides with its
+reserved output names. Choose a new directory, such as
+`--artifacts artifacts/offline-2`, and inspect the failed manifest for
+missing video or receipts. Keep each manifest beside the exact files it
+hashes; do not fill a failed run with another run's recording.
+
+E_WITNESS_RECEIPT means a receipt is not a complete valid JSON object with
+the expected witness envelope, changed after observation, or could not be
+written. For example, `w.receipt({ witness: 'mine' })` overwrites a reserved
+field; use `w.receipt({ history: read })` and let the helper add `witness`.
+Await receipt writes and keep one complete object per JSONL line. Inspect
+the failed artifact and app log for truncation or storage errors rather
+than editing a receipt after the driver has observed it.
+
+E_WITNESS_STEP means an application assertion failed, milestones arrived
+out of order, or steps overlapped. For example, running `offline-done` and
+`done` in `Promise.all` cannot prove the offline/reconnect sequence.
+Await `w.step('offline-done', ...)`, then `w.waitFor('reconnect')`, then
+`w.step('done', ...)`. If an assertion failed, repair the application behavior
+and rerun; skipping the assertion does not establish the promised scenario.
+
+E_WITNESS_TIMEOUT means a step, child command or signal did not arrive
+within its timeout, 120 seconds by default per driver step. For example,
+an app that never completes `offline-done` leaves the driver waiting even
+if its screen renders. Inspect the last receipt and app log, repair the missing step
+or connection, and retry. Increase `--timeout` only after measuring a slow
+but progressing run; a longer wait cannot fix an absent milestone.
+
+E_WITNESS_INTERRUPTED means the run was interrupted before completion.
+For example, Ctrl-C while recording leaves a failed run, not a completed
+offline proof. Keep its available artifacts and manifest for diagnosis;
+the driver stops its owned backend and capture processes. Start another
+run in a fresh artifacts directory and let the required milestones finish.

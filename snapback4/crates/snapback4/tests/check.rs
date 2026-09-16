@@ -258,6 +258,63 @@ fn why_common_refusal(code: &str, card: &str, mistake: &str, repair: &str) {
 }
 
 #[test]
+fn w11_why_every_registered_code_returns_its_dedicated_section() {
+    let p = Project::new();
+    let mut largest = 0;
+    for code in snapback4_lang::guide::codes() {
+        let output = p.run(&["why", code]);
+        assert!(output.status.success(), "{code}: {output:?}");
+        let text = String::from_utf8(output.stdout).unwrap();
+        let diagnostic = snapback4_lang::Diagnostic::new(&Default::default(), code, "", "");
+        let section = diagnostic.explanation_section().unwrap_or_else(|| panic!("{code}: {text}"));
+        assert_eq!(text, format!("{section}\n"));
+        assert!(text.len() <= snapback4_lang::guide::WHY_MAX_BYTES);
+        largest = largest.max(text.len());
+    }
+    println!("W11 why CLI: codes={} fallback=0 maximum_bytes={largest}", snapback4_lang::guide::codes().len());
+}
+
+#[test]
+fn w11_repeated_quarry_refusals_show_sections_and_their_repairs_check_clean() {
+    let p = Project::new();
+    let cases = [
+        ("language", "E_QUARRY_UNSUPPORTED", "", "query NAME():\n  items = [1, 2]\n  return len(items)\n", "query NAME():\n  items = [1, 2]\n  return count(items)\n"),
+        ("programs", "E_OP_RESERVED", "", "mutation NAME():\n  require true else E_AUTH\n", "mutation NAME():\n  require true else NOT_MEMBER\n"),
+        ("sync", "E_QUARRY_RETAIN", "", "table NAME:\n  body: text <=100\n  retain forever\n", "table NAME:\n  body: text <=100\n  retain delivered-history\n"),
+        ("native", "E_NATIVE", "", "mutation NAME(): native\n", "mutation NAME():\n  return 1\n"),
+        ("types", "E_QUARRY_TYPE", "", "query NAME():\n  return 1 + true\n", "query NAME():\n  return 1 + 2\n"),
+        ("bounds", "E_UNBOUND_LOOP", "table nodes:\n  parent: nodes ?\n  read <- allow\n", "query NAME(root: nodes):\n  return walk nodes[root] up .parent depth 100\n", "query NAME(root: nodes):\n  return walk nodes[root] up .parent depth 8\n"),
+        ("indexes", "E_SCHEMA_CONSTRAINT", "", "table NAME:\n  ownerId: principal\n  cap 50 by ownerId\n", "table NAME:\n  ownerId: principal\n  by byOwner: ownerId, id\n  cap 50 by ownerId\n"),
+        ("jobs", "E_JOB_CURSOR_INDEX", "table tasks:\n  score: int\n  by byScore: score, id\n", "job NAME():\n  chunk t in tasks first 100 by byScore:\n    update tasks[t.id] { score: 1 }\n", "job NAME():\n  chunk t in tasks first 100 by byId:\n    update tasks[t.id] { score: 1 }\n"),
+        ("maintains", "E_QUARRY_MAINTAIN", "table posts:\n  authorId: principal\n  at: time\n  active: bool\n  read <- allow\n", "maintain NAME: count posts where .at > now by authorId\n  read <- allow\n  online only\n", "maintain NAME: count posts where .active by authorId\n  read <- allow\n  online only\n"),
+    ];
+    let mut bytes = 0;
+    for (card, code, schema, bad, good) in cases {
+        let source = |body: &str| vec![("first.q".into(), body.replace("NAME", "firstCase")), ("schema.q".into(), schema.into()), ("second.q".into(), body.replace("NAME", "secondCase"))];
+        let bad = source(bad);
+        let bound = snapback4_lang::compile(&bad);
+        assert_eq!(bound.diagnostics.len(), 2, "{card}: {:?}", bound.diagnostics);
+        assert!(bound.diagnostics.iter().all(|d| d.code == code && d.guide == card), "{card}: {:?}", bound.diagnostics);
+        for (file, text) in &bad { fs::write(p.0.join("snapback").join(file), text).unwrap(); }
+        let output = p.run(&["check"]);
+        assert_eq!(output.status.code(), Some(1), "{card}: {output:?}");
+        let text = String::from_utf8(output.stderr).unwrap();
+        let explanation = bound.diagnostics[0].explanation_section().expect(card);
+        assert_eq!(text.matches(&format!("Full card: snapback4 guide {card}")).count(), 1, "{text}");
+        assert!(text.contains(&format!("{}\n\n{explanation}\n\n{}", bound.diagnostics[0], bound.diagnostics[1])), "{text}");
+        bytes += explanation.len() + 1;
+        let good = source(good);
+        let repaired = snapback4_lang::compile(&good);
+        assert!(repaired.diagnostics.is_empty() && repaired.notes.is_empty(), "{card}: {:?} {:?}", repaired.diagnostics, repaired.notes);
+        for (file, text) in &good { fs::write(p.0.join("snapback").join(file), text).unwrap(); }
+        let output = p.run(&["check"]);
+        assert!(output.status.success(), "{card}: {output:?}");
+        println!("W11 Quarry fixture: card={card} code={code} errors=2 excerpts=1 repaired_errors=0 repaired_notes=0");
+    }
+    println!("W11 Quarry fixtures: cards={} refused_sites={} clean_repairs={} excerpt_bytes={bytes}", cases.len(), cases.len() * 2, cases.len());
+}
+
+#[test]
 fn w10r2_why_syntax_has_its_own_section() {
     why_common_refusal("E_QUARRY_SYNTAX", "language", "query answer:", "query answer():");
 }
@@ -318,16 +375,29 @@ fn w9b_why_prints_a_codes_card_paragraph() {
 }
 
 #[test]
-fn w9b_why_without_a_section_prints_the_card_opening() {
+fn w11_why_contextual_card_without_section_keeps_explicit_fallback_only() {
     let p = Project::new();
-    let output = p.run(&["why", "E_STORE"]);
+    // All default cards are covered. This existing diagnostic overrides its
+    // default indexes card with expire, which has no paragraph for this code.
+    let source = "table first:\n  at: time\n  expire at .at\ntable second:\n  at: time\n  expire at .at\n";
+    p.source(source);
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert_eq!(bound.diagnostics.len(), 2);
+    assert!(bound.diagnostics.iter().all(|d| d.code == "E_SCHEMA_CONSTRAINT" && d.guide == "expire" && d.explanation_section().is_none()));
+    let output = p.run(&["why", "E_SCHEMA_CONSTRAINT"]);
     assert!(output.status.success(), "{output:?}");
     let text = String::from_utf8(output.stdout).unwrap();
     println!("{} bytes\n{text}", text.len());
-    assert!(text.contains("No dedicated section for E_STORE; opening of guide refusals:"), "{text}");
-    assert!(text.contains("Every refusal is `{ code, family, message, detail?, site?, rewrite?, guide?, rule?,"), "{text}");
-    assert!(text.ends_with("Full card: snapback4 guide refusals\n"));
+    assert!(text.contains("No dedicated section for E_SCHEMA_CONSTRAINT; opening of guide expire:"), "{text}");
+    assert!(text.ends_with("Full card: snapback4 guide expire\n"));
     assert!(text.len() <= 4096);
+    let output = p.run(&["check"]);
+    assert_eq!(output.status.code(), Some(1));
+    let text = String::from_utf8(output.stderr).unwrap();
+    assert_eq!(text.matches("guide: expire").count(), 2);
+    assert!(!text.contains("Full card:") && !text.contains("No dedicated section"), "{text}");
+    p.source(&source.replace("  expire at .at", "  by byAt: at\n  expire at .at"));
+    assert!(p.run(&["check"]).status.success());
 }
 
 #[test]
