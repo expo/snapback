@@ -2331,7 +2331,8 @@ step.
   failures retry without another save, including reopening after a CLI adoption.
   Identical background store and generation failures are then suppressed while
   that adoption failure is pending; recovery or a changed adoption failure
-  reports the suppressed count and resets it. Different reasons remain visible.
+  reports the suppressed count and resets it. Changed reasons print at most twice
+  per error code in each 60-second window; further changes count as suppressed too.
   `doctor` compares the live host generation with the store and uses the host's
   dev clock for deferred pushes. A `--no-watch` host needs a restart after another
   process adopts; a schema refusal needs a corrected save. A stopped host's

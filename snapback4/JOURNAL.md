@@ -21975,3 +21975,98 @@ its individual reads is correct. Keeping the first explanation needs an
 explicit suppression count and recovery reset; a one-shot explanation flag
 alone does not bound subsequent logs. Changes remain uncommitted for the
 lead; no push, tag, publication, sub-agent or remote machine was used.
+
+## 2026-09-15 — W8R2: bound alternating adoption consequences
+
+Built on `77e0dee255598869e4a1ea9e6b7860c210ae9fdf`. A pending adoption's
+background logging now allows **2 changed-message lines per error code in a
+60-second window**, independently for `E_STORE` and `E_GENERATION`. The
+window starts at the first emitted line and restarts on an eligible changed
+reason after expiry; suppressed calls do not extend it. The existing
+last-message comparison still suppresses identical repeats after expiry.
+Two fixed slots retain one message, one monotonic timestamp and one emitted
+count each; no history grows with tick count or job names. Every suppressed
+call contributes to the existing recovery/change summary, and recovery or a
+changed adoption failure resets both slots and the count. The two-line
+burst preserves the existing immediate changed-reason explanation.
+
+The new alternating regression was red before the implementation: 80
+injected ticks, two different store reasons per tick, produced **160 lines**.
+Afterwards those **160 failures produce 2 lines and 158 suppressed failures**
+in the recovery summary. These are injected calls, not 80 seconds of a live
+maintenance timer. The deterministic-clock witness drives both codes across
+two windows, including 59.999 s and 60 s: **482 failures, 8 emitted lines,
+474 suppressed**, including two identical repeats at 180 s. Existing
+identical-failure coverage still emits **1 of 160** with **159 suppressed**
+per episode; the changed-reason and in-flight recovery tests also pass.
+
+Targeted commands, all from `snapback4/`, with their verbatim summaries:
+
+```text
+cargo test -p snapback4 --bin snapback4 w8r2_adoption_bounds_alternating_background_reasons -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 39 filtered out; finished in 0.00s
+```
+
+The same command after the fix:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 40 filtered out; finished in 0.00s
+cargo test -p snapback4 --bin snapback4 serve::tests::adoption_tests -- --nocapture
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 36 filtered out; finished in 0.01s
+cargo test -p snapback4-lang --test guide
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+```
+
+Full suite from the repository root:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+-- ok: cargo test (461 s)
+-- ok: fixture wrapper tests (9 s)
+-- FAIL: client tests (65 s)
+== 1 failure(s) in 480 s
+```
+
+The 62 Rust summaries total **1,062 passed, 0 failed, 4 ignored**. Fixtures
+pass **9/9**; builds and typechecks pass. Client summary: `ℹ tests 383`,
+`ℹ pass 381`, `ℹ fail 2`. The receipt-recovery test passes alone; Chromium
+again exits with SIGABRT, the sandbox artifact named in the lane brief.
+Reruns from `snapback4/` with the same exported Node path:
+
+```text
+node --test --test-name-pattern='W5c a reloaded secondary tab recovers its terminal receipt by id' packages/snapback4/test/navigation-model.test.mjs
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+```
+
+The lead must rerun the browser witness outside the sandbox. No lifecycle
+test failed and no mass client timeout required the concurrency-2 rerun.
+These are observed results, not a separately verified pre-existing-failure
+claim at the base commit. Full output is in `/private/tmp/w8r2-full-suite.log`;
+all verbatim suite summaries and commands are in
+`/private/tmp/w8r2-validation.txt`. Root `./ref-check --verbose` passes with
+0 errors and 0 unchecked references and is repeated after this entry.
+
+The README's adoption-health paragraph and the guide's refusals card now
+state the limit and accounting. Those minimal documentation edits are the
+only changes outside the owned crate paths and the required journal. No
+new diagnostic code or diagnostic text was introduced. The alternating
+test's existing summary format now reports:
+
+```text
+snapback4 dev: adoption recovered; suppressed 158 repeated background failures
+```
+
+What I learned: remembering one message bounds identical repeats but cannot
+bound revisits to displaced reasons. A per-code time budget beside that
+comparison preserves useful changes while bounding churn, and a supplied
+monotonic instant proves expiry without sleeps. All requested implementation
+and checks are complete; the blocking suite remains red on the browser
+artifact. No ceilings, serialized forms or existing corpus cases changed;
+no commit, push, tag, publication, sub-agent or remote machine was used.

@@ -1,6 +1,56 @@
 use super::*;
 
 #[test]
+fn w8r2_adoption_bounds_alternating_background_reasons() {
+    let mut state = adoption::Status::new("store".into());
+    let first = snapback4_core::RuntimeError::Store("expiry phase is locked".into());
+    let second = snapback4_core::RuntimeError::Store("job phase is locked".into());
+    state.refused(&first, 1);
+    let mut lines = Vec::new();
+    for _ in 0..80 {
+        for (name, error) in [("the expiry sweep", &first), ("job", &second)] {
+            if let Some(line) = state.background_failure(name, error) { lines.push(line); }
+        }
+    }
+    assert_eq!(lines.len(), 2, "alternating reasons must share the per-code limit");
+    assert!(lines[0].contains("expiry phase is locked"));
+    assert!(lines[1].contains("job phase is locked"));
+    assert_eq!(state.recovered().as_deref(), Some("snapback4 dev: adoption recovered; suppressed 158 repeated background failures"));
+    assert!(state.recovered().is_none());
+    println!("alternating adoption logs: ticks=80 failures=160 printed=2 suppressed=158");
+}
+
+#[test]
+fn w8r2_adoption_rate_windows_are_per_code_and_do_not_slide_on_suppression() {
+    let mut state = adoption::Status::new("store".into());
+    let errors = [
+        [snapback4_core::RuntimeError::Store("expiry phase".into()), snapback4_core::RuntimeError::Store("job phase".into())],
+        [snapback4_core::RuntimeError::Generation("expiry owner".into()), snapback4_core::RuntimeError::Generation("job owner".into())],
+    ];
+    state.refused(&errors[0][0], 1);
+    let start = Instant::now();
+    let mut printed = 0;
+    for tick in 0..120 {
+        // The last suppressed tick is 1 ms before the next window opens.
+        let elapsed = if tick % 60 == 59 { Duration::from_millis(tick * 1000 + 999) } else { Duration::from_secs(tick) };
+        for pair in &errors {
+            for error in pair {
+                let line = state.background_failure_at("job", error, start + elapsed);
+                assert_eq!(line.is_some(), tick % 60 == 0, "tick {tick}, {error}");
+                printed += usize::from(line.is_some());
+            }
+        }
+    }
+    // An expired window alone does not make an identical reason worth printing.
+    for pair in &errors {
+        assert!(state.background_failure_at("job", &pair[1], start + Duration::from_secs(180)).is_none());
+    }
+    assert_eq!(printed, 8);
+    assert_eq!(state.recovered().as_deref(), Some("snapback4 dev: adoption recovered; suppressed 474 repeated background failures"));
+    println!("adoption rate windows: seconds=60 burst=2 codes=2 windows=2 failures=482 printed=8 suppressed=474");
+}
+
+#[test]
 fn w8r1b_adoption_bounds_repeated_background_logs_and_resets_on_recovery() {
     let locked = snapback4_core::RuntimeError::Sql(rusqlite::Error::SqliteFailure(rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_BUSY), Some("database is locked".into())));
     let stale = snapback4_core::RuntimeError::Generation("another owner adopted".into());

@@ -29,10 +29,19 @@ pub(super) fn open(project: &Project, bound: &snapback4_lang::Bound) -> Result<s
     }
 }
 
+const BACKGROUND_WINDOW: Duration = Duration::from_secs(60);
+const BACKGROUND_BURST: u8 = 2;
+
+struct Background {
+    message: String,
+    window: Instant,
+    emitted: u8,
+}
+
 pub(super) struct Status {
     pub store_id: String,
     pub failure: Option<String>,
-    background: [Option<String>; 2],
+    background: [Option<Background>; 2],
     suppressed: u64,
     retrying: bool,
 }
@@ -49,17 +58,30 @@ impl Status {
         }
     }
     pub(super) fn background_failure(&mut self, name: &str, error: &RuntimeError) -> Option<String> {
+        self.background_failure_at(name, error, Instant::now())
+    }
+    pub(super) fn background_failure_at(&mut self, name: &str, error: &RuntimeError, now: Instant) -> Option<String> {
         let slot = match error.code().as_str() { "E_STORE" => Some(0), "E_GENERATION" => Some(1), _ => None };
         if let Some(slot) = slot && let Some(reason) = &self.failure {
-            // Keep two reasons, independent of job names and tick count. A changed
-            // reason stays visible; identical store/generation failures share a count.
+            // @ref LLP 3000#7 — keep adoption consequences visible without flooding background logs.
+            // Two changed reasons per code per minute; identical repeats stay quiet
+            // even after the window expires. Suppressed calls never extend the window.
             let error = error.to_string();
-            if self.background[slot].as_ref() == Some(&error) {
-                self.suppressed = self.suppressed.saturating_add(1);
-                return None;
+            if let Some(background) = &mut self.background[slot] {
+                if background.message == error || (now.duration_since(background.window) < BACKGROUND_WINDOW && background.emitted >= BACKGROUND_BURST) {
+                    self.suppressed = self.suppressed.saturating_add(1);
+                    return None;
+                }
+                if now.duration_since(background.window) >= BACKGROUND_WINDOW {
+                    background.window = now;
+                    background.emitted = 0;
+                }
+                background.message = error.clone();
+                background.emitted += 1;
+            } else {
+                self.background[slot] = Some(Background { message: error.clone(), window: now, emitted: 1 });
             }
             let line = format!("snapback4: {name} failed: {error}; adoption still pending: {reason}; jobs and sweeps may fail until adoption succeeds; {}", self.recovery());
-            self.background[slot] = Some(error);
             Some(line)
         } else { Some(format!("snapback4: {name} failed: {error}")) }
     }

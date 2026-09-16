@@ -1389,6 +1389,7 @@ unreachable) and client (the client itself refused, as after `close()`).
 hidden row is null, and a page omits it.
 
 `dev` keeps failed schema adoption visible in `doctor`, repeats its reason on the first failing job or sweep, and retries locked stores and generation failures without another save. `doctor` compares the live host generation with the store; `--no-watch` hosts need a restart after another process adopts.
+While that adoption failure is pending, identical background store and generation failures are suppressed. Changed reasons print at most twice per error code in each 60-second window; further changes count as suppressed too. Recovery or a changed adoption failure reports the suppressed count and resets it.
 
 `dev` and `serve` also report process events on stderr: SNAPBACK4_EXIT
 (a returned startup/listener error or normal stop), SNAPBACK4_PANIC (any
