@@ -1,6 +1,7 @@
 //! The host owns exactly one application worker and only stops the child it started.
 use crate::{project::Project, serve::{Shared, lock}};
 use sha2::{Digest, Sha256};
+use rusqlite::OptionalExtension;
 use snapback4_core::{Store, RuntimeError, identity};
 use std::{path::PathBuf, process::{Child, Command, Stdio}, sync::Arc, time::{Duration, Instant}};
 
@@ -16,20 +17,34 @@ const CHILD_WINDOW: Duration = Duration::from_secs(24 * 60 * 60);
 pub(crate) fn clear_child_session(store: &Store) -> Result<(), RuntimeError> {
     let tx = store.conn().unchecked_transaction()?;
     tx.execute("DELETE FROM _sessions WHERE principal = 'service:worker' AND COALESCE(family, token_digest) = (SELECT value FROM _meta WHERE key = 'worker:session-family')", [])?;
-    tx.execute("DELETE FROM _meta WHERE key = 'worker:session-family'", [])?;
+    tx.execute("DELETE FROM _meta WHERE key IN ('worker:session-family', 'worker:session-revision')", [])?;
     tx.commit()?;
     Ok(())
 }
 
-fn child_session(store: &Store, now: i64) -> Result<identity::Session, RuntimeError> {
+pub(crate) fn child_session(store: &Store, now: i64, revision: usize) -> Result<identity::Session, RuntimeError> {
     // Credential and ownership marker commit together, so a crash cannot
     // strand a credential that the next supervisor cannot identify.
     let tx = store.conn().unchecked_transaction()?;
     let session = identity::service_session(store, "worker", now, 1)?;
     let digest = format!("{:x}", Sha256::digest(session.token.as_bytes()));
     store.set_meta("worker:session-family", &digest)?;
+    store.set_meta("worker:session-revision", &revision.to_string())?;
     tx.commit()?;
     Ok(session)
+}
+
+// @ref LLP 3000.009#5.1 — activation fences the old supervisor before new work is claimable.
+// Called under the same engine guard as claim/adoption, including after a
+// long poll wakes. Manual service seats are not supervised and remain valid.
+pub(crate) fn current_session(store: &Store, token: &str, revision: usize) -> Result<bool, RuntimeError> {
+    let digest = format!("{:x}", Sha256::digest(token.as_bytes()));
+    let family: Option<String> = store.conn().query_row(
+        "SELECT COALESCE(family, token_digest) FROM _sessions WHERE token_digest = ?1", [&digest], |row| row.get(0)).optional()?;
+    if family.is_some() && family == store.meta("worker:session-family")? {
+        return Ok(store.meta("worker:session-revision")?.as_deref() == Some(revision.to_string().as_str()));
+    }
+    Ok(true)
 }
 
 pub(crate) fn source(project: &Project) -> Option<PathBuf> {
@@ -90,7 +105,7 @@ impl DevWorker {
         let revision = self.shared.worker_revision.load(std::sync::atomic::Ordering::Acquire);
         if !self.explicit_env && revision != self.revision {
             self.revision = revision;
-            self.stop_child(); self.close_child_session();
+            self.close_child_session(); self.stop_child();
             if let Some(source) = source(&self.project) { self.source = source; }
             self.restart = Instant::now();
         }
@@ -100,8 +115,8 @@ impl DevWorker {
         if self.child.is_some() && (self.started.elapsed() >= CHILD_WINDOW - Duration::from_secs(2)
             || self.child_expires_at.is_some_and(|at| self.shared.now() >= at.saturating_sub(2_000))) {
             eprintln!("snapback4 worker: supervision window ended; replacing child");
-            self.stop_child();
             self.close_child_session();
+            self.stop_child();
             self.restart = Instant::now();
         }
         if let Some(child) = &mut self.child {
@@ -123,7 +138,7 @@ impl DevWorker {
         // @ref LLP 3000.007#9.2 — a restarted worker's orphaned claim poll must not lease work to the dead child.
         let session = {
             let engine = lock(&self.shared.engine);
-            clear_child_session(engine.store()).and_then(|()| child_session(engine.store(), self.shared.now()))
+            clear_child_session(engine.store()).and_then(|()| child_session(engine.store(), self.shared.now(), self.revision))
         };
         let session = match session {
             Ok(session) => session,
@@ -183,8 +198,8 @@ impl DevWorker {
 
 impl Drop for DevWorker {
     fn drop(&mut self) {
-        self.stop_child();
         self.close_child_session();
+        self.stop_child();
         self.record_status("stopped");
     }
 }

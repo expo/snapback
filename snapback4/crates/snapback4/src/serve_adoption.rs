@@ -188,6 +188,9 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: u1
                         for note in &bound.notes { eprintln!("note: {note}"); }
                         *active = bound;
                         *generation = next;
+                        // Claims authenticate their supervisor revision while
+                        // holding this engine guard: the old child cannot
+                        // claim new work during the supervisor's stop delay.
                         shared.worker_revision.fetch_add(1, std::sync::atomic::Ordering::Release);
                         eprintln!("snapback4 dev: schema adopted as generation {} ({:?}) in {} ms; types: {}", *generation, worst, started.elapsed().as_millis(), generated.display());
                         for step in steps {

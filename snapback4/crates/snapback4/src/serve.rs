@@ -380,10 +380,18 @@ fn is_waiter(method: &Method, path: &str) -> bool {
 
 /// A worker's seat: a bearer session of a service principal.
 fn service_of(request: &Request, shared: &Shared) -> Result<String, Refusal> {
-    let principal = principal_of(request, shared)?;
-    let kind = single_header(request, "authorization").ok().flatten().and_then(|h| h.strip_prefix("Bearer ")).and_then(|token| snapback4_core::identity::resolve(lock(&shared.engine).store(), token.trim(), shared.now()).ok().flatten()).map(|(_, kind)| kind);
-    if !snapback4_core::identity::is_service(&principal) || kind.as_deref() != Some("service") {
-        return Err(Refusal::new("E_AUTH", "auth", "this is a worker's door: send a service token (`snapback4 token --service <name>`)").guide("effects"));
+    service_of_locked(request, shared, &lock(&shared.engine))
+}
+
+fn service_of_locked(request: &Request, shared: &Shared, engine: &Engine) -> Result<String, Refusal> {
+    dev_request(request, shared)?;
+    let refused = || Refusal::new("E_AUTH", "auth", "this is a worker's door: send a live service token (`snapback4 token --service <name>`)").guide("effects");
+    if !matches!(single_header(request, "x-snapback-persona"), Ok(None)) { return Err(refused()); }
+    let token = crate::auth::bearer_token(request).map_err(|e| e.refusal())?;
+    let Some((principal, kind)) = snapback4_core::identity::resolve(engine.store(), &token, shared.now()).map_err(|e| e.refusal())? else { return Err(refused()); };
+    if !snapback4_core::identity::is_service(&principal) || kind != "service"
+        || !crate::dev_worker::current_session(engine.store(), &token, shared.worker_revision.load(Ordering::Acquire)).map_err(|e| e.refusal())? {
+        return Err(refused());
     }
     Ok(principal)
 }
@@ -1062,13 +1070,16 @@ fn handle(mut request: Request, shared: &Shared) {
                 // A wait is a new authorization boundary: a token revoked or
                 // expired while no work was available cannot claim work that
                 // appeared afterward.
-                let worker = match service_of(&request, shared) {
-                    Ok(worker) => worker,
-                    Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
+                let claimed = {
+                    let mut engine = lock(&shared.engine);
+                    let worker = match service_of_locked(&request, shared, &engine) {
+                        Ok(worker) => worker,
+                        Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
+                    };
+                    if shared.hold_effects { Ok(Vec::new()) }
+                    else if payload.get("fenced").and_then(Json::as_bool).unwrap_or(false) { engine.claim_effects_fenced(&worker, effect.as_deref(), limit, lease_ms, shared.now()) }
+                    else { engine.claim_effects(&worker, effect.as_deref(), limit, lease_ms, shared.now()) }
                 };
-                let claimed = if shared.hold_effects { Ok(Vec::new()) }
-                    else if payload.get("fenced").and_then(Json::as_bool).unwrap_or(false) { lock(&shared.engine).claim_effects_fenced(&worker, effect.as_deref(), limit, lease_ms, shared.now()) }
-                    else { lock(&shared.engine).claim_effects(&worker, effect.as_deref(), limit, lease_ms, shared.now()) };
                 match claimed {
                     Ok(runs) if runs.is_empty() && Instant::now() < deadline => {
                         // Nothing due: wait for a commit (an emit), or for a

@@ -1,6 +1,53 @@
 use super::*;
 
 #[test]
+fn a2_adoption_fences_supervised_claims_before_the_old_child_stops() {
+    let schema = "action work() returns { n: int } <- allow\neffect mail\nmutation emitMail():\n  emit mail {n: 1}\n";
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), schema);
+    let (old, manual) = {
+        let engine = lock(&host.shared.engine);
+        (crate::dev_worker::child_session(engine.store(), host.shared.now(), 0).unwrap(),
+         snapback4_core::identity::service_session(engine.store(), "manual", host.shared.now(), 1).unwrap())
+    };
+    let old_headers = format!("Authorization: Bearer {}\r\n", old.token);
+    assert_eq!(status(&host.request("POST", "/actions/claim", &old_headers, "{}")), 200);
+    // Keep the old credential alive (as if its child ignores SIGTERM) while
+    // activating and publishing the new revision under the claim's lock.
+    {
+        let mut engine = lock(&host.shared.engine);
+        let bound = snapback4_lang::compile(&[("schema.q".into(), schema.replace("n: int }", "n: int, ok: bool ? }"))]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let generation = engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
+        *lock(&host.shared.bound) = bound;
+        *lock(&host.shared.generation) = generation;
+        host.shared.worker_revision.fetch_add(1, Ordering::Release);
+        assert!(snapback4_core::identity::resolve(engine.store(), &old.token, host.shared.now()).unwrap().is_some());
+    }
+    let call = body(&host.request("POST", "/a/work?wait=0", "x-snapback-persona: alice\r\n", r#"{"id":"adoption-work","args":{}}"#));
+    assert_eq!(call["state"], "pending", "{call}");
+    let mutation = body(&host.request("POST", "/m/emitMail", "x-snapback-persona: alice\r\n", r#"{"id":"01ARZ3NDEKTSV4RRFFQ69G5FAV","args":{}}"#));
+    assert_eq!(mutation["state"], "sent", "{mutation}");
+    for path in ["/actions/claim", "/effects/claim"] {
+        let refused = host.request("POST", path, &old_headers, "{}");
+        assert_eq!(status(&refused), 401, "{path}: {refused}");
+        assert_eq!(body(&refused)["denied"]["code"], "E_AUTH");
+    }
+    // Unsupervised seats are not accidentally fenced with the child, and
+    // the new child may claim the untouched new admission exactly once.
+    let manual_headers = format!("Authorization: Bearer {}\r\n", manual.token);
+    assert_eq!(body(&host.request("POST", "/effects/claim", &manual_headers, "{}"))["effects"].as_array().unwrap().len(), 1);
+    let current = {
+        let engine = lock(&host.shared.engine);
+        crate::dev_worker::clear_child_session(engine.store()).unwrap();
+        crate::dev_worker::child_session(engine.store(), host.shared.now(), 1).unwrap()
+    };
+    let current_headers = format!("Authorization: Bearer {}\r\n", current.token);
+    let claimed = body(&host.request("POST", "/actions/claim", &current_headers, "{}"));
+    assert_eq!(claimed["requests"].as_array().unwrap().len(), 1, "{claimed}");
+    assert_eq!(claimed["requests"][0]["attempt"], 1);
+}
+
+#[test]
 fn w8r2_adoption_bounds_alternating_background_reasons() {
     let mut state = adoption::Status::new("store".into());
     let first = snapback4_core::RuntimeError::Store("expiry phase is locked".into());

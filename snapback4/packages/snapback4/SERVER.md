@@ -39,6 +39,9 @@ UI files outside that graph are not checked. Handler checks remain strict even
 with a permissive application tsconfig. Node 24 runs erasable TypeScript;
 relative imports need their `.ts` extension. `dev` rechecks changed server
 sources before adopting the schema and restarting the supervised child.
+Successful adoption fences that child's service session before new work can
+be claimed, including its already-waiting polls; stopping the process is not
+the authorization boundary. Manually provisioned service seats are unaffected.
 
 Both `dev` and `serve --worker <entry>` construct an explicit environment from
 runtime variables and declared secrets, and redact their values in child

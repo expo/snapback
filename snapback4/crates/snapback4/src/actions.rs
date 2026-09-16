@@ -93,8 +93,12 @@ pub(super) fn claim(request: Request, shared: &Shared, body: &str) {
     let session = payload.get("session").and_then(Json::as_i64).unwrap_or(SESSION_SECONDS);
     let deadline = Instant::now() + Duration::from_secs(payload.get("wait").and_then(Json::as_u64).unwrap_or(0).min(25));
     loop {
-        let worker = match service_of(&request, shared) { Ok(worker) => worker, Err(why) => return respond(request, 401, json!({ "denied": why })) };
-        let claimed = lock(&shared.engine).claim_actions(&worker, action, limit, lease, session, shared.now());
+        let (worker, claimed) = {
+            let mut engine = lock(&shared.engine);
+            let worker = match service_of_locked(&request, shared, &engine) { Ok(worker) => worker, Err(why) => return respond(request, 401, json!({ "denied": why })) };
+            let claimed = engine.claim_actions(&worker, action, limit, lease, session, shared.now());
+            (worker, claimed)
+        };
         match claimed {
             Ok(claims) if claims.is_empty() && Instant::now() < deadline => {
                 let seq = lock(&shared.seq);
