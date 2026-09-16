@@ -20186,3 +20186,26 @@ measured; this evidence landing includes no runtime revision or release.
 
 Full records and limits are in storage.jsonl and the
 [benchmark record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md).
+## 2026-09-15 — the online-only brief, drafted (Claude)
+
+`benchmarks/briefs/team-workspace.md` ("Workroom") is the instrument LLP
+3000.009 §10.1 commissions: organizations and roles, projects and tasks,
+invitations by email, attachments with text extraction, a payment provider's
+signed webhooks with seat limits, an audit log, a scheduled renewal reminder,
+an administrative report over a 2,000-member organization, search, and a
+day-two session that adds a guest role. Offline earns no completeness credit
+in it; a lane that adds local-first behavior spends its own budget.
+
+Its W3 invitation and W5 webhook journeys are the assertions increment A is
+measured against. Every lane runs its backend's local development deployment,
+so an operations loss is not read as a data-plane one. Scoring keeps
+`social-messenger.md`'s two-layer shape with this brief's own dimensions,
+including integration correctness (duplicate, out-of-order and replayed
+webhooks) in place of the offline dimension.
+
+It is Draft. Before a run it needs its fixture pack — an email sink, a
+signing payment provider that can duplicate, reorder and replay, a text
+extractor, personas, a segmented starter seed, the scale-seed action log and
+a presentational UI kit — and a pilot to calibrate budgets and ceilings. The
+Convex and Supabase controls run when it freezes; Snapback's first cell
+follows increment A's journeys, without SQL reads, as the disposition says.
