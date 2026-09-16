@@ -29,6 +29,8 @@ function noSecrets(ctx: ServerContext) {
 }
 
 export function generatedServerShape(options: ServerOptions) {
+  // @ts-expect-error generated servers always use the bounded registry protocol
+  options.actionRegistry;
   void noSecrets;
   return startServer({ actions: { summarize: { contract: "v1", secrets: ["MODEL_KEY"] } }, effects: {} }, { actions: { summarize: handler } }, options);
 }

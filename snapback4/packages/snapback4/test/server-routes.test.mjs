@@ -42,8 +42,8 @@ async function invoke(handler, configuration = {}) {
     fetch: async (url, init) => {
       const path = new URL(url).pathname, body = JSON.parse(init.body);
       requests.push({ path, body, headers: init.headers });
-      if (path === "/actions/claim") {
-        assert.equal(body.action, "@route/billing");
+      if (path === "/actions/claim-set") {
+        assert.deepEqual(body.actions, ["@route/billing"]);
         if (!sent) { sent = true; return Response.json({ requests: [request], worker: "service:worker" }); }
         return aborted(init.signal);
       }
@@ -73,7 +73,7 @@ async function verify(handler, configuration = {}) {
       const path = new URL(url).pathname, body = JSON.parse(init.body);
       requests.push({ path, body, headers: init.headers });
       assert.equal(init.headers.authorization, "Bearer service-token");
-      if (path === "/actions/claim") return aborted(init.signal);
+      if (path === "/actions/claim-set") return aborted(init.signal);
       if (path === "/routes/verify/claim") {
         assert.deepEqual(body.routes, ["billing"]); assert.ok(body.limit <= 4);
         if (!sent) { sent = true; return Response.json({ requests: claims, worker: "service:worker" }); }
@@ -106,10 +106,10 @@ test("route-only registries accept prototype names and need no dummy actions", a
     const stop = new AbortController();
     let polled;
     const worker = startServer(manifest(declaration(), name), { routes: { [name]: () => new Response() } }, {
-      ...options, signal: stop.signal, fetch: async (_, init) => { polled = JSON.parse(init.body).action; return aborted(init.signal); },
+      ...options, signal: stop.signal, fetch: async (_, init) => { polled = JSON.parse(init.body).actions; return aborted(init.signal); },
     });
     let done = false; void worker.done.then(() => { done = true; });
-    await delay(1); assert.equal(done, false); assert.equal(polled, `@route/${name}`);
+    await delay(1); assert.equal(done, false); assert.deepEqual(polled, [`@route/${name}`]);
     stop.abort(); await finished(worker, stop);
   }
 });
@@ -260,7 +260,7 @@ test("all service routes share one poll and a hard four-callback batch cap", asy
   const worker = startServer(schema, { routes: { billing: handler, other: handler } }, { ...options, batch: 100, signal: stop.signal, onError() {},
     fetch: async (url, init) => {
       const path = new URL(url).pathname;
-      if (path === "/actions/claim") return aborted(init.signal);
+      if (path === "/actions/claim-set") return aborted(init.signal);
       assert.equal(path, "/routes/verify/claim");
       const body = JSON.parse(init.body);
       assert.deepEqual(body.routes.sort(), ["billing", "other"]); assert.equal(body.limit, 4); polls++;
@@ -278,7 +278,7 @@ test("verifier deadlines use the server clock, suppress late settlement, and ret
     async verify(_, ctx) { signal = ctx.signal; entered.resolve(); await release.promise; return true; }, handle: () => new Response(),
   } } }, { ...options, signal: stop.signal, onError() {}, fetch: async (url, init) => {
     const path = new URL(url).pathname;
-    if (path === "/actions/claim") return aborted(init.signal);
+    if (path === "/actions/claim-set") return aborted(init.signal);
     if (path === "/routes/verify/claim") { claims++; return Response.json({ requests: [ticket({ now: 100, deadline: 120 })] }); }
     settlements++; return Response.json({ ok: true });
   } });
@@ -297,7 +297,7 @@ test("action authentication loss stops the verifier callback and both loops", as
   const worker = startServer(manifest(declaration("service:billing")), { routes: { billing: {
     async verify(_, ctx) { verificationSignal = ctx.signal; entered.resolve(); await aborted(ctx.signal); return true; }, handle: () => new Response(),
   } } }, { ...options, signal: stop.signal, onError() {}, fetch: async (url, init) => {
-    if (new URL(url).pathname === "/actions/claim") { await auth.promise; return Response.json({ denied: { code: "E_AUTH", family: "auth", message: "ended" } }); }
+    if (new URL(url).pathname === "/actions/claim-set") { await auth.promise; return Response.json({ denied: { code: "E_AUTH", family: "auth", message: "ended" } }); }
     if (new URL(url).pathname === "/routes/verify/claim") return Response.json({ requests: [ticket()] });
     settlements++; return Response.json({ ok: true });
   } });
@@ -314,7 +314,7 @@ test("verifier authentication loss aborts an in-flight A2 route context", async 
     async handle(_, ctx) { context = ctx; entered.resolve(); await aborted(ctx.invocation.signal); return new Response(); },
   } } }, { ...options, signal: stop.signal, onError() {}, fetch: async (url, init) => {
     const path = new URL(url).pathname;
-    if (path === "/actions/claim" && !claimed) { claimed = true; return Response.json({ requests: [claim()] }); }
+    if (path === "/actions/claim-set" && !claimed) { claimed = true; return Response.json({ requests: [claim()] }); }
     if (path === "/routes/verify/claim") { await entered.promise; return Response.json({ denied: { code: "E_AUTH", family: "auth", message: "ended" } }); }
     return aborted(init.signal);
   } });
@@ -328,4 +328,37 @@ test("runWorker aborts before calling its auth lifecycle hook, even when the hoo
     fetch: async (_, init) => { transportSignal = init.signal; return Response.json({ denied: { code: "E_AUTH", family: "auth", message: "ended" } }); },
   });
   await worker.done; assert.equal(called, 1); assert.ok(errors.some(error => error.message === "hook threw"));
+});
+
+test("more than 128 verifiers rotate bounded chunks past empty groups in one poll loop", async () => {
+  const names = Array.from({length:257}, (_, i) => `route-${i}`), stop = new AbortController(), polls = [], checked = [], errors = [];
+  const chunks = [names.slice(0, 128), names.slice(128, 256), names.slice(256)];
+  const routes = Object.fromEntries(names.map(name => [name, {...declaration("service:provider"), path:`/hooks/${name}`} ]));
+  let actionPolls = 0, activePolls = 0, maximumPolls = 0, settlements = 0;
+  const worker = startServer({actions:{}, effects:{}, routes}, {routes:Object.fromEntries(names.map(name => [name, {
+    verify(request) { checked.push(name); assert.equal(request.path, `/hooks/${name}`); return true; }, handle:() => new Response(),
+  }]))}, {...options, signal:stop.signal, batch:2, wait:25,
+    onError(error) { errors.push(error); stop.abort(); }, fetch:async (url, init) => {
+      const path = new URL(url).pathname, body = JSON.parse(init.body);
+      if (path === "/actions/claim-set") { actionPolls++; return aborted(init.signal); }
+      if (path === "/routes/verify/claim") {
+        maximumPolls = Math.max(maximumPolls, ++activePolls);
+        try {
+          const index = polls.length % chunks.length; polls.push(body.routes);
+          assert.deepEqual(body.routes, chunks[index]); assert.equal(body.wait, 1); assert.equal(body.limit, 2);
+          // Two empty chunks must not conceal work in the final chunk, and
+          // one complete rotation must not stop registration polling.
+          return Response.json({requests:index === 2 ? [ticket({id:`ticket-${polls.length}`, route:names[256], request:envelope({path:`/hooks/${names[256]}`})})] : []});
+        } finally { activePolls--; }
+      }
+      assert.match(path, /^\/routes\/verify\/ticket-\d+\/settle$/);
+      assert.deepEqual(body, {disposition:"allow"}); assert.equal(init.headers["x-snapback-route-lease"], "verify-fence");
+      if (++settlements === 2) stop.abort();
+      return Response.json({ok:true});
+    },
+  });
+  await finished(worker, stop);
+  assert.deepEqual(errors, []); assert.deepEqual(polls, [...chunks, ...chunks]);
+  assert.deepEqual(checked, [names[256], names[256]]); assert.equal(settlements, 2);
+  assert.equal(actionPolls, 1); assert.equal(maximumPolls, 1);
 });

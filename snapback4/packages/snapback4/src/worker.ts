@@ -67,6 +67,9 @@ export interface WorkerOptions {
   readonly token: string;
   readonly effects?: Readonly<Record<string, EffectHandler<never>>>;
   readonly actions?: Readonly<Record<string, ActionHandler<never>>>;
+  /** One bounded registry poll instead of one poll per action. Generated
+   * servers select this; legacy workers keep per-name polling by default. */
+  readonly actionRegistry?: boolean;
   /** Per-action viewer session duration in seconds (default 60, maximum
    * 900). A claim ends at the earlier of this and `lease`. */
   readonly actionSessions?: Readonly<Record<string, number>>;
@@ -195,13 +198,13 @@ export function runWorker(options: WorkerOptions): Worker {
     const timer = setTimeout(finish, 2_000);
     stop.signal.addEventListener("abort", finish, { once: true });
   });
-  // Each named handler claims only its own work. Empty queues long-poll
-  // independently, so effects cannot starve actions (or steal other workers' work).
-  const loop = async (kind: "effects" | "actions", name: string) => {
+  type Poll = { path: string; filter: { effect: string; fenced: true } | { action: string; session: number } | { actions: string[]; session: number }; wait: number };
+  const loop = async (kind: "effects" | "actions", next: () => Poll) => {
     while (!stop.signal.aborted) {
+      const poll = next();
       let reply: ClaimReply;
       try {
-        reply = (await post(`/${kind}/claim`, { limit: options.batch ?? 8, lease: options.lease ?? 60, wait: options.wait ?? 25, ...(kind === "effects" ? { effect: name, fenced: true } : { action: name, session: options.actionSessions?.[name] ?? 60 }) })) as ClaimReply;
+        reply = (await post(poll.path, { limit: options.batch ?? 8, lease: options.lease ?? 60, wait: poll.wait, ...poll.filter })) as ClaimReply;
       } catch (error) {
         if (stop.signal.aborted) return;
         report(error);
@@ -218,10 +221,33 @@ export function runWorker(options: WorkerOptions): Worker {
       else if (reply.effects?.length && principal === null) principal = "service";
       const work = kind === "effects" ? (reply.effects ?? []).map(perform) : (reply.requests ?? []).map(performAction);
       for (const result of await Promise.allSettled(work)) if (result.status === "rejected" && !stop.signal.aborted) report(result.reason);
-      if (!work.length && options.wait === 0) await pause();
+      if (!work.length && poll.wait === 0) await pause();
     }
   };
-  const done = Promise.all([...Object.keys(effects).map(name => loop("effects", name)), ...Object.keys(actions).map(name => loop("actions", name))]).then(() => {}).finally(() => options.signal?.removeEventListener("abort", abort));
+  const actionNames = Object.keys(actions);
+  const actionLoops = () => {
+    if (!options.actionRegistry) return actionNames.map(name => loop("actions", () => ({ path: "/actions/claim", filter: { action: name, session: options.actionSessions?.[name] ?? 60 }, wait: options.wait ?? 25 })));
+    const sessions = new Map<number, string[]>();
+    for (const name of actionNames) {
+      const duration = options.actionSessions?.[name] ?? 60;
+      const names = sessions.get(duration) ?? [];
+      names.push(name); sessions.set(duration, names);
+    }
+    const chunks: { actions: string[]; session: number }[] = [];
+    for (const [session, names] of sessions) {
+      for (let index = 0; index < names.length; index += 128) chunks.push({ actions: names.slice(index, index + 128), session });
+    }
+    if (!chunks.length) return [];
+    // One loop owns bounded batches, not one waiting socket per handler.
+    // Rotate even after an empty/refused poll; a quiet group cannot hide work
+    // in another session-duration group or beyond the 128-name wire bound.
+    let index = 0;
+    return [loop("actions", () => {
+      const filter = chunks[index]!; index = (index + 1) % chunks.length;
+      return { path: "/actions/claim-set", filter, wait: chunks.length > 1 ? Math.min(options.wait ?? 25, 1) : options.wait ?? 25 };
+    })];
+  };
+  const done = Promise.all([...Object.keys(effects).map(name => loop("effects", () => ({ path: "/effects/claim", filter: { effect: name, fenced: true }, wait: options.wait ?? 25 }))), ...actionLoops()]).then(() => {}).finally(() => options.signal?.removeEventListener("abort", abort));
   return { done, principal: () => principal };
 }
 

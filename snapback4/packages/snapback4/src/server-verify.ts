@@ -31,13 +31,15 @@ export interface VerifierOptions {
 // slot until the callback really finishes bounds even abort-ignoring code.
 export function runVerifiers(options: VerifierOptions): Worker {
   const names = Object.keys(options.routes);
+  const chunks: string[][] = [];
+  for (let index = 0; index < names.length; index += 128) chunks.push(names.slice(index, index + 128));
   const signal = options.signal;
   const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
   const base = options.url.replace(/\/$/, "");
   const bounded = (value: number | undefined, fallback: number, min: number, max: number) =>
     value === undefined || !Number.isFinite(value) ? fallback : Math.min(max, Math.max(min, Math.floor(value)));
   const limit = bounded(options.batch, 4, 1, 4);
-  const wait = bounded(options.wait, 25, 0, 25);
+  const wait = Math.min(bounded(options.wait, 25, 0, 25), chunks.length > 1 ? 1 : 25);
   const lease = bounded(options.lease, 10, 1, 25);
   let principal: string | null = null;
   const report = (error: unknown, fence?: string) => {
@@ -117,9 +119,13 @@ export function runVerifiers(options: VerifierOptions): Worker {
     }
   };
   const done = (async () => {
-    while (!signal.aborted && names.length) {
+    let index = 0;
+    while (!signal.aborted && chunks.length) {
+      // Advance before I/O, including a refused or empty chunk. There is
+      // still only one poll and one bounded callback batch for the registry.
+      const routes = chunks[index]!; index = (index + 1) % chunks.length;
       try {
-        const reply = await post("/routes/verify/claim", { routes: names, limit, lease, wait });
+        const reply = await post("/routes/verify/claim", { routes, limit, lease, wait });
         if (!Array.isArray(reply.requests) || reply.requests.length > limit) throw new Error("invalid route verification claim batch");
         if (typeof reply.worker === "string") principal = reply.worker;
         const results = await Promise.all(reply.requests.map(perform));

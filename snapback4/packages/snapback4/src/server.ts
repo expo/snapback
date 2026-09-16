@@ -35,7 +35,7 @@ export interface ServerManifest {
   readonly routes?: Readonly<Record<string, RouteDeclaration>>;
 }
 
-export interface ServerOptions extends Omit<WorkerOptions, "url" | "token" | "actions" | "effects" | "redact" | "onAuthFailure"> {
+export interface ServerOptions extends Omit<WorkerOptions, "url" | "token" | "actions" | "effects" | "redact" | "onAuthFailure" | "actionRegistry"> {
   /** Defaults to SNAPBACK_URL in env (or process.env). */
   readonly url?: string;
   /** Defaults to SNAPBACK_SERVICE_TOKEN in env (or process.env). */
@@ -150,7 +150,7 @@ export function startServer(manifest: ServerManifest, handlers: ServerHandlers, 
       return routeResponse(result, ctx.invocation.signal);
     });
   }
-  const workers = [runWorker({ ...runtimeOptions, actions, ...(handlers.effects ? { effects: handlers.effects } : {}), redact, onAuthFailure: () => stop.abort() })];
+  const workers = [runWorker({ ...runtimeOptions, actions, actionRegistry: true, ...(handlers.effects ? { effects: handlers.effects } : {}), redact, onAuthFailure: () => stop.abort() })];
   if (Object.keys(verifiers).length) workers.push(runVerifiers({ ...runtimeOptions, routes: verifiers, secrets: secretsFor, redact, stop: () => stop.abort() }));
   const done = Promise.allSettled(workers.map(worker => worker.done.catch(error => { stop.abort(error); throw error; }))).then(results => {
     const failed = results.find(result => result.status === "rejected");

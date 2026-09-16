@@ -25,7 +25,8 @@ async function invoke(handler, options = {}) {
       const path = new URL(url).pathname;
       const body = JSON.parse(init.body);
       requests.push({ path, body, headers: init.headers });
-      if (path === "/actions/claim") {
+      if (path === "/actions/claim-set") {
+        assert.deepEqual(body.actions, [request.action]);
         if (!claimed) { claimed = true; return Response.json({ requests: [request], worker: "service:worker" }); }
         throw Error("test expected one claim");
       }
@@ -104,7 +105,7 @@ test("generation mismatch fails before handler or secret access", async () => {
   assert.equal(called, false);
   assert.equal(result.settled.body.code, "E_ACTION_GENERATION");
   assert.equal(result.settled.body.retry, false);
-  assert.deepEqual(result.requests.map(r => r.path), ["/actions/claim", "/actions/invocation-1/failed"]);
+  assert.deepEqual(result.requests.map(r => r.path), ["/actions/claim-set", "/actions/invocation-1/failed"]);
 });
 
 test("query and mutation preserve card receipts and use the delegated session", async () => {
@@ -338,7 +339,7 @@ test("an actual Node worker stays alive when its handler awaits only cancellatio
       return {};
     } } }, { url: "http://runtime.test", token: "service-token", signal: stop.signal, statusIntervalMs: 10,
       fetch: async (url, init) => {
-        if (url.endsWith("/claim")) return Response.json({ requests: [request] });
+        if (url.endsWith("/claim-set")) return Response.json({ requests: [request] });
         if (url.endsWith("/status")) return Response.json({ invocation: { id: request.id, attempt: request.attempt, cancelled: true, state: "failed" } });
         assert.ok(url.endsWith("/failed"));
         assert.equal(JSON.parse(init.body).code, "E_ACTION_CANCELLED");
@@ -489,4 +490,130 @@ test("worker error callback redacts messages and drops arbitrary error propertie
   assert.equal(errors.length, 1);
   assert.equal(errors[0].message, "[REDACTED]");
   assert.equal(errors[0].secret, undefined);
+});
+
+const waitForAbort = signal => new Promise((_, reject) => {
+  if (signal.aborted) { reject(signal.reason); return; }
+  signal.addEventListener("abort", () => reject(signal.reason), {once:true});
+});
+
+for (const size of [128, 129, 513]) test(`generated ${size}-action registry opens one action poll beside verifier and effect polls`, async () => {
+  const names = Array.from({length:size}, (_, i) => `work-${i}`), stop = new AbortController(), errors = [];
+  const calls = [];
+  const worker = startServer({actions:Object.fromEntries(names.map(name => [name, {contract:"v1", secrets:[]}])),
+    effects:{mail:{secrets:[]}, push:{secrets:[]}}, routes:{billing:{contract:"v1", method:"POST", path:"/hook", service:"service:billing", secrets:[]}}}, {
+    actions:Object.fromEntries(names.map(name => [name, () => ({})])), effects:{mail() {}, push() {}},
+    routes:{billing:{verify:() => true, handle:() => new Response()}},
+  }, {url:"http://runtime.test", token:"service-token", signal:stop.signal,
+    // Even untyped callers cannot opt generated servers out of registry mode.
+    actionRegistry:false,
+    onError(error) { errors.push(error); stop.abort(); }, fetch:async (url, init) => {
+      calls.push({path:new URL(url).pathname, body:JSON.parse(init.body)}); return waitForAbort(init.signal);
+    },
+  });
+  try {
+    await Promise.resolve(); // The verifier enters its abort-aware fetch on a microtask.
+    assert.equal(calls.filter(call => call.path === "/actions/claim-set").length, 1);
+    assert.equal(calls.filter(call => call.path === "/actions/claim").length, 0);
+    const registry = calls.find(call => call.path === "/actions/claim-set").body;
+    assert.deepEqual(registry.actions, [...names, "@route/billing"].slice(0, 128));
+    assert.equal(registry.wait, 1); // The private route is also part of this registry.
+    assert.equal(registry.session, 60); assert.equal(registry.limit, 8);
+    assert.equal(calls.filter(call => call.path === "/routes/verify/claim").length, 1);
+    assert.deepEqual(calls.filter(call => call.path === "/effects/claim").map(call => call.body.effect), ["mail", "push"]);
+    assert.ok(calls.filter(call => call.path === "/effects/claim").every(call => call.body.fenced === true));
+  } finally { stop.abort(); await worker.done; }
+  assert.deepEqual(errors, []);
+});
+
+test("registry action chunks rotate across own handlers and preserve per-name session durations", {timeout:3000}, async () => {
+  const short = Array.from({length:130}, (_, i) => `short-${i}`), long = Array.from({length:129}, (_, i) => `long-${i}`);
+  const names = short.flatMap((name, i) => long[i] ? [name, long[i]] : [name]).concat(["__proto__", "constructor"]);
+  const sessions = Object.fromEntries([...long.map(name => [name, 120]), ["__proto__", 900], ["constructor", 900], [short[0], 60]]);
+  const expected = [
+    {actions:short.slice(0, 128), session:60}, {actions:short.slice(128), session:60},
+    {actions:long.slice(0, 128), session:120}, {actions:long.slice(128), session:120},
+    {actions:["__proto__", "constructor"], session:900},
+  ];
+  const stop = new AbortController(), polls = [], handled = [], settled = [], errors = [];
+  const actions = Object.fromEntries(names.map(name => [name, () => { handled.push(name); return {name}; }]));
+  Object.setPrototypeOf(actions, {inherited() { throw Error("an inherited handler must not be claimed"); }});
+  const worker = runWorker({url:"http://runtime.test", token:"service-token", signal:stop.signal, actionRegistry:true,
+    actions, actionSessions:sessions, batch:2, lease:180, wait:25,
+    onError(error) { errors.push(error); stop.abort(); }, fetch:async (url, init) => {
+      const path = new URL(url).pathname, body = JSON.parse(init.body);
+      if (path === "/actions/claim-set") {
+        const chunk = {actions:body.actions, session:body.session}; polls.push(chunk);
+        assert.deepEqual(chunk, expected[(polls.length - 1) % expected.length]);
+        assert.equal(body.wait, 1); assert.equal(body.lease, 180); assert.equal(body.limit, 2);
+        if (polls.length === expected.length * 2) stop.abort();
+        // The second cycle is empty, proving that rotation is not contingent
+        // on finding work. Each first-cycle chunk dispatches its own handler.
+        return Response.json({requests:polls.length <= expected.length ? [claim({id:`work-${polls.length}`, action:body.actions.at(-1)})] : []});
+      }
+      assert.match(path, /^\/actions\/work-\d+\/done$/); assert.equal(init.headers["x-snapback-action-lease"], "claim-token");
+      settled.push(body); return Response.json({ok:true});
+    },
+  });
+  try { await worker.done; } finally { stop.abort(); }
+  assert.deepEqual(errors, []); assert.deepEqual(polls, [...expected, ...expected]);
+  assert.deepEqual(handled, expected.map(chunk => chunk.actions.at(-1)));
+  assert.deepEqual(settled, handled.map(name => ({result:{name}})));
+});
+
+test("single registry chunk retains configured long-poll wait and an empty registry finishes without a poll", async () => {
+  for (const count of [0, 128]) {
+    const stop = new AbortController(), polls = [], errors = [];
+    const worker = runWorker({url:"http://runtime.test", token:"service-token", signal:stop.signal, actionRegistry:true, wait:17,
+      actions:Object.fromEntries(Array.from({length:count}, (_, i) => [`work-${i}`, () => null])),
+      onError(error) { errors.push(error); stop.abort(); }, fetch:async (url, init) => {
+        polls.push({path:new URL(url).pathname, body:JSON.parse(init.body)}); stop.abort(); return Response.json({requests:[]});
+      },
+    });
+    await worker.done; assert.deepEqual(errors, []); assert.equal(polls.length, count ? 1 : 0);
+    if (count) { assert.equal(polls[0].path, "/actions/claim-set"); assert.equal(polls[0].body.wait, 17); assert.equal(polls[0].body.actions.length, 128); }
+  }
+});
+
+test("registry action execution waits for its bounded batch, including callbacks that ignore shutdown", {timeout:3000}, async () => {
+  let release, enter, active = 0, polls = 0, done = false;
+  const gate = new Promise(resolve => { release = resolve; }), entered = new Promise(resolve => { enter = resolve; });
+  const stop = new AbortController(), errors = [];
+  const actions = Object.fromEntries(Array.from({length:260}, (_, i) => [`work-${i}`, async () => {
+    if (++active === 2) enter(); await gate; active--; return null;
+  }]));
+  const worker = runWorker({url:"http://runtime.test", token:"service-token", signal:stop.signal, actionRegistry:true,
+    actions, batch:2, onError(error) { errors.push(error); stop.abort(); }, fetch:async (url, init) => {
+      if (url.endsWith("/claim-set")) {
+        polls++; const body = JSON.parse(init.body); assert.equal(body.limit, 2);
+        return Response.json({requests:body.actions.slice(0, 2).map((action, i) => claim({id:`batch-${i}`, action}))});
+      }
+      return Response.json({ok:true});
+    },
+  });
+  void worker.done.then(() => { done = true; });
+  let timer;
+  try {
+    await Promise.race([entered, new Promise((_, reject) => { timer = setTimeout(() => reject(Error("batch did not enter")), 1000); })]);
+    assert.equal(active, 2); assert.equal(polls, 1);
+    stop.abort(); await Promise.resolve(); assert.equal(done, false);
+    assert.equal(active, 2); assert.equal(polls, 1);
+  } finally { clearTimeout(timer); stop.abort(); release(); await worker.done; }
+  assert.equal(active, 0); assert.deepEqual(errors, []);
+});
+
+for (const actionRegistry of [undefined, false]) test(`legacy action polling stays per-name (${actionRegistry})`, async () => {
+  const stop = new AbortController(), polls = [], errors = [];
+  const worker = runWorker({url:"http://runtime.test", token:"service-token", signal:stop.signal, actionRegistry,
+    actions:{first() {}, second() {}, third() {}}, actionSessions:{second:120}, wait:19,
+    onError(error) { errors.push(error); stop.abort(); }, fetch:async (url, init) => {
+      polls.push({path:new URL(url).pathname, body:JSON.parse(init.body)}); return waitForAbort(init.signal);
+    },
+  });
+  try {
+    assert.deepEqual(polls.map(poll => [poll.path, poll.body.action, poll.body.session, poll.body.wait]), [
+      ["/actions/claim", "first", 60, 19], ["/actions/claim", "second", 120, 19], ["/actions/claim", "third", 60, 19],
+    ]);
+  } finally { stop.abort(); await worker.done; }
+  assert.deepEqual(errors, []);
 });
