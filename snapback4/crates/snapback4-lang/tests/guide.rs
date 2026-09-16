@@ -84,7 +84,7 @@ fn the_language_card_compiles_and_runs() {
     let source = language();
     let bound = clean("the language card", &source);
     let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).collect();
-    assert_eq!(names, ["daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "room", "helperRows", "thread", "inbox", "following", "ancestors", "digest", "mentions", "search", "everywhere", "online", "pagePass", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative"]);
+    assert_eq!(names, ["daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "heldRoom", "room", "helperRows", "thread", "inbox", "following", "ancestors", "digest", "mentions", "search", "everywhere", "online", "pagePass", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative"]);
     assert_eq!(bound.schema.effects, ["notify"]);
     assert_eq!(bound.schema.schedules.len(), 1);
     assert_eq!(bound.personas, ["alice", "bob", "carol"]);
@@ -98,6 +98,13 @@ fn the_language_card_compiles_and_runs() {
     assert_eq!(room.field("owner").unwrap(), &id(alice));
     assert_eq!(room.field("kind").unwrap(), &text("open"));
     assert_eq!(room.field("tagCount").unwrap(), &Value::Int(1));
+    let held = bound.programs.iter().find(|p| p.program.name == "heldRoom").unwrap();
+    let tx = engine.store_mut().read_transaction().unwrap();
+    let local = snapback4_core::engine::local::query(&tx, &bound.schema, &held.program,
+        Context::new(alice, args(&[("roomId", id("r1"))])).at(1_000), Ceilings::default()).unwrap();
+    assert_eq!(local.data.field("name").unwrap(), &text("General"));
+    drop(tx);
+    assert_eq!(engine.query("heldRoom", Context::new(alice, args(&[("roomId", id("r1"))]))).unwrap_err().code, "E_QUERY_HELD");
     // join: `insert .. if absent` yields the row, then null on the clash.
     let joined = engine.mutate("join", Some("j1"), Context::new(alice, args(&[("roomId", id("r1")), ("principal", id(bob))])).at(1_100).with_ids(["m2".to_owned()])).unwrap();
     assert_eq!(sent(&joined).field("principal").unwrap(), &id(bob));
@@ -244,15 +251,14 @@ fn every_card_compiles_clean() {
         for (n, block) in blocks.iter().enumerate() {
             if *keyword == "search" && n == 1 {
                 // The lane brief explicitly permits notes documented by this section.
-                // Keep the exception on this block and these exact two sites; every
+                // Keep the exception on this block and this exact site; every
                 // other card and every server operation must still compile silently.
                 let bound = compile(block);
                 assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
                 assert_eq!(bound.notes.iter().map(|note| (note.code.as_str(), note.site.line, note.guide.as_str())).collect::<Vec<_>>(),
-                    [("N_NO_HORIZON", 10, "sync"), ("N_NEVER_COMPLETE", 20, "search")]);
+                    [("N_NO_HORIZON", 10, "sync")]);
                 assert!(bound.notes[0].message.starts_with("table messages:"));
-                assert!(bound.notes[1].message.starts_with("query searchHeld:"));
-                assert!(text.contains("This block intentionally emits two notes"));
+                assert!(text.contains("This block intentionally emits N_NO_HORIZON"));
                 continue;
             }
             clean(&format!("card {keyword}, block {}", n + 1), &in_context(block));

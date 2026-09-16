@@ -79,6 +79,10 @@ pub fn bind(documents: Vec<Document>) -> Bound {
     for doc in &catalog.documents {
         let module = std::path::Path::new(&doc.file).file_stem().unwrap().to_string_lossy();
         for decl in &doc.programs {
+            if decl.held && let Some(fact) = schema.operations.get_mut(&operation_name(&module, &decl.name)) {
+                fact.held = true;
+                fact.runs = Some("device".into());
+            }
             if decl.server && let Some(fact) = schema.operations.get_mut(&operation_name(&module, &decl.name)) {
                 fact.predicts = Some("never".into());
                 fact.sites.push(snapback4_core::schema::ResidencySite { site: decl.site.to_string(), table: "server".into(), index: "".into(), kind: "dispatch".into(), class: snapback4_core::schema::SiteClass::Server, reason: "author marked this mutation : server".into(), rewrite: "remove : server to allow prediction when every site is held".into() });
@@ -285,6 +289,8 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                 .guide(if matching { "search" } else if related_principals { "feeds" } else { "reads" }),
             );
         }
+        // A held query has no server completeness class; its device still checks horizons and cuts.
+        if schema.operations.get(&bound.program.name).is_some_and(|fact| fact.held) { continue; }
         // A job sweeps as the system principal, which every rule admits.
         if bound.program.kind == snapback4_core::ir::ProgramKind::Job {
             continue;

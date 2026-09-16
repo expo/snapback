@@ -121,6 +121,7 @@ class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]> {
     const items: R[number][] = [];
     let last: Read<R> = LOADING as Read<R>;
     let complete = true, fresh = true;
+    let cut: import("./contract.ts").ReadCut = null;
     let since: number | undefined;
     let knownSince = true;
     for (const page of this.pages) {
@@ -129,13 +130,14 @@ class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]> {
       if (!isReady(read)) break;
       items.push(...(read.data as readonly R[number][]));
       complete &&= read.complete;
+      if (read.cut === "meter" || (cut === null && read.cut === "words")) cut = read.cut;
       fresh &&= read.fresh;
       if (read.since == null) knownSince = false;
       else since = Math.min(since ?? read.since, read.since);
     }
     const hasMore = isReady(last) && last.next != null && !this.pages.some((p) => p.cursor === last.next);
     const read: Read<R> = isReady(last)
-      ? { data: items as unknown as R, complete, fresh, ...(knownSince && since != null ? { since } : {}), ...(last.next !== undefined ? { next: last.next } : {}) }
+      ? { data: items as unknown as R, complete, cut, fresh, ...(knownSince && since != null ? { since } : {}), ...(last.next !== undefined ? { next: last.next } : {}) }
       : last;
     this.cache = { items, hasMore, read };
     return this.cache;

@@ -33,6 +33,9 @@ pub struct Schema {
 // @ref LLP 3000.007#6.2 — eligibility is static; prediction and horizon coverage are per call.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Execution {
+    /// Author-declared device-only query. Incomplete local answers never fall back to the server.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub held: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runs: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

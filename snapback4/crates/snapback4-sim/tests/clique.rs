@@ -7,6 +7,7 @@ mod merge_cursor;
 mod trending;
 mod grace_effects;
 mod search_global;
+mod read_cut;
 
 use snapback4_core::engine::{Context, Engine, WriteState};
 use snapback4_core::partition::holdings;

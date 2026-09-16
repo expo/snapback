@@ -127,11 +127,28 @@ impl Context {
     }
 }
 
+/// Public cut reason; sites and counters remain operator detail.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ReadCut { Meter, Words }
+
+// @ref LLP 3000.007#18.1 — held search stays on the device; a server walk needs scoped lanes.
+#[cfg(any(feature = "sqlite", feature = "postgres"))]
+pub(crate) fn server_query_allowed(schema: &crate::schema::Schema, name: &str) -> Result<(), Refusal> {
+    if schema.operations.get(name).is_some_and(|fact| fact.held) {
+        return Err(Refusal::new("E_QUERY_HELD", "residency", format!("query {name} is held: it runs only on the device"))
+            .rewrite("call this query with the local client; for server search, use the scoped server walk in `snapback4 guide search`, section \"Search every chat I'm in\"")
+            .guide("search"));
+    }
+    Ok(())
+}
+
 /// A query's outcome: the card's read, minus `fresh` (transport truth).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryOutcome {
     pub data: Value,
     pub complete: bool,
+    pub cut: Option<ReadCut>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub capped_at: Option<(MeterKind, String)>,
     /// Operator detail: a scope passed the word bound, independently of the meter.
@@ -637,6 +654,7 @@ impl Engine {
         if program.kind != ProgramKind::Query {
             return Err(RuntimeError::UnknownOp(format!("{name} is a {}, not a query", program.kind.word())).into());
         }
+        server_query_allowed(&self.schema, name)?;
         validate::validate_inputs(&self.schema, &program, &mut context.args)?;
         if context.now.is_none() {
             context.now = Some(crate::now_ms());
@@ -659,7 +677,7 @@ impl Engine {
                 let (value, mut runner) = native::run_read(module, runner, name, &args, now);
                 let data = value?;
                 runner.charge_output(&data)?;
-                let outcome = QueryOutcome { complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry };
+                let outcome = QueryOutcome { complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost(), cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry };
                 drop(runner);
                 tx.rollback()?;
                 return Ok(outcome);
@@ -677,6 +695,7 @@ impl Engine {
         // does not decide is capped whatever the meter found (LLP 1001 §3).
         let outcome = QueryOutcome {
             complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.page_position_lost(),
+            cut: runner.read_cut(),
             capped_at: runner.meter.capped_at.clone(),
             word_cut_at: runner.word_cut_at.clone(),
             next,

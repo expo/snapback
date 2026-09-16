@@ -628,3 +628,98 @@ for (const release of [false, true]) test(`W7r1 hidden versus absent non-uniform
     t.diagnostic(`absent=${JSON.stringify(absent)} hidden=${JSON.stringify(hidden)}`);
   }
 });
+
+const cutSource = `use personas alice
+use identity
+table entries:
+  room: text <=10
+  body: text <=100
+  at: time
+  by byRoomTime: room, at, id
+  by byRoomWords: room, words(body), at, id
+  public 'cut fixture'
+  sync public
+query search(room: text <=10, q: text <=100, c: cursor ?):
+  return entries[room] matching q after c last 10 by byRoomWords
+query filtered(c: cursor ?):
+  return entries['normal'] after c last 10 by byRoomTime where .body = 'absent'
+`;
+
+for (const tier of ["online", "native", "web"]) test(`W8a ${tier} read exposes meter, words and null cuts`, { timeout: 30000 }, async t => {
+  const source = tier === "online" ? cutSource : cutSource.replaceAll("c: cursor ?):", "c: cursor ?) held:");
+  const f = await fixture(t, false, source);
+  const seeds = Array.from({ length: 8233 }, (_, n) => ({ table: "entries", row: { id: `r${String(n).padStart(5, "0")}`, room: n < 8200 ? "normal" : "words", body: n < 8200 ? "coffee" : `cof${n}`, at: n } }));
+  for (let n = 0; n < seeds.length; n += 1000) assert.equal((await f.post("/seed", seeds.slice(n, n + 1000))).seeded, Math.min(1000, seeds.length - n));
+  let offline = false;
+  const requests = [];
+  const gated = (url, init) => { if (String(url).includes("/q/")) requests.push(url); return offline ? Promise.reject(new Error("offline")) : fetch(url, init); };
+  const wire = [];
+  const inspect = async (url, init) => {
+    const response = await fetch(url, init);
+    if (String(url).includes("/q/")) wire.push(await response.clone().json());
+    return response;
+  };
+  const client = tier === "online" ? createClient({ url: f.url, persona: "alice", fetch: inspect }) : await createLocalClient({ url: f.url, persona: "alice", fetch: gated, device: tier === "native" ? f.device : f.web, waitSeconds: 1 });
+  f.clients.push(client);
+  if (tier !== "online") await client.sync();
+  const read = (name, args) => client.query({ kind: "query", name }, args);
+  const meter = await read("filtered", {});
+  assert.deepEqual(meter.data, []);
+  assert.equal(meter.complete, false);
+  assert.equal(meter.cut, "meter");
+  const words = await read("search", { room: "words", q: "cof" });
+  assert.equal(words.cut, "words");
+  assert.equal(words.complete, false);
+  assert.ok(words.data.length > 0);
+  for (const [term, size] of [["coffee", 10], ["absent", 0]]) {
+    const page = await read("search", { room: "normal", q: term });
+    assert.equal(page.data.length, size);
+    assert.equal(page.complete, true);
+    assert.equal(page.cut, null);
+  }
+  if (tier === "online") assert.deepEqual(wire.map(reply => reply.cut), ["meter", "words", null, null]);
+  if (tier !== "online") {
+    assert.deepEqual(requests, [], "a held cut must not fall back to the server");
+    offline = true; await client.sync();
+    const stale = await read("filtered", {});
+    assert.equal(stale.cut, "meter"); assert.equal(stale.fresh, false);
+  }
+});
+
+for (const release of [false, true]) test(`W8a ${release ? "serve" : "dev"} refuses held queries with a rewrite`, async t => {
+  const f = await fixture(t, release, `use identity
+query heldValue() held:
+  return [1, 2]
+query onlineValue():
+  return [1, 2]
+`);
+  const signed = await guest(f.url);
+  assert.equal(signed.ok, true, JSON.stringify(signed));
+  const client = createClient({ url: f.url, session: signed.session }); f.clients.push(client);
+  const read = await client.query({ kind: "query", name: "heldValue" }, {});
+  assert.equal(read.denied?.code, "E_QUERY_HELD", JSON.stringify(read));
+  assert.equal(read.denied.guide, "search");
+  assert.equal(read.denied.message, "query heldValue is held: it runs only on the device");
+  assert.match(read.denied.rewrite, /scoped server walk/);
+  const ordinary = await client.query({ kind: "query", name: "onlineValue" }, {});
+  assert.deepEqual(ordinary.data, [1, 2]); assert.equal(ordinary.cut, null); assert.equal(ordinary.complete, true);
+});
+
+for (const tier of ["native", "web"]) test(`W8a ${tier} held horizon stays local online, including observe`, async t => {
+  const source = cutSource.replace("  sync public", "  sync public last 1 by byId").replace("query search(room: text <=10, q: text <=100, c: cursor ?):", "query search(room: text <=10, q: text <=100, c: cursor ?) held:");
+  const f = await fixture(t, false, source);
+  assert.equal((await f.post("/seed", [1, 2].map(n => ({ table: "entries", row: { id: `r${n}`, room: "normal", body: "coffee", at: n } })))).seeded, 2);
+  const requests = [];
+  const client = await createLocalClient({ url: f.url, persona: "alice", device: tier === "native" ? f.device : f.web, waitSeconds: 1,
+    fetch: (url, init) => { if (String(url).includes("/q/")) requests.push(url); return fetch(url, init); } });
+  f.clients.push(client); await client.sync();
+  const op = { kind: "query", name: "search" };
+  const read = await client.query(op, { room: "normal", q: "coffee" });
+  assert.equal(read.data.length, 1); assert.equal(read.complete, false); assert.equal(read.cut, null);
+  const watch = client.observe(op, { room: "normal", q: "absent" });
+  t.after(() => watch.close());
+  await until(() => "data" in watch.getSnapshot());
+  assert.deepEqual(watch.getSnapshot().data, []);
+  assert.equal(watch.getSnapshot().complete, false); assert.equal(watch.getSnapshot().cut, null);
+  assert.deepEqual(requests, [], "held must not turn incomplete local coverage into a server call");
+});

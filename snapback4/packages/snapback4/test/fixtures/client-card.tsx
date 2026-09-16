@@ -32,3 +32,10 @@ if (write.state === "sent") {
     const result: { id: string } = write.result;
   }
 }
+
+declare const read: import("snapback4/contract").Read<string[]>;
+if ("data" in read) {
+  const cut: "meter" | "words" | null = read.cut;
+  // @ts-expect-error cut is required on every ready read, including complete empty pages
+  const missingCut: typeof read = { data: [], complete: true, fresh: true };
+}

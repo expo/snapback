@@ -104,6 +104,7 @@ impl PostgresEngine {
         if program.kind != ProgramKind::Query {
             return Err(RuntimeError::UnknownOp(format!("{name} is not a query")).into());
         }
+        super::server_query_allowed(&self.schema, name)?;
         validate::validate_inputs(&self.schema, program, &mut context.args)?;
         context.now.get_or_insert_with(crate::now_ms);
         let tx = self.store.transaction(None)?;
@@ -117,6 +118,7 @@ impl PostgresEngine {
                 && !runner.non_uniform
                 && !runner.page_overflow
                 && !runner.page_position_lost(),
+            cut: runner.read_cut(),
             capped_at: runner.meter.capped_at.clone(),
             word_cut_at: runner.word_cut_at.clone(),
             next: runner.next_cursor()?,

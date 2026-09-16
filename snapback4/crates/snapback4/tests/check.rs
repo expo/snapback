@@ -457,3 +457,17 @@ fn b2_predicts_assertion_refuses_check_and_is_quiet_when_satisfied() {
     assert!(output.status.success(), "{output:?}");
     assert_eq!(parsed(&output)["predictionSummary"], Value::Null);
 }
+
+#[test]
+fn check_explains_held_dispatch_and_generates_the_client_marker() {
+    let p = Project::new();
+    p.source("query heldValue() held:\n  return [1, 2]\n");
+    let checked = p.run(&["check"]);
+    assert!(checked.status.success(), "{}", String::from_utf8_lossy(&checked.stderr));
+    assert!(String::from_utf8_lossy(&checked.stdout).contains("heldValue: runs: device (held; server refuses E_QUERY_HELD; no server fallback)"));
+    let api = fs::read_to_string(p.0.join("snapback/generated/api.ts")).unwrap();
+    assert!(api.contains("held: true") && api.contains("Read.cut: meter | words | null"), "{api}");
+    let checked = p.run(&["check", "--json"]);
+    let json: Value = serde_json::from_slice(&checked.stdout).unwrap();
+    assert_eq!(json["heldQueries"], json!(["heldValue"]));
+}

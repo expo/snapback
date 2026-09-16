@@ -77,8 +77,8 @@ export function createMockClient(options: MockOptions): MockClient {
     if (link === "signed-out") return { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } };
     const value = fn(tables, args as never, viewer);
     const fresh = link === "online";
-    if (isPage(value)) return fresh ? { data: value.data as R, complete: true, fresh, next: value.next } : { data: value.data as R, complete: true, fresh, since: lastServer, next: value.next };
-    return fresh ? { data: value as R, complete: true, fresh } : { data: value as R, complete: true, fresh, since: lastServer };
+    if (isPage(value)) return fresh ? { data: value.data as R, complete: true, cut: null, fresh, next: value.next } : { data: value.data as R, complete: true, cut: null, fresh, since: lastServer, next: value.next };
+    return fresh ? { data: value as R, complete: true, cut: null, fresh } : { data: value as R, complete: true, cut: null, fresh, since: lastServer };
   };
 
   function settleOne(entry: (typeof queue)[number]) {

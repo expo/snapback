@@ -31,14 +31,18 @@ export interface Refusal {
   readonly retryable?: boolean;
 }
 
+export type ReadCut = "meter" | "words" | null;
+
 /**
  * A read. `complete` is false beyond a sync horizon or at an online-only site.
+ * `cut` names a meter or word-limit cut; null also covers incomplete reads without a cut.
+ * An empty meter-cut page is partial: retry narrower, or continue if `next` exists.
  * `fresh` is transport truth: the value reflects the server now. When it does
  * not, `since` is the wall-clock time (ms) of the newest server state it does
  * reflect, so a screen can say "as of three minutes ago".
  */
 export type Read<T> =
-  | { readonly data: T; readonly complete: boolean; readonly fresh: boolean; readonly since?: number; readonly next?: Cursor | null; readonly meter?: ReadMeter }
+  | { readonly data: T; readonly complete: boolean; readonly cut: ReadCut; readonly fresh: boolean; readonly since?: number; readonly next?: Cursor | null; readonly meter?: ReadMeter }
   | { readonly loading: true }
   | { readonly denied: Refusal };
 
@@ -104,6 +108,7 @@ export type Link = "online" | "offline" | "signed-out";
 
 /** A named operation. `Args` and `Result` are inferred from the authored program. */
 export interface Op<Args, Result> {
+  readonly held?: boolean;
   readonly runs?: "device" | "server";
   readonly predicts?: "eligible" | "never";
   readonly kind: "query" | "mutation" | "action";

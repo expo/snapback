@@ -939,6 +939,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         #[derive(serde::Serialize)]
                         struct QueryReply<'a> {
                             complete: bool,
+                            cut: Option<snapback4_core::engine::ReadCut>,
                             data: wire::Plain<'a>,
                             next: &'a Option<String>,
                             #[serde(rename = "nextExpiry")]
@@ -954,7 +955,7 @@ fn handle(mut request: Request, shared: &Shared) {
                             let m = outcome.metered;
                             json!({ "examined": m.examined, "indexEntries": m.index_entries, "probes": m.rule_probes, "steps": m.steps, "heapBytes": m.heap_bytes, "outputBytes": m.output_bytes, "rowsWritten": m.rows_written })
                         });
-                        respond(request, 200, QueryReply { complete: outcome.complete, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, tables: &outcome.tables, viewer: &viewer, meter });
+                        respond(request, 200, QueryReply { complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, tables: &outcome.tables, viewer: &viewer, meter });
                     }
                     Err(refusal) => respond(request, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal) })),
                 }

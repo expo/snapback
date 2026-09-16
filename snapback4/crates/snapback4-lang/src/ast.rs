@@ -353,6 +353,7 @@ pub enum ProgramKind {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProgramDecl {
+    pub held: bool,
     pub predicts: bool,
     pub server: bool,
     pub kind: ProgramKind,

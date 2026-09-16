@@ -335,6 +335,7 @@ pub fn operation_lines(name: &str, fact: &Execution) -> String {
         Some(site) => format!("predicts: inserts queue without a row — insert if absent into {} cannot prove absence", site.table),
         None => "predicts: eligible".into(),
     }, _ => "predicts: never; queued without a row".into() };
+    if fact.held { word.push_str(" (held; server refuses E_QUERY_HELD; no server fallback)"); }
     let reads = horizons::reads(fact);
     if fact.predicts.as_deref() == Some("eligible") && !reads.is_empty() {
         word.push_str(&format!("{} past the horizon at {}", if blocked.is_some() { "; also queues" } else { " except" }, reads.join(", ")));
@@ -350,7 +351,7 @@ pub fn operation_lines(name: &str, fact: &Execution) -> String {
             lines.push(format!("    {:?}: {kind} queues without a row: {} (site {}); {}", site.class, site.reason, site.site, inserts::PENDING));
             continue;
         }
-        lines.push(format!("    {:?}: {} (site {}){}", site.class, site.reason, site.site, if site.class == SiteClass::Horizon { if fact.predicts.as_deref() == Some("eligible") { "; may queue without a row past the horizon" } else { "; server past the horizon" } } else { "" }));
+        lines.push(format!("    {:?}: {} (site {}){}", site.class, site.reason, site.site, if site.class == SiteClass::Horizon { if fact.predicts.as_deref() == Some("eligible") { "; may queue without a row past the horizon" } else if fact.held { "; incomplete past the horizon; no server fallback" } else { "; server past the horizon" } } else { "" }));
         if !site.rewrite.is_empty() { lines.push(format!("      rewrite: {}", site.rewrite)); }
     }
     lines.join("\n")
