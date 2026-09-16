@@ -30,7 +30,7 @@ pub fn seed(engine: &mut Engine, followers: usize) {
     engine.seed(super::world::with_pull_counts(rows)).unwrap();
     for (op, input, at) in [
         ("createPost", args(&[("postId", id("new-post"))]), 2),
-        ("repost", args(&[("postId", id(ORIGINAL))]), 3),
+        ("repost", args(&[("eventId", id(ORIGINAL))]), 3),
     ] {
         let result = engine.mutate(op, None, Context::new(AUTHOR, input).at(at).with_ids((0..60).map(|n| format!("{op}-{n:03}")))).unwrap();
         assert!(matches!(result.state, snapback4_core::WriteState::Sent { .. }), "{result:?}");

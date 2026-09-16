@@ -4,7 +4,7 @@ import { api } from "../snapback/generated/api";
 // Pass your app's client (for Expo, await openClient() from ./client).
 // Register during profile creation, before following or creating posts.
 // Existing app with media/reposts: `snapback4 guide feeds`, "Wire into an app".
-// In the app's createPost/repost, insert a recipe reference event (postId is
+// In the app's createPost, insert a recipe reference event (postId is
 // the app post id) and call its deliver helper in the same mutation. Following
 // joins the app's postCard and repost attribution; it copies no body or asset.
 // Bridge the app's follow/unfollow with the recipe's addFollow/dropFollow
@@ -19,9 +19,11 @@ import { api } from "../snapback/generated/api";
 //   a = feedAuthors[viewer] ! else AUTHOR_NOT_FOUND
 //   event = insert feedPosts { id: postId, postId, actorId: viewer, authorId: p.authorId, repost: false, at: p.at, shared: a.shared }
 //   feedDeliver(event)
-// For repost, after creating the app attribution row r and reading original:
-//   event = insert feedPosts { postId, actorId: viewer, authorId: original.authorId, repost: true, at: r.at, shared: a.shared }
-//   feedDeliver(event)
+// For repost, after checking the app card and creating its attribution row:
+//   event = feedPosts[original.authorId, postId, false] ! else POST_NOT_FOUND
+//   feedRepost(event.id)
+// feedRepost(eventId: feedPosts) takes the source event id; resolve it from
+// the app post as above. It delivers the new attributed event atomically.
 // After the app's merge, join its card and attribution:
 //   return entries { *, post: posts[.postId] postCard, attribution: reposts[.actorId, .postId] }
 // The app edge insert/delete and feedAddFollow(authorId)/feedDropFollow(authorId)

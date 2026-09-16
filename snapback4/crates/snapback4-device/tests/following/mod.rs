@@ -69,8 +69,8 @@ fn following_streams_backfill_purge_own_posts_and_reposts() {
         assert_eq!(local["complete"], true);
         assert_eq!(local["data"].as_array().unwrap().len(), 20);
         let before = engine.seq().unwrap();
-        world::mutate(&mut engine, "repost", "dev:bob", &[("postId", world::id("p24"))], 70);
-        world::mutate(&mut engine, "repost", "dev:bob", &[("postId", world::id("p24"))], 71);
+        world::mutate(&mut engine, "repost", "dev:bob", &[("eventId", world::id("p24"))], 70);
+        world::mutate(&mut engine, "repost", "dev:bob", &[("eventId", world::id("p24"))], 71);
         world::mutate(&mut engine, "unfollow", "dev:bob", &[("authorId", world::id("dev:alice"))], 72);
         ok(apply(&mut *device, &stream_page(&mut engine, "dev:bob", before), false));
         let local = query(&mut *device, "following", "dev:bob", serde_json::json!({}), 75);

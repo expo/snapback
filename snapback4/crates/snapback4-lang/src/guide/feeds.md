@@ -2,6 +2,7 @@
 
 > Adopt: `snapback4 init --recipe feeds --prefix feed`\
 > Writes `snapback/feed.q` and typed `src/following.ts`; then run `snapback4 check`.\
+> After loading your fixture: `snapback4 test --residency --fixture fixture --as <principal>`.\
 > A read-time merge is fine when the follow count is bounded small.
 
 Add it to an existing project, including `init --expo`, or start an empty
@@ -36,8 +37,15 @@ snapback4 init --recipe feeds --prefix feed --authors 1008 --edges 5921
 ```
 
 `init` prints every written cap, including the fixed per-account caps, on
-its stdout line. `--authors N` and `--edges N` set the global author and
+its stdout line, plus `backfill/author`. A successful install prints the
+cold-row measurement command once; subsequent checks do not repeat it.
+Replace `fixture` and `<principal>` with your fixture directory and reader.
+`--authors N` and `--edges N` set the global author and
 follow-edge caps; omitted flags keep 1,000 and 100,000 respectively.
+The newest-event backfill bound is `min(authors, 1000)`: 1,000 by default
+and for `--authors 1008`, or 50 for `--authors 50`. An edges-only install
+uses the default author count. The 1,000-event per-actor cap and scan/purge
+bounds stay coupled; growing the global author cap cannot exceed them.
 They change only the installed module, not the app's own tables. For room
 beyond this fixture, use `--authors 2000 --edges 200000`. Grow the app's
 profile and follow caps too if they would otherwise refuse first.
@@ -56,12 +64,12 @@ rows in one operation. The runtime meters still decide each operation.
 | Pull routes / online counts | Both global caps grow to `32 × authors` (32,000 by default). Routes cost server storage and at most 32 acquired rows for their reader; each installed reader's count costs one server-only row and no acquisition. Unregistered readers can follow too, so this remains a finite global routing budget, not a guarantee for every possible graph. |
 | Source events / broadcast / tombstones | Fixed globals: 60,000 / 32,000 / 32,000. Every stored row reaches every device. Removal temporarily adds a tombstone until the purge finishes. App post cards and repost attribution add their own acquisition. |
 | Follows per reader / followers per author | Both stay at 1,000. The follower cap, promotion/delivery loops, inbox's 1,001 copies per event and purge loop must grow together if edited by hand; larger writes can hit the unchanged meter. |
-| Events and tombstones per actor / inbox per reader and actor | Each stays at 1,000. Source-event and inbox group caps must agree with the 1,000-row backfill/unfollow loops; a follow still copies only the newest 200 events. |
+| Events and tombstones per actor / inbox per reader and actor | Each stays at 1,000. Source-event and inbox group caps must agree with the 1,000-row backfill/unfollow loops; a follow copies the newest `min(authors, 1000)` events. |
 | Inbox per reader / pulls per reader | Fixed at 50,000 / 32. The former bounds private cold acquisition; the latter bounds the merge's pulled lanes and its per-read work. Growing them requires revisiting the query and its meter, not just global sizing. |
 
 Small accounts write each reader's private inbox. On the 51st follower,
 future events go into one public broadcast projection; the earlier events
-keep their delivery mode. Follow backfills the latest 200 source events,
+keep their delivery mode. Follow backfills the latest 1,000 source events by default,
 and unfollow deletes every private entry by that actor and drops the pull
 lane. The reader's own posts and reposts need no self-follow edge.
 Entries carry the app post ID and attribution, without copying a text body.
@@ -243,7 +251,7 @@ fn addFollow(authorId: principal):
         tryPull(f.followerId, authorId)
   visited = 0
   for p in posts[authorId] last 1000 by byActorTime:
-    if visited = 200:
+    if visited = 1000:
       break
     visited = visited + 1
     if not p.shared:
@@ -291,8 +299,8 @@ mutation createPost(postId: id):
   deliver(p)
   return { id: p.id }
 
-mutation repost(postId: posts):
-  original = posts[postId] ! else POST_NOT_FOUND
+mutation repost(eventId: posts):
+  original = posts[eventId] ! else POST_NOT_FOUND
   require not original.repost else ORIGINAL_REQUIRED
   if exists posts[viewer, original.postId, true]:
     return null
@@ -421,7 +429,7 @@ Limits: 1,000 follows per account, 1,000 source events per actor, 50,000
 private entries per reader, 32 pulled authors per reader and 32,000 public
 broadcast entries, and 32,000 pending tombstones (1,000 per actor); reaching
 a cap refuses the write atomically, so archive
-or redesign before exceeding this envelope. A follow backfills 200 events,
+or redesign before exceeding this envelope. A default follow backfills at most 1,000 events,
 not an unlimited historical archive. Public broadcast rows reach every
 device; at the measured envelope that is 200 rows, plus any pending removal
 tombstones. Cleanup is a bounded job; no exact horizon maintenance is involved.
@@ -532,8 +540,13 @@ Only `feedFollowing` remains client-callable in the prefixed recipe; the
 purge job runs as the system, and every former mutation is a `fn` helper
 so clients cannot bypass the app's post validation or follow bridge.
 Generated `src/following.ts` exports only the Following query wrapper.
-Both `createPost` and `repost` insert one reference event and call
-`feedDeliver(event)` in the same transaction. The recipe never owns or copies
+`createPost` inserts one reference event and calls `feedDeliver(event)`;
+`repost` resolves the original reference event and calls `feedRepost(event.id)`
+in the same transaction. The helper takes `eventId: feedPosts`, not an app
+`posts` reference; these IDs may differ. It creates and delivers the attributed
+event. The app checks the original card and owns its repost attribution.
+A new repost needs the original source event; existing reposts survive its removal.
+The recipe never owns or copies
 the media asset; Following joins `posts[.postId] postCard` and app repost
 attribution at read time. Keep the merge in the app's query so its cursor
 belongs to that query.
@@ -544,14 +557,15 @@ Route all future follow changes through them, and backfill existing edges
 through the same helpers before switching Following to this query. Register
 existing authors first; backfill their existing post/repost reference events
 before those edges so follow backfill can find them. Respect the recipe's
-200-event backfill and caps. The unprefixed recipe keeps its standalone
+installed backfill bound and caps. The unprefixed recipe keeps its standalone
 operations for a standalone reference-event model. A prefixed install exposes
 only the app's bridged mutations; `feedRegister()` belongs inside `saveProfile`.
-Call `feedDeliver` once per newly inserted event. Copy inserts are unconditional:
+Call `feedDeliver` once per event the app inserts; `feedRepost` delivers its own
+new event. Copy inserts are unconditional:
 a new source or new follow already establishes that this delivery is new,
 without an unknowable `if absent` probe into another reader's private inbox.
 The backfill loop covers the 1,000-event schema cap and stops after the
-newest 200 events; promotion and delivery loops cover the graph cap.
+newest `min(authors, 1000)` events; promotion and delivery loops cover the graph cap.
 Follow and unfollow queue because their slot accounting is online-only;
 profile saves and post creation remain eligible after acquisition.
 New follow edges record `at: now`; an idempotent repeated follow preserves it.
@@ -639,10 +653,9 @@ mutation repost(postId: posts):
   original = posts[postId] ! else POST_NOT_FOUND
   if exists reposts[viewer, postId]:
     return null
-  a = feedAuthors[viewer] ! else AUTHOR_NOT_FOUND
+  event = feedPosts[original.authorId, postId, false] ! else POST_NOT_FOUND
   r = insert reposts { actorId: viewer, postId, at: now }
-  event = insert feedPosts { postId, actorId: viewer, authorId: original.authorId, repost: true, at: r.at, shared: a.shared }
-  feedDeliver(event)
+  feedRepost(event.id)
   return { id: r.id }
 
 mutation deletePost(postId: posts):

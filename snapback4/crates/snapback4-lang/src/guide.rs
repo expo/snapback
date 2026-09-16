@@ -848,6 +848,9 @@ query expiringStories(c: cursor ?):
   return stories[viewer] after c last 20 by byAuthorTime { id, body, expiresAt }
 ```
 
+A typing indicator or presence row with a short deadline needs this local
+filter: hide it at its deadline, even while the next answer is still pending.
+`guide reads` carries a compilable typing table and its 4,500 ms deadline.
 A row already returned stays in that answer until the next answer; a live
 reader that must hide it at its deadline drops it locally by `expiresAt`.
 The server will not return the row again after expiry, but does not push a

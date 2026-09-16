@@ -64,7 +64,7 @@ fn following_removal_purges_promoted_pushes_and_allows_fresh_reposts() {
             assert!(page.data.as_array().unwrap().is_empty(), "removed events vanished before purge");
             assert!(page.next.is_none());
         }
-        world::mutate(&mut e, "repost", case::AUTHOR, &[("postId", world::id(case::ORIGINAL))], 7);
+        world::mutate(&mut e, "repost", case::AUTHOR, &[("eventId", world::id(case::ORIGINAL))], 7);
         let fresh = case::repost_id(&e);
         assert!(!events.contains(&fresh));
         for viewer in std::iter::once(case::AUTHOR.to_owned()).chain((0..followers).map(case::reader)) {
@@ -81,7 +81,7 @@ fn following_removal_purges_promoted_pushes_and_allows_fresh_reposts() {
         }
         world::mutate(&mut e, "unrepost", case::AUTHOR, &[("postId", world::id(case::ORIGINAL))], 8);
         e.run_job("purgeRemoved", BTreeMap::new(), 60_003).unwrap();
-        world::mutate(&mut e, "repost", case::AUTHOR, &[("postId", world::id(case::ORIGINAL))], 9);
+        world::mutate(&mut e, "repost", case::AUTHOR, &[("eventId", world::id(case::ORIGINAL))], 9);
         assert_ne!(case::repost_id(&e), fresh, "re-repost also works after purge");
     }
 }

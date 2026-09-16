@@ -17,6 +17,8 @@ pub fn valid_prefix(prefix: &str) -> bool {
 pub struct FollowingCaps { authors: u32, edges: u32, routes: u32 }
 
 impl FollowingCaps {
+    fn backfill(self) -> u32 { self.authors.min(1000) }
+
     pub fn parse(authors: Option<&str>, edges: Option<&str>) -> Result<Self, String> {
         fn number(flag: &str, value: Option<&str>, default: u32) -> Result<u32, String> {
             match value {
@@ -39,7 +41,7 @@ impl FollowingCaps {
     }
 
     pub fn summary(self) -> String {
-        format!("authors={}, edges={}, pulls={}, pullCounts={}, sourceEvents=60000, broadcast=32000, tombstones=32000; follows/reader=1000, followers/author=1000, events/actor=1000, tombstones/actor=1000, pulls/reader=32, inbox/reader=50000, inbox/reader/actor=1000, inbox/event=1001", self.authors, self.edges, self.routes, self.routes)
+        format!("authors={}, edges={}, pulls={}, pullCounts={}, sourceEvents=60000, broadcast=32000, tombstones=32000; follows/reader=1000, followers/author=1000, events/actor=1000, tombstones/actor=1000, pulls/reader=32, inbox/reader=50000, inbox/reader/actor=1000, inbox/event=1001; backfill/author={}", self.authors, self.edges, self.routes, self.routes, self.backfill())
     }
 }
 
@@ -49,7 +51,7 @@ pub fn following(prefix: &str, module: &str) -> Result<String, String> {
 
 pub fn following_sized(prefix: &str, module: &str, caps: FollowingCaps) -> Result<String, String> {
     let source = crate::guide::quarry(crate::guide::card("feeds").unwrap()).remove(0);
-    // @ref LLP 3000.007#20.3 — scale global metadata together without enlarging the bounded delivery, backfill or purge loops.
+    // @ref LLP 3000.007#20.3 — scale metadata and follow backfill together within the existing per-actor event cap and loop bounds.
     let (doc, errors) = crate::parse_document("feed.q", &source);
     if !errors.is_empty() { return Err(errors.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n")); }
     let mut lines = source.lines().map(str::to_owned).collect::<Vec<_>>();
@@ -58,6 +60,16 @@ pub fn following_sized(prefix: &str, module: &str, caps: FollowingCaps) -> Resul
         let cap = table.caps.iter().find(|c| c.by.is_empty()).expect("recipe global cap");
         lines[cap.site.line as usize - 1] = format!("  cap {max}");
     }
+    let follow = doc.functions.iter().find(|f| f.name == "addFollow").expect("recipe follow helper");
+    let FunctionBody::Block(body) = &follow.body else { unreachable!("recipe follow body") };
+    let stop = body.iter().find_map(|stmt| match stmt {
+        Stmt::For { domain: Expr::Read(read), body, .. } if read.table == "posts" => body.iter().find_map(|stmt| match stmt {
+            Stmt::If { condition: Expr::Binary { left, .. }, site, .. } if matches!(left.as_ref(), Expr::Name { name, .. } if name == "visited") => Some(site),
+            _ => None,
+        }),
+        _ => None,
+    }).expect("recipe backfill stop");
+    lines[stop.line as usize - 1] = format!("    if visited = {}:", caps.backfill());
     let source = lines.join("\n") + "\n";
     // @ref LLP 3000.007#20.3 — a wired app owns mutation authority; installed recipe operations are helpers, never a second client write API.
     let source = if prefix.is_empty() { source } else {

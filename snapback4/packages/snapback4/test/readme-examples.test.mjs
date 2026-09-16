@@ -139,3 +139,24 @@ test("W9a expiry client form drops deadlines locally and keeps null lifetimes", 
     assert.equal(rows.length, 3, "the received answer stays intact; rendering drops the expired row");
   }
 });
+
+test("W10b typing guidance hides a short-lived row before the next answer", () => {
+  for (const path of ["../../crates/snapback4-lang/src/guide/reads.rs", "../../crates/snapback4-lang/src/guide.rs", "CLIENT-AND-OPERATIONS.md"]) {
+    const text = read(join(root, path));
+    assert.match(text, /typing indicator/);
+    assert.match(text, /presence row/);
+    const source = text.match(/const paint = [^\n]+\n\s*paint\(\); const timers = [^\n]+/)?.[0];
+    let now = 1000;
+    const rows = [{ principal: "alice", expiresAt: 5500 }], painted = [], timers = [];
+    runInNewContext(source, {
+      rows, render: visible => painted.push(Array.from(visible, row => row.principal)), Date: { now: () => now },
+      setTimeout: (fn, delay) => { timers.push({ fn, delay }); return timers.length; },
+    });
+    assert.deepEqual(painted, [["alice"]]);
+    assert.equal(timers[0].delay, 4500);
+    now = 5500;
+    timers[0].fn();
+    assert.deepEqual(painted.at(-1), []);
+    assert.equal(rows.length, 1, "no replacement answer or server removal arrived");
+  }
+});

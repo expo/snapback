@@ -17,6 +17,22 @@ pub fn built() -> snapback4_lang::Bound {
     assert_eq!(bound.schema.operations["social.following"].runs.as_deref(), Some("device"));
     bound
 }
+
+pub fn repost_helper_engine() -> Engine {
+    use snapback4_core::value::object;
+    let recipe = snapback4_lang::recipe::following("feed", "feed").unwrap();
+    assert!(recipe.contains("fn feedRepost(eventId: feedPosts):"), "the helper must name its event reference");
+    assert!(app().contains("feedRepost(event.id)"), "the wired example must call the installed helper");
+    let bound = built();
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    for who in ["author", "reader"] { mutate(&mut engine, "register", who, &[], 1); }
+    // Distinct ids ensure the wired call resolves a feed event, not an app post.
+    engine.seed([
+        ("posts".into(), object([("id", id("app-post")), ("authorId", id("author")), ("body", Value::String("hello".into())), ("at", Value::Int(2))])),
+        ("feedPosts".into(), object([("id", id("source-event")), ("postId", id("app-post")), ("authorId", id("author")), ("actorId", id("author")), ("repost", Value::Bool(false)), ("at", Value::Int(2)), ("shared", Value::Bool(false))])),
+    ]).unwrap();
+    engine
+}
 pub fn context(viewer: &str, values: &[(&str, Value)]) -> Context {
     Context::new(viewer, values.iter().map(|(k, v)| ((*k).into(), v.clone())).collect()).at(100_000)
 }

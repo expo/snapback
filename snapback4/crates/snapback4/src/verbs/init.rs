@@ -121,6 +121,8 @@ pub fn init(options: &Options) -> i32 {
     }
     let cap_summary = if recipe.is_some() { format!(" — caps: {}", caps.summary()) } else { String::new() };
     println!("init: wrote {} files in {} — {}{}{cap_summary} — next: `snapback4 check`, then `snapback4 dev`{}", files.len(), dir.display(), if recipe_only { "Following recipe" } else if expo { "Expo: native when available, online in Expo Go" } else if online { "online-only" } else { "local-first" }, if recipe.is_some() && !recipe_only { " + Following recipe" } else { "" }, if expo || online { "; see README.md" } else { "" });
+    // @ref LLP 3000.007#6.8 — measure fixture acquisition when the recipe is installed; ordinary checks stay quiet.
+    if recipe.is_some() { println!("cold rows: snapback4 test --residency --fixture fixture --as <principal>"); }
     0
 }
 

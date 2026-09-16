@@ -500,6 +500,76 @@ fn w8b_sized_recipe_compiles_without_notes() {
 }
 
 #[test]
+fn w10b_sizing_carries_the_backfill_bound_and_refuses_incoherent_caps() {
+    for (flags, backfill) in [(vec![], 1000), (vec!["--authors", "1008", "--edges", "5921"], 1000),
+        (vec!["--authors", "2000"], 1000), (vec!["--edges", "2000"], 1000), (vec!["--authors", "50", "--edges", "1000"], 50)] {
+        for prefix in ["", "feed"] {
+            let dir = Dir::new();
+            let mut flags = flags.clone();
+            if !prefix.is_empty() { flags.extend(["--prefix", prefix]); }
+            let installed = recipe(&dir, &flags);
+            assert!(installed.status.success(), "{installed:?}");
+            let source = fs::read_to_string(dir.0.join("snapback/feed.q")).unwrap();
+            assert!(source.contains(&format!("    if visited = {backfill}:")), "{flags:?}: stale backfill bound");
+            let name = |n| snapback4_lang::recipe::prefixed_name(prefix, n);
+            let bridge = format!("mutation followForTest(authorId: principal):\n  {}(authorId)\nmutation unfollowForTest(authorId: principal):\n  {}(authorId)\n", name("addFollow"), name("dropFollow"));
+            let bound = snapback4_lang::compile(&[("feed.q".into(), source), ("test.q".into(), bridge)]);
+            assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?} {:?}", bound.diagnostics, bound.notes);
+            assert!(String::from_utf8_lossy(&installed.stdout).contains(&format!("backfill/author={backfill}")));
+            if flags.contains(&"--authors") && prefix == "feed" {
+                use snapback4_core::{Context, Engine, Value, WriteState, value::object};
+                let id = |s: &str| Value::Id(s.into());
+                let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+                let mut rows = vec![(name("authors"), object([("id", id("author")), ("principal", id("author")), ("shared", Value::Bool(false))]))];
+                for n in 0..1000 {
+                    rows.push((name("posts"), object([("id", id(&format!("event-{n:04}"))), ("postId", id(&format!("post-{n:04}"))),
+                        ("actorId", id("author")), ("authorId", id("author")), ("repost", Value::Bool(false)), ("shared", Value::Bool(false)), ("at", Value::Int(n))])));
+                }
+                engine.seed(rows).unwrap();
+                let context = || Context::new("reader", [("authorId".into(), id("author"))].into()).at(2000);
+                let followed = engine.mutate("test.followForTest", None, context()).unwrap();
+                assert!(matches!(followed.state, WriteState::Sent { .. }), "{followed:?}");
+                let copied = engine.store().rows(&name("feed")).unwrap();
+                assert_eq!(copied.len(), backfill);
+                assert!(copied.iter().all(|row| row.field("at").unwrap().as_int().unwrap() >= 1000 - backfill as i64));
+                println!("W10b backfill={backfill} examined={} index={} written={}", followed.metered.examined, followed.metered.index_entries, followed.metered.rows_written);
+                assert!(matches!(engine.mutate("test.followForTest", None, context()).unwrap().state, WriteState::Sent { .. }));
+                assert_eq!(engine.store().rows(&name("feed")).unwrap().len(), backfill);
+                assert!(matches!(engine.mutate("test.unfollowForTest", None, context()).unwrap().state, WriteState::Sent { .. }));
+                assert!(engine.store().rows(&name("feed")).unwrap().is_empty());
+            }
+        }
+    }
+    let dir = Dir::new();
+    let refused = recipe(&dir, &["--authors", "50", "--edges", "50001"]);
+    assert_eq!(refused.status.code(), Some(2));
+    assert_eq!(String::from_utf8_lossy(&refused.stderr), "E_RECIPE_CAPS: --edges 50001 exceeds --authors 50 * 1000 followers/author; grow --authors or reduce --edges; see snapback4 guide feeds\n");
+    assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0);
+}
+
+#[test]
+fn w10b_residency_pointer_prints_once_at_recipe_install() {
+    let pointer = "cold rows: snapback4 test --residency --fixture fixture --as <principal>";
+    for existing in [false, true] {
+        let dir = Dir::new();
+        if existing { assert!(dir.run("").status.success()); }
+        let installed = recipe(&dir, &["--prefix", "feed"]);
+        assert!(installed.status.success(), "{installed:?}");
+        assert_eq!(String::from_utf8_lossy(&installed.stdout).lines().filter(|line| *line == pointer).count(), 1);
+        let repeated = recipe(&dir, &["--prefix", "feed"]);
+        assert!(!repeated.status.success());
+        assert!(!String::from_utf8_lossy(&repeated.stdout).contains(pointer));
+        for _ in 0..2 {
+            let checked = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
+            assert!(checked.status.success(), "{checked:?}");
+            assert!(!String::from_utf8_lossy(&checked.stdout).contains(pointer));
+        }
+    }
+    let dir = Dir::new();
+    assert!(!String::from_utf8_lossy(&dir.run("").stdout).contains(pointer));
+}
+
+#[test]
 fn w8b_incoherent_feed_caps_refuse_before_writing() {
     for flags in [vec!["--authors", "1", "--edges", "1001"], vec!["--authors", "0"], vec!["--edges", "0"],
         vec!["--authors"], vec!["--edges", "nope"], vec!["--authors", "4294967295"], vec!["--edges", "-1"], vec!["--authors", "1", "--edges", "1000"]] {

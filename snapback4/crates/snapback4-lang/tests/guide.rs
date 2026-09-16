@@ -66,6 +66,24 @@ fn w10a_effect_and_job_names_are_explained_where_a_module_declares_both() {
     }
 }
 
+#[test]
+fn w10b_typing_card_compiles_and_expires_at_the_deadline() {
+    let reads = card("reads").unwrap();
+    let source = quarry(reads).into_iter().find(|block| block.contains("table typing:")).expect("typing needs a worked expiry example");
+    let bound = clean("typing", &in_context(&source));
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed([
+        ("rooms".into(), snapback4_core::value::object([("id", id("room"))])),
+        ("members".into(), snapback4_core::value::object([("id", id("member")), ("roomId", id("room")), ("principal", id("alice"))])),
+    ]).unwrap();
+    sent(&engine.mutate("setTyping", None, Context::new("alice", args(&[("roomId", id("room"))])).at(1000)).unwrap());
+    let query = |now| Context::new("alice", args(&[("roomId", id("room"))])).at(now);
+    let before = engine.query("typingNow", query(5499)).unwrap();
+    assert_eq!(before.data.as_array().unwrap().len(), 1);
+    assert_eq!(before.data.as_array().unwrap()[0].field("expiresAt").unwrap(), &Value::Int(5500));
+    assert!(engine.query("typingNow", query(5500)).unwrap().data.as_array().unwrap().is_empty());
+}
+
 fn compile(source: &str) -> snapback4_lang::Bound {
     snapback4_lang::compile(&[("schema.q".to_owned(), source.to_owned())])
 }
