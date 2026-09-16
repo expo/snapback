@@ -12,6 +12,37 @@ fn clean(source: &str) -> Bound {
 fn online() -> String { SOURCE.replace("  read <- allow", "  read <- allow\n  online only") }
 
 #[test]
+fn w9r1b_after_insert_sites_keep_each_constraint_declaration() {
+    let source = "table permits:\n  owner: principal\n  team: principal\n  unique byOwner: owner\n  unique byTeam: team\n  public 'permits'\n  sync\ntable actions:\n  owner: principal\n  team: principal\n  immutable owner\n  public 'actions'\n  sync\n  insert <- allow\n  after insert <- exists permits[.owner] by byOwner\n  after insert <- exists permits[.team] by byTeam\nmutation act():\n  insert actions { owner: viewer, team: viewer }\n";
+    for second_index in ["byTeam", "byOwner"] {
+        let b = clean(&source.replace("permits[.team] by byTeam", &format!("permits[.team] by {second_index}")));
+        let sites: Vec<_> = b.schema.operations["act"].sites.iter().filter(|site| site.kind == "rule").map(|site| (site.index.as_str(), site.site.clone())).collect();
+        println!("after-insert {second_index}: {sites:?}");
+        assert_eq!(sites, [
+            ("byOwner", "schema.q:15:3 (actions after insert rule: permits by byOwner)".into()),
+            (second_index, format!("schema.q:16:3 (actions after insert rule: permits by {second_index})")),
+        ]);
+    }
+}
+
+#[test]
+fn w9r1b_insert_if_absent_rule_points_to_insert_declaration() {
+    let source = "table permits:\n  owner: principal\n  unique byOwner: owner\n  public 'permits'\n  sync\ntable actions:\n  owner: principal\n  unique byOwner: owner\n  public 'actions'\n  sync\n  insert <- exists permits[.owner]\nmutation act():\n  return insert actions { owner: viewer } if absent\n";
+    let b = clean(source);
+    let sites: Vec<_> = b.schema.operations["act"].sites.iter().filter(|site| site.kind == "rule").map(|site| site.site.as_str()).collect();
+    println!("insert-if-absent: {sites:?}");
+    assert_eq!(sites, ["schema.q:11:3 (actions insert rule: permits by byOwner)"]);
+    let (document, mut diagnostics) = snapback4_lang::parser::parse_document("schema.q", source);
+    let catalog = snapback4_lang::bind::catalog::Catalog::build(vec![document], &mut diagnostics);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    for effect in ["insert", "insert-if-absent", "insert if absent"] {
+        let site = catalog.site_for(&format!("tables.actions.rules.{effect}"));
+        println!("{effect}: {site}");
+        assert_eq!(site.to_string(), "schema.q:11:3");
+    }
+}
+
+#[test]
 fn w9b_residency_sites_name_sources_for_rules_writes_presence_and_native() {
     let rule = include_str!("fixtures/rule-live-horizon.q");
     let sources = [

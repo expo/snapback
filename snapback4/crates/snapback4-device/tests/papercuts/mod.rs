@@ -48,8 +48,68 @@ fn w9c_unique_hook_and_legacy_refusals_on_both_stores() {
             assert_eq!(rows(&query(&mut *device, "all", "alice", json!({}), 100)).len(), 1);
             let positive = ok(device.call(json!({"op":"predict", "name":"create", "viewer":"alice", "args":{"handle":"bob"}, "newIds":["p3"], "now":100})));
             assert_eq!(positive["result"]["handle"], "bob");
-            println!("{label} refusal: {}: {}; distinct handle predicts", predicted["denied"]["code"].as_str().unwrap(), message);
+            let before = rows(&query(&mut *device, "all", "alice", json!({}), 100)).clone();
+            let rename = ok(device.call(json!({"op":"predict", "name":"rename", "viewer":"alice", "args":{"profile":"p3", "handle":"alice"}, "newIds":[], "now":100})));
+            assert_eq!(rename["denied"], predicted["denied"], "{label}: update keeps the insert collision's code, message and detail");
+            assert_eq!(rows(&query(&mut *device, "all", "alice", json!({}), 100)), &before, "{label}: a refused update rolls back");
+            let absent = ok(device.call(json!({"op":"predict", "name":"tryCreate", "viewer":"alice", "args":{"handle":"alice"}, "newIds":["p4"], "now":100})));
+            assert!(absent.get("denied").is_none(), "{label}: {absent}");
+            assert_eq!(absent.get("result"), Some(&json!(null)));
+            assert_eq!(absent["predicted"], json!([]));
+            assert_eq!(rows(&query(&mut *device, "all", "alice", json!({}), 100)), &before);
+            let renamed = ok(device.call(json!({"op":"predict", "name":"rename", "viewer":"alice", "args":{"profile":"p3", "handle":"carol"}, "newIds":[], "now":100})));
+            assert!(renamed.get("denied").is_none(), "{label}: {renamed}");
+            assert_eq!(renamed["predicted"], json!(["profiles/p3"]));
+            assert!(rows(&query(&mut *device, "all", "alice", json!({}), 100)).iter().any(|row| row["id"] == "p3" && row["handle"] == "carol"));
+            let created = ok(device.call(json!({"op":"predict", "name":"tryCreate", "viewer":"alice", "args":{"handle":"dave"}, "newIds":["p5"], "now":100})));
+            assert_eq!(created["result"]["handle"], "dave");
+            assert_eq!(created["predicted"], json!(["profiles/p5"]));
+            assert_eq!(rows(&query(&mut *device, "all", "alice", json!({}), 100)).len(), 3);
+            println!("{label} refusal: {}: {}; create and update collisions agree; if absent returns null; all 3 distinct writes predict", predicted["denied"]["code"].as_str().unwrap(), message);
             device.close();
+        }
+    });
+}
+
+#[test]
+fn w9r1b_hidden_unique_collisions_queue_and_settle_on_both_stores() {
+    let source = profiles(" else HANDLE_TAKEN 'That handle is taken.'").replace("  public 'profiles'", "  owner: principal default viewer\n  read <- .owner = viewer").replace("  sync\n", "  by byOwner: owner, id\n  sync to .owner\n");
+    on_both(|host| {
+        for name in ["create", "rename", "tryCreate"] {
+            for handle in ["alice", "available"] {
+                let (mut engine, backend) = compile(&source);
+                engine.seed([json!({"id":"p1", "handle":"alice", "owner":"alice"}), json!({"id":"p3", "handle":"bob", "owner":"bob"})].into_iter().map(|row| {
+                    ("profiles".into(), snapback4_core::wire::row_from_json(&backend.schema.tables["profiles"], &row).unwrap())
+                })).unwrap();
+                let label = host.label();
+                let mut device = host.open(&format!("hidden-{name}-{handle}"), Some(backend)).unwrap();
+                for (n, page) in snapshot_pages(&mut engine, "bob", 10).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
+                let input = if name == "rename" { json!({"profile":"p3", "handle":handle}) } else { json!({"handle":handle}) };
+                let entry = Queued { id: "write".into(), seq: 1, op: name.into(), args: input, viewer: "bob".into(), now: 100, new_ids: vec!["p2".into()], predicted: vec![], predictable: true, sent_seq: None, observed_seq: None };
+                let queued = ok(device.call(json!({"op":"admit", "entry":entry})));
+                let pending = query(&mut *device, "all", "bob", json!({}), 100);
+                assert!(rows(&pending).iter().all(|row| row["owner"] == "bob"), "{label}/{name}: predictions cannot reveal the hidden row");
+                let args = if name == "rename" { vec![("profile", id("p3")), ("handle", Value::String(handle.into()))] } else { vec![("handle", Value::String(handle.into()))] };
+                let result = engine.mutate(name, Some("write"), context("bob", &args).at(100).with_ids(["p2".into()])).unwrap();
+                let seq = match result.state {
+                    WriteState::Failed { why, .. } => {
+                        assert_eq!(handle, "alice");
+                        assert_eq!(why.code, "E_RULE");
+                        assert!(why.detail.is_none());
+                        assert!(!why.message.contains("byHandle"));
+                        None
+                    }
+                    WriteState::Sent { seq, .. } => { assert_eq!(handle, "available"); Some(seq) }
+                };
+                ok(device.call(json!({"op":"settle", "id":"write", "seq":seq})));
+                for (n, page) in snapshot_pages(&mut engine, "bob", 10).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
+                let read = query(&mut *device, "all", "bob", json!({}), 100);
+                assert!(rows(&read).iter().all(|row| row["owner"] == "bob"));
+                assert_eq!(rows(&read).iter().any(|row| row["handle"] == "available"), handle == "available");
+                if seq.is_none() { assert_eq!(rows(&read).iter().map(|row| row["handle"].as_str().unwrap()).collect::<Vec<_>>(), ["bob"]); }
+                println!("{label} {name}/{handle}: predictable={}, settled {}", queued["predictable"], if seq.is_some() { "sent" } else { "E_RULE without detail" });
+                device.close();
+            }
         }
     });
 }

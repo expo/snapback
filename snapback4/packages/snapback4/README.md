@@ -1777,6 +1777,8 @@ An explicit `require … else CODE` still refuses with the program's code.
 For a live page of expiring rows, select `expiresAt` in the query and pass
 its ready rows to this renderer. It filters on the client's clock and
 schedules a render at each deadline, without waiting for a server answer.
+The local client reschedules its watch at `Read.nextExpiry`; keep the render
+filter so the row hides at its deadline rather than at the refetch.
 Call the returned cleanup before replacing the answer or unmounting.
 This example is for short-lived rows; JavaScript timer scheduling applies.
 
@@ -2465,7 +2467,11 @@ step.
   operation's arguments, result and cost, or a table's rules, sync line,
   expire column and indexes. For a code it also prints the card paragraph
   naming that code, followed by the full-card command. With no dedicated
-  section, it says so and prints the card's opening prose. The output is
+  section, it says so and prints the card's opening prose. It prefers the first
+  matching diagnostic's guide in the current project; without one, it uses
+  the code's default card. `N_WIDE_MERGE` opens feeds for a Following note,
+  search for a membership-search note, and search without a matching note.
+  The output is
   bounded to 4,096 UTF-8 bytes including the pointer and final newline;
   a shortened excerpt says so. **`data <table> [--limit N]`** prints rows
   as one JSON object per stdout line (50 by default), with any truncation

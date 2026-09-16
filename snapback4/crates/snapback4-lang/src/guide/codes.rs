@@ -96,7 +96,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_NATIVE_BUILD", "family schema — `cargo build` of snapback/native failed; the message is the tail of its output. Build it by hand with the rewrite to see everything."),
     ("E_NATIVE_TRAP", "family native — the module trapped in a chunk: a panic (its text follows), an unreachable, an out-of-bounds memory access. The chunk rolled back and the job is parked; fix the module, `snapback4 check`, and queue the job again."),
     ("N_NO_HORIZON", "a note, not an error — a synced table with no `last N by index` horizon delivers every row of every group a device holds, and keeps delivering as the table grows. Silent when whole-partition reads or insert proofs of eligible mutations depend on that absence of a horizon. For eligible mutations with ascending pages or pages on a different index, names the prediction a horizon would cost instead of recommending it. Otherwise declare `sync ... last 500 by <index>` (older rows remain online; local reads past them say `complete: false`), or bound the group with a `cap`."),
-    ("N_WIDE_MERGE", "a note, not an error — a merge visits every source lane. Uniform plain lanes without setup and with a non-nullable unique index or one ending in id read one head each, then advance the winning lanes; other lanes read a page each. Discovery, rule probes, lookahead, duplicates and expired rows still consume the meter. Inspect structural costs with `snapback4 check --cost`; if a held query answers this read, delete the merge. Relationship-driven merges may benefit from entries per reader (guide feeds). Membership search points to guide search, section 'Search every chat I'm in': one unscoped words index on held messages, or separate membership and result cursors for bounded server batches. A result cursor alone cannot continue undiscovered chats or a meter-cut matching merge."),
+    ("N_WIDE_MERGE", "a note, not an error — a merge visits every source lane. Uniform plain lanes without setup and with a non-nullable unique index or one ending in id read one head each, then advance the winning lanes; other lanes read a page each. Discovery, rule probes, lookahead, duplicates and expired rows still consume the meter. Inspect structural costs with `snapback4 check --cost`; if a held query answers this read, delete the merge. Relationship-driven merges may benefit from entries per reader (guide feeds). `why` opens the first matching diagnostic's card in the current project: feeds for Following, search for membership search; without a matching diagnostic it defaults to search. Membership search points to guide search, section 'Search every chat I'm in': one unscoped words index on held messages, or separate membership and result cursors for bounded server batches. A result cursor alone cannot continue undiscovered chats or a meter-cut matching merge."),
     ("N_NO_CURSOR", "a note, not an error — a query returns a page with no cursor argument, so it cannot continue: when more rows exist than the page holds the card reads `complete: false` with no `next`. Declare `c: cursor ?` and page with `after c`."),
     ("N_SEEK", "a where on the next index column is a seek; write it in the key, with the comparison after the pinned prefix."),
     ("N_SPARSE_FILTER", "an unscoped where pins no index prefix; sparse matches can exhaust the row meter and return short complete: false pages. Pin a leading index key, or use the Following recipe (guide feeds)."),
@@ -114,8 +114,11 @@ pub fn codes() -> Vec<&'static str> {
 pub const WHY_MAX_BYTES: usize = 4096;
 
 pub fn explain_code(code: &str) -> Option<String> {
+    explain_code_with_guide(code, crate::diag::guide_for(code))
+}
+
+pub(crate) fn explain_code_with_guide(code: &str, keyword: &str) -> Option<String> {
     let (_, explanation) = CODES.iter().find(|(name, _)| *name == code)?;
-    let keyword = crate::diag::guide_for(code);
     let card = super::card(keyword)?;
     let paragraphs = prose(card);
     let section = paragraphs.iter().find(|(_, paragraph)| paragraph.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|word| word == code));

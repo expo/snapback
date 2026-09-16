@@ -423,6 +423,17 @@ fn w9b_every_code_has_bounded_card_context_and_a_full_card_command() {
     println!("why: {} codes, maximum {} bytes ({}) / {}", codes().len(), largest.0, largest.1, guide::WHY_MAX_BYTES);
 }
 
+#[test]
+fn w9r1b_diagnostic_card_overrides_the_code_default() {
+    let note = snapback4_lang::diag::Diagnostic::new(&Default::default(), "N_WIDE_MERGE", "wide merge", "bound the lanes");
+    for (keyword, expected) in [("feeds", "feeds"), ("search", "search"), ("", "search")] {
+        let text = note.clone().guide(keyword).explanation().unwrap();
+        assert!(text.ends_with(&format!("Full card: snapback4 guide {expected}")));
+        assert!(text.len() + 1 <= guide::WHY_MAX_BYTES);
+        assert!(!text.contains("```"));
+    }
+}
+
 /// Every guide keyword a diagnostic or a refusal carries names a card.
 #[test]
 fn every_guide_keyword_a_diagnostic_names_is_a_card() {
@@ -738,6 +749,7 @@ fn w9a_expiry_cards_explain_and_select_the_readers_deadline() {
         for sentence in [
             "A row already returned stays in that answer until the next answer; a live reader that must hide it at its deadline drops it locally by `expiresAt`.",
             "The server will not return the row again after expiry, but does not push a removal at the instant of expiry.",
+            "The local client reschedules its watch at `Read.nextExpiry`; keep the render filter so the row hides at its deadline rather than at the refetch.",
         ] { assert!(prose.contains(sentence), "{name}: missing {sentence}"); }
         assert!(text.contains("const paint = () => render(rows.filter(row => row.expiresAt === null || row.expiresAt > Date.now()));\npaint(); const timers = rows.flatMap(row => row.expiresAt === null ? [] : [setTimeout(paint, Math.max(0, row.expiresAt - Date.now()))]);"), "{name}: missing two-line client form");
         let block = quarry(text).into_iter().find(|block| block.contains("query expiring")).expect("compiled expiry query");

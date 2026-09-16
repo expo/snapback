@@ -617,6 +617,11 @@ pub fn why(options: &Options) -> i32 {
         return 2;
     };
     if let Some(explanation) = snapback4_lang::guide::explain_code(subject) {
+        // @ref LLP 3000.007#20.1 — follow the current diagnostic's card when one code spans several recipes.
+        let contextual = std::env::current_dir().ok().and_then(|dir| Project::locate(&dir)).and_then(|project| project.compile().ok()).and_then(|bound| {
+            bound.diagnostics.iter().chain(&bound.notes).find(|diagnostic| diagnostic.code == *subject).and_then(|diagnostic| diagnostic.explanation())
+        });
+        let explanation = contextual.unwrap_or(explanation);
         println!("{explanation}");
         return 0;
     }

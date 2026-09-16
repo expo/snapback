@@ -883,6 +883,8 @@ A row already returned stays in that answer until the next answer; a live
 reader that must hide it at its deadline drops it locally by `expiresAt`.
 The server will not return the row again after expiry, but does not push a
 removal at the instant of expiry. Select the deadline in the query, as above.
+The local client reschedules its watch at `Read.nextExpiry`; keep the render
+filter so the row hides at its deadline rather than at the refetch.
 Given `rows` from a ready answer and your `render` function, render now and
 schedule another render at each non-null deadline (epoch milliseconds):
 
@@ -1480,3 +1482,4 @@ power loss and an unwritable stderr cannot report from inside the process."##,
 /// `require` codes are the author's and are explained by the program.
 mod codes;
 pub use codes::{CODES, WHY_MAX_BYTES, codes, explain_code};
+pub(crate) use codes::explain_code_with_guide;

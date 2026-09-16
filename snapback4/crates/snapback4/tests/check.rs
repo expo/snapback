@@ -8,6 +8,41 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 const SOURCE: &str = "table messages:\n  body: text <=100\n  read <- allow\nquery all():\n  return messages[] first 10 by byId\n";
 const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
+
+#[test]
+fn w9r1b_why_wide_merge_opens_the_notes_card() {
+    let p = Project::new();
+    let feeds = "table follows:\n  reader: principal\n  author: principal\n  unique byPair: reader, author\n  cap 1000 by reader\n  public 'follow graph'\n  online only\ntable entries:\n  actor: principal\n  at: time\n  by byActorTime: actor, at, id\n  public 'posts'\n  online only\nquery following(c: cursor ?):\n  return merge entries after c last 20 by byActorTime:\n    [viewer]\n    [f.author] for f in follows[viewer] first 1000 by byPair\n";
+    let search = format!("{}\nquery searchAll(q: text <=100, c: cursor ?):\n  return merge messages matching q after c last 20 by byRoomWords:\n    [m.roomId] for m in members[viewer] first 1000 by byPrincipalRoom\n", include_str!("../../snapback4-sim/tests/search_merge/schema.q"));
+    for (source, keyword) in [(feeds, "feeds"), (search.as_str(), "search")] {
+        p.source(source);
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let note = bound.notes.iter().find(|note| note.code == "N_WIDE_MERGE").unwrap();
+        assert_eq!(note.guide, keyword);
+        let output = p.run(&["why", "N_WIDE_MERGE"]);
+        assert!(output.status.success(), "{output:?}");
+        let text = String::from_utf8(output.stdout).unwrap();
+        println!("{keyword}: {} bytes\n{text}", text.len());
+        assert!(text.ends_with(&format!("Full card: snapback4 guide {keyword}\n")));
+        assert!(text.lines().any(|line| line.starts_with('#') && snapback4_lang::guide::card(keyword).unwrap().lines().any(|heading| heading == line)));
+        assert!(text.len() <= snapback4_lang::guide::WHY_MAX_BYTES);
+    }
+    p.source(&format!("{feeds}\n{search}"));
+    let mixed = p.run(&["why", "N_WIDE_MERGE"]);
+    assert!(mixed.status.success());
+    assert!(String::from_utf8_lossy(&mixed.stdout).ends_with("Full card: snapback4 guide feeds\n"), "the first matching diagnostic owns the card");
+    for source in [SOURCE, "this is invalid Quarry"] {
+        p.source(source);
+        let fallback = p.run(&["why", "N_WIDE_MERGE"]);
+        assert!(fallback.status.success());
+        assert!(String::from_utf8_lossy(&fallback.stdout).ends_with("Full card: snapback4 guide search\n"));
+    }
+    let standalone = Command::new(BIN).current_dir(std::env::temp_dir()).args(["why", "N_WIDE_MERGE"]).output().unwrap();
+    assert!(standalone.status.success());
+    assert!(String::from_utf8_lossy(&standalone.stdout).ends_with("Full card: snapback4 guide search\n"));
+}
+
 struct Project(PathBuf);
 impl Project {
     fn new() -> Self {

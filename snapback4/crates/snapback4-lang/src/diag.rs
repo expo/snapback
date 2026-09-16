@@ -52,6 +52,12 @@ impl Diagnostic {
         self.guide = guide.to_owned();
         self
     }
+
+    /// A contextual diagnostic owns its card; a code alone uses the default.
+    pub fn explanation(&self) -> Option<String> {
+        let keyword = if self.guide.is_empty() { guide_for(&self.code) } else { &self.guide };
+        crate::guide::explain_code_with_guide(&self.code, keyword)
+    }
 }
 
 impl fmt::Display for Diagnostic {
