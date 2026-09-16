@@ -566,6 +566,7 @@ fn w8c_startup_waits_for_the_adoption_lock_to_clear() {
     host.address = line.trim().trim_start_matches("http://").into();
     assert_eq!(host.query()["data"], 1);
     println!("adoption: startup_retries=1 recovered_generation=1 restarts=0");
+}
 
 #[test]
 fn check_explains_held_dispatch_and_generates_the_client_marker() {
