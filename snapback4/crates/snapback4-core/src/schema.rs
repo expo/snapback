@@ -13,6 +13,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
+mod work;
+pub use work::{ActionSpec, WorkPolicy, WorkSpec};
+
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Schema {
     pub tables: BTreeMap<String, Table>,
@@ -31,6 +34,11 @@ pub struct Schema {
     /// Author refusals keyed by table and unique index; changing wording is not a physical index migration.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub unique_refusals: BTreeMap<String, BTreeMap<String, UniqueRefusal>>,
+    /// Server work contracts; kept outside the interpreter/corpus IR.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub action_specs: BTreeMap<String, ActionSpec>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub effect_specs: BTreeMap<String, WorkSpec>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -101,6 +109,9 @@ pub struct Schedule {
     #[serde(default)]
     pub offset_ms: u64,
     pub target: String,
+    /// Actions require an explicit `service:<name>`; jobs remain system work.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub service: Option<String>,
 }
 
 impl Schedule {
