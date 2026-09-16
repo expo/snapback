@@ -102,17 +102,18 @@ fn horizon_guard_remains_eligible_and_effect_only_presence_can_assert() {
 const FANOUT: &str = "table members:\n  room: id\n  principal: principal\n  by byRoom: room, id\n  cap 50 by room\n  public 'roster'\n  sync\neffect notify\nmutation send(room: id):\n  recipients = []\n  for m in members[room] first 50 by byRoom:\n    if m.principal != viewer:\n      recipients = recipients + [m.principal]\n  for p in recipients:\n    emit notify { recipient: p }\n";
 #[test]
 fn accumulated_recipient_list_fanout_is_located_and_has_a_concrete_rewrite() {
-    let b = bind(FANOUT);
+    let source = FANOUT.replace("  sync\n", "  sync\n  insert <- allow\n").replace("emit notify { recipient: p }", "insert members { room, principal: p }");
+    let b = bind(&source);
     assert_eq!(b.diagnostics.len(), 1, "{:?}", b.diagnostics);
     let d = &b.diagnostics[0];
     println!("{d}");
     assert_eq!(d.code, "E_STRUCTURAL_FANOUT");
-    assert_eq!((d.site.line, d.site.col), (14, 3));
+    assert_eq!((d.site.line, d.site.col), (15, 3));
     assert!(!d.message.contains('$') && !d.message.contains("E_STRUCTURAL_FANOUT"), "{d}");
     assert!(d.message.contains("recipients") && d.message.contains("members") && d.message.contains("50"), "{d}");
     assert_ne!(d.message, d.rewrite);
     assert!(d.rewrite.contains("members[room] first 50 by byRoom"), "{d}");
-    let fixed = FANOUT.replace("  recipients = []\n", "").replace("      recipients = recipients + [m.principal]\n  for p in recipients:\n    emit notify { recipient: p }", "      emit notify { recipient: m.principal }");
+    let fixed = source.replace("  recipients = []\n", "").replace("      recipients = recipients + [m.principal]\n  for p in recipients:\n    insert members { room, principal: p }", "      insert members { room, principal: m.principal }");
     let b = clean(&fixed);
     assert_eq!(b.schema.operations["send"].predicts.as_deref(), Some("eligible"));
     let mut e = Engine::new(Store::memory().unwrap(), b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
@@ -126,12 +127,13 @@ fn accumulated_recipient_list_fanout_is_located_and_has_a_concrete_rewrite() {
 #[test]
 fn a_reused_loop_binding_locates_the_failing_loop() {
     let source = "table members:\n  room: id\n  principal: principal\n  by byRoom: room, id\n  cap 50 by room\n  public 'roster'\n  sync\neffect notify\nmutation send(room: id):\n  recipients = []\n  for m in members[room] first 50 by byRoom:\n    if m.principal != viewer:\n      recipients = recipients + [m.principal]\n  for p in recipients:\n    emit notify { recipient: p }\n  for p in members[room] first 50 by byRoom:\n    emit notify { recipient: p.principal }\n";
-    let b = bind(source);
+    let source = source.replace("  sync\n", "  sync\n  insert <- allow\n").replace("    emit notify { recipient: p }", "    insert members { room, principal: p }");
+    let b = bind(&source);
     assert_eq!(b.diagnostics.len(), 1, "{:?}", b.diagnostics);
     let d = &b.diagnostics[0];
     println!("{d}");
     assert_eq!(d.code, "E_STRUCTURAL_FANOUT");
-    assert_eq!((d.site.line, d.site.col), (14, 3), "{d}");
+    assert_eq!((d.site.line, d.site.col), (15, 3), "{d}");
     assert!(d.message.contains("recipients"), "{d}");
 }
 

@@ -15,6 +15,18 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
     let mut schema = core::Schema::default();
     for info in catalog.tables.values() {
         let table = bind_table(catalog, info, diagnostics);
+        for index in &info.indexes {
+            if let Some((code, message)) = &index.refusal {
+                match super::program::validate_code(&index.site, code) {
+                    Ok(()) => {
+                        schema.unique_refusals.entry(info.decl.name.clone()).or_default().insert(index.name.clone(), core::UniqueRefusal {
+                            code: code.clone(), message: message.clone().unwrap_or_else(|| format!("the program refused with {code}")),
+                        });
+                    }
+                    Err(diagnostic) => diagnostics.push(diagnostic),
+                }
+            }
+        }
         schema.tables.insert(info.decl.name.clone(), table);
     }
     // @ref LLP 3000.007#6.7 — inherit the resolved audience, unless explicitly online only.
@@ -540,7 +552,7 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
         let ty = if computed.contains_key(field) { ScalarType { kind: TypeKind::Int, optional: false } } else { source.columns[field].clone() };
         columns.push(ColumnDecl { default: None, name: field.clone(), type_: ty, site: site.clone() });
     }
-    let mut indexes = vec![IndexDecl { name: "byGroup".into(), columns: maintain.by.clone(), unique: true, words: None, site: site.clone() }];
+    let mut indexes = vec![IndexDecl { name: "byGroup".into(), columns: maintain.by.clone(), unique: true, refusal: None, words: None, site: site.clone() }];
     let mut names = BTreeSet::from(["byGroup".to_owned(), "byId".to_owned()]);
     for index in &maintain.indexes {
         if !names.insert(index.name.clone()) { return Err(super::maintains::refusal(&index.site, format!("duplicate maintain index {}", index.name), "use a distinct index name; byGroup and byId are generated")); }

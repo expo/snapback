@@ -14,13 +14,16 @@ pub struct Refusal {
     pub code: String,
     pub family: String,
     pub message: String,
+    /// Original constraint text for development, separate from the author's user-facing message.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub site: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rewrite: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub guide: Option<String>,
-    /// The author's own code, for `require … else CODE` refusals.
+    /// The author's own code, for `require` and named unique refusals.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rule: Option<String>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -29,7 +32,7 @@ pub struct Refusal {
 
 impl Refusal {
     pub fn new(code: impl Into<String>, family: impl Into<String>, message: impl Into<String>) -> Self {
-        Self { code: code.into(), family: family.into(), message: message.into(), site: None, rewrite: None, guide: None, rule: None, retryable: false }
+        Self { code: code.into(), family: family.into(), message: message.into(), detail: None, site: None, rewrite: None, guide: None, rule: None, retryable: false }
     }
     pub fn site(mut self, site: impl Into<String>) -> Self {
         self.site = Some(site.into());
@@ -103,6 +106,8 @@ pub enum RuntimeError {
     Conflict { current: crate::ir::Read },
     #[error("E_CONSTRAINT: {0}")]
     Constraint(String),
+    #[error("{code}: {message} ({detail})")]
+    NamedConstraint { code: String, message: String, detail: String },
     #[error("E_OVERFLOW: maintain {maintain}.{column} overflowed")]
     AggregateOverflow { maintain: String, column: String },
     #[error("E_FANOUT: a bounded loop received more items than its bound")]
@@ -145,7 +150,7 @@ impl RuntimeError {
             Self::Value(ValueError::MissingField(_)) => "E_FIELD".into(),
             Self::Value(ValueError::Identity) => "E_INPUT".into(),
             Self::Rule { .. } => "E_RULE".into(),
-            Self::Require { code, .. } => code.clone(),
+            Self::Require { code, .. } | Self::NamedConstraint { code, .. } => code.clone(),
             Self::Conflict { .. } => "E_CONFLICT".into(),
             Self::Constraint(_) => "E_CONSTRAINT".into(),
             Self::Fanout => "E_FANOUT".into(),
@@ -176,7 +181,7 @@ impl RuntimeError {
             Self::Schema(_) | Self::Structural { .. } => "schema",
             Self::Rule { .. } | Self::Auth(_) => "auth",
             Self::Require { .. } => "rule",
-            Self::Conflict { .. } | Self::Constraint(_) => "constraint",
+            Self::Conflict { .. } | Self::Constraint(_) | Self::NamedConstraint { .. } => "constraint",
             Self::Fanout | Self::Bound { .. } => "bound",
             Self::UnknownOp(_) => "op",
             Self::Asset { .. } => "asset",
@@ -212,6 +217,12 @@ impl RuntimeError {
     pub fn refusal(&self) -> Refusal {
         let mut refusal = Refusal::new(self.code(), self.family(), self.to_string());
         match self {
+            Self::NamedConstraint { code, message, detail } => {
+                refusal.rule = Some(code.clone());
+                refusal.message = message.clone();
+                refusal.detail = Some(detail.clone());
+                refusal.guide = Some("indexes".into());
+            }
             Self::Require { code, site } => {
                 refusal.rule = Some(code.clone());
                 refusal.site = site.clone();

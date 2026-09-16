@@ -2,6 +2,7 @@
 //! each as the case they hit, against the fix (benchmarks/runs/2026-09-12-
 //! snapback4-clique-0002).
 
+mod papercuts;
 mod following;
 mod merge_cursor;
 mod trending;

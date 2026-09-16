@@ -22210,6 +22210,150 @@ node --test packages/snapback4/test/readme-examples.test.mjs
 ℹ duration_ms 871.918708
 
 React isolated rerun
+
+## 2026-09-16 — W9c: bounded emit-only lists and named unique refusals
+
+Base: `ce6cdccebafa0f5fea4fdadf997de1b1e0efb782` (`sb4/w9c`). This lane answers
+ranks 7 and 8 and d-05 of the 0.2.24 Clique friction review, including the
+0.2.19/0.2.22/0.2.23 recipient-list recurrences and 0.2.23's d-06.
+
+A bounded list loop may now read, compute and emit without preserving one
+complete page. The shared admission check still examines row writes in
+nested loops, branches and inlined helpers, including helpers inside an
+expression. Row-writing populations keep their existing refusal and rewrite.
+Every mutation page still passes the uniform/plain-prefix/no-expiry checks;
+no ceiling or value encoding changed, and no existing corpus case changed.
+
+`unique byHandle: handle else HANDLE_TAKEN` supplies the code, with the
+same default message as `require`. An optional literal supplies an author's
+message: `unique byHandle: handle else HANDLE_TAKEN 'That handle is taken.'`.
+The original constraint text is retained in `Refusal.detail`, on the server
+and both device stores. Hidden collisions still take the existing authority
+refusal before this hook; `insert … if absent` still returns null for a visible
+clash. The hook is logical schema metadata, so changing wording does not
+change the physical index definition. The language card exercises both
+code-only and custom-message forms, and runs the duplicate-profile case.
+The types, indexes, programs and refusals cards and package README agree.
+
+There is no unknown-code registry in Quarry: `require … else CODE` accepts
+any UPPER_SNAKE application code outside `E_`. This lane reuses that exact
+validator for unique hooks rather than inventing declarations or rejecting
+otherwise valid undeclared codes. The malformed and reserved-code tests
+compare against `require`, and CLI `check` rejects both. This is the brief's
+one qualification: an unknown-code lookup was not added because no such
+lookup exists elsewhere. The optional literal message was the stated
+assumption after the clarification received no response.
+
+Measured on six shapes (principal column, int column, alias, filtered page,
+shaped page and helper-returned list): **18 executions across 3 hosts**,
+**13 authoritative emissions per host** (2, 3, 2, 2, 2, 2), **0 application
+rows written**, and **0 extra emissions on server replay**. Devices predict
+successfully and the subsequent authoritative execution records the effects;
+prediction does not deliver effects, as before. Five nested/direct row-write
+shapes still refuse. Three uniqueness modes (custom message, code only,
+no hook) have positive distinct-handle and negative duplicate-insert cases
+on all three hosts. Server tests also cover update collision, `if absent`,
+hidden collision and schema serialization. The wasm build measured
+**1,797,515 B raw / 499,082 B gzip**; no baseline size comparison is claimed.
+The largest changed code file is **1,487 lines**.
+
+Diagnostic text before the fix, from the reduced filtered-list regression:
+
+```text
+schema.q:22:3 — E_STRUCTURAL_FANOUT: loop over recipients: members by byPrincipal (page bound 3): this list does not preserve one complete page
+  rewrite: iterate the original group: `for row in members[] first 3 by byPrincipal:`; put the condition and work inside that loop
+  guide: programs
+```
+
+After: the emit-only program has **0 diagnostics**. The row-writing variant
+still reports the exact diagnostic above. The `why` explanation now states
+the read/emit exception and tells a refusing author to put the condition and
+row write in the original capped loop; it is 104 words (excluding the code).
+
+Before, the hook itself was not syntax:
+
+```text
+schema.q:3:27 — E_QUARRY_SYNTAX: expected the end of the line, got "else"
+  rewrite: end this statement here; put the next statement on its own line at the same indentation
+  guide: language
+```
+
+After: the hook compiles. A duplicate without a hook retains this exact
+code/message, also the before-fix user-visible text:
+
+```text
+E_CONSTRAINT: profiles.byHandle already has a row where handle = 'alice'
+```
+
+With the code-only hook:
+
+```text
+HANDLE_TAKEN: the program refused with HANDLE_TAKEN
+```
+
+With the optional message:
+
+```text
+HANDLE_TAKEN: That handle is taken.
+```
+
+Both hooked cases retain this exact `detail`:
+
+```text
+profiles.byHandle already has a row where handle = 'alice'
+```
+
+Verification (Rust commands run from `snapback4/`; the root command below
+changes into that workspace itself). Regression results before → after:
+
+```text
+cargo test -p snapback4-lang --test papercuts w9c_ -- --nocapture
+Before: test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+After:  test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+cargo test -p snapback4-sim --test clique w9c_ -- --nocapture
+Before: test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 80 filtered out; finished in 0.03s
+After:  test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 80 filtered out; finished in 0.05s
+cargo test -p snapback4-device --test device w9c_ -- --nocapture
+Before: test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 161 filtered out; finished in 0.04s
+After:  test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 161 filtered out; finished in 0.13s
+cargo test -p snapback4-lang --test guide --test residency_notes --test papercuts -- --nocapture
+ test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+ test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.66s
+cargo test -p snapback4 --test check w9c_ -- --nocapture
+ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 2.81s
+```
+
+The server's after count includes one additional hidden-collision regression.
+The full command, from the repository root:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+```
+
+```text
+== 2 failure(s) in 677 s
+   cargo test
+   client tests
+```
+
+Rust totals were **1,070 passed / 1 failed / 4 ignored**. Its sole failure
+was introduced here: `b2_why_fanout_is_one_paragraph_and_an_example` found
+the expanded explanation exceeded the existing 120-word ceiling. I shortened
+the diagnostic, kept its new rule and corrected row-write example, and
+verified the affected test without changing its limit:
+
+```text
+cargo test -p snapback4 --test check b2_why_fanout_is_one_paragraph_and_an_example -- --nocapture
+ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 7.96s
+```
+
+Fixture tests: `ℹ tests 9`, `ℹ pass 9`, `ℹ fail 0`. Client tests:
+`ℹ tests 383`, `ℹ pass 382`, `ℹ fail 1`. The client failure was the brief's
+known Chromium sandbox `SIGABRT`, reproduced alone with the pinned Node:
+
+```text
 node --test packages/snapback4/test/react.test.mjs
 ℹ tests 1
 ℹ pass 0
@@ -22459,3 +22603,26 @@ the explicitly named verbs/binder/guide paths are `crates/snapback4/src/main.rs`
 `crates/snapback4-lang/src/diag.rs` (the existing code-to-card lookup).
 No app, fixture caller or loopbar spelling
 changed, so those callers needed no edits. The journal is appended only.
+
+```
+
+The lead must rerun React outside the sandbox. No lifecycle failure or mass
+client timeout occurred. I make no separately base-verified pre-existing
+failure claim. `./ref-check --verbose` passed with 0 errors and 0 unchecked
+references before this entry and is repeated after it; `git diff --check`
+passes. Complete logs and every verbatim per-target suite summary are in
+`/private/tmp/w9c-full-suite.log` and `/private/tmp/w9c-validation.txt`.
+
+The only change beyond the language/runtime/tests/documentation surfaces is
+the minimal `packages/snapback4/src/contract.ts` addition of optional
+`detail?: string` and its comment. No other lane's listed files were supplied.
+Process deviation: the first targeted Cargo command was accidentally issued
+at the repository root and exited 101 before tests ran; all reported test
+runs used `snapback4/`. No commit, push, tag, publication, sub-agent, clone or
+remote machine was used. No formatter or dependency installation was run.
+
+What I learned: whole-population provenance protects row fanout; it need not
+block a bounded effect-only list. Constraint wording belongs beside the
+constraint, but its hook must remain after the hidden-collision check. The
+existing language has use-site codes, so matching `require` means sharing its
+validator rather than adding a new registry.
