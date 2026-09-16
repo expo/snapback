@@ -18,11 +18,13 @@ catch {
 // dependencies too: creating a previously missing import must recover dev.
 const generated = resolve(root, "snapback/generated");
 const dependencies = new Map();
-function observe(path) {
+function observe(path, missing = false) {
   const absolute = resolve(path);
   if (absolute === generated || absolute.startsWith(generated + sep) || dependencies.has(absolute)) return;
   let state = null;
-  try { const stat = statSync(absolute, { bigint: true }); state = [String(stat.mtimeNs), String(stat.size)]; } catch {}
+  if (!missing) {
+    try { const stat = statSync(absolute, { bigint: true }); state = [String(stat.mtimeNs), String(stat.size)]; } catch {}
+  }
   dependencies.set(absolute, state);
 }
 function observed(host) {
@@ -35,7 +37,9 @@ function observed(host) {
     const directoryExists = host.directoryExists.bind(host);
     result.directoryExists = path => {
       const exists = directoryExists(path);
-      if (!exists) observe(path);
+      // Record the absence the compiler actually saw. A directory created
+      // after this lookup must not be acknowledged by a later stat instead.
+      if (!exists) observe(path, true);
       return exists;
     };
   }
