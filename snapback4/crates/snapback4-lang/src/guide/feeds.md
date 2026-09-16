@@ -892,3 +892,116 @@ index (`E_QUARRY_MAINTAIN_EXPIRE`): stored contributions survive until the
 sweep, while live values change at expiry. Rechecking only stored winners
 can miss another group's new rank. Use this scheduled recipe when score lag
 is acceptable; it does not promise exact rolling-like-window ranking.
+
+## Trending: fresh ranking in the source transaction
+
+For a ranking that must be fresh at load time, the current answer is an
+explicit ranked table refreshed in every source-write transaction. This
+standalone recipe ranks posts younger than 24 hours by their non-expiring
+like count, then post time and post id, including zero-like posts. It is a
+window over post time, not over the time each like arrived. Unlike the
+scheduled recipe, a newly created post and a changed like count appear in
+the very next server read; no schedule has to run. Unlike `trendingNow()`,
+the read pages a score index instead of sorting a bounded candidate scan.
+
+The maintenance is handwritten: every source write must call `refreshRank`;
+the target table is writable by principals because no narrower synchronous
+derived-write authority exists yet. This is a known authorization gap, not
+the intended end state. The helper uses the caller's ordinary write rules;
+it grants no privilege and does not reserve `ranked` writes to this helper.
+Keep that tradeoff when adapting the recipe, rather than treating the table
+as engine-owned derived state.
+
+```quarry
+table posts:
+  authorId: principal
+  body: text <=6000
+  at: time
+  by byTime: at, id
+  immutable authorId, at
+  public 'posts are public'
+  insert <- .authorId = viewer
+  sync public last 2000 by byTime
+
+table likes:
+  postId: posts
+  principal: principal
+  unique byPostPrincipal: postId, principal
+  by byPrincipal: principal, id
+  cap 1000 by principal
+  read <- .principal = viewer
+  insert <- .principal = viewer
+  delete <- .principal = viewer
+  sync to .principal
+
+maintain likeCounts: count likes by postId
+  read <- allow
+  online only
+
+table ranked:
+  postId: posts
+  score: int
+  at: time
+  expiresAt: time
+  unique byPost: postId
+  by byScore: score, at, postId, id
+  by byExpiresAt: expiresAt
+  immutable postId, at, expiresAt
+  public 'the fresh ranking is public'
+  insert <- allow
+  update <- allow
+  delete <- deny
+  expire at .expiresAt
+  online only
+
+fn refreshRank(postId: posts):
+  p = posts[postId] ! else POST_NOT_FOUND
+  if p.at > now - 86400000 and p.at <= now:
+    upsert ranked[p.id] { postId: p.id, score: likeCounts[p.id], at: p.at, expiresAt: p.at + 86400000 }
+  return null
+
+mutation create(body: text <=6000):
+  p = insert posts { authorId: viewer, body, at: now }
+  refreshRank(p.id)
+  return p
+
+mutation setLike(postId: posts, liked: bool):
+  require exists posts[postId] else POST_NOT_FOUND
+  if liked:
+    insert likes { postId, principal: viewer } if absent
+  else if exists likes[postId, viewer]:
+    delete likes[postId, viewer]
+  refreshRank(postId)
+
+job rebuildRank():
+  chunk p in posts first 100 by byId:
+    refreshRank(p.id)
+
+query trending(c: cursor ?):
+  return ranked after c last 10 by byScore { *, post: posts[.postId] }
+```
+
+`likeCounts` changes inside the source transaction before `refreshRank`
+reads it; the ranking update commits with the source write or both roll
+back. Repeated `setLike(true)` and `setLike(false)` recompute from the
+count, so they cannot increment or decrement the score twice. This recipe
+reads the online-only count in each mutation and therefore does not predict
+those writes; show their pending outcome until the server settles them.
+
+Keeping `ranked` online only makes `trending` server-run. Read it on
+screen load for the committed ranking as of that server read. An offline
+watch can retain a previous server answer with
+`fresh: false`, or refuse `E_OFFLINE` without one; it cannot promise a fresh
+ranking offline. `complete` is still page coverage under the meter, not a
+promise that handwritten maintenance was installed on every source path.
+Expiry hides a candidate at `post.at + 24h` before the physical sweep.
+Score changes can move rows between cursor pages; pagination is not a
+snapshot across writes.
+
+After seeding or importing existing posts and likes, run
+`snapback4 run rebuildRank` before exposing this ranking. In a file named
+`feed.q`, use `snapback4 run feed.rebuildRank`. The job uses the same helper
+in 100-post chunks; it is an idempotent backfill, not a scheduled freshness
+mechanism or an atomic snapshot of the whole table. This example has no
+post deletion or expiring likes. If those enter the app, their removal and
+expiry paths need their own ranking maintenance too.

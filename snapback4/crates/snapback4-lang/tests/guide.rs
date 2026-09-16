@@ -30,6 +30,56 @@ use std::path::{Path, PathBuf};
 const README: &str = concat!(include_str!("../../../packages/snapback4/README.md"), "\n", include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md"), "\n", include_str!("../../../packages/snapback4/SERVER.md"));
 
 #[test]
+fn w11b_first_account_screen_has_a_sufficient_path_before_the_reference() {
+    let readme = include_str!("../../../packages/snapback4/README.md");
+    let opening = readme.split_once("## 1.").unwrap().0;
+    let path = opening.split_once("**Start here — first working account screen:**").expect("a first-screen path before §1").1;
+    let mut rest = path;
+    for (i, step) in [
+        "Choose the Expo/local-replica starter.",
+        "Enable identity and persist the session.",
+        "Declare the profile rule and avatar home.",
+        "Open the correct platform client/device.",
+        "Render loading, failed, pending and sent states.",
+        "Stop at the first working account screen.",
+    ].into_iter().enumerate() {
+        let label = format!("{}. **{step}**", i + 1);
+        rest = rest.strip_prefix('\n').unwrap_or(rest);
+        rest = rest.split_once(&label).unwrap_or_else(|| panic!("missing ordered step: {label}")).1;
+        let body = rest.split("\n\n").next().unwrap();
+        assert!(body.contains("]("), "{label} needs a section pointer");
+    }
+    let prose = path.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(prose.contains("Defer feeds, search, schedules and server handlers until those features are needed."));
+    for name in ["feeds", "search", "jobs", "actions", "routes"] {
+        assert!(rest.contains(&format!("guide {name}")), "return pointer for {name}");
+    }
+    // Check the task path's actual destinations, not a parallel list of expected URLs.
+    let package = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/snapback4");
+    for link in path.split("](").skip(1) {
+        let target = link.split_once(')').unwrap().0;
+        assert!(target.starts_with("./"), "local section pointer: {target}");
+        let (file, anchor) = target.split_once('#').map_or((target, None), |(file, anchor)| (file, Some(anchor)));
+        let doc = std::fs::read_to_string(package.join(file)).unwrap_or_else(|e| panic!("{target}: {e}"));
+        if let Some(anchor) = anchor {
+            let slug = |heading: &str| heading.trim_start_matches('#').trim().to_lowercase().chars()
+                .filter(|c| c.is_alphanumeric() || c.is_whitespace() || *c == '-').collect::<String>().replace(' ', "-");
+            assert!(doc.lines().filter(|line| line.starts_with('#')).any(|heading| slug(heading) == anchor), "dead anchor: {target}");
+        }
+    }
+    for command in path.split("guide ").skip(1) {
+        let name = command.split(|c: char| !c.is_ascii_alphabetic()).next().unwrap();
+        assert!(card(name).is_some(), "dead card: {name}");
+    }
+}
+
+#[test]
+fn w11b_fresh_ranking_states_the_handwritten_authority_gap_verbatim() {
+    let feeds = card("feeds").unwrap().split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(feeds.contains("The maintenance is handwritten: every source write must call `refreshRank`; the target table is writable by principals because no narrower synchronous derived-write authority exists yet. This is a known authorization gap, not the intended end state."));
+}
+
+#[test]
 fn w10a_readme_opening_is_one_way_into_the_published_surface() {
     let readme = include_str!("../../../packages/snapback4/README.md");
     let opening = readme.split("## 1.").next().unwrap();
