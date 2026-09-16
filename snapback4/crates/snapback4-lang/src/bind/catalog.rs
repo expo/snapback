@@ -57,7 +57,7 @@ impl Catalog {
                         ok = false;
                     }
                 }
-                let mut indexes = vec![IndexDecl { name: "byId".into(), columns: vec!["id".into()], unique: true, words: None, site: table.site.clone() }];
+                let mut indexes = vec![IndexDecl { name: "byId".into(), columns: vec!["id".into()], unique: true, refusal: None, words: None, site: table.site.clone() }];
                 for index in &table.indexes {
                     if indexes.iter().any(|existing| existing.name == index.name) {
                         diagnostics.push(unknown(&index.site, format!("duplicate index {}.{}", table.name, index.name), "name one ordering explicitly"));
@@ -134,7 +134,7 @@ impl Catalog {
             match super::schema::maintain_target(&source, &maintain) {
                 Ok(decl) => {
                     let columns: BTreeMap<String, ScalarType> = decl.columns.iter().map(|c| (c.name.clone(), c.type_.clone())).collect();
-                    let mut indexes = vec![IndexDecl { name: "byId".into(), columns: vec!["id".into()], unique: true, words: None, site: decl.site.clone() }];
+                    let mut indexes = vec![IndexDecl { name: "byId".into(), columns: vec!["id".into()], unique: true, refusal: None, words: None, site: decl.site.clone() }];
                     indexes.extend(decl.indexes.iter().cloned());
                     tables.insert(name.clone(), TableInfo { decl, columns, indexes, maintained: Some(maintain) });
                 }

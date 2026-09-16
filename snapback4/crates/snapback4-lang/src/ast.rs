@@ -218,6 +218,7 @@ pub struct IndexDecl {
     /// The columns, in order, the `words(..)` component left out.
     pub columns: Vec<String>,
     pub unique: bool,
+    pub refusal: Option<(String, Option<String>)>,
     /// `words(a, b)`: its position among the components (the number of
     /// columns before it) and the text columns it tokenizes. An index with
     /// one serves `matching` reads whose keys are exactly those columns,

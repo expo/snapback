@@ -24,6 +24,8 @@ export interface Refusal {
   readonly code: string;
   readonly family: string;
   readonly message: string;
+  /** Original constraint text for development; render message to the user. */
+  readonly detail?: string;
   readonly site?: string;
   readonly rewrite?: string;
   readonly guide?: string;

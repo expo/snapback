@@ -84,12 +84,20 @@ fn the_language_card_compiles_and_runs() {
     let source = language();
     let bound = clean("the language card", &source);
     let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).collect();
-    assert_eq!(names, ["daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "heldRoom", "room", "helperRows", "thread", "inbox", "following", "ancestors", "digest", "mentions", "search", "everywhere", "online", "pagePass", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative"]);
+    assert_eq!(names, ["daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "heldRoom", "room", "helperRows", "thread", "inbox", "following", "ancestors", "digest", "mentions", "search", "everywhere", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative"]);
     assert_eq!(bound.schema.effects, ["notify"]);
     assert_eq!(bound.schema.schedules.len(), 1);
     assert_eq!(bound.personas, ["alice", "bob", "carol"]);
     let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
     let (alice, bob) = ("dev:alice", "dev:bob");
+
+    let registered = engine.mutate("registerProfile", Some("profile1"), Context::new(alice, args(&[("handle", text("alice"))])).with_ids(["profile1".into()])).unwrap();
+    assert_eq!(sent(&registered).field("handle").unwrap(), &text("alice"));
+    let duplicate = engine.mutate("registerProfile", Some("profile2"), Context::new(bob, args(&[("handle", text("alice"))])).with_ids(["profile2".into()])).unwrap();
+    assert_eq!(failed(&duplicate), "HANDLE_TAKEN");
+    let WriteState::Failed { why, .. } = duplicate.state else { unreachable!() };
+    assert_eq!(why.message, "That handle is taken.");
+    assert_eq!(why.detail.as_deref(), Some("profiles.byHandle already has a row where handle = 'alice'"));
 
     // createRoom: `new` takes the first minted id; the second insert the next; `after insert` holds.
     let created = engine.mutate("createRoom", Some("c1"), Context::new(alice, args(&[("name", text("General")), ("kind", text("open")), ("tags", Value::Array(vec![text("new")]))])).at(1_000).with_ids(["r1".to_owned(), "m1".to_owned()])).unwrap();

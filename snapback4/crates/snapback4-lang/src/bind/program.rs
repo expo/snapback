@@ -921,7 +921,7 @@ fn literal_int(expr: &A) -> Option<i64> {
     }
 }
 
-fn validate_code(site: &Site, code: &str) -> Fallible<()> {
+pub(super) fn validate_code(site: &Site, code: &str) -> Fallible<()> {
     if code.starts_with("E_") {
         return Err(Diagnostic::new(site, "E_OP_RESERVED", format!("application refusal code {code} uses the reserved E_ namespace"), code.trim_start_matches("E_").to_owned()).guide("programs"));
     }

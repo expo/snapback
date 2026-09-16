@@ -3,6 +3,7 @@
 //! changes handed back on the next open). One scenario, two runs.
 
 mod common;
+mod papercuts;
 mod language;
 mod membership;
 mod search_merge;

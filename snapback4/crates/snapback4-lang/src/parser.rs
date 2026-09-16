@@ -415,8 +415,13 @@ impl Parser {
                 return Err(syntax_with(&site, "words(..) is followed by the columns a search page is ordered by, ending in id", format!("by {name}: {}words({}), at, id", columns.iter().map(|c| format!("{c}, ")).collect::<String>(), fields.join(", "))));
             }
         }
+        let refusal = if unique && self.maybe("else") {
+            let code = self.word()?.value;
+            let message = if self.at_kind(Kind::Str) { Some(self.take_kind(Kind::Str)?.value) } else { None };
+            Some((code, message))
+        } else { None };
         self.newline()?;
-        Ok(IndexDecl { name, columns, unique, words, site })
+        Ok(IndexDecl { name, columns, unique, refusal, words, site })
     }
 
     fn parse_maintain(&mut self) -> Fallible<MaintainDecl> {
@@ -468,7 +473,7 @@ impl Parser {
                     let mut columns = vec![self.word()?.value];
                     while self.maybe(",") { columns.push(self.word()?.value); }
                     self.newline()?;
-                    indexes.push(IndexDecl { name, columns, unique: false, words: None, site: effect.site });
+                    indexes.push(IndexDecl { name, columns, unique: false, refusal: None, words: None, site: effect.site });
                     return Ok(());
                 }
                 if effect.value == "readable" {

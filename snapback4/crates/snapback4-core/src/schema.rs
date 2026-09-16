@@ -28,6 +28,15 @@ pub struct Schema {
     /// Compiled execution facts; absent on serialized conformance inputs.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub operations: BTreeMap<String, Execution>,
+    /// Author refusals keyed by table and unique index; changing wording is not a physical index migration.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub unique_refusals: BTreeMap<String, BTreeMap<String, UniqueRefusal>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UniqueRefusal {
+    pub code: String,
+    pub message: String,
 }
 
 // @ref LLP 3000.007#6.2 — eligibility is static; prediction and horizon coverage are per call.

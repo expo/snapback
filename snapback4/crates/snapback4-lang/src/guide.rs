@@ -173,7 +173,7 @@ table members:
   principal: principal
   role: enum('member', 'admin')
   joinedAt: time
-  unique byRoomPrincipal: roomId, principal            -- `unique` orders and constrains
+  unique byRoomPrincipal: roomId, principal else MEMBER_EXISTS -- `unique` orders and constrains
   by byRoomPrincipalRole: roomId, principal, role
   by byPrincipalRoom: principal, roomId, id
   cap 100 by roomId                                    -- at most N rows per group; needs an index leading with the group
@@ -279,7 +279,7 @@ table profiles:
   handle: text 3..20 format handle    -- a text format is checked on every write
   site: text <=200 format url ?
   unique byPrincipal: principal
-  unique byHandle: handle
+  unique byHandle: handle else HANDLE_TAKEN 'That handle is taken.'
   public 'profiles are public'
   insert <- .principal = viewer
   update <- .principal = viewer
@@ -432,6 +432,9 @@ mutation pagePass(roomId: rooms): server
     n = n + 1
   return n
 
+mutation registerProfile(handle: text 3..20 format handle):
+  return insert profiles { principal: viewer, handle }
+
 mutation createRoom(name: text 1..80, kind: enum('open', 'closed'), tags: [text <=20] <=8):
   room = insert rooms { id: new, name, ownerId: viewer, kind, tags }   -- `new` mints an id; omit `id` and one is minted anyway
   insert members { roomId: room.id, principal: viewer, role: 'admin', joinedAt: now }
@@ -441,9 +444,13 @@ mutation createRoom(name: text 1..80, kind: enum('open', 'closed'), tags: [text 
 mutation sendBrief(roomId: rooms, body: text <=4000 ?, ttl: int ?):
   require exists members[roomId, viewer] else NOT_MEMBER
   row = insert messages { roomId, authorId: viewer, body, at: now, expiresAt: now + ttl if ttl != null else null }   -- a conditional value: the arm not taken never runs, and `ttl` is present in the taken one
+  recipients = []
   for m in members[roomId] first 100 by byRoomPrincipal:
-    if m.principal != viewer and not exists connected[m.principal]:
-      emit notify { targetUserId: m.principal, roomId, preview: slice(body ?? '', 0, 80) }   -- kept in this commit; a worker claims and settles it (guide effects)
+    if m.principal != viewer:
+      recipients = recipients + [m.principal]
+  for p in recipients:                                              -- bounded derived lists may read and emit; row writes still need the complete-group proof
+    if not exists connected[p]:
+      emit notify { targetUserId: p, roomId, preview: slice(body ?? '', 0, 80) }   -- kept in this commit; a worker claims and settles it (guide effects)
   return { id: row.id, brief: isBrief(ttl), mentions: count(tokens(body ?? '')) }                                 -- `??` is the value when the left is null
 
 mutation edit(messageId: messages, body: text <=4000, expected: text <=4000 ?) predicts:
@@ -559,7 +566,7 @@ table everything:
   photo: image <=10000000 once ?      -- an upload (guide assets); `once` serves one view per principal
   clip: video <=50000000 ?
   tags: [text <=20] <=8               -- a bounded list of a scalar type; `?` after the whole type, never on the element
-  unique byHandle: handle
+  unique byHandle: handle else HANDLE_TAKEN 'That handle is taken.'
   read <- .who = viewer
   insert <- .who = viewer
   update <- deny
@@ -616,7 +623,7 @@ table tasks:
   projectId: id
   done: bool
   at: time
-  unique byOwnerProject: ownerId, projectId         -- `unique` orders and constrains: one row per (ownerId, projectId)
+  unique byOwnerProject: ownerId, projectId else PROJECT_EXISTS 'This project already exists.' -- `unique` orders and constrains: one row per (ownerId, projectId)
   by byOwnerDone: ownerId, done, at, id             -- `by` orders; a scan pins a prefix and pages along the rest
   cap 500 by ownerId                                -- a cap needs an index leading with exactly its columns
   read <- .ownerId = viewer
@@ -629,6 +636,16 @@ query indexForms(projectId: id, c: cursor ?):
   open = tasks[viewer, false] after c first 50 by byOwnerDone   -- a range is a strict prefix; a cursor needs an index ending in id, or a unique one
   return { one, open }
 ```
+
+A unique index may end with `else CODE` and an optional literal message:
+`unique byHandle: handle else HANDLE_TAKEN 'That handle is taken.'`.
+A visible collision then refuses with that code and message, family `constraint`,
+and keeps the original index text in `detail` for development. Without a message,
+it says `the program refused with HANDLE_TAKEN`; without a hook, `E_CONSTRAINT`
+and its original message are unchanged. Codes follow `require`: UPPER_SNAKE,
+never `E_`; they are declared at the use site, not looked up in a registry.
+Hidden collisions retain their ordinary authorization refusal, and `insert … if
+absent` still returns null on a visible clash.
 
 Every table has `byId`. A point read (`t[key]`, `update`, `delete`,
 `upsert`) needs a unique index over exactly the key's columns; `exists
@@ -986,7 +1003,12 @@ A mutation with `predicts: "never"` (a server site or `: server`) may pass
 over a bounded plain prefix page whose read rule is uniform over its prefix,
 without a complete schema-capped group. `matching`, merges and tables with
 expiry are refused for every mutation page, predicting or not, looped or bound (`E_STRUCTURAL_FANOUT`). A predicting mutation
-keeps the complete-group requirement. Every page a mutation reads, even just
+keeps the complete-group requirement for page loops. A bounded list loop whose
+body only reads, computes and emits may use a list column, alias, helper result,
+or filtered/shaped list derived from a page; it need not preserve the whole group.
+A row write anywhere in that body, including an inlined helper or nested loop,
+keeps the original structural-fanout check and its capped-group rewrite.
+Every page a mutation reads, even just
 binding it, must be uniformly decided by its prefix (`E_STRUCTURAL_FANOUT`):
 the rewrite names the missing rule columns and a capped loop that supplies
 their values. Pinning `.readerId` decides visibility; it grants no read
@@ -1378,15 +1400,22 @@ and a seek as a prefix. Sorting or grouping a page only processes that page.
 "##,
         "refusals" => r##"# Refusals
 
-Every refusal is `{ code, family, message, site?, rewrite?, guide?, rule?,
+Every refusal is `{ code, family, message, detail?, site?, rewrite?, guide?, rule?,
 retryable? }`: `code` and `family` are stable, `rewrite` compiles, `guide`
-names a card, `rule` is the program's own code on a `require` refusal, and
+names a card, `rule` is the program's own code on a `require` or named unique refusal, and
 `retryable` says the same request may succeed later. The engine's families:
 input, schema, auth, rule (your `require` codes), constraint, bound, op,
 asset, action, prediction, generation, store; the client adds link (the server is
 unreachable) and client (the client itself refused, as after `close()`).
 `snapback4 why <CODE>` explains one. Reads never raise a rule refusal: a
 hidden row is null, and a page omits it.
+
+`unique byHandle: handle else HANDLE_TAKEN 'That handle is taken.'` supplies a
+constraint's user-facing code and message. Render `message`; `detail` retains
+`profiles.byHandle already has a row where handle = 'alice'` for development.
+Omit the literal to use the default `the program refused with HANDLE_TAKEN`.
+Omit the hook to keep the existing `E_CONSTRAINT` message. The indexes card
+shows the declaration; code validation is the same as `require … else CODE`.
 
 `dev` keeps failed schema adoption visible in `doctor`, repeats its reason on the first failing job or sweep, and retries locked stores and generation failures without another save. `doctor` compares the live host generation with the store; `--no-watch` hosts need a restart after another process adopts.
 While that adoption failure is pending, identical background store and generation failures are suppressed. Changed reasons print at most twice per error code in each 60-second window; further changes count as suppressed too. Recovery or a changed adoption failure reports the suppressed count and resets it.

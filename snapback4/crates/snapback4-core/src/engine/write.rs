@@ -322,7 +322,11 @@ impl Runner<'_> {
                 {
                     if effect == Effect::Update && !readable { return Err(self.no_write_target()); }
                     self.visible_collision(table_name, &existing, effect)?;
-                    return Err(RuntimeError::Constraint(format!("{table_name}.{name} already has a row where {} = {}", index.columns().join(", "), key.iter().map(describe).collect::<Vec<_>>().join(", "))));
+                    let detail = format!("{table_name}.{name} already has a row where {} = {}", index.columns().join(", "), key.iter().map(describe).collect::<Vec<_>>().join(", "));
+                    if let Some(refusal) = self.schema.unique_refusals.get(table_name).and_then(|indexes| indexes.get(name)) {
+                        return Err(RuntimeError::NamedConstraint { code: refusal.code.clone(), message: refusal.message.clone(), detail });
+                    }
+                    return Err(RuntimeError::Constraint(detail));
                 }
             }
         }

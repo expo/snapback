@@ -167,7 +167,12 @@ mutation edit(messageId: messages, body: text <=4000):
   alike. Target deletion and dependent-row cleanup are the application's
   policy, expressed in mutations and rules.
 - **Indexes:** `by name: cols` orders rows; `unique name: cols` also
-  constrains them. A point read needs a unique index over its key;
+  constrains them. Add `else HANDLE_TAKEN 'That handle is taken.'` to a
+  unique index to supply its refusal code and message; `detail` retains the
+  original index text for development. The message literal is optional;
+  `else HANDLE_TAKEN` says `the program refused with HANDLE_TAKEN`.
+  Codes follow `require`: UPPER_SNAKE, never `E_`, declared at the use site.
+  Without the hook the `E_CONSTRAINT` message is unchanged. A point read needs a unique index over its key;
   `exists` needs any index over its key. Named equalities covering a total
   unique key check extra columns on the one row, with no extra index; a scan needs an index whose
   leading columns are the scan's prefix, and pages in the order of the
@@ -575,9 +580,16 @@ charged to that chunk's meter. Writes belong inside a chunk.
 - **Refusals** a program raises with `require .. else CODE` reach the
   client as `{ code: "CODE", family: "rule", rule: "CODE", .. }`; `CODE` is
   UPPER_SNAKE and never starts with `E_`.
-- A predicting mutation loops over one complete schema-capped group
+- A predicting mutation’s page loop needs one complete schema-capped group
   (`cap N by cols` and `first N`). A never-predicting mutation can pass a
   bounded uniform page, as described above; a larger sweep is a job's `chunk`.
+
+A bounded list loop that only reads, computes and emits may iterate a list
+column, an alias, a helper result or a filtered/shaped list from a page.
+It need not preserve the whole group. If its body writes rows, including
+inside helpers or nested loops, the original `E_STRUCTURAL_FANOUT` check
+still applies. Every mutation page still needs a uniform plain prefix over
+a table without expiry; the meter and its ceilings are unchanged.
 
 ### Jobs and schedules
 
@@ -1698,7 +1710,7 @@ type Write<R> =
   | { state: "sent"; id: string; seq: number; replayed?: false; result: R }
   | { state: "sent"; id: string; seq: number; replayed: true; result?: never }
   | { state: "failed"; id: string; why: Refusal };
-type Refusal = { code: string; family: string; message: string; site?: string; rewrite?: string; guide?: string; rule?: string; retryable?: boolean };
+type Refusal = { code: string; family: string; message: string; detail?: string; site?: string; rewrite?: string; guide?: string; rule?: string; retryable?: boolean };
 type Link = "online" | "offline" | "signed-out";
 ```
 

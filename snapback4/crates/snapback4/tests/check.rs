@@ -633,3 +633,20 @@ fn w8r1b_release_from_a_used_dev_store_never_returns_read_meters() {
     }
     println!("release from dev: retained_rows=1 same_store_identity=1 dev_meter_fields=1 release_meter_fields=0 requests=2");
 }
+
+#[test]
+fn w9c_check_validates_unique_refusal_codes_like_require() {
+    let p = Project::new();
+    let source = |code: &str| format!("table profiles:\n  handle: text <=30\n  unique byHandle: handle else {code}\n  public 'profiles'\n  insert <- allow\nmutation create(handle: text <=30):\n  return insert profiles {{ handle }}\n");
+    for (code, expected) in [("badCode", "E_QUARRY_UNKNOWN"), ("E_HANDLE_TAKEN", "E_OP_RESERVED")] {
+        p.source(&source(code));
+        let result = p.run(&["check"]);
+        assert_eq!(result.status.code(), Some(1), "{result:?}");
+        let text = format!("{}{}", String::from_utf8_lossy(&result.stdout), String::from_utf8_lossy(&result.stderr));
+        assert!(text.contains(expected), "{text}");
+        println!("{text}");
+    }
+    p.source(&source("HANDLE_TAKEN 'That handle is taken.'"));
+    let result = p.run(&["check"]);
+    assert!(result.status.success(), "{result:?}");
+}
