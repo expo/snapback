@@ -23157,3 +23157,18 @@ passed before this entry and is also rerun after it:
 ./ref-check --verbose
 ref-check: ok — 481 LLP docs, 8990 refs in 23854 files, 0 errors, 0 unchecked
 ```
+
+## 2026-09-16 — Wave 9 landed as 0.2.25 / expo 0.2.16 (lead)
+
+Integration `sb4/w9-int` carries W9a–W9c, the round-1 repairs W9R1a and
+W9R1b, and the round-2 repair W9R2. Grok returned READY at round 2; GPT's
+remaining item was N1, which W9R2 closed.
+
+Lead verification on `4c0d23bf0`:
+- suite: 0 failures;
+- client tests: 396/396;
+- Chromium `navigation-immediate`: 10/10;
+- ref-check: ok.
+
+Records: LLP 3000.007 §20.18 and `llp/reviews/3000.007-agent-ergonomics-wave-9.*`.
+
