@@ -3,6 +3,26 @@ use super::*;
 mod app;
 use snapback4_device::device::Backend;
 
+#[test]
+fn w10b_wired_repost_predicts_on_both_stores() {
+    fn run<H: crate::common::Host>(mut host: H) {
+        let mut engine = app::repost_helper_engine();
+        let bound = app::built();
+        let backend = Backend { generation: engine.generation(), schema: bound.schema, programs: bound.programs.into_iter().map(|p| p.program).collect() };
+        let mut device = host.open("reader", Some(backend)).unwrap();
+        for (n, page) in snapshot_pages(&mut engine, "reader", 100).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
+        let predicted = device.predict("social.repost", "reader", &serde_json::json!({"postId":"app-post"}), 3, vec![], 99).unwrap();
+        assert_eq!(predicted.predicted.len(), 3, "{predicted:?}");
+        let local = device.query("social.following", "reader", &serde_json::json!({}), 3).unwrap();
+        assert!(local.complete);
+        assert_eq!(local.data.as_array().unwrap().len(), 1);
+        assert_eq!(local.data.as_array().unwrap()[0].field("postId").unwrap(), &app::id("app-post"));
+        assert_eq!(local.data.as_array().unwrap()[0].field("repost").unwrap(), &Value::Bool(true));
+    }
+    run(Memory::new());
+    run(Sqlite::new("w10b-repost"));
+}
+
 fn wired<H: crate::common::Host>(mut host: H) {
     let label = host.label();
     let bound = app::built();

@@ -23445,3 +23445,46 @@ A1/C1's measurements are unchanged: **all C1 targets missed**. No tuning,
 benchmark rerun, control, pilot, ceiling freeze or publication ran here.
 Next is the separately commissioned A3 route/webhook boundary. SQL reads
 remain admitted for D in their authorized-input form, outside the first cell.
+
+## 2026-09-16 — W10b: the installed feed recipe carries its wiring and bounds
+
+Renamed the standalone repost argument to `eventId` (the prefixed helper is
+`feedRepost(eventId: feedPosts)`). The wired app now resolves the original feed
+reference from its app post and calls that helper in the attribution mutation;
+the generated client comments show the same call. A witness uses different app
+post and source-event IDs, then runs the wired mutation on the server and both
+device stores. One repost produces three predicted rows on each device; the
+server's repeated call keeps one attributed event. Updated standalone callers.
+
+Installation now derives `backfill/author = min(authors, 1000)` with its caps,
+including the default and edges-only installations. The default and the
+1,008-author calibration install backfill 1,000 events; the 50-author case
+backfills the newest 50. Both compile without notes, repeat without duplicate
+copies, and unfollow purges all copies. At 1,000 stored source events, backfill
+1,000 measured 1,005 examined / 9,006 index entries / 1,001 written; backfill 50
+measured 1,005 / 456 / 51. The full capped source page is still read before the
+copy limit stops the loop: fewer copies do not imply fewer examined rows.
+The unchanged caps reject 50 authors with 50,001 edges before writing any file.
+No engine ceiling changed. Successful recipe initialization prints one cold-row
+measurement command; a repeated install, ordinary init and repeated checks
+print zero copies of that pointer. The calibration fixture still measures
+139,413 cold rows / 17,876,585 JSON payload bytes.
+
+The reads card now has a compiled, executable typing example with a 4,500 ms
+lifetime; the expiry card, README and client reference name typing indicators
+and application presence rows. A controlled-clock client test hides the typing
+row at its deadline without a replacement answer. This tests rendering behavior,
+not wall-clock timer accuracy. The lesson from the calibration is to put the
+filter at the short deadline's reader and name the two different ID types in
+the recipe the builder actually installs.
+
+All five new Rust regressions and the client regression failed before the fix
+against base `441ef82c15a8d541048a5d6c001e364cdd8b5c4f`. Afterward the affected
+suites pass: guide 33; server Following 21 (one ignored measurement); device
+Following 24; init 27; README examples 5. Node is 24.18.0. The full
+`bash snapback4/scripts/test.sh` finished in 914 s: Rust 1,164 pass / 0 fail /
+4 ignored; fixture wrappers 9/9; clients 439/440; all build and typecheck stages
+pass. Its only failure is Chromium SIGABRT in the React harness, the sandbox
+artifact named in the lane brief; the isolated rerun is 0 pass / 1 fail with
+the same SIGABRT. No failure is labelled pre-existing from an untested baseline.
+`./ref-check --verbose` passes. No commit, push or publication was made.

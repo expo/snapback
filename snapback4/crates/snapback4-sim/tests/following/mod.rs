@@ -6,6 +6,22 @@ mod removal;
 mod slots;
 
 #[test]
+fn w10b_wired_repost_resolves_an_event_reference() {
+    use crate::following_app as app;
+    let mut engine = app::repost_helper_engine();
+    app::mutate(&mut engine, "repost", "reader", &[("postId", app::id("app-post"))], 3);
+    app::mutate(&mut engine, "repost", "reader", &[("postId", app::id("app-post"))], 4);
+    let page = app::query(&mut engine, "reader");
+    assert!(page.complete);
+    let rows = page.data.as_array().unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].field("postId").unwrap(), &app::id("app-post"));
+    assert_eq!(rows[0].field("authorId").unwrap(), &app::id("author"));
+    assert_eq!(rows[0].field("repost").unwrap(), &Value::Bool(true));
+    assert_eq!(engine.store().rows("reposts").unwrap().len(), 1);
+}
+
+#[test]
 #[ignore = "design comparison: run explicitly with --ignored --nocapture"]
 fn following_candidates_at_scale() {
     let requested = std::env::var("SB4_FEED_CANDIDATE").ok();
@@ -70,11 +86,11 @@ fn follow_backfill_purge_reposts_and_promotion_are_exact() {
     println!("FOLLOW backfill examined={} index={} written={}", follow.metered.examined, follow.metered.index_entries, follow.metered.rows_written);
     world::mutate(&mut engine, "follow", "dev:bob", &[("authorId", world::id("dev:alice"))], 251);
     let ids = all(&mut engine, "dev:bob");
-    assert_eq!(ids.len(), 201);
-    assert!(ids.contains(&"p020".into()) && !ids.contains(&"p019".into()));
-    world::mutate(&mut engine, "repost", "dev:bob", &[("postId", world::id("p219"))], 260);
-    world::mutate(&mut engine, "repost", "dev:bob", &[("postId", world::id("p219"))], 261);
-    assert_eq!(all(&mut engine, "dev:bob").len(), 202);
+    assert_eq!(ids.len(), 221);
+    assert!(ids.contains(&"p000".into()) && ids.contains(&"p219".into()));
+    world::mutate(&mut engine, "repost", "dev:bob", &[("eventId", world::id("p219"))], 260);
+    world::mutate(&mut engine, "repost", "dev:bob", &[("eventId", world::id("p219"))], 261);
+    assert_eq!(all(&mut engine, "dev:bob").len(), 222);
     let purge = world::mutate(&mut engine, "unfollow", "dev:bob", &[("authorId", world::id("dev:alice"))], 270);
     println!("FOLLOW purge examined={} index={} written={}", purge.metered.examined, purge.metered.index_entries, purge.metered.rows_written);
     assert_eq!(all(&mut engine, "dev:bob").len(), 2, "own original and own repost survive");
@@ -84,10 +100,10 @@ fn follow_backfill_purge_reposts_and_promotion_are_exact() {
     for n in 0..51 { world::mutate(&mut engine, "follow", &format!("dev:f{n}"), &[("authorId", world::id("dev:alice"))], 300 + n); }
     let posted = world::mutate(&mut engine, "createPost", "dev:alice", &[("postId", world::id("shared"))], 400);
     assert_eq!(posted.metered.rows_written, 2);
-    assert_eq!(all(&mut engine, "dev:f0").len(), 201);
+    assert_eq!(all(&mut engine, "dev:f0").len(), 221);
     assert_eq!(all(&mut engine, "dev:alice").len(), 221);
     world::mutate(&mut engine, "follow", "dev:bob", &[("authorId", world::id("dev:alice"))], 410);
-    assert_eq!(all(&mut engine, "dev:bob").len(), 202, "199 recent pushed rows, one broadcast, two own events");
+    assert_eq!(all(&mut engine, "dev:bob").len(), 223, "220 pushed rows, one broadcast, two own events");
     world::mutate(&mut engine, "unfollow", "dev:bob", &[("authorId", world::id("dev:alice"))], 420);
     assert_eq!(all(&mut engine, "dev:bob").len(), 2);
 }

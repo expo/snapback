@@ -208,8 +208,11 @@ mutation edit(messageId: messages, body: text <=4000):
   the server sweeps it within a second and the deletion streams to each
   device holding it. An already returned answer keeps the row until the
   next answer; a live reader that must hide it at its deadline drops it
-  locally by `expiresAt` (the client example below). The server will not
-  return it again after expiry, but does not push a removal at that instant.
+  locally by `expiresAt` (the client example in CLIENT-AND-OPERATIONS.md).
+  A typing indicator or short-lived presence row especially needs this
+  filter and a render timer; `guide reads` shows the typing table and query.
+  The server will not return it again after expiry, but does not push a
+  removal at that instant.
   A null time never expires. Disappearing messages
   are one field on insert, `expiresAt: now + ttl if ttl != null else
   null` with `ttl: int ?`; nothing else to write. A `maintain` over an
@@ -1116,8 +1119,12 @@ and names this command as an example for Following;
 `N_SPARSE_FILTER` names it for a global-timeline filter too.
 
 For an existing media app, the feeds card's “Wire into an app” example keeps
-its post and repost cards. Its `createPost`/`repost` insert a reference event
-in `feedPosts` and call `feedDeliver(event)` in the same transaction. The app's
+its post and repost cards. Its `createPost` inserts a reference event
+in `feedPosts` and calls `feedDeliver(event)` in the same transaction.
+Its `repost` resolves `feedPosts[original.authorId, postId, false]` and calls
+`feedRepost(event.id)`. That helper takes `eventId: feedPosts`; the app post
+reference and source event reference have different types and may have
+different IDs. The app's
 Following query joins `posts[.postId] postCard` and its repost attribution;
 no body or media is copied into the recipe. Its `follow`/`unfollow` mutate the
 app edge and call `feedAddFollow`/`feedDropFollow` as a one-mutation bridge.
@@ -1337,7 +1344,7 @@ fn addFollow(authorId: principal):
         tryPull(f.followerId, authorId)
   visited = 0
   for p in posts[authorId] last 1000 by byActorTime:
-    if visited = 200:
+    if visited = 1000:
       break
     visited = visited + 1
     if not p.shared:
@@ -1385,8 +1392,8 @@ mutation createPost(postId: id):
   deliver(p)
   return { id: p.id }
 
-mutation repost(postId: posts):
-  original = posts[postId] ! else POST_NOT_FOUND
+mutation repost(eventId: posts):
+  original = posts[eventId] ! else POST_NOT_FOUND
   require not original.repost else ORIGINAL_REQUIRED
   if exists posts[viewer, original.postId, true]:
     return null
@@ -1432,7 +1439,7 @@ schedule purgeRemovedEvery every 1m: purgeRemoved
 The caps are explicit: 1,000 follows and source events per account,
 50,000 private entries per reader, 32 pulled authors per reader and
 32,000 public broadcast entries plus 32,000 pending removal tombstones
-(1,000 per actor). Follow backfills the last 200 source
+(1,000 per actor). Follow backfills the last 1,000 source
 events; caps refuse writes atomically when reached. The full recipe and
 its measured tradeoffs are on the feeds card. Author modes, public follow
 edges and public source references sync in full. Inbox entries and exact
@@ -1454,10 +1461,15 @@ Default global metadata caps are 1,000 authors, 100,000 edges, 32,000 pull route
 and 60,000 source references, plus 32,000 online count rows.
 `init --recipe feeds --prefix feed --authors 1008 --edges 5921` sizes the
 author and edge caps before replay; pull-route and online-count caps grow
-together to 32 × authors. Init prints all caps, and incoherent sizing refuses
+together to 32 × authors. The backfill bound is `min(authors, 1000)`,
+including for an edges-only install with the default 1,000 authors. Init
+prints all caps and `backfill/author`, and incoherent sizing refuses
 `E_RECIPE_CAPS` before writing. The app's own caps stay its responsibility;
 `guide feeds` names the coupled bounds and what each costs.
-The feeds card publishes `test --residency`
+After installing the recipe, init prints one cold-row measurement command:
+`snapback4 test --residency --fixture fixture --as <principal>`. Replace
+the fixture path and principal after loading your data; ordinary checks do
+not repeat the pointer. The feeds card publishes `test --residency`
 measurements: the wired 500-follow fixture acquires 3,095 rows / 335,403 B
 (up from 1,055 rows); its 5-follow reader acquires 2,600 rows / 250,482 B.
 At the calibration shape (1,008 authors, 5,921 edges, 50,228 app posts),

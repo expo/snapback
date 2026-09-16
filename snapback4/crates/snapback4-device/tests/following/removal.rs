@@ -104,7 +104,7 @@ fn following_removal_reaches_every_reader_before_purge_on_both_stores() {
         assert_eq!(case::event_rows(&engine, "old-pushed"), followers + 1);
         let removal: Vec<_> = viewers.iter().map(|viewer| stream_page(&mut engine, viewer, before)).collect();
         let before = engine.seq().unwrap();
-        world::mutate(&mut engine, "repost", case::AUTHOR, &[("postId", world::id(case::ORIGINAL))], 7);
+        world::mutate(&mut engine, "repost", case::AUTHOR, &[("eventId", world::id(case::ORIGINAL))], 7);
         let fresh = case::repost_id(&engine);
         let repost: Vec<_> = viewers.iter().map(|viewer| stream_page(&mut engine, viewer, before)).collect();
         let before = engine.seq().unwrap();

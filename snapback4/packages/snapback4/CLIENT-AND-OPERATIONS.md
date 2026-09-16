@@ -292,7 +292,13 @@ If the server cannot answer the query, declare `query … held:` to answer
 from the device; the server refuses it with E_QUERY_HELD (see the search card).
 A complete empty page has `cut: null` and `complete: true`.
 
-schedules a render at each deadline, without waiting for a server answer.
+A typing indicator or presence row with a short deadline needs a local
+filter. A row already returned stays in that answer until the next answer;
+the server will not return it again after expiry, but does not push a removal
+at that instant. Select `expiresAt` with the row (`guide reads` has a complete
+typing table and query). Pass the ready typing rows to `showExpiringRows` and
+render their principals as typing. It renders now and schedules a render at
+each deadline, without waiting for a server answer.
 The local client reschedules its watch at `Read.nextExpiry`; keep the render
 filter so the row hides at its deadline rather than at the refetch.
 Call the returned cleanup before replacing the answer or unmounting.

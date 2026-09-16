@@ -83,6 +83,8 @@ query expiringMessages(roomId: rooms, c: cursor ?):
   return messages[roomId] after c last 20 by byRoomTime { id, body, expiresAt }
 ```
 
+A typing indicator or presence row with a short deadline needs this local
+filter: hide it at its deadline, even while the next answer is still pending.
 A row already returned stays in that answer until the next answer; a live
 reader that must hide it at its deadline drops it locally by `expiresAt`.
 The server will not return the row again after expiry, but does not push a
@@ -101,7 +103,45 @@ Clear these timers with `timers.forEach(clearTimeout)` before replacing the
 answer or unmounting. This short-lived-row example uses the client's clock
 and timer scheduling; `null` never expires.
 
-The table names are the language card's. A page's read rule is checked
+For example, this typing indicator lasts 4,500 ms after the last keystroke.
+Render `typingNow`'s ready rows with the filter and timers above. Each new
+answer replaces those timers; cleanup also runs when the reader unmounts.
+This is an application table, separate from the server's `connected[p]`.
+
+```quarry
+table rooms:
+  read <- exists members[.id, viewer]
+  sync to members[.id]
+
+table members:
+  roomId: rooms
+  principal: principal
+  unique byRoomPrincipal: roomId, principal
+  by byPrincipalRoom: principal, roomId
+  read <- exists members[.roomId, viewer]
+  sync to members[.roomId]
+
+table typing:
+  roomId: rooms
+  principal: principal
+  expiresAt: time
+  unique byRoomPrincipal: roomId, principal
+  by byExpiresAt: expiresAt
+  cap 50 by roomId
+  read <- exists members[.roomId, viewer]
+  insert <- .principal = viewer and exists members[.roomId, viewer]
+  update <- .principal = viewer and exists members[.roomId, viewer]
+  expire at .expiresAt
+  sync to members[.roomId]
+
+mutation setTyping(roomId: rooms):
+  upsert typing[roomId, viewer] { roomId, principal: viewer, expiresAt: now + 4500 }
+
+query typingNow(roomId: rooms):
+  return typing[roomId] first 50 by byRoomPrincipal { principal, expiresAt }
+```
+
+The first read examples use the language card's tables. A page's read rule is checked
 once when the prefix decides it, else per row, and a page whose rule still depends
 on a column the scan does not pin is never `complete` (N_NEVER_COMPLETE names
 the index that would decide it). With a total unique `(chatKey, principal)`
