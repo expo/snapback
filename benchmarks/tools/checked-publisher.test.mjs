@@ -22,6 +22,60 @@ function expectReason(reason) {
   return (error) => error instanceof BenchmarkPublicationError && error.reason === reason;
 }
 
+const WORKROOM_BUILDER_FIELDS = [
+  'b1SchemaAndDataModel',
+  'b2AuthAndTenancyErgonomics',
+  'b3ServerFunctionsAndIntegrations',
+  'b4BackgroundAndScheduledWork',
+  'b5Files',
+  'b6Search',
+  'b7Reporting',
+  'b8Day2Evolution',
+  'b9DxDocsSetup',
+  'b10Diagnostics',
+];
+
+const WORKROOM_OUTCOME_FIELDS = [
+  'o1FunctionalCompleteness',
+  'o2CorrectnessUnderGrading',
+  'o3TrustBoundaries',
+  'o4IntegrationCorrectness',
+  'o5PerformanceAtScaleEnvelope',
+];
+
+function scoreDimensions(fields, value) {
+  return Object.fromEntries(fields.map((field) => [field, value]));
+}
+
+function workroomRecord({ complete = true } = {}) {
+  const record = fixtureJson('pass/records/snapback-r01.json');
+  record.brief = 'team-workspace';
+  delete record.rubric;
+  delete record.recordDigest;
+  const builderValue = complete ? 80 : null;
+  const panel = (scorer, value) => ({
+    scorer,
+    status: complete ? 'scored' : 'unavailable',
+    evidence: [`synthetic/${scorer}.md`],
+    dimensions: scoreDimensions(WORKROOM_OUTCOME_FIELDS, value),
+    combinedTotal: complete ? value * 0.45 + 44 : null,
+  });
+  record.workroomScore = {
+    source: 'benchmarks/briefs/team-workspace.md#scoring',
+    builder: {
+      evidence: ['synthetic/builder.md'],
+      dimensions: scoreDimensions(WORKROOM_BUILDER_FIELDS, builderValue),
+      holisticBeforeTotal: complete ? 73 : null,
+    },
+    graders: {
+      astra: panel('gpt-6-astra', complete ? 80 : null),
+      grok: panel('grok-4.6', complete ? 60 : null),
+      muse: panel('muse-spark', complete ? 100 : null),
+    },
+  };
+  return record;
+}
+
 test('checked publisher recomputes the N=3 primary and paired ratios from records', () => {
   const first = buildCheckedPublication({
     root: ROOT,
@@ -97,6 +151,76 @@ test('known missing metrics must be explicit nulls', () => {
     () => validateMachineRecord({ root: ROOT, schema, file: 'synthetic-missing-tool-uses.json', record }),
     expectReason('IMPLICIT_MISSING_METRIC'),
   );
+});
+
+test('Workroom admits complete independent panels and honest all-null panels', () => {
+  const schema = JSON.parse(readFileSync(resolve(ROOT, 'benchmarks/schema/run-record.schema.json'), 'utf8'));
+  const complete = workroomRecord();
+  assert.equal(
+    validateMachineRecord({ root: ROOT, schema, file: 'synthetic-workroom-complete.json', record: complete }),
+    complete,
+  );
+  assert.deepEqual(
+    Object.values(complete.workroomScore.graders).map((panel) => panel.combinedTotal),
+    [80, 71, 89],
+  );
+  const weighted = workroomRecord();
+  weighted.workroomScore.builder.dimensions = Object.fromEntries(
+    WORKROOM_BUILDER_FIELDS.map((field, index) => [field, (index + 1) * 10]),
+  );
+  for (const panel of Object.values(weighted.workroomScore.graders)) {
+    panel.dimensions = Object.fromEntries(
+      WORKROOM_OUTCOME_FIELDS.map((field, index) => [field, (index + 1) * 20]),
+    );
+    panel.combinedTotal = 53;
+  }
+  assert.equal(
+    validateMachineRecord({ root: ROOT, schema, file: 'synthetic-workroom-weights.json', record: weighted }),
+    weighted,
+  );
+  const unavailable = workroomRecord({ complete: false });
+  assert.equal(
+    validateMachineRecord({ root: ROOT, schema, file: 'synthetic-workroom-unavailable.json', record: unavailable }),
+    unavailable,
+  );
+});
+
+test('Workroom rejects missing dimensions, wrong totals, null-derived totals, and out-of-range scores', () => {
+  const schema = JSON.parse(readFileSync(resolve(ROOT, 'benchmarks/schema/run-record.schema.json'), 'utf8'));
+  const validate = (record) => validateMachineRecord({
+    root: ROOT,
+    schema,
+    file: 'synthetic-workroom-invalid.json',
+    record,
+  });
+
+  const missing = workroomRecord();
+  delete missing.workroomScore.builder.dimensions.b1SchemaAndDataModel;
+  assert.throws(() => validate(missing), expectReason('SCHEMA_CONFORMANCE'));
+
+  const wrongTotal = workroomRecord();
+  wrongTotal.workroomScore.graders.astra.combinedTotal = 81;
+  assert.throws(() => validate(wrongTotal), expectReason('WORKROOM_SCORE_AGGREGATION_MISMATCH'));
+
+  const nullDerived = workroomRecord();
+  nullDerived.workroomScore.graders.astra.dimensions.o3TrustBoundaries = null;
+  assert.throws(() => validate(nullDerived), expectReason('WORKROOM_SCORE_NULL_AGGREGATE'));
+
+  const outOfRange = workroomRecord();
+  outOfRange.workroomScore.builder.dimensions.b10Diagnostics = 101;
+  assert.throws(() => validate(outOfRange), expectReason('SCHEMA_CONFORMANCE'));
+
+  const unavailableWithScore = workroomRecord({ complete: false });
+  unavailableWithScore.workroomScore.graders.grok.dimensions.o1FunctionalCompleteness = 0;
+  assert.throws(() => validate(unavailableWithScore), expectReason('WORKROOM_SCORE_STATUS_MISMATCH'));
+
+  const undeclaredDimension = workroomRecord();
+  undeclaredDimension.workroomScore.builder.dimensions.b11Undeclared = 100;
+  assert.throws(() => validate(undeclaredDimension), expectReason('WORKROOM_SCORE_SHAPE'));
+
+  const legacyRubric = workroomRecord();
+  legacyRubric.rubric = {};
+  assert.throws(() => validate(legacyRubric), expectReason('SCHEMA_CONFORMANCE'));
 });
 
 test('record digest mismatch fails before publication', () => {
