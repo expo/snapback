@@ -137,3 +137,15 @@ and the failed transaction rolls back.
 Adding or changing a filter, key, duration, offset, dependent literal default or index
 is a derived rebuild at its declaration. Today's atomic activation rebuilds
 populated stores before publishing the new generation; it is not resumable.
+
+
+## Refused maintain expressions
+
+E_QUARRY_MAINTAIN means a predicate, grouping expression or read is outside
+the maintain forms. For example, `count posts where .at > now by authorId`
+cannot maintain a moving time predicate without a write. Store a row-local
+fact, group a required time column with `day(.at)`, or use the bounded live
+query or scheduled Trending recipe on `guide feeds`. Predicates compare
+row-local typed scalars, never tables, viewer, now or helpers. Read a scalar
+with every group key, such as `dailyPosts[viewer, day(now)]`; use an explicit
+page for a partial key. The diagnostic names the expression to repair.

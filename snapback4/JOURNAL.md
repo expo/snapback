@@ -24796,3 +24796,192 @@ wrote the four commonest (`E_QUARRY_SYNTAX`, `E_QUARRY_UNKNOWN`, `E_QUARRY_PLACE
 and censused the rest — the list by card is in the W10R2 entry above. That census is
 wave 11's largest single item: until it is closed, `why <CODE>` answers about half of
 all refusals with a card opening rather than an explanation.
+
+## 2026-09-16 — W11-cards: every registered code has dedicated default-card prose
+
+Base: `e08f1573c08a09e367876eff011ffd9824fee527`. Closed the complete
+W10R2 census: **137 registered, 71 with / 66 without before; 137 with /
+0 without after**. Added 66 mistake-and-repair paragraphs across 16 cards:
+actions 18, effects 5, bounds 3, indexes 3, jobs 3, language 2, maintains 1,
+native 3, personas 2, prediction 1, programs 2, refusals 6, services 1,
+sync 2, types 3, witness 11. The code must appear as a whole word in an
+unfenced prose paragraph; a heading or example alone does not count.
+
+Orientation used `llp-orient`, scoped to the guide and existing guide/check
+suites. LLP 3000 §6–§7 governs the tested-card contract; Accepted-as-ruled
+LLP 3000.007 §14 and §18 govern the language, §18.5 supplies repair discovery,
+and §20.19 governs repeated-diagnostic reach. Both governing documents are
+in `llp/current/`. No new design or hand-off is needed. The README and this
+entry record the changed published help. No authoring form changed, so no
+application, fixture or loopbar caller needed updating.
+
+The census in `snapback4-lang/tests/guide.rs` now asserts that the missing
+map is empty, compares explicit `why` with dedicated inline selection, and
+checks the code at identifier boundaries. It iterates the registry instead
+of accepting a fixed baseline of missing codes: adding a registered code
+without prose now fails. The CLI test calls `why` for all 137 codes. The
+actual `check` report renderer gets a pair of located diagnostics for each
+of the 137 codes across 25 default cards, requires exactly one excerpt at
+the first site, and verifies that a single occurrence adds none. Its test
+lives in the existing `tests/doctor/mod.rs`, which already has access to the
+private verbs module; no production visibility or renderer change was needed.
+
+Nine end-to-end Quarry fixtures cover language, programs, sync, native,
+types, bounds, indexes, jobs and maintains: **18 refused sites, 9 excerpts,
+9 clean repairs**, each repair with zero diagnostics and zero notes. The
+remaining seven owned cards have runtime/setup refusals: their repeated
+fixtures exercise that same renderer directly, rather than pretending
+Quarry can emit a witness-process or client-lifecycle failure. Every code
+also gets a real CLI `why` call. Explicit per-site card overrides remain
+outside the default-route census, as in W10R2. The prior fallback regression
+now uses the real missing-expiry-index diagnostic, whose override selects
+`expire` instead of `indexes`: explicit `why` labels the opening fallback,
+and repeated `check` prints no fallback excerpt. The repaired expiry
+schema checks successfully.
+
+Moved the ten affected inline cards (language, types, indexes, sync, jobs,
+native, effects, services, bounds, refusals) out of `guide.rs` into individual
+`guide/*.rs` sources before adding prose. Existing text was preserved, apart
+from updating the refusals opening to state complete default coverage and
+removing the native card's stale sentence that forbade native queries.
+By the caps convention, `guide.rs` fell from **1,470 to 401 lines**; the
+largest new card source is **451**, the largest card source overall remains
+**895** (`feeds.md`), and the largest changed code file is **1,114**
+(`tests/check.rs`). All 19 changed code files stay below 1,500 lines.
+No prose was compressed or rewrapped to satisfy that cap.
+
+Measurements from the CLI, including its final newline: **137 codes,
+0 default fallbacks, maximum 4,093 bytes** (the existing store-restore
+explanation) under the unchanged 4,096-byte limit. The 66 newly covered
+explanations total **46,569 bytes**, with a maximum of **1,047 bytes**
+for `E_NATIVE`. The nine actual Quarry fixtures add **6,527 excerpt bytes**
+across their separate checks. Routing, the repeat threshold, the three-excerpt
+limit and the 12,291-byte per-check allowance are unchanged.
+
+What the content pass found: `E_CLIENT`'s registered help incorrectly said
+it refused before contacting the server. The current React hooks emit it
+when the client throws without returning an outcome, so admission can be
+unknown. Its new paragraph and one-line help tell the builder to collect
+with the original intent ID. No emitted compiler/runtime message changed.
+The exact help-summary replacement is:
+
+```text
+Before: family client — the client refused before asking the server: a hook used outside its provider, a session that ended, a malformed argument. The message says which.
+After: family client — the client threw without returning a write or asset outcome. The message includes the original exception; a missing write outcome does not prove whether the server admitted it. Repair the client and collect with the original intent id before issuing another write.
+```
+
+### Regression and targeted verification
+
+All Cargo commands ran from `snapback4/`. JS-capable shells first exported
+`PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+The four new regressions failed against the named base guide content,
+with only their tests added; the Quarry fixture's base comparison temporarily
+restored the tracked base guide sources and restored this lane's changes
+immediately afterward. No checkout, reset, stash, commit or push was used.
+
+```text
+cargo test -p snapback4-lang --test guide w11_every_registered_code_has_a_dedicated_section -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 36 filtered out; finished in 0.03s
+cargo test -p snapback4 w11_ -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 58 filtered out; finished in 0.01s
+cargo test -p snapback4 --test check w11_ -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 51 filtered out; finished in 1.33s
+cargo test -p snapback4 --test check w11_repeated_quarry_refusals_show_sections_and_their_repairs_check_clean -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 52 filtered out; finished in 4.69s
+```
+
+Final targeted results (the complete CLI suite passed before two final
+prose-only corrections; its W11 cases were then rerun):
+
+```text
+cargo test -p snapback4-lang --test guide -- --nocapture
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+cargo test -p snapback4 --test check -- --nocapture
+test result: ok. 53 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.55s
+cargo test -p snapback4 --test check w11_ -- --nocapture
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 50 filtered out; finished in 1.76s
+cargo test -p snapback4 --bin snapback4 w11_ -- --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 58 filtered out; finished in 0.06s
+```
+
+The first content pass also caught an invented reserved code in a negative
+example (guide suite 36 passed / 1 failed; changed the example to the existing
+`E_AUTH`), and the first fixture construction lost its second syntax error
+to same-file parser recovery (0 passed / 1 failed; split the fixture into
+separate module files, then 1 passed / 0 failed). The first full CLI pass was
+52 passed / 1 failed because its old `E_STORE` test required the opening
+fallback that this lane removed; the contextual-override replacement above
+keeps testing the unchanged fallback contract. These were corrected during
+this lane, not labelled pre-existing failures.
+
+### Whole suite and isolated retries
+
+From the repository root, with Node 24 on PATH:
+
+```text
+bash snapback4/scripts/test.sh
+-- ok: cargo build (15 s)
+-- ok: wasm build (29 s)
+-- ok: package typecheck (2 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- FAIL: cargo test (1229 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+-- ok: fixture wrapper tests (24 s)
+-- FAIL: client tests (77 s)
+== 2 failure(s) in 1277 s
+```
+
+Summing the Rust target summaries gives **1,219 passed, 14 failed, 4 ignored**
+across 71 targets. The fixture wrapper was **9 passed / 0 failed**. Client
+summary: **484 tests, 482 passed / 2 failed**. The 14 Rust failures were one
+witness timeout plus 8 device-native and 5 simulator-native fixture build
+failures. Cargo could not write missing `unicode-ident-1.0.25.crate` into
+its global cache (`Operation not permitted`). The witness timed out launching
+its simctl stub instead of reaching its intended out-of-order refusal.
+The client failures were the secondary-tab terminal-receipt timing assertion
+and Chromium SIGABRT in the React harness. No full-suite pass is claimed.
+
+The witness and secondary-tab failures passed alone:
+
+```text
+cargo test -p snapback4 --test witness driver::cli_invalid_receipts_missing_video_and_step_timeout_fail_and_stop_backend -- --exact --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 15.83s
+node --test --test-name-pattern='W5c a reloaded secondary tab recovers its terminal receipt by id' packages/snapback4/test/navigation-model.test.mjs
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+```
+
+React still aborts Chromium with SIGABRT: the known sandbox artifact from
+the lane brief; the lead must rerun it outside the sandbox. No clean-base
+whole-suite run was made, and no failure is claimed pre-existing.
+
+Native retries used a writable temporary Cargo cache, not a dependency or
+lockfile change. Fetched exactly the fixture lock, built the test executables
+using the ordinary warm workspace, then ran those executables with only their
+child Cargo builds redirected to the temporary cache:
+
+```text
+CARGO_HOME=/private/tmp/w11-cards-cargo-cache cargo fetch --locked --manifest-path native-fixtures/rescore/Cargo.toml
+cargo test -p snapback4-device --test native_reads --no-run --message-format=json
+cargo test -p snapback4-sim --test native --no-run --message-format=json
+CARGO_HOME=/private/tmp/w11-cards-cargo-cache /Users/ccheever/projects/snapback-w11d/snapback4/target/debug/deps/native_reads-b3b06dc295738225 --nocapture
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.03s
+CARGO_HOME=/private/tmp/w11-cards-cargo-cache /Users/ccheever/projects/snapback-w11d/snapback4/target/debug/deps/native-3d25140fa7501473 --nocapture
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.68s
+```
+
+The full run's failures and these isolated passes are separate evidence.
+The guide work is complete; only the browser verification remains unavailable
+in this sandbox. No sections were deferred. No out-of-scope repository files,
+meter ceilings, serialized value forms, existing corpus cases or diagnostic
+plumbing changed. No sub-agent, clone, other machine, tag or publication.
+`git diff --check` passed. The journal's prior bytes were compared with HEAD
+before this single append; the final reference audit is recorded in the lane
+report, with the full command logs kept under `/tmp/w11-cards-*`.

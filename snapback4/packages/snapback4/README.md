@@ -1037,11 +1037,14 @@ every site. At most three excerpts print per check, each at most 4,096 UTF-8
 bytes including its full-card pointer and final newline (12,291 extra bytes
 including separating blank lines). A single occurrence stays compact;
 `check --json` keeps its structured diagnostics. `why <code>` still opens
-the excerpt on demand. `E_QUARRY_SYNTAX` and `E_QUARRY_UNKNOWN` have
-mistake-and-repair sections on `guide language`; `E_QUARRY_PLACEMENT` and
-`E_EMIT_IN_QUERY` have theirs on `guide programs`. Codes without a dedicated
-section stay as diagnostics and pointers in `check`; explicitly asking
-`why <code>` also shows the card's opening when no section exists.
+the excerpt on demand. Every registered code has a dedicated paragraph on
+its default card; `why <code>` names the code and explains it there.
+For example, `E_QUARRY_SYNTAX` and `E_QUARRY_UNKNOWN` have mistake-and-repair
+sections on `guide language`; `E_QUARRY_PLACEMENT` and `E_EMIT_IN_QUERY`
+have theirs on `guide programs`. A diagnostic may point to another card
+for its context; if that card lacks a section for the code, `check` keeps
+the diagnostic and pointer without an excerpt. Explicit `why <code>`
+then labels its fallback to that card's opening.
 
 ## 3. Sync: the viewer's partition is the unit of sync
 

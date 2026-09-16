@@ -75,4 +75,21 @@ opens read-only alongside the running server and is never rule-filtered.
 Only application-table views are exposed; internal tables and raw r/i are
 refused. Views and `data` include absent required literal defaults; optional
 columns stay null. Device persistence exports retain raw storage images.
-The default limit is 200, with a notice when more rows exist."##;
+The default limit is 200, with a notice when more rows exist.
+
+## Refused inspection SQL
+
+E_SQL_READ_ONLY means inspection received something other than one
+read-only `SELECT` or `WITH ... SELECT`. For example,
+`snapback4 sql "DELETE FROM messages"` cannot delete rows. Use
+`snapback4 sql "SELECT * FROM messages"` to inspect them, and a declared
+mutation for an application write. Do not combine statements or use
+attachment, pragmas or side-effect functions through this inspection verb.
+
+E_SQL_INTERNAL means inspection tried to read engine-private storage.
+For example, `SELECT * FROM r` or `SELECT * FROM sqlite_master` is not an
+application-table view. Use `snapback4 sql "SELECT * FROM messages"` for a
+declared messages table, or `snapback4 data messages`. These views expose
+the developer's store, including interpreted defaults, and are not an
+application authorization boundary. Use Quarry for application reads.
+"##;

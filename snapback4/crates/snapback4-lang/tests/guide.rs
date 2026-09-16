@@ -503,20 +503,25 @@ fn w10r2_common_refusal_examples_have_clean_repairs() {
 }
 
 #[test]
-fn w10r2_survey_dedicated_code_sections() {
+// @ref LLP 3000.007#20.19 — every registered diagnostic must have prose that repeated check output can carry.
+fn w11_every_registered_code_has_a_dedicated_section() {
     let mut missing = BTreeMap::<&str, Vec<&str>>::new();
     let mut covered = 0;
     for code in codes() {
         let diagnostic = snapback4_lang::Diagnostic::new(&Default::default(), code, "", "");
         if let Some(text) = diagnostic.explanation_section() {
-            assert!(text.split_once("\n\n").unwrap().1.contains(code), "{text}");
+            let section = text.split_once("\n\n").unwrap().1;
+            assert!(section.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|word| word == code), "{text}");
+            assert_eq!(explain_code(code).as_deref(), Some(text.as_str()), "why and inline help must select the same dedicated section for {code}");
+            assert!(!text.contains("No dedicated section"), "{text}");
             covered += 1;
         } else {
             missing.entry(snapback4_lang::diag::guide_for(code)).or_default().push(code);
         }
     }
-    println!("W10R2 section census: registered={} with={covered} without={}", codes().len(), codes().len() - covered);
-    for (card, mut codes) in missing { codes.sort_unstable(); println!("{card}: {}", codes.join(", ")); }
+    println!("W11 section census: registered={} with={covered} without={}", codes().len(), codes().len() - covered);
+    for (card, codes) in &mut missing { codes.sort_unstable(); println!("{card}: {}", codes.join(", ")); }
+    assert!(missing.is_empty(), "every registered code needs a dedicated prose paragraph on its default card: {missing:?}");
 }
 
 #[test]

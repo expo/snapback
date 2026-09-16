@@ -152,4 +152,138 @@ Install TypeScript and @types/node in the app: `check` and `dev` check the
 server entry's import graph strictly without running it. Node 24 requires
 extensions on relative TypeScript imports. Work and step records have no
 automatic retention expiry; their ids are never silently reusable. Parked
-work needs operator reconciliation; there is no resume command in this slice."##;
+work needs operator reconciliation; there is no resume command in this slice.
+
+## Action results and lifecycle refusals
+
+E_ACTION_RESULT means the handler returned a value outside its declared
+result type or output bound. For `returns { invitation: id }`, returning
+`{ invitation: 42 }` is a mistake: return the provider's string ID instead.
+Return a small JSON object matching every declared field. This invocation
+fails terminally because external work may have happened; inspect its steps
+with `snapback4 why <id>` before creating another invitation.
+
+E_ACTION_GENERATION means the queued declaration changed or the worker's
+manifest differs from the admitted contract. For example, changing an
+invitation's result fields while its old handler still runs cannot upgrade
+that invocation. Run `snapback4 check`, restart the matching handler, and
+inspect the parked work's steps before issuing replacement intent. A new
+handler does not rewrite the old invocation's contract.
+
+E_ACTION_DEADLINE means the invocation reached its admitted deadline and
+cannot run again. For example, an invitation declared `deadline 1m` cannot
+be collected as new work after a long provider outage. Inspect its recorded
+steps and the provider's outcome before starting another invocation. If the
+workflow needs longer, declare a suitable deadline for future admissions;
+changing it does not extend work already admitted.
+
+E_ACTION_ATTEMPTS means every admitted attempt was used, including the
+first. For example, `retry 1` permits one attempt, not one retry after it;
+a lost lease can consume that attempt. Inspect the steps and provider key
+with `snapback4 why <id>`, repair the failure, and reconcile any external
+work before submitting new intent. Change the declaration's retry policy
+only for future work whose provider can safely deduplicate it.
+
+E_ACTION_FAILED means the handler gave up or finished its last permitted
+attempt with an error; `why.message` carries the recorded reason. For
+example, repeatedly submitting an invalid recipient will not repair a mail
+provider's refusal. Correct the recipient or handler, inspect any steps
+already performed, then submit a new invocation for the corrected intent.
+Collecting the failed ID returns its recorded outcome, not another attempt.
+
+E_ACTION_CANCELLATION means the admitted operation forbids cancellation.
+For example, cancelling work declared `cancellation deny` is refused even
+while queued. Inspect it with `snapback4 why <id>` and let that invocation
+settle; if future work should be cancellable, declare `cancellation allow`
+before admitting it. Editing the policy does not change an existing record.
+
+E_ACTION_CANCELLED means this invocation has been cancelled and cannot
+continue. For example, retrying a cancelled invitation with its old ID
+does not send it anew. Inspect its external steps before deciding whether
+to create new intent with a new ID. Cancellation is cooperative for an
+in-flight handler and does not retract mail already sent by a provider.
+
+E_ACTION_CLOSED means code tried to use the invocation context after its
+handler finished. For example, starting `ctx.step(...)` without awaiting
+it and then returning lets work escape the handler's lifetime. Write
+`const sent = await ctx.step(...)` and return only after that work completes;
+await every `ctx.query` and `ctx.mutate` that the handler needs too. Do not
+save `ctx` for a later timer or another invocation.
+
+## External step refusals
+
+E_STEP_INPUT means the step name or JSON input is invalid, too large, or
+changed for a name already used in this invocation. For example, calling
+`ctx.step('mail', { email: 'alice@example.com' }, send)` and later reusing
+`'mail'` with Bob's address changes the step's intent. Keep the original
+input for a retry; use a distinct stable name for a distinct step. Names
+use 1–128 printable ASCII characters; pass bounded JSON, not undefined,
+functions or cyclic objects.
+
+E_STEP_BUSY means this attempt has already begun the named external step.
+For example, posting two raw `/begin` requests for `'mail'` must not send two
+messages. Use `ctx.step('mail', input, send)` and await its promise; the
+SDK joins concurrent calls with the same name and input in one attempt.
+On a later claim, reconcile uncertain work through its stable provider key
+instead of bypassing the existing step record.
+
+E_STEP_UNKNOWN means settlement or parking named a step that was never
+begun in this invocation. For example, posting `/steps/mail/done` directly
+cannot create a step record. Use `await ctx.step('mail', input, send)`;
+it begins the step, passes its stable key to the callback, and records the
+returned JSON outcome. Keep settlement under the same invocation and name.
+
+E_STEP_RESULT means the external step returned invalid or oversized JSON,
+or settlement conflicts with its recorded outcome. For example, returning
+an entire provider response containing methods is a mistake: return a small
+object such as `{ providerId: sent.id }`. Keep repeat settlements identical.
+External work may already have succeeded, so reconcile with the provider's
+stable key before replacement; this refusal does not authorize an automatic
+repeat of the external request.
+
+E_STEP_PARKED means an external outcome is uncertain and the invocation
+needs reconciliation. For example, the provider may have sent mail before
+the worker lost its reply. Supply a `reconcile` callback to `ctx.step` that
+looks up the same provider key on recovery, or throw `ParkStep` when the
+outcome cannot be established. Inspect already parked work and its provider
+record before replacing it; there is no resume command for parked work in
+this slice. A fresh ID alone cannot make repeating that side effect safe.
+
+## Server setup refusals
+
+E_SERVER_CONFIG means the runtime lacks its URL or service token, or has an
+invalid status interval. For example, launching the server entry directly
+without `SNAPBACK_URL` and `SNAPBACK_SERVICE_TOKEN` cannot connect it to a
+backend. Put the entry at `snapback/server.ts` and start `snapback4 dev`,
+which supplies both. A separately supervised entry must receive valid URL
+and token options or environment variables and a positive `statusIntervalMs`.
+
+E_SERVER_HANDLERS means the registry does not match the declared operations.
+For example, `mail.q` declaring `invite` needs the own handler key
+`'mail.invite'`, not `'invite'`. Run `snapback4 check` to regenerate
+`server.ts`, then provide exactly one handler for each action and route.
+Session routes take a function; service routes take `{ verify, handle }`.
+Remove extra keys and inherited handlers; optional effect handlers must
+name declared effects, and an empty registry may be omitted.
+
+E_SERVER_TOOLCHAIN means `check` cannot find the app's local TypeScript
+compiler. For example, a new app with a `snapback/server.ts` entry but no
+TypeScript dependency cannot check that entry. Install `typescript` and
+`@types/node` as development dependencies in the application, then rerun
+`snapback4 check`. A globally installed compiler alone is insufficient;
+`check` does not download a compiler while checking the app.
+
+E_SERVER_TYPECHECK means the server entry or an imported module fails
+TypeScript checking. For example, an action declared `returns { count: int }`
+cannot have a handler returning `{ count: 'one' }`; return `{ count: 1 }`.
+Follow the compiler's file and line through the import graph, use the
+regenerated handler types, and rerun `snapback4 check`. Node 24 relative
+TypeScript imports need their `.ts` or `.mts` extensions.
+
+E_WRITE_LABEL means `ctx.writeIdFor(label)` received an invalid label.
+For example, `ctx.writeIdFor('')` cannot name a write; use a stable printable
+label such as `ctx.writeIdFor('save-invitation')`. Labels are 1–128 ASCII
+characters without controls. Reuse that label for retries of the same
+mutation within this invocation, and use another stable label for a
+different mutation; do not put a timestamp or random value in the label.
+"##;
