@@ -33,10 +33,10 @@ const README: &str = concat!(include_str!("../../../packages/snapback4/README.md
 fn w10a_readme_opening_is_one_way_into_the_published_surface() {
     let readme = include_str!("../../../packages/snapback4/README.md");
     let opening = readme.split("## 1.").next().unwrap();
-    for text in ["README.md", "CLIENT-AND-OPERATIONS.md", "./CLIENT-AND-OPERATIONS.md#4-the-client", "Start here", "snapback4 guide <card>", "snapback4 why <code>", "terminal", "cold-offline"] {
+    for text in ["README.md", "CLIENT-AND-OPERATIONS.md", "./CLIENT-AND-OPERATIONS.md#4-the-client", "./CLIENT-AND-OPERATIONS.md#8-not-in-this-release", "Start here", "snapback4 guide <card>", "snapback4 why <code>", "terminal", "cold-offline"] {
         assert!(opening.contains(text), "the first page omits {text}");
     }
-    for card in ["language", "rules", "sync", "residency", "prediction", "reads", "writes", "effects", "jobs", "personas", "assets"] {
+    for card in ["language", "rules", "sync", "residency", "prediction", "reads", "writes", "effects", "jobs", "personas", "assets", "actions", "clock", "routes"] {
         assert!(opening.contains(&format!("guide {card}")), "start path omits {card}");
     }
     assert!(!readme.to_lowercase().contains("there is no other documentation"));

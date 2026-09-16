@@ -419,7 +419,8 @@ fn capped_page_cursor_note_respects_default_examined_ceiling() {
         let note = b.notes.iter().find(|n| n.code == "N_NO_CURSOR");
         if let Some(note) = note {
             println!("{note}");
-            assert!(note.rewrite.contains("or declare `cap 8192 by owner`"), "{note}");
+            assert!(!note.rewrite.contains("or declare `cap"), "{note}");
+            assert!(note.rewrite.contains("still needs continuation"), "{note}");
         }
         assert_eq!(note.is_some(), expected, "cap {cap}");
     }

@@ -224,7 +224,7 @@ pub(crate) fn test_work(hook: &WorkHook) {
 /// How the server is run: `dev` on a project (personas, watch), or a
 /// release (`serve`): a compiled generation over a store, tokens only.
 pub enum Mode {
-    Dev { watch: bool, fresh: bool, replay: bool, hold_effects: bool, hold_schedules: bool, clock_offset: i64 },
+    Dev { verbose: bool, watch: bool, fresh: bool, replay: bool, hold_effects: bool, hold_schedules: bool, clock_offset: i64 },
     Release { expected: u64, worker: Option<std::path::PathBuf> },
 }
 
@@ -232,10 +232,12 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     let mut source_stamp = project.sources_stamp();
     let bound = project.compile().map_err(|e| e.to_string())?;
     if !bound.diagnostics.is_empty() {
-        for diagnostic in &bound.diagnostics {
-            eprintln!("{diagnostic}\n");
-        }
-        return Err(format!("{} problem{} in snapback/", bound.diagnostics.len(), if bound.diagnostics.len() == 1 { "" } else { "s" }));
+        let verbose = !matches!(mode, Mode::Dev { verbose: false, .. });
+        let (reports, hidden) = crate::verbs::problem_reports(&bound, true, verbose);
+        let shown = reports.len();
+        for report in reports { eprintln!("{report}"); }
+        if hidden > 0 { eprintln!("snapback4 dev: {hidden} redundant cascade diagnostic(s) hidden; use --verbose to show them"); }
+        return Err(format!("{shown} problem{} in snapback/", if shown == 1 { "" } else { "s" }));
     }
     let dev = matches!(mode, Mode::Dev { .. });
     // @ref LLP 3000.007#20.2 — replay suppresses new effects and holds schedule admission; ordinary holds keep their separate meanings.
@@ -315,10 +317,10 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     if dev { eprintln!("snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both."); }
     if replay { eprintln!("snapback4 dev: replay on — new effects suppressed; schedules held"); }
     let mut background = Vec::new();
-    if let Mode::Dev { watch: true, .. } = mode {
+    if let Mode::Dev { watch: true, verbose, .. } = mode {
         let shared = shared.clone();
         let project = Project { root: project.root.clone() };
-        background.push(("watcher", crate::lifecycle::background("watcher", move || watch_sources(project, shared, source_stamp))?));
+        background.push(("watcher", crate::lifecycle::background("watcher", move || watch_sources(project, shared, source_stamp, verbose))?));
     }
     {
         let shared = shared.clone();

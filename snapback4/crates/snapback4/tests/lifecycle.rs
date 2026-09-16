@@ -530,3 +530,23 @@ fn killed_supervisors_leave_only_bounded_sessions_and_startup_sweeps_their_child
     assert!(snapback4_core::identity::resolve(&store, &manual.token, snapback4_core::now_ms()).unwrap().is_some(), "a manually issued seat is not the old supervisor's credential");
     restarted.signal(libc::SIGTERM);
 }
+
+#[test]
+fn w10r1b_dev_reports_the_same_cascades_as_check() {
+    for verbose in [false, true] {
+        let dir = Directory::new();
+        let mut host = Host::start(&dir, if verbose { &["dev", "--verbose"] } else { &["dev"] });
+        fs::write(dir.0.join("snapback/chat.q"), "query apiHistory():\n  return messages where .body = 'hello'\n").unwrap();
+        let check = dir.run(if verbose { &["check", "--verbose"] } else { &["check"] });
+        assert_eq!(check.status.code(), Some(1));
+        let expected = String::from_utf8(check.stderr).unwrap().replace("check: ", "snapback4 dev: ")
+            .replace(" problem\n", " problem in snapback/; serving the previous generation\n")
+            .replace(" problems\n", " problems in snapback/; serving the previous generation\n");
+        host.until(|h| h.log().contains(expected.lines().last().unwrap()));
+        println!("W10R1b dev verbose={verbose}:\n{}", host.log());
+        assert!(host.log().ends_with(&expected), "expected:\n{expected}actual:\n{}", host.log());
+        fs::write(dir.0.join("snapback/chat.q"), "query apiHistory():\n  return true\n").unwrap();
+        host.until(|h| h.log().contains("schema adopted as generation 2"));
+        assert!(dir.run(&["check"]).status.success());
+    }
+}

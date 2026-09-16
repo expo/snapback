@@ -20,7 +20,8 @@ merged dependencies. The initial exact pin matches the starter's dependency.
 
 This `README.md` covers the app layout, Quarry and sync (§1–3).
 [CLIENT-AND-OPERATIONS.md](./CLIENT-AND-OPERATIONS.md#4-the-client) continues
-with the client (§4), development (§5), releases (§6) and Expo (§7);
+with the client (§4), development (§5), releases (§6), Expo (§7) and
+[what is not in this release (§8)](./CLIENT-AND-OPERATIONS.md#8-not-in-this-release);
 [SERVER.md](./SERVER.md) covers TypeScript server handlers.
 `snapback4 guide <card>` and `snapback4 why <code>` answer without leaving
 the terminal. Every refusal names its code, its site and a rewrite.
@@ -35,7 +36,8 @@ and `guide prediction` for offline writes. Use `guide reads` and `guide writes`
 as you build screens; `guide replay`, `guide effects`, `guide jobs` and
 `guide clock` cover seeds, notifications and tests. Read `guide personas`
 when wiring sign-in, `guide assets` when adding media, and `guide actions`
-for TypeScript server work. Before wiring a client, continue at
+for TypeScript server work and `guide routes` for HTTP routes and webhooks.
+Before wiring a client, continue at
 [§4 The client in CLIENT-AND-OPERATIONS.md](./CLIENT-AND-OPERATIONS.md#4-the-client):
 client setup, the read/write card, React, sign-in and the app's responsibility
 for delivering its shell on a cold-offline start begin there.
@@ -219,6 +221,8 @@ mutation edit(messageId: messages, body: text <=4000):
   locally by `expiresAt` (the client example in CLIENT-AND-OPERATIONS.md).
   A typing indicator or short-lived presence row especially needs this
   filter and a render timer; `guide reads` shows the typing table and query.
+  This is an application table, separate from the server's `connected[p]`.
+  That server-decided connection signal has no `expiresAt`.
   The server will not return it again after expiry, but does not push a
   removal at that instant.
   A null time never expires. Disappearing messages
@@ -1390,7 +1394,7 @@ fn addFollow(authorId: principal):
         tryPull(f.followerId, authorId)
   visited = 0
   for p in posts[authorId] last 1000 by byActorTime:
-    if visited = 1000:
+    if visited = 917:
       break
     visited = visited + 1
     if not p.shared:
@@ -1485,8 +1489,9 @@ schedule purgeRemovedEvery every 1m: purgeRemoved
 The caps are explicit: 1,000 follows and source events per account,
 50,000 private entries per reader, 32 pulled authors per reader and
 32,000 public broadcast entries plus 32,000 pending removal tombstones
-(1,000 per actor). Follow backfills the last 1,000 source
-events; caps refuse writes atomically when reached. The full recipe and
+(1,000 per actor). Follow backfills from the last 917 source
+events by default, or `clamp(authors, 200, 917)` with custom sizing;
+caps refuse writes atomically when reached. The full recipe and
 its measured tradeoffs are on the feeds card. Author modes, public follow
 edges and public source references sync in full. Inbox entries and exact
 pull routes are readable and synced only by their reader. The online-only
@@ -1507,14 +1512,19 @@ Default global metadata caps are 1,000 authors, 100,000 edges, 32,000 pull route
 and 60,000 source references, plus 32,000 online count rows.
 `init --recipe feeds --prefix feed --authors 1008 --edges 5921` sizes the
 author and edge caps before replay; pull-route and online-count caps grow
-together to 32 × authors. The backfill bound is `min(authors, 1000)`,
-including for an edges-only install with the default 1,000 authors. Init
+together to 32 × authors. The backfill bound is `clamp(authors, 200, 917)`,
+including 917 for an edges-only install with the default 1,000 authors.
+The lower clamp preserves the earlier 200-event window; the upper bound
+reserves 107 of the 1,024 mutation writes for promotion and the app edge.
+A smaller backfill copies less history but still scans `last 1000` source
+events, so it does not reduce that page's examined-row cost. Init
 prints all caps and `backfill/author`, and incoherent sizing refuses
 `E_RECIPE_CAPS` before writing. The app's own caps stay its responsibility;
 `guide feeds` names the coupled bounds and what each costs.
 After installing the recipe, init prints one cold-row measurement command:
-`snapback4 test --residency --fixture fixture --as <principal>`. Replace
-the fixture path and principal after loading your data; ordinary checks do
+`snapback4 test --residency --fixture <fixture-directory> --as <principal>`. Replace
+both placeholders with an existing fixture path and principal; a missing
+fixture directory refuses instead of measuring an empty store. Ordinary checks do
 not repeat the pointer. The feeds card publishes `test --residency`
 measurements: the wired 500-follow fixture acquires 3,095 rows / 335,403 B
 (up from 1,055 rows); its 5-follow reader acquires 2,600 rows / 250,482 B.

@@ -293,7 +293,9 @@ from the device; the server refuses it with E_QUERY_HELD (see the search card).
 A complete empty page has `cut: null` and `complete: true`.
 
 A typing indicator or presence row with a short deadline needs a local
-filter. A row already returned stays in that answer until the next answer;
+filter. This is an application table, separate from the server's `connected[p]`.
+That server-decided connection signal has no `expiresAt`.
+A row already returned stays in that answer until the next answer;
 the server will not return it again after expiry, but does not push a removal
 at that instant. Select `expiresAt` with the row (`guide reads` has a complete
 typing table and query). Pass the ready typing rows to `showExpiringRows` and

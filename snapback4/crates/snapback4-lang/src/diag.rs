@@ -57,6 +57,12 @@ impl Diagnostic {
         self
     }
 
+    /// A repeated diagnostic gets inline help only if its card discusses it.
+    pub fn explanation_section(&self) -> Option<String> {
+        let keyword = if self.guide.is_empty() { guide_for(&self.code) } else { &self.guide };
+        crate::guide::explanation_section(&self.code, keyword)
+    }
+
     /// A contextual diagnostic owns its card; a code alone uses the default.
     pub fn explanation(&self) -> Option<String> {
         let keyword = if self.guide.is_empty() { guide_for(&self.code) } else { &self.guide };

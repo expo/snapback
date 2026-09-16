@@ -170,8 +170,9 @@ A page a query returns without
 a cursor cannot be continued: an unfiltered page with more rows reads
 `complete: false` with no `next` (N_NO_CURSOR); declare `c: cursor ?` and
 page with `after c`, or declare `cap 50 by conversationId` on the table
-for a page of 50 pinned by `conversationId`, if 50 is the intended group limit.
-An unscoped plain page can use `cap 50` on the whole table instead.
+for a page of 50 pinned by `conversationId`, if 50 is the intended group limit
+and no existing cap already bounds that group. Unscoped pages and pages
+whose existing cap exceeds their bound or the meter still need continuation.
 A cap refuses writes beyond its limit: it is a data constraint, not a hint.
 A single-group page omits this note only when its bound
 covers the group cap and that cap fits the default 8,192-row examined ceiling.

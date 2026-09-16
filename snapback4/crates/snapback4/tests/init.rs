@@ -501,8 +501,8 @@ fn w8b_sized_recipe_compiles_without_notes() {
 
 #[test]
 fn w10b_sizing_carries_the_backfill_bound_and_refuses_incoherent_caps() {
-    for (flags, backfill) in [(vec![], 1000), (vec!["--authors", "1008", "--edges", "5921"], 1000),
-        (vec!["--authors", "2000"], 1000), (vec!["--edges", "2000"], 1000), (vec!["--authors", "50", "--edges", "1000"], 50)] {
+    for (flags, backfill) in [(vec![], 917), (vec!["--authors", "1008", "--edges", "5921"], 917),
+        (vec!["--authors", "2000"], 917), (vec!["--edges", "2000"], 917), (vec!["--authors", "50", "--edges", "1000"], 200)] {
         for prefix in ["", "feed"] {
             let dir = Dir::new();
             let mut flags = flags.clone();
@@ -549,7 +549,7 @@ fn w10b_sizing_carries_the_backfill_bound_and_refuses_incoherent_caps() {
 
 #[test]
 fn w10b_residency_pointer_prints_once_at_recipe_install() {
-    let pointer = "cold rows: snapback4 test --residency --fixture fixture --as <principal>";
+    let pointer = "cold rows: snapback4 test --residency --fixture <fixture-directory> --as <principal>";
     for existing in [false, true] {
         let dir = Dir::new();
         if existing { assert!(dir.run("").status.success()); }
@@ -645,4 +645,56 @@ fn w8b_residency_measures_the_wired_calibration_shape() {
     }
     calibration::check_counts(&counts);
     assert!(output.contains("social.saveProfile: predicts: eligible") && output.contains("social.createPost: predicts: eligible") && output.contains("social.follow: predicts: never; queued without a row"), "{output}");
+}
+
+fn w10r1b_backfill_engine(followers: usize) -> snapback4_core::Engine {
+    use snapback4_core::{Engine, wire};
+    let source = snapback4_lang::recipe::following("feed", "feed").unwrap();
+    let bridge = "table appFollows:\n  reader: principal\n  author: principal\n  unique byPair: reader, author\n  public 'app edges'\n  insert <- .reader = viewer\nmutation follow(author: principal):\n  insert appFollows { reader: viewer, author }\n  feedAddFollow(author)\nmutation remove(postId: feedPosts):\n  feedDeletePost(postId)\nmutation replace(postId: id):\n  feedCreatePost(postId)\n";
+    let b = snapback4_lang::compile(&[("feed.q".into(), source), ("schema.q".into(), bridge.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let mut rows = vec![("feedAuthors", serde_json::json!({"id":"author","principal":"author","shared":false}))];
+    for n in 0..1000 {
+        rows.push(("feedPosts", serde_json::json!({"id":format!("event-{n:04}"),"postId":format!("post-{n:04}"),"actorId":"author","authorId":"author","repost":false,"shared":false,"at":n})));
+    }
+    for n in 0..followers {
+        rows.push(("feedFollows", serde_json::json!({"id":format!("edge-{n}"),"followerId":format!("f{n}"),"followedId":"author","at":1})));
+    }
+    let rows = rows.into_iter().map(|(table, row)| (table.into(), wire::row_from_json(&b.schema.tables[table], &row).unwrap())).collect::<Vec<_>>();
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    e.seed(rows).unwrap();
+    e
+}
+
+#[test]
+fn w10r1b_51st_follow_fits_the_write_ceiling_with_the_app_edge() {
+    use snapback4_core::{Context, Value, WriteState};
+    let mut e = w10r1b_backfill_engine(50);
+    let write = e.mutate("follow", None, Context::new("reader", [("author".into(), Value::Id("author".into()))].into()).at(2000)).unwrap();
+    println!("W10R1b promotion: state={:?} examined={} index={} written={}", write.state, write.metered.examined, write.metered.index_entries, write.metered.rows_written);
+    assert!(matches!(write.state, WriteState::Sent { .. }), "{write:?}");
+    assert_eq!(e.store().rows("feedFollows").unwrap().len(), 51);
+    assert_eq!(e.store().rows("feedPulls").unwrap().len(), 52);
+    assert_eq!(e.store().rows("appFollows").unwrap().len(), 1);
+    assert_eq!(e.store().rows("feedFeed").unwrap().len(), 917);
+}
+
+#[test]
+fn w10r1b_backfill_leaves_room_for_delete_and_replace_before_purge() {
+    use snapback4_core::{Context, Value, WriteState};
+    let mut e = w10r1b_backfill_engine(0);
+    let mut run = |op: &str, viewer: &str, key: &str, value: &str| {
+        let write = e.mutate(op, None, Context::new(viewer, [(key.into(), Value::Id(value.into()))].into()).at(2000)).unwrap();
+        println!("W10R1b {op}: state={:?} examined={} index={} written={}", write.state, write.metered.examined, write.metered.index_entries, write.metered.rows_written);
+        assert!(matches!(write.state, WriteState::Sent { .. }), "{write:?}");
+    };
+    run("follow", "reader", "author", "author");
+    run("remove", "author", "postId", "event-0999");
+    run("replace", "author", "postId", "replacement");
+    let copies = e.store().rows("feedFeed").unwrap();
+    let reader = copies.iter().filter(|r| r.field("readerId").unwrap().as_str().unwrap() == "reader").collect::<Vec<_>>();
+    assert_eq!(reader.len(), 918);
+    assert!(reader.iter().any(|r| r.field("eventId").unwrap().as_str().unwrap() == "event-0999"), "purge has not run");
+    assert!(reader.iter().any(|r| r.field("eventId").unwrap().as_str().unwrap() == "replacement"));
+    assert_eq!(e.store().rows("feedPosts").unwrap().len(), 1000);
 }

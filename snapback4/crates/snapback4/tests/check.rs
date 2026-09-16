@@ -189,16 +189,17 @@ fn w10a_repeated_notes_explain_once_under_the_first_occurrence() {
 fn w10a_repeated_refusals_explain_once_and_preserve_json() {
     let p = Project::new();
     for count in [1, 2] {
-        let source = format!("table messages:\n  body: text <=100\n  read <- allow\n{}", (0..count).map(|i| format!("query broken{i}():\n  return missing{i}\n")).collect::<String>());
+        let source = format!("table messages:\n  body: text <=100\n  read <- allow\n{}", (0..count).map(|i| format!("query broken{i}():\n  return {i} + true\n")).collect::<String>());
         p.source(&source);
         let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
         assert_eq!(bound.diagnostics.len(), count);
         let output = p.run(&["check"]);
         assert_eq!(output.status.code(), Some(1));
         let text = String::from_utf8(output.stderr).unwrap();
-        assert_eq!(text.matches("Full card: snapback4 guide language").count(), usize::from(count >= 2), "{text}");
+        assert_eq!(text.matches("Full card: snapback4 guide types").count(), usize::from(count >= 2), "{text}");
         if count >= 2 {
-            let explanation = bound.diagnostics[0].explanation().unwrap();
+            let explanation = bound.diagnostics[0].explanation_section().unwrap();
+            assert!(explanation.split_once("\n\n").unwrap().1.contains(&bound.diagnostics[0].code), "the card excerpt must name its own code: {explanation}");
             assert!(text.contains(&format!("{}\n\n{explanation}\n\n{}", bound.diagnostics[0], bound.diagnostics[1])), "{text}");
             assert!(explanation.len() + 1 <= 4096);
         }
@@ -221,14 +222,16 @@ fn w10a_inline_sections_have_a_check_wide_bound_and_stable_order() {
     let output = p.run(&["check"]);
     assert_eq!(output.status.code(), Some(1));
     let text = String::from_utf8(output.stderr).unwrap();
-    assert_eq!(text.matches("Full card: snapback4 guide ").count(), 3, "{text}");
+    assert_eq!(text.matches("Full card: snapback4 guide ").count(), 1, "{text}");
+    assert!(!text.contains("No dedicated section"), "{text}");
     let mut expected = String::new();
     let mut shown = std::collections::BTreeSet::new();
     let mut added_bytes = 0;
     for d in &bound.diagnostics {
         expected.push_str(&format!("{d}\n\n"));
-        if shown.len() < 3 && shown.insert((&d.code, &d.guide)) {
-            let explanation = d.explanation().unwrap();
+        if d.code == "E_QUARRY_TYPE" && shown.insert((&d.code, &d.guide)) {
+            let explanation = d.explanation_section().unwrap();
+            assert!(explanation.split_once("\n\n").unwrap().1.contains(&d.code), "the card excerpt must name its own code: {explanation}");
             added_bytes += explanation.len() + 2;
             expected.push_str(&format!("{explanation}\n\n"));
         }
@@ -236,7 +239,7 @@ fn w10a_inline_sections_have_a_check_wide_bound_and_stable_order() {
     expected.push_str(&format!("check: {} problems\n", bound.diagnostics.len()));
     assert_eq!(text, expected);
     assert!(added_bytes <= 3 * 4097);
-    println!("W10a refusal bound: repeated kinds=4, inline sections=3, added bytes={added_bytes}, maximum added bytes=12291");
+    println!("W10a refusal bound: repeated kinds=4, inline sections=1, added bytes={added_bytes}, maximum added bytes=12291");
     assert_eq!(p.run(&["check"]).stderr, text.as_bytes());
 }
 
@@ -949,4 +952,37 @@ fn w9c_check_validates_unique_refusal_codes_like_require() {
     p.source(&source("HANDLE_TAKEN 'That handle is taken.'"));
     let result = p.run(&["check"]);
     assert!(result.status.success(), "{result:?}");
+}
+
+#[test]
+fn w10r1b_unscoped_cursor_note_never_proposes_a_whole_table_cap() {
+    let p = Project::new();
+    p.source(SOURCE);
+    let checked = p.run(&["check"]);
+    assert!(checked.status.success());
+    let text = String::from_utf8(checked.stdout).unwrap();
+    println!("{text}");
+    assert!(text.contains("N_NO_CURSOR") && text.contains("still needs continuation"), "{text}");
+    assert!(!text.contains("or declare `cap"), "{text}");
+    p.source(&SOURCE.replace("query all():", "query all(c: cursor ?):").replace("messages[] first", "messages[] after c first"));
+    assert!(!String::from_utf8_lossy(&p.run(&["check"]).stdout).contains("N_NO_CURSOR"));
+}
+
+#[test]
+fn w10r1b_missing_fixture_refuses_instead_of_measuring_an_empty_store() {
+    let p = Project::new();
+    for missing in ["absent", "not-a-directory"] {
+        if missing == "not-a-directory" { fs::write(p.0.join(missing), "file").unwrap(); }
+        let output = p.run(&["test", "--memory", "--residency", "--fixture", missing, "--as", "alice"]);
+        println!("fixture {missing}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.status.code(), Some(1), "{output:?}");
+        assert!(String::from_utf8_lossy(&output.stderr).contains("cannot read fixture directory"));
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("loaded 0 rows"));
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("measurement"));
+    }
+    fs::create_dir(p.0.join("fixture")).unwrap();
+    fs::write(p.0.join("fixture/messages.jsonl"), "{\"id\":\"one\",\"body\":\"hello\"}\n").unwrap();
+    let output = p.run(&["test", "--memory", "--residency", "--fixture", "fixture", "--as", "alice"]);
+    assert!(output.status.success(), "{output:?}");
+    assert!(String::from_utf8_lossy(&output.stdout).contains("loaded 1 rows"));
 }
