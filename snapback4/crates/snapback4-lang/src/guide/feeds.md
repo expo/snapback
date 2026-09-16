@@ -75,7 +75,7 @@ rows in one operation. The runtime meters still decide each operation.
 | Events and tombstones per actor / inbox per reader and actor | Each stays at 1,000. The source scan and unfollow loop cover 1,000 rows; a follow visits the newest `clamp(authors, 200, 917)` events, copying only pushed events. At the default backfill, 83 inbox slots remain for new deliveries before removal cleanup. |
 | Inbox per reader / pulls per reader | Fixed at 50,000 / 32. The former bounds private cold acquisition; the latter bounds the merge's pulled lanes and its per-read work. Growing them requires revisiting the query and its meter, not just global sizing. |
 
-Small accounts write each reader's private inbox. On the 51st follower,
+Small accounts write each reader's private inbox. On a successful 51st follow,
 future events go into one public broadcast projection; the earlier events
 keep their delivery mode. Follow backfills from the latest 917 source events by default,
 and unfollow deletes every private entry by that actor and drops the pull
@@ -256,7 +256,7 @@ fn addFollow(authorId: principal):
       update authors[authorId] { shared: true }
       tryPull(authorId, authorId)
       for f in follows[authorId] first 1000 by byFollowed:
-        tryPull(f.followerId, authorId)
+        require tryPull(f.followerId, authorId) else FEED_PROMOTION_PULL_CAP
   visited = 0
   for p in posts[authorId] last 1000 by byActorTime:
     if visited = 917:
@@ -353,13 +353,25 @@ schedule purgeRemovedEvery every 1m: purgeRemoved
 
 Call `register` during profile creation. `follow` and `unfollow` are
 idempotent; promotion is permanent and atomic with the follow that triggers
-it. Promotion attempts a pull lane for the author and all 51 followers,
-skipping anyone already at 32 pulls instead of refusing the promotion.
-A skipped follower keeps old private entries but receives no later broadcast
-from this author until they free a slot and unfollow/refollow. A new follow
-of an already-shared author with no slot refuses `FEED_PULL_CAP` atomically,
-including the app edge. `complete` covers the installed lanes, not skipped
-authors; show the cap refusal and require the reader to free a slot.
+it. Promotion requires a pull lane for every follower, including the triggering
+reader. If any follower already uses all 32 shared-author slots,
+`FEED_PROMOTION_PULL_CAP` refuses the whole follow/promotion transaction,
+including the app edge, author mode, routes and counts. Existing followers
+keep receiving private pushes; no follower is silently skipped.
+
+Show the refusal in the app. Have each saturated follower unfollow a shared
+author to free a slot, then retry the refused follow with a new write ID.
+The triggering reader freeing their own slot does not help a different
+saturated follower. If those followers cannot free slots, decline the new
+follow and keep the existing pushed delivery; more than 32 shared authors
+needs a separate serving design, not a larger cap alone.
+A new follow of an already-shared author with no slot refuses `FEED_PULL_CAP`
+atomically, including the app edge; that reader must free their own slot.
+`complete` describes the queried lanes' coverage under the meter; promotion
+never omits a subscribed follower's route.
+Requiring route success adds no writes, so the 107-write allowance and
+917-event backfill bound are unchanged; a refusal rolls back attempted writes.
+Promotion still attempts a self pull for the author.
 A saturated author's own new shared events also get
 an own-inbox copy, so their own posts remain visible without a self pull.
 Ordinary promotion copies no old entry. A later follow copies only recent pushed
@@ -385,8 +397,8 @@ synced only by their reader. Author delivery modes, public follow edges and
 public reference events sync in full for registration and post prediction;
 app card reads still need the app's declared data. `pullCounts` is online-only:
 it exposes only a reader's installed-route count, never the author IDs.
-Promotion uses that count to skip a saturated reader without reading their
-routes. The helpers update the count in the same transaction as each route
+Promotion uses that count to refuse a saturated follower without reading
+their routes. The helpers update the count in the same transaction as each route
 insert/delete; importing routes directly must import the matching counts too.
 The reader deletes their count row when their final route goes; otherwise
 unfollow decrements it. Departed readers release the global accounting slot,

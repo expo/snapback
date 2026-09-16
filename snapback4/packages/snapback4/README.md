@@ -1193,12 +1193,18 @@ The card gives the complete compilable example, including `saveProfile`.
 `snapback4 guide feeds` carries the complete Following recipe: private
 inboxes for small accounts, one public projection for celebrity posts,
 follow-time backfill, atomic unfollow purge, own posts and attributed
-reposts, and a cursor query that runs on the device. On the 51st follower,
+reposts, and a cursor query that runs on the device. On a successful 51st follow,
 future events switch to broadcast; older events retain their delivery mode.
-Promotion skips a follower whose 32 pull slots are full; that reader keeps
-old pushed events but misses later broadcasts from this author until freeing
-a slot and unfollowing/refollowing. A saturated new follow of an already-shared
-author refuses `FEED_PULL_CAP`, rolling back the app edge too. A saturated
+Promotion requires a pull route for every follower. If any follower's 32
+shared-author slots are full, `FEED_PROMOTION_PULL_CAP` refuses the triggering
+follow and promotion atomically, including the app edge, author mode, routes
+and counts. Existing followers keep receiving private pushes. Show the refusal;
+have each saturated follower unfollow a shared author to free a slot, then
+retry the refused follow with a new write ID. Freeing the caller's slot cannot
+fix another follower's full slots. If they cannot free a slot, decline the new
+follow and keep pushed delivery; more than 32 shared authors needs a separate
+serving design. A saturated new follow of an already-shared author refuses
+`FEED_PULL_CAP`, rolling back the app edge too. A saturated
 author keeps their own shared events through an own-inbox copy.
 `deletePost` and `unrepost` hide source events through synced removal
 tombstones immediately after the removal commit is applied, then a scheduled
@@ -1395,7 +1401,7 @@ fn addFollow(authorId: principal):
       update authors[authorId] { shared: true }
       tryPull(authorId, authorId)
       for f in follows[authorId] first 1000 by byFollowed:
-        tryPull(f.followerId, authorId)
+        require tryPull(f.followerId, authorId) else FEED_PROMOTION_PULL_CAP
   visited = 0
   for p in posts[authorId] last 1000 by byActorTime:
     if visited = 917:
@@ -1500,7 +1506,7 @@ its measured tradeoffs are on the feeds card. Author modes, public follow
 edges and public source references sync in full. Inbox entries and exact
 pull routes are readable and synced only by their reader. The online-only
 `pullCounts` table exposes each reader's installed-route count, not author
-IDs, so promotion can skip saturated readers atomically. The helpers update
+IDs, so promotion can refuse saturated followers atomically. The helpers update
 it with each route insert/delete; direct imports must include matching counts.
 The reader deletes their count row with their final route, releasing the
 global accounting slot; remaining routes decrement it, and a later follow

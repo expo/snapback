@@ -30,6 +30,29 @@ use std::path::{Path, PathBuf};
 const README: &str = concat!(include_str!("../../../packages/snapback4/README.md"), "\n", include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md"), "\n", include_str!("../../../packages/snapback4/SERVER.md"));
 
 #[test]
+fn w11a_feeds_card_requires_delivery_preserving_promotion() {
+    let feeds = card("feeds").unwrap();
+    for text in [
+        "Promotion requires a pull lane for every follower, including the triggering\nreader. If any follower already uses all 32 shared-author slots,\n`FEED_PROMOTION_PULL_CAP` refuses the whole follow/promotion transaction,\nincluding the app edge, author mode, routes and counts. Existing followers\nkeep receiving private pushes; no follower is silently skipped.",
+        "Show the refusal in the app. Have each saturated follower unfollow a shared\nauthor to free a slot, then retry the refused follow with a new write ID.\nThe triggering reader freeing their own slot does not help a different\nsaturated follower. If those followers cannot free slots, decline the new\nfollow and keep the existing pushed delivery; more than 32 shared authors\nneeds a separate serving design, not a larger cap alone.",
+        "`complete` describes the queried lanes' coverage under the meter; promotion\nnever omits a subscribed follower's route.",
+        "Promotion uses that count to refuse a saturated follower without reading\ntheir routes.",
+        "Requiring route success adds no writes, so the 107-write allowance and\n917-event backfill bound are unchanged; a refusal rolls back attempted writes.",
+    ] { assert!(feeds.contains(text), "feeds card omits verbatim policy: {text}"); }
+    for doc in [feeds, README] {
+        assert!(doc.contains("require tryPull(f.followerId, authorId) else FEED_PROMOTION_PULL_CAP"));
+        assert!(!doc.contains("skips a follower") && !doc.contains("skip saturated readers"));
+        assert!(!doc.contains("A skipped follower") && !doc.contains("not skipped\nauthors"));
+    }
+    assert_eq!(snapback4_lang::diag::guide_for("FEED_PROMOTION_PULL_CAP"), "feeds");
+    let explanation = guide::CODES.iter().find(|(code, _)| *code == "FEED_PROMOTION_PULL_CAP").unwrap().1;
+    assert_eq!(explanation, "a follower already uses all 32 shared-author slots. The triggering follow and promotion were rolled back; existing followers still receive private pushes. Show this refusal in the app. Have each saturated follower unfollow a shared author, then retry the refused follow with a new write ID. Freeing only the caller's slot cannot fix another follower's full slots; if they cannot free a slot, decline the new follow and keep pushed delivery. More than 32 shared authors needs a separate serving design. guide feeds.");
+    let why = explain_code("FEED_PROMOTION_PULL_CAP").unwrap();
+    assert!(why.contains(explanation) && why.contains("snapback4 guide feeds"));
+    assert!(!explain_code("FEED_PULL_CAP").unwrap().contains("skips saturated readers"));
+}
+
+#[test]
 fn w10a_readme_opening_is_one_way_into_the_published_surface() {
     let readme = include_str!("../../../packages/snapback4/README.md");
     let opening = readme.split("## 1.").next().unwrap();

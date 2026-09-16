@@ -59,6 +59,7 @@ pub fn following(prefix: &str, module: &str) -> Result<String, String> {
 }
 
 pub fn following_sized(prefix: &str, module: &str, caps: FollowingCaps) -> Result<String, String> {
+    // @ref LLP 3000.007#20.3 — promotion requires every follower's route in the triggering follow transaction.
     let source = crate::guide::quarry(crate::guide::card("feeds").unwrap()).remove(0);
     // @ref LLP 3000.007#20.3 — size metadata while keeping backfill within the promotion write allowance.
     let (doc, errors) = crate::parse_document("feed.q", &source);
