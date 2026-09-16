@@ -46,7 +46,15 @@ on the hub fixture. Everything not required to pass them does not exist yet.
 - **No new LLP number** without first extending LLP 3000 or LLP 2000.000; no spec without running code (`rules/RULES.md`: only implemented specs bind).
 - **No second session on the core** during slice one; lanes take the periphery.
 - **No test matrix as the primary harness.** The simulator is; real-browser and device witnesses cover only what it cannot reach.
-- **No files over 1,500 lines**, including ones copied from Snapback 2. Split on the way in.
+- **No files over 1,500 lines**, including ones copied from Snapback 2. Split on
+  the way in. The one exception is the package's published documents
+  (`packages/snapback4/README.md` and its linked references): the rule exists to
+  keep a *source* file reviewable, and the 0.2.25 calibration measured the cost of
+  applying it to a document — splitting the README was that run's single largest
+  scoring loss, because the builder then had four places to look instead of one
+  (LLP 3000.007 §20.19). A published document is bounded by whether a builder can
+  find one way in, not by a line count; the census that enforces this rule covers
+  source, and says so.
 
 ## Deliberately worse
 
