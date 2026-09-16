@@ -22843,3 +22843,135 @@ so both receipt creation and replay need to account for it. Source residency
 is useful evidence, but runtime authorization and the ability to continue a
 page are independent facts; the compiler should name only the evidence it
 actually established.
+
+## 2026-09-16 — W9R1b: exact residency declarations and contextual why cards
+
+Implemented the wave-9 round-1 lane at base
+`663cfd6226b7719ed19f98fe7d5e9599ca47a45e`. LLP 3000.007 §6.3 owns source
+attribution, §18.1 the matching-merge note, and §20.1 the card routing.
+After-insert execution facts now carry the final-exists declaration ordinal
+through classification and resolve that exact AST site. Two constraints
+on `permits`, through `byOwner` and `byTeam`, previously produced four
+located facts, including two cross-attributions; now they produce two facts
+and zero cross-attributions. The regression also uses the same index twice
+and keeps both declaration lines distinct.
+
+The catalog now maps both `insert-if-absent` and `insert if absent` to the
+insert rule. The brief's end-to-end fixture already points to the insert
+rule on this base because `ir::write_tables` reports `insert`; it remains a
+positive test. Direct alias lookup reproduced the actual catalog bug:
+`schema.q:6:1` (table) before, `schema.q:11:3` (insert rule) after. An initial
+test draft incorrectly expected the fixture's label to be `insert-if-absent`;
+that expectation was corrected before reproducing and fixing the alias bug.
+
+`why <CODE>` prefers the first matching current-project diagnostic's guide,
+then uses the existing code mapping if there is no diagnostic or guide.
+`N_WIDE_MERGE` opens feeds for the Following note and search for membership
+search; search remains its standalone default. Mixed-note, invalid-project,
+no-note and no-project cases are covered. The registry explanation and README
+state the choice. The feeds fixture's output changed from 2,568 bytes with
+`Full card: snapback4 guide search` to 1,343 bytes with
+`Full card: snapback4 guide feeds`; the search fixture prints 2,745 bytes.
+All 102 registered codes retain bounded excerpts: maximum 4,093 bytes,
+including the CLI newline, against the existing 4,096-byte bound.
+
+Both expiry cards and the README now say that the local client reschedules
+its watch at `Read.nextExpiry`, while keeping the `expiresAt` render filter
+so display removal does not wait for the refetch. No language form or emitted
+code was added. The largest modified code file is `guide.rs`, 1,485 lines.
+
+The device papercut harness now runs create/update collision refusals,
+if-absent null results, and successful create, rename and if-absent inserts
+for all three hook spellings on both SQLite and memory: 36 write cases.
+Twelve additional hidden/available settlement cases cover the three writes
+on both stores, with six hidden collisions remaining `E_RULE` without
+constraint detail and six available writes succeeding. An initial assertion
+that every hidden-population write must queue without prediction was wrong:
+plain create and update can predict optimistically and then roll back on
+server refusal; if-absent cannot prove that population absent and queues.
+The test was corrected to check privacy and settlement, without a runtime
+change. The added visible-device coverage already passed against the base
+runtime; its coverage gap is not claimed as a red-before/green-after bug.
+
+Commands below ran from `snapback4/` unless noted. Red results were measured
+before the corresponding production edits; green results include those tests
+in their existing suites. Full logs and every verbatim per-target full-suite
+summary are in `/private/tmp/w9r1b-validation.txt` and its linked log paths.
+
+```text
+cargo test -p snapback4-lang --test residency_notes w9r1b -- --nocapture
+Red: test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 34 filtered out; finished in 0.00s
+cargo test -p snapback4-lang --test guide w9a_expiry_cards -- --nocapture
+Red: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 30 filtered out; finished in 0.00s
+cargo test -p snapback4 --test check w9r1b -- --nocapture
+Red: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 34 filtered out; finished in 1.25s
+cargo test -p snapback4-device --test device papercuts::w9c_unique -- --nocapture
+Base coverage: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 162 filtered out; finished in 0.05s
+cargo test -p snapback4-lang --test residency_notes --test guide -- --nocapture
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.39s
+cargo test -p snapback4 --test check -- --nocapture
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.48s
+cargo test -p snapback4-device --test device papercuts -- --nocapture
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 161 filtered out; finished in 0.19s
+```
+
+From the repository root:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+-- ok: cargo build (6 s)
+-- ok: wasm build (16 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (2 s)
+-- ok: cargo test (560 s)
+-- ok: chat app typecheck (0 s)
+-- ok: expo app typecheck (2 s)
+-- ok: fixture wrapper tests (9 s)
+-- FAIL: client tests (68 s)
+== 1 failure(s) in 585 s
+```
+
+Summing Rust's per-target summaries: 1,086 passed, 0 failed, 4 ignored.
+Fixture tests: 9 passed, 0 failed. Client tests: 383 passed, 1 failed of 384.
+The sole full-suite failure is the brief's named sandbox Chromium artifact:
+`packages/snapback4/test/react.test.mjs`, browser launch exits `SIGABRT`.
+Rerun alone from `snapback4/` under the same Node 24 PATH:
+
+```text
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 354.915583
+```
+
+The lead must rerun React outside the sandbox. I make no separately
+base-verified pre-existing failure claim. No lifecycle timeout or mass client
+timeout occurred. `./ref-check --verbose` passed before this entry:
+
+```text
+ref-check: ok — 481 LLP docs, 8989 refs in 23852 files, 0 errors, 0 unchecked
+```
+
+It is rerun after this append. `git diff --check` passes. All five requested
+implementation items are done; the full suite remains red only at browser
+launch. The minimal supporting files outside the lane's named language paths
+are `crates/snapback4/src/verbs.rs` (five lines to obtain the actual diagnostic)
+and `crates/snapback4/tests/check.rs` (the CLI regression). The expiry card in
+`guide.rs` also needs one crate-private re-export for diagnostic explanations.
+No completeness statement, meter ceiling, value serialization, existing
+corpus case or caller spelling changed. No commit, push, tag, publication,
+sub-agent, clone, remote machine, dependency install or formatter was used.
+
+What I learned: target tables and even indexes are not declaration identities;
+the source ordinal is. A code's generic card is useful without a project,
+but once a diagnostic supplies context, its card must own the explanation.
+Prediction tests must distinguish an optimistic write that can fail at the
+server from an if-absent write whose result requires proof of absence.

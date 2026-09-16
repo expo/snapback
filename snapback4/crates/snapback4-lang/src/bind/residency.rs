@@ -50,12 +50,15 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
             let rule = match kind { "insert" | "insert-if-absent" => &definition.rules.insert, "delete" => &definition.rules.delete, _ => &definition.rules.update };
             rule_sites(schema, rule, &format!("{kind} {table} rule"), &mut fact.sites, &mut BTreeSet::new());
             if kind == "upsert" { rule_sites(schema, &definition.rules.insert, &format!("upsert {table} insert rule"), &mut fact.sites, &mut BTreeSet::new()); }
-            for constraint in &definition.constraints {
-                if let snapback4_core::schema::Constraint::FinalExistsOnInsert { table: target, index, .. } = constraint {
-                    let location = format!("after insert {table} -> {target}");
-                    fact.sites.push(site(schema, &location, target, index, "rule"));
-                    aggregate_source_site(schema, target, &location, &mut fact.sites);
-                }
+            // Final-exists constraints retain declaration order; target and
+            // index are not identities when several declarations probe them.
+            for (ordinal, (target, index)) in definition.constraints.iter().filter_map(|constraint| match constraint {
+                snapback4_core::schema::Constraint::FinalExistsOnInsert { table, index, .. } => Some((table, index)),
+                _ => None,
+            }).enumerate() {
+                let location = format!("after insert {table} constraint {ordinal}");
+                fact.sites.push(site(schema, &location, target, index, "rule"));
+                aggregate_source_site(schema, target, &location, &mut fact.sites);
             }
         }
     }
@@ -81,12 +84,10 @@ pub(super) fn locate_sites(catalog: &Catalog, program: &super::BoundProgram, fac
                 locations.insert(format!("{location} ({name}; temporary audience rule: {} by {})", site.table, site.index));
             }
         } else if let Some(path) = site.site.strip_prefix("after insert ") {
-            if let Some((table, target)) = path.split_once(" -> ") && let Some(info) = catalog.tables.get(table) {
-                for (expr, location) in &info.decl.final_exists {
-                    if let crate::ast::Expr::Exists { read, .. } = expr && read.table == target {
-                        locations.insert(format!("{location} ({table} after insert rule: {} by {})", site.table, site.index));
-                    }
-                }
+            if let Some((table, ordinal)) = path.split_once(" constraint ")
+                && let Some(info) = catalog.tables.get(table)
+                && let Some((_, location)) = ordinal.parse::<usize>().ok().and_then(|ordinal| info.decl.final_exists.get(ordinal)) {
+                locations.insert(format!("{location} ({table} after insert rule: {} by {})", site.table, site.index));
             }
         } else if site.site.ends_with(" rule") {
             let parts: Vec<_> = site.site.split_whitespace().collect();

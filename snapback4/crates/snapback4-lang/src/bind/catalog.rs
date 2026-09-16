@@ -164,7 +164,8 @@ impl Catalog {
                     }
                 }
                 ["rules", effect] => {
-                    if let Some(r) = info.decl.rules.iter().find(|r| r.effect.word() == *effect) {
+                    let effect = match *effect { "insert-if-absent" | "insert if absent" => "insert", effect => effect };
+                    if let Some(r) = info.decl.rules.iter().find(|r| r.effect.word() == effect) {
                         return r.site.clone();
                     }
                 }
