@@ -771,7 +771,8 @@ sessions keep their expiry.
 
 With `snapback/worker.ts` (or `.mts` or `.mjs`), `dev` starts Node 24 and supplies
 `SNAPBACK_URL` and `SNAPBACK_SERVICE_TOKEN`, a `service:worker` token
-printed once. It restarts after crashes with 250 ms to 5 s backoff and
+printed once on stdout, with its "printed once" warning; diagnostic logs
+captured from stderr do not contain it. It restarts after crashes with 250 ms to 5 s backoff and
 stops the child when dev exits. `doctor` shows the worker file and the
 request queue by state. `dev` still inherits its parent's environment until
 declared secrets arrive in A2. In production, `serve <release-dir> --worker
@@ -885,8 +886,9 @@ step.
   Argon2 slot count once at startup: available cores, capped at 16, minimum 2.
   Connection/worker caps remain; `serve` keeps two Argon2 slots and the
   30-per-peer and 10-per-email limits.
-  `dev` and `serve` print only the listening URL and one newline on stdout;
-  startup explanations, lifecycle messages and supervised worker logs go to stderr.
+  `dev` and `serve` print the listening URL and one newline first on stdout;
+  with an application worker, `dev` also prints its one-time token after that URL.
+  Startup explanations, lifecycle messages and supervised worker logs go to stderr.
   Process exits carry a one-line stderr diagnostic with the verb, serving
   generation and reason: `SNAPBACK4_EXIT` for returned errors/stops,
   `SNAPBACK4_PANIC` for panics on any thread (including abort builds),
@@ -968,10 +970,14 @@ step.
   curl -X POST http://127.0.0.1:4400/dev/clock/advance -H 'Content-Type: application/json' -d '{"duration":"36s"}'
   ```
 
-- **`snapback4 check [--cost|--residency|--fix|--json]`** compiles, writes
-  `snapback/generated/api.ts` (`Rows`, `Ops`, `api`), and prints every
-  diagnostic with its site and rewrite; `--cost` adds each site's
+- **`snapback4 check [--cost|--residency|--fix|--json|--verbose]`** compiles, writes
+  `snapback/generated/api.ts` (`Rows`, `Ops`, `api`), and prints
+  diagnostics with their sites and rewrites; `--cost` adds each site's
   structural class, and `--residency` names where operations run.
+  A parser recovery's empty-operation error is hidden when an earlier error
+  in that same operation already explains it and its rewrite adds no repair.
+  The summary counts the hidden cascades; `--verbose` shows them, and
+  `--json` always retains every diagnostic. Independent errors stay visible.
   `--fix` applies only diagnostics explicitly marked `mechanical`: an
   ambiguous key's `by`, a cursor index's missing `id`, and exact canonical
   spelling rewrites, including `==` to `=` and `a?.b` to

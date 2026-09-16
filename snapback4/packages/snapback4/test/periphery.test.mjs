@@ -30,7 +30,7 @@ function fixture(t) {
   return { dir, invoke, run };
 }
 
-for (const mode of ["dev", "serve"]) test(`${mode}: piped token stdout is one usable bearer, and server stdout is one URL`, { timeout: 20000 }, async (t) => {
+for (const mode of ["dev", "serve"]) test(`${mode}: piped token stdout is one usable bearer, and server stdout carries its URL and optional dev token`, { timeout: 20000 }, async (t) => {
   const { dir, run, invoke } = fixture(t);
   run("init", "--online");
   const schema = join(dir, "snapback/schema.q");
@@ -48,16 +48,17 @@ for (const mode of ["dev", "serve"]) test(`${mode}: piped token stdout is one us
   let stdout = "", stderr = "";
   child.stdout.on("data", data => { stdout += data; });
   child.stderr.on("data", data => { stderr += data; });
+  const withoutToken = () => stdout.replace(/^snapback4 dev worker: service:worker token \(printed once\): \S+\n/gm, "");
   const until = async (predicate) => {
     const deadline = Date.now() + 5000;
     while (!predicate() && child.exitCode == null && child.signalCode == null && Date.now() < deadline) await delay(10);
-    assert.ok(predicate(), stdout + stderr);
+    assert.ok(predicate(), (stdout + stderr).replace(/token \(printed once\): \S+/g, "token (printed once): <redacted>"));
   };
   try {
-    await until(() => stdout.includes("\n"));
-    const url = stdout.trim();
+    await until(() => withoutToken().includes("\n"));
+    const url = withoutToken().trim();
     assert.match(url, /^http:\/\/127\.0\.0\.1:\d+$/);
-    assert.equal(stdout, `${url}\n`);
+    assert.equal(withoutToken(), `${url}\n`);
     await until(() => stderr.includes(`snapback4 ${mode}: ${url}`));
     if (mode === "dev") {
       await until(() => stderr.includes("worker stdout witness") && stderr.includes("worker stderr witness"));
@@ -92,7 +93,7 @@ for (const mode of ["dev", "serve"]) test(`${mode}: piped token stdout is one us
     assert.equal(refused.status, 1);
     assert.equal(refused.stdout, "");
     assert.match(refused.stderr, /^token:/);
-    assert.equal(stdout, `${url}\n`, "worker output, schema adoption and request handling must not contaminate stdout");
+    assert.equal(withoutToken(), `${url}\n`, "apart from the one-time token, worker output, adoption and requests stay off stdout");
   } finally {
     if (child.exitCode == null && child.signalCode == null) child.kill("SIGTERM");
     await exited;

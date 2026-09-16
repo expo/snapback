@@ -2,6 +2,15 @@ use snapback4_lang::{compile, Diagnostic};
 use snapback4_lang::diag::Site;
 const SCHEMA: &str = include_str!("../../snapback4-sim/tests/search_merge/schema.q");
 #[test]
+fn w10c_empty_search_card_paves_the_directory_branch() {
+    let card = snapback4_lang::guide::card("search").unwrap();
+    assert!(card.contains("`matching ''` matches nothing, including when the needle contains only whitespace or punctuation."));
+    assert!(card.contains("Use `allPeople` while the search box is empty and `people` once the user types."));
+    assert!(card.contains("Reset the cursor when switching queries or changing the search text."));
+    assert!(card.contains("return profiles after c first 20 by byId"));
+}
+
+#[test]
 fn r1a_conjunctive_scope_rule_gets_the_matching_merge_envelope() {
     let source = format!("{}\nquery all(q: text <=100, c: cursor ?):\n  return messages matching q after c last 50 by byWords\n", SCHEMA.replace("roomId: id", "roomId: text <=40").replace("  sync to members[.roomId]\n", "").replace("read <- exists members[.roomId, viewer]\n  insert <- allow", "read <- exists members[.roomId, viewer] and .roomId != 'archived'\n  insert <- allow"));
     let b = compile(&[("schema.q".into(), source.clone())]);

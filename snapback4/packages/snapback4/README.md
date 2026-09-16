@@ -790,7 +790,19 @@ query everywhere(q: text <=100, c: cursor ?):
 
 query people(q: text <=100, c: cursor ?):
   return profiles matching q after c first 20 by byNameWords
+
+query allPeople(c: cursor ?):
+  return profiles after c first 20 by byId
 ```
+
+`matching ''` matches nothing, including when the needle contains only whitespace or punctuation.
+Use `allPeople` while the search box is empty and `people` once the user types.
+This directory uses two queries and a client branch: `allPeople` pages the
+whole directory in `byId` order; `people` searches through `byNameWords`,
+whose trailing `id` orders the matches, not alphabetically by display name.
+Continue each query with its own `next`; do not sort only the first page
+and treat it as the whole directory. Reset the cursor when switching queries or changing the search text.
+Normalize whitespace-only input to `''` in the client if it should browse too.
 
 `words(cols)` is an index component: one entry per distinct word of the
 named text columns, folded the same way on every host (NFC, lowercase, a
@@ -1071,6 +1083,10 @@ the newest N per group stay on the device, the rest are online and a
 local read past them says `complete: false`). A snapshot arrives in pages
 of 2,000 events, each staged in its own transaction and published
 together with the last, so a device never shows half a snapshot.
+Suppression is reader-dependent, even for an uncapped `sync public` table.
+Silence means "no reader in this program forced the check", not "this table is bounded".
+Inspect the table's `sync`, horizon and group `cap` with `check --residency`;
+an absent note does not certify a safe cold-start size.
 
 `online only` optionally documents a table with no sync. On a `maintain`,
 it opts out of inherited sync. `N_MAINTAIN_SYNCED` calls out public inherited

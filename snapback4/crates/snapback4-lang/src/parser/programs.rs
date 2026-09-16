@@ -95,9 +95,13 @@ impl Parser {
         }
         let server = kind == ProgramKind::Mutation && self.maybe("server");
         self.newline()?;
+        let before_body = self.diagnostics.len();
         let (prelude, body) = if kind == ProgramKind::Job { self.parse_chunks()? } else { (Vec::new(), self.parse_block()?) };
         if body.is_empty() {
-            return Err(syntax(&kind_token.site, format!("{} {name} has an empty body", kind_token.value)));
+            // @ref LLP 3000.007#18.5 — recovery's empty operation adds no repair beyond the earlier error in its own body.
+            let mut diagnostic = syntax(&kind_token.site, format!("{} {name} has an empty body", kind_token.value));
+            diagnostic.cascade_of = self.diagnostics[before_body..].iter().find(|d| d.code.starts_with("E_")).map(|d| d.site.clone());
+            return Err(diagnostic);
         }
         Ok(ProgramDecl { held, predicts, server, kind, name, args, prelude, body, native: false, site: kind_token.site })
     }

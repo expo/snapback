@@ -10,6 +10,43 @@ const SOURCE: &str = "table messages:\n  body: text <=100\n  read <- allow\nquer
 const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
 
 #[test]
+fn w10c_check_hides_only_the_redundant_operation_cascade() {
+    let p = Project::new();
+    p.source("query apiHistory():\n  return messages where .body = 'hello'\n");
+    let ordinary = p.run(&["check"]);
+    let verbose = p.run(&["check", "--verbose"]);
+    let full = p.run(&["check", "--json"]);
+    for output in [&ordinary, &verbose, &full] { assert_eq!(output.status.code(), Some(1)); }
+    let text = String::from_utf8(ordinary.stderr).unwrap();
+    let all = String::from_utf8(verbose.stderr).unwrap();
+    println!("default:\n{text}verbose:\n{all}");
+    assert_eq!(all.matches(" — E_QUARRY_SYNTAX:").count(), 2);
+    assert!(all.contains("query apiHistory has an empty body"));
+    assert_eq!(parsed(&full)["problems"].as_array().unwrap().len(), 2);
+    assert_eq!(text.matches(" — E_QUARRY_SYNTAX:").count(), 1);
+    assert!(text.contains("range reads require first N or last N"));
+    assert!(!text.contains("has an empty body"));
+    assert!(text.contains("--verbose"));
+    p.source("query apiHistory():\n  return 1\n");
+    assert!(p.run(&["check"]).status.success());
+}
+
+#[test]
+fn w10c_check_keeps_independent_errors_and_other_operations() {
+    let p = Project::new();
+    p.source("query apiHistory():\n  return messages where .body = 'hello'\n  return exists 1\n  return 1\njob empty():\n  x = 1\n");
+    fs::write(p.0.join("snapback/other.q"), "query apiHistory():\n  return messages where .body = 'bye'\n").unwrap();
+    let output = p.run(&["check"]);
+    assert_eq!(output.status.code(), Some(1));
+    let text = String::from_utf8(output.stderr).unwrap();
+    println!("{text}");
+    assert_eq!(text.matches("range reads require first N or last N").count(), 2);
+    assert!(text.contains("exists requires an indexed read t[key]"), "the second error has independent information despite its generic rewrite");
+    assert!(text.contains("job empty has an empty body"), "an earlier error in another operation cannot hide this empty body");
+    assert_eq!(text.matches(" — E_").count(), 4);
+}
+
+#[test]
 fn w9r1b_why_wide_merge_opens_the_notes_card() {
     let p = Project::new();
     let feeds = "table follows:\n  reader: principal\n  author: principal\n  unique byPair: reader, author\n  cap 1000 by reader\n  public 'follow graph'\n  online only\ntable entries:\n  actor: principal\n  at: time\n  by byActorTime: actor, at, id\n  public 'posts'\n  online only\nquery following(c: cursor ?):\n  return merge entries after c last 20 by byActorTime:\n    [viewer]\n    [f.author] for f in follows[viewer] first 1000 by byPair\n";

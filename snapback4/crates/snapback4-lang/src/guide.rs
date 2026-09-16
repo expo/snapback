@@ -702,6 +702,10 @@ group, or a `cap` over the group), or its whole partition supplies an eligible
 mutation's reads or insert proof (`guide prediction`). For an eligible mutation's
 ascending page or a page on a different index, the note names the prediction
 that a horizon would cost instead of recommending that horizon.
+Suppression is reader-dependent, even for an uncapped `sync public` table.
+Silence means "no reader in this program forced the check", not "this table is bounded".
+Inspect the table's `sync`, horizon and group `cap` with `check --residency`;
+an absent note does not certify a safe cold-start size.
 A snapshot arrives in pages the client
 asks for 4,000 events at a time (2,000 by default on the wire, 10,000 at
 most), each applied in its own transaction. `POST /sync` takes JSON
@@ -1356,6 +1360,8 @@ server. `--fresh` (also `--memory`) has no disk store for this CLI to mint into.
 Readiness for dev and serve is the first stdout line: the listening URL,
 emitted after store and native-module setup. Wait for that line before sending
 requests; lifecycle logs and the store banner use stderr.
+With an application worker, dev also prints its one-time `service:worker`
+token on stdout after the URL, labelled "printed once"; it stays out of stderr logs.
 Rules name it
 like any principal, so the ranker is admitted and nobody else is; with
 its token a worker claims effects (guide effects) and runs any operation

@@ -39,7 +39,7 @@ pub fn parse(args: &[String]) -> Options {
         } else if let Some(flag) = arg.strip_prefix("--") {
             // A switch takes no value; any other flag takes the next token
             // unless that token is itself a flag.
-            const SWITCHES: &[&str] = &["values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "cost", "residency", "fix", "online", "expo", "allow-destructive", "i-understand-cleartext"];
+            const SWITCHES: &[&str] = &["values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "cost", "residency", "fix", "verbose", "online", "expo", "allow-destructive", "i-understand-cleartext"];
             let (name, value) = match flag.split_once('=') {
                 Some((name, value)) => (name.to_owned(), value.to_owned()),
                 None if SWITCHES.contains(&flag) || iter.peek().is_none_or(|next| next.starts_with("--")) => (flag.to_owned(), String::new()),
@@ -72,21 +72,37 @@ fn compile_or_exit(project: &Project, json: bool) -> Bound {
         }
     };
     if !bound.diagnostics.is_empty() {
-        report_diagnostics(&bound, json, false);
+        // Verbs other than `check` have no --verbose flag of their own, so they
+        // show every cascade rather than hide one the caller cannot reveal.
+        report_diagnostics(&bound, json, false, true);
         std::process::exit(1);
     }
     bound
 }
 
-fn report_diagnostics(bound: &Bound, json: bool, explain_repeats: bool) {
+fn report_diagnostics(bound: &Bound, json: bool, explain_repeats: bool, verbose: bool) {
     if json {
         println!("{}", json!({ "ok": false, "problems": bound.diagnostics }));
         return;
     }
-    for report in diagnostic_reports(&bound.diagnostics, "", explain_repeats) {
+    // Suppress redundant cascades first, so a hidden diagnostic never counts
+    // towards the repeat threshold that earns an inline card excerpt.
+    let mut hidden = 0;
+    let mut shown_diagnostics = Vec::new();
+    for (i, diagnostic) in bound.diagnostics.iter().enumerate() {
+        if !verbose && diagnostic.rewrite == "fix this Quarry line and rerun snapback4 check"
+            && diagnostic.cascade_of.as_ref().is_some_and(|cause| bound.diagnostics[..i].iter().any(|earlier| earlier.code.starts_with("E_") && earlier.site == *cause)) {
+            hidden += 1;
+            continue;
+        }
+        shown_diagnostics.push(diagnostic.clone());
+    }
+    for report in diagnostic_reports(&shown_diagnostics, "", explain_repeats) {
         eprintln!("{report}");
     }
-    eprintln!("check: {} problem{}", bound.diagnostics.len(), if bound.diagnostics.len() == 1 { "" } else { "s" });
+    let shown = bound.diagnostics.len() - hidden;
+    eprintln!("check: {shown} problem{}", if shown == 1 { "" } else { "s" });
+    if hidden > 0 { eprintln!("check: {hidden} redundant cascade diagnostic(s) hidden; use --verbose to show them"); }
 }
 
 // @ref LLP 3000.007#20.1 — bring the diagnostic's own card to the builder at the repeated problem.
@@ -117,7 +133,7 @@ pub fn check(options: &Options) -> i32 {
         Err(code) => return code,
     };
     if !bound.diagnostics.is_empty() {
-        report_diagnostics(&bound, options.json, true);
+        report_diagnostics(&bound, options.json, true, options.flags.contains_key("verbose"));
         if !options.json && let Some(summary) = snapback4_lang::bind::residency::prediction_summary(&bound) { println!("{summary}"); }
         return 1;
     }
@@ -127,7 +143,7 @@ pub fn check(options: &Options) -> i32 {
         Err(error) => { eprintln!("cannot check store adoption: {error}"); return 2; }
     }
     if !bound.diagnostics.is_empty() {
-        report_diagnostics(&bound, options.json, true);
+        report_diagnostics(&bound, options.json, true, options.flags.contains_key("verbose"));
         if !options.json && let Some(summary) = snapback4_lang::bind::residency::prediction_summary(&bound) { println!("{summary}"); }
         return 1;
     }

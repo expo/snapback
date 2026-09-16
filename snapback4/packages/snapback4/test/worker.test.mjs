@@ -184,9 +184,9 @@ async function actionFixture(t, { worker, source = actionSource, flags = [] } = 
   }
   const child = spawn(binary, ["dev", "--port", "0", "--no-watch", ...flags], { cwd: directory, stdio: ["ignore", "pipe", "pipe"] });
   const exited = once(child, "exit");
-  let log = "", url;
-  child.stdout.on("data", data => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
-  child.stderr.on("data", data => { log += data; });
+  let log = "", stdout = "", stderr = "", url;
+  child.stdout.on("data", data => { log += data; stdout += data; url ??= stdout.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  child.stderr.on("data", data => { log += data; stderr += data; });
   const safeLog = () => log.replace(/token \(printed once\): \S+/g, "token (printed once): <redacted>");
   const clients = [], workers = [];
   const stop = new AbortController();
@@ -205,8 +205,23 @@ async function actionFixture(t, { worker, source = actionSource, flags = [] } = 
     const response = await fetch(`${url}${path}`, { method: "POST", headers: { ...headers(credential), ...(lease ? { "x-snapback-action-lease": lease } : {}) }, body: JSON.stringify(body) });
     return { status: response.status, ...await response.json() };
   };
-  return { url, directory, child, token, stop, workers, clients, post, log: safeLog, stopServer, launch(options) { const w = runWorker({ url, token, wait: 1, signal: stop.signal, ...options }); workers.push(w); return w; } };
+  return { url, directory, child, token, stop, workers, clients, post, log: safeLog, stdout: () => stdout, stderr: () => stderr, stopServer, launch(options) { const w = runWorker({ url, token, wait: 1, signal: stop.signal, ...options }); workers.push(w); return w; } };
 }
+
+test("w10c dev worker prints its one-time token on stdout, outside captured diagnostics", { timeout: 20_000 }, async t => {
+  const f = await actionFixture(t, { worker: { ext: "mjs", text: "console.error(process.env.SNAPBACK_SERVICE_TOKEN); setInterval(() => {}, 1000);" } });
+  await until(() => f.log().includes("worker.mjs (pid") && f.log().includes("[REDACTED]"));
+  // Never put either raw stream in assertion output, even on the unfixed binary.
+  assert.equal(/^http:\/\/127\.0\.0\.1:\d+$/.test(f.stdout().split("\n")[0]), true, "the listening URL remains the first stdout line");
+  assert.equal(f.stderr().includes("token (printed once):"), false, "the credential announcement must stay off stderr");
+  const matches = [...f.stdout().matchAll(/service:worker token \(printed once\): (\S+)/g)];
+  assert.equal(matches.length, 1, "an interactive user sees the token once without an extra flag");
+  const token = matches[0][1];
+  assert.equal(f.stderr().includes(token), false, "the worker's echo must also be redacted");
+  const response = await f.post("/auth/session", { principal: "directory-user" }, token);
+  assert.equal(response.status, 200);
+  assert.equal(response.session?.principal, "directory-user", "the displayed token is usable by the worker");
+});
 
 test("actions run as the requesting viewer; client done/failed and replay reach both client tiers", { timeout: 30_000 }, async t => {
   const f = await actionFixture(t);

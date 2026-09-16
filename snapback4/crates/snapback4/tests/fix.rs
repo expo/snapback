@@ -133,7 +133,8 @@ fn check_fix_leaves_strict_not_equal_unchanged() {
     let output = check_fix(&[("schema.q", source, source)], false);
     let text = String::from_utf8(output.stderr).unwrap();
     assert!(text.contains("expected expression, got \"=\""), "{text}");
-    assert!(text.contains("query q has an empty body"), "{text}");
+    assert!(!text.contains("query q has an empty body"), "{text}");
+    assert!(text.contains("1 redundant cascade diagnostic(s) hidden; use --verbose"), "{text}");
     assert!(!text.contains("equality is = in Quarry"), "{text}");
 }
 
