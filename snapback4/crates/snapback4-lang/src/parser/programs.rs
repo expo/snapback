@@ -41,12 +41,29 @@ impl Parser {
                 return Err(syntax_with(&site, "at names a time of day inside the period; it needs every 1d (or longer)", rewrite));
             }
         }
+        let service = if self.maybe("as") {
+            let namespace = self.word()?;
+            if namespace.value != "service" {
+                return Err(syntax_with(&namespace.site, "a scheduled action runs as a service seat", "as service:billing").guide("actions"));
+            }
+            self.take(":")?;
+            let mut name = self.service_name_part()?;
+            while self.maybe("-") {
+                name.push('-');
+                name.push_str(&self.service_name_part()?);
+            }
+            Some(format!("service:{name}"))
+        } else { None };
         self.take(":")?;
         // @ref LLP 3000.007#10 — module jobs use the same qualified name in schedules as in the compiled program.
         let mut target = self.word()?.value;
         if self.maybe(".") { target.push('.'); target.push_str(&self.word()?.value); }
         self.end_line(&site)?;
-        Ok(ScheduleDecl { name, every_ms, offset_ms, target, site })
+        Ok(ScheduleDecl { name, every_ms, offset_ms, target, service, site })
+    }
+
+    fn service_name_part(&mut self) -> Fallible<String> {
+        if self.at_kind(Kind::Number) { Ok(self.take_kind(Kind::Number)?.value) } else { Ok(self.word()?.value) }
     }
 
     pub(super) fn parse_program(&mut self) -> Fallible<ProgramDecl> {

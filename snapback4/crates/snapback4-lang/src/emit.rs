@@ -4,6 +4,8 @@
 
 pub mod rust;
 pub use rust::rust;
+mod server;
+pub use server::server_typescript;
 
 use crate::bind::{Bound, BoundProgram};
 use crate::types::Ty;

@@ -341,8 +341,19 @@ pub struct ArgDecl {
 pub struct ActionDecl {
     pub name: String,
     pub args: Vec<ArgDecl>,
+    pub returns: Option<Vec<ArgDecl>>,
+    pub work: WorkDecl,
     pub rule: Expr,
     pub site: Site,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct WorkDecl {
+    pub secrets: Vec<String>,
+    pub max_attempts: Option<u32>,
+    pub backoff_ms: Option<u64>,
+    pub deadline_ms: Option<u64>,
+    pub cancellable: Option<bool>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -378,6 +389,7 @@ pub struct ScheduleDecl {
     /// The offset of the period boundary within the period (`at 08:00`).
     pub offset_ms: u64,
     pub target: String,
+    pub service: Option<String>,
     pub site: Site,
 }
 
@@ -385,6 +397,7 @@ pub struct ScheduleDecl {
 pub struct EffectDecl {
     pub name: String,
     pub module: String,
+    pub work: WorkDecl,
     pub site: Site,
 }
 

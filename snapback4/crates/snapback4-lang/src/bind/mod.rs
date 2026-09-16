@@ -58,7 +58,7 @@ pub fn bind(documents: Vec<Document>) -> Bound {
             }
         }
     }
-    actions::bind(&catalog, &mut programs, &mut diagnostics);
+    actions::bind(&catalog, &mut schema, &mut programs, &mut diagnostics);
     // The residency facts come before admission: a never-predicting mutation may pass over a uniformly authorized page (LLP 3000.007 §5.9), and admission reads that class here.
     schema.operations = programs.iter().map(|bound| {
         let mut fact = residency::execution_with_presence(&schema, &bound.program, bound.presence.as_ref());
@@ -116,6 +116,7 @@ pub fn bind(documents: Vec<Document>) -> Bound {
         }
     }
     schema.operations.retain(|name, _| programs.iter().any(|bound| &bound.program.name == name));
+    schema.action_specs.retain(|name, _| programs.iter().any(|bound| &bound.program.name == name && bound.program.kind == snapback4_core::ir::ProgramKind::Action));
     let mut notes: Vec<_> = programs.iter().flat_map(|p| p.notes.clone()).collect();
     notes.extend(completeness_notes(&catalog, &schema, &programs));
     notes.extend(residency::maintain_notes(&catalog, &schema));
@@ -148,27 +149,34 @@ fn validate_key_names(read: &crate::ast::ReadExpr) -> crate::diag::Fallible<()> 
     Ok(())
 }
 
-/// A schedule fires a job; the job may take the period it covers, as
+/// A schedule fires a job or a service-authorized action; either may take
 /// `periodStart: time` and `periodEnd: time`, and nothing else.
 fn bind_schedule(decl: &crate::ast::ScheduleDecl, programs: &[BoundProgram]) -> Result<snapback4_core::schema::Schedule, Diagnostic> {
     use snapback4_core::ir::{ArgType, ProgramKind};
     let rewrite = format!("job {}(periodStart: time, periodEnd: time):\n  chunk p in profiles first 100 by byId:\n    ...", decl.target);
     let Some(target) = programs.iter().find(|p| p.program.name == decl.target) else {
-        let candidates: Vec<_> = programs.iter().filter(|p| p.program.kind == ProgramKind::Job && p.program.name.rsplit_once('.').is_some_and(|(_, name)| name == decl.target)).collect();
+        let candidates: Vec<_> = programs.iter().filter(|p| matches!(p.program.kind, ProgramKind::Job | ProgramKind::Action) && p.program.name.rsplit_once('.').is_some_and(|(_, name)| name == decl.target)).collect();
         if let [target] = candidates.as_slice() {
-            return Err(crate::diag::unknown(&decl.site, format!("schedule {} names bare job {}; {} declares it as {}", decl.name, decl.target, target.site.file, target.program.name), target.program.name.clone()).guide("jobs").mechanical());
+            return Err(crate::diag::unknown(&decl.site, format!("schedule {} names bare {} {}; {} declares it as {}", decl.name, target.program.kind.word(), decl.target, target.site.file, target.program.name), target.program.name.clone()).guide("jobs").mechanical());
         }
-        return Err(crate::diag::unknown(&decl.site, format!("schedule {} names no job {}; jobs outside schema.q are named <module>.<job>", decl.name, decl.target), crate::diag::name_rewrite(&decl.target, programs.iter().filter(|p| p.program.kind == ProgramKind::Job).map(|p| p.program.name.as_str()), None)).guide("jobs"));
+        return Err(crate::diag::unknown(&decl.site, format!("schedule {} names no job or action {}; targets outside schema.q are named <module>.<name>", decl.name, decl.target), crate::diag::name_rewrite(&decl.target, programs.iter().filter(|p| matches!(p.program.kind, ProgramKind::Job | ProgramKind::Action)).map(|p| p.program.name.as_str()), None)).guide("jobs"));
     };
-    if target.program.kind != ProgramKind::Job {
-        return Err(Diagnostic::new(&decl.site, "E_SCHEDULE", format!("schedule {} names {}, which is a {}; a schedule fires a job", decl.name, decl.target, target.program.kind.word()), rewrite));
+    if !matches!(target.program.kind, ProgramKind::Job | ProgramKind::Action) {
+        return Err(Diagnostic::new(&decl.site, "E_SCHEDULE", format!("schedule {} names {}, which is a {}; a schedule fires a job or action", decl.name, decl.target, target.program.kind.word()), rewrite));
+    }
+    // @ref LLP 3000.009#5.2 — a scheduled action names a service seat, never a caller or the system.
+    match (target.program.kind, decl.service.as_deref()) {
+        (ProgramKind::Action, None) => return Err(Diagnostic::new(&decl.site, "E_SCHEDULE", "a scheduled action requires a service seat", format!("schedule {} every 1m as service:billing: {}", decl.name, decl.target)).guide("actions")),
+        (ProgramKind::Job, Some(_)) => return Err(Diagnostic::new(&decl.site, "E_SCHEDULE", "a job runs as the system; its schedule cannot declare a service seat", format!("schedule {} every 1m: {}", decl.name, decl.target))),
+        (_, Some(service)) if !service.strip_prefix("service:").is_some_and(|name| !name.is_empty() && name.len() <= 64 && name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')) => return Err(Diagnostic::new(&decl.site, "E_SCHEDULE", "a service seat needs 1–64 letters, digits, _ or -", "as service:billing").guide("actions")),
+        _ => {}
     }
     for (name, kind) in &target.program.args {
         if !(matches!(name.as_str(), "periodStart" | "periodEnd") && *kind == ArgType::Time) {
-            return Err(Diagnostic::new(&decl.site, "E_SCHEDULE", format!("schedule {} fires {}, whose argument {name} the clock cannot supply; a scheduled job takes periodStart: time and periodEnd: time, or nothing", decl.name, decl.target), rewrite));
+            return Err(Diagnostic::new(&decl.site, "E_SCHEDULE", format!("schedule {} fires {}, whose argument {name} the clock cannot supply; a scheduled job or action takes periodStart: time and periodEnd: time, or nothing", decl.name, decl.target), if target.program.kind == ProgramKind::Action { format!("action {}(periodStart: time, periodEnd: time)", decl.target) } else { rewrite }));
         }
     }
-    Ok(snapback4_core::schema::Schedule { name: decl.name.clone(), every_ms: decl.every_ms, offset_ms: decl.offset_ms, target: decl.target.clone(), service: None })
+    Ok(snapback4_core::schema::Schedule { name: decl.name.clone(), every_ms: decl.every_ms, offset_ms: decl.offset_ms, target: decl.target.clone(), service: decl.service.clone() })
 }
 
 /// A scan whose read rule reads a column the prefix does not pin is

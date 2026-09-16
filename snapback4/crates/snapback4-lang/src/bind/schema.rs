@@ -61,7 +61,14 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
     schema.prepare_contribution_indexes();
     for doc in &catalog.documents {
         for effect in &doc.effects {
-            schema.effects.push(effect.name.clone());
+            match super::actions::bind_work(&effect.work, &effect.site) {
+                Ok(work) if !schema.effect_specs.contains_key(&effect.name) => {
+                    schema.effects.push(effect.name.clone());
+                    schema.effect_specs.insert(effect.name.clone(), work);
+                }
+                Ok(_) => {}
+                Err(error) => diagnostics.push(error),
+            }
         }
         if let Some((password, guests)) = doc.identity {
             schema.auth = core::Auth { password, guests };

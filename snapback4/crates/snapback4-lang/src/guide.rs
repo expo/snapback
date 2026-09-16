@@ -493,6 +493,15 @@ job rescoreNative(): native                                          -- a job wh
 query personalizeNative(first: int): native                          -- a read in the same module: on the server as the viewer, on a device over its rows
 ```
 
+Server handlers also declare results, secrets and work settings (guide actions):
+
+```quarry
+action summarizeRoom(room: rooms) returns { summary: text <=4000, source: rooms, tags: [text <=30] <=8 ? } secrets [MODEL_API_KEY] retry 3 backoff 2s deadline 1h cancellation allow
+action scheduledSummary(periodStart: time, periodEnd: time) returns {} <- viewer = 'service:reporter'
+schedule summariesEveryDay every 1d at 08:00 as service:reporter: scheduledSummary
+effect sendDigest secrets [MAIL_API_KEY] retry 4 backoff 1m deadline 1d cancellation deny
+```
+
 Helpers expand at each call: a table-typed parameter keeps a row argument as a row (fields need no lookup), while a reference argument stays a reference.
 An enum fits `text <=N` when every variant has at most N characters and
 contains no control characters except tab, LF and CR. This is
@@ -1142,6 +1151,8 @@ exactly once across restarts, passing `periodStart` and `periodEnd` when
 the job declares them (and nothing else); a schedule first seen fires from
 its next boundary. `snapback4 run <job> '{..}'` runs one here and now.
 
+A schedule may also target an action: `schedule renewal every 1m as service:billing: remind`. The action must declare only `periodStart: time` and `periodEnd: time`, or no arguments. It runs under that service seat and its action rule, never as the system. Jobs cannot declare `as` (guide actions).
+
 In tests, use `snapback4 clock advance <dur>` or `POST /dev/clock/advance`; each example line advances the running dev once.
 
 ```sh
@@ -1282,7 +1293,7 @@ With `--fresh`, the count dies with the in-memory store; `doctor` and local
 `run` inspect the separate on-disk store.
 
 ```quarry
-effect notify
+effect notify secrets [PUSH_API_KEY] retry 8 backoff 2s deadline 1d cancellation allow
 
 table members:
   roomId: id
@@ -1320,6 +1331,8 @@ Cancellation requires a proven necessary absence guard: `if not exists connected
 Potential dependency allocation, propagation and emission copies reserve the same heap allowance with or without grace on the server and device; actual allocations stay metered.
 For dispatch-time presence or any other presence-dependent decision, emit unconditionally and have the worker call a service mutation that reads `connected`.
 
+An effect accepts the same `secrets`, `retry`, `backoff`, `deadline` and `cancellation` clauses as an action (guide actions). A bare `effect notify` retains the defaults: eight total attempts, 2s initial backoff, no deadline, cancellation allowed. Generated `server({ actions, effects })` accepts optional legacy effect handlers; these still receive `(payload, meta)`.
+
 The data plane never calls out. `emit name { payload }` in a mutation or
 a job writes the payload durably in the same commit as the rows (a
 refused mutation emits nothing), and a worker with a service token
@@ -1344,7 +1357,7 @@ lease in seconds; `wait` long-polls until something is due), then `POST
 /effects/<id>/done { result? }` or `POST /effects/<id>/failed { error,
 retry }`; `GET /effects?state=` lists them (queued, running, sent,
 satisfied, failed) and `doctor` counts them, including pending grace deferrals. A thrown handler retries with backoff
-(2 s, 4 s, ... up to 5 min) until the eighth attempt, then rests as
+(by default 2 s, 4 s, ... up to 5 min) until the declared final attempt, then rests as
 `failed`; throw `GiveUp` to fail at once. A worker that dies loses its
 lease and the effect is claimed again (E_EFFECT_LEASE for the one that
 settles late). `runWorker` includes the server's code and message; only a

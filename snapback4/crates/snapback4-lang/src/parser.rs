@@ -529,8 +529,11 @@ impl Parser {
         let site = self.take("effect")?.site;
         let name = self.binding_name()?;
         let module = if self.maybe("from") { self.word()?.value } else { String::new() };
+        let mut work = WorkDecl::default();
+        let mut clauses = std::collections::BTreeSet::new();
+        while self.parse_work_clause(&mut work, &mut clauses)? {}
         self.newline()?;
-        Ok(EffectDecl { name, module, site })
+        Ok(EffectDecl { name, module, work, site })
     }
 
     fn parse_rule(&mut self) -> Fallible<RuleDecl> {

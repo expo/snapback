@@ -151,9 +151,9 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_SCHEMA" | "E_STORE" | "E_GENERATION" | "E_CLIENT" | "E_CLOSED" | "E_DEVICE_VERSION" => "refusals",
         code if code.strip_prefix("E_").is_some_and(|name| name.starts_with("ASSET_")) => "assets",
         code if code.starts_with("E_NATIVE") => "native",
-        code if code.strip_prefix("E_").is_some_and(|name| name.starts_with("ACTION_")) => "actions",
         code if code.strip_prefix("E_").is_some_and(|name| name.starts_with("WITNESS_")) => "witness",
         code if code.starts_with("SNAPBACK4_") => "refusals",
+        code if code.starts_with("E_ACTION_") || code.starts_with("E_STEP_") || matches!(code, "E_SECRET_MISSING" | "E_SERVER_TYPECHECK" | "E_SERVER_TOOLCHAIN") => "actions",
         _ => "language",
     }
 }
