@@ -23236,3 +23236,19 @@ Full evidence, raw JSON, log hashes and received review links:
 [`W9-INTEGRATION-REPORT.md`](./experiments/postgres/W9-INTEGRATION-REPORT.md).
 RFC 3000.009 §10.2's A1/C1 rows carry the evidence and misses. No version bump
 or publication; next are A2, A3 and the Workroom fixture pack before controls.
+
+## 2026-09-16 — 0.2.25 / expo 0.2.16 published (lead)
+
+Published from main `545f92a22` (wave 9, LLP 3000.007 §20.18) with
+`scripts/publish.mjs`: the suite had 0 failures; the production darwin binary
+is 8,885,600 B, sha256 `b16ff348…`, Developer ID
+signed and not notarized; the installed-consumer proof passed;
+`snapback4@0.2.25` and `snapback4-darwin-arm64@0.2.25` at 12:17 UTC, the
+xcframework rebuilt, and `snapback4-expo@0.2.16` at 12:20 UTC.
+
+That commit also carries main's twelve intervening commits, including work
+records, the Postgres access boundary and a README split; the merge needed
+three settlements, recorded in the entry above.
+
+Next: the ninth Astra-medium calibration on these pins.
+
