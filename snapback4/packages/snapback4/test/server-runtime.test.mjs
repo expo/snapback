@@ -342,6 +342,43 @@ test("a claim past its deadline never enters the handler", async () => {
   assert.equal(result.settled.body.code, "E_ACTION_DEADLINE");
 });
 
+for (const offset of [-3_600_000, 3_600_000]) test(`deadline uses the server clock plus monotonic elapsed time (${offset})`, async () => {
+  let entered = false;
+  const now = Date.now() + offset;
+  const result = await invoke(async (_, ctx) => {
+    entered = true;
+    assert.equal(ctx.invocation.deadline, now + 25);
+    await new Promise(resolve => ctx.invocation.signal.addEventListener("abort", resolve, { once: true }));
+    return null;
+  }, { claim: { now, deadline: now + 25 }, statusIntervalMs: 1000 });
+  assert.equal(entered, true);
+  assert.equal(result.settled.body.code, "E_ACTION_DEADLINE");
+  assert.equal(result.requests.some(request => request.path.endsWith("/status")), false);
+});
+
+test("retryable step admission remains a retryable worker failure", async () => {
+  const result = await invoke((_, ctx) => ctx.step("mail", {}, () => { throw Error("provider must not run"); }), { wire(path) {
+    if (path.endsWith("/begin")) return { denied: { code: "E_BUSY", family: "store", message: "retry this request", retryable: true } };
+  } });
+  assert.equal(result.settled.body.retry, true);
+});
+
+test("a pending transport outcome remains uncertain when its context later aborts", async () => {
+  let write;
+  const result = await invoke(async (_, ctx) => {
+    write = await ctx.mutate(mutation("save"), {}, { id: ctx.writeIdFor("save") });
+    assert.equal(write.state, "pending");
+    await new Promise(resolve => ctx.invocation.signal.addEventListener("abort", resolve, { once: true }));
+    assert.equal(write.state, "pending");
+    return null;
+  }, { wire(path, body, init, request) {
+    if (path.startsWith("/m/")) throw Error("write acknowledgement lost");
+    if (path.endsWith("/status")) return { invocation: { id: request.id, attempt: request.attempt, cancelled: true, state: "failed" } };
+  } });
+  assert.equal(write.state, "pending");
+  assert.equal(result.settled.body.code, "E_ACTION_CANCELLED");
+});
+
 test("lease refusal from status aborts context authority", async () => {
   const result = await invoke(async (_, ctx) => {
     await new Promise(resolve => ctx.invocation.signal.addEventListener("abort", resolve, { once: true }));

@@ -33,6 +33,9 @@ export function context(
   let pollTimer: ReturnType<typeof setTimeout> | undefined;
   let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
   const deadline = meta.deadline ?? null;
+  const started = performance.now();
+  const claimedAt = (meta as ActionMeta & { readonly now?: number }).now ?? Date.now();
+  const now = () => claimedAt + (performance.now() - started);
   const closedWhy = { code: "E_ACTION_CLOSED", family: "action", message: "the action context has closed" };
   const end = (why: Refusal) => {
     if (ended) return;
@@ -45,7 +48,7 @@ export function context(
   };
   const refusal = (): Refusal | undefined => {
     if (closed) return ended ?? closedWhy;
-    if (deadline !== null && Date.now() >= deadline) end({ code: "E_ACTION_DEADLINE", family: "action", message: "the action deadline has passed" });
+    if (deadline !== null && now() >= deadline) end({ code: "E_ACTION_DEADLINE", family: "action", message: "the action deadline has passed" });
     return ended;
   };
   const assertActive = () => {
@@ -79,6 +82,7 @@ export function context(
     assertActive();
     if (json.denied) {
       const why = json.denied;
+      if (why.retryable) throw new Retry(`${why.code}: ${why.message}`);
       if (["E_ACTION_LEASE", "E_ACTION_DEADLINE", "E_ACTION_CANCELLED", "E_ACTION_AUTHORITY", "E_AUTH"].includes(why.code)) end(why);
       throw new ServerError(why.code, why.message, why.family);
     }
@@ -118,7 +122,7 @@ export function context(
   else options.signal?.addEventListener("abort", onStop, { once: true });
   const scheduleDeadline = () => {
     if (deadline === null || closed || ended) return;
-    const remaining = deadline - Date.now();
+    const remaining = deadline - now();
     if (remaining <= 0) { refusal(); return; }
     deadlineTimer = setTimeout(scheduleDeadline, Math.min(remaining, 2_147_483_647));
     deadlineTimer.unref?.();
@@ -139,8 +143,9 @@ export function context(
       async mutate(op, args, mutateOptions) {
         const why = refusal();
         if (why) return { state: "failed", id: mutateOptions?.id ?? mintId(), why };
-        const result = await client.mutate(op, args, mutateOptions);
-        return result.state !== "sent" && refusal() ? { state: "failed", id: result.id, why: refusal()! } : result;
+        // A request may already have committed. Preserve the client's pending
+        // or failed receipt even if authority ends while the call is in flight.
+        return client.mutate(op, args, mutateOptions);
       },
       writeIdFor(name) { assertActive(); return writeIdFor(meta.id, name); },
       step: steps(post, assertActive, redact),
