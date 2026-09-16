@@ -87,6 +87,14 @@ using a different output path for each run. This changes only prefetch in the
 measured Postgres engines; durability, workloads and retry limits are unchanged.
 The JSON records the setting. The conformance tests still exercise both modes.
 
+Writer cells retain their results even when a transaction exhausts the existing
+retry budget or SQLite's busy timeout. Every writer is joined before the next
+cell starts. Failed cells record per-writer completed counts and errors, with
+no throughput value; final counter checks still verify exactly the successful
+commits. The JSON is written and the benchmark exits nonzero if any cell
+failed. No retry limit, timeout, workload order or durability setting changes
+to make a measurement finish.
+
 ## C1 access boundary, 2026-09-15
 
 C1 keeps Quarry in the same interpreter. The runtime page plan records total
