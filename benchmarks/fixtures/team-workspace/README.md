@@ -44,7 +44,11 @@ known totals. Uncompressed bytes are the portable contract; compressed bytes
 are deterministic on the same Node/zlib toolchain and may differ across zlib
 versions. The verifier reads the emitted log, independently reduces it,
 recounts milestone/operation totals, and compares every media ID/hash/byte
-count with the committed, byte-validated media fixtures.
+count with the committed, byte-validated media fixtures. It also compares
+every observed action to the versioned canonical profile sequence: changing
+the log, namespace and hashes together cannot turn a scale pack into a
+journey pack and skip the scale report. This verifier is for these deterministic
+packs, not arbitrary application replay journals.
 Keep generated logs and receipt journals outside the repository.
 
 The checked-in [known-hash receipt](./known-full.v1.json) retains the complete

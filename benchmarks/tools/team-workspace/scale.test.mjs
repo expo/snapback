@@ -57,13 +57,13 @@ test('manifest verification rejects tampered milestone/operation counts and medi
       [m => { m.media[0].sha256 = '0'.repeat(64); }, 'MANIFEST_MEDIA_MISMATCH'],
       [m => { m.media[0].bytes++; }, 'MANIFEST_MEDIA_MISMATCH'],
       [m => { m.media[0].id = 'invented'; }, 'MANIFEST_MEDIA_MISMATCH'],
-      [m => { m.media.pop(); }, 'MANIFEST_MEDIA_MISMATCH']
-      , [m => { m.profile = 'constructor'; }, 'UNKNOWN_PROFILE']
-      , [m => { m.actions.file = '../actions.ndjson.gz'; }, 'INVALID_MANIFEST']
-      , [m => { m.profile = profile === 'tiny' ? 'starter' : 'tiny'; }, 'MANIFEST_REPORT_LAYOUT']
-      , [m => { m.profile = profile === 'tiny' ? 'full' : 'starter'; }, 'MANIFEST_PROFILE_MISMATCH']
-      , [m => { m.profile = 'starter'; m.report = null; m.envelope = null; }, 'MANIFEST_PROFILE_MISMATCH']
-      , [m => { if (m.report) m.report.file = 'another-report.json'; else m.report = { file: 'expected-report.json' }; }, 'MANIFEST_REPORT_LAYOUT']
+      [m => { m.media.pop(); }, 'MANIFEST_MEDIA_MISMATCH'],
+      [m => { m.profile = 'constructor'; }, 'UNKNOWN_PROFILE'],
+      [m => { m.actions.file = '../actions.ndjson.gz'; }, 'INVALID_MANIFEST'],
+      [m => { m.profile = profile === 'tiny' ? 'starter' : 'tiny'; }, 'MANIFEST_REPORT_LAYOUT'],
+      [m => { m.profile = profile === 'tiny' ? 'full' : 'starter'; }, 'MANIFEST_PROFILE_MISMATCH'],
+      [m => { m.profile = 'starter'; m.report = null; m.envelope = null; }, 'MANIFEST_PROFILE_MISMATCH'],
+      [m => { if (m.report) m.report.file = 'another-report.json'; else m.report = { file: 'expected-report.json' }; }, 'MANIFEST_REPORT_LAYOUT']
     ]) {
       const changed = structuredClone(manifest); mutate(changed);
       await writeFile(join(directory, 'manifest.json'), JSON.stringify(changed));
@@ -74,7 +74,7 @@ test('manifest verification rejects tampered milestone/operation counts and medi
   }
 });
 
-test('verification binds the observed report envelope even when changed log and report hashes agree', async t => {
+test('verification binds profile content even when changed log and report hashes agree', async t => {
   const directory = await mkdtemp(join(tmpdir(), 'workroom-envelope-')); t.after(() => rm(directory, { recursive: true }));
   const manifest = await generate({ profile: 'tiny', directory });
   const actions = gunzipSync(await readFile(join(directory, manifest.actions.file))).toString().trim().split('\n').map(JSON.parse);
@@ -89,5 +89,21 @@ test('verification binds the observed report envelope even when changed log and 
   await writeFile(join(directory, manifest.actions.file), compressed);
   await writeFile(join(directory, manifest.report.file), report);
   await writeFile(join(directory, 'manifest.json'), line(manifest));
-  await assert.rejects(verifyGenerated(directory), { code: 'ENVELOPE_MISMATCH' });
+  await assert.rejects(verifyGenerated(directory), { code: 'PROFILE_CONTENT_MISMATCH' });
+});
+
+test('scale cannot bypass report verification by rewriting its keys and hashes as a journey', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'workroom-profile-')); t.after(() => rm(directory, { recursive: true }));
+  const original = await generate({ profile: 'tiny', directory });
+  const actions = gunzipSync(await readFile(join(directory, original.actions.file))).toString().trim().split('\n').map(JSON.parse);
+  for (const profile of ['starter', 'conformance']) {
+    const manifest = structuredClone(original);
+    manifest.profile = profile; manifest.report = null; manifest.envelope = null;
+    for (const [index, action] of actions.entries()) action.key = `workroom/v1/${profile}/${String(index + 1).padStart(9, '0')}`;
+    const raw = Buffer.from(actions.map(line).join('')), compressed = gzipSync(raw);
+    Object.assign(manifest.actions, { bytes: raw.length, sha256: sha256(raw), compressed: { bytes: compressed.length, sha256: sha256(compressed) } });
+    await writeFile(join(directory, manifest.actions.file), compressed);
+    await writeFile(join(directory, 'manifest.json'), line(manifest));
+    await assert.rejects(verifyGenerated(directory), { code: 'PROFILE_CONTENT_MISMATCH' });
+  }
 });

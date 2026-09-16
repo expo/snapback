@@ -23342,3 +23342,21 @@ The full-scale action generator and source media are unchanged, so the retained
 full action/report identities are preserved; no full-scale generation, remote
 command, Cargo/build, control or publication ran from this lane. The lead owns
 the Node 24/full-scale rerun and fresh independent delta reviews.
+
+## 2026-09-16 — Workroom verifier profile identity (lead)
+
+The review loop exposed a faulty verifier boundary: the manifest selected
+whether the scale report was checked. Field checks and namespace binding
+alone still let a modified scale log relabel itself as a journey if all its
+keys and hashes were recomputed. After the third repair cycle, changed the
+approach rather than adding another isolated manifest check: the verifier now
+compares the complete streamed action content with the versioned canonical
+sequence for every profile, including its end. Scale reports still run through
+the independent reducer and must match their observed and declared envelope.
+The combined log/profile/hash tamper witness is explicit. This restricts the
+tool to verifying deterministic fixture packs, not arbitrary replay journals.
+
+Before that final change, Node 24.13.1 passed 17/17 tests and independently
+verified both retained full 598,224-action packs with identical manifests.
+The final content-binding witness and two-family delta review are next; no
+control, pilot, frozen budget, backend claim or publication has run.

@@ -71,14 +71,22 @@ export async function verifyGenerated(directory) {
   const tap = new Transform({ transform(chunk, encoding, done) { hash.update(chunk); bytes += chunk.length; done(null, chunk); } });
   unzip.on('error', error => tap.destroy(error)); unzip.pipe(tap);
   const reducer = starter ? null : new ReportReducer(assets);
+  // These are versioned deterministic fixture packs, not arbitrary replay
+  // logs. Bind profile identity to its full observed action sequence, not
+  // merely a manifest-controlled namespace or count. The reducer below is
+  // still independent evidence for the scale profile's report arithmetic.
+  const canonical = (starter ? starterActions({ conformance: manifest.profile === 'conformance' }) : scaleActions(manifest.profile))[Symbol.iterator]();
   const milestones = {}, operations = {};
   for await (const text of createInterface({ input: tap, crlfDelay: Infinity })) {
     const action = JSON.parse(text); validateAction(action, ++records);
     insist(action.key === `workroom/v1/${namespace}/${String(records).padStart(9, '0')}`, 'MANIFEST_PROFILE_MISMATCH');
+    const expected = canonical.next();
+    insist(!expected.done && isDeepStrictEqual(action, expected.value), 'PROFILE_CONTENT_MISMATCH');
     reducer?.apply(action);
     milestones[action.milestone] = (milestones[action.milestone] ?? 0) + 1;
     operations[action.op] = (operations[action.op] ?? 0) + 1;
   }
+  insist(canonical.next().done, 'PROFILE_CONTENT_MISMATCH');
   insist(records > 0 && records === manifest.records && bytes === manifest.actions.bytes && hash.digest('hex') === manifest.actions.sha256, 'ACTION_HASH_MISMATCH');
   insist(isDeepStrictEqual(manifest.milestones, milestones), 'MANIFEST_MILESTONES_MISMATCH');
   insist(isDeepStrictEqual(manifest.operations, operations), 'MANIFEST_OPERATIONS_MISMATCH');
