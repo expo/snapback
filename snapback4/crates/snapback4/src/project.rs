@@ -122,8 +122,20 @@ impl Project {
             }
         }
         let mut files = Vec::new(); server_files(&self.schema_dir(), &mut files, 12); files.sort();
+        // The TypeScript checker records imports/configs outside snapback/ as
+        // well as failed resolution candidates. Stat that bounded graph, not
+        // unrelated UI sources, and retain absence so deletion/refill wakes us.
+        let watched: Vec<String> = std::fs::read(self.generated_dir().join("server-watch.json"))
+            .ok().and_then(|bytes| serde_json::from_slice(&bytes).ok()).unwrap_or_default();
+        let dependencies: Vec<_> = watched.into_iter().map(|path| {
+            let state = std::fs::metadata(&path).ok().map(|meta| (
+                meta.modified().ok().and_then(|at| at.duration_since(std::time::UNIX_EPOCH).ok()).map(|at| at.as_nanos()).unwrap_or(0),
+                meta.len(),
+            ));
+            (path, state)
+        }).collect();
         use sha2::{Digest, Sha256};
-        let hash = Sha256::digest(format!("{quarry}:{native}:{files:?}"));
+        let hash = Sha256::digest(format!("{quarry}:{native}:{files:?}:{dependencies:?}"));
         u128::from_be_bytes(hash[..16].try_into().expect("sixteen hash bytes"))
     }
 

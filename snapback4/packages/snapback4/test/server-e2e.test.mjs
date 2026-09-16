@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -52,14 +52,14 @@ function project(t, source, entry) {
     assert.equal(result.status, 0, safe(result.stdout + result.stderr));
     assert.equal(JSON.parse(result.stdout).ok, true);
   };
-  async function start({ serve = false, env = {}, entryPath = join(directory, "snapback/server.ts") } = {}) {
+  async function start({ serve = false, watch = false, env = {}, entryPath = join(directory, "snapback/server.ts") } = {}) {
     const release = join(directory, "release");
     if (serve) {
       checked();
       const deployed = command(["deploy", release]);
       assert.equal(deployed.status, 0, safe(deployed.stdout + deployed.stderr));
     }
-    const args = serve ? ["serve", release, "--port", "0", "--worker", entryPath] : ["dev", "--port", "0", "--no-watch"];
+    const args = serve ? ["serve", release, "--port", "0", "--worker", entryPath] : ["dev", "--port", "0", ...(watch ? [] : ["--no-watch"])];
     const child = spawn(binary, args, { cwd: directory, env: { ...process.env, SNAPBACK_NODE: NODE, ...env }, stdio: ["ignore", "pipe", "pipe"] });
     let log = "", url, exited = false, spawnError;
     const done = new Promise(resolve => { child.once("exit", () => { exited = true; resolve(); }); child.once("error", error => { spawnError = error; exited = true; resolve(); }); });
@@ -158,6 +158,68 @@ mutation save(body: text <=200):
 query mine():
   return notes[viewer] first 20 by byOwner
 `;
+
+test("dev watches checked imports and configs outside snapback and keeps the last good worker through failed checks", { timeout: 70_000 }, async t => {
+  const p = project(t, "use personas alice\naction inspect() returns { value: text <=80 }\n", `${imports}
+import { value } from "../src/provider.ts";
+const worker = server({actions:{async inspect() { return {value:value()}; }}}, ${options});
+export default worker; await worker.done;
+`);
+  const provider = join(p.directory, "src/provider.ts");
+  const baseConfig = join(p.directory, "config/server-base.json");
+  mkdirSync(dirname(provider)); mkdirSync(dirname(baseConfig));
+  writeFileSync(provider, 'export function value(): string { return "first"; }\n');
+  writeFileSync(baseConfig, "{}\n");
+  writeFileSync(join(p.directory, "tsconfig.json"), '{"extends":"./config/server-base.json"}\n');
+  p.checked();
+  const f = await p.start({ watch: true });
+  let invocation = 0;
+  const read = () => f.collect("inspect", `watch-${++invocation}`);
+  const expectValue = async expected => {
+    const result = await read();
+    assert.equal(result.state, "done", JSON.stringify(result) + "\n" + f.log());
+    assert.equal(result.result.value, expected, f.log());
+  };
+  await expectValue("first");
+  const initialWorkers = f.workerPids().length;
+  writeFileSync(join(p.directory, "src/unrelated-ui.ts"), "this is deliberately not TypeScript!\n");
+  await delay(900);
+  assert.equal(f.workerPids().length, initialWorkers, "unimported UI must not restart the server\n" + f.log());
+  assert.doesNotMatch(f.log(), /E_SERVER_TYPECHECK/);
+
+  async function accepted(edit, expected) {
+    const workers = f.workerPids().length;
+    edit();
+    await until(() => f.workerPids().length > workers, `checked worker restarts for ${expected}`, 12_000, f.log);
+    // A changed graph can require another observation pass. Fresh invocation
+    // ids avoid mistaking an old durable action result for the new handler.
+    await until(async () => {
+      const result = await read();
+      return result.state === "done" && result.result.value === expected;
+    }, `new handler returns ${expected}`, 12_000, f.log);
+  }
+  async function refused(edit, expected, diagnostic) {
+    const workers = f.workerPids().length, offset = f.log().length;
+    edit();
+    await until(() => {
+      const log = f.log().slice(offset);
+      return log.includes("E_SERVER_TYPECHECK") && log.includes("serving the previous generation") && diagnostic.test(log);
+    }, "invalid dependency is diagnosed before restart", 12_000, f.log);
+    assert.equal(f.workerPids().length, workers, "invalid source must retain the previous worker\n" + f.log());
+    await expectValue(expected);
+  }
+  await accepted(() => writeFileSync(provider, 'export function value(): string { return "second"; }\n'), "second");
+  await refused(() => writeFileSync(provider, "export function value(): string { return 42; }\n"), "second", /provider\.ts/);
+  await refused(() => unlinkSync(provider), "second", /Cannot find module/);
+  await accepted(() => writeFileSync(provider, 'export function value(): string { return "restored"; }\n'), "restored");
+  await refused(() => writeFileSync(provider, 'import { receipt } from "./missing/receipt.ts";\nexport function value(): string { return receipt; }\n'), "restored", /missing\/receipt/);
+  await accepted(() => {
+    mkdirSync(join(p.directory, "src/missing"));
+    writeFileSync(join(p.directory, "src/missing/receipt.ts"), 'export const receipt = "resolved";\n');
+  }, "resolved");
+  await refused(() => writeFileSync(baseConfig, '{"compilerOptions":{"types":["a2-missing-types"]}}\n'), "resolved", /a2-missing-types/);
+  await accepted(() => writeFileSync(baseConfig, "{}\n"), "resolved");
+});
 
 test("dev discovers generated server handlers, preserves read/write receipts and scopes and redacts secrets", { timeout: 25_000 }, async t => {
   const secret = "a2-test-secret-crosses-the-pipe-boundary";
