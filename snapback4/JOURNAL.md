@@ -23252,3 +23252,49 @@ three settlements, recorded in the entry above.
 
 Next: the ninth Astra-medium calibration on these pins.
 
+## 2026-09-16 — Backend-neutral Workroom fixture pack (Astra peripheral lane)
+
+Implemented LLP 3000.009 §10.1's six fixture pieces under
+`benchmarks/fixtures/team-workspace/` and `benchmarks/tools/team-workspace/`:
+an authenticated loopback email sink, a signed payment provider with fsynced
+event/delivery/acknowledgement journals, a SHA-bound fixture extractor,
+personas and W3/W5-first starter/conformance actions, a streaming full-scale
+action generator with an independent report reducer, and pure React DOM
+presentational screens with values/callbacks/test IDs only.
+
+The action adapter registers real accounts and uses normal authenticated
+application writes. It persists actual-ID aliases and authoritative receipts,
+retries an unknown transport outcome under the same key, and stops before
+dependent actions after an unexpected terminal failure. There is no database
+import, direct audit insertion, privileged application fixture route or
+backend implementation in this pack. All 50,000 large-organization audit
+entries arise from real membership, role, plan and archival changes.
+
+Twelve focused Node tests pass locally, including real loopback sockets,
+invalid-signature then valid identical bytes, reordered/duplicate webhooks,
+503/drop/retry, provider SIGKILL and restart, receiver downtime, fsynced
+acknowledgements, replay twice and resume after a committed lost response,
+independent tiny report reduction, deterministic gzip generation, media
+format validation and real React DOM server rendering with the existing
+React peer. No Cargo, runtime build, heavy generator, remote command or
+control cell ran from this lane on the primary Mac.
+
+The lead generated and verified the full pack twice on idle `450b`: 598,224
+actions, 167,743,936 raw bytes and 9,647,458 gzip bytes, identical manifests;
+59,000 open / 29,000 overdue tasks and 1,672,500 attachment bytes in the large
+organization. That first manifest predates a corrected PNG IDAT checksum;
+the lead is repeating it with the corrected media before recording the final
+fixture manifest. The action/report hashes are unaffected by that media fix.
+
+The Draft brief now links the pack and resolves per-large versus global
+counts, report statuses, archived attachment access, W1 registered-member
+addition, pending-invitation seat reservation and read-only guests. The lead
+accepted the latter two Draft choices. The brief remains Draft; budgets,
+ceilings, pilot, controls, backend qualification and publication remain open.
+Generated scale logs stay outside the repository pending artifact disposition.
+
+What I learned: a neutral action log needs authoritative ID and result
+recovery just as much as a backend seed does; calling a local sequence number
+an idempotency key without server reconciliation would silently duplicate
+members and audit entries. Exact raw webhook bytes and validating actual PNG
+chunks caught fixture defects that JSON-only and digest-only tests miss.

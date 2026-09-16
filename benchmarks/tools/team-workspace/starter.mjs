@@ -25,7 +25,7 @@ export function* invitations(a) {
   yield a('W3', 'revoked', 'invitation.accept', null, { invitation: ref('invite.revoked'), tokenFromSink: true }, denied('invitation-revoked'));
 }
 
-export function* billing(a) {
+export function* billing(a, backlogSize = 200) {
   for (const [id, plan, seats] of [['older', 'free', 4], ['newer', 'pro', 10]]) {
     yield a('W5', 'fixture-provider', 'payment.event', `billing.${id}`, { organization: ref('acme'), plan, seatLimit: seats, renewalOffsetMs: null });
   }
@@ -43,12 +43,24 @@ export function* billing(a) {
   yield a('W5', 'fixture-provider', 'payment.deliver', null, { events: [ref('billing.limit')], signature: 'valid', retry: true });
   yield a('W5', 'owner', 'background.checkpoint', null, { kind: 'billing', organization: ref('acme'), event: ref('billing.limit') });
   yield a('W5', 'owner', 'invitation.create', null, { organization: ref('acme'), email: 'outsider@workroom.test', role: 'member' }, denied('seat-limit'));
-  yield a('W5', 'owner', 'assert', null, { check: 'backlog-restart-durable-ack', organization: ref('acme'), providerEvents: 200,
-    faults: ['receiver-503', 'receiver-stopped', 'receiver-commit-then-drop', 'provider-restart'], finalPlan: 'pro', seatLimit: 20 });
+  yield a('W5', 'fixture-driver', 'harness.control', null, { target: 'receiver', command: 'stop' });
+  const backlog = [];
+  for (let n = 0; n < backlogSize; n++) {
+    const entity = `billing.backlog.${n}`; backlog.push(ref(entity));
+    yield a('W5', 'fixture-provider', 'payment.event', entity, { organization: ref('acme'),
+      plan: n % 2 === 0 ? 'free' : 'pro', seatLimit: 20, renewalOffsetMs: null });
+  }
+  yield a('W5', 'fixture-provider', 'payment.deliver', null, { events: backlog, signature: 'valid', retry: true });
+  yield a('W5', 'fixture-driver', 'background.checkpoint', null, { kind: 'provider-unacknowledged', events: backlog, minimumAttempts: 1 });
+  yield a('W5', 'fixture-driver', 'harness.control', null, { target: 'provider', command: 'restart-preserving-journal' });
+  yield a('W5', 'fixture-driver', 'harness.control', null, { target: 'receiver', command: 'start', responseFaults: ['503-once', 'commit-then-drop-once'] });
+  yield a('W5', 'owner', 'background.checkpoint', null, { kind: 'billing', organization: ref('acme'), event: backlog.at(-1), requireAllAcknowledged: backlog });
+  yield a('W5', 'fixture-driver', 'harness.control', null, { target: 'receiver', command: 'restart-preserving-data' });
+  yield a('W5', 'owner', 'assert', null, { check: 'backlog-restart-durable-ack', organization: ref('acme'), events: backlog, finalPlan: 'pro', seatLimit: 20 });
 }
 
-export function* starterActions() {
-  const a = actionBuilder('starter');
+export function* starterActions({ conformance = false } = {}) {
+  const a = actionBuilder(conformance ? 'conformance' : 'starter');
   for (const person of people) yield a('W1', person, 'account.register', person,
     { email: `${person}@workroom.test`, password: 'Workroom-fixture-only-2026!', name: person });
   yield a('W1', 'owner', 'auth.sign-in', null, { account: ref('owner') });
@@ -63,7 +75,7 @@ export function* starterActions() {
   yield a('W1', 'outsider', 'assert', null, { check: 'tenant-denied', organization: ref('acme') });
   yield a('W2', 'member', 'project.create', 'project', { organization: ref('acme'), name: 'Aurora launch' });
   yield a('W2', 'member', 'project.create', 'project.history', { organization: ref('acme'), name: 'Old project' });
-  yield a('W2', 'member', 'project.archive', null, { project: ref('project.history') });
+  yield a('W2', 'admin', 'project.archive', null, { project: ref('project.history') });
   yield a('W2', 'member', 'project.set', null, { project: ref('project'), name: 'Aurora launch revised' });
   yield a('W2', 'member', 'task.create', 'task', { project: ref('project'), title: 'Aurora delivery', description: 'Nebula packaging', assignee: ref('member'), dueOffsetMs: -2592000000 });
   yield a('W2', 'member', 'task.set', null, { task: ref('task'), title: 'Aurora delivery revised', assignee: ref('admin'), dueOffsetMs: 2592000000 });
@@ -73,14 +85,19 @@ export function* starterActions() {
   yield* invitations(a);
   for (const asset of ['invoice', 'pixel']) yield a('W4', 'member', 'attachment.upload', `attachment.${asset}`, { task: ref('task'), asset });
   yield a('W4', 'member', 'background.checkpoint', null, { kind: 'extraction', attachments: [ref('attachment.invoice'), ref('attachment.pixel')] });
-  yield a('W4', 'member', 'task.archive', null, { task: ref('task') });
+  yield a('W4', 'admin', 'task.archive', null, { task: ref('task') });
   yield a('W4', 'member', 'assert', null, { check: 'archived-attachment-readable', attachment: ref('attachment.invoice') });
   yield a('W4', 'admin', 'attachment.delete', null, { attachment: ref('attachment.pixel') });
   yield a('W4', 'member', 'assert', null, { check: 'deleted-attachment-unreachable', attachment: ref('attachment.pixel') });
   yield a('W4', 'member', 'assert', null, { check: 'interrupted-upload-cleanup', task: ref('task'), asset: 'invoice', clock: 'server' });
-  yield* billing(a);
+  yield* billing(a, conformance ? 2 : 200);
   yield a('W6', 'owner', 'assert', null, { check: 'audit-append-only-and-admin-only', organization: ref('acme'), member: ref('member') });
-  yield a('W6', 'owner', 'assert', null, { check: 'renewal-once-across-restart', organization: ref('acme'), clock: 'server', nearOffsetMs: 240000, farOffsetMs: 3600000 });
+  yield a('W6', 'fixture-provider', 'payment.event', 'billing.renewal.near', { organization: ref('acme'), plan: 'pro', seatLimit: 20, renewalOffsetMs: 240000 });
+  yield a('W6', 'fixture-provider', 'payment.event', 'billing.renewal.far', { organization: ref('other'), plan: 'pro', seatLimit: 20, renewalOffsetMs: 3600000 });
+  yield a('W6', 'fixture-provider', 'payment.deliver', null, { events: [ref('billing.renewal.near'), ref('billing.renewal.far')], signature: 'valid', retry: true });
+  yield a('W6', 'owner', 'background.checkpoint', null, { kind: 'billing', organization: ref('acme'), event: ref('billing.renewal.near') });
+  yield a('W6', 'fixture-driver', 'harness.control', null, { target: 'receiver', command: 'restart-preserving-data' });
+  yield a('W6', 'owner', 'assert', null, { check: 'renewal-once-across-restart', organization: ref('acme'), farOrganization: ref('other'), clock: 'server' });
   yield a('W6', 'owner', 'background.checkpoint', null, { kind: 'reminder', organization: ref('acme') });
   yield a('W7', 'member', 'assert', null, { check: 'authorized-search', organization: ref('acme'), terms: ['aurora', 'nebula', 'comet'] });
   yield a('W8', 'owner', 'evolution.guest', null, { freshSession: true, duringMigrationWrite: 'comment', existingMembersUnchanged: true });

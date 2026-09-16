@@ -3,6 +3,7 @@ import { open, mkdir, readFile, stat } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { createInterface } from 'node:readline';
 import { createReadStream } from 'node:fs';
+import { createGunzip } from 'node:zlib';
 
 export const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 export const line = (value) => JSON.stringify(value) + '\n';
@@ -14,7 +15,10 @@ export function equalSecret(a, b) {
   return x.length === y.length && timingSafeEqual(x, y);
 }
 export async function* readLines(path) {
-  for await (const value of createInterface({ input: createReadStream(path), crlfDelay: Infinity })) {
+  const source = createReadStream(path);
+  const input = path.endsWith('.gz') ? createGunzip() : source;
+  if (input !== source) { source.on('error', error => input.destroy(error)); source.pipe(input); }
+  for await (const value of createInterface({ input, crlfDelay: Infinity })) {
     if (value) yield JSON.parse(value);
   }
 }

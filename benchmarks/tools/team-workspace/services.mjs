@@ -101,13 +101,17 @@ export async function startServices({ directory, adminToken, serviceToken, signi
   });
   server.requestTimeout = 15000; server.headersTimeout = 10000;
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', resolve); });
-  const timer = autoRetry ? setInterval(() => {
-    if (!stopped) serial(() => provider.tick()).catch(error => { server.emit('fixtureError', error); });
-  }, retryMs) : null;
+  let timer;
+  const schedule = () => {
+    if (autoRetry && !stopped) timer = setTimeout(() => {
+      serial(() => provider.tick()).catch(error => { server.emit('fixtureError', error); }).finally(schedule);
+    }, retryMs);
+  };
+  schedule();
   return {
     url: `http://127.0.0.1:${server.address().port}`, server,
     async close() {
-      stopped = true; if (timer) clearInterval(timer);
+      stopped = true; if (timer) clearTimeout(timer);
       await new Promise(resolve => { server.close(resolve); server.closeIdleConnections(); });
       await tail; await journal.close();
     }

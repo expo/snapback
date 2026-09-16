@@ -21,13 +21,14 @@ async function fileDigest(path) {
   return { sha256: hash.digest('hex'), bytes };
 }
 export async function generate({ profile = 'tiny', directory }) {
-  insist(profile === 'starter' || PROFILES[profile], 'UNKNOWN_PROFILE');
+  const starter = ['starter', 'conformance'].includes(profile);
+  insist(starter || PROFILES[profile], 'UNKNOWN_PROFILE');
   await mkdir(directory, { recursive: true });
-  const assets = await loadMedia(), reducer = profile === 'starter' ? null : new ReportReducer(assets);
+  const assets = await loadMedia(), reducer = starter ? null : new ReportReducer(assets);
   const hash = createHash('sha256'); let bytes = 0, records = 0;
   const milestones = {}, operations = {};
   function* chunks() {
-    for (const action of profile === 'starter' ? starterActions() : scaleActions(profile)) {
+    for (const action of starter ? starterActions({ conformance: profile === 'conformance' }) : scaleActions(profile)) {
       validateAction(action, ++records); reducer?.apply(action);
       milestones[action.milestone] = (milestones[action.milestone] ?? 0) + 1;
       operations[action.op] = (operations[action.op] ?? 0) + 1;
@@ -60,7 +61,7 @@ export async function verifyGenerated(directory) {
   const hash = createHash('sha256'); let bytes = 0, records = 0;
   const tap = new Transform({ transform(chunk, encoding, done) { hash.update(chunk); bytes += chunk.length; done(null, chunk); } });
   unzip.on('error', error => tap.destroy(error)); unzip.pipe(tap);
-  const reducer = manifest.profile === 'starter' ? null : new ReportReducer(await loadMedia());
+  const reducer = ['starter', 'conformance'].includes(manifest.profile) ? null : new ReportReducer(await loadMedia());
   for await (const text of createInterface({ input: tap, crlfDelay: Infinity })) {
     const action = JSON.parse(text); validateAction(action, ++records); reducer?.apply(action);
   }
@@ -76,6 +77,6 @@ export async function verifyGenerated(directory) {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [command, profileOrDir, directory] = process.argv.slice(2);
-  insist(command === 'verify' || command === 'generate' && directory, 'USAGE: generate.mjs generate tiny|full|starter OUT_DIR | verify OUT_DIR');
+  insist(command === 'verify' || command === 'generate' && directory, 'USAGE: generate.mjs generate tiny|full|starter|conformance OUT_DIR | verify OUT_DIR');
   console.log(JSON.stringify(command === 'verify' ? await verifyGenerated(profileOrDir) : await generate({ profile: profileOrDir, directory }), null, 2));
 }

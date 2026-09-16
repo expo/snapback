@@ -32,6 +32,7 @@ export async function replay(actions, adapter, receiptPath, { transportRetries =
       }
       insist(result && result.status === action.expect.status, 'UNEXPECTED_TERMINAL_OUTCOME');
       if (result.status === 'rejected') insist(result.reason === action.expect.reason, 'UNEXPECTED_REJECTION');
+      if (action.expect.noChange) insist(result.noChange === true, 'NO_CHANGE_RECEIPT_REQUIRED');
       insist(typeof result.receipt?.id === 'string' && result.receipt.id.length > 0
         && result.receipt.authoritative === true, 'AUTHORITATIVE_RECEIPT_REQUIRED');
       const bindings = result.bindings ?? {};

@@ -1,0 +1,22 @@
+.workroom { color: #1f2937; background: #f5f6f8; min-height: 100vh; font: 16px/1.5 system-ui, sans-serif; }
+.workroom * { box-sizing: border-box; }
+.workroom header { display: flex; align-items: center; gap: 24px; padding: 20px 32px; background: white; border-bottom: 1px solid #d1d5db; }
+.workroom header strong { color: #334bc4; font-size: 24px; margin-right: auto; }
+.workroom nav { display: flex; flex-wrap: wrap; gap: 8px; padding: 16px 32px; }
+.workroom main { max-width: 1200px; margin: auto; padding: 16px 32px 48px; }
+.wr-panel { background: white; border: 1px solid #d1d5db; border-radius: 10px; padding: 24px; margin-bottom: 24px; }
+.wr-panel h2 { margin-top: 0; }
+.wr-field { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; min-width: 160px; }
+.workroom input, .workroom select, .workroom textarea, .workroom button { font: inherit; border: 1px solid #9ca3af; border-radius: 5px; padding: 8px 12px; }
+.workroom button { color: #263b9e; background: #f8f9ff; cursor: pointer; margin: 4px; }
+.workroom button[aria-current=page] { background: #334bc4; color: white; }
+.workroom button:disabled { opacity: .5; cursor: default; }
+.workroom textarea { min-height: 100px; }
+.wr-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; }
+.wr-table { overflow-x: auto; margin: 16px 0; }
+.wr-table table { width: 100%; border-collapse: collapse; text-align: left; }
+.wr-table th, .wr-table td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+.wr-table th { background: #f8f9fb; white-space: nowrap; }
+.workroom dl { display: grid; grid-template-columns: 150px 1fr; gap: 8px; }
+.workroom dd { margin: 0; }
+@media (max-width: 640px) { .workroom header, .workroom nav, .workroom main { padding: 12px; } .workroom header { flex-wrap: wrap; gap: 8px; } .wr-panel { padding: 16px; } }

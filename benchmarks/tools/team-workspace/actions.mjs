@@ -6,7 +6,7 @@ export const OPERATIONS = Object.freeze([
   'membership.remove', 'project.create', 'project.set', 'project.archive', 'task.create', 'task.set',
   'task.transition', 'task.archive', 'comment.create', 'attachment.upload', 'attachment.delete',
   'invitation.create', 'invitation.accept', 'invitation.revoke', 'payment.event', 'payment.deliver',
-  'background.checkpoint', 'assert', 'evolution.guest', 'project.add-guest'
+  'background.checkpoint', 'harness.control', 'assert', 'evolution.guest', 'project.add-guest'
 ]);
 export const ref = (alias) => ({ ref: alias });
 export function actionBuilder(namespace) {

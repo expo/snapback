@@ -33,6 +33,13 @@ boolean without collecting the result is not conformance. Background
 checkpoints poll the real sink, extraction state, billing state, or scheduler
 until the named condition is durably observed. They never just sleep and pass.
 Assertions execute the named acceptance probe through normal read/write APIs.
+`harness.control` runs the driver's process lifecycle or response-fault hook,
+never an application data bypass. Receiver `commit-then-drop-once` lets one
+normal request finish its durable commit and loses only the HTTP response;
+`503-once` refuses before dispatch. A restart preserves real application data
+or provider journal. These hooks can use a local proxy and process supervisor;
+they must not forge a successful receipt or mutate rows. The W5 log supplies
+all 200 immutable backlog event inputs; the adapter invents no test content.
 
 `replay.mjs` durably appends the action digest, actual ID bindings and receipt
 together, fsyncs before advancing, and reconstructs aliases on restart.
@@ -124,5 +131,5 @@ The starter's repeated invitation for an existing member is harmless and
 reserves no new seat. Pending invitations reserve one seat per distinct new
 address; revoked/expired invitations release it, and acceptance atomically
 rechecks current membership and the plan. Guest rights are project-scoped
-reads plus task/comment/attachment writes within granted projects; guests
-cannot create/archive projects or manage membership, billing or deletion.
+reads; guests cannot write, invite, create/archive projects or manage
+membership, billing or deletion.

@@ -294,13 +294,33 @@ to invent, and every correction loop with its cause.
 
 ## Fixture pack (built before freeze)
 
-1. An **email sink** with an inspection API.
-2. A **payment provider** that signs webhooks and can duplicate, reorder
-   and replay them, plus a small admin API for plan changes.
-3. A **text extractor** service for attachments.
-4. **Personas** and a **starter seed**, segmented per milestone.
-5. The **scale seed** action log of the envelope above.
-6. A **presentational UI kit**, so lanes build the backend, not a design.
+The [version 1 fixture pack](../fixtures/team-workspace/README.md) includes:
+
+1. An **email sink** with authenticated inspection and durable idempotent acceptance.
+2. A **payment provider** signing exact raw bytes, with duplicate, reorder,
+   backlog, restart and retry controls, and a provider-only plan API.
+3. A **text extractor** accepting only the committed PDF/image bytes by SHA-256.
+4. **Personas** and a **starter action log**, segmented per milestone, with W3
+   and W5 specified first and a minimum all-verb conformance profile.
+5. A streaming **scale action log**, manifest hashes and independently reduced
+   known report totals; replay goes through each application's normal auth and
+   writes, with persistent actual-ID bindings and authoritative receipts.
+6. A **presentational React DOM UI kit** accepting values and callbacks, with
+   stable test IDs and no backend, network, authentication or storage logic.
+
+The [fixture contract](../fixtures/team-workspace/CONTRACT.md) resolves these
+Draft ambiguities: comments, attachments and audit counts are per-large-org;
+open report tasks are non-archived `open`, `in-progress` and `blocked` tasks;
+authorized members retain attachment access through task/project history;
+W1 may add already registered accounts before W3's invitation flow. Pending
+invitations reserve one seat per distinct new address and release it on expiry
+or revocation; acceptance rechecks the limit atomically. Guests are read-only
+within explicitly granted projects. Audit totals arise from real changes,
+including one owner-membership event at organization creation, never direct
+audit insertion. These rulings make fixture outcomes consistent across lanes.
+
+This pack does **not** freeze the brief. Pilot calibration, budgets and ceilings
+remain outstanding; no comparison or capability claim follows from fixture tests.
 
 ## Budget caps and ceilings (placeholder — set at freeze from the pilot)
 
