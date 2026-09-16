@@ -125,7 +125,9 @@ Archive changes visibility of default lists, not membership authorization:
 authorized members can still download an archived task's attachments. Search
 includes readable history; a deleted attachment's text is removed.
 
-W1 owners/admins may add an already registered member through the ordinary
+New organizations start on `free` with five seats and no renewal. That default
+is creation state, not a separate plan-change audit event. W1 owners/admins
+may add an already registered member through the ordinary
 authorized membership action, so role/removal tests precede invitations.
 The starter's repeated invitation for an existing member is harmless and
 reserves no new seat. Pending invitations reserve one seat per distinct new
