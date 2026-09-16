@@ -277,6 +277,20 @@ If the server cannot answer the query, declare `query … held:` to answer
 from the device; the server refuses it with E_QUERY_HELD (see the search card).
 A complete empty page has `cut: null` and `complete: true`.
 
+schedules a render at each deadline, without waiting for a server answer.
+The local client reschedules its watch at `Read.nextExpiry`; keep the render
+filter so the row hides at its deadline rather than at the refetch.
+Call the returned cleanup before replacing the answer or unmounting.
+This example is for short-lived rows; JavaScript timer scheduling applies.
+
+```ts
+function showExpiringRows<T extends { expiresAt: number | null }>(rows: T[], render: (rows: T[]) => void) {
+  const paint = () => render(rows.filter(row => row.expiresAt === null || row.expiresAt > Date.now()));
+  paint(); const timers = rows.flatMap(row => row.expiresAt === null ? [] : [setTimeout(paint, Math.max(0, row.expiresAt - Date.now()))]);
+  return () => timers.forEach(clearTimeout);
+}
+```
+
 A read denied by a table's rule answers as an empty page, not a refusal,
 and a client cannot tell it apart from an empty readable page — by design,
 so that a hidden row cannot be probed. For access UI, use a membership query

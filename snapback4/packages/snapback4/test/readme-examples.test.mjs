@@ -118,7 +118,7 @@ test("Expo Go README session store normalizes SecureStore keys and round-trips a
 
 
 test("W9a expiry client form drops deadlines locally and keeps null lifetimes", () => {
-  const paths = ["../../crates/snapback4-lang/src/guide.rs", "../../crates/snapback4-lang/src/guide/reads.rs", "README.md"];
+  const paths = ["../../crates/snapback4-lang/src/guide.rs", "../../crates/snapback4-lang/src/guide/reads.rs", "CLIENT-AND-OPERATIONS.md"];
   for (const path of paths) {
     const source = read(join(root, path)).match(/const paint = [^\n]+\n\s*paint\(\); const timers = [^\n]+/)?.[0];
     assert.ok(source, `${path}: two-line expiry client form`);

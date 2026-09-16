@@ -24,7 +24,9 @@ fn w9c_emit_only_bounded_lists_record_effects_on_server() {
         recipients.sort_by_key(|v| snapback4_core::wire::to_json(v).to_string());
         assert_eq!(recipients, if *name == "scalar_column" { vec![Value::Int(1), Value::Int(2), Value::Int(3)] } else { vec![id("bob"), id("carol")] }, "{name}");
         assert_eq!(result.metered.rows_written, 0);
-        assert!(engine.mutate("send", Some("send"), Context::new("alice", BTreeMap::new())).unwrap().replayed);
+        // The same id must replay with the same arguments: a differing input is
+        // now a terminal id-reuse refusal, not a replay.
+        assert!(engine.mutate("send", Some("send"), Context::new("alice", args(&[("batchId", id("batch"))])).at(100)).unwrap().replayed);
         assert_eq!(engine.effects(None, 10).unwrap(), effects);
         println!("server {name}: {count} emissions, 0 rows written, replay adds 0 emissions");
     }

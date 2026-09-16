@@ -344,6 +344,10 @@ fn sources() -> Vec<PathBuf> {
                     continue;
                 }
                 walk(&path, files);
+            } else if path.file_name().is_some_and(|n| n.to_string_lossy().ends_with("_tests.rs") || n.to_string_lossy().ends_with(".test.mjs")) {
+                // A test module inside `src/` invents refusal codes for fixtures;
+                // this check is about the codes the product itself emits.
+                continue;
             } else if path.extension().is_some_and(|e| e == "rs" || e == "ts" || e == "tsx") {
                 files.push(path);
             }
