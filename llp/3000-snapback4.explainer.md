@@ -1147,6 +1147,13 @@ time-ordered 128-bit form.
 
   Increments A1–A3 and C1 move onto the doing-list with their Moves lines.
 
+- **2026-09-16 — application SQL reads admitted.** Charlie ruled "admit
+  application SQL reads". [LLP 3000.009 §14.4](./3000.009-general-purpose-backend.rfc.md#14-the-authors-rulings-2026-09-15)
+  records the decision; its §6.2 supplies the authorized-input form, on both
+  stores. Increment D's author-decision gate is removed, not its implementation
+  and qualification obligations. A1–A3 and the fixture pack remain first;
+  managed SQL writes and publication are not authorized by this ruling.
+
 ## 8. Implementation map
 
 This section replaces itself as code lands, as LLP 1000's did; the journal

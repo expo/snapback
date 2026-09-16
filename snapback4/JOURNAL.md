@@ -22099,3 +22099,16 @@ xcframework rebuilt, and `snapback4-expo@0.2.15` at 06:18 UTC.
 
 Next: the eighth Astra-medium calibration on these pins.
 
+## 2026-09-16 — Application SQL reads admitted (Charlie; recorded by lead)
+
+Charlie ruled: "admit application SQL reads". LLP 3000.009 §14.4 records the
+admission, and §6.2 governs read-only SQL over authorized inputs on both stores.
+The pending recommendation in LLP 3000.007 §10.3 is resolved and the Moves
+line is added to `NOT-DOING.md`. Authorization precedes selection, ordering
+and limits; this is not the unrestricted developer-inspection `sql` verb.
+
+Increment D's author-decision gate is removed. Its implementation, dual-store
+qualification and C1 key-bound dependency remain; A1/C1 integration, A2, A3
+and the Workroom fixture pack stay first. The first Snapback brief cell still
+excludes SQL reads. No SQL writes into managed data, Quarry-to-SQL lowering,
+implementation claim or publication is authorized by this ruling.
