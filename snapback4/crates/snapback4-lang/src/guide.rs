@@ -1331,7 +1331,7 @@ Cancellation requires a proven necessary absence guard: `if not exists connected
 Potential dependency allocation, propagation and emission copies reserve the same heap allowance with or without grace on the server and device; actual allocations stay metered.
 For dispatch-time presence or any other presence-dependent decision, emit unconditionally and have the worker call a service mutation that reads `connected`.
 
-An effect accepts the same `secrets`, `retry`, `backoff`, `deadline` and `cancellation` clauses as an action (guide actions). A bare `effect notify` retains the defaults: eight total attempts, 2s initial backoff, no deadline, cancellation allowed. Generated `server({ actions, effects })` accepts optional legacy effect handlers; these still receive `(payload, meta)`.
+An effect accepts the same `secrets`, `retry`, `backoff`, `deadline` and `cancellation` clauses as an action (guide actions). A bare `effect notify` retains the defaults: eight total attempts, 4s initial backoff, no deadline, cancellation allowed. Generated `server({ actions, effects })` accepts optional legacy effect handlers; these still receive `(payload, meta)`.
 
 The data plane never calls out. `emit name { payload }` in a mutation or
 a job writes the payload durably in the same commit as the rows (a
@@ -1357,7 +1357,7 @@ lease in seconds; `wait` long-polls until something is due), then `POST
 /effects/<id>/done { result? }` or `POST /effects/<id>/failed { error,
 retry }`; `GET /effects?state=` lists them (queued, running, sent,
 satisfied, failed) and `doctor` counts them, including pending grace deferrals. A thrown handler retries with backoff
-(by default 2 s, 4 s, ... up to 5 min) until the declared final attempt, then rests as
+(by default 4 s, 8 s, ... up to 5 min) until the declared final attempt, then rests as
 `failed`; throw `GiveUp` to fail at once. A worker that dies loses its
 lease and the effect is claimed again (E_EFFECT_LEASE for the one that
 settles late). `runWorker` includes the server's code and message; only a

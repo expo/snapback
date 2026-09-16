@@ -62,7 +62,9 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
     for doc in &catalog.documents {
         for effect in &doc.effects {
             match super::actions::bind_work(&effect.work, &effect.site) {
-                Ok(work) if !schema.effect_specs.contains_key(&effect.name) => {
+                Ok(mut work) if !schema.effect_specs.contains_key(&effect.name) => {
+                    // Legacy effects started at 4s, while actions started at 2s.
+                    if effect.work.backoff_ms.is_none() { work.policy.backoff_ms = 4_000; }
                     schema.effects.push(effect.name.clone());
                     schema.effect_specs.insert(effect.name.clone(), work);
                 }

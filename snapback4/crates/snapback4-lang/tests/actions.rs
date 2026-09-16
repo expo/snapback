@@ -49,7 +49,7 @@ fn work_settings_bind_for_actions_and_effects_with_legacy_defaults() {
     assert_eq!(action.work.secrets, ["BILLING_KEY", "MAIL_KEY"]);
     assert_eq!(action.work.policy, WorkPolicy { max_attempts: 3, backoff_ms: 60_000, deadline_ms: Some(7_200_000), cancellable: false });
     assert_eq!(bound.schema.effect_specs["notify"].policy, WorkPolicy { max_attempts: 2, backoff_ms: 300_000, deadline_ms: Some(2_592_000_000), cancellable: true });
-    assert_eq!(bound.schema.effect_specs["legacy"].policy, WorkPolicy::default());
+    assert_eq!(bound.schema.effect_specs["legacy"].policy, WorkPolicy { backoff_ms: 4_000, ..WorkPolicy::default() });
     let server = emit::server_typescript(&bound);
     assert!(server.contains("ServerContext<\"BILLING_KEY\" | \"MAIL_KEY\">"), "{server}");
     assert!(server.contains(&format!("contract: \"{}\"", action.contract(&bound.programs[0].program))));

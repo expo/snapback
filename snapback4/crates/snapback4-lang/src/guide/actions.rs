@@ -56,7 +56,7 @@ Use uppercase environment names; runtime names (`SNAPBACK_*`, `SNAPBACK4_*`,
 `NODE_*`, `LD_*`, `DYLD_*`, `LC_*`, `PATH`, `HOME` and environment controls)
 are reserved. Duplicates refuse. Each clause appears at most once, before `<-`.
 `retry N` counts total attempts including the first (1–100, default 8).
-`backoff` starts at 1s–5m (default 2s), doubles per attempt up to 5m.
+`backoff` starts at 1s–5m (default 2s for actions, 4s for effects), doubles per attempt up to 5m.
 `deadline` is 1s–30d from admission (default none); durations are positive
 whole numbers with `s`, `m`, `h` or `d`. `cancellation allow|deny` defaults to
 allow; cancellation is cooperative for work already in flight. An effect
