@@ -20,6 +20,8 @@ mod search;
 mod reads;
 #[path = "guide/writes.rs"]
 mod writes;
+#[path = "guide/programs.rs"]
+mod programs;
 #[path = "guide/prediction.rs"]
 mod prediction;
 #[path = "guide/discovery.rs"]
@@ -471,6 +473,24 @@ time. Text `+` concatenates two present texts. `count(text | page | list)` count
 `(lo, hi) = sorted(a, b)`. `x = expr` binds or reassigns a local with a compatible type; reassignment resets its refinements. Arguments cannot be shadowed. A program ends
 with `return [value]`, or with its last expression, or with its final write.
 `xs = []` then `xs = xs + [value]` appends under the heap meter; `for x in xs:` can iterate the accumulated list.
+
+## Fixing a refused line
+
+E_QUARRY_SYNTAX means the parser could not read the form at the reported
+file, line and column. For example, `query answer:` is missing its argument
+parentheses: write `query answer():`, then indent `return 42` by two spaces
+on the next line. Keep the colon, close each `(`, `[` and `{`, and separate
+arguments and object fields with commas. Follow the diagnostic's rewrite;
+`snapback4 check --fix` applies it only when marked mechanical. Fix the first
+bad line and rerun `check`; a later empty-body error may be its consequence.
+
+E_QUARRY_UNKNOWN means a name cannot be resolved in this scope: a local,
+argument, table, column, index or helper may be misspelled or undeclared.
+For example, after `message = 'hello'`, `return mesage` must be
+`return message`. Check the declared spelling and the diagnostic's suggested
+name; declare a missing local before using it. For a missing index, use the
+named `by` line in the table's declaration; `snapback4 check --fix` can add
+it when the diagnostic marks that repair mechanical.
 
 ## Left out on purpose, and the idiom
 
@@ -998,51 +1018,7 @@ A row-based shape keeps `pending?: boolean` from its base, including `*`, named
 spreads and subsequent shapes. It is this device's unconfirmed change, absent
 after confirmation; it is not a schema column or metadata on a containing record."##,
         "writes" => writes::CARD,
-        "programs" => r##"# Programs
-
-```quarry
-query programForms(roomId: rooms):                             -- reads only; the last expression, or `return`, is the result, typed onto api.ts
-  rooms[roomId] card
-
-mutation programWrites(roomId: rooms, title: text 1..80):     -- reads and writes in one transaction, at most once per client-minted id
-  room = rooms[roomId] ! else NOT_FOUND
-  require room.ownerId = viewer else NOT_OWNER
-  update rooms[room] { name: title }                           -- a final write is the implicit return
-```
-
-A mutation with `predicts: "never"` (a server site or `: server`) may pass
-over a bounded plain prefix page whose read rule is uniform over its prefix,
-without a complete schema-capped group. `matching`, merges and tables with
-expiry are refused for every mutation page, predicting or not, looped or bound (`E_STRUCTURAL_FANOUT`). A predicting mutation
-keeps the complete-group requirement for page loops. A bounded list loop whose
-body only reads, computes and emits may use a list column, alias, helper result,
-or filtered/shaped list derived from a page; it need not preserve the whole group.
-A row write anywhere in that body, including an inlined helper or nested loop,
-keeps the original structural-fanout check and its capped-group rewrite.
-Every page a mutation reads, even just
-binding it, must be uniformly decided by its prefix (`E_STRUCTURAL_FANOUT`):
-the rewrite names the missing rule columns and a capped loop that supplies
-their values. Pinning `.readerId` decides visibility; it grants no read
-authority over another reader's inbox. See `guide feeds` for removal limits.
-The pass is atomic and still aborts above 1,024 rows written. `check --cost`
-prints "a pass over the first N rows of <prefix>; examined ceiling <n>".
-
-The table names are the language card's; a `job` is `chunk row in
-t[prefix] first N by index:` sweeps (guide jobs), or `native`: the app's
-own Rust, hosted as wasm; a `query` may be `native` too, run on the server
-as the viewer and on a device over its rows (guide native). Operations in `schema.q`
-are called by name (`api.thread`); operations in `snapback/feed.q` are
-`api.feed.<name>`; jobs are not on api.ts. `require cond else CODE` refuses
-with the program's own code, which reaches the client as `{ code, family:
-"rule", .. }`; `CODE` is UPPER_SNAKE and never starts with `E_`. Statements
-are `x = expr` (bind or reassign a local), `(a, b) = divmod(..)`, `require`, `if:`/`else if:`/`else:`, `for x in
-domain:`, `break`, `continue`, `return`, a helper `fn` call, and a write; every other
-expression must be bound or returned. `fn` takes one expression or a body ending
-in `return expr` or a bare `return`; calls work in statements and expressions.
-A helper return exits only the helper, and its locals cannot capture the caller's.
-It never repositions or reclassifies an enclosing page.
-Queries cannot write or mint ids, including through a helper; the call site names
-the write that does not belong."##,
+        "programs" => programs::CARD,
         "jobs" => r##"# Jobs and schedules: the server's own work, on its own clock
 
 For a replay mode that must not emit notifications, run `snapback4 dev --replay`.

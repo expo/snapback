@@ -489,6 +489,37 @@ fn w9b_every_code_has_bounded_card_context_and_a_full_card_command() {
 }
 
 #[test]
+fn w10r2_common_refusal_examples_have_clean_repairs() {
+    for (code, bad, good) in [
+        ("E_QUARRY_SYNTAX", "query answer:\n  return 42\n", "query answer():\n  return 42\n"),
+        ("E_QUARRY_UNKNOWN", "query answer():\n  message = 'hello'\n  return mesage\n", "query answer():\n  message = 'hello'\n  return message\n"),
+        ("E_QUARRY_PLACEMENT", "table notes:\n  body: text <=100\n  insert <- allow\nquery add():\n  insert notes { body: 'hello' }\n", "table notes:\n  body: text <=100\n  insert <- allow\nmutation add():\n  insert notes { body: 'hello' }\n"),
+        ("E_EMIT_IN_QUERY", "effect notify\nquery send():\n  emit notify { body: 'hello' }\n", "effect notify\nmutation send():\n  emit notify { body: 'hello' }\n"),
+    ] {
+        let bound = compile(bad);
+        assert!(bound.diagnostics.iter().any(|d| d.code == code), "{code}: {:?}", bound.diagnostics);
+        clean(code, good);
+    }
+}
+
+#[test]
+fn w10r2_survey_dedicated_code_sections() {
+    let mut missing = BTreeMap::<&str, Vec<&str>>::new();
+    let mut covered = 0;
+    for code in codes() {
+        let diagnostic = snapback4_lang::Diagnostic::new(&Default::default(), code, "", "");
+        if let Some(text) = diagnostic.explanation_section() {
+            assert!(text.split_once("\n\n").unwrap().1.contains(code), "{text}");
+            covered += 1;
+        } else {
+            missing.entry(snapback4_lang::diag::guide_for(code)).or_default().push(code);
+        }
+    }
+    println!("W10R2 section census: registered={} with={covered} without={}", codes().len(), codes().len() - covered);
+    for (card, mut codes) in missing { codes.sort_unstable(); println!("{card}: {}", codes.join(", ")); }
+}
+
+#[test]
 fn w9r1b_diagnostic_card_overrides_the_code_default() {
     let note = snapback4_lang::diag::Diagnostic::new(&Default::default(), "N_WIDE_MERGE", "wide merge", "bound the lanes");
     for (keyword, expected) in [("feeds", "feeds"), ("search", "search"), ("", "search")] {

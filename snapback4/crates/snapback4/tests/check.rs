@@ -222,14 +222,14 @@ fn w10a_inline_sections_have_a_check_wide_bound_and_stable_order() {
     let output = p.run(&["check"]);
     assert_eq!(output.status.code(), Some(1));
     let text = String::from_utf8(output.stderr).unwrap();
-    assert_eq!(text.matches("Full card: snapback4 guide ").count(), 1, "{text}");
+    assert_eq!(text.matches("Full card: snapback4 guide ").count(), 3, "{text}");
     assert!(!text.contains("No dedicated section"), "{text}");
     let mut expected = String::new();
     let mut shown = std::collections::BTreeSet::new();
     let mut added_bytes = 0;
     for d in &bound.diagnostics {
         expected.push_str(&format!("{d}\n\n"));
-        if d.code == "E_QUARRY_TYPE" && shown.insert((&d.code, &d.guide)) {
+        if shown.len() < 3 && shown.insert((&d.code, &d.guide)) {
             let explanation = d.explanation_section().unwrap();
             assert!(explanation.split_once("\n\n").unwrap().1.contains(&d.code), "the card excerpt must name its own code: {explanation}");
             added_bytes += explanation.len() + 2;
@@ -239,8 +239,63 @@ fn w10a_inline_sections_have_a_check_wide_bound_and_stable_order() {
     expected.push_str(&format!("check: {} problems\n", bound.diagnostics.len()));
     assert_eq!(text, expected);
     assert!(added_bytes <= 3 * 4097);
-    println!("W10a refusal bound: repeated kinds=4, inline sections=1, added bytes={added_bytes}, maximum added bytes=12291");
+    println!("W10a refusal bound: repeated kinds=4, inline sections=3, added bytes={added_bytes}, maximum added bytes=12291");
     assert_eq!(p.run(&["check"]).stderr, text.as_bytes());
+}
+
+fn why_common_refusal(code: &str, card: &str, mistake: &str, repair: &str) {
+    let p = Project::new();
+    let output = p.run(&["why", code]);
+    assert!(output.status.success(), "{output:?}");
+    let text = String::from_utf8(output.stdout).unwrap();
+    println!("W10R2 why {code}: {} bytes\n{text}", text.len());
+    let section = text.split_once("\n\n").unwrap().1;
+    assert!(!section.contains("No dedicated section"), "{text}");
+    assert!(section.contains(code), "the section itself must explain its code: {text}");
+    assert!(section.contains(mistake) && section.contains(repair), "show the mistake and its repair: {text}");
+    assert!(text.ends_with(&format!("Full card: snapback4 guide {card}\n")), "{text}");
+    assert!(text.len() <= 4096);
+}
+
+#[test]
+fn w10r2_why_syntax_has_its_own_section() {
+    why_common_refusal("E_QUARRY_SYNTAX", "language", "query answer:", "query answer():");
+}
+
+#[test]
+fn w10r2_why_unknown_has_its_own_section() {
+    why_common_refusal("E_QUARRY_UNKNOWN", "language", "return mesage", "return message");
+}
+
+#[test]
+fn w10r2_why_placement_has_its_own_section() {
+    why_common_refusal("E_QUARRY_PLACEMENT", "programs", "query add():", "mutation add():");
+}
+
+#[test]
+fn w10r2_why_emit_in_query_has_its_own_section() {
+    why_common_refusal("E_EMIT_IN_QUERY", "programs", "query send():", "mutation send():");
+}
+
+#[test]
+fn w10r2_repeated_unknown_prints_its_section_under_the_first_site() {
+    let p = Project::new();
+    let source = "query first():\n  return absentA\nquery second():\n  return absentB\n";
+    p.source(source);
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert_eq!(bound.diagnostics.len(), 2);
+    assert!(bound.diagnostics.iter().all(|d| d.code == "E_QUARRY_UNKNOWN"));
+    let output = p.run(&["check"]);
+    assert_eq!(output.status.code(), Some(1));
+    let text = String::from_utf8(output.stderr).unwrap();
+    assert_eq!(text.matches("Full card: snapback4 guide language").count(), 1, "{text}");
+    let section = bound.diagnostics[0].explanation_section().unwrap();
+    assert!(section.split_once("\n\n").unwrap().1.contains("E_QUARRY_UNKNOWN"), "{section}");
+    assert!(!text.contains("No dedicated section") && !text.contains("One file, `snapback/schema.q`"), "{text}");
+    assert!(text.contains(&format!("{}\n\n{section}\n\n{}", bound.diagnostics[0], bound.diagnostics[1])), "{text}");
+    println!("W10R2 repeated unknown: errors=2 excerpts=1 excerpt_bytes={}", section.len() + 1);
+    p.source("query first():\n  return 1\nquery second():\n  return 2\n");
+    assert!(p.run(&["check"]).status.success());
 }
 
 #[test]

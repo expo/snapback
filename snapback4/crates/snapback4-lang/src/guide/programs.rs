@@ -1,0 +1,63 @@
+//! Programs and the placement of writes and effects. Compiled by tests/guide.rs.
+// @ref LLP 3000.007#20.19 — repeated refusals carry the card paragraph naming their code.
+pub(super) const CARD: &str = r##"# Programs
+
+E_QUARRY_PLACEMENT means a statement is valid only in another context.
+For example, `query add():` cannot contain `insert notes { body: 'hello' }`;
+make that operation `mutation add():` so the write runs in its transaction.
+Queries cannot insert, update, delete or mint ids, even through a helper.
+Keep read-only work in a query, put writes in a mutation or job, and put
+`break` or `continue` inside the loop they control. The rewrite names the
+misplaced statement and where it belongs.
+
+E_EMIT_IN_QUERY means a query tried to enqueue an external effect.
+For example, `query send():` cannot contain `emit notify { body: 'hello' }`;
+declare `effect notify` and change the operation to `mutation send():`.
+Call that mutation for the send intent. Queries may rerun to refresh a
+screen, so they only read; mutations and jobs keep emitted effects in
+their commit for a worker with a service token to perform (guide effects).
+Moving the emit into a helper called by the query does not make it legal.
+
+```quarry
+query programForms(roomId: rooms):                             -- reads only; the last expression, or `return`, is the result, typed onto api.ts
+  rooms[roomId] card
+
+mutation programWrites(roomId: rooms, title: text 1..80):     -- reads and writes in one transaction, at most once per client-minted id
+  room = rooms[roomId] ! else NOT_FOUND
+  require room.ownerId = viewer else NOT_OWNER
+  update rooms[room] { name: title }                           -- a final write is the implicit return
+```
+
+A mutation with `predicts: "never"` (a server site or `: server`) may pass
+over a bounded plain prefix page whose read rule is uniform over its prefix,
+without a complete schema-capped group. `matching`, merges and tables with
+expiry are refused for every mutation page, predicting or not, looped or bound (`E_STRUCTURAL_FANOUT`). A predicting mutation
+keeps the complete-group requirement for page loops. A bounded list loop whose
+body only reads, computes and emits may use a list column, alias, helper result,
+or filtered/shaped list derived from a page; it need not preserve the whole group.
+A row write anywhere in that body, including an inlined helper or nested loop,
+keeps the original structural-fanout check and its capped-group rewrite.
+Every page a mutation reads, even just
+binding it, must be uniformly decided by its prefix (`E_STRUCTURAL_FANOUT`):
+the rewrite names the missing rule columns and a capped loop that supplies
+their values. Pinning `.readerId` decides visibility; it grants no read
+authority over another reader's inbox. See `guide feeds` for removal limits.
+The pass is atomic and still aborts above 1,024 rows written. `check --cost`
+prints "a pass over the first N rows of <prefix>; examined ceiling <n>".
+
+The table names are the language card's; a `job` is `chunk row in
+t[prefix] first N by index:` sweeps (guide jobs), or `native`: the app's
+own Rust, hosted as wasm; a `query` may be `native` too, run on the server
+as the viewer and on a device over its rows (guide native). Operations in `schema.q`
+are called by name (`api.thread`); operations in `snapback/feed.q` are
+`api.feed.<name>`; jobs are not on api.ts. `require cond else CODE` refuses
+with the program's own code, which reaches the client as `{ code, family:
+"rule", .. }`; `CODE` is UPPER_SNAKE and never starts with `E_`. Statements
+are `x = expr` (bind or reassign a local), `(a, b) = divmod(..)`, `require`, `if:`/`else if:`/`else:`, `for x in
+domain:`, `break`, `continue`, `return`, a helper `fn` call, and a write; every other
+expression must be bound or returned. `fn` takes one expression or a body ending
+in `return expr` or a bare `return`; calls work in statements and expressions.
+A helper return exits only the helper, and its locals cannot capture the caller's.
+It never repositions or reclassifies an enclosing page.
+Queries cannot write or mint ids, including through a helper; the call site names
+the write that does not belong."##;

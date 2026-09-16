@@ -24508,3 +24508,264 @@ ref-check: ok — 481 LLP docs, 9030 refs in 23947 files, 0 errors, 0 unchecked
 
 `git diff --check` passed. The journal's earlier bytes were compared with
 HEAD before this single append and are unchanged.
+
+## 2026-09-16 — W10R2: common refusals carry their own card sections
+
+Base: `65431af2abd945e3cb79119f2dd6cb6f777de3c8` (the wave-10 round-1
+integration). Added dedicated mistake-and-repair paragraphs for
+`E_QUARRY_SYNTAX` and `E_QUARRY_UNKNOWN` on the language card, and
+`E_QUARRY_PLACEMENT` and `E_EMIT_IN_QUERY` on the programs card. Each
+`why <CODE>` now returns the paragraph naming that code, and a repeated
+unknown-name refusal prints that section under its first occurrence.
+The four bad examples still produce their named refusals; their repaired
+forms compile with zero diagnostics and zero notes. No language form changed.
+
+Orientation (`llp-orient`): scope is guide prose and the existing guide/check
+suites. LLP 3000 §6–§7 supplies the tested-card contract; Accepted-as-ruled
+LLP 3000.007 §14/§18 binds the language, §18.5 supplies the mechanical-repair
+discovery, and §20.19 supplies repeated-diagnostic reach and suppression
+ordering. The README and journal are the corresponding publication updates.
+Both governing LLPs are linked in `llp/current/`, neither in
+`llp/foundation/`; the explicit Snapback 4 fence and accepted brief govern
+this lane. Hand-off: none. The remaining content gap below is intentionally
+left to wave 11.
+
+Moved the existing programs card into `guide/programs.rs` without changing
+any of its prior bytes, then added the two paragraphs. This keeps source
+under the cap without rewrapping prose: `guide.rs` has 1,470 lines and
+`guide/programs.rs` 64 by the caps convention (including the trailing empty
+line). The README names where each of the four sections lives and explains
+the distinction between inline help and deliberately requested `why`.
+
+The ordering test `w10c_check_hides_only_the_redundant_operation_cascade`
+is unchanged. It failed before the prose addition and passes afterward:
+default errors=1/excerpts=0; verbose errors=2/excerpts=1;
+JSON errors=2/excerpts=0. Suppression therefore happens before repeat
+counting. The mixed four-kind regression now requires the first three
+dedicated excerpts in diagnostic order (1,961 added bytes, below 12,291),
+replacing round 1's temporary expectation that only the type error had
+content. The repeat threshold, three-excerpt limit, 4,096-byte bound,
+`guide_for` routing, JSON envelope and explicit-why fallback are unchanged.
+No opening-paragraph fallback was restored in `check`.
+
+### Section census for wave 11
+
+The census calls `Diagnostic::explanation_section()` for every entry in
+`guide::CODES` using `guide_for`'s default card. This is the actual inline
+selector: a code must appear as a whole word in an unfenced prose paragraph;
+a heading or fenced example alone does not qualify. Per-site card overrides
+are outside this default-route census. Before: **137 registered, 67 with,
+70 without**. After: **137 registered, 71 with, 66 without**. Restricting the
+registry to `E_`/`N_` gives the brief's denominator of **131**: **65 with,
+66 without** after the change. The other six registered codes all have
+sections. The measured remaining gap is therefore 66, not the brief's 57;
+no extra sections were written to force agreement with that expectation.
+
+- **actions (18):** `E_ACTION_ATTEMPTS`, `E_ACTION_CANCELLATION`, `E_ACTION_CANCELLED`, `E_ACTION_CLOSED`, `E_ACTION_DEADLINE`, `E_ACTION_FAILED`, `E_ACTION_GENERATION`, `E_ACTION_RESULT`, `E_SERVER_CONFIG`, `E_SERVER_HANDLERS`, `E_SERVER_TOOLCHAIN`, `E_SERVER_TYPECHECK`, `E_STEP_BUSY`, `E_STEP_INPUT`, `E_STEP_PARKED`, `E_STEP_RESULT`, `E_STEP_UNKNOWN`, `E_WRITE_LABEL`.
+- **bounds (3):** `E_FANOUT`, `E_UNBOUND_LOOP`, `E_UNBOUND_SCAN`.
+- **effects (5):** `E_EFFECT_ATTEMPTS`, `E_EFFECT_CANCELLATION`, `E_EFFECT_CANCELLED`, `E_EFFECT_DEADLINE`, `E_EFFECT_UNKNOWN`.
+- **indexes (3):** `E_CURSOR_INDEX`, `E_QUARRY_AMBIGUOUS`, `E_SCHEMA_CONSTRAINT`.
+- **jobs (3):** `E_JOB_CURSOR_INDEX`, `E_JOB_GENERATION`, `E_SCHEDULE`.
+- **language (2):** `E_ID_REUSED`, `E_QUARRY_UNSUPPORTED`.
+- **maintains (1):** `E_QUARRY_MAINTAIN`.
+- **native (3):** `E_NATIVE`, `E_NATIVE_BUILD`, `E_NATIVE_TOOLCHAIN`.
+- **personas (2):** `E_SQL_INTERNAL`, `E_SQL_READ_ONLY`.
+- **prediction (1):** `E_PREDICT`.
+- **programs (2):** `E_OP`, `E_OP_RESERVED`.
+- **refusals (6):** `E_CLIENT`, `E_CLOSED`, `E_DEVICE_VERSION`, `E_GENERATION`, `E_SCHEMA`, `E_STORE`.
+- **services (1):** `E_AUTH`.
+- **sync (2):** `E_QUARRY_RETAIN`, `E_SYNC`.
+- **types (3):** `E_FIELD`, `E_OVERFLOW`, `E_TYPE`.
+- **witness (11):** `E_WITNESS_ARTIFACT`, `E_WITNESS_BACKEND`, `E_WITNESS_INPUT`, `E_WITNESS_INTERRUPTED`, `E_WITNESS_PLATFORM`, `E_WITNESS_PORT`, `E_WITNESS_PROCESS`, `E_WITNESS_RECEIPT`, `E_WITNESS_SIMULATOR`, `E_WITNESS_STEP`, `E_WITNESS_TIMEOUT`.
+
+All four new CLI sections were red before their content existed, as were
+the repeated-unknown, suppression-order and three-excerpt-limit regressions
+(7 failures). The guide's example-repair controls and census were already
+green before the change; they are supporting checks, not claimed regressions.
+The lesson is that inline help depends on usable routed prose, not merely
+registration of a one-line explanation or a code appearing somewhere on a card.
+
+### Verification and measured output
+
+Cargo commands below ran from `snapback4/`; the blocking suite and ref-check
+ran from the repository root. Every JS/Bun invocation inherited:
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+Logs are in `/tmp/w10r2-logs/`.
+
+`red-check.log`:
+
+```text
+cargo test -p snapback4 --test check --no-fail-fast w10 -- --nocapture
+test result: FAILED. 9 passed; 7 failed; 0 ignored; 0 measured; 35 filtered out; finished in 1.26s
+```
+
+`red-guide.log`:
+
+```text
+cargo test -p snapback4-lang --test guide --no-fail-fast w10r2_ -- --nocapture
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 35 filtered out; finished in 0.03s
+```
+
+`green-check-w10.log`:
+
+```text
+cargo test -p snapback4 --test check --no-fail-fast w10 -- --nocapture
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 35 filtered out; finished in 1.22s
+```
+
+`guide.log`:
+
+```text
+cargo test -p snapback4-lang --test guide --no-fail-fast -- --nocapture
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+```
+
+`check.log`:
+
+```text
+cargo test -p snapback4 --test check --no-fail-fast -- --nocapture
+test result: ok. 51 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.72s
+```
+
+Measured UTF-8 output sizes, including the final newline and full-card pointer:
+syntax 1,308 bytes; unknown 637; placement 681; emit-in-query 737. The repeated
+unknown fixture has 2 errors and 1 inline section of 637 bytes. All four
+are below 4,096. The unchanged diagnostic messages and registered one-line
+explanations are not rewritten; only the selected card content changes.
+
+Full blocking command and verbatim stage/count summaries:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+== cargo build
+-- ok: cargo build (2 s)
+== wasm build
+-- ok: wasm build (15 s)
+== package typecheck
+-- ok: package typecheck (1 s)
+== package build
+-- ok: package build (0 s)
+== chat app check
+-- ok: chat app check (0 s)
+== cargo test
+-- ok: cargo test (574 s)
+== chat app typecheck
+-- ok: chat app typecheck (1 s)
+== expo app typecheck
+-- ok: expo app typecheck (1 s)
+== fixture wrapper tests
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (12 s)
+== client tests
+ℹ tests 484
+ℹ pass 483
+ℹ fail 1
+-- FAIL: client tests (65 s)
+== 1 failure(s) in 592 s
+```
+
+Rust totals summed from 71 harness summaries: 1,230 passed, 0 failed,
+4 ignored. Their verbatim summaries:
+
+```text
+test result: ok. 58 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.49s
+test result: ok. 51 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.38s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.23s
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 33.62s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.56s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.37s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.39s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 49 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.52s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.97s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.44s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+test result: ok. 181 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 118.35s
+test result: ok. 90 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 23.34s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.64s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.80s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.10s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.66s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.38s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.61s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.24s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 87 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 38.12s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.09s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.78s
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 50.44s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.70s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 4.14s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.70s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.25s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+The script returned exit 1 solely for
+`packages/snapback4/test/react.test.mjs:74`, where Chromium exited with
+`signal=SIGABRT` before browser assertions, the environment artifact named
+in the lane brief. It was not rerun or treated as a product regression.
+There were no lifecycle timeouts, default-concurrency client timeouts or
+route-development exception failures to rerun. The lead's outside-sandbox
+browser run remains necessary; this lane does not claim the full script green.
+No clean-base whole-suite rerun was made, and no unresolved failure is
+labelled pre-existing. The seven behavioral regression failures above were
+verified with test-only changes against the named base before the prose fix.
+
+Reference check before the journal append:
+
+```text
+./ref-check --verbose
+ref-check: ok — 481 LLP docs, 9031 refs in 23949 files, 0 errors, 0 unchecked
+```
+
+All requested implementation and census work is complete. The 66 remaining
+sections are deferred as directed; no other lane's files or out-of-scope
+files were touched. The only new source file holds the extracted programs
+card. No meter ceiling, serialized value form, existing corpus case, routing,
+threshold or excerpt bound changed. No commit, push, tag, publication,
+sub-agent, clone or remote execution. `git diff --check` passed; the journal
+was compared byte-for-byte against HEAD before this single append.
