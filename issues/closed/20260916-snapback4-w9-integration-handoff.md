@@ -1,13 +1,30 @@
 # Handoff: LLP 3000.009 increments A1 and C1 — integrate, verify, measure, land
 
-**Opened:** 2026-09-16 · **Owner:** unassigned (was: the Claude session of
-2026-09-15) · **State:** continuing (A1/C1 integration record below; A2/A3/fixtures next)
+**Opened:** 2026-09-16 · **Owner:** Codex lead · **State:** resolved 2026-09-16
+
+## 2026-09-16 resolution
+
+All implementation work handed off here landed: A1/C1 in `9d9a5cb67`,
+the fixture pack in `ac243ad73`, A2 in `f32c079f2`, and A3 in `2a791fe17`.
+The [A2](../../snapback4/reports/20260916-a2.md) and
+[A3](../../snapback4/reports/20260916-a3.md) reports retain qualification,
+independent reviews, earlier failures and limits. C1's provisional targets
+were all missed; the measurement was reported rather than tuned. The
+Postgres replay-binding defect remains open for C3, as directed.
+
+The earlier continuation update below was stale after A2/A3/fixtures landed;
+its remaining-work statements are now historical. Charlie subsequently
+requested the first Workroom cell and approved prerequisite publication.
+A concurrent session published 0.2.26 with A2/A3; the new
+[Workroom run record](../../benchmarks/runs/2026-09-16-workroom-first/README.md)
+owns qualification, calibration, freeze and the first cell. Closing this
+handoff does not claim that a Workroom cell or increment B has completed.
 
 ## 2026-09-16 continuation update
 
 The A1/C1 candidate now integrates both cherry-picks on main `e16baf3483`,
 with final reviewed/measured code `ba92d4f32`. The
-[integration report](../snapback4/experiments/postgres/W9-INTEGRATION-REPORT.md)
+[integration report](../../snapback4/experiments/postgres/W9-INTEGRATION-REPORT.md)
 is the current verification and measurement record: the PG suite passes,
 the client red is reproduced on clean main, and all C1 performance targets
 are missed in an idle PG16 on/off pair. Failed serializable cells are retained.
@@ -20,7 +37,7 @@ the brief's freeze/pilot protocol before any control cells. The original
 handoff below is retained as the record of what was received; its statements
 that A1/C1 are unintegrated are historical, not the current state.
 
-Two implementation lanes for [LLP 3000.009](../llp/3000.009-general-purpose-backend.rfc.md)
+Two implementation lanes for [LLP 3000.009](../../llp/3000.009-general-purpose-backend.rfc.md)
 are complete, reviewed, fixed once, committed and pushed. They are not yet on
 `main`. This ticket is the whole remaining state, so any session on any
 machine can continue.

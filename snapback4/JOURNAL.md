@@ -24954,3 +24954,29 @@ compilation; the retry used its absolute path. Two selector attempts selected
 zero tests and are retained separately, not counted as passes. These focused
 checks and the retained Sol/Grok reviews qualify only receipt binding, not
 production Postgres, the whole suite, performance, or publication.
+
+## 2026-09-16 — Workroom first-cell commission and publication preflight
+
+Charlie requested the first Workroom cell and explicitly approved qualifying
+and publishing the prerequisite release. Before this run published anything,
+the concurrent wave-10 session landed its 0.2.26 publication receipt on main
+`7df94ea36`. A fresh npm installation verifies the recorded binary SHA-256
+`fa4834f3fd128f4c37f02c9c3954da95306bbf208b2c0c94eb34cda419e7d7be`,
+Developer ID signature and version; `snapback4/server` loads on Node 24.13.1.
+That is an observed publication by another session, not a second publication
+by this run. Its green publication-suite record remains the earlier entry.
+
+The [run record](../benchmarks/runs/2026-09-16-workroom-first/README.md)
+registers a separate diagnostic application pilot before calibration/freeze
+and the cold no-SQL cell. The real W3/W5 application journeys remain to be
+qualified; A3's route slice is not substituted for them. The existing fixture
+suite passes 18/18 with no skips on Node 24.13.1 at this preflight. The public
+pilot packet omits the grader-only holdout section and contains no product
+source. No cell, score, threshold, general-purpose claim or promotion follows
+from this entry. Charlie also authorized safe disk cleanup; an unused-cache
+audit on Durand precedes pilot launch. Heavy work stays serialized and
+expo-build-1000 is untouched.
+
+The W9 handoff ticket is finally dispositioned: A1/C1, A2, A3 and the fixture
+pack all landed; C1 targets remain missed, and Postgres receipt binding stays
+open for C3. Its old pending-A2/A3 list was bookkeeping drift, not unlanded code.
