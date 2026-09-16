@@ -51,9 +51,10 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
             rule_sites(schema, rule, &format!("{kind} {table} rule"), &mut fact.sites, &mut BTreeSet::new());
             if kind == "upsert" { rule_sites(schema, &definition.rules.insert, &format!("upsert {table} insert rule"), &mut fact.sites, &mut BTreeSet::new()); }
             for constraint in &definition.constraints {
-                if let snapback4_core::schema::Constraint::FinalExistsOnInsert { table, index, .. } = constraint {
-                    fact.sites.push(site(schema, "after insert", table, index, "rule"));
-                    aggregate_source_site(schema, table, "after insert", &mut fact.sites);
+                if let snapback4_core::schema::Constraint::FinalExistsOnInsert { table: target, index, .. } = constraint {
+                    let location = format!("after insert {table} -> {target}");
+                    fact.sites.push(site(schema, &location, target, index, "rule"));
+                    aggregate_source_site(schema, target, &location, &mut fact.sites);
                 }
             }
         }
@@ -66,6 +67,61 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
         ProgramKind::Action => { fact.runs = Some("server".into()); fact.predicts = Some("never".into()); }
     }
     fact
+}
+
+// @ref LLP 3000.007#6.3 — the printed reason belongs to its read, write or rule declaration, in every residency class.
+pub(super) fn locate_sites(catalog: &Catalog, program: &super::BoundProgram, fact: &mut Execution) {
+    let mut located = Vec::new();
+    for mut site in std::mem::take(&mut fact.sites) {
+        let mut locations = BTreeSet::new();
+        if let Some((location, name)) = program.sources.get(&site.site) {
+            locations.insert(format!("{location} ({name})"));
+        } else if let Some(read) = site.site.strip_suffix(" temporary audience") {
+            if let Some((location, name)) = program.sources.get(read) {
+                locations.insert(format!("{location} ({name}; temporary audience rule: {} by {})", site.table, site.index));
+            }
+        } else if let Some(path) = site.site.strip_prefix("after insert ") {
+            if let Some((table, target)) = path.split_once(" -> ") && let Some(info) = catalog.tables.get(table) {
+                for (expr, location) in &info.decl.final_exists {
+                    if let crate::ast::Expr::Exists { read, .. } = expr && read.table == target {
+                        locations.insert(format!("{location} ({table} after insert rule: {} by {})", site.table, site.index));
+                    }
+                }
+            }
+        } else if site.site.ends_with(" rule") {
+            let parts: Vec<_> = site.site.split_whitespace().collect();
+            if let [verb, table, rest @ ..] = parts.as_slice() && catalog.tables.contains_key(*table) {
+                let effect = if rest == ["insert", "rule"] { "insert" } else if *verb == "upsert" { "update" } else { verb };
+                let location = catalog.site_for(&format!("tables.{table}.rules.{effect}"));
+                locations.insert(format!("{location} ({table} {effect} rule: {} by {})", site.table, site.index));
+            }
+        } else if site.kind == "native" {
+            locations.insert(format!("{} (native {})", program.site, program.program.name));
+        } else {
+            // The IR coalesces writes by table. Expand those facts to all
+            // retained source occurrences, including writes inside helpers.
+            let write = site.site.replace("insert if absent ", "insert ");
+            for (key, (location, name)) in &program.sources {
+                if (key.starts_with("write/") && *name == write) || (site.site == "connected" && key.starts_with("presence/")) {
+                    locations.insert(format!("{location} ({name})"));
+                }
+            }
+        }
+        if locations.is_empty() && site.site.starts_with("programs.") {
+            // A lowered helper can have no separate source expression. Its
+            // owning operation is real source; never print an IR path.
+            site.site = format!("{} ({}: {} {} by {})", program.site, program.program.name, site.kind, site.table, site.index);
+        }
+        if locations.is_empty() { located.push(site); }
+        else {
+            for location in locations {
+                let mut copy = site.clone();
+                copy.site = location;
+                if !located.contains(&copy) { located.push(copy); }
+            }
+        }
+    }
+    fact.sites = located;
 }
 
 fn site(schema: &Schema, location: &str, table: &str, index: &str, kind: &str) -> ResidencySite {
@@ -204,6 +260,7 @@ pub fn prediction_summary(bound: &Bound) -> Option<String> {
 }
 
 pub(super) fn maintain_notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
+    // @ref LLP 3000.007#6.8 — check states inheritance; test --residency measures the adopted fixture's cold rows.
     let mut notes: Vec<_> = schema.synced().filter_map(|(name, table, sync)| {
         let source = table.residency.inherited_from.as_ref()?;
         match &sync.audience {
@@ -238,7 +295,7 @@ pub(super) fn maintain_notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnost
     notes
 }
 
-/// A grouped note retains each maintain's own line, so measurements can still attach by name.
+/// The cold-snapshot report identifies which maintains the grouped fact names.
 pub fn maintain_note_names(note: &Diagnostic, name: &str) -> bool {
     note.code == "N_MAINTAIN_SYNCED" && note.message.lines().any(|line| line.trim_start().starts_with(&format!("maintain {name}:")))
 }

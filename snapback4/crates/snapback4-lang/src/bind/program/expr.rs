@@ -186,6 +186,7 @@ impl Binder<'_> {
         }
         // @ref LLP 3000.007#20.1 — retain the author's deciding read alongside the IR, never in its serialized form.
         self.presence_sources.push((e.clone(), site.clone(), print::read_expr(read)));
+        self.sources.insert(format!("presence/{site}"), (site.clone(), print::read_expr(read)));
         Ok((Expr::Builtin { builtin: Builtin::Connected, args: vec![e] }, Ty::Int))
     }
 

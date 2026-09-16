@@ -109,6 +109,59 @@ pub fn codes() -> Vec<&'static str> {
     CODES.iter().map(|(code, _)| *code).collect()
 }
 
+/// Includes the CLI's final newline and the full-card pointer, even when the
+/// paragraph is longer. This is an output bound, not a runtime meter ceiling.
+pub const WHY_MAX_BYTES: usize = 4096;
+
 pub fn explain_code(code: &str) -> Option<String> {
-    CODES.iter().find(|(name, _)| *name == code).map(|(name, text)| format!("{name}: {text}"))
+    let (_, explanation) = CODES.iter().find(|(name, _)| *name == code)?;
+    let keyword = crate::diag::guide_for(code);
+    let card = super::card(keyword)?;
+    let paragraphs = prose(card);
+    let section = paragraphs.iter().find(|(_, paragraph)| paragraph.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|word| word == code));
+    let mut text = format!("{code}: {explanation}\n\n");
+    if section.is_none() { text.push_str(&format!("No dedicated section for {code}; opening of guide {keyword}:\n")); }
+    if let Some((heading, paragraph)) = section.or_else(|| paragraphs.first()) {
+        text.push_str(heading);
+        text.push_str("\n\n");
+        text.push_str(paragraph);
+    } else {
+        text.push_str(card.lines().next().unwrap_or(keyword));
+    }
+    let pointer = format!("\n\nFull card: snapback4 guide {keyword}");
+    let budget = WHY_MAX_BYTES - pointer.len() - 1;
+    if text.len() > budget {
+        const CUT: &str = "\n[excerpt truncated]";
+        let mut end = budget - CUT.len();
+        while !text.is_char_boundary(end) { end -= 1; }
+        // Prefer a complete word; never split a UTF-8 character.
+        if let Some(at) = text[..end].rfind(char::is_whitespace) { end = at; }
+        text.truncate(end);
+        text.push_str(CUT);
+    }
+    text.push_str(&pointer);
+    Some(text)
+}
+
+/// Paragraphs retain their card heading, but never treat a code in a Quarry
+/// example as documentation of that code. Cards remain the source of the prose.
+fn prose(card: &str) -> Vec<(String, String)> {
+    let mut result = Vec::new();
+    let mut heading = String::new();
+    let mut paragraph = Vec::new();
+    let mut fence = None;
+    for line in card.lines().chain([""]) {
+        let trimmed = line.trim_start();
+        if let Some(marker) = fence {
+            if trimmed.starts_with(marker) { fence = None; }
+            continue;
+        }
+        let marker = ["```", "~~~"].into_iter().find(|marker| trimmed.starts_with(marker));
+        if trimmed.is_empty() || trimmed.starts_with('#') || marker.is_some() {
+            if !paragraph.is_empty() { result.push((heading.clone(), paragraph.join("\n"))); paragraph.clear(); }
+            if trimmed.starts_with('#') { heading = line.to_owned(); }
+            fence = marker;
+        } else { paragraph.push(line); }
+    }
+    result
 }

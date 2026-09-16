@@ -1029,12 +1029,15 @@ it opts out of inherited sync. `N_MAINTAIN_SYNCED` calls out public inherited
 aggregates and group audiences with unbounded recipients or multiple values per group,
 grouped into one note retaining each maintain's source location.
 The note names mutations that would stop predicting if the maintain goes
-`online only`; `snapback4 test --residency` measures its cold rows. When a
-dev store exists, `check` includes its measured value-row count before adoption.
+`online only`; `snapback4 test --residency` measures its cold rows. `check`
+prints the facts without pre-adoption counts: a new maintain has no stored rows yet.
 
 `check --residency` lists every table's residency, inferred and inherited
 audiences, and each operation's `runs: device | server` or
 `predicts: eligible | never`. Read sites are `held`, `horizon` or `server`.
+Each site names its read, write or rule's file:line:column when source is
+available, including helper writes and after-insert rules. A source-less
+fact names its rule or write path instead of an internal compiler site.
 Queries reading `connected` run on the server; mutations stay eligible when presence decides only effects.
 A horizon site stays eligible but may queue without a row past the horizon;
 `E_PREDICT` names the table, index and key. `why <op>` names the reason and
@@ -2418,9 +2421,13 @@ step.
   The token and one newline are the whole of stdout (even with `--json`),
   with prose on stderr, so capture it with `TOKEN=$(npx snapback4 token --service worker)`.
   Stderr names the owning store; each isolated store needs its own token (§4, Workers and services).
-- **`snapback4 why <E_CODE | op | table>`** explains a refusal code, an
+- **`snapback4 why <CODE | op | table>`** explains a refusal or note code, an
   operation's arguments, result and cost, or a table's rules, sync line,
-  expire column and indexes; **`data <table> [--limit N]`** prints rows
+  expire column and indexes. For a code it also prints the card paragraph
+  naming that code, followed by the full-card command. With no dedicated
+  section, it says so and prints the card's opening prose. The output is
+  bounded to 4,096 UTF-8 bytes including the pointer and final newline;
+  a shortened excerpt says so. **`data <table> [--limit N]`** prints rows
   as one JSON object per stdout line (50 by default), with any truncation
   hint on stderr; **`doctor [--json]`** says what is in place: the
   store, its size, schedules and their last boundary, the last job runs,

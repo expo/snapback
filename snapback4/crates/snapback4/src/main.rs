@@ -31,7 +31,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   run <op> [json] --as <persona|principal-id> [--now <milliseconds|+duration>]   run one operation against the local store (a job runs whole, as the system)
   clock advance <duration> [--port N]  advance a running dev clock, sweep expiry and run due jobs
   test [--fixture dir] [--as p] [--residency]    load a fixture, run every query, print the meters
-  why <E_CODE | op | table>        explain a refusal, an operation's cost, or a table's rules
+  why <CODE | op | table>          explain a refusal/note with its card, an operation's cost, or a table's rules
   guide [keyword]                  list cards and aliases, or print one card
   data <table> [--limit N]         inspect stored rows as an administrator (bypasses read rules)
   sql <SELECT> [--release dir] [--limit N] [--json]  read-only inspection of your store (not rule-filtered)

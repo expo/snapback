@@ -60,20 +60,7 @@ pub fn bind(documents: Vec<Document>) -> Bound {
     // The residency facts come before admission: a never-predicting mutation may pass over a uniformly authorized page (LLP 3000.007 §5.9), and admission reads that class here.
     schema.operations = programs.iter().map(|bound| {
         let mut fact = residency::execution_with_presence(&schema, &bound.program, bound.presence.as_ref());
-        for site in &mut fact.sites {
-            if let Some((location, name)) = bound.sources.get(&site.site) {
-                site.site = format!("{location} ({name})");
-            } else if site.site.starts_with("programs.") {
-                site.site = format!("{} ({} by {})", bound.site, site.table, site.index);
-            } else if site.class == snapback4_core::schema::SiteClass::Horizon && site.kind == "rule" {
-                let parts: Vec<_> = site.site.split_whitespace().collect();
-                if let [verb, table, rest @ ..] = parts.as_slice() && rest.last() == Some(&"rule") && catalog.tables.contains_key(*table) {
-                    let effect = if rest == ["insert", "rule"] { "insert" } else if *verb == "upsert" { "update" } else { verb };
-                    let location = catalog.site_for(&format!("tables.{table}.rules.{effect}"));
-                    site.site = format!("{location} ({table} {effect} rule: {} by {})", site.table, site.index);
-                }
-            }
-        }
+        residency::locate_sites(&catalog, bound, &mut fact);
         (bound.program.name.clone(), fact)
     }).collect();
     for doc in &catalog.documents {

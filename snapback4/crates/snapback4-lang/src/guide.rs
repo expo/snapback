@@ -540,6 +540,14 @@ pub fn card(keyword: &str) -> Option<&'static str> {
         "evolution" => discovery::EVOLUTION,
         "types" => r##"# Types
 
+E_QUARRY_TYPE means the expression's type does not fit its position.
+The diagnostic names the expected and actual types and the source location.
+A table reference is that table's typed id, not its row: read `table[id]`
+before selecting fields. Narrow an optional value with `if x != null:`,
+`x ! else CODE` or `x ?? default` before using it where a present value is
+required. Use the declared enum type when its variants cannot all widen
+to the helper's text bound; changing a type never converts stored values.
+
 ```quarry
 table everything:
   who: principal                      -- the authenticated subject; `viewer` is one
@@ -792,6 +800,9 @@ mutation post(body: text <=200):
 `check --residency` prints two tables of facts: each table's audience and
 horizon (inferred audiences say "from the read rule"; maintains name their
 source), then operations and their read sites: held, horizon, or server.
+Sites name the read, write or rule's file:line:column, including expanded
+helper writes and after-insert rules; a source-less fact names its rule or
+write path instead of an internal compiler site.
 Queries run on the device unless a site is server-only. Mutations predict
 when eligible; every mutation can queue. An eligible mutation's horizon
 sites say "may queue without a row past the horizon"; E_PREDICT names the
@@ -817,8 +828,8 @@ site refuses E_NOT_PREDICTABLE at that header. See `guide prediction`.
 N_MAINTAIN_SYNCED names public inherited aggregates and group audiences
 with unbounded recipients or multiple values per group. It names mutations
 that would stop predicting if the maintain goes online only. Repeats share one
-note with a line and source location for every maintain. When a dev
-store exists, check adds its measured value-row count before adoption. Run
+note with a line and source location for every maintain. Check prints these
+facts without pre-adoption counts: a new maintain has no stored rows yet. Run
 `test --residency --fixture dir --as alice` to measure cold rows and compact
 JSON row bytes per synced table and persona, plus totals and aggregate row
 counts. Facts are labelled facts; measurements exclude transport framing
@@ -1385,7 +1396,11 @@ names a card, `rule` is the program's own code on a `require` refusal, and
 input, schema, auth, rule (your `require` codes), constraint, bound, op,
 asset, action, prediction, generation, store; the client adds link (the server is
 unreachable) and client (the client itself refused, as after `close()`).
-`snapback4 why <CODE>` explains one. Reads never raise a rule refusal: a
+`snapback4 why <CODE>` prints its explanation and the card paragraph naming
+the code, followed by the full-card command. If there is no dedicated section,
+it says so and prints the card's opening prose. Output is at most 4,096 UTF-8
+bytes including the pointer and final newline; a shortened excerpt says so.
+Reads never raise a rule refusal: a
 hidden row is null, and a page omits it.
 
 `dev` keeps failed schema adoption visible in `doctor`, repeats its reason on the first failing job or sweep, and retries locked stores and generation failures without another save. `doctor` compares the live host generation with the store; `--no-watch` hosts need a restart after another process adopts.
@@ -1409,4 +1424,4 @@ power loss and an unwritable stderr cannot report from inside the process."##,
 /// Every refusal code `why` explains, with its family. A program's own
 /// `require` codes are the author's and are explained by the program.
 mod codes;
-pub use codes::{CODES, codes, explain_code};
+pub use codes::{CODES, WHY_MAX_BYTES, codes, explain_code};

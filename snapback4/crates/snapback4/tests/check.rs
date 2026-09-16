@@ -33,6 +33,77 @@ impl Drop for Project { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0)
 fn parsed(output: &Output) -> Value { serde_json::from_slice(&output.stdout).unwrap_or_else(|_| panic!("{output:?}")) }
 
 #[test]
+fn w9b_why_prints_a_codes_card_paragraph() {
+    let p = Project::new();
+    for (code, card, paragraph) in [
+        ("E_QUARRY_TYPE", "types", "E_QUARRY_TYPE means the expression's type does not fit its position."),
+        ("N_MAINTAIN_SYNCED", "residency", "N_MAINTAIN_SYNCED names public inherited aggregates and group audiences"),
+        ("N_NO_CURSOR", "reads", "`complete: false` with no `next` (N_NO_CURSOR)"),
+    ] {
+        let output = p.run(&["why", code]);
+        assert!(output.status.success(), "{output:?}");
+        let text = String::from_utf8(output.stdout).unwrap();
+        println!("{code}: {} bytes\n{text}", text.len());
+        assert!(text.contains(paragraph), "{text}");
+        assert!(text.ends_with(&format!("Full card: snapback4 guide {card}\n")), "{text}");
+        assert!(!text.contains("No dedicated section"));
+        assert!(text.len() <= 4096);
+    }
+}
+
+#[test]
+fn w9b_why_without_a_section_prints_the_card_opening() {
+    let p = Project::new();
+    let output = p.run(&["why", "E_STORE"]);
+    assert!(output.status.success(), "{output:?}");
+    let text = String::from_utf8(output.stdout).unwrap();
+    println!("{} bytes\n{text}", text.len());
+    assert!(text.contains("No dedicated section for E_STORE; opening of guide refusals:"), "{text}");
+    assert!(text.contains("Every refusal is `{ code, family, message, site?, rewrite?, guide?, rule?,"), "{text}");
+    assert!(text.ends_with("Full card: snapback4 guide refusals\n"));
+    assert!(text.len() <= 4096);
+}
+
+#[test]
+fn w9b_why_operation_keeps_residency_and_cost_output() {
+    let p = Project::new();
+    let output = p.run(&["why", "all"]);
+    assert!(output.status.success(), "{output:?}");
+    let text = String::from_utf8(output.stdout).unwrap();
+    println!("{text}");
+    assert!(text.contains("query all()\n"));
+    assert!(text.contains("all: runs: server"));
+    assert!(text.contains("scan messages by byId: online only (site schema.q:5:10 (messages[]))"), "{text}");
+    assert!(text.contains("scan messages.byId first 10 — rule decided by the prefix: no probes"));
+    assert!(!text.contains("Full card:"));
+}
+
+#[test]
+fn w9b_new_maintains_share_one_note_without_pre_adoption_counts() {
+    let p = Project::new();
+    let base = include_str!("../../snapback4-lang/tests/fixtures/residency-notes.q");
+    let source = format!("{base}\nmaintain ownerCounts: count likes by owner\n  read <- allow\n");
+    // The current store has source rows but has never adopted either maintain.
+    let old = snapback4_lang::compile(&[("schema.q".into(), base.split("\nmaintain ").next().unwrap().into())]);
+    assert!(old.diagnostics.is_empty());
+    let mut engine = Engine::new(Store::open(&p.store()).unwrap(), old.schema, []).unwrap();
+    let table = &engine.schema().tables["likes"];
+    engine.seed([("l1", "p1"), ("l2", "p2")].map(|(id, post)| ("likes".into(), wire::row_from_json(table, &json!({"id":id,"postId":post,"owner":"alice"})).unwrap()))).unwrap();
+    p.source(&source);
+    let output = p.run(&["check", "--json"]);
+    assert!(output.status.success(), "{output:?}");
+    let value = parsed(&output);
+    let notes: Vec<_> = value["notes"].as_array().unwrap().iter().filter(|n| n["code"] == "N_MAINTAIN_SYNCED").collect();
+    assert_eq!(notes.len(), 1);
+    let note = &notes[0];
+    let message = note["message"].as_str().unwrap();
+    println!("{}\n  rewrite: {}\n  guide: {}", message, note["rewrite"].as_str().unwrap(), note["guide"].as_str().unwrap());
+    assert_eq!(message, "2 synced maintains:\n  maintain likeCounts: sync public inherited from likes; one value row per postId reaches every device; createPost, like, repost would stop predicting if likeCounts goes `online only` (site schema.q:10:1)\n  maintain ownerCounts: sync public inherited from likes; one value row per owner reaches every device; no currently eligible mutation reads it (site schema.q:24:1)");
+    assert!(note["rewrite"].as_str().unwrap().contains("snapback4 test --residency"));
+    assert_eq!(engine.store().count("likeCounts").unwrap(), 0, "check must not adopt the proposed maintains");
+}
+
+#[test]
 fn upsert_insert_proof_and_service_grants_reach_check_and_why() {
     let p = Project::new();
     p.source("table likes:\n  post: text <=30\n  principal: principal\n  on: bool\n  unique byPostPrincipal: post, principal\n  by byPrincipal: principal, post, id\n  read <- .principal = viewer or viewer = 'service:pusher'\n  insert <- .principal = viewer\n  update <- .principal = viewer\n  sync\nmutation vote(post: text <=30):\n  upsert likes[post, viewer] {on: true}\n");
@@ -360,7 +431,7 @@ fn b2_every_check_summarizes_zero_one_and_three_never_mutations() {
 }
 
 #[test]
-fn b2_why_fanout_is_one_paragraph_and_an_example() {
+fn b2_why_fanout_keeps_its_example_with_bounded_card_context() {
     let p = Project::new();
     let output = p.run(&["why", "E_STRUCTURAL_FANOUT"]);
     assert!(output.status.success());
@@ -368,11 +439,12 @@ fn b2_why_fanout_is_one_paragraph_and_an_example() {
     println!("{text}");
     assert!(text.contains("Example:"));
     assert!(text.contains("cap 50 by room"));
-    assert!(text.split_whitespace().count() < 120);
+    assert!(text.len() <= snapback4_lang::guide::WHY_MAX_BYTES);
+    assert!(text.ends_with("Full card: snapback4 guide programs\n"));
 }
 
 #[test]
-fn b2_maintain_note_measures_the_current_store_and_cold_snapshot() {
+fn b2_maintain_note_points_to_the_measured_cold_snapshot() {
     let p = Project::new();
     let source = format!("{}\nmaintain ownerCounts: count likes by owner\n  read <- allow\n", include_str!("../../snapback4-lang/tests/fixtures/residency-notes.q"));
     p.source(&source);
@@ -385,11 +457,10 @@ fn b2_maintain_note_measures_the_current_store_and_cold_snapshot() {
     assert!(output.status.success(), "{output:?}");
     let text = String::from_utf8(output.stdout).unwrap();
     println!("{text}");
-    assert!(text.contains("current store measurement: 2 value rows"), "{text}");
-    assert!(text.contains("current store measurement: 1 value rows"), "{text}");
+    assert!(!text.contains("current store measurement:") && !text.contains("before adoption"), "{text}");
     assert_eq!(text.matches("N_MAINTAIN_SYNCED:").count(), 1);
-    assert!(text.lines().any(|line| line.contains("maintain likeCounts:") && line.contains("2 value rows")));
-    assert!(text.lines().any(|line| line.contains("maintain ownerCounts:") && line.contains("1 value rows")));
+    assert!(text.contains("maintain likeCounts:") && text.contains("maintain ownerCounts:"));
+    assert!(text.contains("measure cold rows with `snapback4 test --residency`"));
     assert!(text.contains("createPost, like, repost would stop predicting"));
     let output = p.run(&["test", "--residency", "--as", "alice"]);
     assert!(output.status.success(), "{output:?}");
