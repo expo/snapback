@@ -79,6 +79,8 @@ database context. Other fields and body bytes are retained as work payloads.
 After session authentication or provider verification, the core admits private
 durable work keyed by the route and body digest. A duplicate delivery joins
 that invocation; distinct body bytes are distinct deliveries. Route work cannot
+expire its deduplication identity automatically. For new intent, include a
+nonce or revision in the body; changed headers alone are not new intent. Work cannot
 be invoked through the public action API (E_ROUTE_PRIVATE). The handler uses
 the action context: ordinary rule-checked reads and writes, declared secrets,
 durable `ctx.step`, and stable `ctx.writeIdFor` labels (guide actions).

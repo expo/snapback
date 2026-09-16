@@ -231,6 +231,10 @@ declared service seat, before `handle` runs. Retries with identical body bytes
 join that invocation despite fresh signature headers. Session-route IDs are
 also scoped to the principal and originating session family. Revocation or
 changed declarations cannot rebind old work to fresh authority. The handler
+does not treat changed headers alone as new intent. Include an explicit nonce
+or revision in the body when requesting a new operation (for example a new
+report export); repeat the same bytes when retrying. Route IDs and responses
+have the work-record lifetime, not an automatic deduplication expiry. The handler
 receives the first verified envelope with Authorization, Proxy-Authorization,
 Cookie and x-snapback-persona removed; other headers and body bytes are stored
 as work payloads. Only the body, not header spelling, is byte-exact.
