@@ -2,6 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import { startServer, ParkStep, ServerError } from "../dist/server.js";
 import { runWorker, GiveUp } from "../dist/worker.js";
@@ -322,6 +323,35 @@ test("cancellation aborts the signal, fences late database calls and stops polli
   assert.equal(result.requests.length, requests);
   assert.equal(result.requests.some(r => r.path.startsWith("/m/") || r.path.startsWith("/q/")), false);
   assert.equal(result.settled.body.code, "E_ACTION_CANCELLED");
+});
+
+test("an actual Node worker stays alive when its handler awaits only cancellation", () => {
+  const module = new URL("../dist/server.js", import.meta.url).href;
+  const child = spawnSync(process.execPath, ["--input-type=module", "-e", `
+    import assert from "node:assert/strict";
+    import { startServer } from ${JSON.stringify(module)};
+    const stop = new AbortController();
+    const request = ${JSON.stringify(claim())};
+    const worker = startServer(${JSON.stringify(manifest())}, { actions: { async work(_, ctx) {
+      await new Promise(resolve => ctx.invocation.signal.addEventListener("abort", resolve, { once: true }));
+      assert.equal(ctx.invocation.cancelled, true);
+      return {};
+    } } }, { url: "http://runtime.test", token: "service-token", signal: stop.signal, statusIntervalMs: 10,
+      fetch: async (url, init) => {
+        if (url.endsWith("/claim")) return Response.json({ requests: [request] });
+        if (url.endsWith("/status")) return Response.json({ invocation: { id: request.id, attempt: request.attempt, cancelled: true, state: "failed" } });
+        assert.ok(url.endsWith("/failed"));
+        assert.equal(JSON.parse(init.body).code, "E_ACTION_CANCELLED");
+        stop.abort();
+        return Response.json({ ok: true });
+      },
+    });
+    // Deliberately no parent-test timeout/keepalive inside this process.
+    await worker.done;
+    process.stdout.write("cancelled and settled");
+  `], { encoding: "utf8", timeout: 3000 });
+  assert.equal(child.status, 0, child.stderr || String(child.error));
+  assert.equal(child.stdout, "cancelled and settled");
 });
 
 test("a deadline aborts cooperatively without waiting for status polling", async () => {

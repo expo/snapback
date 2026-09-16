@@ -94,7 +94,6 @@ export function context(
     if (closed || ended) return;
     const timeout = new AbortController();
     const timeoutTimer = setTimeout(() => timeout.abort(), 10_000);
-    timeoutTimer.unref?.();
     try {
       const reply = await post("/status", {}, timeout.signal) as { invocation?: { id: string; attempt: number; cancelled: boolean; state: string; errorCode?: string } };
       if (closed || ended) return;
@@ -114,8 +113,10 @@ export function context(
     if (!closed && !ended) schedulePoll();
   };
   const schedulePoll = () => {
+    // The handler may be awaiting only its cancellation signal. Invocation
+    // timers own that live work until close/end; an unreferenced timer lets
+    // Node exit between claim and status with an unsettled top-level await.
     pollTimer = setTimeout(() => { void poll(); }, options.statusIntervalMs ?? 1000);
-    pollTimer.unref?.();
   };
   const onStop = () => end(closedWhy);
   if (options.signal?.aborted) onStop();
@@ -125,7 +126,6 @@ export function context(
     const remaining = deadline - now();
     if (remaining <= 0) { refusal(); return; }
     deadlineTimer = setTimeout(scheduleDeadline, Math.min(remaining, 2_147_483_647));
-    deadlineTimer.unref?.();
   };
   scheduleDeadline();
   if (!ended) schedulePoll();

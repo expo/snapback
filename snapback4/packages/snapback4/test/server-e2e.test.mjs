@@ -21,12 +21,12 @@ const safe = text => String(text).replace(/token \(printed once\): \S+/g, "token
 const jsonFile = file => { try { return JSON.parse(readFileSync(file, "utf8")); } catch { return undefined; } };
 const lines = file => { try { return readFileSync(file, "utf8").trim().split("\n").filter(Boolean).map(JSON.parse); } catch { return []; } };
 
-async function until(check, description, timeout = 10_000) {
+async function until(check, description, timeout = 10_000, diagnostics) {
   const deadline = Date.now() + timeout;
   for (;;) {
     const result = await check();
     if (result) return result;
-    if (Date.now() >= deadline) throw Error(`timed out: ${description}`);
+    if (Date.now() >= deadline) throw Error(`timed out: ${description}${diagnostics ? "\n" + safe(diagnostics()) : ""}`);
     await delay(20);
   }
 }
@@ -100,7 +100,7 @@ function project(t, source, entry) {
       const value = await call(name, id, args, credential);
       if (value.denied) throw Error(JSON.stringify(value));
       return value.state === "pending" ? undefined : value;
-    }, `action ${name}/${id} settling`, 15_000);
+    }, `action ${name}/${id} settling`, 15_000, host.log);
     return Object.assign(host, { url, token, post, call, collect, command });
   }
   return { directory, command, checked, start, writeEntry(text) { writeFileSync(join(directory, "snapback/server.ts"), text); } };
@@ -263,18 +263,18 @@ export default worker; await worker.done;
 `);
   const f = await p.start();
   assert.equal((await f.call("wait", "cancelled")).state, "pending");
-  await until(() => jsonFile(join(p.directory, "started-cancelled.json")), "cancellable handler enters");
+  await until(() => jsonFile(join(p.directory, "started-cancelled.json")), "cancellable handler enters", 10_000, f.log);
   assert.equal((await f.post("/actions/cancelled/cancel")).request.why.code, "E_ACTION_CANCELLED");
-  const cancelled = await until(() => jsonFile(join(p.directory, "ended-cancelled.json")), "cancellation abort delivered");
+  const cancelled = await until(() => jsonFile(join(p.directory, "ended-cancelled.json")), "cancellation abort delivered", 10_000, f.log);
   assert.equal(cancelled.cancelled, true); assert.equal(cancelled.attempted.why.code, "E_ACTION_CANCELLED");
   assert.equal((await f.post("/q/mine", { args: {} })).data.length, 0);
   const minted = await f.post("/auth/session", { principal: "member:revoked" }, f.token);
   const session = minted.session;
   assert.ok(session?.token, JSON.stringify(minted));
   assert.equal((await f.call("wait", "revoked", {}, session.token)).state, "pending");
-  await until(() => jsonFile(join(p.directory, "started-revoked.json")), "revocable handler enters");
+  await until(() => jsonFile(join(p.directory, "started-revoked.json")), "revocable handler enters", 10_000, f.log);
   assert.equal((await f.post("/auth/logout", {}, session.token)).status, 200);
-  const revoked = await until(() => jsonFile(join(p.directory, "ended-revoked.json")), "authority revocation abort delivered");
+  const revoked = await until(() => jsonFile(join(p.directory, "ended-revoked.json")), "authority revocation abort delivered", 10_000, f.log);
   assert.equal(revoked.cancelled, false); assert.equal(revoked.attempted.why.code, "E_ACTION_AUTHORITY");
   const replacement = (await f.post("/auth/session", { principal: "member:revoked" }, f.token)).session;
   assert.equal((await f.post("/q/mine", { args: {} }, replacement.token)).data.length, 0);
