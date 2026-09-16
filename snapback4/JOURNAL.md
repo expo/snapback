@@ -21357,3 +21357,18 @@ extractor, personas, a segmented starter seed, the scale-seed action log and
 a presentational UI kit — and a pilot to calibrate budgets and ceilings. The
 Convex and Supabase controls run when it freezes; Snapback's first cell
 follows increment A's journeys, without SQL reads, as the disposition says.
+
+## 2026-09-16 — 0.2.23 / expo 0.2.14 published (lead)
+
+Published from main `609f99936` (wave 7, LLP 3000.007 §20.16) with
+`scripts/publish.mjs`: the suite had 0 failures; the production darwin binary
+is 8,688,320 B, sha256 `41073ea2…`, Developer ID
+signed and not notarized; the installed-consumer proof passed;
+`snapback4@0.2.23` and `snapback4-darwin-arm64@0.2.23` at 00:55 UTC, the
+xcframework rebuilt, and `snapback4-expo@0.2.14` at 00:57 UTC.
+
+That commit also carries main's Postgres-evaluation work merged before the
+bump; the suite ran green over the merge.
+
+Next: the seventh Astra-medium calibration on these pins.
+
