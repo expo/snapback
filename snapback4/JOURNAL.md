@@ -22226,6 +22226,93 @@ bash snapback4/scripts/test.sh
 -- ok: chat app check (2 s)
 -- ok: cargo test (668 s)
 -- ok: chat app typecheck (0 s)
+
+## 2026-09-16 — W9b: why carries the card, and residency names its sources
+
+Built on `ce6cdccebafa0f5fea4fdadf997de1b1e0efb782`, left uncommitted for
+the lead. `why <CODE>` now prints the existing explanation followed by the
+matching prose paragraph and heading from its guide card, then the one-line
+full-card command. It matches whole code names outside fenced examples.
+If no paragraph names the code, it explicitly says so and prints the opening
+prose. The bound is 4,096 UTF-8 bytes including the pointer and final newline;
+truncation preserves a character/word boundary and says `[excerpt truncated]`.
+Operation and table explanations retain their residency and cost output.
+The code-to-card mapping is shared with diagnostics; no new code or note was
+introduced. The types card now explains the type mismatch at the point of
+use. The README and refusal/residency cards describe the new output.
+
+Dropped check's pre-adoption maintain counts. The compiler already grouped
+N_MAINTAIN_SYNCED; that one note still keeps every maintain's source and
+prediction consequence, with one `snapback4 test --residency` pointer.
+The measurement command still uses the adopted snapshot: the positive
+fixture measures 2 likeCounts rows, 1 ownerCounts row, and 6 total cold rows
+including 3 source rows, weighing 278 compact-JSON bytes for alice.
+No estimate, adoption or store mutation was added to check.
+
+Residency attribution now resolves held and server rule sites as well as
+horizon sites, after-insert constraints and their live-aggregate sources,
+all retained write occurrences (including helper writes), query presence,
+native declarations and temporary audiences. Unlocated lowered reads use
+their owning source operation; source-less facts retain a named rule/write
+path. The six-scenario regression has 38 sites: 22 lacked file:line before,
+0 after, with the same 38 facts. This is a fixture measurement, not a
+remeasurement of the calibration's 318-site application.
+
+Measurements: `why E_QUARRY_TYPE` grows from 84 to 640 bytes;
+`why N_MAINTAIN_SYNCED` is 1,041 bytes; `why E_STORE` (the no-section case)
+is 1,078 bytes. All 102 registered explanations fit; the largest is
+`N_NO_HORIZON`, 4,093 bytes with an explicit truncation marker. The two-maintain
+note below shrinks from 803 to 581 bytes (including its final newline),
+retaining 5 lines and removing 2 zero-count suffixes. Every changed code file
+is under 1,500 lines; the largest is guide.rs at 1,427. No meter ceiling,
+serialized value form or existing corpus case changed.
+
+Regression commands, from `snapback4/` (red before implementation, green after):
+
+```sh
+cargo test -p snapback4 --test check w9b_ -- --nocapture > /private/tmp/w9b-check-red.log 2>&1
+cargo test -p snapback4 --test check w9b_ -- --nocapture > /private/tmp/w9b-check-regression-green.log 2>&1
+```
+```text
+test result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 28 filtered out; finished in 2.17s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 2.98s
+```
+```sh
+cargo test -p snapback4-lang --test residency_notes w9b_ -- --nocapture > /private/tmp/w9b-residency-red.log 2>&1
+cargo test -p snapback4-lang --test residency_notes w9b_ -- --nocapture > /private/tmp/w9b-residency-regression-green.log 2>&1
+```
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 33 filtered out; finished in 0.01s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 33 filtered out; finished in 0.03s
+```
+
+The complete affected suites, rerun after the final review aligned the
+E_ADOPT and E_CONSTRAINT card mappings with their emitted diagnostics:
+
+```sh
+cargo test -p snapback4-lang --test residency_notes --test guide --no-fail-fast -- --nocapture > /private/tmp/w9b-lang-final.log 2>&1
+cargo test -p snapback4 --test check -- --nocapture > /private/tmp/w9b-check-final.log 2>&1
+```
+```text
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.23s
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.64s
+```
+
+Full blocking suite, from the repository root:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh > /private/tmp/w9b-full-suite.log 2>&1
+```
+```text
+-- ok: cargo build (3 s)
+-- ok: wasm build (15 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (1 s)
+-- ok: chat app check (2 s)
+-- ok: cargo test (636 s)
+-- ok: chat app typecheck (1 s)
 -- ok: expo app typecheck (1 s)
 ℹ tests 9
 ℹ pass 9
@@ -22258,6 +22345,53 @@ N_WIDE_MERGE, the membership-search regression, before:
 schema.q:32:1 — N_WIDE_MERGE: query searchAll: the merge over messages reads up to 1000 lanes, one page of 21 each — up to 21000 rows per read; a read past the 8,192 examined ceiling returns `complete: false`
   rewrite: `snapback4 guide search`, section "Search every chat I'm in": search held messages with one unscoped words index, or page memberships 50 at a time and exhaust each matching merge with its own result cursor before advancing the membership cursor; a result cursor alone does not continue undiscovered chats or a meter-cut merge. Measure with `snapback4 test --cost`
   guide: search
+
+ℹ tests 383
+ℹ pass 381
+ℹ fail 2
+-- FAIL: client tests (65 s)
+== 1 failure(s) in 658 s
+```
+
+The 62 Rust summaries total 1,068 passed, 0 failed, 4 ignored. The client
+failures were the caller-ID replacement timeout below and Chromium SIGABRT
+in react.test.mjs. The timeout passes alone; the browser still aborts alone.
+This matches the sandbox artifact the lane brief names; no independently
+base-verified pre-existing-failure claim is made. The lead must rerun the
+browser outside the sandbox. No lifecycle failure or mass client timeout
+occurred, so a concurrency-2 rerun was not needed.
+
+Reruns, from `snapback4/`, with the same Node 24 PATH:
+
+```sh
+node --test --test-name-pattern='W6R1 journal: caller ID stays fenced across replacement \(offline reopen=false\)' packages/snapback4/test/navigation-model.test.mjs > /private/tmp/w9b-caller-id-rerun.log 2>&1
+```
+```text
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+```
+```sh
+node --test packages/snapback4/test/react.test.mjs > /private/tmp/w9b-react-rerun.log 2>&1
+```
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+```
+
+Root `./ref-check --verbose` passed before this entry with
+`ref-check: ok — 481 LLP docs, 8986 refs in 23848 files, 0 errors, 0 unchecked`;
+it is repeated after the append. `git diff --check` is clean.
+
+Exact N_MAINTAIN_SYNCED text for the two-maintain fixture before:
+
+```text
+schema.q:10:1 — N_MAINTAIN_SYNCED: 2 synced maintains:
+  maintain likeCounts: sync public inherited from likes; one value row per postId reaches every device; createPost, like, repost would stop predicting if likeCounts goes `online only` (site schema.q:10:1); current store measurement: 0 value rows (before adoption; cold rows per viewer: `snapback4 test --residency`)
+  maintain ownerCounts: sync public inherited from likes; one value row per owner reaches every device; no currently eligible mutation reads it (site schema.q:24:1); current store measurement: 0 value rows (before adoption; cold rows per viewer: `snapback4 test --residency`)
+  rewrite: keep inherited sync for local readers, or add `online only` to opt out; measure cold rows with `snapback4 test --residency`
+  guide: residency
 ```
 
 After:
@@ -22302,3 +22436,26 @@ tests, the package README and its existing example tests, and this journal.
 No out-of-scope file, runtime ceiling, serialized form or existing corpus
 case changed. No commit, push, tag, publication, sub-agent or remote machine
 was used; the lead owns the landing.
+
+schema.q:10:1 — N_MAINTAIN_SYNCED: 2 synced maintains:
+  maintain likeCounts: sync public inherited from likes; one value row per postId reaches every device; createPost, like, repost would stop predicting if likeCounts goes `online only` (site schema.q:10:1)
+  maintain ownerCounts: sync public inherited from likes; one value row per owner reaches every device; no currently eligible mutation reads it (site schema.q:24:1)
+  rewrite: keep inherited sync for local readers, or add `online only` to opt out; measure cold rows with `snapback4 test --residency`
+  guide: residency
+```
+
+What I learned: the compiler already knows the useful inheritance and
+prediction facts, but a new maintain's absent stored rows cannot measure
+its future audience. Its cold snapshot is the meaningful measurement.
+Source locations were also already available for most missing sites; the
+horizon-only attribution branch discarded that information for held and
+server rules. A bounded extract from tested card prose makes why useful
+without maintaining a second copy of the explanation.
+
+All implementation items in the brief are done. No commit, push, tag,
+publication, sub-agent or remote machine was used. Supporting files beyond
+the explicitly named verbs/binder/guide paths are `crates/snapback4/src/main.rs`
+(one CLI-help line now includes notes and card context) and
+`crates/snapback4-lang/src/diag.rs` (the existing code-to-card lookup).
+No app, fixture caller or loopbar spelling
+changed, so those callers needed no edits. The journal is appended only.

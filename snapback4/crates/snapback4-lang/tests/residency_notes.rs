@@ -12,6 +12,40 @@ fn clean(source: &str) -> Bound {
 fn online() -> String { SOURCE.replace("  read <- allow", "  read <- allow\n  online only") }
 
 #[test]
+fn w9b_residency_sites_name_sources_for_rules_writes_presence_and_native() {
+    let rule = include_str!("fixtures/rule-live-horizon.q");
+    let sources = [
+        include_str!("fixtures/never-predict.q").to_owned(),
+        rule.to_owned(),
+        rule.replace("  sync public", "  online only"),
+        rule.replace("insert <- exists liveCounts[.owner]", "insert <- allow\n  after insert <- exists liveCounts[.owner]"),
+        "query present(p: principal):\n  return connected[p]\nquery nativeRead(): native\n".into(),
+        "table access:\n  owner: principal\n  unique byOwner: owner\n  public 'access'\n  sync\ntable notes:\n  owner: principal\n  by byOwner: owner, id\n  read <- .owner = viewer\n  insert <- exists access[.owner]\n  update <- exists access[.owner]\n  sync\nmutation save(id: notes):\n  upsert notes[id] { owner: viewer }\n".into(),
+    ];
+    let mut count = 0;
+    let mut unlocated = Vec::new();
+    for (i, source) in sources.iter().enumerate() {
+        let b = clean(source);
+        for (name, fact) in &b.schema.operations {
+            println!("fixture {i}: {}", snapback4_lang::bind::residency::operation_lines(name, fact));
+            for site in &fact.sites {
+                count += 1;
+                if !site.site.starts_with("schema.q:") { unlocated.push((i, name.clone(), site.site.clone())); }
+            }
+        }
+    }
+    println!("residency sites: {count}, unlocated: {}", unlocated.len());
+    assert!(count >= 30);
+    assert!(unlocated.is_empty(), "{unlocated:?}");
+    for (i, line) in [(1, 15), (3, 16)] {
+        let b = clean(&sources[i]);
+        for site in b.schema.operations["act"].sites.iter().filter(|s| s.kind == "rule" || s.kind == "aggregate source") {
+            assert!(site.site.starts_with(&format!("schema.q:{line}:3")), "{site:?}");
+        }
+    }
+}
+
+#[test]
 fn maintain_note_names_readers_before_they_lose_prediction() {
     let b = clean(SOURCE);
     let note = b.notes.iter().find(|n| n.code == "N_MAINTAIN_SYNCED").unwrap();
@@ -522,7 +556,7 @@ fn w6r1_final_exists_live_aggregate_also_keeps_source_coverage() {
     assert!(!b.notes.iter().any(|n| n.code == "N_NO_HORIZON" && n.message.starts_with("table sessions:")));
     assert!(b.schema.operations["act"].sites.iter().any(|s| s.table == "sessions" && s.kind == "aggregate source"));
     let bounded = clean(&source.replacen("sync public", "sync public last 1 by byExpiry", 1));
-    assert!(snapback4_lang::bind::residency::prediction_summary(&bounded).unwrap().contains("sessions by byOwner (after insert)"));
+    assert!(snapback4_lang::bind::residency::prediction_summary(&bounded).unwrap().contains("actions after insert rule: sessions by byOwner (schema.q:16:3)"));
 }
 
 fn mutation_page_horizon_advice(read: &str, rewrite: &str) {

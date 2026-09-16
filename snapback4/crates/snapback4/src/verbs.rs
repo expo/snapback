@@ -110,9 +110,6 @@ pub fn check(options: &Options) -> i32 {
         if !options.json && let Some(summary) = snapback4_lang::bind::residency::prediction_summary(&bound) { println!("{summary}"); }
         return 1;
     }
-    if let Err(error) = residency::maintain_measurements(&project, &mut bound, options.flags.get("store")) {
-        eprintln!("cannot measure maintain rows: {error}"); return 2;
-    }
     bound.notes.extend(snapback4_lang::bind::residency::change_notes(&bound, &residency::previous(&project)));
     if let Err(error) = project.write_generated(&bound) {
         eprintln!("cannot write generated types: {error}");
@@ -616,7 +613,7 @@ pub fn doctor(options: &Options) -> i32 {
 
 pub fn why(options: &Options) -> i32 {
     let Some(subject) = options.positionals.first() else {
-        eprintln!("usage: snapback4 why <E_CODE | operation | table>");
+        eprintln!("usage: snapback4 why <CODE | operation | table>");
         return 2;
     };
     if let Some(explanation) = snapback4_lang::guide::explain_code(subject) {

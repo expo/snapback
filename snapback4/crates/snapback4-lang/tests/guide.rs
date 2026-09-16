@@ -400,6 +400,21 @@ fn every_emitted_code_is_explained() {
     assert!(explain_code("E_NOPE").is_none());
 }
 
+#[test]
+fn w9b_every_code_has_bounded_card_context_and_a_full_card_command() {
+    let mut largest = (0, "");
+    for code in codes() {
+        let text = explain_code(code).unwrap();
+        let keyword = snapback4_lang::diag::guide_for(code);
+        assert!(text.ends_with(&format!("Full card: snapback4 guide {keyword}")), "{code}");
+        assert!(text.len() + 1 <= guide::WHY_MAX_BYTES, "{code}: {} bytes", text.len() + 1);
+        assert!(text.lines().any(|line| line.starts_with('#') && card(keyword).unwrap().lines().any(|heading| heading == line)), "{text}");
+        assert!(!text.contains("```"), "{code}: a prose excerpt must not cut a Quarry example");
+        largest = largest.max((text.len() + 1, code));
+    }
+    println!("why: {} codes, maximum {} bytes ({}) / {}", codes().len(), largest.0, largest.1, guide::WHY_MAX_BYTES);
+}
+
 /// Every guide keyword a diagnostic or a refusal carries names a card.
 #[test]
 fn every_guide_keyword_a_diagnostic_names_is_a_card() {
