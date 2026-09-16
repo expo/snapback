@@ -27,7 +27,8 @@ Private mock receipts live below `/tmp/workroom-review.W8gyXV/` on the control
 Mac; its `*-stage-path` files identify the retained cases. These are launcher
 checks, not Workroom application acceptance or benchmark results.
 
-Sol independently cleared the final hash, with its received source and delta
-reviews retained in `../reviews/`. The first Grok attempt returned no verdict;
-a fresh inline-source review is pending. Running this diagnostic is part of
-verification, not delivery: source landing remains gated on both families.
+Sol and Grok independently cleared the final hash, with received source and
+delta reviews retained in `../reviews/`. The first Grok attempt returned no
+verdict and is not counted. Sol cleared before diagnostic launch; Grok's fresh
+inline-source review completed while the diagnostic was running. This is
+verification, not a scored-cell or application-qualification verdict.

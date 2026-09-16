@@ -1,6 +1,6 @@
 # Workroom: qualification, calibration, then first cell
 
-Date: 2026-09-16. State: **preparing the diagnostic pilot; no cell result**.
+Date: 2026-09-16. State: **diagnostic pilot running; no cell result**.
 Governing contract: [LLP 3000.009 §10.1](../../../llp/3000.009-general-purpose-backend.rfc.md#101-the-brief)
 and [benchmark protocol](../../protocol.md).
 
@@ -65,6 +65,21 @@ other reachable Macs, with approximately 7.5 GiB free. The first cell and
 controls must be requalified for host capacity at launch; pilot work is not
 silently relabelled as a scored cell.
 
+The diagnostic started at **2026-09-16 19:37:27 UTC** on Durand, using
+Codex CLI 0.153.4, `gpt-5.6-sol` xhigh, Node 24.13.1 and the declared pin.
+The launch receipt confirms all 31 packet-bound files, an empty app and
+11.82 GiB free. Native builder thread:
+`01a0abb9-5fa7-7a70-bbb3-22c9765ebbab`. Private lifecycle records are on Durand
+under `/Users/ccheever/workroom-runs/20260916-pilot/private/`; the foreground
+driver owns recorded PID/PGID 72357 and a four-hour operational limit.
+Background indexing is active: functional evidence may proceed, but contended
+timings cannot calibrate ceilings. No builder messages are being injected.
+
+The final launcher passed its targeted safety mocks and independent Sol/Grok
+source reviews, retained under `reviews/`. Sol cleared before launch; Grok's
+inline-source review completed during diagnostic execution. The earlier Grok
+attempt that returned no verdict is retained as incomplete, not counted.
+
 Charlie additionally authorized disk cleanup. On Durand, immediately rechecked
 inactive and untracked Cargo debug caches, old-lane dependency trees and npm/Bun
 download caches were removed; source, stores, credentials, release output and
@@ -90,3 +105,16 @@ until the calibration disposition is written.
 No task on this run may put load on `expo-build-1000`. Heavy verification,
 replays and cells are serialized. Stop only PIDs/process groups recorded at
 launch; preserve application stores and receipts for diagnosis.
+
+## Record-format preparation
+
+The existing machine-record schema now admits `team-workspace` with its
+declared two-layer scores: raw B1–B10 plus builder holistic, three independent
+O1–O5 panels, and a combined total per grader only when all contributing
+dimensions are measured. No intermediate weighted subtotals or panel average
+are introduced. Unavailable panels remain explicitly null, with evidence
+pointers; legacy rubrics and undeclared Workroom fields are refused. The
+instrument itself stays Draft. Ten focused tests (old fixtures included) pass
+on the integrated source, independently cleared by Sol and Grok. Their actual
+reviews are retained under `reviews/`. No score has been assigned. Comparative
+publisher rendering is outside this addition and remains unqualified.
