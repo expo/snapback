@@ -96,10 +96,12 @@ pub(super) fn claim_set(request: Request, shared: &Shared, body: &str) {
 fn claim_selected(request: Request, shared: &Shared, body: &str, registry: bool) {
     let payload: Json = match serde_json::from_str(body) { Ok(Json::Object(p)) => Json::Object(p), _ => return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "claim takes an object") })) };
     let names: Option<Vec<String>> = if registry {
-        let names = payload.get("actions").and_then(Json::as_array).and_then(|values| values.iter().map(|value| value.as_str().filter(|name| !name.is_empty() && name.len() <= 128).map(str::to_owned)).collect::<Option<Vec<_>>>());
+        // The existing whole-request byte bound applies. Do not shorten the
+        // accepted operation-name surface: private route names have a prefix.
+        let names = payload.get("actions").and_then(Json::as_array).and_then(|values| values.iter().map(|value| value.as_str().filter(|name| !name.is_empty()).map(str::to_owned)).collect::<Option<Vec<_>>>());
         match names {
             Some(names) if !names.is_empty() && names.len() <= 128 && payload.get("action").is_none() => Some(names),
-            _ => return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "claim-set takes actions: 1–128 names of 1–128 bytes, without action") })),
+            _ => return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "claim-set takes actions: 1–128 nonempty names, without action") })),
         }
     } else { None };
     let action = payload.get("action").and_then(Json::as_str);

@@ -221,7 +221,7 @@ fn saturated_legacy_waits_cannot_starve_route_verification_or_registry_execution
 #[test]
 fn registry_claims_have_bounded_input_and_recheck_worker_revision() {
     let host = host("100ms"); let worker = worker(&host);
-    for payload in [json!({}), json!({"actions":[]}), json!({"actions":[1]}), json!({"actions":[""]}), json!({"actions":["a".repeat(129)]}), json!({"actions":vec!["a";129]}), json!({"actions":["a"],"action":"a"})] {
+    for payload in [json!({}), json!({"actions":[]}), json!({"actions":[1]}), json!({"actions":[""]}), json!({"actions":vec!["a";129]}), json!({"actions":["a"],"action":"a"})] {
         assert_eq!(status(&host.request("POST", "/actions/claim-set", &worker, &payload.to_string())), 400);
     }
     assert_eq!(status(&host.request("POST", "/actions/claim-set", "", r#"{"actions":["a"]}"#)), 401);
@@ -236,6 +236,20 @@ fn registry_claims_have_bounded_input_and_recheck_worker_revision() {
     host.shared.worker_revision.fetch_add(1, Ordering::Release);
     host.shared.committed.notify_all();
     assert_eq!(status(&poll.join().unwrap()), 401);
+}
+
+#[test]
+fn registry_claim_retains_long_action_and_maximum_route_names_over_http() {
+    let action = "a".repeat(256); let route = "b".repeat(128);
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), &format!(
+        "use personas alice\naction {action}() returns {{}}\nroute {route}: post \"/long-name\" wait 1ms\n"));
+    let worker = worker(&host);
+    let admitted = host.request("POST", &format!("/a/{action}?wait=0"), "x-snapback-persona: alice\r\n", r#"{"id":"long-action","args":{}}"#);
+    assert_eq!(body(&admitted)["state"], "pending", "{admitted}");
+    assert_eq!(status(&host.request("POST", "/long-name", "x-snapback-persona: alice\r\n", "body")), 503);
+    let reply = host.request("POST", "/actions/claim-set", &worker, &json!({"actions":[action, format!("@route/{route}")], "limit":2}).to_string());
+    assert_eq!(status(&reply), 200, "{reply}");
+    assert_eq!(body(&reply)["requests"].as_array().unwrap().len(), 2, "{reply}");
 }
 
 #[test]

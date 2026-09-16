@@ -244,8 +244,8 @@ impl Engine {
     /// handler. Callers group names by their requested session lifetime.
     // @ref LLP 3000.009#5.1 — bounded claim-only coupling cannot starve route verification.
     pub fn claim_action_set(&mut self, worker: &str, actions: &[String], limit: usize, lease_ms: i64, session_seconds: i64, now: i64) -> Result<Vec<ActionClaim>, RuntimeError> {
-        if actions.is_empty() || actions.len() > 128 || actions.iter().any(|name| name.is_empty() || name.len() > 128) {
-            return Err(RuntimeError::Input("claim actions must contain 1–128 names of 1–128 bytes".into()));
+        if actions.is_empty() || actions.len() > 128 || actions.iter().any(|name| name.is_empty()) {
+            return Err(RuntimeError::Input("claim actions must contain 1–128 nonempty names".into()));
         }
         let names = serde_json::to_string(actions).map_err(|error| RuntimeError::Input(error.to_string()))?;
         self.claim_selected_actions(worker, None, Some(&names), limit, lease_ms, session_seconds, now)

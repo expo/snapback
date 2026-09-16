@@ -100,7 +100,7 @@ fn registry_claims_filter_names_and_preserve_group_lifetime_and_limit() {
     let envelope = RouteRequest { path: other.path.clone(), ..request(b"other") };
     let other_run = engine.request_verified_route("other", &other.contract("other"), &envelope, 0, 1).unwrap().0;
     let last = verified(&mut engine, b"billing-last", 2);
-    for names in [vec![], vec!["".into()], vec!["a".repeat(129)], vec!["@route/billing".into(); 129]] {
+    for names in [vec![], vec!["".into()], vec!["@route/billing".into(); 129]] {
         assert_eq!(engine.claim_action_set("service:worker", &names, 10, 10_000, 10, 3).unwrap_err().code(), "E_INPUT");
     }
     assert!(engine.claim_action_set("dev:alice", &["@route/billing".into()], 1, 10_000, 10, 3).is_err());
@@ -113,6 +113,17 @@ fn registry_claims_filter_names_and_preserve_group_lifetime_and_limit() {
     assert_eq!(claims[0].session.expires_at, 5_005);
     let legacy = engine.claim_actions("service:worker", None, 10, 10_000, 10, 6).unwrap();
     assert_eq!(legacy.len(), 1); assert_eq!(legacy[0].request.id, last.id);
+}
+
+#[test]
+fn registry_claim_accepts_the_full_declared_route_name_with_its_private_prefix() {
+    let name = "a".repeat(128);
+    let schema = Schema { routes: BTreeMap::from([(name.clone(), spec())]), ..Schema::default() };
+    assert!(schema::validate(&schema).is_empty());
+    let mut engine = Engine::memory(schema, []).unwrap();
+    let admitted = engine.request_verified_route(&name, &spec().contract(&name), &request(b"long-name"), 0, 0).unwrap().0;
+    let claims = engine.claim_action_set("service:worker", &[format!("@route/{name}")], 1, 1_000, 1, 1).unwrap();
+    assert_eq!(claims.len(), 1); assert_eq!(claims[0].request.id, admitted.id);
 }
 
 #[test]
