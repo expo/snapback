@@ -24910,6 +24910,136 @@ Verbatim step summaries:
 -- ok: package build (0 s)
 -- ok: chat app check (2 s)
 -- FAIL: cargo test (994 s)
+-- ok: chat app typecheck (0 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+-- ok: fixture wrapper tests (13 s)
+ℹ tests 484
+ℹ pass 481
+ℹ fail 2
+ℹ cancelled 1
+ℹ skipped 0
+-- FAIL: client tests (84 s)
+== 2 failure(s) in 1018 s
+```
+
+Summing the Rust summary lines gives **1,224 passed, 13 failed, 4 ignored**.
+All 13 failures are fixture-compilation failures in device `native_reads`
+(eight) and simulator `native` (five):
+
+```text
+error: failed to open `/Users/ccheever/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/unicode-ident-1.0.25.crate`
+
+Caused by:
+  Operation not permitted (os error 1)
+```
+
+The cache file is absent; the sandbox cannot create it in the shared Cargo
+cache. Both affected targets were rerun unchanged and reproduced the same
+error. No clean-base suite was run, and no failure is labelled pre-existing.
+
+```text
+cargo test -p snapback4-device --test native_reads
+test result: FAILED. 0 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.24s
+```
+
+```text
+cargo test -p snapback4-sim --test native
+test result: FAILED. 2 passed; 5 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.57s
+```
+
+The client run failed Chromium at `react.test.mjs:74` with `SIGABRT`, the
+sandbox artifact named in the lane brief. It also timed out the dev
+hidden/absent fixture startup and cancelled the healthy-heartbeat test on
+its 18-second timeout. Both timing-sensitive tests passed individually:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+node --test --test-name-pattern='healthy heartbeat polls, buffered native fetch and browser connectivity hints' packages/snapback4/test/transport-http.test.mjs
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ duration_ms 11167.028541
+```
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+node --test --test-name-pattern='W7r1 hidden versus absent non-uniform reads under dev' packages/snapback4/test/client-seams.test.mjs
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ duration_ms 154.949416
+```
+
+No lifecycle timeout occurred. Outside-sandbox qualification of Chromium
+and the native fixtures remains for the lead; this lane does not claim the
+blocking suite green. One initial targeted Cargo invocation was accidentally
+made at the repository root and exited before tests because
+`vendor/ibex/Cargo.toml` was absent; it was corrected to `snapback4/` without
+bootstrapping or changing Snapback 1.
+
+Before the fix, promotion emitted no refusal: the regression observed
+`Sent { seq: 86, result: Null }`. After the fix, the returned code is
+`FEED_PROMOTION_PULL_CAP` and its authored-require message is verbatim
+`the program refused with FEED_PROMOTION_PULL_CAP`. The actionable recipe
+explanation is provided by `why` (the core's generic authored-require envelope
+is unchanged):
+
+```text
+./target/debug/snapback4 why FEED_PROMOTION_PULL_CAP
+FEED_PROMOTION_PULL_CAP: a follower already uses all 32 shared-author slots. The triggering follow and promotion were rolled back; existing followers still receive private pushes. Show this refusal in the app. Have each saturated follower unfollow a shared author, then retry the refused follow with a new write ID. Freeing only the caller's slot cannot fix another follower's full slots; if they cannot free a slot, decline the new follow and keep pushed delivery. More than 32 shared authors needs a separate serving design. guide feeds.
+
+# Feeds: complete Following with a small celebrity merge
+
+Call `register` during profile creation. `follow` and `unfollow` are
+idempotent; promotion is permanent and atomic with the follow that triggers
+it. Promotion requires a pull lane for every follower, including the triggering
+reader. If any follower already uses all 32 shared-author slots,
+`FEED_PROMOTION_PULL_CAP` refuses the whole follow/promotion transaction,
+including the app edge, author mode, routes and counts. Existing followers
+keep receiving private pushes; no follower is silently skipped.
+
+Full card: snapback4 guide feeds
+```
+
+The existing `FEED_PULL_CAP` explanation changed from:
+
+```text
+FEED_PULL_CAP: the Following recipe's reader already pulls 32 shared authors. Free a pull slot by unfollowing a shared author, then follow again. Promotion skips saturated readers instead of refusing; those readers keep old pushed entries but miss new broadcasts until they free a slot and unfollow/refollow. guide feeds.
+```
+
+to:
+
+```text
+FEED_PULL_CAP: the Following recipe's reader already pulls 32 shared authors. Free a pull slot by unfollowing a shared author, then retry the refused follow with a new write ID. The app and recipe follow edges were rolled back. guide feeds.
+```
+
+Reference check before this append:
+
+```text
+./ref-check --verbose
+ref-check: ok — 481 LLP docs, 9032 refs in 23982 files, 0 errors, 0 unchecked
+```
+
+The only supporting file outside the brief's named implementation/test/docs
+paths is LLP 3000.007: §20.3 and its Revised header now record the new policy
+so the governing decision does not contradict the recipe. The diagnostic
+mapping change is one entry; no core or client implementation changed.
+All requested promotion work is complete; broader serving designs were not
+attempted. No meter ceiling, serialized form, existing corpus case, commit,
+push, tag or publication changed. No sub-agents, clone or remote execution.
+`git diff --check` passed. All nine changed Rust sources fit the line cap;
+the largest is `crates/snapback4-sim/tests/clique.rs` at **1,465 lines**.
+The prior journal was checked byte-for-byte against HEAD before this single
+append; its earlier entries are unchanged.
 
 ## 2026-09-16 — W11c: install the bounded search walk; rank measured acquisition by table
 
@@ -25014,6 +25144,135 @@ node --test --test-name-pattern='Search recipe' packages/snapback4/test/init-rec
 ```
 
 ```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+```
+
+The first `node --test packages/snapback4/test/init-recipe.test.mjs`
+implementation run had `ℹ tests 2`, `ℹ pass 1`, `ℹ fail 1`:
+TypeScript required explicit `Read<ResultOf<typeof api...>>` annotations
+on the two loop reads (TS7022). Those annotations were added.
+The first combined recipe/residency command had `ℹ tests 3`, `ℹ pass 2`,
+`ℹ fail 1` because the package had not been built (`dist/local.js` missing).
+After the suite's package build, the same targeted command passed:
+
+```sh
+node --test packages/snapback4/test/init-recipe.test.mjs packages/snapback4/test/residency.test.mjs
+```
+
+```text
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2212.781209
+```
+
+The guide ran twice (the final pass includes the last command-reference edits):
+
+```sh
+cargo test -p snapback4-lang --test guide -- --nocapture
+```
+
+```text
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+```
+
+Required full suite:
+
+```sh
+bash snapback4/scripts/test.sh
+```
+
+```text
+-- ok: cargo build (4 s)
+-- ok: wasm build (22 s)
+-- ok: package typecheck (0 s)
+-- ok: package build (1 s)
+-- ok: chat app check (2 s)
+-- FAIL: cargo test (1256 s)
+-- ok: chat app typecheck (0 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (14 s)
+ℹ tests 485
+ℹ pass 484
+ℹ fail 1
+-- FAIL: client tests (75 s)
+== 2 failure(s) in 1285 s
+```
+
+Rust summaries total **1,221 passed, 13 failed, 4 ignored**. All 13 failures
+are native fixture builds, before the assertions can run: eight in
+`snapback4-device --test native_reads` and five in `snapback4-sim --test native`.
+Both were rerun in isolation and reproduced the same external cache refusal:
+
+```text
+error: failed to open `/Users/ccheever/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/unicode-ident-1.0.25.crate`
+
+Caused by:
+  Operation not permitted (os error 1)
+```
+
+```sh
+cargo test -p snapback4-device --test native_reads -- --nocapture
+cargo test -p snapback4-sim --test native -- --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.60s
+test result: FAILED. 2 passed; 5 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.37s
+```
+
+The one client failure is `React hooks and reference-app lifetimes` in
+`react.test.mjs`, Chromium `signal=SIGABRT` under the sandbox. No client
+concurrency rerun was needed: no other client test failed. The native cache
+permission failures are additional observed environment limitations, not a
+claim of a base product failure. The lead needs an outside-sandbox rerun for
+these and Chromium; this lane does not claim a green complete battery.
+The slow golden/ownership and hidden-filter observation tests passed.
+
+```sh
+./ref-check --verbose
+```
+
+```text
+ref-check: ok — 481 LLP docs, 9033 refs in 23989 files, 0 errors, 0 unchecked
+```
+
+The optional `node scripts/caps.mjs` reported:
+
+```text
+  oversize files: 205 of 204 allowed by baseline
+
+  cap:lines
+    crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs is 1504 lines, over the cap of 1500.
+    Baseline allows 204 oversize files; there are 205.
+
+1 violation.
+```
+
+That unrelated file was verified byte-for-byte identical to the named base
+commit above; it was not edited. Every changed code file is below 1,500
+lines (largest: `guide.rs`, 1,475 lines). An initial Cargo command was
+mistakenly launched from the repository root and stopped at `ibex-runtime`
+dependency resolution before running tests; it was immediately rerun from
+`snapback4/`. No root files changed.
+
+All requested implementation is complete. No new E_/N_ code or diagnostic
+text was introduced; the init usage now lists `feeds|search`. No existing
+application form was removed. No out-of-scope source, ceiling, value model,
+corpus case, lockfile or generated publication artifact changed. No commit,
+push, tag, publication, sub-agent, clone or remote execution. `git diff --check`
+passed. The previous journal bytes were checked against HEAD before this
+single append.
 
 ## 2026-09-16 — W11-cards: every registered code has dedicated default-card prose
 
@@ -25176,74 +25435,33 @@ node --test packages/snapback4/test/react.test.mjs
 ℹ fail 1
 ```
 
-The first `node --test packages/snapback4/test/init-recipe.test.mjs`
-implementation run had `ℹ tests 2`, `ℹ pass 1`, `ℹ fail 1`:
-TypeScript required explicit `Read<ResultOf<typeof api...>>` annotations
-on the two loop reads (TS7022). Those annotations were added.
-The first combined recipe/residency command had `ℹ tests 3`, `ℹ pass 2`,
-`ℹ fail 1` because the package had not been built (`dist/local.js` missing).
-After the suite's package build, the same targeted command passed:
+React still aborts Chromium with SIGABRT: the known sandbox artifact from
+the lane brief; the lead must rerun it outside the sandbox. No clean-base
+whole-suite run was made, and no failure is claimed pre-existing.
 
-```sh
-node --test packages/snapback4/test/init-recipe.test.mjs packages/snapback4/test/residency.test.mjs
-```
+Native retries used a writable temporary Cargo cache, not a dependency or
+lockfile change. Fetched exactly the fixture lock, built the test executables
+using the ordinary warm workspace, then ran those executables with only their
+child Cargo builds redirected to the temporary cache:
 
 ```text
-ℹ tests 9
-ℹ suites 0
-ℹ pass 9
-ℹ fail 0
-ℹ cancelled 0
-ℹ skipped 0
-ℹ todo 0
-ℹ duration_ms 2212.781209
+CARGO_HOME=/private/tmp/w11-cards-cargo-cache cargo fetch --locked --manifest-path native-fixtures/rescore/Cargo.toml
+cargo test -p snapback4-device --test native_reads --no-run --message-format=json
+cargo test -p snapback4-sim --test native --no-run --message-format=json
+CARGO_HOME=/private/tmp/w11-cards-cargo-cache /Users/ccheever/projects/snapback-w11d/snapback4/target/debug/deps/native_reads-b3b06dc295738225 --nocapture
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.03s
+CARGO_HOME=/private/tmp/w11-cards-cargo-cache /Users/ccheever/projects/snapback-w11d/snapback4/target/debug/deps/native-3d25140fa7501473 --nocapture
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.68s
 ```
 
-The guide ran twice (the final pass includes the last command-reference edits):
-
-```sh
-cargo test -p snapback4-lang --test guide -- --nocapture
-```
-
-```text
-test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
-test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
-```
-
-Required full suite:
-
-```sh
-bash snapback4/scripts/test.sh
-```
-
-```text
--- ok: cargo build (4 s)
--- ok: wasm build (22 s)
--- ok: package typecheck (0 s)
--- ok: package build (1 s)
--- ok: chat app check (2 s)
--- FAIL: cargo test (1256 s)
--- ok: chat app typecheck (0 s)
--- ok: expo app typecheck (1 s)
-ℹ tests 9
-ℹ pass 9
-ℹ fail 0
-ℹ cancelled 0
-ℹ skipped 0
--- ok: fixture wrapper tests (13 s)
-ℹ tests 484
-ℹ pass 481
-ℹ fail 2
-ℹ cancelled 1
-ℹ skipped 0
--- FAIL: client tests (84 s)
-== 2 failure(s) in 1018 s
-```
-
-Summing the Rust summary lines gives **1,224 passed, 13 failed, 4 ignored**.
-All 13 failures are fixture-compilation failures in device `native_reads`
-(eight) and simulator `native` (five):
-
+The full run's failures and these isolated passes are separate evidence.
+The guide work is complete; only the browser verification remains unavailable
+in this sandbox. No sections were deferred. No out-of-scope repository files,
+meter ceilings, serialized value forms, existing corpus cases or diagnostic
+plumbing changed. No sub-agent, clone, other machine, tag or publication.
+`git diff --check` passed. The journal's prior bytes were compared with HEAD
+before this single append; the final reference audit is recorded in the lane
+report, with the full command logs kept under `/tmp/w11-cards-*`.
 
 ## 2026-09-16 — W11b: stop at the first account screen; publish fresh transactional ranking
 
@@ -25372,128 +25590,12 @@ Twelve failures were witness-driver timeouts (the fixture supplies a Python
 below. Thirteen failures (8 device `native_reads`, 5 simulator `native`)
 were blocked while building the shared fixture by this exact cache error:
 
--- ok: fixture wrapper tests (14 s)
-ℹ tests 485
-ℹ pass 484
-ℹ fail 1
--- FAIL: client tests (75 s)
-== 2 failure(s) in 1285 s
-```
-
-Rust summaries total **1,221 passed, 13 failed, 4 ignored**. All 13 failures
-are native fixture builds, before the assertions can run: eight in
-`snapback4-device --test native_reads` and five in `snapback4-sim --test native`.
-Both were rerun in isolation and reproduced the same external cache refusal:
-
 ```text
 error: failed to open `/Users/ccheever/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/unicode-ident-1.0.25.crate`
 
 Caused by:
   Operation not permitted (os error 1)
 ```
-
-The cache file is absent; the sandbox cannot create it in the shared Cargo
-cache. Both affected targets were rerun unchanged and reproduced the same
-error. No clean-base suite was run, and no failure is labelled pre-existing.
-
-```text
-cargo test -p snapback4-device --test native_reads
-test result: FAILED. 0 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.24s
-```
-
-```text
-cargo test -p snapback4-sim --test native
-test result: FAILED. 2 passed; 5 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.57s
-```
-
-The client run failed Chromium at `react.test.mjs:74` with `SIGABRT`, the
-sandbox artifact named in the lane brief. It also timed out the dev
-hidden/absent fixture startup and cancelled the healthy-heartbeat test on
-its 18-second timeout. Both timing-sensitive tests passed individually:
-
-```text
-export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
-node --test --test-name-pattern='healthy heartbeat polls, buffered native fetch and browser connectivity hints' packages/snapback4/test/transport-http.test.mjs
-ℹ tests 1
-ℹ pass 1
-ℹ fail 0
-ℹ cancelled 0
-ℹ skipped 0
-ℹ duration_ms 11167.028541
-```
-
-```text
-export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
-node --test --test-name-pattern='W7r1 hidden versus absent non-uniform reads under dev' packages/snapback4/test/client-seams.test.mjs
-ℹ tests 1
-ℹ pass 1
-ℹ fail 0
-ℹ cancelled 0
-ℹ skipped 0
-ℹ duration_ms 154.949416
-```
-
-No lifecycle timeout occurred. Outside-sandbox qualification of Chromium
-and the native fixtures remains for the lead; this lane does not claim the
-blocking suite green. One initial targeted Cargo invocation was accidentally
-made at the repository root and exited before tests because
-`vendor/ibex/Cargo.toml` was absent; it was corrected to `snapback4/` without
-bootstrapping or changing Snapback 1.
-
-Before the fix, promotion emitted no refusal: the regression observed
-`Sent { seq: 86, result: Null }`. After the fix, the returned code is
-`FEED_PROMOTION_PULL_CAP` and its authored-require message is verbatim
-`the program refused with FEED_PROMOTION_PULL_CAP`. The actionable recipe
-explanation is provided by `why` (the core's generic authored-require envelope
-is unchanged):
-
-```text
-./target/debug/snapback4 why FEED_PROMOTION_PULL_CAP
-FEED_PROMOTION_PULL_CAP: a follower already uses all 32 shared-author slots. The triggering follow and promotion were rolled back; existing followers still receive private pushes. Show this refusal in the app. Have each saturated follower unfollow a shared author, then retry the refused follow with a new write ID. Freeing only the caller's slot cannot fix another follower's full slots; if they cannot free a slot, decline the new follow and keep pushed delivery. More than 32 shared authors needs a separate serving design. guide feeds.
-
-# Feeds: complete Following with a small celebrity merge
-
-Call `register` during profile creation. `follow` and `unfollow` are
-idempotent; promotion is permanent and atomic with the follow that triggers
-it. Promotion requires a pull lane for every follower, including the triggering
-reader. If any follower already uses all 32 shared-author slots,
-`FEED_PROMOTION_PULL_CAP` refuses the whole follow/promotion transaction,
-including the app edge, author mode, routes and counts. Existing followers
-keep receiving private pushes; no follower is silently skipped.
-
-Full card: snapback4 guide feeds
-```
-
-The existing `FEED_PULL_CAP` explanation changed from:
-
-```text
-FEED_PULL_CAP: the Following recipe's reader already pulls 32 shared authors. Free a pull slot by unfollowing a shared author, then follow again. Promotion skips saturated readers instead of refusing; those readers keep old pushed entries but miss new broadcasts until they free a slot and unfollow/refollow. guide feeds.
-```
-
-to:
-
-```text
-FEED_PULL_CAP: the Following recipe's reader already pulls 32 shared authors. Free a pull slot by unfollowing a shared author, then retry the refused follow with a new write ID. The app and recipe follow edges were rolled back. guide feeds.
-```
-
-Reference check before this append:
-
-```text
-./ref-check --verbose
-ref-check: ok — 481 LLP docs, 9032 refs in 23982 files, 0 errors, 0 unchecked
-```
-
-The only supporting file outside the brief's named implementation/test/docs
-paths is LLP 3000.007: §20.3 and its Revised header now record the new policy
-so the governing decision does not contradict the recipe. The diagnostic
-mapping change is one entry; no core or client implementation changed.
-All requested promotion work is complete; broader serving designs were not
-attempted. No meter ceiling, serialized form, existing corpus case, commit,
-push, tag or publication changed. No sub-agents, clone or remote execution.
-`git diff --check` passed. All nine changed Rust sources fit the line cap;
-the largest is `crates/snapback4-sim/tests/clique.rs` at **1,465 lines**.
-The prior journal was checked byte-for-byte against HEAD before this single
-append; its earlier entries are unchanged.
 
 The one client failure was `packages/snapback4/test/react.test.mjs:74`,
 Chromium exiting with `signal=SIGABRT` before browser assertions, as the
@@ -25525,83 +25627,16 @@ clone, remote run, meter increase, value-model change or existing corpus
 change. `git diff --check` passes. Diagnostic before/after text is not
 applicable: this lane changes no emitted diagnostic.
 
-```sh
-cargo test -p snapback4-device --test native_reads -- --nocapture
-cargo test -p snapback4-sim --test native -- --nocapture
-```
+## 2026-09-16 — journal repair after the wave-11 merges
 
-```text
-test result: FAILED. 0 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.60s
-test result: FAILED. 2 passed; 5 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.37s
-```
+The four wave-11 lane entries below were spliced by the append-only union merge
+that resolved their `JOURNAL.md` conflicts: fences were left unterminated, one
+lane's heading landed inside another's code block, and measurements were filed
+under the wrong lane — while each entry asserted it had been checked byte-for-byte
+against HEAD. A blind reviewer found it. The region has been rebuilt from each
+lane branch's own single appended block, in landing order, so every entry is again
+exactly what its lane wrote. No entry text was edited.
 
-The one client failure is `React hooks and reference-app lifetimes` in
-`react.test.mjs`, Chromium `signal=SIGABRT` under the sandbox. No client
-concurrency rerun was needed: no other client test failed. The native cache
-permission failures are additional observed environment limitations, not a
-claim of a base product failure. The lead needs an outside-sandbox rerun for
-these and Chromium; this lane does not claim a green complete battery.
-The slow golden/ownership and hidden-filter observation tests passed.
-
-```sh
-./ref-check --verbose
-```
-
-```text
-ref-check: ok — 481 LLP docs, 9033 refs in 23989 files, 0 errors, 0 unchecked
-```
-
-The optional `node scripts/caps.mjs` reported:
-
-```text
-  oversize files: 205 of 204 allowed by baseline
-
-  cap:lines
-    crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs is 1504 lines, over the cap of 1500.
-    Baseline allows 204 oversize files; there are 205.
-
-1 violation.
-```
-
-That unrelated file was verified byte-for-byte identical to the named base
-commit above; it was not edited. Every changed code file is below 1,500
-lines (largest: `guide.rs`, 1,475 lines). An initial Cargo command was
-mistakenly launched from the repository root and stopped at `ibex-runtime`
-dependency resolution before running tests; it was immediately rerun from
-`snapback4/`. No root files changed.
-
-All requested implementation is complete. No new E_/N_ code or diagnostic
-text was introduced; the init usage now lists `feeds|search`. No existing
-application form was removed. No out-of-scope source, ceiling, value model,
-corpus case, lockfile or generated publication artifact changed. No commit,
-push, tag, publication, sub-agent, clone or remote execution. `git diff --check`
-passed. The previous journal bytes were checked against HEAD before this
-single append.
-
-React still aborts Chromium with SIGABRT: the known sandbox artifact from
-the lane brief; the lead must rerun it outside the sandbox. No clean-base
-whole-suite run was made, and no failure is claimed pre-existing.
-
-Native retries used a writable temporary Cargo cache, not a dependency or
-lockfile change. Fetched exactly the fixture lock, built the test executables
-using the ordinary warm workspace, then ran those executables with only their
-child Cargo builds redirected to the temporary cache:
-
-```text
-CARGO_HOME=/private/tmp/w11-cards-cargo-cache cargo fetch --locked --manifest-path native-fixtures/rescore/Cargo.toml
-cargo test -p snapback4-device --test native_reads --no-run --message-format=json
-cargo test -p snapback4-sim --test native --no-run --message-format=json
-CARGO_HOME=/private/tmp/w11-cards-cargo-cache /Users/ccheever/projects/snapback-w11d/snapback4/target/debug/deps/native_reads-b3b06dc295738225 --nocapture
-test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.03s
-CARGO_HOME=/private/tmp/w11-cards-cargo-cache /Users/ccheever/projects/snapback-w11d/snapback4/target/debug/deps/native-3d25140fa7501473 --nocapture
-test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.68s
-```
-
-The full run's failures and these isolated passes are separate evidence.
-The guide work is complete; only the browser verification remains unavailable
-in this sandbox. No sections were deferred. No out-of-scope repository files,
-meter ceilings, serialized value forms, existing corpus cases or diagnostic
-plumbing changed. No sub-agent, clone, other machine, tag or publication.
-`git diff --check` passed. The journal's prior bytes were compared with HEAD
-before this single append; the final reference audit is recorded in the lane
-report, with the full command logs kept under `/tmp/w11-cards-*`.
+The union merge is append-only and cannot see that two appends interleave. Compare
+the reassembled region against each branch's block before committing a merge that
+touches more than one entry.
