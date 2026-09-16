@@ -131,6 +131,12 @@ pilot is diagnostic-only and does not replace any of those cold builds.
 The initial local schema addition at `ff50d3fed` incorrectly required the
 three-outcome-panel shape. Its ten passing tests and received Sol/Grok reviews
 remain evidence about that revision, not approval of the experimental design.
-The shape is being corrected before landing or creating a scored record.
-No score has been assigned; comparative publisher rendering remains outside
-this bounded record-admission change and is unqualified.
+The correction is integrated at `5bcfcbf0e`: one lane-local `outcome`, the
+declared weights and explicit-null discipline, with no fixed grader family.
+All 31 focused record/fixture tests pass on that commit (13 record tests and
+18 fixture tests, no skips). Fresh mutually blind Sol and Grok reviews clear
+that exact four-file net delta; their received verdicts are retained under
+`reviews/`. Reference validation reports 481 docs, 9,032 refs, zero errors and
+zero unchecked refs. No score has been assigned; comparative publisher
+rendering remains outside this bounded record-admission change and is
+unqualified.
