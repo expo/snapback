@@ -23445,3 +23445,84 @@ A1/C1's measurements are unchanged: **all C1 targets missed**. No tuning,
 benchmark rerun, control, pilot, ceiling freeze or publication ran here.
 Next is the separately commissioned A3 route/webhook boundary. SQL reads
 remain admitted for D in their authorized-input form, outside the first cell.
+
+## 2026-09-16 — A3 declared routes and webhooks qualified (lead)
+
+LLP 3000.009 A3 now has static POST declarations, generated typed route
+handlers, exact raw bodies, session authority by default and explicit service
+routes with separate signature verification. Verification receives declared
+secrets and a signal, not a database context. Every delivery authenticates
+before admission or collection, including settled retries. Invalid signatures
+cannot consume a valid body's durable identity or expose its response.
+
+Ephemeral, bounded, randomly fenced verifier tickets promote the original
+envelope into A2's durable work only on successful verification under current
+worker/declaration/service generation. Reusable credential headers are stripped
+before durable storage. Route/body IDs retain admission authority; retries do
+not mint a new identity after service revocation or declaration changes.
+Handlers use existing rule-checked contexts, stable write IDs and durable
+steps. Plain application refusals record a bare 204, infrastructure/uncertain
+failures do not, explicit 5xx retries and malformed output fails terminally.
+Responses are bounded buffered completions; disconnect is not rollback.
+
+Only exact declared POST ingress bypasses the development loopback gate.
+Default binding stays loopback; explicit wildcard binding requires the
+cleartext acknowledgement. Core doors and personas remain gated. Generated
+registries use one rotating action loop grouped by session lifetime and a
+separate verifier loop, with chunks of at most 128 names and one-second waits
+for multiple chunks. Their separate four-slot pools cannot be occupied by
+the 32 legacy waits or 16 ingress waits; 32 short slots remain independent.
+Legacy hand-written workers retain per-name polling by default.
+
+Actual supervised HTTP/process witnesses pass 13/13: exact non-UTF8 HMAC,
+wrong/unsigned retries with immediate unchanged data/work/audit snapshots,
+fresh verification of settled responses, explicit 5xx, 503 then collection,
+SIGKILL after persisted steps and after uncertain provider acceptance,
+session-family isolation/revocation, disconnected clients, raw bounds,
+actual non-loopback ingress and a 32-action/129-route registry reaching its
+last handler. The canonical Workroom provider and W5 conformance sequence
+exercise duplicate/out-of-order billing events, durable backlog/provider and
+receiver restarts, 503 and commit-then-drop faults. A superseded backlog event
+must have a durable stale refusal, not a fabricated audit change. This is the
+increment-A route portion, not full W5 seat-limit/past-due authorization, the
+200-event scale probe or a comparative control cell.
+
+Qualification is explicit about its sequence. The full script at `d38c7dfcf`
+passed 1,177 Rust tests (4 ignored) and other stages but failed two clients
+(469/471), taking 1,009 seconds. Both cases passed immediate isolation: the
+already-ticketed W5c receipt race recurred, and a log-redaction adjacency
+timeout remains unattributed. The redaction witness now uses sequential
+action/observed-END phases with an 8,193-byte sentinel, raw stream capture and
+individual leaked-byte checks, not merged-stream adjacency. No product
+redactor fix or original-failure attribution is claimed. Final complete
+clients at `ebb37b3a7` pass **493/493**, no skips, including that witness and
+W5c; the intermittent receipt ticket remains open. There is no single final
+green-script or 60-second-budget claim.
+
+Affected repair checks pass: 21 core/57 CLI/51 language/67 SDK tests, then
+14 core route/58 CLI tests for maximum-length names. Final full PostgreSQL
+16.15 suite passes: 41 harness tests, SQLite corpus 211/83 named skips,
+Postgres 208/86, and 22,086 matching precharge comparisons. Its first attempt
+stopped before tests on the independent evaluation lock's stale 0.2.24 local
+package versions after main's 0.2.25 bump; only those three version entries
+were aligned. The successful private cluster is stopped and retained at
+`/tmp/sb4-pg-eval.aUKEgj`. Heavy suites ran serially on 450b, never
+expo-build-1000; the remote qualification tree is clean.
+
+Independent Sol xhigh and Grok 4.6 xhigh reviews and bounded follow-ups clear
+the final content. Initial Sol found named-poll starvation and impossible
+claims above 128 service routes; both were repaired and exercised. Both
+families independently identified the new claim cap rejecting prefixed valid
+route names; root self-review found it too. HTTP/core now preserve declaration
+name compatibility under the existing request bound, with maximum route and
+long ordinary action witnesses. No material finding remains undispositioned.
+The exact pins, failures, fixes, limitations, received verdicts and evidence
+hashes are in `reports/20260916-a3.md` and
+`llp/reviews/3000.009-a3.{sol,grok}.md`; the affected reference audit passes.
+
+A1/C1, the fixture pack and A2 were already landed before this increment.
+Main's A2 pin `f32c079f2` did not advance during final A3 integration. C1's
+idle measurements remain unchanged: **all three targets missed**. No tuning
+or benchmark rerun, publication, pilot, frozen ceiling or benchmark control
+cell occurred. Application SQL reads are admitted for D's authorized-input
+form, not implemented by A3; publication remains Charlie's decision.
