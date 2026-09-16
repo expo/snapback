@@ -654,6 +654,11 @@ fn query_params(url: &str) -> BTreeMap<String, String> {
         .unwrap_or_default()
 }
 
+// @ref LLP 3000.009#5.1 — a racing id conflict is a terminal input refusal, not a transport failure.
+fn mutation_error_status(refusal: &Refusal) -> u16 {
+    if refusal.retryable { 503 } else if refusal.code == "E_ID_REUSED" { 200 } else { 500 }
+}
+
 fn handle(mut request: Request, shared: &Shared) {
     let method = request.method().clone();
     let url = request.url().to_owned();
@@ -931,7 +936,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         let body = outcome.reply(id.as_deref());
                         respond(request, 200, body);
                     }
-                    Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "state": "failed", "id": id, "why": refusal_json(&refusal) })) }
+                    Err(error) => { let refusal = error.refusal(); respond(request, mutation_error_status(&refusal), json!({ "state": "failed", "id": id, "why": refusal_json(&refusal) })) }
                 }
             }
         }
