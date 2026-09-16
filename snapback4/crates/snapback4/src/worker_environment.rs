@@ -21,7 +21,16 @@ pub(super) fn values(schema: &Schema) -> Result<BTreeMap<String, String>, String
 struct Redactor { secrets: Vec<Vec<u8>>, pending: Vec<u8> }
 impl Redactor {
     fn new(mut secrets: Vec<Vec<u8>>) -> Self {
+        // Structured logs commonly JSON-escape newlines, quotes and backslashes.
+        // Redact that representation too, without requiring a complete log line.
+        let escaped: Vec<_> = secrets.iter().filter_map(|secret| {
+            let text = std::str::from_utf8(secret).ok()?;
+            let quoted = serde_json::to_string(text).ok()?;
+            Some(quoted.as_bytes()[1..quoted.len() - 1].to_vec())
+        }).collect();
+        secrets.extend(escaped);
         secrets.retain(|s| !s.is_empty()); secrets.sort_by_key(|s| std::cmp::Reverse(s.len()));
+        secrets.dedup();
         Self { secrets, pending: Vec::new() }
     }
     fn write(&mut self, chunk: &[u8], eof: bool, output: &mut impl Write) -> std::io::Result<()> {
@@ -71,6 +80,19 @@ mod tests {
             for chunk in source.chunks(width) { redactor.write(chunk, false, &mut out).unwrap(); }
             redactor.write(&[], true, &mut out).unwrap();
             assert_eq!(String::from_utf8(out).unwrap(), "before [REDACTED] after [REDACTED] and secre");
+        }
+    }
+
+    #[test]
+    fn structured_logs_redact_json_escaped_secrets_across_chunks() {
+        let secret = "quoted\"secret\\with\nnewline";
+        let source = serde_json::json!({ "secret": secret }).to_string();
+        for width in 1..=source.len() {
+            let mut redactor = Redactor::new(vec![secret.as_bytes().to_vec()]);
+            let mut out = Vec::new();
+            for chunk in source.as_bytes().chunks(width) { redactor.write(chunk, false, &mut out).unwrap(); }
+            redactor.write(&[], true, &mut out).unwrap();
+            assert_eq!(String::from_utf8(out).unwrap(), r#"{"secret":"[REDACTED]"}"#);
         }
     }
 }
