@@ -9,9 +9,18 @@ pub fn init(options: &Options) -> i32 {
     let recipe = options.flags.get("recipe");
     let prefix = options.flags.get("prefix");
     if options.positionals.len() > 1 || (options.flags.contains_key("online") && options.flags.contains_key("expo")) || recipe.is_some_and(|name| name != "feeds") || prefix.is_some_and(|p| recipe.is_none() || !snapback4_lang::recipe::valid_prefix(p)) {
-        eprintln!("usage: snapback4 init [dir] [--online|--expo] [--recipe feeds [--prefix <name>]]");
+        eprintln!("usage: snapback4 init [dir] [--online|--expo] [--recipe feeds [--prefix <name>] [--authors N --edges N]]");
         return 2;
     }
+    let sizing = options.flags.contains_key("authors") || options.flags.contains_key("edges");
+    if sizing && recipe.is_none() {
+        eprintln!("E_RECIPE_CAPS: --authors and --edges require --recipe feeds; see snapback4 guide feeds");
+        return 2;
+    }
+    let caps = match snapback4_lang::recipe::FollowingCaps::parse(options.flags.get("authors").map(String::as_str), options.flags.get("edges").map(String::as_str)) {
+        Ok(caps) => caps,
+        Err(error) => { eprintln!("E_RECIPE_CAPS: {error}; see snapback4 guide feeds"); return 2; }
+    };
     let dir = options.positionals.first().map(Path::new).unwrap_or_else(|| Path::new("."));
     let online = options.flags.contains_key("online");
     let expo = options.flags.contains_key("expo");
@@ -19,7 +28,7 @@ pub fn init(options: &Options) -> i32 {
     let mut files = if recipe_only { Vec::new() } else if expo { expo_files() } else if online { online_files() } else { vec![("snapback/schema.q", snapback4_lang::guide::TEMPLATE.to_owned())] };
     if recipe.is_some() {
         let prefix = prefix.map(String::as_str).unwrap_or("");
-        let source = match snapback4_lang::recipe::following(prefix, "feed") {
+        let source = match snapback4_lang::recipe::following_sized(prefix, "feed", caps) {
             Ok(source) => source,
             Err(error) => { eprintln!("init: {error}"); return 1; }
         };
@@ -110,7 +119,8 @@ pub fn init(options: &Options) -> i32 {
         }
         return 2;
     }
-    println!("init: wrote {} files in {} — {}{} — next: `snapback4 check`, then `snapback4 dev`{}", files.len(), dir.display(), if recipe_only { "Following recipe" } else if expo { "Expo: native when available, online in Expo Go" } else if online { "online-only" } else { "local-first" }, if recipe.is_some() && !recipe_only { " + Following recipe" } else { "" }, if expo || online { "; see README.md" } else { "" });
+    let cap_summary = if recipe.is_some() { format!(" — caps: {}", caps.summary()) } else { String::new() };
+    println!("init: wrote {} files in {} — {}{}{cap_summary} — next: `snapback4 check`, then `snapback4 dev`{}", files.len(), dir.display(), if recipe_only { "Following recipe" } else if expo { "Expo: native when available, online in Expo Go" } else if online { "online-only" } else { "local-first" }, if recipe.is_some() && !recipe_only { " + Following recipe" } else { "" }, if expo || online { "; see README.md" } else { "" });
     0
 }
 

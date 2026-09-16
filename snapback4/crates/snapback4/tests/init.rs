@@ -467,6 +467,57 @@ fn w7a_prefixed_install_exposes_no_standalone_mutations() {
 mod following_fixture;
 
 #[test]
+fn w8b_init_prints_every_written_feed_cap() {
+    let dir = Dir::new();
+    let installed = recipe(&dir, &[]);
+    let output = String::from_utf8_lossy(&installed.stdout);
+    println!("{output}");
+    assert!(installed.status.success(), "{installed:?}");
+    for cap in ["authors=1000", "edges=100000", "pulls=32000", "pullCounts=32000", "sourceEvents=60000", "broadcast=32000", "tombstones=32000",
+        "follows/reader=1000", "followers/author=1000", "events/actor=1000", "tombstones/actor=1000", "pulls/reader=32", "inbox/reader=50000", "inbox/reader/actor=1000", "inbox/event=1001"] {
+        assert!(output.contains(cap), "missing {cap}: {output}");
+    }
+}
+
+#[test]
+fn w8b_sized_recipe_compiles_without_notes() {
+    use snapback4_core::schema::Constraint;
+    for prefix in ["", "feed"] {
+        let dir = Dir::new();
+        let mut flags = vec!["--authors", "1008", "--edges", "5921"];
+        if !prefix.is_empty() { flags.extend(["--prefix", prefix]); }
+        let installed = recipe(&dir, &flags);
+        assert!(installed.status.success(), "{installed:?}");
+        let source = fs::read_to_string(dir.0.join("snapback/feed.q")).unwrap();
+        let bound = snapback4_lang::compile(&[("feed.q".into(), source)]);
+        assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?} {:?}", bound.diagnostics, bound.notes);
+        for (name, expected) in [("authors", 1008), ("follows", 5921), ("pulls", 32256), ("pullCounts", 32256), ("posts", 60000)] {
+            let table = &bound.schema.tables[&snapback4_lang::recipe::prefixed_name(prefix, name)];
+            assert!(table.constraints.iter().any(|c| matches!(c, Constraint::Cap { by, max } if by.is_empty() && *max == expected)), "{name}: {:?}", table.constraints);
+        }
+        assert!(String::from_utf8_lossy(&installed.stdout).contains("authors=1008, edges=5921, pulls=32256, pullCounts=32256"));
+    }
+}
+
+#[test]
+fn w8b_incoherent_feed_caps_refuse_before_writing() {
+    for flags in [vec!["--authors", "1", "--edges", "1001"], vec!["--authors", "0"], vec!["--edges", "0"],
+        vec!["--authors"], vec!["--edges", "nope"], vec!["--authors", "4294967295"], vec!["--edges", "-1"], vec!["--authors", "1", "--edges", "1000"]] {
+        let dir = Dir::new();
+        let output = recipe(&dir, &flags);
+        assert!(!output.status.success(), "{flags:?}: {output:?}");
+        let error = String::from_utf8_lossy(&output.stderr);
+        assert!(error.contains("E_RECIPE_CAPS") && error.contains("guide feeds"), "{error}");
+        println!("{error}");
+        assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0, "invalid sizing wrote files");
+    }
+    let dir = Dir::new();
+    let output = Command::new(BIN).args(["init", "--authors", "1008"]).current_dir(&dir.0).output().unwrap();
+    assert!(!output.status.success() && String::from_utf8_lossy(&output.stderr).contains("E_RECIPE_CAPS"));
+    assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0);
+}
+
+#[test]
 fn w7a_residency_measures_the_wired_500_follow_reader() {
     use std::io::Write;
     let dir = Dir::new();
@@ -490,5 +541,38 @@ fn w7a_residency_measures_the_wired_500_follow_reader() {
     assert!(output.contains("dev:reader500 feedFeed: 527 rows"), "{output}");
     assert!(output.contains("dev:reader500 feedAuthors: 502 rows"), "{output}");
     assert!(output.contains("dev:reader500 feedPosts: 528 rows"), "{output}");
+    assert!(output.contains("social.saveProfile: predicts: eligible") && output.contains("social.createPost: predicts: eligible") && output.contains("social.follow: predicts: never; queued without a row"), "{output}");
+}
+
+#[path = "../../snapback4-sim/tests/common/following_calibration.rs"]
+mod calibration;
+
+#[test]
+fn w8b_residency_measures_the_wired_calibration_shape() {
+    use std::{collections::BTreeMap, io::{BufWriter, Write}};
+    let dir = Dir::new();
+    let installed = recipe(&dir, &["--prefix", "feed", "--authors", "1008", "--edges", "5921"]);
+    assert!(installed.status.success(), "{installed:?}");
+    fs::write(dir.0.join("snapback/social.q"), following_fixture::app()).unwrap();
+    let fixture = dir.0.join("fixture");
+    fs::create_dir(&fixture).unwrap();
+    let mut files = BTreeMap::new();
+    for (table, row) in calibration::rows() {
+        let file = files.entry(table.clone()).or_insert_with(|| BufWriter::new(fs::File::create(fixture.join(format!("{table}.jsonl"))).unwrap()));
+        writeln!(file, "{}", snapback4_core::wire::to_json(&row)).unwrap();
+    }
+    for file in files.values_mut() { file.flush().unwrap(); }
+    let measured = Command::new(BIN).args(["test", "--residency", "--fixture", "fixture", "--as", calibration::VIEWER]).current_dir(&dir.0).output().unwrap();
+    let output = String::from_utf8_lossy(&measured.stdout);
+    println!("{output}");
+    assert!(measured.status.success(), "{}\n{output}", String::from_utf8_lossy(&measured.stderr));
+    let mut counts = BTreeMap::new();
+    for line in output.lines().filter_map(|l| l.strip_prefix(&format!("  {} ", calibration::VIEWER))) {
+        let (table, rest) = line.split_once(": ").unwrap();
+        if table == "total" { continue; }
+        let words: Vec<_> = rest.split_whitespace().collect();
+        counts.insert(table.to_owned(), (words[0].parse().unwrap(), words[2].parse().unwrap()));
+    }
+    calibration::check_counts(&counts);
     assert!(output.contains("social.saveProfile: predicts: eligible") && output.contains("social.createPost: predicts: eligible") && output.contains("social.follow: predicts: never; queued without a row"), "{output}");
 }
