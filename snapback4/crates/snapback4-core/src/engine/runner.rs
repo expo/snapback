@@ -162,7 +162,7 @@ impl<'a> Runner<'a> {
     }
 
     pub fn run(&mut self, program: &Program) -> Result<Value, RuntimeError> {
-        self.page_plan = super::pages::plan(program);
+        self.page_plan = super::pages::plan(program, self.schema, self.tx.prefetch_enabled());
         self.prediction_guards = self.schema.operations.get(&program.name)
             .filter(|fact| self.device && fact.connected_effects_only && fact.predicts.as_deref() == Some("eligible"))
             .map(|fact| fact.prediction_guards.iter().cloned().collect()).unwrap_or_default();
@@ -346,6 +346,7 @@ impl<'a> Runner<'a> {
         let values = match domain {
             LoopDomain::Page(scan) => {
                 let values = self.scan(scan)?;
+                self.page_plan.prefetch.fill(&scan.site, &values, &self.context, self.schema, self.tx);
                 self.meter.heap(values.capacity() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Value::heap_bytes).sum::<u64>())?;
                 Ok(values)
             }
@@ -368,10 +369,12 @@ impl<'a> Runner<'a> {
                 Ok(values)
             }
             LoopDomain::DerivedArray { value, max, .. } => {
+                let site = self.statement_site.clone();
                 let values = into_array(self.expr(value)?)?;
                 if values.len() > *max as usize {
                     return Err(RuntimeError::Fanout);
                 }
+                self.page_plan.prefetch.fill(&site, &values, &self.context, self.schema, self.tx);
                 Ok(values)
             }
             LoopDomain::Recurse(recurse) => self.recurse(recurse),

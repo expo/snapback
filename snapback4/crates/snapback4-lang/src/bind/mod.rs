@@ -8,6 +8,7 @@ pub mod program;
 pub mod schema;
 pub mod residency;
 mod actions;
+mod key_bound;
 
 use crate::ast::Document;
 use crate::diag::Diagnostic;
@@ -30,6 +31,7 @@ pub fn bind(documents: Vec<Document>) -> Bound {
     let personas: Vec<String> = documents.iter().flat_map(|d| d.personas.iter().cloned()).collect();
     let catalog = Catalog::build(documents, &mut diagnostics);
     let mut schema = schema::bind_schema(&catalog, &mut diagnostics);
+    key_bound::check(&catalog, &schema, &mut diagnostics);
     let mut programs = Vec::new();
     let mut names = std::collections::BTreeMap::new();
     let mut api_roots = std::collections::BTreeMap::new();

@@ -388,38 +388,22 @@ impl<'a> Tx<'a> {
     /// index has one per token). Returns the number of entries written.
     pub fn put(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> {
         let t = self.num(table_name)?;
-        let id = row.field("id")?.as_str()?.to_owned();
+        let id = row.field("id")?.as_str()?;
+        let keys = crate::rows::index_write(table_name, table, row, old, id)?;
         let data = canonical_json(row);
+        let sql = if old.is_some() { "UPDATE r SET data = ?3 WHERE t = ?1 AND id = ?2" } else { "INSERT INTO r(t, id, data) VALUES (?1, ?2, ?3)" };
+        self.tx.prepare_cached(sql)?.execute(params![t, id, data])?;
         let mut entries = 0;
-        match old {
-            None => {
-                self.tx.prepare_cached("INSERT INTO r(t, id, data) VALUES (?1, ?2, ?3)")?.execute(params![t, id, data])?;
-                for (index_name, index) in &table.indexes {
-                    let ti = self.num(&format!("{table_name}.{index_name}"))?;
-                    for key in stored_index_keys(table, index, row, &id) {
-                        self.tx.prepare_cached("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)")?.execute(params![ti, key, id])?;
-                        entries += 1;
-                    }
-                }
+        for crate::rows::IndexWrite { name, before, after } in keys {
+            if before == after { continue; }
+            let ti = self.num(&format!("{table_name}.{name}"))?;
+            for key in before.iter().filter(|key| !after.contains(key)) {
+                self.tx.prepare_cached("DELETE FROM i WHERE ti = ?1 AND k = ?2")?.execute(params![ti, key])?;
+                entries += 1;
             }
-            Some(old) => {
-                self.tx.prepare_cached("UPDATE r SET data = ?3 WHERE t = ?1 AND id = ?2")?.execute(params![t, id, data])?;
-                for (index_name, index) in &table.indexes {
-                    let before = stored_index_keys(table, index, old, &id);
-                    let after = stored_index_keys(table, index, row, &id);
-                    if before == after {
-                        continue;
-                    }
-                    let ti = self.num(&format!("{table_name}.{index_name}"))?;
-                    for key in before.iter().filter(|key| !after.contains(key)) {
-                        self.tx.prepare_cached("DELETE FROM i WHERE ti = ?1 AND k = ?2")?.execute(params![ti, key])?;
-                        entries += 1;
-                    }
-                    for key in after.iter().filter(|key| !before.contains(key)) {
-                        self.tx.prepare_cached("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)")?.execute(params![ti, key, id])?;
-                        entries += 1;
-                    }
-                }
+            for key in after.iter().filter(|key| !before.contains(key)) {
+                self.tx.prepare_cached("INSERT INTO i(ti, k, id) VALUES (?1, ?2, ?3)")?.execute(params![ti, key, id])?;
+                entries += 1;
             }
         }
         Ok(entries)

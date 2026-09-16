@@ -185,7 +185,45 @@ fn has_key(value: &serde_json::Value, names: &[&str]) -> bool {
     }
 }
 
-fn run(case: &Case) -> Verdict {
+// Both hosts execute the same translated case and compare to the same oracle.
+enum CorpusEngine {
+    Sqlite(Engine),
+    #[cfg(feature = "postgres")]
+    Postgres(snapback4_core::engine::postgres::PostgresEngine),
+}
+impl CorpusEngine {
+    fn create(schema: Schema, programs: Vec<Program>, postgres: bool) -> Result<Self, Verdict> {
+        if !postgres { return Engine::memory(schema, programs).map(Self::Sqlite).map_err(|e| Verdict::Fail(format!("engine: {e}"))); }
+        #[cfg(feature = "postgres")]
+        {
+            use snapback4_core::engine::postgres::PostgresEngine;
+            let url = std::env::var("SNAPBACK4_EVAL_POSTGRES").map_err(|_| Verdict::Skip("postgres-not-configured: SNAPBACK4_EVAL_POSTGRES is unset".into()))?;
+            if schema.tables.values().any(|t| t.columns.values().any(|c| c.contains_asset()))
+                || programs.iter().any(|p| has_key(&serde_json::to_value(p).unwrap()["args"], &["Image", "Video"]) || p.native || !matches!(p.kind, snapback4_core::ProgramKind::Query | snapback4_core::ProgramKind::Mutation))
+                || !schema.schedules.is_empty() {
+                return Err(Verdict::Skip("postgres-unsupported-capability: assets/native/jobs/actions/schedules await C3".into()));
+            }
+            let client = postgres::Client::connect(&url, postgres::NoTls).map_err(|e| Verdict::Fail(format!("postgres connect: {e}")))?;
+            let name = format!("sb4_eval_corpus_{:x}", snapback4_core::ids::seed());
+            PostgresEngine::create(client, &name, schema, programs).map(Self::Postgres).map_err(|e| Verdict::Fail(format!("postgres engine: {e}")))
+        }
+        #[cfg(not(feature = "postgres"))]
+        Err(Verdict::Skip("postgres-feature-disabled: enable the postgres feature".into()))
+    }
+    fn load(&mut self, rows: Vec<(String, Value)>) -> Result<u64, snapback4_core::RuntimeError> {
+        match self { Self::Sqlite(e) => e.load(rows), #[cfg(feature = "postgres")] Self::Postgres(e) => e.load(rows) }
+    }
+    fn query(&mut self, name: &str, context: Context) -> Result<snapback4_core::QueryOutcome, snapback4_core::Refusal> {
+        match self { Self::Sqlite(e) => e.query(name, context), #[cfg(feature = "postgres")] Self::Postgres(e) => e.query(name, context) }
+    }
+    fn mutate(&mut self, name: &str, op: Option<&str>, context: Context) -> Result<snapback4_core::MutationOutcome, snapback4_core::RuntimeError> {
+        match self { Self::Sqlite(e) => e.mutate(name, op, context), #[cfg(feature = "postgres")] Self::Postgres(e) => e.mutate(name, op, context) }
+    }
+}
+
+fn run(case: &Case) -> Verdict { run_store(case, false) }
+
+fn run_store(case: &Case, postgres: bool) -> Verdict {
     if let Some(reason) = exclusion(case) {
         return Verdict::Skip(reason.to_owned());
     }
@@ -242,9 +280,9 @@ fn run(case: &Case) -> Verdict {
     let mut serialized = serde_json::to_value(&context_args).expect("args");
     cursors::translate(&mut serialized,&schema,&program,&case.context.viewer,&case.context.args);
     context_args = serde_json::from_value(serialized).expect("scoped args");
-    let mut engine = match Engine::memory(schema, programs) {
+    let mut engine = match CorpusEngine::create(schema, programs, postgres) {
         Ok(engine) => engine,
-        Err(error) => return Verdict::Fail(format!("engine: {error}")),
+        Err(verdict) => return verdict,
     };
     if let Err(error) = engine.load(rows) {
         return Verdict::Fail(format!("load: {error}"));
@@ -528,6 +566,8 @@ fn compare(expected: &Expected, expected_state: LocalState, actual: Actual) -> V
 fn corpus() {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../corpus");
     let mut passed = 0;
+    let mut pg_passed = 0;
+    let mut pg_skipped: BTreeMap<String, usize> = BTreeMap::new();
     let mut skipped: Vec<(String, String)> = Vec::new();
     let mut failed: Vec<(String, String)> = Vec::new();
     let mut entries: Vec<_> = std::fs::read_dir(&dir).expect("corpus dir").flatten().map(|e| e.path()).collect();
@@ -550,8 +590,20 @@ fn corpus() {
             Verdict::Skip(why) => skipped.push((case.name.clone(), why)),
             Verdict::Fail(why) => failed.push((case.name.clone(), why)),
         }
+        let pg = if !cfg!(feature = "postgres") {
+            Verdict::Skip("postgres-feature-disabled: enable the postgres feature".into())
+        } else if std::env::var_os("SNAPBACK4_EVAL_POSTGRES").is_none() {
+            Verdict::Skip("postgres-not-configured: SNAPBACK4_EVAL_POSTGRES is unset".into())
+        } else { run_store(&case, true) };
+        match pg {
+            Verdict::Pass => pg_passed += 1,
+            Verdict::Skip(why) => *pg_skipped.entry(why.split(':').next().unwrap().into()).or_default() += 1,
+            Verdict::Fail(why) => failed.push((format!("postgres/{}", case.name), why)),
+        }
     }
     println!("corpus (Rust server only; no TypeScript/replica conformance claim): {passed} passed, {} skipped, {} failed", skipped.len(), failed.len());
+    println!("corpus Postgres: {pg_passed} passed, {} skipped", pg_skipped.values().sum::<usize>());
+    for (why, count) in pg_skipped { println!("  skipped {count}: {why}"); }
     let mut reasons: BTreeMap<String, usize> = BTreeMap::new();
     for (_, why) in &skipped {
         *reasons.entry(why.split(':').next().unwrap_or(why).to_owned()).or_default() += 1;

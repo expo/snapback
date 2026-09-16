@@ -27,6 +27,7 @@ impl Tx<'_> {
 
 impl PartitionRows for Tx<'_> {
     fn next_seq(&self) -> Result<u64, RuntimeError> {
+        if let Some(head) = self.head.get() { return Ok(head + 1); }
         Ok(self.query("SELECT seq FROM _head WHERE singleton", &[])?[0].get::<_, i64>(0) as u64 + 1)
     }
 
@@ -40,10 +41,14 @@ impl PartitionRows for Tx<'_> {
         id: &str,
         data: Option<&str>,
     ) -> Result<(), RuntimeError> {
-        self.execute(
-            "INSERT INTO _log VALUES ($1,$2,$3,$4,$5,$6,$7)",
-            &[&partition, &signed(seq)?, &(ord as i64), &table, &kind, &id, &data],
-        )?;
+        let mut tail = self.tail.borrow_mut();
+        debug_assert!(tail.commit.as_ref().is_some_and(|commit| commit.seq == seq), "log event requires its matching commit tail");
+        tail.partitions.push(partition.into());
+        tail.ords.push(ord as i64);
+        tail.tables.push(table.into());
+        tail.kinds.push(kind.into());
+        tail.ids.push(id.into());
+        tail.data.push(data.map(str::to_owned));
         Ok(())
     }
 

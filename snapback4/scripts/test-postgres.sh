@@ -22,6 +22,8 @@ if [[ -z "${SNAPBACK4_EVAL_POSTGRES:-}" ]]; then
   export SNAPBACK4_EVAL_POSTGRES="host=$eval_dir port=55439 user=sb4_eval dbname=postgres"
 fi
 cargo test --locked --manifest-path experiments/postgres/Cargo.toml -- --include-ignored --nocapture
+cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::tests -- --include-ignored --nocapture
+cargo test --locked -p snapback4-core --features postgres --test corpus -- --nocapture
 if [[ "${1:-}" == "--bench" ]]; then
   cargo run --locked --release --manifest-path experiments/postgres/Cargo.toml -- "${SNAPBACK4_EVAL_ITERATIONS:-200}"
 fi
