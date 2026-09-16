@@ -21,6 +21,12 @@ const claim = (extra = {}) => ({ id: "route-invocation", action: "@route/billing
 const ticket = (extra = {}) => ({ id: "ticket-1", route: "billing", contract: "route-v1", now: 1000, deadline: 11_000,
   leaseToken: "verify-fence", request: envelope(), ...extra });
 
+async function enteredWithin(promise) {
+  let timer;
+  try { await Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(Error("handler did not enter")), 1000); })]); }
+  finally { clearTimeout(timer); }
+}
+
 async function finished(worker, stop) {
   let timer;
   try { await Promise.race([worker.done, new Promise((_, reject) => { timer = setTimeout(() => reject(Error("server did not stop")), 2000); })]); }
@@ -245,6 +251,26 @@ test("lost verification settlement never repeats the callback or disposition loc
   assert.deepEqual(result.settlements[0].body, { disposition: "allow" });
 });
 
+test("all service routes share one poll and a hard four-callback batch cap", async () => {
+  const stop = new AbortController(), entered = deferred(), release = deferred();
+  let polls = 0, active = 0;
+  const handler = { async verify() { if (++active === 4) entered.resolve(); await release.promise; return true; }, handle: () => new Response() };
+  const schema = manifest(declaration("service:billing"));
+  schema.routes.other = { ...declaration("service:other"), path: "/hooks/other" };
+  const worker = startServer(schema, { routes: { billing: handler, other: handler } }, { ...options, batch: 100, signal: stop.signal, onError() {},
+    fetch: async (url, init) => {
+      const path = new URL(url).pathname;
+      if (path === "/actions/claim") return aborted(init.signal);
+      assert.equal(path, "/routes/verify/claim");
+      const body = JSON.parse(init.body);
+      assert.deepEqual(body.routes.sort(), ["billing", "other"]); assert.equal(body.limit, 4); polls++;
+      return Response.json({ requests: Array.from({ length: 4 }, (_, i) => ticket({ id: `ticket-${i}`, route: i % 2 ? "other" : "billing", request: envelope({ path: i % 2 ? "/hooks/other" : "/hooks/billing" }) })) });
+    },
+  });
+  try { await enteredWithin(entered.promise); assert.equal(active, 4); assert.equal(polls, 1); }
+  finally { stop.abort(); release.resolve(); await finished(worker, stop); }
+});
+
 test("verifier deadlines use the server clock, suppress late settlement, and retain uncooperative callback slots", async () => {
   const stop = new AbortController(), entered = deferred(), release = deferred();
   let claims = 0, settlements = 0, signal, done = false;
@@ -258,7 +284,7 @@ test("verifier deadlines use the server clock, suppress late settlement, and ret
   } });
   void worker.done.then(() => { done = true; });
   try {
-    await entered.promise; await delay(40);
+    await enteredWithin(entered.promise); await delay(40);
     assert.equal(signal.aborted, true); assert.equal(claims, 1); assert.equal(settlements, 0);
     stop.abort(); await delay(1); assert.equal(done, false);
   } finally { stop.abort(); release.resolve(); await finished(worker, stop); }
@@ -275,7 +301,7 @@ test("action authentication loss stops the verifier callback and both loops", as
     if (new URL(url).pathname === "/routes/verify/claim") return Response.json({ requests: [ticket()] });
     settlements++; return Response.json({ ok: true });
   } });
-  try { await entered.promise; auth.resolve(); await finished(worker, stop); }
+  try { await enteredWithin(entered.promise); auth.resolve(); await finished(worker, stop); }
   finally { auth.resolve(); stop.abort(); }
   assert.equal(verificationSignal.aborted, true); assert.equal(settlements, 0);
 });

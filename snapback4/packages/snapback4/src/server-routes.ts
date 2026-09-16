@@ -8,7 +8,7 @@ export interface RouteRequest {
   /** HTTP-normalized fields. Repeated fields follow the Headers API. */
   readonly headers: Headers;
   /** Exact incoming bytes, in a fresh copy on every call. */
-  rawBody(): Promise<Uint8Array>;
+  rawBody(): Promise<Uint8Array<ArrayBuffer>>;
 }
 
 export interface VerificationContext<Secrets extends string = never> {

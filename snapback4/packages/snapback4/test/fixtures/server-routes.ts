@@ -8,7 +8,8 @@ const session: RouteHandler<"SESSION_KEY"> = async (request, ctx) => {
   // @ts-expect-error undeclared secret
   ctx.secrets.HOOK_KEY;
   void method; void signature; void secret; void bytes;
-  return new Response(null, { status: 204 });
+  // Fresh copies are ArrayBuffer-backed, so TS 5.9's BodyInit accepts them.
+  return new Response(await request.rawBody());
 };
 
 const provider: ServiceRoute<"HOOK_KEY"> = {
