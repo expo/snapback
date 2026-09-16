@@ -91,6 +91,23 @@ frozen dependency installation. The private exact-path receipt is
 `/Users/ccheever/.codex/cleanup-receipts/2026-09-16-durand-cache-cleanup.md`
 on Durand. No other host was cleaned.
 
+A second bounded pass during the diagnostic replay removed only
+`target/debug/{build,deps,incremental}` beneath the inactive
+`exact-wp11-evidence-20260824` project and
+`snapback-s2-benchmark/snapback2`. Each exact directory was rechecked for
+physical/non-symlink identity, untracked content, no active build/process and
+no open file or working directory. The first attempt stopped before deletion
+because one path-resolution command was unavailable. The completed pass
+recovered **6.79 GiB** immediately (6,988,268 → 14,110,484 KiB free), for
+**12.93 GiB** measured across both passes. A later increase is not attributed
+to cleanup. These build artifacts are regenerable by Cargo, not directly
+recoverable; executables, release output, source, stores and evidence remain.
+The private pass-2 receipt is
+`/Users/ccheever/.codex/cleanup-receipts/2026-09-16-durand-cache-cleanup-pass2.md`
+(SHA-256 `be79ef6857771fb4ad891af1a05a36b808858de70eeb7cd76bb39171e94c4d51`).
+The overlapping cleanup is another reason not to use this replay's wall time
+to calibrate a performance ceiling.
+
 Only the public brief with its entire `Holdout probes` section removed is
 delivered to the pilot; both source and rendered hashes are retained. The
 original private section stays outside builder-accessible packet paths.
