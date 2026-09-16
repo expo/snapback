@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "credentials": "Local fixtures only. Register through the platform's ordinary authentication; no fabricated sessions or account rows.",
+  "password": "Workroom-fixture-only-2026!",
+  "personas": [
+    { "alias": "owner", "email": "owner@workroom.test", "name": "Olivia Owner" },
+    { "alias": "admin", "email": "admin@workroom.test", "name": "Arun Admin" },
+    { "alias": "member", "email": "member@workroom.test", "name": "Mina Member" },
+    { "alias": "other-owner", "email": "other-owner@workroom.test", "name": "Theo Other Tenant" },
+    { "alias": "outsider", "email": "outsider@workroom.test", "name": "Owen Outsider" },
+    { "alias": "invited", "email": "invited@workroom.test", "name": "Inez Invited" },
+    { "alias": "expired", "email": "expired@workroom.test", "name": "Eden Expired" },
+    { "alias": "revoked", "email": "revoked@workroom.test", "name": "Ravi Revoked" },
+    { "alias": "wrong-recipient", "email": "wrong-recipient@workroom.test", "name": "Wren Wrong Recipient" },
+    { "alias": "guest", "email": "guest@workroom.test", "name": "Gale Guest" }
+  ],
+  "large": { "count": 2000, "aliasPattern": "large.user.NNNN", "emailPattern": "large-NNNN@workroom.test", "first": 0, "last": 1999 },
+  "small": { "organizations": 50, "membersEach": 2, "aliasPattern": "small.NN.user.N", "emailPattern": "small-NN-N@workroom.test" }
+}

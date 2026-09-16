@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "production": { "invitationTtlMs": 604800000, "reminderLeadMs": 259200000, "uploadCleanupMs": 86400000 },
+  "shortened": { "invitationTtlMs": 120000, "reminderLeadMs": 180000, "uploadCleanupMs": 120000 },
+  "rule": "Application server time decides every window. The server sets createdAt, expiresAt and renewal anchors. Fixture clients never supply a current time."
+}

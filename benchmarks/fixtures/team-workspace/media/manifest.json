@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "assets": [
+    { "id": "invoice", "file": "invoice.pdf", "encoding": "raw", "contentType": "application/pdf", "bytes": 601, "sha256": "613f9ed9854c687fff3f107d60318c2bb92d135277bf547a59dc220ed5021b44", "text": "Workroom aurora invoice 42" },
+    { "id": "pixel", "file": "pixel.png.base64", "encoding": "base64", "contentType": "image/png", "bytes": 68, "sha256": "10703a4653ea765dbeee6e1bf2ab8ffe4e5049216c3c1450371887848e27cf71", "text": "Workroom nebula receipt 17" }
+  ]
+}
