@@ -23386,3 +23386,62 @@ The Draft brief and known-hash receipt remain explicit: the pack is ready
 before controls, but no backend adapter replay, pilot, control, ceiling freeze
 or publication has been performed. A3 is still required for Snapback's webhook
 journey; application SQL remains admitted later in D, outside the first cell.
+
+## 2026-09-16 — A2 declared results and generated server context qualified (lead)
+
+Implemented LLP 3000.009 A2: bounded declared results and generated typed
+handlers; strict check-time TypeScript diagnostics; scoped secrets; ordinary
+Read/Write context; frozen retries/deadlines/cancellation; statically admitted
+scheduled service seats; durable named steps with stable provider keys,
+reconciliation or parking; deterministic write IDs; supervised server handlers.
+Core/store/client-contract changes remained lead-owned. No A3 route, SQL
+implementation, bundled TypeScript deployment, production Postgres or
+publication claim is included in this landing.
+
+Real HTTP/process witnesses exercise terminal invalid results, lost receipts,
+provider acceptance before a crash, persisted outcomes after SIGKILL, changed
+step inputs, cancellation and ancestor revocation during work, scoped secret
+redaction, worker restart and server dependency/config recovery. Reviews found
+and repairs cover same-lock adoption claim fencing, schedule/rule mismatch,
+ledger-backed nested media bounds and transitive delegated authority. The
+watcher repair loop changed its instrument: deterministic interposition at
+directory/file/read boundaries replaced reliance on timed edits alone. The
+old directory observation fails its new witness; all three final witnesses
+pass on Node 24, and four deliberately broken observers each fail the intended
+test. The read-file witness was separately corrected to avoid being masked by
+an earlier file-existence observation; its exact size change is deterministic.
+
+Full qualification at `0e5c84935`: Rust 1,095 pass/4 ignored; clients 445/446;
+all other full-suite stages pass. The acquisition failure is proven on clean
+main and remains ticketed, not counted green. A separate W5c receipt failure
+seen once was not reproduced in later full/focused runs or ten isolated main
+runs; it has an open unconfirmed ticket, not an inherited/fixed label.
+The full PostgreSQL suite passes: 41 harness tests, SQLite corpus 211/83 named
+skips, PG 208/86, and 22,086 matching precharge comparisons. Subsequent
+integrated checks pass 329 Rust +81 Node tests; the source-cap split passes
+32 guide +4 README tests; watcher checks pass 45 CLI +1 real-dev test, plus
+27 check/fix tests and the final three controlled races. Heavy runs were
+serial on idle `450b`, never `expo-build-1000`.
+
+Rebased onto actual main `492fb594b` (W9 product `545f92a22` plus its
+publication-only journal/metrics entry), retaining named unique refusals and
+expanded diagnostics/cards. Split templates and server reference before
+landing to keep the combined source files under 1,500 lines without dropping
+Quarry compilation coverage. Then rebased onto fixture landing `ac243ad73`;
+product source `7050f7d2c` equals tested/reviewed `16c670989`, with the final
+observation repair `1277efa16` and test isolation `f0df98bff` on top. Correction
+to the preceding fixture entry: its actual integration parent was also
+`492fb594b`, not product-only `545f92a22`; fixture/brief bytes were unchanged.
+
+Fresh independent Sol xhigh and Grok 4.6 xhigh reviews and their bounded
+follow-ups leave no material finding undispositioned. Two Grok follow-ups
+reached turn limits without verdicts; they are not clearance. The final Grok
+source-only review received exact pinned files/diff and returned READY; Sol
+separately cleared the final test correction. Actual rounds, source pins,
+logs and hashes are in `reports/20260916-a2.md` and
+`llp/reviews/3000.009-a2.{sol,grok}.md`. The affected reference audit passes.
+
+A1/C1's measurements are unchanged: **all C1 targets missed**. No tuning,
+benchmark rerun, control, pilot, ceiling freeze or publication ran here.
+Next is the separately commissioned A3 route/webhook boundary. SQL reads
+remain admitted for D in their authorized-input form, outside the first cell.
