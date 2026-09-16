@@ -916,13 +916,50 @@ scheduled recipe, a newly created post and a changed like count appear in
 the very next server read; no schedule has to run. Unlike `trendingNow()`,
 the read pages a score index instead of sorting a bounded candidate scan.
 
-The maintenance is handwritten: every source write must call `refreshRank`;
-the target table is writable by principals because no narrower synchronous
-derived-write authority exists yet. This is a known authorization gap, not
-the intended end state. The helper uses the caller's ordinary write rules;
-it grants no privilege and does not reserve `ranked` writes to this helper.
-Keep that tradeoff when adapting the recipe, rather than treating the table
-as engine-owned derived state.
+**Prefer a `maintain` to this recipe wherever it fits.** A maintain can be
+indexed by its own `value` and grouped by a window column, which is a fresh
+ranking the engine keeps and principals never write:
+
+```quarry
+table posts:
+  authorId: principal
+  parentId: posts ?
+  at: time
+  public 'posts'
+  insert <- allow
+
+table likes:
+  postId: posts
+  principal: principal
+  isOriginal: bool          -- denormalised: the post has no parent
+  postDay: int              -- denormalised: day(post.at), static per post
+  at: time
+  unique byPair: postId, principal
+  public 'likes'
+  insert <- allow
+
+maintain trendScore: count likes where .isOriginal = true by postDay, postId
+  read <- allow
+  by byScore: postDay, value, id
+
+query trending(c: cursor ?):
+  return trendScore[day(now)] after c last 10 by byScore { postId, score: .value }
+```
+
+That is four lines, needs no `refreshRank`, and has no principal-writable
+score. Its cost is that a maintain predicate compares row-local scalar
+columns and literals only, so the two facts it filters on — here
+`isOriginal` and `postDay` — must be denormalised onto the counted row at
+insert. `day()` is a calendar bucket, not a rolling 24 hours.
+
+Use the handwritten table below only when the window truly must roll, or
+when the score is not a `count`/`sum` a maintain can keep. Its maintenance is
+handwritten: every source write must call `refreshRank`, and **the target
+table is writable by principals** — the helper uses the caller's ordinary
+write rules, grants no privilege and does not reserve `ranked` writes to
+itself. That is a real exposure a maintain does not have. Keep that tradeoff
+in view when adapting the recipe, rather than treating the table as
+engine-owned derived state.
 
 ```quarry
 table posts:

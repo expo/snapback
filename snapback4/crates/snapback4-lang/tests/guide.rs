@@ -99,7 +99,13 @@ fn w11b_first_account_screen_has_a_sufficient_path_before_the_reference() {
 #[test]
 fn w11b_fresh_ranking_states_the_handwritten_authority_gap_verbatim() {
     let feeds = card("feeds").unwrap().split_whitespace().collect::<Vec<_>>().join(" ");
-    assert!(feeds.contains("The maintenance is handwritten: every source write must call `refreshRank`; the target table is writable by principals because no narrower synchronous derived-write authority exists yet. This is a known authorization gap, not the intended end state."));
+    // The narrower authority does exist and is called `maintain`; the card must
+    // lead with it and must name the handwritten table's real exposure.
+    assert!(feeds.contains("**Prefer a `maintain` to this recipe wherever it fits.**"));
+    assert!(feeds.contains("maintain trendScore: count likes where .isOriginal = true by postDay, postId"));
+    assert!(feeds.contains("by byScore: postDay, value, id"));
+    assert!(feeds.contains("the target table is writable by principals**"));
+    assert!(!feeds.contains("no narrower synchronous derived-write authority exists yet"));
 }
 
 #[test]
