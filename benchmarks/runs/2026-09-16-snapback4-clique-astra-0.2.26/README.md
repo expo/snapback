@@ -48,34 +48,41 @@ M7 was not run and M6's were covered by Node-replica proofs rather than the web
 suite). M1–M6 and M8 green; both fresh scale replays verified; two complete
 167,243-action replays; cold sync 6.1 s; client/replica peak RSS ≈375 MiB.
 
-| category | 0.2.26 | 0.2.25 |
-|---|---:|---:|
-| **overall** | **90** | **91** |
-| setup_and_docs | 89 | 90 |
-| data_modeling | 84 | 88 |
-| authorization | 97 | 95 |
-| queries_and_live | 82 | 86 |
-| writes_and_transactions | 96 | 95 |
-| offline_sync | 92 | 93 |
-| media_assets | 97 | 96 |
-| background_work | 95 | 92 (as background_jobs) |
-| client_integration | 88 | 88 |
-| diagnostics_dev_loop | 95 | 94 (as diagnostics) |
-| scale_and_limits | 83 | 87 |
-| operations | 88 | 86 |
+| category | 0.2.25 | 0.2.26 | delta |
+|---|---:|---:|---:|
+| **overall** | **91** | **90** | **-1** |
+| setup_and_docs | 85 | 89 | **+4** |
+| authorization | 96 | 97 | +1 |
+| writes_and_transactions | 95 | 96 | +1 |
+| diagnostics_dev_loop | 94 | 95 | +1 |
+| operations | 88 | 88 | 0 |
+| media_assets | 98 | 97 | -1 |
+| background_work | 96 | 95 | -1 |
+| client_integration | 89 | 88 | -1 |
+| offline_sync | 95 | 92 | -3 |
+| data_modeling | 88 | 84 | -4 |
+| queries_and_live | 86 | 82 | -4 |
+| scale_and_limits | 87 | 83 | -4 |
+
+**Correction.** The first version of this record carried a wrong 0.2.25 baseline row
+for `setup_and_docs` (90 instead of 85) and wrong rows for four other categories,
+and concluded from it that wave 10's central bet had not paid off. It had. Read
+from the two scorer files directly, `setup_and_docs` is the **largest gain in the
+run, +4**, and the rank-1 item of the 0.2.25 review is closed: no misleading
+documentation was established and the published feed, search and operations guides
+were used successfully. The wave-11 friction review caught the error by reading
+`astra/FINAL.md` rather than trusting this table.
 
 **N=1; a few points is noise, and 91 → 90 is inside it.** What is *not* noise is
 what the run says about wave 10's central bet.
 
-**The setup fix worked, and the residual cost moved rather than vanished.** The
-0.2.25 run lost its largest single item to a README split that left the builder
-with four places to look. This run establishes **no misleading documentation** and
-records M2/M5/M6 using the published feed, search and operations guides
-successfully — the findability problem is closed. But the builder still names the
-README as "the largest orientation cost", and now for a different reason: it is
-*broad*, not scattered. Wave 10 made one document authoritative and unmissable;
-1,562 lines is what that costs. The `NOT-DOING.md` exception that permitted it is
-therefore doing real work and is worth revisiting deliberately, not silently.
+**The setup fix worked.** The 0.2.25 run lost its largest single item to a README
+split that left the builder with four places to look — the scorer named "the README,
+client reference, keyword cards, and generated API". Wave 10 answered that, and
+`setup_and_docs` is this run's biggest gain, 85 → 89. The residual is different in
+kind: the builder still reads two complete documents before M1 and calls the README
+"broad", so the next move is a *sufficient stopping point* for a first working
+screen, not another reorganisation.
 
 **Three categories fell four points each** — data_modeling 88→84, queries_and_live
 86→82, scale_and_limits 87→83 — around the same three causes the scorer names: the
