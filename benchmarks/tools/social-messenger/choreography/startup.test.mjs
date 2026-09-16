@@ -6,7 +6,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { chromium } from "playwright";
 
-import { validateJsonSchema } from "../../lib/json-schema.mjs";
+import { validateJsonSchema } from "./lib/json-schema.mjs";
 import { createCheckRunner, waitForLoadedMedia } from "./choreography.mjs";
 import { loadSetupIdentity, verifySetupToolchain } from "./setup-identity.mjs";
 
@@ -218,3 +218,4 @@ test("receipt schema accepts fresh M7 and rejects an unverified packed setup", a
   };
   assert.notDeepEqual(validateJsonSchema(schema, invalidPacked), []);
 });
+

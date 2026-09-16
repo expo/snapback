@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { lstat, readFile, realpath } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
-import { validateJsonSchema } from "../../lib/json-schema.mjs";
+import { validateJsonSchema } from "./lib/json-schema.mjs";
 
 export const SETUP_IDENTITY_VERSION = "social-messenger.setup-identity.v1";
 const SHA256 = /^sha256:[a-f0-9]{64}$/u;
