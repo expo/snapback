@@ -38,6 +38,26 @@ test('unknown terminal failure stops instead of skipping dependent work', async 
   assert.equal(calls, 1);
 });
 
+test('W5 asserts each bad HTTP attempt and unchanged billing/audit before delivering the valid same event', () => {
+  for (const conformance of [false, true]) {
+    const actions = [...starterActions({ conformance })];
+    const baseline = actions.find(action => action.input.check === 'billing-snapshot');
+    assert.ok(baseline.entity);
+    const firstValid = actions.findIndex(action => action.op === 'payment.deliver' && action.input.signature === 'valid');
+    for (const signature of ['wrong', 'unsigned']) {
+      const badIndex = actions.findIndex(action => action.op === 'payment.deliver' && action.input.signature === signature);
+      assert.ok(actions.indexOf(baseline) < badIndex && badIndex < firstValid);
+      const bad = actions[badIndex], interim = actions[badIndex + 1];
+      assert.equal(interim.input.check, 'rejected-webhook-no-change');
+      assert.deepEqual(interim.input.deliveryBatch, ref(bad.entity));
+      assert.deepEqual(interim.input.baseline, ref(baseline.entity));
+      assert.equal(interim.input.requireHttpStatus, 'non-2xx'); assert.equal(interim.input.allowTransportError, false);
+      assert.deepEqual(interim.input.unchanged, ['plan', 'seatLimit', 'renewalAt', 'revision', 'auditDigest']);
+      assert.deepEqual(interim.input.event, actions[firstValid].input.events[0]);
+    }
+  }
+});
+
 test('restarting the driver after a committed lost ack recovers the same entity without another write', async t => {
   const directory = await mkdtemp(join(tmpdir(), 'workroom-resume-')); t.after(() => rm(directory, { recursive: true }));
   const a = actionBuilder('resume'), actions = [a('W1', 'owner', 'account.register', 'owner', { email: 'owner@workroom.test' })];

@@ -25,7 +25,9 @@ the action key to the argument digest and its durable result.
 
 Return `{ status: "applied", receipt: { id, authoritative: true }, bindings }`.
 `bindings` has exactly the newly created `entity` alias mapped to its actual
-application/provider ID (or is empty for an action without an entity).
+application/provider ID (or is empty for an action without an entity). A
+read-only snapshot assertion may bind its immutable observed-evidence receipt
+ID; that receipt and its captured values must survive adapter restart.
 An explicitly expected rejection returns `status: "rejected"`, the brief's
 normalized `reason`, and its authoritative refusal receipt. A receipt must
 name actual observed durable state or a completed read/probe; setting the
@@ -40,6 +42,17 @@ normal request finish its durable commit and loses only the HTTP response;
 or provider journal. These hooks can use a local proxy and process supervisor;
 they must not forge a successful receipt or mutate rows. The W5 log supplies
 all 200 immutable backlog event inputs; the adapter invents no test content.
+
+Before W5 sends either bad signature, `billing-snapshot` reads and durably
+captures the organization's actual plan, seat limit, renewal, applied billing
+revision and complete audit digest. Its entity alias binds that evidence
+receipt. After **each** wrong/unsigned attempt, `rejected-webhook-no-change`
+waits for the named batch's actual HTTP attempt, requires a non-2xx response
+(a connection error is not rejection evidence), and compares all five fields
+with the saved snapshot through normal authorized reads. `auditDigest` covers
+the complete audit records in stable ID order, not their transport envelope.
+Only after each comparison passes may the valid identical event be delivered;
+its eventual final state cannot substitute for these interim checks.
 
 `replay.mjs` durably appends the action digest, actual ID bindings and receipt
 together, fsyncs before advancing, and reconstructs aliases on restart.
@@ -62,11 +75,13 @@ task due-date content, never a supplied current time for security checks.
 ## Provider wire
 
 All services bind `127.0.0.1` only. Supply distinct local admin, service and
-signing tokens (at least 16 characters each). No real provider or credentials
+signing tokens (at least 16 characters each); any duplicate pair refuses
+startup before opening a journal with `FIXTURE_TOKENS_MUST_DIFFER`. No real provider or credentials
 are used. The service token authorizes `POST /email` and `POST /extract`;
 the admin token authorizes inspection, payment controls and fault injection.
 Every request uses `Authorization: Bearer <token>`. Every accepting POST to
-email/extraction/event creation also uses `Idempotency-Key`.
+email/extraction/event creation and delivery enqueue also uses `Idempotency-Key`.
+The adapter passes the unchanged fixture action key on every retry.
 
 | Endpoint | Contract |
 | --- | --- |
@@ -74,10 +89,10 @@ email/extraction/event creation also uses `Idempotency-Key`.
 | `GET /admin/email?recipient=…` | Recorded recipient, subject, body, receipt ID and server time. Read invitation tokens from the actual email's accept link, never predict a token. |
 | `POST /extract` | Raw bytes of one committed media fixture, up to 10 MiB. Returns pinned SHA-256, content type and text. Unknown bytes fail; this service never fetches a URL. |
 | `POST /payment/events` | JSON `{organizationId, plan, seatLimit, renewalOffsetMs?}`. Creates an event; does not deliver it. Same key + changed normalized input returns 409. |
-| `POST /payment/deliveries` | JSON `{eventIds: [...], signature?: "valid"|"wrong"|"unsigned", retry?: boolean}`. Queue in this exact order; repeated IDs deliberately duplicate. Default retry is true. |
+| `POST /payment/deliveries` | JSON `{eventIds: [...], signature?: "valid"|"wrong"|"unsigned", retry?: boolean}` plus required `Idempotency-Key`. Queue in this exact order; repeated IDs deliberately duplicate. Default retry is true. Returns `{batchId, deliveryIds}`. Same key/input recovers those exact IDs; changed canonical input returns 409. |
 | `POST /payment/tick` | Attempts every unfinished queued delivery once immediately. Useful with automatic retry disabled for deterministic fault choreography. |
-| `GET /payment/status` | Immutable event bodies (base64), queue, delivery attempts, HTTP statuses, errors and durable acknowledgements. |
-| `POST /admin/faults` | `{target: "email"|"extract"|"payment-events", kind: "503"|"drop"|"delay", count, delayMs?}`. 503 refuses before acceptance; drop/delay occur after fsync. These transient test controls are reset on provider restart. |
+| `GET /payment/status` | Immutable event bodies (base64), keyed batches, queue, delivery attempts, HTTP statuses, errors and durable acknowledgements. |
+| `POST /admin/faults` | `{target: "email"|"extract"|"payment-events"|"payment-deliveries", kind: "503"|"drop"|"delay", count, delayMs?}`. 503 refuses before acceptance; drop/delay occur after fsync. These transient test controls are reset on provider restart. |
 
 Payment JSON includes `version`, immutable `id`, `type: "plan.changed"`,
 `organizationId`, monotone per-organization `revision`, `plan`, `seatLimit`,
@@ -91,8 +106,13 @@ events are acknowledged but do not revert the plan or emit a plan audit event.
 Newer events whose values do not change the plan/seat/renewal still advance the
 revision but do not emit a no-op plan audit event.
 
-Provider events, queued deliveries and successful acknowledgements are
-append-only fsynced records in `provider.ndjson`. Unacknowledged deliveries
+Provider events, queued delivery batches and successful acknowledgements are
+append-only fsynced records in `provider.ndjson`. One batch record atomically
+binds its action key, canonical-input SHA-256 and complete original delivery
+IDs before the queue becomes visible or a response is sent. Losing the enqueue
+response and restarting either process cannot enqueue a second batch under
+that key. An intentional duplicate delivery uses another action key or a
+repeated event ID in the original list. Unacknowledged deliveries
 retry after restart, including when the receiver committed but the response
 was lost. The provider reports every attempt; it cannot prove a receiver's
 durability by itself. The acceptance adapter restarts the receiver and checks

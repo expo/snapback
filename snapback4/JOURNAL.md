@@ -23320,3 +23320,25 @@ It is not an application replay, control, pilot, published fixture artifact,
 backend qualification or freeze. The brief remains Draft and its budgets
 and ceilings remain unset; independent review and the lead's Node 24 focused
 test run follow separately.
+
+## 2026-09-16 — Workroom fixture review corrections (Astra peripheral lane)
+
+Addressed the lead-accepted independent Sol review findings. W5 now captures
+a durable billing/audit snapshot and requires a concrete non-2xx response
+plus unchanged plan, seat limit, renewal, revision and audit digest after
+each wrong/unsigned delivery, before sending the valid identical event.
+Delivery enqueue requires the fixture action's idempotency key and fsyncs
+one atomic batch record containing its canonical-input digest and complete
+original ID list; response loss and provider restart recover that batch.
+The verifier now recomputes milestone/operation counts and validates manifest
+media identities against loaded fixture bytes. Duplicate admin/service/signing
+tokens refuse startup before a provider journal opens.
+
+Sixteen focused Node tests pass locally (Node 25.9.0 with the existing React
+peer). New witnesses cover intermediate signature rejection state, an accepted
+delivery-batch response lost before replay resumes across provider restart,
+changed-input refusal, tampered manifest fields and every colliding token pair.
+The full-scale action generator and source media are unchanged, so the retained
+full action/report identities are preserved; no full-scale generation, remote
+command, Cargo/build, control or publication ran from this lane. The lead owns
+the Node 24/full-scale rerun and fresh independent delta reviews.

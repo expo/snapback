@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto';
-import { equalSecret, insist, loopbackUrl } from './common.mjs';
+import { equalSecret, insist, loopbackUrl, sha256 } from './common.mjs';
 
 // @ref LLP 3000.009#101-the-brief — exact-body signatures and durable retries belong to the neutral provider.
 export const sign = (bytes, secret) => 'v1=' + createHmac('sha256', secret).update(bytes).digest('hex');
@@ -12,7 +12,7 @@ export class PaymentProvider {
     insist(signingSecret.length >= 16, 'SIGNING_SECRET_TOO_SHORT');
     Object.assign(this, { signingSecret, retryMs, timeoutMs });
     this.events = new Map(); this.keys = new Map(); this.revisions = new Map();
-    this.deliveries = new Map(); this.attempts = [];
+    this.deliveries = new Map(); this.batches = new Map(); this.batchKeys = new Map(); this.attempts = [];
     for (const record of journal.records) this.apply(record);
   }
   apply(record) {
@@ -20,8 +20,11 @@ export class PaymentProvider {
       this.events.set(record.event.id, record);
       this.keys.set(record.key, record);
       this.revisions.set(record.event.organizationId, record.event.revision);
-    } else if (record.kind === 'payment.delivery') {
-      this.deliveries.set(record.id, { ...record, attempts: 0, ack: false, done: false, nextAt: 0 });
+    } else if (record.kind === 'payment.delivery-batch') {
+      this.batches.set(record.id, record); this.batchKeys.set(record.key, record);
+      for (const delivery of record.deliveries) {
+        this.deliveries.set(delivery.id, { ...delivery, batchId: record.id, attempts: 0, ack: false, done: false, nextAt: 0 });
+      }
     } else if (record.kind === 'payment.attempt') {
       this.attempts.push(record);
       const delivery = this.deliveries.get(record.deliveryId);
@@ -51,17 +54,22 @@ export class PaymentProvider {
     await this.persist(record);
     return record;
   }
-  async enqueue({ eventIds, signature = 'valid', retry = true }) {
+  async enqueue(input, key) {
+    insist(typeof key === 'string' && key.length > 0 && key.length <= 512, 'IDEMPOTENCY_KEY_REQUIRED');
+    const { eventIds, signature = 'valid', retry = true } = input;
+    insist(Object.keys(input).every(k => ['eventIds', 'signature', 'retry'].includes(k)), 'UNKNOWN_DELIVERY_FIELD');
     insist(Array.isArray(eventIds) && eventIds.length > 0 && eventIds.length <= 1000, 'INVALID_EVENT_IDS');
     insist(eventIds.every(id => this.events.has(id)), 'UNKNOWN_EVENT');
     insist(['valid', 'wrong', 'unsigned'].includes(signature) && typeof retry === 'boolean', 'INVALID_DELIVERY');
-    const ids = [];
-    for (const eventId of eventIds) {
-      const id = 'delivery-' + String(this.deliveries.size + 1).padStart(8, '0');
-      await this.persist({ kind: 'payment.delivery', id, eventId, signature, retry });
-      ids.push(id);
-    }
-    return ids;
+    const inputDigest = sha256(JSON.stringify({ eventIds, signature, retry }));
+    const previous = this.batchKeys.get(key);
+    if (previous) { insist(previous.inputDigest === inputDigest, 'IDEMPOTENCY_INPUT_CHANGED'); return previous; }
+    const batch = { kind: 'payment.delivery-batch', id: 'batch-' + String(this.batches.size + 1).padStart(8, '0'), key, inputDigest,
+      deliveries: eventIds.map((eventId, index) => ({ id: 'delivery-' + String(this.deliveries.size + index + 1).padStart(8, '0'), eventId, signature, retry })) };
+    // One record binds the key, canonical input and complete ID list before any
+    // delivery is visible. A crash cannot leave an accepted partial batch.
+    await this.persist(batch);
+    return batch;
   }
   async deliver(id) {
     const delivery = this.deliveries.get(id);
@@ -89,7 +97,7 @@ export class PaymentProvider {
     }
   }
   inspect() {
-    return { events: [...this.events.values()], deliveries: [...this.deliveries.values()],
+    return { events: [...this.events.values()], batches: [...this.batches.values()], deliveries: [...this.deliveries.values()],
       attempts: this.attempts, duplicateAttempts: this.attempts.length - new Set(this.attempts.map(x => x.eventId)).size };
   }
 }

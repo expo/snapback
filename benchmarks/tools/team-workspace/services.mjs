@@ -19,6 +19,7 @@ export async function loadMedia() {
 export async function startServices({ directory, adminToken, serviceToken, signingSecret, webhookUrl,
   port = 0, autoRetry = true, retryMs = 100, timeoutMs = 2000 }) {
   insist([adminToken, serviceToken, signingSecret].every(x => typeof x === 'string' && x.length >= 16), 'FIXTURE_TOKENS_REQUIRED');
+  insist(new Set([adminToken, serviceToken, signingSecret]).size === 3, 'FIXTURE_TOKENS_MUST_DIFFER');
   const journal = await Journal.open(join(directory, 'provider.ndjson'));
   const provider = new PaymentProvider(journal, { webhookUrl, signingSecret, retryMs, timeoutMs });
   const assets = await loadMedia();
@@ -53,13 +54,17 @@ export async function startServices({ directory, adminToken, serviceToken, signi
         json(response, 200, provider.inspect());
       } else if (request.method === 'POST' && url.pathname === '/admin/faults') {
         const f = JSON.parse(await body(request, 16384));
-        insist(['email', 'extract', 'payment-events'].includes(f.target)
+        insist(['email', 'extract', 'payment-events', 'payment-deliveries'].includes(f.target)
           && ['drop', 'delay', '503'].includes(f.kind) && Number.isSafeInteger(f.count)
           && f.count > 0 && f.count <= 1000 && (f.kind !== 'delay' ||
             Number.isSafeInteger(f.delayMs) && f.delayMs >= 0 && f.delayMs <= 10000), 'INVALID_FAULT');
         faults.push(f); json(response, 200, { accepted: true });
       } else if (request.method === 'POST' && url.pathname === '/payment/deliveries') {
-        json(response, 200, { deliveryIds: await provider.enqueue(JSON.parse(await body(request, 65536))) });
+        const input = JSON.parse(await body(request, 65536));
+        const fault = faultFor('payment-deliveries');
+        if (fault?.kind === '503') { json(response, 503, { code: 'INJECTED_UNAVAILABLE' }); return; }
+        const batch = await provider.enqueue(input, request.headers['idempotency-key']);
+        await respond(response, { batchId: batch.id, deliveryIds: batch.deliveries.map(x => x.id) }, fault);
       } else if (request.method === 'POST' && url.pathname === '/payment/tick') {
         await provider.tick({ force: true }); json(response, 200, provider.inspect());
       } else if (request.method === 'POST' && ['/email', '/extract', '/payment/events'].includes(url.pathname)) {

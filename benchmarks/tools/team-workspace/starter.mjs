@@ -29,8 +29,14 @@ export function* billing(a, backlogSize = 200) {
   for (const [id, plan, seats] of [['older', 'free', 4], ['newer', 'pro', 10]]) {
     yield a('W5', 'fixture-provider', 'payment.event', `billing.${id}`, { organization: ref('acme'), plan, seatLimit: seats, renewalOffsetMs: null });
   }
-  yield a('W5', 'fixture-provider', 'payment.deliver', null, { events: [ref('billing.newer')], signature: 'wrong', retry: false });
-  yield a('W5', 'fixture-provider', 'payment.deliver', null, { events: [ref('billing.newer')], signature: 'unsigned', retry: false });
+  yield a('W5', 'owner', 'assert', 'billing.before-invalid', { check: 'billing-snapshot', organization: ref('acme'),
+    fields: ['plan', 'seatLimit', 'renewalAt', 'revision', 'auditDigest'] });
+  for (const signature of ['wrong', 'unsigned']) {
+    yield a('W5', 'fixture-provider', 'payment.deliver', `billing.attempt.${signature}`, { events: [ref('billing.newer')], signature, retry: false });
+    yield a('W5', 'owner', 'assert', null, { check: 'rejected-webhook-no-change', organization: ref('acme'),
+      event: ref('billing.newer'), deliveryBatch: ref(`billing.attempt.${signature}`), baseline: ref('billing.before-invalid'),
+      requireHttpStatus: 'non-2xx', allowTransportError: false, unchanged: ['plan', 'seatLimit', 'renewalAt', 'revision', 'auditDigest'] });
+  }
   yield a('W5', 'fixture-provider', 'payment.deliver', null, { events: [ref('billing.newer'), ref('billing.older'), ref('billing.newer')], signature: 'valid', retry: true });
   yield a('W5', 'owner', 'background.checkpoint', null, { kind: 'billing', organization: ref('acme'), event: ref('billing.newer') });
   yield a('W5', 'owner', 'assert', null, { check: 'latest-plan-once', organization: ref('acme'), plan: 'pro', seatLimit: 10 });

@@ -55,17 +55,24 @@ export async function generate({ profile = 'tiny', directory }) {
 export async function verifyGenerated(directory) {
   const manifest = JSON.parse(await readFile(join(directory, 'manifest.json'), 'utf8'));
   insist(manifest.version === 1 && manifest.actions.file === 'actions.ndjson.gz', 'INVALID_MANIFEST');
+  const assets = await loadMedia();
+  insist(isDeepStrictEqual(manifest.media, assets.map(({ id, sha256, bytes }) => ({ id, sha256, bytes }))), 'MANIFEST_MEDIA_MISMATCH');
   insist(isDeepStrictEqual(await fileDigest(join(directory, manifest.actions.file)), manifest.actions.compressed), 'COMPRESSED_HASH_MISMATCH');
   const source = createReadStream(join(directory, manifest.actions.file)), unzip = createGunzip();
   source.on('error', error => unzip.destroy(error)); source.pipe(unzip);
   const hash = createHash('sha256'); let bytes = 0, records = 0;
   const tap = new Transform({ transform(chunk, encoding, done) { hash.update(chunk); bytes += chunk.length; done(null, chunk); } });
   unzip.on('error', error => tap.destroy(error)); unzip.pipe(tap);
-  const reducer = ['starter', 'conformance'].includes(manifest.profile) ? null : new ReportReducer(await loadMedia());
+  const reducer = ['starter', 'conformance'].includes(manifest.profile) ? null : new ReportReducer(assets);
+  const milestones = {}, operations = {};
   for await (const text of createInterface({ input: tap, crlfDelay: Infinity })) {
     const action = JSON.parse(text); validateAction(action, ++records); reducer?.apply(action);
+    milestones[action.milestone] = (milestones[action.milestone] ?? 0) + 1;
+    operations[action.op] = (operations[action.op] ?? 0) + 1;
   }
   insist(records === manifest.records && bytes === manifest.actions.bytes && hash.digest('hex') === manifest.actions.sha256, 'ACTION_HASH_MISMATCH');
+  insist(isDeepStrictEqual(manifest.milestones, milestones), 'MANIFEST_MILESTONES_MISMATCH');
+  insist(isDeepStrictEqual(manifest.operations, operations), 'MANIFEST_OPERATIONS_MISMATCH');
   if (reducer) {
     const reportBytes = await readFile(join(directory, 'expected-report.json'));
     insist(sha256(reportBytes) === manifest.report.sha256, 'REPORT_HASH_MISMATCH');

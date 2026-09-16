@@ -42,7 +42,9 @@ manifest binds the uncompressed NDJSON byte count and SHA-256, compressed
 artifact bytes and hash, media hashes, action/milestone counts, report hash and
 known totals. Uncompressed bytes are the portable contract; compressed bytes
 are deterministic on the same Node/zlib toolchain and may differ across zlib
-versions. The verifier reads the emitted log and independently reduces it.
+versions. The verifier reads the emitted log, independently reduces it,
+recounts milestone/operation totals, and compares every media ID/hash/byte
+count with the committed, byte-validated media fixtures.
 Keep generated logs and receipt journals outside the repository.
 
 The checked-in [known-hash receipt](./known-full.v1.json) retains the complete
@@ -117,7 +119,11 @@ that receiver is a test double, never a Convex/Supabase/Snapback control cell.
 node benchmarks/tools/team-workspace/replay.mjs /tmp/workroom-tiny/actions.ndjson.gz /absolute/path/to/adapter.mjs /tmp/workroom-receipts.ndjson
 ```
 
-The adapter is the lane's backend-shaped work. First run the starter/all-verb
+The adapter is the lane's backend-shaped work. Its `payment.deliver` enqueue
+uses the action key as `Idempotency-Key`, preserving the provider's batch and
+delivery IDs after a lost response. W5 records a billing/audit snapshot and
+checks each wrong/unsigned attempt before sending the valid same event.
+First run the starter/all-verb
 conformance profile, restart replay after an accepted request with a dropped
 response, then replay the same completed profile twice. Compare actual
 membership, audit, email, extraction and report state: do not infer success
