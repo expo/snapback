@@ -23928,3 +23928,174 @@ reason above; no conflicting mutation-bound warning was added. Apart from
 necessary published-reference and existing-test updates, the only ancillary
 source edit is the single stdout comment in `src/serve.rs`. No other lane's
 implementation or application code was changed. The lead owns the commit.
+
+## 2026-09-16 — W10R1: independent job repairs, truthful horizon advice, and integrated recipe coverage
+
+Built against `263495ceb8400e831e6fb43200ecc22276aaa4dc`, the wave-10
+integration. The parser now excludes jobs from empty-operation cascade marking:
+a retained prelude does not supply a chunk, even when an equality in it needs
+a mechanical rewrite. The three regressions cover one prelude binding, a
+binding nested inside `if`, and multiple prelude statements. Each default
+check now shows both errors. Correcting equality alone still reports the
+missing body in all three controls; adding a chunk makes all three compile.
+No other cascade path changed.
+
+Replaced the false silence sentence in the sync card, N_NO_HORIZON's code
+explanation and the package README. The proposed replacement matches
+`needs_whole_partition`: an eligible mutation's held point/rule/aggregate or
+insert-proof site can suppress the advice. Kept the bounded-group explanation
+and note emission unchanged. Split the wording and behavior assertions so an
+incorrect sentence cannot stop the behavior control from running. The same
+uncapped public table emits 1 note without a reader and 0 with an eligible
+point-reading mutation; the table schema is identical in both programs.
+
+Before, verbatim:
+
+> Silence means "no reader in this program forced the check", not "this table is bounded".
+
+After, verbatim (line wrapping omitted):
+
+> Eligible mutations that require whole-partition coverage can suppress this advice. An absent note does not certify bounded acquisition or a safe cold-start size.
+
+The emitted diagnostic messages themselves did not change. For the job
+counterexample, the default check previously displayed only:
+
+```text
+schema.q:2:9 — E_QUARRY_SYNTAX: equality is = in Quarry
+  rewrite: = — check --fix applies it
+  guide: language
+```
+
+It now also displays the independent diagnostic below, counts 2 problems
+instead of 1, and prints no hidden-cascade summary. Two visible syntax errors
+also earn the existing language excerpt.
+
+```text
+schema.q:1:1 — E_QUARRY_SYNTAX: job empty has an empty body
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+```
+
+Closed all three coverage gaps without changing their implementations:
+
+- The existing primary-plus-cascade CLI fixture now pins error/excerpt counts
+  in all three modes: default 1/0, verbose 2/1, JSON 2/0. This catches counting
+  the suppressed cascade toward the inline-help threshold.
+- The published `showExpiringRows` function runs inside a real client
+  `observe`/`subscribe` lifecycle. A controlled transport drives change-feed
+  invalidation and answer replacement; a controlled rendering clock advances
+  through the deadlines. Extending at +3,000 ms replaces the +4,500 ms deadline
+  with +7,500 ms; the old deadline causes 0 repaints, the new deadline hides
+  the row with no replacement answer, a third answer replaces Alice with Bob,
+  and unmount leaves 0 render timers and no later repaint/refetch. This is a
+  deterministic lifecycle witness, not a browser or wall-clock accuracy claim.
+- The existing device suite now executes the reads card's exact typing
+  Quarry on SQLite and memory. A server update streams a deadline extension
+  from 5,500 to 8,500 ms; each device matches the server and retains 1 row at
+  5,500 and 8,499, then 0 at 8,500 without a streamed deletion. The search
+  card's exact directory queries run on both stores with `sync public` added
+  to profiles for acquisition. Each acquires 25 profiles, returns 0 matches
+  for 3 empty/whitespace/punctuation needles, walks browse and search in
+  20 + 5 rows each without duplicates, and finds the last profile with `dav`
+  from a reset cursor (1 match).
+
+The lesson: recovery provenance must distinguish a shared repair from an
+independent one; a documentation assertion also needs the behavioral
+control beside it. The C fixtures were coverage additions to working
+behavior, not additional product defects. The largest affected source is
+`src/guide.rs`, 1,491 lines by the cap's trailing-line convention; the device
+suite remains 1,489 lines and its new module is 92. No ceiling, value model,
+existing corpus case, client implementation or application caller changed.
+
+Targeted commands ran from `snapback4/`. Every JS invocation used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`. Logs are retained
+under `/tmp/w10r1-logs/`, outside the repository. Regression red/green, with
+verbatim summary lines:
+
+```text
+cargo test -p snapback4 --test check w10r1 -- --nocapture
+before: test result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 40 filtered out; finished in 1.00s
+after:  test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 40 filtered out; finished in 1.20s
+
+cargo test -p snapback4-lang --test residency_notes w10r1 -- --nocapture
+before: test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 37 filtered out; finished in 0.00s
+after:  test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 37 filtered out; finished in 0.02s
+
+cargo test -p snapback4 --test check w10 -- --nocapture
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 35 filtered out; finished in 1.05s
+
+cargo test -p snapback4-lang --test residency_notes --test guide --no-fail-fast
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.42s
+
+cargo test -p snapback4-device --test device w10r1 -- --nocapture
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 179 filtered out; finished in 0.07s
+
+node --test --test-name-pattern='W10R1' packages/snapback4/test/readme-examples.test.mjs
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+ℹ duration_ms 184.359
+```
+
+The first device-test invocation failed to compile the new fixture because
+its `matches!` spelled `WriteState::Sent` without `{ .. }` (E0533 at both
+mutation assertions). Fixed that fixture typo and reran the identical command;
+this was not a behavioral red regression and had no pass/fail test summary.
+
+The unmodified blocking command ran at the repository root:
+
+```bash
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh > /tmp/w10r1-logs/suite.log 2>&1
+```
+
+Verbatim stage and Node summaries:
+
+```text
+-- ok: cargo build (3 s)
+-- ok: wasm build (15 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (589 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ duration_ms 10447.7765
+-- ok: fixture wrapper tests (11 s)
+ℹ tests 484
+ℹ pass 483
+ℹ fail 1
+ℹ duration_ms 72791.114625
+-- FAIL: client tests (72 s)
+== 1 failure(s) in 609 s
+```
+
+The 71 Rust harness summaries total **1,218 passed, 0 failed, 4 ignored**.
+The full device suite is **181 passed, 0 failed**. The client stage's sole
+failure is `React hooks and reference-app lifetimes`: Chromium exits
+`SIGABRT` at `packages/snapback4/test/react.test.mjs:74` before its nested
+browser tests begin. The new live-watch test passed in this integrated run
+as well as alone. No lifecycle host timeout or client timeout remained, so
+no reduced-concurrency rerun was needed. Per the lane brief, the sandbox
+cannot launch Chromium; it was not retried here.
+
+The lead verified the integrated suite at `263495ceb` green outside the
+sandbox: **0 failures, client tests 495/495, real Chromium
+`navigation-immediate` 10/10, ref-check ok**. That is the lead's verification
+reported in the brief, not an outside-sandbox run by this lane. No
+pre-existing product failure is asserted from an untested baseline.
+
+Repository-root reference check:
+
+```text
+./ref-check --verbose
+ref-check: ok — 481 LLP docs, 9029 refs in 23956 files, 0 errors, 0 unchecked
+```
+
+All requested items are implemented. No out-of-scope file was touched, no
+sub-agent or other machine was used, and no commit, push, tag or publication
+was made. `git diff --check` is clean. The lead owns the landing.

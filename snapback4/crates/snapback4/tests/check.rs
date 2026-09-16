@@ -27,8 +27,57 @@ fn w10c_check_hides_only_the_redundant_operation_cascade() {
     assert!(text.contains("range reads require first N or last N"));
     assert!(!text.contains("has an empty body"));
     assert!(text.contains("--verbose"));
+    let excerpt = "Full card: snapback4 guide language";
+    assert_eq!(text.matches(excerpt).count(), 0, "count only visible diagnostics before deciding to explain: {text}");
+    assert_eq!(all.matches(excerpt).count(), 1, "verbose retains the pair and explains it once: {all}");
+    assert!(full.stderr.is_empty());
+    assert!(!String::from_utf8_lossy(&full.stdout).contains(excerpt), "JSON retains diagnostics without text excerpts");
+    println!("W10R1 cascade: default errors=1 excerpts=0; verbose errors=2 excerpts=1; JSON errors=2 excerpts=0");
     p.source("query apiHistory():\n  return 1\n");
     assert!(p.run(&["check"]).status.success());
+}
+
+fn check_empty_job_prelude(prelude: &str) {
+    let p = Project::new();
+    p.source(&format!("job empty():\n{prelude}"));
+    let output = p.run(&["check"]);
+    assert_eq!(output.status.code(), Some(1));
+    let text = String::from_utf8(output.stderr).unwrap();
+    println!("{text}");
+    assert!(text.contains("job empty has an empty body"), "a parsed prelude does not supply a chunk: {text}");
+    assert_eq!(text.matches(" — E_").count(), 2, "{text}");
+    assert!(!text.contains("cascade diagnostic(s) hidden"), "{text}");
+}
+
+#[test]
+fn w10r1_empty_job_keeps_its_independent_repair() {
+    check_empty_job_prelude("  x = 1 == 1\n");
+}
+
+#[test]
+fn w10r1_nested_job_prelude_keeps_its_independent_repair() {
+    check_empty_job_prelude("  if true:\n    x = 1 == 1\n");
+}
+
+#[test]
+fn w10r1_multiple_job_prelude_statements_keep_the_independent_repair() {
+    check_empty_job_prelude("  x = 1 == 1\n  y = 2\n");
+}
+
+#[test]
+fn w10r1_correcting_equality_still_requires_a_job_chunk() {
+    let p = Project::new();
+    for prelude in ["  x = 1 = 1\n", "  if true:\n    x = 1 = 1\n", "  x = 1 = 1\n  y = 2\n"] {
+        p.source(&format!("job empty():\n{prelude}"));
+        let output = p.run(&["check"]);
+        assert_eq!(output.status.code(), Some(1));
+        let text = String::from_utf8(output.stderr).unwrap();
+        assert_eq!(text.matches(" — E_").count(), 1, "{text}");
+        assert!(text.contains("job empty has an empty body"), "{text}");
+        p.source(&format!("{SOURCE}job empty():\n{prelude}  chunk row in messages first 10 by byId:\n    value = row.body\n"));
+        let complete = p.run(&["check"]);
+        assert!(complete.status.success(), "{complete:?}");
+    }
 }
 
 #[test]
