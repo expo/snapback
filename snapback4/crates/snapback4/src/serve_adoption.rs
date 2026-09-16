@@ -103,7 +103,7 @@ pub(super) fn background_failure(shared: &Shared, name: &str, error: &RuntimeErr
     if let Some(line) = lock(&shared.adoption).background_failure(name, error) { eprintln!("{line}"); }
 }
 
-pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: crate::project::SourceStamp) {
+pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: crate::project::SourceStamp, verbose: bool) {
     let mut retry = false;
     let mut seen_generation = *lock(&shared.generation);
     loop {
@@ -207,10 +207,7 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                 }
             }
             Ok(bound) => {
-                eprintln!("snapback4 dev: {} problem{} in snapback/; serving the previous generation", bound.diagnostics.len(), if bound.diagnostics.len() == 1 { "" } else { "s" });
-                for diagnostic in &bound.diagnostics {
-                    eprintln!("{diagnostic}\n");
-                }
+                crate::verbs::report_problems(&bound, "snapback4 dev", " in snapback/; serving the previous generation", true, verbose);
             }
             Err(error) => eprintln!("snapback4 dev: cannot read snapback/: {error}"),
         }

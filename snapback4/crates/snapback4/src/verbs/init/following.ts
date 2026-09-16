@@ -14,7 +14,7 @@ import { api } from "../snapback/generated/api";
 // Pull routes stay reader-private. Follow/unfollow queue without predicted
 // rows because slot counts are online-only; profile saves and post creation
 // can predict after their declared public metadata and app cards are acquired.
-// With --prefix feed, helpers include feedRegister/feedDeliver/feedAddFollow/feedDropFollow;
+// With --prefix feed, helpers include feedRegister/feedDeliver/feedAddFollow/feedDropFollow/feedRepost;
 // the module stays feed.q. With that prefix, the Quarry seams are:
 //   a = feedAuthors[viewer] ! else AUTHOR_NOT_FOUND
 //   event = insert feedPosts { id: postId, postId, actorId: viewer, authorId: p.authorId, repost: false, at: p.at, shared: a.shared }

@@ -16,8 +16,17 @@ pub fn valid_prefix(prefix: &str) -> bool {
 #[derive(Clone, Copy)]
 pub struct FollowingCaps { authors: u32, edges: u32, routes: u32 }
 
+// @ref LLP 3000.007#20.3 — promotion and backfill share one unchanged mutation meter.
+// Two writes per route for the author and 51 followers, plus the recipe
+// edge, promotion update and the documented app edge: 2 * 52 + 3 = 107.
+const BACKFILL_PROMOTION_ALLOWANCE: u64 = 2 * (51 + 1) + 3;
+const BACKFILL_MIN_EVENTS: u32 = 200;
+
 impl FollowingCaps {
-    fn backfill(self) -> u32 { self.authors.min(1000) }
+    fn backfill(self) -> u32 {
+        let write_bound = (snapback4_core::Ceilings::default().rows_written - BACKFILL_PROMOTION_ALLOWANCE) as u32;
+        self.authors.max(BACKFILL_MIN_EVENTS).min(write_bound)
+    }
 
     pub fn parse(authors: Option<&str>, edges: Option<&str>) -> Result<Self, String> {
         fn number(flag: &str, value: Option<&str>, default: u32) -> Result<u32, String> {
@@ -51,7 +60,7 @@ pub fn following(prefix: &str, module: &str) -> Result<String, String> {
 
 pub fn following_sized(prefix: &str, module: &str, caps: FollowingCaps) -> Result<String, String> {
     let source = crate::guide::quarry(crate::guide::card("feeds").unwrap()).remove(0);
-    // @ref LLP 3000.007#20.3 — scale metadata and follow backfill together within the existing per-actor event cap and loop bounds.
+    // @ref LLP 3000.007#20.3 — size metadata while keeping backfill within the promotion write allowance.
     let (doc, errors) = crate::parse_document("feed.q", &source);
     if !errors.is_empty() { return Err(errors.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n")); }
     let mut lines = source.lines().map(str::to_owned).collect::<Vec<_>>();

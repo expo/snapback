@@ -153,10 +153,21 @@ pub fn explain_code(code: &str) -> Option<String> {
 }
 
 pub(crate) fn explain_code_with_guide(code: &str, keyword: &str) -> Option<String> {
+    explain(code, keyword, false)
+}
+
+/// Inline help must contain prose dedicated to this code; explicit why keeps
+/// its opening-paragraph fallback.
+pub(crate) fn explanation_section(code: &str, keyword: &str) -> Option<String> {
+    explain(code, keyword, true)
+}
+
+fn explain(code: &str, keyword: &str, dedicated: bool) -> Option<String> {
     let (_, explanation) = CODES.iter().find(|(name, _)| *name == code)?;
     let card = super::card(keyword)?;
     let paragraphs = prose(card);
     let section = paragraphs.iter().find(|(_, paragraph)| paragraph.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|word| word == code));
+    if dedicated && section.is_none() { return None; }
     let mut text = format!("{code}: {explanation}\n\n");
     if section.is_none() { text.push_str(&format!("No dedicated section for {code}; opening of guide {keyword}:\n")); }
     if let Some((heading, paragraph)) = section.or_else(|| paragraphs.first()) {

@@ -57,8 +57,8 @@ for (const mode of ["dev", "serve"]) test(`${mode}: piped token stdout is one us
   try {
     await until(() => withoutToken().includes("\n"));
     const url = withoutToken().trim();
-    assert.match(url, /^http:\/\/127\.0\.0\.1:\d+$/);
-    assert.equal(withoutToken(), `${url}\n`);
+    assert.ok(/^http:\/\/127\.0\.0\.1:\d+$/.test(url), (stdout + stderr).replace(/token \(printed once\): \S+/g, "token (printed once): <redacted>"));
+    assert.ok(withoutToken() === `${url}\n`, (stdout + stderr).replace(/token \(printed once\): \S+/g, "token (printed once): <redacted>"));
     await until(() => stderr.includes(`snapback4 ${mode}: ${url}`));
     if (mode === "dev") {
       await until(() => stderr.includes("worker stdout witness") && stderr.includes("worker stderr witness"));
@@ -93,7 +93,7 @@ for (const mode of ["dev", "serve"]) test(`${mode}: piped token stdout is one us
     assert.equal(refused.status, 1);
     assert.equal(refused.stdout, "");
     assert.match(refused.stderr, /^token:/);
-    assert.equal(withoutToken(), `${url}\n`, "apart from the one-time token, worker output, adoption and requests stay off stdout");
+    assert.ok(withoutToken() === `${url}\n`, (stdout + stderr).replace(/token \(printed once\): \S+/g, "token (printed once): <redacted>"));
   } finally {
     if (child.exitCode == null && child.signalCode == null) child.kill("SIGTERM");
     await exited;

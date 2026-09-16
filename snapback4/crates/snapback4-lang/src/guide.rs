@@ -855,6 +855,8 @@ query expiringStories(c: cursor ?):
 A typing indicator or presence row with a short deadline needs this local
 filter: hide it at its deadline, even while the next answer is still pending.
 `guide reads` carries a compilable typing table and its 4,500 ms deadline.
+This is an application table, separate from the server's `connected[p]`.
+That server-decided connection signal has no `expiresAt`.
 A row already returned stays in that answer until the next answer; a live
 reader that must hide it at its deadline drops it locally by `expiresAt`.
 The server will not return the row again after expiry, but does not push a
@@ -1442,8 +1444,9 @@ unreachable) and client (the client itself refused, as after `close()`).
 the code, followed by the full-card command. If there is no dedicated section,
 it says so and prints the card's opening prose. Output is at most 4,096 UTF-8
 bytes including the pointer and final newline; a shortened excerpt says so.
-When the same code and card occur twice in one text `check`, the same excerpt
-prints once under the first occurrence; every site keeps its `guide:` pointer.
+When the same code and card occur twice in text `check` or a `dev` save refusal,
+a dedicated section prints once under the first occurrence; cards without
+one add no inline excerpt. Every site keeps its `guide:` pointer.
 At most three excerpts print in diagnostic order: 12,291 extra bytes including
 separating blank lines. A single occurrence stays compact; `check --json`
 keeps its structured diagnostics. `why` remains available on demand.
@@ -1486,4 +1489,4 @@ power loss and an unwritable stderr cannot report from inside the process."##,
 /// `require` codes are the author's and are explained by the program.
 mod codes;
 pub use codes::{CODES, WHY_MAX_BYTES, codes, explain_code};
-pub(crate) use codes::explain_code_with_guide;
+pub(crate) use codes::{explain_code_with_guide, explanation_section};

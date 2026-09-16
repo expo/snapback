@@ -23928,3 +23928,415 @@ reason above; no conflicting mutation-bound warning was added. Apart from
 necessary published-reference and existing-test updates, the only ancillary
 source edit is the single stdout comment in `src/serve.rs`. No other lane's
 implementation or application code was changed. The lead owns the commit.
+
+## 2026-09-16 — W10R1b: a follow fits the write ceiling, dev shares diagnostics, excerpts carry content
+
+Base: `263495ceb8400e831e6fb43200ecc22276aaa4dc`. No commit, push, tag,
+publication, sub-agent, repository clone or remote machine was used.
+
+Orientation (`llp-orient`): scope is the installed Following recipe, CLI
+reporting/fixture loading, cursor advice and their published cards. Governing
+LLPs are LLP 3000 §6–§7 and Accepted-as-ruled LLP 3000.007 §14/§18, with
+§20.3 for Following, §20.1 for diagnostic discovery, §5.6 for continuation,
+and §6.8 for measured fixture residency. These constrain the change to the
+existing meter, value model and transaction contract; the cards must compile.
+The relevant rationale is atomic promotion and useful help at the failing
+site, without turning a missing fixture into a measurement. Open risk:
+extra application writes beyond the documented one-edge bridge need their
+own promotion allowance. The README, feeds/reads cards and expiry guidance
+are updated together. Hand-off: none; the lead owns integration and the
+outside-sandbox browser qualification.
+
+The installed backfill is now `max(authors, 200)` capped by
+`Ceilings::default().rows_written - BACKFILL_PROMOTION_ALLOWANCE`.
+The named allowance is `2 * (51 + 1) + 3 = 107`: two writes per pull route
+for the author plus 51 followers, one recipe follow edge, one author-mode
+update and one application edge. The unchanged ceiling is 1,024, leaving
+917 copied events. The lower clamp retains the earlier 200-event history
+window even at `--authors 50`; a separate backfill flag would add another
+sizing knob without fixing this transaction limit. The guide's default
+loop and README match. Both describe the remaining 83 inbox slots, the
+continued 1,000-event source scan and the application's other caps.
+
+The engine regressions use the installed prefixed recipe and the documented
+one-mutation app-edge bridge. On the base, the 51st follow aborts at 1,025
+attempted writes, and a one-follower delete-and-replace aborts at the inbox's
+1,000-row group cap. Both now return `Sent`; the stale deleted-event copy
+is still present during the successful replacement, so this is a before-purge
+witness. Saturated routes still use the existing recipe behavior.
+
+`check` and dev re-adoption now share filtering, formatting and hidden counts;
+`--verbose` reaches the watcher and startup. The dev fixture compares the
+whole diagnostic block and count against `check` in both modes, then saves
+valid source and confirms generation 2 is adopted. Inline excerpts require
+a card paragraph that actually names the diagnostic code; `why` retains its
+explicit opening-paragraph fallback. The repeated-refusal positive case uses
+`E_QUARRY_TYPE`, and the mixed fixture prints only that dedicated section,
+with stable ordering and its own code in the excerpt.
+
+The cap alternative for `N_NO_CURSOR` now requires a nonempty pinned group
+and no existing applicable cap. Unscoped and already-capped pages retain
+continuation advice; the 9,000-row positive control still traverses all rows
+with a cursor. Missing or non-directory fixtures exit 1 before printing a
+measurement; directory-entry and fixture-file read errors also refuse.
+Init marks both pointer arguments as placeholders. The README lists all five
+client/operations sections and routes; its start-path test covers actions,
+clock and routes too. All three missing expiry passages distinguish the
+application table from server-decided `connected[p]`, which has no expiresAt.
+The installed helper list names feedRepost. The three token-sensitive
+assertions now compare booleans and use the same redacted message as the
+existing wait assertion, keeping actual token strings out of assertion diffs.
+
+Measured counters (index = metered index entries):
+
+| Witness | Backfill | Examined | Index | Written | Outcome |
+|---|---:|---:|---:|---:|---|
+| Base 51st follow plus app edge | 1,000 requested | 1,160 | 8,634 | 1,025 attempted | E_BOUND; atomic rollback |
+| Fixed 51st follow plus app edge | 917 | 1,160 | 8,625 | 1,024 | Sent; 51 follows, 52 routes, 917 inbox copies, 1 app edge |
+| Standalone follow, --authors 1008 or 2000 | 917 | 1,005 | 8,259 | 918 | Sent |
+| Standalone follow, --authors 50 | 200 | 1,005 | 1,806 | 201 | Sent |
+| Fixed one-follower app bridge | 917 | 1,005 | 8,261 | 919 | Sent |
+| Delete latest event, before purge | — | 1 | 9 | 2 | Sent |
+| Replacement, before purge | — | 4 | 24 | 3 | Sent; reader inbox 918, source events 1,000 |
+
+Shrinking the copied history saves writes and index work, but not the source
+page's examined-row cost: both 200 and 917 copies examine 1,005 rows. The
+recipe does not promise unlimited delete/replacement churn before cleanup.
+
+All commands below use Node 24, with this prefix before any node/bun command:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+Cargo and Node commands run from `snapback4/`; the blocking script and
+reference check run from the repository root. Logs are in
+`/tmp/w10r1b-logs/`. Red regressions ran before the implementation edits.
+An initial compilation of the new CLI tests found three test-code E0308
+errors (`as_str()` returns Result, not Option); corrected before recording
+the red regression results below. That invocation had no test summary.
+
+CLI regression suites, in check/init/lifecycle order:
+
+```sh
+cargo test -p snapback4 --test init --test check --test lifecycle --no-fail-fast -- --nocapture
+```
+
+Before (`red-cli.log`):
+
+```text
+test result: FAILED. 39 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.95s
+test result: FAILED. 25 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 33.28s
+test result: FAILED. 18 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.45s
+```
+
+After (`green-cli.log`):
+
+```text
+test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.39s
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 35.48s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.55s
+```
+
+Isolated dev reproduction:
+
+```sh
+cargo test -p snapback4 --test lifecycle w10r1b -- --nocapture
+```
+
+Before; the green dev fixture is included in the full lifecycle result above (`red-dev.log`):
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 18 filtered out; finished in 1.41s
+```
+
+Language suites, guide/residency_notes order:
+
+```sh
+cargo test -p snapback4-lang --test residency_notes --test guide --no-fail-fast -- --nocapture
+```
+
+Before (`red-lang.log`):
+
+```text
+test result: FAILED. 34 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+test result: FAILED. 37 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.53s
+```
+
+After (`green-lang.log`):
+
+```text
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.71s
+```
+
+Periphery tests:
+
+```sh
+node --test --test-concurrency=2 packages/snapback4/test/periphery.test.mjs
+```
+
+First attempt: package dist/native.js was not built (ERR_MODULE_NOT_FOUND) (`periphery.log`):
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ duration_ms 108.290625
+```
+
+After the blocking script built the package (`periphery-built.log`):
+
+```text
+ℹ tests 18
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ duration_ms 2744.209125
+```
+
+The fixture-directory refusal text is new CLI text, not a new E_/N_ code.
+No codes or notes were added, so guide::CODES entries were not changed.
+The following exact diagnostic text is captured from the red/green runs.
+
+Dev save, before (default):
+
+```text
+snapback4 dev: 2 problems in snapback/; serving the previous generation
+chat.q:2:19 — E_QUARRY_SYNTAX: range reads require first N or last N
+  rewrite: messages[] where .body = 'hello' first 50
+  guide: language
+
+chat.q:1:1 — E_QUARRY_SYNTAX: query apiHistory has an empty body
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+```
+
+Dev save, after (default):
+
+```text
+chat.q:2:19 — E_QUARRY_SYNTAX: range reads require first N or last N
+  rewrite: messages[] where .body = 'hello' first 50
+  guide: language
+
+snapback4 dev: 1 problem in snapback/; serving the previous generation
+snapback4 dev: 1 redundant cascade diagnostic(s) hidden; use --verbose to show them
+```
+
+Dev save, after (`--verbose`):
+
+```text
+chat.q:2:19 — E_QUARRY_SYNTAX: range reads require first N or last N
+  rewrite: messages[] where .body = 'hello' first 50
+  guide: language
+
+chat.q:1:1 — E_QUARRY_SYNTAX: query apiHistory has an empty body
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+
+snapback4 dev: 2 problems in snapback/; serving the previous generation
+```
+
+Unscoped page, before:
+
+```text
+note: schema.q:4:1 — N_NO_CURSOR: query all returns a page of 10 messages rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — all(.., c: cursor ?): return messages[..] after c last 10 by <index>; or declare `cap 10` on table messages if that is the intended group limit; other metered work can still cut the read
+  guide: reads
+```
+
+Unscoped page, after:
+
+```text
+note: schema.q:4:1 — N_NO_CURSOR: query all returns a page of 10 messages rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — all(.., c: cursor ?): return messages[..] after c last 10 by <index>; a table `cap N by column` can replace a cursor for a single plain group page that pins column and covers N within the examined ceiling; this page still needs continuation
+  guide: reads
+```
+
+Already capped at 9,000, before:
+
+```text
+schema.q:6:1 — N_NO_CURSOR: query list returns a page of 9000 rows rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — list(.., c: cursor ?): return rows[..] after c last 9000 by <index>; or declare `cap 8192 by owner` on table rows if that is the intended group limit; other metered work can still cut the read
+  guide: reads
+```
+
+Already capped at 9,000, after:
+
+```text
+schema.q:6:1 — N_NO_CURSOR: query list returns a page of 9000 rows rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — list(.., c: cursor ?): return rows[..] after c last 9000 by <index>; a table `cap N by column` can replace a cursor for a single plain group page that pins column and covers N within the examined ceiling; this page still needs continuation
+  guide: reads
+```
+
+Install pointer, before:
+
+```text
+cold rows: snapback4 test --residency --fixture fixture --as <principal>
+```
+
+Install pointer, after:
+
+```text
+cold rows: snapback4 test --residency --fixture <fixture-directory> --as <principal>
+```
+
+Missing fixture `absent`, before: exit 0, no stderr, and:
+
+```text
+test: loaded 0 rows from absent in 0.0 s
+```
+
+Missing fixture `absent`, after: exit 1 and no measurement:
+
+```text
+cannot read fixture directory absent: No such file or directory (os error 2)
+```
+
+The non-directory control exits 1 with:
+
+```text
+cannot read fixture directory not-a-directory: Not a directory (os error 20)
+```
+
+Scope: every A–G fix is implemented. The explicit lower-clamp option was
+chosen instead of adding `--backfill`. Required glue outside the brief's
+named source list is `src/main.rs` and `src/serve.rs` for the dev verbose
+option/startup reporting, and `snapback4-lang/src/diag.rs` for the contextual
+section API. No unrelated source, previous journal entry or other lane's
+job-prelude cascade / N_NO_HORIZON text was changed. There is no pre-existing
+product failure claim. The lead reported this exact base green outside the
+sandbox; that is supplied evidence, not a separate base rerun by this lane.
+The maximum changed code file is guide.rs at 1,492 lines.
+
+Full blocking command (unmodified script, default test concurrency):
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+```
+
+Verbatim summaries (`full-suite.log`):
+
+```text
+-- ok: cargo build (2 s)
+-- ok: wasm build (15 s)
+-- ok: package typecheck (0 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+test result: ok. 58 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.47s
+test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.32s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.21s
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 32.74s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.54s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.83s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.22s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 49 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.39s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.98s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.43s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+test result: ok. 179 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 119.30s
+test result: ok. 90 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 22.49s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.85s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.84s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.16s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.19s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.67s
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.55s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.31s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 87 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 39.23s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.88s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.77s
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 51.17s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.65s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.63s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.73s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.28s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+-- ok: cargo test (573 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (0 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ duration_ms 10810.271917
+-- ok: fixture wrapper tests (11 s)
+ℹ tests 483
+ℹ pass 482
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ duration_ms 64964.154167
+-- FAIL: client tests (65 s)
+== 1 failure(s) in 592 s
+```
+
+The 71 Rust summary lines total **1216 passed,
+0 failed, 4 ignored**. Fixtures pass 9/9 and clients pass
+482/483. The only failed stage is the real Chromium React test:
+`browserType.launch: Target page, context or browser has been closed`,
+with `signal=SIGABRT`. This is the sandbox artifact named in the brief;
+no browser rerun was attempted, and no product/base failure is inferred.
+There were no lifecycle or default-concurrency client timeouts to rerun.
+The lead must run the browser outside this sandbox. The entire script
+returned exit 1 after 592 seconds on this shared host.
+
+Reference check before the journal append:
+
+```sh
+./ref-check --verbose
+```
+
+```text
+ref-check: ok — 481 LLP docs, 9030 refs in 23947 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passed. The journal's earlier bytes were compared with
+HEAD before this single append and are unchanged.

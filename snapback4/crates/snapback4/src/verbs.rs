@@ -72,8 +72,7 @@ fn compile_or_exit(project: &Project, json: bool) -> Bound {
         }
     };
     if !bound.diagnostics.is_empty() {
-        // Verbs other than `check` have no --verbose flag of their own, so they
-        // show every cascade rather than hide one the caller cannot reveal.
+        // These one-shot verbs retain their complete diagnostic output.
         report_diagnostics(&bound, json, false, true);
         std::process::exit(1);
     }
@@ -85,6 +84,18 @@ fn report_diagnostics(bound: &Bound, json: bool, explain_repeats: bool, verbose:
         println!("{}", json!({ "ok": false, "problems": bound.diagnostics }));
         return;
     }
+    report_problems(bound, "check", "", explain_repeats, verbose);
+}
+
+pub(crate) fn report_problems(bound: &Bound, label: &str, suffix: &str, explain_repeats: bool, verbose: bool) {
+    let (reports, hidden) = problem_reports(bound, explain_repeats, verbose);
+    let shown = reports.len();
+    for report in reports { eprintln!("{report}"); }
+    eprintln!("{label}: {shown} problem{}{suffix}", if shown == 1 { "" } else { "s" });
+    if hidden > 0 { eprintln!("{label}: {hidden} redundant cascade diagnostic(s) hidden; use --verbose to show them"); }
+}
+
+pub(crate) fn problem_reports(bound: &Bound, explain_repeats: bool, verbose: bool) -> (Vec<String>, usize) {
     // Suppress redundant cascades first, so a hidden diagnostic never counts
     // towards the repeat threshold that earns an inline card excerpt.
     let mut hidden = 0;
@@ -97,12 +108,7 @@ fn report_diagnostics(bound: &Bound, json: bool, explain_repeats: bool, verbose:
         }
         shown_diagnostics.push(diagnostic.clone());
     }
-    for report in diagnostic_reports(&shown_diagnostics, "", explain_repeats) {
-        eprintln!("{report}");
-    }
-    let shown = bound.diagnostics.len() - hidden;
-    eprintln!("check: {shown} problem{}", if shown == 1 { "" } else { "s" });
-    if hidden > 0 { eprintln!("check: {hidden} redundant cascade diagnostic(s) hidden; use --verbose to show them"); }
+    (diagnostic_reports(&shown_diagnostics, "", explain_repeats), hidden)
 }
 
 // @ref LLP 3000.007#20.1 — bring the diagnostic's own card to the builder at the repeated problem.
@@ -117,7 +123,7 @@ fn diagnostic_reports(diagnostics: &[snapback4_lang::Diagnostic], prefix: &str, 
     diagnostics.iter().map(|diagnostic| {
         let mut report = format!("{prefix}{diagnostic}\n");
         if counts.remove(&(&diagnostic.code, &diagnostic.guide)).is_some_and(|count| count >= 2)
-            && remaining > 0 && let Some(explanation) = diagnostic.explanation() {
+            && remaining > 0 && let Some(explanation) = diagnostic.explanation_section() {
             report.push_str(&format!("\n{explanation}\n"));
             remaining -= 1;
         }
@@ -741,11 +747,22 @@ pub fn test(options: &Options) -> i32 {
     if let Some(fixture) = options.flags.get("fixture") {
         let started = Instant::now();
         let mut loaded = 0;
-        for entry in std::fs::read_dir(fixture).into_iter().flatten().flatten() {
+        let entries = match std::fs::read_dir(fixture) {
+            Ok(entries) => entries,
+            Err(error) => { eprintln!("cannot read fixture directory {fixture}: {error}"); return 1; }
+        };
+        for entry in entries {
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(error) => { eprintln!("cannot read fixture directory {fixture}: {error}"); return 1; }
+            };
             let name = entry.file_name().to_string_lossy().to_string();
             let Some(table) = name.strip_suffix(".jsonl") else { continue };
             let Some(definition) = bound.schema.tables.get(table).cloned() else { continue };
-            let text = std::fs::read_to_string(entry.path()).unwrap_or_default();
+            let text = match std::fs::read_to_string(entry.path()) {
+                Ok(text) => text,
+                Err(error) => { eprintln!("cannot read fixture file {}: {error}", entry.path().display()); return 1; }
+            };
             let mut rows = Vec::new();
             for line in text.lines().filter(|l| !l.trim().is_empty()) {
                 let json: Json = match serde_json::from_str(line) {
