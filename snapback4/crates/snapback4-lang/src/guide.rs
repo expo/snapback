@@ -491,11 +491,8 @@ job nightly(periodStart: time, periodEnd: time):                    -- the serve
 schedule everyNight every 1d at 03:00: nightly                       -- once per period boundary of the server's clock: every 2m | 1h | 1d [at HH:MM]
 job rescoreNative(): native                                          -- a job whose body is the app's own Rust in snapback/native/, hosted as wasm (guide native)
 query personalizeNative(first: int): native                          -- a read in the same module: on the server as the viewer, on a device over its rows
-```
 
-Server handlers also declare results, secrets and work settings (guide actions):
-
-```quarry
+-- Server handlers declare results, secrets and work settings (guide actions).
 action summarizeRoom(room: rooms) returns { summary: text <=4000, source: rooms, tags: [text <=30] <=8 ? } secrets [MODEL_API_KEY] retry 3 backoff 2s deadline 1h cancellation allow
 action scheduledSummary(periodStart: time, periodEnd: time) returns {} <- viewer = 'service:reporter'
 schedule summariesEveryDay every 1d at 08:00 as service:reporter: scheduledSummary

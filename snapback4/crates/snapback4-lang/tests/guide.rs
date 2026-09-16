@@ -84,9 +84,9 @@ fn the_language_card_compiles_and_runs() {
     let source = language();
     let bound = clean("the language card", &source);
     let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).collect();
-    assert_eq!(names, ["daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "heldRoom", "room", "helperRows", "thread", "inbox", "following", "ancestors", "digest", "mentions", "search", "everywhere", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative"]);
-    assert_eq!(bound.schema.effects, ["notify"]);
-    assert_eq!(bound.schema.schedules.len(), 1);
+    assert_eq!(names, ["daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "heldRoom", "room", "helperRows", "thread", "inbox", "following", "ancestors", "digest", "mentions", "search", "everywhere", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative", "summarizeRoom", "scheduledSummary"]);
+    assert_eq!(bound.schema.effects, ["notify", "sendDigest"]);
+    assert_eq!(bound.schema.schedules.len(), 2);
     assert_eq!(bound.personas, ["alice", "bob", "carol"]);
     let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
     let (alice, bob) = ("dev:alice", "dev:bob");
@@ -247,7 +247,9 @@ fn the_language_card_compiles_and_runs() {
     // everyNight: the schedule fires from its next boundary, once.
     let (day, three) = (86_400_000, 10_800_000);
     assert_eq!(engine.fire_schedules(day + three + 1_000).unwrap(), Vec::<String>::new());
-    assert_eq!(engine.fire_schedules(2 * day + three + 1_000).unwrap(), vec!["everyNight".to_owned()]);
+    assert_eq!(engine.fire_schedules(2 * day + three + 1_000).unwrap(), vec!["everyNight".to_owned(), "summariesEveryDay".to_owned()]);
+    assert_eq!(engine.action_counts().unwrap().get("queued"), Some(&1));
+    assert!(engine.fire_schedules(2 * day + three + 1_000).unwrap().is_empty());
 }
 
 /// Every keyword card's blocks bind clean, alone or beside the language card.
@@ -508,11 +510,12 @@ fn the_template_compiles_clean() {
 
 #[test]
 fn the_language_card_also_compiles_as_a_module_with_qualified_schedules() {
-    let source = language().replace(": nightly ", ": timeline.nightly ");
+    let source = language().replace(": nightly ", ": timeline.nightly ").replace(": scheduledSummary\n", ": timeline.scheduledSummary\n");
     let bound = snapback4_lang::compile(&[("timeline.q".into(), source)]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     assert!(bound.notes.is_empty(), "{:?}", bound.notes);
     assert_eq!(bound.schema.schedules[0].target, "timeline.nightly");
+    assert_eq!(bound.schema.schedules[1].target, "timeline.scheduledSummary");
 }
 
 #[test]

@@ -153,7 +153,7 @@ pub fn guide_for(code: &str) -> &'static str {
         code if code.starts_with("E_NATIVE") => "native",
         code if code.strip_prefix("E_").is_some_and(|name| name.starts_with("WITNESS_")) => "witness",
         code if code.starts_with("SNAPBACK4_") => "refusals",
-        code if code.starts_with("E_ACTION_") || code.starts_with("E_STEP_") || matches!(code, "E_SECRET_MISSING" | "E_SERVER_TYPECHECK" | "E_SERVER_TOOLCHAIN") => "actions",
+        code if code.starts_with(concat!("E_", "ACTION_")) || code.starts_with(concat!("E_", "STEP_")) || code.starts_with(concat!("E_", "SERVER_")) || matches!(code, "E_SECRET_MISSING" | "E_WRITE_LABEL") => "actions",
         _ => "language",
     }
 }
