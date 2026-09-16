@@ -148,7 +148,7 @@ enum Outcome {
     LogoutAll(u64),
 }
 
-fn bearer_token(request: &Request) -> Result<&str, RuntimeError> {
+pub(crate) fn bearer_token(request: &Request) -> Result<&str, RuntimeError> {
     let mut headers = request
         .headers()
         .iter()

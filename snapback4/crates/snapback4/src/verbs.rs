@@ -15,6 +15,7 @@ use std::time::Instant;
 mod fix;
 mod init;
 mod sql;
+mod work_records;
 pub mod witness;
 pub use init::init;
 pub use sql::sql;
@@ -38,7 +39,7 @@ pub fn parse(args: &[String]) -> Options {
         } else if let Some(flag) = arg.strip_prefix("--") {
             // A switch takes no value; any other flag takes the next token
             // unless that token is itself a flag.
-            const SWITCHES: &[&str] = &["no-watch", "fresh", "replay", "hold-effects", "hold-schedules", "cost", "residency", "fix", "online", "expo", "allow-destructive", "i-understand-cleartext"];
+            const SWITCHES: &[&str] = &["values", "no-watch", "fresh", "replay", "hold-effects", "hold-schedules", "cost", "residency", "fix", "online", "expo", "allow-destructive", "i-understand-cleartext"];
             let (name, value) = match flag.split_once('=') {
                 Some((name, value)) => (name.to_owned(), value.to_owned()),
                 None if SWITCHES.contains(&flag) || iter.peek().is_none_or(|next| next.starts_with("--")) => (flag.to_owned(), String::new()),
@@ -463,12 +464,9 @@ pub fn doctor(options: &Options) -> i32 {
     let mut ok = true;
     let mut storage: Option<snapback4_core::store::Sizes> = None;
     let version = env!("CARGO_PKG_VERSION");
-    let Some(project) = std::env::current_dir().ok().and_then(|dir| Project::locate(&dir)) else {
-        println!("snapback4 {version}: no project here (no snapback/schema.q); `snapback4 init` starts one");
-        return 1;
-    };
+    let project = match work_records::project(options) { Ok(project) => project, Err(error) => { eprintln!("doctor: {error}"); return 1; } };
     lines.push(format!("project   {}", project.root.display()));
-    lines.push(format!("worker    {}", crate::dev_worker::source(&project).map(|p| format!("{} (supervised by dev)", p.display())).unwrap_or_else(|| "absent (add snapback/worker.ts, .mts or .mjs)".into())));
+    lines.push(format!("worker    dev entry: {}; serve entry: --worker <path>", crate::dev_worker::source(&project).map(|p| p.display().to_string()).unwrap_or_else(|| "none (add snapback/worker.ts, .mts or .mjs)".into())));
     let (personas, native_jobs) = match project.compile() {
         Ok(bound) if bound.diagnostics.is_empty() => {
             lines.push(format!("schema    ok: {} tables, {} synced, {} operations", bound.schema.tables.len(), bound.schema.synced().count(), bound.programs.len()));
@@ -508,8 +506,9 @@ pub fn doctor(options: &Options) -> i32 {
     }
     // Source diagnostics and persisted backend health are independent. Even
     // broken or destructive edits must leave the active generation usable.
-    match project.open_store() {
+    match if options.flags.contains_key("release") { snapback4_core::Store::open_read_only(&work_records::store_path(options)) } else { project.open_store() } {
         Ok(store) => {
+            if let Ok(Some(status)) = store.meta("worker:status") { lines.push(format!("worker    last report: {status}")); }
             let generation = store.meta("generation").ok().flatten().unwrap_or_else(|| "unrecorded".into());
             lines.push(format!("store     {} at seq {}, generation {}", project.store_path().display(), store.seq().unwrap_or(0), generation));
             let replay = store.meta("dev:replay").ok().flatten().as_deref() == Some("true");
@@ -571,48 +570,56 @@ pub fn doctor(options: &Options) -> i32 {
 
 pub fn why(options: &Options) -> i32 {
     let Some(subject) = options.positionals.first() else {
-        eprintln!("usage: snapback4 why <E_CODE | operation | table>");
+        eprintln!("usage: snapback4 why <E_CODE | operation | table | id> [--release dir] [--values]");
         return 2;
     };
     if let Some(explanation) = snapback4_lang::guide::explain_code(subject) {
         println!("{explanation}");
         return 0;
     }
-    let project = project_or_exit();
-    let bound = compile_or_exit(&project, options.json);
-    if let Some(program) = bound.programs.iter().find(|p| &p.program.name == subject) {
-        println!("{} {}({})", program.program.kind.word(), program.program.name, program.args.iter().map(|(name, ty)| format!("{name}: {}", ty.name())).collect::<Vec<_>>().join(", "));
-        println!("  returns {}", program.result.name());
-        println!("{}", snapback4_lang::bind::residency::operation_lines(subject, &bound.schema.operations[subject]));
-        println!("{}", cost_report(&bound, &program.program));
-        return 0;
+    let project = match work_records::project(options) { Ok(project) => project, Err(error) => { eprintln!("why: {error}"); return 1; } };
+    // A broken working source must not make durable work uninspectable.
+    let bound = project.compile().ok().filter(|bound| bound.diagnostics.is_empty());
+    if let Some(bound) = &bound {
+        if let Some(program) = bound.programs.iter().find(|p| &p.program.name == subject) {
+            println!("{} {}({})", program.program.kind.word(), program.program.name, program.args.iter().map(|(name, ty)| format!("{name}: {}", ty.name())).collect::<Vec<_>>().join(", "));
+            println!("  returns {}", program.result.name());
+            println!("{}", snapback4_lang::bind::residency::operation_lines(subject, &bound.schema.operations[subject]));
+            println!("{}", cost_report(&bound, &program.program));
+            return 0;
+        }
+        if let Some(table) = bound.schema.tables.get(subject) {
+            println!("table {subject}");
+            println!("  residency: {}", snapback4_lang::bind::residency::table_line(&bound.schema, subject));
+            if table.residency.inferred { println!("  inferred from read <- {}", table.rules.read.quarry()); }
+            println!("  read   <- {}", table.rules.read.quarry());
+            println!("  insert <- {}", table.rules.insert.quarry());
+            println!("  update <- {}", table.rules.update.quarry());
+            println!("  delete <- {}", table.rules.delete.quarry());
+            match &table.sync {
+                Some(sync) => println!("  {} — a device holds these rows; {}", sync.line(), match &sync.audience { Audience::Public => "everyone holds the same partition".to_owned(), Audience::Column(c) => format!("each row reaches the principal in .{c}"), Audience::Target { table, principal, .. } => format!("each row reaches every principal in {table}.{principal} whose group matches") }),
+                None => println!("  online-only — no sync line; reads go to the server"),
+            }
+            if let Some(column) = &table.expire {
+                println!("  expire at .{column} — a row past it is absent to every reader, then swept; null never expires");
+            }
+            for (name, index) in &table.indexes {
+                println!("  {} {name}: {}", if index.unique { "unique" } else { "by" }, index.columns().join(", "));
+            }
+            return 0;
+        }
     }
-    if let Some(table) = bound.schema.tables.get(subject) {
-        println!("table {subject}");
-        println!("  residency: {}", snapback4_lang::bind::residency::table_line(&bound.schema, subject));
-        if table.residency.inferred { println!("  inferred from read <- {}", table.rules.read.quarry()); }
-        println!("  read   <- {}", table.rules.read.quarry());
-        println!("  insert <- {}", table.rules.insert.quarry());
-        println!("  update <- {}", table.rules.update.quarry());
-        println!("  delete <- {}", table.rules.delete.quarry());
-        match &table.sync {
-            Some(sync) => println!("  {} — a device holds these rows; {}", sync.line(), match &sync.audience { Audience::Public => "everyone holds the same partition".to_owned(), Audience::Column(c) => format!("each row reaches the principal in .{c}"), Audience::Target { table, principal, .. } => format!("each row reaches every principal in {table}.{principal} whose group matches") }),
-            None => println!("  online-only — no sync line; reads go to the server"),
-        }
-        if let Some(column) = &table.expire {
-            println!("  expire at .{column} — a row past it is absent to every reader, then swept; null never expires");
-        }
-        for (name, index) in &table.indexes {
-            println!("  {} {name}: {}", if index.unique { "unique" } else { "by" }, index.columns().join(", "));
-        }
-        return 0;
+    match work_records::explain(options, subject) {
+        Ok(true) => return 0,
+        Err(error) => { eprintln!("why: {error}"); return 1; }
+        Ok(false) => {}
     }
     if subject.starts_with("E_") || subject.starts_with("N_") {
         // A guessed code: name the real ones.
         eprintln!("{subject} is not a refusal code. A unique clash, a cap, an immutable column or a text format is E_CONSTRAINT; a program's own `require .. else CODE` codes are the program's. The codes: {}", snapback4_lang::guide::codes().join(", "));
         return 1;
     }
-    eprintln!("nothing named {subject}: not a refusal code, an operation, or a table");
+    eprintln!("nothing named {subject}: not a refusal code, an operation, a table, or a work id");
     1
 }
 

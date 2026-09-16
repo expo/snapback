@@ -66,6 +66,10 @@ pub struct Context {
     pub args: BTreeMap<String, Value>,
     pub now: Option<i64>,
     pub read_time: Option<i64>,
+    /// Digest only: the core resolves it in the admission transaction.
+    pub(crate) session_digest: Option<String>,
+    /// Original HTTP arguments, before typed decoding or default insertion.
+    pub wire_args: Option<serde_json::Value>,
     pub(crate) generation: u64,
     /// Ids the caller minted for this run, consumed in order by `new`.
     pub new_ids: VecDeque<String>,
@@ -78,7 +82,18 @@ pub struct Context {
 
 impl Context {
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
-        Self { viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
+        Self { viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, session_digest: None, wire_args: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
+    }
+
+    #[cfg(feature = "sqlite")]
+    pub fn with_session(mut self, token: &str) -> Self {
+        self.session_digest = Some(crate::identity::digest(token));
+        self
+    }
+
+    pub fn with_wire_args(mut self, args: serde_json::Value) -> Self {
+        self.wire_args = Some(args);
+        self
     }
 
     /// The host supplies its active backend generation for opaque page cursors.
@@ -704,15 +719,22 @@ impl Engine {
         Ok(acknowledged)
     }
 
-    /// The recorded outcome of a client-minted op that already applied, so a
-    /// host can answer a resend before it decodes the arguments against the
-    /// current generation: the op may have been renamed since.
+    /// Inspect an existing receipt by id. This grants no historical result
+    /// authority. A host answering a resend must use `replay_mutation` to
+    /// compare the operation name and raw arguments before decoding.
     pub fn replay(&self, viewer: &str, op: &str) -> Result<Option<MutationOutcome>, RuntimeError> {
         let Some(outcome) = self.store.applied_outcome(viewer, op)? else {
             return Ok(None);
         };
         let outcome = MutationOutcome::from_receipt(&outcome)?;
         Ok(Some(outcome))
+    }
+
+    /// Compare wire identity before decoding against a possibly newer schema.
+    // @ref LLP 3000.009#5.1 — an id binds the admitted operation and arguments.
+    pub fn replay_mutation(&self, viewer: &str, id: &str, name: &str, args: &serde_json::Value) -> Result<Option<MutationOutcome>, RuntimeError> {
+        crate::store::replay_bound(self.store.conn(), viewer, id, name, args)?
+            .map(|receipt| MutationOutcome::from_receipt(&receipt)).transpose()
     }
 
     /// Run a mutation. With an `op` id the write applies at most once: a
@@ -723,8 +745,9 @@ impl Engine {
     /// queued it must learn `sent`, not `failed`.
     pub fn mutate(&mut self, name: &str, op: Option<&str>, mut context: Context) -> Result<MutationOutcome, RuntimeError> {
         context.generation = self.generation;
+        let wire_args = if op.is_some() { context.wire_args.take().unwrap_or_else(|| serde_json::Value::Object(crate::wire::map_to_json(&context.args))) } else { serde_json::Value::Null };
         if let Some(op) = op
-            && let Some(outcome) = self.replay(&context.viewer, op)?
+            && let Some(outcome) = self.replay_mutation(&context.viewer, op, name, &wire_args)?
         {
             return Ok(outcome);
         }
@@ -751,7 +774,7 @@ impl Engine {
         let ceilings = self.ceilings;
         let tx = self.store.transaction()?;
         if let Some(op) = op
-            && let Some((_, outcome)) = tx.applied(&context.viewer, op)?
+            && let Some(outcome) = crate::store::replay_bound(tx.conn(), &context.viewer, op, name, &wire_args)?
         {
             // Applied between the check above and this transaction.
             let outcome = MutationOutcome::from_receipt(&outcome)?;
@@ -827,6 +850,7 @@ impl Engine {
                 WriteState::Failed { .. } => tx.next_seq()? - 1,
             };
             tx.record_applied(&viewer, op, seq, &serde_json::to_string(&outcome.receipt(Some(op))).map_err(|e| RuntimeError::Store(e.to_string()))?)?;
+            tx.bind_applied(&viewer, op, name, &wire_args, now)?;
         }
         tx.commit()?;
         Ok(outcome)

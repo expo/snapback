@@ -69,14 +69,17 @@ impl Host for ServerHost {
                 let mut engine = self.engine.borrow_mut();
                 // A resend of an applied write is answered before the current
                 // generation gets to judge its shape.
-                let replayed = id.as_deref().and_then(|id| engine.replay(&viewer, id).ok().flatten());
-                if let Some(outcome) = replayed
+                let raw_args = message.get("args").cloned().unwrap_or_else(|| json!({}));
+                let replayed = id.as_deref().map(|id| engine.replay_mutation(&viewer, id, &op, &raw_args)).transpose().map(Option::flatten);
+                if let Err(error) = &replayed {
+                    json!({ "t": "write", "rid": rid, "id": id, "state": "failed", "why": error.refusal() })
+                } else if let Ok(Some(outcome)) = replayed
                     && let WriteState::Sent { seq, result } = outcome.state
                 {
                     json!({ "t": "write", "rid": rid, "id": id, "state": "sent", "seq": seq, "result": wire::to_json(&result), "replayed": true, "generation": engine.generation() })
                 } else {
                     match args_of(&engine, &op, message.get("args").unwrap_or(&Json::Null)) {
-                        Ok(args) => match engine.mutate(&op, id.as_deref(), Context::new(viewer, args).at(now).with_ids(new_ids)) {
+                        Ok(args) => match engine.mutate(&op, id.as_deref(), Context::new(viewer, args).at(now).with_ids(new_ids).with_wire_args(raw_args)) {
                             Ok(outcome) => match outcome.state {
                                 WriteState::Sent { seq, result } => {
                                     json!({ "t": "write", "rid": rid, "id": id, "state": "sent", "seq": seq, "result": wire::to_json(&result), "replayed": outcome.replayed, "generation": engine.generation() })

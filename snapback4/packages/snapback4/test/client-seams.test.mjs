@@ -189,7 +189,7 @@ for (const tier of ["online", "web", "native"]) {
     assert.equal(expired.state, "failed"); assert.equal(expired.why.code, "E_WRITE_RECEIPT_EXPIRED");
     assert.equal(f.attempts.length, 257, "receipt eviction does not enqueue a known id again");
     await client.close(); const reopened = await f.open();
-    assert.deepEqual(await reopened.mutate(mutation("answer"), { n: 99 }, { id }), receipt);
+    assert.deepEqual(await reopened.mutate(mutation("answerPair"), { a: 1, b: 2 }, { id }), receipt);
     assert.equal(f.attempts.length, 258, "without retained local evidence the server's original outcome wins");
     t.diagnostic(`tier=${tier} retained_receipts=256 known_id_readmissions=0 server_recovery_posts=1`);
   });
@@ -205,9 +205,9 @@ for (const tier of ["online", "web", "native"]) {
     const receipt = { state: "sent", id, seq: f.replies[0].seq, replayed: true };
     assert.deepEqual(f.replies[1], receipt); assert.deepEqual(await client.write(id), receipt);
     assert.equal((await f.post("/q/receipts", { args: {} })).data.length, 1);
-    // A new client has no argument identity: the server replays even a changed op/args.
+    // A new client recovers the original receipt by resending the same input.
     await client.close(); const reopened = await f.open();
-    assert.deepEqual(await reopened.mutate(mutation("answer"), { n: 99 }, { id }), receipt);
+    assert.deepEqual(await reopened.mutate(mutation("record"), { n: 7 }, { id }), receipt);
     assert.equal(f.attempts.length, tier === "online" ? 3 : 2);
     t.diagnostic(`tier=${tier} retry_posts=2 applied=1 historical_results=0`);
   });

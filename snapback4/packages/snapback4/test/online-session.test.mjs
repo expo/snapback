@@ -32,7 +32,7 @@ async function localPersona() {
 }
 
 test("README client card members are functions on both tiers, except device-only sync", async t => {
-  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+  const readme = ["README.md", "CLIENT-AND-OPERATIONS.md"].map(name => readFileSync(new URL(`../${name}`, import.meta.url), "utf8")).join("\n");
   const card = readme.match(/has `query\(op, args\)[\s\S]*?`close\(\)`\./)?.[0];
   assert.ok(card, "the README client member list must remain discoverable");
   // Each code span names one client member; observe's nested return methods are not client members.

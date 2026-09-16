@@ -47,7 +47,8 @@
   "files": [
     "dist",
     "bin",
-    "README.md"
+    "README.md",
+    "CLIENT-AND-OPERATIONS.md"
   ],
   "optionalDependencies": {
     "snapback4-darwin-arm64": "0.2.22"

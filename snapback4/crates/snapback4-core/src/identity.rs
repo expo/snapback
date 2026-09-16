@@ -25,6 +25,45 @@ pub struct Session {
     pub expires_at: i64,
 }
 
+// @ref LLP 3000.009#5.1 — refresh preserves admission authority; revocation changes its generation.
+pub(crate) fn initialize(conn: &Connection) -> Result<(), RuntimeError> {
+    let columns: Vec<String> = conn.prepare("SELECT name FROM pragma_table_info('_sessions')")?
+        .query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
+    if !columns.iter().any(|name| name == "family") {
+        conn.execute_batch("ALTER TABLE _sessions ADD COLUMN family TEXT;")?;
+    }
+    conn.execute_batch("CREATE INDEX IF NOT EXISTS _sessions_family ON _sessions(principal, family, expires_at);
+        CREATE TABLE IF NOT EXISTS _principal_generations (principal TEXT PRIMARY KEY, generation INTEGER NOT NULL);")?;
+    Ok(())
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Authority {
+    pub family: String,
+    pub generation: i64,
+    pub expires_at: i64,
+}
+
+pub(crate) fn principal_generation(conn: &Connection, principal: &str) -> Result<i64, RuntimeError> {
+    Ok(conn.query_row("SELECT generation FROM _principal_generations WHERE principal = ?1", [principal], |row| row.get(0)).optional()?.unwrap_or(0))
+}
+
+/// Resolve the admitting credential inside the admission transaction.
+pub(crate) fn authority(conn: &Connection, token_digest: &str, principal: &str, now: i64) -> Result<Authority, RuntimeError> {
+    let found: Option<(String, i64)> = conn.query_row(
+        "SELECT COALESCE(family, token_digest), expires_at FROM _sessions WHERE token_digest = ?1 AND principal = ?2 AND expires_at > ?3",
+        params![token_digest, principal, now], |row| Ok((row.get(0)?, row.get(1)?)),
+    ).optional()?;
+    let (family, expires_at) = found.ok_or_else(|| RuntimeError::Auth("the admitting session is no longer live".into()))?;
+    Ok(Authority { family, generation: principal_generation(conn, principal)?, expires_at })
+}
+
+pub(crate) fn authority_expiry(conn: &Connection, principal: &str, family: &str, generation: i64, now: i64) -> Result<Option<i64>, RuntimeError> {
+    if principal_generation(conn, principal)? != generation { return Ok(None); }
+    Ok(conn.query_row("SELECT MAX(expires_at) FROM _sessions WHERE principal = ?1 AND COALESCE(family, token_digest) = ?2 AND expires_at > ?3",
+        params![principal, family, now], |row| row.get(0))?)
+}
+
 fn random_bytes(n: usize) -> Result<Vec<u8>, RuntimeError> {
     let mut bytes = vec![0u8; n];
     getrandom::fill(&mut bytes).map_err(|e| RuntimeError::Store(format!("entropy: {e}")))?;
@@ -68,7 +107,7 @@ fn insert_session(conn: &Connection, session: &Session, now: i64) -> Result<(), 
         params![session.principal, session.kind, now]
     )?;
     conn.execute(
-        "INSERT INTO _sessions(token_digest, principal, kind, created_at, expires_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+        "INSERT INTO _sessions(token_digest, principal, kind, created_at, expires_at, family) VALUES (?1, ?2, ?3, ?4, ?5, ?1)",
         params![digest(&session.token), session.principal, session.kind, now, session.expires_at],
     )?;
     Ok(())
@@ -125,12 +164,12 @@ pub fn rotate_session(
     now: i64,
 ) -> Result<Option<Session>, RuntimeError> {
     let old_digest = digest(old_token);
-    let found: Option<(String, String, i64)> = store.conn().query_row(
-        "SELECT principal, kind, expires_at - created_at FROM _sessions WHERE token_digest = ?1 AND expires_at > ?2",
+    let found: Option<(String, String, i64, String)> = store.conn().query_row(
+        "SELECT principal, kind, expires_at - created_at, COALESCE(family, token_digest) FROM _sessions WHERE token_digest = ?1 AND expires_at > ?2",
         params![old_digest, now],
-        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
     ).optional()?;
-    let Some((principal, kind, lifetime_ms)) = found else {
+    let Some((principal, kind, lifetime_ms, family)) = found else {
         store.conn().execute(
             "DELETE FROM _sessions WHERE token_digest = ?1 AND expires_at <= ?2",
             params![old_digest, now],
@@ -153,6 +192,7 @@ pub fn rotate_session(
         return Ok(None);
     }
     insert_session(&tx, &session, now)?;
+    tx.execute("UPDATE _sessions SET family = ?2 WHERE token_digest = ?1", params![digest(&session.token), family])?;
     tx.commit()?;
     Ok(Some(session))
 }
@@ -457,7 +497,11 @@ fn open_session_for(store: &Store, principal: &str, kind: &str, now: i64, days: 
 /// phone, a removed member) the application's service performs. Returns
 /// how many sessions ended.
 pub fn revoke_principal(store: &Store, principal: &str) -> Result<u64, RuntimeError> {
-    Ok(store.conn().execute("DELETE FROM _sessions WHERE principal = ?1", params![principal])? as u64)
+    let tx = store.conn().unchecked_transaction()?;
+    tx.execute("INSERT INTO _principal_generations(principal, generation) VALUES (?1, 1) ON CONFLICT(principal) DO UPDATE SET generation = generation + 1", [principal])?;
+    let removed = tx.execute("DELETE FROM _sessions WHERE principal = ?1", params![principal])? as u64;
+    tx.commit()?;
+    Ok(removed)
 }
 
 #[cfg(test)]

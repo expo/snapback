@@ -139,6 +139,7 @@ impl Engine {
                 }
             }
         }
+        tx.conn().execute("UPDATE _outbox SET settled_at = CASE WHEN state IN ('sent', 'failed') THEN ?2 ELSE NULL END WHERE id = ?1", params![id, now])?;
         let run = tx.conn().query_row(&format!("SELECT {COLUMNS} FROM _outbox WHERE id = ?1"), [id], read_run)?;
         tx.commit()?;
         Ok(run)
@@ -150,8 +151,9 @@ impl Engine {
     pub fn advance_worker_leases(&mut self, milliseconds: i64) -> Result<(), RuntimeError> {
         let tx = self.store.transaction()?;
         tx.conn().execute("UPDATE _outbox SET lease_until = lease_until + ?1 WHERE state = 'running' AND lease_until IS NOT NULL", [milliseconds])?;
-        tx.conn().execute("UPDATE _sessions SET expires_at = expires_at + ?1 WHERE token_digest IN (SELECT session_digest FROM _requests WHERE state = 'running' AND lease_until IS NOT NULL)", [milliseconds])?;
-        tx.conn().execute("UPDATE _requests SET lease_until = lease_until + ?1 WHERE state = 'running' AND lease_until IS NOT NULL", [milliseconds])?;
+        // Advancing the dev clock cannot extend a claim past its admitting family.
+        tx.conn().execute("UPDATE _requests SET lease_until = CASE WHEN family IS NULL OR principal_generation IS NULL OR admitted_expires_at IS NULL THEN lease_until + ?1 ELSE MIN(lease_until + ?1, COALESCE((SELECT MAX(s.expires_at) FROM _sessions s WHERE s.principal = _requests.principal AND COALESCE(s.family, s.token_digest) = _requests.family), lease_until)) END WHERE state = 'running' AND lease_until IS NOT NULL", [milliseconds])?;
+        tx.conn().execute("UPDATE _sessions SET expires_at = (SELECT lease_until FROM _requests WHERE session_digest = _sessions.token_digest AND state = 'running') WHERE token_digest IN (SELECT session_digest FROM _requests WHERE state = 'running' AND lease_until IS NOT NULL)", [])?;
         tx.commit()?;
         Ok(())
     }
@@ -160,7 +162,7 @@ impl Engine {
     /// or stalled, and the attempt it took stays counted.
     pub fn requeue_expired_effects(&mut self, now: i64) -> Result<u64, RuntimeError> {
         let tx = self.store.transaction()?;
-        let changed = tx.conn().execute("UPDATE _outbox SET state = CASE WHEN attempts >= ?2 THEN 'failed' ELSE 'queued' END, error = COALESCE(error, 'the lease expired'), lease_until = NULL, claimed_by = NULL, next_at = ?1 WHERE state = 'running' AND lease_until IS NOT NULL AND lease_until < ?1", params![now, MAX_ATTEMPTS as i64])?;
+        let changed = tx.conn().execute("UPDATE _outbox SET state = CASE WHEN attempts >= ?2 THEN 'failed' ELSE 'queued' END, error = COALESCE(error, 'the lease expired'), settled_at = CASE WHEN attempts >= ?2 THEN ?1 ELSE NULL END, lease_until = NULL, claimed_by = NULL, next_at = ?1 WHERE state = 'running' AND lease_until IS NOT NULL AND lease_until < ?1", params![now, MAX_ATTEMPTS as i64])?;
         tx.commit()?;
         Ok(changed as u64)
     }

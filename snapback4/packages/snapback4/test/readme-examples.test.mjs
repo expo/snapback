@@ -37,7 +37,7 @@ test("README TypeScript examples compile and call every public function", (t) =>
   mkdirSync(join(scratch, "src"));
   mkdirSync(join(scratch, "snapback/generated"), { recursive: true });
   writeFileSync(join(scratch, "snapback/generated/api.ts"), apiStub);
-  const readme = read(join(root, "README.md"));
+  const readme = ["README.md", "CLIENT-AND-OPERATIONS.md"].map(name => read(join(root, name))).join("\n");
   const blocks = [...readme.matchAll(/^```(tsx?)\s*\n([\s\S]*?)^```\s*$/gm)].map((match, index) => {
     const line = readme.slice(0, match.index).split("\n").length + 1;
     const file = join(scratch, "src", `block-${index + 1}.${match[1]}`);
@@ -88,13 +88,13 @@ test("README TypeScript examples compile and call every public function", (t) =>
 });
 
 test("R1a Queries lists matching merges over scope lanes", () => {
-  const queries = (read(join(root, "README.md")).split("- **Reads:")[1]?.split("- **")[0] ?? "").replace(/\s+/g, " ");
+  const queries = (["README.md", "CLIENT-AND-OPERATIONS.md"].map(name => read(join(root, name))).join("\n").split("- **Reads:")[1]?.split("- **")[0] ?? "").replace(/\s+/g, " ");
   assert.ok(queries.includes("merge t matching q [after c] last N by wordsIndex:"), "Queries must spell the matching merge");
   assert.ok(queries.includes("scope lanes"));
 });
 
 test("Expo Go README session store normalizes SecureStore keys and round-trips a session", async () => {
-  const readme = read(join(root, "README.md"));
+  const readme = ["README.md", "CLIENT-AND-OPERATIONS.md"].map(name => read(join(root, name))).join("\n");
   const source = readme.match(/const sessionStore = [\s\S]*?;/)?.[0];
   assert.ok(source, "README declares its SecureStore adapter");
   const values = new Map();

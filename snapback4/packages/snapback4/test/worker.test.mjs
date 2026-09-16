@@ -239,8 +239,10 @@ test("actions run as the requesting viewer; client done/failed and replay reach 
     assert.equal(done.state, "done", JSON.stringify(done));
     assert.deepEqual(done.result, { message: `hello-${i}`, principal: "dev:alice", score: 1.25 });
     t.diagnostic(`action round trip tier=${i === 0 ? "online" : "device"}: ${(performance.now() - started).toFixed(2)} ms`);
-    assert.deepEqual(await client.act(action("echo"), { message: "ignored-on-replay" }, { id: done.id }), done);
-    assert.equal((await f.post(`/a/echo`, { id: done.id, args: {} })).replayed, true);
+    assert.deepEqual(await client.act(action("echo"), { message: `hello-${i}` }, { id: done.id }), done);
+    assert.equal((await client.act(action("echo"), { message: "changed" }, { id: done.id })).denied.code, "E_ID_REUSED");
+    assert.equal((await client.act(action("fail"), {}, { id: done.id })).denied.code, "E_ID_REUSED");
+    assert.equal((await f.post(`/a/echo`, { id: done.id, args: { message: `hello-${i}` } })).replayed, true);
     const failed = await client.act(action("fail"), {});
     assert.equal(failed.state, "failed"); assert.equal(failed.why.family, "action");
     assert.match(failed.why.message, /provider refused/);
@@ -497,4 +499,128 @@ test("effect settlement still reports a refusal other than lease loss", async ()
   });
   await worker.done;
   assert.deepEqual(errors.map(error => error.message), ["E_AUTH: this session is not live; sign in again"]);
+});
+
+test("admission binds logout-all, single logout and refresh families over HTTP", async t => {
+  const f = await actionFixture(t);
+  for (const ending of ["logout-all", "logout", "refresh"]) {
+    const caller = await mintSession(f.url, f.token, `member:${ending}`);
+    const id = `family-${ending}`;
+    assert.equal((await f.post("/a/slow?wait=0", { id, args: {} }, caller.token)).state, "pending");
+    const ended = await f.post(`/auth/${ending}`, {}, caller.token);
+    assert.equal(ended.status, 200);
+    const claims = (await f.post("/actions/claim", { action: "slow" }, f.token)).requests;
+    if (ending === "refresh") {
+      assert.equal(claims.length, 1);
+      await f.post(`/actions/${id}/done`, { result: "private-result" }, f.token, claims[0].session.token);
+      assert.equal((await f.post("/a/slow?wait=0", { id, args: {} }, ended.session.token)).result, "private-result");
+      await revokeSessions(f.url, f.token, caller.principal);
+      const fresh = await mintSession(f.url, f.token, caller.principal);
+      const collected = await f.post("/a/slow?wait=0", { id, args: {} }, fresh.token);
+      assert.equal(collected.denied.code, "E_ACTION_UNKNOWN");
+      assert.equal(JSON.stringify(collected).includes("private-result"), false);
+    } else {
+      assert.deepEqual(claims, []);
+      const why = spawnSync(binary, ["why", id], { cwd: f.directory, encoding: "utf8" });
+      assert.equal(why.status, 0, why.stderr);
+      assert.match(why.stdout, /E_ACTION_AUTHORITY/);
+      assert.match(why.stdout, /attempts: 0/);
+    }
+  }
+});
+
+test("serve supervises a worker with an explicit environment, restart backoff and shutdown", { timeout: 20_000 }, async t => {
+  const directory = mkdtempSync(join(tmpdir(), "sb4-serve-worker-"));
+  mkdirSync(join(directory, "snapback")); mkdirSync(join(directory, "node_modules"));
+  symlinkSync(join(root, "packages/snapback4"), join(directory, "node_modules/snapback4"));
+  writeFileSync(join(directory, "snapback/schema.q"), actionSource);
+  const entry = join(directory, "snapback/worker.mjs");
+  writeFileSync(entry, `import { appendFileSync, writeFileSync } from 'node:fs';
+import { runWorker } from 'snapback4/worker';
+const file = new URL('../starts.jsonl', import.meta.url);
+appendFileSync(file, JSON.stringify({ pid: process.pid, keys: Object.keys(process.env).sort(), inherited: process.env.A1_PARENT_ONLY ?? null }) + '\\n');
+const stop = new AbortController(); process.once('SIGTERM', () => stop.abort());
+const worker = runWorker({ url: process.env.SNAPBACK_URL, token: process.env.SNAPBACK_SERVICE_TOKEN, wait: 1, signal: stop.signal, actions: { echo: args => ({ message: args.message }) } });
+await worker.done; writeFileSync(new URL('../stopped', import.meta.url), 'yes');
+`);
+  const release = join(directory, "release");
+  const deploy = spawnSync(binary, ["deploy", release], { cwd: directory, encoding: "utf8" });
+  assert.equal(deploy.status, 0, deploy.stderr);
+  const child = spawn(binary, ["serve", release, "--port", "0", "--worker", entry], { cwd: directory, env: { ...process.env, A1_PARENT_ONLY: "must-not-reach-worker" }, stdio: ["ignore", "pipe", "pipe"] });
+  const exited = once(child, "exit"); let log = "", url;
+  for (const stream of [child.stdout, child.stderr]) stream.on("data", chunk => { log += chunk; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
+  t.after(async () => { if (child.exitCode == null && child.signalCode == null) { child.kill("SIGTERM"); await Promise.race([exited, sleep(4000)]); } if (child.exitCode == null && child.signalCode == null) { child.kill("SIGKILL"); await exited; } rmSync(directory, { recursive: true, force: true }); });
+  await until(() => { if (child.exitCode != null) throw Error(log); return url; });
+  const starts = () => { try { return readFileSync(join(directory, "starts.jsonl"), "utf8").trim().split("\n").map(JSON.parse); } catch { return []; } };
+  await until(() => starts().length === 1);
+  const allowed = new Set(["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TZ", "NODE_OPTIONS", "SNAPBACK_URL", "SNAPBACK_SERVICE_TOKEN"]);
+  assert.equal(starts()[0].inherited, null);
+  // macOS synthesizes this variable inside the child; it is not inherited.
+  if (process.platform === "darwin") allowed.add("__CF_USER_TEXT_ENCODING");
+  assert.ok(starts()[0].keys.every(key => allowed.has(key)), JSON.stringify(starts()[0].keys));
+  const minted = spawnSync(binary, ["token", "--release", release, "--service", "caller"], { cwd: directory, encoding: "utf8" });
+  assert.equal(minted.status, 0, minted.stderr);
+  const client = createClient({ url, session: { principal: "service:caller", kind: "service", token: minted.stdout.trim(), expiresAt: Date.now() + 86400000 } });
+  t.after(() => client.close());
+  assert.equal((await client.act(action("echo"), { message: "first" })).result.message, "first");
+  process.kill(starts()[0].pid, "SIGKILL");
+  await until(() => starts().length === 2);
+  assert.match(log, /restarting in 250 ms/);
+  assert.equal((await client.act(action("echo"), { message: "second" })).result.message, "second");
+  assert.doesNotMatch(log, /token \(printed once\)|must-not-reach-worker/);
+  const doctor = spawnSync(binary, ["doctor", "--release", release], { cwd: directory, encoding: "utf8" });
+  assert.equal(doctor.status, 0, doctor.stdout + doctor.stderr);
+  assert.match(doctor.stdout, /"starts":2/); assert.match(doctor.stdout, /"restarts":1/); assert.match(doctor.stdout, /"crashes":1/);
+  child.kill("SIGTERM"); await exited;
+  assert.equal(readFileSync(join(directory, "stopped"), "utf8"), "yes");
+  assert.throws(() => process.kill(starts()[1].pid, 0), { code: "ESRCH" });
+});
+
+test("an action admitted by a delegated action session fails terminally after its parent settles", async t => {
+  const f = await actionFixture(t);
+  const caller = await mintSession(f.url, f.token, "member:delegator");
+  assert.equal((await f.post("/a/slow?wait=0", { id: "parent", args: {} }, caller.token)).state, "pending");
+  const parent = (await f.post("/actions/claim", { action: "slow" }, f.token)).requests[0];
+  assert.equal(parent.session.kind, "action");
+  assert.equal((await f.post("/a/echo?wait=0", { id: "nested", args: { message: "nested work" } }, parent.session.token)).state, "pending");
+  assert.equal((await f.post("/actions/parent/done", { result: "done" }, f.token, parent.session.token)).ok, true);
+  assert.deepEqual((await f.post("/actions/claim", { action: "echo" }, f.token)).requests, []);
+  const why = spawnSync(binary, ["why", "nested"], { cwd: f.directory, encoding: "utf8" });
+  assert.equal(why.status, 0, why.stderr);
+  assert.match(why.stdout, /state: "failed"/);
+  assert.match(why.stdout, /E_ACTION_AUTHORITY/);
+  assert.match(why.stdout, /attempts: 0/);
+  assert.equal((await f.post("/a/echo?wait=0", { id: "nested", args: { message: "nested work" } }, caller.token)).denied.code, "E_ACTION_UNKNOWN");
+});
+
+test("HTTP service-seat admission binds the service family and refuses work after its logout", async t => {
+  const f = await actionFixture(t);
+  assert.equal((await f.post("/a/gated?wait=0", { id: "service-admission", args: {} }, f.token)).state, "pending");
+  const claim = (await f.post("/actions/claim", { action: "gated" }, f.token)).requests[0];
+  assert.equal(claim.principal, "service:worker");
+  assert.equal(claim.session.principal, "service:worker");
+  assert.equal(claim.session.kind, "action");
+  assert.equal((await f.post("/actions/service-admission/done", { result: "service-result" }, f.token, claim.session.token)).ok, true);
+  assert.equal((await f.post("/a/gated?wait=0", { id: "service-admission", args: {} }, f.token)).result, "service-result");
+  assert.equal((await f.post("/a/gated?wait=0", { id: "service-revoked", args: {} }, f.token)).state, "pending");
+  assert.equal((await f.post("/auth/logout", {}, f.token)).status, 200);
+  const next = spawnSync(binary, ["token", "--service", "worker"], { cwd: f.directory, encoding: "utf8" });
+  assert.equal(next.status, 0, next.stderr);
+  const token = next.stdout.trim();
+  assert.deepEqual((await f.post("/actions/claim", { action: "gated" }, token)).requests, []);
+  assert.equal((await f.post("/a/gated?wait=0", { id: "service-admission", args: {} }, token)).denied.code, "E_ACTION_UNKNOWN");
+  const why = spawnSync(binary, ["why", "service-revoked"], { cwd: f.directory, encoding: "utf8" });
+  assert.equal(why.status, 0, why.stderr);
+  assert.match(why.stdout, /E_ACTION_AUTHORITY/);
+  assert.match(why.stdout, /attempts: 0/);
+});
+
+test("dev replaces its supervised worker when the one-day session window ends", async t => {
+  const f = await actionFixture(t, { worker: { ext: "mjs", text: "setInterval(() => {}, 1000);" } });
+  await until(() => (f.log().match(/worker\.mjs \(pid \d+\)/g) ?? []).length === 1);
+  const first = Number(f.log().match(/worker\.mjs \(pid (\d+)\)/)[1]);
+  assert.equal((await f.post("/dev/clock/advance", { duration: "1d" })).advancedMs, 86_400_000);
+  await until(() => (f.log().match(/worker\.mjs \(pid \d+\)/g) ?? []).length === 2);
+  assert.match(f.log(), /supervision window ended/);
+  assert.throws(() => process.kill(first, 0), { code: "ESRCH" });
 });

@@ -140,11 +140,24 @@ impl Store {
              CREATE TABLE IF NOT EXISTS _jobs (id TEXT PRIMARY KEY, name TEXT NOT NULL, args TEXT NOT NULL, program_hash TEXT NOT NULL, state TEXT NOT NULL, sweep INTEGER NOT NULL, cursor TEXT, upper TEXT, chunks INTEGER NOT NULL, rows_written INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, error TEXT);",
         )?;
         conn.execute_batch("CREATE INDEX IF NOT EXISTS _sessions_expiry ON _sessions(expires_at);")?;
+        crate::identity::initialize(&conn)?;
+        let op_columns: Vec<String> = conn.prepare("SELECT name FROM pragma_table_info('_ops')")?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
+        for (column, kind) in [("name", "TEXT"), ("args_digest", "TEXT"), ("at", "INTEGER")] {
+            if !op_columns.iter().any(|name| name == column) {
+                conn.execute_batch(&format!("ALTER TABLE _ops ADD COLUMN {column} {kind};"))?;
+            }
+        }
+        // Discard payload columns from the pre-release binding implementation.
+        for column in ["args", "result"] {
+            if op_columns.iter().any(|name| name == column) {
+                conn.execute_batch(&format!("ALTER TABLE _ops DROP COLUMN {column};"))?;
+            }
+        }
         crate::engine::actions::initialize(&conn)?;
         // The outbox grew a worker protocol (leases, backoff, results); a
         // store from before it gains the columns in place, once.
         let outbox_columns: Vec<String> = conn.prepare("SELECT name FROM pragma_table_info('_outbox')")?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
-        for (column, kind) in [("lease_until", "INTEGER"), ("claimed_by", "TEXT"), ("next_at", "INTEGER"), ("result", "TEXT"), ("error", "TEXT")] {
+        for (column, kind) in [("lease_until", "INTEGER"), ("claimed_by", "TEXT"), ("next_at", "INTEGER"), ("result", "TEXT"), ("error", "TEXT"), ("settled_at", "INTEGER")] {
             if !outbox_columns.iter().any(|name| name == column) {
                 conn.execute_batch(&format!("ALTER TABLE _outbox ADD COLUMN {column} {kind};"))?;
             }
@@ -262,7 +275,7 @@ impl Store {
             indexes: sum("SELECT SUM(LENGTH(k) + LENGTH(id)) FROM i")?,
             log: sum("SELECT SUM(COALESCE(LENGTH(data), 0) + LENGTH(id) + LENGTH(partition) + LENGTH(t)) FROM _log")?,
             log_events: sum("SELECT COUNT(*) FROM _log")?,
-            ops: sum("SELECT SUM(LENGTH(outcome) + LENGTH(id) + LENGTH(principal)) FROM _ops")?,
+            ops: sum("SELECT SUM(LENGTH(outcome) + LENGTH(id) + LENGTH(principal) + LENGTH(seq) + COALESCE(LENGTH(name), 0) + COALESCE(LENGTH(args_digest), 0) + COALESCE(LENGTH(at), 0)) FROM _ops")?,
             file: sum("SELECT page_count * page_size FROM pragma_page_count(), pragma_page_size()")?,
         })
     }
@@ -449,6 +462,12 @@ impl<'a> Tx<'a> {
 
     pub fn record_applied(&self, principal: &str, id: &str, seq: u64, outcome: &str) -> Result<(), RuntimeError> {
         self.tx.prepare_cached("INSERT INTO _ops(principal, id, seq, outcome) VALUES (?1, ?2, ?3, ?4)")?.execute(params![principal, id, seq as i64, outcome])?;
+        Ok(())
+    }
+
+    pub fn bind_applied(&self, principal: &str, id: &str, name: &str, args: &serde_json::Value, at: i64) -> Result<(), RuntimeError> {
+        self.tx.execute("UPDATE _ops SET name = ?3, args_digest = ?4, at = ?5 WHERE principal = ?1 AND id = ?2",
+            params![principal, id, name, payload_digest(args), at])?;
         Ok(())
     }
 
@@ -770,4 +789,32 @@ impl crate::rows::Rows for Tx<'_> {
     fn release_asset(&self, id: &str, now: i64) -> Result<(), RuntimeError> {
         Tx::release_asset(self, id, now)
     }
+}
+
+/// Canonical plain JSON, including recursively sorted object keys.
+pub fn canonical_payload(value: &serde_json::Value) -> String {
+    let mut value = value.clone();
+    value.sort_all_objects();
+    value.to_string()
+}
+
+pub fn payload_digest(value: &serde_json::Value) -> String {
+    use sha2::{Digest, Sha256};
+    format!("{:x}", Sha256::digest(canonical_payload(value).as_bytes()))
+}
+
+pub fn id_reused() -> RuntimeError {
+    RuntimeError::Structural { code: "E_ID_REUSED", message: "this id already admitted another operation or different arguments; use the original operation and arguments, or mint a new id".into() }
+}
+
+pub(crate) fn replay_bound(conn: &Connection, principal: &str, id: &str, name: &str, args: &serde_json::Value) -> Result<Option<String>, RuntimeError> {
+    let recorded: Option<(String, Option<String>, Option<String>)> = conn.query_row(
+        "SELECT outcome, name, args_digest FROM _ops WHERE principal = ?1 AND id = ?2", params![principal, id],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+    ).optional()?;
+    let Some((outcome, recorded_name, recorded_digest)) = recorded else { return Ok(None); };
+    // NULL is an old receipt with no binding, never a mismatch.
+    if recorded_name.as_deref().is_some_and(|old| old != name)
+        || recorded_digest.is_some_and(|old| old != payload_digest(args)) { return Err(id_reused()); }
+    Ok(Some(outcome))
 }

@@ -29,6 +29,8 @@ pub const CODES: &[(&str, &str)] = &[
     ("SNAPBACK4_PANIC", "a Rust panic on any host thread; stderr names the thread, serving generation, reason, source location and abort/unwind action. guide refusals."),
     ("SNAPBACK4_SIGNAL", "the host received a signal; stderr names it, its number and the serving generation. INT/TERM/HUP allow worker cleanup; fatal signals retain their OS status. guide refusals."),
     ("SNAPBACK4_THREAD_EXIT", "the watcher or maintenance thread stopped; stderr names the thread, serving generation and reason. An unexpected stop ends dev/serve instead of silently losing background work. guide refusals."),
+    ("E_ACTION_AUTHORITY", "family action — the authority that admitted this action was revoked or has expired; the request fails terminally and no delegated session is minted (guide actions)."),
+    ("E_ID_REUSED", "family input — this id already admitted another operation or different arguments; resend the original operation and arguments, or mint a new id (guide actions, writes)."),
     ("E_ACTION_PENDING", "family action, retryable — the request is durable but the handler has not settled within the wait; repeat client.act with the same id (guide actions)."),
     ("E_ACTION_UNKNOWN", "family action — no declared action or recorded request is available under this name and id for this viewer (guide actions)."),
     ("E_ACTION_LEASE", "family action — this claim expired or no longer owns the request; settle with the current claim's session.token in x-snapback-action-lease (guide actions)."),

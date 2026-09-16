@@ -16,6 +16,10 @@ pub(crate) fn initialize(conn: &Connection) -> Result<(), RuntimeError> {
         result TEXT, error TEXT);
         CREATE INDEX IF NOT EXISTS _requests_due ON _requests(state, name, at, id);
         CREATE INDEX IF NOT EXISTS _requests_session ON _requests(session_digest);")?;
+    let columns: Vec<String> = conn.prepare("SELECT name FROM pragma_table_info('_requests')")?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
+    for (column, kind) in [("family", "TEXT"), ("principal_generation", "INTEGER"), ("admitted_expires_at", "INTEGER"), ("args_digest", "TEXT"), ("error_code", "TEXT"), ("settled_at", "INTEGER")] {
+        if !columns.iter().any(|name| name == column) { conn.execute_batch(&format!("ALTER TABLE _requests ADD COLUMN {column} {kind};"))?; }
+    }
     Ok(())
 }
 
@@ -31,6 +35,10 @@ pub struct ActionRequest {
     pub lease_until: Option<i64>,
     pub result: Option<Json>,
     pub error: Option<String>,
+    pub error_code: Option<String>,
+    pub authority: Option<identity::Authority>,
+    pub args_digest: Option<String>,
+    pub settled_at: Option<i64>,
 }
 
 #[derive(Clone, Debug)]
@@ -44,18 +52,41 @@ pub enum ActionSettled {
     Failed { error: String, retry: bool },
 }
 
-const COLUMNS: &str = "id, name, args, principal, at, state, attempts, lease_until, result, error";
+const COLUMNS: &str = "id, name, args, principal, at, state, attempts, lease_until, result, error, error_code, family, principal_generation, admitted_expires_at, args_digest, settled_at";
 fn read(row: &rusqlite::Row<'_>) -> rusqlite::Result<ActionRequest> {
     fn decode<T: serde::de::DeserializeOwned>(text: String, col: usize) -> rusqlite::Result<T> {
         serde_json::from_str(&text).map_err(|error| rusqlite::Error::FromSqlConversionFailure(col, rusqlite::types::Type::Text, Box::new(error)))
     }
-    Ok(ActionRequest { id: row.get(0)?, action: row.get(1)?, args: decode(row.get(2)?, 2)?, principal: row.get(3)?, at: row.get(4)?, state: row.get(5)?, attempt: row.get::<_, u32>(6)?, lease_until: row.get(7)?, result: row.get::<_, Option<String>>(8)?.map(|s| decode(s, 8)).transpose()?, error: row.get(9)? })
+    Ok(ActionRequest { id: row.get(0)?, action: row.get(1)?, args: decode(row.get(2)?, 2)?, principal: row.get(3)?, at: row.get(4)?, state: row.get(5)?, attempt: row.get::<_, u32>(6)?, lease_until: row.get(7)?, result: row.get::<_, Option<String>>(8)?.map(|s| decode(s, 8)).transpose()?, error: row.get(9)?, error_code: row.get(10)?,
+        authority: match (row.get::<_, Option<String>>(11)?, row.get::<_, Option<i64>>(12)?, row.get::<_, Option<i64>>(13)?) {
+            (Some(family), Some(generation), Some(expires_at)) => Some(identity::Authority { family, generation, expires_at }),
+            _ => None,
+        }, args_digest: row.get(14)?, settled_at: row.get(15)?, })
 }
 fn request(conn: &Connection, id: &str) -> Result<Option<ActionRequest>, RuntimeError> {
     Ok(conn.query_row(&format!("SELECT {COLUMNS} FROM _requests WHERE id = ?1"), [id], read).optional()?)
 }
 fn unknown() -> RuntimeError { RuntimeError::Structural { code: "E_ACTION_UNKNOWN", message: "no action or request with this name and id is available to this viewer".into() } }
 fn lease_error() -> RuntimeError { RuntimeError::Structural { code: "E_ACTION_LEASE", message: "this action claim is not live; claim again and settle with its session token in x-snapback-action-lease".into() } }
+
+pub const AUTHORITY_ERROR: &str = "the authority that admitted this action was revoked or has expired";
+
+fn authority_expiry(conn: &Connection, run: &ActionRequest, now: i64) -> Result<Option<i64>, RuntimeError> {
+    match &run.authority {
+        Some(binding) => identity::authority_expiry(conn, &run.principal, &binding.family, binding.generation, now),
+        None => Ok(Some(i64::MAX)), // Legacy rows and development personas have no recorded session.
+    }
+}
+
+fn replay(conn: &Connection, id: &str, principal: &str, name: &str, args: &Json, now: i64) -> Result<Option<ActionRequest>, RuntimeError> {
+    let Some(run) = request(conn, id)? else { return Ok(None); };
+    if run.principal != principal || authority_expiry(conn, &run, now)?.is_none() { return Err(unknown()); }
+    if run.action != name { return Err(if run.args_digest.is_some() { crate::store::id_reused() } else { unknown() }); }
+    if let Some(digest) = &run.args_digest {
+        if crate::store::payload_digest(args) != *digest { return Err(crate::store::id_reused()); }
+    }
+    Ok(Some(run))
+}
 
 /// An action's compiled body is only its rule. Refuse any other IR rather
 /// than accidentally running data-plane statements as an action.
@@ -86,7 +117,7 @@ fn authorize(program: &Program, viewer: &str) -> Result<(), RuntimeError> {
 
 fn expire(conn: &Connection, now: i64) -> Result<u64, RuntimeError> {
     conn.execute("DELETE FROM _sessions WHERE token_digest IN (SELECT session_digest FROM _requests WHERE state = 'running' AND lease_until <= ?1)", [now])?;
-    Ok(conn.execute("UPDATE _requests SET state = CASE WHEN attempts >= ?2 THEN 'failed' ELSE 'queued' END, error = 'the action lease expired', next_at = ?1, lease_until = NULL, claimed_by = NULL, session_digest = NULL WHERE state = 'running' AND lease_until <= ?1", params![now, MAX_ATTEMPTS])? as u64)
+    Ok(conn.execute("UPDATE _requests SET state = CASE WHEN attempts >= ?2 THEN 'failed' ELSE 'queued' END, error = 'the action lease expired', error_code = NULL, settled_at = CASE WHEN attempts >= ?2 THEN ?1 ELSE NULL END, next_at = ?1, lease_until = NULL, claimed_by = NULL, session_digest = NULL WHERE state = 'running' AND lease_until <= ?1", params![now, MAX_ATTEMPTS])? as u64)
 }
 
 impl Engine {
@@ -96,9 +127,10 @@ impl Engine {
             return Err(RuntimeError::Auth("an action needs a signed-in principal".into()));
         }
         if id.len() > 128 || !crate::value::identity_fits(id) { return Err(RuntimeError::Input("an action id is 1–128 printable characters, minted by the client".into())); }
+        let now = context.now.unwrap_or_else(crate::now_ms);
+        let wire_args = context.wire_args.take().unwrap_or_else(|| Json::Object(crate::wire::map_to_json(&context.args)));
         let tx = self.store.transaction()?;
-        if let Some(recorded) = request(tx.conn(), id)? {
-            if recorded.principal != context.viewer || recorded.action != name { return Err(unknown()); }
+        if let Some(recorded) = replay(tx.conn(), id, &context.viewer, name, &wire_args, now)? {
             tx.rollback()?;
             return Ok((recorded, true));
         }
@@ -107,14 +139,26 @@ impl Engine {
         authorize(program, &context.viewer)?;
         let args = serde_json::to_string(&context.args).map_err(|e| RuntimeError::Input(e.to_string()))?;
         if args.len() as u64 > self.ceilings.heap_bytes { return Err(RuntimeError::Input("action arguments exceed the heap bound".into())); }
-        tx.conn().execute("INSERT INTO _requests(id, name, args, principal, at, state) VALUES (?1, ?2, ?3, ?4, ?5, 'queued')", params![id, name, args, context.viewer, context.now.unwrap_or_else(crate::now_ms)])?;
+        let authority = context.session_digest.as_deref().map(|digest| identity::authority(tx.conn(), digest, &context.viewer, now)).transpose()?;
+        tx.conn().execute("INSERT INTO _requests(id, name, args, principal, at, state, family, principal_generation, admitted_expires_at, args_digest) VALUES (?1, ?2, ?3, ?4, ?5, 'queued', ?6, ?7, ?8, ?9)",
+            params![id, name, args, context.viewer, now, authority.as_ref().map(|a| &a.family), authority.as_ref().map(|a| a.generation), authority.as_ref().map(|a| a.expires_at), crate::store::payload_digest(&wire_args)])?;
         let run = request(tx.conn(), id)?.ok_or_else(unknown)?;
         tx.commit()?;
         Ok((run, false))
     }
 
     pub fn action_request(&self, id: &str, principal: &str) -> Result<ActionRequest, RuntimeError> {
-        request(self.store.conn(), id)?.filter(|run| run.principal == principal).ok_or_else(unknown)
+        self.action_request_at(id, principal, crate::now_ms())
+    }
+
+    pub fn action_request_at(&self, id: &str, principal: &str, now: i64) -> Result<ActionRequest, RuntimeError> {
+        let run = request(self.store.conn(), id)?.filter(|run| run.principal == principal).ok_or_else(unknown)?;
+        if authority_expiry(self.store.conn(), &run, now)?.is_none() { return Err(unknown()); }
+        Ok(run)
+    }
+
+    pub fn replay_action(&self, id: &str, principal: &str, name: &str, args: &Json, now: i64) -> Result<Option<ActionRequest>, RuntimeError> {
+        replay(self.store.conn(), id, principal, name, args, now)
     }
 
     /// `session_seconds` is chosen per action by the worker. A lease ends
@@ -128,8 +172,13 @@ impl Engine {
         let mut claims = Vec::new();
         for id in ids {
             let run = request(tx.conn(), &id)?.ok_or_else(unknown)?;
-            let session = identity::action_session(tx.conn(), &run.principal, now, now.saturating_add(duration))?;
-            tx.conn().execute("UPDATE _requests SET state = 'running', attempts = attempts + 1, claimed_by = ?2, session_digest = ?3, lease_until = ?4, next_at = NULL, error = NULL WHERE id = ?1", params![id, worker, identity::digest(&session.token), session.expires_at])?;
+            // @ref LLP 3000.009#5.1 — a claim borrows only authority that still stands.
+            let Some(expiry) = authority_expiry(tx.conn(), &run, now)? else {
+                tx.conn().execute("UPDATE _requests SET state = 'failed', error_code = 'E_ACTION_AUTHORITY', error = ?2, settled_at = ?3, next_at = NULL, lease_until = NULL, claimed_by = NULL, session_digest = NULL WHERE id = ?1", params![id, AUTHORITY_ERROR, now])?;
+                continue;
+            };
+            let session = identity::action_session(tx.conn(), &run.principal, now, now.saturating_add(duration).min(expiry))?;
+            tx.conn().execute("UPDATE _requests SET state = 'running', attempts = attempts + 1, claimed_by = ?2, session_digest = ?3, lease_until = ?4, next_at = NULL, error = NULL, error_code = NULL WHERE id = ?1", params![id, worker, identity::digest(&session.token), session.expires_at])?;
             claims.push(ActionClaim { request: request(tx.conn(), &id)?.ok_or_else(unknown)?, session });
         }
         tx.commit()?;
@@ -161,7 +210,7 @@ impl Engine {
                 else { ("failed", Some(error), None) }
             }
         };
-        tx.conn().execute("UPDATE _requests SET state = ?2, result = ?3, error = ?4, next_at = ?5, claimed_by = NULL, session_digest = NULL, lease_until = NULL WHERE id = ?1", params![id, state, result, error, next_at])?;
+        tx.conn().execute("UPDATE _requests SET state = ?2, result = ?3, error = ?4, next_at = ?5, claimed_by = NULL, session_digest = NULL, lease_until = NULL, error_code = NULL, settled_at = ?6 WHERE id = ?1", params![id, state, result, error, next_at, if state == "queued" { None } else { Some(now) }])?;
         let run = request(tx.conn(), id)?.ok_or_else(unknown)?;
         tx.commit()?;
         Ok(run)
