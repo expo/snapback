@@ -106,4 +106,10 @@ listener; default binding remains loopback. Use a trusted TLS proxy for provider
 traffic. Only exact declared POST paths accept non-loopback requests; development
 personas still cannot authenticate a remote request. An undeclared path gains
 no access. This surface adds no SQL context or application SQL execution.
+
+Generated handlers share a bounded registry poll loop, grouped by action-session
+lifetime. Both it and the separate verifier loop rotate through at most 128
+names per claim (at most 1s waits with multiple chunks). Verification and registry
+claims have separate four-slot pools; 16 ingress waits and 32 legacy long polls
+cannot consume them. A large idle registry does not need one poll per handler.
 "##;

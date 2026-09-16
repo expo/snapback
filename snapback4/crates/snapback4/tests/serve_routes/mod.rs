@@ -40,7 +40,7 @@ fn verify(host: &Host, credential: &str, ticket: &Json, disposition: &str) -> St
         &json!({"disposition": disposition}).to_string())
 }
 fn finish(host: &Host, credential: &str, bytes: &[u8]) -> String {
-    let claims = body(&host.request("POST", "/actions/claim", credential, r#"{"action":"@route/billing","wait":1}"#));
+    let claims = body(&host.request("POST", "/actions/claim-set", credential, r#"{"actions":["@route/billing"],"wait":1}"#));
     assert_eq!(claims["requests"].as_array().unwrap().len(), 1, "{claims}");
     let claim = &claims["requests"][0];
     assert_eq!(claim["principal"], "service:billing");
@@ -193,6 +193,48 @@ fn route_wait_capacity_leaves_verification_and_short_core_requests_available() {
     for delivery in deliveries { assert_eq!(status(&response_text(&delivery.join().unwrap())), 403); }
     wait_until(|| host.admission.routes.load(Ordering::Acquire) == 0);
     assert_eq!(records(&host), 0);
+}
+
+#[test]
+fn saturated_legacy_waits_cannot_starve_route_verification_or_registry_execution() {
+    let host = host("2500ms"); let worker = worker(&host);
+    let mut polls = Vec::new();
+    for _ in 0..WAIT_WORKERS {
+        let mut stream = TcpStream::connect(host.address).unwrap();
+        stream.write_all(b"GET /changes?since=0&wait=25 HTTP/1.1\r\nHost: localhost\r\nx-snapback-persona: alice\r\nConnection: close\r\n\r\n").unwrap();
+        polls.push(stream);
+    }
+    wait_until(|| host.admission.waiters.load(Ordering::Acquire) == WAIT_WORKERS);
+    let delivery = delivery(&host, b"progress-under-saturation", "");
+    let ticket = claimed(&host, &worker);
+    assert_eq!(body(&verify(&host, &worker, &ticket, "allow"))["ok"], true);
+    finish(&host, &worker, b"completed");
+    assert_eq!(status(&response_text(&delivery.join().unwrap())), 201);
+    assert_eq!(host.admission.waiters.load(Ordering::Acquire), WAIT_WORKERS);
+    assert_eq!(body(&host.request("POST", "/q/who", "x-snapback-persona: alice\r\n", "{}"))["data"], "dev:alice");
+    *lock(&host.shared.seq) = 1;
+    host.shared.committed.notify_all();
+    wait_until(|| host.admission.waiters.load(Ordering::Acquire) == 0);
+}
+
+#[test]
+fn registry_claims_have_bounded_input_and_recheck_worker_revision() {
+    let host = host("100ms"); let worker = worker(&host);
+    for payload in [json!({}), json!({"actions":[]}), json!({"actions":[1]}), json!({"actions":[""]}), json!({"actions":["a".repeat(129)]}), json!({"actions":vec!["a";129]}), json!({"actions":["a"],"action":"a"})] {
+        assert_eq!(status(&host.request("POST", "/actions/claim-set", &worker, &payload.to_string())), 400);
+    }
+    assert_eq!(status(&host.request("POST", "/actions/claim-set", "", r#"{"actions":["a"]}"#)), 401);
+    let old = crate::dev_worker::child_session(lock(&host.shared.engine).store(), host.shared.now(), 0).unwrap();
+    let headers = format!("Authorization: Bearer {}\r\n", old.token);
+    let address = host.address;
+    let poll = thread::spawn(move || {
+        let body = r#"{"actions":["a"],"wait":2}"#;
+        exchange(address, &format!("POST /actions/claim-set HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n{headers}Content-Length: {}\r\n\r\n{body}", body.len()))
+    });
+    wait_until(|| host.admission.registries.load(Ordering::Acquire) == 1);
+    host.shared.worker_revision.fetch_add(1, Ordering::Release);
+    host.shared.committed.notify_all();
+    assert_eq!(status(&poll.join().unwrap()), 401);
 }
 
 #[test]

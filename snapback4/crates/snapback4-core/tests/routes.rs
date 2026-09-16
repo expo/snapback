@@ -91,6 +91,31 @@ fn claim(engine: &mut Engine, at: i64) -> snapback4_core::engine::actions::Actio
 }
 
 #[test]
+fn registry_claims_filter_names_and_preserve_group_lifetime_and_limit() {
+    let mut schema = schema_with(spec());
+    let other = RouteSpec { path: "/hooks/other".into(), ..spec() };
+    schema.routes.insert("other".into(), other.clone());
+    let mut engine = Engine::memory(schema, []).unwrap();
+    let billing = verified(&mut engine, b"billing-first", 0);
+    let envelope = RouteRequest { path: other.path.clone(), ..request(b"other") };
+    let other_run = engine.request_verified_route("other", &other.contract("other"), &envelope, 0, 1).unwrap().0;
+    let last = verified(&mut engine, b"billing-last", 2);
+    for names in [vec![], vec!["".into()], vec!["a".repeat(129)], vec!["@route/billing".into(); 129]] {
+        assert_eq!(engine.claim_action_set("service:worker", &names, 10, 10_000, 10, 3).unwrap_err().code(), "E_INPUT");
+    }
+    assert!(engine.claim_action_set("dev:alice", &["@route/billing".into()], 1, 10_000, 10, 3).is_err());
+    assert!(engine.claim_action_set("service:worker", &["unregistered".into()], 10, 10_000, 10, 3).unwrap().is_empty());
+    let claims = engine.claim_action_set("service:worker", &["@route/other".into()], 10, 10_000, 2, 4).unwrap();
+    assert_eq!(claims.len(), 1); assert_eq!(claims[0].request.id, other_run.id);
+    assert_eq!(claims[0].session.expires_at, 2_004);
+    let claims = engine.claim_action_set("service:worker", &["@route/billing".into(), "@route/other".into()], 1, 10_000, 5, 5).unwrap();
+    assert_eq!(claims.len(), 1); assert_eq!(claims[0].request.id, billing.id);
+    assert_eq!(claims[0].session.expires_at, 5_005);
+    let legacy = engine.claim_actions("service:worker", None, 10, 10_000, 10, 6).unwrap();
+    assert_eq!(legacy.len(), 1); assert_eq!(legacy[0].request.id, last.id);
+}
+
+#[test]
 fn verified_retries_join_one_body_and_retain_the_first_authenticated_envelope() {
     let mut engine = engine();
     let contract = spec().contract("billing");

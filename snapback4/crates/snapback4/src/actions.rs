@@ -86,7 +86,22 @@ pub(super) fn call(request: Request, shared: &Shared, name: &str, body: &str) {
 }
 
 pub(super) fn claim(request: Request, shared: &Shared, body: &str) {
+    claim_selected(request, shared, body, false)
+}
+
+pub(super) fn claim_set(request: Request, shared: &Shared, body: &str) {
+    claim_selected(request, shared, body, true)
+}
+
+fn claim_selected(request: Request, shared: &Shared, body: &str, registry: bool) {
     let payload: Json = match serde_json::from_str(body) { Ok(Json::Object(p)) => Json::Object(p), _ => return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "claim takes an object") })) };
+    let names: Option<Vec<String>> = if registry {
+        let names = payload.get("actions").and_then(Json::as_array).and_then(|values| values.iter().map(|value| value.as_str().filter(|name| !name.is_empty() && name.len() <= 128).map(str::to_owned)).collect::<Option<Vec<_>>>());
+        match names {
+            Some(names) if !names.is_empty() && names.len() <= 128 && payload.get("action").is_none() => Some(names),
+            _ => return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "claim-set takes actions: 1–128 names of 1–128 bytes, without action") })),
+        }
+    } else { None };
     let action = payload.get("action").and_then(Json::as_str);
     let limit = payload.get("limit").and_then(Json::as_u64).unwrap_or(1).clamp(1, 100) as usize;
     let lease = payload.get("lease").and_then(Json::as_i64).unwrap_or(60).clamp(1, 900) * 1_000;
@@ -96,7 +111,10 @@ pub(super) fn claim(request: Request, shared: &Shared, body: &str) {
         let (worker, claimed) = {
             let mut engine = lock(&shared.engine);
             let worker = match service_of_locked(&request, shared, &engine) { Ok(worker) => worker, Err(why) => return respond(request, 401, json!({ "denied": why })) };
-            let claimed = engine.claim_actions(&worker, action, limit, lease, session, shared.now());
+            let claimed = match &names {
+                Some(names) => engine.claim_action_set(&worker, names, limit, lease, session, shared.now()),
+                None => engine.claim_actions(&worker, action, limit, lease, session, shared.now()),
+            };
             (worker, claimed)
         };
         match claimed {

@@ -237,11 +237,26 @@ impl Engine {
     /// `session_seconds` is chosen per action by the worker. A lease ends
     /// at the earlier of its requested duration and the viewer session's.
     pub fn claim_actions(&mut self, worker: &str, action: Option<&str>, limit: usize, lease_ms: i64, session_seconds: i64, now: i64) -> Result<Vec<ActionClaim>, RuntimeError> {
+        self.claim_selected_actions(worker, action, None, limit, lease_ms, session_seconds, now)
+    }
+
+    /// A generated registry polls one bounded name set, not one long poll per
+    /// handler. Callers group names by their requested session lifetime.
+    // @ref LLP 3000.009#5.1 — bounded claim-only coupling cannot starve route verification.
+    pub fn claim_action_set(&mut self, worker: &str, actions: &[String], limit: usize, lease_ms: i64, session_seconds: i64, now: i64) -> Result<Vec<ActionClaim>, RuntimeError> {
+        if actions.is_empty() || actions.len() > 128 || actions.iter().any(|name| name.is_empty() || name.len() > 128) {
+            return Err(RuntimeError::Input("claim actions must contain 1–128 names of 1–128 bytes".into()));
+        }
+        let names = serde_json::to_string(actions).map_err(|error| RuntimeError::Input(error.to_string()))?;
+        self.claim_selected_actions(worker, None, Some(&names), limit, lease_ms, session_seconds, now)
+    }
+
+    fn claim_selected_actions(&mut self, worker: &str, action: Option<&str>, names: Option<&str>, limit: usize, lease_ms: i64, session_seconds: i64, now: i64) -> Result<Vec<ActionClaim>, RuntimeError> {
         if !identity::is_service(worker) { return Err(RuntimeError::Auth("actions are claimed by a service".into())); }
         let duration = lease_ms.clamp(1_000, MAX_LEASE_MS).min(session_seconds.clamp(1, MAX_LEASE_MS / 1_000) * 1_000);
         let tx = self.store.transaction()?;
         expire(tx.conn(), now)?;
-        let ids: Vec<String> = tx.conn().prepare("SELECT id FROM _requests WHERE state = 'queued' AND (next_at IS NULL OR next_at <= ?1) AND (?2 IS NULL OR name = ?2) ORDER BY at, id LIMIT ?3")?.query_map(params![now, action, limit.clamp(1, 100) as i64], |row| row.get(0))?.collect::<Result<_, _>>()?;
+        let ids: Vec<String> = tx.conn().prepare("SELECT id FROM _requests WHERE state = 'queued' AND (next_at IS NULL OR next_at <= ?1) AND (?2 IS NULL OR name = ?2) AND (?4 IS NULL OR name IN (SELECT value FROM json_each(?4))) ORDER BY at, id LIMIT ?3")?.query_map(params![now, action, limit.clamp(1, 100) as i64, names], |row| row.get(0))?.collect::<Result<_, _>>()?;
         let mut claims = Vec::new();
         for id in ids {
             let run = request(tx.conn(), &id)?.ok_or_else(unknown)?;

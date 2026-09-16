@@ -353,22 +353,24 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
 const REQUEST_WORKERS: usize = 32;
 const WAIT_WORKERS: usize = 32;
 const ROUTE_WORKERS: usize = 16;
+const REGISTRY_WORKERS: usize = 4;
+const VERIFIER_WORKERS: usize = 4;
 
 #[derive(Default)]
-struct RequestAdmission { short: AtomicUsize, waiters: AtomicUsize, routes: AtomicUsize }
+struct RequestAdmission { short: AtomicUsize, waiters: AtomicUsize, routes: AtomicUsize, registries: AtomicUsize, verifiers: AtomicUsize }
 
 #[derive(Clone, Copy)]
-enum RequestClass { Short, Wait, Route }
+enum RequestClass { Short, Wait, Route, Registry, Verifier }
 struct RequestPermit { admission: Arc<RequestAdmission>, class: RequestClass }
 impl Drop for RequestPermit {
     fn drop(&mut self) { self.admission.counter(self.class).fetch_sub(1, Ordering::AcqRel); }
 }
 impl RequestAdmission {
     fn counter(&self, class: RequestClass) -> &AtomicUsize {
-        match class { RequestClass::Short => &self.short, RequestClass::Wait => &self.waiters, RequestClass::Route => &self.routes }
+        match class { RequestClass::Short => &self.short, RequestClass::Wait => &self.waiters, RequestClass::Route => &self.routes, RequestClass::Registry => &self.registries, RequestClass::Verifier => &self.verifiers }
     }
     fn acquire(self: &Arc<Self>, class: RequestClass) -> Option<RequestPermit> {
-        let limit = match class { RequestClass::Short => REQUEST_WORKERS, RequestClass::Wait => WAIT_WORKERS, RequestClass::Route => ROUTE_WORKERS };
+        let limit = match class { RequestClass::Short => REQUEST_WORKERS, RequestClass::Wait => WAIT_WORKERS, RequestClass::Route => ROUTE_WORKERS, RequestClass::Registry => REGISTRY_WORKERS, RequestClass::Verifier => VERIFIER_WORKERS };
         self.counter(class).fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| (n < limit).then_some(n + 1)).ok()?;
         Some(RequestPermit { admission: self.clone(), class })
     }
@@ -378,6 +380,8 @@ fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmissi
     let path = request.url().split('?').next().unwrap_or("");
     // Route waits cannot occupy the polls needed to verify or execute them.
     let class = if request.method() == &Method::Post && routes::declared(shared.as_ref(), request.url()).is_some() { RequestClass::Route }
+        else if request.method() == &Method::Post && path == "/routes/verify/claim" { RequestClass::Verifier }
+        else if request.method() == &Method::Post && path == "/actions/claim-set" { RequestClass::Registry }
         else if is_waiter(request.method(), path) { RequestClass::Wait } else { RequestClass::Short };
     let Some(permit) = admission.acquire(class) else { request.abort(); return; };
     if let Err(error) = std::thread::Builder::new().name("request".into()).spawn(move || { let _permit = permit; handle(request, &shared); }) {
@@ -387,7 +391,7 @@ fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmissi
 
 fn is_waiter(method: &Method, path: &str) -> bool {
     (method == &Method::Get && path == "/changes")
-        || (method == &Method::Post && (path == "/effects/claim" || path == "/actions/claim" || path == "/routes/verify/claim" || path.starts_with("/a/")))
+        || (method == &Method::Post && (path == "/effects/claim" || path == "/actions/claim" || path.starts_with("/a/")))
 }
 
 /// A worker's seat: a bearer session of a service principal.
@@ -789,6 +793,7 @@ fn handle(mut request: Request, shared: &Shared) {
         (Method::Post, "/dev/clock/advance") => maintenance::advance(request, shared, &body),
         (Method::Post, path) if path.starts_with("/a/") => actions::call(request, shared, path.trim_start_matches("/a/"), &body),
         (Method::Post, "/actions/claim") => actions::claim(request, shared, &body),
+        (Method::Post, "/actions/claim-set") => actions::claim_set(request, shared, &body),
         (Method::Post, "/routes/verify/claim") => routes::claim(request, shared, &body),
         (Method::Post, path) if path.starts_with("/routes/verify/") => routes::settle(request, shared, path, &body),
         (Method::Post, path) if path.starts_with("/actions/") => actions::settle(request, shared, path, &body),

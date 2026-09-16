@@ -259,9 +259,15 @@ headers cannot be supplied. HTTP 204, 205 and 304 must have empty bodies.
 `dev --bind 0.0.0.0 --i-understand-cleartext` permits provider ingress through a
 trusted TLS proxy. Only an exact declared POST path bypasses the development
 loopback gate. Development binding accepts only loopback or wildcard IPs
-(`0.0.0.0`/`::`), preserving a loopback path for the supervised worker. The
-personas, seed, schema, queries, worker doors, unknown paths,
+(`0.0.0.0`/`::`), preserving a loopback path for the supervised worker.
+Personas, seed, schema, queries, worker doors, unknown paths,
 query variants and mismatched methods remain gated. Route waits have 16 slots
-separate from the 32 worker/long-poll slots and 32 short requests. Unverified
+separate from 4 verification polls, 4 generated-registry polls, 32 legacy
+worker/long-poll slots and 32 short requests. Generated handlers share one
+action poll loop, grouping names by session lifetime and rotating through
+chunks of at most 128; verification uses its own rotating loop. Multiple
+chunks use at most 1s waits, so idle handlers cannot monopolize claim capacity.
+Legacy `runWorker` keeps its per-name polling unless `actionRegistry: true`.
+Unverified
 tickets are ephemeral, bounded and fenced: a verifier/core crash before
 admission yields a retry, not an unauthorized durable invocation.
