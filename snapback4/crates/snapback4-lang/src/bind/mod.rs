@@ -171,6 +171,10 @@ fn bind_schedule(decl: &crate::ast::ScheduleDecl, programs: &[BoundProgram]) -> 
         (_, Some(service)) if !service.strip_prefix("service:").is_some_and(|name| !name.is_empty() && name.len() <= 64 && name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')) => return Err(Diagnostic::new(&decl.site, "E_SCHEDULE", "a service seat needs 1–64 letters, digits, _ or -", "as service:billing").guide("actions")),
         _ => {}
     }
+    if target.program.kind == ProgramKind::Action && decl.service.as_deref().is_some_and(|service|
+        snapback4_core::engine::actions::authorize(&target.program, service).is_err()) {
+        return Err(Diagnostic::new(&decl.site, "E_SCHEDULE", "the scheduled service seat is refused by the action's admission rule", "name a service seat the action admits, or revise its rule").guide("actions"));
+    }
     for (name, kind) in &target.program.args {
         if !(matches!(name.as_str(), "periodStart" | "periodEnd") && *kind == ArgType::Time) {
             return Err(Diagnostic::new(&decl.site, "E_SCHEDULE", format!("schedule {} fires {}, whose argument {name} the clock cannot supply; a scheduled job or action takes periodStart: time and periodEnd: time, or nothing", decl.name, decl.target), if target.program.kind == ProgramKind::Action { format!("action {}(periodStart: time, periodEnd: time)", decl.target) } else { rewrite }));

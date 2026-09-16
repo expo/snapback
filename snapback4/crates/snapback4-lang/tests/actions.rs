@@ -158,3 +158,14 @@ fn invalid_action_does_not_overwrite_an_existing_operation_or_valid_spec() {
     let bound = refused("action send() returns {} <- missing\n", "action rule compares");
     assert!(bound.schema.action_specs.is_empty());
 }
+
+#[test]
+fn schedule_checks_the_same_static_service_rule_as_runtime_activation() {
+    for rule in ["deny", "viewer = 'service:allowed'", "not (viewer = 'service:denied')", "viewer = 'service:allowed' or viewer = 'service:another'"] {
+        let bound = refused(&format!("action tick() <- {rule}\nschedule pulse every 1m as service:denied: tick\n"), "refused by the action's admission rule");
+        assert!(bound.diagnostics.iter().any(|d| d.code == "E_SCHEDULE"));
+    }
+    for rule in ["allow", "viewer = 'service:allowed'", "viewer != 'service:denied'", "viewer = 'service:allowed' and not (viewer = 'service:denied')"] {
+        clean(&format!("action tick() <- {rule}\nschedule pulse every 1m as service:allowed: tick\n"));
+    }
+}

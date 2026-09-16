@@ -108,7 +108,9 @@ fn replay(conn: &Connection, id: &str, principal: &str, name: &str, args: &Json,
 
 /// An action's compiled body is only its rule. Refuse any other IR rather
 /// than accidentally running data-plane statements as an action.
-pub(super) fn authorize(program: &Program, viewer: &str) -> Result<(), RuntimeError> {
+/// Shared by declaration checking and runtime admission; schedules must not
+/// pass `check` only to fail the identical static rule during activation.
+pub fn authorize(program: &Program, viewer: &str) -> Result<(), RuntimeError> {
     fn value(expr: &Expr, viewer: &str) -> Option<Value> {
         Some(match expr {
             Expr::Literal(v @ (Value::Bool(_) | Value::Id(_))) => v.clone(),
