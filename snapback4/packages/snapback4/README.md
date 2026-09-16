@@ -1084,9 +1084,10 @@ local read past them says `complete: false`). A snapshot arrives in pages
 of 2,000 events, each staged in its own transaction and published
 together with the last, so a device never shows half a snapshot.
 Suppression is reader-dependent, even for an uncapped `sync public` table.
-Silence means "no reader in this program forced the check", not "this table is bounded".
-Inspect the table's `sync`, horizon and group `cap` with `check --residency`;
-an absent note does not certify a safe cold-start size.
+Eligible mutations that require whole-partition coverage can suppress this
+advice. An absent note does not certify bounded acquisition or a safe
+cold-start size.
+Inspect the table's `sync`, horizon and group `cap` with `check --residency`.
 
 `online only` optionally documents a table with no sync. On a `maintain`,
 it opts out of inherited sync. `N_MAINTAIN_SYNCED` calls out public inherited

@@ -100,7 +100,10 @@ impl Parser {
         if body.is_empty() {
             // @ref LLP 3000.007#18.5 — recovery's empty operation adds no repair beyond the earlier error in its own body.
             let mut diagnostic = syntax(&kind_token.site, format!("{} {name} has an empty body", kind_token.value));
-            diagnostic.cascade_of = self.diagnostics[before_body..].iter().find(|d| d.code.starts_with("E_")).map(|d| d.site.clone());
+            // A job's parsed prelude cannot explain missing chunks; that repair is independent.
+            if kind != ProgramKind::Job {
+                diagnostic.cascade_of = self.diagnostics[before_body..].iter().find(|d| d.code.starts_with("E_")).map(|d| d.site.clone());
+            }
             return Err(diagnostic);
         }
         Ok(ProgramDecl { held, predicts, server, kind, name, args, prelude, body, native: false, site: kind_token.site })

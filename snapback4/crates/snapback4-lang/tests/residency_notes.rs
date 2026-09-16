@@ -12,10 +12,15 @@ fn clean(source: &str) -> Bound {
 fn online() -> String { SOURCE.replace("  read <- allow", "  read <- allow\n  online only") }
 
 #[test]
-fn w10c_no_horizon_silence_is_not_a_bound() {
-    let sentence = "Silence means \"no reader in this program forced the check\", not \"this table is bounded\".";
-    assert!(snapback4_lang::guide::card("sync").unwrap().contains(sentence));
+fn w10r1_no_horizon_card_matches_reader_suppression() {
+    let sentence = "Eligible mutations that require whole-partition coverage can suppress this advice. An absent note does not certify bounded acquisition or a safe cold-start size.";
+    assert!(snapback4_lang::guide::card("sync").unwrap().split_whitespace().collect::<Vec<_>>().join(" ").contains(sentence));
     assert!(snapback4_lang::guide::CODES.iter().find(|(code, _)| *code == "N_NO_HORIZON").unwrap().1.contains(sentence));
+    assert!(include_str!("../../../packages/snapback4/README.md").split_whitespace().collect::<Vec<_>>().join(" ").contains(sentence));
+}
+
+#[test]
+fn w10r1_no_horizon_advice_is_suppressed_by_an_eligible_whole_partition_reader() {
     let source = "table profiles:\n  name: text <=50\n  public 'directory'\n  sync public\n";
     let without_reader = clean(source);
     assert_eq!(without_reader.notes.iter().filter(|n| n.code == "N_NO_HORIZON").count(), 1);

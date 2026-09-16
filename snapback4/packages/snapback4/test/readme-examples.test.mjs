@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import ts from "typescript";
 import { runInNewContext } from "node:vm";
+import { createClient } from "../dist/client.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (path) => readFileSync(path, "utf8");
@@ -159,4 +160,91 @@ test("W10b typing guidance hides a short-lived row before the next answer", () =
     assert.deepEqual(painted.at(-1), []);
     assert.equal(rows.length, 1, "no replacement answer or server removal arrived");
   }
+});
+
+test("W10R1 typing renderer replaces deadlines on a live watch and cleans up on unmount", { timeout: 10_000 }, async t => {
+  const source = read(join(root, "CLIENT-AND-OPERATIONS.md")).match(/function showExpiringRows[\s\S]*?\n}/)?.[0];
+  assert.ok(source, "use the published renderer, including its cleanup");
+  const start = Date.now() + 60_000; // Real client timers cannot race the controlled rendering clock.
+  let now = start, serial = 0, seq = 1, queries = 0;
+  let answer = [{ principal: "alice", expiresAt: start + 4500 }];
+  let pendingChange;
+  const timers = new Map(), painted = [], cleared = [];
+  const show = runInNewContext(`${ts.transpile(source, { target: ts.ScriptTarget.ES2022 })}\nshowExpiringRows;`, {
+    Date: { now: () => now },
+    setTimeout: (fn, delay) => { const id = ++serial; timers.set(id, { fn, at: now + delay }); return id; },
+    clearTimeout: id => { cleared.push(id); timers.delete(id); },
+  });
+  const advance = at => {
+    now = at;
+    for (const [id, timer] of [...timers]) if (timer.at <= now) { timers.delete(id); timer.fn(); }
+  };
+  const until = async check => {
+    const deadline = performance.now() + 5000;
+    while (!check()) {
+      assert.ok(performance.now() < deadline, "live watch did not receive its next answer");
+      await new Promise(resolve => setTimeout(resolve, 5));
+    }
+  };
+  // Real observe/subscribe and change-feed invalidation; the transport controls
+  // reply order, while the Rust fixture exercises these rows on both stores.
+  const client = createClient({ url: "http://typing.invalid", persona: "alice", fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === "/q/typingNow") {
+      queries++;
+      return Response.json({ data: answer, complete: true, nextExpiry: answer[0]?.expiresAt ?? null, seq, tables: ["typing"], viewer: "dev:alice" });
+    }
+    assert.equal(path, "/changes");
+    return new Promise((resolve, reject) => {
+      const abort = () => { pendingChange = undefined; reject(init.signal.reason); };
+      init.signal.addEventListener("abort", abort, { once: true });
+      pendingChange = () => {
+        init.signal.removeEventListener("abort", abort);
+        pendingChange = undefined;
+        resolve(Response.json({ seq, tables: ["typing"], generation: 1 }));
+      };
+    });
+  } });
+  t.after(() => client.close());
+  const watch = client.observe({ kind: "query", name: "typingNow" }, { roomId: "room" });
+  let cleanup = () => {};
+  const unsubscribe = watch.subscribe(() => {
+    const read = watch.getSnapshot();
+    if (!("data" in read)) return;
+    cleanup();
+    cleanup = show(read.data, rows => painted.push(Array.from(rows, row => row.principal)));
+  });
+  const unmount = () => { unsubscribe(); watch.close(); cleanup(); };
+  t.after(unmount);
+  await until(() => painted.length === 1 && pendingChange);
+  assert.deepEqual(painted, [["alice"]]);
+  const originalTimer = [...timers.keys()][0];
+  const originalAnswer = watch.getSnapshot().data;
+  advance(start + 3000);
+  answer = [{ principal: "alice", expiresAt: start + 7500 }];
+  seq++; pendingChange();
+  await until(() => painted.length === 2 && pendingChange);
+  assert.ok(cleared.includes(originalTimer), "the extended answer cancels the old deadline");
+  assert.notEqual(watch.getSnapshot().data, originalAnswer);
+  const paintsBeforeOldDeadline = painted.length;
+  advance(start + 4500);
+  assert.equal(painted.length, paintsBeforeOldDeadline, "the old answer's timer must not repaint an empty indicator");
+  assert.deepEqual(painted.at(-1), ["alice"]);
+  advance(start + 7500);
+  assert.deepEqual(painted.at(-1), [], "the replacement deadline hides Alice without another answer");
+  assert.equal(watch.getSnapshot().data.length, 1, "rendering does not mutate the watch answer");
+  answer = [{ principal: "bob", expiresAt: start + 12_000 }];
+  seq++; pendingChange();
+  await until(() => painted.at(-1)?.[0] === "bob" && pendingChange);
+  const queriesBeforeUnmount = queries, paintsBeforeUnmount = painted.length;
+  assert.equal(timers.size, 1);
+  unmount();
+  assert.equal(timers.size, 0, "unmount cancels the replacement answer's timer");
+  answer = [{ principal: "carol", expiresAt: start + 15_000 }];
+  seq++; pendingChange();
+  await new Promise(resolve => setImmediate(resolve));
+  advance(start + 20_000);
+  assert.equal(painted.length, paintsBeforeUnmount, "neither old timers nor later changes paint an unmounted reader");
+  assert.equal(queries, queriesBeforeUnmount, "a closed watch does not refetch");
+  t.diagnostic("live typing: answers=3 initial_deadline_ms=4500 extended_deadline_ms=7500 old_deadline_repaints=0 timers_after_unmount=0");
 });
