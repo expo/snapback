@@ -3856,3 +3856,99 @@ current-main, cold-start, device/realtime, restart or durability result.
 The [sync follow-up](../../../issues/20260914-snapback4-sync-concurrent-tail-latency.md)
 remains open. One optimization round remains; a candidate restricted to
 already-caught-up empty polls has not yet been written or measured.
+
+
+### Caught-up empty-sync reader reuse: final variant, still unshipped (2026-09-15)
+
+The third runtime variant restricts reuse to stream requests whose starting
+watermark matches the host's current sequence hint. It returns the loan only
+when the fresh response succeeds, contains no events or joined groups, has
+no more pages, and leaves that watermark unchanged. Other sync readers are
+fresh or discarded. Query reuse and the existing 32-reader bound remain.
+Transactions, viewer checks, acknowledgements and pool epochs are evaluated
+as before; the hint does not cache a response or an authorization decision.
+
+Six original serial runs compare fixed source 788c21d6 / 0.2.22 with this
+host-only change. Retained production binaries are baseline `3d9b8315…`
+and candidate `22976be7…`. The Ubuntu 24.04 / AMD EPYC 9454 host, Rust
+1.97.0 production profile, packaged SQLite build flag, enabled MEMSTATUS,
+and Node 24.21.0 / Undici 7.29.1 match the preceding fixed-source protocol.
+Orders are B/C, C/B, B/C, with reversed case order in the middle pair.
+All 12,000 timed calls, 1,200 excluded warmups, 192 ordinary-auth captures,
+48 complete walks and 144 reconstructed page hashes pass. Original clients
+exit zero; each recorded server receives its planned TERM and its group
+is observed absent. The separate 320-call smoke is excluded below.
+
+Medians of three per-run statistics follow, baseline → candidate.
+Latency is ms; C1/C8 denotes concurrency. Requested-4,000 streams return
+3,584 events at this fixture's commit boundaries.
+
+| Case | p50 | p95 | p99 | Maximum | Requests/s |
+|---|---:|---:|---:|---:|---:|
+| snapshot64FirstC1 | 1.426 → 1.420 | 2.374 → 2.261 | 2.897 → 2.775 | 4.702 → 4.775 | 626.313 → 648.760 |
+| snapshot64FirstC8 | 5.493 → 5.541 | 9.595 → 11.041 | 19.271 → 30.733 | 24.442 → 31.828 | 1319.513 → 1234.021 |
+| snapshot4000FirstC1 | 27.847 → 29.319 | 31.904 → 36.594 | 33.813 → 37.450 | 34.214 → 38.242 | 31.023 → 29.151 |
+| snapshot4000FirstC8 | 61.310 → 62.359 | 86.398 → 84.801 | 124.027 → 123.613 | 149.607 → 132.728 | 120.531 → 118.899 |
+| snapshot4000NextC1 | 30.280 → 30.276 | 33.086 → 33.070 | 34.014 → 34.425 | 36.836 → 35.252 | 28.106 → 28.012 |
+| snapshot4000NextC8 | 60.277 → 59.908 | 79.467 → 80.781 | 103.498 → 98.115 | 118.042 → 113.658 | 124.593 → 125.446 |
+| stream4000C1 | 50.649 → 50.406 | 53.401 → 53.844 | 55.402 → 56.300 | 57.683 → 57.922 | 17.913 → 18.026 |
+| stream4000C8 | 65.737 → 64.891 | 126.273 → 96.901 | 182.667 → 167.705 | 199.613 → 182.106 | 106.391 → 106.060 |
+| streamEmptyC1 | 0.771 → 0.511 | 1.238 → 0.692 | 1.605 → 0.936 | 1.921 → 1.185 | 1196.859 → 1845.511 |
+| streamEmptyC8 | 4.091 → 1.382 | 7.608 → 2.247 | 10.024 → 3.150 | 10.719 → 5.109 | 1791.456 → 5322.631 |
+
+Empty-stream C8 p50 improves 4.091 → 1.382 ms, with rate 1,791.456 →
+5,322.631 requests/s. Both empty cases improve p50/p95/rate in all three
+pairs. First-4,000-snapshot C1 p50/p95/rate worsen in all three pairs;
+its median p50 rises 5.29% and p95 14.70%. Small-snapshot C8 rate also
+worsens in all three pairs, with median p99 rising 59.48%. All **25 median
+and 79 paired metric losses** remain, counting elapsed and correlated rate
+separately. The unchanged snapshot code does not establish that these
+observed differences are noise or identify their cause.
+
+Two untimed observations per process follow preparation/full walks and then
+the repeated cases, before final walks. Medians below are KiB.
+
+| Phase | Baseline RSS | Candidate RSS | Baseline reported VmHWM | Candidate reported VmHWM |
+|---|---:|---:|---:|---:|
+| before-cases | 22,016 | 22,332 | 25,840 | 26,324 |
+| after-cases | 126,228 | 96,348 | 141,864 | 138,904 |
+
+After-case RSS paired differences are −29,880, +4,528 and −28,284 KiB.
+The earlier variants' large RSS increase does not repeat in these points,
+but they establish neither causal memory reduction nor continuous peaks.
+Reported VmHWM retains its previously documented measurement limits.
+
+The candidate's original production build and 153 CLI tests pass; its
+wrapper then fails on a stale required-test name. A separate continuation
+preserves that failure, reuses the exact build/test records and binary,
+and runs only the version check and nine HTTP-bound tests, all passing.
+The original root smoke calculation also stops on a stale loader hash;
+one literal is corrected with arithmetic unchanged. The first corrected
+root calculation and unchanged independent calculation reconcile all
+360 formal raw values, 120 medians, 180 paired contrasts and 12 resource
+points. No workload or independent-calculator rerun replaces an outcome.
+Formal completion is `b6e1328e…`, transfer `44b2c1dd…`, and independent
+final review `ba95887a…`; the full originals and bindings are in storage
+workload `sync-reader-reuse-0222-v4-perf-formal`.
+
+A subsequent, separate host test passes for logical membership expiry
+before the physical sweep: an ordinary viewer receives a scope revocation
+at the same watermark, keeps only its own acknowledgements, and the
+nonempty response discards the borrowed reader. Fresh reads hide expired
+rows while a second viewer stays authorized; after logout, Alice's next
+poll is refused. This uses the existing test host's development
+clock and real HTTP handler on file-backed SQLite. It adds one test to the
+unchanged candidate runtime; it is not a production-binary latency or
+expiry-memory measurement. All 792 source inputs and the retained measured
+binary are rechecked. The original one-test receipt is `de209c31…`.
+
+The candidate remains **unshipped**. Snapshot regressions remain in the
+[sync follow-up](../../../issues/20260914-snapback4-sync-concurrent-tail-latency.md).
+Mixed query/sync traffic and expiring-audience retained-memory measurements
+are still pending before any adoption decision. This is the third runtime
+variant; further runtime revisions are outside this completed fix loop.
+HTTP/text/JSON parsing ends the latency timer; response hashing follows it
+but remains in case rates and can interfere across concurrent callbacks.
+The fixture is warm, with no cache reset or CPU isolation. This screen
+makes no new comparator, current-main, cold-start, device/realtime,
+restart, durability or publication claim.

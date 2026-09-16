@@ -88,3 +88,31 @@ the existing benchmark record. The tracked runtime never changed. One
 optimization round remains: investigate already-caught-up empty polls
 without pooling large sync responses. Any promising shared-pool candidate
 still needs a mixed query/sync check before adoption.
+
+
+## 2026-09-15 — caught-up-only variant improves empty polls; snapshots remain open
+
+The third fixed 788c21d6 / 0.2.22 runtime variant limits reuse to caught-up
+empty stream responses. All 12,000 formal timed calls and 1,200 warmups
+pass. Both original formal calculations and the independent evidence
+review pass, retaining 25 median and 79 paired metric losses.
+
+Empty-stream C8 p50 falls 4.091 → 1.382 ms and throughput rises
+1,791.456 → 5,322.631 requests/s. First-4,000-snapshot C1 p50/p95/rate
+worsen in every pair; median p50 rises 5.29% and p95 14.70%. Small-snapshot
+C8 rate worsens in every pair and median p99 rises 59.48%. These losses
+remain unresolved. After-case RSS medians are 126,228 → 96,348 KiB;
+paired differences −29,880/+4,528/−28,284 KiB are process points, not
+causal memory reduction or continuous peaks.
+
+A separate ordinary-guest host test passes same-watermark logical expiry,
+viewer/acknowledgement freshness, reader discard on scope revocation and
+logout. Mixed query/sync traffic and expiring-audience memory remain
+unmeasured. Candidate source remains ignored and unshipped; all three
+runtime variants have now been measured. No fourth runtime variant is
+part of this fix loop. This ticket remains open.
+
+Evidence: storage workload `sync-reader-reuse-0222-v4-perf-formal`, the
+existing benchmark record, and original expiry receipt `de209c31…`.
+The failed first qualification wrapper and root smoke hash check remain
+preserved; their narrow corrections did not rerun the measured workload.

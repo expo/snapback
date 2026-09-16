@@ -20157,3 +20157,32 @@ admission, ids bound to operation and arguments, `why <id>`, `serve --worker`)
 and `sb4/w9-c1` (prefetch, the pipelined commit tail, the portable key bound,
 dual-store suites), both cut from the landing tip with their briefs; the lead
 writes the online-only brief.
+
+
+## 2026-09-15 — caught-up empty-sync gains retain snapshot regressions
+
+The third host-only pooling variant reduces empty-stream C8 median p50
+4.091 → 1.382 ms and raises rate 1,791.456 → 5,322.631 requests/s in
+three fixed-source 0.2.22 pairs. All 12,000 timed requests, 1,200 warmups,
+authorization checks and full walks pass. After-case RSS medians are
+126,228 → 96,348 KiB, with one positive and two negative paired changes;
+these points do not establish a causal memory reduction.
+
+The candidate remains unshipped. First-4,000-snapshot C1 p50/p95/rate and
+small-snapshot C8 rate worsen in every pair. Both original formal
+calculations and independent review retain all 25 median and 79 paired
+metric losses. The original qualifier's stale test-name failure and root
+smoke's stale loader-pin failure remain, with their narrow corrections;
+no measured run or independent calculation was repeated.
+
+A subsequent host test passes unswept membership expiry at an unchanged
+watermark, including scope revocation, viewer and acknowledgement freshness,
+reader discard and logout. It uses ordinary guests and file-backed SQLite
+with the existing test clock; the measured runtime and retained production
+binary are unchanged. This is one test-profile check, not an expiry-memory
+or mixed-load result. Those two conditional measurements remain pending,
+and the snapshot-loss ticket remains open. Three runtime variants are now
+measured; this evidence landing includes no runtime revision or release.
+
+Full records and limits are in storage.jsonl and the
+[benchmark record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md).
