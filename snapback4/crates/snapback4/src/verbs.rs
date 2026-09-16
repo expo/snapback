@@ -512,10 +512,24 @@ pub fn doctor(options: &Options) -> i32 {
     }
     // Source diagnostics and persisted backend health are independent. Even
     // broken or destructive edits must leave the active generation usable.
-    match project.open_store() {
+    match snapback4_core::Store::open_read_only(&project.store_path()) {
         Ok(store) => {
             let generation = store.meta("generation").ok().flatten().unwrap_or_else(|| "unrecorded".into());
             lines.push(format!("store     {} at seq {}, generation {}", project.store_path().display(), store.seq().unwrap_or(0), generation));
+            let host = store.meta("store_id").ok().flatten().and_then(|id| adoption::host(&project, &id));
+            let now = host.as_ref().and_then(|h| h["now"].as_i64()).unwrap_or_else(snapback4_core::now_ms);
+            if let Some(host) = &host {
+                if let Some(active) = host["generation"].as_u64() {
+                    if active.to_string() != generation {
+                        ok = false;
+                        lines.push(format!("backend   E_GENERATION: host generation {active} differs from store generation {generation}; jobs and sweeps refuse the stale backend; dev retries adoption unless --no-watch (restart that host)"));
+                    } else { lines.push(format!("backend   host generation {active} matches store")); }
+                }
+                if let Some(reason) = host["adoption"].as_str() {
+                    ok = false;
+                    lines.push(format!("adoption  pending: {reason}; serving the previous generation; jobs and sweeps may fail until adoption succeeds"));
+                }
+            }
             let replay = store.meta("dev:replay").ok().flatten().as_deref() == Some("true");
             let held = store.meta("dev:hold-schedules").ok().flatten().as_deref() == Some("true");
             lines.push(format!("replay    {} — new effects {}; schedules {} (persisted dev policy)", if replay { "on" } else { "off" }, if replay { "suppressed" } else { "enabled" }, if held { "held" } else { "enabled" }));
@@ -538,7 +552,17 @@ pub fn doctor(options: &Options) -> i32 {
                         }
                     }
                     if let Ok(counts) = engine.effect_counts() && !counts.is_empty() {
-                        lines.push(format!("effects   {}", counts.iter().map(|(state, n)| format!("{n} {state}")).collect::<Vec<_>>().join(", ")));
+                        // @ref LLP 3000.007#20.16 — report grace deferrals without treating retry backoff as presence.
+                        let deferred = engine.store().conn().query_row(
+                            "SELECT COUNT(*), MIN(next_at) FROM _outbox WHERE state = 'queued' AND next_at > ?1 AND EXISTS (SELECT 1 FROM _effect_presence WHERE id = _outbox.id)",
+                            [now], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, Option<i64>>(1)?)),
+                        );
+                        let deferred = match deferred {
+                            Ok((count, Some(at))) => format!("{count} deferred (next at {at}, +{}s)", (at - now + 999) / 1000),
+                            Ok((count, None)) => format!("{count} deferred"),
+                            Err(error) => { ok = false; format!("deferred count unavailable: {error}") }
+                        };
+                        lines.push(format!("effects   {}, {deferred}", counts.iter().map(|(state, n)| format!("{n} {state}")).collect::<Vec<_>>().join(", ")));
                         if let Ok(failed) = engine.effects(Some("failed"), 3) {
                             for run in failed {
                                 lines.push(format!("effect    {} {} failed after {} attempt{}: {}", run.effect, run.id, run.attempts, if run.attempts == 1 { "" } else { "s" }, run.error.unwrap_or_default()));

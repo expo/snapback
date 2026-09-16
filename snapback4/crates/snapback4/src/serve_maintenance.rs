@@ -8,9 +8,9 @@ use tiny_http::Request;
 #[derive(Default, serde::Serialize)]
 struct Work { expired: u64, schedules: usize, chunks: usize, parked: usize }
 
-fn phase<T: Default>(result: Result<T, RuntimeError>, drain: bool, name: &str) -> Result<T, RuntimeError> {
+fn phase<T: Default>(shared: &Shared, result: Result<T, RuntimeError>, drain: bool, name: &str) -> Result<T, RuntimeError> {
     match result {
-        Err(error) if !drain => { eprintln!("snapback4: {name} failed: {error}"); Ok(T::default()) }
+        Err(error) if !drain => { super::adoption::background_failure(shared, name, &error); Ok(T::default()) }
         other => other,
     }
 }
@@ -19,7 +19,7 @@ fn phase<T: Default>(result: Result<T, RuntimeError>, drain: bool, name: &str) -
 fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
     let mut work = Work::default();
     loop {
-        let swept = phase(lock(&shared.engine).sweep_expired(shared.now(), 2_000), drain, "the expiry sweep")?;
+        let swept = phase(shared, lock(&shared.engine).sweep_expired(shared.now(), 2_000), drain, "the expiry sweep")?;
         work.expired += swept;
         if swept > 0 { bump_seq(shared); }
         if !drain || swept < 2_000 { break; }
@@ -27,13 +27,13 @@ fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
     }
     // @ref LLP 3000.007#20.2 — advancing a replay clock does not release its schedule hold.
     if !shared.hold_schedules {
-        let fired = phase(lock(&shared.engine).fire_schedules(shared.now()), drain, "schedules")?;
+        let fired = phase(shared, lock(&shared.engine).fire_schedules(shared.now()), drain, "schedules")?;
         work.schedules = fired.len();
         for name in fired { eprintln!("snapback4: schedule {name} fired"); }
     }
     while drain || work.chunks < 500 {
         if crate::lifecycle::stopping() { break; }
-        let Some(run) = phase(lock(&shared.engine).run_job_chunk(shared.now()), drain, "job")? else { break; };
+        let Some(run) = phase(shared, lock(&shared.engine).run_job_chunk(shared.now()), drain, "job")? else { break; };
         work.chunks += 1;
         bump_seq(shared);
         for line in lock(&shared.engine).take_native_logs() { eprintln!("snapback4: native {line}"); }
@@ -49,13 +49,13 @@ fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
         std::thread::yield_now();
     }
     if drain || tick % 5 == 0 {
-        let actions = phase(lock(&shared.engine).requeue_expired_actions(shared.now()), drain, "the action lease sweep")?;
-        let effects = phase(lock(&shared.engine).requeue_expired_effects(shared.now()), drain, "the effect lease sweep")?;
+        let actions = phase(shared, lock(&shared.engine).requeue_expired_actions(shared.now()), drain, "the action lease sweep")?;
+        let effects = phase(shared, lock(&shared.engine).requeue_expired_effects(shared.now()), drain, "the effect lease sweep")?;
         if actions + effects > 0 { shared.committed.notify_all(); }
         if effects > 0 { eprintln!("snapback4: {effects} effect lease{} expired; queued again", if effects == 1 { "" } else { "s" }); }
     }
     if drain || tick % 60 == 0 {
-        phase((|| {
+        phase(shared, (|| {
             let sweep = lock(&shared.engine).prepare_asset_sweep(shared.now())?;
             sweep.remove_files()?;
             lock(&shared.engine).finish_asset_sweep(&sweep)

@@ -28,6 +28,10 @@ mod changes;
 mod maintenance;
 use maintenance::maintain;
 
+#[path = "serve_adoption.rs"]
+mod adoption;
+use adoption::watch_sources;
+
 #[cfg(test)]
 #[path = "serve_tests.rs"]
 mod tests;
@@ -36,6 +40,7 @@ pub struct Shared {
     pub clock: Arc<Mutex<crate::dev_clock::Clock>>,
     maintenance: Mutex<()>,
     pub engine: Mutex<Engine>,
+    adoption: Mutex<adoption::Status>,
     readers: Mutex<QueryReaders>,
     pub bound: Mutex<Bound>,
     pub generation: Mutex<u64>,
@@ -236,7 +241,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     let generated = if dev { Some(project.write_generated(&bound).map_err(|e| e.to_string())?) } else { None };
     // @ref LLP 3000.007#20.2 — only the owning host may replace replay/schedule policy; deployment shares the same lock.
     // Release startup already owns this lock before selecting its source.
-    let _host = if matches!(mode, Mode::Dev { fresh: false, .. }) {
+    let mut host_lock = if matches!(mode, Mode::Dev { fresh: false, .. }) {
         let path = project.store_path();
         let path = if path.exists() { path.canonicalize().map_err(|e| e.to_string())? } else { path };
         Some(crate::verbs::deployment_lock(path.parent().ok_or("store path has no parent")?)?)
@@ -247,7 +252,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     // scripts that must start from nothing every time.
     let mut engine = match &mode {
         Mode::Dev { fresh: true, .. } => Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())),
-        Mode::Dev { .. } => project.open_engine(&bound),
+        Mode::Dev { .. } => adoption::open(&project, &bound),
         Mode::Release { expected } => project.open_release_engine(&bound, *expected),
     }.map_err(|e| e.to_string())?;
     // A native job's module (LLP 3000.005): built by `check`, in `dev` also
@@ -266,14 +271,20 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     engine.set_presence(Some(presence.clone()));
     let seq = engine.seq().map_err(|e| e.to_string())?;
     let generation: u64 = engine.generation();
+    let adoption = Mutex::new(adoption::Status::new(engine.store().meta("store_id").map_err(|e| e.to_string())?.unwrap_or_default()));
     let shared = Arc::new(Shared {
-        clock, maintenance: Mutex::new(()), engine: Mutex::new(engine), readers: Mutex::new(QueryReaders::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
+        adoption, clock, maintenance: Mutex::new(()), engine: Mutex::new(engine), readers: Mutex::new(QueryReaders::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
         #[cfg(test)] auth_work: Mutex::new(None),
         #[cfg(test)] upload_work: Mutex::new(None),
         #[cfg(test)] effect_wait: Mutex::new(None),
     });
     let server = Arc::new(server);
     let address = server.server_addr();
+    // Discover the live dev inspector through the existing lifetime lock file.
+    if let Some(file) = &mut host_lock {
+        file.set_len(0).map_err(|e| e.to_string())?;
+        write!(file, "{}", address.clone().to_ip().ok_or("HTTP listener has no IP address")?.port()).map_err(|e| e.to_string())?;
+    }
     let mut worker = if dev { crate::dev_worker::DevWorker::start(&project, shared.clone(), format!("http://{address}"))? } else { None };
     crate::lifecycle::generation(generation);
     // The listening URL is the whole of stdout; lifecycle and worker logs use stderr.
@@ -348,81 +359,6 @@ fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmissi
 fn is_waiter(method: &Method, path: &str) -> bool {
     (method == &Method::Get && path == "/changes")
         || (method == &Method::Post && (path == "/effects/claim" || path == "/actions/claim" || path.starts_with("/a/")))
-}
-
-fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: u128) {
-    loop {
-        std::thread::sleep(Duration::from_millis(400));
-        if crate::lifecycle::stopping() { return; }
-        let now = project.sources_stamp();
-        if now == stamp {
-            continue;
-        }
-        stamp = now;
-        let started = Instant::now();
-        match project.compile() {
-            Ok(bound) if bound.diagnostics.is_empty() => {
-                let rebuilt = match crate::native::build(&project, &bound) {
-                    Ok(built) => built,
-                    Err(problem) => {
-                        eprintln!("snapback4 dev: {problem}\nsnapback4 dev: serving the previous generation");
-                        continue;
-                    }
-                };
-                let residency_notes = snapback4_lang::bind::residency::change_notes(&bound, &lock(&shared.bound).schema.operations);
-                let steps = snapback4_core::successor::classify(&lock(&shared.bound).schema, &bound.schema);
-                let worst = snapback4_core::successor::worst(&steps);
-                let generated = match project.write_generated(&bound) {
-                    Ok(generated) => generated,
-                    Err(error) => {
-                        eprintln!("snapback4 dev: cannot write generated types: {error}\nsnapback4 dev: serving the previous generation");
-                        continue;
-                    }
-                };
-                let mut engine = lock(&shared.engine);
-                match engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())) {
-                    Ok(next) => {
-                        crate::lifecycle::generation(next);
-                        lock(&shared.readers).invalidate();
-                        if let Some(built) = &rebuilt {
-                            match crate::native::install(&mut engine, &project) {
-                                Ok(installed) => {
-                                    *lock(&shared.native) = installed;
-                                    eprintln!("snapback4 dev: native module rebuilt ({} B, {} ms): {}", built.bytes, built.ms, built.jobs.join(", "));
-                                }
-                                Err(problem) => eprintln!("snapback4 dev: {problem}"),
-                            }
-                        }
-                        // Publish the advertised backend and identity together:
-                        // /schema takes these guards in the same order.
-                        let mut active = lock(&shared.bound);
-                        let mut generation = lock(&shared.generation);
-                        for note in &residency_notes { eprintln!("note: {note}"); }
-                        for note in &bound.notes { eprintln!("note: {note}"); }
-                        *active = bound;
-                        *generation = next;
-                        eprintln!("snapback4 dev: schema adopted as generation {} ({:?}) in {} ms; types: {}", *generation, worst, started.elapsed().as_millis(), generated.display());
-                        for step in steps {
-                            eprintln!("  {:?}: {}", step.change, step.message);
-                        }
-                        // Adoption can itself commit a populated maintain rebuild.
-                        if let Ok(seq) = engine.seq() { let mut current = lock(&shared.seq); *current = (*current).max(seq); }
-                        shared.committed.notify_all();
-                    }
-                    Err(error) => {
-                        eprintln!("snapback4 dev: the new schema was not adopted: {error}")
-                    }
-                }
-            }
-            Ok(bound) => {
-                eprintln!("snapback4 dev: {} problem{} in snapback/; serving the previous generation", bound.diagnostics.len(), if bound.diagnostics.len() == 1 { "" } else { "s" });
-                for diagnostic in &bound.diagnostics {
-                    eprintln!("{diagnostic}\n");
-                }
-            }
-            Err(error) => eprintln!("snapback4 dev: cannot read snapback/: {error}"),
-        }
-    }
 }
 
 /// A worker's seat: a bearer session of a service principal.
@@ -723,6 +659,13 @@ fn handle(mut request: Request, shared: &Shared) {
     if path.starts_with("/dev/clock") && !shared.personas {
         return respond(request, 403, json!({ "denied": refusal_json(&crate::dev_clock::release()) }));
     }
+    if method == Method::Get && path == "/dev/status" {
+        if !shared.personas { return respond(request, 403, json!({"denied":refusal_json(&Refusal::new("E_AUTH", "auth", "status inspection requires dev"))})); }
+        // No engine lock: doctor must remain usable while an adoption waits on SQLite.
+        let generation = *lock(&shared.generation);
+        let status = lock(&shared.adoption);
+        return respond(request, 200, json!({"storeId":status.store_id, "generation":generation, "adoption":status.failure, "now":shared.now()}));
+    }
     if method == Method::Options {
         respond_empty(request, 204);
         return;
@@ -949,8 +892,8 @@ fn handle(mut request: Request, shared: &Shared) {
                             #[serde(skip_serializing_if = "Option::is_none")]
                             meter: Option<Json>,
                         }
-                        // @ref LLP 3000#7-decisions-during-execution — meter inspection is an opt-in loopback dev capability; releases ignore it.
-                        let meter = (shared.personas && matches!(single_header(&request, "x-snapback-meter"), Ok(Some("1")))).then(|| {
+                        // @ref LLP 3000#7-decisions-during-execution — loopback dev returns read counters by default; releases never disclose them.
+                        let meter = shared.personas.then(|| {
                             let m = outcome.metered;
                             json!({ "examined": m.examined, "indexEntries": m.index_entries, "probes": m.rule_probes, "steps": m.steps, "heapBytes": m.heap_bytes, "outputBytes": m.output_bytes, "rowsWritten": m.rows_written })
                         });
@@ -1217,6 +1160,7 @@ mod poison_tests {
         let engine = Engine::memory(Default::default(), Vec::<snapback4_core::ir::Program>::new()).unwrap();
         let clock = Arc::new(Mutex::new(crate::dev_clock::Clock::new(true, 0).unwrap()));
         let shared = Arc::new(Shared {
+            adoption: Mutex::new(adoption::Status::new(String::new())),
             engine: Mutex::new(engine),
             readers: Mutex::new(QueryReaders::default()),
             bound: Mutex::new(Bound { schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics: Vec::new(), notes: Vec::new() }),

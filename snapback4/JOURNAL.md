@@ -21604,3 +21604,66 @@ The incoherent combination now exits 2 without writing, with this exact text:
 ```text
 E_RECIPE_CAPS: --edges 1001 exceeds --authors 1 * 1000 followers/author; grow --authors or reduce --edges; see snapback4 guide feeds
 ```
+
+
+## 2026-09-16 — W8c: adoption health, visible grace deadlines, default dev meters
+
+Lane W8c implements the 0.2.23 friction review's ranks 4, 5 and 8 from
+base `78fe08b6468191d2ac0bbe0aa8b9ca3202a493c0`. A writer lock at startup
+now keeps startup retrying, with an explicit statement that requests, jobs
+and sweeps have not started. A failed watched adoption stays pending without
+requiring another save, repeats its reason and consequence on the first
+failing background operation, and reopens an obsolete engine through the
+existing generation guard when a CLI invocation adopted first. Schema
+refusals still need a corrected save. The watcher lives in `serve_adoption.rs`.
+
+Doctor discovers the live dev listener through the existing `serve.lock`,
+checks its store identity over a loopback-only status door, and compares the
+host generation with the persisted generation. Pending adoption remains
+inspectable while the writer is locked. The same inspection supplies the
+dev clock for the deferred count and next absolute deadline beside effect
+states. Presence deferrals are distinguished from retry backoff through the
+existing durable presence records. `GET /effects` already carried `nextAt`;
+the regression now checks it against doctor's deadline. Neither the 35-second
+grace nor its reconnect cancellation or delivery rules changed.
+
+Loopback dev now returns read counters without a header, and the online
+client retains them without `meter: true`. That option remains an explicit
+request; serve ignores it and omits counters. The reads, effects, presence
+and refusals cards and the package README describe the current behavior,
+including both `snapback4 clock advance 36s` and `POST /dev/clock/advance`.
+No new diagnostic code, meter ceiling, value serialization, corpus case or
+client contract shape was introduced. The root LLP's dated decision was
+updated alongside the implementation.
+
+Measured regressions: the four adoption cases fail against the saved base
+binary (0 passed, 4 failed) and pass after the change (4 passed, 0 failed,
+11.30 s). Recovery reaches generation 2 with 0 extra saves and 0 host
+restarts; startup recovers generation 1 after the lock is released. The
+deferral inspection case was red (0 passed, 1 failed); the final grace tests
+pass 3/3 in 2.85 s. The measured deadline was 34,999 ms after emission;
+advancing 36,000 ms produced 1 delivery, 1 attempt and 0 duplicate claims,
+in 16 ms of wall time. Doctor went from 1 deferred to 0 before the claim.
+The default-meter test was red (1 passed, 1 failed); the final meter and
+hidden/absent disclosure cases pass 4/4. The account read reports examined
+1, index entries 0, probes 0, steps 5, charged heap 1,124 B, output 195 B,
+rows written 0. Serve exposes 0 meter fields. Guide/README checks pass 27/27.
+
+Verification used Node 24.18.0. `bash snapback4/scripts/test.sh` completed
+with `== 2 failure(s) in 699 s`: Rust totaled 1,033 passed, 5 failed and
+4 ignored; the five failures were witness-driver timeouts. A separate
+`cargo test -p snapback4 --test witness -- --nocapture` passed 20/20 in
+19.05 s, including all five. Client tests reported 370 passed, 1 failed;
+that failure is the lane brief's Chromium SIGABRT sandbox artifact and
+reproduces alone (0 passed, 1 failed). Fixtures pass 9/9; builds and package,
+chat and Expo typechecks pass. These are the observed run and rerun results,
+not a claim of an all-green blocking suite or an unverified pre-existing bug.
+`./ref-check --verbose` passes with 0 errors and 0 unchecked references.
+
+The useful distinction is between noticing a source change and completing
+its adoption: consuming the timestamp on a lock refusal lost the retry.
+Generation equality also needs both a live host and its store; inspecting
+only the reopened store cannot reveal an old host. Finally, a deferred
+count judged on wall time remains misleading after a dev clock advance,
+so doctor must use the running host's clock. Changes remain uncommitted for
+the lead; no publication or remote-machine work was performed.

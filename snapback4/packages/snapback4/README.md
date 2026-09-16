@@ -878,7 +878,11 @@ loses its lease and the effect is claimed again; two workers never hold
 one effect. `snapback4 doctor` counts them. A scheduled job that emits
 once per period is the digest recipe.
 When presence decides only effects, no live poll but an unexpired grace
-queues the push for the grace deadline: up to 35 seconds. A reconnect during
+queues the push for the grace deadline: up to 35 seconds. `doctor` reports the
+deferred count and next deadline; `GET /effects` shows each deadline as `nextAt`.
+In tests, close the window with `snapback4 clock advance 36s` or
+`POST /dev/clock/advance` with `{ "duration": "36s" }`; a real-time poll
+budget must exceed 35 seconds. A reconnect during
 that window cancels it, even if the new poll ends before claim or the server
 restarts. A live poll at claim also cancels it. The recorded effect has state
 `satisfied`, `result: { outcome: 'presence_reconnected' }` and zero attempts;
@@ -905,7 +909,8 @@ with the original error and stack.
 
 ### Presence
 
-In tests: `snapback4 clock advance 36s` expires grace after a poll ends;
+In tests: `snapback4 clock advance 36s` or `POST /dev/clock/advance` with
+`{ "duration": "36s" }` expires grace after a poll ends;
 open polls stay connected. Online client queries read the updated server
 answer; presence is still not replicated to a device.
 
@@ -951,7 +956,7 @@ copies count. Inspecting a held value's length or sum borrows it; row and
 map clones share their immutable image. A heap cut stops a query immediately
 with `data: null`, `complete: false`, and no continuation, since an interrupted
 scalar or shape has no valid partial answer. Its cut site remains internal;
-the meter is available only through dev's opt-in read inspection (§4).
+the meter is available only through dev's default read inspection (§4).
 A mutation rolls back with `E_BOUND` as above.
 
 A page whose read rule the prefix does not decide (the deciding fields include a
@@ -1693,14 +1698,14 @@ type Refusal = { code: string; family: string; message: string; site?: string; r
 type Link = "online" | "offline" | "signed-out";
 ```
 
-To measure a real account's server read in development, opt in on the online
+To measure a real account's server read in development, use the online
 client (the same session or bearer token works alongside a local client):
 
 ```ts
 import { createClient } from "snapback4/client";
 import { isReady } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
-const client = createClient({ url: "http://127.0.0.1:4400", token: process.env.SNAPBACK_TOKEN!, meter: true });
+const client = createClient({ url: "http://127.0.0.1:4400", token: process.env.SNAPBACK_TOKEN! });
 const read = await client.query(api.thread, { conversationId: "existing-conversation" });
 if (isReady(read)) console.log(read.meter); // { examined, indexEntries, probes, steps, heapBytes, outputBytes, rowsWritten }
 await client.close();
@@ -1711,8 +1716,8 @@ examined rows, index entries, rule probes (`probes`), steps, charged heap work
 (`heapBytes`), output bytes and rows written. These are work counts, not latency
 or process memory. Successful `query` and `observe` answers carry them; a
 remembered offline watch keeps its last server answer's counters. Local device
-reads have no meter. The wire opt-in is `x-snapback-meter: 1` on `POST /q/<op>`.
-Loopback `dev` omits the field by default; `serve` ignores the header and never
+reads have no meter. Loopback `dev` includes the field by default; `meter: true`
+and `x-snapback-meter: 1` on `POST /q/<op>` remain explicit forms. `serve` ignores the header and never
 returns meters. They can reflect hidden work, so they are development-only.
 For local-store inspection, `snapback4 run <op> '<json args>' --as <principal id>
 --json` prints the same engine counters under `metered`, using their Rust names
@@ -2301,6 +2306,13 @@ step.
   `E_CLOCK_DEV_ONLY`; invalid or backward advances refuse `E_CLOCK_INPUT`.
   Scripts may call the same loopback-only dev endpoint,
   `POST /dev/clock/advance` with `{"duration":"+2m"}`. `guide clock` has the recipe.
+- **Adoption health.** A refused dev adoption stays visible in `doctor` and its
+  reason repeats on the first failing job or sweep. Writer-lock and generation
+  failures retry without another save, including reopening after a CLI adoption.
+  `doctor` compares the live host generation with the store and uses the host's
+  dev clock for deferred pushes. A `--no-watch` host needs a restart after another
+  process adopts; a schema refusal needs a corrected save. A stopped host's
+  deferred deadlines use wall time.
 - **`POST /seed`** (dev only, same machine) takes `[{ "table": "t",
   "row": { "id": "..", .. } }, ..]`, writes the rows as the system
   principal in one commit (rules bypassed; validation, constraints,

@@ -1,0 +1,159 @@
+//! Keep a refused dev adoption pending until the writer can adopt it.
+use super::{Shared, lock};
+use crate::project::Project;
+use snapback4_core::RuntimeError;
+use std::{sync::Arc, time::{Duration, Instant}};
+
+fn locked(error: &RuntimeError) -> bool {
+    matches!(error,
+        RuntimeError::Sql(sql) if matches!(sql.sqlite_error_code(), Some(rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked)))
+}
+
+fn retryable(error: &RuntimeError) -> bool { locked(error) || matches!(error, RuntimeError::Generation(_)) }
+
+pub(super) fn open(project: &Project, bound: &snapback4_lang::Bound) -> Result<snapback4_core::Engine, RuntimeError> {
+    let mut reported = None;
+    loop {
+        match project.open_engine(bound) {
+            Ok(engine) => return Ok(engine),
+            Err(error) if locked(&error) && !crate::lifecycle::stopping() => {
+                let reason = error.to_string();
+                if reported.as_ref() != Some(&reason) {
+                    eprintln!("snapback4 dev: startup schema adoption failed: {reason}; no requests, jobs or sweeps are running; retrying automatically");
+                    reported = Some(reason);
+                }
+                std::thread::sleep(Duration::from_millis(400));
+            }
+            Err(error) => return Err(error),
+        }
+    }
+}
+
+pub(super) struct Status {
+    pub store_id: String,
+    pub failure: Option<String>,
+    repeated: bool,
+    retrying: bool,
+}
+impl Status {
+    pub fn new(store_id: String) -> Self { Self { store_id, failure: None, repeated: false, retrying: false } }
+    fn recovery(&self) -> &str { if self.retrying { "retrying automatically" } else { "fix the schema and save again" } }
+    fn refused(&mut self, error: &RuntimeError, generation: u64) {
+        let reason = error.to_string();
+        self.retrying = retryable(error);
+        if self.failure.as_ref() != Some(&reason) {
+            eprintln!("snapback4 dev: the new schema was not adopted: {reason}; serving generation {generation}; jobs and sweeps may fail until adoption succeeds; {}", self.recovery());
+            self.failure = Some(reason);
+            self.repeated = false;
+        }
+    }
+}
+
+pub(super) fn background_failure(shared: &Shared, name: &str, error: &RuntimeError) {
+    let mut status = lock(&shared.adoption);
+    if matches!(error.code().as_str(), "E_STORE" | "E_GENERATION") && !status.repeated && let Some(reason) = &status.failure {
+        eprintln!("snapback4: {name} failed: {error}; adoption still pending: {reason}; jobs and sweeps may fail until adoption succeeds; {}", status.recovery());
+        status.repeated = true;
+    } else { eprintln!("snapback4: {name} failed: {error}"); }
+}
+
+pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: u128) {
+    let mut retry = false;
+    let mut seen_generation = *lock(&shared.generation);
+    loop {
+        std::thread::sleep(Duration::from_millis(400));
+        if crate::lifecycle::stopping() { return; }
+        let now = project.sources_stamp();
+        let stored_generation = {
+            let engine = lock(&shared.engine);
+            engine.store().meta("generation").ok().flatten().and_then(|s| s.parse::<u64>().ok()).unwrap_or(seen_generation)
+        };
+        if now == stamp && !retry && stored_generation == seen_generation {
+            continue;
+        }
+        stamp = now;
+        seen_generation = stored_generation;
+        retry = false;
+        let started = Instant::now();
+        match project.compile() {
+            Ok(bound) if bound.diagnostics.is_empty() => {
+                let rebuilt = match crate::native::build(&project, &bound) {
+                    Ok(built) => built,
+                    Err(problem) => {
+                        eprintln!("snapback4 dev: {problem}\nsnapback4 dev: serving the previous generation");
+                        continue;
+                    }
+                };
+                let residency_notes = snapback4_lang::bind::residency::change_notes(&bound, &lock(&shared.bound).schema.operations);
+                let steps = snapback4_core::successor::classify(&lock(&shared.bound).schema, &bound.schema);
+                let worst = snapback4_core::successor::worst(&steps);
+                let generated = match project.write_generated(&bound) {
+                    Ok(generated) => generated,
+                    Err(error) => {
+                        eprintln!("snapback4 dev: cannot write generated types: {error}\nsnapback4 dev: serving the previous generation");
+                        continue;
+                    }
+                };
+                let mut engine = lock(&shared.engine);
+                // @ref LLP 3000.007#18.3 — retries judge the persisted successor, retaining the generation lock.
+                // Reopen only after the generation guard refuses this owner. Adoption
+                // still judges the latest stored successor in its own transaction.
+                let adopted = engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()));
+                let mut reopened = false;
+                let adopted = match adopted {
+                    Err(RuntimeError::Generation(_)) => project.open_engine(&bound).map(|mut next| {
+                        next.set_presence(Some(shared.presence.clone()));
+                        *engine = next;
+                        reopened = true;
+                        engine.generation()
+                    }),
+                    other => other,
+                };
+                match adopted {
+                    Ok(next) => {
+                        seen_generation = next;
+                        lock(&shared.adoption).failure = None;
+                        crate::lifecycle::generation(next);
+                        lock(&shared.readers).invalidate();
+                        if reopened || rebuilt.is_some() {
+                            match crate::native::install(&mut engine, &project) {
+                                Ok(installed) => {
+                                    *lock(&shared.native) = installed;
+                                    if let Some(built) = &rebuilt { eprintln!("snapback4 dev: native module rebuilt ({} B, {} ms): {}", built.bytes, built.ms, built.jobs.join(", ")); }
+                                }
+                                Err(problem) => eprintln!("snapback4 dev: {problem}"),
+                            }
+                        }
+                        // Publish the advertised backend and identity together:
+                        // /schema takes these guards in the same order.
+                        let mut active = lock(&shared.bound);
+                        let mut generation = lock(&shared.generation);
+                        for note in &residency_notes { eprintln!("note: {note}"); }
+                        for note in &bound.notes { eprintln!("note: {note}"); }
+                        *active = bound;
+                        *generation = next;
+                        eprintln!("snapback4 dev: schema adopted as generation {} ({:?}) in {} ms; types: {}", *generation, worst, started.elapsed().as_millis(), generated.display());
+                        for step in steps {
+                            eprintln!("  {:?}: {}", step.change, step.message);
+                        }
+                        // Adoption can itself commit a populated maintain rebuild.
+                        if let Ok(seq) = engine.seq() { let mut current = lock(&shared.seq); *current = (*current).max(seq); }
+                        shared.committed.notify_all();
+                    }
+                    Err(error) => {
+                        retry = retryable(&error);
+                        lock(&shared.adoption).refused(&error, engine.generation());
+                    }
+                }
+            }
+            Ok(bound) => {
+                eprintln!("snapback4 dev: {} problem{} in snapback/; serving the previous generation", bound.diagnostics.len(), if bound.diagnostics.len() == 1 { "" } else { "s" });
+                for diagnostic in &bound.diagnostics {
+                    eprintln!("{diagnostic}\n");
+                }
+            }
+            Err(error) => eprintln!("snapback4 dev: cannot read snapback/: {error}"),
+        }
+    }
+}
+
