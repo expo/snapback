@@ -52,3 +52,33 @@ fn no_coverage<H: Host>(host: &mut H) {
 fn w9r1a_online_source_and_zero_reads_memory() { no_coverage(&mut Memory::new()); }
 #[test]
 fn w9r1a_online_source_and_zero_reads_sqlite() { no_coverage(&mut Sqlite::new("w9r1a-no-coverage")); }
+
+fn nested<H: Host>(host: &mut H, case: &str) {
+    let (mut engine, backend) = compile(&witness::nested_source(case));
+    engine.seed(witness::nested_seed()).unwrap();
+    let mut device = host.open("nested", Some(backend)).unwrap();
+    let pages = super::super::snapshot_pages_at(&mut engine, "alice", 100, 1000);
+    let terms = pages.iter().flat_map(|page| &page.events).filter(|event| event.table == "terms").count();
+    assert_eq!(terms, usize::from(case != "online"));
+    for (n, page) in pages.iter().enumerate() { device.apply(page, n == 0).unwrap(); }
+    host.close("nested", device);
+    let mut device = host.open("nested", None).unwrap();
+    let read = device.query("nestedSearch", "alice", &json!({}), 1000).unwrap();
+    println!("W9R2 store={} acquired_terms={terms}", host.label());
+    witness::assert_nested_read(&read, case);
+    witness::assert_nested(device.schema(), case);
+    host.close("nested", device);
+}
+
+#[test]
+fn w9r2_matching_online_memory() { nested(&mut Memory::new(), "online"); }
+#[test]
+fn w9r2_matching_online_sqlite() { nested(&mut Sqlite::new("w9r2-online"), "online"); }
+#[test]
+fn w9r2_matching_horizon_memory() { nested(&mut Memory::new(), "horizon"); }
+#[test]
+fn w9r2_matching_horizon_sqlite() { nested(&mut Sqlite::new("w9r2-horizon"), "horizon"); }
+#[test]
+fn w9r2_matching_full_memory() { nested(&mut Memory::new(), "full"); }
+#[test]
+fn w9r2_matching_full_sqlite() { nested(&mut Sqlite::new("w9r2-full"), "full"); }

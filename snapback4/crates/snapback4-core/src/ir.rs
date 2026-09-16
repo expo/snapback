@@ -459,13 +459,10 @@ fn scan_read_sites(scan: &Scan, out: &mut Vec<ReadSite>) {
         for bound in [&range.gt, &range.gte, &range.lt, &range.lte].into_iter().flatten() { expr_read_sites(bound, out); }
     }
     for key in &scan.prefix {
-        if let Some(expr) = key.scalar() {
-            expr_read_sites(expr, out);
-        }
+        // @ref LLP 3000.007#18.1 — matching expressions can read independent sources; retain them in the execution facts.
+        match key { IndexKeyExpr::Scalar(expr) | IndexKeyExpr::WordPrefix(expr) => expr_read_sites(expr, out) }
     }
-    if let Some(after) = &scan.after {
-        expr_read_sites(after, out);
-    }
+    for cursor in [&scan.after, &scan.before].into_iter().flatten() { expr_read_sites(cursor, out); }
     out.push(ReadSite { site: scan.site.clone(), table: scan.table.clone(), index: scan.index.clone(), kind: "scan", take: scan.take.maximum() });
 }
 

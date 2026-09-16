@@ -31,6 +31,7 @@ An unscoped search through expiring memberships can remain non-uniform and
 incomplete below every limit. A `first 1` page without a cursor is incomplete
 when its range contains two held rows. Read `complete` on each answer; a held query with an
 online-only source or no read sites gets no source-coverage line.
+Sources include reads nested in expressions such as the search text after `matching`.
 For full server history beyond holdings, use the scoped server walk on the search card.
 
 To inspect a real account's server work under loopback `dev`, use the online

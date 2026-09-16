@@ -49,6 +49,7 @@ limit. A page bound without continuation can also make an answer incomplete.
 For the non-expiring membership shape above, a full scan of acquired rows
 without a cut is complete. The source-coverage line alone promises no answer's
 completeness and is absent for a horizon, an online-only source or zero read sites.
+Sources include reads nested in the `matching` expression, not just the searched table.
 
 Cold acquisition costs every live message in every held chat; the query's
 cheap read does not make that acquisition cheap. This block intentionally emits N_NO_HORIZON

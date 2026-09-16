@@ -22975,3 +22975,185 @@ the source ordinal is. A code's generic card is useful without a project,
 but once a diagnostic supplies context, its card must own the explanation.
 Prediction tests must distinguish an optimistic write that can fail at the
 server from an if-absent write whose result requires proof of absence.
+
+## 2026-09-16 — W9R2: reads nested in matching contribute source coverage
+
+Lane W9R2 repairs review N1 on base
+`718b188deae72292e74e5c40ccd19b76d65868ef`. The public messages/terms
+witness compiles the brief's exact `matching slice('coffee', 0,
+count(terms first 1 by byId))` expression. Before the fix, all three
+residency variants retained only the messages site and printed the positive
+coverage line; the runtime still evaluated terms. After the fix, both sites
+are retained, including the terms source location. Online-only and
+horizon-limited terms suppress the line; horizon-free terms preserve it.
+
+The traversal is actually in `crates/snapback4-core/src/ir.rs`:
+`bind/residency.rs` consumes `ir::read_sites`. This is the sole code file
+outside the named ownership paths, changed minimally (3 added lines,
+6 removed). The scan audit found two omitted expression forms:
+`IndexKeyExpr::WordPrefix` and the IR's `before` cursor. It now traverses
+both prefix variants (`Scalar` and `WordPrefix`), `filter` (`where`), all
+four range bounds (`gt`, `gte`, `lt`, `lte`), and both cursors (`after`,
+`before`). The existing recursive expression walker visits their nested
+reads; merge lane setup, lane sources and lane scans already use that
+walker. Scan `take` is a literal or named argument with a maximum, so it
+cannot contain a read expression. Quarry currently lowers cursors to
+`after`; `before` is covered directly at the IR boundary. No additional
+skipped scan expression was found.
+
+Three simulator cases and six device cases cover online-only, horizon-limited
+and horizon-free terms, with real snapshot acquisition and query execution.
+Both memory and SQLite devices close and reopen before querying. A fourth
+simulator test checks all nine scan expression positions through the
+execution-fact classifier. On the base its failure lists exactly
+`["matching", "before"]`; after the fix all nine are retained. The README,
+reads card and all-chat search card now explicitly include reads nested in
+the matching expression among the sources. No parser form, diagnostic code,
+meter ceiling, serialized value/IR shape, existing corpus case or caller
+spelling changed. `guide::CODES` needs no addition.
+
+Measurements are identical before and after for runtime results and on all
+three hosts. Each fixture seeds 1 message and 1 term. The online-only case
+acquires 0 terms; both synced cases acquire 1. Each execution fact changes
+from 1 site to 2. The source-coverage line count changes from 1 to 0 for
+online/horizon, and remains 1 for full sync.
+
+| terms residency | result rows | complete | examined | index entries | probes | steps | heap bytes | output bytes | rows written |
+| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| online only | 0 | false | 0 | 0 | 0 | 7 | 6 | 12 | 0 |
+| sync last 1 | 1 | false | 2 | 2 | 0 | 10 | 358 | 65 | 0 |
+| sync without horizon | 1 | true | 2 | 2 | 0 | 10 | 358 | 65 | 0 |
+
+Every case has 0 meter cuts, 0 word cuts and 0 continuations. The positive
+control returns the seeded coffee message using the synced term count.
+
+Commands below ran from `snapback4/`; red results were captured with the
+new regressions against the unchanged base implementation. Logs are
+`/private/tmp/w9r2-{sim,device}-{red,green}.log` and
+`/private/tmp/w9r2-guide.log`.
+
+```text
+cargo test -p snapback4-sim --test residency w9r2 -- --nocapture
+test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.02s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.02s
+cargo test -p snapback4-device --test device w9r2 -- --nocapture
+test result: FAILED. 0 passed; 6 failed; 0 ignored; 0 measured; 172 filtered out; finished in 0.05s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 172 filtered out; finished in 0.05s
+cargo test -p snapback4-lang --test guide
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+```
+
+From the repository root, with the required Node runtime:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+-- ok: cargo build (13 s)
+-- ok: wasm build (14 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (511 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+-- ok: fixture wrapper tests (9 s)
+-- FAIL: client tests (66 s)
+== 1 failure(s) in 540 s
+```
+
+The full log is `/private/tmp/w9r2-suite.log`. Summing Rust's per-target
+summaries: 1,111 passed, 0 failed, 4 ignored. Fixtures: 9 passed, 0 failed.
+Clients at default concurrency: 380 passed, 4 failed of 384. Failures were
+the local-e2e upload test (port 4509 already occupied), the navigation-model
+terminal-receipt test (expected sent, got undefined), the web-navigation
+in-flight-head test (ECONNREFUSED), and the React test (Chromium SIGABRT).
+The web-navigation file passed alone; the full client rerun at concurrency 2
+passed every test except React. React also reproduced alone as SIGABRT at
+browser launch, matching the brief's named sandbox artifact. Commands ran
+from `snapback4/` with the same Node 24 PATH:
+
+```text
+node --test packages/snapback4/test/web-navigation.test.mjs
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11075.710083
+node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'
+ℹ tests 384
+ℹ suites 0
+ℹ pass 383
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 149344.270167
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 365.44325
+```
+
+Rerun logs are `/private/tmp/w9r2-navigation-rerun.log`,
+`/private/tmp/w9r2-client-rerun.log` and `/private/tmp/w9r2-react-rerun.log`.
+The lead must rerun the browser test outside the sandbox. No residual
+failure is claimed separately base-verified or pre-existing; the new N1
+regressions are the failures verified against the base hash above.
+
+The printed operation text before the fix was identical for all three
+residencies:
+
+```text
+  nestedSearch: runs: device (held; server refuses E_QUERY_HELD; no server fallback)
+    horizon-free source coverage — all sources sync without a horizon; answer completeness still depends on runtime authorization, limits and continuation
+    Held: scan messages by byWords: held, no horizon (site schema.q:10:10 (messages[]))
+```
+
+After, with online-only terms:
+
+```text
+  nestedSearch: runs: device (held; server refuses E_QUERY_HELD; no server fallback)
+    Server: scan terms by byId: online only (site schema.q:10:53 (terms[]))
+      rewrite: sync terms to its read-rule audience, or read a compact synced projection
+    Held: scan messages by byWords: held, no horizon (site schema.q:10:10 (messages[]))
+```
+
+After, with horizon-limited terms:
+
+```text
+  nestedSearch: runs: device (held; server refuses E_QUERY_HELD; no server fallback)
+    Horizon: scan terms by byId: sync public last 1 by byId (site schema.q:10:53 (terms[])); incomplete past the horizon; no server fallback
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+    Held: scan messages by byWords: held, no horizon (site schema.q:10:10 (messages[]))
+```
+
+The full-sync control retains the exact coverage line and gains:
+
+```text
+    Held: scan terms by byId: held, no horizon (site schema.q:10:53 (terms[]))
+```
+
+What I learned: a selector expression is part of a query's data dependency,
+even when its result is only search text. The existing scan-structure walker
+already handled both prefix variants and both cursor bounds; its agreement
+with the source-fact walker was the missing regression. Source coverage is
+still distinct from runtime answer completeness.
+
+All requested implementation work is done. No commit, push, tag, publish,
+sub-agent, remote machine, clone, dependency install or formatter was used.
+The largest modified code file is `ir.rs`, 625 lines. `git diff --check`
+passed before this append and is rerun after it. The root reference check
+passed before this entry and is also rerun after it:
+
+```text
+./ref-check --verbose
+ref-check: ok — 481 LLP docs, 8990 refs in 23854 files, 0 errors, 0 unchecked
+```

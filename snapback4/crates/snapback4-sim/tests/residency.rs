@@ -138,6 +138,59 @@ fn w9r1a_clique_source_coverage_has_nonvacuous_positive_and_negative_controls() 
     held_coverage::assert_line(&bound.schema, "constantHeld", false);
 }
 
+fn nested_coverage_case(case: &str) {
+    let bound = compile(&held_coverage::nested_source(case));
+    let mut engine = engine(&bound);
+    engine.seed(held_coverage::nested_seed()).unwrap();
+    let (events, _) = engine.snapshot_at("alice", 1000).unwrap();
+    let rows = MemoryRows::new();
+    for event in events { if let Some(row) = event.data { rows.put(&event.table, &bound.schema.tables[&event.table], &row, None).unwrap(); } }
+    let read = snapback4_core::engine::local::query(&rows, &bound.schema, &bound.programs[0].program, Context::new("alice", BTreeMap::new()).at(1000), Ceilings::default()).unwrap();
+    held_coverage::assert_nested_read(&read, case);
+    held_coverage::assert_nested(&bound.schema, case);
+}
+
+#[test]
+fn w9r2_matching_online_source() { nested_coverage_case("online"); }
+#[test]
+fn w9r2_matching_horizon_source() { nested_coverage_case("horizon"); }
+#[test]
+fn w9r2_matching_full_source() { nested_coverage_case("full"); }
+
+#[test]
+fn w9r2_scan_modifier_sources() {
+    use snapback4_core::ir::{self, Expr, IndexKeyExpr, Range, Stmt};
+    let bound = compile(&held_coverage::nested_source("online"));
+    let mut program = bound.programs[0].program.clone();
+    let scans = ir::scans(&program);
+    let outer = (*scans.iter().find(|scan| scan.table == "messages").unwrap()).clone();
+    let nested = Expr::Scan((*scans.iter().find(|scan| scan.table == "terms").unwrap()).clone());
+    let mut missing = Vec::new();
+    for modifier in ["scalar", "matching", "where", "gt", "gte", "lt", "lte", "after", "before"] {
+        let mut scan = outer.clone();
+        scan.prefix.clear();
+        let expr = Some(Box::new(nested.clone()));
+        match modifier {
+            "scalar" => scan.prefix.push(IndexKeyExpr::Scalar(nested.clone())),
+            "matching" => scan.prefix.push(IndexKeyExpr::WordPrefix(nested.clone())),
+            "where" => scan.filter = expr,
+            "after" => scan.after = expr,
+            "before" => scan.before = expr,
+            _ => {
+                let mut range = Range { gt: None, gte: None, lt: None, lte: None };
+                match modifier { "gt" => range.gt = expr, "gte" => range.gte = expr, "lt" => range.lt = expr, "lte" => range.lte = expr, _ => unreachable!() }
+                scan.range = Some(range);
+            }
+        }
+        // Exercise IR traversal directly: Quarry currently lowers cursors only
+        // to `after`, and the other slots have different runtime value types.
+        program.body = vec![Stmt::Return(Expr::Scan(scan))];
+        let fact = residency::execution(&bound.schema, &program);
+        if !fact.sites.iter().any(|site| site.table == "terms" && site.class == SiteClass::Server) { missing.push(modifier); }
+    }
+    assert!(missing.is_empty(), "omitted scan sources: {missing:?}");
+}
+
 #[test]
 fn clique_operations_have_words_sites_and_api_documentation() {
     let bound = compile(CLIQUE);

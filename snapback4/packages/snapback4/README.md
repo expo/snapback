@@ -847,6 +847,7 @@ An unscoped search through expiring memberships can be non-uniform and
 incomplete below every limit; `first 1` without a cursor is incomplete when
 its range contains two held rows. Read `complete` on each answer. A horizon, an online-only
 source or zero read sites gets no source-coverage line.
+Sources include reads nested in the `matching` expression, not just the searched table.
 Its `query searchHeld(q: text <=100, c: cursor ?) held:` declaration is
 device-only: `check` explains it, and `dev`, `serve` and `run` refuse
 E_QUERY_HELD with a rewrite pointing to the scoped server walk on `guide search`.
