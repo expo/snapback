@@ -24,7 +24,7 @@ pub mod write;
 mod maintains;
 mod write_target;
 mod receipt;
-mod presence;
+pub(crate) mod presence;
 #[cfg(feature = "postgres")]
 pub mod postgres;
 

@@ -162,8 +162,11 @@ impl Tx<'_> {
         Ok(())
     }
 
-    pub fn record_effects(&self, outbox: &[(String, String, Value)], seq: u64, now: i64) -> Result<(), RuntimeError> {
-        for (id, effect, payload) in outbox {
+    // @ref LLP 3000.007#19.1 — presence deadlines defer a grace-only effect; this
+    // evaluation adapter records the emission and its deadline, without the
+    // dependency rows the SQLite path keeps for reconnect cancellation.
+    pub fn record_effects(&self, outbox: &[crate::engine::presence::Emission], seq: u64, now: i64) -> Result<(), RuntimeError> {
+        for (id, effect, payload, _presence) in outbox {
             self.execute(
                 "INSERT INTO _outbox VALUES ($1,$2,$3,$4,'queued',0,$5)",
                 &[id, &signed(seq)?, effect, &canonical_json(payload), &now],
