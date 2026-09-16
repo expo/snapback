@@ -307,7 +307,14 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
   if (!locks || !persist.others || !persist.remove) return;
   for (const orphan of new Set([...await persist.others(`${name}:tab-`), ...journalStores(`${name}:tab-`)])) {
     if (orphan === own) continue;
-    const held = await hold(locks, orphan);
+    // A tab that just closed can still hold its lock for a moment. Its records
+    // and receipts are only reachable once it lets go, and nothing else would
+    // retry until the next apply, so wait briefly for a busy orphan.
+    let held = await hold(locks, orphan);
+    for (let wait = 0; !held && wait < 10; wait++) {
+      await new Promise(resume => setTimeout(resume, 20));
+      held = await hold(locks, orphan);
+    }
     if (!held) continue;
     let destinationDirty = false;
     try {
