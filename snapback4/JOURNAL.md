@@ -21045,3 +21045,315 @@ Lead verification on `c87b9e704`:
 
 Records: LLP 3000.007 §20.16 and `llp/reviews/3000.007-agent-ergonomics-wave-7.*`.
 
+## 2026-09-15 — all-sync reader reuse has an unresolved memory and tail cost
+
+A fixed 788c21d6 / 0.2.22 native Linux A/B extends the existing HTTP reader
+pool to successful snapshots and streams. It passes 12,000 timed requests,
+1,200 excluded warmups, the ordinary-auth captures and every complete large
+fixture walk. Both original frozen calculations agree. Empty-stream C8
+p50 improves 4.387 → 1.372 ms and throughput 1,708.739 → 5,733.897
+requests/s, while 64-event initial C8 p50 improves 5.596 → 2.970 ms.
+
+The candidate is not adopted. Large next-snapshot C8 loses every median
+metric, and large-stream C8 p95 rises 101.467 → 123.693 ms with rate
+−2.03%. Process RSS after the repeated workload rises by 90,012 KiB in
+medians, with all three pairs higher; lifetime HWM also rises. Two process
+points cannot isolate pool allocation or establish why memory increased.
+The existing sync performance ticket remains open for that diagnosis.
+
+Baseline/candidate production qualifications pass 152/153 CLI tests and
+nine HTTP-bound tests each. The complete evidence record retains 10 median
+and 34 paired metric losses, all resource points, original calculation
+stdout/exit receipts, and the unexecuted test-field and stage-pin preparation
+corrections. The source, tests and proposed LLP extension remain recoverable
+under the ignored ship run; the tracked runtime and decision were restored.
+No runtime release or new competitor result follows. All ten cases and
+measurement limits are in the
+[benchmark record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md).
+
+
+## 2026-09-15 — sync cache cleanup still costs memory
+
+The second fixed 788c21d6 / 0.2.22 native HTTP pooling experiment flushes
+statements and releases SQLite caches before returning successful sync
+readers. Empty-stream C8 p50 falls 4.060 → 1.365 ms, but median process
+RSS after cases rises 83,064 → 150,112 KiB. Large concurrent snapshot
+and stream regressions remain. The candidate is not adopted.
+
+The candidate production build, 153 CLI tests and nine HTTP-bound tests
+pass. All 12,000 formal timed calls, 1,200 excluded warmups, auth checks
+and complete walks pass. Both original frozen calculations reconcile;
+independent review retains nine median and 27 paired losses, all process
+points and original invocation/collection records. Reported VmHWM is not
+a validated continuous peak, and separate first/second batches support no
+causal memory comparison. No mixed query/sync claim is made.
+
+The complete original evidence is appended to storage.jsonl and the
+[benchmark record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md).
+The existing sync ticket remains open. Candidate source and tests remain
+recoverable in the ignored ship run; tracked runtime was never changed.
+One optimization round remains. No runtime release or competitor result
+follows from this evidence update.
+## 2026-09-15 — Postgres evaluation backend (Codex)
+
+Author scope: "Build the evaluation prototype" — real Quarry queries and
+mutations, transactional sync records, and measurements before full
+CLI/deployment support. Built in the isolated `sb4/postgres-evaluation-20260915`
+lane from `35886bc22`; no production backend switch or package publication.
+
+Added opt-in `snapback4-core/postgres`, with the same `Runner` over Postgres
+canonical row images and ordered binary index keys. Extracted `PartitionRows`
+so both databases use the existing snapshot/stream authorization machinery.
+Rows, indexes, maintains, commit head, sync log, effect records and operation
+receipts commit atomically. Refused programs keep only their sanitized receipt;
+late database failures roll back everything. Read transactions use
+repeatable-read. Serialized writes reserve the head; serializable writes retry
+the complete operation, with a bound and backoff. The head is transactional,
+not a Postgres sequence whose allocation can overtake an earlier commit.
+
+`experiments/postgres` is an independent, unpublished Cargo harness with a
+compiled Quarry fixture, PostgreSQL/SQLite comparisons and the existing device.
+`bash scripts/test-postgres.sh` starts/stops a private socket-only cluster when
+no connection is supplied and retains its data for inspection. Ten tests pass:
+ordinary fixture conformance, atomic failure/replay, concurrent writes and
+refused-op races, matching rows/watermarks during concurrent commits, membership
+snapshot/stream paging, and a real device's offline prediction, persisted queue,
+reopen, lost-response retry, settlement and revocation. The tenth-test count
+includes a deliberate non-portability witness: 6,000-byte incompressible indexed
+text succeeds in SQLite but exceeds the generic Postgres B-tree tuple limit.
+It rolls back atomically; this is a documented limitation, not a supported case.
+
+Apple M5, 32 GiB, macOS 26.6.2; PostgreSQL 16.14 and bundled SQLite 3.53.2.
+Two recorded release runs (200 and 1,000 timed operations), 32 rooms × 25 items.
+The larger run: the Quarry inbox is 0.138 ms median in SQLite, 1.894 ms in
+Postgres, with 68 explicit database calls. A separately seeded native relational
+join returns the same fixture values in 0.082 ms, without general Snapback
+rules/meter/completeness. It is a planning lower bound, not an optimized
+Snapback query or a competitor comparison. Four disjoint Postgres writers:
+2,624 ops/s serialized, 2,182 serializable, 984 retries for 2,000 commits in the
+latter. There are no lost increments. SQLite WAL/FULL and Postgres's normal
+durability settings were enabled; these are not identical power-loss guarantees,
+and the local microbenchmark is not controlled sustained-load qualification.
+
+Interpretation: keep the application semantics shared, but evaluate batched/
+plan-oriented execution and an alternative commit-order design before
+productizing this adapter. Full deploy, auth hosting, migration/restore,
+external SQL writes, native modules, asset ledger, jobs/actions and effect
+workers remain out of scope. No wire or client contract change, no new LLP
+number, no new default gate. The temporary feature-level dependency on SQLite
+for shared server types is explicit. Full recipe, raw data and limitations:
+[`experiments/postgres/README.md`](./experiments/postgres/README.md).
+
+Verification: Postgres evaluation 10/10; core tests with the `postgres` feature;
+default core/device suites; complete language suite after the fresh worktree's
+`bun install --frozen-lockfile`; simulator library plus membership, maintains
+and review-corrections suites; core without default features; harness clippy;
+`ref-check --verbose` (0 errors, 0 unchecked). The initial language run stopped
+at its explicit missing-Bun-dependencies precondition, then passed after install.
+No browser, iOS, full CLI/deployment suite or production publication claimed.
+
+## 2026-09-15 — Draft general-purpose backend architecture (Codex)
+
+The author asked for an LLP designing a compact transactional core, a
+first-class general-purpose server runtime, integrated backend services,
+optional locality and explicit native capabilities. Added Draft RFC
+[3000.009](../llp/3000.009-general-purpose-backend.rfc.md), after extending
+the root's decision record and checking existing coverage and allocation
+history. This is a design commission, not implementation or acceptance.
+
+The proposal retains Quarry and shared Rust semantics for managed data,
+provides typed TypeScript action contracts and an integrated runtime, and
+separates portable meaning from database execution/layout. It specifies
+managed/native ownership, authorization and observation boundaries, durable
+provider work, service lifecycles, deployment/recovery, three application
+journeys and six candidate increments with scoped acceptance. The real
+Postgres prototype informs the plan boundary, large-key portability and
+commit-publication risks; its native SQL comparison is not counted as an
+optimized Snapback query. No prior completed increment is broadened by its
+status, and no existing production exclusion is removed.
+
+The new working-set link replaces LLP 3000.003's link, retaining 59 documents.
+That research source and historical evidence remain, with a routing note;
+its cross-executor, admission, persistence and actual-host obligations are
+carried forward into the RFC. This is not a claim that they are all resolved.
+
+Documentation checks: `./ref-check --verbose` passes with 481 LLP documents,
+0 errors and 0 unchecked references; `git diff --check` passes. All 12 local
+Markdown targets in the new RFC resolve. The new RFC is 754 lines and the
+root is 1,187, below the file-size bound. No runtime source changed, and no
+runtime tests, independent review, deployment or publication are claimed.
+
+## 2026-09-15 — LLP 3000.009 rewritten after a directional review (Claude)
+
+The author asked for a sanity check of Draft 3000.009's direction, and a
+rewrite if a different approach would work better. Read against the author's
+commission in the Codex session (the goal, agnosticism between SQLite and
+Postgres, and the question of what the abstraction loses), the Postgres
+experiment's store and measurements, LLP 3000.007 §3, §7, §9 and §10.3, LLP
+3000.008 and .008.004, the actions card, and the online client's table-level
+invalidation.
+
+Kept from the draft: Quarry for managed data; TypeScript outside
+transactions; no SQL writes into managed tables; one commit order; durable
+work without exactly-once; webhook admission before acknowledgement; restore
+as a new store incarnation; LLP 3000.003's verification obligations.
+
+Changed:
+
+- Execution. The draft lowered data fragments to per-backend plans qualified
+  against the interpreter. The rewrite keeps the interpreter as the only
+  executor and batches access with transaction-scoped prefetch. The inbox's
+  68 calls are a per-row loop after a one-call page scan; the meter's charges
+  and cut are defined in interpreter order; Convex's Postgres persistence is
+  a generic documents-and-indexes layout beneath its own engine.
+- Layout. Generic on both stores. Typed, natively indexed tables exist only as
+  engine-maintained projections, which SQL reads (candidates or declared
+  channels) and extensions use. If the author admits SQL reads, this answers
+  two of the costs LLP 3000.007 §9.1 named.
+- Sequence. An online-only brief with Convex and Supabase controls first,
+  rerun after each increment, with Postgres as a parallel lane; the draft put
+  the application last.
+- Terms. "Native" keeps LLP 3000.005's meaning; the draft's native
+  capabilities are database capabilities.
+- Added: read-set invalidation for online observation, with key ranges kept
+  on the server (§7.1).
+
+LLP 3000.003's routing link now names the verification section's new number
+(§11), and the root's 3000.009 entry summarizes the rewrite. Documentation
+checks: `./ref-check --verbose` ok (481 LLP documents, 0 errors, 0
+unchecked); `git diff --check` clean. The RFC is 708 lines and the root
+1,202. No runtime source, tests, independent review or publication.
+
+## 2026-09-15 — LLP 3000.009 rulings; panel and implementation commissioned (Claude)
+
+The author: "accept direction, commission online-only breif, idk waht count
+towards promotion means you decide, idk what you mean rule on sql reads,
+deployment targets are both, we'll do a quick review then start the work";
+then "have astra max, grok xhigh, muse xhigh do a one round panel discussion
+of this new plan just to sanity check direction and suss out major issues.
+then begin implementation using astra xhigh to code".
+
+Recorded in LLP 3000.009 §14 and LLP 3000 §7; the RFC's status becomes
+Accepted in direction. On the delegated promotion question, the brief does
+not join §3's gates: they were registered before the comparison, and the
+brief has no baseline yet. It is reported beside them and is the bar for any
+general-purpose claim. SQL reads stay open, restated in plain terms for the
+author; they gate only increment D. The managed-service target is direction
+only; its design and Moves line wait for a commission.
+
+Next: the panel, blind and in one round, at the commit that records these
+rulings; then Astra xhigh lanes on increments A (the server half) and C
+(Postgres persistence), and the brief.
+
+## 2026-09-15 — LLP 3000.009: the panel, its disposition, and the landing (Claude)
+
+Panel, one round, blind, on `187d98b1f`: Astra (`gpt-6-astra`, max, Codex CLI,
+read-only sandbox), Grok (`grok-4.6`, xhigh, terminal/edit/write tools denied,
+file reads only) and Muse (`muse-spark-1.3`, xhigh, read-only workspace). All
+three returned SOUND WITH MAJOR ISSUES, and none proposed another
+architecture. The reviews, with their prompt and artifact digests, are
+`llp/reviews/3000.009-general-purpose-backend.{gpt,grok,muse}.md`; the
+disposition is LLP 3000.009 §15.
+
+The lead checked the load-bearing claims against main before accepting them.
+Confirmed: `claim_actions` mints a session from the stored principal
+(`engine/actions.rs:131`) while `revoke_principal` deletes only `_sessions`
+rows (`identity.rs:459`), so queued work outlives revocation; action replay
+compares principal and action, not arguments (`engine/actions.rs:101`); server
+mutation replay reads `_ops` by principal and id alone (`store.rs:240`). Two
+read-only code maps (the server half; the interpreter's read path and the
+Postgres adapter) cut the lanes and decomposed the inbox's 68 calls: BEGIN,
+the sequence read, the page scan, 32 maintained-total lookups, 32 rule-probe
+lookups, ROLLBACK.
+
+What changed in the RFC: prefetch is a physical cache of exact `Rows` calls,
+filled under a savepoint from total keys, charging nothing, qualified by an
+on/off differential on Postgres; program-time write batching splits out as C2
+and only the commit tail is pipelined in C1; index keys get one portable
+bound, and no prefix-and-hash representation without an order proof; authority
+is bound at admission, ids are bound to operation and argument digests, and
+`ctx.step` records external steps; routes gain a settlement contract, declared
+secrets and an explicit worker environment; SQL reads see only authorized
+inputs, channels are marked and ship last, liveness follows the whole
+dependency set, and expiry uses the operation's clock; increment C splits into
+C1–C3 behind one owner for durable non-row state; a Postgres database per
+application store is the managed-service assumption. Declined: removing
+declared channels outright; moving scheduled actions out of A. `NOT-DOING.md`
+gains Moves lines for A1–A3 and C1, and "a jobs framework" narrows.
+
+Landing: the Postgres evaluation and the LLP commits were cherry-picked onto
+`bae8b9299` as `sb4/w9-land`. The only conflict was the journal's
+append-append, resolved by keeping both sides in order. The evaluation
+harness is its own Cargo workspace, so its lockfile needed regenerating
+against the core's current dependencies before `--locked` would pass.
+
+Verification on the landing branch: `cargo build`, the wasm build, package
+typecheck and build, the chat check, `cargo test --workspace` (910 s), both
+app typechecks and the fixture wrapper tests are green; `scripts/test-postgres.sh`
+is 10/10 green after the lockfile refresh; `./ref-check --verbose` passes (481
+LLP documents, 0 errors, 0 unchecked) and `git diff --check` is clean. The
+`client tests` step is red, with an ECONNREFUSED cluster against fixture dev
+servers. The same step is red the same way on untouched `bae8b9299` in a
+second worktree (44 ECONNREFUSED, overlapping test names), so it is not this
+landing's doing; it matches the open ticket
+`issues/20260915-snapback4-navigation-model-fixture-server-econnrefused-under-load.md`.
+Fix-forward, not a landing veto
+(LLP 3000 §4, optimistic landing).
+
+Next: Astra xhigh lanes on `sb4/w9-a1` (work records: authority bound at
+admission, ids bound to operation and arguments, `why <id>`, `serve --worker`)
+and `sb4/w9-c1` (prefetch, the pipelined commit tail, the portable key bound,
+dual-store suites), both cut from the landing tip with their briefs; the lead
+writes the online-only brief.
+
+
+## 2026-09-15 — caught-up empty-sync gains retain snapshot regressions
+
+The third host-only pooling variant reduces empty-stream C8 median p50
+4.091 → 1.382 ms and raises rate 1,791.456 → 5,322.631 requests/s in
+three fixed-source 0.2.22 pairs. All 12,000 timed requests, 1,200 warmups,
+authorization checks and full walks pass. After-case RSS medians are
+126,228 → 96,348 KiB, with one positive and two negative paired changes;
+these points do not establish a causal memory reduction.
+
+The candidate remains unshipped. First-4,000-snapshot C1 p50/p95/rate and
+small-snapshot C8 rate worsen in every pair. Both original formal
+calculations and independent review retain all 25 median and 79 paired
+metric losses. The original qualifier's stale test-name failure and root
+smoke's stale loader-pin failure remain, with their narrow corrections;
+no measured run or independent calculation was repeated.
+
+A subsequent host test passes unswept membership expiry at an unchanged
+watermark, including scope revocation, viewer and acknowledgement freshness,
+reader discard and logout. It uses ordinary guests and file-backed SQLite
+with the existing test clock; the measured runtime and retained production
+binary are unchanged. This is one test-profile check, not an expiry-memory
+or mixed-load result. Those two conditional measurements remain pending,
+and the snapshot-loss ticket remains open. Three runtime variants are now
+measured; this evidence landing includes no runtime revision or release.
+
+Full records and limits are in storage.jsonl and the
+[benchmark record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md).
+## 2026-09-15 — the online-only brief, drafted (Claude)
+
+`benchmarks/briefs/team-workspace.md` ("Workroom") is the instrument LLP
+3000.009 §10.1 commissions: organizations and roles, projects and tasks,
+invitations by email, attachments with text extraction, a payment provider's
+signed webhooks with seat limits, an audit log, a scheduled renewal reminder,
+an administrative report over a 2,000-member organization, search, and a
+day-two session that adds a guest role. Offline earns no completeness credit
+in it; a lane that adds local-first behavior spends its own budget.
+
+Its W3 invitation and W5 webhook journeys are the assertions increment A is
+measured against. Every lane runs its backend's local development deployment,
+so an operations loss is not read as a data-plane one. Scoring keeps
+`social-messenger.md`'s two-layer shape with this brief's own dimensions,
+including integration correctness (duplicate, out-of-order and replayed
+webhooks) in place of the offline dimension.
+
+It is Draft. Before a run it needs its fixture pack — an email sink, a
+signing payment provider that can duplicate, reorder and replay, a text
+extractor, personas, a segmented starter seed, the scale-seed action log and
+a presentational UI kit — and a pilot to calibrate budgets and ceilings. The
+Convex and Supabase controls run when it freezes; Snapback's first cell
+follows increment A's journeys, without SQL reads, as the disposition says.

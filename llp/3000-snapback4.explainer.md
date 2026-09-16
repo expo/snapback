@@ -6,7 +6,7 @@
 **Systems:** Everything under `snapback4/` once it exists; the bakeoff protocol shared with Snapback 3 (LLP 2000) and Snapback 2 (LLP 1000)
 **Author:** Charlie Cheever / Claude Fable 5.1
 **Date:** 2026-09-12
-**Revised:** 2026-09-15 (§7: signal-line framing; the full 0.2.10 cell and qualified SQL recommendation); 2026-09-14 (§7: .008 panel and delegated residual program); 2026-09-14 (§7: borrowed sync replies, bounded HTTP query reader reuse and signal-stack diagnostics); 2026-09-13 (§7: ruling 15 — LLP 3000.007 §8.7 and §5.9 as revised are built); 2026-09-13 (§7: LLP 3000.007 accepted as ruled — every §14 question; the blind review of write authority commissioned; `sql` a fifth verb); 2026-09-13 (§7: the first ruling on LLP 3000.007 — the SDK media cache lands with the language); 2026-09-13 (§7: LLP 3000.007 rev 2 — pushed further after the Grok and Muse lanes; LLP 3000.006 absorbed and superseded); 2026-09-13 (§7: relaxed Quarry and explicit residency proposed in LLP 3000.007); 2026-09-13 (§7: explicit data residency and server execution proposed in LLP 3000.006); 2026-09-13 (§7: qualified packaged SQLite page-cache policy); 2026-09-13 (ticket repair qualification: logical device expiry and generation-bound native cache); 2026-09-13 (§7: SQLite plan reuse across bound inputs); 2026-09-13 (§7 and §9: security boundary and remediation); 2026-09-13 (§7: the device-side twin — native reads, LLP 3000.005 §9); 2026-09-13 (search, effects, services, presence, the ranked feed: §7, §8); 2026-09-13 (§7: production compiler trade); 2026-09-13 (§7: native jobs — the app's Rust in the data plane, hosted as wasm, metered like a job; §8: LLP 3000.005); 2026-09-13 (§7: the guide is compiled); 2026-09-13 (§7: explicit reference-ID semantics; remaining open-ticket corrections); 2026-09-13 (§7: borrowed query serialization, shared chat observations and HTTP worker reservation); 2026-09-13 (§9: implementation of the review corrections); 2026-09-12 (§9: architecture review and 37 correction tickets); 2026-09-13 (§7: feeds — the serving half is the substrate's, the model half is the app's; LLP 3000.004); 2026-09-13 (§7: one interpreter hosted two ways, the wasm measurement, ordered merge heads and measured performance work); 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
+**Revised:** 2026-09-15 (§7: LLP 3000.009's panel and disposition; increments A1–A3 and C1 on the doing-list); 2026-09-15 (§7: LLP 3000.009 accepted in direction — the brief, both deployment targets, the panel and implementation); 2026-09-15 (§7: LLP 3000.009 rewritten after a directional review); 2026-09-15 (§7: author-commissioned Draft general-purpose backend architecture); 2026-09-15 (§7: author-commissioned Postgres evaluation prototype); 2026-09-15 (§7: signal-line framing; the full 0.2.10 cell and qualified SQL recommendation); 2026-09-14 (§7: .008 panel and delegated residual program); 2026-09-14 (§7: borrowed sync replies, bounded HTTP query reader reuse and signal-stack diagnostics); 2026-09-13 (§7: ruling 15 — LLP 3000.007 §8.7 and §5.9 as revised are built); 2026-09-13 (§7: LLP 3000.007 accepted as ruled — every §14 question; the blind review of write authority commissioned; `sql` a fifth verb); 2026-09-13 (§7: the first ruling on LLP 3000.007 — the SDK media cache lands with the language); 2026-09-13 (§7: LLP 3000.007 rev 2 — pushed further after the Grok and Muse lanes; LLP 3000.006 absorbed and superseded); 2026-09-13 (§7: relaxed Quarry and explicit residency proposed in LLP 3000.007); 2026-09-13 (§7: explicit data residency and server execution proposed in LLP 3000.006); 2026-09-13 (§7: qualified packaged SQLite page-cache policy); 2026-09-13 (ticket repair qualification: logical device expiry and generation-bound native cache); 2026-09-13 (§7: SQLite plan reuse across bound inputs); 2026-09-13 (§7 and §9: security boundary and remediation); 2026-09-13 (§7: the device-side twin — native reads, LLP 3000.005 §9); 2026-09-13 (search, effects, services, presence, the ranked feed: §7, §8); 2026-09-13 (§7: production compiler trade); 2026-09-13 (§7: native jobs — the app's Rust in the data plane, hosted as wasm, metered like a job; §8: LLP 3000.005); 2026-09-13 (§7: the guide is compiled); 2026-09-13 (§7: explicit reference-ID semantics; remaining open-ticket corrections); 2026-09-13 (§7: borrowed query serialization, shared chat observations and HTTP worker reservation); 2026-09-13 (§9: implementation of the review corrections); 2026-09-12 (§9: architecture review and 37 correction tickets); 2026-09-13 (§7: feeds — the serving half is the substrate's, the model half is the app's; LLP 3000.004); 2026-09-13 (§7: one interpreter hosted two ways, the wasm measurement, ordered merge heads and measured performance work); 2026-09-12 (§8: the full-brief Clique record, 0.1.1–0.1.9); 2026-09-12 (§7: expiry as a lifetime, one asset one home, jobs as sweeps and schedules as boundaries; §8: 0.1.0, the whole brief); 2026-09-12 (§8: the local-first tier, H0); 2026-09-12 (§7: Quarry in Rust, one key encoding, sync forms, operation names; §8: the week-two day-one map); 2026-09-12 (§8: the week-one implementation map);  2026-09-12 (§7: toolchain, simulator host, the clock's commit); 2026-09-12 (initial: the author's decisions of 2026-09-12, the bet on one page, the bakeoff protocol, the fence, the first four weeks)
 **Related:** [LLP 2000](./2000-snapback3.rfc.md) (Snapback 3, the sibling candidate), [LLP 2000.000](./2000.000-keep-the-core-flip-two-substrates.rfc.md) (the design brief this corpus builds), [LLP 1000](./1000-snapback2.explainer.md) (Snapback 2, the incumbent and the control), LLP 0000, LLP 0329, LLP 0329.014.004, LLP 0329.016, LLP 1001, LLP 1002, LLP 1012, LLP 1016, LLP 1019, LLP 1020, [LLP 1023](./1023-clique-builder-jump.rfc.md), [LLP 3000.004](./3000.004-feeds-and-the-interview-reference-app.rfc.md) (feeds; Interview as the second reference application), [LLP 3000.005](./3000.005-native-jobs.rfc.md) (native jobs), [LLP 3000.006](./3000.006-explicit-data-residency-and-server-execution.rfc.md) (explicit online-only data, execution classification and synced projections), [LLP 3000.007](./3000.007-relaxed-quarry-and-explicit-residency.rfc.md) (relaxed Quarry and explicit residency: the language's constraints re-derived under the meter), `rules/RULES.md`, `rules/NOT-DOING.md`, [`benchmarks/protocol.md`](../benchmarks/protocol.md), [`benchmarks/briefs/social-messenger.md`](../benchmarks/briefs/social-messenger.md), [`benchmarks/briefs/messaging-day2-evolution.md`](../benchmarks/briefs/messaging-day2-evolution.md)
 
 ## Summary
@@ -1037,6 +1037,106 @@ time-ordered 128-bit form.
 
 **2026-09-15 — LLP 3000.007 full-cell finding recorded.** The [0.2.10 three-model record](../benchmarks/runs/2026-09-14-snapback4-clique-0.2.10/README.md) retains all twelve phase outcomes: holistic 82/63/82, independent 119-ID grades 99/2/18, 71/30/18 and 98/3/18 (pass/fail/not-run), and three received-green M7 sessions with different count mechanisms. The [§10.3 finding](./3000.007-relaxed-quarry-and-explicit-residency.rfc.md#10.3) recommends application SQL reads on remaining reporting-authoring cost, with docs-only/loop-record and grading limits explicit; the author has not ruled on that recommendation. No Moves line or implementation changes here; the September 14 acceptance of §14 rulings 16 and 17 (a)–(c) remains settled.
 
+
+- **2026-09-15 — evaluate Postgres beneath the same application semantics.**
+  The author selected an evaluation prototype, not a new production deploy
+  target. The opt-in core `postgres` feature runs compiled Quarry queries and
+  mutations through the existing `Runner`; `PartitionRows` lets both stores
+  use the same snapshot, membership, reauthorization and stream algorithms.
+  Row images, ordered index keys, maintains, commit head, partition log,
+  effect records and at-most-once receipts share one database transaction.
+  Application refusals roll back their savepoint but retain a sanitized
+  receipt; infrastructure failures roll back the entire transaction.
+
+  One transactional head row orders commits. A Postgres sequence allocation
+  alone cannot be a sync watermark: an allocated earlier sequence may commit
+  after a later one was already delivered. The baseline reserves this head
+  before running Quarry. The alternate serializable mode retries the whole
+  operation, including rules and maintained values, on serialization failure;
+  it still contends on that head. Reads use repeatable-read snapshots.
+  This establishes a working comparison boundary, not a multi-writer scaling
+  claim or a commitment to this physical layout.
+
+  The [executable experiment](../snapback4/experiments/postgres/README.md)
+  compares SQLite, the initial Postgres row/index adapter, and a separately
+  labelled native SQL join lower bound. The latter does not implement the
+  general rule/meter/completeness contract and is not an application SQL API.
+  Full CLI/deployment, auth hosting, schema evolution, restore identity,
+  effect workers, native modules, assets, jobs and actions are outside this
+  increment. The default CLI and device builds remain unchanged. The
+  prototype temporarily depends on the SQLite feature for shared server
+  types; eliminating that compile-time coupling is not its goal.
+
+- **2026-09-15 — design a complete general-purpose backend, with optional locality.**
+  The author requested an LLP designing a compact transactional core, a
+  first-class general-purpose server runtime, integrated backend services,
+  optional locality and explicit native capabilities. This commissions the
+  design, not implementation, acceptance, a panel or production Postgres.
+  [Draft LLP 3000.009](./3000.009-general-purpose-backend.rfc.md) develops the
+  architecture from the Postgres experiment and the current authoring cards.
+  LLP 3000.007 retains its accepted authoring decisions; LLP 3000.008 retains
+  the completed, bounded scope of its implementation. Neither is relabelled
+  as a completed general-purpose backend. A separate child is warranted for
+  the new execution, service and native-capability contracts; this root is
+  extended first, as the scope fence requires.
+
+  The proposal carries forward LLP 3000.003's cross-host semantic and
+  verification questions, including actual persistence/host boundaries, in
+  its acceptance section. Its working-set link replaces that research link,
+  keeping `llp/current/` at 59 documents; the research file and its historical
+  evidence remain. No unresolved research is claimed implemented by this
+  routing change. The production scope, runtime ceilings, client guarantees
+  and `NOT-DOING.md` remain unchanged pending explicit implementation scope.
+
+  **2026-09-15 — LLP 3000.009 rewritten after a directional review (Claude
+  Opus 5, at the author's request).** The draft's boundaries stand: Quarry
+  for managed data, TypeScript outside transactions, no SQL writes into
+  managed tables, one commit order. Four directions changed. The interpreter
+  stays the only executor on both stores, with transaction-scoped prefetch
+  in place of lowering Quarry to SQL: the experiment's cost is a per-row
+  loop of round trips (68 calls for the inbox, 5 for a page), and the meter
+  is defined in interpreter order. Managed data keeps the generic layout;
+  typed, natively indexed tables exist only as engine-maintained
+  projections, which SQL reads and extensions use. An online-only brief with
+  Convex and Supabase controls comes first, with Postgres as a parallel
+  lane. "Native" keeps its LLP 3000.005 meaning; the draft's native
+  capabilities are called database capabilities. Still Draft: no
+  implementation, scope or Moves change.
+
+- **2026-09-15 — LLP 3000.009 accepted in direction (author).** The author
+  accepted the direction as rewritten, commissioned the online-only brief
+  with Convex and Supabase controls, ruled that a self-hosted binary and a
+  managed service are both deployment targets, and delegated whether the
+  brief joins §3's promotion criteria. The lead's ruling: it does not. §3's
+  pre-registered gates stand; the brief is reported beside them and is the
+  bar for describing Snapback as a general-purpose backend. LLP 3000.007
+  §10.3's SQL-reads question remains open and gates only increment D. A
+  one-round panel (Astra max, Grok xhigh, Muse xhigh) checks direction and
+  major issues; implementation then begins with Astra xhigh lanes on
+  increments A and C, which the lead cuts, reviews and lands, as for LLP
+  3000.007 and 3000.008. LLP 3000.009 §14 records the rulings.
+
+- **2026-09-15 — LLP 3000.009's panel: the direction holds; five contracts
+  rewritten (lead).** Astra (max), Grok (xhigh) and Muse (xhigh) each
+  reviewed the accepted plan blind in one round, and each returned sound with
+  major issues. No reviewer proposed another architecture. The disposition
+  (LLP 3000.009 §15) accepts their substance:
+  - **Prefetch** becomes a physical cache that evaluates, authorizes and
+    charges nothing, qualified by an on/off differential on Postgres.
+  - **Write batching.** Program-time batching needs read-your-writes and
+    becomes its own increment.
+  - **Index keys** get one portable bound.
+  - **Action authority** is bound at admission; today a claim mints a session
+    from the stored principal, so queued work outlives `revoke_principal`.
+    Ids are bound to operation and arguments, and external steps get durable
+    outcomes.
+  - **SQL reads** see only authorized inputs, and their liveness follows
+    their full dependency set.
+  - **Increment C** splits into the access boundary (C1), write batching (C2)
+    and production integration (C3), with one owner for durable non-row
+    state.
+
+  Increments A1–A3 and C1 move onto the doing-list with their Moves lines.
 
 ## 8. Implementation map
 
