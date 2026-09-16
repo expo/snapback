@@ -225,7 +225,7 @@ pub enum Mode {
 }
 
 pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), String> {
-    let source_stamp = project.sources_stamp();
+    let mut source_stamp = project.sources_stamp();
     let bound = project.compile().map_err(|e| e.to_string())?;
     if !bound.diagnostics.is_empty() {
         for diagnostic in &bound.diagnostics {
@@ -240,7 +240,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     let hold_schedules = replay || matches!(mode, Mode::Dev { hold_schedules: true, .. });
     let clock = crate::dev_clock::Clock::new(dev, match mode { Mode::Dev { clock_offset, .. } => clock_offset, _ => 0 }).map_err(|e| e.to_string())?;
     let generated = if dev { Some(project.write_generated(&bound).map_err(|e| e.to_string())?) } else { None };
-    if dev { project.check_server()?; }
+    if dev { project.check_server_at(&mut source_stamp)?; }
     // @ref LLP 3000.007#20.2 — only the owning host may replace replay/schedule policy; deployment shares the same lock.
     // Release startup already owns this lock before selecting its source.
     let mut host_lock = if matches!(mode, Mode::Dev { fresh: false, .. }) {

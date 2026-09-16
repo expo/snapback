@@ -103,7 +103,7 @@ pub(super) fn background_failure(shared: &Shared, name: &str, error: &RuntimeErr
     if let Some(line) = lock(&shared.adoption).background_failure(name, error) { eprintln!("{line}"); }
 }
 
-pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: u128) {
+pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: crate::project::SourceStamp) {
     let mut retry = false;
     let mut seen_generation = *lock(&shared.generation);
     loop {
@@ -140,7 +140,7 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: u1
                         continue;
                     }
                 };
-                if let Err(error) = project.check_server() {
+                if let Err(error) = project.check_server_at(&mut stamp) {
                     eprintln!("snapback4 dev: {error}\nsnapback4 dev: serving the previous generation");
                     continue;
                 }

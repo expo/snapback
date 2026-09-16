@@ -171,7 +171,7 @@ export default worker; await worker.done;
   writeFileSync(provider, 'export function value(): string { return "first"; }\n');
   writeFileSync(baseConfig, "{}\n");
   writeFileSync(join(p.directory, "tsconfig.json"), '{"extends":"./config/server-base.json"}\n');
-  p.checked();
+  assert.equal(existsSync(join(p.directory, "snapback/generated/server-watch.json")), false);
   const f = await p.start({ watch: true });
   let invocation = 0;
   const read = () => f.collect("inspect", `watch-${++invocation}`);
@@ -181,6 +181,9 @@ export default worker; await worker.done;
     assert.equal(result.result.value, expected, f.log());
   };
   await expectValue("first");
+  await delay(1200);
+  assert.equal(f.workerPids().length, 1, "fresh dev must not adopt its own checker metadata\n" + f.log());
+  assert.doesNotMatch(f.log(), /schema adopted as generation/);
   const initialWorkers = f.workerPids().length;
   writeFileSync(join(p.directory, "src/unrelated-ui.ts"), "this is deliberately not TypeScript!\n");
   await delay(900);
@@ -191,12 +194,14 @@ export default worker; await worker.done;
     const workers = f.workerPids().length;
     edit();
     await until(() => f.workerPids().length > workers, `checked worker restarts for ${expected}`, 12_000, f.log);
-    // A changed graph can require another observation pass. Fresh invocation
-    // ids avoid mistaking an old durable action result for the new handler.
+    // Fresh invocation ids avoid mistaking an old durable action result for
+    // the new handler. A checked graph must not itself count as another edit.
     await until(async () => {
       const result = await read();
       return result.state === "done" && result.result.value === expected;
     }, `new handler returns ${expected}`, 12_000, f.log);
+    await delay(1200);
+    assert.equal(f.workerPids().length, workers + 1, "one accepted edit must restart exactly once\n" + f.log());
   }
   async function refused(edit, expected, diagnostic) {
     const workers = f.workerPids().length, offset = f.log().length;

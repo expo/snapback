@@ -10,6 +10,16 @@ pub struct Project {
     pub root: PathBuf,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct SourceStamp { sources: u128, dependencies: u128 }
+type ServerDependency = (String, Option<(String, String)>);
+
+fn stamp(value: impl std::fmt::Debug) -> u128 {
+    use sha2::{Digest, Sha256};
+    let hash = Sha256::digest(format!("{value:?}"));
+    u128::from_be_bytes(hash[..16].try_into().expect("sixteen hash bytes"))
+}
+
 impl Project {
     /// Walk up from `start` to the directory holding `snapback/schema.q`.
     pub fn locate(start: &Path) -> Option<Self> {
@@ -81,7 +91,7 @@ impl Project {
 
     /// The newest modification time among the sources — the `.q` files and
     /// the native crate's manifest and `src/` — for the watcher.
-    pub fn sources_stamp(&self) -> u128 {
+    pub fn sources_stamp(&self) -> SourceStamp {
         fn newest(dir: &Path, keep: &dyn Fn(&Path) -> bool, depth: u8) -> u128 {
             std::fs::read_dir(dir)
                 .map(|entries| {
@@ -125,18 +135,30 @@ impl Project {
         // The TypeScript checker records imports/configs outside snapback/ as
         // well as failed resolution candidates. Stat that bounded graph, not
         // unrelated UI sources, and retain absence so deletion/refill wakes us.
-        let watched: Vec<String> = std::fs::read(self.generated_dir().join("server-watch.json"))
-            .ok().and_then(|bytes| serde_json::from_slice(&bytes).ok()).unwrap_or_default();
-        let dependencies: Vec<_> = watched.into_iter().map(|path| {
+        let dependencies: Vec<ServerDependency> = self.checked_dependencies().into_iter().map(|(path, _)| {
             let state = std::fs::metadata(&path).ok().map(|meta| (
-                meta.modified().ok().and_then(|at| at.duration_since(std::time::UNIX_EPOCH).ok()).map(|at| at.as_nanos()).unwrap_or(0),
-                meta.len(),
+                meta.modified().ok().and_then(|at| at.duration_since(std::time::UNIX_EPOCH).ok()).map(|at| at.as_nanos()).unwrap_or(0).to_string(),
+                meta.len().to_string(),
             ));
             (path, state)
         }).collect();
-        use sha2::{Digest, Sha256};
-        let hash = Sha256::digest(format!("{quarry}:{native}:{files:?}:{dependencies:?}"));
-        u128::from_be_bytes(hash[..16].try_into().expect("sixteen hash bytes"))
+        SourceStamp { sources: stamp((quarry, native, files)), dependencies: stamp(dependencies) }
+    }
+
+    fn checked_dependencies(&self) -> Vec<ServerDependency> {
+        std::fs::read(self.generated_dir().join("server-watch.json"))
+            .ok().and_then(|bytes| serde_json::from_slice(&bytes).ok()).unwrap_or_default()
+    }
+
+    // A newly discovered graph is checker output, not an application edit.
+    // Acknowledge the states actually observed before its file reads, never
+    // a fresh post-check stat that could swallow an edit made during checking.
+    pub fn check_server_at(&self, baseline: &mut SourceStamp) -> Result<(), String> {
+        let before = self.checked_dependencies();
+        let checked = self.check_server();
+        let observed = self.checked_dependencies();
+        if observed != before { baseline.dependencies = stamp(observed); }
+        checked
     }
 
     pub fn compile(&self) -> std::io::Result<Bound> {

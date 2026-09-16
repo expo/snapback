@@ -1,7 +1,7 @@
 // The CLI embeds this checker. Resolve the application's installed compiler;
 // never download a package or execute the application's TypeScript to check it.
 import { createRequire } from "node:module";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { dirname, resolve, sep } from "node:path";
 
 const root = resolve(process.argv[1]);
@@ -17,10 +17,13 @@ catch {
 // Failed file lookups (and absent directories that short-circuit lookups) are
 // dependencies too: creating a previously missing import must recover dev.
 const generated = resolve(root, "snapback/generated");
-const dependencies = new Set();
+const dependencies = new Map();
 function observe(path) {
   const absolute = resolve(path);
-  if (absolute !== generated && !absolute.startsWith(generated + sep)) dependencies.add(absolute);
+  if (absolute === generated || absolute.startsWith(generated + sep) || dependencies.has(absolute)) return;
+  let state = null;
+  try { const stat = statSync(absolute, { bigint: true }); state = [String(stat.mtimeNs), String(stat.size)]; } catch {}
+  dependencies.set(absolute, state);
 }
 function observed(host) {
   const result = { ...host };
@@ -89,7 +92,7 @@ errors.push(...ts.getPreEmitDiagnostics(program));
 // Publish even on a failed check, atomically, so the watcher can observe a fix
 // without adopting the invalid generation. Ignore metadata's own mtime.
 const watchFile = resolve(generated, "server-watch.json");
-const snapshot = JSON.stringify([...dependencies].sort()) + "\n";
+const snapshot = JSON.stringify([...dependencies].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) + "\n";
 let previous;
 try { previous = readFileSync(watchFile, "utf8"); } catch {}
 if (previous !== snapshot) {
