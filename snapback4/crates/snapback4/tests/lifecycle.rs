@@ -65,7 +65,7 @@ impl Host {
             .stdout(File::create(&stdout).unwrap()).stderr(File::create(&stderr).unwrap()).spawn().unwrap();
         let mut host = Self { child, stdout, stderr, port: 0 };
         host.until(|h| fs::read_to_string(&h.stdout).unwrap().contains('\n'));
-        host.port = fs::read_to_string(&host.stdout).unwrap().trim().rsplit(':').next().unwrap().parse().unwrap();
+        host.port = fs::read_to_string(&host.stdout).unwrap().lines().next().unwrap().rsplit(':').next().unwrap().parse().unwrap();
         host
     }
     fn log(&self) -> String { fs::read_to_string(&self.stderr).unwrap() }

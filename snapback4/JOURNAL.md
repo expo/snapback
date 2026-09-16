@@ -23445,3 +23445,273 @@ A1/C1's measurements are unchanged: **all C1 targets missed**. No tuning,
 benchmark rerun, control, pilot, ceiling freeze or publication ran here.
 Next is the separately commissioned A3 route/webhook boundary. SQL reads
 remain admitted for D in their authorized-input form, outside the first cell.
+
+## 2026-09-16 — W10c: empty search, the worker token, horizon silence and cascades
+
+Built the four rank-9 items from the 0.2.25 Clique friction review, starting
+at `441ef82c15a8d541048a5d6c001e364cdd8b5c4f`. No commits, publication,
+meter changes, value-model changes, existing corpus edits or other-machine
+work. The conflicting mutation-value-bound warning remains excluded.
+
+The search card and package README now put `allPeople(c)` beside
+`people(q, c)`: browse the ordinary `byId` index while the input is empty,
+search the words index when it is typed, and reset the cursor on a query or
+needle change. They explicitly say that empty, whitespace-only and
+punctuation-only needles match nothing. The simulator compiles the card
+itself and runs it: three empty needles return zero matches; browsing and
+searching `person` both visit 25 rows in pages of 20 + 5, in id order;
+`dav` finds the twenty-fifth profile on the first search page. A one-line
+conditional return was tried and rejected as the paved answer: it compiles,
+but with 25 rows it returns 20, `complete: false`, no `next`. Fixing that
+continuation path would enlarge this lane. No new language form was added.
+
+Chose stdout for the dev worker's one-time service token. It remains visible
+interactively without another flag, retains `(printed once)`, and no longer
+enters a harness's stderr log. The constructor still validates its source,
+environment and Node before readiness; the existing first host-loop tick
+starts the child after the listening URL has been printed. The URL remains
+the first stdout line. The fixture redeems the displayed token over HTTP,
+checks one stdout announcement and zero credentials on stderr, and deliberately
+echoes the token from the worker to prove that worker-output redaction still
+holds. The explicit `token` verb already had the desired stream split.
+Updated the service card, client/operations reference and both stream-reading
+fixtures; `serve.rs` changes only its now-stale stdout comment.
+
+The sync card, `N_NO_HORIZON` explanation and README now say, verbatim:
+Silence means "no reader in this program forced the check", not "this table is bounded".
+The same uncapped public table produces one note without a reader, and zero
+when an eligible mutation needs its whole partition. The table definition
+is identical in both tests. This documents the reader-dependent suppression;
+it does not change the note's emission rule or certify cold-start size.
+
+The parser marks only its empty-operation consequence when an earlier error
+was emitted while parsing that operation's own body. `check` hides it only
+when the marked cause is earlier in the report and the rewrite is the generic
+"fix this Quarry line and rerun snapback4 check". It reports the hidden count;
+`check --verbose` and `--json` retain both diagnostics. There was no existing
+verbosity switch in this checkout, so `--verbose` is now a no-value switch.
+An independent `exists` error with that same generic rewrite, and an empty
+job after errors in a different operation, remain visible. Updated the
+existing `--fix` expectation to this deliberately changed output.
+
+The red tests ran before the relevant fixes: missing search guidance, missing
+browse operation, missing horizon-silence text, stderr token announcement,
+and duplicate default diagnostics all failed. A further regression caught
+the listening URL being displaced by the stdout token and passed after the
+first-tick change. Initial test setup also found an unbuilt JS `dist/` and
+one fixture assertion type typo; those were corrected before recording the
+behavioral red results. Logs are under `/tmp/w10c-logs/`, outside the tree;
+any incidental disposable fixture token in the failed stream assertion log
+was redacted. No credential is included here.
+
+Commands below ran in `snapback4/`, except `ref-check` and the blocking
+suite, which ran at the repository root. Every JS invocation used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+
+`red-lang-all.log`:
+
+```text
+cargo test -p snapback4-lang --test search_guidance --test residency_notes --no-fail-fast w10c -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 36 filtered out; finished in 0.00s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+```
+
+`red-directory-fixed.log`:
+
+```text
+cargo test -p snapback4-sim --test clique w10c -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 86 filtered out; finished in 0.02s
+```
+
+`red-check-final.log`:
+
+```text
+cargo test -p snapback4 --test check w10c -- --nocapture
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 35 filtered out; finished in 0.97s
+```
+
+`red-token-built.log`:
+
+```text
+node --test --test-name-pattern='w10c' packages/snapback4/test/worker.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 4113.044959
+```
+
+`red-token-order.log`:
+
+```text
+node --test --test-name-pattern='w10c' packages/snapback4/test/worker.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 4115.611125
+```
+
+`verified-lang.log`:
+
+```text
+cargo test -p snapback4-lang --test search_guidance --test residency_notes --test guide --no-fail-fast
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.54s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+`verified-directory.log`:
+
+```text
+cargo test -p snapback4-sim --test clique w10c -- --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 86 filtered out; finished in 0.02s
+```
+
+`verified-check.log`:
+
+```text
+cargo test -p snapback4 --test check w10c -- --nocapture
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 35 filtered out; finished in 1.20s
+```
+
+`final-cli.log`:
+
+```text
+cargo test -p snapback4 --test check --test fix --test lifecycle --test witness --no-fail-fast
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.67s
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.59s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.18s
+```
+
+`final-worker.log`:
+
+```text
+node --test --test-concurrency=2 packages/snapback4/test/worker.test.mjs packages/snapback4/test/periphery.test.mjs
+ℹ tests 50
+ℹ pass 50
+ℹ fail 0
+ℹ duration_ms 33834.855875
+```
+
+`client-concurrency2.log`:
+
+```text
+node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'
+ℹ tests 440
+ℹ pass 439
+ℹ fail 1
+ℹ duration_ms 167581.186541
+```
+
+`react-isolated.log`:
+
+```text
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 385.22275
+```
+
+The unmodified blocking command, `bash snapback4/scripts/test.sh`, first
+hit widespread default-concurrency client timeouts. Its client runner then
+stopped producing output for more than seven minutes. Interrupted that owned
+exec session with Ctrl-C (exit 130); it did not print a final suite summary.
+The first run also caught the old `--fix` cascade expectation and the lifecycle
+fixture reading all stdout as one URL; both are fixed and pass in the final
+CLI run above. The witness fixture's first-run timeouts disappeared in its
+isolated suite and the final complete suite. No pre-existing product failure
+is asserted without a clean-base reproduction.
+
+Ran the entire blocking script again against the final source with the
+prescribed Node test concurrency applied by a temporary exported shell
+function, not by editing the repository's script. Exact invocation (Bash,
+repository root; redirects retained):
+
+```bash
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+node() {
+  if [ "${1-}" = --test ]; then command node --test-concurrency=2 "$@"; else command node "$@"; fi
+}
+export -f node
+printf '%s\n' "$$" > /tmp/w10c-logs/final-suite.pid
+bash snapback4/scripts/test.sh > /tmp/w10c-logs/final-suite.log 2>&1
+```
+
+Verbatim full-suite stage and Node summaries:
+
+```text
+-- ok: cargo build (2 s)
+-- ok: wasm build (2 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (0 s)
+-- ok: chat app check (2 s)
+-- ok: cargo test (631 s)
+-- ok: chat app typecheck (0 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ duration_ms 7897.14425
+-- ok: fixture wrapper tests (8 s)
+ℹ tests 440
+ℹ pass 439
+ℹ fail 1
+ℹ duration_ms 168499.07125
+-- FAIL: client tests (169 s)
+== 1 failure(s) in 638 s
+```
+
+The 69 Rust summary lines total **1,164 passed, 0 failed, 4 ignored**.
+The full suite's one failed stage is the **439/440 client tests**: Chromium's
+React witness aborts with `SIGABRT` in this sandbox. It also fails alone,
+with the exact isolated command and summary above. This is the environment
+artifact named in the lane brief; the lead must rerun the browser witness
+outside this sandbox. No other final suite failure remains. The script took
+638 seconds on this shared host; no test budget or ceiling was raised.
+
+The final affected-source cap census has a maximum of **1,489 lines**
+(`tests/clique.rs`); the new fixture is its own small module. `git diff --check`
+is clean. The reference check, run at the repository root:
+
+```text
+./ref-check --verbose
+ref-check: ok — 481 LLP docs, 9019 refs in 23936 files, 0 errors, 0 unchecked
+```
+
+The cascade fixture's exact text before the fix (also the final verbose
+output):
+
+```text
+schema.q:2:19 — E_QUARRY_SYNTAX: range reads require first N or last N
+  rewrite: messages[] where .body = 'hello' first 50
+  guide: language
+
+schema.q:1:1 — E_QUARRY_SYNTAX: query apiHistory has an empty body
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+
+check: 2 problems
+```
+
+After, default output:
+
+```text
+schema.q:2:19 — E_QUARRY_SYNTAX: range reads require first N or last N
+  rewrite: messages[] where .body = 'hello' first 50
+  guide: language
+
+check: 1 problem
+check: 1 redundant cascade diagnostic(s) hidden; use --verbose to show them
+```
+
+The `N_NO_HORIZON` emitted diagnostic text is unchanged; its explanation now
+states the silence rule quoted above. The worker announcement's format text
+is unchanged — `snapback4 dev worker: service:worker token (printed once): {token}` —
+and moves from stderr to stdout; `{token}` here is the format placeholder,
+never a credential. All four requested items are implemented. The one-line
+search alternative was deliberately not shipped for the measured pagination
+reason above; no conflicting mutation-bound warning was added. Apart from
+necessary published-reference and existing-test updates, the only ancillary
+source edit is the single stdout comment in `src/serve.rs`. No other lane's
+implementation or application code was changed. The lead owns the commit.

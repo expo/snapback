@@ -33,13 +33,17 @@ pub struct Diagnostic {
     /// A spelling-only repair; never permission to apply a design suggestion.
     #[serde(default)]
     pub mechanical: bool,
+    /// Parser-proven consequence of an earlier error in this operation,
+    /// with no independent information. Kept for verbose and JSON reports.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cascade_of: Option<Site>,
 }
 
 impl Diagnostic {
     pub fn new(site: &Site, code: &str, message: impl Into<String>, rewrite: impl Into<String>) -> Self {
         let code = code.to_owned();
         let guide = guide_for(&code).to_owned();
-        Self { site: site.clone(), code, message: message.into(), rewrite: rewrite.into(), guide, mechanical: false }
+        Self { site: site.clone(), code, message: message.into(), rewrite: rewrite.into(), guide, mechanical: false, cascade_of: None }
     }
 
     // @ref LLP 3000.007#8 — only explicitly mechanical rewrites may change source

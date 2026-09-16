@@ -12,6 +12,20 @@ fn clean(source: &str) -> Bound {
 fn online() -> String { SOURCE.replace("  read <- allow", "  read <- allow\n  online only") }
 
 #[test]
+fn w10c_no_horizon_silence_is_not_a_bound() {
+    let sentence = "Silence means \"no reader in this program forced the check\", not \"this table is bounded\".";
+    assert!(snapback4_lang::guide::card("sync").unwrap().contains(sentence));
+    assert!(snapback4_lang::guide::CODES.iter().find(|(code, _)| *code == "N_NO_HORIZON").unwrap().1.contains(sentence));
+    let source = "table profiles:\n  name: text <=50\n  public 'directory'\n  sync public\n";
+    let without_reader = clean(source);
+    assert_eq!(without_reader.notes.iter().filter(|n| n.code == "N_NO_HORIZON").count(), 1);
+    let with_reader = clean(&format!("{source}mutation inspect(id: profiles):\n  return profiles[id]\n"));
+    assert_eq!(with_reader.schema.operations["inspect"].predicts.as_deref(), Some("eligible"));
+    assert!(!with_reader.notes.iter().any(|n| n.code == "N_NO_HORIZON"));
+    assert_eq!(without_reader.schema.tables["profiles"], with_reader.schema.tables["profiles"]);
+}
+
+#[test]
 fn w9r1b_after_insert_sites_keep_each_constraint_declaration() {
     let source = "table permits:\n  owner: principal\n  team: principal\n  unique byOwner: owner\n  unique byTeam: team\n  public 'permits'\n  sync\ntable actions:\n  owner: principal\n  team: principal\n  immutable owner\n  public 'actions'\n  sync\n  insert <- allow\n  after insert <- exists permits[.owner] by byOwner\n  after insert <- exists permits[.team] by byTeam\nmutation act():\n  insert actions { owner: viewer, team: viewer }\n";
     for second_index in ["byTeam", "byOwner"] {

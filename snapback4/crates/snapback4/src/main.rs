@@ -20,7 +20,7 @@ use std::process::ExitCode;
 const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on every device
 
   init [dir] [--online|--expo] [--recipe feeds [--prefix <name>] [--authors N --edges N]]  start a project or add the Following recipe
-  check [--cost|--residency|--fix|--json] [--store path]  compile snapback/*.q; check store adoption; write types; build native jobs
+  check [--cost|--residency|--fix|--json|--verbose] [--store path]  compile snapback/*.q; check store adoption; write types; build native jobs; --verbose includes redundant cascades
   types                            compile and write snapback/generated/api.ts
   dev [--port N] [--no-watch] [--fresh|--memory] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h]
                                       --replay: suppress new effects and hold schedules; --hold-effects: pause claims, keep effects for later; serve on 127.0.0.1:4400, re-adopting on every save; --fresh/--memory: a store in memory that dies with this process
