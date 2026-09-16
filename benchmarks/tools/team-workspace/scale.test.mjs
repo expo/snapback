@@ -7,6 +7,8 @@ import { scaleActions, expectedEnvelope } from './scale.mjs';
 import { ReportReducer } from './reducer.mjs';
 import { loadMedia } from './services.mjs';
 import { generate, verifyGenerated } from './generate.mjs';
+import { gzipSync, gunzipSync } from 'node:zlib';
+import { sha256, line } from './common.mjs';
 
 test('tiny scale action reducer proves report, audit, legal transitions, and account envelope', async () => {
   const reducer = new ReportReducer(await loadMedia());
@@ -56,6 +58,12 @@ test('manifest verification rejects tampered milestone/operation counts and medi
       [m => { m.media[0].bytes++; }, 'MANIFEST_MEDIA_MISMATCH'],
       [m => { m.media[0].id = 'invented'; }, 'MANIFEST_MEDIA_MISMATCH'],
       [m => { m.media.pop(); }, 'MANIFEST_MEDIA_MISMATCH']
+      , [m => { m.profile = 'constructor'; }, 'UNKNOWN_PROFILE']
+      , [m => { m.actions.file = '../actions.ndjson.gz'; }, 'INVALID_MANIFEST']
+      , [m => { m.profile = profile === 'tiny' ? 'starter' : 'tiny'; }, 'MANIFEST_REPORT_LAYOUT']
+      , [m => { m.profile = profile === 'tiny' ? 'full' : 'starter'; }, 'MANIFEST_PROFILE_MISMATCH']
+      , [m => { m.profile = 'starter'; m.report = null; m.envelope = null; }, 'MANIFEST_PROFILE_MISMATCH']
+      , [m => { if (m.report) m.report.file = 'another-report.json'; else m.report = { file: 'expected-report.json' }; }, 'MANIFEST_REPORT_LAYOUT']
     ]) {
       const changed = structuredClone(manifest); mutate(changed);
       await writeFile(join(directory, 'manifest.json'), JSON.stringify(changed));
@@ -64,4 +72,22 @@ test('manifest verification rejects tampered milestone/operation counts and medi
     await writeFile(join(directory, 'manifest.json'), JSON.stringify(manifest));
     assert.equal((await verifyGenerated(directory)).verified, true);
   }
+});
+
+test('verification binds the observed report envelope even when changed log and report hashes agree', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'workroom-envelope-')); t.after(() => rm(directory, { recursive: true }));
+  const manifest = await generate({ profile: 'tiny', directory });
+  const actions = gunzipSync(await readFile(join(directory, manifest.actions.file))).toString().trim().split('\n').map(JSON.parse);
+  const task = actions.find(a => a.op === 'task.create' && a.input.dueOffsetMs > 0);
+  task.input.dueOffsetMs *= -1;
+  const raw = Buffer.from(actions.map(line).join('')), compressed = gzipSync(raw);
+  const reducer = new ReportReducer(await loadMedia());
+  for (const action of actions) reducer.apply(action);
+  const report = Buffer.from(line(reducer.report()));
+  Object.assign(manifest.actions, { bytes: raw.length, sha256: sha256(raw), compressed: { bytes: compressed.length, sha256: sha256(compressed) } });
+  manifest.report.sha256 = sha256(report);
+  await writeFile(join(directory, manifest.actions.file), compressed);
+  await writeFile(join(directory, manifest.report.file), report);
+  await writeFile(join(directory, 'manifest.json'), line(manifest));
+  await assert.rejects(verifyGenerated(directory), { code: 'ENVELOPE_MISMATCH' });
 });

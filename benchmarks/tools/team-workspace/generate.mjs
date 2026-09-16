@@ -20,9 +20,13 @@ async function fileDigest(path) {
   for await (const chunk of createReadStream(path)) { hash.update(chunk); bytes += chunk.length; }
   return { sha256: hash.digest('hex'), bytes };
 }
-export async function generate({ profile = 'tiny', directory }) {
+function profileKind(profile) {
   const starter = ['starter', 'conformance'].includes(profile);
-  insist(starter || PROFILES[profile], 'UNKNOWN_PROFILE');
+  insist(typeof profile === 'string' && (starter || Object.hasOwn(PROFILES, profile)), 'UNKNOWN_PROFILE');
+  return { starter, namespace: starter ? profile : `scale-${profile}` };
+}
+export async function generate({ profile = 'tiny', directory }) {
+  const { starter } = profileKind(profile);
   await mkdir(directory, { recursive: true });
   const assets = await loadMedia(), reducer = starter ? null : new ReportReducer(assets);
   const hash = createHash('sha256'); let bytes = 0, records = 0;
@@ -54,7 +58,10 @@ export async function generate({ profile = 'tiny', directory }) {
 
 export async function verifyGenerated(directory) {
   const manifest = JSON.parse(await readFile(join(directory, 'manifest.json'), 'utf8'));
-  insist(manifest.version === 1 && manifest.actions.file === 'actions.ndjson.gz', 'INVALID_MANIFEST');
+  insist(manifest?.version === 1 && manifest.actions?.file === 'actions.ndjson.gz', 'INVALID_MANIFEST');
+  const { starter, namespace } = profileKind(manifest.profile);
+  insist(starter ? manifest.report === null && manifest.envelope === null
+    : manifest.report?.file === 'expected-report.json' && manifest.envelope !== null, 'MANIFEST_REPORT_LAYOUT');
   const assets = await loadMedia();
   insist(isDeepStrictEqual(manifest.media, assets.map(({ id, sha256, bytes }) => ({ id, sha256, bytes }))), 'MANIFEST_MEDIA_MISMATCH');
   insist(isDeepStrictEqual(await fileDigest(join(directory, manifest.actions.file)), manifest.actions.compressed), 'COMPRESSED_HASH_MISMATCH');
@@ -63,21 +70,25 @@ export async function verifyGenerated(directory) {
   const hash = createHash('sha256'); let bytes = 0, records = 0;
   const tap = new Transform({ transform(chunk, encoding, done) { hash.update(chunk); bytes += chunk.length; done(null, chunk); } });
   unzip.on('error', error => tap.destroy(error)); unzip.pipe(tap);
-  const reducer = ['starter', 'conformance'].includes(manifest.profile) ? null : new ReportReducer(assets);
+  const reducer = starter ? null : new ReportReducer(assets);
   const milestones = {}, operations = {};
   for await (const text of createInterface({ input: tap, crlfDelay: Infinity })) {
-    const action = JSON.parse(text); validateAction(action, ++records); reducer?.apply(action);
+    const action = JSON.parse(text); validateAction(action, ++records);
+    insist(action.key === `workroom/v1/${namespace}/${String(records).padStart(9, '0')}`, 'MANIFEST_PROFILE_MISMATCH');
+    reducer?.apply(action);
     milestones[action.milestone] = (milestones[action.milestone] ?? 0) + 1;
     operations[action.op] = (operations[action.op] ?? 0) + 1;
   }
-  insist(records === manifest.records && bytes === manifest.actions.bytes && hash.digest('hex') === manifest.actions.sha256, 'ACTION_HASH_MISMATCH');
+  insist(records > 0 && records === manifest.records && bytes === manifest.actions.bytes && hash.digest('hex') === manifest.actions.sha256, 'ACTION_HASH_MISMATCH');
   insist(isDeepStrictEqual(manifest.milestones, milestones), 'MANIFEST_MILESTONES_MISMATCH');
   insist(isDeepStrictEqual(manifest.operations, operations), 'MANIFEST_OPERATIONS_MISMATCH');
   if (reducer) {
     const reportBytes = await readFile(join(directory, 'expected-report.json'));
     insist(sha256(reportBytes) === manifest.report.sha256, 'REPORT_HASH_MISMATCH');
-    insist(isDeepStrictEqual(reducer.report(), JSON.parse(reportBytes)), 'REPORT_REDUCTION_MISMATCH');
-    insist(isDeepStrictEqual(manifest.envelope, expectedEnvelope(manifest.profile)), 'ENVELOPE_MISMATCH');
+    const report = reducer.report();
+    insist(isDeepStrictEqual(report, JSON.parse(reportBytes)), 'REPORT_REDUCTION_MISMATCH');
+    insist(isDeepStrictEqual(manifest.envelope, expectedEnvelope(manifest.profile))
+      && isDeepStrictEqual(manifest.envelope, { large: report.large, total: report.total }), 'ENVELOPE_MISMATCH');
   }
   return { verified: true, records, sha256: manifest.actions.sha256 };
 }
