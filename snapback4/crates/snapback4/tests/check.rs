@@ -59,7 +59,7 @@ fn w9b_why_without_a_section_prints_the_card_opening() {
     let text = String::from_utf8(output.stdout).unwrap();
     println!("{} bytes\n{text}", text.len());
     assert!(text.contains("No dedicated section for E_STORE; opening of guide refusals:"), "{text}");
-    assert!(text.contains("Every refusal is `{ code, family, message, site?, rewrite?, guide?, rule?,"), "{text}");
+    assert!(text.contains("Every refusal is `{ code, family, message, detail?, site?, rewrite?, guide?, rule?,"), "{text}");
     assert!(text.ends_with("Full card: snapback4 guide refusals\n"));
     assert!(text.len() <= 4096);
 }
@@ -724,7 +724,9 @@ fn w9a_check_states_held_completeness_only_with_horizon_free_sources() {
     }
     let output = p.run(&["why", "ordinary"]);
     assert!(!String::from_utf8_lossy(&output.stdout).contains("complete over held rows"));
+}
 
+#[test]
 fn w9c_check_validates_unique_refusal_codes_like_require() {
     let p = Project::new();
     let source = |code: &str| format!("table profiles:\n  handle: text <=30\n  unique byHandle: handle else {code}\n  public 'profiles'\n  insert <- allow\nmutation create(handle: text <=30):\n  return insert profiles {{ handle }}\n");
