@@ -21667,3 +21667,85 @@ only the reopened store cannot reveal an old host. Finally, a deferred
 count judged on wall time remains misleading after a dev clock advance,
 so doctor must use the running host's clock. Changes remain uncommitted for
 the lead; no publication or remote-machine work was performed.
+
+## 2026-09-15 — W8a: a cut read says why; held queries stay on the device
+
+Built the 0.2.23 calibration's d-01/d-03 answer on base
+`78fe08b6468191d2ac0bbe0aa8b9ca3202a493c0`. Every ready read now carries
+`cut: 'meter' | 'words' | null` beside `complete`, from the server and both
+device stores through the online, native and web clients. Generated query
+comments name the field and the shared `Read` type requires it. React's
+paginated read preserves cuts from earlier pages; a meter cut takes precedence
+if both kinds occur. Cut sites and counters do not enter the production wire.
+No ceiling, row selection, ordering, cursor, value serialization or existing
+corpus case changed.
+
+The calibration-shaped simulator fixture seeds exactly 99,090 messages that
+match `coffee`, with 44,100 newer unreadable messages ahead of the reader's
+first visible row. The unchanged 8,192 examined ceiling records 8,193 charges
+including the refused charge: zero rows, incomplete, no cursor. A scoped query
+returns 10 readable rows and a complete page. The wire fields, with unchanged
+metadata omitted, were `{"data":[],"complete":false,"next":null}` and are now
+`{"data":[],"complete":false,"cut":"meter","next":null}`. Separate 33-word
+fixtures return nonempty pages with `cut: "words"`; ordinary complete and
+complete-empty pages carry `cut: null`. A non-uniform empty server read and a
+horizon-limited empty device search remain incomplete with `cut: null`.
+
+`query name(..) held:` declares a device-only query. The compiler records the
+marker in execution facts and the generated API, and ordinary `check` explains
+`runs: device (held; server refuses E_QUERY_HELD; no server fallback)`.
+`dev`, `serve` and `run` refuse before a server scan; for query `heldValue` the
+message is `query heldValue is held: it runs only on the device`, and the
+rewrite is:
+
+```text
+call this query with the local client; for server search, use the scoped server walk in `snapback4 guide search`, section "Search every chat I'm in"
+```
+
+The refusal's guide is `search`. The local clients keep held reads local even
+when online, cut, or past a horizon. The marker does not acquire data or promise
+completeness. The search recipe and language card now demonstrate it; the
+recipe loses its irrelevant server N_NEVER_COMPLETE note and keeps its existing
+explicit N_NO_HORIZON teaching note.
+
+Regression evidence: before implementation, both the simulator's two tests and
+the two-store device suite's two tests were 0 passed / 2 failed (missing cut
+and rejected held syntax); afterward each is 2 passed / 0 failed. Seven client
+cases cover all three tiers, actual HTTP cut fields, both server modes, held
+cuts online/offline, and horizon watches without fallback: 7 passed / 0 failed.
+The language/README guide tests are 27 passed / 0 failed, the held `check` test
+1 passed / 0 failed, and README TypeScript tests 3 passed / 0 failed.
+
+What I learned: a configured acquisition horizon keeps word search incomplete
+even if the current fixture fits under its bound. The reason field must remain
+independent of `complete`, and a device-only marker must also stop automatic
+server fallback. The contract change exposed one more answer boundary in
+React's page aggregation, which now preserves the reason. The reads card was
+moved intact into `guide/reads.rs` before adding prose to keep `guide.rs` under
+the source-file cap. The Postgres evaluation adapter receives the same outcome
+field and held refusal so its optional build retains the shared contract.
+
+Full validation on this loaded host: `bash snapback4/scripts/test.sh` finished
+in 681 s, with Cargo's 62 suite summaries totaling 1,039 passed, zero failed,
+and four ignored. All build/typecheck stages and the nine fixture-wrapper tests
+passed. Client tests were 376 passed / 2 failed: the navigation lost-reply case
+passed alone (1 / 0); React's Chromium launch still aborts with SIGABRT alone
+(0 / 1), the sandbox artifact identified by the lane brief. No lifecycle test
+failed. This is not a claim of a green browser suite or a base-commit replay of
+those environment failures. `./ref-check --verbose` is green with zero errors
+and zero unchecked references. The extra repository-wide caps check finds its
+one violation in the unchanged Snapback 1 file
+`crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs` (1,504 lines by
+caps' counting), byte-identical to the named base; every code file changed by
+this lane remains below 1,500 lines. No commit, push, tag or publication was made.
+
+The optional Postgres feature check also exposed an existing compile error:
+`record_effects` accepts a three-element emission, while `Runner::outbox`
+contains the four-element presence-aware emission (E0308). Reproduced against
+an export of the core/language crates at exact base
+`78fe08b6468191d2ac0bbe0aa8b9ca3202a493c0`, with only the temporary workspace's
+default-member selection narrowed to the exported core crate. The same error
+is at base `engine/postgres/mod.rs:205` and current line 207. Dependencies were
+resolved using a temporary writable Cargo cache after the default cache denied
+unpacking. The optional adapter's unrelated emission work remains for its owner;
+its two read-contract additions are the only changes to that file.

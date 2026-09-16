@@ -64,6 +64,7 @@ impl Parser {
         if self.at("->") {
             return Err(unsupported(&self.peek().site.clone(), "result annotations", "results are inferred; remove the annotation"));
         }
+        let held = kind == ProgramKind::Query && self.maybe("held");
         let predicts = kind == ProgramKind::Mutation && self.maybe("predicts");
         self.take(":")?;
         if self.at("native") {
@@ -73,7 +74,7 @@ impl Parser {
             if kind == ProgramKind::Mutation {
                 return Err(Diagnostic::new(&native.site, "E_NATIVE", format!("only a job or a query can be native; a mutation runs in the interpreter so a device can predict it and the server can replay it"), format!("job {name}(): native  -- or: query {name}(): native")).guide("native"));
             }
-            return Ok(ProgramDecl { predicts, server: false, kind, name, args, prelude: Vec::new(), body: Vec::new(), native: true, site: kind_token.site });
+            return Ok(ProgramDecl { held, predicts, server: false, kind, name, args, prelude: Vec::new(), body: Vec::new(), native: true, site: kind_token.site });
         }
         let server = kind == ProgramKind::Mutation && self.maybe("server");
         self.newline()?;
@@ -81,7 +82,7 @@ impl Parser {
         if body.is_empty() {
             return Err(syntax(&kind_token.site, format!("{} {name} has an empty body", kind_token.value)));
         }
-        Ok(ProgramDecl { predicts, server, kind, name, args, prelude, body, native: false, site: kind_token.site })
+        Ok(ProgramDecl { held, predicts, server, kind, name, args, prelude, body, native: false, site: kind_token.site })
     }
 
     pub(super) fn parse_chunks(&mut self) -> Fallible<(Vec<Stmt>, Vec<Stmt>)> {

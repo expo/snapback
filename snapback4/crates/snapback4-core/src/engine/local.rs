@@ -33,6 +33,7 @@ pub fn query_with_coverage(rows: &dyn Rows, schema: &Schema, program: &Program, 
     let next = runner.next_cursor()?;
     Ok(QueryOutcome {
         complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.page_position_lost() && !runner.beyond_horizon && !runner.presence_unknown,
+        cut: runner.read_cut(),
         capped_at: runner.meter.capped_at.clone(),
         word_cut_at: runner.word_cut_at.clone(),
         next,
@@ -100,6 +101,7 @@ pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Mo
         runner.charge_output(&data)?;
         Ok(QueryOutcome {
             complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.beyond_horizon,
+            cut: runner.read_cut(),
             capped_at: runner.meter.capped_at.clone(),
             word_cut_at: runner.word_cut_at.clone(),
             next: None,

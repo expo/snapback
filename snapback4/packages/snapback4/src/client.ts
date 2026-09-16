@@ -6,7 +6,7 @@
 
 import { changeFeed } from "./changes.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
-import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadMeter, Refusal, Write } from "./contract.ts";
+import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, ReadMeter, Refusal, Write } from "./contract.ts";
 import { logout, logoutAll as revokeAllSessions, refreshSession as rotateSession, type Session, type SignIn } from "./auth.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
@@ -268,7 +268,7 @@ export function createClient(options: ClientOptions): Client {
     const next = (json.next as Cursor | null | undefined) ?? null;
     const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
     const meter = json.meter ? { meter: json.meter as ReadMeter } : {};
-    return { read: { data: json.data as R, complete: json.complete !== false, fresh: true, next, ...meter }, tables: (json.tables as string[] | undefined) ?? [], seq: at, nextExpiry };
+    return { read: { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next, ...meter }, tables: (json.tables as string[] | undefined) ?? [], seq: at, nextExpiry };
   }
 
   function notify(watch: Watch) {

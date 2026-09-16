@@ -25,7 +25,7 @@ table messages:
   read <- exists members[.roomId, viewer]
   sync to members[.roomId]
 
-query searchHeld(q: text <=100, c: cursor ?):
+query searchHeld(q: text <=100, c: cursor ?) held:
   return messages matching q after c last 20 by byWords
 
 query searchChats(c: cursor ?):
@@ -36,10 +36,12 @@ query searchChatBatch(q: text <=100, batch: cursor ?, c: cursor ?):
     [m.roomId] for m in members[viewer] after batch first 50 by byPrincipalRoom
 ```
 
-This block intentionally emits two notes: N_NO_HORIZON for `messages`
-(full history is acquired), and N_NEVER_COMPLETE for `searchHeld` **on the
-server** (its rule needs each row's chat). The scoped server operations
-compile without notes. Neither note is a refusal.
+This block intentionally emits N_NO_HORIZON for `messages` (full history
+is acquired). The scoped server operations compile without notes. `held`
+makes `searchHeld` device-only: `check` explains the dispatch, and calling
+it through `dev`, `serve` or `run` refuses E_QUERY_HELD with a rewrite to
+this scoped server walk. The local clients never fall back to the server
+for a held query, even when its answer is incomplete.
 
 **Device holdings.** `searchHeld` reads one unscoped words index over the
 messages this device holds, with no membership merge or per-reader copy.
@@ -52,7 +54,7 @@ not later holdings, and word search then reports `complete: false`, even
 on an empty match: it cannot prove that older server history has no match.
 Offline, label these results as searched on this device. Online, use the
 scoped server walk for complete history; calling `searchHeld` on the server
-does not repair its completeness class.
+refuses E_QUERY_HELD.
 
 **Server batches.** Begin with `batch = null`. Call `searchChats(c: batch)`
 and save its `next`. With that same batch start, call `searchChatBatch`
@@ -81,7 +83,7 @@ and can spend the meter on misses. Fifty server lanes and twenty results
 are a measured starting point, not a guarantee for arbitrary text: word
 fan-out, duplicates and other metered work can still cut the batch. A
 meter-cut or word-cut matching merge has no safe result continuation.
-Treat `complete: false` as unfinished, narrow the term or retry with fewer
+Treat `cut: 'meter'` or `cut: 'words'` as unfinished, narrow the term or retry with fewer
 chat lanes; never advance past it and claim an exhaustive search.
 To reduce a batch, change both membership `first 50` bounds together
 (`searchChats` and `searchChatBatch`) and restart the walk. Advancing a

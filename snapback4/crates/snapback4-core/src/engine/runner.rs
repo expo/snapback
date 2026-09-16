@@ -106,6 +106,13 @@ pub struct Runner<'a> {
 }
 
 impl<'a> Runner<'a> {
+    // @ref LLP 3000.007#5.6 — disclose the cut's kind, never a hidden row's position or the cut site.
+    pub(crate) fn read_cut(&self) -> Option<super::ReadCut> {
+        if self.meter.capped_at.is_some() { Some(super::ReadCut::Meter) }
+        else if self.word_cut_at.is_some() { Some(super::ReadCut::Words) }
+        else { None }
+    }
+
     pub fn new(tx: &'a dyn Rows, schema: &'a Schema, context: Context, meter: Meter, seq: u64) -> Self {
         let mut env = BTreeMap::new();
         for (name, value) in &context.args {

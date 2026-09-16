@@ -14,6 +14,8 @@ mod actions;
 mod personas;
 #[path = "guide/search.rs"]
 mod search;
+#[path = "guide/reads.rs"]
+mod reads;
 #[path = "guide/writes.rs"]
 mod writes;
 #[path = "guide/prediction.rs"]
@@ -356,6 +358,9 @@ fn tally(n: int):
   for i in range(0, 1 + 1):
     total = total + n
   return total
+
+query heldRoom(roomId: rooms) held:   -- device only: dev and serve refuse E_QUERY_HELD; no server fallback
+  return rooms[roomId] card
 
 query room(roomId: rooms):            -- a query reads; its result type is inferred onto api.ts
   return rooms[roomId] card           -- one row by a unique key: null when absent or hidden; then the named shape
@@ -927,90 +932,7 @@ view (E_ASSET_RANGE). Unsatisfiable ordinary ranges return HTTP 416. Every
 asset response is `private, no-store`, so a browser must reauthorize each
 viewer. At most two uploads run at once, and their disk writes happen outside
 the engine mutex. Uploads are online only; there is nothing to queue."##,
-        "reads" => r##"# Reads
-
-To inspect a real account's server work under loopback `dev`, use the online
-client `createClient({ url, session })` (or a bearer `token`); meters are available by default.
-Successful `query` and `observe` answers include `Read.meter`:
-`{ examined, indexEntries, probes, steps, heapBytes, outputBytes, rowsWritten }`.
-These are the engine's counters for that answer, not latency or process memory;
-`probes` is rule_probes and `heapBytes` is charged heap work. A remembered
-offline watch keeps the counters of its last server answer. Local device reads
-have no meter; use the online client to inspect the server for the same account.
-`meter: true` and `x-snapback-meter: 1` on `POST /q/<op>` remain explicit forms.
-Loopback dev includes the field without either; `serve` ignores the header and never returns
-meters. The counters can reflect hidden work and are development-only.
-`snapback4 run <op> '<json args>' --as <principal id> --json` also prints
-the engine's `metered` counters against `.snapback4/store.sqlite`.
-A declared persona such as `alice` resolves to `dev:alice`; any other `--as`
-value is used verbatim (including `user:...`, `member:42` and `dev:alice`).
-The default is `dev:alice`. Jobs still run as the system.
-
-Named equalities covering a total unique key read one row and check any extra
-columns there: `t[key = x, col = y]` returns null on a mismatch, and
-`exists t[key = x, col = y]` returns false. A non-unique prefix still needs an index. When several indexes match a positional
-key, a single exact-type match wins first; if that remains ambiguous, exactly one
-unique index covering the whole key wins; otherwise name `by index`
-(the ambiguity diagnostic carries a mechanical `check --fix` rewrite).
-
-```quarry
-query readForms(roomId: rooms, messageId: messages, c: cursor ?):
-  one = messages[messageId]                                  -- one row by a unique key: null if absent or hidden
-  must = messages[messageId] ! else NOT_FOUND                 -- the row, or refuse with the code
-  member = exists members[roomId, viewer]                    -- true or false; positional keys match the index columns
-  admin = exists members[roomId = roomId, principal = viewer, role = 'admin']   -- named keys; `by` names the index when two match
-  oldest = messages[roomId, at < must.at] last 20 by byRoomTime           -- the nearest earlier rows
-  newest = messages[roomId] after c last 20 by byRoomTime where .body != null    -- a page, descending, from a cursor
-  everyone = profiles first 50 by byHandle                   -- the whole table's page: the empty prefix, spelled without brackets
-  merged = merge posts last 20 by byAuthorTime:              -- one ordered page over several prefixes of one index
-    [viewer]
-    [f.followedId] for f in follows[viewer] first 20 by byPair
-  chain = walk rooms[roomId] up .parentId depth 8            -- the row, its parent, and so on: at most 8 rows
-  return { one, must, member, admin, newest, chain }
-```
-
-The table names are the language card's. A page's read rule is checked
-once when the prefix decides it, else per row, and a page whose rule still depends
-on a column the scan does not pin is never `complete` (N_NEVER_COMPLETE names
-the index that would decide it). With a total unique `(chatKey, principal)`
-key on t, `.principal = viewer or exists t[.chatKey, viewer]` is decided by
-the chat alone because the row is its own witness, so a roster page pinned
-by the chat is complete and no second table is needed. An aborting mutation
-page costs one examined unit before its verdict, plus its rule probes on
-both true and false verdicts; a true verdict then examines candidates.
-A page verdict evaluated from its pinned prefix charges the rule's static probe count on either outcome, including probes skipped by `and`/`or` short-circuiting.
-A table page accepts its modifiers in any order, once each. The printed order
-is `[matching q]`, `after c`, `first N` or `last N`, `by index`, `where predicate`.
-At the predicate's level, a non-index modifier ends `where` and belongs to that outer
-read: `posts[viewer] where exists follows[viewer, .authorId] last 20 by byAuthorTime`.
-An immediate `by` after an unparenthesized inner read is ambiguous
-(`E_QUARRY_MODIFIER_SCOPE`): parenthesize the inner read, or move the modifier
-before `where`. `check --fix` preserves the inner index by adding parentheses:
-`where exists (follows[viewer, .authorId] by byPair)`. A page a query returns without
-a cursor cannot be continued: an unfiltered page with more rows reads
-`complete: false` with no `next` (N_NO_CURSOR); declare `c: cursor ?` and
-page with `after c`. A single-group page omits this note only when its bound
-covers the group cap and that cap fits the default 8,192-row examined ceiling.
-Other metered work can still cut a read. A merge reads plain lanes, or matching lanes over a
-words index (guide search). Uniform plain merge lanes with a unique index or one ending
-in `id` read one head each, then advance the winning lanes; `check` notes
-a merge past 50 lanes (N_WIDE_MERGE). The meter counts examined rows and
-probes; a query it cuts returns what it found and `complete: false`.
-`t[prefix, col >= start, col < end]` seeks on the first unpinned index column;
-its bounds have that column's type. A lone `where .col >= start` on that
-column lowers to the seek and emits N_SEEK naming the key spelling.
-Other `where` predicates run after the read rule, with `.` bound to each row.
-Comparisons, `and`/`or`/`not`, arguments, `viewer`, literals and indexed reads
-are metered; a predicate read is a probe. Only rows passing both count toward N.
-A uniformly authorized filtered page is complete when it holds N matches or
-reaches the range's end, including without a cursor; a meter cut is incomplete.
-Direct table and maintain page cursors bind the evaluated prefix and active
-generation. Reusing one under another prefix or after adoption is refused;
-ordinary writes keep it valid, and rows can move between pages.
-A filled page positions `next` after its last returned row. A meter-cut page
-positions after its last rule-visible examined row, even if the filter rejected
-it, never after a hidden row. A non-uniform page stays incomplete; a cut in a
-hidden run with no rule-visible row ends on an empty capped page."##,
+        "reads" => reads::CARD,
         "shapes" => r##"# Shapes
 
 ```quarry

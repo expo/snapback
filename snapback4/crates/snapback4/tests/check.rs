@@ -566,4 +566,17 @@ fn w8c_startup_waits_for_the_adoption_lock_to_clear() {
     host.address = line.trim().trim_start_matches("http://").into();
     assert_eq!(host.query()["data"], 1);
     println!("adoption: startup_retries=1 recovered_generation=1 restarts=0");
+
+#[test]
+fn check_explains_held_dispatch_and_generates_the_client_marker() {
+    let p = Project::new();
+    p.source("query heldValue() held:\n  return [1, 2]\n");
+    let checked = p.run(&["check"]);
+    assert!(checked.status.success(), "{}", String::from_utf8_lossy(&checked.stderr));
+    assert!(String::from_utf8_lossy(&checked.stdout).contains("heldValue: runs: device (held; server refuses E_QUERY_HELD; no server fallback)"));
+    let api = fs::read_to_string(p.0.join("snapback/generated/api.ts")).unwrap();
+    assert!(api.contains("held: true") && api.contains("Read.cut: meter | words | null"), "{api}");
+    let checked = p.run(&["check", "--json"]);
+    let json: Value = serde_json::from_slice(&checked.stdout).unwrap();
+    assert_eq!(json["heldQueries"], json!(["heldValue"]));
 }

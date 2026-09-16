@@ -823,8 +823,12 @@ empty searches; online, use the scoped server walk for full history.
 The card records whole-walk costs, horizon measurements, the 32-word
 limit (global on the device, per chat on the server), and the per-reader
 copy cost. A meter-cut matching merge cannot be continued with a result
-cursor alone. The card intentionally documents N_NO_HORIZON for full sync
-and N_NEVER_COMPLETE for the unscoped query's server execution.
+cursor alone. The card intentionally documents N_NO_HORIZON for full sync.
+Its `query searchHeld(q: text <=100, c: cursor ?) held:` declaration is
+device-only: `check` explains it, and `dev`, `serve` and `run` refuse
+E_QUERY_HELD with a rewrite pointing to the scoped server walk on `guide search`.
+The local clients answer it online or offline without server fallback, even
+at a horizon or cut. `held` does not acquire data or promise completeness.
 
 ### Effects
 
@@ -1686,7 +1690,7 @@ Every word a screen reads is on the card (`snapback4/contract`):
 ```ts
 import type { Cursor, ReadMeter } from "snapback4/contract";
 type Read<T> =
-  | { data: T; complete: boolean; fresh: boolean; since?: number; next?: Cursor | null; meter?: ReadMeter }
+  | { data: T; complete: boolean; cut: "meter" | "words" | null; fresh: boolean; since?: number; next?: Cursor | null; meter?: ReadMeter }
   | { loading: true }
   | { denied: Refusal };
 type Write<R> =
@@ -1724,6 +1728,14 @@ For local-store inspection, `snapback4 run <op> '<json args>' --as <principal id
 (`rule_probes`, `heap_bytes`, etc.). `--as alice` resolves a declared persona to
 `dev:alice`; any other value is a literal principal id, such as `user:...` from
 the account's session or an application principal such as `member:42`.
+
+`cut` is `"meter"`, `"words"` or `null` on every ready read, online and on
+both device stores. An empty page with `cut: "meter"` means partial: retry
+narrower, or continue if `next` exists; never "no matches". `"words"` means
+the first search term exceeded 32 words in a scope: narrow it or use scoped
+search. If both limits cut, `"meter"` wins. `null` means neither limit cut;
+an incomplete read can still have a non-uniform rule, a horizon or no
+continuation. A complete empty page has `cut: null` and `complete: true`.
 
 `complete` says this is everything the query can answer: false when the
 meter cut the page, when a scan's read rule is not decided by its prefix
@@ -2419,7 +2431,7 @@ generated TypeScript; `GET /schema` the compiled backend; `GET
 `GET /probe` answers HTTP 200 `{ ok: true, store_id, seq }`; clients require both the status
 and body before changing an offline link back to online. The local client checks
 the identity and head before restoring freshness or resuming a long poll. `POST /q/<op>`
-with `{ "args": {..} }` answers `{ data, complete, seq, next, nextExpiry,
+with `{ "args": {..} }` answers `{ data, complete, cut, seq, next, nextExpiry,
 tables, viewer }` or `{ denied }`; `nextExpiry` is the earliest future expiry
 the visible read encountered, or null. `POST /m/<op>` with `{ "id", "args",
 "newIds" }` answers `{ state: "sent", id, seq, result }` on fresh success,

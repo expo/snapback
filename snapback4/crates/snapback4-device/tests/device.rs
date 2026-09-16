@@ -7,6 +7,7 @@ mod language;
 mod membership;
 mod search_merge;
 mod search_global;
+mod read_cut;
 mod presence;
 mod upsert;
 mod following;

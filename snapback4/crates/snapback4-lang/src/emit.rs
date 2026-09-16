@@ -50,6 +50,8 @@ pub fn typescript(bound: &Bound) -> String {
             let horizon = fact.sites.iter().filter(|site| site.class == snapback4_core::schema::SiteClass::Horizon).map(|site| format!("{} by {} ({})", site.table, site.index, site.site)).collect::<Vec<_>>().join(", ");
             let word = fact.runs.as_ref().map(|word| format!("runs: {word}")).or_else(|| fact.predicts.as_ref().map(|word| format!("predicts: {word}"))).unwrap_or_default();
             let mut comment = format!("Arguments: {}. Result: {}. {word}. Horizon sites: {}. Require codes: {}.", args_ts(&program.args), ty_ts(&program.result), if horizon.is_empty() { "none" } else { &horizon }, if fact.requires.is_empty() { "none".into() } else { fact.requires.join(", ") });
+            if fact.held { comment.push_str(" Held: device only; server refuses E_QUERY_HELD; no server fallback."); }
+            if program.program.kind == ProgramKind::Query { comment.push_str(" Read.cut: meter | words | null, beside complete."); }
             if fact.connected_effects_only { comment.push_str(&format!(" {}.", crate::bind::residency::CONNECTED_EFFECTS)); }
             if program.program.kind == ProgramKind::Mutation { comment.push_str(" Call client.mutate(op, args, { id }) to retry an intent with its original write id; replay returns a receipt without historical results."); }
             out.push_str(&format!("{indent}/** {} */\n", comment.replace("*/", "* /")));
@@ -76,6 +78,7 @@ pub fn typescript(bound: &Bound) -> String {
             };
             let fact = &bound.schema.operations[&program.program.name];
             let words = fact.runs.as_ref().map(|word| format!(", runs: {}", string_literal(word))).or_else(|| fact.predicts.as_ref().map(|word| format!(", predicts: {}", string_literal(word)))).unwrap_or_default();
+            let words = if fact.held { format!("{words}, held: true") } else { words };
             out.push_str(&format!("{indent}{}: {{ kind: \"{kind}\", name: {}{words} }},\n", property(short), string_literal(&program.program.name)));
         }
         if module != "schema" {

@@ -136,7 +136,7 @@ pub fn check(options: &Options) -> i32 {
     let elapsed = started.elapsed();
     let synced = bound.schema.synced().count();
     if options.json {
-        println!("{}", json!({ "ok": true, "tables": bound.schema.tables.len(), "synced": synced, "operations": bound.programs.len(), "notes": bound.notes, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
+        println!("{}", json!({ "ok": true, "tables": bound.schema.tables.len(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
     } else {
         println!("check: ok — {} tables ({synced} synced), {} operations, no problems{}, {:.1} ms{}", bound.schema.tables.len(), bound.programs.len(), if bound.notes.is_empty() { String::new() } else { format!(", {} note{}", bound.notes.len(), if bound.notes.len() == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0, match &native { Some(b) => format!("; native: {} → {} ({} B, {} ms)", b.jobs.join(", "), b.path.display(), b.bytes, b.ms), None => String::new() });
         for note in &bound.notes {
@@ -145,6 +145,11 @@ pub fn check(options: &Options) -> i32 {
     }
     if !options.json && let Some(summary) = snapback4_lang::bind::residency::prediction_summary(&bound) { println!("{summary}"); }
     if options.flags.contains_key("residency") && !options.json { println!("{}", residency::facts(&bound)); }
+    if !options.json && !options.flags.contains_key("residency") {
+        for (name, fact) in bound.schema.operations.iter().filter(|(_, fact)| fact.held) {
+            println!("{}", snapback4_lang::bind::residency::operation_lines(name, fact));
+        }
+    }
     if options.flags.contains_key("cost") {
         for program in &bound.programs {
             let report = cost_report(&bound, &program.program);
@@ -355,7 +360,7 @@ pub fn run(options: &Options) -> i32 {
     if program.kind == ProgramKind::Query {
         match engine.query(op, context) {
             Ok(outcome) => {
-                let body = json!({ "data": wire::to_json(&outcome.data), "complete": outcome.complete, "next": outcome.next, "metered": outcome.metered });
+                let body = json!({ "data": wire::to_json(&outcome.data), "complete": outcome.complete, "cut": outcome.cut, "next": outcome.next, "metered": outcome.metered });
                 println!("{}", if options.json { body.to_string() } else { serde_json::to_string_pretty(&body).unwrap() });
                 0
             }
