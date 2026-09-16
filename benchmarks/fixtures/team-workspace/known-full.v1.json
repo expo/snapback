@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "kind": "workroom.fixture-verification",
+  "provenance": {
+    "sourceCommit": "de3917f929a3389a8790cdaee76ff6b5da22e45a",
+    "date": "2026-09-16",
+    "executor": "lead",
+    "machine": "450b",
+    "node": "24.13.1",
+    "zlib": "1.3.1-e00f703",
+    "generationRuns": 2,
+    "verificationRuns": 2,
+    "manifestByteEquality": true,
+    "evidence": {
+      "manifest": {
+        "retainedLocalPath": "/tmp/sb4-w9-evidence.nndUKm/fixture-final-manifest.json",
+        "sha256": "80a942b7d75d3ea4945d0bb6f1fda37a17533ea7771618515b465d2b993f5d2a"
+      },
+      "generationLog": {
+        "retainedLocalPath": "/tmp/sb4-w9-evidence.nndUKm/fixture-final-generation.log",
+        "sha256": "dc61b27e3869e8d0a2a5f0b25f5bd16b2bb9f6fc1863291f25adabeb97d85883"
+      }
+    }
+  },
+  "manifest": {
+    "version": 1,
+    "profile": "full",
+    "records": 598224,
+    "milestones": { "W1": 4200, "W5": 3, "W2": 541920, "W4": 5101, "W6": 47000 },
+    "operations": {
+      "account.register": 2100,
+      "organization.create": 51,
+      "payment.event": 1,
+      "payment.deliver": 1,
+      "background.checkpoint": 53,
+      "membership.add": 2049,
+      "project.create": 220,
+      "task.create": 100200,
+      "task.transition": 140300,
+      "comment.create": 300200,
+      "attachment.upload": 5050,
+      "task.archive": 1000,
+      "membership.set-role": 46999
+    },
+    "actions": {
+      "file": "actions.ndjson.gz",
+      "sha256": "bdc929ebdc04a71758b6cc8186faa3542c908cd63e401ea013027f5b0125966a",
+      "bytes": 167743936,
+      "compressed": { "sha256": "fac57ec9fbf3e11ddd9570fe25d8fb598af05463acdcb8b2388867080b1e9a39", "bytes": 9647458 }
+    },
+    "media": [
+      { "id": "invoice", "sha256": "613f9ed9854c687fff3f107d60318c2bb92d135277bf547a59dc220ed5021b44", "bytes": 601 },
+      { "id": "pixel", "sha256": "5e3d382db4dd83d59aa5742793ad6b7903409e865c83bcbc54835049f043bc15", "bytes": 68 }
+    ],
+    "envelope": {
+      "large": {
+        "organizations": 1, "members": 2000, "projects": 120, "tasks": 100000, "comments": 300000,
+        "attachments": 5000, "audit": 50000, "archivedTasks": 1000, "open": 59000, "overdue": 29000, "attachmentBytes": 1672500
+      },
+      "total": {
+        "organizations": 51, "members": 2100, "projects": 220, "tasks": 100200, "comments": 300200,
+        "attachments": 5050, "audit": 50100, "archivedTasks": 1000, "open": 59150, "overdue": 29100, "attachmentBytes": 1702550
+      }
+    },
+    "report": { "file": "expected-report.json", "sha256": "4d0151cf119b770ff916c22813d1160b2157f84ed9e351ec4f66a87bfdb660e1" }
+  },
+  "scope": "Fixture generation, byte identity and independent report reduction only. No application replay, pilot, control, ceiling, publication or backend qualification."
+}

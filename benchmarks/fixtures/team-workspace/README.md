@@ -45,6 +45,16 @@ are deterministic on the same Node/zlib toolchain and may differ across zlib
 versions. The verifier reads the emitted log and independently reduces it.
 Keep generated logs and receipt journals outside the repository.
 
+The checked-in [known-hash receipt](./known-full.v1.json) retains the complete
+full-profile manifest and evidence digests from the lead's two independent
+generation/verification runs on idle `450b`, source `de3917f929`, Node 24.13.1
+and zlib 1.3.1-e00f703 (2026-09-16). Both corrected-media manifests matched
+byte-for-byte. It binds 598,224 actions, 167,743,936 uncompressed bytes and
+9,647,458 gzip bytes, plus the report and media identities. Temporary evidence
+paths are provenance pointers, not a published artifact location. This is
+fixture verification only: application replay, the pilot, controls, budgets,
+ceilings and artifact publication remain outstanding.
+
 | Count | Large organization | Whole fixture |
 | --- | ---: | ---: |
 | Organizations | 1 | 51 |
