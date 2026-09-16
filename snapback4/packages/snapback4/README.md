@@ -880,6 +880,23 @@ Reads inside `where` use their own rules and search terms. An empty
 matching result past a device horizon is incomplete too, so a held group
 can fall back to the server.
 
+For the optional bounded server walk, run `snapback4 init --recipe search`
+and `snapback4 check`. This installs the search card's two queries in
+`snapback/search.q` and a typed `searchServer(client, text)` async generator
+in `src/search.ts`. It pages memberships 50 at a time and results 20 at a time,
+continuing both cursors for you. Held search remains the UI path for acquired
+history. The helper stops on incomplete, stale, denied or loading reads;
+a meter- or word-cut batch never advances, and only the final successful
+page says `finished: true`. Render each step's original `read` and its cut.
+Results are ordered within each batch; group by room and deduplicate by id,
+or finish and sort for one global order. Restart on membership changes.
+Use `--prefix history` for conflicting names. The online-only recipe tables
+are a compiling read backend; wire their references to your app's authorized
+membership/message tables and indexes before searching existing app data.
+The installer adds no write API or copied message corpus. `guide search`
+shows the exact installed code, both bounds to change together, and the
+live-read and word-limit caveats.
+
 **Search every chat I'm in (100–1,000 memberships).** `snapback4 guide
 search`, section "Search every chat I'm in", carries the complete Quarry
 and the two-cursor walk. Search fully synced messages with one unscoped
@@ -1132,7 +1149,7 @@ Suppression is reader-dependent, even for an uncapped `sync public` table.
 Eligible mutations that require whole-partition coverage can suppress this
 advice. An absent note does not certify bounded acquisition or a safe
 cold-start size.
-Inspect the table's `sync`, horizon and group `cap` with `check --residency`.
+Inspect the table's `sync`, horizon and group `cap` with `check --residency --verbose`.
 
 `online only` optionally documents a table with no sync. On a `maintain`,
 it opts out of inherited sync. `N_MAINTAIN_SYNCED` calls out public inherited
@@ -1142,7 +1159,7 @@ The note names mutations that would stop predicting if the maintain goes
 `online only`; `snapback4 test --residency` measures its cold rows. `check`
 prints the facts without pre-adoption counts: a new maintain has no stored rows yet.
 
-`check --residency` lists every table's residency, inferred and inherited
+`check --residency --verbose` lists every table's residency, inferred and inherited
 audiences, and each operation's `runs: device | server` or
 `predicts: eligible | never`. Read sites are `held`, `horizon` or `server`.
 Each site names its read, write or rule's file:line:column when source is
@@ -1179,11 +1196,18 @@ eligibility: `check` refuses `E_NOT_PREDICTABLE` at that header if any site
 makes it `never`. This asserts eligibility, not that every call will predict;
 a horizon miss can still queue without a row. See `guide prediction`.
 
-`test --residency --fixture dir [--as persona]` prints measured cold rows and
-compact JSON row bytes per synced table and persona, plus totals and
-aggregate row counts. It uses the real partition snapshot, respecting
-horizons. Facts and measurements are labelled; byte counts exclude transport
-framing and are not extrapolated.
+`test --residency --fixture dir [--as persona]` reports the eight costliest
+acquired table/persona pairs, ordered by compact JSON row bytes, then rows,
+with all omitted pairs summed into one line and totals that include them.
+It measures the real cold partition snapshot, respecting authorization and
+horizons; byte counts exclude transport framing and are not process RSS.
+`check --residency --fixture dir --as persona` gives the same report where
+builders already check their backend. Without a fixture, `check --residency`
+measures the active dev-store schema read-only, without adopting current
+source; without a dev store it says not measured and names the fixture command.
+Use `--verbose` for all table counts, declared facts and notes; on `test` it
+also runs the query meters as before. The default acquisition report fits
+one screen even for hundreds of tables or personas. No count is extrapolated.
 
 ### Feeds: complete Following on the device
 

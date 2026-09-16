@@ -1,4 +1,4 @@
-//! Install the feeds card as a module, retaining its comments and formatting.
+//! Install recipe cards as modules, retaining its comments and formatting.
 use crate::{ast::*, diag::Site, lexer::{Kind, Token}};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -52,6 +52,13 @@ impl FollowingCaps {
     pub fn summary(self) -> String {
         format!("authors={}, edges={}, pulls={}, pullCounts={}, sourceEvents=60000, broadcast=32000, tombstones=32000; follows/reader=1000, followers/author=1000, events/actor=1000, tombstones/actor=1000, pulls/reader=32, inbox/reader=50000, inbox/reader/actor=1000, inbox/event=1001; backfill/author={}", self.authors, self.edges, self.routes, self.routes, self.backfill())
     }
+}
+
+// @ref LLP 3000.007#18.1 — install the card's bounded two-cursor server form verbatim.
+pub fn search(prefix: &str, module: &str) -> Result<String, String> {
+    let source = crate::guide::quarry(crate::guide::card("search").unwrap()).into_iter()
+        .find(|block| block.contains("query searchChats") && !block.contains("query searchHeld")).expect("server search recipe on the card");
+    prefix_module(&source, prefix, module)
 }
 
 pub fn following(prefix: &str, module: &str) -> Result<String, String> {

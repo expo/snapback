@@ -212,7 +212,7 @@ test("check sidecar, why and test residency print facts, changes and measured co
   writeFileSync(path, schema);
   const fixture = join(directory, "fixture"); mkdirSync(fixture);
   writeFileSync(join(fixture, "notes.jsonl"), [1, 2, 3].map((n) => JSON.stringify({ id: `n${n}`, owner: "dev:alice", text: `note${n}`, at: n })).join("\n"));
-  const measured = run("test", "--residency", "--fixture", fixture);
+  const measured = run("test", "--residency", "--verbose", "--fixture", fixture);
   assert.match(measured, /alice notes: 2 rows/); assert.match(measured, /bob notes: 2 rows/);
   assert.match(measured, /alice counts: 1 rows/); assert.match(measured, /maintain counts \(measurement\): 1 value rows/);
   assert.match(measured, /total across personas: 6 rows/);

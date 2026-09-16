@@ -719,7 +719,7 @@ fn b2_maintain_note_points_to_the_measured_cold_snapshot() {
     let table = &e.schema().tables["likes"];
     e.seed([( "l1", "p1"), ("l2", "p1"), ("l3", "p2")].map(|(id, post)| ("likes".into(), wire::row_from_json(table, &json!({"id":id,"postId":post,"owner":"alice"})).unwrap()))).unwrap();
     assert_eq!(e.store().count("likeCounts").unwrap(), 2);
-    let output = p.run(&["check", "--residency"]);
+    let output = p.run(&["check", "--residency", "--verbose"]);
     assert!(output.status.success(), "{output:?}");
     let text = String::from_utf8(output.stdout).unwrap();
     println!("{text}");
@@ -728,7 +728,7 @@ fn b2_maintain_note_points_to_the_measured_cold_snapshot() {
     assert!(text.contains("maintain likeCounts:") && text.contains("maintain ownerCounts:"));
     assert!(text.contains("measure cold rows with `snapback4 test --residency`"));
     assert!(text.contains("createPost, like, repost would stop predicting"));
-    let output = p.run(&["test", "--residency", "--as", "alice"]);
+    let output = p.run(&["test", "--residency", "--verbose", "--as", "alice"]);
     assert!(output.status.success(), "{output:?}");
     let text = String::from_utf8(output.stdout).unwrap();
     println!("{text}");
@@ -928,7 +928,7 @@ fn w8r1b_test_names_held_queries_without_failing_other_queries_or_residency() {
     p.source(&format!("{SOURCE}query heldRows() held:\n  return [1, 2]\nuse personas alice, bob\n"));
     let fixture = p.0.join("fixture"); fs::create_dir(&fixture).unwrap();
     fs::write(fixture.join("messages.jsonl"), "{\"id\":\"one\",\"body\":\"hello\"}\n").unwrap();
-    for args in [vec!["test"], vec!["test", "--fixture", fixture.to_str().unwrap()], vec!["test", "--residency", "--fixture", fixture.to_str().unwrap()]] {
+    for args in [vec!["test"], vec!["test", "--fixture", fixture.to_str().unwrap()], vec!["test", "--residency", "--verbose", "--fixture", fixture.to_str().unwrap()]] {
         let output = p.run(&args);
         let text = String::from_utf8_lossy(&output.stdout);
         println!("{args:?}\n{text}");
@@ -1040,4 +1040,72 @@ fn w10r1b_missing_fixture_refuses_instead_of_measuring_an_empty_store() {
     let output = p.run(&["test", "--memory", "--residency", "--fixture", "fixture", "--as", "alice"]);
     assert!(output.status.success(), "{output:?}");
     assert!(String::from_utf8_lossy(&output.stdout).contains("loaded 1 rows"));
+}
+
+#[test]
+fn w11c_residency_cost_order_and_bounded_reconciled_totals_on_both_verbs() {
+    let p = Project::new();
+    let mut source = String::new();
+    let fixture = p.0.join("fixture"); fs::create_dir(&fixture).unwrap();
+    for n in 0..100 {
+        let name = format!("small{n:03}");
+        source.push_str(&format!("table {name}:\n  body: text <=2000\n  public 'fixture'\n  cap 100\n  sync\n"));
+        fs::write(fixture.join(format!("{name}.jsonl")), "{\"id\":\"s\",\"body\":\"x\"}\n").unwrap();
+    }
+    source.push_str("table zzPayload:\n  body: text <=2000\n  public 'fixture'\n  cap 100\n  sync\n");
+    let rows = (0..10).map(|n| json!({"id":format!("p{n}"),"body":"x".repeat(1000)}).to_string()).collect::<Vec<_>>().join("\n");
+    fs::write(fixture.join("zzPayload.jsonl"), &rows).unwrap();
+    p.source(&source);
+    for verb in ["test", "check"] {
+        let output = p.run(&[verb, "--residency", "--fixture", "fixture", "--as", "alice"]);
+        assert!(output.status.success(), "{output:?}");
+        let text = String::from_utf8(output.stdout).unwrap();
+        println!("{verb}:\n{text}");
+        let report = text.split_once("residency (measurements)").expect("measurement at both entry points").1;
+        let rows: Vec<_> = report.lines().filter(|line| line.starts_with("  alice ")).collect();
+        assert_eq!(rows[0], "  alice zzPayload: 10 rows, 10210 bytes");
+        assert!(report.contains("other 93 table/persona pairs: 93 rows, 1953 bytes"), "{report}");
+        assert!(report.contains("total across personas: 110 rows, 12310 bytes"), "{report}");
+        assert!(text.lines().count() <= 18, "{} lines: {text}", text.lines().count());
+    }
+}
+
+#[test]
+fn w11c_check_acquisition_uses_active_schema_read_only_and_fixture_uses_current_schema() {
+    let p = Project::new();
+    let source = "table notes:\n  owner: principal\n  at: time\n  by byOwnerTime: owner, at, id\n  read <- .owner = viewer\n  sync last 2 by byOwnerTime\nuse personas alice, bob\n";
+    p.source(source);
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::new(Store::open(&p.store()).unwrap(), bound.schema, []).unwrap();
+    let definition = &engine.schema().tables["notes"];
+    let rows = (0..6).map(|n| ("notes".into(), wire::row_from_json(definition,
+        &json!({"id":format!("n{n}"),"owner":if n < 3 { "dev:alice" } else { "dev:bob" },"at":n})).unwrap())).collect::<Vec<_>>();
+    engine.seed(rows.clone()).unwrap();
+    drop(engine);
+    let before = fs::read(p.store()).unwrap();
+    // An unadopted horizon change must not change the current-store measurement.
+    p.source(&source.replace("last 2", "last 1"));
+    let output = p.run(&["check", "--residency"]);
+    assert!(output.status.success(), "{output:?}");
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(text.contains("alice notes: 2 rows") && text.contains("bob notes: 2 rows"), "{text}");
+    assert!(text.contains("total across personas: 4 rows"));
+    assert!(text.contains("active dev-store schema"));
+    assert_eq!(fs::read(p.store()).unwrap(), before, "check did not adopt or write application rows");
+    let fixture = p.0.join("fixture"); fs::create_dir(&fixture).unwrap();
+    fs::write(fixture.join("notes.jsonl"), rows.iter().map(|(_, row)| wire::to_json(row).to_string()).collect::<Vec<_>>().join("\n")).unwrap();
+    for verb in ["test", "check"] {
+        let output = p.run(&[verb, "--residency", "--fixture", "fixture"]);
+        assert!(output.status.success(), "{output:?}");
+        let text = String::from_utf8(output.stdout).unwrap();
+        assert!(text.contains("alice notes: 1 rows") && text.contains("bob notes: 1 rows"), "{text}");
+        assert!(text.contains("total across personas: 2 rows"));
+    }
+    let output = p.run(&["check", "--residency", "--fixture", "fixture", "--json"]);
+    assert!(output.status.success(), "{output:?}");
+    assert!(parsed(&output)["acquisition"].as_str().unwrap().contains("total across personas: 2 rows"));
+    for verb in ["test", "check"] {
+        assert!(!p.run(&[verb, "--residency", "--fixture", "missing"]).status.success());
+    }
 }

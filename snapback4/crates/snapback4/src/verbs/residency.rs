@@ -25,45 +25,91 @@ pub fn remember(project: &crate::project::Project, bound: &Bound) -> std::io::Re
     std::fs::write(project.generated_dir().join("residency.json"), serde_json::to_vec_pretty(&bound.schema.operations)?)
 }
 
-// @ref LLP 3000.007#6.8 — measure the actual cold snapshot, including inherited aggregates and horizons.
-pub fn measure(engine: &mut Engine, bound: &Bound, personas: &[String]) -> Result<(), snapback4_core::error::RuntimeError> {
-    println!("{}", facts(bound));
-    println!("residency (measurements): cold rows; bytes = compact JSON row payloads, excluding transport framing");
-    let mut total = (0_u64, 0_u64);
+pub fn personas(bound: &Bound, options: &super::Options) -> Vec<String> {
+    match options.flags.get("as") {
+        Some(persona) => vec![persona.clone()],
+        None if bound.personas.is_empty() => vec!["alice".into()],
+        None => bound.personas.clone(),
+    }
+}
+
+// @ref LLP 3000.007#6.8 — cost-order the real cold snapshot, not stored table sizes or estimates.
+fn report(tx: &snapback4_core::store::Tx<'_>, schema: &snapback4_core::Schema, personas: &[String], verbose: bool) -> Result<String, snapback4_core::error::RuntimeError> {
+    let mut counts = Vec::new();
+    let mut totals = BTreeMap::new();
+    let now = snapback4_core::now_ms();
     for persona in personas {
         let principal = if persona.contains(':') { persona.clone() } else { crate::project::persona_principal(persona) };
-        let mut counts: BTreeMap<String, (u64, u64)> = bound.schema.synced().map(|(name, _, _)| (name.to_owned(), (0, 0))).collect();
+        let mut tables: BTreeMap<String, (u64, u64)> = schema.synced().map(|(name, _, _)| (name.to_owned(), (0, 0))).collect();
         let mut cursor = None;
         loop {
-            let (events, _, next) = engine.snapshot_page(&principal, cursor.as_deref(), 2000)?;
-            for event in events {
+            let page = snapback4_core::partition::snapshot_page(tx, schema, &principal, cursor, 2000, now)?;
+            for event in page.events {
                 if event.kind != snapback4_core::partition::EventKind::Put { continue; }
-                if let Some(row) = &event.data && let Some(count) = counts.get_mut(&event.table) {
+                if let Some(row) = &event.data && let Some(count) = tables.get_mut(&event.table) {
                     count.0 += 1;
                     count.1 += serde_json::to_vec(&wire::to_json(row)).expect("row JSON").len() as u64;
                 }
             }
-            cursor = next;
+            cursor = page.next;
             if cursor.is_none() { break; }
         }
-        let mut subtotal = (0, 0);
-        for (table, (rows, bytes)) in counts {
-            println!("  {persona} {table}: {rows} rows, {bytes} bytes");
-            subtotal.0 += rows; subtotal.1 += bytes;
-        }
-        println!("  {persona} total: {} rows, {} bytes", subtotal.0, subtotal.1);
-        total.0 += subtotal.0; total.1 += subtotal.1;
+        let subtotal = tables.values().fold((0, 0), |(rows, bytes), (r, b)| (rows + r, bytes + b));
+        totals.insert(persona.clone(), subtotal);
+        counts.extend(tables.into_iter().map(|(table, (rows, bytes))| (persona.clone(), table, rows, bytes)));
     }
-    println!("  total across personas: {} rows, {} bytes", total.0, total.1);
-    for note in &bound.notes {
-        println!("note (fact): {note}");
+    counts.sort_by(|a, b| b.3.cmp(&a.3).then(b.2.cmp(&a.2)).then(a.1.cmp(&b.1)).then(a.0.cmp(&b.0)));
+    let mut lines = vec!["residency (measurements): cold rows; bytes = compact JSON row payloads, excluding transport framing".to_owned(),
+        format!("  largest acquired tables by bytes ({} persona{}; top 8, --verbose for all)", personas.len(), if personas.len() == 1 { "" } else { "s" })];
+    let shown = if verbose { counts.len() } else { counts.len().min(8) };
+    for (persona, table, rows, bytes) in &counts[..shown] { lines.push(format!("  {persona} {table}: {rows} rows, {bytes} bytes")); }
+    if counts.len() > shown {
+        let (rows, bytes) = counts[shown..].iter().fold((0, 0), |(rows, bytes), (_, _, r, b)| (rows + r, bytes + b));
+        lines.push(format!("  other {} table/persona pairs: {rows} rows, {bytes} bytes", counts.len() - shown));
     }
-    for maintain in &bound.schema.maintains {
-        if maintain.residency.inherited_from.is_some() {
-            let rows = engine.store().rows(&maintain.target)?.len();
-            let note = if bound.notes.iter().any(|note| residency::maintain_note_names(note, &maintain.target)) { " — N_MAINTAIN_SYNCED" } else { "" };
-            println!("  maintain {} (measurement): {rows} value rows in the fixture/store{note}", maintain.target);
+    if verbose || personas.len() == 1 {
+        for (persona, (rows, bytes)) in &totals { lines.push(format!("  {persona} total: {rows} rows, {bytes} bytes")); }
+    }
+    let (rows, bytes) = totals.values().fold((0, 0), |(rows, bytes), (r, b)| (rows + r, bytes + b));
+    lines.push(format!("  total across personas: {rows} rows, {bytes} bytes"));
+    Ok(lines.join("\n"))
+}
+
+pub fn measure(engine: &mut Engine, bound: &Bound, personas: &[String], verbose: bool) -> Result<(), snapback4_core::error::RuntimeError> {
+    if verbose { println!("{}", facts(bound)); }
+    let tx = engine.store_mut().read_transaction()?;
+    println!("{}", report(&tx, &bound.schema, personas, verbose)?);
+    tx.rollback()?;
+    if verbose {
+        for note in &bound.notes { println!("note (fact): {note}"); }
+        for maintain in &bound.schema.maintains {
+            if maintain.residency.inherited_from.is_some() {
+                let rows = engine.store().rows(&maintain.target)?.len();
+                let note = if bound.notes.iter().any(|note| residency::maintain_note_names(note, &maintain.target)) { " — N_MAINTAIN_SYNCED" } else { "" };
+                println!("  maintain {} (measurement): {rows} value rows in the fixture/store{note}", maintain.target);
+            }
         }
     }
     Ok(())
+}
+
+pub fn at_check(project: &crate::project::Project, bound: &Bound, options: &super::Options) -> Result<Option<String>, String> {
+    let personas = personas(bound, options);
+    let verbose = options.flags.contains_key("verbose");
+    if options.flags.contains_key("fixture") {
+        let mut engine = super::test_fixture::engine(project, bound, options)?;
+        let tx = engine.store_mut().read_transaction().map_err(|e| e.to_string())?;
+        return report(&tx, &bound.schema, &personas, verbose).map(Some).map_err(|e| e.to_string());
+    }
+    let path = options.flags.get("store").map(std::path::PathBuf::from).unwrap_or_else(|| project.store_path());
+    if !path.exists() {
+        return Ok(None);
+    }
+    // Inspect the persisted generation, never adopt current source or label a new maintain's absent rows as zero acquisition.
+    let mut store = snapback4_core::Store::open_read_only(&path).map_err(|e| e.to_string())?;
+    let tx = store.read_transaction().map_err(|e| e.to_string())?;
+    let encoded: String = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT value FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).map_err(|e| e.to_string())?;
+    let schema = serde_json::from_str(&encoded).map_err(|e| e.to_string())?;
+    let measured = report(&tx, &schema, &personas, verbose).map_err(|e| e.to_string())?;
+    Ok(Some(format!("{measured}\n  measured the active dev-store schema; current-source facts: check --residency --verbose")))
 }

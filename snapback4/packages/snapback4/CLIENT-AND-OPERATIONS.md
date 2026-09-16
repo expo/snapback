@@ -750,7 +750,7 @@ kept beside the effect — and mints or revokes the sessions of the
 accounts the application authenticates itself. `meta.id` is the
 idempotency key a provider should see.
 A read rule may grant `viewer = 'service:pusher'` beside its sync audience;
-`check --residency` lists the service grants, which admit server reads without adding device partitions.
+`check --residency --verbose` lists the service grants, which admit server reads without adding device partitions.
 
 The same worker handles `actions: { invite: async (args, meta) => result }`.
 Its `meta.session` is client-ready: `createClient({ url, session: meta.session })`
@@ -950,7 +950,7 @@ step.
   time plus the duration. This pins queries, mutations and jobs equally;
   it does not change a running dev clock or fire schedules.
   Exit 1 on a refusal or a parked job, 2 on an engine error.
-- **`snapback4 test [--residency] [--fixture dir] [--as persona]`** loads a fixture
+- **`snapback4 test [--residency [--verbose]] [--fixture dir] [--as persona]`** loads a fixture
   (one `<table>.jsonl` per table; a file for an unknown table is
   skipped) into a fresh store in memory (without a fixture, the project's
   dev store), runs every query as each persona with arguments derived
@@ -962,8 +962,11 @@ step.
   argument cannot be derived). A query's own `require` refusing a
   derived argument (the persona is not in that group) is reported, not
   counted as a failure; run it with your arguments to see its meters.
+  `--residency` instead prints a bounded cold-acquisition report: the eight
+  largest table/persona pairs by row bytes, a summed remainder and totals.
+  Add `--verbose` for all tables, residency facts, notes and query meters.
   Device-only `held` queries print `not run: <name> is held (device only)` once
-  and are skipped, including with `--residency`: a server fixture is not the
+  and are skipped, including with `--residency --verbose`: a server fixture is not the
   device's acquired partition. Exercise those queries through a local client.
   In tests, use `snapback4 clock advance <dur>` or `POST /dev/clock/advance`; each example line advances the running dev once.
 
@@ -975,7 +978,11 @@ step.
 - **`snapback4 check [--cost|--residency|--fix|--json|--verbose]`** compiles, writes
   `snapback/generated/api.ts` (`Rows`, `Ops`, `api`), and prints
   diagnostics with their sites and rewrites; `--cost` adds each site's
-  structural class, and `--residency` names where operations run.
+  structural class, and `--residency --verbose` names where operations run.
+  `--residency` measures the active dev store read-only, or add `--fixture dir`
+  to measure current source on a fresh fixture; `--as persona` selects the
+  viewer. It prints the same bounded acquisition report as test. With no dev
+  store it prints facts and a fixture command, never a zero-row measurement.
   A parser recovery's empty-operation error is hidden when an earlier error
   in that same operation already explains it and its rewrite adds no repair.
   The summary counts the hidden cascades; `--verbose` shows them, and
