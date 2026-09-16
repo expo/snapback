@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 #[path = "../common/following.rs"]
 mod world;
 mod removal;
+mod slots;
 
 #[test]
 #[ignore = "design comparison: run explicitly with --ignored --nocapture"]

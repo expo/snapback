@@ -95,6 +95,7 @@ table pullCounts:                 -- server-only slot accounting; never lists in
   public 'only the number of installed pulls is public; routes stay reader-private'
   insert <- allow
   update <- allow
+  delete <- .readerId = viewer
   online only
 
 table posts:                       -- originals and attributed reposts, one source event each
@@ -231,7 +232,10 @@ fn dropFollow(authorId: principal):
   if exists pulls[viewer, authorId]:
     delete pulls[viewer, authorId]
     slots = pullCounts[viewer] ! else FEED_PULL_COUNT_MISSING
-    update pullCounts[viewer] { used: slots.used - 1 }
+    if slots.used = 1:
+      delete pullCounts[viewer]
+    else:
+      update pullCounts[viewer] { used: slots.used - 1 }
   delete follows[followerId = viewer, followedId = authorId]
 
   return null
@@ -338,6 +342,9 @@ it exposes only a reader's installed-route count, never the author IDs.
 Promotion uses that count to skip a saturated reader without reading their
 routes. The helpers update the count in the same transaction as each route
 insert/delete; importing routes directly must import the matching counts too.
+The reader deletes their count row when their final route goes; otherwise
+unfollow decrements it. Departed readers release the global accounting slot,
+and a later follow creates their count row again.
 This is an explicit aggregate disclosure, not a claim that routing was already
 public. The online count makes `follow` and `unfollow` queue without predicted
 rows, even for calls that would not promote an author.

@@ -1191,6 +1191,7 @@ table pullCounts:                 -- server-only slot accounting; never lists in
   public 'only the number of installed pulls is public; routes stay reader-private'
   insert <- allow
   update <- allow
+  delete <- .readerId = viewer
   online only
 
 table posts:                       -- originals and attributed reposts, one source event each
@@ -1327,7 +1328,10 @@ fn dropFollow(authorId: principal):
   if exists pulls[viewer, authorId]:
     delete pulls[viewer, authorId]
     slots = pullCounts[viewer] ! else FEED_PULL_COUNT_MISSING
-    update pullCounts[viewer] { used: slots.used - 1 }
+    if slots.used = 1:
+      delete pullCounts[viewer]
+    else:
+      update pullCounts[viewer] { used: slots.used - 1 }
   delete follows[followerId = viewer, followedId = authorId]
 
   return null
@@ -1408,6 +1412,9 @@ pull routes are readable and synced only by their reader. The online-only
 `pullCounts` table exposes each reader's installed-route count, not author
 IDs, so promotion can skip saturated readers atomically. The helpers update
 it with each route insert/delete; direct imports must include matching counts.
+The reader deletes their count row with their final route, releasing the
+global accounting slot; remaining routes decrement it, and a later follow
+creates it again.
 This is an explicit aggregate disclosure. It adds no cold-sync rows.
 `saveProfile`, `register`, `createPost`, `repost`, `deletePost` and `unrepost`
 remain eligible when required cards and source events are held. `follow`

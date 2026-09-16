@@ -20894,3 +20894,137 @@ timeouts, so no low-concurrency client rerun was needed.
 0 unchecked; it is run again after this append. `git diff --check` is clean.
 The largest changed code file is `clique.rs` at 1,412 lines. No existing
 E_/N_ diagnostic text changed. Nothing was committed, pushed or published.
+
+
+## 2026-09-15 — W7R2: departed Following readers release accounting capacity
+
+Base: `198b1e6e8c50aec03be4bc368d8a16e5061985a5` (wave-7 integration,
+round-1 repairs included). N1 was reproducible before changing the recipe:
+unfollowing the final shared author left a `pullCounts` row with `used: 0`.
+The global count-row cap then represented every past reader, not the readers
+with an installed route.
+
+The feeds card and its README copy now give count deletion to
+`.readerId = viewer`. `dropFollow` deletes the count row when `used = 1`,
+and decrements it otherwise, in the same transaction as the route and edge
+removal. Routing remains reader-private, count disclosure remains online-only,
+and follow/unfollow still queue without predicted rows. The existing recipe
+installer reads this card, so neither `recipe.rs` nor the init implementation
+needed a change. No meter, serialized value, corpus case or other lane's
+implementation changed.
+
+The shared regression fixture occupies the actual 32,000 route and count-row
+caps with real routes and matching counts, not seeded zero rows. It uses 33
+shared authors and spreads 31,998 background readers below the per-author
+1,000-follower cap, alongside the departing reader and one author's self-route.
+As in the existing scale fixture, bulk seed loading temporarily omits schema
+caps, then adopts the original schema and validates every cap before the test
+operations. Runtime ceilings are unchanged.
+
+On the server and both device stores, count occupancy is
+**32,000 → 31,999 → 32,000 → 31,999 → 32,000**: the departing reader leaves,
+a new reader follows and leaves, and the first reader re-follows. All four
+writes succeed after the fix, each writing **3 rows**. The smaller lifecycle
+has **2 → 1 → 0 → 0 → 1** reader routes: the first unfollow keeps the count
+row at 1, the second deletes it, a repeated unfollow writes **0 rows**, and
+re-follow recreates it. The author's self-route/count stays at **1**.
+A separate authority test refuses another reader's deletion and admits the
+owner's. The device witnesses durably admit the writes with **0 predicted
+rows**, settle against the server, apply its stream, compare complete feeds,
+and reopen each store. Count rows and foreign route rows acquired: **0**.
+
+I checked the other Following accounting/scratch state. `removedEvents` is
+bounded pending work: `purgeRemoved` deletes every remaining private copy
+(up to 1,001) and the tombstone in the same chunk transaction. Existing
+server and both-store removal tests pass in the full suite, including
+re-removal/re-repost and empty tombstones after cleanup. A parked chunk can
+retain its work, as documented; successful cleanup does not strand its slot.
+There is no separate recipe purge-state table. The engine's schedule updates
+two metadata keys in place; a completed Quarry job clears its cursor/upper
+keys. `_jobs` retains completed run history without pruning, so that generic
+history can grow, but it has no recipe row cap and cannot consume a Following
+routing/tombstone slot. Engine history retention is outside this lane and was
+not changed. What I learned: a bounded accounting table needs its own deletion
+lifecycle even when the data it counts already has one; an author cap does
+not bound unregistered readers over time.
+
+### Verification
+
+Cargo and isolated Node commands ran from `snapback4/`. Node-backed commands
+used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+The four new lifecycle regressions ran against the unchanged base recipe first:
+
+```text
+cargo test -p snapback4-sim --test clique following_w7r2 -- --nocapture
+before: test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 73 filtered out; finished in 10.61s
+after: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 74 filtered out; finished in 11.19s
+cargo test -p snapback4-device --test device following_w7r2 -- --nocapture
+before: test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 152 filtered out; finished in 14.39s
+after: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 152 filtered out; finished in 15.61s
+cargo test -p snapback4-sim --test clique following_count_deletion_is_reader_owned
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 75 filtered out; finished in 0.06s
+cargo test -p snapback4-lang --test guide
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+cargo test -p snapback4 --test init
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.92s
+```
+
+From the repository root, the complete blocking run:
+
+```text
+bash snapback4/scripts/test.sh
+-- ok: cargo build (1 s)
+-- ok: wasm build (14 s)
+-- ok: package typecheck (0 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (389 s)
+-- ok: chat app typecheck (0 s)
+-- ok: expo app typecheck (2 s)
+-- ok: fixture wrapper tests (8 s)
+-- FAIL: client tests (64 s)
+== 1 failure(s) in 406 s
+```
+
+Rust summaries total **1,034 passed, 0 failed, 4 ignored**; fixture wrappers
+**9 passed, 0 failed**. The device suite passed **154/154** and Clique passed
+**75 with 1 ignored**. The client summary is:
+
+```text
+ℹ tests 371
+ℹ pass 369
+ℹ fail 2
+ℹ duration_ms 64388.060833
+```
+
+The two failures were `React hooks and reference-app lifetimes` (Chromium
+launch exits with `SIGABRT`, the sandbox artifact named in the brief) and
+`sync store identity survives a server restart; a live client detects an
+equal-watermark replacement` (`store-reset.test.mjs:135`, an identity equality
+assertion). Both were rerun in isolation:
+
+```text
+node --test packages/snapback4/test/store-reset.test.mjs
+ℹ tests 4
+ℹ pass 4
+ℹ fail 0
+ℹ duration_ms 5589.60925
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 327.272208
+```
+
+Store-reset passed in isolation; Chromium still aborted with `SIGABRT`.
+No base-suite rerun was made, so neither is labeled pre-existing. The lead's
+outside-sandbox browser check remains. No lifecycle timeout or en-masse client
+timeout occurred. Full output is at `/tmp/w7r2-full.log`; targeted before/after
+logs are `/tmp/w7r2-{server,device}-{before,after}.log`.
+
+`./ref-check --verbose` passed before this entry with 0 errors / 0 unchecked
+and is rerun after appending it. `git diff --check` is clean. Every changed
+code file is below 1,500 lines (largest: Following's simulator `mod.rs`, 180).
+No E_/N_ code or diagnostic text changed. The README and this required journal
+entry are the only shared documentation touched. Nothing was committed,
+pushed, tagged or published.
