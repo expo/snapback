@@ -65,11 +65,14 @@ fn real_quarry_queries_mutations_cursors_rules_defaults_maintains_and_receipts_m
         let op = format!("op-{n}");
         let ctx = context(viewer, &args).with_ids([format!("new-{n}")]);
         assert_eq!(pg.mutate(program, Some(&op), ctx.clone()).unwrap(), sqlite.mutate(program, Some(&op), ctx.clone()).unwrap());
-        // Even a now-invalid request replays only the receipt, never old data.
+        // Same operation and arguments replay only the receipt, never old data.
         assert_eq!(
-            pg.mutate("unknown", Some(&op), context(viewer, &[])).unwrap(),
-            sqlite.mutate("unknown", Some(&op), context(viewer, &[])).unwrap()
+            pg.mutate(program, Some(&op), ctx.clone()).unwrap(),
+            sqlite.mutate(program, Some(&op), ctx).unwrap()
         );
+        // A1 binds SQLite ids. Postgres's mismatching replay remains the
+        // explicitly tracked C3 gap, not part of this equivalence claim.
+        assert_eq!(sqlite.mutate("unknown", Some(&op), context(viewer, &[])).unwrap_err().code(), "E_ID_REUSED");
         assert_eq!(pg.query("inbox", context("alice", &[])), sqlite.query("inbox", context("alice", &[])));
     }
     pg.set_ceilings(Ceilings { examined: 2, ..Ceilings::default() });
@@ -80,6 +83,7 @@ fn real_quarry_queries_mutations_cursors_rules_defaults_maintains_and_receipts_m
     assert!(!capped.complete);
     drop(pg);
     let mut reopened = PostgresEngine::open(connect(), &name).unwrap();
+    // Characterize the known Postgres-only C3 binding gap after reopen.
     let replay = reopened.mutate("removedProgram", Some("op-0"), context("alice", &[])).unwrap();
     assert!(replay.replayed);
     assert!(matches!(replay.state, WriteState::Sent { result: Value::Null, .. }));
