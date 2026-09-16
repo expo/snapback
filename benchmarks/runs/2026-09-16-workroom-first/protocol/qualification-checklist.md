@@ -38,7 +38,9 @@ original logs and journals. Do not print fixture tokens into public evidence.
 | W5.11 | Ordinary writes while past_due are refused; authorized reads and billing updates remain available. |
 
 Each verdict records the command/probe, observed state, timestamp and private
-receipt path plus a sanitized content digest. A failed or unrun row remains
+receipt path. Public evidence uses opaque IDs and keyed integrity commitments
+under LLP 0197, not raw private transcripts or low-entropy value hashes.
+A failed or unrun row remains
 failed/unrun even if the builder's acceptance entrypoint prints green. W3/W5
 qualify only when every required observation is supported independently.
 

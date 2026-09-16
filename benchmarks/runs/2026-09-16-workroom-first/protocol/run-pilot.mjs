@@ -44,15 +44,41 @@ function fileReceipt(path) {
   const bytes = readFileSync(path);
   return { path, bytes: bytes.length, sha256: sha256(bytes) };
 }
-function verifyBoundFile(packet, relativePath, expected) {
-  const path = join(packet, relativePath);
-  if (!existsSync(path) || !lstatSync(path).isFile()) fail('PILOT_PACKET_FILE_MISSING', relativePath);
-  const actualPath = realpathSync(path);
-  if (!within(packet, actualPath)) fail('PILOT_PACKET_PATH_ESCAPE', relativePath);
-  const actual = fileReceipt(actualPath);
-  if (actual.bytes !== expected.bytes || actual.sha256 !== expected.sha256) {
-    fail('PILOT_PACKET_FILE_CHANGED', relativePath);
+function expectedPacketFiles(manifest) {
+  const files = [];
+  for (const file of manifest.files ?? []) files.push([file.staged, file.copied]);
+  files.push([manifest.brief?.staged, manifest.brief?.rendered]);
+  files.push([manifest.prompt?.staged, manifest.prompt?.copied]);
+  for (const profile of ['starter', 'conformance']) {
+    for (const file of manifest.generatedProfiles?.[profile]?.files ?? []) files.push([file.path, file]);
   }
+  return files;
+}
+function packetIntegrity(packet, manifest, capturedManifest) {
+  const failures = [];
+  let checked = 0;
+  for (const [relativePath, expected] of expectedPacketFiles(manifest)) {
+    checked++;
+    try {
+      if (typeof relativePath !== 'string' || !expected) fail('PILOT_PACKET_BINDING_INVALID');
+      const path = join(packet, relativePath);
+      if (!existsSync(path) || !lstatSync(path).isFile()) fail('PILOT_PACKET_FILE_MISSING');
+      const actualPath = realpathSync(path);
+      if (!within(packet, actualPath)) fail('PILOT_PACKET_PATH_ESCAPE');
+      const actual = fileReceipt(actualPath);
+      if (actual.bytes !== expected.bytes || actual.sha256 !== expected.sha256) fail('PILOT_PACKET_FILE_CHANGED');
+    } catch (error) {
+      failures.push({ path: relativePath ?? null, reason: error.message });
+    }
+  }
+  if (capturedManifest) {
+    checked++;
+    const current = fileReceipt(capturedManifest.path);
+    if (!current || current.bytes !== capturedManifest.bytes || current.sha256 !== capturedManifest.sha256) {
+      failures.push({ path: 'stage-manifest.json', reason: 'PILOT_STAGE_MANIFEST_CHANGED' });
+    }
+  }
+  return { ok: failures.length === 0, checked, failures };
 }
 function childEnvironment() {
   const allowed = ['HOME', 'PATH', 'TMPDIR', 'LANG', 'LC_ALL', 'LC_CTYPE', 'TERM', 'TZ', 'NO_COLOR', 'USER', 'LOGNAME', 'SHELL'];
@@ -83,6 +109,7 @@ function findExactRollout(home, threadId) {
   };
   return { status: 'found', path: matches[0] };
 }
+const delay = ms => new Promise(resolveDelay => setTimeout(resolveDelay, ms));
 
 export async function runPilot(rootArgument, { telemetry = false } = {}) {
   if (process.platform === 'win32') fail('PILOT_POSIX_REQUIRED');
@@ -102,14 +129,9 @@ export async function runPilot(rootArgument, { telemetry = false } = {}) {
   for (const profile of ['starter', 'conformance']) {
     if (manifest.generatedProfiles?.[profile]?.verified?.verified !== true) fail('PILOT_PROFILE_UNVERIFIED', profile);
   }
-  for (const file of manifest.files ?? []) verifyBoundFile(packet, file.staged, file.copied);
-  verifyBoundFile(packet, manifest.brief.staged, manifest.brief.rendered);
-  verifyBoundFile(packet, manifest.prompt.staged, manifest.prompt.copied);
-  for (const profile of ['starter', 'conformance']) {
-    for (const file of manifest.generatedProfiles[profile].files ?? []) {
-      verifyBoundFile(packet, file.path, file);
-    }
-  }
+  const capturedManifest = fileReceipt(manifestPath);
+  const initialIntegrity = packetIntegrity(packet, manifest, capturedManifest);
+  if (!initialIntegrity.ok) fail('PILOT_PACKET_INTEGRITY', JSON.stringify(initialIntegrity.failures));
   const promptPath = join(packet, 'pilot-prompt.md');
   const prompt = readFileSync(promptPath);
   if (sha256(prompt) !== manifest.prompt.copied.sha256 || prompt.length !== manifest.prompt.copied.bytes) {
@@ -124,18 +146,26 @@ export async function runPilot(rootArgument, { telemetry = false } = {}) {
   const stdoutPath = join(privateDir, 'codex.stdout.jsonl');
   const stderrPath = join(privateDir, 'codex.stderr.log');
   const heartbeatPath = join(privateDir, 'heartbeat.ndjson');
+  const cleanupPath = join(privateDir, 'process-group.ndjson');
   const stdoutFd = openSync(stdoutPath, 'wx', 0o600);
   const stderrFd = openSync(stderrPath, 'wx', 0o600);
   const heartbeatFd = openSync(heartbeatPath, 'wx', 0o600);
+  const cleanupFd = openSync(cleanupPath, 'wx', 0o600);
   const env = childEnvironment();
+  const childNode = spawnSync('node', ['--version'], { env, encoding: 'utf8' });
+  const childNodeVersion = childNode.stdout?.trim() ?? '';
+  if (childNode.status !== 0 || childNodeVersion !== REQUIRED_NODE) {
+    fail('PILOT_CHILD_NODE_VERSION', `need ${REQUIRED_NODE}, got ${childNodeVersion || childNode.stderr?.trim() || childNode.error?.message || 'unavailable'}`);
+  }
   const version = spawnSync('codex', ['--version'], { env, encoding: 'utf8' });
   if (version.status !== 0) fail('PILOT_CODEX_UNAVAILABLE', version.stderr?.trim() ?? 'codex --version failed');
 
-  const finalPath = join(app, 'FINAL.md');
+  const builderFinalPath = join(app, 'FINAL.md');
+  const lastMessagePath = join(privateDir, 'last-message.md');
   const command = ['codex', 'exec', '--dangerously-bypass-approvals-and-sandbox',
     '--ignore-user-config', '--skip-git-repo-check', '--json', '--color', 'never',
     '-m', MODEL, '-c', `model_reasoning_effort=${EFFORT}`, '-C', app,
-    '-o', finalPath, '-'];
+    '-o', lastMessagePath, '-'];
   const commandHash = sha256(JSON.stringify(command));
   const spawnedAt = iso();
   const monotonicStart = performance.now();
@@ -144,29 +174,79 @@ export async function runPilot(rootArgument, { telemetry = false } = {}) {
   });
   if (!child.pid) fail('PILOT_SPAWN_FAILED');
   const pgid = child.pid; // POSIX detached spawn creates a new group led by the child.
-  writePrivate(join(privateDir, 'pid.json'), { pid: child.pid, expectedPgid: pgid, detachedChild: true, recordedAt: iso() });
-  const observed = spawnSync('ps', ['-o', 'pgid=', '-p', String(child.pid)], { env, encoding: 'utf8' });
-  if (observed.status !== 0 || Number(observed.stdout.trim()) !== pgid) {
-    process.kill(-pgid, 'SIGTERM');
-    fail('PILOT_PROCESS_GROUP_UNVERIFIED', observed.stdout.trim());
-  }
-  writePrivate(join(privateDir, 'process-group.json'), { pid: child.pid, pgid, verifiedAt: iso(), source: 'ps' });
-
-  const deadlineAt = new Date(Date.now() + MAX_MS).toISOString();
-  writePrivate(join(privateDir, 'start.json'), {
-    kind: 'workroom-diagnostic-pilot', spawnedAt, promptDeliveredAt: iso(), deadlineAt,
-    pid: child.pid, pgid, cwd: app, model: MODEL, effort: EFFORT,
-    command, commandSha256: commandHash, ephemeral: false,
-    codexVersion: version.stdout.trim(), node: process.version,
-    prompt: { path: promptPath, bytes: prompt.length, sha256: sha256(prompt) },
-    stageManifest: fileReceipt(manifestPath), environmentKeys: Object.keys(env).sort(),
-    initialFreeBytes: initialFree.toString(), stdout: stdoutPath, stderr: stderrPath,
+  const exitPromise = new Promise(resolveExit => {
+    child.once('error', error => resolveExit({ code: null, signal: null, spawnError: error.message }));
+    child.once('exit', (code, signal) => resolveExit({ code, signal, spawnError: null }));
   });
-
+  const closePromise = new Promise(resolveClose => {
+    child.once('error', error => resolveClose({ code: null, signal: null, spawnError: error.message }));
+    child.once('close', (code, signal) => resolveClose({ code, signal, spawnError: null }));
+  });
+  const groupEvents = [];
+  const recordGroup = (event, detail = {}) => {
+    const record = { at: iso(), event, pid: child.pid, pgid, ...detail };
+    groupEvents.push(record);
+    try { writeSync(cleanupFd, JSON.stringify(record) + '\n'); } catch { /* end.json retains the in-memory record */ }
+  };
+  let groupValidated = false;
+  const groupExists = () => {
+    if (!groupValidated) return false;
+    try { process.kill(-pgid, 0); return true; }
+    catch (error) { if (error.code === 'ESRCH') return false; throw error; }
+  };
+  const waitForGroupGone = async milliseconds => {
+    const until = Date.now() + milliseconds;
+    while (groupExists() && Date.now() < until) await delay(100);
+    return !groupExists();
+  };
+  let cleanupPromise = null;
+  const cleanupGroup = reason => cleanupPromise ??= (async () => {
+    if (!groupValidated) {
+      recordGroup('group-not-targeted', { reason: 'group identity was not validated' });
+      return { disappeared: false, unverified: true };
+    }
+    if (!groupExists()) {
+      recordGroup('group-disappeared', { reason, after: 'no-signal' });
+      return { disappeared: true, after: 'no-signal' };
+    }
+    recordGroup('signal', { reason, signal: 'SIGTERM' });
+    try { process.kill(-pgid, 'SIGTERM'); } catch (error) { if (error.code !== 'ESRCH') throw error; }
+    if (await waitForGroupGone(30_000)) {
+      recordGroup('group-disappeared', { reason, after: 'SIGTERM' });
+      return { disappeared: true, after: 'SIGTERM' };
+    }
+    recordGroup('signal', { reason, signal: 'SIGKILL' });
+    try { process.kill(-pgid, 'SIGKILL'); } catch (error) { if (error.code !== 'ESRCH') throw error; }
+    const disappeared = await waitForGroupGone(10_000);
+    recordGroup(disappeared ? 'group-disappeared' : 'group-still-present', { reason, after: 'SIGKILL' });
+    return { disappeared, after: 'SIGKILL' };
+  })();
+  const cleanupExactChild = async reason => {
+    const alive = () => child.exitCode === null && child.signalCode === null;
+    if (!alive()) {
+      recordGroup('exact-child-disappeared', { reason, after: 'no-signal' });
+      return { disappeared: true, exactChildOnly: true, after: 'no-signal' };
+    }
+    recordGroup('exact-child-signal', { reason, signal: 'SIGTERM' });
+    try { child.kill('SIGTERM'); } catch (error) { if (error.code !== 'ESRCH') throw error; }
+    await Promise.race([exitPromise, delay(5_000)]);
+    if (!alive()) {
+      recordGroup('exact-child-disappeared', { reason, after: 'SIGTERM' });
+      return { disappeared: true, exactChildOnly: true, after: 'SIGTERM' };
+    }
+    recordGroup('exact-child-signal', { reason, signal: 'SIGKILL' });
+    try { child.kill('SIGKILL'); } catch (error) { if (error.code !== 'ESRCH') throw error; }
+    await Promise.race([exitPromise, delay(5_000)]);
+    const disappeared = !alive();
+    recordGroup(disappeared ? 'exact-child-disappeared' : 'exact-child-still-present', { reason, after: 'SIGKILL' });
+    return { disappeared, exactChildOnly: true, after: 'SIGKILL' };
+  };
   let threadId = null;
   let stdoutText = '';
-  child.stdout.on('data', chunk => {
-    writeSync(stdoutFd, chunk);
+  let streamError = null;
+  const onStdout = chunk => {
+    try { writeSync(stdoutFd, chunk); }
+    catch (error) { streamError ??= error.message; requestStop('stdout-log-failure'); }
     stdoutText += chunk.toString('utf8');
     let newline;
     while ((newline = stdoutText.indexOf('\n')) >= 0) {
@@ -178,52 +258,92 @@ export async function runPilot(rootArgument, { telemetry = false } = {}) {
         }
       } catch { /* Raw output is authoritative; malformed/non-JSON lines remain there. */ }
     }
-  });
-  child.stderr.on('data', chunk => writeSync(stderrFd, chunk));
+  };
+  const onStderr = chunk => {
+    try { writeSync(stderrFd, chunk); }
+    catch (error) { streamError ??= error.message; requestStop('stderr-log-failure'); }
+  };
+  child.stdout.on('data', onStdout);
+  child.stderr.on('data', onStderr);
   child.stdin.on('error', () => {});
-  child.stdin.end(prompt);
-
   let stop = null;
-  let escalation = null;
-  function stopGroup(reason, signal = 'SIGTERM') {
+  function requestStop(reason) {
     if (stop) return;
-    stop = { reason, signal, requestedAt: iso(), pid: child.pid, pgid };
-    writePrivate(join(privateDir, 'termination.json'), stop);
-    try { process.kill(-pgid, signal); } catch (error) { if (error.code !== 'ESRCH') throw error; }
-    escalation = setTimeout(() => {
-      if (child.exitCode === null && child.signalCode === null) {
-        try { process.kill(-pgid, 'SIGKILL'); } catch (error) { if (error.code !== 'ESRCH') throw error; }
+    stop = { reason, requestedAt: iso(), pid: child.pid, pgid };
+    try { writePrivate(join(privateDir, 'termination.json'), stop); } catch (error) { stop.recordError = error.message; }
+    cleanupGroup(reason).catch(error => { streamError ??= `group cleanup: ${error.message}`; });
+  }
+  const onSigint = () => requestStop('driver-SIGINT');
+  const onSigterm = () => requestStop('driver-SIGTERM');
+  let heartbeatTimer = null;
+  let ceilingTimer = null;
+  let result = { code: null, signal: null, spawnError: null };
+  let lifecycleError = null;
+  let groupCleanup = null;
+  try {
+    writePrivate(join(privateDir, 'pid.json'), { pid: child.pid, expectedPgid: pgid, detachedChild: true, recordedAt: iso() });
+    const observed = spawnSync('ps', ['-o', 'pgid=', '-p', String(child.pid)], { env, encoding: 'utf8' });
+    if (observed.status !== 0 || Number(observed.stdout.trim()) !== pgid) {
+      fail('PILOT_PROCESS_GROUP_UNVERIFIED', observed.stdout.trim());
+    }
+    groupValidated = true;
+    writePrivate(join(privateDir, 'process-group.json'), { pid: child.pid, pgid, verifiedAt: iso(), source: 'ps' });
+    const deadlineAt = new Date(Date.now() + MAX_MS).toISOString();
+    writePrivate(join(privateDir, 'start.json'), {
+      kind: 'workroom-diagnostic-pilot', spawnedAt, promptDeliveredAt: iso(), deadlineAt,
+      pid: child.pid, pgid, cwd: app, model: MODEL, effort: EFFORT,
+      command, commandSha256: commandHash, ephemeral: false,
+      codexVersion: version.stdout.trim(), node: process.version, childNode: childNodeVersion,
+      prompt: { path: promptPath, bytes: prompt.length, sha256: sha256(prompt) },
+      stageManifest: capturedManifest, packetIntegrity: initialIntegrity,
+      environmentKeys: Object.keys(env).sort(), initialFreeBytes: initialFree.toString(),
+      stdout: stdoutPath, stderr: stderrPath, lastMessage: lastMessagePath,
+    });
+    process.on('SIGINT', onSigint);
+    process.on('SIGTERM', onSigterm);
+    const heartbeat = () => {
+      try {
+        const free = diskFree(root);
+        const record = {
+          at: iso(), elapsedSeconds: Math.round((performance.now() - monotonicStart) / 1000),
+          pid: child.pid, pgid, freeBytes: free.toString(),
+          ...(telemetry ? { loadAverage: loadavg(), memory: { free: freemem(), total: totalmem() } } : {}),
+        };
+        writeSync(heartbeatFd, JSON.stringify(record) + '\n');
+        console.log(`[pilot] heartbeat ${record.at} elapsed=${record.elapsedSeconds}s pid=${child.pid} freeGiB=${(Number(free) / 2 ** 30).toFixed(2)}`);
+        if (free < MIN_FREE_BYTES) requestStop('disk-floor');
+      } catch (error) {
+        streamError ??= `heartbeat: ${error.message}`;
+        requestStop('heartbeat-failure');
       }
-    }, 30_000);
-  }
-  const onSigint = () => stopGroup('driver-SIGINT');
-  const onSigterm = () => stopGroup('driver-SIGTERM');
-  process.on('SIGINT', onSigint);
-  process.on('SIGTERM', onSigterm);
-
-  function heartbeat() {
-    const free = diskFree(root);
-    const record = {
-      at: iso(), elapsedSeconds: Math.round((performance.now() - monotonicStart) / 1000),
-      pid: child.pid, pgid, freeBytes: free.toString(),
-      ...(telemetry ? { loadAverage: loadavg(), memory: { free: freemem(), total: totalmem() } } : {}),
     };
-    writeSync(heartbeatFd, JSON.stringify(record) + '\n');
-    console.log(`[pilot] heartbeat ${record.at} elapsed=${record.elapsedSeconds}s pid=${child.pid} freeGiB=${(Number(free) / 2 ** 30).toFixed(2)}`);
-    if (free < MIN_FREE_BYTES) stopGroup('disk-floor');
+    heartbeat();
+    heartbeatTimer = setInterval(heartbeat, HEARTBEAT_MS);
+    ceilingTimer = setTimeout(() => requestStop('four-hour-operational-ceiling'), MAX_MS);
+    child.stdin.end(prompt);
+    result = await exitPromise;
+  } catch (error) {
+    lifecycleError = error.message;
+  } finally {
+    if (heartbeatTimer) clearInterval(heartbeatTimer);
+    if (ceilingTimer) clearTimeout(ceilingTimer);
+    process.off('SIGINT', onSigint);
+    process.off('SIGTERM', onSigterm);
+    if (groupValidated) {
+      try { groupCleanup = await cleanupGroup(stop?.reason ?? (lifecycleError ? 'lifecycle-error' : 'leader-exited')); }
+      catch (error) { groupCleanup = { disappeared: false, error: error.message }; lifecycleError ??= `group cleanup: ${error.message}`; }
+    } else {
+      recordGroup('group-not-targeted', { reason: 'group identity was not validated' });
+      try { groupCleanup = await cleanupExactChild(lifecycleError ? 'lifecycle-error' : 'group-unverified'); }
+      catch (error) { groupCleanup = { disappeared: false, exactChildOnly: true, error: error.message }; lifecycleError ??= `exact child cleanup: ${error.message}`; }
+    }
+    await Promise.race([closePromise, delay(2_000)]);
+    child.stdout.off('data', onStdout); child.stderr.off('data', onStderr);
+    child.stdout.destroy(); child.stderr.destroy();
+    for (const fd of [stdoutFd, stderrFd, heartbeatFd, cleanupFd]) {
+      try { closeSync(fd); } catch { /* end record carries lifecycle errors already observed */ }
+    }
   }
-  heartbeat();
-  const heartbeatTimer = setInterval(heartbeat, HEARTBEAT_MS);
-  const ceilingTimer = setTimeout(() => stopGroup('four-hour-operational-ceiling'), MAX_MS);
-
-  const result = await new Promise(resolveResult => {
-    child.once('error', error => resolveResult({ code: null, signal: null, spawnError: error.message }));
-    child.once('close', (code, signal) => resolveResult({ code, signal, spawnError: null }));
-  });
-  clearInterval(heartbeatTimer); clearTimeout(ceilingTimer); if (escalation) clearTimeout(escalation);
-  process.off('SIGINT', onSigint); process.off('SIGTERM', onSigterm);
-  closeSync(stdoutFd); closeSync(stderrFd); closeSync(heartbeatFd);
-
   let nativeReceipt;
   try {
     const native = findExactRollout(env.HOME, threadId);
@@ -237,13 +357,16 @@ export async function runPilot(rootArgument, { telemetry = false } = {}) {
   } catch (error) {
     nativeReceipt = { status: 'unavailable', reason: `native rollout retention failed: ${error.message}` };
   }
+  const finalIntegrity = packetIntegrity(packet, manifest, capturedManifest);
   const end = {
     kind: 'workroom-diagnostic-pilot', endedAt: iso(),
     wallSeconds: Math.round((performance.now() - monotonicStart) / 1000),
     pid: child.pid, pgid, model: MODEL, effort: EFFORT,
     exitCode: result.code, exitSignal: result.signal, spawnError: result.spawnError,
-    termination: stop, threadId, nativeRollout: nativeReceipt,
-    stdout: fileReceipt(stdoutPath), stderr: fileReceipt(stderrPath), final: fileReceipt(finalPath),
+    lifecycleError, streamError, termination: stop, groupCleanup, groupEvents,
+    threadId, nativeRollout: nativeReceipt, packetIntegrity: finalIntegrity,
+    stdout: fileReceipt(stdoutPath), stderr: fileReceipt(stderrPath),
+    builderFinal: fileReceipt(builderFinalPath), lastMessage: fileReceipt(lastMessagePath),
   };
   writePrivate(join(privateDir, 'end.json'), end);
   console.log(`[pilot] exit=${result.code ?? 'null'} signal=${result.signal ?? 'none'} lifecycle=${privateDir}`);
@@ -251,6 +374,8 @@ export async function runPilot(rootArgument, { telemetry = false } = {}) {
   if (stop?.reason === 'disk-floor') return 125;
   if (stop?.reason === 'driver-SIGINT') return 130;
   if (stop?.reason === 'driver-SIGTERM') return 143;
+  if (!finalIntegrity.ok) return 126;
+  if (lifecycleError || streamError || groupCleanup?.disappeared === false) return 1;
   return result.code ?? 1;
 }
 
