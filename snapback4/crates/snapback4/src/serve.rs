@@ -44,6 +44,7 @@ pub struct Shared {
     readers: Mutex<QueryReaders>,
     pub bound: Mutex<Bound>,
     pub generation: Mutex<u64>,
+    pub worker_revision: AtomicUsize,
     /// Woken on every commit so long polls return promptly.
     pub committed: Condvar,
     pub seq: Mutex<u64>,
@@ -239,6 +240,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     let hold_schedules = replay || matches!(mode, Mode::Dev { hold_schedules: true, .. });
     let clock = crate::dev_clock::Clock::new(dev, match mode { Mode::Dev { clock_offset, .. } => clock_offset, _ => 0 }).map_err(|e| e.to_string())?;
     let generated = if dev { Some(project.write_generated(&bound).map_err(|e| e.to_string())?) } else { None };
+    if dev { project.check_server()?; }
     // @ref LLP 3000.007#20.2 — only the owning host may replace replay/schedule policy; deployment shares the same lock.
     // Release startup already owns this lock before selecting its source.
     let mut host_lock = if matches!(mode, Mode::Dev { fresh: false, .. }) {
@@ -274,7 +276,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     let generation: u64 = engine.generation();
     let adoption = Mutex::new(adoption::Status::new(engine.store().meta("store_id").map_err(|e| e.to_string())?.unwrap_or_default()));
     let shared = Arc::new(Shared {
-        adoption, clock, maintenance: Mutex::new(()), engine: Mutex::new(engine), readers: Mutex::new(QueryReaders::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
+        adoption, clock, maintenance: Mutex::new(()), engine: Mutex::new(engine), readers: Mutex::new(QueryReaders::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), worker_revision: AtomicUsize::new(0), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
         #[cfg(test)] auth_work: Mutex::new(None),
         #[cfg(test)] upload_work: Mutex::new(None),
         #[cfg(test)] effect_wait: Mutex::new(None),
@@ -320,10 +322,19 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     if dev { eprintln!("snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: {} on this host; connection/worker caps still apply", shared.auth.kdf_slots(true)); }
     // @ref LLP 3000#7-decisions-during-execution — bound HTTP admission while reserving short requests
     let admission = Arc::new(RequestAdmission::default());
+    let mut worker_start_revision = shared.worker_revision.load(Ordering::Acquire);
     loop {
         if crate::lifecycle::stopping() { return Ok(()); }
         for (name, thread) in &background {
             if thread.is_finished() { return Err(format!("{name} thread stopped")); }
+        }
+        let revision = shared.worker_revision.load(Ordering::Acquire);
+        if worker.is_none() && dev && revision != worker_start_revision {
+            worker_start_revision = revision;
+            match crate::dev_worker::DevWorker::start(&project, shared.clone(), format!("http://{address}").replace("0.0.0.0", "127.0.0.1").replace("[::]", "[::1]")) {
+                Ok(next) => worker = next,
+                Err(error) => eprintln!("snapback4 worker: {error}"),
+            }
         }
         if let Some(worker) = &mut worker {
             worker.tick();
@@ -1177,6 +1188,7 @@ mod poison_tests {
             readers: Mutex::new(QueryReaders::default()),
             bound: Mutex::new(Bound { schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics: Vec::new(), notes: Vec::new() }),
             generation: Mutex::new(1),
+            worker_revision: AtomicUsize::new(0),
             committed: Condvar::new(),
             seq: Mutex::new(0),
             personas: true,

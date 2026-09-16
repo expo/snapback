@@ -100,7 +100,27 @@ impl Project {
         }
         let quarry = newest(&self.schema_dir(), &|path| path.extension().is_some_and(|x| x == "q"), 0);
         let native = newest(&self.native_dir(), &|path| path.extension().is_some_and(|x| x == "rs" || x == "toml"), 6);
-        quarry.max(native)
+        // Include server source names as well as mtimes, so deletion of a
+        // non-newest imported module still triggers validation and restart.
+        fn server_files(dir: &Path, files: &mut Vec<(String, u128, u64)>, depth: u8) {
+            if depth == 0 { return; }
+            if let Ok(entries) = std::fs::read_dir(dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    let Ok(meta) = entry.metadata() else { continue; };
+                    if entry.file_type().is_ok_and(|kind| kind.is_symlink()) { continue; }
+                    if meta.is_dir() {
+                        if !matches!(entry.file_name().to_str(), Some("generated" | "native" | "node_modules" | "target")) { server_files(&path, files, depth - 1); }
+                    } else if path.extension().is_some_and(|ext| matches!(ext.to_str(), Some("ts" | "mts" | "mjs" | "js" | "json"))) {
+                        files.push((path.to_string_lossy().into(), meta.modified().ok().and_then(|at| at.duration_since(std::time::UNIX_EPOCH).ok()).map(|at| at.as_nanos()).unwrap_or(0), meta.len()));
+                    }
+                }
+            }
+        }
+        let mut files = Vec::new(); server_files(&self.schema_dir(), &mut files, 12); files.sort();
+        use sha2::{Digest, Sha256};
+        let hash = Sha256::digest(format!("{quarry}:{native}:{files:?}"));
+        u128::from_be_bytes(hash[..16].try_into().expect("sixteen hash bytes"))
     }
 
     pub fn compile(&self) -> std::io::Result<Bound> {
@@ -121,7 +141,51 @@ impl Project {
         if std::fs::read_to_string(&path).ok().as_deref() != Some(text.as_str()) {
             std::fs::write(&path, text)?;
         }
+        let server = dir.join("server.ts");
+        let text = snapback4_lang::emit::server_typescript(bound);
+        if std::fs::read_to_string(&server).ok().as_deref() != Some(text.as_str()) {
+            std::fs::write(server, text)?;
+        }
         Ok(path)
+    }
+
+    /// A generated handler is checked by TypeScript, not merely emitted as a
+    /// promise that the application's separate build might eventually check.
+    // @ref LLP 3000.009#10.2 — A2 type errors are reported at check.
+    pub fn check_server(&self) -> Result<(), String> {
+        let Some(entry) = crate::dev_worker::server_source(self) else { return Ok(()); };
+        let mut child = std::process::Command::new(crate::dev_worker::node())
+            .arg("--max-old-space-size=256").arg("--input-type=module").arg("-e")
+            .arg(include_str!("server_check.mjs")).arg(&self.root).arg(entry)
+            .current_dir(&self.root).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped())
+            .spawn().map_err(|e| format!("E_SERVER_TOOLCHAIN: cannot start Node 24 to check server handlers: {e}"))?;
+        // Drain concurrently so a diagnostic-filled pipe cannot deadlock the
+        // compiler. Keep only bounded diagnostics, never its complete output.
+        fn drain(mut reader: impl std::io::Read + Send + 'static) -> std::thread::JoinHandle<Vec<u8>> {
+            std::thread::spawn(move || {
+                let mut bytes = Vec::new(); let mut buffer = [0; 4096];
+                while let Ok(count) = reader.read(&mut buffer) {
+                    if count == 0 { break; }
+                    let keep = count.min(64_000usize.saturating_sub(bytes.len())); bytes.extend_from_slice(&buffer[..keep]);
+                }
+                bytes
+            })
+        }
+        let stdout = drain(child.stdout.take().expect("piped stdout"));
+        let stderr = drain(child.stderr.take().expect("piped stderr"));
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        let status = loop {
+            match child.try_wait() {
+                Ok(Some(status)) => break Some(status),
+                Ok(None) if std::time::Instant::now() < deadline => std::thread::sleep(std::time::Duration::from_millis(20)),
+                _ => { let _ = child.kill(); let _ = child.wait(); break None; }
+            }
+        };
+        let stdout = stdout.join().unwrap_or_default(); let stderr = stderr.join().unwrap_or_default();
+        if status.is_some_and(|status| status.success()) { return Ok(()); }
+        if status.is_none() { return Err("E_SERVER_TYPECHECK: server handler checking exceeded 30 seconds; check the handler's import graph".into()); }
+        let message = [String::from_utf8_lossy(&stdout), String::from_utf8_lossy(&stderr)].join("\n");
+        Err(if message.trim().is_empty() { "E_SERVER_TYPECHECK: the TypeScript checker failed".into() } else { message.trim().into() })
     }
 
     /// Open (or create) the project's store and install the compiled schema.

@@ -133,7 +133,7 @@ pub(super) fn settle(request: Request, shared: &Shared, path: &str, body: &str) 
                         let mut engine = lock(&shared.engine);
                         match verb {
                             "begin" => engine.begin_action_step(&id, &worker, &token, &name, payload.get("input").unwrap_or(&Json::Null), payload.get("reconcile").and_then(Json::as_bool).unwrap_or(false), shared.now()).map(|step| json!({ "step": step })),
-                            "done" => engine.complete_action_step(&id, &worker, &token, &name, payload.get("result").unwrap_or(&Json::Null), shared.now()).map(|step| json!({ "step": step })),
+                            "done" => engine.complete_action_step(&id, &worker, &token, &name, payload.get("result").unwrap_or(&Json::Null), shared.now()).map(|step| json!({ "ok": true, "step": step })),
                             "park" => engine.park_action_step(&id, &worker, &token, &name, payload.get("error").and_then(Json::as_str).unwrap_or("the provider outcome is unknown"), shared.now()).map(|()| json!({ "ok": true })),
                             _ => Err(snapback4_core::RuntimeError::Input("step routes are begin, done or park".into())),
                         }
@@ -159,7 +159,7 @@ pub(super) fn settle(request: Request, shared: &Shared, path: &str, body: &str) 
                 Some("E_ACTION_RESULT") => Some("E_ACTION_RESULT"), Some("E_STEP_INPUT") => Some("E_STEP_INPUT"),
                 Some("E_STEP_RESULT") => Some("E_STEP_RESULT"), Some("E_STEP_PARKED") => Some("E_STEP_PARKED"),
                 Some("E_ACTION_CANCELLED") => Some("E_ACTION_CANCELLED"), Some("E_ACTION_DEADLINE") => Some("E_ACTION_DEADLINE"),
-                Some("E_ACTION_CLOSED") => Some("E_ACTION_CLOSED"), _ => None,
+                Some("E_ACTION_CLOSED") => Some("E_ACTION_CLOSED"), Some("E_WRITE_LABEL") => Some("E_WRITE_LABEL"), _ => None,
             };
             if !retry && code.is_some() { ActionSettled::Refused { code: code.unwrap(), error } } else { ActionSettled::Failed { error, retry } }
         };

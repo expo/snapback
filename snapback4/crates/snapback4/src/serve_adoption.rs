@@ -140,6 +140,16 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: u1
                         continue;
                     }
                 };
+                if let Err(error) = project.check_server() {
+                    eprintln!("snapback4 dev: {error}\nsnapback4 dev: serving the previous generation");
+                    continue;
+                }
+                if crate::dev_worker::source(&project).is_some() {
+                    if let Err(error) = crate::dev_worker::validate_environment(&bound.schema) {
+                        eprintln!("snapback4 dev: {error}\nsnapback4 dev: serving the previous generation");
+                        continue;
+                    }
+                }
                 let mut engine = lock(&shared.engine);
                 // @ref LLP 3000.007#18.3 — retries judge the persisted successor, retaining the generation lock.
                 // Reopen only after the generation guard refuses this owner. Adoption
@@ -178,6 +188,7 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: u1
                         for note in &bound.notes { eprintln!("note: {note}"); }
                         *active = bound;
                         *generation = next;
+                        shared.worker_revision.fetch_add(1, Ordering::Release);
                         eprintln!("snapback4 dev: schema adopted as generation {} ({:?}) in {} ms; types: {}", *generation, worst, started.elapsed().as_millis(), generated.display());
                         for step in steps {
                             eprintln!("  {:?}: {}", step.change, step.message);

@@ -116,6 +116,11 @@ pub fn check(options: &Options) -> i32 {
         eprintln!("cannot write generated types: {error}");
         return 2;
     }
+    if let Err(error) = project.check_server() {
+        if options.json { println!("{}", json!({ "ok": false, "problems": [{ "code": if error.starts_with("E_SERVER_TOOLCHAIN") { "E_SERVER_TOOLCHAIN" } else { "E_SERVER_TYPECHECK" }, "message": error, "guide": "actions" }] })); }
+        else { eprintln!("{error}"); }
+        return 1;
+    }
     // A native job's module is built here too (LLP 3000.005): the schema's
     // Rust types written, cargo run, the module checked against the jobs.
     let native = match crate::native::build(&project, &bound) {

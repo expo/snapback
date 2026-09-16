@@ -4,6 +4,10 @@ use sha2::{Digest, Sha256};
 use snapback4_core::{Store, RuntimeError, identity};
 use std::{path::PathBuf, process::{Child, Command, Stdio}, sync::Arc, time::{Duration, Instant}};
 
+#[path = "worker_environment.rs"]
+mod environment;
+pub(crate) use environment::validate_environment;
+
 const CHILD_WINDOW: Duration = Duration::from_secs(24 * 60 * 60);
 
 // Called only while the host holds the store's deployment lock. A previous
@@ -29,7 +33,16 @@ fn child_session(store: &Store, now: i64) -> Result<identity::Session, RuntimeEr
 }
 
 pub(crate) fn source(project: &Project) -> Option<PathBuf> {
-    ["snapback/worker.ts", "snapback/worker.mts", "snapback/worker.mjs"].into_iter().map(|p| project.root.join(p)).find(|p| p.is_file())
+    server_source(project).or_else(|| ["snapback/worker.ts", "snapback/worker.mts", "snapback/worker.mjs"].into_iter().map(|p| project.root.join(p)).find(|p| p.is_file()))
+}
+
+pub(crate) fn server_source(project: &Project) -> Option<PathBuf> {
+    ["snapback/server.ts", "snapback/server.mts", "snapback/server.mjs"].into_iter().map(|p| project.root.join(p)).find(|p| p.is_file())
+}
+
+pub(crate) fn node() -> PathBuf {
+    let pinned = std::env::var_os("HOME").map(PathBuf::from).map(|p| p.join(".volta/tools/image/node/24.18.0/bin/node"));
+    std::env::var_os("SNAPBACK_NODE").map(PathBuf::from).or_else(|| pinned.filter(|p| p.is_file())).unwrap_or_else(|| PathBuf::from("node"))
 }
 
 pub(crate) struct DevWorker {
@@ -49,6 +62,7 @@ pub(crate) struct DevWorker {
     restart: Instant,
     started: Instant,
     backoff: Duration,
+    revision: usize,
 }
 
 impl DevWorker {
@@ -62,17 +76,25 @@ impl DevWorker {
     pub(crate) fn start_source(project: &Project, shared: Arc<Shared>, url: String, source: PathBuf, explicit_env: bool) -> Result<Self, String> {
         let source = source.canonicalize().map_err(|e| format!("worker {}: {e}", source.display()))?;
         if !source.is_file() { return Err(format!("worker {} is not a file", source.display())); }
-        let pinned = std::env::var_os("HOME").map(PathBuf::from).map(|p| p.join(".volta/tools/image/node/24.18.0/bin/node"));
-        let node = std::env::var_os("SNAPBACK_NODE").map(PathBuf::from).or_else(|| pinned.filter(|p| p.is_file())).unwrap_or_else(|| PathBuf::from("node"));
-        let version = command(&node, explicit_env).arg("--version").output().map_err(|e| format!("worker needs Node 24: {e}"))?;
+        validate_environment(&lock(&shared.bound).schema)?;
+        let node = node();
+        let version = command(&node).arg("--version").output().map_err(|e| format!("worker needs Node 24: {e}"))?;
         if !version.status.success() || !String::from_utf8_lossy(&version.stdout).starts_with("v24.") { return Err("worker needs Node 24; put it on PATH or set SNAPBACK_NODE to its executable".into()); }
-        let mut worker = Self { project: Project { root: project.root.clone() }, source, node, url, explicit_env, starts: 0, crashes: 0, shared, child: None, child_expires_at: None, restart: Instant::now(), started: Instant::now(), backoff: Duration::from_millis(250) };
+        let revision = shared.worker_revision.load(std::sync::atomic::Ordering::Acquire);
+        let mut worker = Self { project: Project { root: project.root.clone() }, source, node, url, explicit_env, starts: 0, crashes: 0, shared, child: None, child_expires_at: None, restart: Instant::now(), started: Instant::now(), backoff: Duration::from_millis(250), revision };
         crate::lifecycle::worker_cleanup();
         worker.tick();
         Ok(worker)
     }
 
     pub(crate) fn tick(&mut self) {
+        let revision = self.shared.worker_revision.load(std::sync::atomic::Ordering::Acquire);
+        if !self.explicit_env && revision != self.revision {
+            self.revision = revision;
+            self.stop_child(); self.close_child_session();
+            if let Some(source) = source(&self.project) { self.source = source; }
+            self.restart = Instant::now();
+        }
         // Renew through a new child, so the process receives its new token.
         // Check both clocks: a wall-clock correction cannot extend a child
         // beyond the supervision window. Allow two seconds for shutdown.
@@ -98,6 +120,7 @@ impl DevWorker {
             self.backoff = (self.backoff * 2).min(Duration::from_secs(5));
         }
         if crate::lifecycle::stopping() || Instant::now() < self.restart { return; }
+        if !self.explicit_env && source(&self.project).is_none() { return; }
         // @ref LLP 3000.007#9.2 — a restarted worker's orphaned claim poll must not lease work to the dead child.
         let session = {
             let engine = lock(&self.shared.engine);
@@ -109,11 +132,21 @@ impl DevWorker {
         };
         let token = session.token;
         self.child_expires_at = Some(session.expires_at);
-        if !self.explicit_env && self.starts == 0 {
+        if !self.explicit_env && self.starts == 0 && server_source(&self.project).is_none() {
             eprintln!("snapback4 dev worker: service:worker token (printed once): {token}");
         }
-        match command(&self.node, self.explicit_env).arg(&self.source).current_dir(&self.project.root).env("SNAPBACK_URL", &self.url).env("SNAPBACK_SERVICE_TOKEN", &token).stdin(Stdio::null()).stdout(Stdio::from(std::io::stderr())).stderr(Stdio::inherit()).spawn() {
-            Ok(child) => { eprintln!("snapback4 worker: {} (pid {})", self.source.display(), child.id()); self.child = Some(child); self.started = Instant::now(); self.starts += 1; self.record_status("running"); }
+        let secrets = { environment::values(&lock(&self.shared.bound).schema) };
+        let secrets = match secrets {
+            Ok(values) => values,
+            Err(error) => { eprintln!("snapback4 worker: {error}"); self.close_child_session(); self.restart = Instant::now() + self.backoff; return; }
+        };
+        let mut redact: Vec<Vec<u8>> = secrets.values().map(|s| s.as_bytes().to_vec()).collect(); redact.push(token.as_bytes().to_vec());
+        match command(&self.node).arg(&self.source).current_dir(&self.project.root).envs(secrets).env("SNAPBACK_URL", &self.url).env("SNAPBACK_SERVICE_TOKEN", &token).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn() {
+            Ok(mut child) => {
+                environment::pipe(child.stdout.take().expect("piped stdout"), redact.clone());
+                environment::pipe(child.stderr.take().expect("piped stderr"), redact);
+                eprintln!("snapback4 worker: {} (pid {})", self.source.display(), child.id()); self.child = Some(child); self.started = Instant::now(); self.starts += 1; self.record_status("running");
+            }
             Err(error) => { eprintln!("snapback4 worker: cannot start: {error}"); self.close_child_session(); self.restart = Instant::now() + self.backoff; self.backoff = (self.backoff * 2).min(Duration::from_secs(5)); }
         }
     }
@@ -157,13 +190,11 @@ impl Drop for DevWorker {
     }
 }
 
-fn command(node: &std::path::Path, explicit_env: bool) -> Command {
+fn command(node: &std::path::Path) -> Command {
     let mut command = Command::new(node);
-    if explicit_env {
-        command.env_clear();
-        for name in ["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TZ", "NODE_OPTIONS"] {
-            if let Some(value) = std::env::var_os(name) { command.env(name, value); }
-        }
+    command.env_clear();
+    for name in ["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TZ", "NODE_OPTIONS"] {
+        if let Some(value) = std::env::var_os(name) { command.env(name, value); }
     }
     command
 }

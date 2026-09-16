@@ -41,6 +41,7 @@ impl Host {
             readers: Mutex::new(QueryReaders::default()),
             bound: Mutex::new(bound),
             generation: Mutex::new(generation),
+            worker_revision: AtomicUsize::new(0),
             committed: Condvar::new(),
             seq: Mutex::new(0),
             personas: dev,
@@ -129,7 +130,7 @@ fn raced_mutation_id_refusal_keeps_its_terminal_http_status() {
     // Exercise the post-preflight error classifier directly: a socket race
     // may otherwise happen to be caught by the earlier replay check.
     assert_eq!(mutation_error_status(&snapback4_core::store::id_reused().refusal()), 200);
-    let mut transient = Refusal::new("E_STORE_BUSY", "store", "retry later");
+    let mut transient = Refusal::new("E_STORE", "store", "retry later");
     transient.retryable = true;
     assert_eq!(mutation_error_status(&transient), 503);
     assert_eq!(mutation_error_status(&Refusal::new("E_STORE", "store", "failed")), 500);
