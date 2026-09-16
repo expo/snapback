@@ -29,7 +29,44 @@ Every Quarry block in this file and in the guide is compiled by the
 package's own suite, and the language card is run, so nothing here
 promises a form the compiler refuses.
 
-**Start here:** read §1 below for the app layout, then open
+**Start here — first working account screen:** follow this short path through
+the existing sections; the reference map below can wait.
+
+1. **Choose the Expo/local-replica starter.** Run `npx snapback4 init --expo`
+   and follow [§7 Expo](./CLIENT-AND-OPERATIONS.md#7-expo). Use a development
+   or production build for the native replica; Expo Go uses the online tier.
+
+2. **Enable identity and persist the session.** For password accounts declare
+   `use identity password`; follow [Sign-in](./CLIENT-AND-OPERATIONS.md#sign-in-snapback4auth)
+   and `guide personas`. Keep the returned session in the starter's SecureStore
+   adapter, pass it and `sessionStore` to the local client, and restore it on reopen.
+
+3. **Declare the profile rule and avatar home.** Start with
+   [Profile onboarding after sign-up](./CLIENT-AND-OPERATIONS.md#profile-onboarding-after-sign-up)
+   and `guide rules`: a profile belongs to its principal. Add an optional image
+   column to that row for the avatar; `guide assets` explains upload then placement
+   and how the home row's read rule controls who can fetch it.
+
+4. **Open the correct platform client/device.** Use the
+   [§7 Expo opener](./CLIENT-AND-OPERATIONS.md#7-expo): `createLocalClient`
+   with `nativeDevice` in a native build, `createClient` in Expo Go. For web,
+   use `webDevice()` with the local client in [§4 The client](./CLIENT-AND-OPERATIONS.md#4-the-client).
+   Sync when online and check `client.acquired` before relying on local prediction.
+
+5. **Render loading, failed, pending and sent states.** Use
+   [The card](./CLIENT-AND-OPERATIONS.md#the-card) and [React](./CLIENT-AND-OPERATIONS.md#react).
+   Show denied reads and failed writes, keep the session after a profile-write
+   failure, and wait for a pending write's terminal outcome before submitting again.
+
+6. **Stop at the first working account screen.** Sign up, save a profile and
+   avatar, and reopen with the kept session; a missing profile returns to
+   [profile onboarding](./CLIENT-AND-OPERATIONS.md#profile-onboarding-after-sign-up).
+   Defer feeds, search, schedules and server handlers until those features are needed.
+   Return to `guide feeds`, `guide search`, `guide jobs` for schedules, and
+   [SERVER.md](./SERVER.md) with `guide actions` and `guide routes` for server handlers.
+   You can stop reading here and build that screen.
+
+**Reference as needed:** read §1 below for the app layout, then open
 `snapback4 guide language` for Quarry and `guide rules`
 for authorization, `guide sync` and `guide residency` for what the device holds,
 and `guide prediction` for offline writes. Use `guide reads` and `guide writes`

@@ -24931,6 +24931,134 @@ Summing the Rust summary lines gives **1,224 passed, 13 failed, 4 ignored**.
 All 13 failures are fixture-compilation failures in device `native_reads`
 (eight) and simulator `native` (five):
 
+
+## 2026-09-16 — W11b: stop at the first account screen; publish fresh transactional ranking
+
+Base: `e08f1573c08a09e367876eff011ffd9824fee527`. Documentation and tests only,
+following the 0.2.26 friction review's H2 and H4. Orientation used LLP 3000
+§6–§7 and LLP 3000.007 §14, §18 and §20.19; the authorization question in
+H4 remains undecided. No document was split, moved or remapped.
+
+The package opening now gives six ordered steps: Expo/local replica,
+identity and a kept session, profile rules and an avatar home, the platform
+client/device, loading/failed/pending/sent rendering, then a working account
+screen. The path starts on README line 32 and says to stop on line 67,
+before `## 1.` on line 82. Feeds, search, schedules and server handlers are
+explicitly deferred, with return pointers. A regression checks ordering,
+real section anchors and cards, and the deferral before §1.
+
+The feeds card now includes a standalone compiled `refreshRank` recipe:
+public expiring ranking rows with principal insert/update permission, calls
+from post creation and set-like writes, and a 100-post-chunk rebuild job.
+The ranking and like count are online only: the ranking query runs on the
+server, and these source mutations do not predict. The exact honesty text
+is asserted after whitespace normalization:
+
+> The maintenance is handwritten: every source write must call `refreshRank`; the target table is writable by principals because no narrower synchronous derived-write authority exists yet. This is a known authorization gap, not the intended end state.
+
+This publishes ordinary caller-authorized writes, not new authority or a
+system-write helper. The card explains offline freshness, pagination across
+changing scores, initial-data rebuilding, and the missing deletion/expiring-like
+maintenance if an app later adds those source transitions. During authoring,
+an unscoped expiry `where` emitted `N_SPARSE_FILTER`; explicit online-only
+residency instead states the intended server read without a redundant filter.
+An already-absent like's delete refused `NOT_FOUND`; checking existence before
+clearing made repeated set/clear honest. No runtime or diagnostic changed.
+
+Measured on the compiled card: 2 creates immediately yielded 2 zero-like
+candidates. Seven set/clear writes produced scores `0,1,1,2,1,1,0` on the
+next read, with 0 schedule runs and 0 ms virtual-clock advancement after likes.
+A rebuild over 108 source posts and 1 seeded like yielded 106 candidates in
+11 pages, with 104 tied posts and 0 duplicates. A candidate disappeared at
++1 ms on its expiry boundary before the physical sweep; the repeated rebuild
+was identical. These are behavior measurements, not latency measurements or
+a new benchmark/setup-score claim.
+
+Regression-first verification (Cargo commands from `snapback4/`; the base
+had only the new tests when the first two commands ran):
+
+```text
+cargo test -p snapback4-lang --test guide w11b_ -- --nocapture > /tmp/w11b-guide-before.log 2>&1
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 37 filtered out; finished in 0.00s
+```
+
+```text
+cargo test -p snapback4-sim --test clique w11b_ -- --nocapture > /tmp/w11b-sim-before.log 2>&1
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 88 filtered out; finished in 0.01s
+```
+
+```text
+cargo test -p snapback4-lang --test guide w11b_ -- --nocapture > /tmp/w11b-guide-after.log 2>&1
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 37 filtered out; finished in 0.00s
+```
+
+```text
+cargo test -p snapback4-sim --test clique w11b_ -- --nocapture > /tmp/w11b-sim-after.log 2>&1
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 88 filtered out; finished in 0.08s
+```
+
+```text
+cargo test -p snapback4-lang --test guide -- --nocapture > /tmp/w11b-guide-full.log 2>&1
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+```
+
+```text
+cargo test -p snapback4-sim --test clique trending:: -- --nocapture > /tmp/w11b-trending-full.log 2>&1
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 85 filtered out; finished in 0.18s
+```
+
+The final five-test Trending run includes the strengthened seed-like backfill
+and non-prediction assertions. All 39 guide tests pass; the fresh Quarry
+block compiles with zero diagnostics and zero notes.
+
+Full blocking command, from the repository root:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh > /tmp/w11b-suite.log 2>&1
+```
+
+The command exited 1. Verbatim check and failure summaries:
+
+```text
+== cargo build
+-- ok: cargo build (13 s)
+== wasm build
+-- ok: wasm build (15 s)
+== package typecheck
+-- ok: package typecheck (1 s)
+== package build
+-- ok: package build (1 s)
+== chat app check
+-- ok: chat app check (1 s)
+== cargo test
+test result: FAILED. 8 passed; 12 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.17s
+test result: FAILED. 0 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.34s
+test result: FAILED. 2 passed; 5 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.23s
+-- FAIL: cargo test (938 s)
+== chat app typecheck
+-- ok: chat app typecheck (1 s)
+== expo app typecheck
+-- ok: expo app typecheck (1 s)
+== fixture wrapper tests
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (11 s)
+== client tests
+ℹ tests 484
+ℹ pass 483
+ℹ fail 1
+-- FAIL: client tests (70 s)
+== 2 failure(s) in 969 s
+```
+
+Summing Cargo's per-target summaries gives 1,209 passed, 25 failed, 4 ignored.
+Twelve failures were witness-driver timeouts (the fixture supplies a Python
+`simctl` stand-in); all twenty witness tests passed in the isolated rerun
+below. Thirteen failures (8 device `native_reads`, 5 simulator `native`)
+were blocked while building the shared fixture by this exact cache error:
+
 ```text
 error: failed to open `/Users/ccheever/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/unicode-ident-1.0.25.crate`
 
@@ -25040,3 +25168,33 @@ push, tag or publication changed. No sub-agents, clone or remote execution.
 the largest is `crates/snapback4-sim/tests/clique.rs` at **1,465 lines**.
 The prior journal was checked byte-for-byte against HEAD before this single
 append; its earlier entries are unchanged.
+
+The one client failure was `packages/snapback4/test/react.test.mjs:74`,
+Chromium exiting with `signal=SIGABRT` before browser assertions, as the
+lane brief warned. No lifecycle timeout or en-masse client timeout occurred.
+The lead still needs the native fixture/cache and browser checks outside this
+sandbox. No unresolved failure is labelled a verified pre-existing product
+failure; the unchanged base was not separately run through the full suite.
+
+Isolated timeout rerun, from `snapback4/`:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+cargo test -p snapback4 --test witness -- --nocapture > /tmp/w11b-witness-rerun.log 2>&1
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.58s
+```
+
+Reference check after the full suite, before this journal append:
+
+```text
+./ref-check --verbose > /tmp/w11b-ref-check.log 2>&1
+ref-check: ok — 481 LLP docs, 9032 refs in 23988 files, 0 errors, 0 unchecked
+```
+
+All requested documentation is implemented; no out-of-scope file was touched.
+The guide test file is 934 lines and the Trending test module is 185 lines,
+both below the code-file cap. The journal matched the base byte-for-byte
+before this single append. No commit, push, tag, publication, sub-agent,
+clone, remote run, meter increase, value-model change or existing corpus
+change. `git diff --check` passes. Diagnostic before/after text is not
+applicable: this lane changes no emitted diagnostic.

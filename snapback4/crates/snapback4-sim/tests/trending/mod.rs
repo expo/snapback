@@ -43,6 +43,65 @@ fn drain(engine: &mut Engine, now: i64) -> u64 {
     chunks
 }
 
+fn fresh_engine() -> Engine {
+    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).into_iter()
+        .find(|source| source.contains("fn refreshRank(postId: posts):")).expect("the feeds card needs the fresh transactional ranking recipe");
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+    assert_eq!(bound.schema.operations["trending"].runs.as_deref(), Some("server"), "load-time freshness uses the server");
+    for op in ["create", "setLike"] { assert_eq!(bound.schema.operations[op].predicts.as_deref(), Some("never"), "{op} reads an online-only count"); }
+    assert!(bound.schema.schedules.is_empty(), "no schedule supplies transactional freshness");
+    Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap()
+}
+
+// @ref LLP 3000.007#18.5 — the feeds card's immediate answer is executable beside the scheduled alternative.
+#[test]
+fn w11b_fresh_ranking_changes_in_the_source_transaction_without_a_schedule() {
+    let mut engine = fresh_engine();
+    let now = 2 * DAY;
+    for (name, at) in [("older", now - 1), ("newer", now)] {
+        let write = engine.mutate("create", Some(name), Context::new("alice", args(&[("body", Value::String(name.into()))])).at(at).with_ids([name.into(), format!("rank-{name}")])).unwrap();
+        assert!(matches!(write.state, WriteState::Sent { .. }), "{write:?}");
+        assert_eq!(rank(&mut engine, now).len(), if name == "older" { 1 } else { 2 }, "zero-like candidates enter in the create transaction");
+    }
+    assert_eq!(rank(&mut engine, now)[0].field("postId").unwrap(), &id("newer"));
+    for (i, (who, liked, score)) in [("bob", false, 0), ("bob", true, 1), ("bob", true, 1), ("carol", true, 2), ("bob", false, 1), ("bob", false, 1), ("carol", false, 0)].into_iter().enumerate() {
+        let write = engine.mutate("setLike", Some(&format!("set-{i}")), Context::new(who, args(&[("postId", id("older")), ("liked", Value::Bool(liked))])).at(now).with_ids([format!("like-{i}")])).unwrap();
+        assert!(matches!(write.state, WriteState::Sent { .. }), "{write:?}");
+        let rows = rank(&mut engine, now);
+        let older = rows.iter().find(|row| row.field("postId").unwrap() == &id("older")).unwrap();
+        assert_eq!(older.field("score").unwrap(), &Value::Int(score), "the next read sees the write, including repeated set/clear");
+        assert_eq!(rows[0].field("postId").unwrap(), &id(if score > 0 { "older" } else { "newer" }));
+    }
+    assert!(engine.store().rows("likes").unwrap().is_empty());
+    println!("Fresh Trending: 2 creates; 7 set/clear writes; immediate scores=0,1,1,2,1,1,0; schedule runs=0; clock advance after likes=0 ms");
+}
+
+#[test]
+fn w11b_fresh_ranking_rebuild_pages_ties_and_expires_without_a_schedule() {
+    let mut engine = fresh_engine();
+    let now = 2 * DAY;
+    engine.seed((0..105).map(|n| post(&format!("p{n:03}"), now))).unwrap();
+    engine.seed([post("expired", now - DAY), post("edge", now - DAY + 1), post("future", now + 1)]).unwrap();
+    engine.seed([("likes".into(), row(&[("id", id("seed-like")), ("postId", id("p000")), ("principal", id("bob"))]))]).unwrap();
+    assert!(rank(&mut engine, now).is_empty(), "seeded sources need the documented rebuild");
+    assert_eq!(engine.run_job("rebuildRank", args(&[]), now).unwrap().state, JobState::Done);
+    let rows = rank(&mut engine, now);
+    assert_eq!(rows.len(), 106);
+    let expected = std::iter::once(id("p000")).chain((1..105).rev().map(|n| id(&format!("p{n:03}")))).chain([id("edge")]).collect::<Vec<_>>();
+    assert_eq!(rows.iter().map(|r| r.field("postId").unwrap().clone()).collect::<Vec<_>>(), expected);
+    assert_eq!(rows[0].field("score").unwrap(), &Value::Int(1), "backfill includes seeded likes");
+    assert!(rows[1..].iter().all(|r| r.field("score").unwrap() == &Value::Int(0)));
+    assert_eq!(engine.run_job("rebuildRank", args(&[]), now).unwrap().state, JobState::Done);
+    assert_eq!(rank(&mut engine, now), rows, "rebuild is idempotent");
+    assert_eq!(rank(&mut engine, now + 1).len(), 105, "the boundary candidate expires before a sweep or rebuild");
+    assert_eq!(engine.store().rows("ranked").unwrap().len(), 106, "expiry is logical before physical cleanup");
+    assert_eq!(engine.sweep_expired(now + 1, 100).unwrap(), 1);
+    assert_eq!(rank(&mut engine, now + 1).len(), 105);
+    println!("Fresh Trending rebuild: 108 source posts; 1 seeded like; 106 ranked candidates; 11 pages; 104 tied posts; 0 duplicates; expired at +1 ms before sweep");
+}
+
 // @ref LLP 3000.007#20.9 — the scheduled alternative keeps source writes predictable and gives score freshness an explicit cadence.
 #[test]
 fn trending_recipe_schedule_converges_without_widening_write_rules() {
