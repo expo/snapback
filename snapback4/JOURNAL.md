@@ -21436,3 +21436,171 @@ binding. The independent review records the exact analysis/admission
 chronology and original tool-only custody limits. This source landing
 leaves package publication and the current matched competitor refresh as
 separate work.
+
+## 2026-09-15 — W8b: visible Following caps and wired calibration acquisition
+
+Base: `78fe08b6468191d2ac0bbe0aa8b9ca3202a493c0`. Implemented calibration
+0.2.23 H2/V8/H10 and ranks 2–3 using the `llp-orient` context: LLP 3000
+§6–§7, LLP 3000.007 §14/§18/§20.3, the feeds card, and W7a/W7R1b's
+prediction and reader-private routing decisions. No commit, push or publish.
+
+`init --recipe feeds` now prints all global and per-account caps on its
+stdout line. `--authors N --edges N` sizes the author and edge globals;
+route and online-count globals grow together to 32 × authors. Defaults
+remain 1,000 / 100,000 / 32,000 / 32,000. The calibration install uses
+1,008 / 5,921 / 32,256 / 32,256. Sizes are positive u32 values; authors
+cannot exceed 134,217,727, edges cannot exceed authors × 1,000 followers,
+and route capacity must fit min(edges, 1,000) followers plus their author.
+`E_RECIPE_CAPS` refuses an incoherent set before any write. The installer
+edits parser-selected global-cap lines before its existing prefix transform;
+it does not resize an app's tables, per-account bounds, loops or meters.
+The card states their coupling and each cap's acquisition/write cost.
+
+The new shared fixture compiles the installed, sized recipe beside the
+published app wiring, with 1,008 registered authors and profiles, 5,921
+bridged edges, and 50,228 app cards/source events. One celebrity has 900
+followers and 49 broadcasts; the measured reader follows 500 ordinary
+authors. There are 416,710 stored rows including every recipient's private
+projection and matching online slot counts. Bulk import is followed by
+adoption with all original constraints, before measurement. The server and
+both device stores compare two complete Following pages and their cursors;
+real `saveProfile`/`createPost` bridge mutations then stream and converge.
+The CLI runs `test --residency` over the same JSONL fixture. Both tests
+assert the card's per-table rows/bytes and its total against the measured
+snapshot, so the published number cannot drift independently of the fixture.
+
+This is a shape-matched measurement of the real published wiring, not the
+calibration app's exact history or every Clique table. Cards have short,
+deterministic text; media, reposts, chat and likes add their own costs. The
+502-author comparison stays on the card, at 3,095 rows / 335,403 bytes.
+
+| Calibration table | Cold rows | Compact JSON payload bytes |
+|---|---:|---:|
+| feedAuthors | 1,008 | 59,471 |
+| feedFollows | 5,921 | 485,522 |
+| feedPosts | 50,228 | 6,769,661 |
+| feedFeed | 25,050 | 4,528,458 |
+| feedBroadcast | 49 | 8,860 |
+| follows (app) | 5,921 | 444,075 |
+| posts (app) | 50,228 | 5,514,010 |
+| profiles (app) | 1,008 | 66,528 |
+| Pulls, tombstones, reposts | 0 | 0 |
+| **Total** | **139,413** | **17,876,585** |
+
+**This is large cold acquisition.** Public references add 50,228 rows on
+top of the 50,228 app cards. The cost scales with the public corpus, not
+just the reader's follows. The first targeted sample measured server
+snapshot 2,923.420 ms, memory apply 6,403.652 ms and SQLite apply
+6,700.177 ms; these are shared-host observations, not timing assertions or
+browser startup measurements. Following returned 20 entries, complete,
+with 82 examinations / 21 probes on the server and both stores. The CLI
+and snapshots both measured exactly 139,413 rows / 17,876,585 bytes;
+online count rows and other readers' pull routes acquired zero rows.
+
+Skipped the optional `--online-metadata` flag. Restoring the earlier
+acquisition tradeoff changes the prediction/complete-backfill boundary for
+several helpers, not just `saveProfile`; it would need another supported
+mode and both-store eligibility/backfill witnesses. That is not a small
+addition to this sizing-and-measurement lane. No other required work was
+skipped. The only production file beyond the brief's named installer and
+recipe/card files is `crates/snapback4/src/main.rs`: one help line lists the
+new flags. No engine, meter, value serialization or conformance case changed.
+
+Validation commands below ran with
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`; Cargo and Node
+commands ran from `snapback4/`, the script and ref-check from the repository
+root. These are the verbatim summary lines.
+
+`cargo test -p snapback4 --test init w8b_ -- --nocapture` — three regressions
+against the base implementation, then the fix, then the acquisition test:
+
+```text
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 21 filtered out; finished in 2.16s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 1.20s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 35.71s
+```
+
+`cargo test -p snapback4-device --test device w8b_ -- --nocapture`:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 154 filtered out; finished in 43.60s
+```
+
+`cargo test -p snapback4 --test init -- --nocapture`:
+
+```text
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 34.07s
+```
+
+`cargo test -p snapback4-lang --test guide -- --nocapture`:
+
+```text
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+```
+
+`bash snapback4/scripts/test.sh` — Rust sums to 1,039 passed / 0 failed /
+4 ignored across 62 target summaries; no lifecycle timeout occurred:
+
+```text
+-- ok: cargo build (2 s)
+-- ok: wasm build (22 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (2 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (725 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ duration_ms 12340.884209
+-- ok: fixture wrapper tests (12 s)
+ℹ tests 371
+ℹ pass 370
+ℹ fail 1
+ℹ duration_ms 70971.443291
+-- FAIL: client tests (71 s)
+== 1 failure(s) in 753 s
+```
+
+The sole failure was `React hooks and reference-app lifetimes` in
+`packages/snapback4/test/react.test.mjs`, Chromium launch exiting with
+`signal=SIGABRT`, matching the brief's named sandbox artifact. Repeated
+alone with `node --test packages/snapback4/test/react.test.mjs`:
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ duration_ms 935.114208
+```
+
+The lead must repeat that browser witness outside the sandbox. This is not
+a claim of a separately verified pre-existing failure at the base commit;
+only the three sizing regressions were deliberately run red there. No
+client timeout remained that called for the concurrency-2 rerun.
+
+`./ref-check --verbose` before this appended entry:
+
+```text
+ref-check: ok — 481 LLP docs, 8976 refs in 23814 files, 0 errors, 0 unchecked
+```
+
+The default fresh-directory stdout before (also printed while silently
+ignoring `--authors 1 --edges 1001`):
+
+```text
+init: wrote 4 files in . — local-first + Following recipe — next: `snapback4 check`, then `snapback4 dev`
+```
+
+After:
+
+```text
+init: wrote 4 files in . — local-first + Following recipe — caps: authors=1000, edges=100000, pulls=32000, pullCounts=32000, sourceEvents=60000, broadcast=32000, tombstones=32000; follows/reader=1000, followers/author=1000, events/actor=1000, tombstones/actor=1000, pulls/reader=32, inbox/reader=50000, inbox/reader/actor=1000, inbox/event=1001 — next: `snapback4 check`, then `snapback4 dev`
+```
+
+The incoherent combination now exits 2 without writing, with this exact text:
+
+```text
+E_RECIPE_CAPS: --edges 1001 exceeds --authors 1 * 1000 followers/author; grow --authors or reduce --edges; see snapback4 guide feeds
+```

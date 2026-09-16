@@ -13,8 +13,52 @@ pub fn valid_prefix(prefix: &str) -> bool {
     chars.next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_') && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
+#[derive(Clone, Copy)]
+pub struct FollowingCaps { authors: u32, edges: u32, routes: u32 }
+
+impl FollowingCaps {
+    pub fn parse(authors: Option<&str>, edges: Option<&str>) -> Result<Self, String> {
+        fn number(flag: &str, value: Option<&str>, default: u32) -> Result<u32, String> {
+            match value {
+                None => Ok(default),
+                Some(value) if !value.is_empty() && value.bytes().all(|c| c.is_ascii_digit()) => value.parse::<u32>().ok().filter(|n| *n > 0)
+                    .ok_or_else(|| format!("--{flag} needs a positive 32-bit integer")),
+                _ => Err(format!("--{flag} needs a positive 32-bit integer")),
+            }
+        }
+        let authors = number("authors", authors, 1000)?;
+        let edges = number("edges", edges, 100000)?;
+        let routes = authors.checked_mul(32).ok_or("--authors must be at most 134217727 so its 32-per-author route budget fits a Quarry cap")?;
+        if u64::from(edges) > u64::from(authors) * 1000 {
+            return Err(format!("--edges {edges} exceeds --authors {authors} * 1000 followers/author; grow --authors or reduce --edges"));
+        }
+        if routes < edges.min(1000) + 1 {
+            return Err(format!("--authors {authors} gives {routes} pull slots, fewer than one full follower group plus its author ({}); grow --authors or reduce --edges", edges.min(1000) + 1));
+        }
+        Ok(Self { authors, edges, routes })
+    }
+
+    pub fn summary(self) -> String {
+        format!("authors={}, edges={}, pulls={}, pullCounts={}, sourceEvents=60000, broadcast=32000, tombstones=32000; follows/reader=1000, followers/author=1000, events/actor=1000, tombstones/actor=1000, pulls/reader=32, inbox/reader=50000, inbox/reader/actor=1000, inbox/event=1001", self.authors, self.edges, self.routes, self.routes)
+    }
+}
+
 pub fn following(prefix: &str, module: &str) -> Result<String, String> {
+    following_sized(prefix, module, FollowingCaps::parse(None, None)?)
+}
+
+pub fn following_sized(prefix: &str, module: &str, caps: FollowingCaps) -> Result<String, String> {
     let source = crate::guide::quarry(crate::guide::card("feeds").unwrap()).remove(0);
+    // @ref LLP 3000.007#20.3 — scale global metadata together without enlarging the bounded delivery, backfill or purge loops.
+    let (doc, errors) = crate::parse_document("feed.q", &source);
+    if !errors.is_empty() { return Err(errors.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n")); }
+    let mut lines = source.lines().map(str::to_owned).collect::<Vec<_>>();
+    for (name, max) in [("authors", caps.authors), ("follows", caps.edges), ("pulls", caps.routes), ("pullCounts", caps.routes)] {
+        let table = doc.tables.iter().find(|t| t.name == name).expect("recipe table");
+        let cap = table.caps.iter().find(|c| c.by.is_empty()).expect("recipe global cap");
+        lines[cap.site.line as usize - 1] = format!("  cap {max}");
+    }
+    let source = lines.join("\n") + "\n";
     // @ref LLP 3000.007#20.3 — a wired app owns mutation authority; installed recipe operations are helpers, never a second client write API.
     let source = if prefix.is_empty() { source } else {
         let (doc, errors) = crate::parse_document("feed.q", &source);

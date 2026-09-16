@@ -1,4 +1,5 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_RECIPE_CAPS", "invalid Following recipe sizing. --authors and --edges require --recipe feeds and positive 32-bit integers; edges must fit authors * 1000 followers/author, and the derived route/count cap must fit one full follower group plus its author. See guide feeds for coupled caps and acquisition costs."),
     ("FEED_PULL_CAP", "the Following recipe's reader already pulls 32 shared authors. Free a pull slot by unfollowing a shared author, then follow again. Promotion skips saturated readers instead of refusing; those readers keep old pushed entries but miss new broadcasts until they free a slot and unfollow/refollow. guide feeds."),
     ("E_WRITE_ID", "family input — write id must be 26 uppercase Crockford base32 digits, starting with 0–7 (the mintId() form). Mint once and keep the id with the intent; guide writes."),
     ("E_WRITE_ID_REUSE", "family input — write id already belongs to a different operation or arguments; retry the original input or use a new id. The original write remains unchanged; guide writes."),

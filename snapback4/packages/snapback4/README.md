@@ -1422,11 +1422,20 @@ and `unfollow` queue without rows because slot accounting is online-only;
 following backfills when the server commits it.
 The inbox keeps its full capped partition for complete Following pages.
 Edges carry `at: time default 0`, preserved on an idempotent follow.
-Global metadata caps are 1,000 authors, 100,000 edges, 32,000 pull routes
+Default global metadata caps are 1,000 authors, 100,000 edges, 32,000 pull routes
 and 60,000 source references, plus 32,000 online count rows.
+`init --recipe feeds --prefix feed --authors 1008 --edges 5921` sizes the
+author and edge caps before replay; pull-route and online-count caps grow
+together to 32 × authors. Init prints all caps, and incoherent sizing refuses
+`E_RECIPE_CAPS` before writing. The app's own caps stay its responsibility;
+`guide feeds` names the coupled bounds and what each costs.
 The feeds card publishes `test --residency`
 measurements: the wired 500-follow fixture acquires 3,095 rows / 335,403 B
 (up from 1,055 rows); its 5-follow reader acquires 2,600 rows / 250,482 B.
+At the calibration shape (1,008 authors, 5,921 edges, 50,228 app posts),
+the wired 500-follow reader acquires **139,413 rows / 17,876,585 B**.
+That is large, even with short text cards and no media. The feeds card
+breaks down the measured cost and states the fixture's scope.
 These counts apply to both predicting writes and queued follows; the fixture
 has no pull routes. Both still read 20 complete entries with 82 examinations
 and 21 probes. The larger 50,000-reference-event envelope acquires 77,665
@@ -2201,7 +2210,7 @@ default of an existing required column rechecks the unique indexes and
 caps over it, and a group that no longer fits is `E_ADOPT` like any other
 step.
 
-- **`snapback4 init [dir] [--online|--expo] [--recipe feeds [--prefix <name>]]`** starts a project without
+- **`snapback4 init [dir] [--online|--expo] [--recipe feeds [--prefix <name>] [--authors N --edges N]]`** starts a project without
   overwriting existing files. An existing `package.json` keeps its metadata;
   required dependencies, devDependencies and scripts merge into it through an
   atomic replacement, so a failed package write leaves the original intact. A different

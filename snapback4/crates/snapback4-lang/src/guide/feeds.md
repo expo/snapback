@@ -29,6 +29,36 @@ With a prefix, init also converts its standalone mutations to `fn` helpers.
 Qualified schedule targets in another module keep their names, even when
 a recipe job has the same name.
 
+Size the installation before replaying an existing app:
+
+```sh
+snapback4 init --recipe feeds --prefix feed --authors 1008 --edges 5921
+```
+
+`init` prints every written cap, including the fixed per-account caps, on
+its stdout line. `--authors N` and `--edges N` set the global author and
+follow-edge caps; omitted flags keep 1,000 and 100,000 respectively.
+They change only the installed module, not the app's own tables. For room
+beyond this fixture, use `--authors 2000 --edges 200000`. Grow the app's
+profile and follow caps too if they would otherwise refuse first.
+
+Sizing refuses with `E_RECIPE_CAPS` before writing any file if a flag is
+missing its positive 32-bit integer, edges exceed authors × 1,000 (the
+fixed follower cap), or the derived route budget cannot fit one full
+follower group plus its author: `32 × authors >= min(edges, 1000) + 1`.
+Authors must be at most 134,217,727 so that multiplication fits a Quarry cap.
+These are schema bounds, not a promise the engine can process that many
+rows in one operation. The runtime meters still decide each operation.
+
+| Cap | What grows together; cost |
+|---|---|
+| Authors / edges | The flags set their global caps; each stored row is public and reaches every device. The wired app also stores its own profile and edge rows. |
+| Pull routes / online counts | Both global caps grow to `32 × authors` (32,000 by default). Routes cost server storage and at most 32 acquired rows for their reader; each installed reader's count costs one server-only row and no acquisition. Unregistered readers can follow too, so this remains a finite global routing budget, not a guarantee for every possible graph. |
+| Source events / broadcast / tombstones | Fixed globals: 60,000 / 32,000 / 32,000. Every stored row reaches every device. Removal temporarily adds a tombstone until the purge finishes. App post cards and repost attribution add their own acquisition. |
+| Follows per reader / followers per author | Both stay at 1,000. The follower cap, promotion/delivery loops, inbox's 1,001 copies per event and purge loop must grow together if edited by hand; larger writes can hit the unchanged meter. |
+| Events and tombstones per actor / inbox per reader and actor | Each stays at 1,000. Source-event and inbox group caps must agree with the 1,000-row backfill/unfollow loops; a follow still copies only the newest 200 events. |
+| Inbox per reader / pulls per reader | Fixed at 50,000 / 32. The former bounds private cold acquisition; the latter bounds the merge's pulled lanes and its per-read work. Growing them requires revisiting the query and its meter, not just global sizing. |
+
 Small accounts write each reader's private inbox. On the 51st follower,
 future events go into one public broadcast projection; the earlier events
 keep their delivery mode. Follow backfills the latest 200 source events,
@@ -398,7 +428,7 @@ tombstones. Cleanup is a bounded job; no exact horizon maintenance is involved.
 Public source references also reach every device; their cost is measured
 below, not included in the 200-row broadcast count. Each reader acquires only
 their own pull routes, at most 32; the online counts acquire zero rows.
-Global metadata caps are 1,000 authors, 100,000 edges, 32,000 private pull
+Default global metadata caps are 1,000 authors, 100,000 edges, 32,000 private pull
 routes, 32,000 online count rows and 60,000 source references.
 
 ### Cold acquisition and the prediction boundary
@@ -408,17 +438,41 @@ on the wired example below: 502 registered authors, 505 bridged edges
 (5 and 500 follows), 526 app cards including one image, and 2 reposts.
 Bytes are compact JSON row payloads, excluding transport framing.
 
-| Table | Cold rows | Bytes |
-|---|---:|---:|
-| `feedAuthors` | 502 | 39,154 |
-| `feedFollows` | 505 | 50,490 |
-| `feedPosts` | 528 | 63,830 |
-| `feedFeed` | 527 | 90,565 |
-| `follows` (app) | 505 | 46,955 |
-| `posts` (app) | 526 | 44,235 |
-| `reposts` (app) | 2 | 174 |
-| Broadcast, pulls, tombstones and profiles | 0 | 0 |
-| **Total** | **3,095** | **335,403** |
+The calibration-shaped wired app uses `--authors 1008 --edges 5921`:
+1,008 profiles and registered authors, 5,921 bridged edges, 50,228 app post
+cards and source events, including a 900-follower celebrity with 49 broadcasts.
+The 500-follow reader follows ordinary authors. The fixture imports the
+graph before the posts, validates all caps by adoption, then exercises the
+real `saveProfile` and `createPost` bridges and streams their changes to
+both stores. It uses deterministic short text cards, no media or reposts;
+this is the published app wiring at the calibration's shape, not the full
+Clique app's chat, likes, media or exact replay history. Those add costs.
+Its command is `snapback4 test --residency --fixture fixture --as dev:u0003`.
+
+| Table | 502-author cold rows | Bytes | Calibration cold rows | Bytes |
+|---|---:|---:|---:|---:|
+| `feedAuthors` | 502 | 39,154 | 1,008 | 59,471 |
+| `feedFollows` | 505 | 50,490 | 5,921 | 485,522 |
+| `feedPosts` | 528 | 63,830 | 50,228 | 6,769,661 |
+| `feedFeed` | 527 | 90,565 | 25,050 | 4,528,458 |
+| `follows` (app) | 505 | 46,955 | 5,921 | 444,075 |
+| `posts` (app) | 526 | 44,235 | 50,228 | 5,514,010 |
+| `reposts` (app) | 2 | 174 | 0 | 0 |
+| `profiles` (app) | 0 | 0 | 1,008 | 66,528 |
+| `feedBroadcast` | 0 | 0 | 49 | 8,860 |
+| Pulls and tombstones | 0 | 0 | 0 | 0 |
+| **Total** | **3,095** | **335,403** | **139,413** | **17,876,585** |
+
+**139,413 rows / 17,876,585 bytes is large cold acquisition**, even with
+short text cards and no media bytes. Public source references alone add
+50,228 rows / 6,769,661 bytes, in addition to the app's post cards. This
+cost grows with the public corpus, not just this reader's follows. The CLI
+measurement and both-store snapshot test assert the card's rows and bytes.
+The calibration reader returns complete 20-entry pages on the server,
+memory and SQLite devices with 82 examinations and 21 probes. One shared-host
+sample measured 2,923 ms for the server snapshot and 6,404 / 6,700 ms for
+memory / SQLite application; these are observations, not timing thresholds
+or end-to-end browser startup measurements.
 
 The same fixture acquired 1,055 rows before the prediction change. Five
 follows now acquire 2,600 rows / 250,482 bytes. Neither reader has a pull

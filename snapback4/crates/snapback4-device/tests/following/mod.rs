@@ -6,6 +6,7 @@ mod app;
 mod privacy;
 mod saturation;
 mod slots;
+mod calibration;
 
 #[test]
 fn following_scale_pages_match_on_both_device_stores() {
