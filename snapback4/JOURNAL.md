@@ -21831,3 +21831,147 @@ outside the sandbox. `./ref-check --verbose` reports 481 LLP docs, 8,982
 references, zero errors and zero unchecked. `git diff --check` is clean;
 the largest changed code file is 1,229 lines, with zero over 1,500. No commit,
 push, tag, publication, sub-agent or remote-machine work was performed.
+
+## 2026-09-15 — W8R1b: held CLI tests, bounded adoption logs, one doctor snapshot
+
+Built the wave-8 first-review lane on
+`cb98c5de36563f74867a0ef3cbab8de002200616`. `snapback4 test` now names and
+skips each held query once, before deriving arguments or iterating personas;
+`test --residency` does the same after loading and measuring its fixture.
+I chose the explicit skip because this command owns a server store, not a
+viewer device's acquired partition. Running local semantics directly over
+that store would misleadingly treat server rows as held device rows. Normal
+queries still run for every persona; held reads remain testable through a
+local client. The README describes the distinction.
+
+Pending adoption retains one background error reason for each of E_STORE
+and E_GENERATION. Identical reasons from sweeps and jobs share a suppressed
+count; changed reasons and other errors remain visible. Recovery and a
+changed adoption failure report that count and clear both remembered reasons.
+This bounds retained logging state to two reasons without hiding a new error.
+Doctor's effect-state counts, replay suppression count and deferred minimum
+now read in one deferred SQLite transaction. The unused public presence
+getter is removed; the crate-private presence module remains. The Postgres
+evaluation adapter's comment now says it records `now`, not a grace deadline,
+and provides neither deferral nor reconnect cancellation there.
+
+The three behavior regressions were red before their fixes. The logging and
+doctor tests use behavior-preserving helper extraction to observe the old
+output and force the race, without production test hooks. The held-query
+regression first had a test-fixture typo (`personas` instead of `use personas`);
+that was corrected before taking the actual E_QUERY_HELD red evidence below.
+The detached-query recovery control was already green. The used-dev-store
+release control is additional positive coverage, not a claimed repaired bug.
+The getter deletion and comment correction are mechanical changes, not
+invented behavioral regressions.
+
+Commands run from `snapback4/`, with verbatim relevant summary lines:
+
+```text
+cargo test -p snapback4 --test check w8r1b_test_names_held -- --nocapture
+before: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 26 filtered out; finished in 1.08s
+cargo test -p snapback4 --bin snapback4 w8r1b_ -- --nocapture
+before: test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 35 filtered out; finished in 0.02s
+after: test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 35 filtered out; finished in 0.02s
+final, with the changed-reason control added: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 35 filtered out; finished in 0.02s
+cargo test -p snapback4 --test check w8r1b_ -- --nocapture
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 26 filtered out; finished in 1.28s
+cargo test -p snapback4 --test check -- --nocapture
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.67s
+```
+
+Measured: 3 CLI modes, 2 personas, 1 held-query skip per command, and 1 loaded
+fixture row. The duplicate-log test injects 80 maintenance ticks with 2
+failures each, for 2 error kinds across 2 recovery episodes each: 640
+background failures total after the fix, producing 4 first explanations
+and 4 recovery summaries, with 636 suppressed repeats (159 per episode).
+Before the fix, the regression stopped at its first failing assertion:
+160 failures had produced 160 lines in that first episode.
+Different reasons and unrelated errors still print. These are deterministic
+injected ticks, not 80 seconds of a live maintenance timer. The real watcher
+lock/startup/generation tests remain green in the complete CLI suite.
+
+The concurrent doctor witness forces exactly 1 worker claim between the
+state-count and deferral reads. Before: 1 queued with 0 deferred. After:
+1 queued with 1 deferred and minimum deadline 200; the next inspection sees
+1 running with 0 deferred. Replay suppression remains 7. Recovery while a
+detached query has a pinned WAL snapshot returns version 1 to that query,
+version 2 to the next query, and retains 0 old readers in the new pool. A
+release activated in an already-used dev-store directory preserves its
+store identity and 1 row, exposes 1 meter object in dev, and exposes 0 meter
+fields in 2 release requests (with and without the request header).
+
+Full verification, from the repository root with Node 24.18.0 on PATH:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+-- ok: cargo test (560 s)
+-- FAIL: client tests (65 s)
+== 1 failure(s) in 578 s
+```
+
+The 62 Cargo summaries total 1,054 passed, 0 failed and 4 ignored; fixture
+wrapper tests pass 9/9. All build and typecheck stages pass. Client tests
+report `ℹ tests 378`, `ℹ pass 376`, `ℹ fail 2`. The receipt-recovery test
+passes alone; Chromium repeats the lane brief's SIGABRT sandbox artifact:
+
+```text
+node --test --test-name-pattern='W5c a reloaded secondary tab recovers its terminal receipt by id' packages/snapback4/test/navigation-model.test.mjs
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+```
+
+Both reruns used the same exported Node path, from `snapback4/`. The lead
+must rerun the browser witness outside the sandbox. These are observed
+results, not a claim of an all-green blocking suite or a separately verified
+pre-existing failure at the base commit. No lifecycle test failed and there
+was no mass client timeout requiring the concurrency-2 rerun. Complete
+verbatim per-suite summaries and commands are retained locally in
+`/private/tmp/w8r1b-validation.txt`, with the full suite output at
+`/private/tmp/w8r1b-full-suite.log`. The root reference checker passes with
+0 errors and 0 unchecked references; it is repeated after this entry.
+
+The exact held-query CLI lines before:
+
+```text
+      heldRows (alice)             denied E_QUERY_HELD: query heldRows is held: it runs only on the device
+      heldRows (bob)               denied E_QUERY_HELD: query heldRows is held: it runs only on the device
+```
+
+After:
+
+```text
+      not run: heldRows is held (device only)
+```
+
+The first background consequence line stays. Previously each following job
+printed `snapback4: job failed: E_STORE: database is locked`; those identical
+repeats are now silent, with this measured recovery summary:
+
+```text
+snapback4 dev: adoption recovered; suppressed 159 repeated background failures
+```
+
+No E_/N_ definition changed. No ceilings, serialized value forms or existing
+corpus cases changed. The only source edit outside the named ownership list
+is the three-line test-module hook in `src/serve_tests.rs`; its new tests live
+under `tests/serve_adoption/`, and doctor's under `tests/doctor/`, following
+the existing nested-suite pattern. The Postgres comment, README and journal
+were explicitly requested. Guide cards remain with their owning lane: add
+“`test` and `test --residency` skip held queries with `not run: <name> is held
+(device only)`; exercise them through a local client” to the CLI/bounds
+card, and the README's repeat-suppression sentence to the refusals card.
+The reads and search cards and the other lane's engine files are untouched.
+
+What I learned: the server fixture is insufficient evidence for a held read,
+and an operator line must describe one database snapshot even when each of
+its individual reads is correct. Keeping the first explanation needs an
+explicit suppression count and recovery reset; a one-shot explanation flag
+alone does not bound subsequent logs. Changes remain uncommitted for the
+lead; no push, tag, publication, sub-agent or remote machine was used.

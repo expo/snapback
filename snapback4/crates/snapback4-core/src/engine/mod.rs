@@ -243,9 +243,6 @@ impl Engine {
         self.presence = presence;
     }
 
-    pub fn presence(&self) -> Option<std::sync::Arc<dyn Presence>> {
-        self.presence.clone()
-    }
 
     /// Activate an immutable source release. Its pointer lives in the same
     /// transaction as rows/programs/generation; the filesystem pointer is a

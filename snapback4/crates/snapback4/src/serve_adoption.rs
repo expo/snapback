@@ -32,29 +32,53 @@ pub(super) fn open(project: &Project, bound: &snapback4_lang::Bound) -> Result<s
 pub(super) struct Status {
     pub store_id: String,
     pub failure: Option<String>,
-    repeated: bool,
+    background: [Option<String>; 2],
+    suppressed: u64,
     retrying: bool,
 }
 impl Status {
-    pub fn new(store_id: String) -> Self { Self { store_id, failure: None, repeated: false, retrying: false } }
+    pub fn new(store_id: String) -> Self { Self { store_id, failure: None, background: [None, None], suppressed: 0, retrying: false } }
     fn recovery(&self) -> &str { if self.retrying { "retrying automatically" } else { "fix the schema and save again" } }
-    fn refused(&mut self, error: &RuntimeError, generation: u64) {
+    pub(super) fn refused(&mut self, error: &RuntimeError, generation: u64) {
         let reason = error.to_string();
         self.retrying = retryable(error);
         if self.failure.as_ref() != Some(&reason) {
+            if let Some(line) = self.reset_background("adoption failure changed") { eprintln!("{line}"); }
             eprintln!("snapback4 dev: the new schema was not adopted: {reason}; serving generation {generation}; jobs and sweeps may fail until adoption succeeds; {}", self.recovery());
             self.failure = Some(reason);
-            self.repeated = false;
         }
+    }
+    pub(super) fn background_failure(&mut self, name: &str, error: &RuntimeError) -> Option<String> {
+        let slot = match error.code().as_str() { "E_STORE" => Some(0), "E_GENERATION" => Some(1), _ => None };
+        if let Some(slot) = slot && let Some(reason) = &self.failure {
+            // Keep two reasons, independent of job names and tick count. A changed
+            // reason stays visible; identical store/generation failures share a count.
+            let error = error.to_string();
+            if self.background[slot].as_ref() == Some(&error) {
+                self.suppressed = self.suppressed.saturating_add(1);
+                return None;
+            }
+            let line = format!("snapback4: {name} failed: {error}; adoption still pending: {reason}; jobs and sweeps may fail until adoption succeeds; {}", self.recovery());
+            self.background[slot] = Some(error);
+            Some(line)
+        } else { Some(format!("snapback4: {name} failed: {error}")) }
+    }
+
+    pub(super) fn recovered(&mut self) -> Option<String> {
+        self.failure = None;
+        self.retrying = false;
+        self.reset_background("adoption recovered")
+    }
+
+    fn reset_background(&mut self, reason: &str) -> Option<String> {
+        self.background = [None, None];
+        let count = std::mem::take(&mut self.suppressed);
+        (count > 0).then(|| format!("snapback4 dev: {reason}; suppressed {count} repeated background failures"))
     }
 }
 
 pub(super) fn background_failure(shared: &Shared, name: &str, error: &RuntimeError) {
-    let mut status = lock(&shared.adoption);
-    if matches!(error.code().as_str(), "E_STORE" | "E_GENERATION") && !status.repeated && let Some(reason) = &status.failure {
-        eprintln!("snapback4: {name} failed: {error}; adoption still pending: {reason}; jobs and sweeps may fail until adoption succeeds; {}", status.recovery());
-        status.repeated = true;
-    } else { eprintln!("snapback4: {name} failed: {error}"); }
+    if let Some(line) = lock(&shared.adoption).background_failure(name, error) { eprintln!("{line}"); }
 }
 
 pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: u128) {
@@ -112,7 +136,7 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: u1
                 match adopted {
                     Ok(next) => {
                         seen_generation = next;
-                        lock(&shared.adoption).failure = None;
+                        if let Some(line) = lock(&shared.adoption).recovered() { eprintln!("{line}"); }
                         crate::lifecycle::generation(next);
                         lock(&shared.readers).invalidate();
                         if reopened || rebuilt.is_some() {
@@ -156,4 +180,3 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: u1
         }
     }
 }
-

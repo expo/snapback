@@ -466,6 +466,23 @@ fn human(bytes: u64) -> String {
     }
 }
 
+#[cfg(test)]
+#[path = "../tests/doctor/mod.rs"]
+mod doctor_tests;
+
+fn effect_health(engine: &snapback4_core::Engine, now: i64) -> Result<(BTreeMap<String, u64>, rusqlite::Result<(i64, Option<i64>)>), snapback4_core::RuntimeError> {
+    // Counts (including replay suppression) and grace deadlines describe one snapshot.
+    let snapshot = engine.store().conn().unchecked_transaction()?;
+    let counts = engine.effect_counts()?;
+    // @ref LLP 3000.007#20.16 — report grace deferrals without treating retry backoff as presence.
+    let deferred = engine.store().conn().query_row(
+        "SELECT COUNT(*), MIN(next_at) FROM _outbox WHERE state = 'queued' AND next_at > ?1 AND EXISTS (SELECT 1 FROM _effect_presence WHERE id = _outbox.id)",
+        [now], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, Option<i64>>(1)?)),
+    );
+    snapshot.rollback()?;
+    Ok((counts, deferred))
+}
+
 pub fn doctor(options: &Options) -> i32 {
     let started = Instant::now();
     let mut lines = Vec::new();
@@ -556,12 +573,7 @@ pub fn doctor(options: &Options) -> i32 {
                             lines.push(format!("job       {} {} {:?}: {} chunk{}, {} row{}{}", run.name, run.id, run.state, run.chunks, if run.chunks == 1 { "" } else { "s" }, run.rows_written, if run.rows_written == 1 { "" } else { "s" }, run.error.map(|e| format!(" — {e}")).unwrap_or_default()));
                         }
                     }
-                    if let Ok(counts) = engine.effect_counts() && !counts.is_empty() {
-                        // @ref LLP 3000.007#20.16 — report grace deferrals without treating retry backoff as presence.
-                        let deferred = engine.store().conn().query_row(
-                            "SELECT COUNT(*), MIN(next_at) FROM _outbox WHERE state = 'queued' AND next_at > ?1 AND EXISTS (SELECT 1 FROM _effect_presence WHERE id = _outbox.id)",
-                            [now], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, Option<i64>>(1)?)),
-                        );
+                    if let Ok((counts, deferred)) = effect_health(&engine, now) && !counts.is_empty() {
                         let deferred = match deferred {
                             Ok((count, Some(at))) => format!("{count} deferred (next at {at}, +{}s)", (at - now + 999) / 1000),
                             Ok((count, None)) => format!("{count} deferred"),
@@ -729,6 +741,11 @@ pub fn test(options: &Options) -> i32 {
     let mut skipped = Vec::new();
     for program in &bound.programs {
         if program.program.kind != ProgramKind::Query {
+            continue;
+        }
+        // @ref LLP 3000.007#18.1 — a server fixture is not the device's held partition.
+        if bound.schema.operations.get(&program.program.name).is_some_and(|fact| fact.held) {
+            println!("      not run: {} is held (device only)", program.program.name);
             continue;
         }
         for persona in &personas {
