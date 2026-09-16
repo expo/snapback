@@ -43,6 +43,13 @@ fn legacy_unknown_and_empty_object_contracts_are_distinct() {
 }
 
 #[test]
+fn empty_handler_maps_cannot_accept_undeclared_functions() {
+    let server = emit::server_typescript(&clean(""));
+    assert!(server.contains("export type Actions = Record<string, never>;"));
+    assert!(server.contains("effects?: Record<string, never>"));
+}
+
+#[test]
 fn work_settings_bind_for_actions_and_effects_with_legacy_defaults() {
     let bound = clean("action send() returns { accepted: bool } secrets [MAIL_KEY, BILLING_KEY] retry 3 backoff 1m deadline 2h cancellation deny <- viewer = 'service:billing'\neffect notify secrets [PUSH_KEY] retry 2 backoff 5m deadline 30d cancellation allow\neffect legacy\n");
     let action = &bound.schema.action_specs["send"];
