@@ -13,12 +13,12 @@
 **Battery gate:** `forked-parent`
 **Failure signature:** `sha256:f23a813876264bad4d717aff5dcdcb3df81dcd9b71b85624a3268bef92a647ac`
 **First observed run:** `local.20260914T214631Z.8f56e50f6d78`
-**Last observed run:** `local.20260915T190403Z.ca4844fb29ff`
-**Last processed run:** `local.20260915T190403Z.ca4844fb29ff`
+**Last observed run:** `local.20260916T051524Z.fbf2c6042249`
+**Last processed run:** `local.20260916T051524Z.fbf2c6042249`
 **Detected at revision:** `8f56e50f6d78cad0378c07114505a0eac5752580`
-**Last observed revision:** `ca4844fb29ff71c92ad531a4bc2fa0e53b20d5fe`
-**Consecutive red runs:** `1`
-**Escalation:** `pending (1/4)`
+**Last observed revision:** `fbf2c6042249ffb1b8b21cea660939688718671f`
+**Consecutive red runs:** `2`
+**Escalation:** `pending (2/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary

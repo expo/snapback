@@ -10,11 +10,11 @@
 **Battery gate:** `graffiti-widget-read`
 **Failure signature:** `sha256:bb2c89a2eb2a83633f297ec51dc1ac700fca5ebb956ad4084c2651f4ad1cec51`
 **First observed run:** `local.20260914T104118Z.86928d068765`
-**Last observed run:** `local.20260915T190403Z.ca4844fb29ff`
-**Last processed run:** `local.20260915T190403Z.ca4844fb29ff`
+**Last observed run:** `local.20260916T051524Z.fbf2c6042249`
+**Last processed run:** `local.20260916T051524Z.fbf2c6042249`
 **Detected at revision:** `86928d068765e3d57c68747e4f2359950b8ff7d1`
-**Last observed revision:** `ca4844fb29ff71c92ad531a4bc2fa0e53b20d5fe`
-**Consecutive red runs:** `4`
+**Last observed revision:** `fbf2c6042249ffb1b8b21cea660939688718671f`
+**Consecutive red runs:** `5`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
