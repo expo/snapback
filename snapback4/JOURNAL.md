@@ -21028,3 +21028,20 @@ code file is below 1,500 lines (largest: Following's simulator `mod.rs`, 180).
 No E_/N_ code or diagnostic text changed. The README and this required journal
 entry are the only shared documentation touched. Nothing was committed,
 pushed, tagged or published.
+
+## 2026-09-15 — Wave 7 landed as 0.2.23 / expo 0.2.14 (lead)
+
+Integration `sb4/w7-int` carries W7a–W7d, the round-1 repairs W7R1a and
+W7R1b, the round-2 repair W7R2, and the lead's adoption-timing fix. Both
+families returned READY: Grok at rounds 1 and 2, GPT at the round-3
+confirmation.
+
+Lead verification on `c87b9e704`:
+- suite: 0 failures;
+- client tests: 383/383;
+- Chromium `navigation-immediate`: 10/10;
+- native Expo end-to-end on `2cbe3f94b`: ok in 23,944 ms;
+- ref-check: ok.
+
+Records: LLP 3000.007 §20.16 and `llp/reviews/3000.007-agent-ergonomics-wave-7.*`.
+
