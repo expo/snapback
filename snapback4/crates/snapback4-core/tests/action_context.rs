@@ -1,0 +1,119 @@
+#![cfg(feature = "sqlite")]
+use snapback4_core::{Context, Engine, Schema, Value, identity};
+use snapback4_core::engine::actions::ActionSettled;
+use snapback4_core::ir::{ArgType, Expr, Program, ProgramKind, Stmt};
+use snapback4_core::schema::{ActionSpec, Schedule, WorkPolicy, WorkSpec};
+use serde_json::json;
+use std::collections::BTreeMap;
+
+fn program() -> Program {
+    Program { name: "work".into(), kind: ProgramKind::Action, args: BTreeMap::new(), read_time_granularity_ms: None, native: false,
+        body: vec![Stmt::Require { condition: Expr::Literal(Value::Bool(true)), code: "E_RULE".into(), site: None }] }
+}
+fn schema(policy: WorkPolicy) -> Schema {
+    Schema { action_specs: BTreeMap::from([("work".into(), ActionSpec {
+        returns: Some(BTreeMap::from([("answer".into(), ArgType::Int), ("note".into(), ArgType::Optional(Box::new(ArgType::Text { max: 8, min: 0, format: None })))])),
+        work: WorkSpec { secrets: vec![], policy },
+    })]), ..Schema::default() }
+}
+fn engine() -> Engine { Engine::memory(schema(WorkPolicy::default()), [program()]).unwrap() }
+fn admit(engine: &mut Engine, id: &str, at: i64) { engine.request_action("work", id, Context::new("dev:alice", BTreeMap::new()).at(at)).unwrap(); }
+fn claim(engine: &mut Engine, at: i64) -> String { engine.claim_actions("service:worker", None, 1, 1_000, 1, at).unwrap().remove(0).session.token }
+
+#[test]
+fn result_validation_is_terminal_and_uses_the_admitted_shape() {
+    for bad in [json!(42), json!({"answer":"secret-value"}), json!({"answer":1,"extra":true}), json!({"answer":1,"note":"too long a note"})] {
+        let mut engine = engine(); admit(&mut engine, "x", 0); let lease = claim(&mut engine, 0);
+        let run = engine.settle_action("x", "service:worker", &lease, ActionSettled::Done(bad), 1).unwrap();
+        assert_eq!(run.state, "failed"); assert_eq!(run.error_code.as_deref(), Some("E_ACTION_RESULT"));
+        assert!(!run.error.unwrap().contains("secret-value"));
+        assert!(identity::resolve(engine.store(), &lease, 2).unwrap().is_none());
+        assert!(engine.claim_actions("service:worker", None, 1, 1_000, 1, 5_000).unwrap().is_empty());
+    }
+    let mut engine = engine(); admit(&mut engine, "x", 0); let lease = claim(&mut engine, 0);
+    // A live old attempt validates against its admitted declaration, not this replacement.
+    let mut successor = schema(WorkPolicy::default()); successor.action_specs.get_mut("work").unwrap().returns = Some(BTreeMap::new());
+    engine.adopt(successor, [program()]).unwrap();
+    let run = engine.settle_action("x", "service:worker", &lease, ActionSettled::Done(json!({"answer":7})), 1).unwrap();
+    assert_eq!(run.result, Some(json!({"answer":7,"note":null})));
+}
+
+#[test]
+fn a_completed_step_replays_across_claims_and_changed_input_refuses() {
+    let mut engine = engine(); admit(&mut engine, "x", 0); let first = claim(&mut engine, 0);
+    let started = engine.begin_action_step("x", "service:worker", &first, "mail", &json!({"to":"alice"}), false, 1).unwrap();
+    assert_eq!(started.state, "run");
+    assert_eq!(engine.begin_action_step("x", "service:worker", &first, "mail", &json!({"to":"alice"}), false, 2).unwrap_err().code(), "E_STEP_BUSY");
+    engine.complete_action_step("x", "service:worker", &first, "mail", &json!({"provider":"receipt"}), 3).unwrap();
+    let second = claim(&mut engine, 1_001);
+    let replay = engine.begin_action_step("x", "service:worker", &second, "mail", &json!({"to":"alice"}), false, 1_002).unwrap();
+    assert_eq!(replay.state, "done"); assert_eq!(replay.key, started.key); assert_eq!(replay.result, Some(json!({"provider":"receipt"})));
+    assert_eq!(engine.begin_action_step("x", "service:worker", &second, "mail", &json!({"to":"bob"}), false, 1_003).unwrap_err().code(), "E_STEP_INPUT");
+    assert_eq!(engine.complete_action_step("x", "service:worker", &first, "mail", &json!(null), 1_003).unwrap_err().code(), "E_ACTION_LEASE");
+}
+
+#[test]
+fn an_uncertain_step_reconciles_with_the_same_key_or_parks() {
+    for reconcile in [true, false] {
+        let mut engine = engine(); admit(&mut engine, "x", 0); let first = claim(&mut engine, 0);
+        let started = engine.begin_action_step("x", "service:worker", &first, "provider", &json!([1,2]), false, 1).unwrap();
+        let second = claim(&mut engine, 1_001);
+        let answer = engine.begin_action_step("x", "service:worker", &second, "provider", &json!([1,2]), reconcile, 1_002);
+        if reconcile {
+            let step = answer.unwrap(); assert_eq!(step.state, "reconcile"); assert_eq!(step.key, started.key);
+            engine.complete_action_step("x", "service:worker", &second, "provider", &json!("found-by-key"), 1_003).unwrap();
+        } else {
+            assert_eq!(answer.unwrap_err().code(), "E_STEP_PARKED");
+            assert_eq!(engine.action_request_at("x", "dev:alice", 1_003).unwrap().state, "parked");
+            assert!(identity::resolve(engine.store(), &second, 1_003).unwrap().is_none());
+            assert!(engine.claim_actions("service:worker", None, 1, 1_000, 1, 10_000).unwrap().is_empty());
+        }
+    }
+}
+
+#[test]
+fn deadline_cancellation_and_revocation_end_inflight_authority() {
+    let mut engine = Engine::memory(schema(WorkPolicy { deadline_ms: Some(1_000), ..WorkPolicy::default() }), [program()]).unwrap();
+    admit(&mut engine, "deadline", 0); let lease = claim(&mut engine, 0);
+    let status = engine.action_status("deadline", "service:worker", &lease, 1_000).unwrap();
+    assert_eq!(status.error_code.as_deref(), Some("E_ACTION_DEADLINE"));
+    assert!(identity::resolve(engine.store(), &lease, 1_000).unwrap().is_none());
+    admit(&mut engine, "cancel", 2_000); let lease = claim(&mut engine, 2_000);
+    assert_eq!(engine.cancel_action("cancel", "dev:bob", 2_001).unwrap_err().code(), "E_ACTION_UNKNOWN");
+    let run = engine.cancel_action("cancel", "dev:alice", 2_001).unwrap(); assert!(run.cancelled);
+    assert!(engine.action_status("cancel", "service:worker", &lease, 2_002).unwrap().cancelled);
+    assert!(identity::resolve(engine.store(), &lease, 2_002).unwrap().is_none());
+    let owner = identity::custom_session(engine.store(), "member:alice", "member", 3_000, 1).unwrap();
+    engine.request_action("work", "revoke", Context::new(&owner.principal, BTreeMap::new()).with_session(&owner.token).at(3_000)).unwrap();
+    let lease = claim(&mut engine, 3_000);
+    assert!(identity::resolve(engine.store(), &lease, 3_001).unwrap().is_some());
+    identity::close_session(engine.store(), &owner.token).unwrap();
+    assert!(identity::resolve(engine.store(), &lease, 3_002).unwrap().is_none(), "inflight context cannot outlive the admitting session");
+    assert_eq!(engine.action_status("revoke", "service:worker", &lease, 3_003).unwrap().error_code.as_deref(), Some("E_ACTION_AUTHORITY"));
+}
+
+#[test]
+fn admitted_policy_is_frozen_and_changed_queued_contract_parks() {
+    let mut engine = Engine::memory(schema(WorkPolicy { max_attempts: 1, ..WorkPolicy::default() }), [program()]).unwrap();
+    admit(&mut engine, "one", 0); let lease = claim(&mut engine, 0);
+    let run = engine.settle_action("one", "service:worker", &lease, ActionSettled::Failed { error: "temporary".into(), retry: true }, 1).unwrap();
+    assert_eq!(run.state, "failed"); assert_eq!(run.attempt, 1);
+    admit(&mut engine, "queued", 2);
+    engine.adopt(schema(WorkPolicy::default()), [program()]).unwrap();
+    assert!(engine.claim_actions("service:worker", None, 1, 1_000, 1, 3).unwrap().is_empty());
+    assert_eq!(engine.action_request_at("queued", "dev:alice", 4).unwrap().error_code.as_deref(), Some("E_ACTION_GENERATION"));
+}
+
+#[test]
+fn a_scheduled_action_is_admitted_once_under_its_service_seat() {
+    let mut schema = schema(WorkPolicy::default());
+    schema.schedules.push(Schedule { name: "hourly".into(), every_ms: 60_000, offset_ms: 0, target: "work".into(), service: Some("service:billing".into()) });
+    let mut engine = Engine::memory(schema, [program()]).unwrap();
+    assert!(engine.fire_schedules(0).unwrap().is_empty());
+    assert_eq!(engine.fire_schedules(60_000).unwrap(), ["hourly"]);
+    assert!(engine.fire_schedules(60_001).unwrap().is_empty());
+    let claim = engine.claim_actions("service:worker", None, 10, 60_000, 60, 60_001).unwrap().remove(0);
+    assert_eq!(claim.request.principal, "service:billing"); assert_eq!(claim.request.service_generation, Some(0));
+    assert_eq!(claim.session.principal, "service:billing");
+    assert_eq!(engine.action_counts().unwrap().get("running"), Some(&1));
+}

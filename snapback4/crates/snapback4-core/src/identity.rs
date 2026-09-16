@@ -137,11 +137,16 @@ pub(crate) fn action_session(conn: &Connection, principal: &str, now: i64, expir
 /// The principal behind a bearer token, if the session is live.
 pub fn resolve(store: &Store, token: &str, now: i64) -> Result<Option<(String, String)>, RuntimeError> {
     let token_digest = digest(token);
-    let resolved = store
+    let mut resolved = store
         .conn()
         .prepare_cached("SELECT principal, kind FROM _sessions WHERE token_digest = ?1 AND expires_at > ?2")?
         .query_row(params![token_digest, now], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
         .optional()?;
+    if resolved.as_ref().is_some_and(|(_, kind)| kind == "action")
+        && !crate::engine::actions::live_claim_authority(store.conn(), &token_digest, now)?
+    {
+        resolved = None;
+    }
     if resolved.is_none() {
         store.conn().execute(
             "DELETE FROM _sessions WHERE token_digest = ?1 AND expires_at <= ?2",

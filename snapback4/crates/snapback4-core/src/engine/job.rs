@@ -305,8 +305,14 @@ impl Engine {
             let key = format!("schedule:{}", schedule.name);
             let shape_key = format!("schedule-shape:{}", schedule.name);
             let shape = digest(&schedule);
-            let program = self.programs.get(&schedule.target).filter(|p| p.kind == crate::ir::ProgramKind::Job)
-                .ok_or_else(|| RuntimeError::Schema(format!("schedule {} names missing job {}; restore its target before firing it", schedule.name, schedule.target)))?.clone();
+            let program = self.programs.get(&schedule.target).filter(|p| matches!(p.kind, ProgramKind::Job | ProgramKind::Action))
+                .ok_or_else(|| RuntimeError::Schema(format!("schedule {} names missing job or action {}; restore its target before firing it", schedule.name, schedule.target)))?.clone();
+            if program.kind == ProgramKind::Action && !schedule.service.as_deref().is_some_and(crate::identity::is_service) {
+                return Err(RuntimeError::Schema("a scheduled action requires its declared service seat".into()));
+            }
+            if program.kind == ProgramKind::Job && schedule.service.is_some() {
+                return Err(RuntimeError::Schema("a scheduled job runs as the system, not a service seat".into()));
+            }
             let tx = self.store.transaction()?;
             let previous_shape: Option<String> = tx.conn().query_row("SELECT value FROM _meta WHERE key = ?1", [&shape_key], |row| row.get(0)).optional()?;
             if previous_shape.as_ref().is_some_and(|previous| previous != &shape) {
@@ -334,7 +340,17 @@ impl Engine {
                 args.insert("periodEnd".to_owned(), Value::Int(boundary));
             }
             let id = crate::ids::mint(now, &mut self.entropy)?;
-            insert_job(tx.conn(), &id, &schedule.target, &args, &digest(&program), now)?;
+            if program.kind == ProgramKind::Action {
+                let principal = schedule.service.as_deref().expect("checked service seat");
+                validate_inputs(&self.schema, &program, &mut args)?;
+                super::actions::authorize(&program, principal)?;
+                let raw = serde_json::Value::Object(crate::wire::map_to_json(&args));
+                let context = Context::new(principal, args).at(now);
+                // @ref LLP 3000.009#5.2 — the boundary and service-seat admission are one commit.
+                super::actions::insert_request(tx.conn(), &self.schema, &program, &id, &context, &raw, true, now)?;
+            } else {
+                insert_job(tx.conn(), &id, &schedule.target, &args, &digest(&program), now)?;
+            }
             tx.conn().execute("INSERT INTO _meta(key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value", params![key, boundary.to_string()])?;
             tx.commit()?;
             fired.push(schedule.name.clone());

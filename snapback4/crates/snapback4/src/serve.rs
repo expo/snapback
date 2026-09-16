@@ -688,12 +688,13 @@ fn handle(mut request: Request, shared: &Shared) {
     // The route rechecks after reading, so expiry/revocation during a slow
     // upload cannot retain the authority held at its start.
     if method == Method::Post && (path == "/assets" || path == "/sync" || path.starts_with("/q/") || path.starts_with("/m/") || path.starts_with("/a/")
+        || (path.starts_with("/actions/") && path.ends_with("/cancel"))
         || matches!(path.as_str(), "/auth/refresh" | "/auth/logout" | "/auth/logout-all")) {
         if let Err(refusal) = principal_of(&request, shared) {
             return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
         }
     }
-    if method == Method::Post && (matches!(path.as_str(), "/auth/session" | "/auth/revoke") || path.starts_with("/effects/") || path.starts_with("/actions/")) {
+    if method == Method::Post && (matches!(path.as_str(), "/auth/session" | "/auth/revoke") || path.starts_with("/effects/") || (path.starts_with("/actions/") && !path.ends_with("/cancel"))) {
         if let Err(refusal) = service_of(&request, shared) {
             return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
         }
