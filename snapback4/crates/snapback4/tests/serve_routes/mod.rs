@@ -201,7 +201,8 @@ fn saturated_legacy_waits_cannot_starve_route_verification_or_registry_execution
     let mut polls = Vec::new();
     for _ in 0..WAIT_WORKERS {
         let mut stream = TcpStream::connect(host.address).unwrap();
-        stream.write_all(b"GET /changes?since=0&wait=25 HTTP/1.1\r\nHost: localhost\r\nx-snapback-persona: alice\r\nConnection: close\r\n\r\n").unwrap();
+        let body = r#"{"action":"idle-unregistered","wait":25}"#;
+        stream.write_all(format!("POST /actions/claim HTTP/1.1\r\nHost: localhost\r\n{worker}Connection: close\r\nContent-Length: {}\r\n\r\n{body}", body.len()).as_bytes()).unwrap();
         polls.push(stream);
     }
     wait_until(|| host.admission.waiters.load(Ordering::Acquire) == WAIT_WORKERS);
@@ -212,7 +213,7 @@ fn saturated_legacy_waits_cannot_starve_route_verification_or_registry_execution
     assert_eq!(status(&response_text(&delivery.join().unwrap())), 201);
     assert_eq!(host.admission.waiters.load(Ordering::Acquire), WAIT_WORKERS);
     assert_eq!(body(&host.request("POST", "/q/who", "x-snapback-persona: alice\r\n", "{}"))["data"], "dev:alice");
-    *lock(&host.shared.seq) = 1;
+    identity::revoke_principal(lock(&host.shared.engine).store(), "service:worker").unwrap();
     host.shared.committed.notify_all();
     wait_until(|| host.admission.waiters.load(Ordering::Acquire) == 0);
 }
