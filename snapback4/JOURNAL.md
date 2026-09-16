@@ -24769,3 +24769,30 @@ card. No meter ceiling, serialized value form, existing corpus case, routing,
 threshold or excerpt bound changed. No commit, push, tag, publication,
 sub-agent, clone or remote execution. `git diff --check` passed; the journal
 was compared byte-for-byte against HEAD before this single append.
+
+## 2026-09-16 — 0.2.26 / snapback4-expo 0.2.17 published (wave 10)
+
+Landed on main as `fbefe0358` and published from it. LLP 3000.007 §20.19.
+
+Verification at the published commit, outside any sandbox: `snapback4/scripts/test.sh`
+reports **0 failures**; the real-Chromium `navigation-immediate` witness is **10/10**;
+`node --test 'packages/snapback4/test/*.test.mjs'` is **495/495**; `./ref-check` is ok.
+The publish chain re-ran the suite itself (0 failures in 553 s), signed the production
+darwin binary, passed the installed-consumer proof, and npm saw `snapback4@0.2.26`
+105 seconds after upload.
+
+Two notes for whoever reads this next.
+
+The `serve::tests::route_tests::route_development_exception_does_not_expose_core_doors_or_personas`
+test (from another session's `routes` feature) failed once, in a suite run that shared
+the machine with three concurrent cargo builds, and passed in isolation immediately
+after and in every subsequent full run including the publish chain's. It is recorded
+as load-sensitive rather than dismissed: if it fails again on an unloaded machine,
+that record is wrong and it should be investigated as real.
+
+**66 of 137 registered diagnostic codes still have no dedicated card section.** Wave 10
+wrote the four commonest (`E_QUARRY_SYNTAX`, `E_QUARRY_UNKNOWN`, `E_QUARRY_PLACEMENT`,
+`E_EMIT_IN_QUERY`) because the wave's own inline-excerpt feature is inert without them,
+and censused the rest — the list by card is in the W10R2 entry above. That census is
+wave 11's largest single item: until it is closed, `why <CODE>` answers about half of
+all refusals with a card opening rather than an explanation.
