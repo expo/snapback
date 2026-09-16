@@ -79,7 +79,7 @@ fn r1p_effect_ids_do_not_displace_rows_or_replay_ids_on_both_stores() {
             let server = snapback4_core::wire::to_json(&Value::Array(engine.store().rows("notes").unwrap()));
             if local != server { mismatches.borrow_mut().push(format!("{label}/{count}: rows {local} != {server}")); }
             let effects = engine.effects(None, 10).unwrap();
-            let replay = engine.mutate("probe", Some("write"), context("alice", &[]).at(2)).unwrap();
+            let replay = engine.mutate("probe", Some("write"), context("alice", &[("p", id("bob"))]).at(2)).unwrap();
             assert!(replay.replayed);
             assert!(matches!(replay.state, WriteState::Sent { .. }));
             assert_eq!(effects, engine.effects(None, 10).unwrap());
@@ -225,7 +225,7 @@ fn r1p_unconditional_payload_new_and_effect_only_commits_have_separate_ids() {
         let effects = engine.effects(None, 10).unwrap();
         assert_eq!(effects.len(), 5);
         assert_eq!(effects.iter().map(|e| &e.id).collect::<std::collections::BTreeSet<_>>().len(), 5);
-        for write in ["write", "only1", "only2"] { assert!(engine.mutate("notifyOnly", Some(write), context("alice", &[]).at(2)).unwrap().replayed); }
+        for (write, name) in [("write", "probe"), ("only1", "notifyOnly"), ("only2", "notifyOnly")] { assert!(engine.mutate(name, Some(write), context("alice", &[]).at(2)).unwrap().replayed); }
         assert_eq!(effects, engine.effects(None, 10).unwrap());
         device.close();
     });

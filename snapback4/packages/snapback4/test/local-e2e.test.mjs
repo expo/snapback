@@ -6,6 +6,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { mkdtempSync, cpSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
@@ -41,6 +42,7 @@ test("two devices converge through the partition stream", { timeout: 60_000 }, a
   cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true, filter: (path) => !/\/worker\.(ts|mjs)$/.test(path) });
   rmSync(join(dir, "snapback/generated"), { recursive: true, force: true });
   const server = spawn(binary, ["dev", "--port", String(port), "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const exited = once(server, "exit");
   let log = "";
   server.stdout.on("data", (d) => (log += d));
   server.stderr.on("data", (d) => (log += d));
@@ -110,6 +112,7 @@ test("two devices converge through the partition stream", { timeout: 60_000 }, a
     throw error;
   } finally {
     server.kill();
+    await exited;
     rmSync(dir, { recursive: true, force: true });
   }
 });
@@ -121,6 +124,7 @@ test("queued writes flush in the order they were submitted", { timeout: 60_000 }
   const fifoPort = port + 40;
   const fifoUrl = `http://127.0.0.1:${fifoPort}`;
   const server = spawn(binary, ["dev", "--port", String(fifoPort), "--no-watch", "--fresh"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const exited = once(server, "exit");
   let log = "";
   server.stdout.on("data", (d) => (log += d));
   server.stderr.on("data", (d) => (log += d));
@@ -154,6 +158,7 @@ test("queued writes flush in the order they were submitted", { timeout: 60_000 }
     throw error;
   } finally {
     server.kill();
+    await exited;
     rmSync(dir, { recursive: true, force: true });
   }
 });
@@ -165,6 +170,7 @@ test("a device restores its session on its own", { timeout: 60_000 }, async () =
   const port2 = port + 20;
   const url2 = `http://127.0.0.1:${port2}`;
   const server = spawn(binary, ["dev", "--port", String(port2), "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const exited = once(server, "exit");
   let log = "";
   server.stdout.on("data", (d) => (log += d));
   server.stderr.on("data", (d) => (log += d));
@@ -214,6 +220,7 @@ test("a device restores its session on its own", { timeout: 60_000 }, async () =
     await assert.rejects(createLocalClient({ url: url2, guest: true, device: kept, sessionStore: memorySessionStore(), fetch: noNetwork, waitSeconds: 1 }), /cannot reach|E_OFFLINE/);
   } finally {
     server.kill();
+    await exited;
     rmSync(dir, { recursive: true, force: true });
   }
 });
@@ -225,6 +232,7 @@ test("an upload is placed once and served by the home row's read rule", { timeou
   const assetPort = port + 20;
   const assetUrl = `http://127.0.0.1:${assetPort}`;
   const server = spawn(binary, ["dev", "--port", String(assetPort), "--no-watch", "--fresh"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const exited = once(server, "exit");
   let log = "";
   server.stdout.on("data", (d) => (log += d));
   server.stderr.on("data", (d) => (log += d));
@@ -277,6 +285,7 @@ test("an upload is placed once and served by the home row's read rule", { timeou
     throw error;
   } finally {
     server.kill();
+    await exited;
     rmSync(dir, { recursive: true, force: true });
   }
 });

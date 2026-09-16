@@ -77,7 +77,7 @@ query audit():
   return audit['audit']
 ` });
   const clients = [], cleanup = [], persist = memoryPersistence();
-  t.after(async () => { for (const run of cleanup) await run(); for (const client of clients) await client.close(); server.close(); });
+  t.after(async () => { for (const run of cleanup) await run(); for (const client of clients) await client.close(); await server.close(); });
   const cores = [];
   const open = async (transport = fetch) => {
     const opener = webDevice({ wasm, persist });

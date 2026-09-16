@@ -989,7 +989,9 @@ fn actions_queue_once_check_rules_and_validate_inputs() {
     let (run, replayed) = engine.request_action("invite", "request1", action_context("dev:alice", 1_000)).unwrap();
     assert_eq!((run.state.as_str(), run.principal.as_str(), run.at, replayed), ("queued", "dev:alice", 1_000, false));
     assert_eq!(run.args["label"], Value::Null);
-    assert!(engine.request_action("invite", "request1", Context::new("dev:alice", BTreeMap::new()).at(2_000)).unwrap().1);
+    assert!(engine.request_action("invite", "request1", action_context("dev:alice", 2_000)).unwrap().1);
+    assert_eq!(engine.request_action("invite", "request1", Context::new("dev:alice", BTreeMap::new()).at(2_000)).unwrap_err().code(), "E_ID_REUSED");
+    assert_eq!(engine.request_action("rank", "request1", action_context("dev:alice", 2_000)).unwrap_err().code(), "E_ID_REUSED");
     assert_eq!(engine.action_counts().unwrap()["queued"], 1);
     assert_eq!(engine.request_action("invite", "request1", action_context("dev:bob", 1_000)).unwrap_err().code(), "E_ACTION_UNKNOWN");
     assert_eq!(engine.request_action("rank", "r2", Context::new("dev:alice", BTreeMap::new())).unwrap_err().code(), "E_RULE");
@@ -1410,4 +1412,76 @@ fn w7a_saturated_author_keeps_own_posts_and_ghost_reposts_refuse() {
     following_app::mutate(&mut engine, "deletePost", "author", &[("postId", id("real"))], 4);
     assert!(following_app::query(&mut engine, "author").data.as_array().unwrap().is_empty());
     println!("W7a saturated author: pulls=32 own_posts=1 ghost_refused=1 owned_removal=1");
+}
+
+#[test]
+fn action_admission_authority_survives_refresh_but_not_revocation_or_expiry() {
+    use snapback4_core::identity;
+    for service in [false, true] {
+        for end in ["principal", "session", "expiry", "refresh"] {
+            let mut engine = action_engine();
+            let session = if service { identity::service_session(engine.store(), "caller", 0, 1) }
+                else { identity::custom_session(engine.store(), "member:alice", "member", 0, 1) }.unwrap();
+            let (run, _) = engine.request_action("invite", "bound", action_context(&session.principal, 1).with_session(&session.token)).unwrap();
+            let authority = run.authority.unwrap();
+            assert_eq!(authority.generation, 0);
+            assert_eq!(authority.expires_at, session.expires_at);
+            let now = match end { "expiry" => session.expires_at, "refresh" => session.expires_at - 100, _ => 2 };
+            match end {
+                "principal" => { identity::revoke_principal(engine.store(), &session.principal).unwrap(); }
+                "session" => { identity::close_session(engine.store(), &session.token).unwrap(); }
+                "refresh" => { identity::rotate_session(engine.store(), &session.token, now).unwrap().unwrap(); }
+                _ => {}
+            }
+            // A different live family must not authorize this request.
+            let other = identity::open_session(engine.store(), &session.principal, &session.kind, now).unwrap();
+            let claims = engine.claim_actions("service:worker", None, 1, 900_000, 900, now).unwrap();
+            if end == "refresh" {
+                assert_eq!(claims.len(), 1);
+                assert_eq!(claims[0].session.expires_at, now + 900_000);
+            } else {
+                assert!(claims.is_empty(), "{service} {end}");
+                let (state, code, sessions): (String, String, i64) = engine.store().conn().query_row(
+                    "SELECT state, error_code, (SELECT COUNT(*) FROM _sessions WHERE kind = 'action') FROM _requests WHERE id = 'bound'", [],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?))).unwrap();
+                assert_eq!((state.as_str(), code.as_str(), sessions), ("failed", "E_ACTION_AUTHORITY", 0));
+                assert_eq!(engine.action_request_at("bound", &other.principal, now).unwrap_err().code(), "E_ACTION_UNKNOWN");
+            }
+        }
+    }
+}
+
+#[test]
+fn action_lease_is_capped_by_the_live_family_and_collection_keeps_its_binding() {
+    use snapback4_core::{identity, engine::actions::ActionSettled};
+    let mut engine = action_engine();
+    let session = identity::custom_session(engine.store(), "member:alice", "member", 0, 1).unwrap();
+    let expiry = session.expires_at;
+    let (admitted, _) = engine.request_action("invite", "bounded", action_context(&session.principal, expiry - 500).with_session(&session.token)).unwrap();
+    let claim = engine.claim_actions("service:worker", None, 1, 60_000, 60, expiry - 100).unwrap().remove(0);
+    assert_eq!(claim.session.expires_at, expiry);
+    assert_eq!(claim.request.lease_until, Some(expiry));
+    let done = engine.settle_action("bounded", "service:worker", &claim.session.token, ActionSettled::Done(serde_json::json!({"secret": 42})), expiry - 50).unwrap();
+    assert_eq!(done.settled_at, Some(expiry - 50));
+    assert!(engine.action_request_at("bounded", &session.principal, expiry - 20).unwrap().result.is_some());
+    identity::revoke_principal(engine.store(), &session.principal).unwrap();
+    let fresh = identity::custom_session(engine.store(), &session.principal, "member", expiry - 10, 1).unwrap();
+    assert_eq!(engine.action_request_at("bounded", &session.principal, expiry - 5).unwrap_err().code(), "E_ACTION_UNKNOWN");
+    let (new, _) = engine.request_action("invite", "fresh", action_context(&fresh.principal, expiry - 5).with_session(&fresh.token)).unwrap();
+    assert_eq!(new.authority.as_ref().unwrap().generation, 1);
+    assert_ne!(new.authority.unwrap().family, admitted.authority.unwrap().family);
+}
+
+#[test]
+fn advancing_the_dev_clock_never_extends_a_bound_action_past_its_family() {
+    use snapback4_core::identity;
+    let mut engine = action_engine();
+    let session = identity::custom_session(engine.store(), "member:alice", "member", 0, 1).unwrap();
+    let now = session.expires_at - 1_000;
+    engine.request_action("invite", "clock-bound", action_context(&session.principal, now).with_session(&session.token)).unwrap();
+    let claim = engine.claim_actions("service:worker", None, 1, 60_000, 60, now).unwrap().remove(0);
+    engine.advance_worker_leases(60_000).unwrap();
+    let run = engine.action_request_at("clock-bound", &session.principal, now).unwrap();
+    assert_eq!(run.lease_until, Some(session.expires_at));
+    assert!(identity::resolve(engine.store(), &claim.session.token, session.expires_at).unwrap().is_none());
 }

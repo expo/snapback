@@ -34,7 +34,7 @@ async function fixture(t, { stallExitBody = false, applyExit = true } = {}) {
   const server = await devServer({ seed, port: 46000 + process.pid % 1000 });
   const clients = [];
   const stalledBodies = [];
-  t.after(async () => { stalledBodies.forEach(c => c.close()); for (const c of clients) await c.close(); server.close(); });
+  t.after(async () => { stalledBodies.forEach(c => c.close()); for (const c of clients) await c.close(); await server.close(); });
   const persist = memoryPersistence(), requests = [], responses = [], cores = [];
   let offline = false, pauseOrdinary = false, pauseExit = false;
   const exits = [];

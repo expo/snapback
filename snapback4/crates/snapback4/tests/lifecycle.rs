@@ -97,10 +97,13 @@ fn wait(child: &mut Child) -> std::process::ExitStatus {
     }
 }
 fn post(port: u16, path: &str, body: Value) -> Value {
+    post_as(port, path, body, "x-snapback-persona: alice")
+}
+fn post_as(port: u16, path: &str, body: Value, credential: &str) -> Value {
     let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
     stream.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
     let body = body.to_string();
-    write!(stream, "POST {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\nContent-Type: application/json\r\nx-snapback-persona: alice\r\nContent-Length: {}\r\n\r\n{body}", body.len()).unwrap();
+    write!(stream, "POST {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\nContent-Type: application/json\r\n{credential}\r\nContent-Length: {}\r\n\r\n{body}", body.len()).unwrap();
     let mut answer = String::new(); stream.read_to_string(&mut answer).unwrap();
     assert!(answer.starts_with("HTTP/1.1 200 "), "{answer}");
     serde_json::from_str(answer.split_once("\r\n\r\n").unwrap().1).unwrap()
@@ -217,7 +220,7 @@ fn a_signal_diagnostic_starts_a_line_after_interrupted_stderr() {
 }
 
 #[test]
-fn dev_and_serve_report_signals_without_an_application_worker() {
+fn dev_and_serve_report_signals_without_a_configured_worker() {
     for verb in ["dev", "serve"] {
         for signal in [libc::SIGTERM, libc::SIGINT, libc::SIGHUP, libc::SIGBUS, libc::SIGABRT] {
             let dir = Directory::new(); let release = dir.0.join("release");
@@ -241,15 +244,47 @@ fn dev_and_serve_report_signals_without_an_application_worker() {
 }
 
 #[test]
-fn a_signal_still_cleans_up_the_application_worker() {
+fn a_store_without_work_binding_columns_still_serves() {
     let dir = Directory::new();
-    fs::write(dir.0.join("snapback/worker.mjs"), "import { writeFileSync } from 'node:fs'; process.on('SIGTERM', () => { writeFileSync('worker-stopped', 'yes'); process.exit(0); }); writeFileSync('worker-pid', String(process.pid)); setInterval(() => {}, 1000);\n").unwrap();
-    let mut host = Host::start(&dir, &["dev"]);
-    host.until(|_| dir.0.join("worker-pid").exists());
-    assert_eq!(post(host.port, "/q/alive", json!({"args": {}}))["data"], true);
-    assert_eq!(host.signal(libc::SIGTERM).code(), Some(143));
-    assert_eq!(fs::read_to_string(dir.0.join("worker-stopped")).unwrap(), "yes");
-    assert!(host.log().contains("SNAPBACK4_SIGNAL verb=dev generation=1 reason=SIGTERM signal=15"));
+    let mut original = Host::start(&dir, &["dev", "--no-watch"]);
+    original.signal(libc::SIGTERM);
+    drop(original);
+    let conn = rusqlite::Connection::open(dir.0.join(".snapback4/store.sqlite")).unwrap();
+    conn.execute_batch("DROP INDEX _sessions_family; ALTER TABLE _sessions DROP COLUMN family;
+        DROP TABLE _principal_generations;
+        ALTER TABLE _ops DROP COLUMN name; ALTER TABLE _ops DROP COLUMN args_digest;
+        ALTER TABLE _ops DROP COLUMN at;
+        ALTER TABLE _requests DROP COLUMN family; ALTER TABLE _requests DROP COLUMN principal_generation;
+        ALTER TABLE _requests DROP COLUMN admitted_expires_at; ALTER TABLE _requests DROP COLUMN args_digest;
+        ALTER TABLE _requests DROP COLUMN error_code; ALTER TABLE _requests DROP COLUMN settled_at;
+        ALTER TABLE _outbox DROP COLUMN settled_at;").unwrap();
+    drop(conn);
+    let mut upgraded = Host::start(&dir, &["dev", "--no-watch"]);
+    assert_eq!(post(upgraded.port, "/q/alive", json!({"args":{}}))["data"], true);
+    upgraded.signal(libc::SIGTERM);
+}
+
+#[test]
+fn a_signal_still_cleans_up_the_application_worker() {
+    for verb in ["dev", "serve"] {
+        let dir = Directory::new();
+        let source = dir.0.join("snapback/worker.mjs");
+        fs::write(&source, "import { writeFileSync } from 'node:fs'; process.on('SIGTERM', () => { writeFileSync(new URL('../worker-stopped', import.meta.url), 'yes'); process.exit(0); }); writeFileSync(new URL('../worker-pid', import.meta.url), String(process.pid)); setInterval(() => {}, 1000);\n").unwrap();
+        let release = dir.0.join("release");
+        if verb == "serve" { assert!(dir.run(&["deploy", release.to_str().unwrap()]).status.success()); }
+        let args = if verb == "dev" { vec!["dev"] } else { vec!["serve", release.to_str().unwrap(), "--worker", source.to_str().unwrap()] };
+        let mut host = Host::start(&dir, &args);
+        host.until(|_| dir.0.join("worker-pid").exists());
+        let credential = if verb == "serve" {
+            let out = dir.run(&["token", "--service", "probe", "--release", release.to_str().unwrap()]);
+            assert!(out.status.success(), "{out:?}");
+            format!("Authorization: Bearer {}", String::from_utf8(out.stdout).unwrap().trim())
+        } else { "x-snapback-persona: alice".into() };
+        assert_eq!(post_as(host.port, "/q/alive", json!({"args":{}}), &credential)["data"], true);
+        assert_eq!(host.signal(libc::SIGTERM).code(), Some(143));
+        assert_eq!(fs::read_to_string(dir.0.join("worker-stopped")).unwrap(), "yes");
+        assert!(host.log().contains(&format!("SNAPBACK4_SIGNAL verb={verb} generation=1 reason=SIGTERM signal=15")));
+    }
 }
 
 #[test]
@@ -456,4 +491,42 @@ fn development_banner_and_release_auth_boundary() {
     let (status, read) = request(release.port, "/q/all", json!({"args":{}}), &format!("Authorization: Bearer {}\r\n", guest["session"]["token"].as_str().unwrap()));
     assert_eq!(status, 200); assert_eq!(read["data"], json!([]), "refused seed never writes release data");
     assert!(banner.contains("snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both."), "{banner}");
+}
+
+#[test]
+fn dev_refuses_an_explicit_worker_path_instead_of_ignoring_it() {
+    let dir = Directory::new();
+    let out = dir.run(&["dev", "--worker", "custom.mjs"]);
+    assert_eq!(out.status.code(), Some(1));
+    assert!(out.stdout.is_empty());
+    assert!(String::from_utf8(out.stderr).unwrap().contains("dev does not accept --worker"));
+}
+
+#[test]
+fn killed_supervisors_leave_only_bounded_sessions_and_startup_sweeps_their_children() {
+    let dir = Directory::new();
+    let source = dir.0.join("snapback/worker.mjs");
+    fs::write(&source, "import { writeFileSync } from 'node:fs'; writeFileSync(new URL('../worker-pid', import.meta.url), String(process.pid)); setInterval(() => {}, 1000);\n").unwrap();
+    let release = dir.0.join("release");
+    assert!(dir.run(&["deploy", release.to_str().unwrap()]).status.success());
+    let store = snapback4_core::Store::open(&release.join("store.sqlite")).unwrap();
+    let manual = snapback4_core::identity::service_session(&store, "worker", snapback4_core::now_ms(), 30).unwrap();
+    let mut host = Host::start(&dir, &["serve", release.to_str().unwrap(), "--worker", source.to_str().unwrap()]);
+    host.until(|_| dir.0.join("worker-pid").exists());
+    struct Orphan(u32);
+    impl Drop for Orphan { fn drop(&mut self) { unsafe { libc::kill(self.0 as i32, libc::SIGKILL); } } }
+    let orphan = Orphan(fs::read_to_string(dir.0.join("worker-pid")).unwrap().parse().unwrap());
+    let family = store.meta("worker:session-family").unwrap().unwrap();
+    let lifetime: i64 = store.conn().query_row("SELECT expires_at - created_at FROM _sessions WHERE family = ?1", [&family], |row| row.get(0)).unwrap();
+    assert!(lifetime > 0 && lifetime <= 86_400_000);
+    assert_eq!(host.signal(libc::SIGKILL).signal(), Some(libc::SIGKILL));
+    drop(host);
+    drop(orphan);
+    // Cleanup also runs when the next host has no worker configured.
+    let mut restarted = Host::start(&dir, &["serve", release.to_str().unwrap()]);
+    let stale: i64 = store.conn().query_row("SELECT COUNT(*) FROM _sessions WHERE family = ?1", [&family], |row| row.get(0)).unwrap();
+    assert_eq!(stale, 0);
+    assert_eq!(store.meta("worker:session-family").unwrap(), None);
+    assert!(snapback4_core::identity::resolve(&store, &manual.token, snapback4_core::now_ms()).unwrap().is_some(), "a manually issued seat is not the old supervisor's credential");
+    restarted.signal(libc::SIGTERM);
 }

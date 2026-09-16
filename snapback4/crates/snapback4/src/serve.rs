@@ -220,7 +220,7 @@ pub(crate) fn test_work(hook: &WorkHook) {
 /// release (`serve`): a compiled generation over a store, tokens only.
 pub enum Mode {
     Dev { watch: bool, fresh: bool, replay: bool, hold_effects: bool, hold_schedules: bool, clock_offset: i64 },
-    Release { expected: u64 },
+    Release { expected: u64, worker: Option<std::path::PathBuf> },
 }
 
 pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), String> {
@@ -253,8 +253,9 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     let mut engine = match &mode {
         Mode::Dev { fresh: true, .. } => Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())),
         Mode::Dev { .. } => adoption::open(&project, &bound),
-        Mode::Release { expected } => project.open_release_engine(&bound, *expected),
+        Mode::Release { expected, .. } => project.open_release_engine(&bound, *expected),
     }.map_err(|e| e.to_string())?;
+    crate::dev_worker::clear_child_session(engine.store()).map_err(|e| e.to_string())?;
     // A native job's module (LLP 3000.005): built by `check`, in `dev` also
     // here so a fresh clone serves without a separate step.
     if dev {
@@ -285,7 +286,12 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
         file.set_len(0).map_err(|e| e.to_string())?;
         write!(file, "{}", address.clone().to_ip().ok_or("HTTP listener has no IP address")?.port()).map_err(|e| e.to_string())?;
     }
-    let mut worker = if dev { crate::dev_worker::DevWorker::start(&project, shared.clone(), format!("http://{address}"))? } else { None };
+    let worker_url = format!("http://{address}").replace("0.0.0.0", "127.0.0.1").replace("[::]", "[::1]");
+    let mut worker = match &mode {
+        Mode::Dev { .. } => crate::dev_worker::DevWorker::start(&project, shared.clone(), worker_url)?,
+        Mode::Release { worker: Some(source), .. } => Some(crate::dev_worker::DevWorker::start_source(&project, shared.clone(), worker_url, source.clone(), true)?),
+        _ => None,
+    };
     crate::lifecycle::generation(generation);
     // The listening URL is the whole of stdout; lifecycle and worker logs use stderr.
     println!("http://{address}");
@@ -819,16 +825,14 @@ fn handle(mut request: Request, shared: &Shared) {
                     return;
                 }
             };
-            let args_json = payload.get("args");
-            let replay = if path.starts_with("/m/") {
-                payload.get("id").and_then(Json::as_str).and_then(|id| lock(&shared.engine).replay(&principal, id).ok().flatten().map(|outcome| (id, outcome)))
-            } else { None };
-            if let Some((id, outcome)) = replay {
-                // A resend of an applied write: its recorded outcome, before the
-                // current generation gets to judge its shape.
-                let body = outcome.reply(Some(id));
-                respond(request, 200, body);
-                return;
+            let args_json = payload.get("args").cloned().unwrap_or(json!({}));
+            if path.starts_with("/m/") && let Some(id) = payload.get("id").and_then(Json::as_str) {
+                let replay = lock(&shared.engine).replay_mutation(&principal, id, &op, &args_json);
+                match replay {
+                    Ok(Some(outcome)) => { respond(request, 200, outcome.reply(Some(id))); return; }
+                    Err(error) => { let why = error.refusal(); respond(request, if why.retryable { 503 } else { 200 }, json!({ "state": "failed", "id": id, "why": why })); return; }
+                    Ok(None) => {}
+                }
             }
             let signature = lock(&shared.bound).programs.iter().find(|p| p.program.name == op)
                 .map(|p| (p.program.kind, p.program.args.clone()));
@@ -837,7 +841,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 return;
             };
             let mut args = BTreeMap::new();
-            if let Some(Json::Object(fields)) = args_json {
+            if let Json::Object(fields) = &args_json {
                 for (name, value) in fields {
                     match arg_types.get(name) {
                         Some(kind) => match wire::from_json(kind, value) {
@@ -916,7 +920,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 if let Some(ids) = payload.get("newIds").and_then(Json::as_array) {
                     context = context.with_ids(ids.iter().filter_map(Json::as_str).map(str::to_owned));
                 }
-                let outcome = lock(&shared.engine).mutate(&op, id.as_deref(), context);
+                let outcome = lock(&shared.engine).mutate(&op, id.as_deref(), context.with_wire_args(args_json));
                 match outcome {
                     Ok(outcome) => {
                         if let WriteState::Sent { seq, .. } = &outcome.state {

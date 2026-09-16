@@ -88,7 +88,7 @@ async function fixture(t, tier) {
     const client = tier === "online" ? createClient(options) : await createLocalClient({ ...options, device });
     clients.push(client); if (tier !== "online" && !offline) await client.sync(); return client;
   };
-  return { open, cores, posts, replies, clients,
+  return { url, dir, open, cores, posts, replies, clients,
     offline: value => { offline = value; }, order: () => { ordered = true; }, hold: () => { held = deferred(); return held.resolve; },
     rows: async () => (await fetch(url + "/q/records", { method: "POST", headers: { "x-snapback-persona": "alice" }, body: '{"args":{}}' }).then(r => r.json())).data,
   };
@@ -175,4 +175,27 @@ for (const ended of ["closed", "signed-out"]) test(`W6R1 online ${ended}: retryi
   assert.equal(retry.state, "failed"); assert.equal(retry.why.code, ended === "closed" ? "E_CLOSED" : "E_AUTH");
   assert.equal(events.length, 1, "an unavailable call cannot overwrite or emit a second terminal outcome for a sent write");
   assert.equal(events[0].state, "sent"); assert.equal(posts.length, 1);
+});
+
+test("server write ids bind raw arguments and operation names across independent clients", async t => {
+  const f = await fixture(t, "online");
+  const post = async (name, id, args) => fetch(`${f.url}/m/${name}`, {
+    method: "POST", headers: { "x-snapback-persona": "alice", "content-type": "application/json" },
+    body: JSON.stringify({ id, args }),
+  }).then(response => response.json());
+  const id = mintId();
+  const first = await post("explicit", id, { row: "stable", n: 7 });
+  assert.equal(first.state, "sent");
+  const replay = await post("explicit", id, { n: 7, row: "stable" });
+  assert.deepEqual(replay, { state: "sent", id, seq: first.seq, replayed: true });
+  for (const [name, args] of [["explicit", { row: "stable", n: 8 }], ["answer", { n: 7 }], ["removed", {}]]) {
+    const reused = await post(name, id, args);
+    assert.equal(reused.state, "failed"); assert.equal(reused.why.code, "E_ID_REUSED");
+    assert.equal(reused.why.family, "input"); assert.equal(reused.result, undefined);
+  }
+  assert.equal((await f.rows()).length, 1);
+  // The server compares raw wire input, even when a decoder would erase it.
+  const raw = mintId();
+  assert.equal((await post("answer", raw, { n: 1 })).state, "sent");
+  assert.equal((await post("answer", raw, { n: "1" })).why.code, "E_ID_REUSED");
 });

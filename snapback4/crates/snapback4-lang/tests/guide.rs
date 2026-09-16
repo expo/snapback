@@ -21,13 +21,13 @@ fn time_waiting_cards_point_to_cli_and_http_clock_controls() {
         assert!(card.contains("snapback4 clock advance 36s\ncurl"), "{name}: missing two-line example");
     }
     assert!(snapback4_lang::guide::card("presence").unwrap().contains("In tests: `snapback4 clock advance 36s`"));
-    let readme = include_str!("../../../packages/snapback4/README.md");
+    let readme = README;
     assert!(readme.contains("snapback4 clock advance <dur>"));
     assert!(readme.contains("snapback4 clock advance 36s\n  curl"));
 }
 use std::path::{Path, PathBuf};
 
-const README: &str = include_str!("../../../packages/snapback4/README.md");
+const README: &str = concat!(include_str!("../../../packages/snapback4/README.md"), "\n", include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md"));
 
 fn compile(source: &str) -> snapback4_lang::Bound {
     snapback4_lang::compile(&[("schema.q".to_owned(), source.to_owned())])

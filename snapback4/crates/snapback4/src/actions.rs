@@ -53,14 +53,18 @@ pub(super) fn call(request: Request, shared: &Shared, name: &str, body: &str) {
     let Some(id) = payload.get("id").and_then(Json::as_str) else { return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "mint an id on the client and reuse it when retrying this action") })); };
     let admitted = {
         let mut engine = lock(&shared.engine);
-        // Replays are independent of a later schema change, but stay private
-        // to their original principal and operation.
-        match engine.action_request(id, &principal) {
-            Ok(run) if run.action == name => Ok((run, true)),
-            _ => {
+        let raw_args = payload.get("args").cloned().unwrap_or_else(|| json!({}));
+        match engine.replay_action(id, &principal, name, &raw_args, shared.now()) {
+            Ok(Some(run)) => Ok((run, true)),
+            Err(error) => Err(error),
+            Ok(None) => {
                 let args = engine.program(name).filter(|p| p.kind == ProgramKind::Action).ok_or_else(|| snapback4_core::RuntimeError::Structural { code: "E_ACTION_UNKNOWN", message: format!("no action {name} is declared") })
-                    .and_then(|p| arguments(p, payload.get("args").unwrap_or(&json!({}))));
-                args.and_then(|args| engine.request_action(name, id, Context::new(&principal, args).at(shared.now())))
+                    .and_then(|p| arguments(p, &raw_args));
+                args.and_then(|args| {
+                    let mut context = Context::new(&principal, args).with_wire_args(raw_args).at(shared.now());
+                    if let Ok(token) = crate::auth::bearer_token(&request) { context = context.with_session(token); }
+                    engine.request_action(name, id, context)
+                })
             }
         }
     };
@@ -75,7 +79,7 @@ pub(super) fn call(request: Request, shared: &Shared, name: &str, body: &str) {
         }
         // The caller's session may expire or be revoked while the handler runs.
         if let Err(why) = principal_of(&request, shared) { return respond(request, 401, json!({ "denied": why })); }
-        run = match lock(&shared.engine).action_request(id, &principal) { Ok(run) => run, Err(error) => return respond(request, 503, json!({ "denied": failure(&error) })) };
+        run = match lock(&shared.engine).action_request_at(id, &principal, shared.now()) { Ok(run) => run, Err(error) => return respond(request, if error.refusal().retryable { 503 } else { 200 }, json!({ "denied": failure(&error) })) };
     }
     if let Err(why) = principal_of(&request, shared) { return respond(request, 401, json!({ "denied": why })); }
     respond(request, if matches!(run.state.as_str(), "done" | "failed") { 200 } else { 202 }, outcome(&run, replayed));
@@ -97,7 +101,7 @@ pub(super) fn claim(request: Request, shared: &Shared, body: &str) {
                 let _ = shared.committed.wait_timeout(seq, deadline.saturating_duration_since(Instant::now()).min(Duration::from_secs(1))).unwrap_or_else(|p| p.into_inner());
             }
             Ok(claims) => return respond(request, 200, json!({ "requests": claims.iter().map(claim_json).collect::<Vec<_>>(), "worker": worker })),
-            Err(error) => return respond(request, 503, json!({ "denied": failure(&error) })),
+            Err(error) => return respond(request, if error.refusal().retryable { 503 } else { 200 }, json!({ "denied": failure(&error) })),
         }
     }
 }
