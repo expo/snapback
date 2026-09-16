@@ -18,8 +18,8 @@ For an online or Expo starter, replace `init` above with `init --online`
 or `init --expo`, then run `npm install` before `check` to install the
 merged dependencies. The initial exact pin matches the starter's dependency.
 
-Everything below is the whole published surface. There is no other
-documentation; the diagnostics carry the rest (every refusal names its
+This guide and its linked client/server references describe the published
+surface; the diagnostics carry the rest (every refusal names its
 code, its site and a rewrite, and `snapback4 why <CODE>` explains it).
 Every Quarry block in this file and in the guide is compiled by the
 package's own suite, and the language card is run, so nothing here
@@ -440,43 +440,10 @@ makes the query incomplete.
 
 ### Actions
 
-```quarry
-action invite(email: text <=200) returns { invitation: id } secrets [MAIL_API_KEY]
-action refreshModel() <- viewer = 'service:ranker'
-```
-
-An action has typed arguments and no Quarry body: the application's
-TypeScript handler performs it and returns a declared object. `<- allow` is
-the default (any signed-in principal); `deny` pauses it, and a rule over
-`viewer` can admit a named service. It cannot read tables or arguments.
-`check` generates `Action<A, R>` and `snapback/generated/server.ts` handler
-signatures; omitting `returns` preserves `unknown`. Invalid results fail
-terminally. See [the server context](./SERVER.md) and `guide actions` for
-durable steps, secrets, retry/deadline/cancellation policies and service schedules.
-
-Admission binds the session family and principal generation. Refresh preserves
-the family; revocation, logout-all or expiry before claim records terminal
-`E_ACTION_AUTHORITY` and mints no session. Service callers follow the same rule.
-The lease is capped by the family's live expiry. Collecting a result requires
-that original authority to stand, or returns `E_ACTION_UNKNOWN` without it.
-A fresh sign-in does not restore authority for old requests. An action id binds
-its operation and canonical raw wire arguments before validation; changed input refuses
-`E_ID_REUSED`. Mutation ids bind the sent operation and canonical raw wire
-arguments too. Identical retries replay; legacy unbound records keep their
-prior behavior. Object key order does not matter.
-
-`serve <release-dir> --worker <path>` supervises Node 24 with restart backoff
-and shutdown. The worker receives only `PATH`, `HOME`, `TMPDIR`, `LANG`,
-`LC_ALL`, `TZ`, `NODE_OPTIONS`, `SNAPBACK_URL`, declared secrets and a fresh,
-unprinted `SNAPBACK_SERVICE_TOKEN` for `service:worker`; `dev` constructs the
-same explicit environment. `doctor --release <dir>` reports worker counts;
-`why <id> [--release dir]` reports work and step metadata and payload
-sizes/digests, with actual payloads only under `--values`.
-Mutation arguments and results are not recorded. Supervised child sessions
-last at most one day; the host replaces the child within that window and
-revokes the previous child's family at startup, including after SIGKILL.
-`dev` prefers `snapback/server.ts`, `.mts` or `.mjs`, then legacy `worker.*`;
-`dev --worker` is refused. `serve --worker` needs an explicitly deployed entry.
+Declare typed I/O operations in Quarry and implement them with generated
+TypeScript handlers. Read [actions and the server context](./SERVER.md) for
+the declaration, admission authority, durable steps, secrets and supervision,
+or run `snapback4 guide actions`.
 
 ### Queries, mutations and jobs
 

@@ -1,5 +1,47 @@
 # TypeScript server handlers
 
+## Declaring actions
+
+```quarry
+action invite(email: text <=200) returns { invitation: id } secrets [MAIL_API_KEY]
+action refreshModel() <- viewer = 'service:ranker'
+```
+
+An action has typed arguments and no Quarry body: the application's
+TypeScript handler performs it and returns a declared object. `<- allow` is
+the default (any signed-in principal); `deny` pauses it, and a rule over
+`viewer` can admit a named service. It cannot read tables or arguments.
+`check` generates `Action<A, R>` and `snapback/generated/server.ts` handler
+signatures; omitting `returns` preserves `unknown`. Invalid results fail
+terminally. See the context below and `guide actions` for
+durable steps, secrets, retry/deadline/cancellation policies and service schedules.
+
+Admission binds the session family and principal generation. Refresh preserves
+the family; revocation, logout-all or expiry before claim records terminal
+`E_ACTION_AUTHORITY` and mints no session. Service callers follow the same rule.
+The lease is capped by the family's live expiry. Collecting a result requires
+that original authority to stand, or returns `E_ACTION_UNKNOWN` without it.
+A fresh sign-in does not restore authority for old requests. An action id binds
+its operation and canonical raw wire arguments before validation; changed input refuses
+`E_ID_REUSED`. Mutation ids bind the sent operation and canonical raw wire
+arguments too. Identical retries replay; legacy unbound records keep their
+prior behavior. Object key order does not matter.
+
+`serve <release-dir> --worker <path>` supervises Node 24 with restart backoff
+and shutdown. The worker receives only `PATH`, `HOME`, `TMPDIR`, `LANG`,
+`LC_ALL`, `TZ`, `NODE_OPTIONS`, `SNAPBACK_URL`, declared secrets and a fresh,
+unprinted `SNAPBACK_SERVICE_TOKEN` for `service:worker`; `dev` constructs the
+same explicit environment. `doctor --release <dir>` reports worker counts;
+`why <id> [--release dir]` reports work and step metadata and payload
+sizes/digests, with actual payloads only under `--values`.
+Mutation arguments and results are not recorded. Supervised child sessions
+last at most one day; the host replaces the child within that window and
+revokes the previous child's family at startup, including after SIGKILL.
+`dev` prefers `snapback/server.ts`, `.mts` or `.mjs`, then legacy `worker.*`;
+`dev --worker` is refused. `serve --worker` needs an explicitly deployed entry.
+
+## Handler context
+
 `check` and `dev` generate `snapback/generated/server.ts` from declared
 actions. Import its `server` function in the application's server entry:
 

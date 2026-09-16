@@ -27,7 +27,7 @@ fn time_waiting_cards_point_to_cli_and_http_clock_controls() {
 }
 use std::path::{Path, PathBuf};
 
-const README: &str = concat!(include_str!("../../../packages/snapback4/README.md"), "\n", include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md"));
+const README: &str = concat!(include_str!("../../../packages/snapback4/README.md"), "\n", include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md"), "\n", include_str!("../../../packages/snapback4/SERVER.md"));
 
 fn compile(source: &str) -> snapback4_lang::Bound {
     snapback4_lang::compile(&[("schema.q".to_owned(), source.to_owned())])
