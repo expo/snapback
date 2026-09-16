@@ -35,7 +35,8 @@ export type ReadCut = "meter" | "words" | null;
 
 /**
  * A read. `complete` is false beyond a sync horizon or at an online-only site.
- * `cut` names a meter or word-limit cut; null also covers incomplete reads without a cut.
+ * `cut` names a disclosed meter or word-limit cut. Non-uniform server reads
+ * withhold it: null means "not disclosed here", not "not cut".
  * An empty meter-cut page is partial: retry narrower, or continue if `next` exists.
  * `fresh` is transport truth: the value reflects the server now. When it does
  * not, `since` is the wall-clock time (ms) of the newest server state it does
@@ -46,8 +47,10 @@ export type Read<T> =
   | { readonly loading: true }
   | { readonly denied: Refusal };
 
-/** Engine work for this server answer, only when an online client opts in under dev. */
+/** Engine work for this server answer under dev; never returned by serve. */
 export interface ReadMeter {
+  /** Precise reason, including non-uniform work that public `Read.cut` withholds. */
+  readonly cut: ReadCut;
   readonly examined: number;
   readonly indexEntries: number;
   readonly probes: number;

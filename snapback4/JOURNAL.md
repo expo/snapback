@@ -21749,3 +21749,85 @@ is at base `engine/postgres/mod.rs:205` and current line 207. Dependencies were
 resolved using a temporary writable Cargo cache after the default cache denied
 unpacking. The optional adapter's unrelated emission work remains for its owner;
 its two read-contract additions are the only changes to that file.
+
+## 2026-09-15 — W8R1a: withhold non-uniform server cuts; reserve point-read authorization
+
+Built against `cb98c5de36563f74867a0ef3cbab8de002200616`. The disclosure
+rule, verbatim from the reads card:
+
+> Device reads and uniform server reads keep precise reasons.
+> Non-uniform server reads report `cut: null`: the reason is withheld, with `complete: false` still truthful.
+
+The card and README say that null means "not disclosed here", not "not cut",
+and tell a client to render "Results may be incomplete" for an incomplete
+answer with no disclosed reason, including an empty answer. The held-query
+recipe and E_QUERY_HELD remain the paved device answer. Development retains
+the precise reason in `Read.meter.cut`, with meter taking precedence over
+words; the production `serve` response still omits the entire meter object.
+The only production change outside the lane's named engine/client files is
+that two-line extension of `serve.rs`'s existing dev-only meter encoder.
+
+A point lookup now reserves its rule's static probe allowance before knowing
+whether the row is readable, hidden or absent, and evaluates the rule under
+that reservation. A short-circuited false verdict pays the same allowance as
+a miss. An unpaid allowance remains a cut instead of being mistaken for a
+false verdict and erased by meter rollback. Trusted held rows and the system
+still need no authorization probes. No meter ceiling, serialized value form,
+existing corpus case or CLI/operational implementation changed.
+
+The regression with 4,096 successful two-probe point reads formerly returned
+null, complete, uncut, with 8,192 probes. It now returns null, incomplete,
+`cut: "meter"`, with 4,096 examinations and 8,194 probes (including the
+refused two-probe reservation). With 4,095 prior reads the final visible row
+is returned at 8,192 probes without a cut. All three hosts pass 135 paired
+hidden/absent point cases across examined and probe boundaries, comparing
+all response fields and all seven meter counters.
+
+The original N1 server sweep now includes cut and viewer: 656 identical
+hidden/absent pairs over four forms and examined ceilings 1–82. Each device
+store runs those 656 pairs on real server-delivered partitions and 164
+additional adversarial point-probe pairs on injected online-only rows. The
+old artificial hidden device scans are not production partition worlds:
+precise device cuts intentionally describe the data a device already holds.
+Separate search/point sweeps cover 32 and 33 hidden matching words at seven
+examined and seven probe boundaries: 196 full-response pairs per host,
+with three positive visible controls per host. Both device stores compare
+their wire's coverage fields as well. Actual HTTP `serve` and `dev` each
+compare three complete production responses, at 32 words, 33 words and
+8,193 hidden rows, with equal commit counts and the same principal. Dev's
+private reason remains words or meter where production's cut is null.
+
+Merged pages are covered with meter alone, words alone, and both together;
+all withhold next. The 33-word fixture charges 37 examinations; with the
+examined ceiling reduced to 10 it still records both cuts and meter wins.
+Remembered server meter/word cuts survive disconnection on the online,
+process-device and wasm clients. React's existing hook witness now checks
+both page orders, plus withheld reasons. The 99,090-message calibration still
+examines 8,193 rows past 44,100 hidden rows before finding any visible match;
+its public cut is now null, and scoped reads keep their precise reasons.
+
+Red before the fixes: the simulator read-cut group reported `1 passed; 2
+failed`, the two device point cases `0 passed; 2 failed`, and the original
+N1 server sweep with cut included `0 passed; 1 failed`. Green afterward:
+simulator read cuts `4 passed; 0 failed`, device read cuts `6 passed; 0
+failed`, N1 server `1 passed; 0 failed`, N1 devices `2 passed; 0 failed`,
+compiled guide/README `27 passed; 0 failed`, and the targeted HTTP/client
+cases `14 passed; 0 failed`. The lesson is that withholding positions is
+not enough: even a reason bit can count hidden work, while rolling back a
+failed authorization computation can erase a real limit. Reserve the work
+independently of the verdict and disclose only where the workload is public.
+
+Full validation used Node 24.18.0. `bash snapback4/scripts/test.sh` reports
+`== 1 failure(s) in 522 s`. Its 62 Rust summaries total 1,054 passed,
+zero failed and four ignored; all builds and package/chat/Expo typechecks
+pass; fixtures report 9 passed / 0 failed; clients report 382 passed /
+1 failed. The sole failure is Chromium SIGABRT during startup in the React
+witness, before the hook assertions execute. An isolated rerun with
+`node --test packages/snapback4/test/react.test.mjs` again reports 0 passed /
+1 failed with that signal. This is the environment artifact named in the
+lane brief, not a claim of a green React run or a base-commit verification
+of a pre-existing failure; the lead must run the added precedence assertions
+outside the sandbox. `./ref-check --verbose` reports 481 LLP docs, 8,982
+references, zero errors and zero unchecked. `git diff --check` is clean;
+the largest changed code file is 1,229 lines, with zero over 1,500. No commit,
+push, tag, publication, sub-agent or remote-machine work was performed.

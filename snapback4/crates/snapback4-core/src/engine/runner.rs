@@ -106,9 +106,10 @@ pub struct Runner<'a> {
 }
 
 impl<'a> Runner<'a> {
-    // @ref LLP 3000.007#5.6 — disclose the cut's kind, never a hidden row's position or the cut site.
+    // @ref LLP 3000.007#5.6 — non-uniform server work depends on hidden populations; its cut reason must stay private too.
     pub(crate) fn read_cut(&self) -> Option<super::ReadCut> {
-        if self.meter.capped_at.is_some() { Some(super::ReadCut::Meter) }
+        if self.non_uniform && !self.device { None }
+        else if self.meter.capped_at.is_some() { Some(super::ReadCut::Meter) }
         else if self.word_cut_at.is_some() { Some(super::ReadCut::Words) }
         else { None }
     }

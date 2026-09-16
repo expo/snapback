@@ -6,8 +6,11 @@ on the server and either device store. An empty page with `cut: 'meter'`
 means partial: retry narrower, or continue if `next` exists; never "no matches".
 `words` means the first term expanded past 32 words in a scope: narrow that
 term or use scoped search (guide search). If both limits cut, `meter` wins.
-`null` means neither cut occurred; `complete: false` can still describe a
-non-uniform server read, a horizon, missing coverage or a page without continuation.
+Device reads and uniform server reads keep precise reasons.
+Non-uniform server reads report `cut: null`: the reason is withheld, with `complete: false` still truthful.
+`null` means "not disclosed here", not "not cut"; it also covers a horizon,
+missing coverage or a page without continuation. For `complete: false` with
+`cut: null`, render "Results may be incomplete", even when empty; never "no matches".
 A complete empty page has `cut: null` and `complete: true`.
 
 Declare `query name(..) held:` for a device-only answer. `check` prints
@@ -21,7 +24,9 @@ on the search card.
 To inspect a real account's server work under loopback `dev`, use the online
 client `createClient({ url, session })` (or a bearer `token`); meters are available by default.
 Successful `query` and `observe` answers include `Read.meter`:
-`{ examined, indexEntries, probes, steps, heapBytes, outputBytes, rowsWritten }`.
+`{ examined, indexEntries, probes, steps, heapBytes, outputBytes, rowsWritten, cut }`.
+`Read.meter.cut` keeps the precise reason even for a non-uniform server read;
+it is `meter`, `words` or null, with `meter` winning when both limits cut.
 These are the engine's counters for that answer, not latency or process memory;
 `probes` is rule_probes and `heapBytes` is charged heap work. A remembered
 offline watch keeps the counters of its last server answer. Local device reads
@@ -68,6 +73,10 @@ by the chat is complete and no second table is needed. An aborting mutation
 page costs one examined unit before its verdict, plus its rule probes on
 both true and false verdicts; a true verdict then examines candidates.
 A page verdict evaluated from its pinned prefix charges the rule's static probe count on either outcome, including probes skipped by `and`/`or` short-circuiting.
+A point read reserves that same static allowance before its lookup, equally
+for a readable row, a hidden row and a miss. If it cannot pay, authorization
+has no verdict and the answer remains incomplete. A device's trusted held
+row needs no authorization probes.
 A table page accepts its modifiers in any order, once each. The printed order
 is `[matching q]`, `after c`, `first N` or `last N`, `by index`, `where predicate`.
 At the predicate's level, a non-index modifier ends `where` and belongs to that outer

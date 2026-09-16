@@ -390,8 +390,16 @@ const cases = {
     equal(latest.items, ["e", "a", "b", "c"], "reorder replaces the suffix");
     check(!latest.read.complete && !latest.read.fresh && latest.read.since === 10, "combined state includes the earlier page");
     check(latest.read.cut === "words", "earlier page word cut survives aggregation");
+    const second = active(client)[1];
+    await act(async () => second.set(ready(["b", "c"], "c", { complete: false, cut: "meter" })));
+    check(latest.read.cut === "meter", "later meter cut wins over earlier words");
+    await act(async () => second.set(ready(["b", "c"], "c", { complete: false, cut: "words" })));
     await act(async () => first.set(ready(["e", "a"], "a", { complete: false, cut: "meter" })));
-    check(latest.read.cut === "meter", "meter cut survives aggregation");
+    check(latest.read.cut === "meter", "earlier meter cut wins over later words");
+    await act(async () => first.set(ready(["e", "a"], "a", { complete: false, cut: null })));
+    check(latest.read.cut === "words", "withheld earlier reason does not erase a later disclosed cut");
+    await act(async () => second.set(ready(["b", "c"], "c", { complete: false, cut: null })));
+    check(latest.read.cut === null && !latest.read.complete, "withheld reasons stay incomplete across pages");
     equal(latest.read.data, latest.items, "read data describes all combined items");
     await render(h(Probe, { scope: "two" }), client);
     equal(latest.items, ["a", "b"], "new arguments reset the requested depth");

@@ -11,12 +11,32 @@ fn n1_probe_sweep<S: snapback4_device::store::DeviceStore>(mut store: S, label: 
     let (_, backend) = compile(nonuniform::SOURCE);
     store.install(&backend.schema, &Default::default(), false).unwrap();
     let mut worlds = Vec::new();
+    let mut partitions = Vec::new();
     for hidden in [false, true] {
+        let (mut engine, _) = compile(nonuniform::SOURCE);
+        engine.seed(nonuniform::rows(hidden)).unwrap();
+        let tx = store.transaction().unwrap();
+        for page in snapshot_pages(&mut engine, "dev:reader", 1000) {
+            for event in page.events {
+                if let Some(data) = event.data {
+                    let table = &backend.schema.tables[&event.table];
+                    tx.put(&event.table, table, &snapback4_core::wire::row_from_json(table, &data).unwrap(), None).unwrap();
+                }
+            }
+        }
+        partitions.push(nonuniform::sweep(cost, |name, ceilings| {
+            let program = backend.programs.iter().find(|p| p.name == name).unwrap();
+            snapback4_core::engine::local::query(&tx, &backend.schema, program, nonuniform::context(), ceilings)
+        }));
+        tx.rollback().unwrap();
         let tx = store.transaction().unwrap();
         // Adversarial online-only rows exercise the non-uniform rule path;
         // this is an interpreter/store regression, not a delivery claim.
         for (table, row) in nonuniform::rows(hidden) { tx.put(&table, &backend.schema.tables[&table], &row, None).unwrap(); }
-        worlds.push(nonuniform::sweep(cost, |name, ceilings| {
+        // Point-probe hidden/missing verdicts must agree even with these
+        // injected online-only rows. Scanning artificial hidden device rows
+        // may report precise cuts; real partition sweeps live in read_cut.
+        worlds.push(nonuniform::sweep_forms(cost, &["merged"], |name, ceilings| {
             let program = backend.programs.iter().find(|p| p.name == name).unwrap();
             snapback4_core::engine::local::query(&tx, &backend.schema, program, nonuniform::context(), ceilings)
         }));
@@ -29,7 +49,8 @@ fn n1_probe_sweep<S: snapback4_device::store::DeviceStore>(mut store: S, label: 
         tx.rollback().unwrap();
     }
     assert_eq!(worlds[0], worlds[1]);
-    println!("N1 host={label} ceilings=1..={cost} probe_limits=2 forms=4 identical_pairs={} positive_controls=4", worlds[0].len());
+    assert_eq!(partitions[0], partitions[1]);
+    println!("N1 host={label} ceilings=1..={cost} probe_limits=2 partition_forms=4 partition_pairs={} adversarial_point_pairs={} positive_controls=4", partitions[0].len(), worlds[0].len());
 }
 
 #[test]

@@ -127,7 +127,8 @@ impl Context {
     }
 }
 
-/// Public cut reason; sites and counters remain operator detail.
+/// Disclosed cut reason; non-uniform server reads withhold it. Sites and
+/// counters remain operator detail.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ReadCut { Meter, Words }

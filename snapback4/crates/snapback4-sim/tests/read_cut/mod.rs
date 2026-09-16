@@ -15,7 +15,8 @@ fn calibration_empty_cut_is_distinct_from_no_matches() {
     let cut = engine.query("all", Context::new("dev:alice", args(&[("q", "coffee")]))).unwrap();
     assert!(cut.data.as_array().unwrap().is_empty() && !cut.complete && cut.next.is_none());
     println!("W8a calibration: messages=99090 hidden_ahead=44100 rows=0 examined={} complete={} next={:?}", cut.metered.examined, cut.complete, cut.next);
-    assert_eq!(serde_json::to_value(&cut).unwrap()["cut"], "meter");
+    assert_eq!(serde_json::to_value(&cut).unwrap()["cut"], serde_json::Value::Null);
+    assert!(cut.capped_at.is_some(), "development retains the precise cut");
     let scoped = engine.query("scoped", Context::new("dev:alice", args(&[("roomId", "readable"), ("q", "coffee")]))).unwrap();
     assert!(scoped.complete && scoped.data.as_array().unwrap().len() == 10);
     assert_eq!(serde_json::to_value(scoped).unwrap()["cut"], serde_json::Value::Null);
@@ -29,6 +30,47 @@ fn calibration_empty_cut_is_distinct_from_no_matches() {
     let nonuniform = engine.query("all", Context::new("dev:alice", args(&[("q", "absent")]))).unwrap();
     assert!(!nonuniform.complete && nonuniform.capped_at.is_none() && nonuniform.word_cut_at.is_none());
     assert!(serde_json::to_value(nonuniform).unwrap().get("cut").unwrap().is_null());
+}
+
+#[path = "point.rs"] pub(crate) mod point;
+mod disclosure;
+
+#[test]
+fn nonuniform_full_response_sweep_including_cut() {
+    let mut worlds = Vec::new();
+    for hidden in [0, 32, 33] {
+        let bound = snapback4_lang::compile(&[("schema.q".into(), disclosure::source())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+        engine.seed(disclosure::rows(hidden)).unwrap();
+        worlds.push(disclosure::sweep(|name, ceilings| {
+            engine.set_ceilings(ceilings);
+            disclosure::wire(&engine.query(name, disclosure::context("secret")).unwrap())
+        }));
+        engine.set_ceilings(Default::default());
+        let visible = engine.query("all", disclosure::context("coffee")).unwrap();
+        assert_eq!(visible.data.as_array().unwrap().len(), 5);
+        assert!(!visible.complete && visible.cut.is_none());
+        disclosure::merge_cuts("server", |q, ceilings| {
+            engine.set_ceilings(ceilings);
+            engine.query("merged", disclosure::context(q)).unwrap()
+        });
+    }
+    assert_eq!(worlds[0], worlds[1]);
+    assert_eq!(worlds[0], worlds[2]);
+    println!("W8R1a disclosure host=server hidden_words=32,33 identical_pairs={} positive_controls=3", worlds[0].len() * 2);
+}
+
+#[test]
+fn point_probe_cut_cannot_disappear() {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), point::SOURCE.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed(point::rows()).unwrap();
+    point::check("server", |count, key, ceilings| {
+        engine.set_ceilings(ceilings);
+        engine.query("point", point::context(count, key)).unwrap()
+    });
 }
 
 #[test]

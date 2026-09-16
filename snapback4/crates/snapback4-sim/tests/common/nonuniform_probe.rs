@@ -27,17 +27,21 @@ pub fn visible() -> (String, Value) {
 }
 
 pub fn sweep(cost: u64, mut query: impl FnMut(&str, Ceilings) -> Result<QueryOutcome, Refusal>) -> Vec<serde_json::Value> {
+    sweep_forms(cost, &["page", "filtered", "refuses", "merged"], &mut query)
+}
+
+pub fn sweep_forms(cost: u64, names: &[&str], mut query: impl FnMut(&str, Ceilings) -> Result<QueryOutcome, Refusal>) -> Vec<serde_json::Value> {
     let mut observed = Vec::new();
     for examined in 1..=cost {
         for rule_probes in [0, Ceilings::default().rule_probes] {
-            for name in ["page", "filtered", "refuses", "merged"] {
+            for &name in names {
                 let result = query(name, Ceilings { examined, rule_probes, ..Default::default() });
                 let body = match result {
                     Ok(page) => {
                         assert_eq!(page.data, Value::Array(vec![]));
                         if name != "merged" { assert!(!page.complete); }
                         assert!(page.next.is_none());
-                        serde_json::json!({"data":snapback4_core::wire::to_json(&page.data), "complete":page.complete, "next":page.next, "seq":page.seq, "tables":page.tables, "nextExpiry":page.next_expiry})
+                        serde_json::json!({"data":snapback4_core::wire::to_json(&page.data), "complete":page.complete, "cut":page.cut, "next":page.next, "seq":page.seq, "tables":page.tables, "nextExpiry":page.next_expiry, "viewer":"dev:reader"})
                     }
                     Err(why) => { assert_eq!(name, "refuses"); assert_eq!(why.code, "STOP"); serde_json::json!({"denied":why}) }
                 };

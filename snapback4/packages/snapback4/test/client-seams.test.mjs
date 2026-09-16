@@ -159,7 +159,7 @@ for (const release of [false, true]) test(`W7c ${release ? "serve ignores" : "de
     assert.equal(cli.status, 0, cli.stdout + cli.stderr);
     const result = JSON.parse(cli.stdout), m = result.metered;
     assert.deepEqual(result.data, read.data);
-    assert.deepEqual(read.meter, { examined: m.examined, indexEntries: m.index_entries, probes: m.rule_probes, steps: m.steps, heapBytes: m.heap_bytes, outputBytes: m.output_bytes, rowsWritten: m.rows_written });
+    assert.deepEqual(read.meter, { examined: m.examined, indexEntries: m.index_entries, probes: m.rule_probes, steps: m.steps, heapBytes: m.heap_bytes, outputBytes: m.output_bytes, rowsWritten: m.rows_written, cut: null });
     const watch = client.observe(op, {});
     await until(() => watch.getSnapshot().data);
     assert.deepEqual(watch.getSnapshot().meter, read.meter); watch.close();
@@ -653,6 +653,86 @@ query search(room: text <=10, q: text <=100, c: cursor ?):
 query filtered(c: cursor ?):
   return entries['normal'] after c last 10 by byRoomTime where .body = 'absent'
 `;
+
+for (const release of [false, true]) test(`W8R1a ${release ? "serve" : "dev"} withholds hidden population cuts`, { timeout: 60000 }, async t => {
+  const schema = `use identity
+table records:
+  owner: principal
+  body: text <=100
+  by byWords: words(body), id
+  read <- .owner = viewer
+  insert <- allow
+  online only
+table padding:
+  public 'equal commit count'
+  insert <- allow
+  online only
+mutation seed(hidden: bool, count: int, body: text <=100):
+  for i in range(0, count):
+    if hidden:
+      insert records { owner: 'somebody-else', body }
+    else:
+      insert padding {}
+query scan():
+  return records first 10 by byId
+query search():
+  return records matching 'cof' first 10 by byWords
+`;
+  const worlds = [];
+  for (const hidden of [false, true]) {
+    const f = await fixture(t, release, schema);
+    const token = spawnSync(binary, ["token", "--service", "meter", ...(release ? ["--release", join(f.dir, "release")] : [])], { cwd: f.dir, encoding: "utf8" });
+    assert.equal(token.status, 0, token.stderr);
+    const session = await mintSession(f.url, token.stdout.trim(), "member:viewer");
+    const headers = { authorization: `Bearer ${session.token}`, "x-snapback-meter": "1" };
+    const seed = async (count, body) => {
+      const response = await (await fetch(`${f.url}/m/seed`, { method: "POST", headers, body: JSON.stringify({ args: { hidden, count, body } }) })).json();
+      assert.equal(response.state, "sent", JSON.stringify(response));
+    };
+    const observed = [];
+    const read = async (name, reason) => {
+      const page = await (await fetch(`${f.url}/q/${name}`, { method: "POST", headers, body: '{"args":{}}' })).json();
+      assert.deepEqual(page.data, []); assert.equal(page.complete, false); assert.equal(page.next, null);
+      assert.equal(page.cut, null, JSON.stringify(page));
+      if (release) assert.equal(Object.hasOwn(page, "meter"), false);
+      else assert.equal(page.meter.cut, hidden ? reason : null);
+      const { meter, ...production } = page;
+      observed.push(production);
+    };
+    for (let n = 0; n < 32; n++) await seed(1, `cof${n}`);
+    await read("search", null);
+    await seed(1, "cof32"); await read("search", "words");
+    for (let left = 8193 - 33; left > 0; left -= 1000) await seed(Math.min(left, 1000), "coffee");
+    await read("scan", "meter");
+    worlds.push(observed);
+  }
+  assert.deepEqual(worlds[0], worlds[1], "all production fields, including cut, viewer and equal commit counts");
+  t.diagnostic("hidden words=32,33 hidden rows=8193 identical full-response pairs=3");
+});
+
+for (const tier of ["online", "native", "web"]) test(`W8R1a ${tier} remembered server cuts survive disconnection`, { timeout: 30000 }, async t => {
+  const f = await fixture(t, false, cutSource.replace("  sync public", "  online only"));
+  const seeds = Array.from({ length: 8233 }, (_, n) => ({ table: "entries", row: { id: `r${n}`, room: n < 8200 ? "normal" : "words", body: n < 8200 ? "coffee" : `cof${n}`, at: n } }));
+  for (let n = 0; n < seeds.length; n += 1000) await f.post("/seed", seeds.slice(n, n + 1000));
+  let offline = false;
+  const options = { url: f.url, persona: "alice", waitSeconds: 1, fetch: (...args) => offline ? Promise.reject(new Error("offline")) : fetch(...args) };
+  const client = tier === "online" ? createClient(options) : await createLocalClient({ ...options, device: tier === "native" ? f.device : f.web });
+  f.clients.push(client);
+  if (tier !== "online") await client.sync();
+  const watches = [["filtered", {}, "meter"], ["search", { room: "words", q: "cof" }, "words"]].map(([name, args, cut]) => ({ watch: client.observe({ kind: "query", name }, args), cut }));
+  t.after(() => watches.forEach(({ watch }) => watch.close()));
+  for (const { watch, cut } of watches) await until(() => watch.getSnapshot().cut === cut && watch.getSnapshot().fresh);
+  const before = watches.map(({ watch }) => watch.getSnapshot());
+  offline = true;
+  if (tier === "online") await client.query({ kind: "query", name: "filtered" }, {});
+  else await client.sync();
+  await until(() => watches.every(({ watch }) => watch.getSnapshot().fresh === false));
+  watches.forEach(({ watch, cut }, n) => {
+    const after = watch.getSnapshot();
+    assert.equal(after.cut, cut); assert.equal(after.complete, false);
+    assert.deepEqual(after.data, before[n].data); assert.deepEqual(after.meter, before[n].meter);
+  });
+});
 
 for (const tier of ["online", "native", "web"]) test(`W8a ${tier} read exposes meter, words and null cuts`, { timeout: 30000 }, async t => {
   const source = tier === "online" ? cutSource : cutSource.replaceAll("c: cursor ?):", "c: cursor ?) held:");

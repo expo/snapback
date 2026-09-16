@@ -74,8 +74,14 @@ non-uniform scopes keep per-row costs and remain incomplete; hidden rows
 there still spend the query-wide examined/index-entry budget. The 32-word
 bound makes that lane incomplete without cutting later lanes; operator
 results name it in `word_cut_at`, separately from a meter cut in `capped_at`.
-Client answers expose `cut: 'words'` or `cut: 'meter'` beside `complete`;
-`meter` wins if both limits cut. An empty cut page is partial, never "no matches".
+Device reads and uniform server reads expose `cut: 'words'` or `cut: 'meter'`
+beside `complete`; `meter` wins if both limits cut. Non-uniform server reads
+report `cut: null`: their reason is withheld, with `complete: false` still truthful.
+`null` means "not disclosed here", not "not cut". Render "Results may be incomplete"
+for `complete: false` with `cut: null`, even when empty; never "no matches".
+The precise reason remains in development-only `Read.meter.cut`; `serve` never
+returns that meter. If the server cannot answer the query, declare `query … held:`
+to answer from the device; the server refuses it with E_QUERY_HELD.
 Merged pages return no `next` for a non-uniform read or a meter or word-limit
 cut: one cursor cannot advance past an unfinished lane. Reads inside
 `where` use their own rules and search terms. Even an empty matching result

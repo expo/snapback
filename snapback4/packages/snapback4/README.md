@@ -1711,7 +1711,7 @@ import { isReady } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
 const client = createClient({ url: "http://127.0.0.1:4400", token: process.env.SNAPBACK_TOKEN! });
 const read = await client.query(api.thread, { conversationId: "existing-conversation" });
-if (isReady(read)) console.log(read.meter); // { examined, indexEntries, probes, steps, heapBytes, outputBytes, rowsWritten }
+if (isReady(read)) console.log(read.meter); // { examined, indexEntries, probes, steps, heapBytes, outputBytes, rowsWritten, cut }
 await client.close();
 ```
 
@@ -1733,9 +1733,17 @@ the account's session or an application principal such as `member:42`.
 both device stores. An empty page with `cut: "meter"` means partial: retry
 narrower, or continue if `next` exists; never "no matches". `"words"` means
 the first search term exceeded 32 words in a scope: narrow it or use scoped
-search. If both limits cut, `"meter"` wins. `null` means neither limit cut;
-an incomplete read can still have a non-uniform rule, a horizon or no
-continuation. A complete empty page has `cut: null` and `complete: true`.
+search. If both limits cut, `"meter"` wins.
+Device reads and uniform server reads keep precise reasons.
+Non-uniform server reads report `cut: null`: the reason is withheld, with `complete: false` still truthful.
+`null` means "not disclosed here", not "not cut"; it also covers a horizon,
+missing coverage or a page without continuation. For `complete: false` with
+`cut: null`, render "Results may be incomplete", even when empty; never "no matches".
+The precise reason remains in development-only `Read.meter.cut` (`"meter"`,
+`"words"` or null, with `"meter"` winning); `serve` never returns that meter.
+If the server cannot answer the query, declare `query … held:` to answer
+from the device; the server refuses it with E_QUERY_HELD (see the search card).
+A complete empty page has `cut: null` and `complete: true`.
 
 `complete` says this is everything the query can answer: false when the
 meter cut the page, when a scan's read rule is not decided by its prefix

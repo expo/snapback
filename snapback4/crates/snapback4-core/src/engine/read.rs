@@ -294,9 +294,11 @@ impl Runner<'_> {
             // A null key on a required column addresses nothing.
             return Ok(Value::Null);
         }
-        // Absent, hidden or visible: one examined row, so the meter says the
-        // same of a miss and of a row the viewer may not read; the probes
-        // that decided a hidden row are rolled back.
+        // @ref LLP 3000.007#20.12 — reserve authorization before knowing hit, miss or hidden; an exhausted probe is not a false verdict to roll back.
+        let trusted = self.context.is_system() || self.trust_synced_read(table);
+        if !trusted && !self.meter.charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? { return Ok(Value::Null); }
+        // Hidden and absent cost one examined row and the same static probe
+        // allowance, including probes that a rule would short-circuit.
         let mark = self.meter.mark();
         let expiry_mark = self.next_expiry;
         let found = self.live_lookup(&read.table, &read.index, index, &key)?;
@@ -313,7 +315,9 @@ impl Runner<'_> {
             return Ok(Value::Null);
         }
         materialize_optional_fields(&mut row, table);
-        if self.check_rule(&read.table, Effect::Read, None, &row)? {
+        let viewer = self.context.viewer.clone();
+        let allowed = trusted || rules::evaluate(&table.rules.read, &viewer, None, &row, false, &mut PrefixProbe { runner: self })?;
+        if allowed {
             self.note_expiry(table, &row);
             Ok(self.live_aggregate(&read.table, row)?.unwrap_or(Value::Null))
         } else {
