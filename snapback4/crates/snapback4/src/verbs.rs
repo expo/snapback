@@ -536,7 +536,7 @@ pub fn doctor(options: &Options) -> i32 {
         Ok(store) => {
             if let Ok(Some(status)) = store.meta("worker:status") { lines.push(format!("worker    last report: {status}")); }
             let generation = store.meta("generation").ok().flatten().unwrap_or_else(|| "unrecorded".into());
-            lines.push(format!("store     {} at seq {}, generation {}", project.store_path().display(), store.seq().unwrap_or(0), generation));
+            lines.push(format!("store     {} at seq {}, generation {}", work_records::store_path(options).display(), store.seq().unwrap_or(0), generation));
             let host = store.meta("store_id").ok().flatten().and_then(|id| adoption::host(&project, &id));
             let now = host.as_ref().and_then(|h| h["now"].as_i64()).unwrap_or_else(snapback4_core::now_ms);
             if let Some(host) = &host {

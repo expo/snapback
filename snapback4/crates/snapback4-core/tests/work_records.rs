@@ -113,6 +113,12 @@ fn op_records_keep_only_binding_metadata_and_sizes_count_all_remaining_fields() 
     assert_eq!(engine.store().sizes().unwrap().ops, expected as u64);
     conn.execute("INSERT INTO _ops(principal, id, seq, outcome) VALUES ('legacy', 'old', 0, '{}')", []).unwrap();
     assert_eq!(engine.store().sizes().unwrap().ops, (expected + 6 + 3 + 1 + 2) as u64, "nullable legacy bindings still count");
+    for column in ["name", "args_digest", "at"] {
+        conn.execute_batch(&format!("ALTER TABLE _ops DROP COLUMN {column}")).unwrap();
+    }
+    conn.execute_batch("PRAGMA query_only=ON").unwrap();
+    let legacy = "member:alice".len() + "id".len() + "1".len() + receipt.len() + 6 + 3 + 1 + 2;
+    assert_eq!(engine.store().sizes().unwrap().ops, legacy as u64, "read-only inspection of an unupgraded store still counts receipts");
 }
 
 #[test]

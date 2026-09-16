@@ -81,6 +81,12 @@ Without it results go to stdout. Omit the database variable to use the script's
 private cluster. Tests fail if explicitly run without a reachable database;
 they never report missing infrastructure as a pass.
 
+For a same-host comparison, run the benchmark serially with
+`SNAPBACK4_EVAL_PREFETCH=on` (the default) and `SNAPBACK4_EVAL_PREFETCH=off`,
+using a different output path for each run. This changes only prefetch in the
+measured Postgres engines; durability, workloads and retry limits are unchanged.
+The JSON records the setting. The conformance tests still exercise both modes.
+
 ## C1 access boundary, 2026-09-15
 
 C1 keeps Quarry in the same interpreter. The runtime page plan records total

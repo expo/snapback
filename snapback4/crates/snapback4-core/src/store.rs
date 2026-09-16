@@ -271,13 +271,18 @@ impl Store {
     /// amplification the per-recipient log costs.
     pub fn sizes(&self) -> Result<Sizes, RuntimeError> {
         let sum = |sql: &str| -> Result<u64, RuntimeError> { Ok(self.conn.query_row(sql, [], |row| row.get::<_, Option<i64>>(0))?.unwrap_or(0).max(0) as u64) };
+        // Read-only inspection also works before the next writer migrates _ops.
+        let columns: Vec<String> = self.conn.prepare("SELECT name FROM pragma_table_info('_ops')")?
+            .query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
+        let binding_sizes = ["name", "args_digest", "at"].into_iter().filter(|name| columns.iter().any(|column| column == name))
+            .map(|name| format!(" + COALESCE(LENGTH({name}), 0)")).collect::<String>();
         Ok(Sizes {
             rows: sum("SELECT SUM(LENGTH(data) + LENGTH(id)) FROM r")?,
             row_count: sum("SELECT COUNT(*) FROM r")?,
             indexes: sum("SELECT SUM(LENGTH(k) + LENGTH(id)) FROM i")?,
             log: sum("SELECT SUM(COALESCE(LENGTH(data), 0) + LENGTH(id) + LENGTH(partition) + LENGTH(t)) FROM _log")?,
             log_events: sum("SELECT COUNT(*) FROM _log")?,
-            ops: sum("SELECT SUM(LENGTH(outcome) + LENGTH(id) + LENGTH(principal) + LENGTH(seq) + COALESCE(LENGTH(name), 0) + COALESCE(LENGTH(args_digest), 0) + COALESCE(LENGTH(at), 0)) FROM _ops")?,
+            ops: sum(&format!("SELECT SUM(LENGTH(outcome) + LENGTH(id) + LENGTH(principal) + LENGTH(seq){binding_sizes}) FROM _ops"))?,
             file: sum("SELECT page_count * page_size FROM pragma_page_count(), pragma_page_size()")?,
         })
     }

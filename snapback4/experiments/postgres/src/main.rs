@@ -13,6 +13,14 @@ use std::{
     time::Instant,
 };
 
+fn prefetch_enabled() -> bool {
+    match std::env::var("SNAPBACK4_EVAL_PREFETCH").as_deref() {
+        Ok("off") => false,
+        Ok("on") | Err(_) => true,
+        Ok(_) => panic!("SNAPBACK4_EVAL_PREFETCH must be on or off"),
+    }
+}
+
 fn timings(label: &str, n: usize, mut run: impl FnMut() -> Value, expected: Option<&Value>) -> Json {
     for _ in 0..20 {
         let value = run();
@@ -41,6 +49,7 @@ fn concurrent_pg(name: &str, mode: WriteMode, disjoint: bool, n: usize) -> Json 
             let gate = gate.clone();
             std::thread::spawn(move || {
                 let mut pg = PostgresEngine::open(connect(), &name).unwrap();
+                pg.set_prefetch(prefetch_enabled());
                 pg.set_write_mode(mode);
                 let slot = format!("c{}", if disjoint { writer } else { 0 });
                 gate.wait();
@@ -144,6 +153,7 @@ fn main() {
     store.conn().execute_batch("PRAGMA synchronous=FULL").unwrap();
     let mut sqlite = Engine::new(store, schema.clone(), programs.clone()).unwrap();
     let mut pg = PostgresEngine::create(connect(), &name, schema, programs).unwrap();
+    pg.set_prefetch(prefetch_enabled());
     let rows = fixture(32, 25);
     sqlite.seed_at(rows.clone(), 10).unwrap();
     pg.seed_at(rows, 10).unwrap();
@@ -253,6 +263,7 @@ fn main() {
     }
     let output = json!({"experiment":"Postgres Rows adapter, not production qualification", "schema":name,"sqlite_file":path,
         "unix_ms":snapback4_core::now_ms(),"profile":if cfg!(debug_assertions){"debug"}else{"release"},"rooms":32,"items_per_room":25,
+        "prefetch":prefetch_enabled(),
         "sqlite_version":sqlite.store().conn().query_row("SELECT sqlite_version()",[],|r|r.get::<_,String>(0)).unwrap(),
         "sqlite_durability":"WAL, synchronous=FULL (not fullfsync); same machine as PostgreSQL", "postgres_settings":settings,
         "read_latencies":reads,"mutation_latencies":writes,"concurrency":concurrency,"native_inbox_plan":explain});
