@@ -22070,3 +22070,21 @@ monotonic instant proves expiry without sleeps. All requested implementation
 and checks are complete; the blocking suite remains red on the browser
 artifact. No ceilings, serialized forms or existing corpus cases changed;
 no commit, push, tag, publication, sub-agent or remote machine was used.
+
+## 2026-09-16 — Wave 8 landed as 0.2.24 / expo 0.2.15 (lead)
+
+Integration `sb4/w8-int` carries W8a–W8c, the Postgres adapter repair, the
+round-1 repairs W8R1a and W8R1b, the round-2 repair W8R2, and the lead's
+orphan-adoption lock fix. Grok returned READY at round 2; GPT returned READY
+WITH CHANGES, and its remaining item was the alternating-log residual that
+W8R2 closed.
+
+Lead verification on `124ad2fec`:
+- suite: 0 failures;
+- client tests: 395/395; React: 13/13;
+- Chromium `navigation-immediate`: 10/10; `navigation`: 2 durable writes;
+- the feature-gated Postgres adapter compiles;
+- ref-check: ok.
+
+Records: LLP 3000.007 §20.17 and `llp/reviews/3000.007-agent-ergonomics-wave-8.*`.
+
