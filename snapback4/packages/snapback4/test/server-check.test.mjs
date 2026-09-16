@@ -17,6 +17,7 @@ for (const boundary of ["directoryExists", "fileExists", "readFile"]) {
     const root = mkdtempSync(join(tmpdir(), "sb4-check-race-"));
     t.after(() => rmSync(root, { recursive: true, force: true }));
     const directory = join(root, "late"), source = join(directory, "helper.ts");
+    const entry = join(root, "snapback/server.ts");
     mkdirSync(join(root, "snapback"));
     if (boundary !== "directoryExists") mkdirSync(directory);
     mkdirSync(join(root, "node_modules/typescript"), { recursive: true });
@@ -25,7 +26,7 @@ for (const boundary of ["directoryExists", "fileExists", "readFile"]) {
     writeFileSync(join(root, "node_modules/typescript/index.cjs"), `
 const ts = require(${JSON.stringify(require.resolve("typescript"))});
 const fs = require("node:fs");
-const target = ${JSON.stringify(boundary === "directoryExists" ? directory : source)};
+const target = ${JSON.stringify(boundary === "directoryExists" ? directory : boundary === "readFile" ? entry : source)};
 const boundary = ${JSON.stringify(boundary)};
 let recovered = false;
 function wrap(host) {
@@ -35,7 +36,7 @@ function wrap(host) {
     if (path === target && !result && !recovered) {
       recovered = true;
       fs.mkdirSync(${JSON.stringify(directory)}, { recursive: true });
-      fs.writeFileSync(${JSON.stringify(source)}, "export const value = 1;\\n");
+      fs.writeFileSync(${JSON.stringify(boundary === "readFile" ? entry : source)}, "export const value = 1;\\n");
     }
     return result;
   };
@@ -43,25 +44,23 @@ function wrap(host) {
 }
 module.exports = { ...ts, sys: wrap({ ...ts.sys }), createCompilerHost: (...args) => wrap(ts.createCompilerHost(...args)) };
 `);
-    // readFile needs a resolvable source: make its first read report absence
-    // even though fileExists just saw the file, then replace its contents.
+    // The root entry is accessed through readFile first, unlike imports whose
+    // earlier fileExists observation would mask a broken readFile observer.
     if (boundary === "readFile") {
-      writeFileSync(source, "export const value = 0;\n");
       const shim = join(root, "node_modules/typescript/index.cjs");
       writeFileSync(shim, readFileSync(shim, "utf8").replace(
         "const result = operation(path, ...args);",
         "const result = path === target && !recovered ? undefined : operation(path, ...args);"));
     }
-    const entry = join(root, "snapback/server.ts");
-    writeFileSync(entry, 'import { value } from "../late/helper.js"; export default value;\n');
+    writeFileSync(entry, boundary === "readFile" ? "export default 0;\n" : 'import { value } from "../late/helper.js"; export default value;\n');
+    const before = statSync(entry, { bigint: true });
     const check = () => spawnSync(process.execPath, ["--input-type=module", "-e", checker, root, entry], { encoding: "utf8", timeout: 30_000 });
     const first = check();
     assert.equal(first.status, 1, first.stderr);
     assert.match(first.stderr, /E_SERVER_TYPECHECK/);
     const observations = new Map(JSON.parse(readFileSync(join(root, "snapback/generated/server-watch.json"), "utf8")));
     if (boundary === "readFile") {
-      const actual = statSync(source, { bigint: true });
-      assert.notDeepEqual(observations.get(source), [String(actual.mtimeNs), String(actual.size)]);
+      assert.deepEqual(observations.get(entry), [String(before.mtimeNs), String(before.size)]);
     } else assert.equal(observations.get(boundary === "directoryExists" ? directory : source), null);
     // The next unchanged tick observes the recovered file/directory and can
     // successfully check; the first failed check must not swallow recovery.
