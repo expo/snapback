@@ -2321,6 +2321,9 @@ step.
 - **Adoption health.** A refused dev adoption stays visible in `doctor` and its
   reason repeats on the first failing job or sweep. Writer-lock and generation
   failures retry without another save, including reopening after a CLI adoption.
+  Identical background store and generation failures are then suppressed while
+  that adoption failure is pending; recovery or a changed adoption failure
+  reports the suppressed count and resets it. Different reasons remain visible.
   `doctor` compares the live host generation with the store and uses the host's
   dev clock for deferred pushes. A `--no-watch` host needs a restart after another
   process adopts; a schema refusal needs a corrected save. A stopped host's
@@ -2354,6 +2357,9 @@ step.
   argument cannot be derived). A query's own `require` refusing a
   derived argument (the persona is not in that group) is reported, not
   counted as a failure; run it with your arguments to see its meters.
+  Device-only `held` queries print `not run: <name> is held (device only)` once
+  and are skipped, including with `--residency`: a server fixture is not the
+  device's acquired partition. Exercise those queries through a local client.
   In tests, use `snapback4 clock advance <dur>` or `POST /dev/clock/advance`; each example line advances the running dev once.
 
   ```sh

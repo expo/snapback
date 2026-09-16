@@ -162,9 +162,9 @@ impl Tx<'_> {
         Ok(())
     }
 
-    // @ref LLP 3000.007#19.1 — presence deadlines defer a grace-only effect; this
-    // evaluation adapter records the emission and its deadline, without the
-    // dependency rows the SQLite path keeps for reconnect cancellation.
+    // @ref LLP 3000.007#19.1 — this evaluation adapter records the emission at
+    // now, not its grace deadline; it supplies neither presence deferral nor
+    // the reconnect cancellation semantics of the SQLite path.
     pub fn record_effects(&self, outbox: &[crate::engine::presence::Emission], seq: u64, now: i64) -> Result<(), RuntimeError> {
         for (id, effect, payload, _presence) in outbox {
             self.execute(

@@ -474,10 +474,13 @@ impl AdoptionHost {
     }
     fn logs(&self) -> String { fs::read_to_string(&self.log).unwrap() }
     fn query(&self) -> Value {
+        self.request("/q/version", "x-snapback-persona: alice\r\n", "{\"args\":{}}")
+    }
+    fn request(&self, path: &str, headers: &str, body: &str) -> Value {
         use std::io::{Read, Write};
         let mut stream = std::net::TcpStream::connect(&self.address).unwrap();
         stream.set_read_timeout(Some(std::time::Duration::from_secs(30))).unwrap();
-        write!(stream, "POST /q/version HTTP/1.1\r\nHost: localhost\r\nx-snapback-persona: alice\r\nConnection: close\r\nContent-Length: 11\r\n\r\n{{\"args\":{{}}}}").unwrap();
+        write!(stream, "POST {path} HTTP/1.1\r\nHost: localhost\r\n{headers}Connection: close\r\nContent-Length: {}\r\n\r\n{body}", body.len()).unwrap();
         let mut answer = String::new(); stream.read_to_string(&mut answer).unwrap();
         serde_json::from_str(answer.split_once("\r\n\r\n").unwrap().1).unwrap()
     }
@@ -580,4 +583,53 @@ fn check_explains_held_dispatch_and_generates_the_client_marker() {
     let checked = p.run(&["check", "--json"]);
     let json: Value = serde_json::from_slice(&checked.stdout).unwrap();
     assert_eq!(json["heldQueries"], json!(["heldValue"]));
+}
+
+#[test]
+fn w8r1b_test_names_held_queries_without_failing_other_queries_or_residency() {
+    let p = Project::new();
+    p.source(&format!("{SOURCE}query heldRows() held:\n  return [1, 2]\nuse personas alice, bob\n"));
+    let fixture = p.0.join("fixture"); fs::create_dir(&fixture).unwrap();
+    fs::write(fixture.join("messages.jsonl"), "{\"id\":\"one\",\"body\":\"hello\"}\n").unwrap();
+    for args in [vec!["test"], vec!["test", "--fixture", fixture.to_str().unwrap()], vec!["test", "--residency", "--fixture", fixture.to_str().unwrap()]] {
+        let output = p.run(&args);
+        let text = String::from_utf8_lossy(&output.stdout);
+        println!("{args:?}\n{text}");
+        assert!(output.status.success(), "{output:?}");
+        assert_eq!(text.matches("not run: heldRows is held (device only)").count(), 1, "{text}");
+        assert!(text.contains("all (alice)") && text.contains("all (bob)"), "{text}");
+        assert!(!text.contains("denied E_QUERY_HELD"), "{text}");
+        if args.contains(&"--residency") { assert!(text.contains("loaded 1 rows") && text.contains("cold"), "{text}"); }
+    }
+}
+
+#[test]
+fn w8r1b_release_from_a_used_dev_store_never_returns_read_meters() {
+    use std::io::{BufRead, BufReader};
+    let p = Project::new(); p.source(&format!("use identity guests\n{SOURCE}"));
+    let host = AdoptionHost::start(&p, false);
+    assert_eq!(host.request("/seed", "", r#"[{"table":"messages","row":{"id":"one","body":"from dev"}}]"#)["seeded"], 1);
+    let dev = host.request("/q/all", "x-snapback-persona: alice\r\n", "{}");
+    assert_eq!(dev["data"][0]["body"], "from dev");
+    assert!(dev["meter"].is_object(), "{dev}");
+    drop(host);
+    let identity = Store::open_read_only(&p.store()).unwrap().meta("store_id").unwrap();
+    let release = p.0.join(".snapback4");
+    let deployed = p.run(&["deploy", release.to_str().unwrap()]);
+    assert!(deployed.status.success(), "{deployed:?}");
+    assert_eq!(Store::open_read_only(&p.store()).unwrap().meta("store_id").unwrap(), identity);
+    let log = p.0.join("release.log");
+    let mut child = Command::new(BIN).current_dir(&p.0).args(["serve", release.to_str().unwrap(), "--port", "0"])
+        .stdout(std::process::Stdio::piped()).stderr(fs::File::create(&log).unwrap()).spawn().unwrap();
+    let mut line = String::new(); BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
+    let host = AdoptionHost { child, address: line.trim().trim_start_matches("http://").into(), log };
+    assert!(line.starts_with("http://"), "{}", host.logs());
+    let guest = host.request("/auth/guest", "", "{}");
+    let token = guest["session"]["token"].as_str().unwrap();
+    for meter in ["", "x-snapback-meter: 1\r\n"] {
+        let reply = host.request("/q/all", &format!("Authorization: Bearer {token}\r\n{meter}"), "{}");
+        assert_eq!(reply["data"][0]["body"], "from dev", "{reply}");
+        assert!(reply.get("meter").is_none() && reply.get("metered").is_none(), "{reply}");
+    }
+    println!("release from dev: retained_rows=1 same_store_identity=1 dev_meter_fields=1 release_meter_fields=0 requests=2");
 }
