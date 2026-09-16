@@ -53,7 +53,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_STEP_INPUT", "family action — a step's name/input is invalid or out of bounds, or the same step name was reused with different input. Keep one stable name and input per external step. guide actions."),
     ("E_STEP_BUSY", "family action — this attempt already has the same step in flight. Await it before using that name again. guide actions."),
     ("E_STEP_UNKNOWN", "family action — no step was begun under this invocation and name before settlement. Begin the step through ctx.step. guide actions."),
-    ("E_STEP_RESULT", "family action — the external step returned an invalid or oversized outcome. Work is parked because repeating the external request could duplicate its effect; reconcile through the step's stable key. guide actions."),
+    ("E_STEP_RESULT", "family action — the external step returned an invalid or oversized outcome. Work fails terminally or parks; it is not retried automatically because repeating the external request could duplicate its effect. Reconcile through the step's stable key. guide actions."),
     ("E_STEP_PARKED", "family action — an external step's outcome is uncertain. Reconcile through its stable provider key; work that cannot be reconciled stays parked for an operator. guide actions."),
     ("E_SECRET_MISSING", "a declared action/effect secret is absent when the supervised runtime starts. Supply that environment variable without putting its value in Quarry or generated files. guide actions."),
     ("E_SERVER_TYPECHECK", "the application's server entry or import graph failed TypeScript checking. Fix the reported handler/argument/result error and run check again; guide actions."),

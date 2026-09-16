@@ -67,6 +67,9 @@ completion abort that signal and close database access. Cancellation is
 cooperative: pass the signal to provider SDKs that accept one. Status polling
 runs only while the handler runs; the core remains authoritative on each
 request.
+An unsuccessful status poll fails closed and permits a later attempt; if a
+provider step was already begun, that attempt still requires reconciliation
+or parks. A network interruption does not prove the provider did nothing.
 
 Cancel an action with `POST /actions/<id>/cancel` under its originating
 principal's standing authority. Cancellation never rolls back committed
@@ -108,6 +111,10 @@ a recorded asset of the declared kind and byte bound; any supplied metadata
 must equal its recorded facts, without extra fields. Validation does not add
 metadata to the result or grant permission to read its bytes.
 `runWorker` remains available for existing hand-written workers.
+Even an action without a `returns` declaration must return plain JSON from
+the generated handler: use explicit `null` for no value. Its TypeScript result
+is `unknown`, so an implicit `undefined` can typecheck but fails at runtime.
+Legacy `runWorker` retains its historical undefined-to-null normalization.
 
 Work ids and step outcomes are retained for the lifetime of the store; there
 is no automatic retention expiry or id reuse. `why <id>` prints step state,

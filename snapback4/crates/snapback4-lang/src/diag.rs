@@ -128,7 +128,6 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_SYNC" => "sync",
         "E_SCHEMA_CONSTRAINT" | "E_INDEX_KEY_BYTES" => "indexes",
         "E_EMIT_IN_QUERY" => "programs",
-        "E_EFFECT_UNKNOWN" | "E_EFFECT_LEASE" => "effects",
         "E_QUARRY_MODIFIER_SCOPE" | "N_NO_CURSOR" | "N_SEEK" | "N_NEVER_COMPLETE" => "reads",
         "N_WIDE_MERGE" => "search",
         "N_SPARSE_FILTER" | "E_RECIPE_CAPS" | "FEED_PULL_CAP" => "feeds",
@@ -153,6 +152,7 @@ pub fn guide_for(code: &str) -> &'static str {
         code if code.starts_with("E_NATIVE") => "native",
         code if code.strip_prefix("E_").is_some_and(|name| name.starts_with("WITNESS_")) => "witness",
         code if code.starts_with("SNAPBACK4_") => "refusals",
+        code if code.starts_with(concat!("E_", "EFFECT_")) => "effects",
         code if code.starts_with(concat!("E_", "ACTION_")) || code.starts_with(concat!("E_", "STEP_")) || code.starts_with(concat!("E_", "SERVER_")) || matches!(code, "E_SECRET_MISSING" | "E_WRITE_LABEL") => "actions",
         _ => "language",
     }
