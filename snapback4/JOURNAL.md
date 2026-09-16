@@ -22088,3 +22088,14 @@ Lead verification on `124ad2fec`:
 
 Records: LLP 3000.007 §20.17 and `llp/reviews/3000.007-agent-ergonomics-wave-8.*`.
 
+## 2026-09-16 — 0.2.24 / expo 0.2.15 published (lead)
+
+Published from main `b1d69912a` (wave 8, LLP 3000.007 §20.17) with
+`scripts/publish.mjs`: the suite had 0 failures; the production darwin binary
+is 8,721,232 B, sha256 `63b07e53…`, Developer ID
+signed and not notarized; the installed-consumer proof passed;
+`snapback4@0.2.24` and `snapback4-darwin-arm64@0.2.24` at 06:16 UTC, the
+xcframework rebuilt, and `snapback4-expo@0.2.15` at 06:18 UTC.
+
+Next: the eighth Astra-medium calibration on these pins.
+
