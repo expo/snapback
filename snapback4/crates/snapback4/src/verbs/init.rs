@@ -8,12 +8,12 @@ use std::{io::Write, path::Path};
 pub fn init(options: &Options) -> i32 {
     let recipe = options.flags.get("recipe");
     let prefix = options.flags.get("prefix");
-    if options.positionals.len() > 1 || (options.flags.contains_key("online") && options.flags.contains_key("expo")) || recipe.is_some_and(|name| name != "feeds") || prefix.is_some_and(|p| recipe.is_none() || !snapback4_lang::recipe::valid_prefix(p)) {
-        eprintln!("usage: snapback4 init [dir] [--online|--expo] [--recipe feeds [--prefix <name>] [--authors N --edges N]]");
+    if options.positionals.len() > 1 || (options.flags.contains_key("online") && options.flags.contains_key("expo")) || recipe.is_some_and(|name| !matches!(name.as_str(), "feeds" | "search")) || prefix.is_some_and(|p| recipe.is_none() || !snapback4_lang::recipe::valid_prefix(p)) {
+        eprintln!("usage: snapback4 init [dir] [--online|--expo] [--recipe feeds|search [--prefix <name>] [--authors N --edges N]]");
         return 2;
     }
     let sizing = options.flags.contains_key("authors") || options.flags.contains_key("edges");
-    if sizing && recipe.is_none() {
+    if sizing && recipe.map(String::as_str) != Some("feeds") {
         eprintln!("E_RECIPE_CAPS: --authors and --edges require --recipe feeds; see snapback4 guide feeds");
         return 2;
     }
@@ -26,7 +26,7 @@ pub fn init(options: &Options) -> i32 {
     let expo = options.flags.contains_key("expo");
     let recipe_only = recipe.is_some() && !expo && !online && dir.join("snapback/schema.q").is_file();
     let mut files = if recipe_only { Vec::new() } else if expo { expo_files() } else if online { online_files() } else { vec![("snapback/schema.q", snapback4_lang::guide::TEMPLATE.to_owned())] };
-    if recipe.is_some() {
+    if recipe.map(String::as_str) == Some("feeds") {
         let prefix = prefix.map(String::as_str).unwrap_or("");
         let source = match snapback4_lang::recipe::following_sized(prefix, "feed", caps) {
             Ok(source) => source,
@@ -43,6 +43,19 @@ pub fn init(options: &Options) -> i32 {
             client = client.replace(&format!("api.feed.{name}"), &format!("api.feed.{}", snapback4_lang::recipe::prefixed_name(prefix, name)));
         }
         files.push(("src/following.ts", client));
+    }
+    if recipe.map(String::as_str) == Some("search") {
+        let prefix = prefix.map(String::as_str).unwrap_or("");
+        let source = match snapback4_lang::recipe::search(prefix, "search") {
+            Ok(source) => source,
+            Err(error) => { eprintln!("init: {error}"); return 1; }
+        };
+        files.push(("snapback/search.q", source));
+        let mut client = include_str!("init/search.ts").to_owned();
+        for name in ["searchChats", "searchChatBatch"] {
+            client = client.replace(&format!("api.search.{name}"), &format!("api.search.{}", snapback4_lang::recipe::prefixed_name(prefix, name)));
+        }
+        files.push(("src/search.ts", client));
     }
     // @ref LLP 3000.007#20.2 — installed packages can receive a starter; only conflicting required entries refuse.
     for (name, text) in &mut files {
@@ -89,7 +102,7 @@ pub fn init(options: &Options) -> i32 {
     }
     if let Err(error) = preflight_parents(&dir.join(".gitignore")) { eprintln!("init: {error}"); return 1; }
     if recipe.is_some() {
-        if let Err(error) = check_recipe(dir, &files) { eprintln!("init: {error}"); return 1; }
+        if let Err(error) = check_recipe(dir, &files, recipe.unwrap()) { eprintln!("init: {error}"); return 1; }
     }
     let mut created = Vec::new();
     let mut write = || -> std::io::Result<()> {
@@ -119,8 +132,9 @@ pub fn init(options: &Options) -> i32 {
         }
         return 2;
     }
-    let cap_summary = if recipe.is_some() { format!(" — caps: {}", caps.summary()) } else { String::new() };
-    println!("init: wrote {} files in {} — {}{}{cap_summary} — next: `snapback4 check`, then `snapback4 dev`{}", files.len(), dir.display(), if recipe_only { "Following recipe" } else if expo { "Expo: native when available, online in Expo Go" } else if online { "online-only" } else { "local-first" }, if recipe.is_some() && !recipe_only { " + Following recipe" } else { "" }, if expo || online { "; see README.md" } else { "" });
+    let cap_summary = if recipe.map(String::as_str) == Some("feeds") { format!(" — caps: {}", caps.summary()) } else { String::new() };
+    let recipe_label = if recipe.map(String::as_str) == Some("search") { "bounded server search recipe" } else { "Following recipe" };
+    println!("init: wrote {} files in {} — {}{}{cap_summary} — next: `snapback4 check`, then `snapback4 dev`{}", files.len(), dir.display(), if recipe_only { recipe_label } else if expo { "Expo: native when available, online in Expo Go" } else if online { "online-only" } else { "local-first" }, if recipe.is_some() && !recipe_only { format!(" + {recipe_label}") } else { String::new() }, if expo || online { "; see README.md" } else { "" });
     // @ref LLP 3000.007#6.8 — measure fixture acquisition when the recipe is installed; ordinary checks stay quiet.
     if recipe.is_some() { println!("cold rows: snapback4 test --residency --fixture <fixture-directory> --as <principal>"); }
     0
@@ -140,7 +154,7 @@ fn preflight_parents(path: &Path) -> Result<(), String> {
 }
 
 // @ref LLP 3000.007#20.3 — installing the Following module must preserve a compilable application.
-fn check_recipe(dir: &Path, files: &[(&str, String)]) -> Result<(), String> {
+fn check_recipe(dir: &Path, files: &[(&str, String)], name: &str) -> Result<(), String> {
     let project = crate::project::Project { root: dir.to_path_buf() };
     let mut sources = match project.sources() {
         Ok(sources) => sources,
@@ -149,7 +163,8 @@ fn check_recipe(dir: &Path, files: &[(&str, String)]) -> Result<(), String> {
     };
     // Compilation alone cannot catch a helper that binds ahead of a builtin.
     // Check the syntax-selected names left unrenamed before adding any files.
-    let recipe = files.iter().find(|(name, _)| *name == "snapback/feed.q").unwrap();
+    let recipe_file = if name == "search" { "snapback/search.q" } else { "snapback/feed.q" };
+    let recipe = files.iter().find(|(name, _)| *name == recipe_file).unwrap();
     let references = snapback4_lang::recipe::unrenamed_references(&recipe.1)?;
     for (file, text) in &sources {
         let (document, _) = snapback4_lang::parse_document(file, text);
@@ -162,7 +177,7 @@ fn check_recipe(dir: &Path, files: &[(&str, String)]) -> Result<(), String> {
             .chain(document.actions.iter().map(|d| ("action", &d.name, &d.site)))
             .chain(document.schedules.iter().map(|d| ("schedule", &d.name, &d.site))) {
             if references.contains(name) {
-                return Err(format!("recipe cannot be installed; no files written\n  {kind} {name} in {}:{}:{} would shadow the recipe's unrenamed reference `{name}` in snapback/feed.q\n  rename the app declaration `{name}` and its callers, then run init again", project.schema_dir().join(&site.file).display(), site.line, site.col));
+                return Err(format!("recipe cannot be installed; no files written\n  {kind} {name} in {}:{}:{} would shadow the recipe's unrenamed reference `{name}` in {recipe_file}\n  rename the app declaration `{name}` and its callers, then run init again", project.schema_dir().join(&site.file).display(), site.line, site.col));
             }
         }
     }
@@ -173,13 +188,14 @@ fn check_recipe(dir: &Path, files: &[(&str, String)]) -> Result<(), String> {
     // here, without changing the language lane's diagnostic contract.
     let mut declarations = std::collections::BTreeMap::new();
     let mut collisions = Vec::new();
+    let retry = if name == "search" { "search --prefix history" } else { "feeds --prefix feed" };
     for (file, text) in &sources {
         let (document, _) = snapback4_lang::parse_document(file, text);
         for (kind, name, site) in document.tables.into_iter().map(|t| ("table", t.name, t.site))
             .chain(document.maintains.into_iter().map(|m| ("maintain", m.name, m.site))) {
             let location = format!("{}:{}:{}", project.schema_dir().join(&site.file).display(), site.line, site.col);
             if let Some((previous_kind, previous)) = declarations.get(&name) {
-                collisions.push(format!("  {previous_kind} {name} in {previous} collides with {kind} {name} in {location}\n  run `snapback4 init --recipe feeds --prefix feed` to keep the app's declarations and rename the recipe"));
+                collisions.push(format!("  {previous_kind} {name} in {previous} collides with {kind} {name} in {location}\n  run `snapback4 init --recipe {retry}` to keep the app's declarations and rename the recipe"));
             } else { declarations.insert(name, (kind, location)); }
         }
     }

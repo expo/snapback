@@ -4,6 +4,9 @@ For 100–1,000 memberships, choose full device holdings for cheap offline
 search, or walk bounded chat batches on the server for history that is not
 held. The earlier `everywhere` example discovers only its first 50 chats;
 its result cursor does not advance membership discovery.
+For a wired server walk, run `snapback4 init --recipe search` and
+`snapback4 check`; the installed helper manages both cursors and stops on
+any cut. The installable backend and usage are below.
 
 ```quarry
 table members:
@@ -150,3 +153,62 @@ maintained-inbox benchmark. A `maintain` grouped from messages does not
 expand one source into its membership audience. This recipe therefore
 keeps shared messages and recommends the two forms measured above; no
 per-reader inbox is installed.
+
+### Install the bounded server walk
+
+Held search remains the UI path for acquired history. For optional server
+history, run `snapback4 init --recipe search`, then `snapback4 check`.
+This installs the following exact backend as `snapback/search.q` and a typed
+`src/search.ts` helper, using the same installer as `--recipe feeds`.
+It adds to an existing project or creates the normal starter in an empty
+directory. `--prefix history` renames its declarations and the helper's API
+references when the app already has `members` or `messages`; no files are
+written on a collision. These online-only example tables acquire no extra
+rows. In an existing chat app, replace their declarations and references
+with the app's membership and message tables and matching indexes; keep the
+rule and both membership bounds aligned. The recipe exposes reads only;
+use the app's authorized mutations to populate its tables, never a second
+unrestricted write API. It does not copy the app's messages automatically.
+
+```quarry
+table members:
+  roomId: id
+  principal: principal
+  unique byRoomPrincipal: roomId, principal
+  by byPrincipalRoom: principal, roomId, id
+  cap 100 by roomId
+  read <- exists members[.roomId, viewer]
+  online only
+
+table messages:
+  roomId: id
+  body: text <=4000
+  at: time
+  by byRoomWords: roomId, words(body), at, id
+  read <- exists members[.roomId, viewer]
+  online only
+
+query searchChats(c: cursor ?):
+  return members[viewer] after c first 50 by byPrincipalRoom
+
+query searchChatBatch(q: text <=100, batch: cursor ?, c: cursor ?):
+  return merge messages matching q after c last 20 by byRoomWords:
+    [m.roomId] for m in members[viewer] after batch first 50 by byPrincipalRoom
+```
+
+Call `for await (const step of searchServer(client, text))` using the
+export from `src/search.ts` and your app's client. A step has `phase`
+(`memberships` on discovery failure, otherwise `results`), the original
+`read`, the batch start, and `finished`. Render its loading/denied/data
+states and preserve `read.complete`, `read.cut` and `read.fresh`.
+Only the last successful result page has `finished: true`; an empty
+intermediate batch still advances to the next membership page.
+The helper streams pages without accumulating the whole result in memory.
+Group by `roomId` and deduplicate by `id`; ordering is within each batch,
+not globally across batches. Breaking the loop cancels further requests.
+
+An incomplete or stale page stops the helper at its current batch; it never
+advances a meter- or word-cut batch, even if a cursor is present. Narrow the
+term or reduce **both** `first 50` bounds and restart; do not call a stopped
+walk exhaustive. Restart on membership changes and refresh after concurrent
+message changes: this remains a live walk, not a multi-request snapshot.

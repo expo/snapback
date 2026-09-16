@@ -24796,3 +24796,236 @@ wrote the four commonest (`E_QUARRY_SYNTAX`, `E_QUARRY_UNKNOWN`, `E_QUARRY_PLACE
 and censused the rest — the list by card is in the W10R2 entry above. That census is
 wave 11's largest single item: until it is closed, `why <CODE>` answers about half of
 all refusals with a card opening rather than an explanation.
+
+## 2026-09-16 — W11c: install the bounded search walk; rank measured acquisition by table
+
+Base: `e08f1573c08a09e367876eff011ffd9824fee527` (`sb4/w11c`). Read the
+0.2.26 friction review's H3 and H5 and the governing Snapback 4 rules and
+LLP 3000.007 §§6.8, 14 and 18.1. This is adoption and measurement only:
+no ceiling, engine, serialized value form or existing corpus case changed.
+
+`init --recipe search` now uses the feeds recipe's existing installation,
+prefixing, collision preflight and compile-before-write machinery. It installs
+`snapback/search.q` directly from the search card's new server-only block,
+plus `src/search.ts`, a typed async generator bound to the generated API.
+The backend pages memberships 50 at a time and matches 20 results per page.
+The helper keeps membership and result cursors separate, continues past empty
+batches, and never advances an incomplete, stale, loading or denied batch.
+It preserves the original Read and only marks the final successful page
+`finished: true`. Meter and word cuts remain unfinished, even if a future
+reply were to carry a cursor. Held search remains the UI path. The card and
+README explain how an app connects its authorized membership/message tables,
+why prefixing alone does not copy existing app data, per-batch ordering,
+restart on membership changes, and changing both bounds together. There was
+no newly awkward Quarry expression: the already shipped two-cursor form
+needed adoption wiring, not a language or engine change.
+
+`test --residency` now shows the eight largest table/persona pairs by acquired
+compact JSON bytes (then rows), a summed remainder and reconciled totals.
+`--verbose` retains every table, static facts, notes and the query-meter run.
+`check --residency --fixture ... --as ...` uses the same extracted fixture
+loader and snapshot report. Without a fixture, check inspects the active
+stored schema read-only; it neither adopts current source nor reports an
+unadopted maintain's absent rows as an acquisition measurement. Without a
+store it says not measured and prints the fixture command beside the facts.
+A two-persona test verifies authorization, horizons, unchanged database bytes,
+and the distinction between current fixture source and active store schema.
+The linked command reference and prediction card were minimally updated for
+`--verbose` where they promise the full facts view.
+
+Measurements (default ceilings throughout):
+
+- Installed search: 500 memberships, 12,000 expected hits, 10 membership
+  batches, 600 result pages, maximum 1,201 examined per result page,
+  396,149 examined across discovery and the complete walk. Exact ids,
+  per-batch ordering, no duplicates and exclusion of the unreadable chat
+  are asserted. The single merge examined 8,358 on its first page and was
+  incomplete with no cursor. The ledger includes attempted charges after
+  the unchanged 8,192 ceiling; this is not a raised ceiling.
+- A real 50-lane meter-cut batch examined 8,202; the word-cut fixture
+  examined 1,650. Both were incomplete and had no continuation. The installed
+  TypeScript helper separately proves that meter, words and undisclosed-cut
+  reads never advance to a saved next membership batch.
+- The deliberately lopsided acquisition fixture has 101 synced tables.
+  `zzPayload`: **10 rows, 10,210 bytes**, first in both reports.
+  Each `small000` through `small099`: **1 row, 21 bytes**.
+  The seven shown small tables contribute **7 rows, 147 bytes**; the other
+  93 tables contribute **93 rows, 1,953 bytes**.
+  Total: **110 rows, 12,310 bytes**, identical to the base command's total.
+  Default test stdout shrank from **210 to 14 lines**; check uses **15 lines**.
+  These are actual cold-snapshot JSON payload bytes, not wire framing or RSS.
+
+Verification commands (Cargo and Node commands below ran from `snapback4/`,
+with `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`; suite,
+ref-check and caps commands ran from the repository root with that PATH).
+Full command output was retained under `/tmp/w11c-*.log` for this session.
+
+The two CLI regressions were written and run on the base before the fix:
+
+```sh
+cargo test -p snapback4 --test init --test check --no-fail-fast w11c_ -- --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 51 filtered out; finished in 1.34s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+```
+
+The same command after implementation:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 51 filtered out; finished in 5.52s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.07s
+```
+
+A subsequent acceptance-test iteration passed check 1/1 and failed init
+1/2 because the new test supplied the `batch` argument to `wide`, which
+correctly refused `E_INPUT: wide takes no argument batch`. The test's
+argument builder was corrected; no product change was needed for that error.
+The expanded CLI suites then passed:
+
+```sh
+cargo test -p snapback4 --test init --test check --no-fail-fast -- --nocapture
+```
+
+```text
+test result: ok. 53 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.02s
+test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 43.32s
+```
+
+The installed helper regression was also red before implementation:
+
+```sh
+node --test --test-name-pattern='Search recipe' packages/snapback4/test/init-recipe.test.mjs
+```
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+```
+
+The first `node --test packages/snapback4/test/init-recipe.test.mjs`
+implementation run had `ℹ tests 2`, `ℹ pass 1`, `ℹ fail 1`:
+TypeScript required explicit `Read<ResultOf<typeof api...>>` annotations
+on the two loop reads (TS7022). Those annotations were added.
+The first combined recipe/residency command had `ℹ tests 3`, `ℹ pass 2`,
+`ℹ fail 1` because the package had not been built (`dist/local.js` missing).
+After the suite's package build, the same targeted command passed:
+
+```sh
+node --test packages/snapback4/test/init-recipe.test.mjs packages/snapback4/test/residency.test.mjs
+```
+
+```text
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2212.781209
+```
+
+The guide ran twice (the final pass includes the last command-reference edits):
+
+```sh
+cargo test -p snapback4-lang --test guide -- --nocapture
+```
+
+```text
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+```
+
+Required full suite:
+
+```sh
+bash snapback4/scripts/test.sh
+```
+
+```text
+-- ok: cargo build (4 s)
+-- ok: wasm build (22 s)
+-- ok: package typecheck (0 s)
+-- ok: package build (1 s)
+-- ok: chat app check (2 s)
+-- FAIL: cargo test (1256 s)
+-- ok: chat app typecheck (0 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (14 s)
+ℹ tests 485
+ℹ pass 484
+ℹ fail 1
+-- FAIL: client tests (75 s)
+== 2 failure(s) in 1285 s
+```
+
+Rust summaries total **1,221 passed, 13 failed, 4 ignored**. All 13 failures
+are native fixture builds, before the assertions can run: eight in
+`snapback4-device --test native_reads` and five in `snapback4-sim --test native`.
+Both were rerun in isolation and reproduced the same external cache refusal:
+
+```text
+error: failed to open `/Users/ccheever/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/unicode-ident-1.0.25.crate`
+
+Caused by:
+  Operation not permitted (os error 1)
+```
+
+```sh
+cargo test -p snapback4-device --test native_reads -- --nocapture
+cargo test -p snapback4-sim --test native -- --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.60s
+test result: FAILED. 2 passed; 5 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.37s
+```
+
+The one client failure is `React hooks and reference-app lifetimes` in
+`react.test.mjs`, Chromium `signal=SIGABRT` under the sandbox. No client
+concurrency rerun was needed: no other client test failed. The native cache
+permission failures are additional observed environment limitations, not a
+claim of a base product failure. The lead needs an outside-sandbox rerun for
+these and Chromium; this lane does not claim a green complete battery.
+The slow golden/ownership and hidden-filter observation tests passed.
+
+```sh
+./ref-check --verbose
+```
+
+```text
+ref-check: ok — 481 LLP docs, 9033 refs in 23989 files, 0 errors, 0 unchecked
+```
+
+The optional `node scripts/caps.mjs` reported:
+
+```text
+  oversize files: 205 of 204 allowed by baseline
+
+  cap:lines
+    crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs is 1504 lines, over the cap of 1500.
+    Baseline allows 204 oversize files; there are 205.
+
+1 violation.
+```
+
+That unrelated file was verified byte-for-byte identical to the named base
+commit above; it was not edited. Every changed code file is below 1,500
+lines (largest: `guide.rs`, 1,475 lines). An initial Cargo command was
+mistakenly launched from the repository root and stopped at `ibex-runtime`
+dependency resolution before running tests; it was immediately rerun from
+`snapback4/`. No root files changed.
+
+All requested implementation is complete. No new E_/N_ code or diagnostic
+text was introduced; the init usage now lists `feeds|search`. No existing
+application form was removed. No out-of-scope source, ceiling, value model,
+corpus case, lockfile or generated publication artifact changed. No commit,
+push, tag, publication, sub-agent, clone or remote execution. `git diff --check`
+passed. The previous journal bytes were checked against HEAD before this
+single append.

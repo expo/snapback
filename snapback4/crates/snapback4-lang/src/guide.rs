@@ -726,7 +726,7 @@ Suppression is reader-dependent, even for an uncapped `sync public` table.
 Eligible mutations that require whole-partition coverage can suppress this
 advice. An absent note does not certify bounded acquisition or a safe
 cold-start size.
-Inspect the table's `sync`, horizon and group `cap` with `check --residency`.
+Inspect the table's `sync`, horizon and group `cap` with `check --residency --verbose`.
 A snapshot arrives in pages the client
 asks for 4,000 events at a time (2,000 by default on the wire, 10,000 at
 most), each applied in its own transaction. `POST /sync` takes JSON
@@ -808,7 +808,7 @@ mutation post(body: text <=200):
   insert notices { body, author: viewer, at: now }
 ```
 
-`check --residency` prints two tables of facts: each table's audience and
+`check --residency --verbose` prints two tables of facts: each table's audience and
 horizon (inferred audiences say "from the read rule"; maintains name their
 source), then operations and their read sites: held, horizon, or server.
 Sites name the read, write or rule's file:line:column, including expanded
@@ -842,9 +842,15 @@ that would stop predicting if the maintain goes online only. Repeats share one
 note with a line and source location for every maintain. Check prints these
 facts without pre-adoption counts: a new maintain has no stored rows yet. Run
 `test --residency --fixture dir --as alice` to measure cold rows and compact
-JSON row bytes per synced table and persona, plus totals and aggregate row
-counts. Facts are labelled facts; measurements exclude transport framing
-and are not estimates for another fixture.
+JSON row bytes. The default report shows the eight costliest table/persona
+pairs by bytes (then rows), one summed remainder and reconciled totals.
+`check --residency --fixture dir --as alice` prints the same bounded report.
+Without a fixture, check measures the active dev-store schema read-only;
+it never adopts current source for measurement. With no store it says not
+measured and names the fixture command. Add `--verbose` for every table,
+facts and notes (and on test, query meters and aggregate row counts).
+Measurements exclude transport framing, are not process RSS, and are not
+estimates for another fixture.
 
 An observed server-run query re-runs after commits touching its tables.
 Offline it returns its last server answer, held in memory for this client's
@@ -1346,7 +1352,7 @@ like any principal, so the ranker is admitted and nobody else is; with
 its token a worker claims effects (guide effects) and runs any operation
 a rule admits it to.
 An audience read rule may add `or viewer = 'service:ranker'`; sync ignores
-service grants, and `check --residency` lists them without changing any device's partition.
+service grants, and `check --residency --verbose` lists them without changing any device's partition.
 
 An application that authenticates its own accounts — a phone number it
 verified, a member of its own directory — mints their sessions through its

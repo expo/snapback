@@ -20,6 +20,7 @@ pub mod witness;
 pub use init::init;
 pub use sql::sql;
 mod residency;
+mod test_fixture;
 mod adoption;
 
 pub struct Options {
@@ -178,18 +179,29 @@ pub fn check(options: &Options) -> i32 {
         }
     };
     if let Err(error) = residency::remember(&project, &bound) { eprintln!("cannot write residency facts: {error}"); return 2; }
+    let acquisition = if options.flags.contains_key("residency") {
+        match residency::at_check(&project, &bound, options) {
+            Ok(report) => report,
+            Err(error) => { eprintln!("residency measurement failed: {error}"); return 1; }
+        }
+    } else { None };
+    let details = acquisition.is_none() || options.flags.contains_key("verbose");
     let elapsed = started.elapsed();
     let synced = bound.schema.synced().count();
     if options.json {
-        println!("{}", json!({ "ok": true, "tables": bound.schema.tables.len(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
+        println!("{}", json!({ "ok": true, "tables": bound.schema.tables.len(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
     } else {
         println!("check: ok — {} tables ({synced} synced), {} operations, no problems{}, {:.1} ms{}", bound.schema.tables.len(), bound.programs.len(), if bound.notes.is_empty() { String::new() } else { format!(", {} note{}", bound.notes.len(), if bound.notes.len() == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0, match &native { Some(b) => format!("; native: {} → {} ({} B, {} ms)", b.jobs.join(", "), b.path.display(), b.bytes, b.ms), None => String::new() });
-        for report in diagnostic_reports(&bound.notes, "note: ", true) {
-            println!("{report}");
+        if details {
+            for report in diagnostic_reports(&bound.notes, "note: ", true) { println!("{report}"); }
         }
     }
-    if !options.json && let Some(summary) = snapback4_lang::bind::residency::prediction_summary(&bound) { println!("{summary}"); }
-    if options.flags.contains_key("residency") && !options.json { println!("{}", residency::facts(&bound)); }
+    if details && !options.json && let Some(summary) = snapback4_lang::bind::residency::prediction_summary(&bound) { println!("{summary}"); }
+    if details && options.flags.contains_key("residency") && !options.json { println!("{}", residency::facts(&bound)); }
+    if !options.json && let Some(report) = &acquisition { println!("{report}"); }
+    if !options.json && options.flags.contains_key("residency") && acquisition.is_none() {
+        println!("residency (measurements): not measured — no dev store; use check --residency --fixture <fixture-directory> --as <principal>");
+    }
     if !options.json && !options.flags.contains_key("residency") {
         for (name, fact) in bound.schema.operations.iter().filter(|(_, fact)| fact.held) {
             println!("{}", snapback4_lang::bind::residency::operation_lines(name, fact));
@@ -723,83 +735,15 @@ pub fn why(options: &Options) -> i32 {
 pub fn test(options: &Options) -> i32 {
     let project = project_or_exit();
     let bound = compile_or_exit(&project, options.json);
-    // A fixture runs against a fresh store in memory, so every run reads
-    // the fixture and nothing else; without one, the project's dev store.
-    let mut engine = if options.flags.contains_key("fixture") {
-        let mut fixture_schema = bound.schema.clone();
-        if options.flags.contains_key("residency") { fixture_schema.maintains.clear(); }
-        match snapback4_core::Engine::memory(fixture_schema, bound.programs.iter().map(|p| p.program.clone())) {
-            Ok(engine) => engine,
-            Err(error) => {
-                eprintln!("cannot open a store: {error}");
-                return 2;
-            }
-        }
-    } else {
-        match project.open_engine(&bound) {
-            Ok(engine) => engine,
-            Err(error) => {
-                eprintln!("cannot open the store: {error}");
-                return 2;
-            }
-        }
+    let mut engine = match test_fixture::engine(&project, &bound, options) {
+        Ok(engine) => engine,
+        Err(error) => { eprintln!("{error}"); return 1; }
     };
-    if let Some(fixture) = options.flags.get("fixture") {
-        let started = Instant::now();
-        let mut loaded = 0;
-        let entries = match std::fs::read_dir(fixture) {
-            Ok(entries) => entries,
-            Err(error) => { eprintln!("cannot read fixture directory {fixture}: {error}"); return 1; }
-        };
-        for entry in entries {
-            let entry = match entry {
-                Ok(entry) => entry,
-                Err(error) => { eprintln!("cannot read fixture directory {fixture}: {error}"); return 1; }
-            };
-            let name = entry.file_name().to_string_lossy().to_string();
-            let Some(table) = name.strip_suffix(".jsonl") else { continue };
-            let Some(definition) = bound.schema.tables.get(table).cloned() else { continue };
-            let text = match std::fs::read_to_string(entry.path()) {
-                Ok(text) => text,
-                Err(error) => { eprintln!("cannot read fixture file {}: {error}", entry.path().display()); return 1; }
-            };
-            let mut rows = Vec::new();
-            for line in text.lines().filter(|l| !l.trim().is_empty()) {
-                let json: Json = match serde_json::from_str(line) {
-                    Ok(json) => json,
-                    Err(error) => {
-                        eprintln!("{name}: {error}");
-                        return 1;
-                    }
-                };
-                match wire::row_from_json(&definition, &json) {
-                    Ok(row) => rows.push((table.to_owned(), row)),
-                    Err(why) => {
-                        eprintln!("{name}: {why}");
-                        return 1;
-                    }
-                }
-            }
-            match engine.load(rows) {
-                Ok(count) => loaded += count,
-                Err(error) => {
-                    eprintln!("{name}: {error}");
-                    return 1;
-                }
-            }
-        }
-        if options.flags.contains_key("residency") {
-            if let Err(error) = engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())) { eprintln!("cannot build fixture maintains: {error}"); return 1; }
-        }
-        println!("test: loaded {loaded} rows from {fixture} in {:.1} s", started.elapsed().as_secs_f64());
-    }
-    let personas: Vec<String> = match options.flags.get("as") {
-        Some(persona) => vec![persona.clone()],
-        None if bound.personas.is_empty() => vec!["alice".into()],
-        None => bound.personas.clone(),
-    };
+    let personas = residency::personas(&bound, options);
     if options.flags.contains_key("residency") {
-        if let Err(error) = residency::measure(&mut engine, &bound, &personas) { eprintln!("residency measurement failed: {error}"); return 1; }
+        let verbose = options.flags.contains_key("verbose");
+        if let Err(error) = residency::measure(&mut engine, &bound, &personas, verbose) { eprintln!("residency measurement failed: {error}"); return 1; }
+        if !verbose { return 0; }
     }
     let ceilings = engine.ceilings();
     let mut failures = 0;

@@ -19,8 +19,8 @@ use std::process::ExitCode;
 
 const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on every device
 
-  init [dir] [--online|--expo] [--recipe feeds [--prefix <name>] [--authors N --edges N]]  start a project or add the Following recipe
-  check [--cost|--residency|--fix|--json|--verbose] [--store path]  compile snapback/*.q; check store adoption; write types; build native jobs; --verbose includes redundant cascades
+  init [dir] [--online|--expo] [--recipe feeds|search [--prefix <name>] [--authors N --edges N]]  start a project or add a feed/search recipe
+  check [--cost|--residency|--fix|--json|--verbose] [--store path] [--fixture dir --as p]  compile snapback/*.q; check store adoption; write types; build native jobs; --verbose includes redundant cascades
   types                            compile and write snapback/generated/api.ts
   dev [--port N] [--bind IP] [--no-watch] [--fresh|--memory] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h]
                                       --replay: suppress new effects and hold schedules; --hold-effects: pause claims, keep effects for later; serve on 127.0.0.1:4400, re-adopting on every save; --fresh/--memory: a store in memory that dies with this process
@@ -30,7 +30,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
     --i-understand-cleartext         required for a non-loopback bind; see README proxy contract
   run <op> [json] --as <persona|principal-id> [--now <milliseconds|+duration>]   run one operation against the local store (a job runs whole, as the system)
   clock advance <duration> [--port N]  advance a running dev clock, sweep expiry and run due jobs
-  test [--fixture dir] [--as p] [--residency]    load a fixture, run every query, print the meters
+  test [--fixture dir] [--as p] [--residency [--verbose]]    load a fixture, run every query, print the meters
   why <E_CODE | op | table | id>   explain a refusal or note with its card section, an operation's cost, a table's rules, or work by id; --release <dir>, --values
   guide [keyword]                  list cards and aliases, or print one card
   data <table> [--limit N]         inspect stored rows as an administrator (bypasses read rules)

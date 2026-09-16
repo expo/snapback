@@ -9,7 +9,7 @@ that write after reload. See `guide writes` for terminal receipts and acquisitio
 `client.acquired` and `useAcquired()` say whether snapshot and catch-up finished;
 unacquired writes without a row report `queued without a row: not acquired yet`.
 
-Run `snapback4 check --residency` and `snapback4 why <op>` to see read sites:
+Run `snapback4 check --residency --verbose` and `snapback4 why <op>` to see read sites:
 - `held`: the viewer's whole synced partition, or an inherited maintain.
 - `horizon`: a synced `last N` window; a held row can be read, but a miss
   cannot prove absence beyond the horizon, so that call may queue without a row.
