@@ -267,7 +267,7 @@ impl Engine {
                 if rows_written > 0 || !events.is_empty() || !outbox.is_empty() {
                     tx.record_commit(seq, now, &head.run.name, crate::SYSTEM_PRINCIPAL, "job", &tables, rows_written)?;
                     partition::append(&tx, seq, &events)?;
-                    super::effects::record(&tx, &outbox, seq, now, self.dev_effects)?;
+                    super::effects::record(&tx, &outbox, seq, now, self.dev_effects, &self.schema)?;
                 }
                 let (next_sweep, cursor, upper) = if chunk.finished { (sweeps.len(), None, None) } else if chunk.ended { (sweep + 1, None, None) } else { (sweep, chunk.last_key, upper) };
                 let state = if next_sweep >= sweeps.len() { JobState::Done } else { JobState::Running };
@@ -383,7 +383,7 @@ fn native_chunk(tx: crate::store::Tx<'_>, schema: &crate::schema::Schema, module
             if outcome.rows_written > 0 || !outcome.events.is_empty() {
                 tx.record_commit(seq, now, &head.run.name, crate::SYSTEM_PRINCIPAL, "job", &outcome.tables, outcome.rows_written)?;
                 partition::append(&tx, seq, &outcome.events)?;
-                super::effects::record(&tx, &outcome.outbox, seq, now, dev)?;
+                super::effects::record(&tx, &outcome.outbox, seq, now, dev, schema)?;
             }
             let (state, cursor) = match step {
                 Step::Done => (JobState::Done, None),

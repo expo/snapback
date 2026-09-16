@@ -1,4 +1,8 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_EFFECT_CANCELLATION", "this effect's admitted policy forbids cancellation; inspect its state with doctor or why."),
+    ("E_EFFECT_CANCELLED", "the effect was cancelled; no further claim or settlement is admitted. External effects already performed are not undone."),
+    ("E_EFFECT_DEADLINE", "the effect's admitted deadline passed; it is terminal and will not be claimed again."),
+    ("E_EFFECT_ATTEMPTS", "the effect exhausted the admitted attempt limit after a lease expired; inspect the provider before replacing it."),
     ("E_RECIPE_CAPS", "invalid Following recipe sizing. --authors and --edges require --recipe feeds and positive 32-bit integers; edges must fit authors * 1000 followers/author, and the derived route/count cap must fit one full follower group plus its author. See guide feeds for coupled caps and acquisition costs."),
     ("FEED_PULL_CAP", "the Following recipe's reader already pulls 32 shared authors. Free a pull slot by unfollowing a shared author, then follow again. Promotion skips saturated readers instead of refusing; those readers keep old pushed entries but miss new broadcasts until they free a slot and unfollow/refollow. guide feeds."),
     ("E_QUERY_HELD", "this query is declared held and runs only on the device. Call it with the local client; for server search, use the scoped server walk in guide search, section Search every chat I'm in. A held read never falls back to the server."),

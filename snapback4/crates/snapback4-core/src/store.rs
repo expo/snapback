@@ -159,7 +159,7 @@ impl Store {
         // The outbox grew a worker protocol (leases, backoff, results); a
         // store from before it gains the columns in place, once.
         let outbox_columns: Vec<String> = conn.prepare("SELECT name FROM pragma_table_info('_outbox')")?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
-        for (column, kind) in [("lease_until", "INTEGER"), ("claimed_by", "TEXT"), ("next_at", "INTEGER"), ("result", "TEXT"), ("error", "TEXT"), ("settled_at", "INTEGER")] {
+        for (column, kind) in [("lease_until", "INTEGER"), ("claimed_by", "TEXT"), ("next_at", "INTEGER"), ("result", "TEXT"), ("error", "TEXT"), ("settled_at", "INTEGER"), ("work_spec", "TEXT"), ("deadline", "INTEGER"), ("release", "TEXT"), ("error_code", "TEXT"), ("lease_digest", "TEXT"), ("cancelled", "INTEGER NOT NULL DEFAULT 0")] {
             if !outbox_columns.iter().any(|name| name == column) {
                 conn.execute_batch(&format!("ALTER TABLE _outbox ADD COLUMN {column} {kind};"))?;
             }

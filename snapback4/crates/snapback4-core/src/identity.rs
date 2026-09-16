@@ -87,6 +87,8 @@ fn base64url(bytes: &[u8]) -> String {
     out
 }
 
+pub(crate) fn claim_token() -> Result<String, RuntimeError> { Ok(base64url(&random_bytes(32)?)) }
+
 pub(crate) fn digest(token: &str) -> String {
     format!("{:x}", Sha256::digest(token.as_bytes()))
 }

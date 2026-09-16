@@ -851,7 +851,7 @@ impl Engine {
                 read_tables.extend(tables.iter().cloned());
                 tx.record_commit(seq, now, name, &viewer, program.kind.word(), &tables, rows_written)?;
                 partition::append(&tx, seq, &events)?;
-                effects::record(&tx, &outbox, seq, now, self.dev_effects)?;
+                effects::record(&tx, &outbox, seq, now, self.dev_effects, &self.schema)?;
                 MutationOutcome { state: WriteState::Sent { seq, result }, metered, tables, events: events.len(), replayed: false }
             }
             Err(error) if error.is_refusal() => {

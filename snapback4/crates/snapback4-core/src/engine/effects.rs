@@ -9,6 +9,7 @@
 use super::Engine;
 use crate::error::RuntimeError;
 use crate::value::{Value, canonical_json};
+use crate::{identity, schema::{Schema, WorkSpec}};
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -43,6 +44,19 @@ pub struct EffectRun {
     pub result: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    #[serde(default)]
+    pub work: WorkSpec,
+    #[serde(default)]
+    pub deadline: Option<i64>,
+    #[serde(default)]
+    pub release: Option<String>,
+    #[serde(default)]
+    pub error_code: Option<String>,
+    #[serde(default)]
+    pub cancelled: bool,
+    /// Returned once on a fenced claim; only its digest is persisted.
+    #[serde(skip)]
+    pub lease_token: Option<String>,
 }
 
 /// What a worker reports back for a claimed effect.
@@ -52,17 +66,22 @@ pub enum Settled {
     Failed { error: String, retry: bool },
 }
 
-const COLUMNS: &str = "id, effect, payload, state, attempts, seq, at, next_at, lease_until, claimed_by, result, error";
+const COLUMNS: &str = "id, effect, payload, state, attempts, seq, at, next_at, lease_until, claimed_by, result, error, work_spec, deadline, release, error_code, cancelled";
+
+fn legacy_work() -> WorkSpec { let mut work = WorkSpec::default(); work.policy.backoff_ms = 4_000; work }
 
 // @ref LLP 3000.007#20.2 — dev replay counts committed emits without retaining a deliverable payload.
-pub(super) fn record(tx: &crate::store::Tx<'_>, outbox: &[super::presence::Emission], seq: u64, now: i64, dev: bool) -> Result<(), RuntimeError> {
+pub(super) fn record(tx: &crate::store::Tx<'_>, outbox: &[super::presence::Emission], seq: u64, now: i64, dev: bool, schema: &Schema) -> Result<(), RuntimeError> {
     if outbox.is_empty() { return Ok(()); }
     let replay = dev && tx.conn().prepare_cached("SELECT EXISTS(SELECT 1 FROM _meta WHERE key = 'dev:replay' AND value = 'true') AND NOT EXISTS(SELECT 1 FROM _meta WHERE key = 'release')")?.query_row([], |row| row.get(0))?;
     if replay {
         tx.conn().execute("INSERT INTO _meta(key, value) VALUES ('dev:suppressed-effects', ?1) ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + CAST(excluded.value AS INTEGER)", [outbox.len().to_string()])?;
     } else {
         for (id, effect, payload, presence) in outbox {
-            tx.conn().execute("INSERT INTO _outbox(id, seq, effect, payload, state, attempts, at, next_at) VALUES (?1, ?2, ?3, ?4, 'queued', 0, ?5, ?6)", params![id, seq as i64, effect, canonical_json(payload), now, presence.values().flatten().max()])?;
+            let work = schema.effect_specs.get(effect).cloned().unwrap_or_else(legacy_work);
+            if !work.policy.valid() { return Err(RuntimeError::Schema("the effect policy is outside its bounds".into())); }
+            let release: Option<String> = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'release'", [], |row| row.get(0)).optional()?;
+            tx.conn().execute("INSERT INTO _outbox(id, seq, effect, payload, state, attempts, at, next_at, work_spec, deadline, release) VALUES (?1, ?2, ?3, ?4, 'queued', 0, ?5, ?6, ?7, ?8, ?9)", params![id, seq as i64, effect, canonical_json(payload), now, presence.values().flatten().max(), canonical_json(&work), work.policy.deadline_ms.map(|ms| now.saturating_add(ms as i64)), release])?;
             for (principal, deadline) in presence {
                 let Some(deadline) = deadline else { continue; };
                 tx.conn().execute("INSERT INTO _effect_presence(principal, id, deadline) VALUES (?1, ?2, ?3)", params![principal, id, deadline])?;
@@ -88,6 +107,8 @@ fn read_run(row: &rusqlite::Row<'_>) -> rusqlite::Result<EffectRun> {
         claimed_by: row.get(9)?,
         result: result.and_then(|text| serde_json::from_str(&text).ok()),
         error: row.get(11)?,
+        work: row.get::<_, Option<String>>(12)?.map(|text| serde_json::from_str(&text).map_err(|e| rusqlite::Error::FromSqlConversionFailure(12, rusqlite::types::Type::Text, Box::new(e)))).transpose()?.unwrap_or_else(legacy_work),
+        deadline: row.get(13)?, release: row.get(14)?, error_code: row.get(15)?, cancelled: row.get(16)?, lease_token: None,
     })
 }
 
@@ -101,9 +122,18 @@ impl Engine {
     /// until `now + lease_ms`: oldest first, only those whose backoff has
     /// passed, each counted as an attempt. Two workers never hold one effect.
     pub fn claim_effects(&mut self, worker: &str, effect: Option<&str>, limit: usize, lease_ms: i64, now: i64) -> Result<Vec<EffectRun>, RuntimeError> {
+        self.claim_effects_inner(worker, effect, limit, lease_ms, now, false)
+    }
+
+    pub fn claim_effects_fenced(&mut self, worker: &str, effect: Option<&str>, limit: usize, lease_ms: i64, now: i64) -> Result<Vec<EffectRun>, RuntimeError> {
+        self.claim_effects_inner(worker, effect, limit, lease_ms, now, true)
+    }
+
+    fn claim_effects_inner(&mut self, worker: &str, effect: Option<&str>, limit: usize, lease_ms: i64, now: i64, fenced: bool) -> Result<Vec<EffectRun>, RuntimeError> {
         let limit = limit.clamp(1, 100) as i64;
         let lease = lease_ms.clamp(1_000, MAX_LEASE_MS);
         let tx = self.store.transaction()?;
+        expire(tx.conn(), now)?;
         let ids: Vec<String> = match effect {
             Some(effect) => tx.conn().prepare("SELECT id FROM _outbox WHERE state = 'queued' AND (next_at IS NULL OR next_at <= ?1) AND effect = ?2 ORDER BY seq, id LIMIT ?3")?.query_map(params![now, effect, limit], |row| row.get(0))?.collect::<Result<_, _>>()?,
             None => tx.conn().prepare("SELECT id FROM _outbox WHERE state = 'queued' AND (next_at IS NULL OR next_at <= ?1) ORDER BY seq, id LIMIT ?2")?.query_map(params![now, limit], |row| row.get(0))?.collect::<Result<_, _>>()?,
@@ -120,8 +150,10 @@ impl Engine {
                 tx.conn().execute("UPDATE _outbox SET state = 'satisfied', result = ?2, next_at = NULL WHERE id = ?1", params![id, canonical_json(&outcome)])?;
                 continue;
             }
-            tx.conn().execute("UPDATE _outbox SET state = 'running', attempts = attempts + 1, claimed_by = ?2, lease_until = ?3, next_at = NULL, error = NULL WHERE id = ?1", params![id, worker, now + lease])?;
-            if let Some(run) = tx.conn().query_row(&format!("SELECT {COLUMNS} FROM _outbox WHERE id = ?1"), [&id], read_run).optional()? {
+            let token = if fenced { Some(identity::claim_token()?) } else { None };
+            tx.conn().execute("UPDATE _outbox SET state = 'running', attempts = attempts + 1, claimed_by = ?2, lease_until = MIN(?3, COALESCE(deadline, ?3)), next_at = NULL, error = NULL, error_code = NULL, lease_digest = ?4 WHERE id = ?1", params![id, worker, now.saturating_add(lease), token.as_deref().map(identity::digest)])?;
+            if let Some(mut run) = tx.conn().query_row(&format!("SELECT {COLUMNS} FROM _outbox WHERE id = ?1"), [&id], read_run).optional()? {
+                run.lease_token = token;
                 claimed.push(run);
             }
         }
@@ -141,12 +173,27 @@ impl Engine {
     /// failure that goes back to the queue after a backoff (until the
     /// attempts run out) or rests as `failed` when the worker says so.
     pub fn settle_effect(&mut self, id: &str, worker: &str, settled: Settled, now: i64) -> Result<EffectRun, RuntimeError> {
+        self.settle_effect_inner(id, worker, None, false, settled, now)
+    }
+
+    /// HTTP uses this form. Unfenced legacy claims may settle without a token;
+    /// a fenced claim can never be downgraded by omitting its token.
+    pub fn settle_effect_claim(&mut self, id: &str, worker: &str, token: Option<&str>, settled: Settled, now: i64) -> Result<EffectRun, RuntimeError> {
+        self.settle_effect_inner(id, worker, token, true, settled, now)
+    }
+
+    fn settle_effect_inner(&mut self, id: &str, worker: &str, token: Option<&str>, fenced: bool, settled: Settled, now: i64) -> Result<EffectRun, RuntimeError> {
         let tx = self.store.transaction()?;
+        expire(tx.conn(), now)?;
         let Some(run) = tx.conn().query_row(&format!("SELECT {COLUMNS} FROM _outbox WHERE id = ?1"), [id], read_run).optional()? else {
             return Err(RuntimeError::Structural { code: "E_EFFECT_UNKNOWN", message: format!("no effect {id} is queued here") });
         };
         if run.state != "running" || run.claimed_by.as_deref() != Some(worker) {
             return Err(RuntimeError::Structural { code: "E_EFFECT_LEASE", message: format!("effect {id} is {} and not claimed by this worker; claim it first", run.state) });
+        }
+        if fenced {
+            let digest: Option<String> = tx.conn().query_row("SELECT lease_digest FROM _outbox WHERE id = ?1", [id], |row| row.get(0))?;
+            if digest != token.map(identity::digest) { return Err(RuntimeError::Structural { code: "E_EFFECT_LEASE", message: "settle this effect with the token of its current claim".into() }); }
         }
         match settled {
             Settled::Done { result } => {
@@ -154,8 +201,8 @@ impl Engine {
             }
             Settled::Failed { error, retry } => {
                 let error: String = error.chars().take(2_000).collect();
-                if retry && run.attempts < MAX_ATTEMPTS {
-                    tx.conn().execute("UPDATE _outbox SET state = 'queued', error = ?2, next_at = ?3, lease_until = NULL, claimed_by = NULL WHERE id = ?1", params![id, error, now + backoff_ms(run.attempts)])?;
+                if retry && run.attempts < run.work.policy.max_attempts {
+                    tx.conn().execute("UPDATE _outbox SET state = 'queued', error = ?2, next_at = ?3, lease_until = NULL, claimed_by = NULL, lease_digest = NULL WHERE id = ?1", params![id, error, now.saturating_add(run.work.policy.backoff(run.attempts))])?;
                 } else {
                     tx.conn().execute("UPDATE _outbox SET state = 'failed', error = ?2, lease_until = NULL WHERE id = ?1", params![id, error])?;
                 }
@@ -184,9 +231,21 @@ impl Engine {
     /// or stalled, and the attempt it took stays counted.
     pub fn requeue_expired_effects(&mut self, now: i64) -> Result<u64, RuntimeError> {
         let tx = self.store.transaction()?;
-        let changed = tx.conn().execute("UPDATE _outbox SET state = CASE WHEN attempts >= ?2 THEN 'failed' ELSE 'queued' END, error = COALESCE(error, 'the lease expired'), settled_at = CASE WHEN attempts >= ?2 THEN ?1 ELSE NULL END, lease_until = NULL, claimed_by = NULL, next_at = ?1 WHERE state = 'running' AND lease_until IS NOT NULL AND lease_until < ?1", params![now, MAX_ATTEMPTS as i64])?;
+        let changed = expire(tx.conn(), now)?;
         tx.commit()?;
-        Ok(changed as u64)
+        Ok(changed)
+    }
+
+    pub fn cancel_effect(&mut self, id: &str, now: i64) -> Result<EffectRun, RuntimeError> {
+        let tx = self.store.transaction()?;
+        let run = tx.conn().query_row(&format!("SELECT {COLUMNS} FROM _outbox WHERE id = ?1"), [id], read_run).optional()?.ok_or_else(|| RuntimeError::Structural { code: "E_EFFECT_UNKNOWN", message: "no effect with this id is available".into() })?;
+        if !run.work.policy.cancellable { return Err(RuntimeError::Structural { code: "E_EFFECT_CANCELLATION", message: "this effect declaration does not allow cancellation".into() }); }
+        if matches!(run.state.as_str(), "queued" | "running") {
+            tx.conn().execute("UPDATE _outbox SET state = 'failed', cancelled = 1, error = 'the effect was cancelled; external effects are not undone', error_code = 'E_EFFECT_CANCELLED', settled_at = ?2, lease_until = NULL, claimed_by = NULL, lease_digest = NULL, next_at = NULL WHERE id = ?1", params![id, now])?;
+        }
+        let run = tx.conn().query_row(&format!("SELECT {COLUMNS} FROM _outbox WHERE id = ?1"), [id], read_run)?;
+        tx.commit()?;
+        Ok(run)
     }
 
     /// Queued effects the worker could claim right now, for a long poll.
@@ -216,4 +275,16 @@ impl Engine {
         if suppressed > 0 { counts.insert("suppressed".into(), suppressed as u64); }
         Ok(counts)
     }
+}
+
+fn expire(conn: &rusqlite::Connection, now: i64) -> Result<u64, RuntimeError> {
+    let runs = conn.prepare(&format!("SELECT {COLUMNS} FROM _outbox WHERE state IN ('queued', 'running') AND (deadline <= ?1 OR (state = 'running' AND lease_until < ?1))"))?
+        .query_map([now], read_run)?.collect::<Result<Vec<_>, _>>()?;
+    for run in &runs {
+        let deadline = run.deadline.is_some_and(|deadline| deadline <= now);
+        let failed = deadline || run.attempts >= run.work.policy.max_attempts;
+        let code = if deadline { Some("E_EFFECT_DEADLINE") } else if failed { Some("E_EFFECT_ATTEMPTS") } else { None };
+        conn.execute("UPDATE _outbox SET state = ?2, error = ?3, error_code = ?4, settled_at = ?5, lease_until = NULL, claimed_by = NULL, lease_digest = NULL, next_at = ?6 WHERE id = ?1", params![run.id, if failed { "failed" } else { "queued" }, if deadline { "the effect deadline passed" } else { "the lease expired" }, code, if failed { Some(now) } else { None }, if failed { None } else { Some(now) }])?;
+    }
+    Ok(runs.len() as u64)
 }

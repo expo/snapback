@@ -389,7 +389,7 @@ fn service_of(request: &Request, shared: &Shared) -> Result<String, Refusal> {
 }
 
 fn effect_json(run: &snapback4_core::EffectRun) -> Json {
-    json!({ "id": run.id, "effect": run.effect, "payload": wire::to_json(&run.payload), "state": run.state, "attempt": run.attempts, "seq": run.seq, "at": run.at, "nextAt": run.next_at, "leaseUntil": run.lease_until, "result": run.result.as_ref().map(wire::to_json), "error": run.error })
+    json!({ "id": run.id, "effect": run.effect, "payload": wire::to_json(&run.payload), "state": run.state, "attempt": run.attempts, "seq": run.seq, "at": run.at, "nextAt": run.next_at, "leaseUntil": run.lease_until, "leaseToken": run.lease_token, "deadline": run.deadline, "cancelled": run.cancelled, "result": run.result.as_ref().map(wire::to_json), "error": run.error, "errorCode": run.error_code })
 }
 
 /// A commit outside a request: let every long poll see it.
@@ -1066,7 +1066,9 @@ fn handle(mut request: Request, shared: &Shared) {
                     Ok(worker) => worker,
                     Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
                 };
-                let claimed = if shared.hold_effects { Ok(Vec::new()) } else { lock(&shared.engine).claim_effects(&worker, effect.as_deref(), limit, lease_ms, shared.now()) };
+                let claimed = if shared.hold_effects { Ok(Vec::new()) }
+                    else if payload.get("fenced").and_then(Json::as_bool).unwrap_or(false) { lock(&shared.engine).claim_effects_fenced(&worker, effect.as_deref(), limit, lease_ms, shared.now()) }
+                    else { lock(&shared.engine).claim_effects(&worker, effect.as_deref(), limit, lease_ms, shared.now()) };
                 match claimed {
                     Ok(runs) if runs.is_empty() && Instant::now() < deadline => {
                         // Nothing due: wait for a commit (an emit), or for a
@@ -1080,6 +1082,14 @@ fn handle(mut request: Request, shared: &Shared) {
                     Ok(runs) => return respond(request, 200, json!({ "effects": runs.iter().map(effect_json).collect::<Vec<_>>() })),
                     Err(error) => { let refusal = error.refusal(); return respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
                 }
+            }
+        }
+        (Method::Post, path) if path.starts_with("/effects/") && path.ends_with("/cancel") => {
+            if let Err(why) = service_of(&request, shared) { return respond(request, 401, json!({ "denied": why })); }
+            let id = path.trim_start_matches("/effects/").trim_end_matches("/cancel");
+            match lock(&shared.engine).cancel_effect(id, shared.now()) {
+                Ok(run) => respond(request, 200, json!({ "ok": true, "effect": effect_json(&run) })),
+                Err(error) => respond(request, if error.refusal().retryable { 503 } else { 200 }, json!({ "denied": error.refusal() })),
             }
         }
         (Method::Post, path) if path.starts_with("/effects/") && (path.ends_with("/done") || path.ends_with("/failed")) => {
@@ -1101,7 +1111,8 @@ fn handle(mut request: Request, shared: &Shared) {
             } else {
                 snapback4_core::Settled::Failed { error: payload.get("error").and_then(Json::as_str).unwrap_or("the worker failed").to_owned(), retry: payload.get("retry").and_then(Json::as_bool).unwrap_or(true) }
             };
-            let outcome = lock(&shared.engine).settle_effect(&id, &worker, settled, shared.now());
+            let token = match single_header(&request, "x-snapback-effect-lease") { Ok(token) => token, Err(()) => return respond(request, 200, json!({ "denied": Refusal::new("E_EFFECT_LEASE", "schema", "send one effect claim token") })) };
+            let outcome = lock(&shared.engine).settle_effect_claim(&id, &worker, token, settled, shared.now());
             match outcome {
                 Ok(run) => respond(request, 200, json!({ "ok": true, "effect": effect_json(&run) })),
                 Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else if refusal.code == "E_EFFECT_UNKNOWN" { 404 } else { 200 }, json!({ "denied": refusal_json(&refusal) })) }

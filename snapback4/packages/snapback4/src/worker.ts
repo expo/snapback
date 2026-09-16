@@ -11,6 +11,8 @@ import type { Refusal } from "./contract.ts";
 import type { Session } from "./auth.ts";
 
 export interface Effect<Payload = unknown> {
+  /** Present on fenced claims from current cores; never a service credential. */
+  readonly leaseToken?: string;
   readonly id: string;
   readonly effect: string;
   readonly payload: Payload;
@@ -37,6 +39,8 @@ export interface EffectMeta {
 export type EffectHandler<Payload = unknown> = (payload: Payload, meta: EffectMeta) => Promise<unknown> | unknown;
 
 export interface ActionMeta {
+  /** Server clock at claim, used to anchor deadline timers across clock offsets. */
+  readonly now?: number;
   readonly id: string;
   readonly action: string;
   readonly principal: string;
@@ -111,13 +115,13 @@ export function runWorker(options: WorkerOptions): Worker {
   const redact = options.redact ?? ((message: string) => message);
   const message = (error: unknown) => redact(error instanceof Error ? error.message : String(error));
   const report = (error: unknown) => rawReport(options.redact ? new Error(message(error)) : error);
-  const post = async (path: string, body: unknown, lease?: string): Promise<unknown> => {
-    const response = await doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(lease ? { "x-snapback-action-lease": lease } : {}) }, body: JSON.stringify(body), signal: stop.signal });
+  const post = async (path: string, body: unknown, lease?: string, effectLease?: string): Promise<unknown> => {
+    const response = await doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(lease ? { "x-snapback-action-lease": lease } : {}), ...(effectLease ? { "x-snapback-effect-lease": effectLease } : {}) }, body: JSON.stringify(body), signal: stop.signal });
     return response.json();
   };
   const settle = async (effect: Effect, outcome: { result: unknown } | { error: string; retry: boolean }) => {
     const path = "result" in outcome ? `/effects/${encodeURIComponent(effect.id)}/done` : `/effects/${encodeURIComponent(effect.id)}/failed`;
-    const reply = (await post(path, outcome)) as { ok?: boolean; denied?: Refusal };
+    const reply = (await post(path, outcome, undefined, effect.leaseToken)) as { ok?: boolean; denied?: Refusal };
     if (reply.denied?.code === "E_EFFECT_LEASE") {
       // @ref LLP 3000.007#20.12 — only a recorded requeue is informational; a lost claim does not imply expiry or retry.
       const message = `effect ${effect.id} settlement refused (${reply.denied.code}): ${reply.denied.message}`;
@@ -188,7 +192,7 @@ export function runWorker(options: WorkerOptions): Worker {
     while (!stop.signal.aborted) {
       let reply: ClaimReply;
       try {
-        reply = (await post(`/${kind}/claim`, { limit: options.batch ?? 8, lease: options.lease ?? 60, wait: options.wait ?? 25, ...(kind === "effects" ? { effect: name } : { action: name, session: options.actionSessions?.[name] ?? 60 }) })) as ClaimReply;
+        reply = (await post(`/${kind}/claim`, { limit: options.batch ?? 8, lease: options.lease ?? 60, wait: options.wait ?? 25, ...(kind === "effects" ? { effect: name, fenced: true } : { action: name, session: options.actionSessions?.[name] ?? 60 }) })) as ClaimReply;
       } catch (error) {
         if (stop.signal.aborted) return;
         report(error);

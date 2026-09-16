@@ -56,6 +56,7 @@ pub struct ActionRequest {
 pub struct ActionClaim {
     pub request: ActionRequest,
     pub session: identity::Session,
+    pub now: i64,
 }
 
 pub enum ActionSettled {
@@ -247,7 +248,7 @@ impl Engine {
             };
             let session = identity::action_session(tx.conn(), &run.principal, now, now.saturating_add(duration).min(expiry).min(run.deadline.unwrap_or(i64::MAX)))?;
             tx.conn().execute("UPDATE _requests SET state = 'running', attempts = attempts + 1, claimed_by = ?2, session_digest = ?3, lease_until = ?4, next_at = NULL, error = NULL, error_code = NULL WHERE id = ?1", params![id, worker, identity::digest(&session.token), session.expires_at])?;
-            claims.push(ActionClaim { request: request(tx.conn(), &id)?.ok_or_else(unknown)?, session });
+            claims.push(ActionClaim { request: request(tx.conn(), &id)?.ok_or_else(unknown)?, session, now });
         }
         tx.commit()?;
         Ok(claims)

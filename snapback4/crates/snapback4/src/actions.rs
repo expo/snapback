@@ -36,7 +36,7 @@ fn outcome(run: &ActionRequest, replayed: bool) -> Json {
 fn claim_json(claim: &ActionClaim) -> Json {
     let run = &claim.request;
     let session = &claim.session;
-    json!({ "id": run.id, "action": run.action, "args": wire::map_to_json(&run.args), "principal": run.principal, "attempt": run.attempt, "at": run.at, "contract": run.contract, "deadline": run.deadline, "session": { "principal": session.principal, "kind": session.kind, "token": session.token, "expiresAt": session.expires_at } })
+    json!({ "id": run.id, "action": run.action, "args": wire::map_to_json(&run.args), "principal": run.principal, "attempt": run.attempt, "at": run.at, "contract": run.contract, "deadline": run.deadline, "now": claim.now, "session": { "principal": session.principal, "kind": session.kind, "token": session.token, "expiresAt": session.expires_at } })
 }
 
 fn arguments(program: &snapback4_core::Program, json: &Json) -> Result<BTreeMap<String, snapback4_core::Value>, snapback4_core::RuntimeError> {

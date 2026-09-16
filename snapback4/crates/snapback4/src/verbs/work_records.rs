@@ -16,10 +16,10 @@ pub(super) fn project(options: &Options) -> Result<Project, String> {
 }
 
 // Read optional columns by name so even a never-upgraded legacy store is inspectable.
-fn records(conn: &Connection, table: &str, id: &str) -> rusqlite::Result<Vec<Json>> {
+fn records(conn: &Connection, table: &str, key: &str, id: &str) -> rusqlite::Result<Vec<Json>> {
     let exists: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1)", [table], |row| row.get(0))?;
     if !exists { return Ok(Vec::new()); }
-    let mut query = conn.prepare(&format!("SELECT * FROM {table} WHERE id = ?1"))?;
+    let mut query = conn.prepare(&format!("SELECT * FROM {table} WHERE {key} = ?1"))?;
     let columns: Vec<String> = query.column_names().iter().map(|s| s.to_string()).collect();
     query.query_map([id], |row| {
         let mut fields = serde_json::Map::new();
@@ -65,7 +65,7 @@ pub(super) fn explain(options: &Options, id: &str) -> Result<bool, String> {
     let values = options.flags.contains_key("values");
     let mut found = false;
     for (table, kind) in [("_requests", "action"), ("_ops", "mutation"), ("_outbox", "effect")] {
-        for record in records(&conn, table, id).map_err(|e| e.to_string())? {
+        for record in records(&conn, table, "id", id).map_err(|e| e.to_string())? {
             found = true;
             let commit: Option<(String, String, i64)> = if kind != "action" && !record["seq"].is_null() {
                 conn.query_row("SELECT program, principal, at FROM _commits WHERE seq = ?1", [record["seq"].as_i64()], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?))).optional().map_err(|e| e.to_string())?
@@ -86,6 +86,9 @@ pub(super) fn explain(options: &Options, id: &str) -> Result<bool, String> {
             let error = if kind == "mutation" { &receipt["why"] } else { &record["error"] };
             println!("  last error: {}\n  error code: {}", show(error), show(&record["error_code"]));
             println!("  settled at: {}", show(if kind == "mutation" { &at } else { &record["settled_at"] }));
+            if kind != "mutation" {
+                println!("  release: {}\n  deadline: {}\n  cancelled: {}", show(&record["release"]), show(&record["deadline"]), show(&record["cancelled"]));
+            }
             if kind != "action" { println!("  commit sequence: {}", if kind == "mutation" && receipt["state"] != "sent" { "none (refused)".into() } else { show(&record["seq"]) }); }
             let args = match kind {
                 "action" => record["args"].as_str().and_then(|s| serde_json::from_str::<BTreeMap<String, snapback4_core::Value>>(s).ok()).map(|args| Json::Object(wire::map_to_json(&args))),
@@ -94,6 +97,13 @@ pub(super) fn explain(options: &Options, id: &str) -> Result<bool, String> {
             };
             describe_payload("arguments", args, values);
             describe_payload("result", if kind == "mutation" { None } else { plain(&record, "result", kind == "effect") }, values);
+            if kind == "action" {
+                println!("  contract: {}", show(&record["contract"]));
+                for step in records(&conn, "_action_steps", "invocation", id).map_err(|e| e.to_string())? {
+                    println!("  step {}: {}\n    input digest: {}\n    provider key: {}\n    admitted at: {}\n    settled at: {}", show(&step["name"]), show(&step["state"]), show(&step["input_digest"]), show(&step["provider_key"]), show(&step["at"]), show(&step["settled_at"]));
+                    describe_payload("step result", plain(&step, "result", false), values);
+                }
+            }
         }
     }
     Ok(found)
