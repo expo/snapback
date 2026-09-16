@@ -10,6 +10,8 @@
 /// The keyword cards, in the order `snapback4 guide` lists them.
 #[path = "guide/actions.rs"]
 mod actions;
+#[path = "guide/routes.rs"]
+mod routes;
 #[path = "guide/personas.rs"]
 mod personas;
 #[path = "guide/search.rs"]
@@ -23,7 +25,7 @@ mod prediction;
 #[path = "guide/discovery.rs"]
 mod discovery;
 pub use discovery::{listing, nearest};
-pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "maintains", "rules", "sync", "residency", "prediction", "evolution", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "services", "presence", "bounds", "refusals", "personas", "witness"];
+pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "maintains", "rules", "sync", "residency", "prediction", "evolution", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "bounds", "refusals", "personas", "witness"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
@@ -38,6 +40,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("migration", "evolution"), ("migrate", "evolution"), ("schema-evolution", "evolution"), ("adoption", "evolution"),
     ("sql", "personas"), ("inspect", "personas"),
     ("push", "effects"), ("notification", "effects"), ("notify", "effects"), ("worker", "effects"),
+    ("route", "routes"), ("webhook", "routes"), ("webhooks", "routes"),
     ("auth", "personas"), ("signin", "personas"), ("login", "personas"), ("session", "personas"),
     ("upload", "assets"), ("media", "assets"), ("image", "assets"), ("video", "assets"),
     ("realtime", "reads"), ("live", "reads"), ("subscribe", "reads"),
@@ -79,7 +82,7 @@ pub use templates::{TEMPLATE, TEMPLATE_ONLINE};
 pub const LANGUAGE: &str = r##"# Quarry — the language card
 
 One file, `snapback/schema.q`, holds tables, maintains, shapes, helpers,
-programs and schedules, in any order; more `.q` files beside it are modules
+programs, routes and schedules, in any order; more `.q` files beside it are modules
 (their operations are `<module>.<name>`) sharing one namespace. Schedules use that
 qualified job name too: `schedule repair every 1m: timeline.repair`; an unambiguous
 bare module job gets this rewrite from `check --fix`. Comments
@@ -439,6 +442,8 @@ action summarizeRoom(room: rooms) returns { summary: text <=4000, source: rooms,
 action scheduledSummary(periodStart: time, periodEnd: time) returns {} <- viewer = 'service:reporter'
 schedule summariesEveryDay every 1d at 08:00 as service:reporter: scheduledSummary
 effect sendDigest secrets [MAIL_API_KEY] retry 4 backoff 1m deadline 1d cancellation deny
+route roomExport: post "/room-export" wait 5s -- signed-in caller; no Quarry body or client operation
+route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM_SIGNING_KEY] retry 8 backoff 2s deadline 1h cancellation allow wait 5s
 ```
 
 Helpers expand at each call: a table-typed parameter keeps a row argument as a row (fields need no lookup), while a reference argument stays a reference.
@@ -482,7 +487,7 @@ and evaluating it once, including when it is a call or read.
 
 Cards: `snapback4 guide <keyword>` — types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,
 assets, reads, shapes, writes, programs, jobs, native, feeds, search,
-effects, actions, services, presence, bounds, refusals, personas, witness. `snapback4 why
+effects, actions, routes, services, presence, bounds, refusals, personas, witness. `snapback4 why
 <CODE>` explains a refusal.
 "##;
 
@@ -1210,6 +1215,7 @@ reads. A query, not a mutation, can be native too (LLP 3000.005 §9)."##,
         "feeds" => include_str!("guide/feeds.md"),
         "search" => search::CARD,
         "actions" => actions::CARD,
+        "routes" => routes::CARD,
         "effects" => r##"# Effects: the outside world, performed by a worker
 
 For a replay mode that must not emit notifications, run `snapback4 dev --replay`.

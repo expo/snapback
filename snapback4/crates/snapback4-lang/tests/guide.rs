@@ -87,6 +87,10 @@ fn the_language_card_compiles_and_runs() {
     assert_eq!(names, ["daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "heldRoom", "room", "helperRows", "thread", "inbox", "following", "ancestors", "digest", "mentions", "search", "everywhere", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative", "summarizeRoom", "scheduledSummary"]);
     assert_eq!(bound.schema.effects, ["notify", "sendDigest"]);
     assert_eq!(bound.schema.schedules.len(), 2);
+    assert_eq!(bound.schema.routes.keys().map(String::as_str).collect::<Vec<_>>(), ["providerEvent", "roomExport"]);
+    assert_eq!(bound.schema.routes["providerEvent"].service.as_deref(), Some("service:reporter"));
+    assert_eq!(bound.schema.routes["roomExport"].service, None);
+    assert!(!bound.schema.operations.contains_key("roomExport"));
     assert_eq!(bound.personas, ["alice", "bob", "carol"]);
     let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
     let (alice, bob) = ("dev:alice", "dev:bob");

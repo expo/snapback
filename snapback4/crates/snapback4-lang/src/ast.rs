@@ -347,6 +347,16 @@ pub struct ActionDecl {
     pub site: Site,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RouteDecl {
+    pub name: String,
+    pub path: String,
+    pub service: Option<String>,
+    pub work: WorkDecl,
+    pub wait_ms: u64,
+    pub site: Site,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct WorkDecl {
     pub secrets: Vec<String>,
@@ -412,6 +422,7 @@ pub struct Document {
     pub functions: Vec<FunctionDecl>,
     pub programs: Vec<ProgramDecl>,
     pub actions: Vec<ActionDecl>,
+    pub routes: Vec<RouteDecl>,
     pub schedules: Vec<ScheduleDecl>,
     /// Personas declared with `use personas alice, bob`.
     pub personas: Vec<String>,

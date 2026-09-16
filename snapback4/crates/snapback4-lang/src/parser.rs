@@ -12,6 +12,7 @@ mod maintains;
 mod expected;
 mod programs;
 mod actions;
+mod routes;
 
 fn precedence(op: &str) -> Option<u8> {
     Some(match op {
@@ -39,7 +40,7 @@ struct Parser {
     document: Document,
 }
 
-const TOP_LEVEL: [&str; 17] = ["use", "table", "maintain", "channel", "query", "mutation", "job", "action", "effect", "shape", "fn", "proc", "cursor", "schedule", "index", "unique", "deliver"];
+const TOP_LEVEL: [&str; 18] = ["use", "table", "maintain", "channel", "query", "mutation", "job", "action", "route", "effect", "shape", "fn", "proc", "cursor", "schedule", "index", "unique", "deliver"];
 
 impl Parser {
     fn document(&mut self) {
@@ -60,6 +61,7 @@ impl Parser {
         let token = self.peek().clone();
         match token.value.as_str() {
             "action" => self.parse_action(),
+            "route" => self.parse_route(),
             "use" => self.parse_use(),
             "table" => {
                 let table = self.parse_table()?;

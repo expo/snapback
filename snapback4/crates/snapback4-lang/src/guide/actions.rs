@@ -20,7 +20,9 @@ managed row ID so current read rules govern it.
 `check` and `dev` generate both the client's `Action<A, R>` in `api.ts` and
 the handler's `Actions` signatures in `server.ts`, under `snapback/generated/`.
 Handlers use flat qualified keys (`"mail.invite"` for an action in `mail.q`);
-every declared action needs a handler. An optional `<-` rule uses `allow`, `deny` or
+every declared action needs a handler. If no actions are declared, omit the
+`actions` registry; declared HTTP routes use a separate `routes` registry
+(guide routes). An optional `<-` rule uses `allow`, `deny` or
 comparisons of `viewer` with principal literals (`and`, `or`, `not`);
 it cannot read tables or arguments. Actions always run on the server and
 never predict. `client.act(api.invite, { email })` returns `Act`:
