@@ -177,6 +177,7 @@ impl RuntimeError {
             Self::Input(_) | Self::Value(_) | Self::AggregateOverflow { .. } => "input",
             Self::Structural { code: "E_WRITE_ID_REUSE" | "E_ID_REUSED", .. } => "input",
             Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE" | "E_ACTION_AUTHORITY") => "action",
+            Self::Structural { code, .. } if code.starts_with("E_ROUTE_") => "route",
             Self::Structural { code: "E_STORE_RESTORE", .. } => "store",
             Self::Schema(_) | Self::Structural { .. } => "schema",
             Self::Rule { .. } | Self::Auth(_) => "auth",
@@ -235,6 +236,7 @@ impl RuntimeError {
                 refusal.guide = Some("programs".into());
             }
             Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE" | "E_ACTION_AUTHORITY") => refusal.guide = Some("actions".into()),
+            Self::Structural { code, .. } if code.starts_with("E_ROUTE_") => refusal.guide = Some("routes".into()),
             Self::Structural { code: "E_STORE_RESTORE", .. } => refusal.guide = Some("sync".into()),
             Self::Structural { code: "E_WRITE_ID_REUSE" | "E_ID_REUSED", message } => {
                 refusal.message = message.clone();

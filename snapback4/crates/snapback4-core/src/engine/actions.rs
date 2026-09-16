@@ -78,7 +78,7 @@ fn read(row: &rusqlite::Row<'_>) -> rusqlite::Result<ActionRequest> {
         spec: row.get::<_, Option<String>>(16)?.map(|s| decode(s, 16)).transpose()?.unwrap_or_default(),
         contract: row.get(17)?, deadline: row.get(18)?, release: row.get(19)?, service_generation: row.get(20)?, cancelled: row.get(21)?, })
 }
-fn request(conn: &Connection, id: &str) -> Result<Option<ActionRequest>, RuntimeError> {
+pub(super) fn request(conn: &Connection, id: &str) -> Result<Option<ActionRequest>, RuntimeError> {
     Ok(conn.query_row(&format!("SELECT {COLUMNS} FROM _requests WHERE id = ?1"), [id], read).optional()?)
 }
 fn unknown() -> RuntimeError { RuntimeError::Structural { code: "E_ACTION_UNKNOWN", message: "no action or request with this name and id is available to this viewer".into() } }
@@ -86,7 +86,7 @@ fn lease_error() -> RuntimeError { RuntimeError::Structural { code: "E_ACTION_LE
 
 pub const AUTHORITY_ERROR: &str = "the authority that admitted this action was revoked or has expired";
 
-fn authority_expiry(conn: &Connection, run: &ActionRequest, now: i64) -> Result<Option<i64>, RuntimeError> {
+pub(super) fn authority_expiry(conn: &Connection, run: &ActionRequest, now: i64) -> Result<Option<i64>, RuntimeError> {
     if let Some(generation) = run.service_generation {
         return Ok((identity::principal_generation(conn, &run.principal)? == generation).then_some(i64::MAX));
     }
@@ -175,6 +175,12 @@ fn held(conn: &Connection, id: &str, worker: &str, token: &str, now: i64) -> Res
 
 pub(super) fn insert_request(conn: &Connection, schema: &Schema, program: &Program, id: &str, context: &Context, raw: &Json, service: bool, now: i64) -> Result<(), RuntimeError> {
     let spec = schema.action_specs.get(&program.name).cloned().unwrap_or_default();
+    insert_spec(conn, program, id, context, raw, service, &spec, &spec.contract(program), now)
+}
+
+/// Routes use the same durable record and authority binding, with their
+/// declaration's contract rather than a public action program's contract.
+pub(super) fn insert_spec(conn: &Connection, program: &Program, id: &str, context: &Context, raw: &Json, service: bool, spec: &ActionSpec, contract: &str, now: i64) -> Result<(), RuntimeError> {
     if !spec.work.policy.valid() { return Err(RuntimeError::Schema("the action policy is outside its bounds".into())); }
     let authority = context.session_digest.as_deref().map(|digest| identity::authority(conn, digest, &context.viewer, now)).transpose()?;
     let service_generation = if service { Some(identity::principal_generation(conn, &context.viewer)?) } else { None };
@@ -182,7 +188,7 @@ pub(super) fn insert_request(conn: &Connection, schema: &Schema, program: &Progr
     conn.execute("INSERT INTO _requests(id, name, args, principal, at, state, family, principal_generation, admitted_expires_at, args_digest, spec, contract, deadline, release, service_generation) VALUES (?1, ?2, ?3, ?4, ?5, 'queued', ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
         params![id, program.name, serde_json::to_string(&context.args).map_err(|e| RuntimeError::Input(e.to_string()))?, context.viewer, now,
             authority.as_ref().map(|a| &a.family), authority.as_ref().map(|a| a.generation), authority.as_ref().map(|a| a.expires_at), crate::store::payload_digest(raw),
-            serde_json::to_string(&spec).map_err(|e| RuntimeError::Schema(e.to_string()))?, spec.contract(program), spec.work.policy.deadline_ms.map(|ms| now.saturating_add(ms as i64)), release, service_generation])?;
+            serde_json::to_string(&spec).map_err(|e| RuntimeError::Schema(e.to_string()))?, contract, spec.work.policy.deadline_ms.map(|ms| now.saturating_add(ms as i64)), release, service_generation])?;
     Ok(())
 }
 
@@ -192,7 +198,7 @@ impl Engine {
         if context.viewer == crate::SYSTEM_PRINCIPAL || !crate::value::identity_fits(&context.viewer) {
             return Err(RuntimeError::Auth("an action needs a signed-in principal".into()));
         }
-        if id.len() > 128 || !crate::value::identity_fits(id) { return Err(RuntimeError::Input("an action id is 1–128 printable characters, minted by the client".into())); }
+        if id.len() > 128 || !crate::value::identity_fits(id) || id.starts_with(super::routes::ID_PREFIX) { return Err(RuntimeError::Input("an action id is 1–128 printable characters, minted by the client; route:v1: is reserved for admitted routes".into())); }
         let now = context.now.unwrap_or_else(crate::now_ms);
         let wire_args = context.wire_args.take().unwrap_or_else(|| Json::Object(crate::wire::map_to_json(&context.args)));
         let tx = self.store.transaction()?;
@@ -237,7 +243,9 @@ impl Engine {
         for id in ids {
             let run = request(tx.conn(), &id)?.ok_or_else(unknown)?;
             if let Some(contract) = &run.contract {
-                let current = self.programs.get(&run.action).map(|program| self.schema.action_specs.get(&run.action).cloned().unwrap_or_default().contract(program));
+                let current = if let Some(name) = run.action.strip_prefix(crate::schema::routes::ACTION_PREFIX) {
+                    self.schema.routes.get(name).map(|route| route.contract(name))
+                } else { self.programs.get(&run.action).map(|program| self.schema.action_specs.get(&run.action).cloned().unwrap_or_default().contract(program)) };
                 if current.as_ref() != Some(contract) {
                     finish(tx.conn(), &id, "parked", "E_ACTION_GENERATION", "the admitted action declaration changed; inspect this work before replacing it", now)?;
                     continue;
@@ -256,10 +264,27 @@ impl Engine {
         Ok(claims)
     }
 
-    pub fn settle_action(&mut self, id: &str, worker: &str, lease_token: &str, settled: ActionSettled, now: i64) -> Result<ActionRequest, RuntimeError> {
+    pub fn settle_action(&mut self, id: &str, worker: &str, lease_token: &str, mut settled: ActionSettled, now: i64) -> Result<ActionRequest, RuntimeError> {
         let tx = self.store.transaction()?;
         let run = held(tx.conn(), id, worker, lease_token, now)?;
         let digest = identity::digest(lease_token);
+        let mut application_refusal = None;
+        if run.action.starts_with(crate::schema::routes::ACTION_PREFIX) && let ActionSettled::Done(value) = &settled {
+            let validated = serde_json::from_value::<crate::schema::routes::RouteResponse>(value.clone()).map_err(|_| "the route response has an invalid envelope".to_owned())
+                .and_then(|response| response.validate().map(|_| response));
+            match validated {
+                Err(message) => {
+                    finish(tx.conn(), id, "failed", "E_ROUTE_RESULT", &message, now)?;
+                    let run = request(tx.conn(), id)?.ok_or_else(unknown)?;
+                    tx.commit()?;
+                    return Ok(run);
+                }
+                Ok(response) if response.status >= 500 => {
+                    settled = ActionSettled::Failed { error: format!("route handler answered HTTP {}; no completion was recorded", response.status), retry: true };
+                }
+                Ok(response) => application_refusal = response.application_refusal,
+            }
+        }
         // Validate only after proving the claim. An invalid result is terminal:
         // the provider may already have acted, so retrying it would be unsafe.
         // @ref LLP 3000.009#5.1 — settlement validates the admitted result contract.
@@ -283,7 +308,7 @@ impl Engine {
         // uses the same service seat. No secret is persisted in plaintext.
         tx.conn().execute("DELETE FROM _sessions WHERE token_digest = ?1", [&digest])?;
         let (state, error, next_at) = match settled {
-            ActionSettled::Done(_) => ("done", None, None),
+            ActionSettled::Done(_) => ("done", application_refusal.clone(), None),
             ActionSettled::Refused { code, error } => {
                 finish(tx.conn(), id, "failed", code, &error.chars().take(2_000).collect::<String>(), now)?;
                 let run = request(tx.conn(), id)?.ok_or_else(unknown)?;
@@ -296,7 +321,7 @@ impl Engine {
                 else { ("failed", Some(error), None) }
             }
         };
-        tx.conn().execute("UPDATE _requests SET state = ?2, result = ?3, error = ?4, next_at = ?5, claimed_by = NULL, session_digest = NULL, lease_until = NULL, error_code = NULL, settled_at = ?6 WHERE id = ?1", params![id, state, result, error, next_at, if state == "queued" { None } else { Some(now) }])?;
+        tx.conn().execute("UPDATE _requests SET state = ?2, result = ?3, error = ?4, next_at = ?5, claimed_by = NULL, session_digest = NULL, lease_until = NULL, error_code = ?7, settled_at = ?6 WHERE id = ?1", params![id, state, result, error, next_at, if state == "queued" { None } else { Some(now) }, application_refusal.as_ref().map(|_| "E_ROUTE_REFUSED")])?;
         let run = request(tx.conn(), id)?.ok_or_else(unknown)?;
         tx.commit()?;
         Ok(run)

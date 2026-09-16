@@ -365,13 +365,13 @@ fn supported(schema: &Schema, programs: &BTreeMap<String, Program>) -> Result<()
             _ => false,
         }
     }
-    if !schema.schedules.is_empty()
+    if !schema.schedules.is_empty() || !schema.routes.is_empty()
         || schema.tables.values().any(|t| t.columns.values().any(|c| c.contains_asset()))
         || programs
             .values()
             .any(|p| p.native || !matches!(p.kind, ProgramKind::Query | ProgramKind::Mutation) || p.args.values().any(asset_arg))
     {
-        return Err(RuntimeError::Schema("Postgres evaluation supports data queries/mutations and transactional emit records only; assets, native modules, jobs, actions and schedules are not implemented".into()));
+        return Err(RuntimeError::Schema("Postgres evaluation supports data queries/mutations and transactional emit records only; assets, native modules, jobs, actions, routes and schedules are not implemented".into()));
     }
     Ok(())
 }

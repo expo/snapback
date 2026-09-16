@@ -1,4 +1,8 @@
-use snapback4_core::{schema::{self, RouteSpec, Schema, WorkSpec, routes::{BODY_BYTES, RouteRequest, RouteResponse}}, value::encode_bytes_hex};
+#![cfg(feature = "sqlite")]
+use snapback4_core::{Context, Engine, identity, schema::{self, RouteSpec, Schema, WorkSpec, routes::{BODY_BYTES, RouteRequest, RouteResponse}}, value::encode_bytes_hex};
+use snapback4_core::engine::actions::ActionSettled;
+use serde_json::json;
+use std::collections::BTreeMap;
 
 fn spec() -> RouteSpec { RouteSpec { path: "/hooks/billing".into(), service: Some("service:billing".into()), work: WorkSpec::default(), wait_ms: 5_000 } }
 fn request(bytes: &[u8]) -> RouteRequest { RouteRequest { method: "POST".into(), path: spec().path, headers: vec![("X-Signature".into(), "signature".into())], body_hex: encode_bytes_hex(bytes) } }
@@ -75,4 +79,133 @@ fn route_responses_are_bounded_and_refusal_acknowledgement_is_unambiguous() {
     refused.status = 204; refused.headers.push(("content-type".into(), "text/plain".into())); assert!(refused.validate().is_err());
     let mut wire = serde_json::to_value(response(b"")).unwrap(); wire["extra"] = true.into();
     assert!(serde_json::from_value::<RouteResponse>(wire).is_err());
+}
+
+fn schema_with(route: RouteSpec) -> Schema { Schema { routes: BTreeMap::from([("billing".into(), route)]), ..Schema::default() } }
+fn engine() -> Engine { Engine::memory(schema_with(spec()), []).unwrap() }
+fn verified(engine: &mut Engine, body: &[u8], at: i64) -> snapback4_core::engine::actions::ActionRequest {
+    engine.request_verified_route("billing", &spec().contract("billing"), &request(body), 0, at).unwrap().0
+}
+fn claim(engine: &mut Engine, at: i64) -> snapback4_core::engine::actions::ActionClaim {
+    engine.claim_actions("service:worker", Some("@route/billing"), 1, 1_000, 1, at).unwrap().remove(0)
+}
+
+#[test]
+fn verified_retries_join_one_body_and_retain_the_first_authenticated_envelope() {
+    let mut engine = engine();
+    let contract = spec().contract("billing");
+    let first = verified(&mut engine, b"event", 0);
+    assert!(first.id.starts_with("route:v1:"));
+    assert_eq!(first.principal, "service:billing");
+    assert_eq!(first.service_generation, Some(0));
+    let mut retry = request(b"event"); retry.headers[0].1 = "fresh-signature".into();
+    let (joined, replayed) = engine.request_verified_route("billing", &contract, &retry, 0, 1).unwrap();
+    assert!(replayed); assert_eq!(joined, first);
+    assert_eq!(snapback4_core::wire::to_json(&joined.args["request"])["headers"][0][1], "signature");
+    let held = claim(&mut engine, 2);
+    assert_eq!(held.request.id, first.id);
+    assert_eq!(identity::resolve(engine.store(), &held.session.token, 3).unwrap().unwrap().0, "service:billing");
+    let result = serde_json::to_value(response(b"\xffreceipt")).unwrap();
+    engine.settle_action(&first.id, "service:worker", &held.session.token, ActionSettled::Done(result.clone()), 4).unwrap();
+    let done = engine.request_verified_route("billing", &contract, &retry, 0, 5).unwrap();
+    assert!(done.1); assert_eq!(done.0.state, "done"); assert_eq!(done.0.result, Some(result));
+    assert!(engine.claim_actions("service:worker", None, 1, 1_000, 1, 5).unwrap().is_empty());
+    assert_ne!(verified(&mut engine, b"different-event", 6).id, first.id);
+    // Deterministic IDs must not be preempted through ordinary action admission.
+    assert_eq!(engine.request_action("anything", "route:v1:predictable", Context::new("dev:alice", BTreeMap::new()).at(0)).unwrap_err().code(), "E_INPUT");
+    assert_eq!(engine.request_action("@route/billing", "ordinary-id", Context::new("service:billing", BTreeMap::new()).at(0)).unwrap_err().code(), "E_ACTION_UNKNOWN");
+    assert!(engine.request_session_route("billing", &contract, &request(b"wrong-door"), Context::new("dev:alice", BTreeMap::new()).at(0)).is_err());
+}
+
+#[test]
+fn revocation_during_verification_cannot_readmit_service_authority() {
+    let mut engine = engine();
+    let contract = spec().contract("billing");
+    let (_, generation) = engine.route_service_generation("billing", &contract).unwrap();
+    let first = verified(&mut engine, b"admitted", 0);
+    identity::revoke_principal(engine.store(), "service:billing").unwrap();
+    assert!(engine.request_verified_route("billing", &contract, &request(b"not-admitted"), generation, 1).is_err());
+    assert!(engine.route_request_at("billing", &contract, &first.id, "service:billing", 1).is_err());
+    assert!(engine.claim_actions("service:worker", None, 1, 1_000, 1, 2).unwrap().is_empty());
+    let (_, fresh_generation) = engine.route_service_generation("billing", &contract).unwrap();
+    assert_ne!(generation, fresh_generation);
+    // A fresh verification cannot rebind old same-body work after revocation.
+    assert!(engine.request_verified_route("billing", &contract, &request(b"admitted"), fresh_generation, 3).is_err());
+    assert!(engine.request_verified_route("billing", &contract, &request(b"new-intent"), fresh_generation, 3).is_ok());
+}
+
+#[test]
+fn session_route_identity_isolated_by_principal_and_originating_family() {
+    let route = RouteSpec { service: None, ..spec() };
+    let contract = route.contract("billing");
+    let mut engine = Engine::memory(schema_with(route), []).unwrap();
+    let alice = identity::open_session(engine.store(), "member:alice", "account", 0).unwrap();
+    let other_alice = identity::open_session(engine.store(), "member:alice", "account", 0).unwrap();
+    let bob = identity::open_session(engine.store(), "member:bob", "account", 0).unwrap();
+    let context = |session: &identity::Session| Context::new(&session.principal, BTreeMap::new()).with_session(&session.token).at(0);
+    let request = request(b"same-body");
+    let first = engine.request_session_route("billing", &contract, &request, context(&alice)).unwrap();
+    let replay = engine.request_session_route("billing", &contract, &request, context(&alice)).unwrap();
+    assert!(replay.1); assert_eq!(first.0.id, replay.0.id);
+    let second = engine.request_session_route("billing", &contract, &request, context(&other_alice)).unwrap();
+    let third = engine.request_session_route("billing", &contract, &request, context(&bob)).unwrap();
+    assert_ne!(first.0.id, second.0.id); assert_ne!(first.0.id, third.0.id);
+    assert!(engine.route_request_at("billing", &contract, &first.0.id, &bob.principal, 1).is_err());
+    identity::close_session(engine.store(), &alice.token).unwrap();
+    assert!(engine.route_request_at("billing", &contract, &first.0.id, &alice.principal, 1).is_err());
+    assert!(engine.request_session_route("billing", &contract, &request, context(&alice)).is_err());
+    assert!(engine.request_session_route("billing", &contract, &request, Context::new("member:alice", BTreeMap::new()).at(0)).is_err());
+    assert!(engine.request_verified_route("billing", &contract, &request, 0, 0).is_err());
+}
+
+#[test]
+fn a_changed_route_contract_parks_old_work_instead_of_rekeying_same_body() {
+    let mut engine = engine();
+    let first = verified(&mut engine, b"event", 0);
+    let changed = RouteSpec { service: Some("service:new-billing".into()), ..spec() };
+    let contract = changed.contract("billing");
+    engine.adopt(schema_with(changed), []).unwrap();
+    assert!(engine.claim_actions("service:worker", None, 1, 1_000, 1, 1).unwrap().is_empty());
+    assert_eq!(engine.action_request_at(&first.id, "service:billing", 1).unwrap().state, "parked");
+    assert_eq!(engine.request_verified_route("billing", &contract, &request(b"event"), 0, 2).unwrap_err().code(), "E_ROUTE_GENERATION");
+    assert_eq!(engine.route_request_at("billing", &spec().contract("billing"), &first.id, "service:billing", 2).unwrap_err().code(), "E_ROUTE_GENERATION");
+}
+
+#[test]
+fn raw_route_settlement_cannot_cache_a_5xx_and_business_refusal_is_recorded() {
+    let mut engine = engine();
+    let first = verified(&mut engine, b"event", 0);
+    let held = claim(&mut engine, 0);
+    let unavailable = RouteResponse { status: 503, ..response(b"temporary") };
+    let retry = engine.settle_action(&first.id, "service:worker", &held.session.token, ActionSettled::Done(serde_json::to_value(unavailable).unwrap()), 1).unwrap();
+    assert_eq!(retry.state, "queued"); assert!(retry.result.is_none());
+    let next = claim(&mut engine, 2_001);
+    let refused = RouteResponse { status: 204, application_refusal: Some("plan declined".into()), ..response(b"") };
+    let done = engine.settle_action(&first.id, "service:worker", &next.session.token, ActionSettled::Done(serde_json::to_value(refused).unwrap()), 2_002).unwrap();
+    assert_eq!(done.state, "done"); assert_eq!(done.error_code.as_deref(), Some("E_ROUTE_REFUSED"));
+    assert_eq!(done.error.as_deref(), Some("plan declined")); assert_eq!(done.result.unwrap()["status"], 204);
+}
+
+#[test]
+fn malformed_route_response_fails_terminally_after_possible_io() {
+    for value in [json!(null), json!({"status":200,"headers":[],"bodyHex":"FF"}), json!({"status":200,"headers":[["content-length","99"]],"bodyHex":""}), json!({"status":204,"headers":[],"bodyHex":"00"})] {
+        let mut engine = engine(); let run = verified(&mut engine, b"event", 0); let held = claim(&mut engine, 0);
+        let failed = engine.settle_action(&run.id, "service:worker", &held.session.token, ActionSettled::Done(value), 1).unwrap();
+        assert_eq!(failed.state, "failed"); assert_eq!(failed.error_code.as_deref(), Some("E_ROUTE_RESULT"));
+        assert!(engine.claim_actions("service:worker", None, 1, 1_000, 1, 9_000).unwrap().is_empty());
+    }
+}
+
+#[test]
+fn route_recovery_uses_the_same_fenced_steps_and_response_record_after_a_crash() {
+    let mut engine = engine(); let run = verified(&mut engine, b"event", 0); let first = claim(&mut engine, 0);
+    let begun = engine.begin_action_step(&run.id, "service:worker", &first.session.token, "provider", &json!({"body": "event"}), false, 1).unwrap();
+    engine.complete_action_step(&run.id, "service:worker", &first.session.token, "provider", &json!({"receipt":1}), 2).unwrap();
+    let next = claim(&mut engine, 1_001);
+    assert_eq!(next.request.id, first.request.id); assert_eq!(next.request.attempt, 2);
+    let replay = engine.begin_action_step(&run.id, "service:worker", &next.session.token, "provider", &json!({"body":"event"}), false, 1_002).unwrap();
+    assert_eq!(replay.state, "done"); assert_eq!(replay.key, begun.key); assert_eq!(replay.result, Some(json!({"receipt":1})));
+    let result = serde_json::to_value(response(b"ok")).unwrap();
+    assert_eq!(engine.settle_action(&run.id, "service:worker", &first.session.token, ActionSettled::Done(result.clone()), 1_003).unwrap_err().code(), "E_ACTION_LEASE");
+    assert_eq!(engine.settle_action(&run.id, "service:worker", &next.session.token, ActionSettled::Done(result), 1_003).unwrap().state, "done");
 }
