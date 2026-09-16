@@ -4063,3 +4063,117 @@ server concurrency or pool occupancy. No current-main, competitor,
 hosted/WAN, cold-start, device/realtime, durability or publication claim
 follows. Core/store/contract ownership and the existing runtime remain
 unchanged.
+
+
+### Remove host request copies: fixed 0.2.23 native Linux A/B
+
+This landing borrows the parsed request arguments during owned wire conversion
+and snapshots only the operation kind and argument types in the HTTP host.
+Previously it cloned the complete JSON argument tree and compiled operation,
+although this layer used only that metadata. The interpreter still owns its
+existing operation/value handling. Replay keeps its principal-bound early
+return, and metadata leaves the same bound-mutex scope before execution.
+
+The exact A/B uses fixed `1bf70d0e9db8031c284064bb8d093d77d9ce574e` /
+0.2.23, with only `serve.rs` overridden in the candidate. Both native x86
+Linux production binaries use Rust 1.97.0, packaged SQLite build flags with
+MEMSTATUS enabled, and Node 24.21.0 / Undici 7.29.1. Each passes 160 CLI
+test/debug checks and nine reported HTTP-boundary checks against its retained
+production binary. The candidate source is `8f12b805…`; retained baseline /
+candidate binaries are `b566bbf0…` / `8b42f6f5…`. No published-artifact timing
+or full workspace/client qualification follows from those affected checks.
+
+The original formal completed at 2026-09-16 02:38:23 UTC: three alternating
+pairs B/C, C/B, B/C; 21 fixed cases, 512 samples and 32 excluded warmups each.
+All **64,512 timed HTTP calls**, **4,032 warmups**, full before/after owner
+rows, outsider isolation, fresh writes, principal-bound replay and refusal
+checks passed. Six clients exited zero, six owned servers received planned
+TERM and exited -15, and every group was absent. Each fresh process uses two
+ordinary guest owners with 100 private rows each and an empty outsider.
+The separately retained two-run smoke contributes no formal statistic.
+
+Median p50/p95 improve in 16/21 cases, p99 in 15/21, maximum in 14/21 and
+rate in 15/21. Paired wins are 43/63 p50, 41/63 p95, 43/63 p99, 39/63
+maximum and 43/63 rate. All **35 median and 126 paired metric losses**
+remain; these six-metric counts include elapsed and rate separately.
+Cells below are baseline → candidate, medians of three per-run statistics;
+latencies are milliseconds and rates are requests/s, not pooled quantiles.
+
+| Case | p50 | p95 | p99 | Maximum | Rate |
+|---|---:|---:|---:|---:|---:|
+| pointC1 | 0.573 → 0.565 | 0.903 → 0.912 | 1.528 → 1.559 | 3.920 → 3.814 | 1524.1 → 1592.4 |
+| pointC8 | 1.425 → 1.371 | 2.335 → 2.367 | 4.740 → 4.765 | 4.824 → 4.951 | 4913.2 → 4920.5 |
+| pointC32 | 5.417 → 5.540 | 17.865 → 24.800 | 25.735 → 27.111 | 26.928 → 28.667 | 4557.1 → 4178.5 |
+| pageC1 | 0.495 → 0.485 | 0.645 → 0.558 | 0.841 → 0.793 | 3.791 → 3.775 | 1787.9 → 1818.4 |
+| pageC8 | 1.471 → 1.486 | 3.637 → 3.601 | 9.191 → 8.916 | 9.856 → 9.414 | 4389.6 → 4368.9 |
+| bumpC1 | 0.485 → 0.472 | 0.698 → 0.523 | 0.860 → 0.770 | 4.546 → 4.442 | 1895.9 → 1980.1 |
+| bumpC8 | 1.444 → 1.424 | 2.747 → 2.766 | 5.347 → 4.055 | 5.795 → 5.130 | 4971.5 → 5051.3 |
+| replayC1 | 0.319 → 0.314 | 0.369 → 0.369 | 0.476 → 0.460 | 7.533 → 7.888 | 2871.2 → 2902.1 |
+| replayC8 | 1.070 → 1.061 | 1.283 → 1.167 | 9.593 → 10.104 | 9.702 → 10.243 | 6566.0 → 6628.5 |
+| smallC1 | 0.324 → 0.321 | 0.384 → 0.374 | 0.474 → 0.444 | 0.609 → 0.726 | 2875.9 → 2945.0 |
+| smallC8 | 1.029 → 1.021 | 1.128 → 1.093 | 10.118 → 1.186 | 10.175 → 1.388 | 6748.4 → 7733.8 |
+| branchC1 | 0.444 → 0.369 | 0.594 → 0.479 | 0.709 → 0.672 | 8.841 → 10.516 | 2011.5 → 2370.3 |
+| branchC8 | 0.996 → 1.041 | 1.161 → 1.099 | 1.330 → 1.150 | 1.635 → 1.308 | 7833.4 → 7649.4 |
+| json32C1 | 0.587 → 0.519 | 0.816 → 0.689 | 0.962 → 0.836 | 7.951 → 7.075 | 1389.9 → 1705.4 |
+| json32C8 | 1.666 → 1.702 | 2.024 → 2.037 | 6.993 → 7.073 | 7.261 → 7.180 | 4379.5 → 4359.5 |
+| json512C1 | 4.592 → 3.757 | 5.624 → 4.945 | 5.903 → 5.214 | 8.732 → 8.438 | 177.0 → 208.7 |
+| json512C8 | 8.004 → 8.001 | 11.104 → 11.069 | 12.218 → 11.963 | 13.464 → 14.049 | 916.9 → 915.6 |
+| json2048C1 | 16.308 → 13.100 | 17.424 → 14.141 | 17.645 → 14.658 | 18.355 → 15.422 | 48.2 → 59.5 |
+| json2048C8 | 31.751 → 31.661 | 43.903 → 43.368 | 48.932 → 47.630 | 54.693 → 52.161 | 226.0 → 227.6 |
+| pointPostC8 | 1.070 → 1.092 | 1.269 → 1.259 | 1.475 → 1.480 | 1.887 → 1.885 | 7240.0 → 7203.6 |
+| pagePostC8 | 1.285 → 1.278 | 1.665 → 1.591 | 9.040 → 6.941 | 9.130 → 7.294 | 5001.7 → 5583.3 |
+
+The repeated targeted gain is serial argument processing: the 32/512/2048
+JSON-row cases have 11.7/18.2/19.7% lower median p50 and 22.7/17.9/23.4%
+higher rates; every paired p50/rate comparison improves. The largest C1
+argument case improves all six metrics in all three pairs. The skipped
+128-assignment branch is explicitly synthetic: C1 p50 falls 16.7% and rate
+rises 17.8%, while its maximum worsens in every pair. JSON requests contain
+2,974 / 48,850 / 199,450 UTF-8 bytes and stay within existing limits.
+
+This is not an overall query-speed win. `pointC32` loses all six median
+metrics: p95 rises 17.865 → 24.800 ms (+38.82%) and rate falls 8.31%; all six
+metrics worsen in two of three pairs. Replay C8 p99/maximum worsen in every
+pair. The post-large point probe has near-flat medians but trial-1 p99 rises
+1.475 → 7.107 ms and maximum 1.887 → 7.287 ms, with rate down 8.73%. These
+are unresolved measured regressions, not established noise. The
+[query/replay-tail follow-up](../../../issues/20260916-snapback4-request-decoding-concurrent-tails.md)
+retains them separately from the closed worker/sync-pool experiments.
+
+All 138 process resource points are retained. After the largest C8 argument
+case, RSS medians are 152,036 → 126,408 KiB, lower in each pair; after all
+cases they are 152,060 → 116,212 KiB. These are process observations, not
+isolated copy allocations or continuous peaks. Some reported VmHWM values
+decrease within an unchanged PID/start-time; they are retained without
+asserting monotonicity or a validated lifetime peak. Coarse dev launch /
+compile / readiness polling medians are 32.603 → 32.446 ms; this is not a
+cold-start comparison.
+
+Case order is fixed within each process; only B/C order alternates. Request
+latency includes fetch, response text and JSON parse. Ordinary bodies are
+serialized inside the timer, echo bodies are prebuilt, and exact row checks
+follow the request timer but remain in case rates and can delay other
+concurrent continuations. Post-large probes include 32 new warmups, so they
+do not isolate an immediate allocation effect. Full walks are logical HTTP
+proofs, not physical SQLite inventory or durability proofs. No competitor,
+device, cold-cache, steady-arrival or universal performance claim is made.
+
+Both frozen calculators passed their first invocations and reconcile all
+756 raw case metric values, 252 median values, 126 median/378 paired
+contrasts, every loss, all resources and six startup observations. Original
+completion `751f4556…`, collection `a4185fb2…`, root result `f59f672b…`,
+independent result `864ec244…`, reconciliation `c112288e…`, and independent
+evidence review `26fd3ffd…` bind the record. The independent calculator froze
+after smoke execution but before original raw/result access and formal
+execution. Formal admission followed its passing executable audit and an
+explicit reviewer no-blocker message; the final manual smoke-review artifact
+was saved about one second after local SSH launch. Root calculations retain
+the original direct tool outcomes (formal also has original stdout/stderr),
+without reconstructed PID or launch-time records.
+
+The [dedicated data record](./request-metadata-0223-v1.jsonl) preserves all
+210 original public smoke/formal files as exact UTF-8 text with byte hashes,
+complete calculations, reviews, qualification summary and transport custody.
+`storage.jsonl` carries its small binding instead of another multi-megabyte
+append. The source change is adopted for the repeated targeted gains with
+these limits and losses; integration and publication are separate facts.

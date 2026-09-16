@@ -876,7 +876,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     return;
                 }
             };
-            let args_json = payload.get("args").cloned().unwrap_or(json!({}));
+            let args_json = payload.get("args");
             let replay = if path.starts_with("/m/") {
                 payload.get("id").and_then(Json::as_str).and_then(|id| lock(&shared.engine).replay(&principal, id).ok().flatten().map(|outcome| (id, outcome)))
             } else { None };
@@ -887,15 +887,16 @@ fn handle(mut request: Request, shared: &Shared) {
                 respond(request, 200, body);
                 return;
             }
-            let program = lock(&shared.bound).programs.iter().find(|p| p.program.name == op).map(|p| p.program.clone());
-            let Some(program) = program else {
+            let signature = lock(&shared.bound).programs.iter().find(|p| p.program.name == op)
+                .map(|p| (p.program.kind, p.program.args.clone()));
+            let Some((kind, arg_types)) = signature else {
                 respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("unknown operation {op}")).guide("programs")) }));
                 return;
             };
             let mut args = BTreeMap::new();
-            if let Json::Object(fields) = &args_json {
+            if let Some(Json::Object(fields)) = args_json {
                 for (name, value) in fields {
-                    match program.args.get(name) {
+                    match arg_types.get(name) {
                         Some(kind) => match wire::from_json(kind, value) {
                             Ok(typed) => {
                                 args.insert(name.clone(), typed);
@@ -915,7 +916,7 @@ fn handle(mut request: Request, shared: &Shared) {
             let viewer = principal.clone();
             let mut context = Context::new(principal, args).at(shared.now());
             if path.starts_with("/q/") {
-                if program.kind != ProgramKind::Query {
+                if kind != ProgramKind::Query {
                     respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("{op} is a mutation; POST /m/{op}"))) }));
                     return;
                 }
@@ -958,11 +959,11 @@ fn handle(mut request: Request, shared: &Shared) {
                     Err(refusal) => respond(request, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal) })),
                 }
             } else {
-                if program.kind == ProgramKind::Query {
+                if kind == ProgramKind::Query {
                     respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("{op} is a query; POST /q/{op}"))) }));
                     return;
                 }
-                if program.kind == ProgramKind::Job {
+                if kind == ProgramKind::Job {
                     respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("{op} is a job: a schedule fires it, or `snapback4 run {op}` does; no caller can")).guide("jobs")) }));
                     return;
                 }

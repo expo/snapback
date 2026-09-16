@@ -21402,3 +21402,37 @@ appended to storage.jsonl. The [benchmark record](../benchmarks/runs/snapback4-p
 retains all 24 operation cases, resource points, limits and evidence pins.
 This finite-wave, warm local test supplies no current-main, competitor,
 steady-arrival, device, cold-start, durability or peak-memory claim.
+
+
+## 2026-09-16 — remove copies from HTTP request decoding
+
+The host now borrows parsed arguments through owned wire conversion and
+snapshots only the operation kind/argument types it uses. The candidate
+changes one host file; the existing replay and lock boundaries remain. Both
+fixed-source 0.2.23 variants pass 160 CLI test/debug checks and nine reported
+production HTTP-boundary checks.
+
+Six original native Linux A/B runs pass all 64,512 timed calls, 4,032
+warmups, exact owner/outsider/full-row, fresh-write and replay proofs. Both
+frozen calculators pass unchanged on their first invocation and reconcile
+all raw metrics, medians, paired contrasts, 138 resource points and startup
+observations. Every owned process stops.
+
+Serial JSON argument p50 improves 11.7–19.7%, with rate 17.9–23.4% higher
+and all paired p50/rate comparisons favorable. Largest-argument C8 RSS
+points have medians 152,036 → 126,408 KiB, lower in every pair; this is not
+a causal or continuous peak-memory measurement. Concurrent point C32 loses
+all six median metrics (p95 +38.82%, rate -8.31%), and replay C8 tails plus
+the synthetic branch C1 maximum worsen in every pair. Post-point trial 1
+has a substantial tail loss. All 35 median and 126 paired metric losses
+remain. The sole copy removal is adopted with those measured tradeoffs,
+which the [query/replay-tail ticket](../issues/20260916-snapback4-request-decoding-concurrent-tails.md)
+keeps open; no broad query-speed or competitor win is claimed.
+
+The [benchmark record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md)
+links a dedicated data file containing every original public smoke/formal
+file and both complete calculations. The storage ledger gets only a small
+binding. The independent review records the exact analysis/admission
+chronology and original tool-only custody limits. This source landing
+leaves package publication and the current matched competitor refresh as
+separate work.
