@@ -5,7 +5,9 @@ use std::{collections::{BTreeMap, BTreeSet}, io::{Read, Write}};
 pub(crate) fn validate_environment(schema: &Schema) -> Result<(), String> { values(schema).map(|_| ()) }
 
 pub(super) fn values(schema: &Schema) -> Result<BTreeMap<String, String>, String> {
-    let names: BTreeSet<_> = schema.action_specs.values().flat_map(|spec| &spec.work.secrets).chain(schema.effect_specs.values().flat_map(|spec| &spec.secrets)).collect();
+    let names: BTreeSet<_> = schema.action_specs.values().flat_map(|spec| &spec.work.secrets)
+        .chain(schema.routes.values().flat_map(|spec| &spec.work.secrets))
+        .chain(schema.effect_specs.values().flat_map(|spec| &spec.secrets)).collect();
     names.into_iter().map(|name| {
         let valid = name.bytes().next().is_some_and(|b| b.is_ascii_uppercase() || b == b'_')
             && name.bytes().all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_');

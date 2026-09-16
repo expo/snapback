@@ -54,6 +54,7 @@ impl Host {
             native: Mutex::new(None),
             auth: crate::auth::Admission::default(),
             uploads: AtomicUsize::new(0),
+            route_verification: routes::Verification::default(),
             auth_work: Mutex::new(None),
             upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),

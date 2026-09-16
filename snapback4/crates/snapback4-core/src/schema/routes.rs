@@ -56,7 +56,7 @@ pub fn validate_path(path: &str) -> Result<(), String> {
         return Err("a route has a static absolute ASCII path without query, escapes, empty or dot segments".into());
     }
     let first = path.trim_start_matches('/').split('/').next().unwrap_or("");
-    if matches!(first, "q" | "m" | "a" | "actions" | "effects" | "routes" | "assets" | "auth" | "dev" | "seed" | "sync" | "changes" | "schema" | "api.ts" | "native.wasm") {
+    if matches!(first, "q" | "m" | "a" | "actions" | "effects" | "routes" | "assets" | "auth" | "dev" | "seed" | "sync" | "changes" | "schema" | "probe" | "api.ts" | "native.wasm") {
         return Err("this route path belongs to a core HTTP endpoint".into());
     }
     Ok(())

@@ -21,6 +21,9 @@ use tiny_http::{Header, Method, Request, Response, Server};
 #[path = "actions.rs"]
 mod actions;
 
+#[path = "serve_routes.rs"]
+mod routes;
+
 #[path = "serve_changes.rs"]
 mod changes;
 
@@ -63,6 +66,7 @@ pub struct Shared {
     pub native: Mutex<Option<crate::native::Installed>>,
     pub auth: crate::auth::Admission,
     pub uploads: AtomicUsize,
+    route_verification: routes::Verification,
     #[cfg(test)]
     pub auth_work: WorkHook,
     #[cfg(test)]
@@ -277,6 +281,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     let adoption = Mutex::new(adoption::Status::new(engine.store().meta("store_id").map_err(|e| e.to_string())?.unwrap_or_default()));
     let shared = Arc::new(Shared {
         adoption, clock, maintenance: Mutex::new(()), engine: Mutex::new(engine), readers: Mutex::new(QueryReaders::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), worker_revision: AtomicUsize::new(0), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
+        route_verification: routes::Verification::default(),
         #[cfg(test)] auth_work: Mutex::new(None),
         #[cfg(test)] upload_work: Mutex::new(None),
         #[cfg(test)] effect_wait: Mutex::new(None),
@@ -347,27 +352,34 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
 
 const REQUEST_WORKERS: usize = 32;
 const WAIT_WORKERS: usize = 32;
+const ROUTE_WORKERS: usize = 16;
 
 #[derive(Default)]
-struct RequestAdmission { short: AtomicUsize, waiters: AtomicUsize }
+struct RequestAdmission { short: AtomicUsize, waiters: AtomicUsize, routes: AtomicUsize }
 
-struct RequestPermit { admission: Arc<RequestAdmission>, waiter: bool }
+#[derive(Clone, Copy)]
+enum RequestClass { Short, Wait, Route }
+struct RequestPermit { admission: Arc<RequestAdmission>, class: RequestClass }
 impl Drop for RequestPermit {
-    fn drop(&mut self) { self.admission.counter(self.waiter).fetch_sub(1, Ordering::AcqRel); }
+    fn drop(&mut self) { self.admission.counter(self.class).fetch_sub(1, Ordering::AcqRel); }
 }
 impl RequestAdmission {
-    fn counter(&self, waiter: bool) -> &AtomicUsize { if waiter { &self.waiters } else { &self.short } }
-    fn acquire(self: &Arc<Self>, waiter: bool) -> Option<RequestPermit> {
-        let limit = if waiter { WAIT_WORKERS } else { REQUEST_WORKERS };
-        self.counter(waiter).fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| (n < limit).then_some(n + 1)).ok()?;
-        Some(RequestPermit { admission: self.clone(), waiter })
+    fn counter(&self, class: RequestClass) -> &AtomicUsize {
+        match class { RequestClass::Short => &self.short, RequestClass::Wait => &self.waiters, RequestClass::Route => &self.routes }
+    }
+    fn acquire(self: &Arc<Self>, class: RequestClass) -> Option<RequestPermit> {
+        let limit = match class { RequestClass::Short => REQUEST_WORKERS, RequestClass::Wait => WAIT_WORKERS, RequestClass::Route => ROUTE_WORKERS };
+        self.counter(class).fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| (n < limit).then_some(n + 1)).ok()?;
+        Some(RequestPermit { admission: self.clone(), class })
     }
 }
 
 fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmission>) {
     let path = request.url().split('?').next().unwrap_or("");
-    let waiter = is_waiter(request.method(), path);
-    let Some(permit) = admission.acquire(waiter) else { request.abort(); return; };
+    // Route waits cannot occupy the polls needed to verify or execute them.
+    let class = if request.method() == &Method::Post && routes::declared(shared.as_ref(), request.url()).is_some() { RequestClass::Route }
+        else if is_waiter(request.method(), path) { RequestClass::Wait } else { RequestClass::Short };
+    let Some(permit) = admission.acquire(class) else { request.abort(); return; };
     if let Err(error) = std::thread::Builder::new().name("request".into()).spawn(move || { let _permit = permit; handle(request, &shared); }) {
         eprintln!("snapback4: cannot start request thread: {error}");
     }
@@ -375,7 +387,7 @@ fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmissi
 
 fn is_waiter(method: &Method, path: &str) -> bool {
     (method == &Method::Get && path == "/changes")
-        || (method == &Method::Post && (path == "/effects/claim" || path == "/actions/claim" || path.starts_with("/a/")))
+        || (method == &Method::Post && (path == "/effects/claim" || path == "/actions/claim" || path == "/routes/verify/claim" || path.starts_with("/a/")))
 }
 
 /// A worker's seat: a bearer session of a service principal.
@@ -682,6 +694,11 @@ fn handle(mut request: Request, shared: &Shared) {
     let method = request.method().clone();
     let url = request.url().to_owned();
     let path = url.split('?').next().unwrap_or("").to_owned();
+    // This exact declared POST path is the only non-loopback development
+    // exception. Core doors, mismatched methods and query variants stay fenced.
+    if method == Method::Post && let Some((name, route)) = routes::declared(shared, &url) {
+        return routes::ingress(request, shared, &name, route);
+    }
     if let Err(refusal) = dev_request(&request, shared) {
         respond_with_cors(request, 403, json!({ "denied": refusal_json(&refusal) }), false);
         return;
@@ -713,7 +730,7 @@ fn handle(mut request: Request, shared: &Shared) {
             return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
         }
     }
-    if method == Method::Post && (matches!(path.as_str(), "/auth/session" | "/auth/revoke") || path.starts_with("/effects/") || (path.starts_with("/actions/") && !path.ends_with("/cancel"))) {
+    if method == Method::Post && (matches!(path.as_str(), "/auth/session" | "/auth/revoke") || path.starts_with("/effects/") || path.starts_with("/routes/verify/") || (path.starts_with("/actions/") && !path.ends_with("/cancel"))) {
         if let Err(refusal) = service_of(&request, shared) {
             return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
         }
@@ -772,6 +789,8 @@ fn handle(mut request: Request, shared: &Shared) {
         (Method::Post, "/dev/clock/advance") => maintenance::advance(request, shared, &body),
         (Method::Post, path) if path.starts_with("/a/") => actions::call(request, shared, path.trim_start_matches("/a/"), &body),
         (Method::Post, "/actions/claim") => actions::claim(request, shared, &body),
+        (Method::Post, "/routes/verify/claim") => routes::claim(request, shared, &body),
+        (Method::Post, path) if path.starts_with("/routes/verify/") => routes::settle(request, shared, path, &body),
         (Method::Post, path) if path.starts_with("/actions/") => actions::settle(request, shared, path, &body),
         (Method::Get, "/probe") => match principal_of(&request, shared) {
             Ok(_) => {
@@ -1223,6 +1242,7 @@ mod poison_tests {
             native: Mutex::new(None),
             auth: crate::auth::Admission::default(),
             uploads: AtomicUsize::new(0),
+            route_verification: routes::Verification::default(),
             auth_work: Mutex::new(None),
             upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),

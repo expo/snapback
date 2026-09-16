@@ -7,6 +7,8 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
 pub const ID_PREFIX: &str = "route:v1:";
+/// An ephemeral ingress id/fence uses the same OS randomness as action claims.
+pub fn verification_token() -> Result<String, RuntimeError> { identity::claim_token() }
 fn refused(code: &'static str, message: impl Into<String>) -> RuntimeError { RuntimeError::Structural { code, message: message.into() } }
 fn unknown() -> RuntimeError { refused("E_ROUTE_UNKNOWN", "no declared route work is available under this authority") }
 fn generation() -> RuntimeError { refused("E_ROUTE_GENERATION", "this route declaration changed; inspect admitted work instead of issuing replacement intent") }

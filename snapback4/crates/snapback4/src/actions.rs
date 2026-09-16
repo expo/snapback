@@ -165,6 +165,7 @@ pub(super) fn settle(request: Request, shared: &Shared, path: &str, body: &str) 
             let code = match payload.get("code").and_then(Json::as_str) {
                 Some("E_SECRET_MISSING") => Some("E_SECRET_MISSING"), Some("E_ACTION_GENERATION") => Some("E_ACTION_GENERATION"),
                 Some("E_ACTION_RESULT") => Some("E_ACTION_RESULT"), Some("E_STEP_INPUT") => Some("E_STEP_INPUT"),
+                Some("E_ROUTE_RESULT") => Some("E_ROUTE_RESULT"),
                 Some("E_STEP_RESULT") => Some("E_STEP_RESULT"), Some("E_STEP_PARKED") => Some("E_STEP_PARKED"),
                 Some("E_ACTION_CANCELLED") => Some("E_ACTION_CANCELLED"), Some("E_ACTION_DEADLINE") => Some("E_ACTION_DEADLINE"),
                 Some("E_ACTION_CLOSED") => Some("E_ACTION_CLOSED"), Some("E_WRITE_LABEL") => Some("E_WRITE_LABEL"), _ => None,
