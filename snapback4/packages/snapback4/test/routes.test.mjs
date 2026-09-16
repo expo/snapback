@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { networkInterfaces } from "node:os";
 import { KEY, entry, fixture, provider, until } from "./fixtures/routes.mjs";
+import { workroomRoutes } from "./fixtures/workroom-routes.mjs";
 
 const hook = 'route billing: post "/hooks/billing" as service:billing secrets [HOOK_KEY] retry 3 backoff 1s wait 2s\n';
 const runs = p => p.inspect("SELECT id, name, state, attempts, error_code, error, result FROM _requests ORDER BY at, id");
@@ -68,49 +69,7 @@ route malformed: post "/hooks/malformed" as service:billing wait 1s
   assert.equal(f.leakedSecret(), false);
 });
 
-test("duplicate and out-of-order webhook revisions preserve the application's latest revision", {timeout:25_000}, async t => {
-  const p = fixture(t, hook + `
-table accounts:
-  customer: text <=40
-  revision: int
-  status: text <=40
-  unique byCustomer: customer
-  public 'fixture account state'
-  insert <- viewer = 'service:billing'
-  update <- viewer = 'service:billing'
-mutation ensureCustomer(customer: text <=40):
-  return insert accounts { customer, revision: 0, status: 'new' } if absent
-mutation applyRevision(customer: text <=40, revision: int, status: text <=40):
-  current = accounts[customer] ! else CUSTOMER_MISSING
-  require revision > current.revision else STALE_REVISION
-  update accounts[current.id] { revision, status }
-  return { applied: true }
-query account(customer: text <=40):
-  return accounts[customer] ! else CUSTOMER_MISSING
-`, entry(`{billing:{verify, async handle(req, ctx) {
-    const event = JSON.parse(Buffer.from(await req.rawBody()).toString("utf8")) as {customer:string, revision:number, status:string};
-    record("handled", {id:ctx.invocation.id, revision:event.revision});
-    const initialized = await ctx.mutate(api.ensureCustomer, {customer:event.customer}, {id:ctx.writeIdFor("initialize")});
-    if (initialized.state !== "sent") throw new Retry("initialization did not settle");
-    const applied = await ctx.mutate(api.applyRevision, event, {id:ctx.writeIdFor("apply")});
-    if (applied.state === "failed" && applied.why.code === "STALE_REVISION") throw new GiveUp("an older revision is already superseded");
-    if (applied.state !== "sent") throw new Retry("application write did not settle");
-    return Response.json({id:ctx.invocation.id, revision:event.revision});
-  }}}`));
-  const f = await p.start();
-  const newest = jsonBody({customer:"customer-one", revision:2, status:"active"});
-  const old = jsonBody({customer:"customer-one", revision:1, status:"past-due"});
-  const first = await f.signed("/hooks/billing", newest);
-  assert.equal(first.status, 200, first.text + "\n" + f.log());
-  assert.deepEqual((await f.signed("/hooks/billing", newest)).json, first.json);
-  const superseded = await f.signed("/hooks/billing", old);
-  assert.equal(superseded.status, 204, superseded.text + "\n" + f.log()); assert.equal(superseded.bytes.length, 0);
-  assert.equal((await f.signed("/hooks/billing", old)).status, 204);
-  const account = await f.post("/q/account", {args:{customer:"customer-one"}});
-  assert.equal(account.data.revision, 2); assert.equal(account.data.status, "active");
-  assert.deepEqual(p.records("handled").map(value => value.revision), [2, 1]);
-  assert.equal(runs(p).length, 2);
-});
+test("canonical fixture payment: signed duplicates, out-of-order revisions and durable backlog acknowledgements", {timeout:70_000}, workroomRoutes);
 
 function heldEntry() {
   return entry(`{billing:{verify, async handle(req, ctx) {
