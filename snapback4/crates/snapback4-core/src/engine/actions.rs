@@ -264,7 +264,12 @@ impl Engine {
         // the provider may already have acted, so retrying it would be unsafe.
         // @ref LLP 3000.009#5.1 — settlement validates the admitted result contract.
         let result = if let ActionSettled::Done(value) = &settled {
-            match result_json(&self.schema, &run.spec, value.clone(), self.ceilings.output_bytes) {
+            let validated = result_json(&self.schema, &run.spec, value.clone(), self.ceilings.output_bytes);
+            let validated = match validated {
+                Ok(_) if !result_assets(&tx, &run.spec, value)? => Err("a result asset does not match its recorded kind, facts or declared byte bound".into()),
+                other => other,
+            };
+            match validated {
                 Ok(result) => Some(result),
                 Err(message) => {
                     finish(tx.conn(), id, "failed", "E_ACTION_RESULT", &message, now)?;
@@ -337,6 +342,41 @@ impl Engine {
     pub fn action_counts(&self) -> Result<BTreeMap<String, u64>, RuntimeError> {
         Ok(self.store.conn().prepare("SELECT state, COUNT(*) FROM _requests GROUP BY state")?.query_map([], |row| Ok((row.get(0)?, row.get::<_, i64>(1)? as u64)))?.collect::<Result<_, _>>()?)
     }
+}
+
+fn result_assets(tx: &crate::store::Tx<'_>, spec: &ActionSpec, result: &Json) -> Result<bool, RuntimeError> {
+    use crate::{assets::AssetKind, ir::ArgType};
+    fn field(tx: &crate::store::Tx<'_>, kind: &ArgType, value: &Json) -> Result<bool, RuntimeError> {
+        Ok(match kind {
+            ArgType::Optional(_) if value.is_null() => true,
+            ArgType::Optional(inner) => field(tx, inner, value)?,
+            ArgType::List { of: Some(inner), .. } => {
+                for item in value.as_array().expect("validated list") {
+                    if !field(tx, inner, item)? { return Ok(false); }
+                }
+                true
+            }
+            ArgType::Image { max, .. } | ArgType::Video { max } => {
+                let fields = value.as_object().expect("validated asset");
+                let id = fields["id"].as_str().expect("validated asset id");
+                let Some(asset) = tx.asset(id)? else { return Ok(false) };
+                let wanted = if matches!(kind, ArgType::Image { .. }) { AssetKind::Image } else { AssetKind::Video };
+                let facts = crate::wire::to_json(&asset.column_value());
+                // Do not expand the handler's result with facts it did not
+                // return. Supplied facts must equal the server's metadata;
+                // neither a claimed byte count nor extra fields can slip in.
+                asset.kind == wanted && asset.bytes <= u64::from(*max)
+                    && fields.iter().all(|(key, value)| facts.get(key) == Some(value))
+            }
+            _ => true,
+        })
+    }
+    if let Some(fields) = &spec.returns {
+        for (name, kind) in fields {
+            if !field(tx, kind, result.get(name).unwrap_or(&Json::Null))? { return Ok(false); }
+        }
+    }
+    Ok(true)
 }
 
 fn result_json(schema: &Schema, spec: &ActionSpec, mut result: Json, ceiling: u64) -> Result<String, String> {

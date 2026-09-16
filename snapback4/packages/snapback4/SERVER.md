@@ -103,8 +103,11 @@ is also uncertain, and begin is never retried inside the same claim.
 
 Action results are validated as JSON before settlement; the core validates
 the declared shape and bounds. Invalid results fail terminally because
-external effects may already have happened. `runWorker` remains available
-for existing hand-written workers.
+external effects may already have happened. An image/video result must name
+a recorded asset of the declared kind and byte bound; any supplied metadata
+must equal its recorded facts, without extra fields. Validation does not add
+metadata to the result or grant permission to read its bytes.
+`runWorker` remains available for existing hand-written workers.
 
 Work ids and step outcomes are retained for the lifetime of the store; there
 is no automatic retention expiry or id reuse. `why <id>` prints step state,

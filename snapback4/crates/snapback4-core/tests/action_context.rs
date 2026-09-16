@@ -39,6 +39,40 @@ fn result_validation_is_terminal_and_uses_the_admitted_shape() {
 }
 
 #[test]
+fn media_results_validate_nested_facts_and_authoritative_byte_bounds() {
+    use snapback4_core::assets::{Asset, AssetKind};
+    for (kind, wanted) in [(ArgType::Image { max: 10 }, AssetKind::Image), (ArgType::Video { max: 10 }, AssetKind::Video)] {
+        for (value, bytes, asset_kind, valid) in [
+            (json!({"id":"asset"}), 10, wanted.clone(), true),
+            (json!({"id":"asset","bytes":10,"width":1,"type":"image/png"}), 10, wanted.clone(), true),
+            (json!({"id":"asset","bytes":"not-a-number","secret":"leak"}), 10, wanted.clone(), false),
+            (json!({"id":"asset","width":"bad"}), 10, wanted.clone(), false),
+            (json!({"id":"asset","extra":null}), 10, wanted.clone(), false),
+            (json!({"id":"asset","bytes":1}), 11, wanted.clone(), false),
+            (json!({"id":"asset"}), 11, wanted.clone(), false),
+            (json!({"id":"missing"}), 10, wanted.clone(), false),
+            (json!({"id":"asset"}), 10, if wanted == AssetKind::Image { AssetKind::Video } else { AssetKind::Image }, false),
+        ] {
+            let mut declared = schema(WorkPolicy::default());
+            let nested = ArgType::Optional(Box::new(ArgType::List { of: Some(Box::new(kind.clone())), max: 2 }));
+            declared.action_specs.get_mut("work").unwrap().returns = Some(BTreeMap::from([("media".into(), nested)]));
+            let mut engine = Engine::memory(declared, [program()]).unwrap();
+            engine.store().record_asset(&Asset { id: "asset".into(), owner: "dev:alice".into(), kind: asset_kind, content_type: "image/png".into(), bytes, width: Some(1), height: Some(1), duration: None, created_at: 0, home: None, released_at: None }).unwrap();
+            admit(&mut engine, "media", 0); let lease = claim(&mut engine, 0);
+            let result = json!({"media":[value]});
+            let run = engine.settle_action("media", "service:worker", &lease, ActionSettled::Done(result.clone()), 1).unwrap();
+            if valid { assert_eq!(run.state, "done"); assert_eq!(run.result, Some(result)); }
+            else {
+                assert_eq!(run.state, "failed", "{result}");
+                assert_eq!(run.error_code.as_deref(), Some("E_ACTION_RESULT"));
+                assert!(!run.error.unwrap().contains("leak"));
+                assert!(engine.claim_actions("service:worker", None, 1, 1_000, 1, 5_000).unwrap().is_empty());
+            }
+        }
+    }
+}
+
+#[test]
 fn a_completed_step_replays_across_claims_and_changed_input_refuses() {
     let mut engine = engine(); admit(&mut engine, "x", 0); let first = claim(&mut engine, 0);
     let started = engine.begin_action_step("x", "service:worker", &first, "mail", &json!({"to":"alice"}), false, 1).unwrap();
