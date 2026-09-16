@@ -24980,3 +24980,22 @@ expo-build-1000 is untouched.
 The W9 handoff ticket is finally dispositioned: A1/C1, A2, A3 and the fixture
 pack all landed; C1 targets remain missed, and Postgres receipt binding stays
 open for C3. Its old pending-A2/A3 list was bookkeeping drift, not unlanded code.
+
+## 2026-09-16 — Workroom diagnostic launched; scoring-shape correction
+
+The published-0.2.26 Sol diagnostic started on Durand at 19:37:27 UTC with a
+four-hour operational safety limit and a 2 GiB free-disk floor. Its immutable
+neutral packet and private lifecycle records are bound in the
+[run record](../benchmarks/runs/2026-09-16-workroom-first/README.md). Authorized
+cache cleanup recovered 6.14 GiB; source, application data and evidence were
+preserved. Background indexing makes contended timings unsuitable for setting
+performance ceilings. No W3/W5 qualification or cell result is claimed here.
+
+During pre-freeze protocol audit, the supervisor corrected its own mistaken
+one-builder/three-outcome-judges interpretation. LLP 3000's inherited September
+5 commission and subsequent three-model cells use separate Astra, Grok and Muse
+builds and family-specific experiences, with independent outcome grading. The
+unpublished Workroom record-schema addition is being corrected to one builder
+and one separately identified outcome grade per lane record. Prior tests and
+reviews remain attached to their actual revision; they do not establish the
+experimental design. The running Sol pilot is unchanged and remains diagnostic.

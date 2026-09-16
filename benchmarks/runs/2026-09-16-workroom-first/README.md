@@ -47,10 +47,11 @@ No additional release is needed merely to repeat that publication.
    session** for W8. A failing/unmeasured probe cannot supply a ceiling.
 4. Record measurements and the common cap/ceiling selection, resolve the
    brief's launch/holdout/record holes, then freeze the public packet.
-5. Start a new empty application and cold builder for the first no-SQL cell.
-   No pilot code, implementation hints or mid-run steering enter that lane.
-6. Collect independent acceptance/holdout outcomes and the three declared
-   scorers; retain nulls and not-run results honestly. No comparative result
+5. Start separate empty applications and cold Astra, Grok and Muse builders
+   for the first no-SQL Snapback configuration. No pilot code, implementation
+   hints or mid-run steering enter those lanes.
+6. Collect each builder's experience separately from independent
+   acceptance/holdout outcomes; retain nulls and not-run results honestly. No comparative result
    without matched controls. Controls are due after freeze, serially on the
    same machine/model/effort.
 7. Land evidence and bounded instrument updates, preserving raw private logs
@@ -106,15 +107,30 @@ No task on this run may put load on `expo-build-1000`. Heavy verification,
 replays and cells are serialized. Stop only PIDs/process groups recorded at
 launch; preserve application stores and receipts for diagnosis.
 
-## Record-format preparation
+## Three-family interpretation and record-format correction
 
-The existing machine-record schema now admits `team-workspace` with its
-declared two-layer scores: raw B1–B10 plus builder holistic, three independent
-O1–O5 panels, and a combined total per grader only when all contributing
-dimensions are measured. No intermediate weighted subtotals or panel average
-are introduced. Unavailable panels remain explicitly null, with evidence
-pointers; legacy rubrics and undeclared Workroom fields are refused. The
-instrument itself stays Draft. Ten focused tests (old fixtures included) pass
-on the integrated source, independently cleared by Sol and Grok. Their actual
-reviews are retained under `reviews/`. No score has been assigned. Comparative
-publisher rendering is outside this addition and remains unqualified.
+Before any pilot acceptance green or scored launch, the supervisor found and
+corrected its interpretation of "the three scorers." The inherited
+[September 5 commission](../2026-09-05-clique-full-3x3/README.md) says to do the
+entire program with each model separately; its scorers read their own family's
+builder narratives, not independently grade outcomes. The
+[September 14 three-model cell](../2026-09-14-snapback4-clique-0.2.10/README.md)
+likewise has three independent applications, three family-specific experience
+scores and separate outcome grades. Workroom retains its own declared B/O
+dimensions, not Clique's older narrative rubric.
+
+Thus the first configuration needs one machine record per independent
+`(backend, builder family, repetition)` run: that builder's B1–B10 and holistic
+judgment, plus a separately identified independent outcome grade. Astra, Grok
+and Muse do not become three outcome judges sharing one builder's experience.
+Matching Convex and Supabase lanes use the same family/model/effort, machine
+and public packet, serially. Exact model versions/efforts, lane order, grader
+assignment and calibrated caps remain to be registered at freeze. The Sol
+pilot is diagnostic-only and does not replace any of those cold builds.
+
+The initial local schema addition at `ff50d3fed` incorrectly required the
+three-outcome-panel shape. Its ten passing tests and received Sol/Grok reviews
+remain evidence about that revision, not approval of the experimental design.
+The shape is being corrected before landing or creating a scored record.
+No score has been assigned; comparative publisher rendering remains outside
+this bounded record-admission change and is unqualified.
