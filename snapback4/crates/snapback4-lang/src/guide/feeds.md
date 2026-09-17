@@ -1161,3 +1161,21 @@ when a negative contribution expires. Rechecking only the stored winners misses
 that group. One value index would add at most two entry writes per removed
 contribution, not another aggregate scan; paying that cost does not repair the
 between-sweeps or offline ordering gap. This recipe pays for live reads instead.
+
+## N_PUBLIC_AGGREGATE_COPY: a public copy keeps ordinary write authority
+
+N_PUBLIC_AGGREGATE_COPY is a note, not an error. A public column is assigned
+directly from a declared `maintain`, but `update <- allow` (or a provably
+unrestricted equivalent) lets any principal set it through a mutation that
+writes it. The column duplicates an aggregate the engine already keeps.
+Read the maintain directly, or restrict the update rule; check the insert
+rule too if a caller can supply the initial value.
+
+The client calls declared operations, not arbitrary table writes. This note
+identifies latent table permission, not proof that a current mutation accepts
+an arbitrary score. It covers direct scalar maintain-to-column assignments in
+programs and helpers, including jobs, once per column and maintain. It does not
+infer copies from names, matching group keys, increments, aliases or arithmetic.
+Restricted rules, private targets and immutable columns do not receive it;
+absence of the note is not a proof that a ranking cannot be forged. Sync and
+`online only` do not change write authority.

@@ -28269,3 +28269,171 @@ not claimed green; native fixture cache access and the browser need an
 outside-sandbox qualification by the lead. ref-check passed with 481 LLPs,
 9,052 refs, zero errors and zero unchecked; the final append and source line
 limits were checked. No commit, push, tag or publication was made.
+
+## 2026-09-16 — W12b: public writable copies of maintained aggregates
+
+Added `N_PUBLIC_AGGREGATE_COPY`, a note at the copied column, under
+LLP 3000.007 §20.20. The signal is an actual direct scalar maintain read in
+an insert/update/upsert field in a declared program or helper, including a
+job. A public/read-allow or publicly synced target must have a provably
+unrestricted update rule, and the column must be mutable. Copies are
+reported once per table/column/maintain. A matching name, type, group key,
+increment, alias or arithmetic expression is not evidence. Simple boolean
+unrestricted equivalents are covered; this is deliberately not a general
+rule prover or data-flow analysis. No error, mechanical fix, authority,
+meter ceiling or serialized form was added.
+
+The note describes latent table permission accurately: a principal still
+calls a declared mutation, not arbitrary table writes. It names the copied
+aggregate, says that the update rule lets any principal set the public
+column through a mutation, and recommends reading the maintain directly or
+restricting the update rule, with insert authority checked too. Its dedicated
+feeds-card section is pinned verbatim, its code is registered, and the README
+names the discovery path and limits. The guide census is 156 registered codes,
+156 dedicated sections, zero missing.
+
+The survey found the same permission in the paved fresh-ranking recipe:
+feeds block 6, `ranked.score`. Suppressing it on an online-only table would
+have hidden the same authority, so the recipe now restricts both insert and
+update to the non-expiring maintained count. An absent group admits zero;
+updates explicitly check `next.score`. An added adversarial mutation proved
+that the original recipe admitted score 999. The repaired recipe refuses
+that absent upsert with `NOT_FOUND` and readable updates with `E_RULE`;
+first like, repeated like, last unlike and repeated unlike all succeed, with
+scores 0/1/1/0/0 and denied attempts leaving the row unchanged. The remaining
+trust in source facts and initial post/window metadata is stated on the card.
+No runtime change or new authority was needed for these existing rule probes.
+
+False-positive survey, compiled against the final detector:
+
+| Input | Quarry files/blocks | Bound tables/occurrences | New-note columns |
+| --- | ---: | ---: | --- |
+| 0.2.25 calibration | 8 files | 34 | `ranked.score` at `insights.q:28:3` |
+| 0.2.26 calibration | 6 files | 34 | `trendingRows.score` at `insights.q:29:3` |
+| 0.2.27 calibration | 13 files | 38 | `posts.score` at `social.q:6:3`; `trendingPosts.score` at `trending.q:3:3` |
+| 28 guide cards and 3 published Markdown documents | 47 blocks | 409 occurrences, including shared language context | none after the recipe repair; beforehand only feeds block 6 `ranked.score` |
+| Installable feeds recipe | 1 module | 8 | none |
+| Installable search recipe | 1 module | 2 | none |
+
+All four calibration columns actually copy `likeCounts`; the 0.2.26 mutation
+increments its score but its backfill job assigns the maintained value. The
+third schema also copies the count into `posts.score`, which has the same
+public unrestricted update rule. Zero false positives were observed among
+the four calibration hits; the one original paved-recipe hit was the same
+latent permission and was repaired. This small, selected survey is not a
+population false-positive estimate. Ten negative controls cover maintain-only,
+restricted service/owner/deny rules, a private target, an immutable column,
+and unrelated constants/increments with and without a corresponding maintain.
+Seven unrestricted/public spellings, three write shapes, and a renamed sum
+copy cover positive cases. Permanent tests assert no new note on every card
+and published block and no notes on either installable recipe.
+
+The run-record READMEs point to local retained packets; the `.q` files are
+in `~/clique-sb4-20260916-astra-cal{9,10,11}/lanes/astra-snapback4/snapback/`,
+not copied into this lane. The ignored opt-in survey test compiled all 27
+files (98,568 bytes) and asserted the exact four-column result. SHA-256 over
+sorted basename + NUL + original file bytes + NUL, per packet:
+
+- 0.2.25: `577c2e4cf8a3f0447ac5475bd88ccd32b5b6282362718c7b505c1e979c136bf4`
+- 0.2.26: `edba7f0818f2396e8fd6e7f946f602a5ffc4eeec454fc8020d2d62b3b1cd0f69`
+- 0.2.27: `9508cffa10042710d1072ae7100d699f7fc7b7b8529ae561af8176f13a242ea0`
+
+Verification starts from `82eebd6b1174eb6ed35f2e375649e0efaa1e3f65`.
+Cargo commands ran from `snapback4/`. Every Node/Bun command used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+
+`cargo test -p snapback4-lang --test aggregate_copies -- --nocapture` before
+the implementation and recipe fix:
+
+```text
+test result: FAILED. 2 passed; 3 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+The same command after the fix and expanded controls:
+
+```text
+test result: ok. 8 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.14s
+```
+
+`SNAPBACK4_CALIBRATION_PACKETS=/Users/ccheever cargo test -p snapback4-lang --test aggregate_copies survey_retained_calibration_schemas -- --ignored --nocapture`:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.10s
+```
+
+`cargo test -p snapback4-lang --test guide -- --nocapture`:
+
+```text
+test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+```
+
+The prototype survey explicitly failed the original recipe with
+`cargo test -p snapback4-lang --test aggregate_copies every_card_and_published_quarry_block_has_no_aggregate_copy_note -- --nocapture`:
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.13s
+```
+
+`bash snapback4/scripts/test.sh` from the repository root completed every
+stage. Its verbatim stage summaries were:
+
+```text
+-- ok: cargo build (15 s)
+-- ok: wasm build (15 s)
+-- FAIL: package typecheck (1 s)
+-- FAIL: package build (0 s)
+-- ok: chat app check (2 s)
+-- FAIL: cargo test (839 s)
+-- ok: chat app typecheck (0 s)
+-- ok: expo app typecheck (1 s)
+-- ok: fixture wrapper tests (9 s)
+-- FAIL: client tests (54 s)
+== 4 failure(s) in 872 s
+```
+
+The 73 Rust result lines total 1,281 passed, 18 failed, 5 ignored. The failures
+were one witness port collision, eight device native-fixture builds and nine
+simulator native-fixture builds. Fixture wrappers reported 9 passed, 0 failed.
+The initial client run reported `ℹ tests 253`, `ℹ pass 233`, `ℹ fail 19`,
+`ℹ skipped 1`: package build had failed before copying wasm into `dist`.
+These are the run's actual results, not a green full-suite claim.
+
+`openid-client` was in the frozen lockfile but absent from installed modules.
+The first frozen install could not write its default cache/temp location;
+`TMPDIR=/private/tmp BUN_INSTALL_CACHE_DIR=/private/tmp/w12b-bun-cache bun install --frozen-lockfile`
+installed 6 packages without changing the lockfile. Both
+`bun run --cwd packages/snapback4 typecheck` and
+`bun run --cwd packages/snapback4 build` then exited 0. The log wrapper's
+first attempt also used zsh's read-only `status` variable after the suite;
+the suite's own completed log and summaries above are retained independently.
+
+Isolated reruns, with no product changes for these failures:
+
+- `cargo test -p snapback4 --test witness driver::cli_rejects_malformed_envelope -- --exact --nocapture`
+  — `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 3.51s`.
+  The original failure was `E_WITNESS_PORT`, address already in use.
+- Native fixture builds tried to download `unicode-ident-1.0.25.crate` into
+  the protected default Cargo cache. After
+  `CARGO_HOME=/private/tmp/w12b-cargo cargo fetch --locked --manifest-path native-fixtures/rescore/Cargo.toml`,
+  the existing test executables were rerun with that writable cache:
+  `CARGO_HOME=/private/tmp/w12b-cargo target/debug/deps/native_reads-d0dc919ddd0f0017 --nocapture`
+  — `test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.11s`;
+  `CARGO_HOME=/private/tmp/w12b-cargo target/debug/deps/native-4af81835b785917e --nocapture`
+  — `test result: ok. 11 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 4.74s`.
+- `node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'`
+  — `ℹ tests 538`, `ℹ pass 536`, `ℹ fail 1`, `ℹ skipped 1`.
+- `node --test packages/snapback4/test/react.test.mjs`
+  — `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`, `ℹ skipped 0`;
+  Chromium again exited `signal=SIGABRT`, the sandbox artifact named by
+  the lane brief. This remains for the lead's outside-sandbox run.
+
+All 18 initially failing Rust cases passed their isolated reruns. No failure
+is claimed pre-existing without a base reproduction; the remaining browser
+failure is reported as the explicitly identified sandbox artifact. Full logs
+are `/tmp/w12b-suite.log`, `/tmp/w12b-green.log`, `/tmp/w12b-survey.log`,
+`/tmp/w12b-guide.log`, `/tmp/w12b-client-rerun.log`,
+`/tmp/w12b-native-rerun.log`, and `/tmp/w12b-native-sim-rerun.log`.
+`./ref-check --verbose` passed with 481 LLP docs, 9,053 refs in 24,093 files,
+zero errors and zero unchecked references; `git diff --check` passed. The new
+source module is 107 lines. No out-of-scope product file, corpus case, meter,
+value serialization, commit, push, tag or publication was touched.

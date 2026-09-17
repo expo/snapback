@@ -10,6 +10,7 @@ pub mod residency;
 mod actions;
 mod routes;
 mod key_bound;
+mod aggregate_copies;
 
 use crate::ast::Document;
 use crate::diag::Diagnostic;
@@ -123,6 +124,7 @@ pub fn bind(documents: Vec<Document>) -> Bound {
     notes.extend(completeness_notes(&catalog, &schema, &programs));
     notes.extend(residency::maintain_notes(&catalog, &schema));
     notes.extend(residency::guard_notes(&schema, &programs));
+    if diagnostics.is_empty() { notes.extend(aggregate_copies::notes(&catalog, &schema)); }
     Bound { schema, programs, personas, diagnostics, notes }
 }
 
