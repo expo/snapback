@@ -61,9 +61,15 @@ in memory. The local client reads the device's one atomic window of the last
 owner's settlement cannot leave a stale pending outcome. Reads and repeated
 flushes do not refresh the window. Queued terminal writes emit at most once
 per client: their event ids stay remembered until the outbox entry leaves.
-Local receipts survive reopen; adopting a
-closed web tab fills only spare capacity, with destination receipts newest and
-winning id collisions. Recovered success carries `replayed: true`
+Local receipts survive reopen. Before deleting an adopted web tab's store,
+its terminal receipts enter a shared server/viewer window bounded to 256 in
+recovery order. Existing shared ids keep their outcome and position. Openers
+and `client.write(id)` read it alongside the device's own 256 receipts;
+reads neither copy nor refresh it, so another tab's adoption cannot hide a
+receipt from a reload. Outbox ownership stays exclusive: a held Web Lock is
+never taken, and busy candidates retry in the background until available or
+the adopter closes, without another backend write. Storage clearing or eviction
+from both windows can make an id unknown. Recovered success carries `replayed: true`
 and no result; recovered failure keeps code/family and `write refused: CODE`.
 Refusals before durable admission, the online tier and mock remember outcomes
 for their client lifetime only, up to 256 terminal outcomes.
