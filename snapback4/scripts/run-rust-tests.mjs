@@ -6,7 +6,7 @@
 // target is included automatically rather than maintained in a parallel list.
 
 import { availableParallelism } from "node:os";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 
 const requested = Number.parseInt(process.env.SNAPBACK4_RUST_TEST_PROCESSES ?? "", 10);
 const processLimit = Number.isFinite(requested) && requested > 0
@@ -91,6 +91,18 @@ function testThreads(artifact) {
   return 4;
 }
 
+function listedTests(artifact) {
+  const listed = spawnSync(artifact.executable, ["--list", "--format=terse"], {
+    encoding: "utf8",
+    env: process.env,
+    maxBuffer: 1024 * 1024,
+  });
+  if (listed.status !== 0) {
+    throw new Error(`could not list ${packageName(artifact.packageId)}::${artifact.target}: ${listed.stderr}`);
+  }
+  return listed.stdout.split("\n").filter((line) => line.endsWith(": test")).map((line) => line.slice(0, -6));
+}
+
 async function runArtifact(artifact) {
   const label = `${packageName(artifact.packageId)}::${artifact.target}${artifact.labelSuffix ?? ""}`;
   const started = Date.now();
@@ -146,14 +158,17 @@ if (failed) {
 } else {
   build.artifacts.sort((left, right) => `${left.packageId}/${left.target}`.localeCompare(`${right.packageId}/${right.target}`));
   const executions = build.artifacts.flatMap((artifact) => {
-    if (packageName(artifact.packageId) !== "snapback4-lang" || artifact.target !== "lowering") return [artifact];
-    const shards = Array.from({ length: 8 }, (_, part) => ({
+    const key = `${packageName(artifact.packageId)}::${artifact.target}`;
+    // These targets contain independent scale tests whose aggregate harness
+    // otherwise owns the critical path. Exact-filter processes are bounded by
+    // the same pool and keep each test's descriptors, globals, and stack local.
+    if (!["snapback4-lang::lowering", "snapback4-device::device", "snapback4-sim::clique", "snapback4-sim::maintains"].includes(key)) return [artifact];
+    return listedTests(artifact).map((test) => ({
       ...artifact,
-      filter: `baseline_golden_and_ownership_switch_shard_${part}`,
+      filter: test,
       exact: true,
-      labelSuffix: `::golden-${part}`,
+      labelSuffix: `::${test}`,
     }));
-    return [...shards, { ...artifact, filter: "regression::", labelSuffix: "::regressions" }];
   });
   console.log(`-- rust inventory: ${build.artifacts.length} test binaries, ${executions.length} executions; at most ${processLimit} concurrent processes`);
   const results = await runPool(executions);
