@@ -18,6 +18,7 @@ const MAX_MS = 4 * 60 * 60 * 1000;
 const HEARTBEAT_MS = 60 * 1000;
 export const CUSTODY_SAMPLE_MS = 5_000;
 const GRACEFUL_CANCEL_MS = 5_000;
+const TERMINAL_CLEANUP_MS = 30_000;
 const MIN_FREE_BYTES = 2n * 1024n * 1024n * 1024n;
 export const CUSTODY_LIMITATION =
   'Sampled ancestry cannot see a process that double-forks and reparents between snapshots; this is not generic subtree custody.';
@@ -279,7 +280,7 @@ export class ProcessCustody {
       }
     }
 
-    if (!adopt || !this.leader || !verified.has(this.leader.pid)) return { rows, byPid, verified };
+    if (!adopt || verified.size === 0) return { rows, byPid, verified };
     let added = true;
     while (added) {
       added = false;
@@ -324,8 +325,22 @@ export class ProcessCustody {
     return this.observeRows(await this.snapshot(), { adopt });
   }
 
-  async signalExact(identity, signal, reason) {
-    const state = await this.sample({ adopt: false });
+  terminalDeadlineExceeded(deadline, reason, phase) {
+    if (deadline === null || Date.now() < deadline) return false;
+    this.uncertain('PILOT_TERMINAL_CLEANUP_DEADLINE_EXHAUSTED', {
+      reason, phase, limitMilliseconds: TERMINAL_CLEANUP_MS,
+    }, 'terminal-cleanup-deadline');
+    return true;
+  }
+
+  async signalExact(identity, signal, reason, deadline = null) {
+    if (this.terminalDeadlineExceeded(deadline, reason, 'before-exact-pid-signal')) {
+      return { signalled: false, gone: false, deadlineExhausted: true };
+    }
+    const state = await this.sample({ adopt: true });
+    if (this.terminalDeadlineExceeded(deadline, reason, 'before-exact-pid-signal')) {
+      return { signalled: false, gone: false, deadlineExhausted: true };
+    }
     const observed = state.byPid.get(identity.pid);
     if (!observed) {
       this.emit('exact-pid-disappeared', { reason, signal, identity: identityReference(identity), after: 'no-signal' });
@@ -341,24 +356,41 @@ export class ProcessCustody {
     this.emit('exact-pid-signal', { reason, signal, identity: identityReference(identity) });
     try { await this.signalPid(identity.pid, signal); }
     catch (error) { if (error.code !== 'ESRCH') throw error; }
-    return { signalled: true, gone: false };
+    return {
+      signalled: true, gone: false,
+      deadlineExhausted: this.terminalDeadlineExceeded(deadline, reason, 'after-exact-pid-signal'),
+    };
   }
 
-  async gracefulCancel(reason) {
+  async gracefulCancel(reason, deadline) {
     if (!this.leader) return { attempted: false, outcome: 'leader-unverified' };
-    const sent = await this.signalExact(this.leader, 'SIGINT', reason);
+    const sent = await this.signalExact(this.leader, 'SIGINT', reason, deadline);
+    if (sent.deadlineExhausted) return {
+      attempted: sent.signalled, ...(sent.signalled ? { signal: 'SIGINT' } : {}),
+      outcome: 'cleanup-deadline-exhausted',
+    };
     if (!sent.signalled) return {
       attempted: false, outcome: sent.gone ? 'leader-already-gone' : 'identity-refused',
     };
-    const until = Date.now() + this.timings.gracefulMs;
+    const until = Math.min(Date.now() + this.timings.gracefulMs, deadline);
     while (Date.now() < until) {
-      await this.sleep(Math.min(this.timings.pollMs, Math.max(0, until - Date.now())));
+      await this.sleep(Math.min(this.timings.pollMs, Math.max(0, until - Date.now()),
+        Math.max(0, deadline - Date.now())));
+      if (this.terminalDeadlineExceeded(deadline, reason, 'before-graceful-cancel-snapshot')) {
+        return { attempted: true, signal: 'SIGINT', outcome: 'cleanup-deadline-exhausted' };
+      }
       const state = await this.sample({ adopt: true });
+      if (this.terminalDeadlineExceeded(deadline, reason, 'after-graceful-cancel-snapshot')) {
+        return { attempted: true, signal: 'SIGINT', outcome: 'cleanup-deadline-exhausted' };
+      }
       const observed = state.byPid.get(this.leader.pid);
       if (!stableIdentityMatches(this.leader, observed)) {
         this.emit('graceful-cancel-complete', { reason, signal: 'SIGINT', outcome: 'leader-exited' });
         return { attempted: true, signal: 'SIGINT', outcome: 'leader-exited' };
       }
+    }
+    if (this.terminalDeadlineExceeded(deadline, reason, 'graceful-cancel-wait')) {
+      return { attempted: true, signal: 'SIGINT', outcome: 'cleanup-deadline-exhausted' };
     }
     this.emit('graceful-cancel-complete', { reason, signal: 'SIGINT', outcome: 'grace-expired' });
     return { attempted: true, signal: 'SIGINT', outcome: 'grace-expired' };
@@ -388,24 +420,41 @@ export class ProcessCustody {
     return { safe: true, members, unknown: [] };
   }
 
-  async groupState(pgid, reason) {
-    const state = await this.sample({ adopt: false });
-    return { ...this.validateGroup(state.rows, pgid, reason), rows: state.rows };
+  async groupState(pgid, reason, deadline) {
+    if (this.terminalDeadlineExceeded(deadline, reason, 'before-group-snapshot')) {
+      return {
+        safe: false, members: this.groupMembers(this.lastRows, pgid), unknown: [],
+        rows: this.lastRows, deadlineExhausted: true,
+      };
+    }
+    const state = await this.sample({ adopt: true });
+    const validation = this.validateGroup(state.rows, pgid, reason);
+    return {
+      ...validation, rows: state.rows,
+      deadlineExhausted: this.terminalDeadlineExceeded(deadline, reason, 'after-group-snapshot'),
+    };
   }
 
-  async waitForGroup(pgid, milliseconds, reason) {
+  async waitForGroup(pgid, milliseconds, reason, deadline) {
     const until = Date.now() + milliseconds;
     for (;;) {
-      const state = await this.groupState(pgid, reason);
+      const state = await this.groupState(pgid, reason, deadline);
+      if (state.deadlineExhausted) {
+        return { gone: state.members.length === 0, deadlineExhausted: true };
+      }
       if (state.members.length === 0) return { gone: true };
       if (!state.safe) return { gone: false, refused: true };
       if (Date.now() >= until) return { gone: false };
-      await this.sleep(Math.min(this.timings.pollMs, Math.max(0, until - Date.now())));
+      await this.sleep(Math.min(this.timings.pollMs, Math.max(0, until - Date.now()),
+        Math.max(0, deadline - Date.now())));
     }
   }
 
-  async cleanupGroup(pgid, reason, { descendant = false } = {}) {
-    let state = await this.groupState(pgid, reason);
+  async cleanupGroup(pgid, reason, deadline, { descendant = false } = {}) {
+    let state = await this.groupState(pgid, reason, deadline);
+    if (state.deadlineExhausted) {
+      return { pgid, disappeared: false, descendant, deadlineExhausted: true };
+    }
     if (state.members.length === 0) {
       this.emit('group-disappeared', { reason, pgid, after: 'no-signal', descendant });
       return { pgid, disappeared: true, after: 'no-signal', descendant };
@@ -414,24 +463,41 @@ export class ProcessCustody {
     this.emit('group-signal', { reason, pgid, signal: 'SIGTERM', descendant, members: state.members.map(identityReference) });
     try { await this.signalGroup(pgid, 'SIGTERM'); }
     catch (error) { if (error.code !== 'ESRCH') throw error; }
+    if (this.terminalDeadlineExceeded(deadline, reason, 'after-group-SIGTERM')) {
+      return { pgid, disappeared: false, descendant, after: 'SIGTERM', deadlineExhausted: true };
+    }
     const term = await this.waitForGroup(pgid,
-      descendant ? this.timings.descendantTermMs : this.timings.groupTermMs, reason);
+      descendant ? this.timings.descendantTermMs : this.timings.groupTermMs, reason, deadline);
+    if (term.deadlineExhausted) {
+      return {
+        pgid, disappeared: term.gone, descendant, after: 'SIGTERM', deadlineExhausted: true,
+      };
+    }
     if (term.gone) {
       this.emit('group-disappeared', { reason, pgid, after: 'SIGTERM', descendant });
       return { pgid, disappeared: true, after: 'SIGTERM', descendant };
     }
     if (term.refused) return { pgid, disappeared: false, refused: true, after: 'SIGTERM', descendant };
-    state = await this.groupState(pgid, reason);
+    state = await this.groupState(pgid, reason, deadline);
+    if (state.deadlineExhausted) {
+      return { pgid, disappeared: false, descendant, after: 'SIGTERM', deadlineExhausted: true };
+    }
     if (!state.safe) return { pgid, disappeared: false, refused: true, after: 'SIGTERM', descendant };
     this.emit('group-signal', { reason, pgid, signal: 'SIGKILL', descendant, members: state.members.map(identityReference) });
     try { await this.signalGroup(pgid, 'SIGKILL'); }
     catch (error) { if (error.code !== 'ESRCH') throw error; }
+    if (this.terminalDeadlineExceeded(deadline, reason, 'after-group-SIGKILL')) {
+      return { pgid, disappeared: false, descendant, after: 'SIGKILL', deadlineExhausted: true };
+    }
     const killed = await this.waitForGroup(pgid,
-      descendant ? this.timings.descendantKillMs : this.timings.groupKillMs, reason);
+      descendant ? this.timings.descendantKillMs : this.timings.groupKillMs, reason, deadline);
     this.emit(killed.gone ? 'group-disappeared' : 'group-still-present', {
       reason, pgid, after: 'SIGKILL', descendant, refused: Boolean(killed.refused),
     });
-    return { pgid, disappeared: killed.gone, refused: Boolean(killed.refused), after: 'SIGKILL', descendant };
+    return {
+      pgid, disappeared: killed.gone, refused: Boolean(killed.refused), after: 'SIGKILL', descendant,
+      deadlineExhausted: Boolean(killed.deadlineExhausted),
+    };
   }
 
   descendantGroups() {
@@ -453,30 +519,47 @@ export class ProcessCustody {
     return [...current].sort((a, b) => a - b);
   }
 
-  async waitForExactGone(identities, milliseconds) {
+  async waitForExactGone(identities, milliseconds, reason, deadline) {
     const until = Date.now() + milliseconds;
     for (;;) {
-      const state = await this.sample({ adopt: false });
+      if (this.terminalDeadlineExceeded(deadline, reason, 'before-exact-pid-wait')) {
+        return { remaining: identities, deadlineExhausted: true };
+      }
+      const state = await this.sample({ adopt: true });
       const remaining = identities.filter(identity => stableIdentityMatches(identity, state.byPid.get(identity.pid)));
-      if (remaining.length === 0) return [];
-      if (Date.now() >= until) return remaining;
-      await this.sleep(Math.min(this.timings.pollMs, Math.max(0, until - Date.now())));
+      if (this.terminalDeadlineExceeded(deadline, reason, 'after-exact-pid-snapshot')) {
+        return { remaining, deadlineExhausted: true };
+      }
+      if (remaining.length === 0) return { remaining: [] };
+      if (Date.now() >= until) return { remaining };
+      await this.sleep(Math.min(this.timings.pollMs, Math.max(0, until - Date.now()),
+        Math.max(0, deadline - Date.now())));
     }
   }
 
-  async cleanupExactPids(reason) {
-    const state = await this.sample({ adopt: false });
-    const live = this.ledger
+  async cleanupExactPids(reason, identities, deadline) {
+    if (this.terminalDeadlineExceeded(deadline, reason, 'before-exact-pid-cleanup')) {
+      return { remaining: identities, deadlineExhausted: true };
+    }
+    const state = await this.sample({ adopt: true });
+    const live = identities
       .filter(identity => stableIdentityMatches(identity, state.byPid.get(identity.pid)))
       .sort((a, b) => b.depth - a.depth || b.pid - a.pid);
-    for (const identity of live) await this.signalExact(identity, 'SIGTERM', reason);
-    let remaining = await this.waitForExactGone(live, this.timings.pidTermMs);
-    for (const identity of remaining) await this.signalExact(identity, 'SIGKILL', reason);
-    remaining = await this.waitForExactGone(remaining, this.timings.pidKillMs);
-    for (const identity of remaining) {
+    for (const identity of live) {
+      const result = await this.signalExact(identity, 'SIGTERM', reason, deadline);
+      if (result.deadlineExhausted) return { remaining: live, deadlineExhausted: true };
+    }
+    let waited = await this.waitForExactGone(live, this.timings.pidTermMs, reason, deadline);
+    if (waited.deadlineExhausted) return waited;
+    for (const identity of waited.remaining) {
+      const result = await this.signalExact(identity, 'SIGKILL', reason, deadline);
+      if (result.deadlineExhausted) return { remaining: waited.remaining, deadlineExhausted: true };
+    }
+    waited = await this.waitForExactGone(waited.remaining, this.timings.pidKillMs, reason, deadline);
+    for (const identity of waited.remaining) {
       this.emit('exact-pid-still-present', { reason, after: 'SIGKILL', identity: identityReference(identity) });
     }
-    return remaining;
+    return waited;
   }
 
   async cleanup({ reason, intentional = false } = {}) {
@@ -484,60 +567,106 @@ export class ProcessCustody {
   }
 
   async _cleanup({ reason, intentional }) {
+    const terminalDeadline = Date.now() + TERMINAL_CLEANUP_MS;
     let gracefulCancellation = { attempted: false, outcome: 'not-an-intentional-stop' };
     if (intentional) {
-      try { gracefulCancellation = await this.gracefulCancel(reason); }
+      try { gracefulCancellation = await this.gracefulCancel(reason, terminalDeadline); }
       catch (error) {
         gracefulCancellation = { attempted: false, outcome: 'graceful-cancel-error', error: error.message };
         this.uncertain('PILOT_GRACEFUL_CANCEL_FAILED', { reason, message: error.message });
       }
     }
 
-    try { await this.sample({ adopt: Boolean(this.leader) }); }
-    catch (error) { this.uncertain('PILOT_TERMINAL_SNAPSHOT_FAILED', { reason, message: error.message }); }
-
-    const adoptedGroups = this.descendantGroups();
     const groupCleanups = [];
-    for (const targetPgid of this.currentDescendantGroupIds()) {
-      try { groupCleanups.push(await this.cleanupGroup(targetPgid, reason, { descendant: true })); }
+    const processedGroups = new Set();
+    const processedExact = new Set();
+    let leaderGroupHandled = false;
+    let finalRows = [];
+    for (;;) {
+      if (this.terminalDeadlineExceeded(terminalDeadline, reason, 'before-terminal-snapshot')) break;
+      let state;
+      try { state = await this.sample({ adopt: true }); }
       catch (error) {
-        groupCleanups.push({ pgid: targetPgid, disappeared: false, descendant: true, error: error.message });
-        this.uncertain('PILOT_DESCENDANT_GROUP_CLEANUP_FAILED', {
-          reason, pgid: targetPgid, message: error.message,
-        });
+        this.uncertain('PILOT_TERMINAL_SNAPSHOT_FAILED', { reason, message: error.message });
+        break;
       }
-    }
-    if (this.leader && this.leaderGroupVerified) {
-      try { groupCleanups.push(await this.cleanupGroup(this.leader.pgid, reason, { descendant: false })); }
-      catch (error) {
-        groupCleanups.push({ pgid: this.leader.pgid, disappeared: false, descendant: false, error: error.message });
-        this.uncertain('PILOT_CODEX_GROUP_CLEANUP_FAILED', {
-          reason, pgid: this.leader.pgid, message: error.message,
-        });
+      finalRows = state.rows;
+      if (this.terminalDeadlineExceeded(terminalDeadline, reason, 'after-terminal-snapshot')) break;
+
+      const targetPgid = this.currentDescendantGroupIds()
+        .find(pgid => !processedGroups.has(pgid));
+      if (targetPgid !== undefined) {
+        processedGroups.add(targetPgid);
+        try {
+          const cleanup = await this.cleanupGroup(targetPgid, reason, terminalDeadline, { descendant: true });
+          groupCleanups.push(cleanup);
+          if (cleanup.deadlineExhausted) break;
+        } catch (error) {
+          groupCleanups.push({ pgid: targetPgid, disappeared: false, descendant: true, error: error.message });
+          this.uncertain('PILOT_DESCENDANT_GROUP_CLEANUP_FAILED', {
+            reason, pgid: targetPgid, message: error.message,
+          });
+        }
+        continue;
       }
-    } else if (this.leader) {
-      this.emit('group-signal-refused', {
-        reason, pgid: this.leader.pgid, cause: 'codex-group-was-not-verified-at-spawn',
+
+      if (!leaderGroupHandled && this.leader) {
+        leaderGroupHandled = true;
+        processedGroups.add(this.leader.pgid);
+        if (this.leaderGroupVerified) {
+          try {
+            const cleanup = await this.cleanupGroup(this.leader.pgid, reason, terminalDeadline, { descendant: false });
+            groupCleanups.push(cleanup);
+            if (cleanup.deadlineExhausted) break;
+          } catch (error) {
+            groupCleanups.push({ pgid: this.leader.pgid, disappeared: false, descendant: false, error: error.message });
+            this.uncertain('PILOT_CODEX_GROUP_CLEANUP_FAILED', {
+              reason, pgid: this.leader.pgid, message: error.message,
+            });
+          }
+        } else {
+          this.emit('group-signal-refused', {
+            reason, pgid: this.leader.pgid, cause: 'codex-group-was-not-verified-at-spawn',
+          });
+        }
+        continue;
+      }
+
+      const liveExact = this.ledger.filter(identity => {
+        const key = `${identity.pid}:${identity.startToken}:${identity.uid}`;
+        return !processedExact.has(key) && stableIdentityMatches(identity, state.byPid.get(identity.pid));
       });
+      if (liveExact.length) {
+        for (const identity of liveExact) {
+          processedExact.add(`${identity.pid}:${identity.startToken}:${identity.uid}`);
+        }
+        try {
+          const cleanup = await this.cleanupExactPids(reason, liveExact, terminalDeadline);
+          if (cleanup.deadlineExhausted) break;
+        } catch (error) {
+          this.uncertain('PILOT_EXACT_PID_CLEANUP_FAILED', { reason, message: error.message });
+        }
+        continue;
+      }
+      break;
     }
 
-    let exactSurvivors = [];
-    try { exactSurvivors = await this.cleanupExactPids(reason); }
-    catch (error) {
-      this.uncertain('PILOT_EXACT_PID_CLEANUP_FAILED', { reason, message: error.message });
+    if (this.terminalDeadlineExceeded(terminalDeadline, reason, 'terminal-verification')) {
+      try {
+        const finalState = await this.sample({ adopt: true });
+        finalRows = finalState.rows;
+      } catch (error) {
+        this.uncertain('PILOT_FINAL_SNAPSHOT_FAILED', { reason, message: error.message });
+      }
     }
-    let finalRows = [];
-    try { finalRows = await this.snapshot(); }
-    catch (error) { this.uncertain('PILOT_FINAL_SNAPSHOT_FAILED', { reason, message: error.message }); }
     const finalByPid = new Map(finalRows.map(row => [row.pid, row]));
     const survivors = this.ledger
       .filter(identity => stableIdentityMatches(identity, finalByPid.get(identity.pid)))
       .map(identity => ({ ...identityReference(identity), pgid: finalByPid.get(identity.pid).pgid }));
-    for (const identity of exactSurvivors) {
-      if (!survivors.some(survivor => survivor.pid === identity.pid && survivor.startToken === identity.startToken)) {
-        survivors.push(identityReference(identity));
-      }
-    }
+    const adoptedGroups = this.descendantGroups();
+    const terminalDeadlineExhausted = this.uncertainties.some(
+      uncertainty => uncertainty.code === 'PILOT_TERMINAL_CLEANUP_DEADLINE_EXHAUSTED',
+    );
     const receipt = {
       ok: this.uncertainties.length === 0 && survivors.length === 0,
       gracefulCancellation,
@@ -548,7 +677,9 @@ export class ProcessCustody {
         firstSeenAt: identity.firstSeenAt, lastSeenAt: identity.lastSeenAt,
         lastObserved: snapshotIdentity(identity.lastObserved),
       })),
-      adoptedGroups, groupCleanups, uncertainties: this.uncertainties,
+      adoptedGroups, groupCleanups,
+      terminalCleanup: { limitMilliseconds: TERMINAL_CLEANUP_MS, exhausted: terminalDeadlineExhausted },
+      uncertainties: this.uncertainties,
       survivors, events: this.events,
       limitation: CUSTODY_LIMITATION,
       custodyClaim: 'same-UID ancestry observed in bounded process snapshots only',
@@ -806,8 +937,6 @@ export async function runPilot(rootArgument, { telemetry = false } = {}) {
     if (ceilingTimer) clearTimeout(ceilingTimer);
     if (custodySampleTimer) clearInterval(custodySampleTimer);
     if (custodySamplePromise) await custodySamplePromise;
-    process.off('SIGINT', onSigint);
-    process.off('SIGTERM', onSigterm);
     if (identitySeeded) {
       try {
         custodyCleanup = await startCustodyCleanup(
@@ -841,6 +970,8 @@ export async function runPilot(rootArgument, { telemetry = false } = {}) {
         lifecycleError ??= `exact child cleanup: ${error.message}`;
       }
     }
+    process.off('SIGINT', onSigint);
+    process.off('SIGTERM', onSigterm);
     await Promise.race([closePromise, delay(2_000)]);
     child.stdout.off('data', onStdout); child.stderr.off('data', onStderr);
     child.stdout.destroy(); child.stderr.destroy();

@@ -145,6 +145,31 @@ test('separate descendant PGID is adopted and cleaned after graceful Codex cance
   assert.deepEqual(receipt.survivors, []);
 });
 
+test('child first visible during descendant-group TERM wait is adopted and drained', async () => {
+  const kernel = new MockKernel([
+    row(LEADER_PID, { ppid: LAUNCHER_PID, pgid: LEADER_PID }),
+    row(200, { ppid: LEADER_PID, pgid: 200 }),
+  ]);
+  const signalGroup = kernel.signalGroup;
+  kernel.signalGroup = async (pgid, signal) => {
+    if (pgid === 200 && signal === 'SIGTERM') {
+      kernel.signals.push({ target: 'group', pgid, signal });
+      kernel.replace(row(300, { ppid: 200, pgid: 300 }));
+      return;
+    }
+    await signalGroup(pgid, signal);
+  };
+  const custody = harness(kernel);
+  const receipt = await custody.cleanup({ reason: 'four-hour-operational-ceiling', intentional: true });
+  assert.equal(receipt.ok, true);
+  assert.deepEqual(receipt.adoptedGroups.map(group => group.pgid), [200, 300]);
+  assert.ok(receipt.adoptedIdentities.some(identity => identity.pid === 300
+    && identity.parentIdentity.pid === 200));
+  assert.ok(kernel.signals.some(signal => signal.target === 'group' && signal.pgid === 300));
+  assert.deepEqual(receipt.survivors, []);
+  assert.equal(kernel.rows.has(300), false);
+});
+
 test('leader exit does not lose custody of a surviving adopted child', async () => {
   const kernel = new MockKernel([
     row(LEADER_PID, { ppid: LAUNCHER_PID, pgid: LEADER_PID }),
@@ -156,6 +181,32 @@ test('leader exit does not lose custody of a surviving adopted child', async () 
   assert.equal(receipt.ok, true);
   assert.ok(kernel.signals.some(signal => signal.target === 'group' && signal.pgid === 200));
   assert.equal(kernel.rows.has(200), false);
+});
+
+test('verified adopted parent can extend custody after the original leader exited', async () => {
+  const kernel = new MockKernel([
+    row(LEADER_PID, { ppid: LAUNCHER_PID, pgid: LEADER_PID }),
+    row(200, { ppid: LEADER_PID, pgid: LEADER_PID }),
+  ]);
+  const signalGroup = kernel.signalGroup;
+  kernel.signalGroup = async (pgid, signal) => {
+    if (pgid === LEADER_PID && signal === 'SIGTERM') {
+      kernel.signals.push({ target: 'group', pgid, signal });
+      kernel.replace(row(300, { ppid: 200, pgid: 300 }));
+      return;
+    }
+    await signalGroup(pgid, signal);
+  };
+  const custody = harness(kernel);
+  kernel.remove(LEADER_PID);
+  const receipt = await custody.cleanup({ reason: 'leader-exited', intentional: false });
+  assert.equal(receipt.ok, true);
+  assert.ok(receipt.adoptedIdentities.some(identity => identity.pid === 300
+    && identity.parentIdentity.pid === 200));
+  assert.deepEqual(receipt.adoptedGroups.map(group => group.pgid), [300]);
+  assert.ok(kernel.signals.some(signal => signal.target === 'group' && signal.pgid === 300));
+  assert.deepEqual(receipt.survivors, []);
+  assert.equal(kernel.rows.has(300), false);
 });
 
 test('TERM-ignore descendant group escalates to KILL', async () => {
@@ -236,6 +287,31 @@ test('natural leader exit cannot pass while an adopted survivor ignores TERM and
   const receipt = await custody.cleanup({ reason: 'leader-exited', intentional: false });
   assert.equal(receipt.ok, false);
   assert.deepEqual(receipt.survivors.map(survivor => survivor.pid), [200]);
+});
+
+test('overall cleanup deadline includes graceful cancel and retains final survivor evidence', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: 0 });
+  const kernel = new MockKernel([
+    row(LEADER_PID, { ppid: LAUNCHER_PID, pgid: LEADER_PID }),
+    row(200, { ppid: LEADER_PID, pgid: 200 }),
+  ]);
+  kernel.signalPid = async (pid, signal) => {
+    kernel.signals.push({ target: 'pid', pid, signal });
+    t.mock.timers.tick(24 * 60 * 60 * 1000);
+  };
+  kernel.signalGroup = async (pgid, signal) => {
+    kernel.signals.push({ target: 'group', pgid, signal });
+  };
+  const custody = harness(kernel);
+  const receipt = await custody.cleanup({ reason: 'four-hour-operational-ceiling', intentional: true });
+  assert.equal(receipt.ok, false);
+  assert.deepEqual(receipt.terminalCleanup, { limitMilliseconds: 30_000, exhausted: true });
+  assert.equal(receipt.gracefulCancellation.outcome, 'cleanup-deadline-exhausted');
+  assert.ok(receipt.uncertainties.some(
+    uncertainty => uncertainty.code === 'PILOT_TERMINAL_CLEANUP_DEADLINE_EXHAUSTED',
+  ));
+  assert.deepEqual(receipt.survivors.map(survivor => survivor.pid), [LEADER_PID, 200]);
+  assert.deepEqual(kernel.signals, [{ target: 'pid', pid: LEADER_PID, signal: 'SIGINT' }]);
 });
 
 test('fast double-fork gap is explicit and cold-cell evidence stays fail-closed', async () => {

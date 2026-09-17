@@ -77,6 +77,9 @@ scored cell could reuse this launcher until the opt-in actual-Codex ordinary
 exec-spawn/session coverage below passed and its receipt was retained. The r2
 result below clears that narrow precondition; it does not broaden the sampled
 ancestry custody claim or qualify a scored cell or application.
+The r2 result applies only to the sealed candidate now represented by base
+`31dc2214f6295efd0570959f2683c51182e1b710`; changed r3 bytes require their own
+actual coverage before any such reuse.
 
 Focused mock command (Node 24.13.1):
 
@@ -84,7 +87,7 @@ Focused mock command (Node 24.13.1):
 /Users/ccheever/.volta/tools/image/node/24.13.1/bin/node --test benchmarks/runs/2026-09-16-workroom-first/protocol/run-pilot.test.mjs
 ```
 
-Expected here: eleven passes and one explicit skip. The retained opt-in
+Expected for r3: fourteen passes and one explicit skip. The retained opt-in
 pre-cold-cell coverage command was:
 
 ```sh
@@ -170,3 +173,88 @@ This passes the retained pre-cold-cell coverage requirement only for the
 ordinary exec-spawn/session path under the sampled-ancestry limitations above.
 It does not establish generic subtree custody or fast-double-fork custody, and
 it is not itself a cold-cell, scored-cell or application qualification.
+
+## Passed actual-Codex custody coverage r3
+
+A fresh independent Sol review found a P1 in the sealed 31dc candidate. Its
+terminal cleanup adopted once, froze the then-current descendant PGIDs, and
+disabled adoption during group and exact-PID waits. A distinct-PGID child first
+visible while a verified parent remained live during cleanup could therefore
+survive while the receipt incorrectly reported `ok: true`. This is separate
+from the documented fast-double-fork/reparent-between-snapshots limitation.
+
+The bounded r3 repair lets an adopt-enabled snapshot extend custody from any
+currently stable PID/UID/start-token ledger identity, including a verified
+adopted parent after the original leader exits. A new identity still requires
+its current PPID to name that currently verified ledger identity; PID 1 and
+other unrelated processes are never ancestry roots. Graceful, group, exact-PID
+and terminal snapshots all keep adoption enabled. Cleanup drains each observed
+group at most once, resamples, handles newly observed groups, then uses exact
+identity cleanup for safe ledger members left by a refused or unchanged group.
+`adoptedGroups` is captured after the drain. Group signalling still requires
+every current member to be a verified ledger identity; unknown or foreign
+members refuse the group signal.
+
+One internal, non-configurable 30,000 ms cleanup deadline starts at `_cleanup`
+entry, before graceful SIGINT, and clamps the graceful, group and exact-PID
+waits plus the evolving drain. Exhaustion records
+`PILOT_TERMINAL_CLEANUP_DEADLINE_EXHAUSTED`, performs an adopt-enabled final
+snapshot, retains actual verified survivors and forces `ok: false`, including
+when the last signal action races the deadline. Driver SIGINT/SIGTERM handlers
+remain installed until custody cleanup or the exact-child fallback finishes;
+repeated signals still converge through `requestStop` and the existing cleanup
+singleton, and the handlers are removed only afterward.
+
+Node 24.13.1 syntax checks pass. The focused deterministic suite reports 14
+passes, 0 failures and one explicit actual-Codex skip. The new old-fail/new-pass
+cases cover a distinct-PGID child first visible during its parent's TERM wait,
+extension from a verified adopted parent after leader exit, and the 30-second
+overall budget expiring during graceful cancellation with real final survivor
+evidence.
+
+The exact invocation below then ran against these exact uncommitted r3 bytes,
+with the receipt directory initially absent, production
+`CUSTODY_SAMPLE_MS=5000`, and the 30,000 ms total cleanup deadline. Tool session
+42313 ran Node test PID 80789. The exact actual-test pattern completed in
+25.754435625 seconds with 1 pass and 0 failures. It retained native thread
+`01a0ad07-c8a5-7c02-9507-31fa653e2194` and fixture PID 83357.
+
+The coverage record reports `passed: true`, `receipt.ok: true`,
+`terminalCleanup: {limitMilliseconds: 30000, exhausted: false}`, seven adopted
+identities, `uncertainties: []` and `survivors: []`. Leader SIGINT was attempted
+but its grace expired, so this result does not claim graceful containment.
+Verified SIGTERM cleanup made descendant groups 83306, 83322 and 83357 and the
+leader group 80838 disappear. An independent `kill -0` check found every exact
+adopted PID absent: 80838, 80843, 80849, 83306, 83322, 83342 and 83357.
+
+The r3 runner and focused-test hashes used by that retained actual run are:
+
+- runner: `b0ee4a49874f4d5723d431b7bc0f0e6aab6c61b617da1a201938fedcae429498`
+- focused test: `97b43df6893810efa7c8f1ddf403ac1bd9057cbfab8604e313de42f42df8301e`
+
+The retained invocation was:
+
+```sh
+WORKROOM_ACTUAL_CODEX_CUSTODY=1 \
+WORKROOM_ACTUAL_CODEX_RECEIPT_DIR=/tmp/workroom-actual-codex-custody-20260917-r3 \
+/Users/ccheever/.volta/tools/image/node/24.13.1/bin/node --test \
+  --test-name-pattern='actual Codex ordinary exec-spawn custody' \
+  benchmarks/runs/2026-09-16-workroom-first/protocol/run-pilot.test.mjs
+```
+
+Retained r3 SHA-256 evidence:
+
+- coverage receipt: `dd0f9199b13490676eeb418d7078f31473cea0c1e261e27c274e54773b105d4d`
+- Codex stdout JSONL: `41460e98a479adecafc27108518248813eba4e949a69fe1bc1dc39d9a2032498`
+- Codex stderr: `2fecbb9755d3fbc762af749392187930065cdb3e1ce8fd1b541b061bf59a3ddd`
+- fixture child: `9ece6afc0255ab7fe0200c0c2f93f5f09674dd7c52c00a65794485f55b841541`
+- ordinary-exec-spawn marker: `fa7e120c9df8b918831f492904aff00582cd96d615560afe82399cf67d578c44`
+
+The retained r2 receipt remains useful evidence for the obsolete 31dc
+candidate only; it does not qualify r3. The r3 pass qualifies only the ordinary
+exec-spawn/session path under the sampled-ancestry limitation. It does not
+prove generic subtree or fast-double-fork custody, a cold or scored cell,
+application qualification, or the late-visible-child race beyond the
+deterministic mock cases. A process that double-forks and reparents between
+snapshots can still escape sampled ancestry, so this diagnostic launcher makes
+no generic subtree-custody claim.
