@@ -15,6 +15,7 @@ use std::cmp::Ordering;
 use std::collections::{BTreeSet, BinaryHeap, VecDeque};
 
 // @ref LLP 3000.007#18.1 — search state belongs to the generated word merge's direct lanes, never to an expression nested inside one.
+#[derive(Clone)]
 struct WordRead {
     admitted: bool,
     fields: Vec<String>,
@@ -360,6 +361,18 @@ impl Runner<'_> {
     /// second index). No term matches nothing: an empty search is empty,
     /// not everything.
     fn scan_words(&mut self, scan: &Scan) -> Result<Vec<Value>, RuntimeError> {
+        let Some((merge, word)) = self.word_lanes(scan)? else {
+            if self.page_depth == 0 && scan.opaque_cursor {
+                self.record_page(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: scan.prefix.len(), prefix: None, merge: true, interrupted: false, next: None });
+            }
+            return Ok(Vec::new());
+        };
+        self.merge_with_words(&merge, Some(&word))
+    }
+
+    /// Admit one scope, then discover its words. Both a scoped page and a
+    /// uniform matching merge use exactly this validation and charge order.
+    fn word_lanes(&mut self, scan: &Scan) -> Result<Option<(Merge, WordRead)>, RuntimeError> {
         const MAX_WORD_LANES: usize = 32;
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
@@ -398,25 +411,18 @@ impl Runner<'_> {
             let retained = self.retained_group(&scan.table, &scan.index, &scope)?;
             self.horizon_coverage(scan, &scope, retained);
         }
-        let empty_page = |this: &mut Self| {
-            if this.page_depth == 0 && scan.opaque_cursor {
-                this.record_page(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: position + 1, prefix: None, merge: true, interrupted: false, next: None });
-            }
-        };
-        // @ref LLP 3000.007#18.1 — one verdict per matching scope, before word discovery; the outer merge orders these scoped pages.
+        // @ref LLP 3000.007#18.1 — one verdict per matching scope, before word discovery and shared by its generated lanes.
         let visibility = rules::scan_visibility(self.schema, scan);
         let mut admitted = self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
         if !admitted && !visibility.uniform { self.non_uniform = true; self.components.note(|frame| frame.non_uniform = true); }
         if terms.is_empty() {
-            empty_page(self);
-            return Ok(Vec::new());
+            return Ok(None);
         }
         if !admitted && let Some(rule) = rules::prefix_decision(self.schema, scan) {
             let aborting = self.meter.cut == crate::meter::Cut::Abort;
-            if aborting && !self.read_charge(MeterKind::Examined, 1)? { empty_page(self); return Ok(Vec::new()); }
+            if aborting && !self.read_charge(MeterKind::Examined, 1)? { return Ok(None); }
             if !self.prefix_verdict(table, index, &scope, &rule, visibility.uniform)? {
-                empty_page(self);
-                return Ok(Vec::new());
+                return Ok(None);
             }
             admitted = visibility.uniform;
         }
@@ -444,8 +450,7 @@ impl Runner<'_> {
             words.push(word);
         }
         if words.is_empty() {
-            empty_page(self);
-            return Ok(Vec::new());
+            return Ok(None);
         }
         let lanes = words
             .iter()
@@ -457,7 +462,7 @@ impl Runner<'_> {
             .collect();
         let merge = Merge { site: scan.site.clone(), lanes };
         let word = WordRead { admitted, fields, terms: terms[1..].to_vec() };
-        self.merge_with_words(&merge, Some(&word))
+        Ok(Some((merge, word)))
     }
 
     fn take(&self, bound: &Bound) -> Result<usize, RuntimeError> {
@@ -849,18 +854,25 @@ impl Runner<'_> {
             let sources = match &lane.source { Some(source) => self.scan(source)?, None => vec![Value::Null] };
             for source_row in sources {
                 if lane.source.is_some() { self.env.insert(lane.binding.clone(), source_row); }
-                let prefix = self.prefix_values(&lane.scan)?;
-                let definition = self.schema.table(&lane.scan.table).ok_or_else(|| RuntimeError::Schema("missing merge table".into()))?;
-                let index = definition.index(&lane.scan.index).ok_or_else(|| RuntimeError::Schema("missing merge index".into()))?;
-                let bounds = self.bounds(&lane.scan, definition, index, None)?;
-                lanes.push((&lane.scan, prefix, bounds, VecDeque::new(), false));
+                // @ref LLP 3000.007#20.22 — flatten admitted scope × word lanes into this heap, preserving the scoped search's verdict and word cut.
+                let (scans, lane_word) = if lane.scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_))) {
+                    let Some((words, word)) = self.word_lanes(&lane.scan)? else { continue };
+                    (words.lanes.into_iter().map(|lane| std::borrow::Cow::Owned(lane.scan)).collect::<Vec<_>>(), Some(word))
+                } else { (vec![std::borrow::Cow::Borrowed(&lane.scan)], word.cloned()) };
+                for scan in scans {
+                    let prefix = self.prefix_values(&scan)?;
+                    let definition = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema("missing merge table".into()))?;
+                    let index = definition.index(&scan.index).ok_or_else(|| RuntimeError::Schema("missing merge index".into()))?;
+                    let bounds = self.bounds(&scan, definition, index, None)?;
+                    lanes.push((scan, prefix, bounds, VecDeque::new(), false, lane_word.clone()));
+                }
             }
         }
         // A small merge benefits from a page per lane: repeated one-row SQL
         // seeks would cost more than reading those few pages in one call.
         let batch = if lanes.len() <= 8 { take + 1 } else { 1 };
-        for (position, (scan, prefix, bounds, buffer, done)) in lanes.iter_mut().enumerate() {
-            let (rows, _) = self.scan_prepared(scan, prefix.clone(), bounds.clone(), batch, word)?;
+        for (position, (scan, prefix, bounds, buffer, done, lane_word)) in lanes.iter_mut().enumerate() {
+            let (rows, _) = self.scan_prepared(scan, prefix.clone(), bounds.clone(), batch, lane_word.as_ref())?;
             *done = rows.len() < batch && !self.read_capped();
             *buffer = rows.into();
             if let Some(row) = buffer.pop_front() {
@@ -882,11 +894,11 @@ impl Runner<'_> {
                 last = Some(head.key.clone());
                 page.push(head.row);
             }
-            let (scan, prefix, bounds, buffer, done) = &mut lanes[head.lane];
+            let (scan, prefix, bounds, buffer, done, lane_word) = &mut lanes[head.lane];
             bounds.after = Some(head.key);
             if opened_all && buffer.is_empty() && !*done {
                 if self.read_capped() { drain_cut = true; break; }
-                let (rows, _) = self.scan_prepared(scan, prefix.clone(), bounds.clone(), batch, word)?;
+                let (rows, _) = self.scan_prepared(scan, prefix.clone(), bounds.clone(), batch, lane_word.as_ref())?;
                 *done = rows.len() < batch && !self.read_capped();
                 *buffer = rows.into();
                 if self.read_capped() { drain_cut = true; break; }

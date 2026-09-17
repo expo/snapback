@@ -1,0 +1,4 @@
+seeded 25100 rows at or before the checkpoint; the device acquired 2000; horizon 2026-01-01T11:54:17.000Z
+likes replayed after the checkpoint: 2500 (failed 0); stream: 17 pages, 5045105 bytes
+distinct posts rows sent to the device: 26321 = created after acquisition 25100 + already held 56 + BEYOND ITS HORIZON 1165 (of which not older than the horizon: 0)
+rows gained beyond the horizon: 1165 = 58.3% of the 2000 held at acquisition — gate: 10% a day; this replay's remaining span is 7.67 h
