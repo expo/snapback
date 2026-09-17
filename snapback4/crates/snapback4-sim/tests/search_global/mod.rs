@@ -20,9 +20,9 @@ fn w7d_server_search_walks_every_membership_and_measures_the_wide_alternative() 
         engine.seed(seed(memberships)).unwrap();
         let first = query(&mut engine, "wide", None, None, "cof");
         println!("W7d wide: memberships={memberships} hits={} examined={} complete={} next={} capped={:?}", first.data.as_array().unwrap().len(), first.metered.examined, first.complete, first.next.is_some(), first.capped_at);
-        assert_eq!(first.complete, memberships == 100, "the cursor alone does not fix a meter-cut merge");
-        assert_eq!(first.next.is_some(), memberships == 100);
-        assert_eq!(first.metered.examined, match memberships { 100 => 2400, 500 => 8358, _ => 8880 });
+        assert!(first.complete);
+        assert!(first.next.is_some());
+        assert_eq!(first.metered.examined, (3 * memberships + 40) as u64);
 
         let mut batch = None;
         let mut walk = Walk::new();
@@ -50,8 +50,8 @@ fn w7d_server_search_walks_every_membership_and_measures_the_wide_alternative() 
         println!("W7d discovery: memberships={memberships} batches={batches} examined_total={discovery_examined}");
         assert_eq!(batches, memberships / 50);
         assert_eq!(walk.pages, memberships * 24 / 20);
-        assert_eq!((walk.first_examined, walk.max_examined), (1201, 1201));
-        assert_eq!(walk.examined, match memberships { 100 => 79080, 500 => 395640, _ => 791340 });
+        assert_eq!((walk.first_examined, walk.max_examined), (191, 191));
+        assert_eq!(walk.examined, match memberships { 100 => 22160, 500 => 111040, _ => 222140 });
         assert_eq!(discovery_examined, memberships as u64 + batches as u64 - 1);
     }
 }
@@ -106,4 +106,14 @@ fn w7r1b_server_search_cursor_positions_and_descriptors() {
         }
         println!("W7R1b cursor host=server op={op} valid_positions=3 malformed_descriptors=8 exact_order=true");
     }
+}
+
+mod lazy;
+
+fn with_fixture(source: &str, rows: Vec<(String, Value)>, check: impl Fn(&mut dyn FnMut(&str, Option<String>, &str) -> QueryOutcome)) {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed(rows).unwrap();
+    check(&mut |op, cursor, term| query(&mut engine, op, None, cursor, term));
 }
