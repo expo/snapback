@@ -66,7 +66,7 @@ impl Runner<'_> {
             if *value == Value::Id(self.context.viewer.clone()) { Expr::Input(Input::Viewer) } else { Expr::Literal(value.clone()) }
         }).collect();
         let Ok(visibility) = super::rules::upsert_absence(self.schema, table, index, &expressions) else { return Ok(false) };
-        if self.tx.retained_group(table, index, key)? { return Ok(false); }
+        if self.retained_group(table, index, key)? { return Ok(false); }
         if visibility.decided_true { return Ok(true); }
         // A uniform key can still name somebody else's private group. Evaluate
         // the rule over only its pinned columns, never using trust_synced_read:

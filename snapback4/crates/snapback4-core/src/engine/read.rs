@@ -94,7 +94,7 @@ impl Runner<'_> {
     }
 
     fn horizon_coverage(&mut self, scan: &Scan, prefix: &[Value], retained: bool) {
-        if retained { self.beyond_horizon = true; }
+        if retained { self.beyond_horizon = true; self.components.note(|frame| { frame.beyond = true; frame.retained = true; }); }
         else { self.unknown_fact(&scan.table, &scan.index, prefix, &scan.site); }
     }
 
@@ -383,7 +383,7 @@ impl Runner<'_> {
             self.unknown_fact(&scan.table, &scan.index, &scope, &scan.site);
         }
         if self.device && table.sync.as_ref().is_some_and(|sync| sync.horizon.is_some()) {
-            let retained = self.tx.retained_group(&scan.table, &scan.index, &scope)?;
+            let retained = self.retained_group(&scan.table, &scan.index, &scope)?;
             self.horizon_coverage(scan, &scope, retained);
         }
         let empty_page = |this: &mut Self| {
@@ -394,7 +394,7 @@ impl Runner<'_> {
         // @ref LLP 3000.007#18.1 — one verdict per matching scope, before word discovery; the outer merge orders these scoped pages.
         let visibility = rules::scan_visibility(self.schema, scan);
         let mut admitted = self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
-        if !admitted && !visibility.uniform { self.non_uniform = true; }
+        if !admitted && !visibility.uniform { self.non_uniform = true; self.components.note(|frame| frame.non_uniform = true); }
         if terms.is_empty() {
             empty_page(self);
             return Ok(Vec::new());
@@ -424,6 +424,7 @@ impl Runner<'_> {
             };
             if words.len() == MAX_WORD_LANES {
                 // @ref LLP 3000.007#18.1 — the word bound limits this scope, not later lanes; actual meter ceilings still cut the whole query.
+                self.components.note(|frame| frame.words = true);
                 if self.word_cut_at.is_none() { self.word_cut_at = Some(format!("{} lane {:?}", scan.site, scope)); }
                 break;
             }
@@ -535,7 +536,7 @@ impl Runner<'_> {
     fn scan_prepared(&mut self, scan: &Scan, prefix: Vec<Value>, bounds: Bounds, take: usize, word: Option<&WordRead>) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
-        let retained = self.device && self.tx.retained_group(&scan.table, &scan.index, &prefix)?;
+        let retained = self.device && self.retained_group(&scan.table, &scan.index, &prefix)?;
         self.read_tables.insert(scan.table.clone());
         self.rule_dependencies(&table.rules.read);
         self.meter.at(&scan.site);
@@ -550,7 +551,7 @@ impl Runner<'_> {
         let visibility = rules::scan_visibility(self.schema, scan);
         let always_visible = word.is_some_and(|word| word.admitted) || self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
         if !visibility.uniform && !always_visible && !(self.device && table.sync.is_some()) {
-            self.non_uniform = true;
+            self.non_uniform = true; self.components.note(|frame| frame.non_uniform = true);
         }
         let mut visible: Vec<Value> = Vec::new();
         let mut keys: Vec<Vec<u8>> = Vec::new();
@@ -657,7 +658,7 @@ impl Runner<'_> {
             self.horizon_coverage(scan, &prefix, retained);
         }
         if self.page_depth == 0 && !scan.opaque_cursor && has_more && scan.filter.is_none() {
-            self.page_overflow = true;
+            self.page_overflow = true; self.components.note(|frame| frame.overflow = true);
         }
         if self.page_depth == 0 && scan.opaque_cursor {
             let components = index.components.len();
@@ -782,7 +783,7 @@ impl Runner<'_> {
         let has_more = candidates.len() > take;
         candidates.truncate(take);
         if self.page_depth == 0 && !first.scan.opaque_cursor && has_more {
-            self.page_overflow = true;
+            self.page_overflow = true; self.components.note(|frame| frame.overflow = true);
         }
         if self.page_depth == 0 && first.scan.opaque_cursor {
             let continues = self.merge_can_continue() && has_more;
@@ -874,7 +875,7 @@ impl Runner<'_> {
             if first.scan.opaque_cursor {
                 let continues = self.merge_can_continue() && has_more;
                 self.record_page(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, prefix: None, interrupted: false, next: if continues { last } else { None } });
-            } else if has_more { self.page_overflow = true; }
+            } else if has_more { self.page_overflow = true; self.components.note(|frame| frame.overflow = true); }
         }
         Ok(page)
     }

@@ -60,3 +60,8 @@ recipe above, performed in one observation and one publication, with
 `fresh: false`. The server is unchanged. Shapes the binder cannot prove keep
 today's whole-query fallback and the separate-query recipe. This ticket
 stays open until both client arms pass the documented acceptance.
+
+
+## 2026-09-17 implementation follow-up — lane MQ
+
+The binder, device coverage frames and client composition are implemented in the working tree for lead integration. The retention suite passes on wasm and process devices with exact ids and bodies: online 25 retained left rows plus 26 held rows, offline 25 plus 25, with history kept through watch reruns and reconnect. Composed reads are incomplete, `fresh: false`, without `since` or continuation. Delayed original-query replies are tested across rejoin, a held-room write, close, sign-out and transport loss. Offline reopen passes through persisted wasm memory and SQLite. Ineligible shapes keep whole-query routing. Broader M3 interleavings and actual IndexedDB reopen remain unqualified by this lane. This ticket stays open for the lead's outside-sandbox verification; nothing is published.

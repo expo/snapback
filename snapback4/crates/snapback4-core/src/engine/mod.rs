@@ -16,6 +16,7 @@ pub mod job;
 #[cfg(feature = "wasm-host")]
 pub mod native;
 pub mod local;
+pub mod components;
 pub mod prediction;
 pub mod admission;
 mod pages;

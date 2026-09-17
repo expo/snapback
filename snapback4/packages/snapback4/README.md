@@ -1150,11 +1150,16 @@ applies after leaving: an exhausted horizon is `complete: false`, while
 unbounded whole-group history is `complete: true`. A read pinning the left
 group answers from those rows on the device online and offline, through a
 query without a membership `require`. Replacement snapshots keep left groups
-and replace held groups with their current acquisition. If the same query
-also has an unknown held-group read, it still falls back to the server.
-Keep a read of a left group in its own query: mixing its retained rows
-with an unknown held-group read returns the whole server answer online
-(without the left rows) and the whole device answer offline.
+and replace held groups with their current acquisition. A device query returning
+independent fields of a record can compose retained fields from the device
+with the original query's server answer for the other fields. It must be
+cursor-free and not declared `held`; `check --residency --verbose` names the proven
+components. The composed read is `complete` only when the server answer and
+every retained component are complete; it reports `fresh: false`, no `since`,
+and no continuation. Offline or after a failed request, the whole local
+answer stands. Every other shape keeps the separate-query recipe: keep a
+left-group read in its own query, since a mixed query without a component
+plan returns the whole server answer online and the whole device answer offline.
 A table with no horizon delivers every row of every group the device
 holds, at every cold start, as the table grows: a public table of posts,
 or a group's receipts, is soon the whole cold start. `check` notes such a

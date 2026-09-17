@@ -28908,3 +28908,184 @@ runner already keeps, and the client applying its existing routing rule per
 component. No per-value provenance, no server change, no wire or disclosure
 delta. No implementation, acceptance or ticket closure is claimed by this
 entry; the lanes that follow record their own evidence.
+
+
+## 2026-09-17 — lane MQ: independent retained and authoritative record fields
+
+Implemented M0–M2 of LLP 3000.001's composition plan in the working tree for
+lead integration, from base `70a663c22285dc3a5278ca9ac13db01bbe05446b`.
+No commit, push, publication, ticket closure, or outside-sandbox qualification
+is claimed. `Execution.components` is optional with serde default/empty
+omission. The binder proves ownership over lowered IR; the device dispatcher
+returns coverage for proven fields; the client requests the original query,
+observes the device again, and publishes one composed ordinary `Read`.
+The server and `contract.ts` are unchanged. The exact fixture is 25 retained
+left rows and 26 authoritative held rows online, 25 and 25 offline, with
+`complete: false`, `fresh: false`, no `since`, and no continuation online.
+Transport failure uses the second whole local answer. Composed operations
+delete any remembered server answer and do not cache their server reply.
+
+The frame implementation mirrors coverage events; it never clears the
+interpreter's global flags. Literal save/clear/merge would change execution:
+scans and merges consult earlier cuts. The original global flags still
+choose the first missing-fact text, whole-query completeness, cut, cursor,
+dependencies, expiry and metering. There is one meter. An expression after
+its cap is incomplete, including the returned expression of an earlier
+binding. A shared guard after the cap withholds component coverage.
+
+The flag-read audit used
+`rg -n 'capped_at|word_cut_at|missing_fact|beyond_horizon|non_uniform|page_overflow|presence_unknown|discarded_page_loss|self\.page\b|self\.pages\b' snapback4/crates/snapback4-core/src/engine snapback4/crates/snapback4-core/src/meter.rs`.
+All paths retain the same global state and order:
+
+- `engine/read.rs:428` preserves the first word-cut description.
+- `engine/read.rs:607,614,634` stops candidate/filter work after a meter cap;
+  `:667` selects scan continuation from cap/non-uniform/word state;
+  `:802` gates merge continuation; `:864` gates merge refill. These mid-run
+  branches are why flags cannot be cleared.
+- `engine/read.rs:676–677,684,689` preserves discarded page-position loss,
+  tests page loss and constructs the next cursor. `engine/runner.rs:255,339`
+  accesses collector interruption and the returned page. No page state is
+  reset; cursor-bearing programs receive no plan, and any page loss
+  defensively withholds coverage.
+- `engine/runner.rs:114–116` chooses the public cut from global flags.
+- `engine/local.rs:143` preserves the first missing fact; `:85–86` reads
+  beyond-horizon/missing-fact state for prediction; `:48–61,117–136` derives
+  the final whole result and retained-only word. Prediction has no frames.
+- `engine/write_target.rs:59–60,81` preserves first-missing-fact diagnostics
+  and uses global beyond-horizon state for absence proof;
+  `engine/write.rs:452,454` preserves the first unknown write diagnostic.
+  Writes are ineligible, and these helpers still see the original flags.
+- `meter.rs:131,144,149` preserves the first cap and existing mark/restore
+  behavior. Frame bookkeeping never changes meter state or charges.
+- `engine/mod.rs:705,722–725` and `engine/postgres/mod.rs:144–151` read final
+  server coverage. Servers never enable component observation.
+- New reads in `engine/components.rs:57,62,75,85`, `engine/runner.rs:198`
+  and `engine/local.rs:42–44` only copy cap/page observations into coverage
+  or withhold the component map. They do not branch the program's work.
+
+Helper bodies are not opaque calls in IR. `bind/program/control.rs`
+`helper_arguments` snapshots arguments once into fresh runtime names;
+`fn_call` expands expression helpers in the caller, and block-bodied helpers
+into fresh result/done bindings plus assignments/conditional statements.
+The analysis sees all reads and top-level dependencies after expansion.
+Fresh names prevent helper-local variables from hiding a caller binding;
+nested writes may target only locals declared inside the inspected block.
+A top-level block-bodied helper is conservatively ineligible because its
+lowered top level is not bind-once. Expression helpers called from both
+components pass. Inline multi-read aggregates are ineligible, as are their
+bind-once equivalents; the final review added a red-before/green-after test
+for this distinction. Multi-source forms that cannot prove independence
+keep whole-query behavior.
+
+Test commands below ran from `snapback4/`, except the root suite and root
+checks. All Node/Bun commands used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+
+- Base routing regression: `node --test --test-name-pattern='R2 mixed result' /tmp/mq-base-retained.test.mjs`.
+  The temporary test used the exact base `local.ts`, transpiled into a
+  temporary module, with the current real device hosts to isolate routing.
+  Summary: `ℹ tests 2`, `ℹ pass 0`, `ℹ fail 2`, both `0 !== 25`.
+  This is a base-client comparison, not a complete base checkout run.
+  The temporary module was removed from package `dist` after the comparison.
+- Inline aggregate regression, before the binder correction:
+  `cargo test -p snapback4-lang --test components inline_cross_read_aggregate_has_no_plan`.
+  `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.01s`.
+- Final affected Rust checks:
+  `cargo test -p snapback4-device --test components -p snapback4-lang --test components -p snapback4-lang --test guide -p snapback4-core --test corpus -- --nocapture`.
+  `corpus (Rust server only; no TypeScript/replica conformance claim): 212 passed, 83 skipped, 0 failed`.
+  `test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 24.06s`.
+  `test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.22s`.
+  `test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s`.
+  `test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.78s`.
+  Each store printed `component differential: 45 comparisons; 0 differences`:
+  nine planned scenarios times five ceilings, 90 comparisons total.
+  Corpus differential: `2 planned programs; 2 comparisons; 0 differences`.
+  Seven named legacy word-search IR cases are explicitly excluded because
+  they cannot deserialize into the current IR (the main corpus runner also
+  excludes legacy word-search); no differential claim covers them. Unexpected
+  decode failures are assertions. Existing corpus files were not changed.
+- Whole device suite, including full-outcome/meter comparisons in the test
+  dispatcher for every planned query it receives:
+  `cargo test -p snapback4-device --test device -- --nocapture`.
+  `test result: ok. 188 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 198.93s`.
+  There were two dispatcher comparisons, one per store. The dedicated
+  scenarios additionally cover helpers, guards, unknown guards, discarded
+  reads, zero retained rows, missing points, scalars, caps, page overflow
+  and word cuts. The final inline-aggregate binder restriction was checked
+  by the affected Rust command above after this whole-device run.
+- Final actual clients:
+  `node --test --test-concurrency=2 packages/snapback4/test/retained-history.test.mjs`.
+  `ℹ tests 20`, `ℹ pass 20`, `ℹ fail 0`, `ℹ skipped 0`,
+  `ℹ duration_ms 25458.314375`.
+  Both wasm and process arms exercise exact rows/body/card words; watches;
+  offline/reconnect; offline close/reopen using persisted wasm memory and
+  SQLite; ineligible shapes; delayed replies across regrant, a held-room
+  write, close, sign-out and transport failure. Delayed watch and query
+  publications are checked together. Native and nested-local-sink
+  ineligibility is tested at the binder rather than as a new native client
+  fixture.
+
+The root command `bash snapback4/scripts/test.sh` ran three times under
+bounded process-group wrappers. It did not produce a successful aggregate:
+360 s, 240 s and 600 s limits all expired (wrapper status 124). Logs are
+`/tmp/mq-suite.log`, `/tmp/mq-suite2.log`, `/tmp/mq-suite-final.log`; the last
+says `TIMEOUT: bash snapback4/scripts/test.sh exceeded 600 seconds; intermediate logs retained.`
+The final attempt's copied logs are `/tmp/mq-suite-final-*.log`.
+Builds, wasm, package typecheck/build, chat check, chat/Expo typechecks and
+fixture wrappers completed; fixtures reported `ℹ tests 9`, `ℹ pass 9`,
+`ℹ fail 0`. Its default-concurrency client arm reported `ℹ tests 554`,
+`ℹ pass 529`, `ℹ fail 23`, `ℹ skipped 2`; the witness Rust binary reported
+`test result: FAILED. 8 passed; 12 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.19s`,
+mostly `E_WITNESS_TIMEOUT` from simulator-command probes. An earlier attempt
+had lifecycle `18 passed; 1 failed` with a child that did not exit. These are
+observations under sandbox/load, not claims verified on a clean base.
+The full-suite attempts preceded the final conservative inline-aggregate
+restriction; the final affected Rust and client checks followed it.
+
+The required lower-concurrency rerun,
+`node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'`, reported
+`ℹ tests 554`, `ℹ pass 547`, `ℹ fail 5`, `ℹ skipped 2`,
+`ℹ duration_ms 231762.532042`. Its four non-browser failures all passed alone:
+
+- `node --test --test-name-pattern='healthy heartbeat polls' packages/snapback4/test/transport-http.test.mjs`
+- `node --test --test-name-pattern='an exit send invalidates' packages/snapback4/test/web-navigation.test.mjs`
+- `node --test --test-name-pattern='lost effect lease on the wire reports sent' packages/snapback4/test/worker.test.mjs`
+- `node --test --test-name-pattern='W6R1 A native: already-open owners equal input, in-flight send' packages/snapback4/test/write-ids.test.mjs`
+
+Each printed `ℹ tests 1`, `ℹ pass 1`, `ℹ fail 0`, `ℹ skipped 0`.
+`node --test packages/snapback4/test/react.test.mjs` still printed
+`ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`, with Chromium SIGABRT.
+`cargo test -p snapback4 --test witness` passed alone:
+`test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 28.12s`.
+
+`bash scripts/build-wasm.sh` measured `wasm 1921140 B raw, 525668 B gzip`.
+This is an absolute measurement, not a controlled before/after byte delta.
+No meter ceiling or serialized value form changed. The human and JSON
+`check --residency` commands on `/tmp/mq-residency` both name
+`both: runs: device; components: held, left`; the human active-store path
+also prints component names when it suppresses detailed facts.
+`./ref-check --verbose` reported
+`ref-check: ok — 481 LLP docs, 9057 refs in 24113 files, 0 errors, 0 unchecked`.
+`git diff --check` passed. All changed code files are at most 1,499 lines.
+`node scripts/caps.mjs` reports one violation outside the lane:
+`crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs is 1504 lines, over the cap of 1500.`
+A byte comparison against `git show 70a663c22285dc3a5278ca9ac13db01bbe05446b:crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs`
+confirmed the offending file exactly matches the base. It was not edited.
+
+Remaining M3 work: composition-specific reset/adoption/rotation, pending-write
+settlement, expiry/revocation/interrupted-acquisition interleavings and real
+IndexedDB browser reopen. The existing queued-write and incarnation guards
+are used, but this lane does not claim those extra witnesses. The lead must
+rerun the full suite and both client arms outside the sandbox before closing
+the ticket. `call.rs` has only the dispatcher addition; `web.rs`, `memory.rs`,
+map types, durable stores, value wire forms and `contract.ts` were not edited.
+No out-of-scope source file was changed.
+
+Two brief premises needed correction besides the flag reset: block-bodied
+helpers do not lower to a single bind-once expression, and the IR's
+`Divmod.remainder_sink` is an output label (`sink`), not an assignment in the
+interpreter. The requested top-level-name exclusion is nevertheless enforced
+conservatively. The approximately 60-second warm-suite expectation was not
+reproducible on this shared machine; even the passing whole-device run took
+198.93 seconds. Those limitations are reported rather than hidden by new
+fallbacks, raised budgets or environment fixes.

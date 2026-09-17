@@ -629,8 +629,18 @@ impl<S: DeviceStore> Device<S> {
     /// The query, and whether it touched something the device does not
     /// hold (an online-only table, a row past the horizon).
     pub fn query_with_coverage(&mut self, name: &str, viewer: &str, args: &serde_json::Value, now: i64) -> (Result<QueryOutcome, Refusal>, bool, bool) {
+        let (result, unknown, retained, _) = self.query_observation(name, viewer, args, now, false);
+        (result, unknown, retained)
+    }
+
+    pub fn query_with_components(&mut self, name: &str, viewer: &str, args: &serde_json::Value, now: i64) -> (Result<QueryOutcome, Refusal>, bool, bool, std::collections::BTreeMap<String, snapback4_core::engine::components::Coverage>) {
+        self.query_observation(name, viewer, args, now, true)
+    }
+
+    fn query_observation(&mut self, name: &str, viewer: &str, args: &serde_json::Value, now: i64, observe_components: bool) -> (Result<QueryOutcome, Refusal>, bool, bool, std::collections::BTreeMap<String, snapback4_core::engine::components::Coverage>) {
         let mut unknown = false;
         let mut retained = false;
+        let mut components = Default::default();
         let result = (|| {
             let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
             let context = Context::new(viewer, typed_args(&program, args)?).at(now).with_generation(self.generation);
@@ -655,8 +665,12 @@ impl<S: DeviceStore> Device<S> {
                 }
                 #[cfg(not(feature = "wasm-host"))]
                 (Err(RuntimeError::Native { code: "E_NATIVE".into(), message: format!("{name} is a native read and this device was built without the wasm host") }.refusal()), true, false)
-            } else {
+            } else if !observe_components {
                 local::query_with_coverage(&reading, &self.schema, &program, context, Ceilings::default())
+            } else {
+                let (result, unknown, retained, coverage) = local::query_with_components(&reading, &self.schema, &program, context, Ceilings::default());
+                components = coverage;
+                (result, unknown, retained)
             };
             unknown = coverage;
             retained = reading.retained.get() && history_only;
@@ -664,7 +678,7 @@ impl<S: DeviceStore> Device<S> {
             tx.rollback()?;
             result
         })();
-        (result, unknown, retained)
+        (result, unknown, retained, components)
     }
 
     /// Predict a mutation: its rows land in the store marked `pending`, in

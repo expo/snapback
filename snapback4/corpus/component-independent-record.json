@@ -1,0 +1,184 @@
+{
+  "corpusVersion": 1,
+  "name": "component-independent-record",
+  "category": "query",
+  "schema": {
+    "tables": {
+      "accounts": {
+        "columns": {
+          "groupId": "Id",
+          "id": "Id",
+          "name": {
+            "Text": {
+              "max": 64
+            }
+          },
+          "parentId": "Id"
+        },
+        "indexes": {
+          "byGroup": {
+            "components": [
+              {
+                "Column": "groupId"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    }
+  },
+  "program": {
+    "name": "component-independent-record",
+    "kind": "Query",
+    "args": {},
+    "body": [
+      {
+        "Let": {
+          "name": "a",
+          "value": {
+            "Get": {
+              "site": "a",
+              "table": "accounts",
+              "index": "byId",
+              "key": [
+                {
+                  "Literal": {
+                    "Id": "a"
+                  }
+                }
+              ],
+              "provenance": "Const"
+            }
+          }
+        }
+      },
+      {
+        "Let": {
+          "name": "b",
+          "value": {
+            "Get": {
+              "site": "b",
+              "table": "accounts",
+              "index": "byId",
+              "key": [
+                {
+                  "Literal": {
+                    "Id": "b"
+                  }
+                }
+              ],
+              "provenance": "Const"
+            }
+          }
+        }
+      },
+      {
+        "Return": {
+          "Object": {
+            "a": {
+              "Variable": "a"
+            },
+            "b": {
+              "Variable": "b"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {},
+  "context": {
+    "viewer": "viewer",
+    "args": {},
+    "now": 100,
+    "read_time": null,
+    "new_ids": []
+  },
+  "receipt": {
+    "rows": [
+      {
+        "table": "accounts",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "a"
+            },
+            "groupId": {
+              "Id": "g"
+            },
+            "parentId": {
+              "Id": "p"
+            },
+            "name": {
+              "String": "a"
+            }
+          }
+        }
+      },
+      {
+        "table": "accounts",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "b"
+            },
+            "groupId": {
+              "Id": "g"
+            },
+            "parentId": {
+              "Id": "p"
+            },
+            "name": {
+              "String": "b"
+            }
+          }
+        }
+      }
+    ],
+    "verdicts": []
+  },
+  "expected": {
+    "localState": "fresh",
+    "canonicalResult": "{\"Row\":{\"a\":{\"Row\":{\"groupId\":{\"Id\":\"g\"},\"id\":{\"Id\":\"a\"},\"name\":{\"String\":\"a\"},\"parentId\":{\"Id\":\"p\"}}},\"b\":{\"Row\":{\"groupId\":{\"Id\":\"g\"},\"id\":{\"Id\":\"b\"},\"name\":{\"String\":\"b\"},\"parentId\":{\"Id\":\"p\"}}}}}",
+    "errorCode": null,
+    "next": null,
+    "partialSites": [],
+    "rangeStops": {}
+  }
+}
