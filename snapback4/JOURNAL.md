@@ -33412,3 +33412,32 @@ This was source-only work. No Cargo, Bun, Node, test, build, formatter,
 generator, listener, provider, database, install, network, remote, fetch, push
 or qualification command ran. cf31 and all earlier refs and failed evidence
 remain preserved; focused qualification is pending.
+
+## 2026-09-17 — B3b qualified generated effect context and lease-loss repair
+
+The final source checkpoint `42ce2d9f563bfba6fa8bd357920b3e7ca2e4ad80`
+(tree-identical integration `cb3e423079`) passed the complete affected batch
+on 450b at 20:52:14.628Z–20:53:20.101Z: guide 47/47, routes 9/9, package
+typecheck and build, worker 32/32, server runtime 47/47, generated effect
+context 21/21 and identity 18/18. Fresh generated output was bound before
+the Node tests. Source hashes and listeners were unchanged; owned processes
+were absent afterward. The four real-wire lease-loss regressions on main
+are repaired without exposing unavailable state or inventing a queued state.
+
+Both binding independent source reviews returned READY: Sol at
+21:08:04.908Z and Grok at 21:14:28Z. Root read both full public answers and
+the actual qualification logs. Earlier qualification failures, a first
+nonbinding stale-dist attempt, the mixed-source initial review and an
+incomplete timed-out review remain retained in the
+[B3b report](reports/20260917-bwork3b.md); they are not reclassified as passes.
+
+The generated executor drains an older status check and makes one fresh
+bounded confirmation before either successful or active-error settlement.
+Known authority loss, uncertainty or a parked step prevents settlement.
+This remains the deployment-trusted worker contract; draft scoped worker
+credentials are not accepted here. Review advisories about generation
+guidance, uncertain top-level settlement, invalid step results and polling
+latency remain explicit follow-ups. Actual generated-worker process/provider
+cuts, PostgreSQL effect lifecycle, the complete Work baseline, publication
+and the post-Workroom retain/remove decision remain open. No load was placed
+on expo-build-1000, and no heavy work ran on the control Mac.
