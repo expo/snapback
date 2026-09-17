@@ -134,8 +134,7 @@ directly from a declared `maintain`, but `update <- allow` (or a provably\n\
 unrestricted equivalent) lets any principal set it through a mutation that\n\
 writes it. The column duplicates an aggregate the engine already keeps.\n\
 Read the maintain directly, or restrict the update rule; check the insert\n\
-rule too if a caller can supply the initial value. The fresh-ranking recipe\n\
-above checks the copied score against the non-expiring maintain in both rules.\n\n\
+rule too if a caller can supply the initial value.\n\n\
 The client calls declared operations, not arbitrary table writes. This note\n\
 identifies latent table permission, not proof that a current mutation accepts\n\
 an arbitrary score. It covers direct scalar maintain-to-column assignments in\n\
@@ -185,27 +184,20 @@ fn survey_retained_calibration_schemas() {
 }
 
 #[test]
-fn fresh_ranking_recipe_rejects_forged_scores_and_accepts_zero_like_unlike() {
-    use snapback4_core::{Context, Engine, Value, WriteState, value::object};
-    let source = guide::quarry(guide::card("feeds").unwrap()).into_iter().find(|block| block.contains("fn refreshRank(")).unwrap();
-    let source = source + "\nmutation forge(postId: posts, score: int):\n  upsert ranked[postId] { postId, score, at: 1000, expiresAt: 86401000 }\n";
-    let bound = bind(&source);
-    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
-    let id = |s: &str| Value::Id(s.into());
-    engine.seed([("posts".into(), object([("id", id("post")), ("authorId", id("alice")), ("body", Value::String("hello".into())), ("at", Value::Int(1000))]))]).unwrap();
-    let run = |engine: &mut Engine, op: &str, args: Vec<(&str, Value)>| engine.mutate(op, None, Context::new("bob", args.into_iter().map(|(k, v)| (k.into(), v)).collect()).at(2000)).unwrap();
-    let forged = run(&mut engine, "forge", vec![("postId", id("post")), ("score", Value::Int(999))]);
-    assert!(matches!(&forged.state, WriteState::Failed { why, .. } if why.code == "NOT_FOUND"), "forged absent upsert: {forged:?}");
-    for liked in [false, true, true, false, false] {
-        let good = run(&mut engine, "setLike", vec![("postId", id("post")), ("liked", Value::Bool(liked))]);
-        assert!(matches!(good.state, WriteState::Sent { .. }), "{good:?}");
-        let rows = engine.store().rows("ranked").unwrap();
-        assert_eq!(rows[0].field("score").unwrap(), &Value::Int(i64::from(liked)));
-        let bad = run(&mut engine, "forge", vec![("postId", id("post")), ("score", Value::Int(999))]);
-        assert!(matches!(&bad.state, WriteState::Failed { why, .. } if why.code == "E_RULE"), "forged update: {bad:?}");
-        assert_eq!(engine.store().rows("ranked").unwrap(), rows, "denied forgery leaves the ranking intact");
+fn no_card_ships_a_principal_writable_ranking() {
+    // This replaces a test that asserted the handwritten fresh-ranking recipe
+    // *rejected* a forged score. W12a withdrew that recipe for a server-scored
+    // one, so the stronger property now holds by construction: no card ships a
+    // ranking a principal can write, and there is no `refreshRank` to copy.
+    // Asserting the absence is what keeps it true.
+    for name in guide::KEYWORDS {
+        let card = guide::card(name).unwrap();
+        assert!(!card.contains("fn refreshRank("), "{name} still ships the withdrawn writable ranking helper");
+        for block in guide::quarry(card) {
+            if block.contains("table ranked:") || (block.contains("score: int") && block.contains("expiresAt")) {
+                assert!(!block.contains("update <- allow"),
+                    "{name} ships a ranking table with update <- allow:\n{block}");
+            }
+        }
     }
-    let rows = engine.store().rows("ranked").unwrap();
-    assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].field("score").unwrap(), &Value::Int(0));
 }
