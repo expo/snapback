@@ -19,8 +19,19 @@ error: null, iss }` to `completeOidc` with that same guest session, preserving
 the RFC 9207 `iss` response parameter when present. It adopts only
 the returned standard `Session`.
 
+`qualify.mjs` is a credentials-gated actual-provider witness for this exact
+fixture. Run it with Node 24 while the generated app is live, setting
+`SNAPBACK4_OIDC_QUALIFICATION_CONFIG` to an outside-repository mode-0600 JSON
+file and, if needed, `SNAPBACK4_URL`. It drives Keycloak's browser login form
+and code flow without starting a callback listener; it never uses a password
+grant and emits no credential, code, binding or session value. It also proves
+the returned Session on an ordinary generated query, logs that token out, and
+checks that revoked/unrelated guest authority cannot collect the completed
+action result.
+
 Do not commit or print the client secret, binding, authorization code, provider
-tokens, or returned session. This repository has no supplied provider secret,
-so the fixture is intentionally not claimed as run. Google qualification is
-also credentials-pending. The deterministic signed provider in
+tokens, or returned session. No provider credential is stored in this
+repository; the dated Journal records the local external-credential witness,
+which a downstream checkout does not inherit. Google qualification remains
+credentials-pending. The deterministic signed provider in
 `test/identity.test.mjs` is a protocol double, not actual-provider evidence.

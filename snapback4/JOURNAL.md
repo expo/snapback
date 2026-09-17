@@ -27218,3 +27218,60 @@ all touched source files remain below 1,500 lines. No provider/OIDC protocol,
 Postgres parity, generic store abstraction, raw-token persistence, diagnostic,
 `contract.ts` change, C3.2 work, publication, push, remote work or origin
 contact was added.
+
+## 2026-09-16 — B1a server-only OIDC identity slice
+
+The first identity slice now has a packaged `snapback4/identity` helper over
+ordinary generated actions and the existing supervised Node process. It uses
+exact `openid-client@6.8.8` discovery, Authorization Code + S256 PKCE and
+non-repudiation checks, with fixed issuer/client/redirect configuration and an
+explicit literal-loopback-only development exception. A module-private brand
+gives only helper-produced handlers an allowlisted transaction/mint bridge;
+ordinary `ServerContext` and application handlers gain no service client,
+root credential or arbitrary mint capability. OIDC principals derive from
+issuer plus `sub`, never email.
+
+The managed recipe binds the admitting principal, browser-binding hash,
+configuration fingerprint, state, nonce, PKCE verifier, server expiry and one
+completion invocation in private service-owned rows. Callback `iss` is
+preserved for RFC 9207 validation. Provider access, refresh and ID tokens do
+not enter results, persisted claims or diagnostics; persisted claims are
+limited to issuer, subject and optional email metadata. The durable mint step
+stores only nonsecret completion metadata, while the live handler alone holds
+the returned Session for the protected final action result.
+
+Focused signed protocol-double tests cover the healthy flow, state/nonce/PKCE
+and browser/admitting-authority binding, response-issuer mix-up, malformed,
+unsecured, wrong-algorithm, wrong-issuer/audience/azp, expired/future and
+unknown-key ID tokens, expired codes, key rotation, replay, restart after a
+persisted verified result, uncertain mint and lost final handoff. The identity
+plus existing server-runtime/route selection passed 73/73 on the required Node
+24.18.0. Generated `check` passed the recipe (one table, eight operations).
+The full package TypeScript build still reports only the checkout's absent
+generated `src/wasm/snapback4_device.js` inputs; the affected TypeScript files
+pass a focused strict check.
+
+A credentials-gated witness then passed an actual Keycloak 26.7.4
+authorization-code login through a generated disposable app and the existing
+`dev` supervisor, using the parent-provisioned loopback realm/client, exact
+frontend callback and S256. The returned Session authenticated an ordinary
+generated `identityWhoami` query. Public logout made that issued token
+unusable with an explicit `E_AUTH` denial. After `logoutAll` revoked the
+original admitting guest, its stale token received `E_AUTH`, while a fresh
+unrelated guest received `E_ACTION_UNKNOWN` when each attempted to collect the
+completed action's Session with the identical action id and exact arguments.
+No pending/offline outcome counted as a negative. The witness used the
+matching warm published 0.2.26 binary;
+no Cargo build or second backend/callback listener was started. The witness
+prints no credential, authorization code, binding or Session value. The local
+signed provider remains a deterministic protocol double, not this actual
+provider evidence. Google remains credentials-pending.
+
+This does not close identity. B1b remains required: `/auth/session` does not
+yet bind an exact live action lease and immutable mint intent or reconcile a
+lost Session delivery within the original issued family. An uncertain mint
+parks; a recorded mint whose plaintext Session was lost fails closed with
+`E_OIDC_HANDOFF` and is not repeated. The docs label B1a preview/unqualified
+and warn that privileged `why --values`, `data` and `sql` intentionally expose
+stored sensitive values even though default logs/errors/`why` do not.
+Future B1b recovery does not retroactively resume these B1a parks.

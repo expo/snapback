@@ -799,17 +799,22 @@ Development clock advances extend a held action's lease and viewer session
 by the same duration, capped by the admitting family's expiry; ordinary
 sessions keep their expiry.
 
-With `snapback/worker.ts` (or `.mts` or `.mjs`), `dev` starts Node 24 and supplies
-`SNAPBACK_URL` and `SNAPBACK_SERVICE_TOKEN`, a `service:worker` token
-printed once on stdout, with its "printed once" warning; diagnostic logs
-captured from stderr do not contain it. It restarts after crashes with 250 ms to 5 s backoff and
-stops the child when dev exits. `doctor` shows the worker file and the
-request queue by state. `dev` still inherits its parent's environment until
-declared secrets arrive in A2. In production, `serve <release-dir> --worker
-<path>` supervises the entry (resolved from the command's working directory)
-and runs it in the active release directory. It passes only `PATH`, `HOME`,
-`TMPDIR`, `LANG`, `LC_ALL`, `TZ`, `NODE_OPTIONS`, `SNAPBACK_URL` and a
-per-child `SNAPBACK_SERVICE_TOKEN`, never printed. `doctor --release <dir>`
+With `snapback/server.ts` (preferred) or the legacy `snapback/worker.ts`, `.mts`
+or `.mjs`, `dev` starts Node 24 in an explicit environment rather than
+inheriting the parent environment. The child receives only `PATH`, `HOME`,
+`TMPDIR`, `LANG`, `LC_ALL`, `TZ`, `NODE_OPTIONS`, `SNAPBACK_URL`, every secret
+name declared anywhere in the schema, and a per-child
+`SNAPBACK_SERVICE_TOKEN`. Generated server handlers get a frozen
+per-handler subset through `ctx.secrets`; the Node application remains trusted
+and can inspect its process environment, as can a legacy worker. Only the
+legacy development worker prints its service token once for compatibility;
+generated server entries and `serve` never print it. Supervised stdout/stderr
+redacts declared secret values and the service token across chunks. The host
+restarts crashes with 250 ms to 5 s backoff and stops the child when dev exits.
+`doctor` shows the worker file and request queue by state. In production,
+`serve <release-dir> --worker <path>` supervises the entry (resolved from the
+command's working directory) and runs it in the active release directory with
+the same explicit environment. `doctor --release <dir>`
 reports starts, restarts and crashes. `why <id> [--release dir]` prints work
 metadata and payload sizes/digests; `--values` opts into stored payloads.
 Mutation arguments and results are not recorded. Child sessions last at most

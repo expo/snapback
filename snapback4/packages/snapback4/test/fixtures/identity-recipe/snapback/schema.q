@@ -30,6 +30,9 @@ query identityByInvocation(invocation: text <=128):
 query identityByState(state: text <=256):
   return oidcTransactions[state = state]
 
+query identityWhoami():
+  return viewer
+
 mutation identityBegin(id: id, beginInvocation: text <=128, admittingPrincipal: principal, configFingerprint: text <=64, bindingHash: text <=64, state: text <=256, nonce: text <=256, pkceVerifier: text <=128, createdAt: time, expiresAt: time, completionInvocation: text <=128 ?, verifiedIssuer: text <=2048 format url ?, verifiedSubject: text <=1024 ?, email: text <=320 ?, emailVerified: bool ?):
   require viewer = 'service:worker' else OIDC_SERVICE_REQUIRED
   insert oidcTransactions { id, beginInvocation, admittingPrincipal, configFingerprint, bindingHash, state, nonce, pkceVerifier, createdAt, expiresAt, completionInvocation, verifiedIssuer, verifiedSubject, email, emailVerified }

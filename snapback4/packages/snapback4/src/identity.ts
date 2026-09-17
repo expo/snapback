@@ -39,15 +39,22 @@ export interface OidcTransaction {
 export interface OidcTransactionOperations {
   readonly byInvocation: Query<{ readonly invocation: string }, OidcTransaction | null>;
   readonly byState: Query<{ readonly state: string }, OidcTransaction | null>;
-  readonly begin: Mutation<OidcTransaction, unknown>;
+  readonly begin: Mutation<Omit<OidcTransaction,
+    "completionInvocation" | "verifiedIssuer" | "verifiedSubject" | "email" | "emailVerified"> & {
+      readonly completionInvocation?: string | null | undefined;
+      readonly verifiedIssuer?: string | null | undefined;
+      readonly verifiedSubject?: string | null | undefined;
+      readonly email?: string | null | undefined;
+      readonly emailVerified?: boolean | null | undefined;
+    }, unknown>;
   readonly claim: Mutation<{ readonly id: string; readonly completionInvocation: string }, unknown>;
   readonly verified: Mutation<{
     readonly id: string;
     readonly completionInvocation: string;
     readonly issuer: string;
     readonly subject: string;
-    readonly email: string | null;
-    readonly emailVerified: boolean | null;
+    readonly email?: string | null | undefined;
+    readonly emailVerified?: boolean | null | undefined;
   }, unknown>;
 }
 
@@ -74,12 +81,12 @@ export interface OidcConfiguration<Secret extends string> {
 export interface OidcBeginArguments { readonly bindingHash: string }
 export interface OidcBeginResult { readonly authorizationUrl: string }
 export interface OidcCompleteArguments {
-  readonly code: string | null;
+  readonly code?: string | null | undefined;
   readonly state: string;
   readonly binding: string;
-  readonly error: string | null;
+  readonly error?: string | null | undefined;
   /** RFC 9207 authorization-response issuer, when the provider supplies it. */
-  readonly iss: string | null;
+  readonly iss?: string | null | undefined;
 }
 export type OidcSession = Session & { readonly principal: Principal };
 
@@ -208,7 +215,9 @@ export function oidcHandlers<Secret extends string>(configuration: OidcConfigura
     const discovered = await provider(clientSecret);
     let transaction = await runtime.query(fixed.transactions.byInvocation, { invocation: ctx.invocation.id });
     if (transaction === null) {
-      const createdAt = runtime.now();
+      // Quarry `time` is integer epoch milliseconds; the action clock adds a
+      // monotonic fractional elapsed duration to its server-issued base.
+      const createdAt = Math.floor(runtime.now());
       const pkceVerifier = randomPKCECodeVerifier();
       const row: OidcTransaction = {
         id: ctx.writeIdFor("oidc.transaction"), beginInvocation: ctx.invocation.id, admittingPrincipal: ctx.principal,
@@ -234,8 +243,9 @@ export function oidcHandlers<Secret extends string>(configuration: OidcConfigura
   });
 
   const complete = identityHandler<OidcCompleteArguments, OidcSession, Secret>(async (args, ctx, runtime) => {
-    if (!args || args.error !== null || !text(args.code, 1, 4096) || !text(args.state, 20, 256) || !text(args.binding, 32, 1024)
-      || !(args.iss === null || text(args.iss, 1, 2048))) {
+    if (!args || (args.error !== null && args.error !== undefined) || !text(args.code, 1, 4096)
+      || !text(args.state, 20, 256) || !text(args.binding, 32, 1024)
+      || !(args.iss === null || args.iss === undefined || text(args.iss, 1, 2048))) {
       throw new ServerError("E_OIDC_CALLBACK", "the provider callback was refused");
     }
     const code = args.code;
@@ -256,13 +266,13 @@ export function oidcHandlers<Secret extends string>(configuration: OidcConfigura
     const discovered = await provider(ctx.secrets[fixed.clientSecret]);
     const exchange = await ctx.step("oidc.exchange", {
       transaction: stored.id, configFingerprint: fixed.configFingerprint,
-      codeHash: fingerprint(["snapback4:oidc-code:v1", code]), state: args.state, responseIssuer: args.iss,
+      codeHash: fingerprint(["snapback4:oidc-code:v1", code]), state: args.state, responseIssuer: args.iss ?? null,
     }, async () => {
       try {
         const callback = new URL(fixed.redirectURI);
         callback.searchParams.set("code", code);
         callback.searchParams.set("state", args.state);
-        if (args.iss !== null) callback.searchParams.set("iss", args.iss);
+        if (typeof args.iss === "string") callback.searchParams.set("iss", args.iss);
         const tokens = await authorizationCodeGrant(discovered, callback, {
           expectedState: stored.state, expectedNonce: stored.nonce, pkceCodeVerifier: stored.pkceVerifier, idTokenExpected: true,
         });

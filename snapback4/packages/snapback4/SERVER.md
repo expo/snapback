@@ -49,6 +49,159 @@ supervised `service:worker` intentionally serves handlers for different declared
 seats. Provision these tokens only to fully trusted application workers;
 provider secrets and service names do not create a per-worker allowlist.
 
+## OIDC identity actions (B1a preview)
+
+`snapback4/identity` supplies `oidcHandlers(config)`, two ordinary generated
+action handlers for Authorization Code + S256 PKCE. Provider protocol remains
+in the supervised Node server; there is no second backend, callback listener,
+provider protocol in the engine, or public service/root capability. The
+browser owns the exact frontend callback and POSTs its callback values to the
+complete action under the original guest session.
+
+This is deliberately **not yet a qualified ready identity baseline**. The
+current `/auth/session` mint lacks B1b's exact-live invocation lease, stable
+mint-intent binding and lost-delivery replacement/reconciliation. If minting
+has an uncertain outcome, the action parks. If minting completed but the live
+handler lost the final `Session`, collection fails closed with
+`E_OIDC_HANDOFF`; it does not mint again or persist a plaintext token receipt.
+Do not turn that failure into a new automatic completion action. B1b remains
+required before treating this recipe as complete, and it will not
+retroactively resume B1a work that is already parked; old parks stay parked.
+
+The helper is configured for one fixed trusted issuer, client id and exact
+redirect URI per application/server. It has no provider registry or
+multi-provider mix-up claim. Production issuer, discovery endpoints and
+redirect URI must use HTTPS. Literal `127.0.0.1` or `[::1]` HTTP is accepted
+only with the explicit development option. Google OIDC is the first supported
+production configuration; use its exact issuer `https://accounts.google.com`
+and a redirect URI registered for the client. That configuration path is
+provided, but actual Google qualification is credentials-pending and has not
+been run.
+
+The application's managed transaction recipe is server-only. Names are
+adaptable; pass their generated operation handles to the helper:
+
+```quarry
+use identity guests
+
+table oidcTransactions:
+  beginInvocation: text <=128
+  admittingPrincipal: principal
+  configFingerprint: text <=64
+  bindingHash: text <=64
+  state: text <=256
+  nonce: text <=256
+  pkceVerifier: text <=128
+  createdAt: time
+  expiresAt: time
+  completionInvocation: text <=128 ?
+  verifiedIssuer: text <=2048 format url ?
+  verifiedSubject: text <=1024 ?
+  email: text <=320 ?
+  emailVerified: bool ?
+  unique byBeginInvocation: beginInvocation
+  unique byState: state
+  by byExpiry: expiresAt
+  expire at .expiresAt
+  read <- viewer = 'service:worker'
+  insert <- viewer = 'service:worker'
+  update <- viewer = 'service:worker'
+  delete <- viewer = 'service:worker'
+
+query identityByInvocation(invocation: text <=128):
+  return oidcTransactions[beginInvocation = invocation]
+
+query identityByState(state: text <=256):
+  return oidcTransactions[state = state]
+
+mutation identityBegin(id: id, beginInvocation: text <=128, admittingPrincipal: principal, configFingerprint: text <=64, bindingHash: text <=64, state: text <=256, nonce: text <=256, pkceVerifier: text <=128, createdAt: time, expiresAt: time, completionInvocation: text <=128 ?, verifiedIssuer: text <=2048 format url ?, verifiedSubject: text <=1024 ?, email: text <=320 ?, emailVerified: bool ?):
+  require viewer = 'service:worker' else OIDC_SERVICE_REQUIRED
+  insert oidcTransactions { id, beginInvocation, admittingPrincipal, configFingerprint, bindingHash, state, nonce, pkceVerifier, createdAt, expiresAt, completionInvocation, verifiedIssuer, verifiedSubject, email, emailVerified }
+  return null
+
+mutation identityClaim(id: oidcTransactions, completionInvocation: text <=128):
+  require viewer = 'service:worker' else OIDC_SERVICE_REQUIRED
+  tx = oidcTransactions[id] ! else OIDC_TRANSACTION_EXPIRED
+  if tx.completionInvocation != null:
+    require tx.completionInvocation = completionInvocation else OIDC_TRANSACTION_CLAIMED
+  else:
+    update oidcTransactions[tx.id] { completionInvocation }
+  return null
+
+mutation identityVerified(id: oidcTransactions, completionInvocation: text <=128, issuer: text <=2048 format url, subject: text <=1024, email: text <=320 ?, emailVerified: bool ?):
+  require viewer = 'service:worker' else OIDC_SERVICE_REQUIRED
+  tx = oidcTransactions[id] ! else OIDC_TRANSACTION_EXPIRED
+  require tx.completionInvocation = completionInvocation else OIDC_TRANSACTION_CLAIMED
+  update oidcTransactions[tx.id] { verifiedIssuer: issuer, verifiedSubject: subject, email, emailVerified }
+  return null
+
+action beginOidc(bindingHash: text <=64) returns { authorizationUrl: text <=4096 format url } secrets [OIDC_CLIENT_SECRET] retry 3 deadline 10m
+action completeOidc(code: text <=4096 ?, state: text <=256, binding: text <=1024, error: text <=200 ?, iss: text <=2048 format url ?) returns { principal: principal, kind: text <=64, token: text <=2048, expiresAt: time } secrets [OIDC_CLIENT_SECRET] retry 3 deadline 10m
+```
+
+Register the helper in the normal generated server. The secret value is a
+supervised environment value; the configuration carries only its declared
+name. For Google, omit `development` and use HTTPS values:
+
+```ts
+import { oidcHandlers } from "snapback4/identity";
+import { api } from "./generated/api.ts";
+import { server } from "./generated/server.ts";
+
+const oidc = oidcHandlers({
+  issuer: "https://accounts.google.com",
+  clientId: "the-fixed-google-client-id",
+  clientSecret: "OIDC_CLIENT_SECRET",
+  redirectURI: "https://app.example/auth/callback",
+  transactions: {
+    byInvocation: api.identityByInvocation,
+    byState: api.identityByState,
+    begin: api.identityBegin,
+    claim: api.identityClaim,
+    verified: api.identityVerified,
+  },
+});
+
+export default server({
+  actions: { beginOidc: oidc.begin, completeOidc: oidc.complete },
+});
+```
+
+The client first obtains a real session from `guest()`. Generate at least 32
+random bytes and encode them as a base64url browser-binding string. Keep that
+string and the original guest session only in same-origin `sessionStorage` or
+the application's normal secure client store across the redirect. SHA-256 the
+UTF-8 bytes of that binding string, base64url-encode the digest, and send only
+the digest to `beginOidc`; the server hashes the submitted string, not the
+pre-encoding random bytes. Navigate only to the returned fixed-provider
+`authorizationUrl`; do not accept an application-supplied redirect target. At
+the exact frontend callback, restore the same guest session and submit
+`{ code, state, binding, error, iss }` to `completeOidc`, preserving the RFC
+9207 `iss` parameter when the provider supplies it. Remove the sensitive
+callback query from browser history promptly, and do not load third-party
+resources or place the callback URL in access/analytics logs. A3 strips
+`Cookie` before durable route handlers, and this flow does not depend on Cookie
+access or a separate HTTP backend. Only the original standing session family
+can collect the protected final action result; a stale, revoked or unrelated
+session cannot.
+
+Discovery is against the fixed issuer. `openid-client` 6.8.8 performs the
+code grant with expected state, nonce and PKCE verifier, and non-repudiation
+checks require a JWKS-verified ID-token signature. The principal is a fixed
+`oidc:` namespace derived from issuer plus `sub`; email is never an automatic
+linking key. `email` and `email_verified` are optional metadata only. Profile
+binding, recovery, organization membership and account linking remain
+application work.
+
+Access tokens, refresh tokens and ID tokens are neither returned nor stored.
+The PKCE verifier lives only in the private expiring transaction row. Default
+worker logs, errors and `why` output omit the authorization code, binding,
+verifier, declared secret, provider tokens and final Session token. Operator
+inspection is privileged: `why --values` intentionally prints stored action
+arguments/results (including callback values and a successful final Session),
+and `data`/`sql` can inspect private transaction rows. Restrict that access and
+do not paste its output into logs or bug reports.
+
 ## Handler context
 
 `check` and `dev` generate `snapback/generated/server.ts` from declared

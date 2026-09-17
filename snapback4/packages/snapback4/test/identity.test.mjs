@@ -146,6 +146,9 @@ class FakeCore {
     if (path === "/q/identity.byState") return { data: this.byState(body.args.state), complete: true };
     if (path === "/m/identity.begin") {
       const row = body.args;
+      if (!Number.isInteger(row.createdAt) || !Number.isInteger(row.expiresAt)) {
+        return { state: "failed", why: { code: "E_INPUT", family: "input", message: "time must be integer milliseconds" } };
+      }
       if (this.byInvocation(row.beginInvocation) || this.byState(row.state)) return { state: "failed", why: { code: "DUPLICATE", family: "constraint", message: "duplicate transaction" } };
       this.transactions.set(row.id, structuredClone(row)); return { state: "sent", id: body.id, seq: 1, result: null };
     }
