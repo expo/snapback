@@ -65,6 +65,19 @@ on the hub fixture. Everything not required to pass them does not exist yet.
 
 ## Moves
 
+- **2026-09-16 — the remaining general-purpose program moves onto the doing-list**
+  (Charlie: "complete everything ... we'll remove services when we are done
+  with the workroom test rather than wait to add them in ... use the fleet";
+  LLP 3000.009 §14.7). Unblocks the §7 integrated-service baseline, C3 production
+  Postgres, D's authorized database capabilities and measurement-led C2/E
+  work while Workroom continues. Taken off: waiting for Workroom before
+  starting services, and keeping production Postgres integration outside the
+  current implementation program. The completed Workroom record drives a
+  retain/remove pass. Stands: one interpreter and managed writer, no managed
+  SQL writes, no JavaScript transactions, no SQL in the first Workroom cell,
+  no invented performance/real-provider evidence, no expo-build-1000 load,
+  and no new publication or managed-service deployment authority.
+
 - **2026-09-16 — application SQL reads move onto the doing-list** (Charlie: "admit application SQL reads"; LLP 3000.009 §6.2, §14.4, increment D). Unblocks reporting and search over authorized projection inputs and declared database-owned tables, with authorization before selection, ordering and limits. Taken off in the same change: the inspection-only exclusion for application SQL and D's pending-author gate. Implementation and qualification remain pending; SQLite and Postgres halves ship together, channels follow candidates, and A1–A3 plus the fixture pack stay first. Stands: no SQL writes into managed data, no lowering Quarry to SQL, no SQL in the first Snapback brief cell, and no publication authorization.
 
 - **2026-09-15 — a Postgres evaluation backend moves onto the doing-list** (author: "Build the evaluation prototype"). Unblocks concrete evaluation of storage agnosticism, interpreter/database round trips and transactional sync ordering. This bounded prototype replaces full CLI/deployment integration as the next backend task; those product surfaces remain off this increment's doing-list. It shares Quarry, rules, maintains and partition logic, but uses an experimental Postgres store. Native SQL exists only as an explicitly separate comparison workload, not an application escape hatch. SQLite remains the production and local-device store. See [the experiment](./experiments/postgres/README.md).
