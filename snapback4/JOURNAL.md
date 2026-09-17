@@ -32205,3 +32205,35 @@ no source repair and is retained here rather than recast as authorized evidence.
 No root inventory, full suite, PostgreSQL, provider, external network, origin,
 push or publication command ran. Native Codex gpt-5.6-sol authored and
 qualified this repair without model or subagent delegation.
+
+## 2026-09-17 — Bwork2 review disposition and integration
+
+The Bwork2 source and its bounded review repair were integrated onto the
+registered `df9d1d83b` control base as `378f5baccd` and `407d4837d2`.
+Product and test blob identities match repaired source `f28e7b40e`; the first
+pick's only conflicts were this append-only record and overlapping SERVER
+prose. The record resolution is exact pre-pick bytes plus the source's exact
+5,111-byte append (SHA-256
+`92d9bddc75f3d957d1575ad263e02d47ae8b49d80445a92a23128c9a569987be`).
+The SERVER resolution keeps the combined action/effect policy text and removes
+the superseded Bwork1 statement that effect storage did not yet exist.
+
+Both fresh initial source-only reviews were NOT READY. Sol identified
+wrong-typed present fields defaulting instead of refusing and step response
+JSON materialized under the engine mutex. Grok identified declaration drift
+overwriting already-terminal effect evidence. A fresh native Codex
+gpt-5.6-sol repair author, thread
+`01a0ae22-e0d5-7ea2-84b4-fc96c4258ca5`, implemented and qualified only the
+bounded repairs; no additional model or subagent was delegated inside that
+authoring lane. Each original reviewer then received the exact `f637b3bf18` to
+`f28e7b40e` delta, relevant frozen context and only its own earlier findings.
+Both same-reviewer delta verdicts are READY. The four actual public review
+artifacts and their source-only limits are retained under `llp/reviews/`.
+
+The author-run evidence and boundary misses remain explicit in
+`reports/20260917-bwork2.md`: the ambient-Cargo exit 127, invalid binary-package
+`--lib` selector exit 101, and a broad name filter that unintentionally ran
+three existing local-listener tests are not hidden or promoted into requested
+evidence. This is partial LLP 3000.009 §10.2 B progress. It is not generated
+effect context, a status endpoint, PostgreSQL effect work, provider/process
+qualification, a broad-suite result, publication, or a full B milestone.
