@@ -28195,3 +28195,77 @@ session row: its equality predicates did not independently check present
 liveness. The historical public-query assertion remains separate evidence.
 No full Identity, production PostgreSQL, full-suite, performance, Workroom,
 publication or promotion claim is made by this landing.
+
+## 2026-09-16 — W12a: rolling ranking is a live read, not a sweep-index omission
+
+Investigated the engine before building and chose outcome (b), recorded in
+LLP 3000.007 §20.21. The expiry sweep already removes the source, subtracts
+its physical aggregate contribution, updates every target index and appends
+partition events in one transaction. Its runner uses unbounded ceilings;
+source count is bounded explicitly to 2,000 per host pass, scanned in batches
+of at most 256. A value index would cost two extra entries per surviving
+aggregate change and one on group deletion, with no extra target row write
+or source scan. The SQLite/MemoryRows experiment measured 2,000 changes,
+4,000 rank-entry writes and three entries on final deletion (two base, one
+rank). Cost was not the blocker: live values change at expiry before a sweep,
+and a partial sweep or offline device can still have the wrong stored winner.
+A negative sum can also gain a winner when a negative contribution expires.
+
+Replaced the feeds card's handwritten fresh score table and refresh/backfill
+helpers with executable bounded live rankings. The post-window query includes
+zero-like posts in `(now - 24h, now]`; the like-window query ranks recent likes
+on posts of any age. Source mutations derive principal and times, accept no
+score, and only insert/delete an owned unique like. The count remains
+engine-owned. Private likes use server reads by default; the documented
+public-sync variant replicates full sources and all count groups, with its
+N_MAINTAIN_SYNCED note. The optional scheduled recipe keeps its explicit lag;
+it is no longer the expiry refusal's recommendation. Updated that diagnostic,
+its code entry, the feeds/expiry/maintains cards and package README. No parser
+form, value serialization, meter ceiling, corpus case or write authority changed.
+
+The two-store witness starts with physical counts 3 and 2. Clock advance alone
+makes the second group win. Three one-row sweeps leave the first physical
+count at 2, then 1, then absent, while the live answer stays correct before
+and after each delivered sweep. SQLite and memory also check exact post-time
+boundaries, zero-like candidates, four immediate set/clear reads, and source
+horizon incompleteness. Both return ten complete winners from 1,500 candidates
+plus one like, and ten incomplete rows from 8,193 candidates. The private
+server fixture at 1,501 candidates plus one like uses 3,003 examinations and
+2,760,435 heap bytes; 8,194 candidates return ten with complete=false and
+16,385 reported examinations, including projection work after the scan cut.
+Seven source set/clear writes give scores 0,1,1,2,1,1,0 with zero schedule
+runs and zero milliseconds of scheduled lag. This is a fresh bounded answer,
+not a new exact index for an arbitrarily large expiring population. Offline
+results still describe held data, and a post-time range needs a new query on
+clock advance for zero-like boundary changes.
+
+The regression was red on base 82eebd6b1174eb6ed35f2e375649e0efaa1e3f65:
+the device test was 0 passed/1 failed because the old recipe had a writable
+ranked table; after the recipe change it was 1 passed/0 failed. The diagnostic
+regression was separately 0 passed/1 failed before its rewrite. Final targeted
+suites: guide 50/50, maintains 9/9, simulator Trending 6/6, device Trending
+6/6, rank index-cost experiment 1/1. An initial public guide block emitted
+N_MAINTAIN_SYNCED, so the published block defaults to private/server and tests
+exercise the explicitly documented public variant. A test fixture's module
+name assertion was corrected; it was a test setup error, not a runtime fix.
+
+Ran the full blocking command with Node 24.18.0:
+`bash snapback4/scripts/test.sh` reported `== 4 failure(s) in 839 s`:
+package typecheck, package build, cargo test and client tests. Rust summaries
+sum to 1,278 passed, 17 failed and 4 ignored; the 17 failures are eight device
+native-read and nine simulator native tests whose fixture Cargo build was
+denied access to unicode-ident-1.0.25.crate in the home registry cache
+(Operation not permitted). Fixture wrapper tests passed 9/9. The missing
+openid-client package stopped TypeScript and prevented copying the wasm
+wrapper, so the initial client run reported 233 passed/19 failed/1 skipped.
+A frozen Bun install using writable temporary/cache directories restored six
+packages without changing manifests or the lockfile; package typecheck and
+build then passed. `node --test --test-concurrency=2
+'packages/snapback4/test/*.test.mjs'` reported 536 passed/1 failed/1 skipped.
+The only remaining client failure was Chromium SIGABRT in react.test.mjs;
+its isolated rerun was 0 passed/1 failed with the same SIGABRT. No failure is
+labelled pre-existing without a separate base verification. The full suite is
+not claimed green; native fixture cache access and the browser need an
+outside-sandbox qualification by the lead. ref-check passed with 481 LLPs,
+9,052 refs, zero errors and zero unchecked; the final append and source line
+limits were checked. No commit, push, tag or publication was made.

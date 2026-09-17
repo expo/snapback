@@ -951,22 +951,18 @@ sweep, while live values change at expiry. Rechecking only stored winners
 can miss another group's new rank. Use this scheduled recipe when score lag
 is acceptable; it does not promise exact rolling-like-window ranking.
 
-## Trending: fresh ranking in the source transaction
+## Trending: fresh ranking without a schedule
 
-For a ranking that must be fresh at load time, the current answer is an
-explicit ranked table refreshed in every source-write transaction. This
-standalone recipe ranks posts younger than 24 hours by their non-expiring
-like count, then post time and post id, including zero-like posts. It is a
-window over post time, not over the time each like arrived. Unlike the
-scheduled recipe, a newly created post and a changed like count appear in
-the very next server read; no schedule has to run. Unlike `trendingNow()`,
-the read pages a score index instead of sorting a bounded candidate scan.
+For a ranking that must be fresh at load time, use the fresh bounded recipe
+below. It sorts authoritative live counts before taking the top ten, with no
+schedule and no principal-writable score table. The price is read work over
+all candidates within the meter, rather than a stored top-N index.
 
 ### Calendar-bucket alternative: positively-liked originals
 
 A maintain fits a current-calendar-bucket ranking of positively-liked
 originals with id ties. A Trending feed usually wants a rolling window over
-post time and zero-like candidates; use the handwritten recipe below for
+post time and zero-like candidates; use the fresh bounded recipe below for
 that contract. This narrower alternative indexes the maintained `value`
 within the post's calendar day:
 
@@ -1012,8 +1008,7 @@ query trending(c: cursor ?):
   return trendScore[day(now)] after c last 10 by byScore { postId, score: .value }
 ```
 
-The engine updates `trendScore` inside the source transaction, with no
-`refreshRank`. A maintain's target cannot be written by a principal, but
+The engine updates `trendScore` inside the source transaction. A maintain's target cannot be written by a principal, but
 its score is only as trustworthy as the source rows' insert rule and the
 mutations that construct those rows. The insert rule pins `principal` to
 `viewer`; the unique pair permits one like per viewer per post. `setLike`
@@ -1032,8 +1027,8 @@ The costs and limits of this calendar ranking are:
   cannot expire or be capped. Each `(postDay, postId)` group stays as long
   as any contributing like remains, even when the query can no longer reach
   its day. The per-principal cap bounds one viewer's likes, not total
-  historical groups across all viewers. The handwritten `ranked` table
-  below instead expires at `post.at + 24h`.
+  historical groups across all viewers. The bounded recipe
+  below selects posts by a live time range without a stored ranking target.
 - **The window is the post's calendar day, and the query reads only today's
   bucket.** `day()` here uses UTC, not a rolling 24 hours. At 00:00:01 UTC,
   Trending is empty unless a post created since midnight already has a
@@ -1045,7 +1040,7 @@ The costs and limits of this calendar ranking are:
   and clear calls do not double-count. Each viewer may hold at most 1,000
   likes, and unliking frees a slot.
 - **Ties break by descending maintained id, not post time.** The index
-  orders `value, id` within a day; the handwritten recipe uses score,
+  orders `value, id` within a day; the bounded post-window recipe uses score,
   post time and post id. Score changes can move rows between cursor pages;
   neither pagination is a snapshot across writes.
 - **Nothing enforces that the writer's bucket offset matches the query's.**
@@ -1062,21 +1057,24 @@ server answer with `fresh: false`, or refuse `E_OFFLINE` without one.
 eligibility or validation of the copied facts. An offline answer cannot
 promise a fresh ranking.
 
-### Fresh ranking over posts younger than 24 hours
+### Fresh bounded ranking: post window and like window
 
-Use this handwritten table for posts younger than 24 hours, including
-zero-like posts, or for a score beyond the `count`/`sum` a maintain can
-keep. Every source write must call `refreshRank`. The helper uses the
-caller's ordinary write rules, grants no privilege and does not reserve
-`ranked` writes to itself; its target is writable under those rules.
+Use this live bounded query when a window must roll without schedule lag.
+`trending()` ranks posts in `(now - 24h, now]`, including zero-like posts,
+by count, post time and post id descending. `rollingLikes()` instead ranks
+posts of any age by their likes in the trailing 24 hours; zero-like groups
+are absent and ties break by post id. A like lives for 24 hours from the
+server's `now`. These are different windows; choose the query your feed means.
 
-The client surface is declared queries, mutations and actions, not direct
-table writes. Neither recipe exposes a caller-supplied score. Both have
-latent permissions to review when adding mutations: accepting untrusted
-denormalised facts could corrupt the maintain's source, and accepting an
-untrusted score could corrupt the handwritten target. The maintain's
-target has the additional compiler-enforced prohibition on direct writes;
-that does not make arbitrary source inserts trustworthy.
+This standalone recipe keeps likes private and runs the ranking on the server.
+A disconnected device can retain that answer with `fresh: false`, not compute
+a complete ranking from only its own likes. For a locally computed public-like
+variant, change the likes read rule to `read <- allow`, its sync to `sync public`,
+and remove `online only` from `likeCounts`. The resulting `N_MAINTAIN_SYNCED`
+note discloses that every count group reaches every device. This variant
+replicates all posts and live like sources without a horizon too: make that
+privacy and acquisition choice explicitly. Both device stores run that variant
+under their own clock, including offline expiry before the server sweep.
 
 ```quarry
 table posts:
@@ -1087,87 +1085,79 @@ table posts:
   immutable authorId, at
   public 'posts are public'
   insert <- .authorId = viewer
-  sync public last 2000 by byTime
+  sync public
 
 table likes:
   postId: posts
   principal: principal
+  at: time
+  expiresAt: time
   unique byPostPrincipal: postId, principal
   by byPrincipal: principal, id
+  by byExpiresAt: expiresAt
   cap 1000 by principal
+  immutable postId, principal, at, expiresAt
   read <- .principal = viewer
   insert <- .principal = viewer
   delete <- .principal = viewer
+  expire at .expiresAt
   sync to .principal
 
 maintain likeCounts: count likes by postId
   read <- allow
   online only
 
-table ranked:
-  postId: posts
-  score: int
-  at: time
-  expiresAt: time
-  unique byPost: postId
-  by byScore: score, at, postId, id
-  by byExpiresAt: expiresAt
-  immutable postId, at, expiresAt
-  public 'the fresh ranking is public'
-  insert <- allow
-  update <- allow
-  delete <- deny
-  expire at .expiresAt
-  online only
-
-fn refreshRank(postId: posts):
-  p = posts[postId] ! else POST_NOT_FOUND
-  if p.at > now - 86400000 and p.at <= now:
-    upsert ranked[p.id] { postId: p.id, score: likeCounts[p.id], at: p.at, expiresAt: p.at + 86400000 }
-  return null
-
 mutation create(body: text <=6000):
-  p = insert posts { authorId: viewer, body, at: now }
-  refreshRank(p.id)
-  return p
+  return insert posts { authorId: viewer, body, at: now }
 
 mutation setLike(postId: posts, liked: bool):
   require exists posts[postId] else POST_NOT_FOUND
   if liked:
-    insert likes { postId, principal: viewer } if absent
+    insert likes { postId, principal: viewer, at: now, expiresAt: now + 86400000 } if absent
   else if exists likes[postId, viewer]:
     delete likes[postId, viewer]
-  refreshRank(postId)
 
-job rebuildRank():
-  chunk p in posts first 100 by byId:
-    refreshRank(p.id)
+query trending():
+  candidates = posts[at > now - 86400000, at <= now] first 8192 by byTime { postId: .id, at, score: likeCounts[.id] }
+  return slice(sort(candidates, '-score', '-at', '-postId'), 0, 10)
 
-query trending(c: cursor ?):
-  return ranked after c last 10 by byScore { *, post: posts[.postId] }
+query rollingLikes():
+  candidates = likeCounts first 8192 by byGroup { postId, score: .value }
+  return slice(sort(candidates, '-score', '-postId'), 0, 10)
 ```
 
-`likeCounts` changes inside the source transaction before `refreshRank`
-reads it; the ranking update commits with the source write or both roll
-back. Repeated `setLike(true)` and `setLike(false)` recompute from the
-count, so they cannot increment or decrement the score twice. This recipe
-reads the online-only count in each mutation and therefore does not predict
-those writes; show their pending outcome until the server settles them.
+The target is engine-owned: no principal can insert or update its score.
+`setLike` accepts only a post id and a desired boolean, derives the principal
+and both times on the executing host, and permits one live like per viewer
+per post. Repeated `true` does not extend a live like's lifetime; after expiry
+it may create a new like. Repeated `false` is harmless. Source update is denied.
+The per-principal cap bounds live likes to 1,000. Seed/import uses the same
+aggregate maintenance; there is no ranking backfill or refresh helper to forget.
 
-Keeping `ranked` online only makes `trending` server-run. Read it on
-screen load for the committed ranking as of that server read. An offline
-watch can retain a previous server answer with
-`fresh: false`, or refuse `E_OFFLINE` without one; it cannot promise a fresh
-ranking offline. `complete` is still page coverage under the meter, not a
-promise that handwritten maintenance was installed on every source path.
-Expiry hides a candidate at `post.at + 24h` before the physical sweep.
-Score changes can move rows between cursor pages; pagination is not a
-snapshot across writes.
+**Freshness:** the next server read sees each committed source write, with
+zero scheduled delay. Expiry changes live counts at the read's pinned clock,
+before any physical sweep, after a partial sweep and on an offline device.
+On a device, new remote writes still require sync; an offline ranking describes
+held data, not unseen writes. Eligible local source writes can predict only
+with their source and aggregate proof held. Expiring count reads need full
+source coverage; adding a source horizon makes a local ranking incomplete.
+`rollingLikes` reports its next contribution expiry to the host. The post-time
+range in `trending` is evaluated on each query: requery as the clock advances
+to remove zero-like posts at the window edge or admit future-dated imports.
 
-After seeding or importing existing posts and likes, run
-`snapback4 run rebuildRank` before exposing this ranking. In a file named
-`feed.q`, use `snapback4 run feed.rebuildRank`. The job uses the same helper
-in 100-post chunks; it is an idempotent backfill, not a scheduled freshness
-mechanism or an atomic snapshot of the whole table. This example has no
-post deletion or expiring likes. If those enter the app, their removal and
-expiry paths need their own ranking maintenance too.
+**Read cost:** sort the whole bounded candidate set, then slice. The 8,192
+examined ceiling is shared with count lookups and live source contributions;
+it is not permission to rank 8,192 posts plus their likes. A meter cut preserves
+`complete: false` through sort/slice; those ten rows are not a certified global
+top ten. The query has no ranking cursor: continuing an unsorted source page
+cannot continue its sorted winners. Narrow the candidate scope or accept an
+explicitly delayed materialisation when the full live set does not fit.
+
+`E_QUARRY_MAINTAIN_EXPIRE` remains a correctness refusal, not a reindex cost
+refusal. The sweep already subtracts physical contributions and updates target
+indexes transactionally. But live values change before that sweep; a partial
+sweep can leave its stored order wrong, and a negative sum can gain a winner
+when a negative contribution expires. Rechecking only the stored winners misses
+that group. One value index would add at most two entry writes per removed
+contribution, not another aggregate scan; paying that cost does not repair the
+between-sweeps or offline ordering gap. This recipe pays for live reads instead.

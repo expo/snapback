@@ -123,12 +123,32 @@ fn maintain_identity_literals_and_scoped_rank_prefix() {
 }
 
 #[test]
-fn expiring_rank_rewrite_names_the_predictable_scheduled_trending_recipe() {
+fn expiring_rank_rewrite_names_the_fresh_bounded_trending_recipe() {
     let source = SOURCE.replace("  at: time", "  until: time\n  by byUntil: until\n  expire at .until\n  at: time");
     let bound = snapback4_lang::compile(&[("expiry.q".into(), format!("{source}\nmaintain totals: count posts by author\n  read <- allow\n  by byCount: value, id\n"))]);
     let diagnostic = bound.diagnostics.iter().find(|d| d.code == "E_QUARRY_MAINTAIN_EXPIRE").unwrap();
     println!("{diagnostic}");
-    assert_eq!(diagnostic.message, "maintain totals cannot order by value because source posts expires");
+    assert_eq!(diagnostic.message, "maintain totals cannot order by value because source posts expires: live values change before the physical sweep, so stored top-N can miss a winner");
     assert_eq!(diagnostic.guide, "feeds");
-    assert_eq!(diagnostic.rewrite, "use a live bounded query, or guide feeds' scheduled Trending recipe: like writes only likes; the schedule scores ranked from non-expiring likeCounts and post time, with one-period score lag");
+    assert_eq!(diagnostic.rewrite, "use guide feeds' fresh bounded Trending recipe: sort live counts at read time, with no schedule lag or writable score table; if the candidate or contribution scan hits the meter, the ranking is incomplete");
+}
+
+#[test]
+fn fresh_trending_has_no_writable_score_and_an_explicit_public_device_variant() {
+    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).into_iter()
+        .find(|s| s.contains("query rollingLikes():")).unwrap();
+    let private = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+    assert!(private.diagnostics.is_empty() && private.notes.is_empty());
+    assert!(!private.schema.tables.contains_key("ranked"));
+    assert!(private.schema.schedules.is_empty());
+    for name in ["trending", "rollingLikes"] { assert_eq!(private.schema.operations[name].runs.as_deref(), Some("server")); }
+    let forged = snapback4_lang::compile(&[("schema.q".into(), format!("{source}\nmutation forge(postId: posts):\n  update likeCounts[postId] {{ value: 999 }}\n"))]);
+    assert!(forged.diagnostics.iter().any(|d| d.message == "likeCounts is a maintained aggregate; write its source rows instead"), "{:?}", forged.diagnostics);
+    let public = source.replace("  read <- .principal = viewer", "  read <- allow")
+        .replace("  sync to .principal", "  sync public").replace("  online only\n", "");
+    let public = snapback4_lang::compile(&[("schema.q".into(), public)]);
+    assert!(public.diagnostics.is_empty(), "{:?}", public.diagnostics);
+    assert_eq!(public.notes.iter().map(|d| d.code.as_str()).collect::<Vec<_>>(), ["N_MAINTAIN_SYNCED"]);
+    assert!(public.schema.tables["likes"].sync.as_ref().unwrap().horizon.is_none());
+    assert!(public.schema.tables["likeCounts"].sync.is_some());
 }

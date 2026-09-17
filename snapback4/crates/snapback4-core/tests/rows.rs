@@ -30,6 +30,42 @@ fn memory_rows_counts_only_changed_index_entries() {
 }
 
 #[test]
+fn value_rank_index_cost_for_a_host_sized_expiry_batch() {
+    let mut schema = common::schema();
+    let table = schema.tables.get_mut("writes").unwrap();
+    let value_type = table.columns.remove("bucket").unwrap();
+    table.columns.insert("value".into(), value_type);
+    table.indexes.remove("byBucket");
+    table.indexes.insert("byGroup".into(), snapback4_core::schema::Index::of(&["body"], true));
+    table.indexes.insert("byValue".into(), snapback4_core::schema::Index::of(&["value", "id"], false));
+    let table = table.clone();
+    let mut engine = snapback4_core::Engine::memory(schema, []).unwrap();
+    let tx = engine.store_mut().transaction().unwrap();
+    let memory = MemoryRows::new();
+    let row = |value| object([("id", Value::Id("r".into())), ("body", Value::String("group".into())), ("value", Value::Int(value))]);
+    let mut old = row(2001);
+    assert_eq!(tx.put("writes", &table, &old, None).unwrap(), 3);
+    assert_eq!(memory.put("writes", &table, &old, None).unwrap(), 3);
+    let mut total = 0;
+    for value in (1..=2000).rev() {
+        let next = row(value);
+        let sql = tx.put("writes", &table, &next, Some(&old)).unwrap();
+        assert_eq!(sql, 2);
+        assert_eq!(memory.put("writes", &table, &next, Some(&old)).unwrap(), sql);
+        total += sql;
+        old = next;
+    }
+    assert_eq!(total, 4000);
+    for rows in [&tx as &dyn Rows, &memory as &dyn Rows] {
+        let ranked = rows.scan("writes", "byValue", &[], &Bounds::default(), Dir::Desc, 1).unwrap();
+        assert_eq!(ranked[0].0.field("value").unwrap(), &Value::Int(1));
+        assert_eq!(rows.delete("writes", &table, &old).unwrap(), 3);
+        assert!(rows.scan("writes", "byValue", &[], &Bounds::default(), Dir::Desc, 1).unwrap().is_empty());
+    }
+    println!("W12a SQLite and MemoryRows: value changes=2000; extra rank entries=4000; entries/change=2; group deletion entries=3 (2 base + 1 rank)");
+}
+
+#[test]
 fn memory_rows_indexes_interpreted_defaults_without_rewriting_raw_rows() {
     let mut table = common::schema().tables["writes"].clone();
     table.defaults.insert("bucket".into(), ColumnDefault::Literal(Value::Int(7)));
