@@ -334,12 +334,41 @@ export function oidcHandlers<Secret extends string>(configuration: OidcConfigura
       throw new ServerError("E_OIDC_TRANSACTION", "the verified identity transaction did not settle");
     }
     let minted: OidcSession | undefined;
-    const completion = await ctx.step("oidc.mint", {
+    const mintInput = {
       transaction: stored.id, issuer: claims.issuer, subject: claims.subject, kind: fixed.kind, days: fixed.days,
-    }, async () => {
-      minted = await runtime.mint(claims.issuer, claims.subject, fixed.kind, fixed.days) as OidcSession;
+    };
+    const deliver = async (recover: boolean) => {
+      minted = await (recover ? runtime.recoverMint : runtime.mint)(claims.issuer, claims.subject, fixed.kind, fixed.days) as OidcSession;
       return { minted: true as const, principal: minted.principal, kind: minted.kind, expiresAt: minted.expiresAt };
-    });
+    };
+    let recoveryRefusal: ServerError | undefined;
+    let completion: Awaited<ReturnType<typeof deliver>>;
+    try {
+      completion = await ctx.step("oidc.mint", mintInput, () => deliver(false), {
+        reconcile: async () => {
+          try { return await deliver(true); }
+          catch (error) {
+            // Generic application GiveUp during reconciliation parks. A
+            // terminal core authority/input refusal is already authoritative
+            // and must instead fail this invocation without a fallback mint.
+            if (error instanceof ServerError) {
+              recoveryRefusal = error;
+              throw new Error("the bound identity mint recovery was refused");
+            }
+            throw error;
+          }
+        },
+      });
+    } catch (error) {
+      if (recoveryRefusal) throw recoveryRefusal;
+      throw error;
+    }
+    // A completed step contains only non-secret delivery metadata. If the
+    // plaintext token left this handler with a lost final acknowledgement,
+    // explicitly replace it in the invocation-bound family before returning.
+    if (completion.minted && !minted) minted = await runtime.recoverMint(
+      claims.issuer, claims.subject, fixed.kind, fixed.days,
+    ) as OidcSession;
     if (!completion.minted || !minted || minted.principal !== completion.principal || minted.kind !== completion.kind
       || minted.expiresAt !== completion.expiresAt) {
       throw new ServerError("E_OIDC_HANDOFF", "the minted session token is no longer available to this live handler");

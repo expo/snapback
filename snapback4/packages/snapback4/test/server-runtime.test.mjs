@@ -108,6 +108,21 @@ test("generation mismatch fails before handler or secret access", async () => {
   assert.deepEqual(result.requests.map(r => r.path), ["/actions/claim-set", "/actions/invocation-1/failed"]);
 });
 
+test("ordinary ServerContext exposes no private identity mint authority", async () => {
+  const result = await invoke((_, ctx) => ({
+    keys: Object.keys(ctx).sort(),
+    mint: "mint" in ctx,
+    identityRuntime: "identityRuntime" in ctx,
+    actionLease: "actionLease" in ctx.invocation,
+  }));
+  assert.deepEqual(result.settled.body.result, {
+    keys: ["invocation", "mutate", "principal", "query", "secrets", "step", "writeIdFor"],
+    mint: false,
+    identityRuntime: false,
+    actionLease: false,
+  });
+});
+
 test("query and mutation preserve card receipts and use the delegated session", async () => {
   const expectedMeter = { cut: "meter", examined: 2, indexEntries: 3, probes: 1, steps: 10, heapBytes: 80, outputBytes: 12, rowsWritten: 0 };
   const result = await invoke(async (_, ctx) => {

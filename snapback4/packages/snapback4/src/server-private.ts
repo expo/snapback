@@ -9,7 +9,10 @@ export interface IdentityRuntime {
   readonly providerFetch: typeof fetch;
   query<A, R>(op: Query<A, R>, args: A): Promise<R>;
   mutate<A, R>(op: Mutation<A, R>, args: A, id: string): Promise<void>;
+  /** First delivery attempt for this invocation's fixed identity intent. */
   mint(issuer: string, subject: string, kind: string, days: number): Promise<Session>;
+  /** Explicitly replace a mint whose response or final handoff was lost. */
+  recoverMint(issuer: string, subject: string, kind: string, days: number): Promise<Session>;
 }
 
 type OrdinaryHandler<A, R, Secrets extends string> =

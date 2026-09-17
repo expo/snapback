@@ -130,21 +130,37 @@ class FakeCore {
     this.transactions = new Map();
     this.steps = new Map();
     this.mints = 0;
+    this.mintSequence = 0;
+    this.mintBindings = new Map();
+    this.sessions = new Map();
     this.failAfterVerified = 0;
-    this.loseMint = 0;
-    this.loseActionDone = 0;
+    this.loseMintBeforeCommit = 0;
+    this.loseMintAfterCommit = 0;
+    this.mintRefusal = null;
+    this.serviceLive = true;
+    this.inactiveInvocations = new Set();
+    this.revokedTargets = new Set();
+    this.loseMintStepDone = 0;
     this.allBodies = [];
   }
   byInvocation(invocation) { return [...this.transactions.values()].find(row => row.beginInvocation === invocation) ?? null; }
   byState(state) { return [...this.transactions.values()].find(row => row.state === state) ?? null; }
-  async wire(path, body, claim, stop) {
-    this.allBodies.push({ path, body: structuredClone(body) });
+  resolve(token) { return this.sessions.get(token) ?? null; }
+  closeFamily(token) {
+    const found = this.sessions.get(token);
+    if (!found) return false;
+    for (const [candidate, session] of this.sessions) if (session.family === found.family) this.sessions.delete(candidate);
+    return true;
+  }
+  mintDenied(code, message = "bound session refused") { return { denied: { code, family: code === "E_INPUT" ? "input" : "action", message } }; }
+  async wire(path, body, claim, stop, init = {}) {
+    const headers = new Headers(init.headers);
+    this.allBodies.push({ path, body: structuredClone(body), headers: Object.fromEntries(headers) });
     if (path === "/actions/claim-set") return { requests: [claim], worker: "service:worker" };
     if (path === `/actions/${claim.id}/status`) return { invocation: { id: claim.id, attempt: claim.attempt, cancelled: false, state: "running" } };
     if (path === `/actions/${claim.id}/done` || path === `/actions/${claim.id}/failed`) {
       this.settled = { path, body: structuredClone(body) };
       stop.abort();
-      if (path.endsWith("/done") && this.loseActionDone-- > 0) throw Error("lost action settlement acknowledgement");
       return { ok: true };
     }
     const step = path.match(/^\/actions\/[^/]+\/steps\/([^/]+)\/(begin|done|park)$/);
@@ -155,13 +171,22 @@ class FakeCore {
         const input = JSON.stringify(body.input);
         if (found && found.input !== input) return { denied: { code: "E_STEP_INPUT", family: "action", message: "changed step input" } };
         if (found?.state === "done") return { step: { state: "done", key: found.key, result: found.result } };
-        if (found) { found.state = "parked"; return { denied: { code: "E_STEP_PARKED", family: "action", message: "uncertain step parked" } }; }
+        if (found?.state === "parked" || (found && !body.reconcile)) {
+          found.state = "parked";
+          return { denied: { code: "E_STEP_PARKED", family: "action", message: "uncertain step parked" } };
+        }
+        if (found) { found.attempt = claim.attempt; return { step: { state: "reconcile", key: found.key } }; }
         const created = { input, key: `step:${id}`, state: "started", attempt: claim.attempt };
         this.steps.set(id, created); return { step: { state: "run", key: created.key } };
       }
       if (!found) throw Error("missing step");
       if (verb === "park") { found.state = "parked"; return { ok: true }; }
-      found.state = "done"; found.result = structuredClone(body.result); return { ok: true };
+      found.state = "done"; found.result = structuredClone(body.result);
+      if (name === "oidc.mint" && this.loseMintStepDone > 0) {
+        this.loseMintStepDone--;
+        throw Error("lost mint-step completion response after commit");
+      }
+      return { ok: true };
     }
     if (path === "/q/identity.byInvocation") return { data: this.byInvocation(body.args.invocation), complete: true };
     if (path === "/q/identity.byState") return { data: this.byState(body.args.state), complete: true };
@@ -193,8 +218,42 @@ class FakeCore {
     }
     if (path === "/auth/session") {
       this.mints++;
-      const session = { principal: body.principal, kind: body.kind, token: SESSION_TOKEN, expiresAt: this.now + body.days * 86_400_000 };
-      if (this.loseMint-- > 0) throw Error("lost mint response");
+      if (this.loseMintBeforeCommit > 0) {
+        this.loseMintBeforeCommit--;
+        throw Error("lost mint request before commit");
+      }
+      if (headers.get("authorization") !== "Bearer service-token" || !this.serviceLive) return this.mintDenied("E_AUTH");
+      const binding = body.binding;
+      if (!binding || binding.invocationId !== claim.id || binding.intent !== "identity-session/v1"
+        || headers.get("x-snapback-action-lease") !== claim.session.token || this.inactiveInvocations.has(claim.id)) {
+        return this.mintDenied(binding?.intent === "identity-session/v1" ? "E_ACTION_LEASE" : "E_INPUT");
+      }
+      if (this.mintRefusal) return this.mintDenied(this.mintRefusal);
+      const key = `${binding.invocationId}\0${binding.intent}`;
+      const input = JSON.stringify([body.principal, body.kind, body.days]);
+      const previous = this.mintBindings.get(key);
+      let family, expiresAt;
+      if (!previous) {
+        family = `family:${binding.invocationId}`;
+        expiresAt = this.now + body.days * 86_400_000;
+        this.mintBindings.set(key, { input, family, expiresAt, principal: body.principal, kind: body.kind });
+      } else {
+        if (previous.input !== input) return this.mintDenied("E_INPUT");
+        if (binding.replaceLostDelivery !== true) return this.mintDenied("E_INPUT");
+        if (this.revokedTargets.has(body.principal)
+          || ![...this.sessions.values()].some(session => session.family === previous.family && session.expiresAt > this.now)) {
+          return this.mintDenied("E_ACTION_AUTHORITY");
+        }
+        ({ family, expiresAt } = previous);
+        for (const [token, session] of this.sessions) if (session.family === family) this.sessions.delete(token);
+      }
+      const token = ++this.mintSequence === 1 ? SESSION_TOKEN : `${SESSION_TOKEN}-${this.mintSequence}`;
+      const session = { principal: body.principal, kind: body.kind, token, expiresAt, family };
+      this.sessions.set(token, session);
+      if (this.loseMintAfterCommit > 0) {
+        this.loseMintAfterCommit--;
+        throw Error("lost mint response after commit");
+      }
       return { session };
     }
     throw Error(`unexpected fake-core path ${path}`);
@@ -234,7 +293,7 @@ function suite(provider, core = new FakeCore()) {
           const response = await options.coreFetch(path, body, init, claim);
           if (response !== undefined) return response;
         }
-        const reply = await core.wire(path, body, claim, stop);
+        const reply = await core.wire(path, body, claim, stop, init);
         return Response.json(reply);
       },
     });
@@ -274,6 +333,15 @@ test("OIDC helper runs a signed Authorization Code + S256 flow and persists no p
   assert.equal(transaction.email, "person@example.test"); assert.equal(transaction.emailVerified, true);
   const durable = JSON.stringify({ transactions: [...s.core.transactions.values()], steps: [...s.core.steps.values()] });
   for (const secret of [ACCESS_TOKEN, REFRESH_TOKEN, SESSION_TOKEN, CLIENT_SECRET]) assert.equal(durable.includes(secret), false, secret);
+  const mint = s.core.allBodies.find(entry => entry.path === "/auth/session");
+  assert.deepEqual(mint.body, {
+    principal: result.settled.body.result.principal, kind: "oidc", days: 7,
+    binding: { invocationId: "complete-healthy", intent: "identity-session/v1" },
+  });
+  assert.equal(mint.headers["x-snapback-action-lease"], "action-lease-complete-healthy-1");
+  assert.equal(mint.headers.authorization, "Bearer service-token");
+  assert.equal(s.core.allBodies.filter(entry => JSON.stringify(entry.body).includes(SESSION_TOKEN)).every(entry => entry.path.endsWith("/done")), true,
+    "the raw session appears only in the protected final action result");
   assert.equal(provider.tokenCalls("healthy-code"), 1); assert.equal(s.core.mints, 1);
 });
 
@@ -347,7 +415,7 @@ test("unknown signing-key rotation refreshes JWKS without weakening signature ch
   assert.ok(provider.jwksCalls() > before, `JWKS calls ${before} -> ${provider.jwksCalls()}`);
 });
 
-test("persisted verification replays through provider outage while uncertain mint and lost handoff never mint twice", async t => {
+test("persisted verification replays through provider outage without repeating exchange", async t => {
   const provider = await localProvider(t), s = suite(provider);
   const resumed = await s.begin("resume"); provider.register("resume-code", resumed.authorizationUrl);
   s.core.failAfterVerified = 1;
@@ -359,20 +427,123 @@ test("persisted verification replays through provider outage while uncertain min
   assert.ok(second.settled.path.endsWith("/done")); assert.equal(provider.tokenCalls("resume-code"), 1); assert.equal(s.core.mints, 1);
   assert.deepEqual({ discovery: provider.discoveryCalls(), token: provider.tokenCalls("resume-code"), jwks: provider.jwksCalls() }, providerCalls,
     "a completed exchange replays its claims without discovery, token or JWKS reachability");
-  provider.setUnavailable(false);
+  assert.equal(s.core.allBodies.filter(entry => entry.path === "/auth/session").length, 1);
+});
 
-  const uncertain = await s.begin("uncertain-mint"); provider.register("uncertain-mint-code", uncertain.authorizationUrl); s.core.loseMint = 1;
-  assert.equal((await s.invoke("completeOidc", s.callback(uncertain, "uncertain-mint-code"),
-    { id: "complete-uncertain-mint", attempt: 1 })).settled.body.retry, true);
-  const parked = await s.invoke("completeOidc", s.callback(uncertain, "uncertain-mint-code"),
-    { id: "complete-uncertain-mint", attempt: 2 });
-  assert.equal(parked.settled.body.code, "E_STEP_PARKED"); assert.equal(s.core.mints, 2, "one prior healthy mint plus one uncertain mint");
+test("bound mint recovers losses before commit, after commit, and after completed metadata without extending expiry", async t => {
+  const provider = await localProvider(t);
 
-  const lost = await s.begin("lost-handoff"); provider.register("lost-handoff-code", lost.authorizationUrl); s.core.loseActionDone = 1;
-  await s.invoke("completeOidc", s.callback(lost, "lost-handoff-code"), { id: "complete-lost-handoff", attempt: 1 });
-  const failedClosed = await s.invoke("completeOidc", s.callback(lost, "lost-handoff-code"), { id: "complete-lost-handoff", attempt: 2 });
-  assert.equal(failedClosed.settled.body.code, "E_OIDC_HANDOFF");
-  assert.equal(provider.tokenCalls("lost-handoff-code"), 1); assert.equal(s.core.mints, 3, "lost handoff did not repeat mint");
+  const beforeCore = new FakeCore(), before = suite(provider, beforeCore);
+  const beforeFlow = await before.begin("mint-before-commit"); provider.register("mint-before-commit-code", beforeFlow.authorizationUrl);
+  beforeCore.loseMintBeforeCommit = 1;
+  const beforeFirst = await before.invoke("completeOidc", before.callback(beforeFlow, "mint-before-commit-code"), { id: "complete-mint-before", attempt: 1 });
+  assert.equal(beforeFirst.settled.body.retry, true); assert.equal(beforeCore.mintBindings.size, 0);
+  const beforeRecovered = await before.invoke("completeOidc", before.callback(beforeFlow, "mint-before-commit-code"), { id: "complete-mint-before", attempt: 2 });
+  assert.ok(beforeRecovered.settled.path.endsWith("/done")); assert.equal(beforeCore.mintBindings.size, 1);
+  assert.equal(provider.tokenCalls("mint-before-commit-code"), 1);
+  const beforeMints = beforeCore.allBodies.filter(entry => entry.path === "/auth/session");
+  assert.equal(beforeMints.length, 2, "one initial request and one explicit recovery; no local HTTP retry");
+  assert.equal(Object.hasOwn(beforeMints[0].body.binding, "replaceLostDelivery"), false);
+  assert.equal(beforeMints[1].body.binding.replaceLostDelivery, true);
+  assert.deepEqual(beforeMints.map(entry => entry.headers["x-snapback-action-lease"]),
+    ["action-lease-complete-mint-before-1", "action-lease-complete-mint-before-2"]);
+
+  const afterCore = new FakeCore(), after = suite(provider, afterCore);
+  const afterFlow = await after.begin("mint-after-commit"); provider.register("mint-after-commit-code", afterFlow.authorizationUrl);
+  afterCore.loseMintAfterCommit = 1;
+  const afterFirst = await after.invoke("completeOidc", after.callback(afterFlow, "mint-after-commit-code"), { id: "complete-mint-after", attempt: 1 });
+  assert.equal(afterFirst.settled.body.retry, true);
+  const [lostToken] = afterCore.sessions.keys(), originalExpiry = afterCore.resolve(lostToken).expiresAt;
+  const afterRecovered = await after.invoke("completeOidc", after.callback(afterFlow, "mint-after-commit-code"), { id: "complete-mint-after", attempt: 2 });
+  const replacement = afterRecovered.settled.body.result;
+  assert.ok(afterRecovered.settled.path.endsWith("/done")); assert.equal(replacement.expiresAt, originalExpiry);
+  assert.equal(afterCore.resolve(lostToken), null); assert.equal(afterCore.resolve(replacement.token).expiresAt, originalExpiry);
+  assert.equal(afterCore.closeFamily(lostToken), false, "a stale delivery cannot close the replacement family");
+  assert.notEqual(afterCore.resolve(replacement.token), null);
+  assert.equal(provider.tokenCalls("mint-after-commit-code"), 1);
+
+  const handoffCore = new FakeCore(), handoff = suite(provider, handoffCore);
+  const handoffFlow = await handoff.begin("lost-final-handoff"); provider.register("lost-final-handoff-code", handoffFlow.authorizationUrl);
+  handoffCore.loseMintStepDone = 1;
+  const lostHandoff = await handoff.invoke("completeOidc", handoff.callback(handoffFlow, "lost-final-handoff-code"), { id: "complete-lost-handoff", attempt: 1 });
+  assert.equal(lostHandoff.settled.body.retry, true);
+  const [originalToken] = handoffCore.sessions.keys(), expiresAt = handoffCore.resolve(originalToken).expiresAt;
+  const recovered = await handoff.invoke("completeOidc", handoff.callback(handoffFlow, "lost-final-handoff-code"), { id: "complete-lost-handoff", attempt: 2 });
+  assert.ok(recovered.settled.path.endsWith("/done")); assert.equal(recovered.settled.body.result.expiresAt, expiresAt);
+  assert.equal(handoffCore.resolve(originalToken), null); assert.notEqual(handoffCore.resolve(recovered.settled.body.result.token), null);
+  assert.equal(handoffCore.steps.get("complete-lost-handoff:oidc.mint").state, "done");
+  assert.equal(provider.tokenCalls("lost-final-handoff-code"), 1);
+  const handoffMints = handoffCore.allBodies.filter(entry => entry.path === "/auth/session");
+  assert.equal(handoffMints.length, 2); assert.equal(handoffMints[1].body.binding.replaceLostDelivery, true);
+});
+
+test("a lost recovery reply is recovered only by the next explicit claim attempt", async t => {
+  const provider = await localProvider(t), core = new FakeCore(), s = suite(provider, core);
+  const flow = await s.begin("lost-recovery-reply"); provider.register("lost-recovery-reply-code", flow.authorizationUrl);
+  core.loseMintAfterCommit = 1;
+  assert.equal((await s.invoke("completeOidc", s.callback(flow, "lost-recovery-reply-code"),
+    { id: "complete-lost-recovery", attempt: 1 })).settled.body.retry, true);
+  const [firstToken] = core.sessions.keys();
+  core.loseMintAfterCommit = 1;
+  assert.equal((await s.invoke("completeOidc", s.callback(flow, "lost-recovery-reply-code"),
+    { id: "complete-lost-recovery", attempt: 2 })).settled.body.retry, true);
+  const [secondToken] = core.sessions.keys();
+  assert.notEqual(secondToken, firstToken); assert.equal(core.resolve(firstToken), null);
+  const third = await s.invoke("completeOidc", s.callback(flow, "lost-recovery-reply-code"),
+    { id: "complete-lost-recovery", attempt: 3 });
+  assert.ok(third.settled.path.endsWith("/done")); assert.equal(core.resolve(secondToken), null);
+  assert.notEqual(core.resolve(third.settled.body.result.token), null);
+  const mints = core.allBodies.filter(entry => entry.path === "/auth/session");
+  assert.equal(mints.length, 3); assert.deepEqual(mints.map(entry => entry.body.binding.replaceLostDelivery ?? false), [false, true, true]);
+  assert.deepEqual(mints.map(entry => entry.headers["x-snapback-action-lease"]), [
+    "action-lease-complete-lost-recovery-1", "action-lease-complete-lost-recovery-2", "action-lease-complete-lost-recovery-3",
+  ]);
+  assert.equal(provider.tokenCalls("lost-recovery-reply-code"), 1);
+});
+
+test("bound mint propagates terminal authority and binding refusals without an unbound or new-family fallback", async t => {
+  const provider = await localProvider(t);
+  const initialCases = [
+    ["changed-intent", "E_INPUT", (_core, body) => { body.binding.intent = "identity-session/v2"; }],
+    ["cross-invocation", "E_ACTION_LEASE", (_core, body) => { body.binding.invocationId = "another-invocation"; }],
+    ["stale-claim", "E_ACTION_LEASE", (_core, _body, init) => { init.headers["x-snapback-action-lease"] = "stale-claim-token"; }],
+    ["cancelled-invocation", "E_ACTION_LEASE", (core, _body, _init, claim) => { core.inactiveInvocations.add(claim.id); }],
+    ["revoked-service", "E_AUTH", core => { core.serviceLive = false; }],
+    ["terminal-authority", "E_ACTION_AUTHORITY", core => { core.mintRefusal = "E_ACTION_AUTHORITY"; }],
+  ];
+  for (const [label, expected, alter] of initialCases) {
+    const core = new FakeCore(), s = suite(provider, core);
+    const flow = await s.begin(label), code = `${label}-code`, id = `complete-${label}`;
+    provider.register(code, flow.authorizationUrl);
+    const result = await s.invoke("completeOidc", s.callback(flow, code), { id, coreFetch(path, body, init, claim) {
+      if (path === "/auth/session") alter(core, body, init, claim);
+    } });
+    assert.equal(result.settled.body.code, expected, label);
+    assert.equal(core.allBodies.filter(entry => entry.path === "/auth/session").length, 1, `${label}: no local retry or fallback`);
+    assert.equal(core.mintBindings.size, 0, `${label}: no bound or unbound family was minted`);
+    assert.equal(core.sessions.size, 0, label);
+  }
+
+  for (const mode of ["changed-input", "closed-family", "revoked-target"]) {
+    const core = new FakeCore(), s = suite(provider, core);
+    const flow = await s.begin(mode), code = `${mode}-code`, id = `complete-${mode}`;
+    provider.register(code, flow.authorizationUrl); core.loseMintAfterCommit = 1;
+    assert.equal((await s.invoke("completeOidc", s.callback(flow, code), { id, attempt: 1 })).settled.body.retry, true, mode);
+    const [originalToken] = core.sessions.keys();
+    if (mode === "closed-family") assert.equal(core.closeFamily(originalToken), true);
+    if (mode === "revoked-target") {
+      core.revokedTargets.add(core.resolve(originalToken).principal);
+      assert.equal(core.closeFamily(originalToken), true);
+    }
+    const result = await s.invoke("completeOidc", s.callback(flow, code), { id, attempt: 2, coreFetch(path, body) {
+      if (path === "/auth/session" && mode === "changed-input") body.days--;
+    } });
+    assert.equal(result.settled.body.code, mode === "changed-input" ? "E_INPUT" : "E_ACTION_AUTHORITY", mode);
+    assert.equal(core.mintBindings.size, 1, `${mode}: the original binding tombstone remains`);
+    assert.equal(core.allBodies.filter(entry => entry.path === "/auth/session").length, 2, `${mode}: no unbound or new-family fallback`);
+    if (mode === "changed-input") assert.notEqual(core.resolve(originalToken), null, "changed input does not invalidate the original token");
+    else assert.equal(core.sessions.size, 0, `${mode}: revoked family was not recreated`);
+  }
 });
 
 test("a consumed code with a dropped token reply parks and is never posted twice", async t => {
@@ -484,6 +655,30 @@ test("invocation lifetime releases provider and private-core fetch and body stal
     const before = s.core.allBodies.length;
     assert.equal(entered.value, true); assert.equal(coreSignal.aborted, true);
     await assertClosed(result, before, `private core ${kind} stall`, () => pending.resolve(Response.json({ data: null })));
+  }
+
+  for (const kind of ["fetch", "body"]) {
+    const label = `mint-${kind}`, code = `${label}-code`;
+    const flow = await s.begin(label); provider.register(code, flow.authorizationUrl);
+    let mintSignal;
+    const entered = { value: false }, pending = deferred();
+    const result = await s.invoke("completeOidc", s.callback(flow, code), {
+      id: `complete-${label}`, cancelOnStatus: true,
+      coreFetch(path, body, init) {
+        if (path !== "/auth/session") return undefined;
+        mintSignal = init.signal; entered.value = true;
+        if (kind === "fetch") return pending.promise;
+        return stalledBody(Response.json({ session: {
+          principal: body.principal, kind: body.kind, token: SESSION_TOKEN, expiresAt: s.core.now + 86_400_000,
+        } }), entered, pending);
+      },
+    });
+    const before = s.core.allBodies.length;
+    assert.equal(entered.value, true); assert.equal(mintSignal.aborted, true);
+    assert.equal(result.settled.body.code, "E_ACTION_CANCELLED", `mint ${kind} stall`);
+    pending.resolve(Response.json({ session: {} }));
+    await delay(40);
+    assert.equal(s.core.allBodies.length, before, `mint ${kind}: no late step or action result after authority closed`);
   }
 });
 

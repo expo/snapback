@@ -17,6 +17,11 @@ interface RuntimeOptions {
   readonly fetch?: typeof fetch;
 }
 
+interface MintAuthority {
+  readonly invocationId: string;
+  readonly actionLease: string;
+}
+
 function refusal(value: unknown): Refusal | undefined {
   if (!value || typeof value !== "object") return undefined;
   const found = value as Partial<Refusal>;
@@ -24,19 +29,24 @@ function refusal(value: unknown): Refusal | undefined {
     ? found as Refusal : undefined;
 }
 
+// @ref LLP 3000.009#5.1 — mint authority is the current invocation and exact claim lease.
 // @ref LLP 3000.009#7 — provider protocols stay in the server runtime; this
 // narrow bridge exposes neither a service client nor arbitrary session minting.
-export function identityRuntime(options: RuntimeOptions, lifetime: RuntimeLifetime): IdentityRuntime {
+export function identityRuntime(options: RuntimeOptions, lifetime: RuntimeLifetime, authority: MintAuthority): IdentityRuntime {
   const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
   const fetchWithinLifetime = lifetimeFetch(doFetch, lifetime.signal);
   const base = options.url.replace(/\/$/, "");
-  const post = async (path: string, body: unknown): Promise<Record<string, unknown>> => {
+  const post = async (path: string, body: unknown, actionLease?: string): Promise<Record<string, unknown>> => {
     lifetime.assertActive();
     let response: Response;
     try {
       response = await fetchWithinLifetime(`${base}${path}`, {
         method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${options.token}` },
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${options.token}`,
+          ...(actionLease === undefined ? {} : { "x-snapback-action-lease": actionLease }),
+        },
         body: JSON.stringify(body),
         signal: lifetime.signal,
       });
@@ -56,6 +66,21 @@ export function identityRuntime(options: RuntimeOptions, lifetime: RuntimeLifeti
     if (!response.ok) throw new Retry("the private identity operation did not complete");
     return json;
   };
+  const mint = async (issuer: string, subject: string, kind: string, days: number, replaceLostDelivery: boolean): Promise<Session> => {
+    const principal = oidcPrincipal(issuer, subject);
+    const binding = replaceLostDelivery
+      ? { invocationId: authority.invocationId, intent: "identity-session/v1", replaceLostDelivery: true as const }
+      : { invocationId: authority.invocationId, intent: "identity-session/v1" };
+    const result = await post("/auth/session", { principal, kind, days, binding }, authority.actionLease);
+    const session = result.session as Partial<Session> | undefined;
+    if (!session || session.principal !== principal || session.kind !== kind
+      || typeof session.token !== "string" || session.token.length === 0
+      || typeof session.expiresAt !== "number" || !Number.isFinite(session.expiresAt)
+      || session.expiresAt <= lifetime.now()) {
+      throw new ServerError("E_OIDC_MINT", "the identity session mint returned an invalid session");
+    }
+    return Object.freeze({ principal, kind, token: session.token, expiresAt: session.expiresAt });
+  };
   return Object.freeze({
     now: lifetime.now,
     providerFetch: fetchWithinLifetime,
@@ -71,16 +96,10 @@ export function identityRuntime(options: RuntimeOptions, lifetime: RuntimeLifeti
       if (result.state !== "sent") throw new Retry("the private identity mutation has not settled");
     },
     async mint(issuer: string, subject: string, kind: string, days: number): Promise<Session> {
-      const principal = oidcPrincipal(issuer, subject);
-      const result = await post("/auth/session", { principal, kind, days });
-      const session = result.session as Partial<Session> | undefined;
-      if (!session || session.principal !== principal || session.kind !== kind
-        || typeof session.token !== "string" || session.token.length === 0
-        || typeof session.expiresAt !== "number" || !Number.isFinite(session.expiresAt)
-        || session.expiresAt <= lifetime.now()) {
-        throw new ServerError("E_OIDC_MINT", "the identity session mint returned an invalid session");
-      }
-      return Object.freeze({ principal, kind, token: session.token, expiresAt: session.expiresAt });
+      return mint(issuer, subject, kind, days, false);
+    },
+    async recoverMint(issuer: string, subject: string, kind: string, days: number): Promise<Session> {
+      return mint(issuer, subject, kind, days, true);
     },
   });
 }

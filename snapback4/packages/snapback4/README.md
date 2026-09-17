@@ -23,8 +23,8 @@ This `README.md` covers the app layout, Quarry and sync (§1–3).
 with the client (§4), development (§5), releases (§6), Expo (§7) and
 [what is not in this release (§8)](./CLIENT-AND-OPERATIONS.md#8-not-in-this-release);
 [SERVER.md](./SERVER.md) covers TypeScript server handlers, including the
-server-only `snapback4/identity` OIDC action recipe and its current recovery
-qualification gap.
+server-only `snapback4/identity` OIDC action recipe, its protocol-double-only
+bound-session recovery bridge and the pending repaired-engine qualification.
 `snapback4 guide <card>` and `snapback4 why <code>` answer without leaving
 the terminal. Every refusal names its code, its site and a rewrite.
 Every Quarry block in this file and in the guide is compiled by the

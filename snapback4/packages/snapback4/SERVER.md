@@ -49,7 +49,7 @@ supervised `service:worker` intentionally serves handlers for different declared
 seats. Provision these tokens only to fully trusted application workers;
 provider secrets and service names do not create a per-worker allowlist.
 
-## OIDC identity actions (B1a preview)
+## OIDC identity actions (B1c private handoff; qualification pending)
 
 `snapback4/identity` supplies `oidcHandlers(config)`, two ordinary generated
 action handlers for Authorization Code + S256 PKCE. Provider protocol remains
@@ -58,15 +58,32 @@ provider protocol in the engine, or public service/root capability. The
 browser owns the exact frontend callback and POSTs its callback values to the
 complete action under the original guest session.
 
-This is deliberately **not yet a qualified ready identity baseline**. The
-current `/auth/session` mint lacks B1b's exact-live invocation lease, stable
-mint-intent binding and lost-delivery replacement/reconciliation. If minting
-has an uncertain outcome, the action parks. If minting completed but the live
-handler lost the final `Session`, collection fails closed with
-`E_OIDC_HANDOFF`; it does not mint again or persist a plaintext token receipt.
-Do not turn that failure into a new automatic completion action. B1b remains
-required before treating this recipe as complete, and it will not
-retroactively resume B1a work that is already parked; old parks stay parked.
+This is deliberately **not yet a qualified ready identity baseline**. The B1c
+TypeScript source bridge targets B1b's bound-session contract, but only a
+protocol double has exercised the combined source in this checkout. The
+initial mint sends the current invocation id, intent `identity-session/v1`
+and the exact current claim token; it sends no recovery flag and performs no
+local HTTP retry. An unfinished `oidc.mint` step reconciles only through an
+explicit `replaceLostDelivery: true` request. A completed mint receipt whose
+plaintext token left the live handler also uses that explicit recovery, then
+checks the replacement against the recorded principal, kind and original
+expiry. No token is added to a step receipt or managed transaction row.
+
+The core contract permits recovery to create the first binding if the
+original request never committed. Otherwise it atomically replaces the token
+inside the same still-live family, preserving the original expiry. Changed
+input or intent, a stale/cancelled/settled/expired claim, revoked admitting,
+service or target authority, and a closed or expired issued family refuse;
+the helper propagates that refusal without an unbound or new-family fallback.
+Public logout of a current token closes its live family; a stale replaced
+token receives 401 and cannot close the replacement. These are contract facts,
+not evidence that the TypeScript double qualified an actual engine.
+
+The published 0.2.26 engine predates this bound wire and must not be used for a
+B1c identity run: it can take the legacy unbound path instead. Actual repaired-
+engine HTTP, lost-response/crash and Keycloak qualification remains pending in
+the parent integration lane. B1a work already parked under the old contract is
+not retroactively resumed; old parks stay parked.
 The published 0.2.26 engine also does not preserve `E_OIDC_*` codes through
 real core settlement: its action-failure allowlist turns them into the public
 `E_ACTION_FAILED` collection result. Protocol-double assertions of helper
@@ -198,8 +215,10 @@ provider's asymmetric signature and does not duplicate the library's JWS
 verification. The principal is a fixed
 `oidc:` namespace derived from issuer plus `sub`; email is never an automatic
 linking key. `email` and `email_verified` are optional metadata only. Profile
-binding, recovery, organization membership and account linking remain
-application work.
+binding, verification/recovery, organization membership and invitations, and
+account linking remain application work. The organizations-and-invitations
+recipe and provider-specific verification/recovery path still follow this
+private handoff; B1c alone is not full Identity/B.
 
 Discovery for completion runs inside the first `oidc.exchange` step execution.
 Once validated minimal claims are durably recorded, a restart replays them

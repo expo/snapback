@@ -35,3 +35,12 @@ repository; the dated Journal records the local external-credential witness,
 which a downstream checkout does not inherit. Google qualification remains
 credentials-pending. The deterministic signed provider in
 `test/identity.test.mjs` is a protocol double, not actual-provider evidence.
+
+The prior actual-provider record used the published 0.2.26 engine and qualifies
+only the B1a healthy path described above. That engine predates the bound
+session-mint wire and must not be used to run a B1c flow: it may silently take
+the legacy unbound mint path. B1c actual repaired-engine HTTP, lost-response
+and crash qualification is pending in the parent integration lane. Google
+credentials remain absent, so Google, production HTTPS and a real browser are
+also unqualified. Verification/recovery and the organizations-and-invitations
+recipe remain later identity work; this fixture is not full Identity/B.

@@ -27440,3 +27440,96 @@ Google, production HTTPS, real-browser, provider-fault, new core allowlist or
 B1b qualification. In particular, the old engine still cannot prove public
 preservation of `E_OIDC_*`, and this rerun makes no B1c or overall identity/B
 completion claim.
+
+## 2026-09-16 — B1c private bound-session handoff checkpoint
+
+The server-only identity helper now targets the exact read-only B1b contract
+at `contract-only/sb4-b1b-157b958bd` tip
+`157b958bd16014f016ee0c5f89bc22907cb3b2d2`. This lane inspected that ref with
+`git show` and did not check it out, edit core, or merge/rebase/cherry-pick it.
+`server()` passes the current invocation id and exact claim `session.token`
+into the module-private identity runtime. The invocation id already remains
+public as `ctx.invocation.id`; B1c adds no app-visible surface. The exact claim
+token and mint/root capability remain absent from `ServerContext`, generated
+declarations and `contract.ts`.
+
+An initial private mint sends exactly `principal`, `kind`, `days` and binding
+`{ invocationId, intent: "identity-session/v1" }`, with the claim token in
+`x-snapback-action-lease`; there is no local HTTP retry. The distinct private
+recovery method adds only `replaceLostDelivery: true`. `oidc.mint` supplies it
+as the reconciliation callback for an unfinished step. A replayed completed
+metadata receipt with no in-memory token explicitly recovers under the same
+live invocation and then checks the returned principal, kind and original
+expiry. Terminal core input/authority refusals escape reconciliation instead
+of being converted to a generic parked step. Provider exchange remains once,
+and completed validated claims remain independent of provider availability.
+One independent B1a r2 Sol finding remains open: a discovery timeout, 503 or
+unreadable discovery response inside an already-begun `oidc.exchange` occurs
+before any token POST, but the current helper parks it permanently. This B1c
+checkpoint deliberately leaves exchange/discovery source unchanged; the parent
+will consolidate the Sol and Grok findings into one final identity repair.
+
+The labelled TypeScript protocol double models binding tombstones, current
+claim/service/invocation authority, one live token per family and fixed
+expiry. It covers exact initial and recovery wires (including a new claim
+token on the same invocation), loss before mint commit, loss after commit,
+loss after completed mint metadata, a second lost recovery reply, old-token
+invalidation, stale/cross-invocation and terminal refusals, changed intent and
+input, target/family revocation, no unbound/new-family fallback, no private
+capability on ordinary context, and session-token absence from transaction and
+step storage. Fetch and response-body stalls during provider, private recipe
+and mint I/O remain fenced by invocation lifetime even when the injected
+transport ignores `AbortSignal`.
+
+Serial verification used Node 24.18.0 with
+`/Users/ccheever/.volta/tools/image/node/24.18.0/bin` first on `PATH`:
+
+```text
+npm run typecheck
+pass
+
+npm run build
+pass; parent-restored ignored WASM inputs copied only to ignored dist output
+
+node --test --test-concurrency=1 test/identity.test.mjs
+13/13 pass, 0 skipped, 7.50 s wall (final run)
+
+node --test --test-concurrency=1 test/server-runtime.test.mjs
+47/47 pass, 0 skipped, 1.07 s wall
+
+node --test --test-concurrency=1 test/server-routes.test.mjs
+21/21 pass, 0 skipped, 0.41 s wall
+
+SNAPBACK4_BIN=<supplied-0.2.26> node --test --test-concurrency=1 test/readme-examples.test.mjs
+6/6 pass, 0 skipped, 4.83 s wall; documentation census 20 blocks / 40 public functions
+```
+
+Two intermediate identity failures were kept visible. The first run passed
+12/13 but showed that a terminal `E_INPUT` during mint reconciliation became
+`E_STEP_PARKED`; the helper now distinguishes authoritative private-core
+refusals from application `GiveUp` without changing the general step API. The
+next run passed 12/13 but the revoked-target double retained the target token;
+making the double delete that revoked family, as the core contract does, made
+the subsequent run green. A final expansion added mint fetch/body lifetime
+cuts and retained 13/13.
+
+The project skill mirror was readable but contained no `llp-orient`; no
+submodule was initialized. The existing ignored WASM inputs remained present
+and ignored; their SHA-256 values were
+`243c37b7b8f84a63c0bae1415c548c7b845624d27b90f98a97483cd0144645de`
+(`snapback4_device.js`),
+`a8a2121a30d82e5ba3fb886503cd411d6bbc10874d06512e59524afdec11ac3a`
+(`snapback4_device.d.ts`),
+`00aaece70523dd7b6932d04932a31fbce2cebe64838ec81c8f2d346b96d1874a`
+(`snapback4_device_bg.wasm`) and
+`106851e130519176f76b81bf51a50994118639634da43ec4cd337d69dc65be1c`
+(`snapback4_device_bg.wasm.d.ts`). No install, upgrade or generation ran.
+
+This checkpoint does not qualify the repaired engine. The supplied 0.2.26
+binary predates the bound wire and was used only for documentation compilation;
+no B1c identity flow ran against it. The parent retains actual generated-
+engine HTTP/lost-response/crash and Keycloak qualification, plus blind
+Sol/Grok review. Verification/recovery and the organizations-and-invitations
+recipe still follow. Google credentials are absent; Google, production HTTPS,
+real-browser, full Identity/B, B1b/B1c real-engine qualification, publication
+and deployment are not claimed.

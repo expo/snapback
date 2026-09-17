@@ -123,7 +123,10 @@ export function startServer(manifest: ServerManifest, handlers: ServerHandlers, 
       const lifetime = context(meta, secretsFor(declaration.secrets), runtimeOptions, scopedRedact);
       try {
         lifetime.context.invocation.signal.throwIfAborted();
-        const result = await handler(args, lifetime.context, scopedRedact, identityRuntime(runtimeOptions, lifetime.privateLifetime));
+        const result = await handler(args, lifetime.context, scopedRedact, identityRuntime(runtimeOptions, lifetime.privateLifetime, {
+          invocationId: meta.id,
+          actionLease: meta.session.token,
+        }));
         lifetime.context.invocation.signal.throwIfAborted();
         return JSON.parse(strictJson(result, "E_ACTION_RESULT")) as unknown;
       } finally { await lifetime.close(); }
