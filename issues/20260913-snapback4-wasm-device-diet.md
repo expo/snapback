@@ -142,3 +142,16 @@ landing records no measurement line. A repair lane is commissioned (decode
 the enum without buffering, same wire shape; refuse the content-reader
 representations in the suite's source census). The budget is 483,000,
 report-only. This ticket stays open.
+
+## 2026-09-17 the content reader is out again; the next rung is sized
+
+S1b landed: `ir::LaneSource` decodes by streaming with its wire bytes
+unchanged, and the web device is 451,283 B gzip (from 482,965).
+`attribute-wasm.mjs --check-families` and `measure-wasm.sh` are green on
+`main` again, and the suite's source census now refuses the serde
+representations that select the content reader, so this class of regression
+fails a landing. S4a (the backend image) was sized by two scratch probes —
+ceiling 377,414, with a stand-in compact decoder 402,463 — at about −45,000,
+and is commissioned. With S3 (host NFC, −58,832, awaiting the author's
+ruling) the ladder's measured rungs would put the device near 347,000; the
+target of 150,000 still needs the S6 decision. This ticket stays open.
