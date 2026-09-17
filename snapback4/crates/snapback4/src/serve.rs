@@ -1134,6 +1134,7 @@ fn handle(mut request: Request, shared: &Shared) {
             // its service and hands each token to that account's device.
             let payload: Json = serde_json::from_str(if body.is_empty() { "{}" } else { &body }).unwrap_or(Json::Null);
             let wire = session_mint_wire(&request, &payload);
+            let legacy_now = shared.now();
             let outcome = {
                 let mut engine = lock(&shared.engine);
                 match service_of_locked(&request, shared, &engine) {
@@ -1141,7 +1142,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     Ok(service) => match wire {
                         Err(error) => Err(error),
                         Ok(SessionMintWire::Legacy { principal, kind, days }) => {
-                            snapback4_core::identity::custom_session(engine.store(), &principal, &kind, shared.now(), days)
+                            snapback4_core::identity::custom_session(engine.store(), &principal, &kind, legacy_now, days)
                                 .map(|session| json!({ "session": { "principal": session.principal, "kind": session.kind, "token": session.token, "expiresAt": session.expires_at }, "by": service }))
                                 .map_err(|error| (if error.is_refusal() { 200 } else { 503 }, error.refusal()))
                         }
