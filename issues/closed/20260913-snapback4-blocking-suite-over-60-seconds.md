@@ -1,10 +1,11 @@
 # Snapback 4: warm blocking suite exceeds the 60-second budget
 
-**Status:** Open
+**Status:** Closed
 **Priority:** P0
 **Date:** 2026-09-13
 **Systems:** `snapback4/scripts/test.sh`, the simulator and development loop
 **Author:** Codex / GPT-6 Astra
+**Resolution:** Fixed by `53871af32`: the complete current suite passes inside the unchanged 60-second budget with every assertion retained.
 
 At `2063884c8fd40c672158d4b4e3187864192db11c`, the full suite completed with
 zero failed assertions in 72 seconds twice, including the publication
@@ -27,7 +28,7 @@ framing/version unit group took 0.01 s. Stage-level timing and an equivalent
 current-main control are needed before blaming a particular change.
 
 Evidence and the exact release pin are in
-[the catalog record](../benchmarks/runs/snapback4-public-catalog-20260913/README.md).
+[the catalog record](../../benchmarks/runs/snapback4-public-catalog-20260913/README.md).
 Detailed local logs are retained under
 `.llp/ship-runs/sb4-performance-20260913/catalog-{final-suite,publish}.log`.
 
@@ -295,3 +296,47 @@ All 669 source files were producer-checked before and after each diagnostic.
 The review preserves an initial local calculator failure on zero-weight
 wrapper frames and its accounting-only correction; no workload was rerun
 for that correction. Root rehashed all fifteen sample-audit bindings.
+
+## Final requalification after current-main reconciliation — 2026-09-17
+
+Current main had already superseded the original quadratic deleted-row helper:
+`fc76b6391` moved maintain observation to `maintains.rs` and indexes row
+contributions before testing deletions. The stale candidate implementation was
+therefore not replayed. The remaining failure was the enlarged current suite's
+execution shape, not that old product helper.
+
+Qualified code checkpoint `37b273b2b5acea6563055c57352e3c1897425070`
+keeps Cargo's complete, dynamically discovered test-artifact inventory while
+building it once and running independent binaries through a bounded 24-process
+pool. Four scale-heavy artifacts are further expanded from their own `--list`
+inventory into exact-filter processes; newly added tests cannot fall outside a
+hand-maintained target list. The lowering census is eight deterministic
+ordinary tests whose union is the former ordered input map. Every golden
+digest, enabled/disabled compiler comparison, admission record, execution
+observation, R1p presence check, scale population and device-store assertion
+remains. Doctests still run explicitly. The client runner similarly shards its
+two dominant files by deterministic case index while direct invocation still
+runs each complete file.
+
+Two consecutive exact `bash scripts/test.sh` runs on expose-builder-pixel
+(AMD EPYC 9454, 96 logical CPUs, 251 GiB RAM, Ubuntu kernel 6.8;
+Node 24.13.1, Bun 1.3.14, Rust/Cargo 1.93.1) passed in **50 s and 49 s**.
+They passed 1,293 Rust tests, all 9 fixture tests and all 554 client tests
+(552 pass, 2 declared skips), plus the build, wasm, package, chat and Expo
+checks. Four declared Rust measurements/throughput cases remained ignored and
+were not counted as passes. Both runs reported zero failures; the Cargo,
+fixture and client branches took 43/12/43 s and 43/11/41 s respectively and
+overlapped inside the unchanged 60-second ceiling.
+
+Raw log SHA-256 values are
+`0a9f4b1bb38a378acfc63fe759ccb2e8cf158a0f631dfb015032b53bdccb2fe8`
+and `6950f5e4f4390a26eed746333b480692c9cecbcc0fd039530f12c5ecdd3edeec`
+for `/tmp/sb4-delivery-20260917-qualified-{c,d}.log` on that host. No
+assertion, population, blocking command or budget was removed or raised.
+
+Final runner checkpoint `53871af32b785c1284d1b00c081054d8adf6f26f`
+only makes the macOS simulator-witness artifact exclusive and single-threaded;
+the exact final source reran the same complete command in **50 s** with the
+same pass/skip inventory and zero failures. Its raw log is
+`/tmp/sb4-delivery-20260917-qualified-e.log`, SHA-256
+`899003ff1d59cea9c26b0636d73b27a5e58114d7aef34ca69d8f3f9254863bf0`.

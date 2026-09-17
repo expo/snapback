@@ -1,9 +1,12 @@
 # Snapback 4 lifecycle and client startup tests time out under host load
 
-Status: Open
-Priority: P3
-Date: 2026-09-14
-Systems: CLI lifecycle tests, client test runner, publication qualification
+**Status:** Closed
+**Priority:** P3
+**Date:** 2026-09-14
+**Systems:** CLI lifecycle tests, client test runner, publication qualification
+**Author:** Codex / GPT-6 Astra
+**Resolution:** Fixed by `53871af32`: pre-main and readiness waits are distinct, early exits remain prompt, and loaded-host client execution is bounded.
+
 Evidence status: received orchestrator observation plus retained local test logs
 
 ## Problem
@@ -75,5 +78,34 @@ failed the same five tests, so they fail on base crates. `TMPDIR=/tmp` did not
 change the result. At load 9–20 later that day the five passed. A readiness
 wait that starts when the child reaches `main` (for example, a first stderr
 marker) would tell a launch stall apart from a server that never listens.
-The duplicate ticket `issues/closed/20260914-snapback4-lifecycle-tests-stall-at-dyld-start-on-shared-mac.md`
+The duplicate ticket [`20260914-snapback4-lifecycle-tests-stall-at-dyld-start-on-shared-mac.md`](20260914-snapback4-lifecycle-tests-stall-at-dyld-start-on-shared-mac.md)
 was folded into this one.
+
+## Resolution — 2026-09-17
+
+The test-only launch protocol now emits `SNAPBACK4_TEST_MAIN_REACHED` as the
+first action in `main`, when explicitly requested by the lifecycle harness.
+Startup has separate bounded phases: 30 seconds to cross the host's pre-main
+launch boundary, then 15 seconds for server readiness. Every polling loop
+checks `try_wait` first and reports the exit status plus captured stderr, so a
+crash or refusal is never converted into a longer timeout. The abort-profile
+probe uses the same distinction and bounded logged wait.
+
+The regression `a_dead_child_reports_its_status_and_stderr_without_waiting_for_the_deadline`
+launches a fixture that writes `deliberate child refusal` and exits 23. It
+requires the harness to report both facts in under two seconds despite a
+15-second deadline. The complete lifecycle target passed all 20 tests in
+14.1–14.2 seconds during the two final qualifications.
+
+The blocking runner also measures host load before launching client files. It
+uses file concurrency one when the one-minute load is at least the logical CPU
+count (or when `SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1` is explicit); otherwise
+it uses bounded deterministic shards for the two dominant files. On the
+documented 96-CPU qualification host, both ordinary-path runs passed all 554
+client tests and the complete suite in 50/49 seconds. Final exact code
+checkpoint `53871af32b785c1284d1b00c081054d8adf6f26f` passed the
+complete controlled suite in 50 seconds. It also passed lifecycle 20/20 under
+`RLIMIT_NOFILE=256` on the loaded macOS host; that separate 50.2-second target
+observation confirms the bounded launch distinction but is not a suite-budget
+measurement. Raw-log hashes are recorded in the blocking-suite and descriptor
+tickets.

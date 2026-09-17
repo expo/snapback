@@ -1,9 +1,12 @@
 # Snapback 4: Grok reports missing like-list results; reduced server-watch control passes
 
-Status: Open — needs reproduction of the app observation
-Priority: P3
-Date: 2026-09-14
-Systems: online and local client observations, query routing, residency, Clique
+**Status:** Closed
+**Priority:** P3
+**Date:** 2026-09-14
+**Systems:** online and local client observations, query routing, residency, Clique
+**Author:** Codex / GPT-6 Astra
+**Resolution:** Closed as a retained non-reproduction; exact published-package controls contradict the proposed runtime attribution.
+
 Observed package version: published `snapback4@0.2.10`; Grok re-signed its lane binary
 Evidence status: received builder report; reduced independent control does not reproduce
 
@@ -26,7 +29,7 @@ not this ticket's claimed product defect.
 
 ## Contract and independent counterexample
 
-[LLP 3000.007 §6.2](../llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md#6.2)
+[LLP 3000.007 §6.2](../../llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md#6.2)
 and the published README specify that an online-only read runs on the server.
 An observed server-run query refreshes when a commit touches its tables;
 `online only` on a maintain opts out of inherited sync. Lack of sync is
