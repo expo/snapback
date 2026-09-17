@@ -27326,3 +27326,10 @@ passed 1/1 in 30.35 s. No full suite, Cargo, identity test, provider job,
 remote command or publication ran. This is a small application fixture over a
 provider double, not production-provider qualification, B completion,
 identity/B1b completion or a claim that parked core work became done.
+
+## 2026-09-16 — correction: Work witness binary provenance
+
+The preceding Work witness's “signed” wording was an overstatement, corrected
+here; this checkout says “already-qualified,” which should be read no more
+broadly. The supplied 0.2.26 artifact was checked only by `--version` and a
+matching SHA-256. No code-signature qualification was performed or claimed.
