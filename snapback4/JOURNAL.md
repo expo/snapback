@@ -24999,3 +24999,26 @@ unpublished Workroom record-schema addition is being corrected to one builder
 and one separately identified outcome grade per lane record. Prior tests and
 reviews remain attached to their actual revision; they do not establish the
 experimental design. The running Sol pilot is unchanged and remains diagnostic.
+
+## 2026-09-16 — remaining general-purpose program commissioned
+
+Charlie directed completion of the remaining LLP 3000.009 program using the
+fleet, with services built now and removed after Workroom where the evidence
+warrants, rather than waiting to select them first. Section 14.7 and the
+NOT-DOING Moves line record this sequencing change. The lead retains the
+shared core/durable-state contract; independent fleet slices and Sol/Grok
+reviews will feed incremental landings. Heavy suites serialize per host;
+expo-build-1000 remains excluded. Publication and promotion are not inferred
+from this instruction.
+
+The first Workroom builder hit its four-hour operational cap, exiting 124
+after SIGTERM. Post-cap inspection observed 478,710 of 598,224 full-profile
+actions receipted and found the builder's separately grouped acceptance child
+still running: the launcher did not contain that descendant. Its original
+application, stores, receipts and capped attempt are preserved.
+This is incomplete diagnostic evidence, not an acceptance pass, calibrated
+ceiling or scored cell. Recovery proceeds as an explicitly separate diagnostic
+continuation adopting only the verified, recorded acceptance process tree,
+with a new two-hour operational limit and the same 2 GiB disk floor. The
+descendant-custody defect must be corrected before any cold scored cell.
+The completed baseline still needs independent W3/W5 qualification and W8.
