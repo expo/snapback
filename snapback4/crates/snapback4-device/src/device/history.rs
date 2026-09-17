@@ -7,7 +7,11 @@ pub(super) const GROUPS: &str = "device:history:groups";
 pub(super) const STAGED_GROUPS: &str = "device:snapshot:groups";
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub(super) enum Membership { Held, Left }
-pub(super) type Groups = SmallMap<String, SmallMap<String, Membership>>;
+#[cfg(not(all(test, feature = "native")))]
+type GroupKey = String;
+#[cfg(all(test, feature = "native"))]
+type GroupKey = scale::CountedKey;
+pub(super) type Groups = SmallMap<String, BTreeMap<GroupKey, Membership>>;
 
 pub(super) fn load<T: DeviceTx>(tx: &T, key: &str) -> Result<Groups, RuntimeError> {
     tx.meta(key)?.map(|value| decoded(&value)).transpose().map(|value| value.unwrap_or_default())
@@ -32,16 +36,16 @@ pub(super) fn events<T: DeviceTx>(tx: &T, schema: &Schema, events: &[StreamEvent
     for event in events {
         let Some(table) = schema.table(&event.table).filter(|table| table.sync.is_some() && table.leave == LeavePolicy::DeliveredHistory) else { continue };
         match event.kind.as_str() {
-            "scope" => { groups.entry(event.table.clone()).or_default().insert(key(&scope_group(table, event)?)?, Membership::Left); }
+            "scope" => { groups.entry(event.table.clone()).or_default().insert(key(&scope_group(table, event)?)?.into(), Membership::Left); }
             "put" => {
                 let row = wire::row_from_json(table, event.data.as_ref().ok_or_else(|| RuntimeError::Input("event row is missing".into()))?).map_err(RuntimeError::Input)?;
-                groups.entry(event.table.clone()).or_default().insert(row_key(table, &row)?, Membership::Held);
+                groups.entry(event.table.clone()).or_default().insert(row_key(table, &row)?.into(), Membership::Held);
             }
             _ => {}
         }
     }
     for (name, joined) in joined {
-        for group in joined { groups.entry(name.clone()).or_default().insert(encoded(group)?, Membership::Held); }
+        for group in joined { groups.entry(name.clone()).or_default().insert(encoded(group)?.into(), Membership::Held); }
     }
     tx.set_meta(meta, &encoded(&groups)?)
 }
@@ -79,3 +83,7 @@ impl<T: DeviceTx> Rows for Reading<'_, T> {
     fn put(&self, name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> { self.tx.put(name, table, row, old) }
     fn delete(&self, name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> { self.tx.delete(name, table, old) }
 }
+
+#[cfg(all(test, feature = "native"))]
+#[path = "../../tests/support/history_scale.rs"]
+mod scale;

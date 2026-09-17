@@ -1,4 +1,10 @@
 //! Ordered maps for small collections, stored contiguously in key order.
+//! SmallMap/SmallSet are only for sizes bounded by authored schema or program
+//! text (columns, tables, arguments, locals, merge lanes, program sites), or
+//! a small fixed constant. Collections that grow with rows read or written,
+//! groups held or left, principals, pages, requests or time stay BTreeMap/
+//! BTreeSet, regardless of wasm byte cost. A runtime meter is not a bound on
+//! vector shifts. Server-provided schema/program text is still program text.
 //! Lookup is logarithmic; insertion shifts a suffix. Sorted input appends in
 //! linear time, but unsorted construction is quadratic: large, randomly
 //! mutated or range-scanned collections belong in a BTreeMap.
@@ -9,6 +15,9 @@
 //! not a capacity limit or an automatic representation switch.
 
 // @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — small maps share a compact representation on every host without changing ordered JSON.
+#[cfg(test)]
+thread_local! { pub(crate) static SHIFTED: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
+
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 use std::{borrow::Borrow, fmt, marker::PhantomData, ops::Index};
 
@@ -50,7 +59,11 @@ impl<K, V> SmallMap<K, V> {
     }
     pub fn contains_key<Q: Ord + ?Sized>(&self, key: &Q) -> bool where K: Borrow<Q> { self.position(key).is_ok() }
     pub fn remove<Q: Ord + ?Sized>(&mut self, key: &Q) -> Option<V> where K: Borrow<Q> {
-        self.position(key).ok().map(|index| self.0.remove(index).1)
+        self.position(key).ok().map(|index| {
+            #[cfg(test)]
+            SHIFTED.with(|count| count.set(count.get() + self.0.len() - index - 1));
+            self.0.remove(index).1
+        })
     }
 }
 
@@ -68,7 +81,11 @@ impl<K: Ord, V> SmallMap<K, V> {
                 if replace_key { self.0[index].0 = key; }
                 Some(std::mem::replace(&mut self.0[index].1, value))
             }
-            Err(index) => { self.0.insert(index, (key, value)); None }
+            Err(index) => {
+                #[cfg(test)]
+                SHIFTED.with(|count| count.set(count.get() + self.0.len() - index));
+                self.0.insert(index, (key, value)); None
+            }
         }
     }
     pub fn entry(&mut self, key: K) -> Entry<'_, K, V> {
@@ -84,7 +101,11 @@ impl<'a, K, V> Entry<'a, K, V> {
     pub fn or_insert_with(self, f: impl FnOnce() -> V) -> &'a mut V {
         let index = match self.index {
             Ok(index) => index,
-            Err(index) => { self.map.0.insert(index, (self.key, f())); index }
+            Err(index) => {
+                #[cfg(test)]
+                SHIFTED.with(|count| count.set(count.get() + self.map.0.len() - index));
+                self.map.0.insert(index, (self.key, f())); index
+            }
         };
         &mut self.map.0[index].1
     }

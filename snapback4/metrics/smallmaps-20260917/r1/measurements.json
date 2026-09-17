@@ -1,0 +1,116 @@
+{
+  "history": {
+    "at": "2026-09-17T10:10:24Z",
+    "sha": "109efbf4b",
+    "wasm": {
+      "raw": 1668521,
+      "gzip": 485879,
+      "brotli": 374539
+    },
+    "glue": {
+      "raw": 11325,
+      "gzip": 3047,
+      "brotli": 2700
+    },
+    "wasmOpt": false,
+    "sha256": {
+      "snapback4_device_bg.wasm": "90ae0417baf30d927887d09c49345a6ed0cc1ad2d4ce6c7b3634f94e6bf72ee2",
+      "snapback4_device.js": "243c37b7b8f84a63c0bae1415c548c7b845624d27b90f98a97483cd0144645de"
+    }
+  },
+  "presence": {
+    "at": "2026-09-17T10:11:20Z",
+    "sha": "109efbf4b",
+    "wasm": {
+      "raw": 1674286,
+      "gzip": 487290,
+      "brotli": 374800
+    },
+    "glue": {
+      "raw": 11325,
+      "gzip": 3047,
+      "brotli": 2700
+    },
+    "wasmOpt": false,
+    "sha256": {
+      "snapback4_device_bg.wasm": "fdd080e9d4b997a146436adddc1b304b91c95e34c6caaa7edbae76be9dae465b",
+      "snapback4_device.js": "243c37b7b8f84a63c0bae1415c548c7b845624d27b90f98a97483cd0144645de"
+    }
+  },
+  "filter": {
+    "at": "2026-09-17T10:14:46Z",
+    "sha": "109efbf4b",
+    "wasm": {
+      "raw": 1674556,
+      "gzip": 487468,
+      "brotli": 376596
+    },
+    "glue": {
+      "raw": 11325,
+      "gzip": 3047,
+      "brotli": 2700
+    },
+    "wasmOpt": false,
+    "sha256": {
+      "snapback4_device_bg.wasm": "8de3a91633de6d7b5556939b0d506df4a7435c07ed730817f8b5f964367cba6c",
+      "snapback4_device.js": "243c37b7b8f84a63c0bae1415c548c7b845624d27b90f98a97483cd0144645de"
+    }
+  },
+  "dynamic": {
+    "at": "2026-09-17T10:18:46Z",
+    "sha": "109efbf4b",
+    "wasm": {
+      "raw": 1704694,
+      "gzip": 495035,
+      "brotli": 379337
+    },
+    "glue": {
+      "raw": 11325,
+      "gzip": 3047,
+      "brotli": 2700
+    },
+    "wasmOpt": false,
+    "sha256": {
+      "snapback4_device_bg.wasm": "1986d4fe8141353b4b6f4bfbd423261326cb82ff121c5045f00b4caee143c154",
+      "snapback4_device.js": "243c37b7b8f84a63c0bae1415c548c7b845624d27b90f98a97483cd0144645de"
+    }
+  },
+  "final": {
+    "at": "2026-09-17T14:32:55Z",
+    "sha": "109efbf4b",
+    "wasm": {
+      "raw": 1699553,
+      "gzip": 493279,
+      "brotli": 377995
+    },
+    "glue": {
+      "raw": 11325,
+      "gzip": 3047,
+      "brotli": 2700
+    },
+    "wasmOpt": false,
+    "sha256": {
+      "snapback4_device_bg.wasm": "e00f5d46a08974c6df3de95efcd1883090445dd2f34805473fb79199155445a6",
+      "snapback4_device.js": "243c37b7b8f84a63c0bae1415c548c7b845624d27b90f98a97483cd0144645de"
+    }
+  },
+  "verified": {
+    "at": "2026-09-17T14:38:03Z",
+    "sha": "109efbf4b",
+    "wasm": {
+      "raw": 1699569,
+      "gzip": 493286,
+      "brotli": 377960
+    },
+    "glue": {
+      "raw": 11325,
+      "gzip": 3047,
+      "brotli": 2700
+    },
+    "wasmOpt": false,
+    "sha256": {
+      "snapback4_device_bg.wasm": "6b8eb17cafbee993e87bed2dc50919b8a9d96b35a68f91918a043ef520906c00",
+      "snapback4_device.js": "243c37b7b8f84a63c0bae1415c548c7b845624d27b90f98a97483cd0144645de"
+    }
+  }
+}

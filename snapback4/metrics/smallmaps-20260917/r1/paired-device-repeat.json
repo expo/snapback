@@ -1,0 +1,401 @@
+{
+  "records": [
+    {
+      "trial": 0,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/before/device",
+        "following::app::w6a_wired_following_",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 19.582072708000002,
+        "memory/5/p95_ms": 1.168,
+        "memory/5/cold_rows": 2600.0,
+        "memory/5/cold_bytes": 250482.0,
+        "memory/500/p95_ms": 1.152,
+        "memory/500/cold_rows": 3095.0,
+        "memory/500/cold_bytes": 335403.0,
+        "sqlite/5/p95_ms": 1.441,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 1.305,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 0,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/after/device",
+        "following::app::w6a_wired_following_",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 21.489449125,
+        "memory/5/p95_ms": 6.045,
+        "memory/5/cold_rows": 2600.0,
+        "memory/5/cold_bytes": 250482.0,
+        "memory/500/p95_ms": 0.959,
+        "memory/500/cold_rows": 3095.0,
+        "memory/500/cold_bytes": 335403.0,
+        "sqlite/5/p95_ms": 1.365,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 28.796,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 1,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/after/device",
+        "following::app::w6a_wired_following_",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 24.017109542,
+        "memory/5/p95_ms": 7.436,
+        "memory/5/cold_rows": 2600.0,
+        "memory/5/cold_bytes": 250482.0,
+        "memory/500/p95_ms": 22.248,
+        "memory/500/cold_rows": 3095.0,
+        "memory/500/cold_bytes": 335403.0,
+        "sqlite/5/p95_ms": 27.799,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 1.44,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 1,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/before/device",
+        "following::app::w6a_wired_following_",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 31.08812204099999,
+        "memory/5/p95_ms": 0.837,
+        "memory/5/cold_rows": 2600.0,
+        "memory/5/cold_bytes": 250482.0,
+        "memory/500/p95_ms": 0.812,
+        "memory/500/cold_rows": 3095.0,
+        "memory/500/cold_bytes": 335403.0,
+        "sqlite/5/p95_ms": 21.511,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 37.715,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 2,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/before/device",
+        "following::app::w6a_wired_following_",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 23.419403666999997,
+        "memory/5/p95_ms": 0.807,
+        "memory/5/cold_rows": 2600.0,
+        "memory/5/cold_bytes": 250482.0,
+        "memory/500/p95_ms": 14.643,
+        "memory/500/cold_rows": 3095.0,
+        "memory/500/cold_bytes": 335403.0,
+        "sqlite/5/p95_ms": 58.622,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 1.366,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 2,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/after/device",
+        "following::app::w6a_wired_following_",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 30.30276454199999,
+        "memory/5/p95_ms": 0.794,
+        "memory/5/cold_rows": 2600.0,
+        "memory/5/cold_bytes": 250482.0,
+        "memory/500/p95_ms": 0.905,
+        "memory/500/cold_rows": 3095.0,
+        "memory/500/cold_bytes": 335403.0,
+        "sqlite/5/p95_ms": 22.278,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 7.84,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 3,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/after/device",
+        "following::app::w6a_wired_following_",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 28.94483841600001,
+        "memory/5/p95_ms": 0.798,
+        "memory/5/cold_rows": 2600.0,
+        "memory/5/cold_bytes": 250482.0,
+        "memory/500/p95_ms": 0.792,
+        "memory/500/cold_rows": 3095.0,
+        "memory/500/cold_bytes": 335403.0,
+        "sqlite/5/p95_ms": 22.533,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 1.964,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 3,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/before/device",
+        "following::app::w6a_wired_following_",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 18.24305537500001,
+        "memory/5/p95_ms": 0.798,
+        "memory/5/cold_rows": 2600.0,
+        "memory/5/cold_bytes": 250482.0,
+        "memory/500/p95_ms": 15.258,
+        "memory/500/cold_rows": 3095.0,
+        "memory/500/cold_bytes": 335403.0,
+        "sqlite/5/p95_ms": 7.169,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 32.106,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 4,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/before/device",
+        "following::app::w6a_wired_following_",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 14.635590833999998,
+        "memory/5/p95_ms": 0.792,
+        "memory/5/cold_rows": 2600.0,
+        "memory/5/cold_bytes": 250482.0,
+        "memory/500/p95_ms": 2.979,
+        "memory/500/cold_rows": 3095.0,
+        "memory/500/cold_bytes": 335403.0,
+        "sqlite/5/p95_ms": 3.766,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 1.839,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 4,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/after/device",
+        "following::app::w6a_wired_following_",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 19.574255749999992,
+        "memory/5/p95_ms": 0.776,
+        "memory/5/cold_rows": 2600.0,
+        "memory/5/cold_bytes": 250482.0,
+        "memory/500/p95_ms": 18.069,
+        "memory/500/cold_rows": 3095.0,
+        "memory/500/cold_bytes": 335403.0,
+        "sqlite/5/p95_ms": 16.284,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 1.436,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 5,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/after/device",
+        "following::app::w6a_wired_following_",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 21.80204495800001,
+        "memory/5/p95_ms": 5.627,
+        "memory/5/cold_rows": 2600.0,
+        "memory/5/cold_bytes": 250482.0,
+        "memory/500/p95_ms": 0.842,
+        "memory/500/cold_rows": 3095.0,
+        "memory/500/cold_bytes": 335403.0,
+        "sqlite/5/p95_ms": 31.314,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 6.583,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 5,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/before/device",
+        "following::app::w6a_wired_following_",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 14.540409916999977,
+        "memory/5/p95_ms": 28.126,
+        "memory/5/cold_rows": 2600.0,
+        "memory/5/cold_bytes": 250482.0,
+        "memory/500/p95_ms": 9.403,
+        "memory/500/cold_rows": 3095.0,
+        "memory/500/cold_bytes": 335403.0,
+        "sqlite/5/p95_ms": 9.281,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 4.569,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 6,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/before/device",
+        "following::app::w6a_wired_following_",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 7.013429583999994,
+        "memory/5/p95_ms": 1.081,
+        "memory/5/cold_rows": 2600.0,
+        "memory/5/cold_bytes": 250482.0,
+        "memory/500/p95_ms": 0.84,
+        "memory/500/cold_rows": 3095.0,
+        "memory/500/cold_bytes": 335403.0,
+        "sqlite/5/p95_ms": 1.84,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 1.874,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 6,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/after/device",
+        "following::app::w6a_wired_following_",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 6.747360958000002,
+        "memory/5/p95_ms": 1.172,
+        "memory/5/cold_rows": 2600.0,
+        "memory/5/cold_bytes": 250482.0,
+        "memory/500/p95_ms": 1.214,
+        "memory/500/cold_rows": 3095.0,
+        "memory/500/cold_bytes": 335403.0,
+        "sqlite/5/p95_ms": 1.916,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 1.81,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    }
+  ],
+  "medians": {
+    "before": {
+      "wall_s": 18.24305537500001,
+      "memory/5/p95_ms": 0.837,
+      "memory/5/cold_rows": 2600.0,
+      "memory/5/cold_bytes": 250482.0,
+      "memory/500/p95_ms": 2.979,
+      "memory/500/cold_rows": 3095.0,
+      "memory/500/cold_bytes": 335403.0,
+      "sqlite/5/p95_ms": 7.169,
+      "sqlite/5/cold_rows": 2600.0,
+      "sqlite/5/cold_bytes": 250482.0,
+      "sqlite/500/p95_ms": 1.874,
+      "sqlite/500/cold_rows": 3095.0,
+      "sqlite/500/cold_bytes": 335403.0
+    },
+    "after": {
+      "wall_s": 21.80204495800001,
+      "memory/5/p95_ms": 1.172,
+      "memory/5/cold_rows": 2600.0,
+      "memory/5/cold_bytes": 250482.0,
+      "memory/500/p95_ms": 0.959,
+      "memory/500/cold_rows": 3095.0,
+      "memory/500/cold_bytes": 335403.0,
+      "sqlite/5/p95_ms": 22.278,
+      "sqlite/5/cold_rows": 2600.0,
+      "sqlite/5/cold_bytes": 250482.0,
+      "sqlite/500/p95_ms": 1.964,
+      "sqlite/500/cold_rows": 3095.0,
+      "sqlite/500/cold_bytes": 335403.0
+    }
+  },
+  "ratios": {
+    "wall_s": 1.195087363922448,
+    "memory/5/p95_ms": 1.4002389486260454,
+    "memory/5/cold_rows": 1.0,
+    "memory/5/cold_bytes": 1.0,
+    "memory/500/p95_ms": 0.32192010741859683,
+    "memory/500/cold_rows": 1.0,
+    "memory/500/cold_bytes": 1.0,
+    "sqlite/5/p95_ms": 3.107546380248291,
+    "sqlite/5/cold_rows": 1.0,
+    "sqlite/5/cold_bytes": 1.0,
+    "sqlite/500/p95_ms": 1.048025613660619,
+    "sqlite/500/cold_rows": 1.0,
+    "sqlite/500/cold_bytes": 1.0
+  }
+}

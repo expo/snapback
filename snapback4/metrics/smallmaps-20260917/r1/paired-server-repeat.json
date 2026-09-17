@@ -1,0 +1,245 @@
+{
+  "records": [
+    {
+      "trial": 0,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/before/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 5.452301958,
+        "server/5/p95_ms": 5.138,
+        "server/500/p95_ms": 6.394
+      }
+    },
+    {
+      "trial": 0,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/after/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 4.7619046659999995,
+        "server/5/p95_ms": 2.597,
+        "server/500/p95_ms": 2.642
+      }
+    },
+    {
+      "trial": 1,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/after/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 6.056492625000001,
+        "server/5/p95_ms": 1.917,
+        "server/500/p95_ms": 5.594
+      }
+    },
+    {
+      "trial": 1,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/before/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 5.240845167,
+        "server/5/p95_ms": 4.169,
+        "server/500/p95_ms": 14.257
+      }
+    },
+    {
+      "trial": 2,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/before/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 6.280367333000001,
+        "server/5/p95_ms": 2.225,
+        "server/500/p95_ms": 9.718
+      }
+    },
+    {
+      "trial": 2,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/after/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 9.123254000000003,
+        "server/5/p95_ms": 22.727,
+        "server/500/p95_ms": 3.921
+      }
+    },
+    {
+      "trial": 3,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/after/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 6.389700041999994,
+        "server/5/p95_ms": 3.815,
+        "server/500/p95_ms": 26.024
+      }
+    },
+    {
+      "trial": 3,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/before/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 7.524017082999997,
+        "server/5/p95_ms": 43.247,
+        "server/500/p95_ms": 1.888
+      }
+    },
+    {
+      "trial": 4,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/before/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 12.576010333,
+        "server/5/p95_ms": 13.597,
+        "server/500/p95_ms": 10.762
+      }
+    },
+    {
+      "trial": 4,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/after/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 7.546498208000003,
+        "server/5/p95_ms": 1.941,
+        "server/500/p95_ms": 4.127
+      }
+    },
+    {
+      "trial": 5,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/after/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 5.4474828749999915,
+        "server/5/p95_ms": 4.023,
+        "server/500/p95_ms": 47.312
+      }
+    },
+    {
+      "trial": 5,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/before/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 16.05934562499999,
+        "server/5/p95_ms": 35.778,
+        "server/500/p95_ms": 26.821
+      }
+    },
+    {
+      "trial": 6,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/before/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 10.581597666000008,
+        "server/5/p95_ms": 3.834,
+        "server/500/p95_ms": 24.059
+      }
+    },
+    {
+      "trial": 6,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/after/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 8.616987457999997,
+        "server/5/p95_ms": 12.367,
+        "server/500/p95_ms": 19.286
+      }
+    }
+  ],
+  "medians": {
+    "before": {
+      "wall_s": 7.524017082999997,
+      "server/5/p95_ms": 5.138,
+      "server/500/p95_ms": 10.762
+    },
+    "after": {
+      "wall_s": 6.389700041999994,
+      "server/5/p95_ms": 3.815,
+      "server/500/p95_ms": 5.594
+    }
+  },
+  "ratios": {
+    "wall_s": 0.8492405016513167,
+    "server/5/p95_ms": 0.7425068119891008,
+    "server/500/p95_ms": 0.5197918602490244
+  }
+}

@@ -3,7 +3,7 @@ use super::runner::Runner;
 use crate::{error::RuntimeError, ir::Expr, value::Value};
 use crate::smallmap::SmallMap;
 
-pub(super) type Dependencies = SmallMap<String, Option<i64>>;
+pub(super) type Dependencies = std::collections::BTreeMap<String, Option<i64>>;
 pub(crate) type Emission = (String, String, Value, Dependencies);
 
 #[derive(Default)]
@@ -61,7 +61,7 @@ impl Runner<'_> {
 
     pub(super) fn bind_effect_value(&mut self, name: &str, value: Value) -> Result<(), RuntimeError> {
         let deps = self.value_presence()?;
-        self.env.insert(name.into(), value);
+        self.set_variable(name, value);
         if deps.is_empty() { self.effect_presence.variables.remove(name); }
         else {
             self.meter.heap(name.len() as u64 + 64)?;

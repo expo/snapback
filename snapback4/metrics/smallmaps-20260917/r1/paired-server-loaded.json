@@ -1,0 +1,245 @@
+{
+  "records": [
+    {
+      "trial": 0,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/before/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 6.0824655,
+        "server/5/p95_ms": 3.793,
+        "server/500/p95_ms": 2.671
+      }
+    },
+    {
+      "trial": 0,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/after/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 15.582615916999998,
+        "server/5/p95_ms": 2.206,
+        "server/500/p95_ms": 20.792
+      }
+    },
+    {
+      "trial": 1,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/after/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 11.408676042000003,
+        "server/5/p95_ms": 40.996,
+        "server/500/p95_ms": 6.47
+      }
+    },
+    {
+      "trial": 1,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/before/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 5.253024791999998,
+        "server/5/p95_ms": 21.901,
+        "server/500/p95_ms": 1.85
+      }
+    },
+    {
+      "trial": 2,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/before/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 6.132392624999994,
+        "server/5/p95_ms": 2.837,
+        "server/500/p95_ms": 2.247
+      }
+    },
+    {
+      "trial": 2,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/after/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 5.489949709000001,
+        "server/5/p95_ms": 3.31,
+        "server/500/p95_ms": 3.275
+      }
+    },
+    {
+      "trial": 3,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/after/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 4.541477458000003,
+        "server/5/p95_ms": 2.953,
+        "server/500/p95_ms": 2.809
+      }
+    },
+    {
+      "trial": 3,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/before/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 5.099791374999995,
+        "server/5/p95_ms": 3.118,
+        "server/500/p95_ms": 2.432
+      }
+    },
+    {
+      "trial": 4,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/before/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 4.548242916999996,
+        "server/5/p95_ms": 2.165,
+        "server/500/p95_ms": 2.663
+      }
+    },
+    {
+      "trial": 4,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/after/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 57.368387291999994,
+        "server/5/p95_ms": 367.296,
+        "server/500/p95_ms": 30.445
+      }
+    },
+    {
+      "trial": 5,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/after/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 8.928252749999999,
+        "server/5/p95_ms": 3.95,
+        "server/500/p95_ms": 3.271
+      }
+    },
+    {
+      "trial": 5,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/before/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 7.034398291999992,
+        "server/5/p95_ms": 2.636,
+        "server/500/p95_ms": 6.408
+      }
+    },
+    {
+      "trial": 6,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/before/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 6.4399421249999875,
+        "server/5/p95_ms": 2.852,
+        "server/500/p95_ms": 2.185
+      }
+    },
+    {
+      "trial": 6,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/after/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 4.372064540999986,
+        "server/5/p95_ms": 2.829,
+        "server/500/p95_ms": 2.796
+      }
+    }
+  ],
+  "medians": {
+    "before": {
+      "wall_s": 6.0824655,
+      "server/5/p95_ms": 2.852,
+      "server/500/p95_ms": 2.432
+    },
+    "after": {
+      "wall_s": 8.928252749999999,
+      "server/5/p95_ms": 3.31,
+      "server/500/p95_ms": 3.275
+    }
+  },
+  "ratios": {
+    "wall_s": 1.4678673886436346,
+    "server/5/p95_ms": 1.1605890603085556,
+    "server/500/p95_ms": 1.3466282894736843
+  }
+}

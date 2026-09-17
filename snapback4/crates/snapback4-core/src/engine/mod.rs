@@ -1030,3 +1030,7 @@ impl Engine {
         self.store.seq()
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/smallmap_scale.rs"]
+mod smallmap_scale;

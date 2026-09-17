@@ -141,7 +141,7 @@ mutation keyMove(rowId: id):
             let mut engine = Engine::new(Store::memory().unwrap(), base.schema, base.programs.into_iter().map(|p| p.program)).unwrap();
             for start in (0..count).step_by(500) {
                 engine.seed((start..(start + 500).min(count)).map(|n| {
-                    let mut value = row(n).as_object().unwrap().clone();
+                    let mut value = row(n).as_object().unwrap().to_row();
                     value.insert("included".into(), Value::Int(i64::from(n % 100 < pct)));
                     (table.into(), Value::Row(value.into()))
                 })).unwrap();

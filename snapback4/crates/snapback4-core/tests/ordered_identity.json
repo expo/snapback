@@ -1,4 +1,5 @@
 {
+  "$comment": "Each subject is rebuilt with BTreeMap and SmallMap; pins are the BTreeMap result. Capture from snapback4/: D2_IDENTITY_CAPTURE=$PWD/crates/snapback4-core/tests/ordered_identity.json cargo test -p snapback4-core --test ordered_identity -- --nocapture",
   "apps/chat/api.ts": "ca4ec3828efe21970f503e7ad0b05b446f0c7724833eeab0c4621bb6ff109a87",
   "apps/chat/backend": "2144d631b3f52ec6bd58664001582a81129aff460e8be1bb621654c7ddfc14e1",
   "apps/chat/schema-hash": "4bed28dfd1db23681cf69548ba0cb6ebe6461a914c3b9cabc7a530e3cfe9ffb0",

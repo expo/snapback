@@ -189,7 +189,7 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
     }
     fn put(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> {
         predictions::remember(self.tx, table_name, row.field("id")?.as_str()?)?;
-        let mut fields = row.as_object()?.clone();
+        let mut fields = row.as_object()?.to_row();
         fields.insert("pending".to_owned(), Value::Bool(true));
         let pending = Value::Row(fields.into());
         self.written.borrow_mut().push(format!("{table_name}/{}", row.field("id")?.as_str()?));

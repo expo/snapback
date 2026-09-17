@@ -1,5 +1,8 @@
-//! Pins produced by the BTreeMap build at 70a663c22285dc3a5278ca9ac13db01bbe05446b.
-//! Compare typed reserialization, not the formatting of the input fixtures.
+//! Every subject is independently rebuilt with BTreeMap and SmallMap maps.
+//! Pins are a second guard, captured from the BTreeMap serialization with:
+//! D2_IDENTITY_CAPTURE=$PWD/crates/snapback4-core/tests/ordered_identity.json cargo test -p snapback4-core --test ordered_identity -- --nocapture
+#[path = "support/identity_maps.rs"]
+mod identity_maps;
 use snapback4_core::{Program, Schema, Value};
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, path::Path};
@@ -8,12 +11,12 @@ fn hash(bytes: impl AsRef<[u8]>) -> String { format!("{:x}", Sha256::digest(byte
 
 fn typed<T: serde::de::DeserializeOwned + serde::Serialize>(json: &serde_json::Value) -> String {
     match serde_json::from_value::<T>(json.clone()) {
-        Ok(value) => serde_json::to_string(&value).unwrap(),
+        Ok(value) => String::from_utf8(identity_maps::bytes(&value)).unwrap(),
         Err(error) => {
             // A few S2 legacy programs already fail to decode at the pinned base.
             // Include that exact failure in the digest and report it, never skip it.
             eprintln!("pinned legacy decode refusal ({}): {error}", std::any::type_name::<T>());
-            format!("BASELINE REFUSAL {}: {error}\n{}", std::any::type_name::<T>(), serde_json::to_string(json).unwrap())
+            format!("BASELINE REFUSAL {}: {error}\n{}", std::any::type_name::<T>(), String::from_utf8(identity_maps::bytes(json)).unwrap())
         },
     }
 }
@@ -27,7 +30,9 @@ fn corpus_and_reference_backends_keep_ordered_bytes() {
         let case: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
         if matches!(path.file_name().unwrap().to_str().unwrap(), "manifest.json" | "ir-contract.json") { continue; }
         let mut bytes = vec![typed::<Schema>(&case["schema"]), typed::<Program>(&case["program"])];
-        bytes.push(typed::<snapback4_core::smallmap::SmallMap<String, Value>>(&case["context"]["args"]));
+        let tree_args = typed::<BTreeMap<String, Value>>(&case["context"]["args"]);
+        assert_eq!(tree_args, typed::<snapback4_core::smallmap::SmallMap<String, Value>>(&case["context"]["args"]));
+        bytes.push(tree_args);
         for row in case["receipt"]["rows"].as_array().unwrap() { bytes.push(typed::<Value>(&row["row"])); }
         if let Some(prelude) = case["prelude"].as_array() {
             for step in prelude { bytes.push(typed::<Program>(&step["program"])); }
@@ -46,11 +51,16 @@ fn corpus_and_reference_backends_keep_ordered_bytes() {
             let image = format!(r#"{{"generation":1,"schema":{},"programs":{}}}"#, serde_json::to_string(&bound.schema).unwrap(), serde_json::to_string(&programs).unwrap());
             std::fs::write(Path::new(&directory).join(format!("{app}.json")), image).unwrap();
         }
-        actual.insert(format!("apps/{app}/backend"), hash(serde_json::to_vec(&(&bound.schema, programs)).unwrap()));
-        actual.insert(format!("apps/{app}/schema-hash"), bound.schema.hash());
-        actual.insert(format!("apps/{app}/api.ts"), hash(snapback4_lang::emit::typescript(&bound)));
-        actual.insert(format!("apps/{app}/wire-programs"), hash(serde_json::to_vec(&snapback4_lang::emit::backend_programs(&bound)).unwrap()));
+        actual.insert(format!("apps/{app}/backend"), hash(identity_maps::bytes(&(&bound.schema, programs))));
+        actual.insert(format!("apps/{app}/schema-hash"), { let hash = hash(identity_maps::bytes(&bound.schema)); assert_eq!(hash, bound.schema.hash()); hash });
+        actual.insert(format!("apps/{app}/api.ts"), { let api = snapback4_lang::emit::typescript(&bound); identity_maps::bytes(&api); hash(api) });
+        actual.insert(format!("apps/{app}/wire-programs"), hash(identity_maps::bytes(&snapback4_lang::emit::backend_programs(&bound))));
     }
-    let expected: BTreeMap<String, String> = serde_json::from_str(include_str!("ordered_identity.json")).unwrap();
+    let mut expected: BTreeMap<String, String> = serde_json::from_str(include_str!("ordered_identity.json")).unwrap();
+    let comment = expected.remove("$comment").expect("pin capture command");
+    if let Ok(path) = std::env::var("D2_IDENTITY_CAPTURE") {
+        let mut captured = actual.clone(); captured.insert("$comment".into(), comment);
+        std::fs::write(path, serde_json::to_string_pretty(&captured).unwrap() + "\n").unwrap();
+    }
     assert_eq!(actual, expected);
 }

@@ -25,7 +25,7 @@ impl serde::Serialize for Plain<'_> {
             Value::String(value) | Value::Id(value) => serializer.serialize_str(value),
             Value::Bytes(value) => serializer.serialize_str(&crate::value::encode_bytes_hex(value)),
             Value::Array(values) => serializer.collect_seq(values.iter().map(Plain)),
-            Value::Row(fields) | Value::Map(fields) => serializer.collect_map(fields.iter().map(|(key, value)| (key, Plain(value)))),
+            Value::Row(_) | Value::Map(_) => serializer.collect_map(self.0.as_object().expect("object").iter().map(|(key, value)| (key, Plain(value)))),
         }
     }
 }
@@ -38,7 +38,7 @@ pub fn to_json(value: &Value) -> Json {
         Value::String(s) | Value::Id(s) => Json::String(s.clone()),
         Value::Bytes(bytes) => Json::String(crate::value::encode_bytes_hex(bytes)),
         Value::Array(items) => Json::Array(items.iter().map(to_json).collect()),
-        Value::Row(fields) | Value::Map(fields) => Json::Object(fields.iter().map(|(k, v)| (k.clone(), to_json(v))).collect()),
+        Value::Row(_) | Value::Map(_) => Json::Object(value.as_object().expect("object").iter().map(|(k, v)| (k.clone(), to_json(v))).collect()),
     }
 }
 

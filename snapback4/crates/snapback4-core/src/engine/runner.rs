@@ -90,6 +90,7 @@ pub struct Runner<'a> {
     pub(crate) missing_fact: Option<String>,
     /// Reads inside a where filter share the query's rule-probe budget.
     pub(crate) filter_depth: u32,
+    pub(crate) filter_row: Option<Value>,
     /// The program read `connected[p]` where no registry answers (a
     /// device): a query's result is not `complete`; the compiled execution
     /// fact excludes a mutation with this site from prediction.
@@ -151,6 +152,7 @@ impl<'a> Runner<'a> {
             beyond_horizon: false,
             missing_fact: None,
             filter_depth: 0,
+            filter_row: None,
             presence_unknown: false,
             seq,
             statement_site: String::new(),
@@ -217,7 +219,7 @@ impl<'a> Runner<'a> {
                     let value = self.expr(value)?;
                     self.meter.heap(value.heap_bytes() + std::mem::size_of::<Value>() as u64)?;
                     self.push_presence_value(target)?;
-                    match self.env.get_mut(target) {
+                    match self.variable_mut(target) {
                         Some(Value::Array(values)) => values.push(value),
                         Some(other) => return Err(ValueError::Type { expected: "array", actual: other.kind() }.into()),
                         None => return Err(RuntimeError::Input(format!("unknown variable {target}"))),
@@ -339,9 +341,19 @@ impl<'a> Runner<'a> {
         Ok(Flow::Next)
     }
 
+    // @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — a per-row filter slot avoids shifting the authored environment, including nested filters.
+    fn variable_mut(&mut self, name: &str) -> Option<&mut Value> {
+        if name == "$filter" && self.filter_row.is_some() { self.filter_row.as_mut() } else { self.env.get_mut(name) }
+    }
+
+    pub(super) fn set_variable(&mut self, name: &str, value: Value) {
+        if name == "$filter" && self.filter_row.is_some() { self.filter_row = Some(value); }
+        else { self.env.insert(name.to_owned(), value); }
+    }
+
     fn bind(&mut self, name: &str, value: Value) {
         self.effect_presence.variables.remove(name);
-        self.env.insert(name.to_owned(), value);
+        self.set_variable(name, value);
     }
 
     fn domain(&mut self, domain: &LoopDomain) -> Result<Box<dyn Iterator<Item = Value>>, RuntimeError> {
@@ -362,7 +374,7 @@ impl<'a> Runner<'a> {
                 return Ok(Box::new((start..end).map(Value::Int)));
             }
             LoopDomain::ArgList { name, max } => {
-                let value = self.env.get(name).ok_or_else(|| RuntimeError::Input(format!("missing arg {name}")))?;
+                let value = variable(&self.env, self.filter_row.as_ref(), name).ok_or_else(|| RuntimeError::Input(format!("missing arg {name}")))?;
                 self.meter.heap(value.clone_heap_bytes())?;
                 let values = value.as_array()?.to_vec();
                 if values.len() > *max as usize {
@@ -427,13 +439,13 @@ impl<'a> Runner<'a> {
                 Ok(value.clone())
             }
             Expr::Variable(name) => {
-                let value = self.env.get(name).ok_or_else(|| RuntimeError::Input(format!("unknown variable {name}")))?;
+                let value = variable(&self.env, self.filter_row.as_ref(), name).ok_or_else(|| RuntimeError::Input(format!("unknown variable {name}")))?;
                 self.meter.heap(value.clone_heap_bytes())?;
                 Ok(value.clone())
             }
             Expr::Input(input) => self.input(*input),
             Expr::Field { base, name } => {
-                if let Some((base, steps)) = borrowed(&self.env, base)? {
+                if let Some((base, steps)) = borrowed(&self.env, self.filter_row.as_ref(), base)? {
                     self.meter.step(steps)?;
                     if *base == Value::Null { return Ok(Value::Null); }
                     let value = base.field(name)?;
@@ -500,7 +512,7 @@ impl<'a> Runner<'a> {
                 // Inspect a held value without allocating a copy just to count
                 // it. Reads that need ownership still charge every actual clone.
                 if matches!(builtin, Builtin::Len | Builtin::Count | Builtin::CountCapped | Builtin::Sum) {
-                    if let Some((value, steps)) = borrowed(&self.env, &args[0])? {
+                    if let Some((value, steps)) = borrowed(&self.env, self.filter_row.as_ref(), &args[0])? {
                         self.meter.step(steps)?;
                         return scalar_builtin(builtin, value);
                     }
@@ -809,13 +821,17 @@ fn into_array(value: Value) -> Result<Vec<Value>, RuntimeError> {
     }
 }
 
+pub(super) fn variable<'a>(env: &'a SmallMap<String, Value>, filter: Option<&'a Value>, name: &str) -> Option<&'a Value> {
+    if name == "$filter" { filter.or_else(|| env.get(name)) } else { env.get(name) }
+}
+
 /// Only side-effect-free leaves can be borrowed; storage/input evaluation
 /// remains in expr, and visiting a borrowed leaf costs the same steps.
-fn borrowed<'a>(env: &'a SmallMap<String, Value>, expr: &'a Expr) -> Result<Option<(&'a Value, u64)>, RuntimeError> {
+fn borrowed<'a>(env: &'a SmallMap<String, Value>, filter: Option<&'a Value>, expr: &'a Expr) -> Result<Option<(&'a Value, u64)>, RuntimeError> {
     match expr {
         Expr::Literal(value) => Ok(Some((value, 1))),
-        Expr::Variable(name) => env.get(name).map(|value| Some((value, 1))).ok_or_else(|| RuntimeError::Input(format!("unknown variable {name}"))),
-        Expr::Field { base, name } => match borrowed(env, base)? {
+        Expr::Variable(name) => variable(env, filter, name).map(|value| Some((value, 1))).ok_or_else(|| RuntimeError::Input(format!("unknown variable {name}"))),
+        Expr::Field { base, name } => match borrowed(env, filter, base)? {
             Some((value, steps)) => Ok(Some((if *value == Value::Null { value } else { value.field(name)? }, steps + 1))),
             None => Ok(None),
         },
@@ -828,7 +844,7 @@ fn scalar_builtin(builtin: &Builtin, value: &Value) -> Result<Value, RuntimeErro
         Builtin::Len => match value {
             Value::String(text) | Value::Id(text) => text.chars().count(),
             Value::Array(values) => values.len(),
-            Value::Row(values) | Value::Map(values) => values.len(),
+            Value::Row(_) | Value::Map(_) => value.as_object()?.len(),
             other => return Err(ValueError::Type { expected: "string, array, or map", actual: other.kind() }.into()),
         },
         Builtin::Count | Builtin::CountCapped => value.as_array()?.len(),

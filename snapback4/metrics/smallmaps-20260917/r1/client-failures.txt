@@ -1,0 +1,277 @@
+
+suite.log
+✖ failing tests:
+
+test at packages/snapback4/test/acquisition.test.mjs:323:3
+✖ W5c process: online reopen reports acquisition and a missing-row reason, then predicts (14430285.067292ms)
+  'test timed out after 30000ms'
+
+test at packages/snapback4/test/client-seams.test.mjs:737:49
+✖ W8a web read exposes meter, words and null cuts (14427776.719667ms)
+  'test timed out after 30000ms'
+
+test at packages/snapback4/test/react.test.mjs:16:1
+✖ React hooks and reference-app lifetimes (1892.6255ms)
+  browserType.launch: Target page, context or browser has been closed
+  Browser logs:
+  
+  <launching> /Users/ccheever/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/private/tmp/snapback4-d2-r1/playwright_chromiumdev_profile-kR8Jo6 --remote-debugging-pipe --no-startup-window
+  <launched> pid=5600
+  [pid=5600] <process did exit: exitCode=null, signal=SIGABRT>
+  [pid=5600] starting temporary directories cleanup
+  Call log:
+  [2m  - <launching> /Users/ccheever/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/private/tmp/snapback4-d2-r1/playwright_chromiumdev_profile-kR8Jo6 --remote-debugging-pipe --no-startup-window[22m
+  [2m  - <launched> pid=5600[22m
+  [2m  - [pid=5600] <process did exit: exitCode=null, signal=SIGABRT>[22m
+  [2m  - [pid=5600] starting temporary directories cleanup[22m
+  [2m  - [pid=5600] <gracefully close start>[22m
+  [2m  - [pid=5600] <kill>[22m
+  [2m  - [pid=5600] <skipped force kill spawnedProcess.killed=false processClosed=true>[22m
+  [2m  - [pid=5600] finished temporary directories cleanup[22m
+  [2m  - [pid=5600] <gracefully close end>[22m
+  
+      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/react.test.mjs:74:30)
+
+test at packages/snapback4/test/server-e2e.test.mjs:439:1
+✖ actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes (14437554.974291ms)
+  'test timed out after 60000ms'
+
+test at packages/snapback4/test/transport-http.test.mjs:185:1
+✖ idle polls detect packet silence at 0.5, 5 and 15 seconds on both stores (14446092.795958ms)
+  AssertionError [ERR_ASSERTION]: timed out
+      at until (file:///Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/transport-http.test.mjs:27:10)
+      at runNextTicks (node:internal/process/task_queues:65:5)
+      at listOnTimeout (node:internal/timers:567:9)
+      at process.processTimers (node:internal/timers:541:7)
+      at async file:///Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/transport-http.test.mjs:224:5
+      at async Promise.all (index 5)
+      at async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/transport-http.test.mjs:213:3)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+-- FAIL: client tests (14514 s)
+== 1 failure(s) in 16215 s
+   client tests
+
+suite-final.log
+✖ failing tests:
+
+test at packages/snapback4/test/react.test.mjs:16:1
+✖ React hooks and reference-app lifetimes (1695.629667ms)
+  browserType.launch: Target page, context or browser has been closed
+  Browser logs:
+  
+  <launching> /Users/ccheever/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/private/tmp/snapback4-d2-r1/playwright_chromiumdev_profile-llwUAx --remote-debugging-pipe --no-startup-window
+  <launched> pid=85013
+  [pid=85013] <process did exit: exitCode=null, signal=SIGABRT>
+  [pid=85013] starting temporary directories cleanup
+  Call log:
+  [2m  - <launching> /Users/ccheever/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/private/tmp/snapback4-d2-r1/playwright_chromiumdev_profile-llwUAx --remote-debugging-pipe --no-startup-window[22m
+  [2m  - <launched> pid=85013[22m
+  [2m  - [pid=85013] <process did exit: exitCode=null, signal=SIGABRT>[22m
+  [2m  - [pid=85013] starting temporary directories cleanup[22m
+  [2m  - [pid=85013] <gracefully close start>[22m
+  [2m  - [pid=85013] <kill>[22m
+  [2m  - [pid=85013] <skipped force kill spawnedProcess.killed=false processClosed=true>[22m
+  [2m  - [pid=85013] finished temporary directories cleanup[22m
+  [2m  - [pid=85013] <gracefully close end>[22m
+  
+      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/react.test.mjs:74:30)
+
+test at packages/snapback4/test/transport-http.test.mjs:131:40
+✖ wasm: maximum pending ids, cursor batches and every terminal acknowledgement (19710.665917ms)
+  AssertionError [ERR_ASSERTION]: timed out
+      at until (file:///Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/transport-http.test.mjs:27:10)
+      at async file:///Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/transport-http.test.mjs:172:5
+      at async Promise.all (index 2)
+      at async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/transport-http.test.mjs:133:3)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/transport-http.test.mjs:131:40
+✖ native: maximum pending ids, cursor batches and every terminal acknowledgement (17967.906417ms)
+  AssertionError [ERR_ASSERTION]: timed out
+      at until (file:///Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/transport-http.test.mjs:27:10)
+      at async file:///Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/transport-http.test.mjs:172:5
+      at async Promise.all (index 2)
+      at async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/transport-http.test.mjs:133:3)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+-- FAIL: client tests (80 s)
+== 1 failure(s) in 1917 s
+   client tests
+
+client-concurrency2.log
+✖ failing tests:
+
+test at packages/snapback4/test/react.test.mjs:16:1
+✖ React hooks and reference-app lifetimes (1441.486917ms)
+  browserType.launch: Target page, context or browser has been closed
+  Browser logs:
+  
+  <launching> /Users/ccheever/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/private/tmp/snapback4-d2-r1/playwright_chromiumdev_profile-WA9gdV --remote-debugging-pipe --no-startup-window
+  <launched> pid=60483
+  [pid=60483] <process did exit: exitCode=null, signal=SIGABRT>
+  [pid=60483] starting temporary directories cleanup
+  Call log:
+  [2m  - <launching> /Users/ccheever/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/private/tmp/snapback4-d2-r1/playwright_chromiumdev_profile-WA9gdV --remote-debugging-pipe --no-startup-window[22m
+  [2m  - <launched> pid=60483[22m
+  [2m  - [pid=60483] <process did exit: exitCode=null, signal=SIGABRT>[22m
+  [2m  - [pid=60483] starting temporary directories cleanup[22m
+  [2m  - [pid=60483] <gracefully close start>[22m
+  [2m  - [pid=60483] <kill>[22m
+  [2m  - [pid=60483] <skipped force kill spawnedProcess.killed=false processClosed=true>[22m
+  [2m  - [pid=60483] finished temporary directories cleanup[22m
+  [2m  - [pid=60483] <gracefully close end>[22m
+  
+      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/react.test.mjs:74:30)
+
+test at packages/snapback4/test/transport-http.test.mjs:131:40
+✖ wasm: maximum pending ids, cursor batches and every terminal acknowledgement (20322.014917ms)
+  AssertionError [ERR_ASSERTION]: timed out
+      at until (file:///Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/transport-http.test.mjs:27:10)
+      at runNextTicks (node:internal/process/task_queues:65:5)
+      at listOnTimeout (node:internal/timers:567:9)
+      at process.processTimers (node:internal/timers:541:7)
+      at async file:///Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/transport-http.test.mjs:172:5
+      at async Promise.all (index 1)
+      at async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/transport-http.test.mjs:133:3)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/transport-http.test.mjs:131:40
+✖ native: maximum pending ids, cursor batches and every terminal acknowledgement (17320.865958ms)
+  AssertionError [ERR_ASSERTION]: timed out
+      at until (file:///Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/transport-http.test.mjs:27:10)
+      at runNextTicks (node:internal/process/task_queues:65:5)
+      at listOnTimeout (node:internal/timers:567:9)
+      at process.processTimers (node:internal/timers:541:7)
+      at async file:///Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/transport-http.test.mjs:172:5
+      at async Promise.all (index 0)
+      at async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/transport-http.test.mjs:133:3)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+client-final-concurrency2.log
+✖ failing tests:
+
+test at packages/snapback4/test/http-bounds.test.mjs:217:13
+✖ Wasm and process clients acquire wide snapshots by shrinking the same cursor (51750.916042ms)
+  'test did not finish before its parent and was cancelled'
+
+test at packages/snapback4/test/http-bounds.test.mjs:43:1
+✖ HTTP admission, encoding, slow readers and idle changes polls (60001.981292ms)
+  'test timed out after 60000ms'
+
+test at packages/snapback4/test/http-bounds.test.mjs:239:13
+✖ a paused large response releases the engine before network progress (4442.27175ms)
+  'test could not be started because its parent finished'
+
+test at packages/snapback4/test/react.test.mjs:16:1
+✖ React hooks and reference-app lifetimes (2084.627125ms)
+  browserType.launch: Target page, context or browser has been closed
+  Browser logs:
+  
+  <launching> /Users/ccheever/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/private/tmp/snapback4-d2-r1/playwright_chromiumdev_profile-6IKTCb --remote-debugging-pipe --no-startup-window
+  <launched> pid=92771
+  [pid=92771] <process did exit: exitCode=null, signal=SIGABRT>
+  [pid=92771] starting temporary directories cleanup
+  Call log:
+  [2m  - <launching> /Users/ccheever/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/private/tmp/snapback4-d2-r1/playwright_chromiumdev_profile-6IKTCb --remote-debugging-pipe --no-startup-window[22m
+  [2m  - <launched> pid=92771[22m
+  [2m  - [pid=92771] <process did exit: exitCode=null, signal=SIGABRT>[22m
+  [2m  - [pid=92771] starting temporary directories cleanup[22m
+  [2m  - [pid=92771] <gracefully close start>[22m
+  [2m  - [pid=92771] <kill>[22m
+  [2m  - [pid=92771] <skipped force kill spawnedProcess.killed=false processClosed=true>[22m
+  [2m  - [pid=92771] finished temporary directories cleanup[22m
+  [2m  - [pid=92771] <gracefully close end>[22m
+  
+      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/react.test.mjs:74:30)
+
+test at packages/snapback4/test/transport-http.test.mjs:131:40
+✖ wasm: maximum pending ids, cursor batches and every terminal acknowledgement (28567.917417ms)
+  AssertionError [ERR_ASSERTION]: timed out
+      at until (file:///Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/transport-http.test.mjs:27:10)
+      at async file:///Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/transport-http.test.mjs:172:5
+      at async Promise.all (index 0)
+      at async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/transport-http.test.mjs:133:3)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/transport-http.test.mjs:131:40
+✖ native: maximum pending ids, cursor batches and every terminal acknowledgement (20539.627291ms)
+  AssertionError [ERR_ASSERTION]: timed out
+      at until (file:///Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/transport-http.test.mjs:27:10)
+      at async file:///Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/transport-http.test.mjs:172:5
+      at async Promise.all (index 0)
+      at async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/transport-http.test.mjs:133:3)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+http-bounds-isolated.log
+✖ failing tests:
+
+test at packages/snapback4/test/http-bounds.test.mjs:204:13
+✖ oversized sync JSON is refused and a smaller page remains valid (12738.817084ms)
+  [TimeoutError: The operation was aborted due to timeout]
+
+test at packages/snapback4/test/http-bounds.test.mjs:217:13
+✖ Wasm and process clients acquire wide snapshots by shrinking the same cursor (45503.090792ms)
+  'test did not finish before its parent and was cancelled'
+
+test at packages/snapback4/test/http-bounds.test.mjs:43:1
+✖ HTTP admission, encoding, slow readers and idle changes polls (60002.028125ms)
+  'test timed out after 60000ms'
+
+test at packages/snapback4/test/http-bounds.test.mjs:239:13
+✖ a paused large response releases the engine before network progress (2068.362167ms)
+  'test could not be started because its parent finished'

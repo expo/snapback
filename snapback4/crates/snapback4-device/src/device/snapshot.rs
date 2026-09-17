@@ -39,9 +39,9 @@ pub(super) fn retain<T: DeviceTx>(tx: &T, schema: &Schema, held: Option<&wire::H
     }).collect::<Result<_, RuntimeError>>()?;
     for (name, groups) in &held {
         if let Some(known) = left.get_mut(name) {
-            for (group, state) in known { *state = if groups.contains(group) { history::Membership::Held } else { history::Membership::Left }; }
+            for (group, state) in known { *state = if groups.contains(group.as_str()) { history::Membership::Held } else { history::Membership::Left }; }
         }
-        for group in groups { left.entry(name.clone()).or_default().insert(group.clone(), history::Membership::Held); }
+        for group in groups { left.entry(name.clone()).or_default().insert(group.clone().into(), history::Membership::Held); }
     }
     // Keep confirmed candidates private until catch-up decides the final
     // membership. A leave between pages must keep already delivered rows.
@@ -54,7 +54,7 @@ pub(super) fn retain<T: DeviceTx>(tx: &T, schema: &Schema, held: Option<&wire::H
             let group = history::row_key(table, &staged.row)?;
             let retain = held.get(name).map_or_else(|| history::is_left(&left, name, &group), |groups| !groups.contains(&group));
             if retain {
-                left.entry(name.clone()).or_default().insert(group, history::Membership::Left);
+                left.entry(name.clone()).or_default().insert(group.into(), history::Membership::Left);
             }
             after = key.clone();
         }

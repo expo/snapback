@@ -1255,7 +1255,7 @@ pub fn contains_system_principal(value: &Value) -> bool {
     match value {
         Value::Id(id) => id == crate::SYSTEM_PRINCIPAL,
         Value::Array(items) => items.iter().any(contains_system_principal),
-        Value::Row(fields) | Value::Map(fields) => fields.values().any(contains_system_principal),
+        Value::Row(_) | Value::Map(_) => value.as_object().expect("object").values().any(contains_system_principal),
         _ => false,
     }
 }
@@ -1263,16 +1263,12 @@ pub fn contains_system_principal(value: &Value) -> bool {
 /// Missing optional columns read as null; missing required columns with a
 /// literal default read that value. Contextual defaults belong to inserts.
 pub fn materialize_optional_fields(row: &mut Value, table: &Table) {
-    let fields = match row {
-        Value::Row(fields) | Value::Map(fields) => fields,
-        _ => return,
-    };
     for (name, kind) in &table.columns {
-        if !fields.contains_key(name) {
-            if kind.is_optional() {
-                fields.insert(name.clone(), Value::Null);
-            } else if let Some(ColumnDefault::Literal(value)) = table.defaults.get(name) {
-                fields.insert(name.clone(), value.clone());
+        if row.as_object().is_ok_and(|fields| !fields.contains_key(name)) {
+            let value = if kind.is_optional() { Some(Value::Null) }
+                else if let Some(ColumnDefault::Literal(value)) = table.defaults.get(name) { Some(value.clone()) } else { None };
+            if let Some(value) = value {
+                match row { Value::Row(fields) => { fields.insert(name.clone(), value); }, Value::Map(fields) => { fields.insert(name.clone(), value); }, _ => {} }
             }
         }
     }

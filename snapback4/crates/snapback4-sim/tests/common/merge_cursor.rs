@@ -25,7 +25,7 @@ pub fn expiring_source(cross: bool) -> String {
 pub fn expired_seed(cross: bool) -> Vec<(String, Value)> {
     seed(cross, CEILING + 1, Some(15)).into_iter().map(|(table, row)| {
         let until = if row.field("owner").unwrap().as_str().unwrap() == "bob" { Value::Int(1) } else { Value::Null };
-        let mut fields = row.as_object().unwrap().clone();
+        let mut fields = row.as_object().unwrap().to_row();
         fields.insert("until".into(), until);
         (table, Value::Row(fields.into()))
     }).collect()

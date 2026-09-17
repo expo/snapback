@@ -87,7 +87,7 @@ fn read_head(row: &rusqlite::Row<'_>) -> rusqlite::Result<Head> {
             updated_at: row.get(11)?,
             error: row.get(12)?,
         },
-        args: args.as_object().cloned().unwrap_or_default(),
+        args: args.as_object().map(|fields| fields.to_row()).unwrap_or_default(),
         program_hash: row.get(3)?,
         cursor: row.get::<_, Option<String>>(6)?.and_then(|hex| decode_bytes_hex(&hex)),
         upper: row.get::<_, Option<String>>(7)?.and_then(|hex| decode_bytes_hex(&hex)),

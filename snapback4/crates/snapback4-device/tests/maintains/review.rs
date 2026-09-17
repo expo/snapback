@@ -303,7 +303,7 @@ fn fold_commits<H: Host>(host:&mut H) {
         for (table,query) in [("totals","ranks"),("counts","countsPage")] {
             let expected=rank_oracle(&server,table);
             let read=device.query(query,"alice",&json!({"c":null}),1).unwrap();
-            let strip=|row:&Value| {let mut fields=row.as_object().unwrap().clone();fields.remove("pending");Value::Row(fields.into())};
+            let strip=|row:&Value| {let mut fields=row.as_object().unwrap().to_row();fields.remove("pending");Value::Row(fields.into())};
             assert_eq!(read.data.as_array().unwrap().iter().map(strip).collect::<Vec<_>>(),expected,"{op} {slot} {table}"); assert!(read.complete);
             let mut actual=server.store().rows(table).unwrap();actual.sort_by_key(|r|r.field("id").unwrap().as_str().unwrap().to_owned());
             let mut canonical=expected;canonical.sort_by_key(|r|r.field("id").unwrap().as_str().unwrap().to_owned());assert_eq!(actual,canonical);

@@ -8,7 +8,7 @@ pub fn rows(hidden: usize) -> Vec<(String, Value)> {
     super::fixture::seed(5, hidden).into_iter().map(|(table, mut row)| {
         if table == "messages" && row.field("roomId").unwrap().as_str().unwrap() == "hidden" {
             let n = row.field("at").unwrap().as_int().unwrap();
-            let mut fields = row.as_object().unwrap().clone();
+            let mut fields = row.as_object().unwrap().to_row();
             fields.insert("body".into(), Value::String(format!("secret{n:05}")));
             row = Value::Row(fields.into());
         }

@@ -10,7 +10,7 @@ fn seeded_operations_match_btree() {
     for _ in 0..20_000 {
         let key = (next(&mut seed) % 129) as i32 - 64;
         let value = next(&mut seed) as i64;
-        match next(&mut seed) % 10 {
+        match next(&mut seed) % 11 {
             0 => assert_eq!(small.insert(key, value), tree.insert(key, value)),
             1 => assert_eq!(small.remove(&key), tree.remove(&key)),
             2 => assert_eq!(small.get(&key), tree.get(&key)),
@@ -25,6 +25,10 @@ fn seeded_operations_match_btree() {
             8 => {
                 if let Some(v) = small.get_mut(&key) { *v = value; }
                 if let Some(v) = tree.get_mut(&key) { *v = value; }
+            }
+            9 => {
+                small.entry(key).and_modify(|v| *v = v.wrapping_add(value)).or_insert(value);
+                tree.entry(key).and_modify(|v| *v = v.wrapping_add(value)).or_insert(value);
             }
             _ => {
                 let entries = [(key, value), (key - 1, 5), (key, 7), (key + 1, 9)];
@@ -131,6 +135,8 @@ fn ordering_hash_and_set_algebra_match_btree() {
 fn row_images_keep_sharing_order_and_meter_charges() {
     use snapback4_core::value::{Value, object};
     let Value::Row(original) = object([("b", Value::Int(2)), ("a", Value::Int(1))]) else { unreachable!() };
+    fn small_fields<T: std::ops::Deref<Target = SmallMap<String, Value>>>(_: &T) {}
+    small_fields(&original);
     let mut changed = original.clone();
     assert!(original.shares_image(&changed));
     changed.insert("a".into(), Value::Int(3));
@@ -169,4 +175,19 @@ fn construction_crossover() {
             println!("MAP n={n} order={order} pairs=7 repeats={repeats} small_ns={:.0} btree_ns={:.0} ratio={:.3}", small[3], tree[3], small[3] / tree[3]);
         }
     }
+}
+
+#[path = "support/program_scale.rs"]
+mod program_scale;
+
+#[test]
+fn dynamic_json_keys_stay_in_btrees() {
+    use snapback4_core::{Value, wire};
+    let source = serde_json::Value::Object((0..8192).rev().map(|i| (format!("key{i:05}"), serde_json::json!(i))).collect());
+    let Value::Map(original) = wire::untyped(&source).unwrap() else { panic!("map") };
+    let mut changed = original.clone(); assert!(original.shares_image(&changed));
+    changed.insert("key00000".into(), Value::Int(-1));
+    assert!(!original.shares_image(&changed)); assert_eq!(original["key00000"], Value::Int(0));
+    assert_eq!(wire::to_json(&Value::Map(original.clone())), source);
+    assert_eq!(std::any::type_name_of_val(&*original), std::any::type_name::<BTreeMap<String, Value>>(), "JSON object keys come from data");
 }

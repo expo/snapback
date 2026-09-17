@@ -1,0 +1,245 @@
+{
+  "records": [
+    {
+      "trial": 0,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/final-pairs/before/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 10.013027917,
+        "server/5/p95_ms": 6.469,
+        "server/500/p95_ms": 16.272
+      }
+    },
+    {
+      "trial": 0,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/final-pairs/after/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 6.950359833,
+        "server/5/p95_ms": 9.444,
+        "server/500/p95_ms": 6.316
+      }
+    },
+    {
+      "trial": 1,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/final-pairs/after/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 5.298188042000003,
+        "server/5/p95_ms": 3.676,
+        "server/500/p95_ms": 4.297
+      }
+    },
+    {
+      "trial": 1,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/final-pairs/before/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 4.864842541000002,
+        "server/5/p95_ms": 2.998,
+        "server/500/p95_ms": 3.653
+      }
+    },
+    {
+      "trial": 2,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/final-pairs/before/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 3.8978874579999996,
+        "server/5/p95_ms": 2.371,
+        "server/500/p95_ms": 2.328
+      }
+    },
+    {
+      "trial": 2,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/final-pairs/after/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 4.5890533330000025,
+        "server/5/p95_ms": 2.514,
+        "server/500/p95_ms": 2.596
+      }
+    },
+    {
+      "trial": 3,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/final-pairs/after/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 4.0476628340000005,
+        "server/5/p95_ms": 2.651,
+        "server/500/p95_ms": 5.239
+      }
+    },
+    {
+      "trial": 3,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/final-pairs/before/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 4.598056499999998,
+        "server/5/p95_ms": 4.442,
+        "server/500/p95_ms": 8.036
+      }
+    },
+    {
+      "trial": 4,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/final-pairs/before/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 4.327118709000004,
+        "server/5/p95_ms": 2.686,
+        "server/500/p95_ms": 3.341
+      }
+    },
+    {
+      "trial": 4,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/final-pairs/after/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 4.81254775,
+        "server/5/p95_ms": 3.051,
+        "server/500/p95_ms": 4.962
+      }
+    },
+    {
+      "trial": 5,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/final-pairs/after/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 4.516792834,
+        "server/5/p95_ms": 7.538,
+        "server/500/p95_ms": 2.746
+      }
+    },
+    {
+      "trial": 5,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/final-pairs/before/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 4.391405166999995,
+        "server/5/p95_ms": 2.947,
+        "server/500/p95_ms": 2.882
+      }
+    },
+    {
+      "trial": 6,
+      "stage": "before",
+      "command": [
+        "target/d2/r1/final-pairs/before/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 3.9259290839999963,
+        "server/5/p95_ms": 2.266,
+        "server/500/p95_ms": 2.251
+      }
+    },
+    {
+      "trial": 6,
+      "stage": "after",
+      "command": [
+        "target/d2/r1/final-pairs/after/clique",
+        "w6a_wired_following_is_bounded_and_removes_app_events",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 3.935835291999993,
+        "server/5/p95_ms": 2.36,
+        "server/500/p95_ms": 2.032
+      }
+    }
+  ],
+  "medians": {
+    "before": {
+      "wall_s": 4.391405166999995,
+      "server/5/p95_ms": 2.947,
+      "server/500/p95_ms": 3.341
+    },
+    "after": {
+      "wall_s": 4.5890533330000025,
+      "server/5/p95_ms": 3.051,
+      "server/500/p95_ms": 4.297
+    }
+  },
+  "ratios": {
+    "wall_s": 1.0450079549674145,
+    "server/5/p95_ms": 1.0352901255514082,
+    "server/500/p95_ms": 1.2861418736905117
+  }
+}

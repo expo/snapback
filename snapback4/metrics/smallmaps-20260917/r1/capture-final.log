@@ -1,0 +1,28 @@
+warning: variant `Effect` is never constructed
+  --> crates/snapback4-core/src/engine/steps.rs:12:36
+   |
+12 | pub(crate) enum WorkKind { Action, Effect }
+   |                 --------           ^^^^^^
+   |                 |
+   |                 variant in this enum
+   |
+   = note: `WorkKind` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-core` (lib) generated 1 warning
+   Compiling snapback4-core v0.2.27 (/Users/ccheever/projects/snapback-diet-maps/snapback4/crates/snapback4-core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.93s
+     Running tests/ordered_identity.rs (target/debug/deps/ordered_identity-079fe18ef967ae67)
+
+running 1 test
+pinned legacy decode refusal (snapback4_core::ir::Program): invalid value: map, expected map with a single key
+pinned legacy decode refusal (snapback4_core::ir::Program): invalid value: map, expected map with a single key
+pinned legacy decode refusal (snapback4_core::ir::Program): invalid value: map, expected map with a single key
+pinned legacy decode refusal (snapback4_core::ir::Program): invalid value: map, expected map with a single key
+pinned legacy decode refusal (snapback4_core::ir::Program): invalid value: map, expected map with a single key
+pinned legacy decode refusal (snapback4_core::ir::Program): invalid value: map, expected map with a single key
+pinned legacy decode refusal (snapback4_core::ir::Program): invalid value: map, expected map with a single key
+test corpus_and_reference_backends_keep_ordered_bytes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.72s
+
