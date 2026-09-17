@@ -244,14 +244,35 @@ fn registry_claims_have_bounded_input_and_recheck_worker_revision() {
 fn registry_claim_retains_long_action_and_maximum_route_names_over_http() {
     let action = "a".repeat(256); let route = "b".repeat(128);
     let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), &format!(
-        "use personas alice\naction {action}() returns {{}}\nroute {route}: post \"/long-name\" wait 1ms\n"));
+        "use personas alice\naction {action}() returns {{}}\nroute {route}: post \"/long-name\" wait 2s\n"));
     let worker = worker(&host);
+    let address = host.address;
+    let route_delivery = thread::spawn(move || {
+        let body = "body";
+        exchange(address, &format!("POST /long-name HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: {}\r\n\r\n{body}", body.len()))
+    });
     let admitted = host.request("POST", &format!("/a/{action}?wait=0"), "x-snapback-persona: alice\r\n", r#"{"id":"long-action","args":{}}"#);
     assert_eq!(body(&admitted)["state"], "pending", "{admitted}");
-    assert_eq!(status(&host.request("POST", "/long-name", "x-snapback-persona: alice\r\n", "body")), 503);
-    let reply = host.request("POST", "/actions/claim-set", &worker, &json!({"actions":[action, format!("@route/{route}")], "limit":2}).to_string());
+    wait_until(|| records(&host) == 2);
+    let route_action = format!("@route/{route}");
+    let reply = host.request("POST", "/actions/claim-set", &worker, &json!({"actions":[action.clone(), route_action.clone()], "limit":2}).to_string());
     assert_eq!(status(&reply), 200, "{reply}");
-    assert_eq!(body(&reply)["requests"].as_array().unwrap().len(), 2, "{reply}");
+    let reply = body(&reply);
+    let claims = reply["requests"].as_array().unwrap();
+    assert_eq!(claims.len(), 2, "{reply}");
+    let mut names: Vec<_> = claims.iter().map(|claim| claim["action"].as_str().unwrap()).collect();
+    names.sort_unstable();
+    let mut expected = vec![action.as_str(), route_action.as_str()];
+    expected.sort_unstable();
+    assert_eq!(names, expected);
+    let route_claim = claims.iter().find(|claim| claim["action"] == route_action).unwrap();
+    let route_id = route_claim["id"].as_str().unwrap();
+    let settled = host.request("POST", &format!("/actions/{route_id}/done"),
+        &format!("{worker}x-snapback-action-lease: {}\r\n", route_claim["session"]["token"].as_str().unwrap()),
+        r#"{"result":{"status":204,"headers":[],"bodyHex":""}}"#);
+    assert_eq!(body(&settled)["ok"], true, "{settled}");
+    let delivered = route_delivery.join().unwrap();
+    assert_eq!(status(&delivered), 204, "{delivered}");
 }
 
 #[test]

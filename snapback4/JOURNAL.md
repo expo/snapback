@@ -27136,3 +27136,19 @@ Focused serial evidence used `CARGO_BUILD_JOBS=6` and one test thread:
 This slice adds no PostgreSQL parity or production claim, generic identity
 framework, provider protocol, `contract.ts` change, publication, remote work
 or origin contact. C3.1's Postgres receipt semantics are unchanged.
+
+## 2026-09-17 — Route registry synchronization correction
+
+The clean parent `3a337177d7a313a29f433b14661ce1bf43920271` was green in
+the supervisor's 3/3 witness, so the earlier attribution of the observed route
+registry failure was inconclusive. The test declared a 1 ms route, waited for
+the request to return 503, and treated that response as proof that durable
+route admission was ready for the registry claim. A pre-admission 503 does not
+provide that synchronization.
+
+The repaired witness keeps a real socket route request live under its ordinary
+two-second bound, waits until the store contains both durable admissions, and
+then requires the registry claim to return exactly the long action and maximum
+route names. It settles the claimed route by its actual id and claim session
+with an empty 204 `RouteResponse`, then observes that 204 on the original
+socket. No product behavior changed.
