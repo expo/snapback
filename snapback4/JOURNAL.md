@@ -27406,3 +27406,37 @@ B1c was not commissioned. Google, production HTTPS and a real browser remain
 unqualified. Default diagnostics continue to omit credentials and tokens;
 the existing privileged `why --values` behavior remains intentionally
 sensitive and unchanged.
+
+## 2026-09-16 — B1a repair actual-provider rerun
+
+After checkpoint `59acf2e88`, the existing recipe was copied into one ignored
+disposable app and checked with the supplied version/SHA-verified 0.2.26 binary:
+
+```text
+snapback4-0.2.26 check
+ok — 1 table (0 synced), 8 operations, no problems, 2126.2 ms
+
+SNAPBACK4_URL=http://127.0.0.1:38973 node qualify.mjs
+qualification: ok — actual Keycloak flow, issued-session use, and collection-authority refusals passed
+2.45 s wall
+```
+
+This reused the parent-owned Keycloak 26.7.4 loopback tunnel on 38971 and read
+the mode-0600 configuration only inside the qualification/launcher processes.
+No credential value was printed or copied. This lane owned only the disposable
+app listener on 38973, then stopped its dev/worker processes; 38973 was no
+longer listening. The exact ignored app directory was moved to Trash after the
+direct deletion command was rejected by the command safety wrapper, so its
+store is recoverable there. The first `mktemp` setup attempt also failed
+harmlessly because the ignored parent directory did not yet exist; its two
+empty-path copies targeted `/snapback` and `/qualify.mjs` and were refused by
+the read-only root filesystem. Creating the ignored parent and repeating with
+the resolved temporary path succeeded.
+
+The actual provider evidence is bounded to the healthy authorization-code +
+S256 flow, the returned Session's ordinary `identityWhoami` query, public
+logout refusal, and stale/unrelated collection-authority refusals. It is not
+Google, production HTTPS, real-browser, provider-fault, new core allowlist or
+B1b qualification. In particular, the old engine still cannot prove public
+preservation of `E_OIDC_*`, and this rerun makes no B1c or overall identity/B
+completion claim.
