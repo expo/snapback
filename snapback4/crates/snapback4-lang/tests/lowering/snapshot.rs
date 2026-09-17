@@ -21,7 +21,7 @@ pub fn baseline(catalog: &Catalog, module: &str, decl: &ast::ProgramDecl, diagno
 }
 
 pub fn snapshot(inputs: BTreeMap<String, Sources>, binder: Bind, measure: bool) -> BTreeMap<String, Record> {
-    let workers = std::thread::available_parallelism().map_or(1, usize::from).min(32).min(inputs.len());
+    let workers = std::thread::available_parallelism().map_or(1, usize::from).min(8).min(inputs.len());
     if workers <= 1 {
         return snapshot_shard(inputs, binder, measure);
     }

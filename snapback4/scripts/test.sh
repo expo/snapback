@@ -126,7 +126,9 @@ run_rust_tests() {
   done
   # The baseline census is independently reproducible. Run it beside the
   # rest of the language crate while keeping every other lowering assertion.
-  run_rust_lane snapback4-lang-golden cargo test -p snapback4-lang --test lowering baseline_golden_and_ownership_switch_agree_byte_for_byte --quiet
+  for shard in 0 1 2 3 4 5 6 7; do
+    run_rust_lane "snapback4-lang-golden-$shard" env SNAPBACK4_LOWERING_SHARD="$shard/8" cargo test -p snapback4-lang --test lowering baseline_golden_and_ownership_switch_agree_byte_for_byte --quiet
+  done
   run_rust_lane snapback4-lang-rest cargo test -p snapback4-lang --no-fail-fast --quiet -- --skip baseline_golden_and_ownership_switch_agree_byte_for_byte
   run_rust_lane snapback4-host run_host_tests
 
