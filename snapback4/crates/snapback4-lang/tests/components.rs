@@ -26,6 +26,7 @@ fn independent_fields_and_transitive_scalars_have_plans() {
 
 #[test]
 fn excluded_source_shapes_keep_no_plan() {
+    assert_eq!(compile("query both():\n  return {left: messages['left'] last 50 by byTime, held: messages['held'] last 50 by byTime}\n").schema.operations["both"].components.len(), 2);
     for source in [
         "query q() held:\n  a = messages['left'] last 50 by byTime\n  b = messages['held'] last 50 by byTime\n  return {left: a, held: b}\n",
         "query q(c: cursor ?):\n  return {left: messages['left'] last 50 by byTime, held: messages['held'] last 50 by byTime}\n",
@@ -45,6 +46,7 @@ fn excluded_source_shapes_keep_no_plan() {
 
 #[test]
 fn inline_cross_read_aggregate_has_no_plan() {
+    assert_eq!(compile("query both():\n  return {left: messages['left'] last 50 by byTime, held: messages['held'] last 50 by byTime}\n").schema.operations["both"].components.len(), 2);
     let bound = compile("query q():\n  return {count: count(messages['left'] last 50 by byTime) + count(messages['held'] last 50 by byTime), other: 1}\n");
     assert!(bound.schema.operations["q"].components.is_empty());
 }
@@ -75,4 +77,40 @@ fn nested_sinks_and_every_cursor_position_are_ineligible() {
         match cursor { 0 => scan.after = Some(Box::new(lit(Value::Null))), 1 => scan.before = Some(Box::new(lit(Value::Null))), _ => scan.opaque_cursor = true }
         assert!(residency::execution(&bound.schema, &p).components.is_empty());
     }
+}
+
+#[test]
+fn reading_guards_have_no_plan() {
+    let fields = "  return {left: messages['left'] last 50 by byTime, held: messages['held'] last 50 by byTime}\n";
+    assert_eq!(compile(&format!("query q():\n  require true else NO\n{fields}")).schema.operations["q"].components.len(), 2);
+    for guard in ["exists messages['held-25']", "count(messages['left'] last 50 by byTime) = count(messages['held'] last 50 by byTime)"] {
+        let bound = compile(&format!("query q():\n  require {guard} else NO\n{fields}"));
+        assert!(bound.schema.operations["q"].components.is_empty(), "{guard}");
+    }
+    let bound = compile("query q():\n  a = messages['left'] last 50 by byTime\n  b = messages['held'] last 50 by byTime\n  require count(a) = count(b) else NO\n  return {left: a, held: b, unknown: messages['third'] last 50 by byTime}\n");
+    assert!(bound.schema.operations["q"].components.is_empty());
+}
+
+#[test]
+fn escaped_nested_local_has_no_plan() {
+    let bound = compile("query q():\n  return {left: messages['left'] last 50 by byTime, held: messages['held'] last 50 by byTime}\n");
+    let Stmt::Return(Expr::Object(fields)) = &bound.programs[0].program.body[0] else { panic!("record") };
+    let mut p = query(vec![
+        Stmt::Let { name: "a".into(), value: Expr::Block { body: vec![Stmt::Let { name: "leak".into(), value: fields["left"].clone() }], value: Box::new(var("leak")) } },
+        Stmt::Let { name: "held".into(), value: fields["held"].clone() },
+        Stmt::Return(Expr::Object(BTreeMap::from([("a".into(), var("a")), ("held".into(), var("held"))]))),
+    ]);
+    let roundtrip = |p: &Program| serde_json::from_value::<Program>(serde_json::to_value(p).unwrap()).unwrap();
+    assert_eq!(plan(&roundtrip(&p)).len(), 2);
+    let Stmt::Return(Expr::Object(fields)) = p.body.last_mut().unwrap() else { unreachable!() };
+    fields.insert("z".into(), var("leak"));
+    assert!(plan(&roundtrip(&p)).is_empty());
+}
+
+#[test]
+fn equal_counts_guard_cannot_mix_two_satisfying_observations() {
+    let fields = "  return {left: messages['left'] last 50 by byTime, current: messages['current'] last 50 by byTime, held: messages['held'] last 50 by byTime}\n";
+    assert_eq!(compile(&format!("query q():\n{fields}")).schema.operations["q"].components.len(), 3);
+    let bound = compile(&format!("query q():\n  require count(messages['left'] last 50 by byTime) = count(messages['current'] last 50 by byTime) else UNEQUAL\n{fields}"));
+    assert!(bound.schema.operations["q"].components.is_empty());
 }

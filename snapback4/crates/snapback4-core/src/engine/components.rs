@@ -1,7 +1,7 @@
 //! Device-only coverage observations. Never reset the interpreter's flags:
 //! scans consult earlier cuts while running, even in a cursor-free program.
 use super::runner::Runner;
-use crate::{error::RuntimeError, ir::{Expr, Program}, schema::Component, value::Value};
+use crate::{error::{MeterKind, RuntimeError}, ir::{Expr, Program}, schema::Component, value::Value};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -59,7 +59,7 @@ impl Runner<'_> {
 
     pub(super) fn end_component(&mut self, previous: Option<usize>, capped: bool) {
         self.components.depth -= 1;
-        if self.meter.capped_at.is_some() && (self.components.active.is_some() || !capped) { self.components.note(|frame| frame.capped = true); }
+        if self.meter.capped_at.is_some() && !capped { self.components.note(|frame| frame.capped = true); }
         self.components.active = previous;
     }
 
@@ -71,8 +71,9 @@ impl Runner<'_> {
         for (field, expr) in fields {
             let previous = self.components.active;
             self.components.active = self.components.plan.iter().position(|component| &component.field == field);
+            let capped = self.meter.capped_at.is_some();
             let result = self.expr(expr);
-            if self.meter.capped_at.is_some() { self.components.note(|frame| frame.capped = true); }
+            if !capped && self.meter.capped_at.is_some() { self.components.note(|frame| frame.capped = true); }
             self.components.active = previous;
             values.insert(field.clone(), result?);
         }
@@ -84,6 +85,18 @@ impl Runner<'_> {
     pub(super) fn component_coverage(&self) -> BTreeMap<String, Coverage> {
         if !self.components.shared.coverage().complete || self.page_position_lost() { return BTreeMap::new(); }
         self.components.plan.iter().zip(&self.components.frames).map(|(plan, frame)| (plan.field.clone(), frame.coverage())).collect()
+    }
+
+    pub(super) fn read_charge(&mut self, kind: MeterKind, amount: u64) -> Result<bool, RuntimeError> {
+        let charged = self.meter.charge(kind, amount)?;
+        if !charged { self.components.note(|frame| frame.capped = true); }
+        Ok(charged)
+    }
+
+    pub(super) fn read_capped(&mut self) -> bool {
+        let capped = self.meter.capped_at.is_some();
+        if capped { self.components.note(|frame| frame.capped = true); }
+        capped
     }
 
     pub(super) fn retained_group(&mut self, table: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> {

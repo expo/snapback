@@ -195,7 +195,6 @@ impl<'a> Runner<'a> {
     pub(super) fn statements(&mut self, statements: &[Stmt], prefix: &str) -> Result<Flow, RuntimeError> {
         for (index, statement) in statements.iter().enumerate() {
             let (previous, capped, component_return) = self.begin_component(index);
-            if capped && !matches!(statement, Stmt::Return(_)) { self.components.note(|frame| frame.capped = true); }
             let result = (|| {
             self.effect_presence.reads.clear();
             let site = format!("{prefix}:{}", index + 1);

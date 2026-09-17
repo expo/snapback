@@ -29,7 +29,7 @@ fn prove(program: &Program) -> Option<Vec<Component>> {
         let value = match stmt { Stmt::Let { value, .. } | Stmt::Const { value, .. } => value, Stmt::Require { condition, .. } => condition, _ => return None };
         let facts = inspect(value, &names)?;
         // Forward references or shadowed top-level locals are never a proof.
-        if facts.names.iter().any(|name| names.contains(name) && !bindings.contains_key(name)) { return None; }
+        if facts.names.iter().any(|name| !program.args.contains_key(name) && !bindings.contains_key(name)) { return None; }
         match stmt {
             Stmt::Let { name, .. } | Stmt::Const { name, .. } => { bindings.insert(name.clone(), (index, facts)); }
             _ => guards.push(facts),
@@ -46,12 +46,13 @@ fn prove(program: &Program) -> Option<Vec<Component>> {
     for guard in guards {
         let mut used = BTreeSet::new(); let mut reads = BTreeSet::new();
         dependencies(&guard, &bindings, &mut used, &mut reads);
-        if !reads.is_empty() { return None; }
+        if guard.reads > 0 || !reads.is_empty() { return None; }
     }
     let mut owners: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
     let mut plans = Vec::new();
     for (field, value) in fields {
         let facts = inspect(value, &names)?;
+        if facts.names.iter().any(|name| !program.args.contains_key(name) && !bindings.contains_key(name)) { return None; }
         let mut used = BTreeSet::new(); let mut reads = BTreeSet::new();
         dependencies(&facts, &bindings, &mut used, &mut reads);
         // Combining independently acquired bindings is not this slice's aggregate/join contract.

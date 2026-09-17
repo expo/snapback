@@ -44,7 +44,7 @@ impl Eq for MergeHead {}
 
 impl Probe for Runner<'_> {
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
-        if !self.meter.charge(MeterKind::RuleProbes, 1)? {
+        if !self.read_charge(MeterKind::RuleProbes, 1)? {
             // Cut: no lookup and no verdict; the site stops on `capped_at`.
             return Ok(false);
         }
@@ -79,7 +79,7 @@ impl Runner<'_> {
         if !uniform || !matches!(verdict, Ok(true)) { self.next_expiry = expiry; }
         let verdict = verdict?;
         // A partial conjunction denial costs the same static allowance as a uniform denial.
-        Ok(self.meter.charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? && verdict)
+        Ok(self.read_charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? && verdict)
     }
 
     // @ref LLP 3000.007#20.9 — coverage applies before a missing candidate or empty page can return zero/complete.
@@ -154,7 +154,7 @@ impl Runner<'_> {
             let count = rows.len();
             for (mut row, stored) in rows {
                 materialize_optional_fields(&mut row, table);
-                if charge && !self.meter.charge(MeterKind::Examined, 1)? { return Ok(None); }
+                if charge && !self.read_charge(MeterKind::Examined, 1)? { return Ok(None); }
                 bounds.after = crate::key::decode(&stored).map(|values| values.into_iter().skip(key.len()).collect());
                 if !self.expired(table, &row) { return Ok(Some(row)); }
             }
@@ -190,9 +190,9 @@ impl Runner<'_> {
             let count = rows.len();
             for (mut candidate, key) in rows {
                 materialize_optional_fields(&mut candidate, source);
-                if !self.meter.charge(MeterKind::Examined, 1)? { break 'sources; }
+                if !self.read_charge(MeterKind::Examined, 1)? { break 'sources; }
                 bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(prefix.len()).collect());
-                if !self.meter.charge(MeterKind::Steps, maintain.evaluation_steps())? { break 'sources; }
+                if !self.read_charge(MeterKind::Steps, maintain.evaluation_steps())? { break 'sources; }
                 if self.expired(source, &candidate) || !maintain.selected(&candidate) || maintain.source_key(&candidate) != group { continue; }
                 any = true;
                 self.note_expiry(source, &candidate);
@@ -286,7 +286,7 @@ impl Runner<'_> {
         self.rule_dependencies(&table.rules.read);
         self.meter.at(&read.site);
         self.aggregate_read_coverage(&read.table, &read.index, &key, &read.site);
-        if self.filter_depth > 0 && !self.meter.charge(MeterKind::RuleProbes, 1)? { return Ok(Value::Null); }
+        if self.filter_depth > 0 && !self.read_charge(MeterKind::RuleProbes, 1)? { return Ok(Value::Null); }
         if self.device && table.sync.is_none() {
             self.unknown_fact(&read.table, &read.index, &key, &read.site);
         }
@@ -296,7 +296,7 @@ impl Runner<'_> {
         }
         // @ref LLP 3000.007#20.12 — reserve authorization before knowing hit, miss or hidden; an exhausted probe is not a false verdict to roll back.
         let trusted = self.context.is_system() || self.trust_synced_read(table);
-        if !trusted && !self.meter.charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? { return Ok(Value::Null); }
+        if !trusted && !self.read_charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? { return Ok(Value::Null); }
         // Hidden and absent cost one examined row and the same static probe
         // allowance, including probes that a rule would short-circuit.
         let mark = self.meter.mark();
@@ -304,7 +304,7 @@ impl Runner<'_> {
         let found = self.live_lookup(&read.table, &read.index, index, &key)?;
         // An expiring lookup already charged its live candidate while
         // passing expired siblings. A miss still costs one point read.
-        if (table.expire.is_none() || found.is_none()) && !self.meter.charge(MeterKind::Examined, 1)? {
+        if (table.expire.is_none() || found.is_none()) && !self.read_charge(MeterKind::Examined, 1)? {
             return Ok(Value::Null);
         }
         let Some(mut row) = found else {
@@ -318,12 +318,14 @@ impl Runner<'_> {
         let viewer = self.context.viewer.clone();
         let allowed = trusted || rules::evaluate(&table.rules.read, &viewer, None, &row, false, &mut PrefixProbe { runner: self })?;
         if allowed {
+            // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
+            if self.device && self.tx.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
             self.note_expiry(table, &row);
             Ok(self.live_aggregate(&read.table, row)?.unwrap_or(Value::Null))
         } else {
             self.next_expiry = expiry_mark;
             self.meter.restore(mark);
-            self.meter.charge(MeterKind::Examined, 1)?;
+            self.read_charge(MeterKind::Examined, 1)?;
             Ok(Value::Null)
         }
     }
@@ -401,7 +403,7 @@ impl Runner<'_> {
         }
         if !admitted && let Some(rule) = rules::prefix_decision(self.schema, scan) {
             let aborting = self.meter.cut == crate::meter::Cut::Abort;
-            if aborting && !self.meter.charge(MeterKind::Examined, 1)? { empty_page(self); return Ok(Vec::new()); }
+            if aborting && !self.read_charge(MeterKind::Examined, 1)? { empty_page(self); return Ok(Vec::new()); }
             if !self.prefix_verdict(table, index, &scope, &rule, visibility.uniform)? {
                 empty_page(self);
                 return Ok(Vec::new());
@@ -414,7 +416,7 @@ impl Runner<'_> {
         let mut words: Vec<String> = Vec::new();
         let mut bounds = Bounds { word: Some(terms[0].clone()), ..Bounds::default() };
         loop {
-            if !self.meter.charge(MeterKind::IndexEntries, 1)? {
+            if !self.read_charge(MeterKind::IndexEntries, 1)? {
                 break;
             }
             let found = self.tx.scan(&scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1)?;
@@ -561,7 +563,7 @@ impl Runner<'_> {
         let mut uniform_verdict: Option<bool> = always_visible.then_some(true);
         // @ref LLP 3000.007#17 — an aborting page pass costs one examined unit before its verdict in every world; capped queries retain their cut contract.
         let aborting = self.meter.cut == crate::meter::Cut::Abort;
-        if aborting && !self.meter.charge(MeterKind::Examined, 1)? { return Ok((Vec::new(), Vec::new())); }
+        if aborting && !self.read_charge(MeterKind::Examined, 1)? { return Ok((Vec::new(), Vec::new())); }
         if !always_visible && word.is_none() && let Some(rule) = rules::prefix_decision(self.schema, scan) {
             if !self.prefix_verdict(table, index, &prefix, &rule, visibility.uniform)? { return Ok((Vec::new(), Vec::new())); }
             if visibility.uniform { uniform_verdict = Some(true); }
@@ -577,7 +579,7 @@ impl Runner<'_> {
             }
             let fetched_len = fetched.len();
             for (mut row, key) in fetched {
-                if !self.meter.charge(MeterKind::Examined, 1)? {
+                if !self.read_charge(MeterKind::Examined, 1)? {
                     capped = true;
                     break 'outer;
                 }
@@ -604,14 +606,14 @@ impl Runner<'_> {
                         verdict
                     }
                 };
-                if self.meter.capped_at.is_some() {
+                if self.read_capped() {
                     capped = true;
                     break 'outer;
                 }
                 if allowed {
                     self.note_expiry(table, &row);
                     let aggregate = self.live_aggregate(&scan.table, row)?;
-                    if self.meter.capped_at.is_some() {
+                    if self.read_capped() {
                         // The aggregate carries the live contribution observed
                         // before this cut, just as a maintained point read does.
                         if let Some(row) = aggregate && visible.len() < take {
@@ -631,7 +633,7 @@ impl Runner<'_> {
                         match prior { Some(value) => { self.env.insert("$filter".into(), value); }, None => { self.env.remove("$filter"); } }
                         let matched = matched?.as_bool()?;
                         self.meter.at(&scan.site);
-                        if self.meter.capped_at.is_some() { capped = true; break 'outer; }
+                        if self.read_capped() { capped = true; break 'outer; }
                         if !matched { continue; }
                     }
                     if visible.len() == take {
@@ -794,12 +796,12 @@ impl Runner<'_> {
     }
 
     // @ref LLP 3000.007#18.1 — one shared position must be established by every lane, including a lane cut before contributing a row.
-    fn merge_can_continue(&self) -> bool {
+    fn merge_can_continue(&mut self) -> bool {
         // A cut can leave unread rows ahead of the last merged result. The
         // existing cursor has no per-lane positions, so it cannot resume that
         // page safely. Withhold for the entire non-uniform class, even without
         // a cut: presence of next must not reveal a hidden run's meter cost.
-        !self.non_uniform && self.meter.capped_at.is_none() && self.word_cut_at.is_none()
+        !self.non_uniform && !self.read_capped() && self.word_cut_at.is_none()
     }
 
     /// One head per uniform lane, then advance only the winning lane. Each
@@ -861,7 +863,7 @@ impl Runner<'_> {
             }
             let (scan, prefix, bounds, buffer, done) = &mut lanes[head.lane];
             bounds.after = Some(head.key);
-            if buffer.is_empty() && !*done && self.meter.capped_at.is_none() {
+            if buffer.is_empty() && !*done && !self.read_capped() {
                 let (rows, _) = self.scan_prepared(scan, prefix.clone(), bounds.clone(), batch, word)?;
                 *done = rows.len() < batch;
                 *buffer = rows.into();

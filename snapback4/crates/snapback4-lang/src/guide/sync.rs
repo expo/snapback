@@ -119,15 +119,20 @@ A read pinning the left group answers from those rows on the device online
 and offline, through a query without a membership `require`; the server
 cannot serve that retained history. Replacement snapshots keep left groups
 and replace held groups with their current acquisition. A device query returning
-independent fields of a record can compose retained fields from the device
-with the original query's server answer for the other fields. It must be
-cursor-free and not declared `held`; `check --residency --verbose` names the proven
-components. The composed read is `complete` only when the server answer and
-every retained component are complete; it reports `fresh: false`, no `since`,
+independent fields of a record can compose when one component retains history
+and another needs the server. Each field may hold at most one read; the query
+must be cursor-free, not declared `held`, and have no reading `require`.
+A found point read of a delivered left row also composes; a missing point
+keeps ordinary coverage and fallback. `check --residency` names the proven
+components. The second local observation supplies every component that would
+stay local as its own query; the one server reply supplies those that need it.
+The composed read is `complete` only when the server answer and
+every locally kept component are complete; it reports `fresh: false`, no `since`,
 and no continuation. Offline or after a failed request, the whole local
 answer stands. Every other shape keeps the separate-query recipe: keep a
 left-group read in its own query, since a mixed query without a component
-plan returns the whole server answer online and the whole device answer offline.
+plan returns the whole server answer online when no predictable write is awaiting observation,
+and the whole device answer offline.
 An inherited aggregate stays until-revoked even when its source retains delivered-history; it has no target horizon.
 A table without `sync` is online-only. A `maintain`
 grouped by the audience columns inherits sync and is delivered as a value row.

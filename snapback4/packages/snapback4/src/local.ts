@@ -636,6 +636,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             const adopted = await call({ op: "adopt", backend: nextBackend, store_id: page.store_id ?? requestedStore ?? null, send_revision: page.send_revision });
             await refreshAcquired();
             if (adopted.denied) return false;
+            incarnation++;
+            serverAnswers.clear();
             backend = nextBackend;
             generation = Number(nextBackend.generation ?? pageGeneration);
             nativeReady = false;
@@ -881,10 +883,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const retained = coverage.filter(([, c]) => c.retained);
       if (!retained.length) return remote;
       if (!coverage.some(([, c]) => wantsServer(c))) return second.result;
+      const kept = coverage.filter(([, c]) => !wantsServer(c));
       const data = { ...remote.read.data as Record<string, unknown> };
-      for (const [field] of retained) data[field] = (second.outcome.data as Record<string, unknown>)[field];
+      for (const [field] of kept) data[field] = (second.outcome.data as Record<string, unknown>)[field];
       const expiries = [remote.nextExpiry, second.result.nextExpiry].filter((expiry): expiry is number => expiry !== null);
-      return { read: { data: data as R, complete: remote.read.complete && retained.every(([, c]) => c.complete !== false), cut: remote.read.cut ?? null, fresh: false, next: null }, tables, nextExpiry: expiries.length ? Math.min(...expiries) : null };
+      return { read: { data: data as R, complete: remote.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.read.cut ?? null, fresh: false, next: null }, tables, nextExpiry: expiries.length ? Math.min(...expiries) : null };
     }
     if (wantsServer(outcome) && link === "online" && !await pending()) return server();
     return first.result;

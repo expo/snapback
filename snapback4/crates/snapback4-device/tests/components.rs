@@ -71,7 +71,18 @@ fn frames<S: DeviceStore>(mut store: S) {
     let mut comparisons = 0;
     for program in &backend.programs {
         let fact = &backend.schema.operations[&program.name];
-        if program.name == "discarded" { assert!(fact.components.is_empty()); continue; }
+        if matches!(program.name.as_str(), "discarded" | "guard" | "unknownGuard") {
+            assert!(fact.components.is_empty());
+            let (_, _, _, components) = local::query_with_components(&rows, &backend.schema, program, context("viewer", &[]).at(100), Ceilings::default());
+            assert!(components.is_empty());
+            if program.name == "unknownGuard" {
+                let mut forced = backend.schema.clone();
+                forced.operations.get_mut(&program.name).unwrap().components = vec![snapback4_core::schema::Component { field: "left".into(), statements: vec![] }, snapback4_core::schema::Component { field: "held".into(), statements: vec![] }];
+                let (_, _, _, components) = local::query_with_components(&rows, &forced, program, context("viewer", &[]).at(100), Ceilings::default());
+                assert!(components.is_empty(), "the shared reading frame still withholds an unclean forced plan");
+            }
+            continue;
+        }
         assert_eq!(fact.components.len(), 2, "{}", program.name);
         let mut stripped = backend.schema.clone();
         stripped.operations.get_mut(&program.name).unwrap().components.clear();
@@ -85,11 +96,11 @@ fn frames<S: DeviceStore>(mut store: S) {
             if ceilings != Ceilings::default() {
                 if program.name == "both" && matches!(ceilings.examined, 3 | 30) {
                     assert!(!components["held"].complete, "a component after a cap is incomplete");
-                    assert!(!components["left"].retained, "even an earlier binding's returned-field expression runs after the shared cap");
+                    assert_eq!(components["left"].retained, ceilings.examined == 30, "a completed binding survives a later cap");
                     let left = actual.as_ref().unwrap().data.field("left").unwrap().as_array().unwrap().len();
                     assert_eq!(left, if ceilings.examined == 3 { 3 } else { 25 }, "the first or second binding reaches the cap");
                 }
-                if program.name == "capGuard" && ceilings.examined == 3 { assert!(components.is_empty(), "a shared guard after the cap withholds components"); }
+                if program.name == "capGuard" && ceilings.examined == 3 { assert!(!components["held"].complete, "a reading binding starting after the cap is incomplete"); }
                 if ceilings.output_bytes == 1 { assert!(components.is_empty(), "shared output charging withholds components"); }
                 continue;
             }
@@ -122,6 +133,7 @@ fn conformance_programs_keep_whole_query_outcomes_with_plans() {
     let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../corpus");
     let mut comparisons = 0;
     let mut planned = 0;
+    let mut independent = false;
     for entry in std::fs::read_dir(directory).unwrap() {
         let path = entry.unwrap().path();
         if matches!(path.file_name().and_then(|name| name.to_str()), Some("manifest.json" | "ir-contract.json")) { continue; }
@@ -138,6 +150,7 @@ fn conformance_programs_keep_whole_query_outcomes_with_plans() {
             }
         };
         let fact = snapback4_lang::bind::residency::execution(&schema, &program);
+        if path.file_name().unwrap() == "component-independent-record.json" { assert_eq!(fact.components.len(), 2); independent = true; }
         if fact.components.is_empty() { continue; }
         planned += 1;
         let rows = snapback4_core::rows::MemoryRows::new();
@@ -156,7 +169,8 @@ fn conformance_programs_keep_whole_query_outcomes_with_plans() {
         let after = local::query_with_coverage(&rows, &schema, &program, context, Ceilings::default());
         assert_eq!(before, after, "{}", path.display());
         comparisons += 1;
+        if path.file_name().unwrap() == "component-independent-record.json" { println!("component-independent-record.json: 2 fields; 1 differential comparison; 0 differences"); }
     }
     println!("corpus component differential: {planned} planned programs; {comparisons} comparisons; 0 differences");
-    assert!(planned > 0, "the corpus must exercise at least one plan");
+    assert!(independent, "component-independent-record.json must participate in the differential");
 }

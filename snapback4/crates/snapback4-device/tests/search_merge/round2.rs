@@ -84,3 +84,38 @@ fn r2_n3_mixed_returned_history_exposes_independent_components() {
         assert_eq!(left["retained"], true);
     }));
 }
+
+#[test]
+fn retained_point_hits_and_misses_on_both_stores() {
+    on_both(|host| history_device(host, |device, _| {
+        for name in ["pointMiss", "pointIndex", "pointId", "pointExists"] {
+            let local = query(device, name, "dev:bob", serde_json::json!({}), 100);
+            let hit = name != "pointMiss";
+            assert_eq!(local["components"]["left"], serde_json::json!({"complete": hit, "unknown": !hit, "retained": hit}), "{name}");
+            assert_eq!(local["retained"], false, "whole query words do not change");
+            assert_eq!(local["unknown"], true);
+            assert_eq!(local["complete"], false);
+            assert_eq!(local["data"]["held"].as_array().unwrap().len(), 25);
+            if name == "pointExists" { assert_eq!(local["data"]["left"], true); }
+            else if hit { assert_eq!(local["data"]["left"]["id"], "left-25"); }
+            else { assert!(local["data"]["left"].is_null()); }
+        }
+    }));
+}
+
+#[test]
+fn compatible_adoption_keeps_retained_components_on_both_stores() {
+    on_both(|host| history_device(host, |device, engine| {
+        let before = query(device, "both", "dev:bob", serde_json::json!({}), 100);
+        assert_eq!(before["data"]["left"].as_array().unwrap().len(), 25);
+        let (_, mut backend) = compile(&format!("{HISTORY}\nquery adoptionMarker():\n  return true\n"));
+        backend.generation = engine.adopt(backend.schema.clone(), backend.programs.clone()).unwrap();
+        ok(device.call(serde_json::json!({"op": "adopt", "backend": backend})));
+        let unacquired = query(device, "both", "dev:bob", serde_json::json!({}), 100);
+        assert_eq!(unacquired["denied"]["code"], "E_PREDICT", "program adoption still requires acquisition");
+        for (n, page) in snapshot_pages(engine, "dev:bob", 100).iter().enumerate() { ok(apply(device, page, n == 0)); }
+        let after = query(device, "both", "dev:bob", serde_json::json!({}), 100);
+        assert_eq!(after["data"], before["data"]);
+        assert_eq!(after["components"], before["components"]);
+    }));
+}

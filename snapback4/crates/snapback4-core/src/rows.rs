@@ -176,6 +176,8 @@ pub enum PrefetchRequest {
 
 pub trait Rows {
     /// A device-only fact: this scan pins a delivered-history group it left.
+    /// A found row belongs to retained history, without changing whole-query coverage.
+    fn retained_row(&self, _table: &str, _row: &Value) -> Result<bool, RuntimeError> { Ok(false) }
     fn retained_group(&self, _table: &str, _index: &str, _prefix: &[Value]) -> Result<bool, RuntimeError> { Ok(false) }
 
     /// Speculative physical reads only; errors, rules and charges stay with
