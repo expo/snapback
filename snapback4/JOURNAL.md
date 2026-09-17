@@ -27869,3 +27869,49 @@ Authorized Durand cleanup removed 26 inactive dependency directories with
 fresh exact-path checks, reclaiming an observed 8.38 GiB. Source, lockfiles,
 active projects and all Workroom artifacts are intact; reinstall restores
 those dependencies. No additional global-cache/Cargo deletion was performed.
+## 2026-09-17 — B1c real-engine qualification harness source checkpoint
+
+A bounded qualification-only harness now prepares the missing real-engine
+B1c evidence without claiming that evidence. It owns only the existing
+identity recipe fixture. The actual-Keycloak generated helper runs behind a
+parent-owned loopback HTTP fault proxy: after the core has returned the first
+committed bound Session, the parent retains that value in memory, verifies and
+kills the exact supervised worker PID, drops the acknowledgement, and closes
+provider access. A later process must recover explicitly under the same
+invocation and fixed intent, with one provider token POST total. Public
+`identityWhoami`, unchanged expiry and read-only internal family inspection
+then distinguish true replacement from an unbound or new-family fallback:
+the binding family must still equal the initial token's digest, and the two
+mint responses must come from different registered supervised worker PIDs.
+
+A second disposable no-worker app drives actual service-authenticated engine
+HTTP for explicit first binding with the recovery flag, stale, parked,
+cancelled, settled, deadline,
+admitting logout, issued logout, target revocation, service revocation and
+issued-family expiry refusals. Expiry uses only the supported development
+clock: the action has a 30-day deadline, is requeued before advancing 25 hours,
+and receives a fresh claim afterward while the admitting guest and 30-day
+service authority still stand. Production/release expiry remains a manual
+wall-clock gap. No SQL write or private clock mutation is present.
+
+The command requires an executor-supplied absolute binary, expected SHA-256,
+prepared package/toolchain paths, a mode-0700 private scratch parent and the
+existing mode-0600 fixed-Keycloak config. Scratch is marker-owned and checked
+by realpath before copy, spawn and exact recursive cleanup. Ports 38973 and
+38974 must be free. The harness tracks its engine handle and supervised worker
+PIDs, never selects a process by name, and never manages Keycloak or tunnels.
+Known bearer, provider, PKCE, callback and credential values remain in private
+memory and are compared only for absence; the output contains non-secret row
+names and the parent-approved binary digest.
+
+Every matrix row remains PENDING at this source checkpoint. The after-mint-
+step-done/before-action-settlement and before-mint-commit HTTP process cuts are
+not implemented; the raw first-binding row does not stand in for either. The legacy
+unpublished-receipt case introduced by repaired product commit
+`906ed04ec22f90cffc0bfed95af46deebad5ee9e` is recorded as a pending root-engine
+witness: a valid public seed also needs the old private transaction/exchange
+record, so this lane does not fake it with SQLite writes. The qualification
+instrument remains field-agnostic; the final integrated helper supplies its
+new `protocol: 'oidc-mint-bound/v1'` durable mint input. No engine, provider,
+listener, application, test, build, install, Cargo, remote, publication or
+qualification command ran here.

@@ -57,3 +57,95 @@ one-time token phase. In particular, discovery failures before any token POST
 can recover, while a JWKS outage after a consumed code parks without another
 POST. Those deterministic assertions do not add actual-provider or repaired-
 engine evidence to this fixture.
+
+## Prepared B1c real-engine qualification
+
+`qualify-b1c.mjs` is a source-only, not-yet-executed harness for the final
+parent-supplied B1c package and repaired Linux binary. It is deliberately not
+compatible with the published 0.2.26 binary. In addition to requiring the
+executor's expected SHA-256 digest, it exercises the bound wire itself; an
+unbound legacy engine cannot satisfy the fixed-expiry/family and stale-claim
+assertions.
+
+The generated-helper portion uses actual Keycloak once. A qualification-only
+injected fetch sends worker-to-engine HTTP through a parent-owned loopback
+fault proxy on `127.0.0.1:38974`. Provider fetches remain direct. After the
+actual engine returns the first committed bound Session, the parent keeps that
+Session only in memory, closes further provider access, verifies the reporting
+PID belongs to the supervised worker, kills that exact PID, and drops the
+reply. The replacement attempt must use `replaceLostDelivery: true`, the same
+invocation/intent/immutable inputs and one completed provider code exchange.
+It must preserve expiry, replace inside the inspected original family, make
+the old bearer fail `identityWhoami`, and make the returned bearer pass it.
+The proxy is a fault instrument, not an application backend or provider
+double.
+
+The authority portion uses a separate disposable app without a generated
+handler. It drives the actual engine's service-authenticated action, step,
+session, cancellation, revocation and development-clock HTTP doors directly.
+It never writes SQLite. Internal family and plaintext-absence assertions open
+the store read-only with Node 24's SQLite API because the public `sql` command
+correctly hides internal tables. The expiry row is development-only: it
+requeues the long-deadline invocation before `clock advance +25h`, then obtains
+a fresh current claim while the admitting guest and 30-day service authority
+still stand. It does not infer expiry from a stale held lease. `serve` and
+production/release clocks remain wall-only.
+
+Run only on the isolated Linux executor after the parent has assembled and
+reviewed the final package and binary. Every path must be absolute. The
+private parent and credential file must have no group/other permission bits;
+the harness creates and later removes one marker-owned child beneath it.
+
+```sh
+PATH=/absolute/path/to/node24/bin:$PATH \
+SNAPBACK4_BIN=/absolute/path/to/final/snapback4 \
+SNAPBACK4_B1C_BINARY_SHA256=<64-lowercase-hex-from-parent> \
+SNAPBACK4_PACKAGE_DIR=/absolute/path/to/prepared/packages/snapback4 \
+SNAPBACK4_TYPESCRIPT_DIR=/absolute/path/to/node_modules/typescript \
+SNAPBACK4_NODE_TYPES_DIR=/absolute/path/to/node_modules/@types/node \
+SNAPBACK4_QUALIFICATION_PRIVATE_PARENT=/absolute/private/mode-0700-parent \
+SNAPBACK4_OIDC_QUALIFICATION_CONFIG=/absolute/private/mode-0600-keycloak.json \
+node ./snapback4/packages/snapback4/test/fixtures/identity-recipe/qualify-b1c.mjs
+```
+
+The harness refuses occupied ports 38973 and 38974. It never starts, stops or
+kills Keycloak, a tunnel or a process selected by name. It starts one owned
+engine at 38973, records its exact child handle, recognizes supervised worker
+PIDs from that engine's log and terminates only owned children. It never emits
+the client secret, credentials, provider code, state, browser binding, PKCE
+material, action lease or Session bearer. Failure output contains only the
+stage label. The single success line contains only the binary digest and
+non-secret observation names.
+
+### Fault and observation matrix — source checkpoint
+
+All rows are **PENDING** until the parent executes the command above against
+the final combined Linux artifact. Syntax checking this harness is not
+qualification evidence.
+
+| Row | Scope / injected cut | Required actual observable | Source status |
+| --- | --- | --- | --- |
+| Keycloak authorization code + S256 | Actual provider and generated helper | Begin completes, browser-form login returns the fixed callback, complete settles | PENDING; executable |
+| Lost initial mint acknowledgement | Parent proxy drops the response only after actual `/auth/session` returned a Session, then SIGKILLs that registered supervised worker PID | A different supervised worker PID claims the same invocation; exactly one provider token POST total | PENDING; executable |
+| Explicit committed-mint recovery | Generated helper's actual recovery request | Same invocation, `identity-session/v1`, fixed principal/kind/days, `replaceLostDelivery: true`; no unbound/new-family fallback | PENDING; executable; instrument is field-agnostic to the helper's durable `protocol` input |
+| Replacement authority | Public query plus read-only store | New bearer passes `identityWhoami`; old bearer returns `E_AUTH`; binding family equals the initial bearer's SHA-256 digest; one final live digest remains in that original family; original `expiresAt` unchanged | PENDING; executable |
+| Provider-independent exchange replay | Provider gate closes after the committed-mint cut | No provider fetch is attempted after the cut; token endpoint POST count remains one | PENDING; executable |
+| Explicit first binding with recovery flag | Direct actual-engine bound request with `replaceLostDelivery: true` and no prior binding | First binding is created and its bearer passes the public query | PENDING; executable authority-contract row; not a transport/crash witness |
+| Before-mint-commit HTTP fault | Actual generated helper request cut before core commit, followed by a new-process recovery | Recovery creates the first binding without provider replay | PENDING; not implemented in this bounded source checkpoint |
+| Stale claim | Explicit retry settlement followed by its declared backoff and a fresh actual claim | Old lease refuses `E_ACTION_LEASE`; no target mint | PENDING; executable; retry settlement, not timer expiry, makes the old lease stale |
+| Parked work | Real step begin, retry/reclaim, unreconciled second begin | Step returns `E_STEP_PARKED`; mint under that claim refuses `E_ACTION_LEASE` | PENDING; executable |
+| Cancelled / settled / deadline | Public cancel, real done settlement, and a 2-second declared deadline under a 10-second lease | Cancellation/done commit; collection records `E_ACTION_DEADLINE` before the deadline mint refuses `E_ACTION_LEASE` | PENDING; executable |
+| Admitting-family logout | Public logout of the guest that admitted the invocation | Bound mint refuses `E_ACTION_LEASE`; a fresh sign-in is not substituted | PENDING; executable |
+| Issued-family logout | Initial actual bound mint then public logout | Recovery refuses `E_ACTION_AUTHORITY`; no replacement | PENDING; executable |
+| Target revocation | `/auth/revoke` from a separate live service | Recovery refuses `E_ACTION_AUTHORITY`; no recreated target family | PENDING; executable |
+| Service revocation | Separate operator service revokes `service:worker` | Mint/recovery using the revoked worker credential refuses `E_AUTH` | PENDING; executable |
+| Expired issued family | Requeue, supported dev `clock advance +25h`, then fresh current claim; target lifetime one day, invocation 30 days, authorities still live | Recovery refuses `E_ACTION_AUTHORITY`; expired bearer returns `E_AUTH` | PENDING; executable; development-clock evidence only |
+| Receipt/default-diagnostic secrecy | Read-only `_action_steps`, binding/session tables and default `why` | Mint step has delivery metadata but no bearer; old bearer occurs nowhere; final bearer occurs only in protected `_requests.result`; default `why` contains none of the known secrets | PENDING; executable; `why --values` is intentionally sensitive and is not run |
+| After mint-step done / before action settlement | Actual second process cut after durable `oidc.mint` step completion | A third claim explicitly replaces the lost final handoff with the same family/expiry | PENDING; not implemented in this bounded source checkpoint |
+| Legacy unpublished mint receipt | Old done `oidc.mint` receipt plus an existing real unbound Session, followed by the repaired helper whose step input includes `protocol: 'oidc-mint-bound/v1'` | `E_STEP_INPUT` before initial/recovery mint; zero new binding/family; old bearer remains live | PENDING root-engine witness; not seeded here because doing so through the public helper also requires a complete compatible private transaction/exchange record |
+| Production/release expiry | Wall clock only | Long-window issued-family expiry refusal | UNAVAILABLE in this bounded run; no fake clock or database edit is substituted |
+
+The before-commit HTTP cut, after-step cut and legacy-receipt row are explicit
+gaps, not inferred from the direct first-binding row or other cases. The parent
+may add them in the integration tree if it can do so through the same public
+engine/worker mechanics without private writes.
