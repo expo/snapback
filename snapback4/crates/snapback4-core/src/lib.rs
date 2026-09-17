@@ -4,7 +4,7 @@
 //! evaluation with hoisting, the runtime meter, the interpreter, and the
 //! partition log. Nothing here knows about HTTP, files, or a device.
 
-// @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — the native web-policy witness must never alter a shipped device.
+// @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — the native web-policy witness stays out of the published profiles (`production`, `wasm`); `scripts/check-release-guard.sh` builds this refusal.
 #[cfg(all(feature = "web-device-check", not(debug_assertions)))]
 compile_error!("web-device-check is only for debug test witnesses of the web device policy; it cannot be enabled in release, production, or wasm profiles");
 

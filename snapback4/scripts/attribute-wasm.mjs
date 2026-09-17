@@ -113,7 +113,9 @@ export function checkAbsent(rows, retainingPath) {
   if (!rows.length) refuse('cannot check absent code in an empty census');
   // Match module segments regardless of mounting. Fully inlined or renamed logic
   // is out of reach; the measured byte budget line is the backstop.
-  const forbidden = /::(?:prefetch|admission|log_events)::|::partition::(?:[A-Za-z0-9_]+::)*(?:row_changed|put|del|scope|join)(?=$|::|[<> ])/;
+  // Only the core's namespace: a client module or a dependency that happens to be
+  // called prefetch or admission is not server engine code.
+  const forbidden = /snapback4_core(?:\[[0-9a-f]+\])?::(?:[A-Za-z0-9_]+::)*(?:(?:prefetch|admission|log_events)::|partition::(?:[A-Za-z0-9_]+::)*(?:row_changed|put|del|scope|join)(?=$|::|[<> ]))/;
   const unexpected = rows.filter(row => forbidden.test(clean(row.name)));
   const failures = unexpected.map(row => {
     const path = retainingPath(row.name);

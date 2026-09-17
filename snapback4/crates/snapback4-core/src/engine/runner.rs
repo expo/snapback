@@ -5,6 +5,7 @@ use super::Context;
 use crate::error::{MeterKind, RuntimeError};
 use crate::ir::*;
 use crate::meter::{Cut, Meter};
+#[cfg(feature = "sqlite")]
 use crate::partition::Event;
 use crate::schema::Schema;
 use crate::rows::Rows;
@@ -56,7 +57,8 @@ pub struct Runner<'a> {
     pub(crate) written_tables: BTreeSet<String>,
     pub(crate) rows_written: u64,
     pub(crate) next_expiry: Option<i64>,
-    /// Partition events, accumulated for the commit.
+    /// Partition events, accumulated for the commit; a logless host builds none.
+    #[cfg(feature = "sqlite")]
     pub(crate) events: Vec<Event>,
     /// Queued effects with their grace dependencies.
     pub(crate) outbox: Vec<super::presence::Emission>,
@@ -137,6 +139,7 @@ impl<'a> Runner<'a> {
             written_tables: BTreeSet::new(),
             rows_written: 0,
             next_expiry: None,
+            #[cfg(feature = "sqlite")]
             events: Vec::new(),
             outbox: Vec::new(),
             effect_presence: Default::default(),

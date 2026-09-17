@@ -324,7 +324,10 @@ fn clock_advance_preserves_a_live_action_claim_session_and_settlement() {
     assert_eq!(deadlines(), (original_expiry, original_expiry));
     assert_eq!(effect_deadline(), original_effect_expiry);
     let elapsed = host.query("time").as_i64().unwrap() - before;
-    assert!(elapsed < 60_000, "a refused lease transaction must not advance the clock: server {elapsed} ms, wall {} ms", snapback4_core::now_ms() - wall);
+    // `wall` was read before `before` and this read follows the second server read, so the server
+    // interval is nested inside the wall interval: load cannot fail this, an applied 120 s advance cannot pass it.
+    let bracket = snapback4_core::now_ms() - wall;
+    assert!(elapsed <= bracket + 50 && bracket < 100_000, "a refused lease transaction must not advance the clock: server {elapsed} ms inside a wall bracket of {bracket} ms");
     conn.execute_batch("DROP TRIGGER refuse_action_shift;").unwrap();
     let start = Instant::now();
     let port = host.address.rsplit(':').next().unwrap();

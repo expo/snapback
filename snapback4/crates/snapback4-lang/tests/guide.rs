@@ -1061,6 +1061,20 @@ fn composition_card_matches_readme_and_the_routing_boundary() {
 }
 
 #[test]
+fn structural_admission_cards_name_every_host_and_the_web_trust_boundary() {
+    let boundary = "and a native device checks again; the web device trusts that admission and does not repeat the check, so a hand-built or corrupted backend can still run there.";
+    for name in ["bounds", "programs"] {
+        assert!(card(name).unwrap().contains(boundary), "{name}: missing the web trust boundary");
+    }
+    for code in ["E_STRUCTURAL_FANOUT", "E_UNBOUND_SCAN"] {
+        assert!(explain_code(code).unwrap().contains(boundary), "{code}: missing the web trust boundary");
+    }
+    for text in [card("prediction").unwrap(), README] {
+        assert!(text.contains("the backend compiler's structural admission") && text.contains("hand-built or corrupted backend"));
+    }
+}
+
+#[test]
 fn w14b_digest_recipes_are_complete_and_share_the_period_helper() {
     let jobs = card("jobs").unwrap();
     let digest = quarry(jobs).into_iter().find(|b| b.contains("job digest(")).expect("a complete digest recipe");

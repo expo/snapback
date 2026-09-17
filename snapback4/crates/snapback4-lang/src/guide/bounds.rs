@@ -62,7 +62,7 @@ schema. For example, keeping a compiled read of `byOwner` after renaming
 that index leaves the scan unbound. Update the read's `by` clause and run
 `snapback4 check`, then use the regenerated backend together with its
 programs. Do not reuse old compiled programs against a new schema.
-Every host that compiles or serves a backend refuses it; a web device runs only a server-admitted backend and does not repeat the check.
+Compiling and serving refuse it, and a native device checks again; the web device trusts that admission and does not repeat the check, so a hand-built or corrupted backend can still run there.
 
 E_FANOUT means a loop received more items than its declared bound.
 For example, a raw program declaring a ten-item loop cannot consume an

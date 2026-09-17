@@ -47,7 +47,7 @@ their values. Pinning `.readerId` decides visibility; it grants no read
 authority over another reader's inbox. See `guide feeds` for removal limits.
 The pass is atomic and still aborts above 1,024 rows written. `check --cost`
 prints "a pass over the first N rows of <prefix>; examined ceiling <n>".
-For structural fanout, every host that compiles or serves a backend refuses it; a web device runs only a server-admitted backend and does not repeat the check.
+For structural fanout, compiling and serving refuse it, and a native device checks again; the web device trusts that admission and does not repeat the check, so a hand-built or corrupted backend can still run there.
 
 The table names are the language card's; a `job` is `chunk row in
 t[prefix] first N by index:` sweeps (guide jobs), or `native`: the app's
