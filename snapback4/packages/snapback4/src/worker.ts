@@ -23,6 +23,13 @@ export interface Effect<Payload = unknown> {
   readonly at: number;
 }
 
+/** @internal */
+export interface GeneratedEffect extends Effect {
+  readonly leaseToken: string;
+  readonly declarationContract?: string;
+  readonly deadline?: number | null;
+}
+
 export interface EffectMeta {
   readonly id: string;
   readonly effect: string;
@@ -103,6 +110,21 @@ interface ClaimReply {
   worker?: string;
   denied?: Refusal;
 }
+
+/** @internal Generated server registry seam; runWorker's public effect wire is
+ * intentionally separate and unchanged. */
+export type GeneratedEffectOutcome =
+  | { readonly kind: "settle"; readonly result: unknown }
+  | { readonly kind: "active-error"; readonly error: string; readonly retry: boolean }
+  | { readonly kind: "authority-lost"; readonly error: string; readonly terminal: boolean };
+
+/** @internal */
+export interface GeneratedEffectRegistration {
+  readonly declarationContract: string;
+  execute(effect: GeneratedEffect, meta: EffectMeta): Promise<GeneratedEffectOutcome>;
+}
+
+class GeneratedEffectTerminal extends Error {}
 
 /** Claim, perform, settle, repeat. Runs until `signal` aborts. */
 export function runWorker(options: WorkerOptions): Worker {
@@ -248,6 +270,110 @@ export function runWorker(options: WorkerOptions): Worker {
     })];
   };
   const done = Promise.all([...Object.keys(effects).map(name => loop("effects", () => ({ path: "/effects/claim", filter: { effect: name, fenced: true }, wait: options.wait ?? 25 }))), ...actionLoops()]).then(() => {}).finally(() => options.signal?.removeEventListener("abort", abort));
+  return { done, principal: () => principal };
+}
+
+/** The declaration-bound effect arm used only by generated startServer(). */
+// @ref LLP 3000.009#5.2 — generated claims bind one exact declaration and never settle after authority loss.
+export function runGeneratedEffects(options: WorkerOptions, registry: Readonly<Record<string, GeneratedEffectRegistration>>): Worker {
+  const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
+  const base = options.url.replace(/\/$/, "");
+  const headers = { "content-type": "application/json", authorization: `Bearer ${options.token}` };
+  const stop = new AbortController();
+  const abort = () => stop.abort(options.signal?.reason);
+  if (options.signal?.aborted) abort(); else options.signal?.addEventListener("abort", abort, { once: true });
+  let principal: string | null = null;
+  const rawReport = options.onError ?? ((error: unknown) => console.error("snapback4 worker:", error));
+  const redact = options.redact ?? ((message: string) => message);
+  const message = (error: unknown) => redact(error instanceof Error ? error.message : String(error));
+  const effectMessage = (effect: GeneratedEffect, error: unknown) => message(error).split(effect.leaseToken).join("[REDACTED]");
+  const report = (error: unknown) => rawReport(options.redact ? new Error(message(error)) : error);
+  const terminal = (error: Error): never => {
+    const failure = new GeneratedEffectTerminal(error.message);
+    report(failure); stop.abort(failure); throw failure;
+  };
+  const pause = () => new Promise<void>((resolve) => {
+    if (stop.signal.aborted) { resolve(); return; }
+    const finish = () => { clearTimeout(timer); stop.signal.removeEventListener("abort", finish); resolve(); };
+    const timer = setTimeout(finish, 2_000);
+    stop.signal.addEventListener("abort", finish, { once: true });
+  });
+  const post = async (path: string, body: unknown, effectLease?: string): Promise<unknown> => {
+    const response = await doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(effectLease ? { "x-snapback-effect-lease": effectLease } : {}) }, body: JSON.stringify(body), signal: stop.signal });
+    const reply = await response.json() as { denied?: Refusal };
+    if (reply.denied?.family === "auth" && !stop.signal.aborted) {
+      stop.abort(reply.denied);
+      try { options.onAuthFailure?.(); } catch (error) { report(error); }
+    }
+    return reply;
+  };
+  const settle = async (effect: GeneratedEffect, outcome: { result: unknown } | { error: string; retry: boolean }) => {
+    const path = "result" in outcome ? `/effects/${encodeURIComponent(effect.id)}/done` : `/effects/${encodeURIComponent(effect.id)}/failed`;
+    let reply: { ok?: boolean; denied?: Refusal };
+    try { reply = await post(path, outcome, effect.leaseToken) as { ok?: boolean; denied?: Refusal }; }
+    catch (error) { throw new Error(effectMessage(effect, error)); }
+    if (reply.denied?.code === "E_EFFECT_GENERATION") terminal(new Error(`${reply.denied.code}: ${reply.denied.message}`));
+    if (reply.denied) report(new Error(effectMessage(effect, `${reply.denied.code}: ${reply.denied.message}`)));
+    return !reply.denied;
+  };
+  const perform = async (effect: GeneratedEffect, registration: GeneratedEffectRegistration) => {
+    const meta: EffectMeta = Object.freeze({ id: effect.id, effect: effect.effect, attempt: effect.attempt, seq: effect.seq, at: effect.at, worker: principal ?? "" });
+    const outcome = await registration.execute(effect, meta);
+    if (outcome.kind === "authority-lost") {
+      if (outcome.terminal) terminal(new Error(outcome.error));
+      report(new Error(outcome.error));
+      return;
+    }
+    if (outcome.kind === "active-error") {
+      let recorded = false;
+      try { recorded = await settle(effect, { error: outcome.error, retry: outcome.retry }); }
+      finally { if (!recorded) report(new Error(outcome.error)); }
+      return;
+    }
+    try { await settle(effect, { result: outcome.result === undefined ? null : outcome.result }); }
+    catch (error) {
+      if (stop.signal.aborted) throw error;
+      let recorded = false;
+      try { recorded = await settle(effect, { error: effectMessage(effect, error), retry: true }); }
+      finally { if (!recorded) report(new Error(effectMessage(effect, error))); }
+    }
+  };
+  const loop = async (name: string, registration: GeneratedEffectRegistration) => {
+    while (!stop.signal.aborted) {
+      let reply: ClaimReply;
+      try {
+        reply = await post("/effects/claim", { limit: options.batch ?? 8, lease: options.lease ?? 60, wait: options.wait ?? 25, effect: name, fenced: true, declarationContract: registration.declarationContract }) as ClaimReply;
+      } catch (error) {
+        if (stop.signal.aborted) return;
+        report(error); await pause(); continue;
+      }
+      if (reply.denied) {
+        const error = new Error(`${reply.denied.code}: ${reply.denied.message}`);
+        if (reply.denied.code === "E_EFFECT_GENERATION") terminal(error);
+        report(error);
+        if (reply.denied.family === "auth") return;
+        await pause(); continue;
+      }
+      if (reply.worker) principal = reply.worker;
+      else if (reply.effects?.length && principal === null) principal = "service";
+      if (reply.effects !== undefined && !Array.isArray(reply.effects)) terminal(new Error(`E_EFFECT_GENERATION: generated claim for ${name} returned an invalid effect list`));
+      const effects = (reply.effects ?? []) as GeneratedEffect[];
+      for (const effect of effects) {
+        if (!effect || typeof effect !== "object" || effect.effect !== name || typeof effect.leaseToken !== "string" || !effect.leaseToken || effect.declarationContract !== registration.declarationContract) {
+          const id = effect && typeof effect === "object" && typeof effect.id === "string" ? effect.id : "<unknown>";
+          terminal(new Error(`E_EFFECT_GENERATION: claimed effect ${id} did not match generated declaration ${name}`));
+        }
+      }
+      const work = effects.map(effect => perform(effect, registration));
+      for (const result of await Promise.allSettled(work)) {
+        if (result.status === "rejected" && result.reason instanceof GeneratedEffectTerminal) throw result.reason;
+        if (result.status === "rejected" && !stop.signal.aborted) report(result.reason);
+      }
+      if (!work.length && (options.wait ?? 25) === 0) await pause();
+    }
+  };
+  const loops = Object.keys(registry).map(name => loop(name, registry[name]!));
+  const done = Promise.all(loops).then(() => {}).catch(error => { stop.abort(error); throw error; }).finally(() => options.signal?.removeEventListener("abort", abort));
   return { done, principal: () => principal };
 }
 

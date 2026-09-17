@@ -33257,3 +33257,41 @@ limits; the RFC B evidence row is updated. The next generated-context/lifetime
 slice starts independently of Workroom. This substrate does not complete B,
 Postgres effects, actual provider/process-cut qualification or publication,
 and does not implement the unaccepted draft credential redesign in §17.
+
+## 2026-09-17 — B3b generated effect-context source checkpoint
+
+Native Codex GPT-5.6 Sol at xhigh authored this bounded source checkpoint with
+no delegation. Generated server output now embeds Rust's existing
+`WorkSpec::effect_declaration_contract(exact_name)` beside each effect's secret
+names and types optional handlers as `(payload: unknown, ctx:
+EffectContext<declared secrets>)`. The TypeScript runtime does not recompute the
+digest. Generated servers use a separate internal per-name effect loop whose
+claim supplies `fenced: true` and that exact declaration digest. Low-level
+`runWorker`, its `(payload, EffectMeta)` signature, absent-contract claim wire,
+settlement behavior and direct callers are unchanged.
+
+The generated-only frozen context exposes safe effect metadata, live invocation
+state, exactly declared frozen secrets and the shared durable step runner. It
+does not expose principal, query, mutation, write-id, session, raw effect lease,
+service token, data or administrative authority. A narrow shared lifetime
+module now owns the abort-aware fetch and status cadence used by action and
+effect contexts; action context semantics are otherwise preserved. Generated
+effect status and steps use the exact encoded effect path, service bearer and
+private lease. Generation refusal or a claimed digest absence/mismatch rejects
+the generated worker before handler or settlement. Cancellation, deadline,
+terminal status, lease/generation/auth loss and transport uncertainty abort the
+context; post-loss top-level settlement is suppressed. Abort remains
+cooperative and does not claim to retract committed provider I/O.
+
+Focused Rust and package source witnesses were authored for static digest
+emission and change dimensions, per-effect secret typing, no TypeScript digest
+computation, exact generated versus legacy claim bodies, generation stops,
+safe context shape and redaction, status loss, and effect step paths and park
+semantics. Documentation calls this only the generated server effect-context
+slice over the existing SQLite B3a substrate. It is not typed effect payload,
+PostgreSQL effect work, provider qualification, process-crash proof, Draft §17
+scoped credentials or a completed B milestone.
+
+Per the commissioned source-only phase, no tests, builds, Cargo or Node command,
+formatter, generator, listener, provider, PostgreSQL, install, network, origin,
+remote, clone, fetch or push ran. The authored witnesses remain unexecuted.

@@ -4,41 +4,9 @@ import type { ActionMeta } from "./worker.ts";
 import { Retry } from "./worker.ts";
 import type { ServerContext, ServerOptions } from "./server.ts";
 import { ServerError } from "./server-json.ts";
+import { lifetimeFetch, statusPoller } from "./server-lifetime.ts";
 import { steps, writeIdFor } from "./server-steps.ts";
-
-/** Unlike a raw injected fetch, this settles on abort even if its implementation
- * ignores the signal. The pending fetch's rejection is still observed. */
-export async function untilAborted<T>(work: () => Promise<T>, signal?: AbortSignal | null): Promise<T> {
-  if (signal?.aborted) throw signal.reason;
-  if (!signal) return work();
-  return new Promise((resolve, reject) => {
-    const abort = () => { signal.removeEventListener("abort", abort); reject(signal.reason); };
-    signal.addEventListener("abort", abort, { once: true });
-    Promise.resolve().then(() => { if (signal.aborted) throw signal.reason; return work(); }).then(resolve, reject).finally(() => signal.removeEventListener("abort", abort));
-  });
-}
-
-/** Bind both a fetch and consumption of any response clones to one lifetime.
- * This is a settlement guard for injected transports that ignore AbortSignal,
- * not a claim that aborting a request cancels a committed server operation. */
-export function lifetimeFetch(doFetch: typeof fetch, lifetime: AbortSignal): typeof fetch {
-  const responseWithin = (response: Response, signal: AbortSignal): Response => new Proxy(response, {
-    get(target, property) {
-      if (property === "clone") return () => responseWithin(target.clone(), signal);
-      if (["arrayBuffer", "blob", "bytes", "formData", "json", "text"].includes(String(property))) {
-        const consume = Reflect.get(target, property, target) as ((...args: unknown[]) => Promise<unknown>) | undefined;
-        if (typeof consume === "function") return (...args: unknown[]) => untilAborted(() => consume.apply(target, args), signal);
-      }
-      const value = Reflect.get(target, property, target) as unknown;
-      return typeof value === "function" ? value.bind(target) : value;
-    },
-  });
-  return async (input, init) => {
-    const signal = init?.signal ? AbortSignal.any([lifetime, init.signal]) : lifetime;
-    const response = await untilAborted(() => doFetch(input, { ...init, signal }), signal);
-    return responseWithin(response, signal);
-  };
-}
+export { lifetimeFetch } from "./server-lifetime.ts";
 
 export function context(
   meta: ActionMeta,
@@ -52,7 +20,7 @@ export function context(
   let ended: Refusal | undefined;
   let closed = false;
   let cancelled = false;
-  let pollTimer: ReturnType<typeof setTimeout> | undefined;
+  let poller: { close(): void } | undefined;
   let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
   const deadline = meta.deadline ?? null;
   const started = performance.now();
@@ -64,7 +32,7 @@ export function context(
     if (ended) return;
     ended = why;
     cancelled = why.code === "E_ACTION_CANCELLED";
-    if (pollTimer) clearTimeout(pollTimer);
+    poller?.close();
     if (deadlineTimer) clearTimeout(deadlineTimer);
     lifetime.abort(why.retryable ? new Retry(`${why.code}: ${why.message}`) : new ServerError(why.code, why.message, why.family));
     void client.close();
@@ -107,35 +75,6 @@ export function context(
     if (!response.ok) throw new Retry(`action request failed with HTTP ${response.status}`);
     return json;
   };
-  const poll = async () => {
-    pollTimer = undefined;
-    if (closed || ended) return;
-    const timeout = new AbortController();
-    const timeoutTimer = setTimeout(() => timeout.abort(), 10_000);
-    try {
-      const reply = await post("/status", {}, timeout.signal) as { invocation?: { id: string; attempt: number; cancelled: boolean; state: string; errorCode?: string } };
-      if (closed || ended) return;
-      const status = reply.invocation;
-      if (!status || status.id !== meta.id || status.attempt !== meta.attempt) {
-        end({ code: "E_ACTION_LEASE", family: "action", message: "this action attempt no longer holds its lease" });
-      } else if (status.cancelled) {
-        end({ code: "E_ACTION_CANCELLED", family: "action", message: "the action was cancelled" });
-      } else if (status.state !== "running") {
-        end({ code: status.errorCode ?? "E_ACTION_LEASE", family: "action", message: "this action attempt is no longer running" });
-      }
-    } catch (error) {
-      if (!closed && !ended) {
-        end(error instanceof ServerError ? error.refusal : { code: "E_OFFLINE", family: "link", message: "the action status could not be confirmed", retryable: true });
-      }
-    } finally { clearTimeout(timeoutTimer); }
-    if (!closed && !ended) schedulePoll();
-  };
-  const schedulePoll = () => {
-    // The handler may be awaiting only its cancellation signal. Invocation
-    // timers own that live work until close/end; an unreferenced timer lets
-    // Node exit between claim and status with an unsettled top-level await.
-    pollTimer = setTimeout(() => { void poll(); }, options.statusIntervalMs ?? 1000);
-  };
   const onStop = () => end(closedWhy);
   if (options.signal?.aborted) onStop();
   else options.signal?.addEventListener("abort", onStop, { once: true });
@@ -146,7 +85,23 @@ export function context(
     deadlineTimer = setTimeout(scheduleDeadline, Math.min(remaining, 2_147_483_647));
   };
   scheduleDeadline();
-  if (!ended) schedulePoll();
+  if (!ended) poller = statusPoller({
+    intervalMs: options.statusIntervalMs ?? 1000,
+    stopped: () => closed || Boolean(ended),
+    async poll(timeout) {
+      const reply = await post("/status", {}, timeout.signal) as { invocation?: { id: string; attempt: number; cancelled: boolean; state: string; errorCode?: string } };
+      if (closed || ended) return;
+      const status = reply.invocation;
+      if (!status || status.id !== meta.id || status.attempt !== meta.attempt) {
+        end({ code: "E_ACTION_LEASE", family: "action", message: "this action attempt no longer holds its lease" });
+      } else if (status.cancelled) {
+        end({ code: "E_ACTION_CANCELLED", family: "action", message: "the action was cancelled" });
+      } else if (status.state !== "running") {
+        end({ code: status.errorCode ?? "E_ACTION_LEASE", family: "action", message: "this action attempt is no longer running" });
+      }
+    },
+    lost(error) { end(error instanceof ServerError ? error.refusal : { code: "E_OFFLINE", family: "link", message: "the action status could not be confirmed", retryable: true }); },
+  });
   return {
     context: Object.freeze({
       principal: meta.principal,
@@ -172,7 +127,7 @@ export function context(
     async close() {
       if (!closed) {
         closed = true;
-        if (pollTimer) clearTimeout(pollTimer);
+        poller?.close();
         if (deadlineTimer) clearTimeout(deadlineTimer);
         options.signal?.removeEventListener("abort", onStop);
         lifetime.abort(new ServerError(closedWhy.code, closedWhy.message));

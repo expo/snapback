@@ -46,7 +46,7 @@ fn legacy_unknown_and_empty_object_contracts_are_distinct() {
 fn empty_handler_maps_cannot_accept_undeclared_functions() {
     let server = emit::server_typescript(&clean(""));
     assert!(server.contains("export type Actions = Record<string, never>;"));
-    assert!(server.contains("effects?: Record<string, never>"));
+    assert!(server.contains("export type Effects = Record<string, never>"));
 }
 
 #[test]
@@ -60,10 +60,29 @@ fn work_settings_bind_for_actions_and_effects_with_legacy_defaults() {
     let server = emit::server_typescript(&bound);
     assert!(server.contains("ServerContext<\"BILLING_KEY\" | \"MAIL_KEY\">"), "{server}");
     assert!(server.contains(&format!("contract: \"{}\"", action.contract(&bound.programs[0].program))));
-    assert!(server.contains("notify: { secrets: [\"PUSH_KEY\"] }"));
-    assert!(server.contains("effects?: Partial<Record<\"notify\" | \"legacy\", EffectHandler>>"));
+    let notify = &bound.schema.effect_specs["notify"];
+    assert!(server.contains(&format!("notify: {{ contract: \"{}\", secrets: [\"PUSH_KEY\"] }}", notify.effect_declaration_contract("notify"))), "{server}");
+    assert!(server.contains("notify?: (payload: unknown, ctx: EffectContext<\"PUSH_KEY\">)"), "{server}");
+    assert!(server.contains("legacy?: (payload: unknown, ctx: EffectContext<never>)"), "{server}");
+    assert!(server.contains("effects?: Effects"));
+    assert!(!server.contains("EffectHandler"));
     assert!(server.contains("return startServer(manifest, handlers, options)"));
     assert!(!server.contains("ctx.sql"));
+}
+
+#[test]
+fn generated_effect_declaration_contract_binds_exact_name_secrets_and_policy() {
+    let base = clean("effect notify secrets [PUSH_KEY] retry 2 backoff 5s cancellation allow\n");
+    let renamed = clean("effect notify_v2 secrets [PUSH_KEY] retry 2 backoff 5s cancellation allow\n");
+    let secret = clean("effect notify secrets [OTHER_KEY] retry 2 backoff 5s cancellation allow\n");
+    let policy = clean("effect notify secrets [PUSH_KEY] retry 3 backoff 5s cancellation allow\n");
+    let contract = base.schema.effect_specs["notify"].effect_declaration_contract("notify");
+    assert_ne!(contract, renamed.schema.effect_specs["notify_v2"].effect_declaration_contract("notify_v2"));
+    assert_ne!(contract, secret.schema.effect_specs["notify"].effect_declaration_contract("notify"));
+    assert_ne!(contract, policy.schema.effect_specs["notify"].effect_declaration_contract("notify"));
+    let server = emit::server_typescript(&base);
+    assert!(server.contains(&format!("contract: \"{contract}\"")), "{server}");
+    assert!(!server.contains("createHash"), "the generated TypeScript must not recompute Rust declaration identity");
 }
 
 #[test]
@@ -141,7 +160,7 @@ fn qualified_action_names_and_proto_properties_are_preserved() {
     assert!(server.contains("\"mail.send\": (args: Record<string, never>, ctx: ServerContext<\"MAIL_KEY\">)"), "{server}");
     assert!(server.contains("[\"__proto__\"]: (args:"));
     assert!(server.contains("[\"__proto__\"]: { contract:"));
-    assert!(server.contains("[\"__proto__\"]: { secrets: [] }"));
+    assert!(server.contains(&format!("[\"__proto__\"]: {{ contract: \"{}\", secrets: [] }}", bound.schema.effect_specs["__proto__"].effect_declaration_contract("__proto__"))));
     assert!(!server.contains("__proto__:"));
     let bare = compile(&[("mail.q".into(), "action send()\nschedule reminder every 1m as service:mail: send\n".into())]);
     let diagnostic = bare.diagnostics.iter().find(|d| d.message.contains("names bare action")).unwrap();

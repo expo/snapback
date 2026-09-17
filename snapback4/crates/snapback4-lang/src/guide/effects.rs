@@ -65,13 +65,15 @@ Cancellation requires a proven necessary absence guard: `if not exists connected
 Potential dependency allocation, propagation and emission copies reserve the same heap allowance with or without grace on the server and device; actual allocations stay metered.
 For dispatch-time presence or any other presence-dependent decision, emit unconditionally and have the worker call a service mutation that reads `connected`.
 
-An effect accepts the same `secrets`, `retry`, `backoff`, `deadline` and `cancellation` clauses as an action (guide actions). A bare `effect notify` retains the defaults: eight total attempts, 4s initial backoff, no deadline, cancellation allowed. Generated `server({ actions, effects })` accepts optional legacy effect handlers; these still receive `(payload, meta)`.
+An effect accepts the same `secrets`, `retry`, `backoff`, `deadline` and `cancellation` clauses as an action (guide actions). A bare `effect notify` retains the defaults: eight total attempts, 4s initial backoff, no deadline, cancellation allowed. Generated `server({ actions, effects })` accepts optional `(payload, ctx)` handlers, with unknown payload and secrets typed to that effect's declared names. Low-level `runWorker` retains its `(payload, meta)` handler.
 
 Effects use the shared external-step transition policy through their own
 `_effect_steps` records and the provider-key domain
-`snapback4:effect-step:v1`; action rows and keys are unchanged. This bounded
-slice exposes the step wire, not a typed effect context: effect handlers still
-receive `(payload, meta)` and do not gain `ServerContext` or `ctx.step`.
+`snapback4:effect-step:v1`; action rows and keys are unchanged. A generated
+handler receives frozen `ctx.effect` metadata (`id`, `effect`, `attempt`, `seq`,
+`at`, `worker`), live `ctx.invocation` (`id`, `attempt`, `deadline`,
+`cancelled`, `signal`), its declared `ctx.secrets`, and `ctx.step`. It receives no principal, query,
+mutation, write-id, raw lease, service token or administrative surface.
 
 The data plane never calls out. `emit name { payload }` in a mutation or
 a job writes the payload durably in the same commit as the rows (a
@@ -120,8 +122,10 @@ payload or release. The server authenticates and compares it before queue
 expiry, selection or claim mutation; a missing current declaration or mismatch
 returns E_EFFECT_GENERATION without changing rows, attempts or steps. Successful
 claim JSON carries the server-derived `declarationContract`. Omitting the field
-retains the low-level and legacy worker behavior; this is declaration-fence
-substrate for a later generated effect context, not that context itself.
+retains low-level `runWorker` behavior. Generated output embeds the Rust-computed
+contract per exact effect name and full work declaration; TypeScript never
+recomputes it. E_EFFECT_GENERATION or a successful claim with a missing or
+mismatched contract stops that generated worker before handler or settlement.
 
 A fenced claim may call `POST /effects/<id>/steps/<name>/begin` with
 `{ input, reconcile? }`, `/done` with `{ result }`, or `/park` with
@@ -142,6 +146,14 @@ admitted row contract, preserves terminal drift evidence, and may finalize only
 the named row's deadline or recorded cancellation. It returns exactly `id`,
 `attempt`, `state`, `deadline`, `cancelled` and `errorCode`.
 
+While a generated handler runs, its context polls that exact status route under
+the service bearer and private effect lease. Cancellation, deadline, terminal
+state, lease/generation/auth loss or inability to confirm status aborts the
+context and prevents top-level settlement. `ctx.step` uses the same private
+lease at `/effects/<id>/steps/<name>/{begin,done,park}`. Tokens and declared
+secrets are redacted from failures. Abort is cooperative and does not retract a
+provider request that already committed; uncertain work must reconcile or park.
+
 New emits retain the current release as admission provenance and bind the exact
 generic `Value` payload and full admitted work policy to the effect name. Release
 is excluded from declaration and row-compatibility digests: changing only the
@@ -159,10 +171,10 @@ satisfied, failed, cancelled and already parked evidence is not rewritten.
 Direct core claim/settle methods remain compatibility APIs without this strict
 HTTP authority and generation boundary.
 
-This surface is only the claim declaration fence and strict status substrate.
-It does not add generated `EffectContext`, a TypeScript emitter or runtime
-handler, query/mutate/data/admin authority, a PostgreSQL adapter, provider
-qualification, crash proof, or a completed B milestone.
+This is the generated server effect-context slice over the existing SQLite
+claim/status/step substrate. It is not typed effect-payload, query/mutate/data/
+admin authority, a PostgreSQL adapter, provider qualification, process-crash
+proof, or a completed B milestone.
 
 ## Effect lifecycle refusals
 

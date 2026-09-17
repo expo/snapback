@@ -1,7 +1,8 @@
 // Node's application runtime; generated/server.ts binds the declared handlers.
 import type { Client } from "./contract.ts";
-import { runWorker, type ActionHandler, type EffectHandler, type Worker, type WorkerOptions } from "./worker.ts";
+import { GiveUp, runGeneratedEffects, runWorker, type ActionHandler, type EffectMeta, type GeneratedEffectOutcome, type GeneratedEffectRegistration, type Worker, type WorkerOptions } from "./worker.ts";
 import { context } from "./server-context.ts";
+import { effectContext } from "./server-effect-context.ts";
 import { identityRuntime } from "./identity-runtime.ts";
 import { redactor, ServerError, strictJson } from "./server-json.ts";
 import { identityExecutor, type IdentityRuntime } from "./server-private.ts";
@@ -31,9 +32,25 @@ export interface ServerContext<Secrets extends string = never> {
   writeIdFor(label: string): string;
 }
 
+export interface EffectContext<Secrets extends string = never> {
+  readonly effect: Readonly<EffectMeta>;
+  readonly invocation: {
+    readonly id: string;
+    readonly attempt: number;
+    readonly deadline: number | null;
+    readonly cancelled: boolean;
+    /** Aborted on cancellation, deadline, terminal state, lost authority or uncertainty. */
+    readonly signal: AbortSignal;
+  };
+  readonly secrets: Readonly<Record<Secrets, string>>;
+  readonly step: StepRunner;
+}
+
+export type GeneratedEffectHandler<Secrets extends string = never> = (payload: unknown, ctx: EffectContext<Secrets>) => Promise<unknown> | unknown;
+
 export interface ServerManifest {
   readonly actions: Readonly<Record<string, { readonly contract: string; readonly secrets: readonly string[] }>>;
-  readonly effects: Readonly<Record<string, { readonly secrets: readonly string[] }>>;
+  readonly effects: Readonly<Record<string, { readonly contract: string; readonly secrets: readonly string[] }>>;
   readonly routes?: Readonly<Record<string, RouteDeclaration>>;
 }
 
@@ -52,7 +69,7 @@ export interface ServerHandlers {
   // Generated signatures enforce each action's Args, Result and literal secret
   // union. Erase both parameters only at this registry boundary.
   readonly actions?: Readonly<Record<string, (args: never, ctx: never) => unknown>>;
-  readonly effects?: Readonly<Record<string, EffectHandler<never>>>;
+  readonly effects?: Readonly<Record<string, (payload: never, ctx: never) => unknown>>;
   readonly routes?: Readonly<Record<string, ((req: never, ctx: never) => unknown) | {
     readonly verify: (req: never, ctx: never) => unknown;
     readonly handle: (req: never, ctx: never) => unknown;
@@ -158,7 +175,41 @@ export function startServer(manifest: ServerManifest, handlers: ServerHandlers, 
       return routeResponse(result, ctx.invocation.signal);
     });
   }
-  const workers = [runWorker({ ...runtimeOptions, actions, actionRegistry: true, ...(handlers.effects ? { effects: handlers.effects } : {}), redact, onAuthFailure: () => stop.abort() })];
+  const workers = [runWorker({ ...runtimeOptions, actions, actionRegistry: true, redact, onAuthFailure: () => stop.abort() })];
+  if (handlers.effects && Object.keys(handlers.effects).length) {
+    const registry: Record<string, GeneratedEffectRegistration> = Object.create(null);
+    for (const name of Object.keys(handlers.effects)) {
+      const declaration = manifest.effects[name]!, handler = handlers.effects[name]!;
+      registry[name] = {
+        declarationContract: declaration.contract,
+        async execute(effect, meta): Promise<GeneratedEffectOutcome> {
+          const scopedRedact = (message: string) => declaration.secrets.reduce(
+            (safe, secret) => safe.split(secret).join("[REDACTED]"),
+            redact(message.split(effect.leaseToken).join("[REDACTED]")),
+          );
+          let secrets: Readonly<Record<string, string>>;
+          try { secrets = secretsFor(declaration.secrets); }
+          catch (error) {
+            return { kind: "active-error", error: scopedRedact(error instanceof Error ? error.message : String(error)), retry: !(error instanceof GiveUp) };
+          }
+          const lifetime = effectContext(effect, meta, secrets, runtimeOptions, scopedRedact);
+          try {
+            lifetime.context.invocation.signal.throwIfAborted();
+            const result = await handler(effect.payload as never, lifetime.context as never);
+            await lifetime.confirm();
+            return { kind: "settle", result };
+          } catch (error) {
+            const lost = lifetime.authorityLost();
+            if (lost.lost || (error instanceof ServerError && ["E_STEP_PARKED", "E_STEP_RESULT"].includes(error.refusal.code))) {
+              return { kind: "authority-lost", error: lost.lost ? lost.message : scopedRedact(`${error.refusal.code}: ${error.refusal.message}`), terminal: lost.terminal };
+            }
+            return { kind: "active-error", error: scopedRedact(error instanceof Error ? error.message : String(error)), retry: !(error instanceof GiveUp) };
+          } finally { lifetime.close(); }
+        },
+      };
+    }
+    workers.push(runGeneratedEffects({ ...runtimeOptions, redact, onAuthFailure: () => stop.abort() }, registry));
+  }
   if (Object.keys(verifiers).length) workers.push(runVerifiers({ ...runtimeOptions, routes: verifiers, secrets: secretsFor, redact, stop: () => stop.abort() }));
   const done = Promise.allSettled(workers.map(worker => worker.done.catch(error => { stop.abort(error); throw error; }))).then(results => {
     const failed = results.find(result => result.status === "rejected");

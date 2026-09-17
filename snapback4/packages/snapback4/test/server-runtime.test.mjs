@@ -516,7 +516,7 @@ for (const size of [128, 129, 513]) test(`generated ${size}-action registry open
   const names = Array.from({length:size}, (_, i) => `work-${i}`), stop = new AbortController(), errors = [];
   const calls = [];
   const worker = startServer({actions:Object.fromEntries(names.map(name => [name, {contract:"v1", secrets:[]}])),
-    effects:{mail:{secrets:[]}, push:{secrets:[]}}, routes:{billing:{contract:"v1", method:"POST", path:"/hook", service:"service:billing", secrets:[]}}}, {
+    effects:{mail:{contract:"mail-v1", secrets:[]}, push:{contract:"push-v1", secrets:[]}}, routes:{billing:{contract:"v1", method:"POST", path:"/hook", service:"service:billing", secrets:[]}}}, {
     actions:Object.fromEntries(names.map(name => [name, () => ({})])), effects:{mail() {}, push() {}},
     routes:{billing:{verify:() => true, handle:() => new Response()}},
   }, {url:"http://runtime.test", token:"service-token", signal:stop.signal,
@@ -537,6 +537,7 @@ for (const size of [128, 129, 513]) test(`generated ${size}-action registry open
     assert.equal(calls.filter(call => call.path === "/routes/verify/claim").length, 1);
     assert.deepEqual(calls.filter(call => call.path === "/effects/claim").map(call => call.body.effect), ["mail", "push"]);
     assert.ok(calls.filter(call => call.path === "/effects/claim").every(call => call.body.fenced === true));
+    assert.deepEqual(calls.filter(call => call.path === "/effects/claim").map(call => call.body.declarationContract), ["mail-v1", "push-v1"]);
   } finally { stop.abort(); await worker.done; }
   assert.deepEqual(errors, []);
 });
