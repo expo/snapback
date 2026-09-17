@@ -30267,3 +30267,36 @@ Ticketed from the review after reading both code paths:
 response is replaced by a bare `E_BOUND` body with no generation, the client only halves
 its page, and one undeliverable commit wedges a device. Decision L11: a third and last
 round; READY from both still builds nothing until §7's measurements are taken.
+
+## 2026-09-17 — maintained columns: round 3 converged; revision 4; the digest lane reported
+
+**LLP 3000.007.001, round 3** (revision 3, the private maintain plus mirror): GPT NOT READY,
+Grok READY WITH CHANGES; records `llp/reviews/3000.007.001-maintained-columns-3.{gpt,grok}.md`
+(landed with revision 4 in `03eb843b8c`; this entry and decision L12 were meant for that
+commit and missed it when an edit script stopped on an assertion — wave 13's section text
+had added a second `**Revised:**` string to LLP 3000.007, which the script took for the
+header). Both families call the mirror the right mechanism and round 2's limbo findings
+dissolved, and neither found a live parent whose column and private total disagree
+unrepaired. For the first time their Highs are the same two things: **"private" was a
+naming convention, not a mechanism** (the target is a schema table every enumeration
+shows; `GET /schema` is the device's `Backend` and would send it to every client; a raw
+rule can probe it without consulting its read rule; a native job reads it as the system),
+and **the reservation must be new and always-on** (`reserve_maintains` returns early for a
+uniformly readable source, the system context and an unfiltered maintain — exactly public
+likes — and the private aggregate's own work differs across hidden totals: `1→0` deletes a
+row and its index entries, `n→m` does not). GPT alone: a parent can become live with no
+listed trigger when a defaulted `expiresAt` is widened to optional. Revision 4 folds all of
+it. Decision L12 revises L11: one more, confirmation-only round.
+
+**Lane W14b reported** (`~/projects/snapback-next-20260914/W14b.final.md`): the jobs card's
+worked job is a range-seek sweep; the staging-free digest, its hub envelope and the
+past-the-envelope totals form are on the card and in the README; the expiry rewrite now
+ends "or use a job chunk, which may read a table with expiry"; seven new simulator digest
+tests, regression tests red before and green after. Its measurements on a debug build: the
+period seek examines 7,003 rows for the scaled hub and finishes, the ordinal seek attempts
+16,385 and parks; at 1,000 memberships 14,381 period messages fit and 14,382 park; a
+parked run queued again re-emits (1 → 2). It corrected the brief: the probe's inbox
+counted from zero while the job counted a period, so they agreed only by fixture. Its
+suite's three client failures are the known sandbox artifacts and await a run outside the
+sandbox; the host's load average was above 100 when it reported. Not yet committed,
+reviewed or landed.
