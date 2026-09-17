@@ -32011,3 +32011,13 @@ One preceding syntax command mistakenly prefixed the path with `snapback4/`
 while already in that directory; it failed with `MODULE_NOT_FOUND` before
 reading a source file. The immediately corrected command above passed. This
 instrument-path error is not a product or test failure.
+
+## 2026-09-17 — B1d.3 provider-contract documentation completion
+
+Native Sol added only the supplied Resend idempotency/retrieval/test-delivery,
+ten-minute versus 24-hour, key-namespace, seven-day managed-policy, Workroom
+renewal-reminder and terminal cancellation/unknown limitations to the optional
+variant README. Source and test bytes are unchanged. The prior 32 focused
+assertions remain the retained receipt and were not rerun. No external lookup,
+engine, provider, network, install or Rust command ran; the supervisor owns the
+final bundle and all pending qualification.
