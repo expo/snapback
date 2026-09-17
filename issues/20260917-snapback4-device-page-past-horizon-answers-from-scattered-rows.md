@@ -1,6 +1,6 @@
 # Snapback 4: a device pages past its horizon from scattered old rows and calls the page complete — a timeline silently skips posts
 
-Status: Open
+Status: Open — taken 2026-09-17 by the wave 13 lead as lane W13g (after W13c lands; two-family blind review; ships with 0.2.29). The open design question that lane puts to its review: whether an update that moves a *held* row's horizon-index key below the boundary deletes it from the device or leaves it as a row the coverage rule excludes
 Priority: P1 (a wrong answer marked `complete: true, fresh: true`, on the published product, in the most ordinary app shape: a horizoned public table whose old rows are ever updated)
 Date: 2026-09-17
 Systems: `snapback4-core` `partition.rs` (the change stream applies no horizon), `engine/read.rs` (the device's horizon coverage rule in the scan loop); `snapback4-device` `device.rs` (`apply` stores every `put`); the sync card and `NOT-DOING.md` ("A local read past the horizon says `complete: false`")
