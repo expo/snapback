@@ -264,17 +264,15 @@ deterministic mock cases. A process that double-forks and reparents between
 snapshots can still escape sampled ancestry, so this diagnostic launcher makes
 no generic subtree-custody claim.
 
-## R3 source review disposition — 2026-09-17
+## Bounded contract clarification — 2026-09-17
 
-Fresh, mutually blind source reviews of `19cc2656f7` returned Sol NOT READY
-and Grok READY. Sol correctly identified that the earlier documentation's
-hard overall 30-second claim did not match the independently bounded snapshot
-calls, and that the leading historical hash was ambiguously labelled. This
-documentation-only correction narrows that claim; it does not change the
-runner or test bytes or retroactively report the earlier review as READY.
-No fourth product-code repair round was undertaken.
+The supervisor narrows the timing claim to the contract stated above. This
+documentation-only correction changes neither runner nor test bytes and does
+not create any new execution evidence. The prior hard overall 30-second claim
+was inaccurate; it is not retroactively treated as satisfied. No fourth
+product-code repair round was undertaken.
 
-Grok additionally noted two bounded completeness limits. Five seconds of
+Two further bounded completeness limits remain. Five seconds of
 SIGINT grace can leave only 25 seconds for the leader group's default TERM
 wait, exhausting the budget before KILL; the survivor/deadline receipt is
 then non-green. A cap/disk/driver stop preserves its original process exit
