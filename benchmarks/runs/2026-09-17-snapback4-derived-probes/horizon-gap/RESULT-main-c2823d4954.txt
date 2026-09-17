@@ -1,0 +1,11 @@
+control page 1 (before any like)   rows: p12(0) p11(0) p10(0) | next: true | {"complete":true,"cut":null,"fresh":true}
+control page 2 (before any like)   rows: p09(0) p08(0) p07(0) | next: true | {"complete":true,"cut":null,"fresh":true}
+control page 3 (before any like)   rows: p06(0) p05(0) p04(0) | next: true | {"complete":true,"cut":null,"fresh":true}
+device page 1 (after likes)        rows: p12(0) p11(0) p10(0) | next: true | {"complete":true,"cut":null,"fresh":true}
+device page 2                      rows: p09(0) p08(0) p07(0) | next: true | {"complete":true,"cut":null,"fresh":true}
+device page 3                      rows: p06(0) p05(0) p04(1) | next: true | {"complete":true,"cut":null,"fresh":true}
+server page 1                      p12 p11 p10
+server page 2                      p09 p08 p07
+server page 3                      p06 p05 p04
+page 2: device EQUALS server
+page 3: device EQUALS server

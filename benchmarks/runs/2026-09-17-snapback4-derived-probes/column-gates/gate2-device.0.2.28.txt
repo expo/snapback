@@ -1,0 +1,4 @@
+seeded 25100; the device acquired 2000; horizon 2026-01-01T11:54:17.000Z
+likes replayed: 2500 (failed 0); distinct liked posts beyond the horizon: 1165
+device holds 28265 posts rows = acquired 2000 + created after acquisition 25100 + BEYOND ITS HORIZON 1165
+rows gained beyond the horizon, at the device: 1165 = 58.3% of the 2000 acquired — gate: 10%

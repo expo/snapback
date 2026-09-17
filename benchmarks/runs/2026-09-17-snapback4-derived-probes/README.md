@@ -298,6 +298,30 @@ public feed: any chat longer than its horizon in which an old message is edited,
 tombstoned or otherwise updated shows a gapped thread on every device that was connected
 at the time.
 
+## After the repair: the same probes on main `c2823d4954` (wave 13's lane W13g)
+
+W13g landed the same day: a device page over a horizoned table is complete by its
+**acquisition boundary**, which the server names on the snapshot wire
+(`acquisitions[{at, table, index, group, floor?}]`), and the device declines an unheld row
+below it. The probes above were re-run against a build of that commit (binary, wasm device
+and client package built from main; nothing published yet):
+
+- `horizon-gap/` (`RESULT-main-c2823d4954.txt`): after the two old likes the device pages
+  `p12 p11 p10`, `p09 p08 p07`, `p06 p05 p04(1)` — **equal to the server's**, every page
+  complete. `horizon-gap-group/`: `m12 m11 m10`, `m09 m08 m07`, `m06 m05 m04*` — equal.
+- `horizon-gap/growth.mjs` reads the device's own persisted row store: published 0.2.28
+  holds `p02 p04 p08 … p12` after the likes; main holds `p08 … p12`.
+- **Gate 2 at the device** (`column-gates/gate2-device.mjs`: the pinned fixture workload
+  through the real wasm device in Node, counting held `posts` rows beyond the horizon):
+
+| Build | Acquired | Created after acquisition | **Held beyond the horizon** | of acquired | Gate (10%) |
+| --- | ---: | ---: | ---: | ---: | --- |
+| published 0.2.28 | 2,000 | 25,100 | **1,165** | 58.3% | fails |
+| main `c2823d4954` | 2,000 | 25,100 | **0** | 0.0% | **passes** |
+
+The server still sends those 1,165 parent images (gate 1's bytes are unchanged); the device
+no longer keeps them, and no page is answered from them.
+
 ## `published-0.2.28/` — the two recipes this program shipped, pasted blind from the published binary
 
 0.2.28 carries the hour-lanes Trending (wave 12's lane W12R1c, from §21.1 item 1) and the

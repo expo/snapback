@@ -36460,3 +36460,34 @@ Final root reference check:
 ./ref-check --verbose
 ref-check: ok — 483 LLP docs, 9081 refs in 24233 files, 0 errors, 0 unchecked
 ```
+
+## 2026-09-17 — the horizon repair, verified by the probes that found the defect; maintained columns' gate 2 passes
+
+Wave 13's lane W13g landed (`157a807982`, header fix `c2823d4954`): a device page over a
+horizoned table is complete by its acquisition boundary, carried on the snapshot wire, and
+the device declines an unheld row below it. The derived-data lead had filed the defect and
+owns the gate it blocked, so it did not take the landing on report: it built main (binary,
+wasm device, client package) in an idle lane worktree and re-ran its own probes.
+
+- `horizon-gap/`: after two likes on old posts the device pages `p12 p11 p10`, `p09 p08 p07`,
+  `p06 p05 p04(1)` — the server's pages; on published 0.2.27 and 0.2.28 it paged
+  `p09 p08 p04` and skipped three posts. `horizon-gap-group/` (a chat thread, an edit to two
+  old messages): `m09 m08 m07`, `m06 m05 m04*` — the server's pages.
+- `horizon-gap/growth.mjs`, which reads the device's own persisted row store
+  (`memoryPersistence().stores`, store `r`, key `["posts", id]`): 0.2.28 holds
+  `p02 p04 p08…p12` after the likes; main holds `p08…p12`.
+- **Gate 2 of LLP 3000.007.001 at the device** (`column-gates/gate2-device.mjs`: the workload
+  pinned before the first measurement — the scale fixture's recorded like stream, a device
+  acquiring at the 50% checkpoint — through the real wasm device in Node): published 0.2.28
+  holds **1,165** posts beyond its horizon (58.3% of the 2,000 acquired); main holds **0**.
+  The gate passes. 27,100 rows held = 2,000 acquired + 25,100 created afterwards.
+
+Recorded in LLP 3000.007 §21.10 and §21.8 L25, LLP 3000.007.001 §7.1/§3.6, and the probe
+record's README. The server still sends the 1,165 parent images, so gate 1's bytes are
+unchanged; the boundary-aware stream (the design's unreviewed lever) now has its
+prerequisite, since the device knows its floor. Nothing is built or published by this step.
+
+Learned: the first gate-2 measurement counted rows *sent*, because that is what a raw
+`/sync` client can see; the re-measurement had to count rows *held*, which needed the real
+device and a way to look inside it. `memoryPersistence()` exposes its stores for exactly
+this. Measure the claim at the layer the claim is about.
