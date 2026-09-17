@@ -91,8 +91,7 @@ fn following_removal_cut_memory() { for followers in [5, 51] { removal_cut(snapb
 #[test]
 fn following_removal_cut_sqlite() { for followers in [5, 51] { removal_cut(snapback4_core::Store::memory().unwrap(), "sqlite", followers); } }
 
-#[test]
-fn following_removal_reaches_every_reader_before_purge_on_both_stores() {
+fn following_removal_reaches_every_reader_before_purge(host: &mut dyn HostDyn) {
     for followers in [5, 900] {
         let (mut engine, backend) = compile(&world::source());
         assert!(backend.schema.operations.contains_key("unrepost"), "feeds must publish removal");
@@ -111,45 +110,55 @@ fn following_removal_reaches_every_reader_before_purge_on_both_stores() {
         case::purge(&mut engine);
         for event in &events { assert_eq!(case::event_rows(&engine, event), 0); }
         let purged: Vec<_> = viewers.iter().map(|viewer| stream_page(&mut engine, viewer, before)).collect();
-        on_both(|host| {
-            let label = host.label();
-            for (n, viewer) in viewers.iter().enumerate() {
-                let mut device = host.open(viewer, Some(backend.clone())).unwrap();
-                for (i, page) in snapshots[n].iter().enumerate() { ok(apply(&mut *device, page, i == 0)); }
-                let local = query(&mut *device, "following", viewer, serde_json::json!({}), 10);
-                assert_eq!(local["complete"], true);
-                assert_eq!(rows(&local).len(), 3, "{label} {viewer}");
-                if viewer == case::AUTHOR {
-                    for (seq, op, post) in [(1, "deletePost", "new-post"), (2, "unrepost", case::ORIGINAL)] {
-                        let admitted = ok(device.call(serde_json::json!({ "op":"admit", "entry": {
-                            "id":op, "seq":seq, "op":op, "args":{"postId":post}, "viewer":viewer, "now":4, "predictable":true
-                        }})));
-                        assert_eq!(admitted["predictable"], true, "public source ownership is held, so removal predicts");
-                    }
-                    let pending = query(&mut *device, "following", viewer, serde_json::json!({}), 10);
-                    assert_eq!(rows(&pending).len(), 1, "only the old pushed event remains before server removal");
+        let label = host.label();
+        for (n, viewer) in viewers.iter().enumerate() {
+            let mut device = host.open(viewer, Some(backend.clone())).unwrap();
+            for (i, page) in snapshots[n].iter().enumerate() { ok(apply(&mut *device, page, i == 0)); }
+            let local = query(&mut *device, "following", viewer, serde_json::json!({}), 10);
+            assert_eq!(local["complete"], true);
+            assert_eq!(rows(&local).len(), 3, "{label} {viewer}");
+            if viewer == case::AUTHOR {
+                for (seq, op, post) in [(1, "deletePost", "new-post"), (2, "unrepost", case::ORIGINAL)] {
+                    let admitted = ok(device.call(serde_json::json!({ "op":"admit", "entry": {
+                        "id":op, "seq":seq, "op":op, "args":{"postId":post}, "viewer":viewer, "now":4, "predictable":true
+                    }})));
+                    assert_eq!(admitted["predictable"], true, "public source ownership is held, so removal predicts");
                 }
-                ok(apply(&mut *device, &removal[n], false));
-                if viewer == case::AUTHOR {
-                    for op in ["deletePost", "unrepost"] { ok(device.call(serde_json::json!({"op":"settle", "id":op, "seq":removal[n].watermark}))); }
-                }
-                let local = query(&mut *device, "following", viewer, serde_json::json!({}), 10);
-                assert_eq!(local["complete"], true);
-                assert!(rows(&local).is_empty(), "{label} {viewer}: {local}");
-                for page in [&repost[n], &purged[n]] {
-                    assert!(!page.more);
-                    ok(apply(&mut *device, page, false));
-                    let local = query(&mut *device, "following", viewer, serde_json::json!({}), 10);
-                    assert_eq!(local["complete"], true);
-                    let visible = rows(&local);
-                    assert_eq!(visible.len(), 1);
-                    assert_eq!(visible[0]["eventId"], fresh);
-                }
-                device.close();
+                let pending = query(&mut *device, "following", viewer, serde_json::json!({}), 10);
+                assert_eq!(rows(&pending).len(), 1, "only the old pushed event remains before server removal");
             }
-            println!("REMOVAL host={label} followers={followers} readers={} immediate=all purge=all rerepost=all", viewers.len());
-        });
+            ok(apply(&mut *device, &removal[n], false));
+            if viewer == case::AUTHOR {
+                for op in ["deletePost", "unrepost"] { ok(device.call(serde_json::json!({"op":"settle", "id":op, "seq":removal[n].watermark}))); }
+            }
+            let local = query(&mut *device, "following", viewer, serde_json::json!({}), 10);
+            assert_eq!(local["complete"], true);
+            assert!(rows(&local).is_empty(), "{label} {viewer}: {local}");
+            for page in [&repost[n], &purged[n]] {
+                assert!(!page.more);
+                ok(apply(&mut *device, page, false));
+                let local = query(&mut *device, "following", viewer, serde_json::json!({}), 10);
+                assert_eq!(local["complete"], true);
+                let visible = rows(&local);
+                assert_eq!(visible.len(), 1);
+                assert_eq!(visible[0]["eventId"], fresh);
+            }
+            device.close();
+        }
+        println!("REMOVAL host={label} followers={followers} readers={} immediate=all purge=all rerepost=all", viewers.len());
     }
+}
+
+// Each store retains the complete 5/900-reader proof. Separate harness cases
+// let the blocking suite exercise the independent stores concurrently.
+#[test]
+fn following_removal_reaches_every_reader_before_purge_sqlite() {
+    following_removal_reaches_every_reader_before_purge(&mut Sqlite::new("removal-scale"));
+}
+
+#[test]
+fn following_removal_reaches_every_reader_before_purge_memory() {
+    following_removal_reaches_every_reader_before_purge(&mut Memory::new());
 }
 
 #[test]
