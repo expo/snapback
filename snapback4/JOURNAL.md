@@ -33224,3 +33224,36 @@ No production source, guide prose, prior evidence or earlier journal history
 was changed. Per the source-only authorization, no Cargo or Node command, test,
 build, formatter, generator, install, listener, network, clone, fetch, push,
 remote or additional model ran; these review-repair tests remain unexecuted.
+
+## 2026-09-17 — B3a qualification and integrated disposition
+
+The frozen `c65e11279` test repair subsequently ran serially on 450b from
+18:52:12.931Z to 18:52:19.963Z: core effect policy 12/12, the exact
+module-qualified real HTTP test 1/1 (65 filtered), and guide 50/50, all exit
+zero. Source archive digests matched before/after and tracked state stayed
+clean. The earlier E0618 test-helper shadowing failure and zero-selected host
+command remain historical failures/missing coverage, not passes.
+
+Original independent Grok review was READY; original Sol review was NOT READY
+for four test-discrimination gaps, now repaired. Sol's own-thread repair review
+is READY. Grok's final NOT READY asserts that SQL literal `10_000` prevents a
+test from running; the exact source-bound 12/12 result disproves that sole
+material assertion. Root read the full source, logs and all four substantive
+answers, accepts the refutation and preserves Grok's actual verdict verbatim.
+There is no claim of unanimous final READY. Remaining representative-field
+test coverage and inherited diagnostic wording advisories are recorded.
+
+The three source commits were integrated with origin trailers onto the
+current run branch. Only the first independent JOURNAL append conflicted:
+the complete prior prefix plus exactly 2,625 source bytes produced SHA-256
+`b70a5b889dfc4717b273a05bd8731329265d4aa4fc68fc71d5e13350290c4524`.
+The core/host implementation and core test remain identical to reviewed
+source. Main's guide example, HTTP read-cost fixture initialization and
+identity documentation are preserved. This follows semantic-delta landing;
+the latest-main complete battery was not rerun or claimed.
+
+`reports/20260917-bwork3a.md` records exact commands, digests, failures and
+limits; the RFC B evidence row is updated. The next generated-context/lifetime
+slice starts independently of Workroom. This substrate does not complete B,
+Postgres effects, actual provider/process-cut qualification or publication,
+and does not implement the unaccepted draft credential redesign in §17.
