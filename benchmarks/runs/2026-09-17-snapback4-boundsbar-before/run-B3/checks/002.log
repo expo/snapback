@@ -1,0 +1,28 @@
+schema.q:79:67 — E_QUARRY_TYPE: - needs matching numeric types; got int and time
+  rewrite: convert one operand
+  guide: types
+
+E_QUARRY_TYPE: a value meets a declaration of another type; the message names both.
+
+# Types
+
+E_QUARRY_TYPE means the expression's type does not fit its position.
+The diagnostic names the expected and actual types and the source location.
+A table reference is that table's typed id, not its row: read `table[id]`
+before selecting fields. Narrow an optional value with `if x != null:`,
+`x ! else CODE` or `x ?? default` before using it where a present value is
+required. Use the declared enum type when its variants cannot all widen
+to the helper's text bound; changing a type never converts stored values.
+
+Full card: snapback4 guide types
+
+schema.q:113:53 — E_QUARRY_TYPE: - needs matching numeric types; got int and time
+  rewrite: convert one operand
+  guide: types
+
+schema.q:149:62 — E_QUARRY_TYPE: - needs matching numeric types; got int and time
+  rewrite: convert one operand
+  guide: types
+
+check: 3 problems
+6 mutations never predict: like (reads online-only table posts), seedFollow (writes online-only table follows), seedLike (reads online-only table posts), seedMember (writes online-only table members), seedMessage (writes online-only table messages), seedMessages (writes online-only table messages) — snapback4 why <op>
