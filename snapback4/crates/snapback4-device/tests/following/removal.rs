@@ -112,7 +112,8 @@ fn following_removal_reaches_every_reader_before_purge(host: &mut dyn HostDyn) {
         let purged: Vec<_> = viewers.iter().map(|viewer| stream_page(&mut engine, viewer, before)).collect();
         let label = host.label();
         for (n, viewer) in viewers.iter().enumerate() {
-            let mut device = host.open(viewer, Some(backend.clone())).unwrap();
+            let store = format!("removal-{followers}-{viewer}");
+            let mut device = host.open(&store, Some(backend.clone())).unwrap();
             for (i, page) in snapshots[n].iter().enumerate() { ok(apply(&mut *device, page, i == 0)); }
             let local = query(&mut *device, "following", viewer, serde_json::json!({}), 10);
             assert_eq!(local["complete"], true);
