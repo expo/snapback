@@ -104,3 +104,43 @@ sessions. No movement in this table should be attributed to any one of them.
 **Also in scope:** the pre-existing horizon-gap P1 recorded above, reproduced by this
 lead on its own build, which can make a device feed silently skip rows on any
 version.
+
+
+---
+
+## Correction to the trend this record was filed under: the score is declining, not flat
+
+This record, the 0.2.27 record and `STATUS.md` all describe the programme's overall
+score as **flat**. Fitted rather than eyeballed, across all ten Astra-medium runs, it
+is not:
+
+    overall  [90, 91, 88, 91, 88, 88, 91, 90, 89, 85]
+             mean 89.10   sd 1.81   slope -0.30/run   total drift -2.67
+             the drift exceeds one standard deviation of the series
+
+Every category that measures the cost of *using* the surface slopes down over the
+same ten runs:
+
+| category | first → last | slope/run | drift |
+|---|---|---:|---:|
+| scale_and_limits | 88 → 65 | -1.51 | -13.6 |
+| queries_and_live | 91 → 81 | -0.98 | -8.8 |
+| setup_and_docs | 96 → 88 | -0.57 | -5.1 |
+| data_modeling | 85 → 82 | -0.45 | -4.1 |
+
+**`setup_and_docs` is included, and that is the correction that matters most.** It was
+repeatedly described in these records as the programme's success — 85 → 89 → 92 across
+runs 8–10. Fitted over all ten it is 96 → 88. Waves 10 and 11 produced a real local
+recovery *inside a declining line*; comparing adjacent runs made the recovery look like
+the trend. The error was comparing neighbours instead of fitting the series.
+
+**What this implies, and it is not "pick a better papercut".** Across twelve waves each
+release added capability, and every measure of the cost of comprehending that capability
+got worse, by more than the series' noise. The recurring deductions the 0.2.28 review
+groups as "total reads" (LLP 3000.007 §20.22) are the visible form of it. It also raises
+a question no review has yet put: whether some surface should be **removed** rather than
+better documented. The 0.2.28 review's own last item — measure adoption before funding
+another documentation wave — points the same way.
+
+Nothing in the per-run tables above changes. What changes is the frame they should be
+read in.
