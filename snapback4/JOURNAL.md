@@ -27950,3 +27950,31 @@ Only `process-custody.mjs`, harness wiring and these documentation records
 changed. No engine, provider, listener, app, test, build, install, Cargo,
 remote, publication or qualification command ran; every runtime matrix row
 remains PENDING.
+
+## 2026-09-17 — B1c default-diagnostic two-stream source correction
+
+Source inspection found that `safeCommand` captured both output streams from
+the default `why` command, but the B1c known-secret assertion retained and
+scanned only stdout. The qualification-only harness now passes the complete
+captured result to a small side-effect-free predicate and preserves the
+existing `default-diagnostic-secret` failure label when either stdout or
+stderr contains a known in-memory secret. Neither stream nor any matched value
+is emitted.
+
+The bounded standalone Node 24 assertion command was:
+
+```sh
+PATH=/Users/ccheever/.volta/tools/image/node/24.18.0/bin:$PATH node --test --test-concurrency=1 snapback4/packages/snapback4/test/fixtures/identity-recipe/diagnostic-secrecy.test.mjs
+```
+
+It passed 3/3 synthetic cases: stderr-only secret rejects, clean stdout and
+stderr pass, and stdout-only secret rejects. This was not an engine, provider
+or qualification run. The prior actual record remains partial positive /
+overall negative; this source correction cannot retroactively establish its
+default-diagnostic secrecy observation.
+
+The documented harness command is now explicitly payload-only. Execution
+requires a parent-owned external ProcessCustody envelope with a hard five-
+minute whole-run deadline, owned-process/descendant registration and cleanup
+on timeout; the harness itself has no whole-run cap, and this repository does
+not invent envelope CLI syntax.

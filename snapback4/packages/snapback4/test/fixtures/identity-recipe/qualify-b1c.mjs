@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { DatabaseSync } from "node:sqlite";
 import { authorizeWithKeycloak } from "./keycloak-browser.mjs";
+import { diagnosticStreamsAreSecretFree } from "./diagnostic-secrecy.mjs";
 import { captureEngineCustody, registerWorkerCustody, verifyWorkerCustody } from "./process-custody.mjs";
 
 const fixture = dirname(fileURLToPath(import.meta.url));
@@ -394,8 +395,8 @@ async function keycloakWitness(paths, scratch, config) {
       assert(tokenLocations(db, oldMint.session.token).length === 0, "old-token-persisted");
       assert(JSON.stringify(tokenLocations(db, done.result.token)) === JSON.stringify(["_requests.result"]), "final-token-result-only");
     } finally { db.close(); }
-    const diagnostic = safeCommand(paths.binary, project, ["why", completion.id]).stdout;
-    for (const secret of secrets) assert(!diagnostic.includes(secret), "default-diagnostic-secret");
+    const diagnostic = safeCommand(paths.binary, project, ["why", completion.id]);
+    assert(diagnosticStreamsAreSecretFree(diagnostic, secrets), "default-diagnostic-secret");
     observations.push("actual-keycloak-generated-helper", "post-commit-lost-reply-process-crash", "same-family-same-expiry-old-token-invalid", "default-diagnostic-redaction");
   } finally {
     if (engine) await engine.stop().catch(() => {});

@@ -102,6 +102,14 @@ evidence extraction and cleanup. Its engine databases contain protected action
 arguments and the legitimate final protected Session result: the directory is
 a private diagnostic workspace, never a public artifact.
 
+The command below is only the harness payload. Do not run it bare. The parent
+must place it inside an external ProcessCustody envelope with a hard five-minute
+whole-run deadline. That envelope must register the harness and its owned
+engine/worker descendants and clean up those registered owned processes on
+timeout. The harness has no internal whole-run cap. ProcessCustody invocation
+syntax is intentionally not invented here; the parent supplies and owns the
+envelope.
+
 ```sh
 PATH=/absolute/path/to/node24/bin:$PATH \
 SNAPBACK4_BIN=/absolute/path/to/final/snapback4 \
@@ -135,6 +143,12 @@ bodies are never printed. Before scratch creation, the path is null.
 All rows are **PENDING** until the parent executes the command above against
 the final combined Linux artifact. Syntax checking this harness is not
 qualification evidence.
+
+This source correction does not change the historical evidence. The prior
+actual run remains partial positive / overall negative, and its default-
+diagnostic secrecy observation cannot be established retroactively because it
+scanned only stdout. A new run under the required external envelope is needed
+to exercise the corrected two-stream assertion.
 
 | Row | Scope / injected cut | Required actual observable | Source status |
 | --- | --- | --- | --- |
