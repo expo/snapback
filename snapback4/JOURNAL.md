@@ -32441,3 +32441,27 @@ passed. The serial synthetic command over crash-cut plan, deadline sequence,
 proxy phase, loopback HTTP lifecycle and diagnostic secrecy passed 42/42;
 `git diff --check` passed. No qualification harness, actual engine, provider,
 process crash, external network, Rust/Cargo, install or full suite ran.
+
+## 2026-09-17 — Remaining identity crash-cut source integration
+
+The supervisor integrated `b9fdf94dd` followed by `b29d8ea59` with origin
+trailers. Only README coexistence and independent journal appends needed
+resolution; all three executable fixture/test files are byte-identical to
+the reviewed final source. The first append is exactly 2,952 bytes after the
+complete prior journal; its resolved journal SHA-256 is
+`0bfa9a3ba0af503f2ac462746badcc387b37c15dafb33283f5823ad64a98aa28`.
+Existing organization and optional-invitation documentation is preserved.
+
+Both original blind reviewers returned READY on their own repair delta.
+Their original NOT READY answers, accepted witness gaps, refuted mandatory
+third-step-done prediction and unchanged limits are retained under
+`llp/reviews/3000.009-b1c-crash-cuts.{sol,grok}.md`. Root read the complete
+repair and both public final answers. The R5 stage passed 42/42 serial
+synthetics on Node 24.13.1 and separately checked the inner versus outer
+custody APIs before any child launch. The pinned binary/package were not
+rebuilt, and the prior R4 receipt is unchanged.
+
+This landing is source and staging evidence only. No actual new-cut R5
+qualification, real email-provider send, full Identity/B completion or
+publication is claimed. The updated B1c report and RFC evidence row preserve
+that boundary; the next bounded actual run remains separately gated.

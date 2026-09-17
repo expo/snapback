@@ -119,9 +119,49 @@ survivors. The private scratch and all failed-run artifacts remain retained.
 The provider and tunnel later ended at their own caps without extension.
 
 This pass covers only the executable cases in source 1b. The new before-mint
-and after-mint-step crash modes in source `b9fdf94dd` have only synthetic
-evidence so far; their independent review and actual execution are separate.
+and after-mint-step crash modes introduced in `b9fdf94dd` and repaired in
+`b29d8ea59` have only synthetic evidence so far; actual execution is separate.
 Legacy unpublished receipts and production wall-clock expiry are still gaps.
+
+## Remaining-cut source repair and R5 staging
+
+The initial blind reviews of `b9fdf94dd7f7c7a3e2c04bc7ea3c08204366ece2`
+were both NOT READY. The bounded repair
+`b29d8ea59cdeb06ad4e5e1706ec65b296ad07faf` explicitly binds recovered mint,
+second-worker step-completion cut and distinct final worker. Before the second
+kill, a joined read-only observation requires the exact durable mint step and
+the still-running, unsettled action. Its exact-path/phase selector latches
+once and resolves the invocation only after unrelated traffic is excluded.
+The helper and product protocol are unchanged.
+
+Both original reviewers' own-blind delta reviews are READY:
+[Sol](../../llp/reviews/3000.009-b1c-crash-cuts.sol.md) and
+[Grok](../../llp/reviews/3000.009-b1c-crash-cuts.grok.md).
+The initial findings and source-grounded refutation of a mandatory third
+step-completion POST remain in those records. A completed step returns its
+stored result; the helper performs its recovery mint separately. The repair
+does not establish a reproduced backend defect.
+
+The final author checks passed 42/42 on Node 24.18.0. At 18:46Z, the exact
+19-file fixture archive was staged on idle 450b and passed the same 42 serial
+synthetics on Node 24.13.1 in 294.2313 ms, with zero failures/skips. Five syntax
+checks passed. The full outer and inner custody APIs were separately imported
+and checked before any child launch. The qualified package/binary pins were
+unchanged; full runtime/type dependency inventories were retained. No build
+or install ran.
+
+- Source archive SHA-256:
+  `31695e6e9227ac2aeffd4b8b24bec2be2f98a3e27126211fc19af62c59611e78`.
+- R5 prelaunch inventory SHA-256:
+  `9c7f5083df50164fba0b1b4ac805d21c86e8045515fb71ae338d9898b13b5121`.
+- Node 24.13.1 synthetic stdout SHA-256:
+  `43ad32a78c65ab0723cd018164a21d6b7be96fb55f1bffd91c370017aaedb535`.
+
+This is staged, source-reviewed instrumentation, **not an actual R5 run**.
+No new engine/provider/process-cut claim follows. R4 and all failed attempt
+directories remain unchanged. The next actual attempt requires the bounded
+provider/tunnel/outer-custody envelope and a separately inspected terminal
+receipt; it is not implied by staging or either review verdict.
 
 ## Limits
 
