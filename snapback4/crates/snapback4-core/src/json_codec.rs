@@ -48,8 +48,22 @@ pub fn validate_text(text: &str) -> Result<(), Error> {
 pub fn from_value<T: DeserializeOwned>(value: Value) -> Result<T, Error> {
     let text = value.to_string();
     drop(value);
-    from_text(&text).map_err(argument_error)
+    from_owned_text(&text).map_err(argument_error)
 }
+
+// Owned trees have already been constructed, without the text parser's depth
+// limit. Keep that contract only for these adapters; host text stays bounded.
+#[cfg(not(target_arch = "wasm32"))]
+fn from_owned_text<T: DeserializeOwned>(text: &str) -> Result<T, Error> {
+    let mut reader = serde_json::Deserializer::from_str(text);
+    reader.disable_recursion_limit();
+    let value = T::deserialize(&mut reader)?;
+    reader.end()?;
+    Ok(value)
+}
+
+#[cfg(target_arch = "wasm32")]
+fn from_owned_text<T: DeserializeOwned>(text: &str) -> Result<T, Error> { from_text(text) }
 
 // A normalized tree has no source location. Keep from_value's error contract,
 // rather than pointing into a newly rendered string the caller never sent.
@@ -64,7 +78,7 @@ pub fn to_text<T: Serialize + ?Sized>(value: &T) -> Result<String, Error> {
 }
 
 pub fn to_value<T: Serialize + ?Sized>(value: &T) -> Result<Value, Error> {
-    from_text(&to_text(value)?)
+    from_owned_text(&to_text(value)?)
 }
 
 pub fn from_slice<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, Error> {

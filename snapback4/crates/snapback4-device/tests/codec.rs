@@ -226,3 +226,16 @@ fn baseline_page_call<S: snapback4_device::store::DeviceStore>(device: &mut Devi
     })();
     match result { Ok(value) => json!({"ok":value}), Err(error) => json!({"denied": serde_json::to_value(error.refusal()).unwrap()}) }
 }
+
+#[test]
+fn owned_adapters_keep_programmatically_built_deep_trees() {
+    let mut tree = Json::Null;
+    for _ in 0..160 { tree = Json::Array(vec![tree]); }
+    let baseline: Json = serde_json::from_value(tree.clone()).unwrap();
+    let decoded = codec::from_value::<Json>(tree.clone());
+    let encoded = codec::to_value(&tree);
+    assert!(decoded.is_ok() && encoded.is_ok(), "deep owned decode: {decoded:?}; encode: {encoded:?}");
+    assert_eq!(decoded.unwrap(), baseline);
+    assert_eq!(encoded.unwrap(), serde_json::to_value(&tree).unwrap());
+    assert!(codec::from_text::<Json>(&tree.to_string()).is_err(), "text hosts retain their recursion limit");
+}

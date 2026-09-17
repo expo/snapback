@@ -36,8 +36,14 @@ export function derivedTypes(name) {
       if (name[i] === '>') depth++;
       if (name[i] !== '<') continue;
       if (depth-- !== 0) continue;
-      const type = name.slice(i + 1, match.index);
-      if (/^snapback4_(core|device)::/.test(type)) found.push({ type, direction: match[1] === 'ser::Serialize' ? 'serialize' : 'deserialize' });
+      let type = name.slice(i + 1, match.index);
+      if (type === 'alloc::vec::Vec<_>') {
+        const visitor = concrete(name.slice(match.index + match[0].length), '::deserialize::VecVisitor<');
+        if (visitor) type = `alloc::vec::Vec<${visitor.slice('::deserialize::VecVisitor<'.length, -1)}>`;
+      }
+      // The parent Value entry in this same symbol owns its derive helper.
+      if (type === '<snapback4_core::value::Value as serde_core::ser::Serialize>::serialize::__SerializeWith') break;
+      found.push({ type, direction: match[1] === 'ser::Serialize' ? 'serialize' : 'deserialize' });
       break;
     }
   }
@@ -48,13 +54,16 @@ export function collectFamilies(kept) {
   const families = new Map();
   for (const r of kept) {
     const n = clean(r.name);
+    if (n.includes('serde::private::de::missing_field::MissingFieldDeserializer<serde_json::error::Error>')) continue; // Derive's missing-field refusal, not an input reader.
     if (/::__Field(?:Visitor)?/.test(n)) continue; // Field-name visitors are adapters inside a family.
     for (const { type, direction } of derivedTypes(n)) {
       let family;
       if (direction === 'deserialize') {
-        family = n.includes('serde_json::read::StrRead') ? 'serde_json::de::Deserializer<serde_json::read::StrRead>' : n.includes('serde_json::read::SliceRead') ? 'serde_json::de::Deserializer<serde_json::read::SliceRead>' : concrete(n, 'serde_json::de::Deserializer<') ?? (/serde_json::(?:value|map)::/.test(n) ? 'serde_json::Value/Map (owned tree)' : undefined);
+        const ownedReader = /(?:^<|::<)(?:&mut |&)?serde_json::(?:value::(?:Value|de::\w*Deserializer)|map::\w+)(?:[<>]| as )/.test(n);
+        family = n.includes('serde_json::read::StrRead') ? 'serde_json::de::Deserializer<serde_json::read::StrRead>' : n.includes('serde_json::read::SliceRead') ? 'serde_json::de::Deserializer<serde_json::read::SliceRead>' : concrete(n, 'serde_json::de::Deserializer<') ?? (ownedReader ? 'serde_json::Value/Map (owned tree)' : undefined);
       } else {
-        family = n.includes('serde_json::value::ser::Serializer') ? 'serde_json::value::ser::Serializer' : concrete(n, 'serde_json::ser::Serializer<');
+        const keyWriter = concrete(n, 'serde_json::ser::MapKeySerializer<');
+        family = keyWriter ? keyWriter.replace('MapKeySerializer<', 'Serializer<').replace(', serde_json::ser::CompactFormatter>', '>') : n.includes('serde_json::value::ser::Serializer') ? 'serde_json::value::ser::Serializer' : concrete(n, 'serde_json::ser::Serializer<');
       }
       if (!family) {
         // A derived entry can be fully inlined; its non-generic helper is
@@ -72,15 +81,31 @@ export function collectFamilies(kept) {
 
 // The allocation-free output meter intentionally adds exactly this writer to
 // these two types. It does not excuse a third family or any deserializer.
-const countingFamilies = new Set([
-  'serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>>',
-  'serde_json::ser::Serializer<&mut snapback4_core::json_codec::value_bytes::Counter>',
+const textFamily = 'serde_json::de::Deserializer<serde_json::read::StrRead>';
+const writerFamily = 'serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>>';
+const counterFamily = 'serde_json::ser::Serializer<&mut snapback4_core::json_codec::value_bytes::Counter>';
+// Dynamic request/reply trees necessarily keep serde_json's own envelope
+// serializers. These exact scalar/Value entries do not excuse typed containers.
+const envelopeFamilies = new Map([
+  ['serde_json::value::Value serialize', new Set([
+    'serde_json::value::ser::Serializer',
+    'serde_json::ser::Serializer<&mut <serde_json::value::Value as core::fmt::Display>::fmt::WriterFormatter>',
+    'serde_json::ser::Serializer<&mut <serde_json::value::Value as core::fmt::Display>::fmt::WriterFormatter, serde_json::ser::PrettyFormatter>',
+  ])],
+  ['serde_json::number::Number serialize', new Set([
+    'serde_json::value::ser::Serializer',
+    'serde_json::ser::Serializer<&mut <serde_json::value::Value as core::fmt::Display>::fmt::WriterFormatter>',
+    'serde_json::ser::Serializer<&mut <serde_json::value::Value as core::fmt::Display>::fmt::WriterFormatter, serde_json::ser::PrettyFormatter>',
+  ])],
+  ['alloc::string::String serialize', new Set(['serde_json::value::ser::Serializer'])], // json! envelope scalar
+  ['&str serialize', new Set(['serde_json::value::ser::Serializer'])], // json! envelope scalar
 ]);
 const allowed = new Set(['snapback4_core::value::Value serialize', 'snapback4_core::value::ObjectFields serialize']);
 export function checkFamilies(families) {
   if (!families.size) refuse('no derived Snapback serde families found in the symbol-bearing artifact');
-  const duplicates = [...families].filter(([type, found]) => found.size > 1 && !(allowed.has(type) && found.size === countingFamilies.size && [...found.keys()].every(f => countingFamilies.has(f))));
-  if (duplicates.length) refuse(duplicates.map(([type, found]) => `${type}: ${[...found.keys()].join(', ')}`).join('\n'));
+  const unexpected = [...families].filter(([type, found]) => [...found.keys()].some(family =>
+    family !== (type.endsWith(' deserialize') ? textFamily : writerFamily) && !(allowed.has(type) && family === counterFamily) && !envelopeFamilies.get(type)?.has(family)));
+  if (unexpected.length) refuse(unexpected.map(([type, found]) => `${type}: ${[...found.keys()].join(', ')}`).join('\n'));
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) try {

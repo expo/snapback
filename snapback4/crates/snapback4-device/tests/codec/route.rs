@@ -5,11 +5,14 @@ fn routes<S: DeviceStore>(store: S) {
     let backend = Backend { generation: 1, schema: Default::default(), programs: vec![] };
     let mut device = Device::open_store(store, Some(backend)).unwrap();
     for op in ["apply", "observe_store"] {
-        for (fields, expected) in [("", Route::Page), ("\"watermark\":99,", Route::Owned)] {
+        for (fields, expected) in [("", 0), ("\"watermark\":99,", 1)] {
             let request = format!(r#"{{"op":"{op}","first":true,"page":{{{fields}"snapshot":true,"events":[],"watermark":1,"more":false,"generation":1}}}}"#);
+            PAGE_CALLS.set(0); OWNED_FALLBACKS.set(0); OWNED_CONVERSIONS.set(0);
             let answer = call_text(&mut device, &request);
             assert!(answer.get("ok").is_some(), "{answer}");
-            assert_eq!(ROUTE.get(), expected, "{request}");
+            assert_eq!(PAGE_CALLS.get(), 1, "page_call must execute: {request}");
+            assert_eq!(OWNED_FALLBACKS.get(), expected, "{request}");
+            assert_eq!(OWNED_CONVERSIONS.get(), expected, "owned-value conversion cost: {request}");
         }
     }
     assert_eq!(device.state().unwrap().0, 1);

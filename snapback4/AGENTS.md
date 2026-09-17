@@ -27,8 +27,8 @@ node witness/scale.mjs [G] [N] [M]   # cold sync at scale: G groups × N message
 node scripts/measure-storage.mjs     # what the store weighs on the scale seed (rows, indexes, partition log) → metrics/storage.jsonl
                                      # SNAPBACK4_BIN=target/release/snapback4 measures the release build (throughput numbers)
 node scripts/measure-client.mjs      # each client tier's bytes on the pinned toolchain → metrics/client.jsonl
-node scripts/attribute-wasm.mjs [--families] [--check-families] # class bytes and concrete serde families; --check-families refuses duplicate families except the explicit counting-writer allowlist (needs twiggy; slow, outside test.sh)
-bash scripts/measure-wasm.sh         # the device core as wasm (crates/snapback4-device), bound and measured → metrics/wasm.jsonl
+node scripts/attribute-wasm.mjs [--families] [--check-families] # class bytes and concrete serde families; --check-families refuses non-text readers/non-Vec writers outside the exact dynamic-envelope and counting-writer allowlists (needs twiggy; slow, outside test.sh)
+bash scripts/measure-wasm.sh         # the device core as wasm (crates/snapback4-device), family-checked, bound and measured → metrics/wasm.jsonl
 bash scripts/build-xcframework.sh    # the device as an iOS xcframework for packages/snapback4-expo (staticlib alone, stripped; 13.2 MB with native reads)
 node loopbar/run.mjs --n 3           # the loop bar: fresh agents on the published pin build reduced Clique M1–M3 → metrics/loopbar.jsonl
 node scripts/publish.mjs             # runs the suite (refuses on red), builds the production binary, publishes snapback4 + snapback4-darwin-arm64

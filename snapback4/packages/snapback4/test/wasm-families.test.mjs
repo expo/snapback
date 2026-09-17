@@ -18,6 +18,7 @@ test('family check sees nested generic names and refuses a restored owned-tree o
     const two = collectFamilies([row(type, text), row(type, other)]);
     assert.throws(() => checkFamilies(two), error => error.message.includes(type) && error.message.includes(text) && error.message.includes(other === slice ? slice : 'owned tree'));
   }
+  checkFamilies(collectFamilies([row(type, text), row('alloc::boxed::Box<snapback4_core::ir::Expr>', 'serde::private::de::missing_field::MissingFieldDeserializer<serde_json::error::Error>')]));
   assert.throws(() => collectFamilies([row(type, 'unknown::Deserializer<u8>')]), /unrecognized serde family/);
   assert.throws(() => checkFamilies(new Map()), /no derived Snapback/);
 });
@@ -31,4 +32,33 @@ test('only Value and ObjectFields may add exactly the counting writer', () => {
   }
   const type = 'snapback4_device::device::Backend';
   assert.throws(() => checkFamilies(collectFamilies([row(type, writer, true), row(type, counter, true)])), /Backend serialize/);
+});
+
+test('global family check refuses std containers and a type with only an owned family', () => {
+  const good = row('snapback4_device::device::Backend', text);
+  checkFamilies(collectFamilies([good, row('alloc::string::String', 'serde_json::ser::MapKeySerializer<&mut alloc::vec::Vec<u8>, serde_json::ser::CompactFormatter>', true)]));
+  for (const type of ['alloc::vec::Vec<alloc::string::String>', 'snapback4_device::fixture::OnlyOwned']) {
+    checkFamilies(collectFamilies([good, row(type, text), row(type, writer, true)]));
+    for (const bad of [row(type, 'serde_json::value::Value'), row(type, 'serde_json::value::ser::Serializer', true)]) {
+      assert.throws(() => checkFamilies(collectFamilies([good, bad])), error => error.message.includes(type));
+    }
+  }
+});
+
+test('visitor symbols retain their concrete Vec element and ignore non-reader helpers', () => {
+  const visitor = '<alloc::vec::Vec<_> as serde_core::de::Deserialize>::deserialize::VecVisitor<alloc::string::String>';
+  const symbol = reader => ({ name: `<${reader} as serde_core::de::Deserializer>::deserialize_seq::<${visitor}>`, shallow_size: 1 });
+  const good = collectFamilies([symbol(text)]);
+  assert.ok(good.has('alloc::vec::Vec<alloc::string::String> deserialize'));
+  checkFamilies(good);
+  assert.throws(() => checkFamilies(collectFamilies([symbol('serde_json::value::Value')])), /owned tree/);
+  assert.equal(collectFamilies([{ name: `<${visitor} as serde_core::de::Expected>::fmt`, shallow_size: 1 }]).size, 0);
+});
+
+test('dynamic envelope exceptions cannot admit an owned typed container or decoder', () => {
+  for (const type of ['serde_json::value::Value', 'serde_json::number::Number', 'alloc::string::String', '&str']) {
+    checkFamilies(collectFamilies([row(type, 'serde_json::value::ser::Serializer', true)]));
+    assert.throws(() => checkFamilies(collectFamilies([row(type, 'serde_json::value::Value')])), /owned tree/);
+  }
+  assert.throws(() => checkFamilies(collectFamilies([row('alloc::vec::Vec<alloc::string::String>', 'serde_json::value::ser::Serializer', true)])), /Vec/);
 });

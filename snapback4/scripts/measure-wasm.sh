@@ -6,11 +6,12 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 budget=$(node scripts/wasm-budget.mjs)
 dirty=false
-source_status=$(git -C .. status --porcelain -- snapback4/crates snapback4/scripts snapback4/Cargo.toml snapback4/Cargo.lock)
+source_status=$(git -C .. status --porcelain -- snapback4/crates snapback4/scripts snapback4/Cargo.toml snapback4/Cargo.lock snapback4/rust-toolchain.toml snapback4/metrics/wasm-budget.json)
 if [ -n "$source_status" ]; then
   dirty=true
   echo 'WARNING: measuring a dirty source tree; sha identifies the base, not the measured artifact (dirty=true).' >&2
 fi
+node scripts/attribute-wasm.mjs --check-families >&2
 cargo build -p snapback4-device --no-default-features --features web --profile wasm --target wasm32-unknown-unknown --quiet
 out=$(mktemp -d)
 wasm-bindgen --target web --out-dir "$out" target/wasm32-unknown-unknown/wasm/snapback4_device.wasm

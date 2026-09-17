@@ -27,6 +27,8 @@ fn text<'a>(request: &'a Json, name: &str) -> Result<&'a str, RuntimeError> {
 }
 
 fn parse<T: serde::de::DeserializeOwned>(value: Json) -> Result<T, RuntimeError> {
+    #[cfg(test)]
+    OWNED_CONVERSIONS.set(OWNED_CONVERSIONS.get() + 1);
     snapback4_core::json_codec::from_value(value).map_err(|e| RuntimeError::Input(e.to_string()))
 }
 
@@ -162,16 +164,14 @@ pub fn call_text<S: DeviceStore>(device: &mut Device<S>, request: &str) -> Json 
 
 pub fn try_call_text<S: DeviceStore>(device: &mut Device<S>, request: &str) -> Result<Json, serde_json::Error> {
     use snapback4_core::json_codec;
-    #[cfg(test)]
-    ROUTE.set(Route::Owned);
     if let Ok(command) = json_codec::from_text::<PageArgument>(request) {
         if matches!(command.op.as_str(), "apply" | "observe_store") {
             json_codec::validate_text(request)?;
-            #[cfg(test)]
-            ROUTE.set(Route::Page);
             return Ok(answer(page_call(device, command)));
         }
     }
+    #[cfg(test)]
+    OWNED_FALLBACKS.set(OWNED_FALLBACKS.get() + 1);
     Ok(call(device, json_codec::from_text(request)?))
 }
 
@@ -185,16 +185,19 @@ struct PageArgument {
 }
 
 fn page_call<S: DeviceStore>(device: &mut Device<S>, command: PageArgument) -> Result<Json, RuntimeError> {
+    #[cfg(test)]
+    PAGE_CALLS.set(PAGE_CALLS.get() + 1);
     if command.op == "observe_store" { return encoded(&device.observe_store(&command.page)?); }
     // A missing marker is a continuation; starting a snapshot must be explicit.
     Ok(json!({ "touched": device.apply(&command.page, command.first.as_bool().unwrap_or(false))? }))
 }
 
 #[cfg(test)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Route { Owned, Page }
-#[cfg(test)]
-std::thread_local! { static ROUTE: std::cell::Cell<Route> = const { std::cell::Cell::new(Route::Owned) }; }
+std::thread_local! {
+    static PAGE_CALLS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static OWNED_FALLBACKS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static OWNED_CONVERSIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
 #[cfg(test)]
 #[path = "../tests/codec/route.rs"]
 mod route_tests;

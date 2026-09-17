@@ -2,6 +2,7 @@ use super::*;
 use snapback4_core::rows::Rows;
 use snapback4_device::store::{DeviceStore, DeviceTx};
 
+// Compatibility evidence, not evidence that S1 production calls use the funnel.
 // Frozen 0.2.27 texts, produced once on 2026-09-17 with plain serde_json:
 // compile schema.q = "table notes:\n  body: text <=100\n  public 'fixture'\n  sync public\nquery all():\n  return notes first 10 by byId\n";
 // to_string(Backend { generation: 1, schema, programs }); SHA256(to_string(schema));
@@ -137,11 +138,13 @@ fn old_sqlite_store_opens_from_pre_funnel_values() {
     tx.base_remember("notes", "n1", Some(&serde_json::to_string(&row).unwrap())).unwrap();
     tx.staged_put(&serde_json::to_string(&("notes", "n1")).unwrap(), &staged.0, &staged.1).unwrap();
     tx.commit().unwrap();
+    let before = raw_records(&store);
     drop(store);
     let mut device = Device::open(&path, None).unwrap();
     answers(&mut device);
     assert_eq!(device.store().meta("schema_hash").unwrap().unwrap(), kept(&old, "memory:schema"));
     let mut store = old_sqlite_open(&path);
+    assert_eq!(raw_records(&store), before, "open must preserve raw record bytes");
     let tx = store.transaction().unwrap();
     assert_eq!(tx.base_entries().unwrap(), vec![("notes".into(), "n1".into(), Some(serde_json::to_string(&row).unwrap()))]);
     assert_eq!(tx.staged_after("", 10).unwrap(), vec![(record(&old, 's').k.clone(), staged.0, staged.1)]);
@@ -156,4 +159,14 @@ fn old_sqlite_open(path: &Path) -> snapback4_core::store::Store {
         CREATE TABLE IF NOT EXISTS _device_snapshot (k TEXT PRIMARY KEY, t TEXT NOT NULL, data TEXT NOT NULL);
         CREATE INDEX IF NOT EXISTS _device_snapshot_by_table ON _device_snapshot(t, k);").unwrap();
     store
+}
+
+fn raw_records(store: &snapback4_core::store::Store) -> Vec<Vec<Vec<rusqlite::types::Value>>> {
+    ["SELECT * FROM r ORDER BY t, id", "SELECT * FROM _device_outbox ORDER BY seq",
+     "SELECT * FROM _device_base ORDER BY t, id", "SELECT * FROM _device_snapshot ORDER BY k",
+     "SELECT * FROM _meta ORDER BY key"].iter().map(|sql| {
+        let mut statement = store.conn().prepare(sql).unwrap();
+        let columns = statement.column_count();
+        statement.query_map([], |row| (0..columns).map(|i| row.get(i)).collect()).unwrap().collect::<Result<Vec<_>, _>>().unwrap()
+    }).collect()
 }
