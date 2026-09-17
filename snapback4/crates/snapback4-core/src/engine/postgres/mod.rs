@@ -4,6 +4,7 @@
 //! @ref LLP 3000#7-decisions-during-execution — evaluate storage portability before productizing it
 mod log;
 mod store;
+mod authority;
 mod prefetch;
 mod tail;
 #[cfg(test)]

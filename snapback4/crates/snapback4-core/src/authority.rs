@@ -5,6 +5,9 @@
 
 use crate::RuntimeError;
 
+#[cfg(test)]
+pub(crate) mod test_cases;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Authority {
     pub family: String,

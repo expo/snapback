@@ -115,3 +115,58 @@ impl Store {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::authority::test_cases;
+
+    fn seeded() -> Store {
+        let mut store = Store::memory().unwrap();
+        let tx = store.transaction().unwrap();
+        for fact in test_cases::generations() {
+            tx.conn().execute(
+                "INSERT INTO _principal_generations(principal,generation) VALUES (?1,?2)",
+                rusqlite::params![fact.0, fact.1],
+            ).unwrap();
+        }
+        for fact in test_cases::sessions() {
+            tx.conn().execute(
+                "INSERT INTO _sessions(token_digest,principal,kind,created_at,expires_at,family) VALUES (?1,?2,?3,?4,?5,?6)",
+                rusqlite::params![fact.digest, fact.principal, fact.kind, fact.created_at, fact.expires_at, fact.family],
+            ).unwrap();
+        }
+        for fact in test_cases::work() {
+            tx.conn().execute(
+                "INSERT INTO _requests(id,name,args,principal,at,state,claimed_by,session_digest,lease_until,deadline,family,principal_generation,admitted_expires_at,service_generation) VALUES (?1,'test','{}',?2,1,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
+                rusqlite::params![fact.id, fact.principal, fact.state, fact.claimed_by, fact.session_digest, fact.lease_until, fact.deadline, fact.family, fact.generation, fact.admitted_expires_at, fact.service_generation],
+            ).unwrap();
+        }
+        tx.commit().unwrap();
+        store
+    }
+
+    #[test]
+    fn shared_authority_facts_map_on_sqlite() {
+        let store = seeded();
+        let tx = store.authority_transaction().unwrap();
+        test_cases::assert_adapter_facts(&tx);
+        tx.rollback().unwrap();
+    }
+
+    #[test]
+    fn shared_authority_policy_cases_run_on_sqlite() {
+        let store = seeded();
+        let tx = store.authority_transaction().unwrap();
+        test_cases::assert_policy_cases(&tx);
+        tx.rollback().unwrap();
+    }
+
+    #[test]
+    fn shared_authority_invalidations_run_on_sqlite() {
+        let mut store = seeded();
+        let tx = store.transaction().unwrap();
+        test_cases::assert_invalidations(&tx);
+        tx.commit().unwrap();
+    }
+}

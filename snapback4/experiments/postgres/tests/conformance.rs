@@ -317,17 +317,19 @@ fn concurrent_mismatching_receipts_admit_one_binding_and_replay_only_its_argumen
 
 #[test]
 #[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
-fn version_one_evaluation_stores_are_refused_instead_of_replaying_unbound_receipts() {
+fn version_one_and_two_evaluation_stores_are_refused_instead_of_being_adopted() {
     let (schema, programs) = compiled();
     let name = namespace("receipt_version");
     drop(PostgresEngine::create(connect(), &name, schema, programs).unwrap());
     let mut admin = connect();
-    admin.execute(&format!("UPDATE {name}._backend SET version = 'snapback4-postgres-evaluation-1' WHERE singleton"), &[]).unwrap();
-    let error = match PostgresEngine::open(connect(), &name) {
-        Ok(_) => panic!("an unbound evaluation store opened"),
-        Err(error) => error,
-    };
-    assert!(error.to_string().contains("not this Postgres evaluation store version"));
+    for version in ["snapback4-postgres-evaluation-1", "snapback4-postgres-evaluation-2"] {
+        admin.execute(&format!("UPDATE {name}._backend SET version = '{version}' WHERE singleton"), &[]).unwrap();
+        let error = match PostgresEngine::open(connect(), &name) {
+            Ok(_) => panic!("old evaluation store {version} opened"),
+            Err(error) => error,
+        };
+        assert!(error.to_string().contains("not this Postgres evaluation store version"));
+    }
 }
 
 #[test]

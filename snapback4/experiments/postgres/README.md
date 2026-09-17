@@ -44,6 +44,15 @@ just like the SQLite `Engine`; this is not an authenticated service endpoint.
 - Cached prepared statements per connection and explicit database-call/retry
   counters. Call counts include cold prepares/control statements, but omit
   implicit rollback on an error; they are not packet counts or resource limits.
+- Experimental layout `snapback4-postgres-evaluation-3` adds the complete
+  SQLite-shaped authority facts: principal generations, sessions and action
+  requests. One caller-owned Postgres transaction implements the shared typed
+  authority reads; borrowed walks use repeatable-read/read-only snapshots.
+  Exact-token and whole-family invalidation require the serialized shared-head
+  fence before mutation. `open` exact-matches v3 and refuses v1/v2; there is no
+  migration, backfill or silent adoption of an earlier experimental layout.
+  Future identity/work writers must take that fence before sampling their
+  injected clock; this slice adds no clock or public writer API.
 
 The optional feature currently includes `sqlite` for shared server types.
 It is not enabled by the CLI or device build; the harness has its own Cargo
@@ -197,7 +206,9 @@ conflict rereads. Generic `batch` rejects all case variants containing
 The corpus runs SQLite always and Postgres when the feature and
 `SNAPBACK4_EVAL_POSTGRES` are present. Missing configuration or feature has a
 named skip, never a pass. `scripts/test-postgres.sh` runs that leg inside its
-private cluster. Assets/native/jobs/actions/schedules remain C3 exclusions.
+private cluster. Authority fact reads and the two fenced invalidations are the
+only added C3 surface here; action lifecycle, assets, native jobs and schedules
+remain excluded.
 
 ## Measurements, 2026-09-15 — baseline
 
@@ -359,9 +370,11 @@ non-portability counterexample, not ten universal conformance claims:
 
 Not implemented: a PostgreSQL CLI/deploy target, migration/activation,
 backup/restore or store-incarnation wire identity, an auth/session host,
-subscriptions/HTTP invalidation, shared presence, asset storage, native module
-execution, jobs, actions, effect-worker leases/delivery, RLS/SQL application
-access, extensions, relational schema generation, pooling or async execution.
+identity mint/refresh/logout/revoke or credentials/bindings, the action/request/
+step lifecycle, routes, schedules or job admission, subscriptions/HTTP
+invalidation, shared presence, asset storage, native module execution,
+effect-worker leases/delivery, release state, RLS/SQL application access,
+extensions, relational schema generation, pooling or async execution.
 Assets/native/jobs/actions/schedules are explicitly refused at creation.
 Effects can be recorded but never executed by this host. Logical expiry reads
 reuse the interpreter, but no expiry sweep worker is provided or qualified.

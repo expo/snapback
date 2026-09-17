@@ -28094,3 +28094,78 @@ deployment ran. Google, production HTTPS, real-browser, actual provider,
 repaired-engine receipt/revocation and full Identity/B qualification remain
 with the parent. The successful scratch child was removed; prior worktrees,
 bundles and supplied artifacts were preserved.
+
+## 2026-09-17 — C3.3: PostgreSQL authority fact transaction parity
+
+The experimental PostgreSQL layout is now exactly
+`snapback4-postgres-evaluation-3`. Creation atomically adds the complete
+SQLite-shaped `_principal_generations`, `_sessions` and `_requests` facts and
+their equivalent indexes. Identity values remain lexical text, time and
+generation values are signed 64-bit integers, family and authority fields stay
+nullable, and `cancelled` is a non-null boolean defaulting false. Opening exact-
+matches v3 and refuses both v1 and v2; there is no migration, ALTER, backfill or
+silent adoption path.
+
+The real Postgres transaction now implements the existing typed
+`AuthorityTransaction`: generation with zero fallback, exact digest and latest
+live family reads, all ten authority work fields by id or nonunique claimed
+digest, exact-token invalidation and whole-family invalidation. Shared fact and
+policy cases run unchanged over SQLite and PostgreSQL. They retain lexical
+identity, `COALESCE(family, token_digest)`, strict expiry/lease/deadline
+boundaries, refresh lifetime distinct from admitted expiry, legacy NULL family,
+all three partial authority combinations, generation and parent revocation,
+multi-hop delegation, cycles, principal/owner/digest/state mismatches and
+service generations. Adapter mapping is tested separately from policy.
+
+Borrowed PostgreSQL walks use the existing repeatable-read/read-only
+transaction. Both invalidations refuse before mutation in read-only and
+Serializable transactions; only a transaction that already holds the
+serialized shared-head fence may execute them. A real two-connection witness
+establishes a repeatable-read snapshot, commits a newer family member through a
+separate serialized/head-fenced transaction, proves the old snapshot remains
+stable, then proves a reopened snapshot sees the commit. A rolled-back session
+stays absent after reopen. Future identity/work writers must acquire the head
+fence before sampling their injected clock; this checkpoint adds neither a
+clock nor a public writer API.
+
+Focused serial evidence used `/home/ccheever/.cargo/bin/cargo`,
+`CARGO_BUILD_JOBS=6`, `--locked` and one test thread where relevant:
+
+- shared SQLite authority facts, policy and invalidations: 3/3;
+- real PostgreSQL authority fact mapping and shared policy: 2/2;
+- real PostgreSQL fence/refusal and rollback/reopen/snapshot witnesses: 2/2;
+- the six C3.1 receipt binding, race, version, reopen and rollback regressions
+  on v3: 6/6; and
+- existing SQLite `bound_session`, identity integration, `action_context`,
+  `work_records` and identity units: 8/8, 2/2, 8/8, 6/6 and 4/4.
+
+The exact private PostgreSQL 16.15 custody was
+`/tmp/sb4-c33-pg.Z6c5sY/data`, socket directory
+`/tmp/sb4-c33-pg.Z6c5sY`, port `55443`, and log
+`/tmp/sb4-c33-pg.Z6c5sY/server.log`, with local trust and host connections
+rejected. Its first start was PID/PGID `3866068/3866068`; it was stopped by
+that exact data directory. The same retained task-owned cluster was restarted
+after the final test-only split as PID/PGID `3872354/3872354` and stopped the
+same way. Both recorded PIDs were confirmed gone; data and the shutdown log are
+retained as receipts. Expected test-induced server errors were the deliberate
+late `_ops` constraint failure and Serializable retry conflicts.
+
+Initial misses remain visible. The first SQLite command found no ambient
+`cargo`; using the existing repository toolchain exposed and then corrected a
+test-helper name collision. A first multi-filter Cargo invocation was rejected
+before running tests. The experiment's inherited local-package lock entries
+were still 0.2.26 against this exact base's 0.2.27 manifests, so the first
+mandated `--locked` C3.1 run refused; only those three local version lines were
+aligned, after which all six locked regressions passed. A file-scoped
+`rustfmt --check` reported the repository's compact non-rustfmt style across
+the touched existing files; no broad formatting was applied. `git diff
+--check` is clean.
+
+This is only PostgreSQL authority fact transaction parity. Identity
+mint/refresh/logout/revoke and credentials/bindings remain SQLite; so do the
+action/request/step lifecycle, routes, schedules and job admission, worker
+leases, activation/release/incarnation, effects/outbox delivery, assets,
+deploy/serve and backup/restore. There is no production PostgreSQL target,
+host, migration, restore, performance, publication or general-purpose backend
+claim. No root gate, inventory, full suite, benchmark, install, fetch, push or
+remote contact ran.

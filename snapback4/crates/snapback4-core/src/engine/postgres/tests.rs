@@ -1,5 +1,5 @@
 use super::*;
-use crate::{rows::{Rows, PrefetchRequest}, schema::Index, value::object};
+use crate::{authority::{AuthorityTransaction, test_cases}, rows::{Rows, PrefetchRequest}, schema::Index, value::object};
 
 fn engine() -> PostgresEngine {
     let schema: Schema = serde_json::from_value(serde_json::json!({"tables": {
@@ -14,6 +14,119 @@ fn engine() -> PostgresEngine {
 fn row(id: &str, key: Value) -> Value { object([("id", Value::Id(id.into())), ("key", key)]) }
 fn gets(table: &str) -> Vec<PrefetchRequest> {
     (0..8).map(|i| PrefetchRequest::Get { table: table.into(), id: format!("r{i}") }).collect()
+}
+
+fn authority_engine() -> PostgresEngine {
+    let schema = Schema::default();
+    let client = Client::connect(&std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private test-postgres.sh database"), postgres::NoTls).unwrap();
+    PostgresEngine::create(client, &format!("sb4_eval_authority_{:x}", crate::ids::seed()), schema, []).unwrap()
+}
+
+fn seed_authority(engine: &mut PostgresEngine) {
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    for fact in test_cases::generations() {
+        tx.execute("INSERT INTO _principal_generations(principal,generation) VALUES ($1,$2)", &[&fact.0, &fact.1]).unwrap();
+    }
+    for fact in test_cases::sessions() {
+        tx.execute(
+            "INSERT INTO _sessions(token_digest,principal,kind,created_at,expires_at,family) VALUES ($1,$2,$3,$4,$5,$6)",
+            &[&fact.digest, &fact.principal, &fact.kind, &fact.created_at, &fact.expires_at, &fact.family],
+        ).unwrap();
+    }
+    for fact in test_cases::work() {
+        tx.execute(
+            "INSERT INTO _requests(id,name,args,principal,at,state,claimed_by,session_digest,lease_until,deadline,family,principal_generation,admitted_expires_at,service_generation) VALUES ($1,'test','{}',$2,1,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
+            &[&fact.id, &fact.principal, &fact.state, &fact.claimed_by, &fact.session_digest, &fact.lease_until, &fact.deadline, &fact.family, &fact.generation, &fact.admitted_expires_at, &fact.service_generation],
+        ).unwrap();
+    }
+    tx.commit().unwrap();
+}
+
+#[test]
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn shared_authority_facts_map_on_postgres() {
+    let mut engine = authority_engine();
+    seed_authority(&mut engine);
+    let tx = engine.store.transaction(None).unwrap();
+    test_cases::assert_adapter_facts(&tx);
+    tx.rollback().unwrap();
+}
+
+#[test]
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn shared_authority_policy_cases_run_on_postgres() {
+    let mut engine = authority_engine();
+    seed_authority(&mut engine);
+    let tx = engine.store.transaction(None).unwrap();
+    test_cases::assert_policy_cases(&tx);
+    tx.rollback().unwrap();
+}
+
+#[test]
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn authority_invalidations_require_and_use_the_serialized_head_fence() {
+    let mut engine = authority_engine();
+    seed_authority(&mut engine);
+    for mode in [None, Some(WriteMode::Serializable)] {
+        let tx = engine.store.transaction(mode).unwrap();
+        for error in [
+            tx.invalidate_session("exact-a").unwrap_err(),
+            tx.invalidate_family("alice", "revoke-family").unwrap_err(),
+        ] {
+            assert!(error.to_string().contains("serialized shared-head fence"));
+        }
+        assert!(tx.session_by_digest("exact-a").unwrap().is_some());
+        assert!(tx.session_by_digest("exact-b").unwrap().is_some());
+        tx.rollback().unwrap();
+    }
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    test_cases::assert_invalidations(&tx);
+    tx.commit().unwrap();
+    let tx = engine.store.transaction(None).unwrap();
+    assert!(tx.session_by_digest("exact-a").unwrap().is_none());
+    assert!(tx.session_by_digest("exact-b").unwrap().is_none());
+    tx.rollback().unwrap();
+}
+
+#[test]
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn authority_rollback_reopen_and_repeatable_read_snapshot_are_real() {
+    let mut engine = authority_engine();
+    seed_authority(&mut engine);
+    let name: String = engine.store.client.query_one("SELECT current_schema()", &[]).unwrap().get(0);
+
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    tx.execute(
+        "INSERT INTO _sessions(token_digest,principal,kind,created_at,expires_at,family) VALUES ('rolled-back','alice','member',1,700,'family-root')",
+        &[],
+    ).unwrap();
+    tx.rollback().unwrap();
+
+    let reader = engine.store.transaction(None).unwrap();
+    assert_eq!(reader.latest_live_family_member("alice", "family-root", 100).unwrap().unwrap().digest, "base-new");
+    let mut writer = PostgresEngine::open(
+        Client::connect(&std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(), postgres::NoTls).unwrap(),
+        &name,
+    ).unwrap();
+    let tx = writer.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    tx.execute(
+        "INSERT INTO _sessions(token_digest,principal,kind,created_at,expires_at,family) VALUES ('snapshot-new','alice','member',1,700,'family-root')",
+        &[],
+    ).unwrap();
+    tx.commit().unwrap();
+    assert_eq!(reader.latest_live_family_member("alice", "family-root", 100).unwrap().unwrap().digest, "base-new");
+    assert!(reader.session_by_digest("rolled-back").unwrap().is_none());
+    reader.rollback().unwrap();
+    drop(engine);
+
+    let mut reopened = PostgresEngine::open(
+        Client::connect(&std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(), postgres::NoTls).unwrap(),
+        &name,
+    ).unwrap();
+    let tx = reopened.store.transaction(None).unwrap();
+    assert_eq!(tx.latest_live_family_member("alice", "family-root", 100).unwrap().unwrap().digest, "snapshot-new");
+    assert!(tx.session_by_digest("rolled-back").unwrap().is_none());
+    tx.rollback().unwrap();
 }
 
 #[test]
