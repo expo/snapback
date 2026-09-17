@@ -27152,3 +27152,25 @@ then requires the registry claim to return exactly the long action and maximum
 route names. It settles the claimed route by its actual id and claim session
 with an empty 204 `RouteResponse`, then observes that 204 on the original
 socket. No product behavior changed.
+
+## 2026-09-17 — B1a OIDC terminal codes survive public action recollection
+
+The action settlement boundary now recognizes exactly the ten terminal codes
+emitted by the TypeScript OIDC helper: `E_OIDC_BINDING`, `E_OIDC_CALLBACK`,
+`E_OIDC_CONFIG`, `E_OIDC_EXCHANGE`, `E_OIDC_HANDOFF`, `E_OIDC_MINT`,
+`E_OIDC_PROVIDER`, `E_OIDC_RECIPE`, `E_OIDC_REPLAY` and
+`E_OIDC_TRANSACTION`. A non-retryable worker settlement persists each code,
+and a later public action recollection returns it unchanged. The classifier is
+still a closed literal list: `E_OIDC_UNKNOWN` and an unrelated arbitrary code
+both retain the legacy `E_ACTION_FAILED` recollection. The ten codes are
+registered with the services guide. Provider protocol remains in the
+TypeScript server runtime; this slice adds no provider logic or framework.
+
+Focused serial evidence used `CARGO_BUILD_JOBS=6`:
+
+- the real-HTTP settlement/recollection witness passed 1/1;
+- all `serve::tests::` passed 45/45; and
+- the language guide and code-registry suite passed 37/37.
+
+No core enum test, publication, push, root gate, Postgres change or C3.2 work
+was added.

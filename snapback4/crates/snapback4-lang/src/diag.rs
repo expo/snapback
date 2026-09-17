@@ -164,6 +164,7 @@ pub fn guide_for(code: &str) -> &'static str {
         code if code.starts_with("SNAPBACK4_") => "refusals",
         code if code.starts_with(concat!("E_", "EFFECT_")) => "effects",
         code if code.starts_with(concat!("E_", "ROUTE_")) => "routes",
+        code if matches!(code, "E_OIDC_BINDING" | "E_OIDC_CALLBACK" | "E_OIDC_CONFIG" | "E_OIDC_EXCHANGE" | "E_OIDC_HANDOFF" | "E_OIDC_MINT" | "E_OIDC_PROVIDER" | "E_OIDC_RECIPE" | "E_OIDC_REPLAY" | "E_OIDC_TRANSACTION") => "services",
         code if code.starts_with(concat!("E_", "ACTION_")) || code.starts_with(concat!("E_", "STEP_")) || code.starts_with(concat!("E_", "SERVER_")) || matches!(code, "E_SECRET_MISSING" | "E_WRITE_LABEL") => "actions",
         _ => "language",
     }

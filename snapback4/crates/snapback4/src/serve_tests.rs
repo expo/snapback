@@ -166,6 +166,44 @@ fn raced_mutation_id_refusal_keeps_its_terminal_http_status() {
 }
 
 #[test]
+fn oidc_terminal_codes_survive_http_settlement_and_public_recollection() {
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
+        "use personas alice\naction signIn()\n");
+    let service = { let engine = lock(&host.shared.engine);
+        snapback4_core::identity::service_session(engine.store(), "worker", host.shared.now(), 1).unwrap() };
+    let service_header = format!("Authorization: Bearer {}\r\n", service.token);
+    let cases = [
+        ("E_OIDC_BINDING", "E_OIDC_BINDING"), ("E_OIDC_CALLBACK", "E_OIDC_CALLBACK"),
+        ("E_OIDC_CONFIG", "E_OIDC_CONFIG"), ("E_OIDC_EXCHANGE", "E_OIDC_EXCHANGE"),
+        ("E_OIDC_HANDOFF", "E_OIDC_HANDOFF"), ("E_OIDC_MINT", "E_OIDC_MINT"),
+        ("E_OIDC_PROVIDER", "E_OIDC_PROVIDER"), ("E_OIDC_RECIPE", "E_OIDC_RECIPE"),
+        ("E_OIDC_REPLAY", "E_OIDC_REPLAY"), ("E_OIDC_TRANSACTION", "E_OIDC_TRANSACTION"),
+        ("E_OIDC_UNKNOWN", "E_ACTION_FAILED"), ("E_ARBITRARY_PROVIDER", "E_ACTION_FAILED"),
+    ];
+    for (index, (submitted_code, recollected_code)) in cases.into_iter().enumerate() {
+        let id = format!("oidc-code-{index}");
+        let call = body(&host.request("POST", "/a/signIn?wait=0", "x-snapback-persona: alice\r\n",
+            &json!({"id": id, "args": {}}).to_string()));
+        assert_eq!(call["state"], "pending", "{submitted_code}: {call}");
+        let claimed = body(&host.request("POST", "/actions/claim", &service_header, r#"{"action":"signIn"}"#));
+        assert_eq!(claimed["requests"].as_array().map(Vec::len), Some(1), "{submitted_code}: {claimed}");
+        let lease = claimed["requests"][0]["session"]["token"].as_str().unwrap();
+        let headers = format!("{service_header}x-snapback-action-lease: {lease}\r\n");
+        let error = format!("terminal {submitted_code}");
+        let settled = body(&host.request("POST", &format!("/actions/{id}/failed"), &headers,
+            &json!({"error": error, "retry": false, "code": submitted_code}).to_string()));
+        assert_eq!(settled["ok"], true, "{submitted_code}: {settled}");
+
+        let recollected = body(&host.request("POST", "/a/signIn?wait=0", "x-snapback-persona: alice\r\n",
+            &json!({"id": id, "args": {}}).to_string()));
+        assert_eq!(recollected["state"], "failed", "{submitted_code}: {recollected}");
+        assert_eq!(recollected["replayed"], true, "{submitted_code}: {recollected}");
+        assert_eq!(recollected["why"]["code"], recollected_code, "{submitted_code}: {recollected}");
+        assert_eq!(recollected["why"]["message"], error, "{submitted_code}: {recollected}");
+    }
+}
+
+#[test]
 fn bound_session_http_requires_exact_shape_and_current_action_lease() {
     let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), "use personas alice\naction signIn()\n");
     let (service, other) = { let engine = lock(&host.shared.engine); let now = host.shared.now(); (

@@ -188,7 +188,13 @@ pub(super) fn settle(request: Request, shared: &Shared, path: &str, body: &str) 
                 Some("E_ROUTE_RESULT") => Some("E_ROUTE_RESULT"),
                 Some("E_STEP_RESULT") => Some("E_STEP_RESULT"), Some("E_STEP_PARKED") => Some("E_STEP_PARKED"),
                 Some("E_ACTION_CANCELLED") => Some("E_ACTION_CANCELLED"), Some("E_ACTION_DEADLINE") => Some("E_ACTION_DEADLINE"),
-                Some("E_ACTION_CLOSED") => Some("E_ACTION_CLOSED"), Some("E_WRITE_LABEL") => Some("E_WRITE_LABEL"), _ => None,
+                Some("E_ACTION_CLOSED") => Some("E_ACTION_CLOSED"), Some("E_WRITE_LABEL") => Some("E_WRITE_LABEL"),
+                Some("E_OIDC_BINDING") => Some("E_OIDC_BINDING"), Some("E_OIDC_CALLBACK") => Some("E_OIDC_CALLBACK"),
+                Some("E_OIDC_CONFIG") => Some("E_OIDC_CONFIG"), Some("E_OIDC_EXCHANGE") => Some("E_OIDC_EXCHANGE"),
+                Some("E_OIDC_HANDOFF") => Some("E_OIDC_HANDOFF"), Some("E_OIDC_MINT") => Some("E_OIDC_MINT"),
+                Some("E_OIDC_PROVIDER") => Some("E_OIDC_PROVIDER"), Some("E_OIDC_RECIPE") => Some("E_OIDC_RECIPE"),
+                Some("E_OIDC_REPLAY") => Some("E_OIDC_REPLAY"), Some("E_OIDC_TRANSACTION") => Some("E_OIDC_TRANSACTION"),
+                _ => None,
             };
             if !retry && code.is_some() { ActionSettled::Refused { code: code.unwrap(), error } } else { ActionSettled::Failed { error, retry } }
         };
