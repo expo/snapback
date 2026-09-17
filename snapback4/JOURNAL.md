@@ -29351,3 +29351,55 @@ The requested adoption and routing measurements come from the Rust/client comman
 All five dispositions are implemented; the outstanding qualification is a completed full suite outside this time/sandbox limit. There is no out-of-scope tracked edit and no newly claimed pre-existing failure. No functional premise of the brief was found wrong; its approximate warm-suite timing did not reproduce here (the targeted device group alone took 386.44 seconds). This round learned that preserving composition and preserving rows across generation adoption are separate contracts: the former must not silently broaden the latter. The checked source files remain below 1,500 lines; `device.rs` matches `git show b5a7ddde3:snapback4/crates/snapback4-device/src/device.rs` exactly, `local.ts` is untouched, and LLP 3000.007 §18.3 is untouched.
 
 Final repository-root checks: `./ref-check --verbose` (`/tmp/mqr2-ref-check-final.log`) exited 0 with `ref-check: ok — 481 LLP docs, 9058 refs in 24115 files, 0 errors, 0 unchecked`; `git diff --check` (`/tmp/mqr2-diff-check.log`) exited 0 with no output. The worktree contains only the ten intended files, including the new ticket. No commit, push, tag or publication was performed.
+
+
+## 2026-09-17 — retained-read composition: the lead's qualification, review record and landing
+
+Lane MQ built the composition of LLP 3000.001 and two fix rounds took the
+findings of three blind review rounds by Sol (gpt-5.6-sol) and Grok
+(grok-4.6); the lane entries above carry their own commands. This entry is
+what only the lead could run, and what the lead decided.
+
+Outside the lanes' sandbox, on a machine whose load average ran between 15
+and 75 all day. At `65bc84ac9`: `packages/snapback4/test/react.test.mjs`
+13/13 and `retained-history.test.mjs` 42/42 on both tiers. The new
+real-IndexedDB scenario in `witness/idb.mjs` then ran in Chromium for the
+first time and composed correctly online (25 retained + 26 held), offline
+(25 + 25) and after a fresh-realm reopen from IndexedDB (25 + 25); its one
+failure was the scenario's own single-shot reconnect query, which raced the
+client's in-flight offline retry. The lead first made that query poll for the
+expected data (`d41c7dca1`); Sol's round-3 re-check rightly called that a
+false-green risk, and it now waits, bounded, for `client.link()` and checks
+the first online read. On the branch merged with `origin/main`
+(`b58126b88` plus that witness change) the witness reports `composition:
+{online [25,26], offline [25,25], reopened [25,25], reconnected [25,26],
+fresh false, complete false}` and the React test is 13/13. The blocking suite
+on that tree: builds, typechecks and fixtures green; client tests 587 of 596
+with four timing failures in `transport-http` and the wide-snapshot
+acquisition test; Rust green except
+`clock_advance_preserves_a_live_action_claim_session_and_settlement`. Both
+classes were checked against the exact base rather than called flaky by
+eye: the clock test alone fails 2 runs of 3 at `70a663c22` on the same 5 ms
+wall-clock tolerance (ticketed today), and the `maximum pending ids` transport
+tests fail at `70a663c22` under the same load. An earlier full run at
+`b5a7ddde3` is not evidence either way: most of its Rust test binaries were
+killed with SIGKILL mid-run.
+
+Decisions. The client keeps every field that would stay local as its own
+query, not only retained ones, and still enters composition only when some
+field is retained: an all-held query keeps its one fresh server answer. A
+found point read of a left row marks its frame and nothing else; a miss is
+unchanged. Fix round 1 also widened generation adoption so that a
+program-only deploy would keep left history; one reviewer judged it sound and
+the other showed it ignores `schema.auth`. It was reverted byte-for-byte
+rather than patched, because it is a lifecycle this plan does not own, and it
+has its own ticket. The mixed left/held ticket is closed. Left for the author:
+whether `fresh: false` without `since` is the right card for a composed read.
+No package version changed and nothing was published.
+
+What the reviews were worth: across two full rounds the families agreed on
+two findings of nine. Sol alone found the reading guard and the leaked nested
+local; Grok alone found the over-broad cap note and the identity-mode hole in
+the adoption change that Sol had passed. The lane also corrected its brief:
+frames cannot save and clear the runner's flags, because scans read them
+mid-run, so they mirror each event instead.

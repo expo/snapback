@@ -30,7 +30,7 @@ Sol judged the candidate sound on inspection, with these lifecycle checks:
 
 Sol requested more direct cross-product tests for staged snapshots, predictions, native modules and maintained values, but found no concrete failure. Grok identified an identity-mode scenario omitted by the predicate: a device store holds guest G's left-group messages with `retain delivered-history`; the application ships `use identity password` (or drops guests), without changing tables or maintains, and bumps generation. Adoption keeps images and `GROUPS`. G signs in as password principal P on the same store. The snapshot marks G's rooms left because they are not in P's audience and keeps those rows. P's `messages[leftRoom]` is trusted on the device through `trust_synced_read`, which skips live read rules for delivered history, and returns G's history. At `b5a7ddde3` this generation change dropped every row. This is the review's scenario, not a newly executed exploit qualification.
 
-Review sources: `~/projects/snapback-dm-20260917/reviews/received/MQ-r2.sol.md` and `MQ-r2.grok.md`. Both returned READY WITH CHANGES; the lead chose reversal rather than extending the predicate in this composition lane.
+Review sources: [Sol](../llp/reviews/3000.001-retained-read-composition-round-2.sol.md) and [Grok](../llp/reviews/3000.001-retained-read-composition-round-2.grok.md), round 2. Both returned READY WITH CHANGES; the lead chose reversal rather than extending the predicate in this composition lane.
 
 ## Open design questions and acceptance work
 

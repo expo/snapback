@@ -171,14 +171,14 @@ try {
       const offline = await client.query({ kind: "query", name: "media.both" }, {});
       window.fetch = realFetch;
       // A client opened offline is already retrying; an explicit sync can join
-      // that failing attempt. Poll, bounded, until the link is back.
-      let online;
-      for (let i = 0; i < 200; i++) {
+      // that failing attempt. Wait, bounded, for the LINK — never for the
+      // expected data — so the first online read is the one that is checked.
+      for (let i = 0; i < 200 && client.link() !== "online"; i++) {
         await client.sync();
-        online = await client.query({ kind: "query", name: "media.both" }, {});
-        if (online.data?.held?.length === 26) break;
-        await new Promise((r) => setTimeout(r, 50));
+        if (client.link() !== "online") await new Promise((r) => setTimeout(r, 50));
       }
+      if (client.link() !== "online") throw new Error("composition witness: the link did not come back within the reconnect bound");
+      const online = await client.query({ kind: "query", name: "media.both" }, {});
       return { offline, online };
     } finally { await client?.close(); window.fetch = realFetch; }
   }, api);

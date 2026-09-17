@@ -1,7 +1,7 @@
 # Snapback 4: a mixed left/held query loses retained rows online
 
 **Priority:** P3
-**Status:** Open
+**Status:** Closed (2026-09-17)
 **Date:** 2026-09-14
 **Scope:** Snapback 4 query-wide retention and fallback
 **Related:** LLP 3000.007 §18.2; catch-up GPT re-check N3 at `056335ebf3f27976227f8cee655219e0b875c70a`
@@ -33,7 +33,7 @@ requires that design.
 ## 2026-09-16 planning follow-up
 
 At the author's request, after updating main to `18c8f5daf`,
-[LLP 3000.001](../llp/3000.001-durable-replica-and-write-lifecycle.research.md#proposed-composition-of-retained-and-authoritative-reads)
+[LLP 3000.001](../../llp/3000.001-durable-replica-and-write-lifecycle.research.md#proposed-composition-of-retained-and-authoritative-reads)
 now contains a proposed design and staged acceptance plan. It tracks
 per-value data, absence and control provenance, then limits the first
 composition slice to compiler-proven independent, cursor-free components.
@@ -65,3 +65,24 @@ stays open until both client arms pass the documented acceptance.
 ## 2026-09-17 implementation follow-up — lane MQ
 
 The binder, device coverage frames and client composition are implemented in the working tree for lead integration. The retention suite passes on wasm and process devices with exact ids and bodies: online 25 retained left rows plus 26 held rows, offline 25 plus 25, with history kept through watch reruns and reconnect. Composed reads are incomplete, `fresh: false`, without `since` or continuation. Delayed original-query replies are tested across rejoin, a held-room write, close, sign-out and transport loss. Offline reopen passes through persisted wasm memory and SQLite. Ineligible shapes keep whole-query routing. Broader M3 interleavings and actual IndexedDB reopen remain unqualified by this lane. This ticket stays open for the lead's outside-sandbox verification; nothing is published.
+
+## 2026-09-17 resolution
+
+Closed. A binder-proven query — cursor-free, not `held`, at most one read per
+returned field, no reading `require` — now composes: the device reports
+coverage per field, the client asks the server the original query, observes
+the device again, and publishes one read with `fresh: false` and no `since`.
+`both()` online is the 25 exact delivered left rows beside the server's 26
+held rows through the wasm and process clients, for queries and for watches
+across reconnect; offline and after a fresh-realm IndexedDB reopen in real
+Chromium it is 25 + 25. Shapes without a plan keep the whole-query fallback
+and the separate-query recipe, as the README sync paragraph and the sync card
+now say. Three blind review rounds by two families are under
+`llp/reviews/3000.001-retained-read-composition*.md`; the plan, what was built
+and what was reverted are in
+[LLP 3000.001](../../llp/3000.001-durable-replica-and-write-lifecycle.research.md#proposed-composition-of-retained-and-authoritative-reads).
+Left open for the author: whether `fresh: false` without `since` is the right
+card for a composed read. Found on the way and ticketed separately: a
+program-only backend generation resets a device's rows and so loses left
+history
+([ticket](../20260917-snapback4-program-only-generation-drops-retained-history.md)).
