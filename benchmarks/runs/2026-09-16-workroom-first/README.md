@@ -1,7 +1,7 @@
 # Workroom: qualification, calibration, then first cell
 
-Date: 2026-09-16. State: **original pilot capped; supervised diagnostic
-replay continuation; no cell result** (updated 2026-09-17 UTC).
+Date: 2026-09-16. State: **original pilot and diagnostic replay adoption
+capped; acceptance incomplete; no cell result** (updated 2026-09-17 UTC).
 Governing contract: [LLP 3000.009 §10.1](../../../llp/3000.009-general-purpose-backend.rfc.md#101-the-brief)
 and [benchmark protocol](../../protocol.md).
 
@@ -109,6 +109,23 @@ foreground monitor with its own lifecycle receipts under
 had reached action 491,098 of 598,224. Its eventual completion and the original
 child's exit status are separate facts; disappearance cannot recover an exit
 status that the original parent did not retain.
+
+The adoption reached its declared deadline at **2026-09-17 02:13:26.965 UTC**,
+after 7,200.063 seconds, with **587,290 / 598,224** records receipted. Its
+verified nine-member acceptance group received TERM and disappeared; all nine
+recorded identities and the monitor were independently absent afterward.
+The end record says `budget-exhausted`, original pilot `failed-capped`, and
+acceptance exit `unknown`. Cleanup success is not application acceptance.
+No successor was launched: a private supervisor preparation missed its bounded
+checkpoint, and no monitor pause or cap extension occurred. The remaining
+10,934 records and later phases require an explicitly separate diagnostic
+continuation after safe resumption has been established.
+
+The [repaired launcher's qualification](protocol/launcher-verification.md)
+retains actual-Codex coverage and both independent source reviews, including
+the rejected stronger timing claim and the accepted bounded contract. It is
+sampled ancestry custody, not generic subtree containment or a scored-cell
+qualification.
 
 A private APFS copy-on-write capture preserves files observed during replay.
 It is **not a verified consistent/restorable backup**: the application was not

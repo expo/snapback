@@ -25000,25 +25000,42 @@ and one separately identified outcome grade per lane record. Prior tests and
 reviews remain attached to their actual revision; they do not establish the
 experimental design. The running Sol pilot is unchanged and remains diagnostic.
 
-## 2026-09-16 — remaining general-purpose program commissioned
+## 2026-09-17 — Workroom adoption capped; bounded custody qualified
 
-Charlie directed completion of the remaining LLP 3000.009 program using the
-fleet, with services built now and removed after Workroom where the evidence
-warrants, rather than waiting to select them first. Section 14.7 and the
-NOT-DOING Moves line record this sequencing change. The lead retains the
-shared core/durable-state contract; independent fleet slices and Sol/Grok
-reviews will feed incremental landings. Heavy suites serialize per host;
-expo-build-1000 remains excluded. Publication and promotion are not inferred
-from this instruction.
+The diagnostic replay adoption reached its independent two-hour limit at
+02:13:26.965 UTC, with 587,290 of 598,224 actions receipted and 14,725,472,256
+bytes free. The recorded acceptance group 98850 received TERM after exact
+identity verification and disappeared at 02:13:27.328; the monitor recorded
+no survivors or cleanup errors. A separate read-only check found all nine
+recorded identities and monitor 53865 absent. This is not acceptance success:
+the acceptance exit remains unknown, and both the original pilot and this
+adoption remain failed/capped. No score or performance ceiling follows.
 
-The first Workroom builder hit its four-hour operational cap, exiting 124
-after SIGTERM. Post-cap inspection observed 478,710 of 598,224 full-profile
-actions receipted and found the builder's separately grouped acceptance child
-still running: the launcher did not contain that descendant. Its original
-application, stores, receipts and capped attempt are preserved.
-This is incomplete diagnostic evidence, not an acceptance pass, calibrated
-ceiling or scored cell. Recovery proceeds as an explicitly separate diagnostic
-continuation adopting only the verified, recorded acceptance process tree,
-with a new two-hour operational limit and the same 2 GiB disk floor. The
-descendant-custody defect must be corrected before any cold scored cell.
-The completed baseline still needs independent W3/W5 qualification and W8.
+A proposed successor supervisor failed its six-minute preparation checkpoint
+without producing executable source or a test. It was stopped on the control
+host; no Durand handoff, monitor pause, or deadline extension occurred.
+Retained adoption-end SHA-256 is
+`8997e6c348b82e9494d1854d4b4629f6c07f11f58a52c2d5a7c7c48328ddfbd9`;
+cleanup receipt SHA-256 is
+`72c436e11c6914498923d5d2aaa120ec7fbce85d87aa08076cc30311fee91199`.
+
+The launcher repair tracks sampled, identity-verified descendants across
+process groups and keeps adopting from live verified parents during cleanup.
+The exact r3 source at `19cc2656f7` passed its retained actual-Codex fixture
+(seven adopted identities, none surviving) and deterministic tests. It is not
+generic subtree containment: a complete double-fork/reparent between samples
+can escape observation. Sol's independent r3 review correctly rejected a
+hard 30-second overall timing claim. Instead of a fourth product-code repair,
+the supervisor narrowed the documented claim to the 30-second signalling/drain
+budget plus separately bounded snapshot overhead; exhaustion stays non-green.
+Both independent reviewers cleared that documentation-only contract at
+`197aa9c6b`. Original findings and delta verdicts remain separately retained
+under the run's `reviews/`; no failed review is relabelled.
+
+The integrated runner/test/document bytes equal the reviewed candidate.
+Node 24.13.1's record, fixture and custody tests pass 45/45 with one explicit
+actual-Codex opt-in skip (46 selected); that integration run does not replace
+the separately retained real-process witness. No application qualification,
+cold cell, publication, or general-purpose-backend completion is claimed.
+The main journal's already-landed program commission is preserved once;
+the duplicate introduced while rebasing the unlanded append was removed.
