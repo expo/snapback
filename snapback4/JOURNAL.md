@@ -28471,3 +28471,73 @@ effect storage, HTTP, generated context or fault qualification, and is not a
 full-suite, PostgreSQL, publication or promotion claim. The next effect adapter
 will use the existing generic Value payload contract explicitly; no typed
 effect payload declaration exists today, so no such type binding is claimed.
+
+## 2026-09-17 — B1d.2a managed organization policy source checkpoint
+
+The identity recipe now has a separate `organizations.q` module over the
+existing trusted OIDC profiles. It adds immutable-owner organizations,
+admin/member memberships, pending/accepted/revoked invitations, expiring
+one-per-organization/email reservations, append-only audit rows, live member
+and reservation maintains, and a small nonsecret service-written policy.
+Organization creation requires a fresh verified profile and atomically creates
+the owner's admin membership and audit row. Capacity entitlement remains
+service-only; there is no billing or plan integration claim.
+
+`organizationRecordInvitation` is deliberately an owner/admin-authorized
+digest-staging mutation, not server-random issuance proof. Acceptance hashes
+the exact raw-token text with the forthcoming shared-interpreter `sha256`
+primitive and performs pending, strict invitation-expiry, exact verified-email
+and strict profile-freshness checks in the same transaction. A new member is
+inserted tentatively before the live count enforces the current seat limit, so
+a late capacity reduction rolls invitation, reservation, membership and audit
+state back together. An existing member consumes a fresh pending invitation
+without duplicating a seat or changing role. Owner identity stays immutable;
+admins cannot remove admin peers, while the owner may remove a non-owner admin.
+
+Recipient email matching is exact, case-sensitive UTF-8 equality; surrounding
+whitespace is refused and no case/Unicode/dot/plus normalization, global email
+uniqueness or identity linking is claimed. Invitation/reservation read rules
+intentionally omit time inequalities. A stale but still verified exact profile
+can therefore see bounded metadata, while preview and acceptance separately
+require fresh proof. Audit rows and ordinary invitation projections expose no
+token or digest. Hash-only table storage is not a claim about plaintext in a
+later action result, step or delivery payload, and is not global erasure.
+
+The focused sequential CLI test source sets profiles only through
+`identityBegin`, `identityClaim` and `identityVerified`, then covers owner,
+admin, member, recipient, outsider and other-tenant reads and writes; wrong raw
+tokens and digest-as-token acceptance; revoked, consumed and expiry states;
+false, missing, stale and exact-case profile evidence; exact proof and invite
+boundaries; same-email distinct principals; reservation expiry/duplicates;
+capacity denial and rollback; and role/removal/owner invariants. It requires an
+explicit executable, expected SHA-256 and existing canonical owner-private
+scratch parent, fails a digest mismatch before scratch creation, never defaults
+to the published engine, and preserves unexpected output privately without
+printing raw-token arguments. Source inspection of `verbs.rs` confirmed CLI
+queries serialize under `data` and mutations under `result`; the test uses the
+two shapes separately.
+
+This checkpoint is source-only. The parent has reserved the actual-policy slot
+for a hash-capable Linux binary from source `1e91bc7fe`, expected SHA-256
+`7342e869fe475e0a4629c36b87f91beac262d4551b769773574903a4cb32f187`,
+but no engine was run here and no actual-interpreter result is counted before
+the parent's receipt. The local bounded checks used Node 24.18.0:
+
+```text
+node --check snapback4/packages/snapback4/test/identity-organizations.test.mjs
+pass
+
+node --test --test-concurrency=1 snapback4/packages/snapback4/test/identity-organizations.test.mjs
+0 pass, 0 fail, 1 named prerequisite skip
+
+git diff --check
+pass
+```
+
+No action declaration or handler, `schema.q`, `server.ts`, identity helper,
+generic context, Session, `contract.ts`, core, Rust/Cargo, install, listener,
+provider, credential/account/email operation, remote command, fetch, push,
+generation, inventory, guide/generated-artifact, bootstrap, ref-check, pilot,
+benchmark, HTTP concurrency/lost-ack/restart or issuance-crash command ran.
+B1d.2b still owns generation, delivery and those HTTP/recovery cuts; Google,
+full Identity/B, publication and provider qualification remain unclaimed.

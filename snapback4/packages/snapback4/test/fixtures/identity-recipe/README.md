@@ -227,3 +227,59 @@ The before-commit HTTP cut, after-step cut and legacy-receipt row are explicit
 gaps, not inferred from the direct first-binding row or other cases. The parent
 may add them in the integration tree if it can do so through the same public
 engine/worker mechanics without private writes.
+
+## B1d.2a managed organizations and invitations
+
+`snapback/organizations.q` is a separate managed-policy module layered on the
+trusted profiles in `schema.q`. It adds organizations, memberships, hash-only
+invitation records, expiring one-per-email seat reservations, append-only
+audit rows, live member/reservation counts and a small service-written policy
+singleton. Organization creation requires a fresh verified-email profile and
+atomically creates the immutable owner's admin membership and audit row.
+Owners and admins can stage a digest with `organizationRecordInvitation`;
+that is an ordinary managed mutation seam, not proof that the digest came from
+random token issuance. There is no invitation action or delivery handler in
+this slice, and `snapback/server.ts` remains exactly the two OIDC actions.
+
+Recipient matching is exact, case-sensitive UTF-8 equality. The recipe rejects
+surrounding whitespace when recording an address and does no case, Unicode,
+dot or plus normalization. It does not make email globally unique or link
+principals. Two issuer/subject-derived principals with the same verified email
+remain different membership identities; the principal that presents the token
+is the member recorded on acceptance.
+
+The invitation table stores only a 64-character lowercase digest. Acceptance
+hashes the exact raw-token text inside the same managed mutation with the
+forthcoming shared-interpreter `sha256(text)` primitive, whose contract is
+UTF-8 input to lowercase 64-character hex. The current published 0.2.26 binary
+does not have that primitive and must not be run against this module. The
+source test requires an explicit binary path and SHA-256 pin from the parent
+core lane. Until that pinned run occurs, this is source, not green actual-
+interpreter qualification.
+
+Hash-only table storage is a narrow claim. It does not say that a later
+issuance action result, durable step, email-provider payload or privileged
+operator inspection contains no plaintext token, and it is not a global token-
+erasure claim. B1d.2b owns generation from 32 random bytes, delivery, write-ID
+and lost-ack HTTP behavior, concurrent/restart witnesses and issuance-crash
+cuts. This slice makes no issuance, send, full Identity/B, Google, billing-plan
+or real-provider claim.
+
+Invitation and reservation read rules admit an owner/admin or a principal
+whose current trusted profile has exact matching `email` and
+`emailVerified = true`. Rules deliberately contain no time inequality, so a
+stale-but-still-verified profile can read bounded invitation metadata. Both
+`invitePreview` and `organizationAcceptInvitation` separately require strict
+`proofExpiresAt > now`, pending status, strict `expiresAt > now` and the raw
+token hash. The trusted-profile five-minute policy is unchanged.
+
+The actual-CLI source is `test/identity-organizations.test.mjs`. It uses only
+service calls to `identityBegin`, `identityClaim` and `identityVerified` for
+profile setup, then operator-supplied `--as` and `--now` calls through the
+shared interpreter. Its three prerequisites are
+`SNAPBACK4_B1D_MANAGED_BIN`, `SNAPBACK4_B1D_MANAGED_BIN_SHA256` and
+`SNAPBACK4_B1D_MANAGED_SCRATCH_PARENT`; without all three it reports a named
+skip. The scratch parent must already be canonical, owner-only and outside the
+repository. A supplied digest mismatch fails before scratch creation. The test
+does not print raw-token arguments on failure; it preserves unexpected CLI
+output in the private scratch child and leaves that child in place.

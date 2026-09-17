@@ -338,6 +338,56 @@ arguments/results (including callback values and a successful final Session),
 and `data`/`sql` can inspect private transaction rows. Restrict that access and
 do not paste its output into logs or bug reports.
 
+### Managed organizations and invitation policy (B1d.2a source)
+
+The identity fixture's sibling `snapback/organizations.q` demonstrates the
+managed organization and invitation policy layered on trusted profiles. It
+keeps the owner principal immutable, bootstraps the owner's admin membership in
+the organization-creation transaction, reserves pending invitation seats with
+an expiring unique `(organization, recipientEmail)` row, retains accepted and
+revoked invitation history, and appends audit rows in the same transaction as
+every membership or invitation transition. Capacity changes and the recipe's
+nonsecret lifetime/default-seat policy are service-written; owner/admin status
+does not stand in for billing entitlement.
+
+`organizationRecordInvitation` accepts an exact recipient email and a digest.
+It is the ordinary managed transaction a later action will call, and an admin
+may call it directly. It therefore proves neither entropy nor server-random
+issuance. B1d.2b owns the action that generates 32 random bytes, returns or
+delivers the raw token, and calls this seam with only its digest. No action or
+handler is added in B1d.2a.
+
+`organizationAcceptInvitation` takes the exact raw-token text, computes
+`sha256(rawToken)` in the managed interpreter, compares the lowercase hex
+digest, and checks pending status, strict invitation expiry, exact verified
+profile email and strict proof freshness. A new recipient tentatively consumes
+the invitation and reservation and inserts their own member row, then reads
+the live member count through that new membership and enforces the current
+seat limit. Any refusal rolls the whole transaction back. An existing member
+consumes a valid pending invitation without duplicating or changing their
+membership and without needing a free seat. A new intent against any consumed
+invitation refuses.
+
+Email comparison is exact, case-sensitive UTF-8 equality with surrounding
+whitespace rejected at recording. There is no normalization, global email
+uniqueness or identity linking. Invitation/reservation rules admit admins or an
+exact currently verified profile, without time comparisons; consequently a
+stale-but-still-verified profile may read the bounded metadata. Preview and
+accept separately require fresh proof. Audit is admin-only and has no token or
+digest field. Trusted profiles remain own/service, while their five-minute
+proof policy, OIDC tables and counters are unchanged.
+
+This is managed recipe source, not completed qualification. The exact hash
+primitive contract is UTF-8 text to lowercase hex64 from the shared metered
+RustCrypto interpreter. The published 0.2.26 engine predates it; the focused
+CLI test refuses an implicit binary, requires an executable plus expected
+SHA-256 pin and reports a named skip without the parent lane's hash-capable
+binary. No issuance/send, action-result plaintext boundary, email-provider,
+HTTP write-ID/lost-ack, concurrent admission, restart, crash-cut, Google,
+full Identity/B or billing-plan claim follows. Hash-only invitation storage
+also does not imply that a later action result, step or delivery payload lacks
+the raw token, and is not a global erasure claim.
+
 ## Handler context
 
 `check` and `dev` generate `snapback/generated/server.ts` from declared
